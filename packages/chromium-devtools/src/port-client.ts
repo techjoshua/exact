@@ -1,7 +1,8 @@
-import type {
-	ExactInspectionRequest,
-	ExactInspectionResponse,
-	ExactRuntimeInspectionEvent
+import {
+	isExactRuntimeInspectionEvent,
+	parseExactInspectionResponse,
+	type ExactInspectionRequest,
+	type ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
 import type {
 	ExactExtensionQueryClient,
@@ -23,7 +24,8 @@ export function createExactExtensionQueryClient(tabId: number): ExactExtensionQu
 	let nextId = 1;
 	port.onMessage.addListener((message: ExactExtensionResponse) => {
 		if (!('id' in message)) {
-			subscriptions.get(message.subscriptionId)?.(message.event);
+			if (isExactRuntimeInspectionEvent(message.event))
+				subscriptions.get(message.subscriptionId)?.(message.event);
 			return;
 		}
 		const request = pending.get(message.id);
@@ -39,7 +41,7 @@ export function createExactExtensionQueryClient(tabId: number): ExactExtensionQu
 	const client: ExactExtensionQueryClient = {
 		connect: () => send({ type: 'connect' }) as Promise<{ id: string }>,
 		request: async (request: ExactInspectionRequest) =>
-			(await send({ type: 'query', request })) as ExactInspectionResponse,
+			parseExactInspectionResponse(await send({ type: 'query', request })),
 		async subscribe(sessionId, cursor, listener) {
 			const result = (await send({
 				type: 'subscribe',

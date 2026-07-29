@@ -29,7 +29,7 @@ describe('exposure artifact graph selection', () => {
 		const inspection = {
 			generation: 1,
 			filename: '/src/components.tsx',
-			compiler: { typescriptVersion: '7.0.0', backendVersion: '1.23.0' },
+			compiler: { typescriptVersion: '7.0.0', backendVersion: '1.24.0' },
 			diagnostics: [],
 			components: ['billing', 'button', 'admin'].map((id) => ({
 				id,

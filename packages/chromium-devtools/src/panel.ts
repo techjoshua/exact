@@ -4,6 +4,7 @@ import type {
 } from '@exactjs/devtools-protocol';
 import { createExactDevtoolsPanelSession } from './panel-session.js';
 import { createExactExtensionQueryClient } from './port-client.js';
+import { chromiumResources, findExactChromiumSourceResource } from './source-provider.js';
 
 const client = createExactExtensionQueryClient(chrome.devtools.inspectedWindow.tabId);
 const status = document.querySelector('[data-status]')!;
@@ -81,6 +82,11 @@ async function refresh(): Promise<void> {
 
 async function openSelectedSource(): Promise<void> {
 	if (!selected || !selectedSource) return;
+	const resource = await findExactChromiumSourceResource(selectedSource, await chromiumResources());
+	if (resource) {
+		chrome.devtools.panels.openResource(resource.url, Math.max(0, selectedSource.start.line - 1));
+		return;
+	}
 	const response = await client.request({
 		protocol: 1,
 		id: 'panel:source.excerpt',

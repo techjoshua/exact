@@ -2,6 +2,7 @@
 import {
 	createExactRuntimeInspectionOwner,
 	createVNode,
+	markExactInspectionSource,
 	type Component
 } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
@@ -29,7 +30,8 @@ describe('page-world eXact DevTools runtime', () => {
 	it('automatically owns roots created after an instrumented bootstrap and preserves authored styles', async () => {
 		function Card(this: Component<{ label?: string }>) {
 			this.state.label = 'Ready';
-			return () => createVNode('article', { id: 'card', style: 'outline: 1px solid red' }, this.state.label);
+			return () =>
+				createVNode('article', { id: 'card', style: 'outline: 1px solid red' }, this.state.label);
 		}
 		installation = installExactDevtoolsRuntime({
 			buildKey: 'build-client',
@@ -58,7 +60,7 @@ describe('page-world eXact DevTools runtime', () => {
 	it('redacts compiler-qualified state paths before snapshot traversal', async () => {
 		function Account(this: Component<{ profile?: { token: string; name: string } }>) {
 			this.state.profile = { token: 'must-never-appear', name: 'Ada' };
-			return () => createVNode('p', null, this.state.profile.name);
+			return () => createVNode('p', null, this.state.profile!.name);
 		}
 		installation = installExactDevtoolsRuntime({
 			redactions: { statePaths: ['state.profile.token'] },
@@ -81,13 +83,57 @@ describe('page-world eXact DevTools runtime', () => {
 		expect(JSON.stringify(tree)).toContain('Ada');
 	});
 
+	it('automatically applies compiler-emitted redaction selectors', async () => {
+		function Account(this: Component<{ profile?: { token: string; name: string } }>) {
+			this.state.profile = { token: 'compiler-secret-value', name: 'Grace' };
+			return () => createVNode('p', null, this.state.profile!.name);
+		}
+		(globalThis as any)[exactDevtoolsRuntimeSymbol] = {
+			sources: [
+				{
+					protocol: 1,
+					components: [],
+					redactions: {
+						statePaths: ['state.profile.token'],
+						contextTokens: [],
+						secretNames: []
+					}
+				}
+			],
+			registerSource(source: unknown) {
+				this.sources.push(source);
+			}
+		};
+		installation = installExactDevtoolsRuntime({
+			fetch: vi.fn(async () => {
+				throw new Error('server unavailable');
+			}) as typeof fetch
+		});
+		container = document.createElement('main');
+		document.body.append(container);
+		render(createVNode(Account, {}), container);
+		await installation.hook.connect();
+
+		const tree = await installation.hook.request({
+			protocol: 1,
+			id: 'tree-compiler-redaction',
+			method: 'components.tree'
+		});
+		expect(JSON.stringify(tree)).not.toContain('compiler-secret-value');
+		expect(JSON.stringify(tree)).toContain('"reason":"secret"');
+		expect(JSON.stringify(tree)).toContain('Grace');
+	});
+
 	it('late-attaches to active roots and exposes only bounded read-only projections', async () => {
 		function Counter(this: Component<{ count?: number }>) {
 			this.state.count = 1;
-			this.task(async () => Promise.resolve());
-			this.action('Increment', () => {
-				this.state.count = (this.state.count ?? 0) + 1;
-			});
+			this.task(markExactInspectionSource('Counter:task:load', async () => Promise.resolve()));
+			this.action(
+				'Increment',
+				markExactInspectionSource('Counter:action:increment', () => {
+					this.state.count = (this.state.count ?? 0) + 1;
+				})
+			);
 			return () => createVNode('button', { id: 'counter' }, this.state.count);
 		}
 		const owner = createExactRuntimeInspectionOwner({
@@ -102,15 +148,7 @@ describe('page-world eXact DevTools runtime', () => {
 			sources: [
 				{
 					protocol: 1,
-					components: [
-						{
-							componentTypeId: 'Counter',
-							slots: [
-								{ id: 'Counter:task:load', kind: 'explicit-task' },
-								{ id: 'Counter:action:increment', kind: 'action' }
-							]
-						}
-					]
+					components: []
 				}
 			],
 			registerSource() {}

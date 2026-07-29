@@ -23,7 +23,9 @@ const guidedPackages = [
 	'packages/jsx-runtime',
 	'component-libraries/forms',
 	'component-libraries/router',
+	'framework-adapters/bun-plugin',
 	'framework-adapters/vite-plugin',
+	'framework-adapters/webpack-plugin',
 	'plugins/secrets'
 ];
 const repositoryGuides = ['apps/docs/AGENTS.md'];
@@ -75,7 +77,9 @@ const featureGuideRequirements = new Map([
 	['packages/jsx-runtime/AGENTS.md', ['InteractionHandler', 'registry']],
 	['component-libraries/forms/AGENTS.md', ['interaction host']],
 	['component-libraries/router/AGENTS.md', ['current component interaction']],
+	['framework-adapters/bun-plugin/AGENTS.md', ['rich catalogs', 'callback marker']],
 	['framework-adapters/vite-plugin/AGENTS.md', ['action continuations', 'component-registry']],
+	['framework-adapters/webpack-plugin/AGENTS.md', ['rich catalogs', 'canonical ID']],
 	['apps/docs/AGENTS.md', ['proposal', 'README']]
 ]);
 

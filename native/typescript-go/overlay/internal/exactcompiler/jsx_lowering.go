@@ -47,6 +47,7 @@ type jsxRuntimeNames struct {
 	taskContinuation       string
 	dispatchContinuation   string
 	registerContexts       string
+	inspectionSource       string
 	taskOptions            string
 	taskCombined           string
 	delete                 string
@@ -57,31 +58,32 @@ type jsxRuntimeNames struct {
 }
 
 type jsxLowering struct {
-	sourceFile        *ast.SourceFile
-	factory           *printer.NodeFactory
-	visitor           *ast.NodeVisitor
-	names             jsxRuntimeNames
-	nodeIDs           map[*ast.Node]string
-	writes            map[string]StateWrite
-	tasks             map[string]Task
-	actions           map[string]Action
-	stateReads        []StateRead
-	bindings          []ReactiveBinding
-	formBindings      map[int]formBinding
-	checker           *checker.Checker
-	taskHelpers       map[string]string
-	derived           map[int]ReactiveBinding
-	target            Target
-	serverComponents  bool
-	components        map[string]Component
-	renderEdges       map[string]RenderEdge
-	clientIslands     map[*ast.Node]clientElementIsland
-	clientDefinitions []*ast.Node
-	captureValues     map[ast.SymbolId]string
-	interop           *JSXInterop
-	materializedNames map[int]string
-	contextWrites     map[string][]string
-	collectionMaps    map[string]collectionMapPlan
+	sourceFile           *ast.SourceFile
+	factory              *printer.NodeFactory
+	visitor              *ast.NodeVisitor
+	names                jsxRuntimeNames
+	nodeIDs              map[*ast.Node]string
+	writes               map[string]StateWrite
+	tasks                map[string]Task
+	actions              map[string]Action
+	stateReads           []StateRead
+	bindings             []ReactiveBinding
+	formBindings         map[int]formBinding
+	checker              *checker.Checker
+	taskHelpers          map[string]string
+	derived              map[int]ReactiveBinding
+	target               Target
+	serverComponents     bool
+	instrumentInspection bool
+	components           map[string]Component
+	renderEdges          map[string]RenderEdge
+	clientIslands        map[*ast.Node]clientElementIsland
+	clientDefinitions    []*ast.Node
+	captureValues        map[ast.SymbolId]string
+	interop              *JSXInterop
+	materializedNames    map[int]string
+	contextWrites        map[string][]string
+	collectionMaps       map[string]collectionMapPlan
 }
 
 type collectionMapPlan struct {
@@ -109,6 +111,7 @@ func lowerExactJSX(
 	clientIslands map[*ast.Node]clientElementIsland,
 	target Target,
 	serverComponents bool,
+	instrumentInspection bool,
 	typeChecker *checker.Checker,
 	interop *JSXInterop,
 ) *ast.SourceFile {
@@ -120,28 +123,29 @@ func lowerExactJSX(
 		return sourceFile
 	}
 	lowering := &jsxLowering{
-		sourceFile:        sourceFile,
-		factory:           factory,
-		names:             allocateJSXRuntimeNames(sourceFile),
-		nodeIDs:           expressionNodeIDs(sourceFile),
-		writes:            indexStateWrites(stateWrites),
-		tasks:             indexTasks(tasks),
-		actions:           indexActions(actions),
-		stateReads:        stateReads,
-		bindings:          reactiveBindings,
-		formBindings:      formBindings,
-		checker:           typeChecker,
-		taskHelpers:       make(map[string]string),
-		materializedNames: make(map[int]string),
-		derived:           derived,
-		target:            target,
-		serverComponents:  serverComponents,
-		interop:           interop,
-		components:        componentIndexByName(components),
-		renderEdges:       indexRenderEdges(components),
-		contextWrites:     indexContinuationContextWrites(continuations),
-		collectionMaps:    make(map[string]collectionMapPlan),
-		clientIslands:     clientIslands,
+		sourceFile:           sourceFile,
+		factory:              factory,
+		names:                allocateJSXRuntimeNames(sourceFile),
+		nodeIDs:              expressionNodeIDs(sourceFile),
+		writes:               indexStateWrites(stateWrites),
+		tasks:                indexTasks(tasks),
+		actions:              indexActions(actions),
+		stateReads:           stateReads,
+		bindings:             reactiveBindings,
+		formBindings:         formBindings,
+		checker:              typeChecker,
+		taskHelpers:          make(map[string]string),
+		materializedNames:    make(map[int]string),
+		derived:              derived,
+		target:               target,
+		serverComponents:     serverComponents,
+		instrumentInspection: instrumentInspection,
+		interop:              interop,
+		components:           componentIndexByName(components),
+		renderEdges:          indexRenderEdges(components),
+		contextWrites:        indexContinuationContextWrites(continuations),
+		collectionMaps:       make(map[string]collectionMapPlan),
+		clientIslands:        clientIslands,
 	}
 	lowering.indexCollectionMaps()
 	lowering.visitor = ast.NewNodeVisitor(
@@ -2070,6 +2074,9 @@ func (lowering *jsxLowering) lowerAction(
 			action.ID,
 			rewrittenWork,
 		)
+		if lowering.instrumentInspection {
+			arguments[1] = lowering.inspectionSource(action.ID, arguments[1])
+		}
 		return lowering.factory.NewCallExpression(
 			lowering.visitor.VisitNode(call.Expression),
 			call.QuestionDotToken,
@@ -2095,6 +2102,9 @@ func (lowering *jsxLowering) lowerAction(
 				rewrittenWork,
 			},
 		)
+	}
+	if action != nil && lowering.instrumentInspection {
+		rewrittenWork = lowering.inspectionSource(action.ID, rewrittenWork)
 	}
 	arguments[1] = rewrittenWork
 	return lowering.factory.NewCallExpression(
@@ -2449,6 +2459,9 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 				rewrittenWork,
 			},
 		)
+	}
+	if lowering.instrumentInspection {
+		rewrittenWork = lowering.inspectionSource(task.ID, rewrittenWork)
 	}
 	nextArguments = append(nextArguments, rewrittenWork)
 	if rebuiltTaskCallee && task.Priority == "deferred" {
@@ -3561,6 +3574,20 @@ func (lowering *jsxLowering) taskHelperCall(
 	return lowering.call(local, arguments)
 }
 
+func (lowering *jsxLowering) inspectionSource(
+	id string,
+	work *ast.Node,
+) *ast.Node {
+	return lowering.taskHelperCall(
+		"markExactInspectionSource",
+		lowering.names.inspectionSource,
+		[]*ast.Node{
+			lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone),
+			work,
+		},
+	)
+}
+
 func callArguments(node *ast.Node) []*ast.Node {
 	if !ast.IsCallExpression(node) || node.AsCallExpression().Arguments == nil {
 		return nil
@@ -4162,6 +4189,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		"markComponentContinuationTask",
 		"dispatchComponentContinuation",
 		"registerComponentContinuationContexts",
+		"markExactInspectionSource",
 	}
 	for _, imported := range taskHelperOrder {
 		if local, used := lowering.taskHelpers[imported]; used {
@@ -4314,6 +4342,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		taskContinuation:       allocate("__exactContinuationTask"),
 		dispatchContinuation:   allocate("__exactDispatchContinuation"),
 		registerContexts:       allocate("__exactRegisterContinuationContexts"),
+		inspectionSource:       allocate("__exactInspectionSource"),
 		delete:                 allocate("__exactDelete"),
 		arrayMutation:          allocate("__exactArrayMutation"),
 		collectionMutation:     allocate("__exactCollectionMutation"),

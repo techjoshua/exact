@@ -1,5 +1,7 @@
 :root {
-	font: 12px/1.45 system-ui, sans-serif;
+	font:
+		12px/1.45 system-ui,
+		sans-serif;
 	color-scheme: light dark;
 }
 body {

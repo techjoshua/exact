@@ -22,6 +22,7 @@ import type {
 import type { Component, ComponentInstance } from './contracts.js';
 import { isPromiseLike } from './async-value.js';
 import { trackComponentAsync } from './async.js';
+import { readExactInspectionSource } from './inspection-source.js';
 
 type ActionPolicy = {
 	readonly placement: ActionPlacementRequest;
@@ -133,6 +134,7 @@ function createAction<Result>(
 		result: undefined,
 		error: undefined
 	});
+	const sourceEntityId = readExactInspectionSource(work);
 	const active = new Map<number, ActionGeneration<Awaited<Result>>>();
 	const queued: ActionGeneration<Awaited<Result>>[] = [];
 	let disposed = false;
@@ -142,6 +144,7 @@ function createAction<Result>(
 	ownerInspections.add({
 		snapshot: () =>
 			Object.freeze({
+				...(sourceEntityId ? { sourceEntityId } : {}),
 				name,
 				concurrency,
 				placement: policy.placement,
@@ -166,6 +169,7 @@ function createAction<Result>(
 		owner.domain.inspection?.publish({
 			kind: 'action.queue',
 			component: owner,
+			...(sourceEntityId ? { sourceEntityId } : {}),
 			generation,
 			attributes: Object.freeze({ name })
 		});
@@ -222,6 +226,7 @@ function createAction<Result>(
 		owner.domain.inspection?.publish({
 			kind: 'action.start',
 			component: owner,
+			...(sourceEntityId ? { sourceEntityId } : {}),
 			generation: record.generation,
 			attributes: Object.freeze({ name })
 		});
@@ -245,6 +250,7 @@ function createAction<Result>(
 				owner.domain.inspection?.publish({
 					kind: 'action.optimistic',
 					component: owner,
+					...(sourceEntityId ? { sourceEntityId } : {}),
 					generation: record.generation,
 					attributes: Object.freeze({ name })
 				});
@@ -273,6 +279,7 @@ function createAction<Result>(
 				owner.domain.inspection?.publish({
 					kind: 'action.settle',
 					component: owner,
+					...(sourceEntityId ? { sourceEntityId } : {}),
 					generation: record.generation,
 					attributes: Object.freeze({ name })
 				});
@@ -289,8 +296,9 @@ function createAction<Result>(
 		owner.domain.inspection?.publish({
 			kind: isInteractionCancellation(error) ? 'action.cancel' : 'action.rollback',
 			component: owner,
+			...(sourceEntityId ? { sourceEntityId } : {}),
 			generation: record.generation,
-			reason: error instanceof Error ? error.name : 'action-failed',
+			reason: 'action-failed',
 			attributes: Object.freeze({ name })
 		});
 		finish(record);
@@ -319,8 +327,9 @@ function createAction<Result>(
 			owner.domain.inspection?.publish({
 				kind: 'action.cancel',
 				component: owner,
+				...(sourceEntityId ? { sourceEntityId } : {}),
 				generation: record.generation,
-				reason: String(reason),
+				reason: reason === 'superseded' || reason === 'component-disposed' ? reason : 'cancelled',
 				attributes: Object.freeze({ name })
 			});
 		}

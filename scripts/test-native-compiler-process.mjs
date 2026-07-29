@@ -28,7 +28,7 @@ try {
 		diagnostics: 'syntax'
 	};
 	const first = compiler.request(request);
-	assert.equal(first.protocolVersion, '1.23.0');
+	assert.equal(first.protocolVersion, '1.24.0');
 	assert.match(first.typescriptVersion, /^7\./);
 	assert.equal(first.backendVersion, first.protocolVersion);
 	assert.equal(first.cacheHit, undefined);

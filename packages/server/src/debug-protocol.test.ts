@@ -57,6 +57,15 @@ afterEach(() => {
 });
 
 describe('server-cooperative debug protocol', () => {
+	it('does not construct or decode debug ownership for ordinary requests', async () => {
+		const response = await handleExactRequest(
+			{ method: 'GET', url: '/__exact' },
+			server({ inspectionCatalogs: [{} as ExactBuildInspectionCatalog] })
+		);
+
+		expect(response.status).toBe(405);
+	});
+
 	it('defaults off in production and conceals catalog existence', async () => {
 		const previous = process.env.NODE_ENV;
 		process.env.NODE_ENV = 'production';
@@ -162,6 +171,32 @@ describe('server-cooperative debug protocol', () => {
 		);
 		expect(source.status).toBe(404);
 		expect(source.body).not.toContain('do-not-expose');
+	});
+
+	it('does not reflect query failures or state values into responses or audit records', async () => {
+		const secret = 'must-never-enter-debug-output';
+		const audits: unknown[] = [];
+		const context = server({
+			allowDebug: true,
+			inspectionQueryService: {
+				async request() {
+					throw new Error(secret);
+				},
+				subscribe() {
+					return { closed: true, close() {} };
+				}
+			},
+			onDebugAudit: (event) => audits.push(event)
+		});
+		const opened = await handleExactRequest(debugOpen(['snapshot']), context);
+		const sessionId = responseJson(opened).session.id as string;
+		const queried = await handleExactRequest(debugQuery(sessionId, 'components.tree'), context);
+
+		expect(queried.status).toBe(404);
+		expect(JSON.stringify({ response: responseJson(queried), audits })).not.toContain(secret);
+		expect(audits).toEqual([
+			expect.objectContaining({ method: 'components.tree', resultBytes: expect.any(Number) })
+		]);
 	});
 
 	it('keeps debug IDs out of invocation dispatch and records bounded observations', async () => {
@@ -299,7 +334,7 @@ function debugOpen(capabilities = ['catalog', 'snapshot', 'events', 'source']): 
 function debugQuery(
 	sessionId: string,
 	method: string,
-	params: Record<string, unknown>
+	params: Record<string, unknown> = {}
 ): ExactRequestLike {
 	return {
 		method: 'POST',

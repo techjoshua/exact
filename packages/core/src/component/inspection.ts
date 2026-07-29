@@ -99,18 +99,18 @@ export function createExactRuntimeInspectionOwner(
 			try {
 				sink.publish(
 					Object.freeze({
-					protocol: EXACT_DEVTOOLS_PROTOCOL_VERSION,
-					cursor: current.toString(36),
-					sequence: current,
-					timestamp: monotonicTimestamp(),
-					wallTime: Date.now(),
-					kind: input.kind,
-					id,
-					...(input.requestId ? { requestId: input.requestId } : {}),
-					...(input.interactionId ? { interactionId: input.interactionId } : {}),
-					...(input.path ? { path: input.path } : {}),
-					...(input.reason ? { reason: input.reason } : {}),
-					...(input.attributes ? { attributes: Object.freeze({ ...input.attributes }) } : {})
+						protocol: EXACT_DEVTOOLS_PROTOCOL_VERSION,
+						cursor: current.toString(36),
+						sequence: current,
+						timestamp: monotonicTimestamp(),
+						wallTime: Date.now(),
+						kind: input.kind,
+						id,
+						...(input.requestId ? { requestId: input.requestId } : {}),
+						...(input.interactionId ? { interactionId: input.interactionId } : {}),
+						...(input.path ? { path: input.path } : {}),
+						...(input.reason ? { reason: input.reason } : {}),
+						...(input.attributes ? { attributes: Object.freeze({ ...input.attributes }) } : {})
 					} satisfies ExactRuntimeInspectionEvent)
 				);
 			} catch {
@@ -166,7 +166,10 @@ export function inspectExactRuntimeComponent(
 		tasks: Object.freeze(component.tasks.map((task) => inspectTask(owner, component, task))),
 		actions: Object.freeze(
 			inspectComponentActions(component).map((action) => {
-				const actionId = owner.identity(component, { generation: action.generation })!;
+				const actionId = owner.identity(component, {
+					...(action.sourceEntityId ? { sourceEntityId: action.sourceEntityId } : {}),
+					generation: action.generation
+				})!;
 				return Object.freeze({
 					id: actionId,
 					name: action.name,
@@ -256,7 +259,10 @@ function inspectTask(
 	component: ComponentInstance<any>,
 	task: TaskRegistration
 ): ExactTaskRuntimeSnapshot {
-	const id = owner.identity(component, { generation: task.generation })!;
+	const id = owner.identity(component, {
+		...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+		generation: task.generation
+	})!;
 	return Object.freeze({
 		id,
 		placement: task.policy.placement === 'inferred' ? 'unknown' : task.policy.placement,

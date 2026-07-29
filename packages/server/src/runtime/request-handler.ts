@@ -12,7 +12,6 @@ import { jsonResponse, parseExactRequestBody, readBody, requestPayloadSafe } fro
 import { dispatchExactBatch, streamExactResponse, wantsStreaming } from '../streaming.js';
 import { exactServerDebugRuntime } from '../debug/runtime.js';
 import type {
-	ExactBatchRequest,
 	ExactBatchResult,
 	ExactInvocationRequest,
 	ExactProtocolRequest,
@@ -73,12 +72,9 @@ export async function handleExactRequest(
 	request: ExactRequestLike,
 	context: ExactServerContext
 ): Promise<ExactResponseLike> {
-	if (!context.debugRuntime) {
-		context = { ...context, debugRuntime: exactServerDebugRuntime(context) };
-	}
 	const profileStarted = context.onProfile ? performance.now() : undefined;
 	try {
-		return await handleExactRequestOwned(request, context);
+		return await handleExactRequestOwned(request, context, context);
 	} finally {
 		if (profileStarted !== undefined) {
 			context.onProfile?.(
@@ -94,13 +90,14 @@ export async function handleExactRequest(
 
 async function handleExactRequestOwned(
 	request: ExactRequestLike,
-	context: ExactServerContext
+	context: ExactServerContext,
+	debugOwnerContext: ExactServerContext
 ): Promise<ExactResponseLike> {
 	if (!context.requestContext) {
 		return runWithExactRequestScope(
 			request,
 			context,
-			(scoped) => handleExactRequestOwned(request, scoped),
+			(scoped) => handleExactRequestOwned(request, scoped, debugOwnerContext),
 			request.platformRequest ?? request
 		);
 	}
@@ -136,6 +133,10 @@ async function handleExactRequestOwned(
 		logReject(context, 'rejected non-serializable exact invocation payload');
 		return jsonResponse(400, { error: 'bad_request' });
 	}
+	const debugRuntime =
+		input.type === 'debug'
+			? (debugOwnerContext.debugRuntime ?? exactServerDebugRuntime(debugOwnerContext))
+			: undefined;
 
 	// Top-level security hooks reject the entire request before any manifest dispatch.
 	// Single operations reuse that result; batches still validate each operation during dispatch.
@@ -155,12 +156,12 @@ async function handleExactRequestOwned(
 			logReject(context, 'rejected exact invocation for unknown binding');
 			return jsonResponse(404, { error: 'unknown_binding' });
 		}
-		if (input.type === 'debug' && !(await context.debugRuntime!.authorize(request, input)))
+		if (input.type === 'debug' && !(await debugRuntime!.authorize(request, input)))
 			return jsonResponse(404, { error: 'not_found' });
 		return context.gateway.forward(request, input, context);
 	}
 
-	if (input.type === 'debug') return context.debugRuntime!.handle(request, input);
+	if (input.type === 'debug') return debugRuntime!.handle(request, input);
 
 	const build = resolveRemoteBuild(request, context);
 	if (build === null) {

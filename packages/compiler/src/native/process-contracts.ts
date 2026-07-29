@@ -23,7 +23,7 @@ export type {
 export type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.23.0';
+export const nativeCompilerProtocolVersion = '1.24.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -47,6 +47,8 @@ export type NativeCompilerRequest = Readonly<{
 	extensions?: Readonly<Record<string, unknown>>;
 	compatibilityExtensions?: Readonly<Record<string, readonly string[]>>;
 	moduleRewrite?: NativeCompilerModuleRewrite;
+	/** Adds compact source identity markers without retaining rich inspection metadata. */
+	instrumentInspection?: boolean;
 }>;
 
 /** Host-owned runtime brand adapter used for unproven JSX component values. */
@@ -418,6 +420,7 @@ export type NativeCompilerAnalysis = Readonly<{
 	reactiveBindings: readonly NativeCompilerReactiveBinding[];
 	callables: readonly NativeCompilerCallable[];
 	tasks: readonly NativeCompilerTask[];
+	actions?: readonly NativeCompilerAction[];
 	exports: readonly NativeCompilerExport[];
 	symbols: readonly NativeCompilerSymbol[];
 	boundaries: readonly NativeCompilerBoundary[];
@@ -428,6 +431,18 @@ export type NativeCompilerAnalysis = Readonly<{
 	requiredCapabilities: NativeCompilerCapabilityRequirements;
 	assets: readonly NativeCompilerAssetDependency[];
 	semanticGraph: NativeCompilerSemanticGraph;
+}>;
+
+/** Compiler-owned identity for one component action registration. */
+export type NativeCompilerAction = Readonly<{
+	id: string;
+	label: string;
+	component: string;
+	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
+	priority: 'normal' | 'deferred';
+	concurrency: 'parallel' | 'latest' | 'queue';
+	start: number;
+	length: number;
 }>;
 
 /** Process-safe component registry provenance emitted by the native compiler. */

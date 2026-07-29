@@ -72,7 +72,8 @@ through Bun's native loaders.
 
 ### Optional full-stack DevTools
 
-Vite can derive independent inspection outputs from the top-level eXact config:
+Vite, Webpack, and Bun derive independent inspection outputs from the top-level eXact config or
+their adapter `debug` option:
 
 ```ts
 export default defineConfig({

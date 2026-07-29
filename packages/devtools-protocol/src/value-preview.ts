@@ -118,7 +118,7 @@ function preview(
 	}
 }
 
-function previewFunction(value: Function): ExactValuePreview {
+function previewFunction(value: CallableFunction): ExactValuePreview {
 	try {
 		const descriptor = Object.getOwnPropertyDescriptor(value, 'name');
 		const name =

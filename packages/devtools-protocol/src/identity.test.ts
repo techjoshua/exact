@@ -48,9 +48,7 @@ describe('build inspection catalog validation', () => {
 		absolute.roots.page.files[0].path = 'C:\\private\\Page.tsx';
 		expect(isExactBuildInspectionCatalog(absolute)).toBe(false);
 		const duplicate = catalog();
-		duplicate.roots.page.files[0].components.push(
-			duplicate.roots.page.files[0].components[0]
-		);
+		duplicate.roots.page.files[0].components.push(duplicate.roots.page.files[0].components[0]);
 		expect(isExactBuildInspectionCatalog(duplicate)).toBe(false);
 	});
 

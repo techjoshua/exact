@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	createExactBuildInspectionCatalog,
-	exactInspectionSourceHash
-} from './build-catalog.js';
+import { createExactBuildInspectionCatalog, exactInspectionSourceHash } from './build-catalog.js';
 import { clearExpressionProjectCache, transformSource } from '../index.js';
 import { afterEach } from 'vitest';
 

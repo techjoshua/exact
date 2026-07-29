@@ -77,7 +77,7 @@ function fixture(source: string): ExactSourceInspection {
 	return {
 		generation: 1,
 		filename: 'Page.tsx',
-		compiler: { typescriptVersion: '7.0.0', backendVersion: '1.23.0' },
+		compiler: { typescriptVersion: '7.0.0', backendVersion: '1.24.0' },
 		diagnostics: [],
 		components: [
 			{

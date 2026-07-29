@@ -14,7 +14,6 @@ import {
 	type ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
 import type { ExactDomInspectionHost } from '@exactjs/dom';
-import type { ExactClientSourceCorrelation } from './contracts.js';
 import type { ExactClientEventStore } from './client-events.js';
 import type { ExactBrowserServerInspectionClient } from './server-client.js';
 
@@ -23,7 +22,6 @@ export type ExactClientQueryServiceOptions = Readonly<{
 	sessionId: string;
 	dom: ExactDomInspectionHost;
 	events: ExactClientEventStore;
-	correlations: readonly ExactClientSourceCorrelation[];
 	server?: ExactBrowserServerInspectionClient;
 	serverConnected: boolean;
 	maxResults?: number;
@@ -42,7 +40,7 @@ export function createExactClientInspectionQueryService(
 			} catch (error) {
 				return failure(requestId(untrusted), 'bad-request', error);
 			}
-			const snapshot = correlatedSnapshot(options.dom.snapshot().components, options.correlations);
+			const snapshot = options.dom.snapshot().components;
 			const serverOwned =
 				request.params?.identity?.side === 'server' && options.serverConnected && options.server;
 			if (
@@ -320,23 +318,26 @@ async function mergedServerCollection(
 			serverTargets(options.dom.snapshot().roots, request.params?.filter).map(async (target) => {
 				try {
 					const route = target.filter;
+					let routedRequest = request;
+					if (target.key !== PAGE_SERVER_HOST) {
+						if (!route?.binding || !route.buildKey || !route.executionRoot) return [];
+						routedRequest = {
+							...request,
+							params: {
+								...request.params,
+								identity: {
+									sessionId: options.sessionId,
+									side: 'server',
+									binding: route.binding,
+									buildKey: route.buildKey,
+									executionRoot: route.executionRoot,
+									componentTypeId: 'execution-root'
+								}
+							}
+						};
+					}
 					const remote = await options.server!.query(options.sessionId, {
-						...request,
-						...(target.key === PAGE_SERVER_HOST
-							? {}
-							: {
-									params: {
-										...request.params,
-										identity: {
-											sessionId: options.sessionId,
-											side: 'server',
-											binding: route?.binding!,
-											buildKey: route?.buildKey!,
-											executionRoot: route?.executionRoot!,
-											componentTypeId: 'execution-root'
-										}
-									}
-								})
+						...routedRequest
 					});
 					return remote.ok && Array.isArray(remote.result) ? remote.result : [];
 				} catch {
@@ -351,56 +352,6 @@ async function mergedServerCollection(
 		options.sessionId,
 		Object.freeze([...clientValues, ...serverValues]),
 		maximum
-	);
-}
-
-function correlatedSnapshot(
-	components: readonly ExactInspectedRuntimeComponent[],
-	correlations: readonly ExactClientSourceCorrelation[]
-): readonly ExactInspectedRuntimeComponent[] {
-	const byComponent = new Map(
-		correlations.flatMap((source) =>
-			source.components.map((component) => [component.componentTypeId, component] as const)
-		)
-	);
-	return Object.freeze(
-		components.map((component) => {
-			const correlation = byComponent.get(component.id.componentTypeId);
-			if (!correlation) return component;
-			const taskSlots = correlation.slots.filter(
-				(slot) => slot.kind === 'inferred-task' || slot.kind === 'explicit-task'
-			);
-			const actionSlots = correlation.slots.filter((slot) => slot.kind === 'action');
-			return Object.freeze({
-				...component,
-				tasks: Object.freeze(
-					component.tasks.map((task, index) =>
-						taskSlots[index]
-							? Object.freeze({
-									...task,
-									id: Object.freeze({
-										...task.id,
-										sourceEntityId: taskSlots[index]!.id
-									})
-								})
-							: task
-					)
-				),
-				actions: Object.freeze(
-					component.actions.map((action, index) =>
-						actionSlots[index]
-							? Object.freeze({
-									...action,
-									id: Object.freeze({
-										...action.id,
-										sourceEntityId: actionSlots[index]!.id
-									})
-								})
-							: action
-					)
-				)
-			});
-		})
 	);
 }
 

@@ -310,15 +310,9 @@ function assertWritable(options: ReactiveOptions, operation: string): void {
 	throw new TypeError(`Cannot call ${operation} on a readonly reactive collection`);
 }
 
-function notifyMutation(
-	options: ReactiveOptions,
-	key: unknown,
-	operation: string
-): void {
+function notifyMutation(options: ReactiveOptions, key: unknown, operation: string): void {
 	const propertyKey =
-		typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol'
-			? key
-			: undefined;
+		typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol' ? key : undefined;
 	try {
 		options.onMutation?.(propertyKey, operation);
 	} catch {

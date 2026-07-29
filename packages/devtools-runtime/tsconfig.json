@@ -6,11 +6,7 @@
 		"outDir": "dist",
 		"lib": ["ES2022", "DOM"]
 	},
-	"references": [
-		{ "path": "../devtools-protocol" },
-		{ "path": "../core" },
-		{ "path": "../dom" }
-	],
+	"references": [{ "path": "../devtools-protocol" }, { "path": "../core" }, { "path": "../dom" }],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts"]
 }

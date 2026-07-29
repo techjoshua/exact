@@ -413,6 +413,8 @@ export type ComponentInstance<State extends object> = Component<State> & {
 
 /** Defines the task registration type contract. */
 export type TaskRegistration = {
+	/** Compiler-owned identity present only in inspection-instrumented output. */
+	sourceEntityId?: string;
 	deps: unknown[];
 	sources: ReactiveRef[];
 	work: (...args: any[]) => TaskResult;

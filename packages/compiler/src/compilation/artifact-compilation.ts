@@ -163,7 +163,11 @@ export async function compileFileArtifacts(
 			? { inspection: Object.freeze({ inspection: client.inspectionCatalog }) }
 			: {})
 	};
-	const finalized = await finalizeArtifactInspection([result], options, new Map([[path.resolve(inputFile), source]]));
+	const finalized = await finalizeArtifactInspection(
+		[result],
+		options,
+		new Map([[path.resolve(inputFile), source]])
+	);
 	return finalized[0]!;
 }
 
@@ -394,7 +398,9 @@ async function finalizeArtifactInspection(
 	sources: ReadonlyMap<string, string>
 ): Promise<CompileArtifactsResult[]> {
 	const inspected = results.filter(
-		(result): result is CompileArtifactsResult & { inspection: { inspection: ExactSourceInspection } } =>
+		(
+			result
+		): result is CompileArtifactsResult & { inspection: { inspection: ExactSourceInspection } } =>
 			result.inspection !== undefined
 	);
 	if (!inspected.length) return [...results];
@@ -416,7 +422,8 @@ async function finalizeArtifactInspection(
 			projectRoot,
 			inspections.map((inspection) => ({
 				filename: inspection.filename,
-				source: sourceRecord[inspection.filename] ?? sourceRecord[path.resolve(inspection.filename)]!
+				source:
+					sourceRecord[inspection.filename] ?? sourceRecord[path.resolve(inspection.filename)]!
 			}))
 		);
 	const executionRoot = options.inspection?.executionRoot ?? rootComponentId;
@@ -460,5 +467,10 @@ async function finalizeArtifactInspection(
 
 function isWithinDirectory(directory: string, candidate: string): boolean {
 	const relative = path.relative(directory, candidate);
-	return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+	return (
+		relative !== '' &&
+		relative !== '..' &&
+		!relative.startsWith(`..${path.sep}`) &&
+		!path.isAbsolute(relative)
+	);
 }

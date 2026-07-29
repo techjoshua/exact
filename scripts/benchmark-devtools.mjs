@@ -101,7 +101,6 @@ const measurements = {};
 			ownedElements: () => []
 		},
 		events,
-		correlations: [],
 		serverConnected: true,
 		server: {
 			open: async () => undefined,
@@ -155,7 +154,10 @@ const measurements = {};
 		'@exactjs/devtools-runtime',
 		'@exactjs/devtools-hook',
 		'.exact-inspection',
-		'registerSource'
+		'registerSource',
+		'markExactInspectionSource',
+		'__exactInspectionSource',
+		'ExactRuntimeInspection'
 	])
 		assert.ok(!hardened.code.includes(forbidden), `hardened output contains ${forbidden}`);
 }

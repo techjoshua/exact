@@ -37,7 +37,13 @@ export function DevtoolsPage(this: Component<{}>) {
 					The catalog is server-owned rich metadata. Runtime instrumentation carries only compact
 					correlation identities. Development can enable both automatically; hardened builds set
 					both controls to <code>false</code>. A production deployment must enable output
-					deliberately and still authorize each session.
+					deliberately and still authorize each session. The Vite, Webpack, and Bun integrations
+					keep catalog assets in their server output and outside public client graphs.
+				</p>
+				<p>
+					Ordinary endpoint traffic does not construct the debug runtime or decode catalogs.
+					Session, catalog, event-buffer, and observation ownership is allocated lazily only after a
+					valid debug message.
 				</p>
 				<CodeBlock source={authorization} language="ts" title="server.ts" />
 			</section>
@@ -48,7 +54,8 @@ export function DevtoolsPage(this: Component<{}>) {
 					execution root. State and public contexts appear as bounded previews. Tasks and actions
 					keep their placement, readiness, priority, generation, cancellation, concurrency, and
 					optimistic status. Activity, Suspense, hydration, requests, continuations, patches, and
-					errors share the same timeline vocabulary.
+					errors share the same timeline vocabulary. Compiler-marked task and action IDs travel with
+					each registered callback, so the inspector never guesses identity from array order.
 				</p>
 			</section>
 			<section>
@@ -71,6 +78,10 @@ export function DevtoolsPage(this: Component<{}>) {
 					Timeline, and Microfrontends views. The CDP agent sends the same validated requests
 					through fixed functions. Neither surface can evaluate caller JavaScript, mutate state,
 					invoke actions, or receive raw component instances.
+				</p>
+				<p>
+					Source navigation opens only exact SHA-256 matches, checking source-mapped resources, then
+					workspace files, then an independently authorized server excerpt.
 				</p>
 			</section>
 			<Callout title="Redact before traversal">

@@ -1,8 +1,4 @@
-import type {
-	ComponentInstance,
-	ExactRuntimeInspectionOwner,
-	StopHandle
-} from '@exactjs/core';
+import type { ComponentInstance, ExactRuntimeInspectionOwner, StopHandle } from '@exactjs/core';
 import type { Mounted, Root } from './types.js';
 
 /** Provides the canonical roots value. */

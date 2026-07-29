@@ -7,6 +7,7 @@ import {
 	appendExactRuntimeInspectionRegistration,
 	createExactRuntimeInspectionCorrelation
 } from '../language-tools/runtime-correlation.js';
+import { createExactInspectionRedactions } from '../language-tools/build-catalog.js';
 import type {
 	ExactCompilerManifest,
 	TransformOptions,
@@ -75,11 +76,16 @@ export function transformSourceWithNativeCompiler(
 						replacements: [...(options.moduleRewrite.replacements ?? [])]
 					}
 				}
-			: {})
+			: {}),
+		instrumentInspection: shouldEnableInspection(options.instrumentInspection)
 	});
 	throwNativeCompilerErrors(filename, normalized, response.diagnostics);
 	if (response.code === undefined)
 		throw new Error(`Native compiler returned no generated code for ${filename}`);
+	const manifest = nativeCompilerManifest(filename, response);
+	if (options.packageName) manifest.packageName = options.packageName;
+	applyNativePluginContributions(normalized, filename, target, manifest, options.pluginRegistry);
+	throwNativePluginErrors(manifest);
 	const needsInspection =
 		shouldEnableInspection(options.emitInspection) ||
 		shouldEnableInspection(options.instrumentInspection);
@@ -88,7 +94,10 @@ export function transformSourceWithNativeCompiler(
 		: undefined;
 	const correlation =
 		inspection && shouldEnableInspection(options.instrumentInspection)
-			? createExactRuntimeInspectionCorrelation(inspection)
+			? createExactRuntimeInspectionCorrelation(
+					inspection,
+					createExactInspectionRedactions([manifest])
+				)
 			: undefined;
 	const instrumented =
 		correlation && target !== 'server'
@@ -97,10 +106,6 @@ export function transformSourceWithNativeCompiler(
 	const output = options.moduleTransform
 		? options.moduleTransform({ id: filename, source: instrumented, target }).code
 		: instrumented;
-	const manifest = nativeCompilerManifest(filename, response);
-	if (options.packageName) manifest.packageName = options.packageName;
-	applyNativePluginContributions(normalized, filename, target, manifest, options.pluginRegistry);
-	throwNativePluginErrors(manifest);
 	return {
 		code: output,
 		map: options.sourceMap

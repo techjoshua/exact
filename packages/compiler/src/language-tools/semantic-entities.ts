@@ -74,16 +74,23 @@ export function actionEntities(
 		const start = range.start + match.index;
 		const end = findBalancedCallEnd(source, start) ?? start + match[0].length;
 		const actionRange = Object.freeze({ start, end });
+		const nativeAction = analysis.actions?.find(
+			(candidate) => candidate.component === component.name && candidate.start === start
+		);
 		const continuation = analysis.continuations.find(
-			(candidate) => candidate.kind === 'action' && candidate.componentId === component.id
+			(candidate) =>
+				candidate.kind === 'action' &&
+				candidate.componentId === component.id &&
+				(!nativeAction || candidate.id === nativeAction.id)
 		);
 		const concurrency =
+			nativeAction?.concurrency ??
 			continuation?.invocation?.concurrency ??
 			(match[1] === 'latest' || match[1] === 'queue' ? match[1] : 'parallel');
 		return Object.freeze({
-			id: continuation?.id ?? `${component.id}:action:${index}`,
+			id: nativeAction?.id ?? continuation?.id ?? `${component.id}:action:${index}`,
 			kind: 'action' as const,
-			name: continuation?.label ?? 'Action',
+			name: nativeAction?.label ?? continuation?.label ?? 'Action',
 			range: actionRange,
 			selectionRange: Object.freeze({
 				start,
@@ -92,7 +99,7 @@ export function actionEntities(
 			children: Object.freeze([]),
 			classification: Object.freeze({
 				kind: 'action' as const,
-				placement: continuation?.placement ?? component.placement,
+				placement: nativeAction?.placement ?? continuation?.placement ?? component.placement,
 				concurrency
 			}),
 			reasons: Object.freeze([])

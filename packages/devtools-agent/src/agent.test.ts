@@ -8,7 +8,7 @@ describe('eXact CDP agent adapter', () => {
 		const declarations: string[] = [];
 		let listener: ((method: string, params: unknown) => void) | undefined;
 		const transport: ExactCdpTransport = {
-			async request<Result>(method, params = {}) {
+			async request<Result>(method: string, params: Record<string, unknown> = {}) {
 				methods.push(method);
 				if (method === 'Runtime.evaluate') return { result: { objectId: 'hook-1' } } as Result;
 				if (method === 'Runtime.callFunctionOn') {

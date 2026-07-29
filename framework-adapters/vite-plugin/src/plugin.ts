@@ -259,6 +259,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			inspectionModules.clear();
 			for (const file of compatibilityEngine?.watchFiles ?? []) this.addWatchFile(file);
 			const registry = await prepareRegistry();
+			validateViteDebugIdentity(configuredDebug, viteCommand);
 			for (const file of registry.watchFiles) this.addWatchFile(file);
 			for (const warning of registry.warnings) this.warn?.(warning);
 			await microfrontends.buildStart(
@@ -322,10 +323,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			order: 'pre',
 			handler(html) {
 				const remoteHtml = microfrontends.transformIndexHtml(html);
-				if (
-					options.target === 'server' ||
-					!inspectionRuntimeEnabled(configuredDebug, viteCommand)
-				)
+				if (options.target === 'server' || !inspectionRuntimeEnabled(configuredDebug, viteCommand))
 					return remoteHtml;
 				const moduleId =
 					viteCommand === 'serve'
@@ -340,7 +338,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				const catalog = createViteInspectionCatalog(
 					options,
 					configuredDebug,
-					inspectionModules
+					inspectionModules,
+					viteCommand
 				);
 				if (catalog) {
 					if (!this.emitFile)
@@ -429,11 +428,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						pluginRegistry: options.pluginRegistry ?? preparedRegistry?.compiler,
 						jsxInterop: compatibilityEngine?.jsxInterop,
 						emitInspection:
-							options.target === 'server' &&
-							inspectionCatalogEnabled(configuredDebug, viteCommand),
-						instrumentInspection:
-							options.target !== 'server' &&
-							inspectionRuntimeEnabled(configuredDebug, viteCommand)
+							options.target === 'server' && inspectionCatalogEnabled(configuredDebug, viteCommand),
+						instrumentInspection: inspectionRuntimeEnabled(configuredDebug, viteCommand)
 					});
 					if (result.inspectionCatalog && options.target === 'server') {
 						inspectionModules.set(path.resolve(filename), {
@@ -540,7 +536,8 @@ function createViteInspectionCatalog(
 			manifest: ExactCompilerManifest;
 			source: string;
 		}>
-	>
+	>,
+	command: 'build' | 'serve'
 ) {
 	if (!modules.size) return undefined;
 	const root = path.resolve(options.applicationRoot ?? process.cwd());
@@ -548,11 +545,12 @@ function createViteInspectionCatalog(
 		filename,
 		source: entry.source
 	}));
-	const buildKey = debug?.buildKey ?? createExactInspectionBuildKey(root, entries);
+	const buildKey =
+		debug?.buildKey ??
+		(command === 'serve' ? 'development' : createExactInspectionBuildKey(root, entries));
 	const inspections = [...modules.values()].map((entry) => entry.inspection);
 	const rootComponentId =
-		debug?.rootComponentId ??
-		inspections.flatMap((inspection) => inspection.components)[0]?.id;
+		debug?.rootComponentId ?? inspections.flatMap((inspection) => inspection.components)[0]?.id;
 	if (!rootComponentId) return undefined;
 	const sources = Object.fromEntries(
 		[...modules.entries()].map(([filename, entry]) => [filename, entry.source])
@@ -574,4 +572,18 @@ function createViteInspectionCatalog(
 			}
 		]
 	});
+}
+
+function validateViteDebugIdentity(
+	debug: ExactViteDebugOptions | undefined,
+	command: 'build' | 'serve'
+): void {
+	if (
+		command === 'build' &&
+		(debug?.catalog === true || debug?.runtime === true) &&
+		!debug.buildKey
+	)
+		throw new Error(
+			'eXact production DevTools output requires one explicit immutable debug.buildKey'
+		);
 }

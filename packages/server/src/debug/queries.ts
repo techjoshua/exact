@@ -4,7 +4,6 @@ import {
 	type ExactInspectionRequest,
 	type ExactInspectionResponse,
 	type ExactInspectionSuccess,
-	type ExactRuntimeInspectionEvent,
 	type ExactRuntimeSourceEntity
 } from '@exactjs/devtools-protocol';
 import type { ExactServerContext } from '../types.js';
@@ -36,8 +35,8 @@ export async function dispatchExactInspectionQuery(
 			maxResults: queryContext.maxResults,
 			maxDepth: queryContext.maxQueryDepth
 		});
-	} catch (error) {
-		return failure(requestId(untrusted), 'bad-request', error);
+	} catch {
+		return failure(requestId(untrusted), 'bad-request', 'invalid inspection request');
 	}
 
 	let response: ExactInspectionResponse;
@@ -45,17 +44,18 @@ export async function dispatchExactInspectionQuery(
 		response = success(request, session.id, queryContext.sessions.describe(session));
 	} else if (request.method === 'roots.list') {
 		response = rootsResponse(request, session.id, queryContext);
-	} else if (
-		request.method === 'catalog.entity' ||
-		request.method === 'dependencies.explain'
-	) {
+	} else if (request.method === 'catalog.entity' || request.method === 'dependencies.explain') {
 		response = catalogEntityResponse(request, session.id, queryContext);
 	} else if (request.method === 'timeline.query' || request.method === 'errors.list') {
 		response = timelineResponse(request, session.id, queryContext);
 	} else if (request.method === 'source.excerpt') {
 		response = sourceResponse(request, session.id, queryContext);
 	} else if (queryContext.context.inspectionQueryService) {
-		response = await queryContext.context.inspectionQueryService.request(request);
+		try {
+			response = await queryContext.context.inspectionQueryService.request(request);
+		} catch {
+			response = failure(request.id, 'unavailable', 'runtime inspection query failed');
+		}
 	} else {
 		response = failure(request.id, 'unavailable', 'runtime-not-instrumented');
 	}
@@ -93,7 +93,10 @@ function catalogEntityResponse(
 		return failure(request.id, 'bad-request', 'complete build/root/source identity required');
 	const root = queryContext.catalogs.find(identity.buildKey, identity.executionRoot);
 	if (!root) return failure(request.id, 'unavailable', 'build-retired');
-	const entity = findEntity(root.files.flatMap((file) => file.components), sourceEntityId);
+	const entity = findEntity(
+		root.files.flatMap((file) => file.components),
+		sourceEntityId
+	);
 	if (!entity) return failure(request.id, 'not-found', 'source entity is not in selected root');
 	const result =
 		request.method === 'dependencies.explain'
@@ -143,7 +146,10 @@ function sourceResponse(
 		(file) => file.path === path && file.sourceHash === sourceHash
 	);
 	if (!catalogFile) return failure(request.id, 'unavailable', 'source-unavailable');
-	const source = queryContext.context.inspectionSources?.[sourceKey(identity.buildKey, identity.executionRoot, path)];
+	const source =
+		queryContext.context.inspectionSources?.[
+			sourceKey(identity.buildKey, identity.executionRoot, path)
+		];
 	if (
 		!source ||
 		source.buildKey !== identity.buildKey ||
@@ -196,14 +202,14 @@ function success(
 function failure(
 	id: string,
 	error: 'bad-request' | 'not-found' | 'unavailable' | 'limit-exceeded',
-	reason: unknown
+	reason: string
 ): ExactInspectionResponse {
 	return Object.freeze({
 		protocol: 1,
 		id,
 		ok: false,
 		error,
-		reason: reason instanceof Error ? reason.message : String(reason)
+		reason
 	});
 }
 

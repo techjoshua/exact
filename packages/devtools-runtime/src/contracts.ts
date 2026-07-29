@@ -13,6 +13,8 @@ import type { ExactRuntimeInspectionOwner } from '@exactjs/core';
 /** Compact compiler registration present only in instrumented client output. */
 export type ExactClientSourceCorrelation = Readonly<{
 	protocol: 1;
+	/** Value-free selectors derived by the compiler for client-side preview redaction. */
+	redactions?: ExactInspectionRedactionCatalog;
 	components: readonly Readonly<{
 		componentTypeId: string;
 		slots: readonly Readonly<{ id: string; kind: string }>[];

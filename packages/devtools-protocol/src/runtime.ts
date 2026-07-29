@@ -1,7 +1,4 @@
-import {
-	isExactInspectionRuntimeId,
-	type ExactInspectionRuntimeId
-} from './identity.js';
+import { isExactInspectionRuntimeId, type ExactInspectionRuntimeId } from './identity.js';
 import type { ExactValuePreview } from './value-preview.js';
 
 /** Public, redaction-safe context observation. */
@@ -260,8 +257,7 @@ function validPreview(value: unknown, depth: number): boolean {
 	if (value.kind === 'redacted')
 		return ['secret', 'server-resource', 'policy'].includes(value.reason);
 	if (value.kind === 'unavailable') return boundedString(value.reason, 1024);
-	if (value.kind === 'function')
-		return value.name === undefined || boundedString(value.name, 128);
+	if (value.kind === 'function') return value.name === undefined || boundedString(value.name, 128);
 	if (value.kind === 'dom')
 		return (
 			boundedString(value.tag, 64) &&
@@ -278,9 +274,7 @@ function validPreview(value: unknown, depth: number): boolean {
 		value.entries.length <= 10_000 &&
 		value.entries.every(
 			(entry: unknown) =>
-				record(entry) &&
-				boundedString(entry.key, 512) &&
-				validPreview(entry.value, depth + 1)
+				record(entry) && boundedString(entry.key, 512) && validPreview(entry.value, depth + 1)
 		)
 	);
 }

@@ -1,5 +1,8 @@
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
-import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
+import type {
+	ExactBuildInspectionCatalog,
+	ExactInspectionRedactionCatalog
+} from '@exactjs/devtools-protocol';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerExplanation } from './explanation.js';
@@ -186,6 +189,8 @@ export type TransformResult = {
 /** Compact component-local source entity identity shared with instrumented runtime output. */
 export type ExactRuntimeInspectionCorrelation = Readonly<{
 	protocol: 1;
+	/** Compiler-qualified selectors only; never contains a corresponding value. */
+	redactions?: ExactInspectionRedactionCatalog;
 	components: readonly Readonly<{
 		componentTypeId: string;
 		slots: readonly Readonly<{ id: string; kind: ExactSourceEntityKind }>[];

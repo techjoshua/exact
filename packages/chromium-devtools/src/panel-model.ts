@@ -76,11 +76,14 @@ export async function loadExactDevtoolsPanelModel(
 /** Resolves source only when the selected provider proves an exact hash match. */
 export function resolveExactSourceLocation(
 	location: ExactRuntimeSourceLocation,
-	candidates: readonly Readonly<{ path: string; sourceHash: string; source: 'map' | 'workspace' | 'server' }>[]
+	candidates: readonly Readonly<{
+		path: string;
+		sourceHash: string;
+		source: 'map' | 'workspace' | 'server';
+	}>[]
 ): Readonly<{ path: string; line: number; column: number; source: string }> | undefined {
 	const candidate = candidates.find(
-		(candidate) =>
-			candidate.path === location.path && candidate.sourceHash === location.sourceHash
+		(candidate) => candidate.path === location.path && candidate.sourceHash === location.sourceHash
 	);
 	return candidate
 		? Object.freeze({

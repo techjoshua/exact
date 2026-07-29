@@ -1,11 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createExactRuntimeInspectionOwner,
-	createVNode,
-	type Component
-} from '@exactjs/core';
+import { createExactRuntimeInspectionOwner, createVNode, type Component } from '@exactjs/core';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';

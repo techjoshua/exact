@@ -81,6 +81,7 @@ export {
 	type ExactRuntimeInspectionOwner,
 	type ExactRuntimeInspectionOwnerOptions
 } from './component/inspection.js';
+export { markExactInspectionSource } from './component/inspection-source.js';
 export {
 	createCompiledComponentRegistry,
 	createComponentRegistry,

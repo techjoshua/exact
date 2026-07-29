@@ -1,17 +1,14 @@
 import {
 	type ExactInspectionRequest,
+	type ExactInspectionRedactionCatalog,
 	type ExactInspectionResponse,
-	type ExactInspectionRuntimeId,
 	type ExactInspectionSessionDescription,
 	type ExactInspectionSubscription,
 	type ExactInspectionSubscriptionHandle,
 	type ExactValueRedactor
 } from '@exactjs/devtools-protocol';
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
-import {
-	createExactDomInspectionHost,
-	setExactDomInspectionOwnerFactory
-} from '@exactjs/dom';
+import { createExactDomInspectionHost, setExactDomInspectionOwnerFactory } from '@exactjs/dom';
 import { createExactClientEventStore, type ExactClientEventStore } from './client-events.js';
 import type {
 	ExactClientCorrelationRuntime,
@@ -21,10 +18,7 @@ import type {
 	ExactDevtoolsRuntimeOptions
 } from './contracts.js';
 import { createExactClientInspectionQueryService } from './query-service.js';
-import {
-	createExactBrowserServerInspectionClient,
-	type ExactBrowserServerInspectionClient
-} from './server-client.js';
+import { createExactBrowserServerInspectionClient } from './server-client.js';
 
 /** Global symbol used only by instrumented client output to register compact source slots. */
 export const exactDevtoolsRuntimeSymbol = Symbol.for('@exactjs/devtools-runtime');
@@ -56,7 +50,7 @@ export function installExactDevtoolsRuntime(
 				executionRoot,
 				...(binding ? { binding } : {}),
 				side: 'client',
-				redact: inspectionRedactor(options.redactions)
+				redact: inspectionRedactor(options.redactions, runtime)
 			});
 			owners.set(key, owner);
 			if (session && events) owner.attach(session.id, events);
@@ -71,10 +65,7 @@ export function installExactDevtoolsRuntime(
 	);
 	let service: ReturnType<typeof createExactClientInspectionQueryService> | undefined;
 	let highlightTimer: ReturnType<typeof setTimeout> | undefined;
-	const highlighted = new Map<
-		HTMLElement,
-		Readonly<{ outline: string; priority: string }>
-	>();
+	const highlighted = new Map<HTMLElement, Readonly<{ outline: string; priority: string }>>();
 	const subscriptions = new Set<ExactInspectionSubscriptionHandle>();
 	const hook: ExactDevtoolsPageHook = {
 		protocol: 1,
@@ -95,7 +86,6 @@ export function installExactDevtoolsRuntime(
 				sessionId: session.id,
 				dom,
 				events,
-				correlations: runtime.sources,
 				server,
 				serverConnected: !!remote
 			});
@@ -134,10 +124,7 @@ export function installExactDevtoolsRuntime(
 				);
 				html.style.setProperty('outline', '2px solid #7c3aed');
 			}
-			highlightTimer = setTimeout(
-				clearHighlight,
-				positive(options.highlightDurationMs, 2_000)
-			);
+			highlightTimer = setTimeout(clearHighlight, positive(options.highlightDurationMs, 2_000));
 		},
 		clearHighlight,
 		async request(request: ExactInspectionRequest): Promise<ExactInspectionResponse> {
@@ -195,19 +182,37 @@ export function installExactDevtoolsRuntime(
 }
 
 function inspectionRedactor(
-	redactions: ExactDevtoolsRuntimeOptions['redactions']
+	configured: ExactDevtoolsRuntimeOptions['redactions'],
+	runtime: ExactClientCorrelationRuntime
 ): ExactValueRedactor | undefined {
-	if (!redactions) return undefined;
-	const statePaths = [...(redactions.statePaths ?? [])];
-	const contexts = [...(redactions.contextTokens ?? [])];
-	const secretNames = new Set(redactions.secretNames ?? []);
+	if (!configured && runtime.sources.every((source) => !source.redactions)) return undefined;
+	let sourceCount = -1;
+	let statePaths: readonly string[] = [];
+	let contexts: ExactInspectionRedactionCatalog['contextTokens'] = [];
+	let secretNames = new Set<string>();
 	return (path) => {
+		if (sourceCount !== runtime.sources.length) {
+			const state = new Set(configured?.statePaths ?? []);
+			const context = new Map(
+				(configured?.contextTokens ?? []).map((token) => [
+					`${token.name}\0${token.scope}\0${token.kind}`,
+					token
+				])
+			);
+			const names = new Set(configured?.secretNames ?? []);
+			for (const source of runtime.sources) {
+				for (const candidate of source.redactions?.statePaths ?? []) state.add(candidate);
+				for (const token of source.redactions?.contextTokens ?? [])
+					context.set(`${token.name}\0${token.scope}\0${token.kind}`, token);
+				for (const name of source.redactions?.secretNames ?? []) names.add(name);
+			}
+			statePaths = [...state];
+			contexts = [...context.values()];
+			secretNames = names;
+			sourceCount = runtime.sources.length;
+		}
 		const joined = path.join('.');
-		if (
-			statePaths.some(
-				(candidate) => joined === candidate || joined.startsWith(`${candidate}.`)
-			)
-		)
+		if (statePaths.some((candidate) => joined === candidate || joined.startsWith(`${candidate}.`)))
 			return 'secret';
 		if (path[0] === 'context') {
 			const context = contexts.find((candidate) => candidate.name === path[1]);

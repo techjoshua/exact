@@ -56,4 +56,21 @@ describe('compiler inspection catalog boundary', () => {
 		expect(result.code).not.toContain('reactive-dependency');
 		expect(result.code).not.toContain('Page.tsx');
 	});
+
+	it('lowers compiler-qualified redaction selectors without values', () => {
+		const source = `/** @exact keep=secret */ const apiKey = process.env.API_KEY;
+export function Page(this: Component<{}>) {
+	return () => <p>Ready</p>;
+}`;
+		const result = transformSource(source, {
+			filename: 'SecretPage.tsx',
+			instrumentInspection: true,
+			target: 'server'
+		});
+		expect(result.inspectionCorrelation?.redactions?.secretNames).toContain('apiKey');
+		expect(result.inspectionCorrelation?.redactions?.statePaths).not.toContain(
+			'process.env.API_KEY'
+		);
+		expect(JSON.stringify(result.inspectionCorrelation)).not.toContain('process.env.API_KEY');
+	});
 });

@@ -1,14 +1,15 @@
-import type {
-	ExactRuntimeInspectionCorrelation
-} from '../types.js';
+import type { ExactRuntimeInspectionCorrelation } from '../types.js';
+import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { ExactSourceInspection } from './contracts.js';
 
 /** Derives compact runtime slots from the same canonical source entities used by language tools. */
 export function createExactRuntimeInspectionCorrelation(
-	inspection: ExactSourceInspection
+	inspection: ExactSourceInspection,
+	redactions?: ExactInspectionRedactionCatalog
 ): ExactRuntimeInspectionCorrelation {
 	return Object.freeze({
 		protocol: 1,
+		...(redactions ? { redactions: freezeRedactions(redactions) } : {}),
 		components: Object.freeze(
 			inspection.components.map((component) =>
 				Object.freeze({
@@ -17,6 +18,18 @@ export function createExactRuntimeInspectionCorrelation(
 				})
 			)
 		)
+	});
+}
+
+function freezeRedactions(
+	redactions: ExactInspectionRedactionCatalog
+): ExactInspectionRedactionCatalog {
+	return Object.freeze({
+		statePaths: Object.freeze([...redactions.statePaths]),
+		contextTokens: Object.freeze(
+			redactions.contextTokens.map((token) => Object.freeze({ ...token }))
+		),
+		secretNames: Object.freeze([...redactions.secretNames])
 	});
 }
 

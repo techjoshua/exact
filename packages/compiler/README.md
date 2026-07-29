@@ -164,7 +164,9 @@ service contracts and editor behavior are documented in
 `emitInspection` retains the compiler's rich source model for a server-owned catalog, while
 `instrumentInspection` independently appends compact client correlation. Artifact compilation
 aggregates module inspection into one deterministic build/root catalog under `.exact-inspection`;
-server transforms never receive client registration code. Use
+instrumented task and action callbacks carry their canonical source entity ID directly, so runtime
+consumers never reconstruct compiler ordering. Server transforms retain the callback marker but
+never receive client source-registration code. Use
 `createExactInspectionRedactions()` for qualified selectors without values and
 `assertExactClientArtifactIsolation()` to reject catalog reachability from a public graph.
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	InteractionCancellation,
 	createComponentInstance,
+	createExactRuntimeInspectionOwner,
 	inspectComponentActions,
 	interactionAwait,
 	type ActionContext,
@@ -165,6 +166,7 @@ describe('component actions', () => {
 				priority: 'deferred',
 				pending: false,
 				pendingCount: 0,
+				optimistic: false,
 				generation: 0,
 				result: undefined,
 				error: undefined,
@@ -190,6 +192,34 @@ describe('component actions', () => {
 			cancellationReason: 'unmount',
 			disposed: true
 		});
+	});
+
+	it('never publishes caller-provided cancellation values into inspection events', async () => {
+		const events: unknown[] = [];
+		const inspection = createExactRuntimeInspectionOwner({
+			buildKey: 'a'.repeat(40),
+			executionRoot: 'page'
+		});
+		inspection.attach('session', { publish: (event) => events.push(event) });
+		let action!: ComponentAction<readonly [], void>;
+		function Harness(this: Component<HarnessState>) {
+			action = this.action('Cancel safely', () => new Promise<void>(() => {}));
+			return () => null;
+		}
+		createComponentInstance(Harness, {}, undefined, undefined, {
+			executionRoot: 'page',
+			inspection
+		});
+		const pending = action();
+		action.cancel('must-never-enter-an-event');
+		await expect(pending).rejects.toBeInstanceOf(InteractionCancellation);
+
+		expect(JSON.stringify(events)).not.toContain('must-never-enter-an-event');
+		expect(events).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ kind: 'action.cancel', reason: 'cancelled' })
+			])
+		);
 	});
 
 	it('rolls back every optimistic block when action work throws synchronously', async () => {

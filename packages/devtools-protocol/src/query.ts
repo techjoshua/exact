@@ -170,6 +170,63 @@ export function parseExactInspectionSubscription(
 	return value as ExactInspectionSubscription;
 }
 
+/** Parses a bounded response returned across an extension, CDP, or server transport boundary. */
+export function parseExactInspectionResponse(
+	value: unknown,
+	options: Readonly<{ maxDepth?: number; maxNodes?: number }> = {}
+): ExactInspectionResponse {
+	validateStructure(value, options.maxDepth ?? 30, options.maxNodes ?? 100_000);
+	if (
+		!record(value) ||
+		value.protocol !== 1 ||
+		!boundedString(value.id, 256) ||
+		typeof value.ok !== 'boolean'
+	)
+		throw new TypeError('Invalid eXact inspection response envelope');
+	if (value.ok) {
+		if (!onlyKeys(value, ['protocol', 'id', 'ok', 'identity', 'result', 'page']))
+			throw new TypeError('Unknown eXact inspection response field');
+		if (
+			!record(value.identity) ||
+			!onlyKeys(value.identity, ['sessionId', 'buildKey', 'executionRoot', 'binding']) ||
+			!boundedString(value.identity.sessionId, 256)
+		)
+			throw new TypeError('Invalid eXact inspection response identity');
+		for (const key of ['buildKey', 'executionRoot', 'binding'] as const)
+			if (value.identity[key] !== undefined && !boundedString(value.identity[key], 512))
+				throw new TypeError(`Invalid eXact inspection response ${key}`);
+		if (!Object.prototype.hasOwnProperty.call(value, 'result'))
+			throw new TypeError('Missing eXact inspection response result');
+		if (value.page !== undefined) {
+			if (
+				!record(value.page) ||
+				!onlyKeys(value.page, ['nextCursor', 'count']) ||
+				!Number.isSafeInteger(value.page.count) ||
+				(value.page.count as number) < 0 ||
+				(value.page.nextCursor !== undefined && !boundedString(value.page.nextCursor, 2_048))
+			)
+				throw new TypeError('Invalid eXact inspection response page');
+		}
+		return value as ExactInspectionSuccess;
+	}
+	if (!onlyKeys(value, ['protocol', 'id', 'ok', 'error', 'reason']))
+		throw new TypeError('Unknown eXact inspection failure field');
+	if (
+		![
+			'bad-request',
+			'unknown-method',
+			'not-found',
+			'not-authorized',
+			'unavailable',
+			'session-expired',
+			'limit-exceeded'
+		].includes(String(value.error)) ||
+		(value.reason !== undefined && !boundedString(value.reason, 2_048))
+	)
+		throw new TypeError('Invalid eXact inspection failure');
+	return value as ExactInspectionFailure;
+}
+
 /** Applies deterministic cursor pagination without retaining a caller-owned collection. */
 export function paginateExactInspection<T>(
 	values: readonly T[],

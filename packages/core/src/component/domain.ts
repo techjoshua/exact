@@ -17,7 +17,9 @@ export const pageComponentDomain = createComponentDomain('page');
 export function createComponentDomain(
 	executionRoot: string,
 	dispatchContinuation?: ComponentContinuationDispatcher,
-	resumeComponent?: (type: ComponentFunction<any, any>) => ComponentResumptionActivation | undefined,
+	resumeComponent?: (
+		type: ComponentFunction<any, any>
+	) => ComponentResumptionActivation | undefined,
 	inspection?: ExactRuntimeInspectionOwner,
 	inspectionActivation?: ComponentDomain['inspectionActivation']
 ): ComponentDomain {

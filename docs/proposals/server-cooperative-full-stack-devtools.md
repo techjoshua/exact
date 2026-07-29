@@ -2,9 +2,10 @@
 
 ## Status
 
-Proposed. This document is decision-complete enough to guide implementation, but none of the
-runtime inspection, server debug transport, Chromium extension, microfrontend federation, or agent
-bridge described here is current framework behavior.
+Implemented. The compiler catalog, compact runtime correlation, server debug transport,
+microfrontend federation, Chromium extension, and CDP agent bridge described here are current
+framework behavior. The maintained public contract and operational guidance live in
+[`../devtools.md`](../devtools.md).
 
 The following prerequisites are already implemented and are treated as the starting point rather
 than future work:

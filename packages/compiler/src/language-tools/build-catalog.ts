@@ -8,11 +8,7 @@ import type {
 	ExactRuntimeSourceFile,
 	ExactRuntimeSourceLocation
 } from '@exactjs/devtools-protocol';
-import type {
-	ExactSourceEntity,
-	ExactSourceInspection,
-	ExactSourceRange
-} from './contracts.js';
+import type { ExactSourceEntity, ExactSourceInspection, ExactSourceRange } from './contracts.js';
 import type { ExactCompilerManifest } from '../contracts/manifest.js';
 
 /** One execution-root partition supplied to build catalog creation. */
@@ -95,7 +91,7 @@ export function createExactInspectionRedactions(
 	const secretNames = new Set(configured.secretNames ?? []);
 	for (const manifest of manifests) {
 		for (const subject of manifest.policy.subjects) {
-			if (subject.policy.secret && subject.selector) secretNames.add(subject.selector);
+			if (subject.policy.secret) secretNames.add(subject.selector ?? subject.name);
 			if (subject.kind === 'state' && subject.policy.secret) {
 				const path = subject.path ?? subject.name;
 				statePaths.add(path.startsWith('state.') ? path : `state.${path}`);
@@ -183,9 +179,7 @@ function createRuntimeEntity(
 			)
 		),
 		children: Object.freeze(
-			entity.children.map((child) =>
-				createRuntimeEntity(child, source, filename, sourceHash)
-			)
+			entity.children.map((child) => createRuntimeEntity(child, source, filename, sourceHash))
 		)
 	});
 }
@@ -221,7 +215,12 @@ function sourcePoint(
 function normalizeRelativePath(projectRoot: string, filename: string): string {
 	const relative = path.isAbsolute(filename) ? path.relative(projectRoot, filename) : filename;
 	const normalized = relative.replaceAll(path.sep, '/').replace(/^\.\//, '');
-	if (!normalized || normalized === '..' || normalized.startsWith('../') || path.isAbsolute(normalized))
+	if (
+		!normalized ||
+		normalized === '..' ||
+		normalized.startsWith('../') ||
+		path.isAbsolute(normalized)
+	)
 		throw new Error(`Inspection source ${filename} is outside project root ${projectRoot}`);
 	return normalized;
 }

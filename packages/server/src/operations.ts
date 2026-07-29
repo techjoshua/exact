@@ -6,7 +6,6 @@ import {
 	createExactContinuationHandler
 } from './continuation-execution.js';
 import type {
-	ExactBatchRequest,
 	ExactInvocationRequest,
 	ExactOperationError,
 	ExactOperationResult,
@@ -243,7 +242,7 @@ async function dispatchExactOperationAfterSecurity(
 		context.debugRuntime?.observe({
 			kind: 'error',
 			...observation,
-			reason: error instanceof Error ? error.name : 'server-operation-failed'
+			reason: 'server-operation-failed'
 		});
 		logFrameworkEvent(
 			'error',

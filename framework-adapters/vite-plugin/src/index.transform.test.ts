@@ -7,7 +7,8 @@ describe('@exactjs/vite-plugin: transform', () => {
 		const plugin = exact();
 
 		expect(() =>
-			plugin.generateBundle?.(
+			plugin.generateBundle?.call(
+				{},
 				{},
 				{
 					'page.js': {
@@ -26,7 +27,8 @@ describe('@exactjs/vite-plugin: transform', () => {
 	it('rejects inspection catalogs in final client output', () => {
 		const plugin = exact();
 		expect(() =>
-			plugin.generateBundle?.(
+			plugin.generateBundle?.call(
+				{},
 				{},
 				{
 					'.exact-inspection/build.json': {
@@ -231,6 +233,19 @@ describe('@exactjs/vite-plugin: transform', () => {
 		});
 	});
 
+	it('requires one immutable build identity for explicit production debug output', async () => {
+		const plugin = exact({
+			target: 'server',
+			reactCompatibility: false,
+			debug: { catalog: true, runtime: true }
+		});
+		plugin.configResolved?.({ command: 'build' });
+
+		await expect(plugin.buildStart?.call({ addWatchFile() {} } as never)).rejects.toThrow(
+			/explicit immutable debug\.buildKey/
+		);
+	});
+
 	it('derives independent auto runtime and hardened controls', () => {
 		const development = exact({ target: 'client', reactCompatibility: false });
 		development.configResolved?.({ command: 'serve' });
@@ -265,12 +280,10 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(html.indexOf('virtual:exact/devtools-runtime')).toBeLessThan(
 			html.indexOf('/src/main.ts')
 		);
-		expect(
-			development.resolveId?.('virtual:exact/devtools-runtime')
-		).toBe('\0virtual:exact/devtools-runtime');
-		expect(
-			development.load?.('\0virtual:exact/devtools-runtime')
-		).toMatchObject({
+		expect(development.resolveId?.('virtual:exact/devtools-runtime')).toBe(
+			'\0virtual:exact/devtools-runtime'
+		);
+		expect(development.load?.('\0virtual:exact/devtools-runtime')).toMatchObject({
 			code: expect.stringContaining('"buildKey":"build-client"')
 		});
 

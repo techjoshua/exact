@@ -32,6 +32,10 @@ or asynchronous per-capability resolver and defaults unavailable in production. 
 the application. All requests remain subject to the endpoint's origin, CSRF, request-limit, and
 adapter policies.
 
+The debug runtime is lazy: ordinary invocation traffic does not decode catalogs, allocate sessions
+or event buffers, or install observation ownership. It is created only after the shared endpoint
+has parsed a valid `debug` message.
+
 Pass server-owned compiler catalogs through `inspectionCatalogs`. Dynamic retained builds use
 `registerExactInspectionCatalog()` and dispose the returned handle when the build retires; lookup
 requires the exact build and execution root. `createExactBindingGateway()` routes registered remote

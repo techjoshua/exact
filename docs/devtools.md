@@ -23,7 +23,9 @@ export default defineConfig({
 `catalog` retains compiler explanations in a server-only `.exact-inspection/<buildKey>.json`
 asset. `runtime` adds compact source identities and installs the browser bridge. Development
 defaults both controls on; production builds require explicit `true`. Set both to `false` for a
-hardened build.
+hardened build. The Vite, Webpack, and Bun integrations derive both compiler controls; Webpack
+emits its catalog in `processAssets`, Bun writes it beneath `outdir`, and all three keep the asset
+outside the client graph.
 
 Runtime authorization is separate:
 
@@ -43,6 +45,10 @@ used when debug output does not exist. All messages are POSTed to the applicatio
 eXact endpoint and inherit its origin, CSRF, request-size, cancellation, and adapter policies.
 Sessions are opaque, expiring, bounded by count and retained bytes, and reauthorized while event
 streams remain open.
+
+Ordinary endpoint traffic does not construct the debug runtime or decode catalogs. Session,
+catalog, event-buffer, and observation ownership is allocated lazily only after a valid `debug`
+message is parsed.
 
 ## What is inspectable
 
@@ -69,8 +75,14 @@ forward to another build. A retained build registers its catalog with
 `registerExactInspectionCatalog()` and disposes the returned handle when that build retires.
 
 Source paths are build-relative. The panel opens a source provider only when its SHA-256 hash
-matches the catalog location. Protected source excerpts require the `source` capability and
-pre-redacted retained source whenever the compiler catalog contains secret-qualified names.
+matches the catalog location. It checks loaded source-map resources first, workspace/file
+resources second, and an authorized server excerpt last. Protected source excerpts require the
+`source` capability and pre-redacted retained source whenever the compiler catalog contains
+secret-qualified names.
+
+Instrumented task and action callbacks carry their canonical compiler source ID through a WeakMap
+marker. Core records that ID when the resource is registered; query consumers never recreate
+source ordering from runtime arrays.
 
 ## Secret handling
 
@@ -124,5 +136,7 @@ group, and closes page subscriptions.
 - `@exactjs/devtools-agent`: read-only CDP projection.
 - `@exactjs/compiler`: canonical source identities and server catalog construction.
 - `@exactjs/server`: authorization, sessions, queries, streams, catalogs, and binding federation.
+- `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, and `@exactjs/bun-plugin`: paired client
+  runtime and server-only catalog packaging.
 
 See package-local `README.md` and `AGENTS.md` files before integrating any of these boundaries.

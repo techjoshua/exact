@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	paginateExactInspection,
 	parseExactInspectionRequest,
+	parseExactInspectionResponse,
 	parseExactInspectionSubscription
 } from './query.js';
 
@@ -18,6 +19,41 @@ describe('eXact inspection query validation', () => {
 				params: { page: { limit: 501 } }
 			})
 		).toThrow('limit');
+	});
+
+	it('bounds and validates transported response envelopes', () => {
+		expect(
+			parseExactInspectionResponse({
+				protocol: 1,
+				id: 'response',
+				ok: true,
+				identity: { sessionId: 'session' },
+				result: [{ name: 'Page' }],
+				page: { count: 1 }
+			})
+		).toMatchObject({ ok: true, result: [{ name: 'Page' }] });
+		expect(() =>
+			parseExactInspectionResponse({
+				protocol: 1,
+				id: 'response',
+				ok: true,
+				identity: { sessionId: 'session' },
+				result: [],
+				evaluate: 'caller-code'
+			})
+		).toThrow('Unknown');
+		expect(() =>
+			parseExactInspectionResponse(
+				{
+					protocol: 1,
+					id: 'response',
+					ok: true,
+					identity: { sessionId: 'session' },
+					result: [1, 2, 3]
+				},
+				{ maxNodes: 3 }
+			)
+		).toThrow('large');
 	});
 
 	it('resumes pagination without duplicating values', () => {

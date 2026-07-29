@@ -71,6 +71,7 @@ export function createTask(
 			instance.domain.inspection?.publish({
 				kind: 'task.queue',
 				component: instance,
+				...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
 				generation
 			});
 			task.readinessRegistration?.cancel();
@@ -82,6 +83,7 @@ export function createTask(
 				instance.domain.inspection?.publish({
 					kind: 'task.supersede',
 					component: instance,
+					...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
 					generation: generation - 1,
 					reason: 'rerun'
 				});
@@ -135,6 +137,7 @@ export function createTask(
 			instance.domain.inspection?.publish({
 				kind: 'task.cancel',
 				component: instance,
+				...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
 				generation: task.generation,
 				reason: 'unmount'
 			});
@@ -176,6 +179,7 @@ function startTaskGeneration(
 	instance.domain.inspection?.publish({
 		kind: 'task.start',
 		component: instance,
+		...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
 		generation
 	});
 	const controller = new AbortController();
@@ -191,8 +195,9 @@ function startTaskGeneration(
 		instance.domain.inspection?.publish({
 			kind: 'task.fail',
 			component: instance,
+			...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
 			generation,
-			reason: error instanceof Error ? error.name : 'task-failed'
+			reason: 'task-failed'
 		});
 		handleComponentError(instance, createErrorReport(error, 'task', instance, 'run'));
 		return;
@@ -226,8 +231,9 @@ function startTaskGeneration(
 				instance.domain.inspection?.publish({
 					kind: 'task.fail',
 					component: instance,
+					...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
 					generation,
-					reason: error instanceof Error ? error.name : 'task-failed'
+					reason: 'task-failed'
 				});
 				handleComponentError(instance, createErrorReport(error, 'task', instance, 'promise'));
 			});
@@ -263,6 +269,7 @@ function startTaskGeneration(
 				instance.domain.inspection?.publish({
 					kind: 'task.settle',
 					component: instance,
+					...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
 					generation
 				});
 		});
@@ -271,6 +278,7 @@ function startTaskGeneration(
 		instance.domain.inspection?.publish({
 			kind: 'task.settle',
 			component: instance,
+			...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
 			generation
 		});
 		if (typeof result === 'function') task.cleanup = result;

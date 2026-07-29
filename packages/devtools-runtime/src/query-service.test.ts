@@ -23,7 +23,6 @@ describe('shared client/server inspection query service', () => {
 				ownedElements: () => []
 			},
 			events,
-			correlations: [],
 			serverConnected: true,
 			server: {
 				open: async () => undefined,
@@ -101,7 +100,6 @@ describe('shared client/server inspection query service', () => {
 				ownedElements: () => []
 			},
 			events,
-			correlations: [],
 			serverConnected: true,
 			server: {
 				open: async () => undefined,

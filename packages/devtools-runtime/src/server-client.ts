@@ -11,7 +11,9 @@ import { isExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 
 /** Same-origin browser client for debug messages at the configured eXact endpoint. */
 export interface ExactBrowserServerInspectionClient {
-	open(capabilities: readonly ExactDebugCapability[]): Promise<ExactInspectionSessionDescription | undefined>;
+	open(
+		capabilities: readonly ExactDebugCapability[]
+	): Promise<ExactInspectionSessionDescription | undefined>;
 	query(sessionId: string, request: ExactInspectionRequest): Promise<ExactInspectionResponse>;
 	subscribe(
 		request: ExactInspectionSubscription,
@@ -37,13 +39,16 @@ export function createExactBrowserServerInspectionClient(
 			}
 		},
 		async query(sessionId, request) {
-			const response = await send({
-				type: 'debug',
-				version: 1,
-				request: 'query',
-				sessionId,
-				query: request
-			}, routeHeaders(request.params?.identity));
+			const response = await send(
+				{
+					type: 'debug',
+					version: 1,
+					request: 'query',
+					sessionId,
+					query: request
+				},
+				routeHeaders(request.params?.identity)
+			);
 			return (await response.json()) as ExactInspectionResponse;
 		},
 		subscribe(request, listener) {
@@ -64,9 +69,7 @@ export function createExactBrowserServerInspectionClient(
 			});
 		},
 		async close(sessionId) {
-			await send({ type: 'debug', version: 1, request: 'close', sessionId }).catch(
-				() => undefined
-			);
+			await send({ type: 'debug', version: 1, request: 'close', sessionId }).catch(() => undefined);
 		}
 	};
 	return Object.freeze(client);
@@ -123,10 +126,7 @@ export function createExactBrowserServerInspectionClient(
 					buffered = buffered.slice(newline + 1);
 					if (line) {
 						const event = JSON.parse(line) as unknown;
-						if (
-							isExactRuntimeInspectionEvent(event) &&
-							event.id.sessionId === request.sessionId
-						)
+						if (isExactRuntimeInspectionEvent(event) && event.id.sessionId === request.sessionId)
 							listener(event);
 					}
 					newline = buffered.indexOf('\n');
@@ -138,9 +138,7 @@ export function createExactBrowserServerInspectionClient(
 	}
 
 	function routeHeaders(
-		route:
-			| Readonly<{ binding?: string; buildKey?: string }>
-			| undefined
+		route: Readonly<{ binding?: string; buildKey?: string }> | undefined
 	): Record<string, string> {
 		return route?.binding && route.buildKey
 			? {

@@ -52,7 +52,11 @@ export function parseExactDebugRequest(value: unknown): ExactDebugRequest {
 	if (!boundedString(value.sessionId, 256)) throw new TypeError('Invalid eXact debug session');
 	if (value.request === 'query' && !record(value.query))
 		throw new TypeError('Invalid eXact debug query');
-	if (value.request === 'subscribe' && value.cursor !== undefined && !boundedString(value.cursor, 256))
+	if (
+		value.request === 'subscribe' &&
+		value.cursor !== undefined &&
+		!boundedString(value.cursor, 256)
+	)
 		throw new TypeError('Invalid eXact debug cursor');
 	return value as ExactDebugRequest;
 }
@@ -62,7 +66,10 @@ export function exactDebugCapabilityForRequest(request: ExactDebugRequest): Exac
 	if (request.request === 'subscribe') return 'events';
 	if (request.request === 'query') {
 		if (request.query.method === 'source.excerpt') return 'source';
-		if (request.query.method === 'catalog.entity' || request.query.method === 'dependencies.explain')
+		if (
+			request.query.method === 'catalog.entity' ||
+			request.query.method === 'dependencies.explain'
+		)
 			return 'catalog';
 		return 'snapshot';
 	}

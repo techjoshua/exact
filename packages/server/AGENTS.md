@@ -17,3 +17,5 @@ Use `debugSessionIdentity` for restricted operator sessions, exact build/root ca
 the existing eXact endpoint and binding gateway. Never treat debug IDs as invocation selectors,
 forward browser credentials to component hosts, or include values in audit records. Dispose
 dynamic catalog registrations and child sessions with their retained build/page session.
+Keep debug ownership lazy: ordinary action, refresh, continuation, and batch traffic must not
+construct the debug runtime or decode inspection catalogs.

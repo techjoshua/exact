@@ -59,6 +59,7 @@ import {
 } from './resumption.js';
 import { createComponentActionApi } from './action-api.js';
 import { cancelComponentInteractions } from '../interaction/execution.js';
+import { readExactInspectionSource } from './inspection-source.js';
 
 let nextComponentId = 1;
 
@@ -222,6 +223,7 @@ export function createComponentInstance<
 
 			const deps = args.slice(0, -1);
 			const task = createTask(instance, deps, work as (...args: any[]) => TaskResult, policy);
+			task.sourceEntityId = readExactInspectionSource(work);
 			instance.tasks.push(task);
 			startRegisteredTask(task, resumption);
 		}),

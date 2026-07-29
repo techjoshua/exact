@@ -1,8 +1,4 @@
-import {
-	inspectExactRuntimeComponent,
-	type ComponentInstance,
-	type ExactRuntimeInspectionOwner
-} from '@exactjs/core';
+import { inspectExactRuntimeComponent, type ExactRuntimeInspectionOwner } from '@exactjs/core';
 import type {
 	ExactInspectedRuntimeComponent,
 	ExactInspectionExecutionRoot,

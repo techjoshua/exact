@@ -62,12 +62,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (inspection && !vnode.domain) {
 		vnode = {
 			...vnode,
-			domain: createComponentDomain(
-				inspection.executionRoot,
-				undefined,
-				undefined,
-				inspection
-			)
+			domain: createComponentDomain(inspection.executionRoot, undefined, undefined, inspection)
 		};
 	}
 	let root = roots.get(container);

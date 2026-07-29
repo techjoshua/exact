@@ -44,7 +44,7 @@ func (s *Session) Execute(request Request) Response {
 		ID:          request.ID,
 		Diagnostics: []Diagnostic{},
 		Analysis: NewAnalysis(
-			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil,
 			newPolicyManifest(),
 			CapabilityRequirements{},
@@ -335,6 +335,7 @@ func (s *Session) Execute(request Request) Response {
 		reactiveBindings,
 		callables.summaries,
 		tasks,
+		actions,
 		exports,
 		symbols,
 		boundaries,
@@ -470,6 +471,7 @@ func (s *Session) Execute(request Request) Response {
 		clientIslands,
 		request.Target,
 		request.ServerComponents,
+		request.InstrumentInspection,
 		generation.checker,
 		request.JSXInterop,
 	)

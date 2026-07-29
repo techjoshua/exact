@@ -85,3 +85,6 @@ publishes immutable lifecycle, state, props, task, action, render invalidation, 
 Suspense observations. `inspectExactRuntimeComponent()` returns bounded previews without exposing
 the durable instance, callbacks, controllers, or resources. Sink failures never participate in
 application behavior. See [Server-cooperative full-stack DevTools](../../docs/devtools.md).
+Inspection-instrumented compiler output uses `markExactInspectionSource()` to associate a callback
+with its canonical task/action entity through a WeakMap. Registration records the ID without
+wrapping, invoking, or exposing the callback.

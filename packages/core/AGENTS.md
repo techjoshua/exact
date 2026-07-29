@@ -37,3 +37,7 @@ Runtime inspection is inherited through `ComponentDomain`; never install a proce
 component registry or expose raw instances. Publish shallow, immutable, value-free transition
 records only when an owner is attached, preview values through the owner's redactor, and isolate
 all sink failures from lifecycle, scheduling, tasks, actions, and rendering.
+
+Preserve compiler-emitted `markExactInspectionSource()` identity through task and action
+registration. Never correlate resources by array order, invoke a callback for inspection, or place
+raw callback references in a snapshot or event.

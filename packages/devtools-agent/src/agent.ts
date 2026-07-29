@@ -1,11 +1,9 @@
 import {
 	isExactRuntimeInspectionEvent,
 	parseExactInspectionRequest,
+	parseExactInspectionResponse,
 	parseExactInspectionSubscription,
 	type ExactInspectionQueryService,
-	type ExactInspectionRequest,
-	type ExactInspectionResponse,
-	type ExactInspectionSubscription,
 	type ExactInspectionSubscriptionHandle,
 	type ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
@@ -74,7 +72,9 @@ export async function connectExactDevtoolsAgent(
 		async request(untrusted) {
 			if (disconnected) throw new Error('eXact DevTools agent is disconnected');
 			const request = parseExactInspectionRequest(untrusted);
-			return callHook<ExactInspectionResponse>(cdp, hook, requestFunction, [request]);
+			return parseExactInspectionResponse(
+				await callHook<unknown>(cdp, hook, requestFunction, [request])
+			);
 		},
 		subscribe(request, listener) {
 			if (disconnected) return closedSubscription();
@@ -86,10 +86,7 @@ export async function connectExactDevtoolsAgent(
 			if (request.sessionId !== connected.id) return closedSubscription();
 			const subscriptionId = `agent-${nextSubscription++}`;
 			let closed = false;
-			eventListeners.set(
-				subscriptionId,
-				Object.freeze({ listener, sequences: new Map() })
-			);
+			eventListeners.set(subscriptionId, Object.freeze({ listener, sequences: new Map() }));
 			void callHook(cdp, hook, subscribeFunction, [subscriptionId, request]).catch(() => {
 				eventListeners.delete(subscriptionId);
 				closed = true;

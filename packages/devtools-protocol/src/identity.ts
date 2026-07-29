@@ -115,7 +115,9 @@ export function isExactInspectionRuntimeId(value: unknown): value is ExactInspec
 }
 
 /** Validates a server-owned catalog before registry insertion. */
-export function isExactBuildInspectionCatalog(value: unknown): value is ExactBuildInspectionCatalog {
+export function isExactBuildInspectionCatalog(
+	value: unknown
+): value is ExactBuildInspectionCatalog {
 	if (!record(value) || value.protocol !== EXACT_DEVTOOLS_PROTOCOL_VERSION) return false;
 	if (
 		!boundedString(value.buildKey, 256) ||
@@ -276,7 +278,7 @@ function hasValueField(value: Record<string, unknown>): boolean {
 function relativeSourcePath(value: unknown): value is string {
 	return (
 		boundedString(value, 2048) &&
-		!(/^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value)) &&
+		!/^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value) &&
 		!value.split(/[\\/]/).includes('..')
 	);
 }

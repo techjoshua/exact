@@ -13,12 +13,17 @@ declare namespace chrome {
 		function getURL(path: string): string;
 	}
 	namespace devtools {
+		interface Resource {
+			url: string;
+			getContent(callback: (content: string, encoding?: string) => void): void;
+		}
 		const inspectedWindow: {
 			tabId: number;
 			eval(
 				expression: string,
 				callback: (result: unknown, exception?: { isException?: boolean; value?: string }) => void
 			): void;
+			getResources(callback: (resources: Resource[]) => void): void;
 		};
 		const panels: {
 			create(title: string, iconPath: string, pagePath: string): void;
