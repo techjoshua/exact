@@ -1505,6 +1505,7 @@ import {
 	reserveTaskFrame,
 	runTaskFrame,
 	runWithTaskFrame,
+	type TaskFrameExecution,
 	type TaskFrameReservation,
 	type TaskFrameToken
 } from '@exactjs/core/framework/task-frames';
@@ -1545,15 +1546,20 @@ export interface RunTaskFrameHooks<T> {
 	afterChildren?(outcome: TaskFrameOutcome<T>): void | Promise<void>;
 }
 
+export interface TaskFrameExecution<T> extends Promise<T> {
+	readonly signal: AbortSignal;
+	cancel(reason?: unknown): void;
+}
+
 export function captureTaskFrame(): TaskFrameToken | undefined;
 
 export function runTaskFrame<T>(
 	options: RunTaskFrameOptions,
 	hooks: RunTaskFrameHooks<T>
-): Promise<T>;
+): TaskFrameExecution<T>;
 
 export interface TaskFrameReservation extends Disposable {
-	run<T>(work: (context: TaskContext) => T | Promise<T>): Promise<T>;
+	run<T>(work: (context: TaskContext) => T | Promise<T>): TaskFrameExecution<T>;
 	cancel(reason?: unknown): void;
 }
 
@@ -1577,6 +1583,15 @@ failure is reported through the final structural outcome without reopening the
 foreground barrier. The runtime awaits the hook before marking foreground
 settled; a hook rejection becomes a framework failure in the structural outcome
 but does not cause a second foreground notification.
+
+`TaskFrameExecution.cancel()` aborts the frame's `TaskContext.signal` and every
+attached descendant. Cancellation is cooperative: the execution remains
+pending until foreground work, descendants, and cleanup respond, after which
+the promise rejects with the framework cancellation result and
+`afterChildren` observes `cancelled`. Repeated cancellation is idempotent and
+preserves the first reason; cancellation after structural settlement is a
+no-op. A normal task failure may abort descendants for cleanup, but remains a
+`rejected` outcome rather than being mislabeled as cancellation.
 
 `reserveTaskFrame` attaches atomically before a package queues work. Running
 the reservation opens the frame's producer scope; cancelling or disposing an
@@ -2031,27 +2046,33 @@ semantics rather than a second transition token.
 A framework-level coordination operation can express the boundary:
 
 ```ts
-runTaskFrame(
+const leave = runTaskFrame(
 	{
 		parent: captureTaskFrame(),
 		kind: 'presence-leave',
-		priority: 'immediate'
+		priority: 'immediate',
+		readiness: 'nonblocking'
 	},
 	{
 		work: () => renderRetainedLeavingRange(),
-		afterChildren: () => removeRetainedRange()
+		afterChildren: (outcome) => {
+			if (outcome.status === 'fulfilled') removeRetainedRange();
+		}
 	}
 );
+
+if (presenceReturned) leave.cancel('presence-restored');
 ```
 
 `runTaskFrame` reserves the frame, wraps `work` with its disposable producer
 scope, waits for its internal descendant-settlement signal, and then runs
 `afterChildren` under the appropriate still-active parent frame. Neither
 `scope` nor `childrenSettled` appears in application or motion component
-source. The operation comes from the framework coordination SPI rather than
-the application `TaskContext` surface. This works only if renderer
-consequences inherit the active frame as required above. No public DOM-commit
-token is needed.
+source. Cancelling the execution reverses stale leave work through the same
+task signal and cleanup tree; a cancelled finalizer does not remove the range.
+The operation comes from the framework coordination SPI rather than the
+application `TaskContext` surface. Renderer consequences inherit the active
+frame through scheduler context capture. No public DOM-commit token is needed.
 
 ### Planned package surface
 

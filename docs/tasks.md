@@ -132,8 +132,10 @@ native Promise uses `Promise.resolve(invocation)`.
 
 Framework packages coordinate renderer, router, form, and adapter work through
 `@exactjs/core/framework/task-frames`. That SPI exposes opaque frame tokens,
-atomic reservations, scoped execution, and foreground/structural hooks. It
-does not expose mutable frame records or settlement counters.
+atomic reservations, cancelable scoped execution, and foreground/structural
+hooks. Cancelling an execution aborts its frame and attached descendants, then
+waits for cooperative cleanup before reporting a `cancelled` structural
+outcome. It does not expose mutable frame records or settlement counters.
 
 Compilerless code must state policy and capabilities that the compiler cannot
 infer. It does not receive source partitioning, static capture or secret-flow

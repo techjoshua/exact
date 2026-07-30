@@ -53,8 +53,10 @@ The `RuntimeTaskOptions.captureArguments` hook is compiler output used to
 preserve captured parameter defaults; compilerless application code should
 resolve its ordinary arguments explicitly.
 Framework packages use `@exactjs/core/framework/task-frames` for opaque frame capture,
-reservation, execution, and synchronous restoration. Application components should prefer
-compiler-authored ordinary functions over either lower-level surface.
+reservation, cancelable execution, and synchronous restoration. A frame execution remains pending
+through attached descendants and cleanup; cancelling it aborts the frame and descendants before
+reporting a `cancelled` structural outcome. Application components should prefer compiler-authored
+ordinary functions over either lower-level surface.
 
 `createComponentRegistry()` declares a finite immutable set of eager and lazy components.
 Registry members are stable component facades, `KeyOf<typeof Registry>` derives the key union,

@@ -104,7 +104,7 @@ and architecture.
 - Long-lived component instances with context, refs, lifecycle, tasks, and cleanup
 - Function-defined tasks with typed server results, compiler-owned opaque dispatch, cancellation,
   concurrency, optimistic state, forms, navigation, and generation-stable captured parameter
-  defaults
+  defaults, plus cancelable framework task frames for router and motion coordination
 - Finite eager/lazy component registries with compiler-checked identity, placement, SSR, and hydration
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations

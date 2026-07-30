@@ -173,7 +173,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					Explicit owners are async-disposable: disposal cancels their queued and active generations
 					and waits for structural cleanup. Framework packages use the narrower opaque frame SPI at{' '}
-					<code>@exactjs/core/framework/task-frames</code>.
+					<code>@exactjs/core/framework/task-frames</code>. Its executions are cancelable:
+					cancellation aborts attached descendants and reports completion only after their
+					cooperative cleanup.
 				</p>
 			</section>
 		</Article>

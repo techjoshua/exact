@@ -26,8 +26,12 @@ Mutate `this.state` directly inside synchronous `task.optimistic()` blocks, regi
 Use `@exactjs/core/tasks/v1` only for compilerless libraries and adapters. Dispose every explicit
 `TaskOwner`; use `invokeTask()` after asynchronous suspension and reserve callbacks when they must
 extend structural settlement. Framework packages may use
-`@exactjs/core/framework/task-frames`; application code should not. Never acquire an
-`ExactClient`, call low-level dispatch APIs, or author operation identifiers inside a component.
+`@exactjs/core/framework/task-frames`; application code should not. Retain the returned execution
+when framework work must be reversible, call `cancel()` instead of building a second cancellation
+channel, and handle the `cancelled` structural outcome without publishing stale completion work.
+Cancellation remains cooperative and settles only after descendants and cleanup finish. Never
+acquire an `ExactClient`, call low-level dispatch APIs, or author operation identifiers inside a
+component.
 Do not author `RuntimeTaskOptions.captureArguments`; it is emitted by the
 compiler to implement captured parameter defaults.
 

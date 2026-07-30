@@ -1,3 +1,6 @@
+import type { ExactRuntimeInspectionEventKind } from '@exactjs/devtools-protocol';
+import type { ComponentInstance } from '../component/contracts.js';
+import type { TaskFrameRecord } from './frame-runtime.js';
 import { taskOwnerForHost } from './owner-hosts.js';
 
 /** Immutable task-frame projection used by authorized runtime inspection. */
@@ -38,4 +41,22 @@ export function inspectTaskFramesForHost(host: object): readonly TaskFrameInspec
 			})
 		)
 	);
+}
+
+/** Publishes one frame transition when its durable host has inspection enabled. */
+export function publishTaskFrameEvent(
+	frame: TaskFrameRecord,
+	kind: ExactRuntimeInspectionEventKind,
+	reason?: unknown
+): void {
+	const host = frame.owner.host as ComponentInstance<any> | undefined;
+	const inspection = host?.domain?.inspection;
+	if (!inspection) return;
+	inspection.publish({
+		kind,
+		component: host,
+		sourceEntityId: `runtime-task-frame:${frame.id}`,
+		generation: frame.generation,
+		...(reason === undefined ? {} : { reason: String(reason) })
+	});
 }

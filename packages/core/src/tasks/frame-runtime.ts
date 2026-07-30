@@ -1,9 +1,9 @@
 import { InteractionCancellation } from '../interaction/execution.js';
 import { peek, setScheduledWorkContextCapture } from '@exactjs/reactive';
-import type { ExactRuntimeInspectionEventKind } from '@exactjs/devtools-protocol';
-import type { ComponentInstance } from '../component/contracts.js';
 import type { TaskActivation, TaskContext, TaskOwner } from './contracts.js';
 import type { TaskFunction } from './contracts.js';
+import { publishTaskFrameEvent } from './frame-inspection.js';
+import { runTaskFrameCleanups, settleTaskFrameChildren } from './frame-settlement.js';
 
 const taskFrameTokenBrand = Symbol('exact.task-frame-token');
 const taskOwnerBrand = Symbol.for('@exactjs/task-owner');
@@ -216,8 +216,8 @@ export function executeTaskFrame<T>(
 	(frame as { context: TaskContext }).context = createFrameContext(frame, options);
 	frameWaiters.set(frame, settlement);
 	owner.frames.add(frame);
-	publishFrameEvent(frame, 'task.frame.enter');
-	publishFrameEvent(frame, 'task.start');
+	publishTaskFrameEvent(frame, 'task.frame.enter');
+	publishTaskFrameEvent(frame, 'task.start');
 	if (structuralParent) {
 		structuralParent.children.add(settlement);
 		void settlement
@@ -243,10 +243,27 @@ export function executeTaskFrame<T>(
 	const result = execution.then(
 		async (value) => {
 			frame.producerOpen = false;
-			publishFrameEvent(frame, 'task.foreground-settle');
-			await settleChildren(frame);
-			await runCleanups(frame);
+			publishTaskFrameEvent(frame, 'task.foreground-settle');
+			let structuralError: unknown;
+			let structuralFailed = false;
+			try {
+				await settleTaskFrameChildren(frame);
+			} catch (error) {
+				structuralError = error;
+				structuralFailed = true;
+			}
+			try {
+				await runTaskFrameCleanups(frame);
+			} catch (cleanupError) {
+				if (!structuralFailed) throw cleanupError;
+				if (structuralError && typeof structuralError === 'object')
+					Object.defineProperty(structuralError, 'suppressed', {
+						configurable: true,
+						value: [cleanupError]
+					});
+			}
 			if (controller.signal.aborted) throw new InteractionCancellation(controller.signal.reason);
+			if (structuralFailed) throw structuralError;
 			return value;
 		},
 		async (error) => {
@@ -255,11 +272,18 @@ export function executeTaskFrame<T>(
 					? new InteractionCancellation(controller.signal.reason)
 					: error;
 			frame.producerOpen = false;
-			publishFrameEvent(frame, 'task.foreground-settle');
+			publishTaskFrameEvent(frame, 'task.foreground-settle');
 			controller.abort(error);
-			const childResults = await Promise.allSettled([...frame.children]);
+			let childError: unknown;
+			let childFailed = false;
 			try {
-				await runCleanups(frame);
+				await settleTaskFrameChildren(frame);
+			} catch (error) {
+				childError = error;
+				childFailed = true;
+			}
+			try {
+				await runTaskFrameCleanups(frame);
 			} catch (cleanupError) {
 				if (outcomeError && typeof outcomeError === 'object')
 					Object.defineProperty(outcomeError, 'suppressed', {
@@ -267,10 +291,7 @@ export function executeTaskFrame<T>(
 						value: [cleanupError]
 					});
 			}
-			const childFailure = childResults.find(
-				(result): result is PromiseRejectedResult => result.status === 'rejected'
-			);
-			if (outcomeError === undefined && childFailure) throw childFailure.reason;
+			if (outcomeError === undefined && childFailed) throw childError;
 			throw outcomeError;
 		}
 	);
@@ -279,9 +300,9 @@ export function executeTaskFrame<T>(
 			frame.settled = true;
 			owner.frames.delete(frame);
 			resolveSettlement();
-			publishFrameEvent(frame, 'task.frame.exit');
-			publishFrameEvent(frame, 'task.structural-settle');
-			publishFrameEvent(frame, 'task.settle');
+			publishTaskFrameEvent(frame, 'task.frame.exit');
+			publishTaskFrameEvent(frame, 'task.structural-settle');
+			publishTaskFrameEvent(frame, 'task.settle');
 			return value;
 		},
 		(error) => {
@@ -289,8 +310,8 @@ export function executeTaskFrame<T>(
 			owner.frames.delete(frame);
 			if (options.propagateFailure?.() === false) resolveSettlement();
 			else rejectSettlement(error);
-			publishFrameEvent(frame, 'task.frame.exit');
-			publishFrameEvent(
+			publishTaskFrameEvent(frame, 'task.frame.exit');
+			publishTaskFrameEvent(
 				frame,
 				error instanceof InteractionCancellation ? 'task.cancel' : 'task.fail',
 				error
@@ -367,22 +388,6 @@ function createFrameContext(
 	return context;
 }
 
-async function settleChildren(frame: TaskFrameRecord): Promise<void> {
-	while (frame.children.size) await Promise.all([...frame.children]);
-}
-
-async function runCleanups(frame: TaskFrameRecord): Promise<void> {
-	let primary: unknown;
-	for (const cleanup of frame.cleanups.reverse()) {
-		try {
-			await cleanup();
-		} catch (error) {
-			primary ??= error;
-		}
-	}
-	if (primary !== undefined) throw primary;
-}
-
 function linkAbort(signal: AbortSignal, target: AbortController): void {
 	if (signal.aborted) {
 		target.abort(signal.reason);
@@ -397,23 +402,6 @@ function waitForFrame(frame: TaskFrameRecord): Promise<void> {
 
 function monotonicTimestamp(): number {
 	return globalThis.performance?.now() ?? Date.now();
-}
-
-function publishFrameEvent(
-	frame: TaskFrameRecord,
-	kind: ExactRuntimeInspectionEventKind,
-	reason?: unknown
-): void {
-	const host = frame.owner.host as ComponentInstance<any> | undefined;
-	const inspection = host?.domain?.inspection;
-	if (!inspection) return;
-	inspection.publish({
-		kind,
-		component: host,
-		sourceEntityId: `runtime-task-frame:${frame.id}`,
-		generation: frame.generation,
-		...(reason === undefined ? {} : { reason: String(reason) })
-	});
 }
 
 setScheduledWorkContextCapture(() => {

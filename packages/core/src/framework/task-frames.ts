@@ -1,4 +1,5 @@
 import type { TaskContext } from '../tasks/contracts.js';
+import { InteractionCancellation } from '../interaction/execution.js';
 import {
 	attachTaskFrameSettlement,
 	currentTaskFrameRecord,
@@ -37,6 +38,20 @@ export type TaskForegroundOutcome =
 	| { readonly status: 'rejected'; readonly error: unknown }
 	| { readonly status: 'cancelled'; readonly reason: unknown };
 
+/**
+ * Structurally settled framework work with cooperative cancellation.
+ *
+ * Cancelling aborts the frame and every attached descendant. The promise does
+ * not settle until foreground work, descendants, and cleanup have responded.
+ */
+export interface TaskFrameExecution<T> extends Promise<T> {
+	/** Signal inherited by the frame's context and attached descendants. */
+	readonly signal: AbortSignal;
+
+	/** Requests cooperative cancellation while preserving structural settlement. */
+	cancel(reason?: unknown): void;
+}
+
 /** Work and settlement hooks for a framework-created task frame. */
 export interface RunTaskFrameHooks<T> {
 	work(context: TaskContext): T | Promise<T>;
@@ -46,7 +61,7 @@ export interface RunTaskFrameHooks<T> {
 
 /** Atomically reserved frame that must be run or released exactly once. */
 export interface TaskFrameReservation extends Disposable {
-	run<T>(work: (context: TaskContext) => T | Promise<T>): Promise<T>;
+	run<T>(work: (context: TaskContext) => T | Promise<T>): TaskFrameExecution<T>;
 	cancel(reason?: unknown): void;
 }
 
@@ -55,25 +70,74 @@ export function captureTaskFrame(): TaskFrameToken | undefined {
 	return currentTaskFrameRecord() as TaskFrameToken | undefined;
 }
 
-/** Runs framework work in a structurally attached task frame. */
-export async function runTaskFrame<T>(
+/**
+ * Runs framework work in a structurally attached, cooperatively cancelable
+ * task frame.
+ */
+export function runTaskFrame<T>(
 	options: RunTaskFrameOptions,
 	hooks: RunTaskFrameHooks<T>
-): Promise<T> {
-	return runTaskFrameInternal(options, hooks, false);
+): TaskFrameExecution<T> {
+	return createTaskFrameExecution(options, hooks, false);
+}
+
+/** Creates the cancelable public execution around one internal frame. */
+function createTaskFrameExecution<T>(
+	options: RunTaskFrameOptions,
+	hooks: RunTaskFrameHooks<T>,
+	parentReserved: boolean
+): TaskFrameExecution<T> {
+	const controller = new AbortController();
+	const execution = runTaskFrameInternal(options, hooks, parentReserved, controller);
+	return exposeTaskFrameExecution(execution, controller);
+}
+
+/** Adds framework cancellation authority to a native settlement promise. */
+function exposeTaskFrameExecution<T>(
+	execution: Promise<T>,
+	controller: AbortController
+): TaskFrameExecution<T> {
+	let settled = false;
+	void execution.then(
+		() => {
+			settled = true;
+		},
+		() => {
+			settled = true;
+		}
+	);
+	return Object.defineProperties(execution, {
+		signal: {
+			configurable: false,
+			enumerable: true,
+			value: controller.signal,
+			writable: false
+		},
+		cancel: {
+			configurable: false,
+			enumerable: false,
+			value(reason?: unknown) {
+				if (!settled) controller.abort(reason);
+			},
+			writable: false
+		}
+	}) as TaskFrameExecution<T>;
 }
 
 async function runTaskFrameInternal<T>(
 	options: RunTaskFrameOptions,
 	hooks: RunTaskFrameHooks<T>,
-	parentReserved: boolean
+	parentReserved: boolean,
+	controller: AbortController
 ): Promise<T> {
 	let foregroundReported = false;
+	let childrenReported = false;
 	try {
 		const value = await executeTaskFrame(
 			{
 				parent: options.parent as TaskFrameRecord | undefined,
 				parentReserved,
+				controller,
 				generation: options.generation,
 				detached: options.detached,
 				priority: options.priority,
@@ -82,23 +146,52 @@ async function runTaskFrameInternal<T>(
 			async (context) => {
 				try {
 					const result = await hooks.work(context);
-					await hooks.afterForeground?.({ status: 'ready' });
 					foregroundReported = true;
+					await hooks.afterForeground?.({ status: 'ready' });
 					return result;
 				} catch (error) {
-					await hooks.afterForeground?.({ status: 'rejected', error });
-					foregroundReported = true;
+					if (!foregroundReported) {
+						foregroundReported = true;
+						await hooks.afterForeground?.(foregroundOutcome(controller.signal, error));
+					}
 					throw error;
 				}
 			}
 		);
+		childrenReported = true;
 		await hooks.afterChildren?.({ status: 'fulfilled', value });
 		return value;
 	} catch (error) {
-		if (!foregroundReported) await hooks.afterForeground?.({ status: 'rejected', error });
-		await hooks.afterChildren?.({ status: 'rejected', error });
+		if (!foregroundReported) {
+			foregroundReported = true;
+			await hooks.afterForeground?.(foregroundOutcome(controller.signal, error));
+		}
+		if (!childrenReported) {
+			childrenReported = true;
+			await hooks.afterChildren?.(structuralOutcome(controller.signal, error));
+		}
 		throw error;
 	}
+}
+
+/** Classifies foreground failure using the frame's cancellation authority. */
+function foregroundOutcome(signal: AbortSignal, error: unknown): TaskForegroundOutcome {
+	return signal.aborted || error instanceof InteractionCancellation
+		? { status: 'cancelled', reason: cancellationReason(signal, error) }
+		: { status: 'rejected', error };
+}
+
+/** Classifies structural failure using the frame's cancellation authority. */
+function structuralOutcome<T>(signal: AbortSignal, error: unknown): TaskFrameOutcome<T> {
+	return error instanceof InteractionCancellation
+		? { status: 'cancelled', reason: cancellationReason(signal, error) }
+		: { status: 'rejected', error };
+}
+
+/** Preserves the originating abort reason after runtime cancellation wrapping. */
+function cancellationReason(signal: AbortSignal, error: unknown): unknown {
+	if (error instanceof InteractionCancellation) return error.reason;
+	return signal.aborted ? signal.reason : error;
 }
 
 /** Reserves an attached child before handing work to an external scheduler. */
@@ -112,10 +205,11 @@ export function reserveTaskFrame(options: RunTaskFrameOptions): TaskFrameReserva
 	});
 	attachTaskFrameSettlement(parent, placeholder);
 	return {
-		run<T>(work: (context: TaskContext) => T | Promise<T>): Promise<T> {
-			if (used) return Promise.reject(new Error('Task frame reservation was already released'));
+		run<T>(work: (context: TaskContext) => T | Promise<T>): TaskFrameExecution<T> {
+			if (used)
+				return rejectedTaskFrameExecution(new Error('Task frame reservation was already released'));
 			used = true;
-			const execution = runTaskFrameInternal(
+			const execution = createTaskFrameExecution(
 				{ ...options, parent: parent as unknown as TaskFrameToken },
 				{ work },
 				true
@@ -136,6 +230,12 @@ export function reserveTaskFrame(options: RunTaskFrameOptions): TaskFrameReserva
 			release();
 		}
 	};
+}
+
+/** Creates a settled execution for invalid reservation reuse. */
+function rejectedTaskFrameExecution<T>(error: unknown): TaskFrameExecution<T> {
+	const controller = new AbortController();
+	return exposeTaskFrameExecution(Promise.reject<T>(error), controller);
 }
 
 /** Restores a captured frame for one synchronous callback segment. */
