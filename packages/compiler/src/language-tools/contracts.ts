@@ -14,7 +14,6 @@ export type ExactSourceEntityKind =
 	| 'render-expression'
 	| 'inferred-task'
 	| 'explicit-task'
-	| 'action'
 	| 'interaction'
 	| 'derived'
 	| 'state-assignment'
@@ -66,6 +65,14 @@ export type ExactSourceDependency = Readonly<{
 	confidence: 'exact' | 'broad' | 'unknown';
 }>;
 
+/** A reactive value sampled into an omitted task parameter without scheduling from it. */
+export type ExactTaskCapturedInput = Readonly<{
+	parameter: number;
+	kind: 'state' | 'prop' | 'context' | 'derived';
+	path: string;
+	range: ExactSourceRange;
+}>;
+
 /** An observable effect performed by a compiler-owned source region. */
 export type ExactSourceEffect = Readonly<{
 	kind: 'state-write' | 'context-write' | 'external-effect';
@@ -115,22 +122,18 @@ export type ExactTaskClassification = Readonly<{
 	origin: 'inferred' | 'explicit';
 	placement: ExactPlacement;
 	placementRequest?: 'client' | 'server';
-	priority: 'normal' | 'deferred';
+	priority: 'immediate' | 'normal' | 'deferred';
 	readiness: 'blocking' | 'nonblocking';
+	concurrency: 'parallel' | 'latest' | 'queue';
+	detached: boolean;
 	dependencies: readonly ExactSourceDependency[];
+	capturedInputs: readonly ExactTaskCapturedInput[];
 	effects: readonly ExactSourceEffect[];
 	publication: 'staged' | 'immediate';
 	cancellation: 'generation-abort-signal';
 	signalCalls: readonly ExactSuppliedSignal[];
 	resources: readonly ExactOwnedResource[];
 	cleanup: 'none' | 'generation' | 'component';
-}>;
-
-/** Normalized semantics of a named action. */
-export type ExactActionClassification = Readonly<{
-	kind: 'action';
-	placement: ExactPlacement;
-	concurrency: 'parallel' | 'latest' | 'queue';
 }>;
 
 /** Reactive lexical value classification. */
@@ -165,7 +168,6 @@ export type ExactSourceClassification =
 	| ExactInitializerClassification
 	| ExactRenderClassification
 	| ExactTaskClassification
-	| ExactActionClassification
 	| ExactDerivedClassification
 	| ExactStateAssignmentClassification
 	| ExactBindingClassification

@@ -1,4 +1,4 @@
-import { peek, type ActionContext, type Component } from '@exactjs/core';
+import { peek, TaskContext, type Component } from '@exactjs/core';
 import { resolveRoute } from '../geography.js';
 import { defaultDraft, draftUrl, normalizeDraft } from '../model.js';
 import { quoteProvider } from '../providers/registry.js';
@@ -23,17 +23,21 @@ export function CalculatorWorkspace(
 	this.state.enabledFilters = peek(() => [...initial.configuredProviders]);
 	this.state.restored = false;
 
-	const resolveRouteOnServer = this.action.server('resolve route', (request: RateRequest) =>
-		resolveRoute(request.originZip5, request.destinationZip5)
-	);
-	const quoteProviderOnServer = this.action.server(
-		'quote provider',
-		(id: ProviderId, request: RateRequest, { signal }: ActionContext) =>
-			quoteProvider(id, request, signal),
-		'parallel'
-	);
+	async function resolveRouteOnServer(
+		request: RateRequest,
+		_task: TaskContext = TaskContext.server().parallel()
+	) {
+		return resolveRoute(request.originZip5, request.destinationZip5);
+	}
+	function quoteProviderOnServer(
+		id: ProviderId,
+		request: RateRequest,
+		task: TaskContext = TaskContext.server().parallel()
+	) {
+		return quoteProvider(id, request, task.signal);
+	}
 
-	this.task(() => {
+	const restoreDraft = (_task: TaskContext = TaskContext.client()) => {
 		if (initial.explicitUrlState) return;
 		try {
 			const saved = localStorage.getItem('parcel-lab:last-shipment');
@@ -46,22 +50,27 @@ export function CalculatorWorkspace(
 		} catch {
 			localStorage.removeItem('parcel-lab:last-shipment');
 		}
-	});
+	};
+	restoreDraft();
 
-	this.task(this.state.revision, async (_revision, { signal }) => {
-		await delay(450, signal);
+	const refreshRates = async (
+		_revision: number,
+		draft: ShipmentDraft = this.state.draft,
+		ids: readonly ProviderId[] = initial.configuredProviders,
+		task: TaskContext = TaskContext.client().latest()
+	) => {
+		await delay(450, task.signal);
 		let request;
 		try {
-			request = normalizeDraft(this.state.draft);
+			request = normalizeDraft(draft);
 			this.state.error = undefined;
 		} catch (error) {
 			this.state.error = error instanceof Error ? error.message : 'Check the shipment details';
 			this.state.loading = [];
 			return;
 		}
-		history.replaceState(null, '', draftUrl(this.state.draft, new URL(location.href)));
+		history.replaceState(null, '', draftUrl(draft, new URL(location.href)));
 		const generation = this.state.revision;
-		const ids = initial.configuredProviders;
 		this.state.loading = [...ids];
 		const routePromise = resolveRouteOnServer(request);
 		const providerPromises = ids.map((id) => ({
@@ -73,7 +82,7 @@ export function CalculatorWorkspace(
 				if (generation === this.state.revision) this.state.route = result;
 			})
 			.catch(() => {
-				if (signal.aborted || generation !== this.state.revision) return;
+				if (task.signal.aborted || generation !== this.state.revision) return;
 				this.state.route = { status: 'unavailable' };
 				this.state.error = 'The route could not be refreshed. Change an input to retry.';
 			});
@@ -89,7 +98,7 @@ export function CalculatorWorkspace(
 						this.state.loading = this.state.loading.filter((item) => item !== id);
 					})
 					.catch(() => {
-						if (signal.aborted || generation !== this.state.revision) return;
+						if (task.signal.aborted || generation !== this.state.revision) return;
 						const previous = this.state.providers.find((item) => item.providerId === id);
 						this.state.providers = [
 							...this.state.providers.filter((item) => item.providerId !== id),
@@ -114,9 +123,10 @@ export function CalculatorWorkspace(
 		if (generation !== this.state.revision) return;
 		this.state.loading = [];
 		if (this.state.providers.some((provider) => provider.status === 'success')) {
-			localStorage.setItem('parcel-lab:last-shipment', JSON.stringify(this.state.draft));
+			localStorage.setItem('parcel-lab:last-shipment', JSON.stringify(draft));
 		}
-	});
+	};
+	void refreshRates(this.state.revision);
 
 	const inputs = createWorkspaceInputs(this.state);
 	return () => renderWorkspace(this.state, { initial }, inputs);

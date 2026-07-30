@@ -1,6 +1,6 @@
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { defineExactActionContract, handleExactRequest } from './index.js';
+import { defineExactOperationContract, handleExactRequest } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';
 
 describe('@exactjs/server security-validation', () => {
@@ -159,7 +159,7 @@ describe('@exactjs/server security-validation', () => {
 					version: 1,
 					endpoint: '/__exact',
 					actions: {
-						'allowed-action': defineExactActionContract('allowed-action')
+						'allowed-action': defineExactOperationContract('allowed-action')
 					},
 					boundaries: {}
 				},
@@ -386,7 +386,7 @@ function recordsStateContract() {
 	return {
 		version: 1 as const,
 		actions: {
-			'allowed-action': defineExactActionContract('allowed-action', {
+			'allowed-action': defineExactOperationContract('allowed-action', {
 				writes: [{ path: 'records', kind: 'write', confidence: 'exact' }]
 			})
 		},

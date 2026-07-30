@@ -23,7 +23,7 @@ When creating or repairing compiler configuration, read
 ## Preserve the component model
 
 - Define an eXact component as a function whose typed `this` is `Component<State>`.
-- Initialize state, context, refs, lifecycle, and tasks in the outer setup function.
+- Initialize state, context, refs, lifecycle, and task activation in the outer setup function.
 - Return a render function containing JSX.
 - Mutate `this.state` directly. Do not use `useState`, reducers, setter wrappers, or immutable
   replacement merely because the file contains JSX.
@@ -109,18 +109,25 @@ that omitted its catalog or runtime hooks.
 - Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
   product-specific presentation; build directly on `ErrorContext` only for different capture or
   reset semantics.
-- Use `this.task(...)` for component-owned effects, cleanup, nonblocking work, or explicit
-  scheduling and placement. Declare it during setup, let the compiler infer
-  direct state, prop, and context reads, and let each generation own cancellation and cleanup.
+- Define coordinated work as an ordinary local function. Call it during setup
+  for initialization/reactive activation or from an event, form, lifecycle,
+  router, or another task for invoked activation. Use an optional final
+  `TaskContext = TaskContext...` default for placement, concurrency, priority,
+  readiness, detachment, cancellation, cleanup, ownership, or optimism.
+- Use a defaulted non-context task parameter to capture an unconditional reactive
+  input once per generation without making it an activation dependency. Keep
+  explicit setup-call arguments for tracked inputs and reserve `task.peek()` for
+  conditional or mid-body snapshots.
 - Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Use
-  `this.action(name, work, concurrency?)` when code needs reactive status, direct invocation,
+  a function-defined task when code needs reactive status, direct invocation,
   placement, concurrency, deferred priority, or synchronous optimistic state.
 - Use `createComponentRegistry()` for finite runtime component selection. Derive keys with
   `KeyOf<typeof Registry>` or narrow untrusted strings with `hasComponent()`; do not replace it
   with a mutable component dictionary or an untyped `createVNode()` escape.
-  Pass explicit reactive dependencies only when they must be supplied indirectly.
-- Use `this.task.client(...)` or `this.task.server(...)` only when placement is architectural or
-  cannot be inferred from browser/server usage.
+  Pass reactive dependencies as ordinary setup-call arguments; use parameter
+  defaults for generation-stable untracked captures.
+- Use `TaskContext.client()` or `TaskContext.server()` policy only when
+  placement is architectural or cannot be inferred from browser/server usage.
 - Treat a server task as one compiler-generated transition of the same component, not as a second
   application architecture. Resolve database, API, Apollo, TanStack Query, and other resource
   clients from server context; transport only compiler-approved public results.

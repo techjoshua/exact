@@ -61,13 +61,13 @@ describe('@exactjs/compiler: reactivity', () => {
       import { readFile } from "node:fs/promises";
 
       export function ProjectPage(this: Component<{ project?: string; width?: number }>) {
-        this.task(async ({ signal }) => {
+        this.task(async ({ signal }: { signal: AbortSignal }) => {
           this.state.project = await readFile("project.txt", "utf8");
         });
-        this.task(({ signal }) => {
+        this.task(({ signal }: { signal: AbortSignal }) => {
           this.state.width = window.innerWidth;
         });
-        this.task(({ signal }) => {
+        this.task(({ signal }: { signal: AbortSignal }) => {
           window.addEventListener("resize", () => {});
         });
         return () => <button onClick={() => save()} ref={this.ref(button)}>{this.state.project}</button>;
@@ -398,10 +398,10 @@ describe('@exactjs/compiler: reactivity', () => {
       import { readFile } from "node:fs/promises";
 
       export function ProjectPage(this: Component<{ project?: string; width?: number }>) {
-        this.task(async ({ signal }) => {
+        this.task(async ({ signal }: { signal: AbortSignal }) => {
           this.state.project = await readFile("project.txt", "utf8");
         });
-        this.task(({ signal }) => {
+        this.task(({ signal }: { signal: AbortSignal }) => {
           this.state.width = window.innerWidth;
         });
         return () => <button onClick={() => this.state.width++}>{this.state.project}</button>;
@@ -452,14 +452,16 @@ describe('@exactjs/compiler: reactivity', () => {
 		expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain(
 			'task placement forced by this.task.server()'
 		);
-		expect(client).not.toContain('server');
+		expect(client).toContain('placement: "server"');
 		expect(client).toContain('dispatchComponentContinuation as __exactDispatchContinuation');
 		expect(client).toContain(
-			`__exactDispatchContinuation(this, "${manifest.components[0]!.tasks[0]!.id}"`
+			`__exactDispatchContinuation(this as any, "${manifest.components[0]!.tasks[0]!.id}"`
 		);
-		expect(client).toContain('this.task.deferred.blocking(');
+		expect(client).toContain('priority: "deferred"');
+		expect(client).toContain('readiness: "blocking"');
 		expect(client).toContain('__exactWrite(this.state, ["width"], () => 1)');
-		expect(client).toContain('this.task.client(this.reactive(() => this.state.width)');
+		expect(client).toContain('placement: "client"');
+		expect(client).toContain('this.reactive(() => this.state.width)');
 		expect(server).toContain('server');
 		expect(server).not.toContain('width = 1');
 	});

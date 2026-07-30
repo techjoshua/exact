@@ -23,21 +23,21 @@ export function entityFacts(entity: ExactSourceEntity): string[] {
 	if (classification.kind === 'task')
 		return [
 			`${capitalize(classification.origin)} **${classification.readiness} ${classification.placement}** task.`,
-			`Priority: **${classification.priority}**. Publication: **${classification.publication}**.`,
+			`Priority: **${classification.priority}**. Concurrency: **${classification.concurrency}**. Publication: **${classification.publication}**.`,
+			`Attachment: **${classification.detached ? 'detached' : 'structured'}**.`,
 			`Cancellation: **${classification.cancellation}**.`,
 			...classification.dependencies.map(
 				(dependency) =>
 					`Dependency: \`${dependency.path}\`${dependency.confidence === 'exact' ? '' : ` (${dependency.confidence})`}`
 			),
+			...classification.capturedInputs.map(
+				(input) =>
+					`Captured input: parameter ${input.parameter + 1} snapshots \`${input.path}\` without subscribing.`
+			),
 			...classification.effects.map(
 				(effect) =>
 					`Effect: \`${effect.path ?? effect.kind}\`${effect.confidence === 'exact' ? '' : ` (${effect.confidence})`}`
 			)
-		];
-	if (classification.kind === 'action')
-		return [
-			`Runs as a named **${classification.placement}** action.`,
-			`Concurrency: **${classification.concurrency}**.`
 		];
 	if (classification.kind === 'state-assignment')
 		return [

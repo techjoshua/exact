@@ -1,4 +1,5 @@
 import type { ComponentInstance, TaskResult } from '../component/contracts.js';
+import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 
 const exactContinuationTask = Symbol.for('@exactjs/continuation-task');
 
@@ -39,15 +40,31 @@ export function componentContinuationTaskId(work: (...args: any[]) => unknown): 
 	return (work as TaggedContinuationTask)[exactContinuationTask];
 }
 
+/** Copies compiler-owned continuation identity through a runtime callable wrapper. */
+export function inheritComponentContinuationIdentity(
+	source: (...args: any[]) => unknown,
+	target: (...args: any[]) => unknown
+): void {
+	const id = componentContinuationTaskId(source);
+	if (id) markContinuationWork(id, target);
+}
+
 /** Lists continuation generations that completed successfully on one component instance. */
 export function settledComponentContinuationIds(
 	instance: ComponentInstance<any>
 ): readonly string[] {
-	return instance.tasks
+	const legacyIds = instance.tasks
 		.filter(
 			(task) =>
 				task.completedGeneration === task.generation && task.failedGeneration !== task.generation
 		)
 		.map((task) => componentContinuationTaskId(task.work))
 		.filter((id): id is string => id !== undefined);
+	const owner = taskOwnerForHost(instance);
+	if (!owner) return legacyIds;
+	const taskIds = [...owner.activationRegistrations]
+		.filter((registration) => registration.settled)
+		.map((registration) => componentContinuationTaskId(registration.task))
+		.filter((id): id is string => id !== undefined);
+	return [...new Set([...legacyIds, ...taskIds])];
 }

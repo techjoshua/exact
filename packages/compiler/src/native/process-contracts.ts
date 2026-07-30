@@ -3,6 +3,7 @@ import type { NativeCompilerComponent } from './process-component-contracts.js';
 import type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
 import type { NativeCompilerPolicyManifest } from './process-policy-contracts.js';
 import type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
+import type { NativeCompilerTask } from './process-task-contracts.js';
 
 export type {
 	NativeCompilerModuleExportReplacement,
@@ -21,6 +22,11 @@ export type {
 	NativeCompilerSecretConsumer
 } from './process-policy-contracts.js';
 export type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
+export type {
+	NativeCompilerTask,
+	NativeCompilerTaskResource,
+	NativeCompilerTaskSignalCall
+} from './process-task-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
 export const nativeCompilerProtocolVersion = '1.26.0';
@@ -230,37 +236,6 @@ export type NativeCompilerStateRead = Readonly<{
 	length: number;
 }>;
 
-/** Describes one component task registration and its normalized facets. */
-export type NativeCompilerTask = Readonly<{
-	id: string;
-	component: string;
-	facets: readonly string[];
-	requestedPlacement?: 'client' | 'server';
-	priority: 'normal' | 'deferred';
-	readiness: 'blocking' | 'nonblocking';
-	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	async: boolean;
-	browserEffects: boolean;
-	serverEffects: boolean;
-	environmentEffect: 'neutral' | 'browser' | 'server' | 'mixed' | 'unknown';
-	reactiveDependencies: readonly string[];
-	dependencies: readonly Readonly<{
-		index: number;
-		source: 'state' | 'props' | 'context' | 'derived';
-		path?: string;
-		contextToken?: string;
-	}>[];
-	reads: readonly NativeCompilerStateEffect[];
-	writes: readonly NativeCompilerStateEffect[];
-	contexts: readonly NativeCompilerContextEffect[];
-	effectSources: readonly NativeCompilerEnvironmentEffectSource[];
-	resources: readonly NativeCompilerTaskResource[];
-	signalCalls: readonly NativeCompilerTaskSignalCall[];
-	diagnostics: readonly string[];
-	start: number;
-	length: number;
-}>;
-
 /** Describes one compiler-owned cross-runtime task transition. */
 export type NativeCompilerContinuation = Readonly<{
 	id: string;
@@ -313,31 +288,6 @@ export type NativeCompilerComponentResumption = Readonly<{
 		contexts: readonly string[];
 		boundaries: readonly string[];
 	}>;
-}>;
-
-/** Describes a resource owned by one native task generation. */
-export type NativeCompilerTaskResource = Readonly<{
-	kind:
-		| 'timeout'
-		| 'interval'
-		| 'animation-frame'
-		| 'idle-callback'
-		| 'fetch'
-		| 'observer'
-		| 'owned';
-	disposal?: string;
-	description?: string;
-	start: number;
-	length: number;
-}>;
-
-/** Describes a call that receives cancellation from its owning task. */
-export type NativeCompilerTaskSignalCall = Readonly<{
-	parameter: number;
-	mode: 'direct' | 'options';
-	eventOptions?: boolean;
-	start: number;
-	length: number;
 }>;
 
 /** Describes one context-token dependency discovered natively. */

@@ -3,7 +3,7 @@
 Browser hydration and server-response patching for eXact applications.
 
 The package reads hydration configuration, adopts server-rendered component and island markers,
-invokes server actions and refreshes, applies element or range patches, and coordinates client
+invokes server task operations and refreshes, applies element or range patches, and coordinates client
 runtime state.
 
 Use it with hydratable output from `@exactjs/ssr` and private contracts attached to generated
@@ -19,7 +19,7 @@ Blocking distributed continuations validate their response first, then stage aut
 component-state, and public-context changes under the task generation signal. The nearest
 readiness boundary publishes that response atomically or discards it when the generation is stale.
 
-Action continuations return their validated result through the existing response envelope and
+Invoked task continuations return their validated result through the existing response envelope and
 carry invocation generations for stale-commit fencing. Named component markers validate registry
 and selected-entry identity; a nested mismatch mounts only that component range and preserves
 compatible adopted siblings.
@@ -52,7 +52,7 @@ createExactClient(root, {
 The strategy changes activation timing only. It does not weaken serialization, placement,
 component ownership, or server-operation contracts.
 
-See [Actions and forms](../../docs/actions-and-forms.md) and
+See [Task interactions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
 
 When an inspection owner is supplied or installed by the browser runtime, hydration emits

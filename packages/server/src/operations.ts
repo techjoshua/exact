@@ -182,7 +182,7 @@ async function dispatchExactOperationAfterSecurity(
 
 	const observation = observationIdentity(context, input, action?.componentId);
 	context.debugRuntime?.observe({
-		kind: executor ? 'continuation.receive' : 'action.start',
+		kind: executor ? 'continuation.receive' : 'task.start',
 		...observation
 	});
 	try {
@@ -212,7 +212,7 @@ async function dispatchExactOperationAfterSecurity(
 			: requestContext;
 		const result = await handler(input, observedRequestContext);
 		context.debugRuntime?.observe({
-			kind: executor ? 'continuation.respond' : 'action.settle',
+			kind: executor ? 'continuation.respond' : 'task.settle',
 			...observation
 		});
 		if (

@@ -445,6 +445,15 @@ type TaskDependency struct {
 	ContextToken string `json:"contextToken,omitempty"`
 }
 
+// TaskCapturedInput describes one reactive read used to resolve a defaulted
+// task parameter without adding an activation dependency.
+type TaskCapturedInput struct {
+	Parameter    int    `json:"parameter"`
+	Source       string `json:"source"`
+	Path         string `json:"path"`
+	ContextToken string `json:"contextToken,omitempty"`
+}
+
 // ReactiveBinding describes the provenance of one component lexical binding.
 type ReactiveBinding struct {
 	Component        string   `json:"component"`
@@ -459,30 +468,42 @@ type ReactiveBinding struct {
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
-	ID                   string                    `json:"id"`
-	Component            string                    `json:"component"`
-	Facets               []string                  `json:"facets"`
-	RequestedPlacement   string                    `json:"requestedPlacement,omitempty"`
-	Priority             string                    `json:"priority"`
-	Readiness            string                    `json:"readiness"`
-	Placement            string                    `json:"placement"`
-	Async                bool                      `json:"async"`
-	BrowserEffects       bool                      `json:"browserEffects"`
-	ServerEffects        bool                      `json:"serverEffects"`
-	EnvironmentEffect    string                    `json:"environmentEffect"`
-	ReactiveDependencies []string                  `json:"reactiveDependencies"`
-	Dependencies         []TaskDependency          `json:"dependencies"`
-	Reads                []StateEffect             `json:"reads"`
-	Writes               []StateEffect             `json:"writes"`
-	ResultWritePath      []string                  `json:"resultWritePath,omitempty"`
-	Contexts             []ContextEffect           `json:"contexts"`
-	EffectSources        []EnvironmentEffectSource `json:"effectSources"`
-	Resources            []TaskResource            `json:"resources"`
-	SignalCalls          []TaskSignalCall          `json:"signalCalls"`
-	Diagnostics          []string                  `json:"diagnostics"`
-	Start                int                       `json:"start"`
-	Length               int                       `json:"length"`
-	SyntheticSetup       bool                      `json:"-"`
+	ID                      string                    `json:"id"`
+	Component               string                    `json:"component"`
+	Facets                  []string                  `json:"facets"`
+	RequestedPlacement      string                    `json:"requestedPlacement,omitempty"`
+	Priority                string                    `json:"priority"`
+	Readiness               string                    `json:"readiness"`
+	Placement               string                    `json:"placement"`
+	Async                   bool                      `json:"async"`
+	BrowserEffects          bool                      `json:"browserEffects"`
+	ServerEffects           bool                      `json:"serverEffects"`
+	EnvironmentEffect       string                    `json:"environmentEffect"`
+	ReactiveDependencies    []string                  `json:"reactiveDependencies"`
+	Dependencies            []TaskDependency          `json:"dependencies"`
+	CapturedInputs          []TaskCapturedInput       `json:"capturedInputs"`
+	Reads                   []StateEffect             `json:"reads"`
+	Writes                  []StateEffect             `json:"writes"`
+	ResultWritePath         []string                  `json:"resultWritePath,omitempty"`
+	Contexts                []ContextEffect           `json:"contexts"`
+	EffectSources           []EnvironmentEffectSource `json:"effectSources"`
+	Resources               []TaskResource            `json:"resources"`
+	SignalCalls             []TaskSignalCall          `json:"signalCalls"`
+	Diagnostics             []string                  `json:"diagnostics"`
+	Start                   int                       `json:"start"`
+	Length                  int                       `json:"length"`
+	SyntheticSetup          bool                      `json:"-"`
+	FunctionDefined         bool                      `json:"functionDefined,omitempty"`
+	WorkStart               int                       `json:"workStart,omitempty"`
+	WorkLength              int                       `json:"workLength,omitempty"`
+	Invoked                 bool                      `json:"invoked,omitempty"`
+	Concurrency             string                    `json:"concurrency,omitempty"`
+	Detached                bool                      `json:"detached,omitempty"`
+	ArgumentCount           int                       `json:"argumentCount,omitempty"`
+	ActivationArgumentCount int                       `json:"activationArgumentCount,omitempty"`
+	CapturedParameters      []int                     `json:"capturedParameters"`
+	KeyStart                int                       `json:"keyStart,omitempty"`
+	KeyLength               int                       `json:"keyLength,omitempty"`
 }
 
 // ContinuationActivation describes values accepted by one server transition.
@@ -784,6 +805,8 @@ func normalizedTasks(values []Task) []Task {
 			values[index].ReactiveDependencies,
 		)
 		values[index].Dependencies = nonNilSlice(values[index].Dependencies)
+		values[index].CapturedInputs = nonNilSlice(values[index].CapturedInputs)
+		values[index].CapturedParameters = nonNilSlice(values[index].CapturedParameters)
 		values[index].Reads = nonNilSlice(values[index].Reads)
 		values[index].Writes = nonNilSlice(values[index].Writes)
 		values[index].Contexts = nonNilSlice(values[index].Contexts)

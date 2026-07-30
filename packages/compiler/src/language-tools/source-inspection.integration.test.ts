@@ -21,7 +21,6 @@ describe('compiler source inspection', () => {
 				'component',
 				'initializer',
 				'render',
-				'action',
 				'explicit-task',
 				'derived',
 				'binding',
@@ -29,13 +28,9 @@ describe('compiler source inspection', () => {
 				'lifecycle'
 			])
 		);
-		const action = inspection.components
-			.flatMap(flatten)
-			.find((entity) => entity.kind === 'action');
 		const task = inspection.components
 			.flatMap(flatten)
 			.find((entity) => entity.kind === 'explicit-task');
-		expect(source.slice(action!.selectionRange.start, action!.selectionRange.end)).toBe('action');
 		expect(source.slice(task!.selectionRange.start, task!.selectionRange.end)).toBe('task');
 		await service.dispose();
 	});
@@ -144,6 +139,38 @@ export function Workspace(
 			expect(task?.classification).toMatchObject({
 				kind: 'task',
 				dependencies: [{ kind: 'state', path: 'this.state.revision' }]
+			});
+		} finally {
+			await service.dispose();
+		}
+	});
+
+	it('separates captured parameter defaults from task activation dependencies', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		const source = `import { TaskContext, type Component } from '@exactjs/core';
+export function Workspace(this: Component<{ revision: number; draft: string }>) {
+	async function refresh(
+		draft: string = this.state.draft,
+		task: TaskContext = TaskContext.client().latest()
+	) {
+		await load(this.state.revision, draft, task.signal);
+	}
+	refresh();
+	return () => null;
+}`;
+		try {
+			await service.synchronize([
+				{ kind: 'upsert', filename: 'CapturedTask.tsx', version: 1, source }
+			]);
+			const inspection = await service.inspect('CapturedTask.tsx');
+			const task = inspection.components
+				.flatMap(flatten)
+				.find((entity) => entity.classification?.kind === 'task');
+
+			expect(task?.classification).toMatchObject({
+				kind: 'task',
+				dependencies: [{ kind: 'state', path: 'this.state.revision' }],
+				capturedInputs: [{ parameter: 0, kind: 'state', path: 'this.state.draft' }]
 			});
 		} finally {
 			await service.dispose();

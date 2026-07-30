@@ -7,8 +7,7 @@ import {
 } from '@exactjs/ssr';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ShippingCalculatorPage } from '../.exact/App.exact.server.js';
-import { parseRateRequest } from './model.js';
-import { configuredProviderIds, quoteProvider } from './providers/registry.js';
+import { configuredProviderIds } from './providers/registry.js';
 
 const exactContract = composeExactExecutorContract([ShippingCalculatorPage], {
 	endpoint: '/__exact'

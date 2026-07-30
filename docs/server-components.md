@@ -52,11 +52,17 @@ context, lowers it into a blocking server continuation, and captures
 context on the server and is never accepted from the client. The result
 contract deliberately permits the plain product value to cross.
 
-Use explicit `this.task.server()` or `this.task.client()` when the work is an
-external effect, needs manual scheduling/readiness policy, placement itself
-expresses architecture, or an opaque dependency prevents inference. Explicit
-placement cannot contradict known effects: a server task cannot read
-`window`, and a client task cannot import a server-only module.
+Use `TaskContext.server()` or `TaskContext.client()` on a task function's final
+parameter when the work is an external effect, needs manual
+scheduling/readiness policy, placement itself expresses architecture, or an
+opaque dependency prevents inference. Explicit placement cannot contradict
+known effects: a server task cannot read `window`, and a client task cannot
+import a server-only module.
+
+Dispatched server work runs in the same task-frame model as local work. The
+server supplies a fresh trusted `TaskContext`, so `signal`, `generation`,
+`cleanup()`, `own()`, `peek()`, and structural child settlement remain
+available without serializing task authority from the browser.
 
 ## Residency and disclosure
 

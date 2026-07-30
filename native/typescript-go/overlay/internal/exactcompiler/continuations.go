@@ -27,6 +27,9 @@ func createContinuationContracts(
 	}
 	continuations := []Continuation{}
 	for _, task := range tasks {
+		if task.Invoked {
+			continue
+		}
 		if task.Placement != "server" && task.Placement != "isomorphic" {
 			continue
 		}
@@ -79,6 +82,19 @@ func createContinuationContracts(
 				dependencyPublicContexts = append(dependencyPublicContexts, effect)
 			} else {
 				dependencyServerContexts = append(dependencyServerContexts, effect)
+			}
+		}
+		if len(task.CapturedParameters) != 0 &&
+			task.ActivationArgumentCount < task.ArgumentCount {
+			offset := 0
+			if task.ActivationArgumentCount == 0 {
+				offset = len(dependencies)
+			}
+			for index := task.ActivationArgumentCount; index < task.ArgumentCount; index++ {
+				dependencies = append(dependencies, TaskDependency{
+					Index:  offset + index,
+					Source: "argument",
+				})
 			}
 		}
 		serverContexts = append(dependencyServerContexts, serverContexts...)
@@ -211,6 +227,7 @@ func createContinuationContracts(
 		}
 		for _, task := range tasks {
 			if task.Component != component.Name ||
+				task.Invoked ||
 				(task.Placement != "server" &&
 					task.Placement != "isomorphic") {
 				continue
@@ -224,6 +241,16 @@ func createContinuationContracts(
 				if read.Confidence == "exact" && read.Path != "*" {
 					statePaths = append(statePaths, read.Path)
 				}
+			}
+			for _, input := range task.CapturedInputs {
+				if input.Source != "state" ||
+					!strings.HasPrefix(input.Path, "this.state.") {
+					continue
+				}
+				statePaths = append(
+					statePaths,
+					strings.TrimPrefix(input.Path, "this.state."),
+				)
 			}
 			for _, write := range task.Writes {
 				if write.Confidence == "exact" && write.Path != "*" {
@@ -290,6 +317,7 @@ func stateReadInsideServerTask(
 ) bool {
 	for _, task := range tasks {
 		if task.Component == component &&
+			!task.Invoked &&
 			(task.Placement == "server" || task.Placement == "isomorphic") &&
 			read.Start >= task.Start &&
 			read.Start+read.Length <= task.Start+task.Length {
@@ -327,6 +355,7 @@ func sharedContextWrites(
 	values := []string{}
 	for _, task := range tasks {
 		if task.Component != component ||
+			task.Invoked ||
 			(task.Placement != "server" && task.Placement != "isomorphic") {
 			continue
 		}

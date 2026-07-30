@@ -1,7 +1,9 @@
 import type { ComponentInstance } from '../component/contracts.js';
+import { executeTaskFrame, taskFrameSynchronousError } from '../tasks/frame-runtime.js';
+import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 
 /** Identifies the framework host that began an interaction lifetime. */
-export type InteractionSource = 'event' | 'form' | 'action' | 'navigation';
+export type InteractionSource = 'event' | 'form' | 'invoked' | 'navigation';
 
 /** Scheduling class inherited by work joined to an interaction. */
 export type InteractionPriority = 'interactive' | 'normal' | 'deferred';
@@ -109,6 +111,35 @@ export function interactionMutation<Result>(signal: AbortSignal, mutation: () =>
  * {@link InteractionCancellation}; callers should not publish it as an application error.
  */
 export function runComponentInteraction<Result>(
+	owner: ComponentInstance<any>,
+	source: InteractionSource,
+	generation: number,
+	priority: InteractionPriority,
+	controller: AbortController,
+	work: (scope: InteractionScope) => Result | PromiseLike<Result>
+): Promise<Result> {
+	const taskOwner = taskOwnerForHost(owner);
+	if (!taskOwner)
+		return runComponentInteractionScope(owner, source, generation, priority, controller, work);
+	const execution = executeTaskFrame(
+		{
+			owner: taskOwner,
+			controller,
+			generation,
+			activation: 'interaction',
+			label: `${source} interaction`,
+			concurrency: 'latest',
+			priority: priority === 'interactive' ? 'immediate' : priority,
+			readiness: priority === 'deferred' ? 'nonblocking' : 'blocking'
+		},
+		() => runComponentInteractionScope(owner, source, generation, priority, controller, work)
+	);
+	const synchronousError = taskFrameSynchronousError(execution);
+	if (synchronousError) throw synchronousError.error;
+	return execution;
+}
+
+function runComponentInteractionScope<Result>(
 	owner: ComponentInstance<any>,
 	source: InteractionSource,
 	generation: number,

@@ -69,8 +69,9 @@ identity.
 
 ### Async work has an owner
 
-Component tasks carry lifecycle, cancellation, cleanup, and error ownership. Work does not have to
-be spread across render phases and effect dependency arrays simply to remain safe.
+Ordinary local functions become structured tasks when their effects or activation require
+coordination. Reactive and invoked work share lifecycle, cancellation, cleanup, concurrency,
+optimism, placement, and error ownership without separate task/action wrappers.
 
 ### Client and server use one model
 
@@ -101,8 +102,9 @@ and architecture.
 
 - Fine-grained reactive state, derived values, DOM updates, and keyed collections
 - Long-lived component instances with context, refs, lifecycle, tasks, and cleanup
-- Coordinated actions with typed server results, compiler-owned opaque dispatch, cancellation,
-  concurrency, optimistic state, forms, and navigation
+- Function-defined tasks with typed server results, compiler-owned opaque dispatch, cancellation,
+  concurrency, optimistic state, forms, navigation, and generation-stable captured parameter
+  defaults
 - Finite eager/lazy component registries with compiler-checked identity, placement, SSR, and hydration
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations
@@ -123,7 +125,7 @@ The package-specific READMEs describe the supported APIs and environment boundar
 - [Play the live Sudoku Atelier sample](https://techjoshua.github.io/exact/sudoku.html)
 - [Browse the documentation source](apps/docs/README.md)
 - [Understand components and state](apps/docs/src/pages/ComponentsPage.tsx)
-- [Coordinate actions and optimistic state](apps/docs/src/pages/ActionsPage.tsx)
+- [Coordinate tasks, actions, and optimistic state](apps/docs/src/pages/TasksPage.tsx)
 - [Select finite dynamic components](apps/docs/src/pages/ComponentRegistriesPage.tsx)
 - [Follow one component through the compiler](apps/docs/src/pages/CompilerTourPage.tsx)
 - [Use compiler-aware editor tooling](docs/language-tools.md)

@@ -11,32 +11,25 @@ export type ExactContextPreview = Readonly<{
 	type?: string;
 }>;
 
-/** Current state of one component-owned task generation. */
+/** Current redaction-safe state of one task definition or generation in its structural tree. */
 export type ExactTaskRuntimeSnapshot = Readonly<{
 	id: ExactInspectionRuntimeId;
+	parent?: ExactInspectionRuntimeId;
+	name?: string;
+	activation: 'initialization' | 'reactive' | 'interaction' | 'invoked' | 'lifecycle';
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
 	readiness: 'blocking' | 'nonblocking';
-	priority: 'normal' | 'deferred';
-	status: 'idle' | 'queued' | 'running' | 'settled' | 'failed' | 'cancelled' | 'stale';
-	generation: number;
-	completedGeneration?: number;
-	failedGeneration?: number;
-	cancellationReason?: string;
-	startedAt?: number;
-	settledAt?: number;
-}>;
-
-/** Current state of one named component action without its callback or captures. */
-export type ExactActionRuntimeSnapshot = Readonly<{
-	id: ExactInspectionRuntimeId;
-	name: string;
-	placement: 'client' | 'server' | 'isomorphic';
-	priority: 'normal' | 'deferred';
+	priority: 'immediate' | 'normal' | 'deferred';
 	concurrency: 'parallel' | 'latest' | 'queue';
 	status: 'idle' | 'queued' | 'running' | 'settled' | 'failed' | 'cancelled' | 'stale';
 	generation: number;
 	pending: number;
+	foreground: boolean;
+	structuralPending: boolean;
 	optimistic: boolean;
+	completedGeneration?: number;
+	failedGeneration?: number;
+	cancellationReason?: string;
 	startedAt?: number;
 	settledAt?: number;
 }>;
@@ -67,7 +60,6 @@ export type ExactInspectedRuntimeComponent = Readonly<{
 	state: ExactValuePreview;
 	contexts: readonly ExactContextPreview[];
 	tasks: readonly ExactTaskRuntimeSnapshot[];
-	actions: readonly ExactActionRuntimeSnapshot[];
 	activity?: ExactActivityInspection;
 	suspense?: ExactSuspenseInspection;
 	ownedElements: number;
@@ -120,13 +112,16 @@ export type ExactRuntimeInspectionEventKind =
 	| 'task.fail'
 	| 'task.cancel'
 	| 'task.supersede'
-	| 'action.queue'
-	| 'action.start'
-	| 'action.optimistic'
-	| 'action.rollback'
-	| 'action.discard'
-	| 'action.settle'
-	| 'action.cancel'
+	| 'task.optimistic'
+	| 'task.rollback'
+	| 'task.commit'
+	| 'task.frame.enter'
+	| 'task.frame.exit'
+	| 'task.foreground-settle'
+	| 'task.structural-settle'
+	| 'task.resource.acquire'
+	| 'task.resource.release'
+	| 'task.renderer.commit'
 	| 'render.invalidate'
 	| 'binding.invalidate'
 	| 'activity.change'
@@ -181,13 +176,16 @@ const inspectionEventKinds = new Set<ExactRuntimeInspectionEventKind>([
 	'task.fail',
 	'task.cancel',
 	'task.supersede',
-	'action.queue',
-	'action.start',
-	'action.optimistic',
-	'action.rollback',
-	'action.discard',
-	'action.settle',
-	'action.cancel',
+	'task.optimistic',
+	'task.rollback',
+	'task.commit',
+	'task.frame.enter',
+	'task.frame.exit',
+	'task.foreground-settle',
+	'task.structural-settle',
+	'task.resource.acquire',
+	'task.resource.release',
+	'task.renderer.commit',
 	'render.invalidate',
 	'binding.invalidate',
 	'activity.change',

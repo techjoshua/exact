@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 import { SudokuContext } from './context.js';
 import {
 	applyMove,
@@ -175,26 +175,39 @@ export function SudokuApp(this: Component<SudokuState>) {
 		);
 	};
 
-	this.task(this.state.paused, complete, (paused, solved) => {
+	const runTimer = (
+		paused: boolean,
+		solved: boolean,
+		task: TaskContext = TaskContext.client().latest()
+	) => {
 		if (paused || solved) return;
-		setInterval(() => this.state.elapsedSeconds++, 1000);
-	});
+		const interval = setInterval(() => this.state.elapsedSeconds++, 1000);
+		task.cleanup(() => clearInterval(interval));
+	};
+	runTimer(this.state.paused, complete);
 
-	this.task(this.state.puzzleId, JSON.stringify(this.state.cells), this.state.theme, () =>
-		persistGame()
-	);
+	const persistChangedGame = (
+		_puzzleId: string,
+		_cells: string,
+		_theme: string,
+		_task: TaskContext = TaskContext.client().latest()
+	) => {
+		persistGame();
+	};
+	persistChangedGame(this.state.puzzleId, JSON.stringify(this.state.cells), this.state.theme);
 
 	// Capture timer-only progress when the session is suspended without making
 	// the one-second display update a persistence dependency.
-	this.task(({ signal }) => {
+	const observePageLifetime = (task: TaskContext = TaskContext.client()) => {
 		const persistWhenHidden = () => {
 			if (document.visibilityState === 'hidden') persistGame();
 		};
-		document.addEventListener('visibilitychange', persistWhenHidden, { signal });
-		window.addEventListener('pagehide', persistGame, { signal });
-	});
+		document.addEventListener('visibilitychange', persistWhenHidden, { signal: task.signal });
+		window.addEventListener('pagehide', persistGame, { signal: task.signal });
+	};
+	observePageLifetime();
 
-	this.task(({ signal }) => {
+	const observeKeyboard = (task: TaskContext = TaskContext.client()) => {
 		window.addEventListener(
 			'keydown',
 			(event) => {
@@ -236,9 +249,10 @@ export function SudokuApp(this: Component<SudokuState>) {
 				}
 				if (event.key === 'Escape') this.state.themeMenuOpen = false;
 			},
-			{ signal }
+			{ signal: task.signal }
 		);
-	});
+	};
+	observeKeyboard();
 
 	return () => (
 		<div className={['sudoku-app', `theme-${this.state.theme}`]}>

@@ -64,7 +64,6 @@ function response(request: ExactInspectionRequest): ExactInspectionResponse {
 						state: { kind: 'object' as const, type: 'Object', entries: [], truncated: false },
 						contexts: [],
 						tasks: [],
-						actions: [],
 						ownedElements: 1
 					}
 				]

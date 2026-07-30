@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 import { Outlet, RouteContext } from '@exactjs/router';
 import { DocsHeader } from './DocsHeader.jsx';
 import { DocsSearch } from './DocsSearch.jsx';
@@ -15,9 +15,12 @@ export function DocsLayout(this: Component<LayoutState>) {
 	this.state.mobileOpen = false;
 	this.state.searchOpen = false;
 
-	this.task(() =>
-		route.router.subscribe(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
-	);
+	const observeRoute = (task: TaskContext = TaskContext.client()) => {
+		task.cleanup(
+			route.router.subscribe(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
+		);
+	};
+	observeRoute();
 
 	const closeNavigation = () => {
 		this.state.mobileOpen = false;

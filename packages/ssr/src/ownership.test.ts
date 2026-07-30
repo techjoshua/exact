@@ -1,4 +1,10 @@
-import { createVNode, type Component } from '@exactjs/core';
+import {
+	activateTaskForHost,
+	createVNode,
+	defineTask,
+	type Component,
+	type TaskContext
+} from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
 
@@ -7,7 +13,7 @@ describe('@exactjs/ssr ownership', () => {
 		let taskSignal: AbortSignal | undefined;
 		let unmounted = 0;
 		function Owned(this: Component<{}>) {
-			this.task(({ signal }) => {
+			(this as any).task(({ signal }: { signal: AbortSignal }) => {
 				taskSignal = signal;
 			});
 			this.onUnmount(() => {
@@ -19,6 +25,22 @@ describe('@exactjs/ssr ownership', () => {
 		expect(renderToString(createVNode(Owned, {}), { markers: false }).html).toBe('<p>owned</p>');
 		expect(taskSignal?.aborted).toBe(true);
 		expect(unmounted).toBe(1);
+	});
+
+	it('observes cancellation when synchronous SSR disposes scheduled nonblocking tasks', async () => {
+		function Owned(this: Component<{}>) {
+			activateTaskForHost(
+				this,
+				defineTask(
+					{ placement: 'client', readiness: 'nonblocking' },
+					(_task: TaskContext) => undefined
+				)
+			);
+			return () => createVNode('p', null, 'owned');
+		}
+
+		expect(renderToString(createVNode(Owned, {}), { markers: false }).html).toBe('<p>owned</p>');
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
 	});
 
 	it('finishes every SSR teardown while preserving the primary render failure', () => {
@@ -54,7 +76,7 @@ describe('@exactjs/ssr ownership', () => {
 		let cleaned = 0;
 		function Owned(this: Component<{ ready: boolean }>) {
 			this.state.ready = false;
-			this.task(async () => {
+			(this as any).task(async () => {
 				await new Promise<void>((done) => {
 					resolve = done;
 				});

@@ -46,8 +46,8 @@ export {
 export {
 	composeExactExecutorContract,
 	createExactHydrationConfig,
-	defineExactActionContract,
-	defineExactBoundaryContract
+	defineExactBoundaryContract,
+	defineExactOperationContract
 } from '../executor-contract.js';
 export {
 	continuationDependencies,

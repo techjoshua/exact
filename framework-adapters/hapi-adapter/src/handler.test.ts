@@ -1,5 +1,5 @@
 import { server as createHapiServer, type Server } from '@hapi/hapi';
-import { defineExactActionContract, type ExactServerContext } from '@exactjs/server';
+import { defineExactOperationContract, type ExactServerContext } from '@exactjs/server';
 import { request as createHttpRequest } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createExactHapiHandler, exactHapiPlugin, type ExactHapiPluginOptions } from './index.js';
@@ -231,7 +231,7 @@ function runtime(): ExactServerContext {
 }
 
 function stateAction(id: string) {
-	return defineExactActionContract(id, {
+	return defineExactOperationContract(id, {
 		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 	});
 }

@@ -7,8 +7,9 @@ Keep renderer ownership in eXact: use compiled events, bindings, keyed collectio
 `Activity`, `Suspense`, and the core `ErrorBoundary` rather than manipulating owned DOM ranges.
 Use `@exactjs/dom/testing` only for renderer-aware test support.
 
-Deliver direct and delegated events through the owning component interaction so batching,
-asynchronous settlement, error ownership, and cancellation stay coordinated. Registry entry keys
+Deliver direct and delegated events through an interaction-activated root task frame so batching,
+renderer consequences, structural settlement, error ownership, and cancellation stay coordinated.
+Registry entry keys
 are component identities: retain same-key ranges, replace different-key ranges, and discard stale
 lazy candidates without disturbing compatible siblings.
 

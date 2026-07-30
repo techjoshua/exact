@@ -97,7 +97,7 @@ describe('renderer-neutral router core', () => {
 		let settled = false;
 		const interaction = runComponentInteraction(
 			owner,
-			'action',
+			'invoked',
 			1,
 			'normal',
 			new AbortController(),
@@ -143,7 +143,7 @@ describe('renderer-neutral router core', () => {
 					{
 						id: 'slow',
 						path: 'slow',
-						loader: async ({ signal }) => {
+						loader: async ({ signal }: { signal: AbortSignal }) => {
 							const value = await slow;
 							if (signal.aborted) throw signal.reason;
 							return value;

@@ -238,7 +238,9 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('const label = __exactDerived(() => `${this.state.query}!`);');
-		expect(output).toMatch(/this\.task\(label, async \(value\) => \{\s*\}\);/);
+		expect(output).toMatch(
+			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?async \(value\) => \{\s*\}\), label\);/
+		);
 	});
 
 	it('inlines safe prop-derived consts inside task dependency captures', () => {
@@ -250,7 +252,9 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('const label = __exactDerived(() => `${props.query}!`);');
-		expect(output).toMatch(/this\.task\(label, async \(value\) => \{\s*\}\);/);
+		expect(output).toMatch(
+			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?async \(value\) => \{\s*\}\), label\);/
+		);
 	});
 
 	it('materializes safe derived consts declared inside render functions', () => {
@@ -329,11 +333,12 @@ describe('@exactjs/compiler: derived values', () => {
 
 	it('does not recapture existing reactive lambdas or run-once tasks', () => {
 		const output = transform(
-			'function View() { this.reactive(() => this.state.query); this.task(({ signal }) => {}); }'
+			'function View() { this.reactive(() => this.state.query); this.task(({ signal }: { signal: AbortSignal }) => {}); }'
 		);
 
 		expect(output).toContain('this.reactive(() => this.state.query)');
-		expect(output).toContain('this.task(({ signal }) => { });');
+		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('({ signal }:');
 		expect(output).not.toContain('this.reactive(() => () => this.state.query)');
 	});
 

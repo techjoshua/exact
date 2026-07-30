@@ -44,14 +44,16 @@ serialized from the browser.
 Use explicit task facets when policy is part of the source:
 
 ```ts
-this.task.server.deferred.blocking(async ({ signal }) => {
-	this.state.product = await products.find(props.productId, { signal });
-});
+async function loadProduct(task: TaskContext = TaskContext.server().deferred().blocking()) {
+	this.state.product = await products.find(props.productId, { signal: task.signal });
+}
+
+loadProduct();
 ```
 
 Ordinary awaited component setup is preferred for direct value flow. Explicit
-`this.task()` remains useful for external effects, cleanup, nonblocking work,
-manual dependencies, forced placement, readiness, or priority.
+`TaskContext` policy remains useful for external effects, cleanup, nonblocking
+work, manual dependencies, forced placement, readiness, or priority.
 
 ## Compiler lowering
 

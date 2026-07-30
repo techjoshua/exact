@@ -19,7 +19,7 @@ describe('VS Code language-server module resolution', () => {
 
 		expect(existsSync(resolved)).toBe(true);
 		expect(resolved.replaceAll('\\', '/')).toMatch(
-			/node_modules\/@exactjs\/language-server\/dist\/server\.js$/
+			/(?:node_modules\/@exactjs|packages)\/language-server\/dist\/server\.js$/
 		);
 	});
 });

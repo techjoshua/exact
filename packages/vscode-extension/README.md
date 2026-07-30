@@ -19,11 +19,11 @@ client child element from the server component that contains it while leaving
 VS Code's TypeScript symbol information intact.
 
 Semantic modifiers are applied only to compatible identifier tokens:
-component functions, explicit task/action methods, and derived variables.
+component functions, function-defined tasks, and derived variables.
 Keywords, JSX tags, inferred `await` sites, punctuation, and surrounding
 property-access syntax retain VS Code's normal TypeScript/theme highlighting.
 
-Assignment metadata appears before the assignment; task and action metadata
+Assignment metadata appears before the assignment; task metadata
 appears immediately after the call's opening parenthesis. `⚙` marks the
 particular assignment that initializes state, while `⚡` marks a deferred
 reactive assignment or inferred work. Composable call badges add kind (`📋`,

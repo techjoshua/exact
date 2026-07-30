@@ -35,11 +35,15 @@ Reactive and task work uses three priorities:
 - `normal` for ordinary reactive invalidation and tasks; and
 - `deferred` for preparation that may yield to user-visible work.
 
-Use `this.task.deferred(...)` when timing is a deliberate policy. Placement,
-priority, and readiness compose:
+Use an explicit final `TaskContext` default when timing is a deliberate policy.
+Placement, priority, and readiness compose:
 
 ```ts
-this.task.server.deferred.blocking(() => warmRecommendations());
+function warmRecommendations(task: TaskContext = TaskContext.server().deferred().blocking()) {
+	// server preparation
+}
+
+warmRecommendations();
 ```
 
 Deferred work changes when a generation runs. `blocking` changes whether the
@@ -69,9 +73,8 @@ destructuring may publish several state locations atomically. Framework
 cancellation bypasses authored catches so obsolete work cannot commit an
 application fallback, while `finally` still runs for cleanup.
 
-Explicit `this.task()` remains the form for external effects, cleanup,
-nonblocking work, manually named dependencies, placement, or scheduling
-policy.
+Explicit `TaskContext` policy remains the form for external effects, cleanup,
+nonblocking work, manually named dependencies, placement, or scheduling.
 
 ## Suspense
 

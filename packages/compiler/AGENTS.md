@@ -29,7 +29,7 @@ build response retains them.
 Preserve authored `setupExecution` on direct state assignments across
 normalization. Classify destructured prop bindings as reactive inputs and
 project assignment entities at their precise state targets.
-Keep task and action selection ranges on their callable identifier, not the
+Keep task selection ranges on their authored function identifier, not the
 whole property-access expression. Presentation clients must be able to add
 framework meaning without recoloring `this`, punctuation, or adjacent syntax.
 For explicit tasks, project only authored call arguments as activation
@@ -48,13 +48,19 @@ render-expression inspections. Keep the entity range on the element and its
 selection range on the authored tag so editor hovers describe the referenced
 component without inheriting the containing component's semantics.
 
-Keep `this.action()` registrations in setup and preserve compiler-generated action identifiers,
-argument slots, generations, placement, and optimistic preludes. Authored labels are diagnostics,
-not dispatch names. A server action must not transport its `ActionContext`, DOM values, services,
-or secrets. Preserve authored action return types through generated client stubs, retain action
-body imports in the server artifact, and keep those imports out of client artifacts. Application
-components call the returned action function; do not introduce low-level client access or
-handwritten operation identifiers.
+Classify ordinary declared, assigned, and expression functions from their activation sites,
+effects, and final `TaskContext` policy parameter. Erase policy builders, lower setup activation
+through `activateTask(defineTask(...))`, lower invoked facades through `bindTask(defineTask(...))`,
+and lower calls after suspension through `invokeTask()` with the retained context. Preserve
+compiler-generated opaque operation identity, argument slots, generations, placement, optimism,
+and server/client artifact partitioning. Authored function names are labels, never dispatch
+authority. Do not transport `TaskContext`, DOM values, services, resources, or secrets.
+
+Treat defaults on non-context task parameters as captured argument initializers. Resolve omitted
+defaults once per generation under the runtime's untracked capture scope, preserve left-to-right
+default semantics and explicit-argument tracking, erase the initializers from executable task
+work, and expose captured inputs separately from activation dependencies. Resolve captures before
+remote dispatch and retain compiler-authorized argument slots across both artifacts.
 
 Keep `createComponentRegistry()` declarations finite, immutable, named, and module-scoped.
 Preserve entry provenance, lazy export resolution, placement, artifact targets, and opaque
@@ -62,7 +68,7 @@ registry identity through analysis and explanation output. Diagnose an unproven 
 boundary instead of lowering it to an open runtime lookup.
 
 Derive DevTools catalogs and compact runtime correlation from the canonical source inspection; do
-not recreate entity ordering in an adapter or UI. The native compiler marks task/action callbacks
+not recreate entity ordering in an adapter or UI. The native compiler marks task functions
 with their canonical IDs in instrumented output. Rich classifications, reasons, paths, and source
 text belong only to server artifacts. Client output may carry opaque correlation identities and
 value-free redaction selectors only. Hardened transforms set both inspection controls to `false`

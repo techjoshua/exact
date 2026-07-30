@@ -149,14 +149,13 @@ export function StatePage(this: Component<{}>) {
 					For a safe setup constant such as <code>subtotal</code>, the compiler emits an internal
 					lazy derived value. The public <code>this.reactive()</code> API expresses the same
 					relationship when you want to name the boundary yourself, work without the transform, or
-					register a component-owned task through its <code>.task()</code> shorthand.
+					pass a first-class reactive value through another framework API.
 				</p>
 				<CodeBlock source={explicitDerivedSource} language="tsx" title="Explicit derived value" />
 				<p>
-					The shorthand is specific to values returned by <code>this.reactive()</code>. A base
-					<code>ReactiveValue</code> from <code>@exactjs/reactive</code> does not expose{' '}
-					<code>.task()</code>; pass it to <code>this.task(value, work)</code> instead. The two
-					component forms register the same dependency relationship.
+					A task function can accept the derived value as an ordinary argument. Calling it during
+					setup records that argument expression as the activation dependency without another
+					registration API.
 				</p>
 				<p>
 					The explicit form is not “more reactive” than the inferred form. It is the visible
@@ -168,7 +167,7 @@ export function StatePage(this: Component<{}>) {
 				<p>
 					When a setup assignment reads reactive state, props, or shared context, the compiler
 					treats the right side as a repeatable calculation and the state target as its output.
-					There is no need to wrap an assignment-only calculation in <code>this.task()</code>.
+					There is no need to wrap an assignment-only calculation in a task function.
 				</p>
 				<CodeBlock source={derivedAssignmentSource} language="tsx" title="Summary.tsx" />
 				<p>

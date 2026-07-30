@@ -127,8 +127,10 @@ describe('page-world eXact DevTools runtime', () => {
 	it('late-attaches to active roots and exposes only bounded read-only projections', async () => {
 		function Counter(this: Component<{ count?: number }>) {
 			this.state.count = 1;
-			this.task(markExactInspectionSource('Counter:task:load', async () => Promise.resolve()));
-			this.action(
+			(this as any).task(
+				markExactInspectionSource('Counter:task:load', async () => Promise.resolve())
+			);
+			(this as any).action(
 				'Increment',
 				markExactInspectionSource('Counter:action:increment', () => {
 					this.state.count = (this.state.count ?? 0) + 1;
@@ -172,8 +174,13 @@ describe('page-world eXact DevTools runtime', () => {
 				{
 					name: 'Counter',
 					state: { kind: 'object' },
-					tasks: [{ id: { sourceEntityId: 'Counter:task:load' } }],
-					actions: [{ id: { sourceEntityId: 'Counter:action:increment' } }]
+					tasks: [
+						{ id: { sourceEntityId: 'Counter:task:load' } },
+						{
+							id: { sourceEntityId: 'Counter:action:increment' },
+							activation: 'invoked'
+						}
+					]
 				}
 			]
 		});

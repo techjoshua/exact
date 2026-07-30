@@ -1,4 +1,10 @@
-import { createConsoleLogger, LoggerContext, type Component, type Logger } from '@exactjs/core';
+import {
+	createConsoleLogger,
+	LoggerContext,
+	TaskContext,
+	type Component,
+	type Logger
+} from '@exactjs/core';
 import { px } from '@exactjs/dom';
 import { _ } from '@exactjs/jsx';
 import { BoardContext } from '../context.js';
@@ -26,9 +32,10 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
 		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
 		: undefined;
 
-	this.task(JSON.stringify(this.state.tasks), (tasksJson) => {
+	function persistTasks(tasksJson: string, _task: TaskContext = TaskContext.client().latest()) {
 		localStorage.setItem(storageKey, tasksJson);
-	});
+	}
+	persistTasks(JSON.stringify(this.state.tasks));
 
 	const updateTask = (taskId: string, patch: Partial<Pick<Task, 'title' | 'notes' | 'status'>>) => {
 		const task = this.state.tasks.find((task) => task.id === taskId);

@@ -1,14 +1,50 @@
-import type { ExactSourceEntity, ExactSourceInspection } from '@exactjs/compiler';
+import type {
+	ExactSourceEntity,
+	ExactSourceInspection,
+	ExactTaskClassification
+} from '@exactjs/compiler';
 import { describe, expect, it } from 'vitest';
 import {
 	projectCodeLenses,
 	projectDocumentSymbols,
 	projectHover,
 	projectInlayHints,
-	projectSemanticTokens
+	projectSemanticTokens,
+	projectTaskRename,
+	projectTaskStatusCompletions
 } from './lsp-projections.js';
 
 describe('language-server projections', () => {
+	it('completes, explains, and renames synthetic task facade members', () => {
+		const completionSource = 'function save() {}; save.';
+		const completionInspection = fixture(completionSource);
+		expect(
+			projectTaskStatusCompletions(completionInspection, completionSource, {
+				line: 0,
+				character: completionSource.length
+			}).map((item) => item.label)
+		).toEqual(['pending', 'pendingCount', 'generation', 'result', 'error', 'cancel']);
+
+		const hoverSource = 'function save() {}; save.pending';
+		const hoverInspection = fixture(hoverSource);
+		expect(
+			projectHover(hoverInspection, hoverSource, {
+				line: 0,
+				character: hoverSource.length
+			})?.contents
+		).toMatchObject({ value: expect.stringContaining('foreground task work') });
+
+		expect(
+			projectTaskRename(
+				hoverInspection,
+				hoverSource,
+				{ line: 0, character: 10 },
+				'persist',
+				'file:///Page.tsx'
+			)?.changes?.['file:///Page.tsx']
+		).toHaveLength(2);
+	});
+
 	it('projects one compiler task through standard LSP capabilities', () => {
 		const source = 'function Page() { return () => <main />; }';
 		const inspection = fixture(source);
@@ -29,8 +65,8 @@ describe('language-server projections', () => {
 		expect(projectSemanticTokens(inspection, source).data.length).toBeGreaterThan(0);
 	});
 
-	it('composes independently explained badges for explicit tasks and actions', () => {
-		const source = 'function Page() { this.task(); this.action(); }';
+	it('composes independently explained badges for explicit task policy', () => {
+		const source = 'function Page() { this.task(); }';
 		const inspection = fixture(source);
 		const initializer = inspection.components[0]?.children[0];
 		const inferredTask = initializer?.children[0];
@@ -41,60 +77,34 @@ describe('language-server projections', () => {
 			kind: 'explicit-task',
 			selectionRange: sourceRange(source, 'task'),
 			classification: {
-				...inferredTask.classification!,
+				...(inferredTask.classification as ExactTaskClassification),
 				kind: 'task',
 				origin: 'explicit',
 				priority: 'deferred',
 				publication: 'immediate'
 			}
 		};
-		const action: ExactSourceEntity = {
-			id: 'Page:action',
-			kind: 'action',
-			name: 'Save',
-			range: { start: 0, end: source.length },
-			selectionRange: sourceRange(source, 'action'),
-			children: [],
-			classification: {
-				kind: 'action',
-				placement: 'server',
-				concurrency: 'latest'
-			},
-			reasons: []
-		};
 		const compositeInspection: ExactSourceInspection = {
 			...inspection,
 			components: [
 				{
 					...inspection.components[0]!,
-					children: [{ ...initializer, children: [explicitTask, action] }]
+					children: [{ ...initializer, children: [explicitTask] }]
 				}
 			]
 		};
 
 		const hints = projectInlayHints(compositeInspection, source);
-		expect(hints.map((hint) => badgeValues(hint.label))).toEqual([
-			['📋', '🖥', '⏳', '🚨'],
-			['▶', '🖥']
-		]);
+		expect(hints.map((hint) => badgeValues(hint.label))).toEqual([['📋', '🖥', '⏳', '🚨']]);
 		expect(badgeParts(hints[0]?.label)[2]?.tooltip).toMatchObject({
 			kind: 'markdown',
 			value: expect.stringContaining('Deferred priority')
-		});
-		expect(badgeParts(hints[1]?.label)[0]?.tooltip).toMatchObject({
-			kind: 'markdown',
-			value: expect.stringContaining('Action')
-		});
-		expect(hints[1]?.tooltip).toMatchObject({
-			kind: 'markdown',
-			value: expect.stringContaining('latest')
 		});
 		expect(
 			semanticTokenFacts(source, projectSemanticTokens(compositeInspection, source).data)
 		).toEqual([
 			{ text: 'Page', type: 0 },
-			{ text: 'task', type: 3 },
-			{ text: 'action', type: 3 }
+			{ text: 'task', type: 3 }
 		]);
 	});
 
@@ -185,7 +195,7 @@ describe('language-server projections', () => {
 									},
 									selectionRange: { start: taskOffset, end: taskOffset + 4 },
 									classification: {
-										...task.classification!,
+										...(task.classification as ExactTaskClassification),
 										kind: 'task',
 										origin: 'explicit'
 									}
@@ -278,6 +288,8 @@ function fixture(source: string): ExactSourceInspection {
 			placement: 'server' as const,
 			priority: 'normal' as const,
 			readiness: 'blocking' as const,
+			concurrency: 'latest' as const,
+			detached: false,
 			dependencies: [
 				{
 					kind: 'prop' as const,
@@ -286,6 +298,7 @@ function fixture(source: string): ExactSourceInspection {
 					confidence: 'exact' as const
 				}
 			],
+			capturedInputs: [],
 			effects: [
 				{
 					kind: 'state-write' as const,

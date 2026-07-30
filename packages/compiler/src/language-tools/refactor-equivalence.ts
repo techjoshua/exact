@@ -41,6 +41,8 @@ export function equivalentTaskClassification(
 		left.placement === right.placement &&
 		left.readiness === right.readiness &&
 		left.priority === right.priority &&
+		left.concurrency === right.concurrency &&
+		left.detached === right.detached &&
 		left.publication === right.publication &&
 		left.cancellation === right.cancellation &&
 		left.cleanup === right.cleanup &&
@@ -55,6 +57,10 @@ export function equivalentTaskClassification(
 				dependency.path,
 				dependency.confidence
 			])
+		) &&
+		equalValues(
+			left.capturedInputs.map((input) => [input.parameter, input.kind, input.path]),
+			right.capturedInputs.map((input) => [input.parameter, input.kind, input.path])
 		) &&
 		equalValues(
 			left.effects.map((effect) => [effect.kind, effect.path, effect.confidence]),

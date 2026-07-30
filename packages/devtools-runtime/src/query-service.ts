@@ -11,6 +11,7 @@ import {
 	type ExactInspectionSubscriptionHandle,
 	type ExactInspectionExecutionRoot,
 	type ExactInspectedRuntimeComponent,
+	type ExactTaskRuntimeSnapshot,
 	type ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
 import type { ExactDomInspectionHost } from '@exactjs/dom';
@@ -51,8 +52,7 @@ export function createExactClientInspectionQueryService(
 					'contexts.list',
 					'tasks.list',
 					'tasks.get',
-					'actions.list',
-					'actions.get'
+					'tasks.getTree'
 				].includes(request.method)
 			)
 				return options.server!.query(options.sessionId, request);
@@ -102,15 +102,10 @@ export function createExactClientInspectionQueryService(
 					);
 				case 'tasks.get':
 					return nestedResponse(request, options.sessionId, snapshot, 'tasks');
-				case 'actions.list':
-					return componentResponse(
-						request,
-						options.sessionId,
-						snapshot,
-						(component) => component.actions
+				case 'tasks.getTree':
+					return componentResponse(request, options.sessionId, snapshot, (component) =>
+						taskTree(component.tasks)
 					);
-				case 'actions.get':
-					return nestedResponse(request, options.sessionId, snapshot, 'actions');
 				case 'timeline.query':
 					return mergedTimeline(request, options, maxResults);
 				case 'errors.list':
@@ -371,7 +366,7 @@ function nestedResponse(
 	request: ExactInspectionRequest,
 	sessionId: string,
 	components: readonly ExactInspectedRuntimeComponent[],
-	key: 'tasks' | 'actions'
+	key: 'tasks'
 ): ExactInspectionResponse {
 	const component = findComponent(request.params?.identity, components);
 	const sourceEntityId = request.params?.sourceEntityId ?? request.params?.identity?.sourceEntityId;
@@ -379,6 +374,36 @@ function nestedResponse(
 	return record
 		? success(request, sessionId, record)
 		: failure(request.id, 'not-found', `${key} record unavailable`);
+}
+
+type TaskTreeNode = Readonly<{
+	task: ExactTaskRuntimeSnapshot;
+	children: readonly TaskTreeNode[];
+}>;
+
+function taskTree(tasks: readonly ExactTaskRuntimeSnapshot[]): readonly TaskTreeNode[] {
+	const byIdentity = new Map<
+		string,
+		{ task: ExactTaskRuntimeSnapshot; children: TaskTreeNode[] }
+	>();
+	for (const task of tasks) byIdentity.set(runtimeIdentityKey(task.id), { task, children: [] });
+	const roots: Array<{ task: ExactTaskRuntimeSnapshot; children: TaskTreeNode[] }> = [];
+	for (const node of byIdentity.values()) {
+		const parent = node.task.parent && byIdentity.get(runtimeIdentityKey(node.task.parent));
+		if (parent) parent.children.push(node);
+		else roots.push(node);
+	}
+	return roots;
+}
+
+function runtimeIdentityKey(identity: ExactInspectionRuntimeId): string {
+	return [
+		identity.buildKey,
+		identity.executionRoot,
+		identity.instanceId,
+		identity.sourceEntityId ?? '',
+		identity.generation ?? ''
+	].join(':');
 }
 
 function findComponent(

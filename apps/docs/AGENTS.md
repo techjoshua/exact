@@ -17,3 +17,9 @@ boundary, task-refactor limitations, and package map aligned with
 For full-stack DevTools, keep build controls, `allowDebug`, redaction, catalog identity,
 microfrontend federation, Chromium/agent read-only behavior, and package ownership aligned with
 `docs/devtools.md`.
+
+Present reactive and invoked work as activation modes of one function-defined task model. Keep
+`TaskContext` policy, structured settlement, owner-bound status, cleanup/optimism, the versioned
+library ABI, captured parameter defaults, and the framework frame SPI aligned with
+`docs/tasks.md`. Distinguish tracked call arguments from generation-stable untracked defaults, and
+do not restore separate authored task and action articles.

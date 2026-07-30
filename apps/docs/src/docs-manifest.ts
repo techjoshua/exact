@@ -1,5 +1,4 @@
 import type { ComponentFunction } from '@exactjs/core';
-import { ActionsPage } from './pages/ActionsPage.jsx';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
 import { ComparisonPage } from './pages/ComparisonPage.jsx';
@@ -145,18 +144,11 @@ export const docGroups: DocGroup[] = [
 			},
 			{
 				path: '/learn/tasks',
-				label: 'Tasks & cleanup',
-				summary: 'Own asynchronous work with the component.',
-				keywords: 'task async abort signal cleanup effects',
-				component: TasksPage
-			},
-			{
-				path: '/learn/actions',
-				label: 'Actions & optimistic state',
-				summary: 'Coordinate events, forms, server work, optimism, and navigation.',
+				label: 'Tasks, captures & cleanup',
+				summary: 'Coordinate reactive and invoked work through ordinary functions.',
 				keywords:
-					'action interaction optimistic pending concurrency latest queue form server navigation rollback',
-				component: ActionsPage
+					'task function captured parameter default snapshot dependency async abort signal cleanup optimistic invocation concurrency latest queue owner tree structured',
+				component: TasksPage
 			},
 			{
 				path: '/learn/async-interfaces',

@@ -1,125 +1,94 @@
-# Actions, interactions, optimistic state, and forms
+# Task interactions, optimistic state, and forms
 
-This document describes the implemented coordinated-work model. The original
-design rationale and delivery inventory remain in
-[`proposals/coordinated-actions-and-forms.md`](proposals/coordinated-actions-and-forms.md).
+Events, forms, direct calls, and navigation are activation sources for the
+same function-defined task model described in [tasks.md](tasks.md). There is no
+separate component action resource or registration API.
 
-## Choose inferred or explicit work
+## Invoked interaction work
 
-Known DOM events and framework callback positions are interaction hosts. Their
-synchronous state writes batch together, returned promises remain owned by the
-component, and router work started synchronously joins the same settlement.
-Ordinary callbacks need no wrapper:
-
-```tsx
-async function save(_event: SubmitEvent, data: FormData) {
-	this.state.profile = await profiles.save(readProfile(data));
-	await router.navigate('/profile');
-}
-
-return () => <Form onValidSubmit={save}>...</Form>;
-```
-
-Use an explicit component action when the component needs a named and
-inspectable operation, a concurrency policy, explicit placement or priority,
-direct invocation, or optimistic state:
+Define an ordinary local function and call it from the event, form, or router
+host. A final `TaskContext` default declares policy and is erased by the
+compiler:
 
 ```tsx
-const save = this.action.server(
-	'save profile',
-	async (profile: Profile, { optimistic, signal }) => {
-		optimistic(() => {
+function ProfileEditor(this: Component<ProfileState>) {
+	async function save(
+		profile: Profile,
+		task: TaskContext = TaskContext.server().latest().immediate()
+	) {
+		task.optimistic(() => {
 			this.state.profile = profile;
 		});
-		this.state.profile = await profiles.save(profile, { signal });
-	},
-	'latest'
-);
+		this.state.profile = await profiles.save(profile, task.signal);
+	}
+
+	return () => (
+		<form onSubmit={() => save(this.state.profile)}>
+			<button disabled={save.pending}>Save</button>
+		</form>
+	);
+}
 ```
 
-The action name is a diagnostic label. Compiler-generated opaque identifiers,
-not authored names, secure distributed dispatch.
+The function is a normal call target. When it is called synchronously by an
+event or form callback, it attaches to that interaction's root task frame.
+After an `await`, the compiler lowers known task calls through the retained
+parent context. A standalone call creates an invoked root.
 
-## Action lifetime
+`parallel()`, `latest()`, and `queue()` select overlap policy for one durable
+owner, definition, and optional `key(value)` lane. `immediate()`, `normal()`,
+and `deferred()` control scheduling; `blocking()` and `nonblocking()` control
+host readiness independently. `detached()` is required when work must not
+delay its causal parent.
 
-`parallel`, `latest`, and `queue` are the supported concurrency policies.
-Every accepted invocation has an abort signal and generation. The returned
-callable exposes reactive `pending`, `pendingCount`, `generation`, `result`,
-and `error` properties plus `cancel()`.
+## Status
 
-Placement and priority facets compose:
+Compiler-recognized task functions expose an owner-bound facade when status is
+used:
 
-```ts
-this.action(name, work, policy);
-this.action.client(name, work, policy);
-this.action.server(name, work, policy);
-this.action.deferred(name, work, policy);
-this.action.server.deferred(name, work, policy);
-```
+- `pending` and `pendingCount` report foreground work;
+- `generation`, `result`, and `error` report accepted terminal generations;
+- `cancel(reason?)` cancels represented generations and descendants.
 
-Actions are setup-owned component resources. Unmount cancels queued and active
-generations and releases their optimistic journals. Synchronous failures and
-asynchronous rejections follow the same status and error-ownership rules.
-`inspectComponentActions()` returns immutable diagnostic snapshots without
-exposing work callbacks or operation identifiers.
+Portable TypeScript uses `taskStatus(save)`. Compilerless libraries define a
+task with `defineTask()` and can bind it to an explicit owner with
+`bindTask()`.
 
 ## Optimistic state
 
-`optimistic()` accepts a synchronous callback and publishes ordinary
-`this.state` mutations immediately. The reactive runtime journals the affected
-object paths, array sequences, Map entries, and Set memberships.
+`task.optimistic()` must run synchronously before asynchronous work. Mutate
+`this.state` normally. The runtime journals those reactive mutations, commits
+them on success, and rolls them back on failure, cancellation, or
+supersession. Optimism requires `latest()` or `queue()` so rollback ownership
+is deterministic.
 
-Success discards the journal. Failure, cancellation, supersession, or unmount
-rolls it back. Rollback preserves later authoritative writes, including writes
-that overlap a different Map key, Set member, object path, or compatible array
-segment. External effects are never treated as reversible.
+Do not author patches, reducers, shadow stores, or manual rollback.
 
-Parallel optimistic actions are diagnosed in this delivery because overlapping
-overlay composition is not yet a supported contract.
+## Forms
 
-## Coordinated forms
+Form controls remain package-owned:
 
-`@exactjs/forms` keeps application values and server validation errors in
-inspectable component state:
+- duplicate-submit suppression and pending UI use the root task's foreground
+  barrier;
+- final errors, cleanup, and optimistic commit or rollback use structural
+  settlement;
+- native form fallback, external errors, and focus behavior remain ordinary
+  form concerns.
 
-```tsx
-<Form errors={this.state.errors} onValidSubmit={save}>
-	<Field name="email" required>
-		<Label>Email</Label>
-		<Input type="email" value:input={this.state.email} />
-		<FieldError />
-	</Field>
-	<Submit pendingText="Saving…">Save</Submit>
-</Form>
-```
+The HTML `action` attribute keeps its platform meaning; task unification does
+not rename web-platform vocabulary.
 
-The form drops duplicate submissions while one is active. `aria-busy`, submit
-disablement, and pending text remain active until validation, callback work,
-server continuations, and joined navigation settle. The `errors` prop maps
-application-owned messages to fields; it does not create a second form store.
+## Router work
 
-## Distributed actions
+Navigation, fetch, submit, redirect, and revalidation initiated synchronously
+from a task attach to that frame. Standalone navigation creates an interaction
+root. Latest-wins navigation and stale response fencing remain router-owned,
+while deferred descendants can continue after foreground readiness settles.
 
-The compiler lowers placed actions into the existing continuation protocol.
-Only declared argument slots and approved captures cross the boundary.
-Request cancellation and the invocation generation reach the server executor;
-the authored return value comes back through the validated continuation
-envelope with its TypeScript type preserved at the component call site. Stale
-generations cannot commit.
+## Distributed execution
 
-Application code calls the typed function returned by `this.action.server()`.
-It does not acquire the low-level transport client, call `invokeAction()`, or
-name a generated continuation. Server-only imports used by the action body stay
-in the server artifact; the client artifact contains only an opaque compiler
-dispatch stub.
-
-Action contexts, DOM events, elements, functions, services, secrets, and raw
-`FormData` are not transport values. Server endpoints retain allowlisting,
-authorization, CSRF, payload, serialization, and build-identity validation.
-
-## Current limits
-
-The implemented enhanced-client model does not yet include native
-no-JavaScript action endpoints, file-upload transport, partial-prerender
-resumption, or browser View Transition policy. Those need distinct transport
-and browser-lifecycle contracts and are tracked as deferred proposal work.
+`TaskContext.server()` lets the compiler generate an allowlisted opaque
+operation. Application code calls the task function directly and never
+constructs protocol payloads. The current wire version may retain the legacy
+`type: "action"` discriminator, but server dispatch normalizes it to neutral
+operation semantics and DevTools reports one task tree.

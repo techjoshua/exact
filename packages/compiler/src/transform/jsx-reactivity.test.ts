@@ -461,15 +461,16 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 			'function View() { this.task(this.state.query, this.state.page, async (query, page) => {}); }'
 		);
 
-		expect(output).toContain(
-			'this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });'
-		);
+		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('async (query, page) => { })');
+		expect(output).toContain('this.reactive(() => this.state.query)');
+		expect(output).toContain('this.reactive(() => this.state.page)');
 	});
 
 	it('infers task dependencies from state reads while excluding write-only effects', () => {
 		const output = transform(
 			`function Search(this: Component<{ query: string; results: string[] }>) {
-        this.task(async ({ signal }) => {
+        this.task(async ({ signal }: { signal: AbortSignal }) => {
           const query = this.state.query;
           this.state.results = query ? [query] : [];
           await fetch("/search?q=" + query, { signal });
@@ -479,7 +480,7 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		);
 
 		expect(output).toMatch(
-			/this\.task\(this\.reactive\(\(\) => this\.state\.query\), __exactContinuationTask\("[^"]+", async \(__exactDependency: any, \{ signal \}\) =>/
+			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?__exactContinuationTask\("[^"]+", async \(__exactDependency: any, \{ signal \}:[\s\S]*?\) =>/
 		);
 		expect(output).toContain('const query = __exactDependency;');
 		expect(output).not.toContain('const query = this.state.query;');

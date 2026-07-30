@@ -7,15 +7,19 @@ host. Never dispatch client-provided module names or expose private captures.
 Let server continuations return compiler-approved state effects. `Map` changes travel as keyed
 deltas and `Set` changes as membership deltas; do not serialize whole collections manually.
 
-Action continuations accept only compiler-declared argument slots. Supply cancellation and the
-invocation generation through trusted runtime context, return the authored value inside the
-validated envelope, and keep authored labels, action contexts, services, secrets, and raw DOM or
-form objects out of the transport contract.
+Task operation continuations accept only compiler-declared argument slots. Execute them through
+the framework task-frame SPI so their trusted `TaskContext` owns cancellation, generation,
+cleanup, disposables, and attached children. Return the authored value inside the validated
+envelope, and keep authored labels, task contexts, services, secrets, and raw DOM or form objects
+out of the transport contract.
+Treat captured task-parameter defaults as already-resolved originating-host arguments. Validate
+their compiler-declared slots normally; never reevaluate a client capture on the server or accept
+an authored capture expression through the protocol.
 
 For DevTools, keep `allowDebug` separate from build output and default it unavailable in production.
 Use `debugSessionIdentity` for restricted operator sessions, exact build/root catalog lookup, and
 the existing eXact endpoint and binding gateway. Never treat debug IDs as invocation selectors,
 forward browser credentials to component hosts, or include values in audit records. Dispose
 dynamic catalog registrations and child sessions with their retained build/page session.
-Keep debug ownership lazy: ordinary action, refresh, continuation, and batch traffic must not
+Keep debug ownership lazy: ordinary operation, refresh, continuation, and batch traffic must not
 construct the debug runtime or decode inspection catalogs.

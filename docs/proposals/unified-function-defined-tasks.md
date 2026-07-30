@@ -2,13 +2,23 @@
 
 ## Status
 
-Proposed. Nothing in this document is implemented yet.
+Implemented for the repository's current framework, package, application, and
+documentation scope. The versioned task ABI, durable owners and keyed lanes,
+task invocation and status, setup activation, opaque framework frame SPI,
+structured settlement, cancellation, cleanup, optimism, atomic reservations,
+function discovery and lowering, server task frames, neutral public operation
+contracts, unified DevTools queries, and language-tool task synthetics and
+reversible refactors are verified through the native compiler and package
+distribution. Legacy registration machinery remains internal only for
+historical regression fixtures; it is not a public declaration, generated
+output contract, or source-compatibility promise.
 
-The current `this.task(...)`, `this.action(...)`, `TaskContext`, `ActionContext`,
-interaction, transport, inspection, and language-tool contracts remain
-authoritative until the corresponding migration phase is complete. This
-proposal intentionally supersedes the separate authored task/action model
-described in
+The function-defined task model is authoritative. There is no source
+compatibility requirement for `this.task(...)`, `this.action(...)`,
+`ActionContext`, or component-action types because every current framework
+consumer is in this repository. The existing wire tag may remain internal
+until a behavioral protocol change justifies a version. This proposal
+supersedes the separate authored task/action model described in
 [`coordinated-actions-and-forms.md`](coordinated-actions-and-forms.md), while
 retaining its concurrency, optimistic-state, form, router, security, and
 distributed-execution guarantees.
@@ -643,6 +653,11 @@ export function defineTask<Args extends unknown[], Result>(
 	implementation: (...args: [...Args, TaskContext]) => Result | Promise<Result>
 ): TaskFunction<Args, Awaited<Result>>;
 
+export function activateTask<Args extends unknown[], Result>(
+	task: TaskFunction<Args, Result>,
+	...inputs: { [K in keyof Args]: Args[K] | ReactiveValue<Args[K]> }
+): Disposable;
+
 export function invokeTask<Args extends unknown[], Result>(
 	parent: TaskContext,
 	child: TaskFunction<Args, Result>,
@@ -690,6 +705,12 @@ or roots a frame through the framework SPI, supplies a fresh context, applies
 policy, and returns a `TaskInvocation` that observes full structural settlement.
 The definition itself does not expose global mutable status because it may run
 under many unrelated owners.
+
+`activateTask()` is the shared setup-host ABI. It reads compiler-supplied
+reactive argument values, invokes an initialization generation, starts reactive
+generations when those values invalidate, and releases the activation with its
+durable owner. Compilerless renderer and adapter integrations can therefore
+reproduce setup activation without accessing a component registration method.
 
 `TaskInvocation` is a standards-compatible thenable rather than a promise-brand
 contract. It works with `await`, `Promise.resolve()`, `Promise.all()`, and other
@@ -914,6 +935,41 @@ canonicalized by reactive source and path, so reading the same value four
 times creates one dependency. Tooling may show the individual read locations,
 but must not present them as four dependencies.
 
+### Captured parameter defaults
+
+A default on any non-context task parameter declares a captured input. The
+compiler evaluates omitted defaults once per generation under the task's
+untracked input-capture scope, passes their results as ordinary arguments, and
+removes the authored initializer from executable task work:
+
+```ts
+async function refreshRates(
+	revision: number,
+	draft: ShipmentDraft = this.state.draft,
+	ids: readonly ProviderId[] = initial.configuredProviders,
+	task: TaskContext = TaskContext.client().deferred()
+) {
+	await loadRates(revision, draft, ids, task.signal);
+}
+
+refreshRates(this.state.revision);
+```
+
+`revision` is an activation dependency. `draft` and `ids` are reevaluated for
+each generation but do not themselves schedule one. Explicitly supplied
+arguments retain ordinary setup-call dependency tracking and replace their
+defaults; an explicit `undefined` selects the default exactly as in JavaScript.
+Defaults preserve left-to-right evaluation and may reference earlier
+parameters.
+
+Captured defaults execute on the originating host before a remote dispatch.
+Their values occupy compiler-authorized argument slots and undergo the same
+serialization, data-residency, and secret-flow checks as explicit arguments.
+The compiler and language tools expose them as captured inputs rather than
+dependencies. Runtime argument capture uses a task-definition resolver so the
+same semantics apply to setup activation, direct invocation, queued
+generations, child tasks, and calls restored after suspension.
+
 `task.peek()` reads the current value without adding it to this task's
 activation dependencies:
 
@@ -930,10 +986,11 @@ refreshRates();
 
 Changing `revision` activates a superseding generation. That generation reads
 the latest `draft`, but changing `draft` alone does not activate the task.
-`task.peek()` is the documented task-authoring idiom because it states which
-task's dependency collection is being suppressed. It suppresses only the
-current task frame's collector and must not disable an unrelated nested
-reactive scope.
+Prefer a captured parameter default when the snapshot is a natural task input.
+Use `task.peek()` for conditional or mid-body snapshots. It states which
+task's dependency collection is being suppressed, affects only the current
+task frame's collector, and must not disable an unrelated nested reactive
+scope.
 
 The standalone `peek()` export remains a supported lower-level reactive
 primitive for initialization, derived expressions, and code that has no task
@@ -1791,11 +1848,12 @@ export function CalculatorWorkspace(
 
 	async function refreshRates(
 		revision: number,
+		draft: ShipmentDraft = this.state.draft,
+		ids: readonly ProviderId[] = initial.configuredProviders,
 		task: TaskContext = TaskContext.client().deferred()
 	) {
 		await delay(450, task.signal);
-		const request = normalizeDraft(task.peek(() => this.state.draft));
-		const ids = task.peek(() => initial.configuredProviders);
+		const request = normalizeDraft(draft);
 		const route = resolveRouteOnServer(request);
 		const quotes = ids.map((id) => quoteProviderOnServer(id, request));
 		this.state.route = await route;
@@ -1813,10 +1871,11 @@ export function CalculatorWorkspace(
 The setup-scope call is both readable TypeScript and the reactive activation:
 `this.state.revision` is its dependency and the evaluated revision is its
 generation argument. No `observe(...)` or registration wrapper is introduced.
-The `draft` and configured-provider reads use `task.peek()`, so they are
-refreshed when `revision` activates the task without independently triggering
-it. If those `task.peek()` calls were removed, the body reads would become
-inferred dependencies as well.
+The `draft` and configured-provider defaults are captured parameters, so they
+are refreshed when `revision` activates the task without independently
+triggering it. Moving those reads into the body would make them inferred
+dependencies; `task.peek()` remains available when a snapshot is conditional
+or cannot naturally be expressed as an input.
 Calling `refreshRates(...)` later from inside another function remains an
 ordinary invocation. It attaches automatically when the caller runs under a
 task frame and creates a root generation otherwise.
@@ -2169,15 +2228,17 @@ Protection should match the risk of each boundary:
 - **Compiler contract tests:** semantic activation, effects, placement,
   capture/serialization, builder erasure, source maps, synthetic types, alias
   resolution, recursion, canonical dependency deduplication, `task.peek()`
-  suppression, pure concurrency-key extraction, canonical policy normalization,
-  and diagnostics.
+  suppression, captured-default evaluation order, explicit argument override,
+  originating-host server transport, captured-input inspection, pure
+  concurrency-key extraction, canonical policy normalization, and diagnostics.
 - **Runtime invariant tests:** generation transitions, parallel/latest/queue,
   owner and key lane isolation, attached/detached settlement, cancellation
   direction, observed/unobserved error propagation, suppressed failures,
   failure/cancellation race precedence, producer-scope disposal, atomic child
   reservation, exactly-once foreground and descendant settlement, cleanup
   order, disposal, dynamic dependency replacement, failed-generation retry
-  dependencies, stale-generation rejection, and component teardown.
+  dependencies, untracked per-generation argument capture, stale-generation
+  rejection, and component teardown.
 - **Scheduling tests:** inherited and explicit priority, immediate-to-deferred
   result waits, priority/readiness donation and restoration, deferred
   structural children that do not remain visibly pending, starvation

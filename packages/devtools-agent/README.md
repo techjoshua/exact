@@ -7,6 +7,6 @@ The adapter attaches to an existing Chromium target, detects
 and projects the same validated requests and events used by the human DevTools panel.
 
 It uses fixed CDP function declarations plus by-value protocol arguments. Callers cannot supply
-JavaScript, invoke actions, mutate state, expand redaction, or request unbounded results. Disconnect
+JavaScript, invoke tasks, mutate state, expand redaction, or request unbounded results. Disconnect
 closes page subscriptions, removes the CDP binding, releases the runtime object group, and closes
 the socket.

@@ -462,8 +462,15 @@ func componentOwnerIndex(node *ast.Node, candidates []componentCandidate) int {
 
 func insideTaskSpan(position int, tasks []Task, component string) bool {
 	for _, task := range tasks {
-		if task.Component == component &&
-			position >= task.Start && position < task.Start+task.Length {
+		if task.Component != component {
+			continue
+		}
+		if position >= task.Start && position < task.Start+task.Length {
+			return true
+		}
+		if task.FunctionDefined &&
+			position >= task.WorkStart &&
+			position < task.WorkStart+task.WorkLength {
 			return true
 		}
 	}

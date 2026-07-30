@@ -6,13 +6,21 @@ import type {
 } from '@exactjs/compiler';
 import {
 	DocumentSymbol,
+	CompletionItemKind,
 	MarkupKind,
 	Position,
 	Range,
 	SemanticTokensBuilder,
 	SymbolKind
 } from 'vscode-languageserver/node.js';
-import type { CodeLens, Hover, SemanticTokens } from 'vscode-languageserver/node.js';
+import type {
+	CodeLens,
+	CompletionItem,
+	Hover,
+	SemanticTokens,
+	TextEdit,
+	WorkspaceEdit
+} from 'vscode-languageserver/node.js';
 import { capitalize, entityFacts } from './entity-explanations.js';
 import { projectInlayHints } from './inlay-hints.js';
 
@@ -33,7 +41,6 @@ export const exactSemanticTokenModifiers = Object.freeze([
 	'exact.render',
 	'exact.inferredTask',
 	'exact.explicitTask',
-	'exact.action',
 	'exact.derived',
 	'exact.dependency',
 	'exact.effect',
@@ -74,6 +81,16 @@ export function projectHover(
 	position: Position
 ): Hover | undefined {
 	const offset = sourceOffset(source, position);
+	const status = taskStatusMemberAt(inspection, source, offset);
+	if (status?.member) {
+		return {
+			contents: {
+				kind: MarkupKind.Markdown,
+				value: `### ${status.name}.${status.member}\n\n${taskStatusDescription(status.member)}`
+			},
+			range: lspRange(source, status.memberRange)
+		};
+	}
 	const entity = smallestEntityAt(inspection, offset);
 	if (!entity) return undefined;
 	const facts = entityFacts(entity);
@@ -88,6 +105,52 @@ export function projectHover(
 		},
 		range: lspRange(source, entity.selectionRange)
 	};
+}
+
+/** Provides compiler-synthetic task status members at recognized task facades. */
+export function projectTaskStatusCompletions(
+	inspection: ExactSourceInspection,
+	source: string,
+	position: Position
+): CompletionItem[] {
+	const status = taskStatusMemberAt(inspection, source, sourceOffset(source, position), true);
+	if (!status) return [];
+	return taskStatusMembers.map((member) => ({
+		label: member,
+		detail: taskStatusDescription(member),
+		kind: member === 'cancel' ? CompletionItemKind.Method : CompletionItemKind.Property
+	}));
+}
+
+/** Renames a compiler-recognized task definition and its statically resolvable references. */
+export function projectTaskRename(
+	inspection: ExactSourceInspection,
+	source: string,
+	position: Position,
+	newName: string,
+	uri: string
+): WorkspaceEdit | undefined {
+	if (!/^[A-Za-z_$][\w$]*$/.test(newName)) return undefined;
+	const status = taskStatusMemberAt(inspection, source, sourceOffset(source, position), true);
+	const entity =
+		status?.entity ??
+		flattenInspection(inspection).find(
+			(candidate) =>
+				isTaskEntity(candidate) &&
+				sourceOffset(source, position) >= candidate.selectionRange.start &&
+				sourceOffset(source, position) <= candidate.selectionRange.end
+		);
+	if (!entity) return undefined;
+	const name = source.slice(entity.selectionRange.start, entity.selectionRange.end);
+	if (!/^[A-Za-z_$][\w$]*$/.test(name)) return undefined;
+	const edits: TextEdit[] = [];
+	const pattern = new RegExp(`\\b${name.replace(/[$]/g, '\\$&')}\\b`, 'g');
+	for (const match of source.matchAll(pattern))
+		edits.push({
+			range: lspRange(source, { start: match.index, end: match.index + name.length }),
+			newText: newName
+		});
+	return { changes: { [uri]: edits } };
 }
 
 /** Projects one compact component summary into a standard CodeLens item. */
@@ -178,7 +241,6 @@ function symbolKind(entity: ExactSourceEntity): SymbolKind {
 	switch (entity.kind) {
 		case 'inferred-task':
 		case 'explicit-task':
-		case 'action':
 		case 'interaction':
 			return SymbolKind.Method;
 		case 'derived':
@@ -221,10 +283,6 @@ function entitySemanticToken(entity: ExactSourceEntity): ExactSemanticTokenProje
 			modifiers.push('exact.explicitTask');
 			type = 'method';
 			break;
-		case 'action':
-			modifiers.push('exact.action');
-			type = 'method';
-			break;
 		case 'derived':
 			modifiers.push('exact.derived');
 			type = 'variable';
@@ -240,10 +298,6 @@ function entitySemanticToken(entity: ExactSourceEntity): ExactSemanticTokenProje
 		if (classification.priority === 'deferred') modifiers.push('exact.deferred');
 		if (classification.resources.length) modifiers.push('exact.owned', 'exact.disposable');
 	}
-	if (classification?.kind === 'action') {
-		if (classification.placement === 'server') modifiers.push('exact.server');
-		if (classification.placement === 'client') modifiers.push('exact.client');
-	}
 	return { type, modifiers };
 }
 
@@ -258,9 +312,12 @@ function modifierMask(modifiers: readonly string[]): number {
 
 function taskLensTitle(classification: ExactTaskClassification): string {
 	const dependencies = classification.dependencies.map((dependency) => dependency.path).join(', ');
+	const captures = classification.capturedInputs.map((input) => input.path).join(', ');
 	const effects = classification.effects.map((effect) => effect.path ?? effect.kind).join(', ');
 	const flow =
-		dependencies || effects ? ` · ${dependencies || 'event'} → ${effects || 'effect'}` : '';
+		dependencies || captures || effects
+			? ` · ${dependencies || 'event'}${captures ? ` + snapshot(${captures})` : ''} → ${effects || 'effect'}`
+			: '';
 	return `${capitalize(classification.origin)} ${classification.readiness} ${classification.placement} task${flow}`;
 }
 
@@ -289,4 +346,61 @@ function smallestEntityAt(
 				left.selectionRange.start -
 				(right.selectionRange.end - right.selectionRange.start)
 		)[0];
+}
+
+const taskStatusMembers = [
+	'pending',
+	'pendingCount',
+	'generation',
+	'result',
+	'error',
+	'cancel'
+] as const;
+
+type TaskStatusMember = (typeof taskStatusMembers)[number];
+
+function taskStatusDescription(member: TaskStatusMember): string {
+	if (member === 'pending') return 'Whether this owner has foreground task work pending.';
+	if (member === 'pendingCount') return 'The number of foreground generations pending.';
+	if (member === 'generation') return 'The greatest accepted generation number.';
+	if (member === 'result') return 'The latest accepted task result, when available.';
+	if (member === 'error') return 'The latest non-cancellation task failure.';
+	return 'Cancels every represented generation and its attached descendants.';
+}
+
+function taskStatusMemberAt(
+	inspection: ExactSourceInspection,
+	source: string,
+	offset: number,
+	allowEmpty = false
+):
+	| Readonly<{
+			entity: ExactSourceEntity;
+			name: string;
+			member?: TaskStatusMember;
+			memberRange: ExactSourceRange;
+	  }>
+	| undefined {
+	const prefix = source.slice(0, offset);
+	const match = /([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)?$/.exec(prefix);
+	if (!match || (!allowEmpty && !match[2])) return undefined;
+	const entity = flattenInspection(inspection).find(
+		(candidate) =>
+			isTaskEntity(candidate) &&
+			source.slice(candidate.selectionRange.start, candidate.selectionRange.end) === match[1]
+	);
+	if (!entity) return undefined;
+	const member = taskStatusMembers.find((candidate) => candidate === match[2]);
+	if (match[2] && !member) return undefined;
+	const start = offset - (match[2]?.length ?? 0);
+	return {
+		entity,
+		name: match[1],
+		...(member ? { member } : {}),
+		memberRange: Object.freeze({ start, end: offset })
+	};
+}
+
+function isTaskEntity(entity: ExactSourceEntity): boolean {
+	return entity.kind === 'inferred-task' || entity.kind === 'explicit-task';
 }

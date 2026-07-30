@@ -23,7 +23,7 @@ Native `Suspense` keeps committed content visible while a blocking update prepar
 candidate state and DOM together. Native `Activity` detaches complete logical ranges—including
 portal output—without losing component, node, ref, handler, or form-control identity.
 
-See [Actions and forms](../../docs/actions-and-forms.md) and
+See [Task interactions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
 
 Instrumented builds maintain a weak active-root registry for late DevTools attachment.

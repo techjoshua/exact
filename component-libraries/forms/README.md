@@ -24,4 +24,4 @@ Submission is an interaction host. Duplicate submissions are dropped while one i
 by the callback remains part of that lifetime. The `errors` prop projects application-owned
 server validation state into matching fields; it does not create a hidden form error store.
 
-See [Actions, interactions, optimistic state, and forms](../../docs/actions-and-forms.md).
+See [Task interactions, optimistic state, and forms](../../docs/actions-and-forms.md).

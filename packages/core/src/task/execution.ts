@@ -1,6 +1,7 @@
 import {
 	batch,
 	effectScopeWorkPriority,
+	peek,
 	ref as reactiveRef,
 	runWithPriority,
 	scheduleWork,
@@ -28,7 +29,9 @@ import { observeTaskPromise } from './observers.js';
 import {
 	discardTaskMutations,
 	drainTaskCleanupPromises,
+	ownTaskResource,
 	publishTaskMutations,
+	registerTaskCleanup,
 	trackTaskOwner
 } from './resources.js';
 
@@ -188,8 +191,23 @@ function startTaskGeneration(
 	const values = task.deps.map((dep) => unwrap(dep));
 	let result: TaskResult;
 	try {
+		const context: TaskContext = {
+			signal: controller.signal,
+			generation,
+			activation: generation === 1 ? 'initialization' : 'reactive',
+			peek,
+			optimistic() {
+				throw new Error('Optimistic state is available only to invoked task generations');
+			},
+			cleanup(cleanup) {
+				registerTaskCleanup(controller.signal, () => cleanup());
+			},
+			own(resource) {
+				return ownTaskResource(controller.signal, resource);
+			}
+		};
 		result = runWithPriority(effectScopeWorkPriority(instance.scope, task.policy.priority), () =>
-			batch(() => task.work(...values, { signal: controller.signal }))
+			batch(() => task.work(...values, context))
 		);
 	} catch (error) {
 		instance.domain.inspection?.publish({

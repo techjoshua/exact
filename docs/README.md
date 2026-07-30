@@ -10,7 +10,7 @@ These documents describe behavior that exists in the repository today:
 
 | Document                                                                         | Subject                                                                    |
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| [actions-and-forms.md](actions-and-forms.md)                                     | Interactions, explicit actions, optimism, forms, and router coordination.  |
+| [actions-and-forms.md](actions-and-forms.md)                                     | Task interactions, optimism, forms, and router coordination.               |
 | [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                  |
 | [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                     |
 | [component-registries.md](component-registries.md)                               | Finite eager/lazy component selection, identity, SSR, and hydration.       |
@@ -31,6 +31,7 @@ These documents describe behavior that exists in the repository today:
 | [server-components.md](server-components.md)                                     | Authoring and operating server-executed component work.                    |
 | [server-context-and-data-policy.md](server-context-and-data-policy.md)           | Context lifetime, placement, residency, sharing, and secret boundaries.    |
 | [ssr-hydration.md](ssr-hydration.md)                                             | Current SSR, streaming, hydration, and patch capabilities.                 |
+| [tasks.md](tasks.md)                                                             | Function-defined tasks, structured lifetime, policy, status, and task ABI. |
 
 The public learning guide is the eXact docs application under
 [`apps/docs`](../apps/docs). Package-level API entry points live in the

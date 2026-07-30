@@ -38,7 +38,7 @@ describe('runtime inspection correlation', () => {
 		expect(JSON.stringify(correlation)).not.toContain('must-never-appear');
 	});
 
-	it('marks each task and action callback with its canonical compiler ID', () => {
+	it('marks task callbacks with their canonical compiler ID', () => {
 		const result = transformSource(
 			`function Panel() {
 				this.task(async () => Promise.resolve('data'));
@@ -55,11 +55,8 @@ describe('runtime inspection correlation', () => {
 			(entity) => entity.children
 		);
 		const task = entities.find((entity) => entity.kind === 'explicit-task')!;
-		const action = entities.find((entity) => entity.kind === 'action')!;
 
 		expect(result.code).toContain('markExactInspectionSource');
 		expect(result.code).toContain(JSON.stringify(task.id));
-		expect(result.code).toContain(JSON.stringify(action.id));
-		expect(task.id).not.toBe(action.id);
 	});
 });

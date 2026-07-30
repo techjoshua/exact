@@ -9,7 +9,7 @@ import type {
 	ExactServerContext,
 	ExactExecutorContract
 } from '@exactjs/server';
-import { defineExactActionContract, defineExactBoundaryContract } from '@exactjs/server';
+import { defineExactBoundaryContract, defineExactOperationContract } from '@exactjs/server';
 
 /** Immutable protocol root for the billing exposure. */
 export const billingRoot = '@exactjs/sample-microfrontend-billing#./Billing';
@@ -210,7 +210,7 @@ function actionContract(
 		actions: Object.fromEntries(
 			ids.map((id) => [
 				id,
-				defineExactActionContract(id, {
+				defineExactOperationContract(id, {
 					writes: [{ path: '*', kind: 'write', confidence: 'exact' }],
 					boundaries
 				})

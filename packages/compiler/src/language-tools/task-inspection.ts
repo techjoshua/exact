@@ -6,6 +6,7 @@ import type {
 	ExactSourceEffect,
 	ExactSourceEntity,
 	ExactSourceRange,
+	ExactTaskCapturedInput,
 	ExactTaskClassification
 } from './contracts.js';
 import type { AuthoredTaskRegion } from './source-ranges.js';
@@ -112,6 +113,17 @@ function taskClassification(
 					)
 			]
 		: [];
+	const capturedInputs: ExactTaskCapturedInput[] = (task?.capturedInputs ?? []).map((input) => {
+		const kind = input.source === 'props' ? 'prop' : input.source;
+		const path =
+			input.path || (input.source === 'context' ? (input.contextToken ?? 'context') : input.source);
+		return Object.freeze({
+			parameter: input.parameter,
+			kind,
+			path,
+			range: findTextRange(source, path, region.range) ?? region.range
+		});
+	});
 	return Object.freeze({
 		kind: 'task',
 		origin: region.origin,
@@ -119,7 +131,10 @@ function taskClassification(
 		...(task?.requestedPlacement ? { placementRequest: task.requestedPlacement } : {}),
 		priority: task?.priority ?? 'normal',
 		readiness: task?.readiness ?? (region.awaited ? 'blocking' : 'nonblocking'),
+		concurrency: task?.concurrency ?? (task?.invoked ? 'parallel' : 'latest'),
+		detached: task?.detached ?? false,
 		dependencies: Object.freeze(dependencies),
+		capturedInputs: Object.freeze(capturedInputs),
 		effects: Object.freeze(effects),
 		publication: region.origin === 'inferred' || effects.length ? 'staged' : 'immediate',
 		cancellation: 'generation-abort-signal',

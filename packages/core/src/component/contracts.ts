@@ -7,8 +7,9 @@ import type {
 } from '@exactjs/reactive';
 
 import type { ComponentLog } from '../logging.js';
-import type { ComponentActionFactory } from './action-contracts.js';
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
+import type { TaskContext } from '../tasks/contracts.js';
+export type { TaskContext } from '../tasks/contracts.js';
 
 import type {
 	Activity,
@@ -145,7 +146,6 @@ export type ErrorSource =
 	| 'construct'
 	| 'render'
 	| 'task'
-	| 'action'
 	| 'event'
 	| 'lifecycle'
 	| 'reactive'
@@ -248,11 +248,6 @@ export type RefRegistry = {
 	get<T>(key: RefKey<T>): T | undefined;
 };
 
-/** Carries the context required by task. */
-export type TaskContext = {
-	signal: AbortSignal;
-};
-
 /** Defines the task resource disposal type contract. */
 export type TaskResourceDisposal = string;
 /** Defines the task cleanup type contract. */
@@ -290,9 +285,7 @@ export type Unwrapped<Deps extends readonly unknown[]> = {
 			: Deps[K];
 };
 /** Defines the component reactive value type contract. */
-export type ComponentReactiveValue<T> = ReactiveValue<T> & {
-	task(work: (value: T, ctx: TaskContext) => TaskResult): void;
-};
+export type ComponentReactiveValue<T> = ReactiveValue<T>;
 /** Defines the iterable item type contract. */
 export type IterableItem<T> = T extends Iterable<infer Item> ? Item : never;
 
@@ -342,8 +335,6 @@ export type RenderEventHandler = (event: { duration: number; dependencies?: unkn
 export interface Component<State extends object> {
 	state: Reactive<State>;
 	log: ComponentLog;
-	/** Registers durable, inspectable work owned by this component instance. */
-	action: ComponentActionFactory;
 	/** Reports whether a context lookup would resolve without reading its value. */
 	hasContext(token: ContextToken<unknown>): boolean;
 	getContext<T>(token: ContextToken<T>): Reactive<T>;
@@ -351,7 +342,6 @@ export interface Component<State extends object> {
 	reactive(strings: TemplateStringsArray, ...values: unknown[]): ComponentReactiveValue<string>;
 	reactive<T>(compute: () => T): ComponentReactiveValue<T>;
 	reactive<T>(value: T): ComponentReactiveValue<T>;
-	task: ComponentTask;
 	ref<T>(key: RefKey<T>): RefBinding<T>;
 	refs: RefRegistry;
 	map<Collection extends Iterable<unknown>>(

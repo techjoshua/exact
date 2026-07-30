@@ -250,6 +250,7 @@ func (s *Session) Execute(request Request) Response {
 	)
 	assignActionIDs(actions, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
+	actions = append(actions, invokedTaskActions(tasks)...)
 	components = analyzeComponents(
 		sourceFile,
 		components,
@@ -439,6 +440,9 @@ func (s *Session) Execute(request Request) Response {
 			response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
 		}
 		for _, diagnostic := range generation.checker.GetDiagnostics(context.Background(), sourceFile) {
+			if syntheticTaskStatusDiagnostic(diagnostic, sourceFile, tasks) {
+				continue
+			}
 			response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
 		}
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
@@ -660,6 +664,65 @@ func (s *Session) Execute(request Request) Response {
 	)
 	response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 	return response
+}
+
+func syntheticTaskStatusDiagnostic(
+	diagnostic *ast.Diagnostic,
+	sourceFile *ast.SourceFile,
+	tasks []Task,
+) bool {
+	if diagnostic.Code() != 2339 || diagnostic.Pos() < 0 {
+		return false
+	}
+	statusMembers := map[string]bool{
+		"pending": true, "pendingCount": true, "generation": true,
+		"result": true, "error": true, "cancel": true,
+	}
+	text := sourceFile.Text()
+	start := diagnostic.Pos()
+	end := start + diagnostic.Len()
+	if start > len(text) || end > len(text) || !statusMembers[text[start:end]] {
+		return false
+	}
+	cursor := start - 1
+	for cursor >= 0 && (text[cursor] == ' ' || text[cursor] == '\t') {
+		cursor--
+	}
+	if cursor < 0 || text[cursor] != '.' {
+		return false
+	}
+	cursor--
+	nameEnd := cursor + 1
+	for cursor >= 0 &&
+		((text[cursor] >= 'a' && text[cursor] <= 'z') ||
+			(text[cursor] >= 'A' && text[cursor] <= 'Z') ||
+			(text[cursor] >= '0' && text[cursor] <= '9') ||
+			text[cursor] == '_' || text[cursor] == '$') {
+		cursor--
+	}
+	name := text[cursor+1 : nameEnd]
+	for workStart, task := range indexFunctionTasks(tasks) {
+		if !task.Invoked {
+			continue
+		}
+		var matches bool
+		walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+			if node.Pos() != workStart {
+				return true
+			}
+			if ast.IsFunctionDeclaration(node) && node.Name() != nil {
+				matches = node.Name().Text() == name
+			} else if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
+				declarationName := node.Parent.AsVariableDeclaration().Name()
+				matches = ast.IsIdentifier(declarationName) && declarationName.Text() == name
+			}
+			return false
+		})
+		if matches {
+			return true
+		}
+	}
+	return false
 }
 
 func projectDiagnostic(diagnostic *ast.Diagnostic) Diagnostic {

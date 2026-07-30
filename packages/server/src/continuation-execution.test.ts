@@ -29,6 +29,41 @@ const contract: ExactComponentContinuationContract = {
 };
 
 describe('@exactjs/server generated continuation execution', () => {
+	it('supplies the full task frame context and releases owned resources', async () => {
+		const events: string[] = [];
+		const handler = createExactContinuationHandler(contract, {
+			id: contract.id,
+			componentId: contract.componentId,
+			execute(activation, execution) {
+				expect(execution.task.signal).toBe(execution.signal);
+				expect(execution.task.activation).toBe('invoked');
+				expect(execution.task.generation).toBe(7);
+				expect(execution.task.peek(() => activation.dependencies[0])).toBe('p1');
+				execution.task.own({
+					[Symbol.dispose]() {
+						events.push('resource');
+					}
+				});
+				execution.task.cleanup(() => {
+					events.push('cleanup');
+				});
+				return { state: activation.state };
+			}
+		});
+
+		await handler(
+			{
+				type: 'action',
+				id: contract.id,
+				payload: { dependencies: ['p1'], generation: 7 },
+				state: { id: 'p1' }
+			},
+			context()
+		);
+
+		expect(events).toEqual(['cleanup', 'resource']);
+	});
+
 	it('resolves server context locally and returns only declared state writes', async () => {
 		const contextAccesses: unknown[] = [];
 		const handler = createExactContinuationHandler(contract, {

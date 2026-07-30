@@ -2,6 +2,7 @@ import {
 	createConsoleLogger,
 	ErrorContext,
 	LoggerContext,
+	TaskContext,
 	type Component,
 	type Logger
 } from '@exactjs/core';
@@ -61,13 +62,17 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
 		: undefined;
 
-	this.task(JSON.stringify(this.state.tasks), async (tasksJson, { signal }) => {
+	const persistTasks = async (
+		tasksJson: string,
+		task: TaskContext = TaskContext.client().latest()
+	) => {
 		this.state.syncState = 'saving';
-		await delay(160, signal);
-		if (signal.aborted) return;
+		await delay(160, task.signal);
+		if (task.signal.aborted) return;
 		localStorage.setItem(storageKey, tasksJson);
 		this.state.syncState = 'synced';
-	});
+	};
+	void persistTasks(JSON.stringify(this.state.tasks));
 
 	const remember = (message: string) => {
 		this.state.activity = [
@@ -206,7 +211,7 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 
 	this.setContext(WorkbenchContext, services);
 
-	this.task(({ signal }) => {
+	const observeKeyboard = (task: TaskContext = TaskContext.client()) => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
 				event.preventDefault();
@@ -217,8 +222,9 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 				this.state.importOpen = false;
 			}
 		};
-		window.addEventListener('keydown', onKeyDown, { signal });
-	});
+		window.addEventListener('keydown', onKeyDown, { signal: task.signal });
+	};
+	observeKeyboard();
 
 	return () => {
 		return (

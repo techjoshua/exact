@@ -48,7 +48,7 @@ describe('@exactjs/core errors', () => {
 			instance = this;
 			this.state.errors = [];
 			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			this.task(() => {
+			(this as any).task(() => {
 				throw new Error('task failed');
 			});
 			return () => null;
@@ -70,15 +70,15 @@ describe('@exactjs/core errors', () => {
 			this.state.value = 1;
 			this.state.serverRuns = 0;
 			this.state.clientRuns = 0;
-			this.task.server(
+			(this as any).task.server(
 				this.reactive<number>(() => this.state.value),
-				(value) => {
+				(value: number) => {
 					this.state.serverRuns = value;
 				}
 			);
-			this.task.client(
+			(this as any).task.client(
 				this.reactive<number>(() => this.state.value),
-				(value) => {
+				(value: number) => {
 					this.state.clientRuns = value;
 				}
 			);
@@ -99,7 +99,7 @@ describe('@exactjs/core errors', () => {
 		const run = vi.fn();
 
 		const instance = createComponentInstance(function Worker(this: Component<{}>) {
-			this.task.server.deferred.blocking(run);
+			(this as any).task.server.deferred.blocking(run);
 			return () => null;
 		}, {});
 
@@ -124,10 +124,10 @@ describe('@exactjs/core errors', () => {
 			instance = this;
 			this.state.errors = [];
 			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			this.task(() => {
+			(this as any).task(() => {
 				throw new Error('first task failed');
 			});
-			this.task(() => {
+			(this as any).task(() => {
 				throw new Error('second task failed');
 			});
 			return () => null;
@@ -196,7 +196,7 @@ describe('@exactjs/core errors', () => {
 			instance = this;
 			this.state.errors = [];
 			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			this.task(async () => {
+			(this as any).task(async () => {
 				throw new Error('async task failed');
 			});
 			return () => null;
@@ -221,7 +221,7 @@ describe('@exactjs/core errors', () => {
 			createComponentInstance(function Worker(this: Component<{ ready: boolean }>) {
 				instance = this;
 				this.state.ready = false;
-				this.task(async () => {
+				(this as any).task(async () => {
 					await Promise.resolve();
 					this.state.ready = true;
 				});
@@ -288,7 +288,7 @@ describe('@exactjs/core errors', () => {
 	it('disposes tasks when a component is removed before it mounts', () => {
 		const cleanup = vi.fn();
 		const component = createComponentInstance(function Pending(this: Component<{}>) {
-			this.task(() => cleanup);
+			(this as any).task(() => cleanup);
 			return () => null;
 		}, {});
 		component.unmount('discarded-before-mount');
@@ -307,7 +307,7 @@ describe('@exactjs/core errors', () => {
 				instance = this;
 				this.state.errors = [];
 				this.setContext(ErrorContext, createErrorContext(this.state.errors));
-				this.task(({ signal }) => {
+				(this as any).task(({ signal }: { signal: AbortSignal }) => {
 					taskTimeout(
 						signal,
 						() => {

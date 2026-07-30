@@ -57,15 +57,15 @@ for (const guidePath of repositoryGuides) {
 }
 
 const featureGuideRequirements = new Map([
-	['packages/core/AGENTS.md', ['this.action()', 'createComponentRegistry()']],
-	['packages/compiler/AGENTS.md', ['action identifiers', 'registry identity']],
+	['packages/core/AGENTS.md', ['TaskContext', 'createComponentRegistry()']],
+	['packages/compiler/AGENTS.md', ['opaque operation identity', 'registry identity']],
 	['packages/config/AGENTS.md', ['debug.catalog', 'allowDebug']],
 	['packages/language-server/AGENTS.md', ['stale-result', 'standard LSP', 'untrusted workspace']],
 	['packages/vscode-extension/AGENTS.md', ['presentation', 'workspace.isTrusted', 'classifier']],
-	['packages/reactive/AGENTS.md', ['Optimistic action rollback']],
-	['packages/dom/AGENTS.md', ['component interaction', 'Registry entry keys']],
+	['packages/reactive/AGENTS.md', ['Optimistic task rollback']],
+	['packages/dom/AGENTS.md', ['root task frame', 'Registry entry keys']],
 	['packages/hydrate/AGENTS.md', ['invocation generations', 'component registries']],
-	['packages/server/AGENTS.md', ['Action continuations']],
+	['packages/server/AGENTS.md', ['Task operation continuations']],
 	['packages/plugin-host/AGENTS.md', ['prepared `debug` config', 'client projection']],
 	['packages/instrumentation/AGENTS.md', ['observational', 'raw component instances']],
 	['packages/devtools-protocol/AGENTS.md', ['read-only', 'redaction before traversal']],
@@ -73,12 +73,12 @@ const featureGuideRequirements = new Map([
 	['packages/devtools-agent/AGENTS.md', ['CDP', 'arbitrary JavaScript']],
 	['packages/chromium-devtools/AGENTS.md', ['read-only', 'page bridge']],
 	['plugins/secrets/AGENTS.md', ['never enter', 'redaction selectors']],
-	['packages/ssr/AGENTS.md', ['registry entries', 'action handlers']],
+	['packages/ssr/AGENTS.md', ['registry entries', 'task handlers']],
 	['packages/jsx-runtime/AGENTS.md', ['InteractionHandler', 'registry']],
 	['component-libraries/forms/AGENTS.md', ['interaction host']],
 	['component-libraries/router/AGENTS.md', ['current component interaction']],
 	['framework-adapters/bun-plugin/AGENTS.md', ['rich catalogs', 'callback marker']],
-	['framework-adapters/vite-plugin/AGENTS.md', ['action continuations', 'component-registry']],
+	['framework-adapters/vite-plugin/AGENTS.md', ['task continuations', 'component-registry']],
 	['framework-adapters/webpack-plugin/AGENTS.md', ['rich catalogs', 'canonical ID']],
 	['apps/docs/AGENTS.md', ['proposal', 'README']]
 ]);

@@ -1,7 +1,6 @@
 import {
 	EXACT_DEVTOOLS_PROTOCOL_VERSION,
 	previewExactValue,
-	type ExactActionRuntimeSnapshot,
 	type ExactContextPreview,
 	type ExactInspectedRuntimeComponent,
 	type ExactInspectionRuntimeId,
@@ -12,6 +11,7 @@ import {
 	type ExactValueRedactor
 } from '@exactjs/devtools-protocol';
 import { readExactComponentContract } from '../component-contracts.js';
+import { inspectTaskFramesForHost, type TaskFrameInspection } from '../tasks/frame-inspection.js';
 import type { ComponentInstance, TaskRegistration } from './contracts.js';
 import { inspectComponentActions } from './action-api.js';
 
@@ -163,9 +163,9 @@ export function inspectExactRuntimeComponent(
 		props: owner.preview(component.props, ['props']),
 		state: owner.preview(component.state, ['state']),
 		contexts: Object.freeze([...(options.contexts ?? inspectContexts(component, owner))]),
-		tasks: Object.freeze(component.tasks.map((task) => inspectTask(owner, component, task))),
-		actions: Object.freeze(
-			inspectComponentActions(component).map((action) => {
+		tasks: Object.freeze([
+			...component.tasks.map((task) => inspectTask(owner, component, task)),
+			...inspectComponentActions(component).map((action) => {
 				const actionId = owner.identity(component, {
 					...(action.sourceEntityId ? { sourceEntityId: action.sourceEntityId } : {}),
 					generation: action.generation
@@ -173,7 +173,9 @@ export function inspectExactRuntimeComponent(
 				return Object.freeze({
 					id: actionId,
 					name: action.name,
+					activation: 'invoked',
 					placement: action.placement === 'inferred' ? 'isomorphic' : action.placement,
+					readiness: action.priority === 'deferred' ? 'nonblocking' : 'blocking',
 					priority: action.priority,
 					concurrency: action.concurrency,
 					status: action.disposed
@@ -187,14 +189,55 @@ export function inspectExactRuntimeComponent(
 									: 'idle',
 					generation: action.generation,
 					pending: action.pendingCount,
+					foreground: action.priority !== 'deferred',
+					structuralPending: action.pending,
 					optimistic: action.optimistic
-				} satisfies ExactActionRuntimeSnapshot);
-			})
-		),
+				} satisfies ExactTaskRuntimeSnapshot);
+			}),
+			...inspectTaskFramesForHost(component)
+				.filter((frame) => frame.label !== 'action interaction')
+				.map((frame) => inspectTaskFrame(owner, component, frame))
+		]),
 		...(options.activity ? { activity: options.activity } : {}),
 		...(options.suspense ? { suspense: options.suspense } : {}),
 		ownedElements: options.ownedElements ?? 0
 	});
+}
+
+function inspectTaskFrame(
+	owner: ExactRuntimeInspectionOwner,
+	component: ComponentInstance<any>,
+	frame: TaskFrameInspection
+): ExactTaskRuntimeSnapshot {
+	const sourceEntityId = taskFrameSourceEntityId(frame);
+	return Object.freeze({
+		id: owner.identity(component, { sourceEntityId, generation: frame.generation })!,
+		...(frame.parentId === undefined
+			? {}
+			: {
+					parent: owner.identity(component, {
+						sourceEntityId: `runtime-task-frame:${frame.parentId}`,
+						generation: frame.generation
+					})!
+				}),
+		...(frame.label === undefined ? {} : { name: frame.label }),
+		activation: frame.activation,
+		placement: frame.placement === 'current' ? 'isomorphic' : frame.placement,
+		readiness: frame.readiness,
+		priority: frame.priority,
+		concurrency: frame.concurrency,
+		status: 'running',
+		generation: frame.generation,
+		pending: frame.foreground ? 1 : 0,
+		foreground: frame.foreground,
+		structuralPending: frame.structuralPending,
+		optimistic: false,
+		startedAt: frame.startedAt
+	});
+}
+
+function taskFrameSourceEntityId(frame: TaskFrameInspection): string {
+	return `runtime-task-frame:${frame.id}`;
 }
 
 function inspectContexts(
@@ -265,9 +308,11 @@ function inspectTask(
 	})!;
 	return Object.freeze({
 		id,
+		activation: task.generation <= 1 ? 'initialization' : 'reactive',
 		placement: task.policy.placement === 'inferred' ? 'unknown' : task.policy.placement,
 		readiness: task.policy.readiness,
 		priority: task.policy.priority,
+		concurrency: 'latest',
 		status: task.stopped
 			? 'cancelled'
 			: task.queuedGeneration !== undefined
@@ -280,6 +325,13 @@ function inspectTask(
 							? 'settled'
 							: 'idle',
 		generation: task.generation,
+		pending:
+			task.settlement && task.policy.readiness === 'blocking' && task.policy.priority !== 'deferred'
+				? 1
+				: 0,
+		foreground: task.policy.readiness === 'blocking' && task.policy.priority !== 'deferred',
+		structuralPending: task.settlement !== undefined,
+		optimistic: false,
 		...(task.completedGeneration === undefined
 			? {}
 			: { completedGeneration: task.completedGeneration }),

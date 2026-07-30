@@ -4,7 +4,7 @@
 import { createVNode, type Component } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import {
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract,
 	handleExactRequest
 } from '@exactjs/server';
@@ -205,7 +205,7 @@ describe('@exactjs/hydrate islands', () => {
 						version: 1,
 						endpoint: '/__exact',
 						actions: {
-							save: defineExactActionContract('save', {
+							save: defineExactOperationContract('save', {
 								boundaries: ['panel'],
 								writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 							})

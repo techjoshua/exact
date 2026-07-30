@@ -29,12 +29,13 @@ const explicitTaskSource = `export function ProductPage(
 ) {
   const products = this.getContext(Products);
 
-  this.task.server.blocking(
-    props.productId,
-    async (productId, { signal }) => {
-      this.state.product = await products.find(productId, { signal });
-    }
-  );
+  async function loadProduct(
+    productId: string,
+    task: TaskContext = TaskContext.server().latest().blocking()
+  ) {
+    this.state.product = await products.find(productId, { signal: task.signal });
+  }
+  loadProduct(props.productId);
 
   return () => <ProductDetails product={this.state.product} />;
 }`;
@@ -84,9 +85,10 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<h2>Compiler meaning at the source</h2>
 				<p>
 					The outer component function is setup-once initialization. The returned function is
-					reactive render work. Awaited state production becomes an inferred task, while{' '}
-					<code>this.task()</code> registers explicit owned work. The language server presents those
-					as compiler regions instead of asking you to inspect generated JavaScript.
+					reactive render work. Awaited state production becomes an inferred task, while an ordinary
+					local function with a final <code>TaskContext</code> declares explicit owned work. The
+					language server presents those as compiler regions instead of asking you to inspect
+					generated JavaScript.
 				</p>
 				<CodeBlock source={inferredTaskSource} language="tsx" title="ProductPage.tsx" />
 				<p>
@@ -112,9 +114,9 @@ export function LanguageToolsPage(this: Component<{}>) {
    └─ price text — displayPrice`}</code>
 				</pre>
 				<p>
-					Selecting a fact reveals its authored range, dependencies, effects, supplied signal,
-					resources, cleanup, and typed inference reasons. Broad and unknown paths stay visibly
-					qualified; the editor never invents false precision.
+					Selecting a fact reveals its authored range, dependencies, captured parameter inputs,
+					effects, supplied signal, resources, cleanup, and typed inference reasons. Broad and
+					unknown paths stay visibly qualified; the editor never invents false precision.
 				</p>
 			</section>
 			<section>
@@ -168,7 +170,9 @@ export function LanguageToolsPage(this: Component<{}>) {
 					Explicit-task hover lists only the arguments that activate the task, once and in source
 					order; values read inside its callback remain captures or effects. Inferred tasks show
 					compiler-discovered inputs using authored state paths and local destructured prop names,
-					never a synthetic identifier absent from the source.
+					never a synthetic identifier absent from the source. A reactive parameter default appears
+					separately as a captured input, making clear that it is sampled for a generation without
+					scheduling one.
 				</p>
 				<p>
 					Hovering a component JSX tag describes that referenced component rather than merely the

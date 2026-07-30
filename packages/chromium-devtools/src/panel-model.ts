@@ -17,7 +17,6 @@ export type ExactDevtoolsPanelModel = Readonly<{
 	state?: unknown;
 	contexts: readonly unknown[];
 	tasks: readonly unknown[];
-	actions: readonly unknown[];
 	dependency?: unknown;
 	timeline: readonly ExactRuntimeInspectionEvent[];
 	microfrontends: readonly ExactInspectedMicrofrontend[];
@@ -40,18 +39,14 @@ export async function loadExactDevtoolsPanelModel(
 				component.id.instanceId === selected.instanceId
 		) ?? components[0];
 	const identity = selectedComponent?.id;
-	const [state, contexts, tasks, actions, timeline, microfrontends] = await Promise.all([
+	const [state, contexts, tasks, timeline, microfrontends] = await Promise.all([
 		identity ? query(client, session.id, 'state.get', identity) : undefined,
 		identity ? query(client, session.id, 'contexts.list', identity) : undefined,
 		identity ? query(client, session.id, 'tasks.list', identity) : undefined,
-		identity ? query(client, session.id, 'actions.list', identity) : undefined,
 		query(client, session.id, 'timeline.query', undefined, { page: { limit: 500 } }),
 		query(client, session.id, 'microfrontends.list')
 	]);
-	const sourceEntityId =
-		selected?.sourceEntityId ??
-		selectedComponent?.tasks[0]?.id.sourceEntityId ??
-		selectedComponent?.actions[0]?.id.sourceEntityId;
+	const sourceEntityId = selected?.sourceEntityId ?? selectedComponent?.tasks[0]?.id.sourceEntityId;
 	const dependency =
 		identity && sourceEntityId
 			? await query(client, session.id, 'dependencies.explain', {
@@ -66,7 +61,6 @@ export async function loadExactDevtoolsPanelModel(
 		...(state ? { state: result(state) } : {}),
 		contexts: Object.freeze(contexts ? result<unknown[]>(contexts) : []),
 		tasks: Object.freeze(tasks ? result<unknown[]>(tasks) : []),
-		actions: Object.freeze(actions ? result<unknown[]>(actions) : []),
 		...(dependency?.ok ? { dependency: result(dependency) } : {}),
 		timeline: Object.freeze(result<ExactRuntimeInspectionEvent[]>(timeline)),
 		microfrontends: Object.freeze(result<ExactInspectedMicrofrontend[]>(microfrontends))

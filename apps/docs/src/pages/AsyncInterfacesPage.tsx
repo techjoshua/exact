@@ -37,15 +37,16 @@ const sequentialSource = `async function CustomerOrders(
 const explicitTaskSource = `function ShippingOptions(
   this: Component<ShippingState>
 ) {
-  this.task.blocking(
-    this.reactive(() => this.state.destination),
-    async (destination, { signal }) => {
-      const options = await getOptions(destination, { signal });
+  async function loadOptions(
+    destination: string,
+    task: TaskContext = TaskContext.client().latest().blocking()
+  ) {
+      const options = await getOptions(destination, { signal: task.signal });
 
       // Conceptually staged until this blocking generation commits.
       this.state.options = options;
-    }
-  );
+  }
+  loadOptions(this.state.destination);
 
   return () => <Options options={this.state.options} />;
 }`;
@@ -72,18 +73,28 @@ const activitySource = `function Workspace(this: Component<{ tab: Tab }>) {
 }`;
 
 const schedulingSource = `// Normal owned work.
-this.task(() => refreshStatus());
+function refresh(task: TaskContext = TaskContext.client()) {
+  return refreshStatus(task.signal);
+}
+refresh();
 
 // Lower-priority preparation. Placement remains compiler-inferred.
-this.task.deferred(() => precomputePreview(this.state.document));
+function prepare(document: Document, task: TaskContext = TaskContext.deferred()) {
+  return precomputePreview(document);
+}
+prepare(this.state.document);
 
 // Unawaited work that deliberately blocks the nearest Suspense boundary.
-this.task.blocking(async () => {
+async function loadCatalogTask(task: TaskContext = TaskContext.blocking()) {
   this.state.catalog = await loadCatalog();
-});
+}
+loadCatalogTask();
 
 // Placement, priority, and readiness facets compose.
-this.task.server.deferred.blocking(() => warmRecommendations());`;
+function warm(task: TaskContext = TaskContext.server().deferred().blocking()) {
+  return warmRecommendations();
+}
+warm();`;
 
 /** Documents async component continuations, readiness, retention, and scheduling. */
 export function AsyncInterfacesPage(this: Component<{}>) {
@@ -92,7 +103,7 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="Async components as ordinary value flow"
 			description="Await ordinary operations into state, coordinate readiness with Suspense, retain inactive mounted trees with Activity, and choose lower-priority work without introducing a rerender loop."
-			previous={{ path: '/learn/actions', label: 'Actions & optimistic state' }}
+			previous={{ path: '/learn/tasks', label: 'Tasks, actions & cleanup' }}
 			next={{ path: '/learn/server-execution', label: 'Server execution' }}
 		>
 			<section>

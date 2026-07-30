@@ -8,5 +8,5 @@ Source links require matching hashes. Preserve build, execution-root, binding, i
 operation, and generation identity across selections. Panel disposal must disconnect the page
 hook, close subscriptions, clear highlights, and release extension ports.
 
-Version 1 is read-only. Do not add action invocation, state editing, task cancellation, arbitrary
+Version 1 is read-only. Do not add task invocation, state editing, task cancellation, arbitrary
 evaluation, or redaction overrides.

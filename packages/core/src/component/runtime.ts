@@ -60,6 +60,10 @@ import {
 import { createComponentActionApi } from './action-api.js';
 import { cancelComponentInteractions } from '../interaction/execution.js';
 import { readExactInspectionSource } from './inspection-source.js';
+import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
+import { registerTaskOwnerHost } from '../tasks/owner-hosts.js';
+import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks/activation.js';
+import { componentContinuationTaskId } from '../task/continuation.js';
 
 let nextComponentId = 1;
 
@@ -119,6 +123,8 @@ export function createComponentInstance<
 	let acceptingActionRegistrations = true;
 	let renderFunction: RenderFunction = () => null;
 	const id = `c${nextComponentId++}`;
+	const taskOwner = createTaskOwnerRecord(id);
+	if (resumption) deferTaskOwnerActivations(taskOwner);
 	const actionApi = createComponentActionApi(
 		() => instance,
 		() => acceptingActionRegistrations
@@ -373,6 +379,9 @@ export function createComponentInstance<
 			if (instance.mountController) teardown(() => instance.mountController!.abort(reason));
 			teardown(() => actionApi.dispose(reason));
 			teardown(() => cancelComponentInteractions(instance, reason));
+			teardown(() => {
+				void taskOwner[Symbol.asyncDispose]();
+			});
 			for (const task of instance.tasks) teardown(() => task.stop());
 			for (const handler of instance.unmountHandlers) {
 				try {
@@ -391,7 +400,12 @@ export function createComponentInstance<
 			releaseTaskObserver(instance);
 			if (failed) throw firstError;
 		}
-	};
+	} as ComponentInstance<State>;
+	registerTaskOwnerHost(instance, taskOwner);
+	const taskObserver = taskObserverFor(instance);
+	if (taskObserver) {
+		taskOwner.observeSettlement = (settlement) => taskObserver.register(settlement, instance);
+	}
 	domain.inspection?.publish({ kind: 'component.construct', component: instance });
 	if (!parent && domain.inspectionActivation === 'hydration')
 		domain.inspection?.publish({ kind: 'hydration.activate', component: instance });
@@ -412,7 +426,9 @@ export function createComponentInstance<
 	let result: RenderFunction | RenderResult;
 	try {
 		result = withEffectScope(scope, () =>
-			withComponentDomain(domain, () => type.call(instance, props as Props))
+			withComponentDomain(domain, () =>
+				withTaskOwnerRecord(taskOwner, () => type.call(instance, props as Props))
+			)
 		);
 	} catch (error) {
 		acceptingTaskRegistrations = false;
@@ -423,13 +439,17 @@ export function createComponentInstance<
 	if (resumption) {
 		applyComponentResumption(state as Reactive<Record<string, unknown>>, resumption);
 		domain.inspection?.publish({ kind: 'resumption.activate', component: instance });
+		const settledContinuations = new Set(resumption.settledContinuations);
+		releaseTaskOwnerActivations(taskOwner, (task) => {
+			const continuationId = componentContinuationTaskId(task);
+			return continuationId !== undefined && settledContinuations.has(continuationId);
+		});
 		startResumedComponentTasks(instance, resumption);
 	}
 	acceptingTaskRegistrations = false;
 	acceptingActionRegistrations = false;
 	renderFunction = typeof result === 'function' ? (result as RenderFunction) : () => result;
 
-	const taskObserver = taskObserverFor(instance);
 	taskObserver?.retain?.(instance);
 	if (taskObserver?.retain) retainTaskObserver(instance, taskObserver);
 

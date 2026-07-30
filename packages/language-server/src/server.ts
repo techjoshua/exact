@@ -17,6 +17,7 @@ import {
 import type {
 	CodeAction,
 	CodeLens,
+	CompletionItem,
 	Diagnostic,
 	DocumentSymbol,
 	InlayHint,
@@ -49,6 +50,8 @@ import {
 	projectHover,
 	projectInlayHints,
 	projectSemanticTokens,
+	projectTaskRename,
+	projectTaskStatusCompletions,
 	sourceOffset
 } from './lsp-projections.js';
 import { ExactLanguageWorkspaceManager } from './workspace-manager.js';
@@ -72,6 +75,8 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 			workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
 			textDocumentSync: TextDocumentSyncKind.Incremental,
 			hoverProvider: true,
+			completionProvider: { triggerCharacters: ['.'] },
+			renameProvider: true,
 			codeLensProvider: { resolveProvider: false },
 			inlayHintProvider: true,
 			documentSymbolProvider: true,
@@ -111,6 +116,26 @@ documents.onDidClose((event) => {
 });
 
 connection.onHover((params) => withInspection(params, projectHover));
+connection.onCompletion(
+	(params): Promise<CompletionItem[]> =>
+		withInspection(params, projectTaskStatusCompletions).then((result) => result ?? [])
+);
+connection.onRenameRequest(async (params): Promise<WorkspaceEdit | null> => {
+	const document = documents.get(params.textDocument.uri);
+	if (!document) return null;
+	const snapshot = captureDocumentSnapshot(document);
+	const inspection = await workspaces?.inspect(snapshot.uri);
+	if (!inspection || !isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return null;
+	return (
+		projectTaskRename(
+			inspection,
+			snapshot.source,
+			params.position,
+			params.newName,
+			params.textDocument.uri
+		) ?? null
+	);
+});
 connection.onCodeLens(
 	(params): Promise<CodeLens[]> =>
 		withInspection(params, projectCodeLenses).then((result) => result ?? [])

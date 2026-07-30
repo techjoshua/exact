@@ -20,10 +20,17 @@ npm run test:shipping
 
 Real-provider credentials and OAuth tokens remain server-only. Rates are held in memory for no more than five minutes and are never persisted. Parcel Lab does not buy labels or generate tracking numbers. Review each carrier's current API and display terms before making a public comparison service; DHL is implemented but intentionally omitted from the default configuration because its rating terms can restrict disclosure, storage, and competitive use.
 
-The workspace registers route and carrier work with `this.action.server()` during component setup.
-Application components call the resulting typed functions; they never acquire an `ExactClient`,
-invoke transport methods, or name continuation identifiers. The compiler keeps provider modules in
-the server artifact and emits opaque dispatch stubs in the client artifact.
+The workspace defines route and carrier work as ordinary functions whose final
+`TaskContext.server()` policy requests server placement. Application
+components call those functions directly; they never acquire an `ExactClient`,
+invoke transport methods, or name continuation identifiers. The compiler keeps
+provider modules in the server artifact and emits opaque dispatch stubs in the
+client artifact.
+
+The rate refresh task uses defaulted `draft` and provider parameters as
+captured inputs. They are sampled once whenever the tracked revision activates
+a generation, so edits alone do not create an additional trigger and the
+generation uses one stable request snapshot.
 
 The checked-in carrier responses under `src/providers/fixtures` are fabricated, sanitized contract fixtures and contain no account data. ZIP map points are built from the U.S. Census Bureau's 2025 ZCTA Gazetteer file; see `src/data/ATTRIBUTION.md`.
 

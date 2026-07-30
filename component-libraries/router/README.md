@@ -14,7 +14,7 @@ hydration data, and static rendering.
 ```
 
 Native navigation, fetcher, submission, and revalidation promises join the synchronously active
-event, form, or action interaction. The initiating host therefore remains pending through route
+event, form, or task interaction. The initiating host therefore remains pending through route
 loaders and commit, while the router retains latest-wins navigation, redirects, blockers, and
 stale-result rejection.
 
@@ -22,4 +22,4 @@ The package also exposes React Router compatibility facades for supported React 
 7 package substitutions. Native eXact applications should import the main entrypoint; compatibility
 entrypoints are selected by the React compatibility build integration.
 
-See [Actions, interactions, optimistic state, and forms](../../docs/actions-and-forms.md).
+See [Task interactions, optimistic state, and forms](../../docs/actions-and-forms.md).

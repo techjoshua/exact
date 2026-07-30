@@ -41,16 +41,16 @@ authored tag, so a client child rendered by a server parent is identified as the
 client child rather than described with the parent's server reasons.
 
 Semantic tokens are limited to identifier ranges whose standard base type
-agrees with TypeScript: component functions, explicit task/action methods, and
-derived variables. The server deliberately emits no token over keywords,
+agrees with TypeScript: component functions, task functions, and derived
+variables. The server deliberately emits no token over keywords,
 inferred `await` sites, JSX tags, or whole property accesses, preventing eXact
 modifiers from replacing normal syntax highlighting.
 
-Important assignment, task, and action facts are projected as composable inlay
+Important assignment and task facts are projected as composable inlay
 badges at token boundaries. Assignment badges precede the assignment; call
 badges follow its opening parenthesis. `⚙` marks a specific initialization and
 `⚡` marks a deferred reactive assignment or compiler inference. The remaining
-vocabulary is `📋` task, `▶` action, `🖥` server, `📱` client, `⇄` isomorphic,
+vocabulary is `📋` task, `🖥` server, `📱` client, `⇄` isomorphic,
 `⏳` deferred priority, and `🚨` immediate publication.
 
 Hover and optional region projections use entity selection ranges, never the
@@ -59,4 +59,5 @@ count; operation details remain on their badges and focused hovers.
 Explicit-task hover lists only authored activation arguments, while inferred
 tasks use compiler-retained authored paths. Callback captures are not presented
 as extra task dependencies, and destructured props never appear as a synthetic
-`props` identifier.
+`props` identifier. Reactive parameter defaults are reported separately as
+captured inputs with their parameter position.

@@ -131,7 +131,7 @@ Task classifications expose:
 - normalized and requested placement;
 - blocking or nonblocking readiness;
 - normal or deferred priority;
-- ordered dependencies and effects;
+- ordered dependencies, captured parameter inputs, and effects;
 - staged or immediate publication;
 - generation cancellation;
 - recognized signal injection;
@@ -184,9 +184,13 @@ to its explicit normalized form:
 ```tsx
 export function ProductPage(this: Component<ProductState>, props: { productId: string }) {
 	const products = this.getContext(Products);
-	this.task.server.blocking(props.productId, async (productId, { signal }) => {
-		this.state.product = await products.find(productId, { signal });
-	});
+	async function loadProduct(
+		productId: string,
+		task: TaskContext = TaskContext.server().blocking()
+	) {
+		this.state.product = await products.find(productId, { signal: task.signal });
+	}
+	loadProduct(props.productId);
 	return () => <ProductDetails product={this.state.product} />;
 }
 ```
@@ -298,7 +302,9 @@ Task dependency hover describes activation, not every value read while the
 callback runs. An explicit task lists only its authored arguments, once and in
 source order. An inferred task lists the compiler-discovered inputs by their
 authored paths; destructured prop bindings retain their local names instead of
-appearing as a synthetic `props` identifier.
+appearing as a synthetic `props` identifier. Reactive parameter defaults are
+listed separately as captured inputs with their parameter position; they do
+not appear in the activation dependency list.
 
 ## Trust and local-data boundary
 

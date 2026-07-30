@@ -4,6 +4,11 @@ Use this package for LSP lifecycle and presentation only. Import compiler-owned
 inspection and refactor contracts from `@exactjs/compiler`; do not infer eXact
 semantics from source text in this package.
 
+Project one task definition model. Provide synthetic facade completion, hover,
+rename, and call-site activation hints only when compiler inspection proves the
+function is a task. Do not restore separate action entities or decorate
+ordinary functions speculatively.
+
 Keep every response tied to the latest document version and compiler generation.
 Use stale-result suppression for cancelled and superseded analysis instead of publishing it. Dispose every
 workspace service during folder removal and shutdown.
@@ -30,6 +35,8 @@ does not obscure TypeScript information inside a function.
 Render explicit-task dependencies from authored call arguments only. For
 inferred tasks, present compiler-retained authored paths once; never expose
 coarse native source categories such as `props` as if they were identifiers.
+Render reactive parameter defaults as captured inputs rather than activation
+dependencies, retaining their authored path and parameter position.
 Do not access negotiated capability getters before `initialize`; register
 workspace-folder change listeners from `onInitialized` only when the client
 advertised support.

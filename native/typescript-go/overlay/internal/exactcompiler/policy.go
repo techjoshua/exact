@@ -2022,6 +2022,22 @@ func applyTaskPolicies(tasks []Task, policies policyAnalysis) []Task {
 				requirements = append(requirements, policy)
 			}
 		}
+		for _, input := range task.CapturedInputs {
+			switch input.Source {
+			case "state":
+				path := strings.TrimPrefix(input.Path, "this.state.")
+				for _, policy := range policies.statePolicies {
+					if policy.component == task.Component &&
+						policyPathsOverlap(policy.path, path) {
+						requirements = append(requirements, policy.subject)
+					}
+				}
+			case "context":
+				if policy, exists := policies.contextPolicies[input.ContextToken]; exists {
+					requirements = append(requirements, policy)
+				}
+			}
+		}
 		server, client := false, false
 		for _, requirement := range requirements {
 			server = server || requirement.Policy.Secret ||
@@ -2065,6 +2081,18 @@ func applyTaskPolicies(tasks []Task, policies policyAnalysis) []Task {
 					task.EffectSources,
 					environmentSource("browser", "data policy", task.Component),
 				)
+			}
+		}
+		if task.RequestedPlacement == "server" && len(task.CapturedInputs) != 0 {
+			for _, requirement := range requirements {
+				if requirement.Policy.Secret ||
+					requirement.Policy.Residency != "shared" {
+					task.Diagnostics = append(
+						task.Diagnostics,
+						"error: a server task captured parameter must not transport client-kept, server-kept, or secret data",
+					)
+					break
+				}
 			}
 		}
 	}

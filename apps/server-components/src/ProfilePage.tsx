@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 
 /** Tracks the state owned by profile. */
 export type ProfileState = {
@@ -11,10 +11,11 @@ export function ProfilePage(this: Component<ProfileState>, props: { name: string
 	this.state.saves = 0;
 	this.state.status = 'Loaded on the server';
 
-	this.task.server(async () => {
+	const loadProfile = async (_task: TaskContext = TaskContext.server()) => {
 		await Promise.resolve();
 		this.state.status = `Ready for ${props.name}`;
-	});
+	};
+	void loadProfile();
 
 	return () => (
 		<section>

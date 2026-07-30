@@ -63,22 +63,16 @@ Use an explicit reactive value when runtime code needs the boundary itself:
 
 ```ts
 const subtotal = this.reactive(() => this.state.quantity * this.state.price);
-
-// Values returned by this.reactive() provide this component-owned shorthand.
-subtotal.task((value, { signal }) => {
-	reportEstimate(Number(value), { signal });
-});
+const reportSubtotal = (value: number, task: TaskContext = TaskContext.client().latest()) => {
+	reportEstimate(value, { signal: task.signal });
+};
+reportSubtotal(Number(subtotal));
 ```
 
-`this.reactive()` returns a `ComponentReactiveValue`, which extends the base `ReactiveValue` with
-the `.task()` shorthand. A `ReactiveValue` created directly through `@exactjs/reactive` does not
-have that method. Use the general component task form for any reactive dependency:
-
-```ts
-this.task(subtotal, (value, { signal }) => {
-	reportEstimate(Number(value), { signal });
-});
-```
+The compiler observes a reactive value passed to a setup task call and
+reactivates the task when it changes. This is the same contract for
+`this.reactive()` values and `ReactiveValue` instances created through
+`@exactjs/reactive`.
 
 Do not wrap values in `useMemo`, `useCallback`, or ref-like boxes to preserve reactivity.
 

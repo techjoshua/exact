@@ -28,12 +28,11 @@ component initializer.
 
 Native UTF-8 byte spans are normalized to the public UTF-16 source-range
 contract before inspection data is returned.
-Task and action `selectionRange` values isolate the authored `task` or `action`
-identifier rather than the surrounding `this.` property access, allowing LSP
-clients to preserve ordinary method-call coloring.
-Explicit-task classifications expose only authored activation arguments as
-dependencies. Inferred-task dependencies retain their authored state paths or
-local destructured binding names across the native process boundary.
+Task `selectionRange` values isolate the authored function identifier, allowing
+LSP clients to preserve ordinary function syntax and coloring. Explicit-policy
+classifications expose authored activation arguments as dependencies.
+Inferred-task dependencies retain their authored state paths or local
+destructured binding names across the native process boundary.
 
 ```ts
 const language = createExactLanguageService({ root, noEmit: true });
@@ -111,8 +110,16 @@ The compiler emits a synchronous component setup plus a repeatable blocking cont
 dependencies, cancellation, and staged state publication. Sequential awaits and
 `try`/`catch`/`finally` preserve ordinary TypeScript control flow; writes publish only after the
 whole generation succeeds. Framework cancellation bypasses authored catches while still executing
-finally blocks. Use explicit `this.task()` calls for external effects, cleanup, placement,
-scheduling policy, or deliberately nonblocking work.
+finally blocks. Use a final `TaskContext` policy parameter for external
+effects, cleanup, placement, scheduling policy, or deliberately nonblocking
+work.
+
+Defaulted non-context task parameters are compiler-captured inputs. Their
+initializers are evaluated once per generation without becoming activation
+dependencies, then erased from task work and supplied as ordinary arguments.
+Explicit call arguments remain tracked. Captures are reported separately in
+analysis and are materialized before server dispatch so transport and data
+policy validation applies to their resolved values.
 
 Set `explain: true` with `transformSource()` to receive a stable,
 component-organized account of placement, transported captures, server-only
@@ -133,12 +140,13 @@ partition catalogs to components reachable from that producer root. The
 selection preserves producer provenance and excludes sibling or page-host
 source.
 
-Explicit `this.action()` registrations extend the same continuation model with invocation
-arguments, concurrency, opaque operation identity, cancellation fencing, and compiler-owned
-optimistic client preludes for server actions. Authored server-action result types survive the
-generated client dispatch stub, while server-only body imports and implementations remain in the
-server artifact. Applications call the returned action function and never name or dispatch an
-operation identifier themselves. Finite `createComponentRegistry()` declarations
+Direct calls to function-defined tasks use the same continuation model with
+invocation arguments, concurrency, opaque operation identity, cancellation
+fencing, and compiler-owned optimistic client preludes for server work.
+Authored server-task result types survive the generated client dispatch stub,
+while server-only body imports and implementations remain in the server
+artifact. Applications call the authored function and never name or dispatch
+an operation identifier themselves. Finite `createComponentRegistry()` declarations
 add entry provenance, lazy import/export boundaries, per-entry placement and artifact targets,
 and diagnostic/explain metadata. Dynamic registry keys must be proven by
 `KeyOf<typeof Registry>` or `hasComponent()`.
@@ -177,7 +185,7 @@ generated element identity, current binding value, and renderable children. The 
 can therefore adopt the server DOM on first interaction instead of mounting into an empty
 placeholder.
 
-Current guides: [actions and forms](../../docs/actions-and-forms.md) and
+Current guides: [task interactions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md). Language
 service contracts and editor behavior are documented in
 [compiler-aware language tools](../../docs/language-tools.md).
@@ -187,7 +195,7 @@ service contracts and editor behavior are documented in
 `emitInspection` retains the compiler's rich source model for a server-owned catalog, while
 `instrumentInspection` independently appends compact client correlation. Artifact compilation
 aggregates module inspection into one deterministic build/root catalog under `.exact-inspection`;
-instrumented task and action callbacks carry their canonical source entity ID directly, so runtime
+instrumented task functions carry their canonical source entity ID directly, so runtime
 consumers never reconstruct compiler ordering. Server transforms retain the callback marker but
 never receive client source-registration code. Use
 `createExactInspectionRedactions()` for qualified selectors without values and

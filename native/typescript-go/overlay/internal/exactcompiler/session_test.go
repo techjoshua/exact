@@ -2945,10 +2945,339 @@ func TestSessionLowersInferredAndExplicitTaskDependencies(t *testing.T) {
 		`this.reactive(() => this.state.count)`,
 		`this.reactive(() => label.get())`,
 		`(__exactDependency: number, __exactDependency1: string) => consume(__exactDependency, __exactDependency1)`,
-		`this.task(label, value => consume(value))`,
+		`}, value => consume(value)), label)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			import { TaskContext } from "@exactjs/core";
+			function Workspace(this: Component<{ revision: number }>) {
+				async function persist(
+					revision: number,
+					task: TaskContext = TaskContext.client().latest()
+				) {
+					localStorage.setItem("revision", String(revision));
+					await delay(task.signal);
+				}
+				persist(this.state.revision);
+				return () => <output />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 1 {
+		t.Fatalf(
+			"function-defined task was not classified: %#v %#v",
+			response.Analysis.Tasks,
+			response.Diagnostics,
+		)
+	}
+	task := response.Analysis.Tasks[0]
+	if task.RequestedPlacement != "client" ||
+		len(task.Dependencies) != 1 ||
+		task.Dependencies[0].Path != "this.state.revision" {
+		t.Fatalf("unexpected function-defined task analysis: %#v", task)
+	}
+	for _, expected := range []string{
+		"activateTaskForHost as __exactActivateTask",
+		"defineTask as __exactDefineTask",
+		"__exactActivateTask(this, __exactDefineTask(",
+		"this.reactive(() => this.state.revision)",
+		"async (revision: number, task: TaskContext)",
+		"__exactTaskAwait(task.signal, delay(task.signal))",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("function-defined task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Workspace(this: Component<{ revision: number; draft: string }>) {
+				async function persist(
+					draft: string = this.state.draft,
+					task: TaskContext = TaskContext.client().latest()
+				) {
+					await save(this.state.revision, draft, task.signal);
+				}
+				persist();
+				return () => <output />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 1 {
+		t.Fatalf(
+			"captured task parameter was not classified: %#v %#v",
+			response.Analysis.Tasks,
+			response.Diagnostics,
+		)
+	}
+	task := response.Analysis.Tasks[0]
+	if len(task.Dependencies) != 1 ||
+		task.Dependencies[0].Path != "this.state.revision" ||
+		len(task.CapturedParameters) != 1 ||
+		task.CapturedParameters[0] != 0 ||
+		len(task.CapturedInputs) != 1 ||
+		task.CapturedInputs[0].Parameter != 0 ||
+		task.CapturedInputs[0].Path != "this.state.draft" {
+		t.Fatalf("unexpected captured task analysis: %#v", task)
+	}
+	for _, expected := range []string{
+		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
+		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft : __exactTaskArgs[1];`,
+		`return [__exactTaskArgs[0], draft];`,
+		`this.reactive(() => this.state.revision)`,
+		`async (__exactDependency: any, draft: string, task: TaskContext)`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("captured task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, "this.reactive(() => this.state.draft)") ||
+		strings.Contains(response.Code, "draft: string = this.state.draft") {
+		t.Fatalf("captured default remained a reactive dependency or body default:\n%s", response.Code)
+	}
+}
+
+func TestSessionTransportsCapturedDefaultsForInvokedServerTasks(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Editor(this: Component<{ draft: string }>) {
+				async function save(
+					draft: string = this.state.draft,
+					task: TaskContext = TaskContext.server().latest()
+				) {
+					await persist(draft, task.signal);
+				}
+				return () => <button onClick={() => save()}>Save</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 ||
+		len(response.Analysis.Tasks) != 1 ||
+		len(response.Analysis.Continuations) != 1 {
+		t.Fatalf(
+			"captured server task was not classified: %#v %#v",
+			response.Analysis.Tasks,
+			response.Diagnostics,
+		)
+	}
+	continuation := response.Analysis.Continuations[0]
+	if len(continuation.Activation.Dependencies) != 1 ||
+		continuation.Activation.Dependencies[0].Source != "argument" {
+		t.Fatalf("captured input was not authorized as a continuation argument: %#v", continuation)
+	}
+	for _, expected := range []string{
+		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
+		`const draft = __exactTaskArgs[0] === void 0 ? this.state.draft : __exactTaskArgs[0];`,
+		`return [draft];`,
+		`__exactDispatchContinuation`,
+		`save()`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("captured server task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionLowersInvokedFunctionTaskThroughPublicABI(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Editor(this: Component<{ title: string }>) {
+				async function save(
+					title: string,
+					task: TaskContext = TaskContext.server().latest()
+				) {
+					await persist(title, task.signal);
+					return title;
+				}
+				return () => <button onClick={() => save(this.state.title)}>Save</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 1 {
+		t.Fatalf(
+			"invoked function task was not classified: %#v %#v",
+			response.Analysis.Tasks,
+			response.Diagnostics,
+		)
+	}
+	for _, expected := range []string{
+		`bindTaskForHost as __exactBindTask`,
+		`defineTask as __exactDefineTask`,
+		`const save = __exactBindTask(this, __exactDefineTask(`,
+		`placement: "server"`,
+		`concurrency: "latest"`,
+		`save(this.state.title)`,
+		`__exactDispatchContinuation`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("invoked function task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, "TaskContext.server().latest()") {
+		t.Fatalf("task policy builder escaped into runtime output:\n%s", response.Code)
+	}
+}
+
+func TestSessionSupportsAssignedAndExpressionTaskFunctions(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Editor(this: Component<{ title: string }>) {
+				const assigned = async (
+					title: string,
+					task: TaskContext = TaskContext.client().queue()
+				) => delay(title, task.signal);
+				const expressed = async function persist(
+					title: string,
+					task: TaskContext = TaskContext.client().latest()
+				) {
+					localStorage.setItem("title", title);
+					await delay(task.signal);
+					return assigned(title);
+				};
+				return () => (
+					<button onClick={() => Promise.all([
+						assigned(this.state.title),
+						expressed(this.state.title)
+					])}>Save</button>
+				);
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 2 {
+		t.Fatalf(
+			"assigned task functions were not classified: %#v %#v",
+			response.Analysis.Tasks,
+			response.Diagnostics,
+		)
+	}
+	if strings.Count(response.Code, "__exactBindTask(this, __exactDefineTask(") != 2 ||
+		strings.Contains(response.Code, "TaskContext.client()") ||
+		!strings.Contains(response.Code, "__exactInvokeTask(task, assigned, title)") {
+		t.Fatalf("assigned task functions were not lowered through the public ABI:\n%s", response.Code)
+	}
+}
+
+func TestSessionTreatsNestedChildTaskCallsAsPlacementBoundaries(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			import { readFileSync } from "node:fs";
+			declare class Component<State> { state: State }
+			function Workspace(this: Component<{ ids: string[] }>) {
+				function load(
+					id: string,
+					task: TaskContext = TaskContext.server().parallel()
+				) {
+					return readFileSync(id, "utf8");
+				}
+				async function refresh(
+					task: TaskContext = TaskContext.client().latest()
+				) {
+					localStorage.setItem(
+						"values",
+						JSON.stringify(await Promise.all(this.state.ids.map(id => load(id))))
+					);
+				}
+				refresh();
+				return () => <output />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 2 {
+		t.Fatalf(
+			"nested child tasks were not classified: %#v %#v",
+			response.Analysis.Tasks,
+			response.Diagnostics,
+		)
+	}
+	for _, task := range response.Analysis.Tasks {
+		if task.RequestedPlacement == "client" &&
+			(task.ServerEffects || task.EnvironmentEffect == "mixed") {
+			t.Fatalf("server child effects escaped into client parent: %#v", task)
+		}
+	}
+}
+
+func TestSessionOwnsSyntheticTaskStatusDiagnostics(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:          "component.tsx",
+		Kind:        "analyze",
+		Diagnostics: "semantic",
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Editor(this: Component<{ title: string }>) {
+				async function save(
+					title: string,
+					task: TaskContext = TaskContext.client().latest()
+				) {
+					await persist(title, task.signal);
+				}
+				return () => <button
+					disabled={save.pending}
+					onClick={() => save(this.state.title)}
+				>Save</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Code == "TS2339" &&
+			strings.Contains(diagnostic.Message, "pending") {
+			t.Fatalf("raw TypeScript rejected synthetic task status: %#v", response.Diagnostics)
 		}
 	}
 }
@@ -3024,8 +3353,8 @@ func TestSessionTagsServerContinuationWorkAndOmitsItFromClient(t *testing.T) {
 	taskID := server.Analysis.Tasks[0].ID
 	for _, expected := range []string{
 		`markComponentContinuationTask as __exactContinuationTask`,
-		`this.task.server(__exactContinuationTask("` +
-			taskID + `", async`,
+		`__exactActivateTask(this, __exactDefineTask(`,
+		`__exactContinuationTask("` + taskID + `", async`,
 	} {
 		if !strings.Contains(server.Code, expected) {
 			t.Fatalf(
@@ -3090,9 +3419,12 @@ func TestSessionEmitsClientDispatchStubForIsomorphicContinuation(t *testing.T) {
 	for _, expected := range []string{
 		`markComponentContinuationTask as __exactContinuationTask`,
 		`dispatchComponentContinuation as __exactDispatchContinuation`,
-		`this.task(__exactContinuationTask("` + taskID,
-		`({ signal: __exactSignal }) => __exactDispatchContinuation(this, "` +
-			taskID + `", [], __exactSignal, [])`,
+		`__exactActivateTask(this, __exactDefineTask(`,
+		`__exactContinuationTask("` + taskID,
+		`(...__exactTaskArgs: any[]) => {`,
+		`return __exactDispatchContinuation(this as any, "` +
+			taskID +
+			`", __exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation);`,
 		`const __exactImplementation_Loader_1 = function Loader(`,
 		`export const Loader: typeof __exactImplementation_Loader_1`,
 		`Object.assign(__exactImplementation_Loader_1, {`,
@@ -3153,7 +3485,7 @@ func TestSessionEmitsServerContinuationExecutorContract(t *testing.T) {
 		`execute: async (__exactActivation_1: any, __exactExecution_1: any) =>`,
 		`const __exactComponent_1 = { state: __exactActivation_1.state }`,
 		`await (async ({ signal: __exactSignal }) =>`,
-		`})({ signal: __exactExecution_1.signal })`,
+		`})(__exactExecution_1.task)`,
 		`__exactUpdateResult(__exactComponent_1.state, ["count"]`,
 		`return { state: __exactComponent_1.state, contexts: __exactContextWrites_1 }`,
 	} {
@@ -3227,7 +3559,7 @@ func TestSessionEmitsTypedServerActionArtifactsWithRenderImports(t *testing.T) {
 	for _, expected := range []string{
 		`import { renderWorkspace } from "./view.js"`,
 		`markComponentContinuationAction as __exactContinuationAction`,
-		`{ signal: __exactExecution_1.signal, generation: __exactActivation_1.generation } as any`,
+		`__exactExecution_1.task`,
 		`value: __exactActionResult_1`,
 	} {
 		if !strings.Contains(server.Code, expected) {
@@ -3442,10 +3774,19 @@ func TestSessionPropagatesCallableStateContextAndEnvironmentEffects(t *testing.T
 		len(middle.StateReads) != 1 || middle.StateReads[0].Path != "count" {
 		t.Fatalf("callable effects did not propagate: %#v", middle)
 	}
-	if len(response.Analysis.Tasks) != 1 {
+	if len(response.Analysis.Tasks) < 1 {
 		t.Fatalf("unexpected tasks: %#v", response.Analysis.Tasks)
 	}
-	task := response.Analysis.Tasks[0]
+	var task Task
+	for _, candidate := range response.Analysis.Tasks {
+		if candidate.Component == "Panel" {
+			task = candidate
+			break
+		}
+	}
+	if task.Component == "" {
+		t.Fatalf("missing Panel task: %#v", response.Analysis.Tasks)
+	}
 	if task.EnvironmentEffect != "server" || task.Placement != "server" ||
 		!containsContextEffect(task.Contexts, "Status.Token", "write") ||
 		len(task.Reads) != 1 || task.Reads[0].Path != "count" {
@@ -3941,6 +4282,10 @@ func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testin
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare const store: {
+				subscribe(callback: () => void): () => void
+			};
 			function Panel() {
 				this.task.client(() => {
 					this.state.socket = new WebSocket("/escape");
@@ -3949,6 +4294,10 @@ func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testin
 					const socket = new WebSocket("/explicit");
 					return () => socket.close();
 				});
+				const observe = (task: TaskContext = TaskContext.client()) => {
+					task.cleanup(store.subscribe(() => {}));
+				};
+				observe();
 				return () => <output />;
 			}
 		`,
@@ -3956,7 +4305,7 @@ func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testin
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if len(response.Analysis.Tasks) != 2 {
+	if len(response.Analysis.Tasks) != 3 {
 		t.Fatalf("unexpected tasks: %#v", response.Analysis.Tasks)
 	}
 	if len(response.Analysis.Tasks[0].Diagnostics) == 0 ||
@@ -3969,6 +4318,14 @@ func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testin
 	for _, diagnostic := range response.Analysis.Tasks[1].Diagnostics {
 		if strings.HasPrefix(diagnostic, "error:") {
 			t.Fatalf("explicit cleanup was not respected: %#v", response.Analysis.Tasks[1])
+		}
+	}
+	if len(response.Analysis.Tasks[2].Resources) != 0 {
+		t.Fatalf("TaskContext cleanup was not respected: %#v", response.Analysis.Tasks[2])
+	}
+	for _, diagnostic := range response.Analysis.Tasks[2].Diagnostics {
+		if strings.HasPrefix(diagnostic, "error:") {
+			t.Fatalf("TaskContext cleanup was not respected: %#v", response.Analysis.Tasks[2])
 		}
 	}
 }
@@ -4133,6 +4490,43 @@ func TestSessionAppliesStateAndContextResidencyToTasks(t *testing.T) {
 		false,
 	) {
 		t.Fatalf("missing native policy subjects: %#v", response.Analysis.Policy.Subjects)
+	}
+}
+
+func TestSessionRejectsNonSharedCapturedInputsForServerTasks(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "captured-policy.tsx",
+		Kind: "compile",
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			interface State {
+				/** @exact keep=client */
+				draft: string;
+			}
+			function Editor(this: Component<State>) {
+				async function save(
+					draft: string = this.state.draft,
+					task: TaskContext = TaskContext.server().latest()
+				) {
+					await persist(draft, task.signal);
+				}
+				return () => <button onClick={() => save()}>Save</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Analysis.Tasks) != 1 ||
+		!containsString(
+			response.Analysis.Tasks[0].Diagnostics,
+			"error: a server task captured parameter must not transport client-kept, server-kept, or secret data",
+		) {
+		t.Fatalf(
+			"server capture did not enforce its data boundary: %#v",
+			response.Analysis.Tasks,
+		)
 	}
 }
 

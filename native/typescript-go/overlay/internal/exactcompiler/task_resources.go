@@ -300,7 +300,8 @@ func taskResourceOwnership(
 ) string {
 	declaration := enclosingVariableDeclaration(resource, work)
 	if declaration == nil {
-		if candidate.disposal == "call" && directTaskCleanup(work, resource) {
+		if directTaskContextCleanup(work, resource) ||
+			(candidate.disposal == "call" && directTaskCleanup(work, resource)) {
 			return "explicit"
 		}
 		if directResourceEscape(resource) {
@@ -342,6 +343,33 @@ func taskResourceOwnership(
 		return "explicit"
 	}
 	return "owned"
+}
+
+func directTaskContextCleanup(work *ast.Node, resource *ast.Node) bool {
+	parameters := work.Parameters()
+	if len(parameters) == 0 {
+		return false
+	}
+	finalName := parameters[len(parameters)-1].AsParameterDeclaration().Name()
+	if finalName == nil || !ast.IsIdentifier(finalName) {
+		return false
+	}
+	parent := resource.Parent
+	for parent != nil && (ast.IsAwaitExpression(parent) ||
+		ast.IsParenthesizedExpression(parent)) {
+		parent = parent.Parent
+	}
+	if parent == nil || !ast.IsCallExpression(parent) {
+		return false
+	}
+	target := parent.AsCallExpression().Expression
+	if !ast.IsPropertyAccessExpression(target) {
+		return false
+	}
+	access := target.AsPropertyAccessExpression()
+	return access.Name().Text() == "cleanup" &&
+		ast.IsIdentifier(access.Expression) &&
+		access.Expression.Text() == finalName.Text()
 }
 
 func enclosingVariableDeclaration(node *ast.Node, work *ast.Node) *ast.Node {

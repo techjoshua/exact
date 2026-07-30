@@ -20,7 +20,7 @@ const panelSession = createExactDevtoolsPanelSession(client, queueRefresh);
 for (const panel of [
 	'Components',
 	'State & Context',
-	'Tasks & Actions',
+	'Tasks',
 	'Dependencies',
 	'Timeline',
 	'Microfrontends'
@@ -66,8 +66,8 @@ async function refresh(): Promise<void> {
 				? model.components
 				: activePanel === 'State & Context'
 					? { state: model.state, contexts: model.contexts }
-					: activePanel === 'Tasks & Actions'
-						? { tasks: model.tasks, actions: model.actions }
+					: activePanel === 'Tasks'
+						? model.tasks
 						: activePanel === 'Dependencies'
 							? (model.dependency ?? { unavailable: 'catalog-not-built' })
 							: activePanel === 'Timeline'

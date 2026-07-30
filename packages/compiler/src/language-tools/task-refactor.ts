@@ -6,6 +6,11 @@ import type {
 	ExactSourceRange,
 	ExactTaskClassification
 } from './contracts.js';
+import {
+	findMatching,
+	parseExplicitTaskSource,
+	removeRecognizedSignalOptions
+} from './task-refactor-parsing.js';
 
 /** Plans the reversible task transformations whose source shape is proven representable. */
 export function planExactTaskRefactor(
@@ -13,7 +18,7 @@ export function planExactTaskRefactor(
 	source: string,
 	inspection: ExactSourceInspection
 ): ExactRefactorPlan | undefined {
-	const entity = inspectedTaskAt(inspection, request.range);
+	const entity = inspectedTaskAt(inspection, request.range, request.kind);
 	if (!entity || entity.classification?.kind !== 'task') return undefined;
 	if (request.kind === 'convert-to-explicit-task' && entity.kind === 'inferred-task')
 		return inferredToExplicit(request, source, entity.range, entity.classification);
@@ -25,9 +30,16 @@ export function planExactTaskRefactor(
 		!entity.classification.placementRequest &&
 		(entity.classification.placement === 'client' || entity.classification.placement === 'server')
 	) {
-		const taskToken = source.indexOf('this.task', entity.range.start);
-		if (taskToken < 0 || taskToken >= entity.range.end) return undefined;
 		const placement = entity.classification.placement;
+		const contextToken = source.indexOf('TaskContext', entity.range.start);
+		const taskToken = source.indexOf('this.task', entity.range.start);
+		const token =
+			contextToken >= entity.range.start && contextToken < entity.range.end
+				? { start: contextToken + 'TaskContext'.length, text: `.${placement}()` }
+				: taskToken >= entity.range.start && taskToken < entity.range.end
+					? { start: taskToken + 'this.task'.length, text: `.${placement}` }
+					: undefined;
+		if (!token) return undefined;
 		return Object.freeze({
 			title: `Make ${placement} placement explicit`,
 			semanticChange: 'none',
@@ -35,11 +47,8 @@ export function planExactTaskRefactor(
 			edits: Object.freeze([
 				Object.freeze({
 					filename: request.filename,
-					range: Object.freeze({
-						start: taskToken + 'this.task'.length,
-						end: taskToken + 'this.task'.length
-					}),
-					newText: `.${placement}`
+					range: Object.freeze({ start: token.start, end: token.start }),
+					newText: token.text
 				})
 			]),
 			expected: Object.freeze({
@@ -74,13 +83,16 @@ function inferredToExplicit(
 		if (!injected) return undefined;
 		body = injected;
 	}
-	const facets = taskFacets(classification);
-	const dependencySource = dependencies.length ? `${dependencies.join(', ')}, ` : '';
-	const callbackParameters = [...parameters, ...(needsSignal ? ['{ signal }'] : [])].join(', ');
+	const functionName = uniqueTaskFunctionName(source);
+	const callbackParameters = [
+		...parameters.map((parameter, index) => `${parameter}: typeof ${dependencies[index]}`),
+		`task: TaskContext = ${taskPolicyDefault(classification)}`
+	].join(', ');
 	const callbackBody = indentLines(body, `${indentation}\t`);
 	const replacement =
-		`${indentation}this.task${facets}(${dependencySource}async (` +
-		`${callbackParameters}) => {\n${indentation}\t${callbackBody}\n${indentation}});`;
+		`${indentation}const ${functionName} = async (${callbackParameters}) => {\n` +
+		`${indentation}\t${callbackBody}\n${indentation}};\n` +
+		`${indentation}${functionName}(${dependencies.join(', ')});`;
 	const edits = [
 		Object.freeze({
 			filename: request.filename,
@@ -88,6 +100,18 @@ function inferredToExplicit(
 			newText: replacement
 		})
 	];
+	if (
+		!/\bimport\s+(?:type\s+)?\{[^}]*\bTaskContext\b[^}]*\}\s+from\s+['"]@exactjs\/core['"]/.test(
+			source
+		)
+	)
+		edits.push(
+			Object.freeze({
+				filename: request.filename,
+				range: Object.freeze({ start: 0, end: 0 }),
+				newText: "import { TaskContext } from '@exactjs/core';\n"
+			})
+		);
 	const componentRange = componentFunctionRange(source, range);
 	if (
 		componentRange &&
@@ -131,8 +155,7 @@ function explicitToInferred(
 		classification.effects.some((effect) => effect.kind === 'external-effect')
 	)
 		return undefined;
-	const authored = source.slice(range.start, range.end).trim();
-	const parsed = parseExplicitTask(authored);
+	const parsed = parseExplicitTaskSource(source, range);
 	if (!parsed || parsed.dependencies.length !== parsed.parameters.length) return undefined;
 	let body = parsed.body.trim();
 	if (
@@ -143,20 +166,22 @@ function explicitToInferred(
 		return undefined;
 	for (let index = 0; index < parsed.parameters.length; index++)
 		body = replaceWholeIdentifier(body, parsed.parameters[index]!, parsed.dependencies[index]!);
-	if (parsed.signalParameter) {
-		if (/\bsignal\b/.test(removeRecognizedSignalOptions(body))) return undefined;
-		body = removeRecognizedSignalOptions(body);
+	if (parsed.contextParameter) {
+		const withoutSignalOptions = removeRecognizedSignalOptions(body, parsed.contextParameter);
+		if (new RegExp(`\\b${escapeRegExp(parsed.contextParameter)}\\b`).test(withoutSignalOptions))
+			return undefined;
+		body = withoutSignalOptions;
 	}
-	const indentation = source.slice(range.start, range.end).match(/^[\r\n]*([ \t]*)/)?.[1] ?? '';
+	const indentation = parsed.indentation;
 	const replacement = `${indentation}${body}`;
 	const edits = [
 		Object.freeze({
 			filename: request.filename,
-			range,
+			range: parsed.range,
 			newText: replacement
 		})
 	];
-	const componentRange = componentFunctionRange(source, range);
+	const componentRange = componentFunctionRange(source, parsed.range);
 	if (componentRange && !asyncModifierRange(source, componentRange)) {
 		const functionIndex = source.indexOf('function', componentRange.start);
 		if (functionIndex >= 0 && functionIndex < range.start)
@@ -184,7 +209,8 @@ function explicitToInferred(
 
 function inspectedTaskAt(
 	inspection: ExactSourceInspection,
-	range: ExactSourceRange
+	range: ExactSourceRange,
+	requestKind: ExactRefactorRequest['kind']
 ): ExactSourceEntity | undefined {
 	const candidates: ExactSourceEntity[] = [];
 	const visit = (entity: ExactSourceEntity): void => {
@@ -196,7 +222,16 @@ function inspectedTaskAt(
 		for (const child of entity.children) visit(child);
 	};
 	for (const component of inspection.components) visit(component);
-	return candidates.sort(
+	const preferredKind =
+		requestKind === 'convert-to-inferred-task'
+			? 'explicit-task'
+			: requestKind === 'convert-to-explicit-task'
+				? 'inferred-task'
+				: undefined;
+	const preferred = preferredKind
+		? candidates.filter((candidate) => candidate.kind === preferredKind)
+		: candidates;
+	return (preferred.length ? preferred : candidates).sort(
 		(left, right) => left.range.end - left.range.start - (right.range.end - right.range.start)
 	)[0];
 }
@@ -226,85 +261,6 @@ function uniqueParameterNames(dependencies: readonly string[]): string[] {
 	});
 }
 
-function taskFacets(classification: ExactTaskClassification): string {
-	const facets = [
-		classification.placement === 'client' || classification.placement === 'server'
-			? classification.placement
-			: undefined,
-		classification.readiness === 'blocking' ? 'blocking' : undefined,
-		classification.priority === 'deferred' ? 'deferred' : undefined
-	].filter(Boolean);
-	return facets.length ? `.${facets.join('.')}` : '';
-}
-
-function parseExplicitTask(source: string):
-	| Readonly<{
-			dependencies: readonly string[];
-			parameters: readonly string[];
-			signalParameter: boolean;
-			body: string;
-	  }>
-	| undefined {
-	const open = source.indexOf('(');
-	const arrow = source.indexOf('=>', open + 1);
-	if (open < 0 || arrow < 0) return undefined;
-	const callbackStart = source.lastIndexOf('async', arrow);
-	if (callbackStart < open) return undefined;
-	const argsText = source
-		.slice(open + 1, callbackStart)
-		.replace(/,\s*$/, '')
-		.trim();
-	const parameterOpen = source.indexOf('(', callbackStart);
-	const parameterClose = findMatching(source, parameterOpen, '(', ')');
-	if (parameterOpen < 0 || parameterClose === undefined || parameterClose > arrow) return undefined;
-	const bodyOpen = source.indexOf('{', arrow);
-	const bodyClose = bodyOpen < 0 ? undefined : findMatching(source, bodyOpen, '{', '}');
-	if (bodyOpen < 0 || bodyClose === undefined) return undefined;
-	const rawParameters = splitTopLevel(source.slice(parameterOpen + 1, parameterClose));
-	const signalParameter = rawParameters.at(-1)?.replace(/\s/g, '') === '{signal}';
-	const parameters = signalParameter ? rawParameters.slice(0, -1) : rawParameters;
-	const dependencies = splitTopLevel(argsText);
-	return Object.freeze({
-		dependencies,
-		parameters,
-		signalParameter,
-		body: source.slice(bodyOpen + 1, bodyClose)
-	});
-}
-
-function splitTopLevel(source: string): string[] {
-	const values: string[] = [];
-	let start = 0;
-	let depth = 0;
-	for (let index = 0; index < source.length; index++) {
-		const character = source[index];
-		if (character === '(' || character === '[' || character === '{') depth++;
-		else if (character === ')' || character === ']' || character === '}') depth--;
-		else if (character === ',' && depth === 0) {
-			values.push(source.slice(start, index).trim());
-			start = index + 1;
-		}
-	}
-	const last = source.slice(start).trim();
-	if (last) values.push(last);
-	return values;
-}
-
-function findMatching(
-	source: string,
-	start: number,
-	open: string,
-	close: string
-): number | undefined {
-	if (start < 0 || source[start] !== open) return undefined;
-	let depth = 0;
-	for (let index = start; index < source.length; index++) {
-		if (source[index] === open) depth++;
-		else if (source[index] === close && --depth === 0) return index;
-	}
-	return undefined;
-}
-
 function injectSignalOption(statement: string): string | undefined {
 	const awaitIndex = statement.indexOf('await ');
 	const semicolon = statement.lastIndexOf(';');
@@ -312,11 +268,27 @@ function injectSignalOption(statement: string): string | undefined {
 	if (awaitIndex < 0 || end < awaitIndex) return undefined;
 	const before = statement.slice(0, end);
 	if (/\bsignal\b/.test(before.slice(awaitIndex))) return statement;
-	return `${before}, { signal }${statement.slice(end)}`;
+	return `${before}, { signal: task.signal }${statement.slice(end)}`;
 }
 
-function removeRecognizedSignalOptions(source: string): string {
-	return source.replace(/,\s*\{\s*signal\s*\}(?=\s*\))/g, '');
+function uniqueTaskFunctionName(source: string): string {
+	for (let suffix = 1; ; suffix++) {
+		const candidate = suffix === 1 ? 'runTask' : `runTask${suffix}`;
+		if (!new RegExp(`\\b${candidate}\\b`).test(source)) return candidate;
+	}
+}
+
+function taskPolicyDefault(classification: ExactTaskClassification): string {
+	const policies = [
+		classification.placement === 'client' || classification.placement === 'server'
+			? classification.placement
+			: undefined,
+		classification.priority !== 'normal' ? classification.priority : undefined,
+		classification.readiness === 'blocking' ? 'blocking' : undefined,
+		classification.concurrency !== 'latest' ? classification.concurrency : undefined,
+		classification.detached ? 'detached' : undefined
+	].filter((value): value is string => value !== undefined);
+	return policies.reduce((source, policy) => `${source}.${policy}()`, 'TaskContext');
 }
 
 function replaceIdentifierPath(source: string, path: string, replacement: string): string {
@@ -324,10 +296,11 @@ function replaceIdentifierPath(source: string, path: string, replacement: string
 }
 
 function replaceWholeIdentifier(source: string, identifier: string, replacement: string): string {
-	return source.replace(
-		new RegExp(`\\b${identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'),
-		replacement
-	);
+	return source.replace(new RegExp(`\\b${escapeRegExp(identifier)}\\b`, 'g'), replacement);
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function indentLines(source: string, indentation: string): string {
@@ -380,6 +353,7 @@ function overlaps(left: ExactSourceRange, right: ExactSourceRange): boolean {
 
 const preservedSemantics = [
 	'dependency evaluation and ordering',
+	'captured task parameter snapshots',
 	'placement and readiness',
 	'priority',
 	'generation cancellation',

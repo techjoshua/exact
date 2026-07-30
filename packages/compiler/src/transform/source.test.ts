@@ -256,7 +256,7 @@ describe('@exactjs/compiler: transform', () => {
 	it('allows abort-scoped browser-global listeners inside component tasks', () => {
 		expect(() =>
 			transform(
-				`function Panel(this: Component<{}>) { this.task.client(({ signal }) => { window.addEventListener("resize", () => {}, { signal }); }); return () => <p />; }`,
+				`function Panel(this: Component<{}>) { this.task.client(({ signal }: { signal: AbortSignal }) => { window.addEventListener("resize", () => {}, { signal }); }); return () => <p />; }`,
 				{ filename: 'Panel.tsx' }
 			)
 		).not.toThrow();
@@ -325,7 +325,9 @@ describe('@exactjs/compiler: transform', () => {
 		);
 		expect(output).toContain('function ShippingOptions');
 		expect(output).not.toContain('async function ShippingOptions');
-		expect(output).toContain('this.task.blocking(this.reactive(() => this.state.destination)');
+		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('readiness: "blocking"');
+		expect(output).toContain('this.reactive(() => this.state.destination)');
 		expect(output).toContain('getOptions(__exactDependency');
 		expect(output).toContain('__exactTaskOptionsSignal(undefined, __exactSignal)');
 		expect(output).toContain('const __exactTaskResult = await');

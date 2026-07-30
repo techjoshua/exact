@@ -12,7 +12,7 @@ import { renderToStringAsync } from '@exactjs/ssr';
 const html = await renderToStringAsync(<App />);
 ```
 
-Compose private contracts from compiler-generated server artifacts for actions, boundaries, and
+Compose private contracts from compiler-generated server artifacts for task operations, boundaries, and
 distributed component continuations. Pair hydratable output with `@exactjs/hydrate`; plain SSR can
 remain script-free.
 
@@ -30,7 +30,7 @@ rendering waits for blocking descendants, and progressive document streams emit 
 outermost settled Suspense range when boundary-local replacement can reproduce the final output;
 otherwise they conservatively replace the root.
 
-See [Actions and forms](../../docs/actions-and-forms.md) and
+See [Task interactions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
 
 Request rendering automatically inherits a server inspection owner when its server runtime retains

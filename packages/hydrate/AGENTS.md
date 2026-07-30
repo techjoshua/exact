@@ -7,7 +7,7 @@ Prefer compiler-generated interaction hydration for eligible islands. Do not add
 activation registries, replay logic, or eager hydration merely to reproduce behavior the compiler
 already emits.
 
-Validate distributed action results and invocation generations before applying effects. For
+Validate distributed task results and invocation generations before applying effects. For
 component registries, require matching compiler-owned registry, key, and entry identity. Recover a
 nested mismatch inside its owned component range; do not remount an otherwise compatible root or
 accept an authored display name as identity.

@@ -97,30 +97,81 @@ func collectTasks(
 	callables callableAnalysis,
 ) []Task {
 	var tasks []Task
+	taskPolicyBindings := collectExternalImportBindings(sourceFile, typeChecker)
 	for _, candidate := range componentCandidates(sourceFile) {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
+		invokedDefinitions := make(map[int]struct{})
 		walkNode(candidate.node, func(node *ast.Node) bool {
 			if !ast.IsCallExpression(node) {
 				return true
 			}
 			call := node.AsCallExpression()
 			facets, ok := taskFacets(call.Expression)
-			if !ok {
-				return true
-			}
-			if call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
-				return true
-			}
-			work := call.Arguments.Nodes[len(call.Arguments.Nodes)-1]
-			if !ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work) {
-				return true
+			functionDefined := false
+			var work *ast.Node
+			if ok {
+				if call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
+					return true
+				}
+				work = call.Arguments.Nodes[len(call.Arguments.Nodes)-1]
+				if !ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work) {
+					return true
+				}
+			} else {
+				work, facets, ok = functionTaskActivation(
+					node,
+					call,
+					candidate,
+					sourceFile,
+					typeChecker,
+					callables,
+					taskPolicyBindings,
+				)
+				if !ok {
+					return true
+				}
+				functionDefined = true
 			}
 			task := normalizeTaskFacets(candidate.name, facets)
 			task.Start = node.Pos()
 			task.Length = node.End() - node.Pos()
-			if taskRegistrationInsideNestedFunction(node, candidate.node) {
+			task.FunctionDefined = functionDefined
+			task.WorkStart = work.Pos()
+			task.WorkLength = work.End() - work.Pos()
+			if functionDefined {
+				task.Invoked = taskRegistrationInsideNestedFunction(node, candidate.node)
+				applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
+				task.ArgumentCount = len(work.Parameters())
+				if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
+					task.ArgumentCount--
+				}
+				if call.Arguments != nil {
+					task.ActivationArgumentCount = min(
+						len(call.Arguments.Nodes),
+						task.ArgumentCount,
+					)
+				}
+				for _, capture := range taskCaptureRanges(work, task.ArgumentCount) {
+					task.CapturedParameters = append(
+						task.CapturedParameters,
+						capture.parameter,
+					)
+				}
+				if call.Arguments != nil &&
+					len(call.Arguments.Nodes) > task.ArgumentCount {
+					task.Diagnostics = append(task.Diagnostics,
+						"error: application calls must omit the compiler-supplied TaskContext argument")
+				}
+				if task.Invoked {
+					if _, duplicate := invokedDefinitions[task.WorkStart]; duplicate {
+						return true
+					}
+					invokedDefinitions[task.WorkStart] = struct{}{}
+				}
+			}
+			if !functionDefined && taskRegistrationInsideNestedFunction(node, candidate.node) {
 				task.Diagnostics = append(
 					task.Diagnostics,
 					"error: this.task() must be registered directly during component setup",
@@ -130,7 +181,25 @@ func collectTasks(
 			if node.Parent != nil && ast.IsAwaitExpression(node.Parent) {
 				task.Readiness = "blocking"
 			}
-			task.Reads = taskReadEffects(stateReads, candidate.name, work)
+			captureRanges := []taskCaptureRange{}
+			if task.FunctionDefined {
+				captureRanges = taskCaptureRanges(work, task.ArgumentCount)
+				task.CapturedInputs = collectTaskCapturedInputs(
+					work,
+					task.ArgumentCount,
+					candidate.name,
+					sourceFile,
+					stateReads,
+					reactiveBindings,
+					typeChecker,
+				)
+			}
+			task.Reads = taskReadEffectsExcluding(
+				stateReads,
+				candidate.name,
+				work,
+				captureRanges,
+			)
 			task.Writes = taskWriteEffects(stateWrites, candidate.name, work)
 			task.Writes = uniqueStateEffects(append(
 				task.Writes,
@@ -169,6 +238,7 @@ func collectTasks(
 				reactiveBindings,
 				typeChecker,
 				task.Diagnostics,
+				captureRanges,
 			)
 			task.Dependencies = taskDependencyRecords(
 				work,
@@ -178,12 +248,30 @@ func collectTasks(
 				task.ReactiveDependencies,
 				reactiveBindings,
 				typeChecker,
+				captureRanges,
 			)
+			if task.FunctionDefined && !task.Invoked &&
+				call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
+				task.Dependencies = functionTaskActivationDependencies(
+					call,
+					task.ArgumentCount,
+					sourceFile,
+				)
+			}
 			task.BrowserEffects, task.ServerEffects =
 				taskEnvironmentEffects(work, sourceFile, typeChecker)
 			if callable, exists := callables.byNode[work]; exists {
 				task.Reads = uniqueStateEffects(
-					append(task.Reads, callable.StateReads...),
+					append(
+						task.Reads,
+						taskCallableReadsWithoutCapturedDefaults(
+							task.Reads,
+							callable.StateReads,
+							task.CapturedInputs,
+							work,
+							callables,
+						)...,
+					),
 				)
 				task.Writes = uniqueStateEffects(
 					append(task.Writes, callable.StateWrites...),
@@ -193,15 +281,23 @@ func collectTasks(
 					[]EnvironmentEffectSource(nil),
 					callable.EffectSources...,
 				)
+				task.EffectSources = excludeChildTaskEffects(
+					work,
+					task.EffectSources,
+					sourceFile,
+					typeChecker,
+					callables,
+					taskPolicyBindings,
+				)
 				task.BrowserEffects = containsEnvironment(
-					callable.EffectSources,
+					task.EffectSources,
 					"browser",
 				)
 				task.ServerEffects = containsEnvironment(
-					callable.EffectSources,
+					task.EffectSources,
 					"server",
 				)
-				task.EnvironmentEffect = callable.Effect
+				task.EnvironmentEffect = environmentEffectFor(task.EffectSources)
 			}
 			switch {
 			case task.EnvironmentEffect != "neutral" && task.EnvironmentEffect != "":
@@ -304,6 +400,334 @@ func collectTasks(
 	return tasks
 }
 
+func excludeChildTaskEffects(
+	work *ast.Node,
+	sources []EnvironmentEffectSource,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	callables callableAnalysis,
+	taskPolicyBindings externalImportBindings,
+) []EnvironmentEffectSource {
+	children := make(map[string]struct{})
+	walkNode(work.Body(), func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		symbol := resolvedCallableSymbol(
+			callTargetSymbol(node.AsCallExpression().Expression, typeChecker),
+			typeChecker,
+		)
+		if symbol == nil {
+			return true
+		}
+		summary, exists := callables.bySymbol[ast.GetSymbolId(symbol)]
+		var child *ast.Node
+		if exists {
+			child = callableNodeForSummary(callables, summary.ID)
+		}
+		if child == nil {
+			for _, declaration := range symbol.Declarations {
+				if !ast.IsVariableDeclaration(declaration) {
+					continue
+				}
+				initializer := declaration.AsVariableDeclaration().Initializer
+				if initializer == nil {
+					continue
+				}
+				if candidate, found := callables.byNode[initializer]; found {
+					summary, child, exists = candidate, initializer, true
+					break
+				}
+			}
+		}
+		if exists && child != nil {
+			if _, explicit := functionTaskPolicy(
+				child,
+				sourceFile,
+				taskPolicyBindings,
+			); explicit {
+				children[summary.Name] = struct{}{}
+			}
+		}
+		return true
+	})
+	if len(children) == 0 {
+		return sources
+	}
+	filtered := make([]EnvironmentEffectSource, 0, len(sources))
+	for _, source := range sources {
+		childBoundary := false
+		for _, segment := range source.Path[1:] {
+			if _, child := children[segment]; child {
+				childBoundary = true
+				break
+			}
+		}
+		if childBoundary {
+			continue
+		}
+		filtered = append(filtered, source)
+	}
+	return filtered
+}
+
+func callableNodeForSummary(
+	callables callableAnalysis,
+	id string,
+) *ast.Node {
+	for index := range callables.facts {
+		if callables.facts[index].summary.ID == id {
+			return callables.facts[index].node
+		}
+	}
+	return nil
+}
+
+func functionTaskActivationDependencies(
+	call *ast.CallExpression,
+	argumentCount int,
+	sourceFile *ast.SourceFile,
+) []TaskDependency {
+	if call.Arguments == nil || argumentCount == 0 {
+		return nil
+	}
+	count := min(argumentCount, len(call.Arguments.Nodes))
+	result := make([]TaskDependency, 0, count)
+	for index, argument := range call.Arguments.Nodes[:count] {
+		path := strings.TrimSpace(sourceText(sourceFile, argument))
+		source := "derived"
+		switch {
+		case strings.HasPrefix(path, "this.state."):
+			source = "state"
+		case strings.HasPrefix(path, "props."):
+			source = "props"
+		}
+		result = append(result, TaskDependency{
+			Index:  index,
+			Source: source,
+			Path:   path,
+		})
+	}
+	return result
+}
+
+// functionTaskActivation recognizes a setup-scope call to a local function
+// whose effects or final TaskContext parameter classify it as task work.
+func functionTaskActivation(
+	node *ast.Node,
+	call *ast.CallExpression,
+	component componentCandidate,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	callables callableAnalysis,
+	taskPolicyBindings externalImportBindings,
+) (*ast.Node, []string, bool) {
+	nested := taskRegistrationInsideNestedFunction(node, component.node)
+	symbol := resolvedCallableSymbol(
+		callTargetSymbol(call.Expression, typeChecker),
+		typeChecker,
+	)
+	if symbol == nil {
+		return nil, nil, false
+	}
+	summary, exists := callables.bySymbol[ast.GetSymbolId(symbol)]
+	if !exists {
+		for _, declaration := range symbol.Declarations {
+			if !ast.IsVariableDeclaration(declaration) {
+				continue
+			}
+			initializer := declaration.AsVariableDeclaration().Initializer
+			if initializer == nil ||
+				(!ast.IsArrowFunction(initializer) &&
+					!ast.IsFunctionExpression(initializer)) {
+				continue
+			}
+			if candidate, found := callables.byNode[initializer]; found {
+				summary, exists = candidate, true
+				break
+			}
+		}
+	}
+	if !exists {
+		return nil, nil, false
+	}
+	var work *ast.Node
+	for index := range callables.facts {
+		fact := &callables.facts[index]
+		if fact.summary.ID == summary.ID {
+			work = fact.node
+			break
+		}
+	}
+	if work == nil || work == component.node {
+		return nil, nil, false
+	}
+	facets, explicit := functionTaskPolicy(
+		work,
+		sourceFile,
+		taskPolicyBindings,
+	)
+	classified := explicit || looksLikeTaskPolicy(work, sourceFile) ||
+		summary.Effect != "" && summary.Effect != "neutral" ||
+		len(summary.StateWrites) != 0 ||
+		len(summary.Contexts) != 0
+	if !classified {
+		return nil, nil, false
+	}
+	if nested && !explicit {
+		return nil, nil, false
+	}
+	return work, facets, true
+}
+
+func applyFunctionTaskPolicy(
+	task *Task,
+	work *ast.Node,
+	sourceFile *ast.SourceFile,
+	bindings externalImportBindings,
+) {
+	if task.Invoked {
+		task.Concurrency = "parallel"
+	} else {
+		task.Concurrency = "latest"
+	}
+	parameters := work.Parameters()
+	if len(parameters) == 0 {
+		return
+	}
+	if _, valid := functionTaskPolicy(work, sourceFile, bindings); !valid {
+		if looksLikeTaskPolicy(work, sourceFile) {
+			task.Diagnostics = append(
+				task.Diagnostics,
+				"error: task policy must be rooted at TaskContext imported from @exactjs/core",
+			)
+		}
+		return
+	}
+	text := sourceText(sourceFile, parameters[len(parameters)-1])
+	policyGroups := [][]string{
+		{"client", "server"},
+		{"parallel", "latest", "queue"},
+		{"immediate", "normal", "deferred"},
+		{"blocking", "nonblocking"},
+	}
+	for _, group := range policyGroups {
+		selected := 0
+		for _, facet := range group {
+			count := strings.Count(text, "."+facet+"(")
+			if count > 1 {
+				task.Diagnostics = append(task.Diagnostics,
+					"error: task policy repeats the "+facet+" facet")
+			}
+			if count != 0 {
+				selected++
+			}
+		}
+		if selected > 1 {
+			task.Diagnostics = append(task.Diagnostics,
+				"error: task policy contains contradictory facets")
+		}
+	}
+	final := parameters[len(parameters)-1].AsParameterDeclaration()
+	if final.Initializer != nil {
+		walkNode(final.Initializer, func(node *ast.Node) bool {
+			if !ast.IsCallExpression(node) {
+				return true
+			}
+			call := node.AsCallExpression()
+			if !ast.IsPropertyAccessExpression(call.Expression) ||
+				call.Arguments == nil ||
+				len(call.Arguments.Nodes) != 1 {
+				return true
+			}
+			member := call.Expression.AsPropertyAccessExpression()
+			if member.Name() != nil && member.Name().Text() == "key" {
+				task.KeyStart = call.Arguments.Nodes[0].Pos()
+				task.KeyLength = call.Arguments.Nodes[0].End() -
+					call.Arguments.Nodes[0].Pos()
+				return false
+			}
+			return true
+		})
+	}
+	for _, concurrency := range []string{"parallel", "latest", "queue"} {
+		if strings.Contains(text, "."+concurrency+"(") {
+			task.Concurrency = concurrency
+		}
+	}
+	task.Detached = strings.Contains(text, ".detached(")
+	if strings.Contains(text, ".immediate(") {
+		task.Priority = "immediate"
+	}
+	if strings.Contains(text, ".normal(") {
+		task.Priority = "normal"
+	}
+	if strings.Contains(text, ".nonblocking(") {
+		task.Readiness = "nonblocking"
+	}
+}
+
+func looksLikeTaskPolicy(work *ast.Node, sourceFile *ast.SourceFile) bool {
+	parameters := work.Parameters()
+	if len(parameters) == 0 {
+		return false
+	}
+	final := parameters[len(parameters)-1].AsParameterDeclaration()
+	return final.Initializer != nil &&
+		strings.Contains(sourceText(sourceFile, parameters[len(parameters)-1]), "TaskContext")
+}
+
+func functionTaskPolicy(
+	work *ast.Node,
+	sourceFile *ast.SourceFile,
+	bindings externalImportBindings,
+) ([]string, bool) {
+	parameters := work.Parameters()
+	if len(parameters) == 0 {
+		return nil, false
+	}
+	final := parameters[len(parameters)-1]
+	text := sourceText(sourceFile, final)
+	parameter := final.AsParameterDeclaration()
+	if !strings.Contains(text, "TaskContext") ||
+		parameter.Initializer == nil ||
+		!frameworkTaskPolicyRoot(parameter.Initializer, bindings) {
+		return nil, false
+	}
+	facets := []string{}
+	for _, facet := range []string{
+		"client", "server", "parallel", "latest", "queue",
+		"immediate", "normal", "deferred", "blocking", "nonblocking", "detached",
+	} {
+		if strings.Contains(text, "."+facet+"(") {
+			switch facet {
+			case "client", "server", "deferred", "blocking":
+				facets = append(facets, facet)
+			}
+		}
+	}
+	return facets, true
+}
+
+func frameworkTaskPolicyRoot(
+	node *ast.Node,
+	bindings externalImportBindings,
+) bool {
+	for ast.IsCallExpression(node) {
+		node = node.AsCallExpression().Expression
+		if ast.IsPropertyAccessExpression(node) {
+			node = node.AsPropertyAccessExpression().Expression
+		}
+	}
+	if !ast.IsIdentifier(node) {
+		return false
+	}
+	reference, exists := bindings.byName[node.Text()]
+	return exists &&
+		reference.moduleSpecifier == "@exactjs/core" &&
+		reference.exportName == "TaskContext"
+}
+
 func taskRegistrationInsideNestedFunction(
 	call *ast.Node,
 	component *ast.Node,
@@ -396,6 +820,8 @@ func normalizeTaskFacets(component string, facets []string) Task {
 		EnvironmentEffect:    "neutral",
 		ReactiveDependencies: []string{},
 		Dependencies:         []TaskDependency{},
+		CapturedInputs:       []TaskCapturedInput{},
+		CapturedParameters:   []int{},
 		Reads:                []StateEffect{},
 		Writes:               []StateEffect{},
 		Contexts:             []ContextEffect{},
@@ -455,6 +881,7 @@ func taskDependencyRecords(
 	reactiveNames []string,
 	bindings []ReactiveBinding,
 	typeChecker *checker.Checker,
+	excluded []taskCaptureRange,
 ) []TaskDependency {
 	required := make(map[string]struct{}, len(requiredReads))
 	for _, read := range requiredReads {
@@ -474,6 +901,9 @@ func taskDependencyRecords(
 		if read.Component != component ||
 			read.Start < work.Pos() ||
 			read.Start+read.Length > work.End() {
+			continue
+		}
+		if spanInsideTaskCapture(read.Start, read.Start+read.Length, excluded) {
 			continue
 		}
 		path := strings.Join(read.Path, ".")
@@ -617,6 +1047,7 @@ func taskReactiveDependencies(
 	bindings []ReactiveBinding,
 	typeChecker *checker.Checker,
 	diagnostics []string,
+	excluded []taskCaptureRange,
 ) ([]string, []string) {
 	byStart := make(map[int]ReactiveBinding)
 	for _, binding := range bindings {
@@ -627,6 +1058,9 @@ func taskReactiveDependencies(
 	var dependencies []string
 	seen := make(map[int]struct{})
 	walkNode(work, func(node *ast.Node) bool {
+		if spanInsideTaskCapture(node.Pos(), node.End(), excluded) {
+			return false
+		}
 		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true
@@ -759,11 +1193,23 @@ func serverOnlyModule(specifier string) bool {
 }
 
 func taskReadEffects(reads []StateRead, component string, work *ast.Node) []StateEffect {
+	return taskReadEffectsExcluding(reads, component, work, nil)
+}
+
+func taskReadEffectsExcluding(
+	reads []StateRead,
+	component string,
+	work *ast.Node,
+	excluded []taskCaptureRange,
+) []StateEffect {
 	effects := make([]StateEffect, 0)
 	for _, read := range reads {
 		if read.Component != component ||
 			read.Start < work.Pos() ||
 			read.Start+read.Length > work.End() {
+			continue
+		}
+		if spanInsideTaskCapture(read.Start, read.Start+read.Length, excluded) {
 			continue
 		}
 		effects = append(effects, StateEffect{

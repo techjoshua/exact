@@ -1,5 +1,5 @@
 import {
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract,
 	type ExactServerContext
 } from '../index.js';
@@ -14,7 +14,7 @@ export function context(overrides: Partial<ExactServerContext> = {}): ExactServe
 		contract: {
 			version: 1,
 			actions: {
-				'allowed-action': defineExactActionContract('allowed-action')
+				'allowed-action': defineExactOperationContract('allowed-action')
 			},
 			executors: {},
 			boundaries: {

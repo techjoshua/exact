@@ -64,19 +64,6 @@ export function projectInlayHints(inspection: ExactSourceInspection, source: str
 					entityFacts(entity)
 				)
 			];
-		if (classification?.kind === 'action')
-			return [
-				semanticBadge(
-					callArgumentPosition(source, entity),
-					entity,
-					[
-						badge('▶', 'Action', 'Named component-owned interaction work.'),
-						placementBadge(classification.placement)
-					],
-					'Action',
-					entityFacts(entity)
-				)
-			];
 		return [];
 	});
 }

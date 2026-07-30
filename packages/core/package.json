@@ -11,6 +11,18 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./tasks": {
+			"types": "./dist/tasks/v1.d.ts",
+			"default": "./dist/tasks/v1.js"
+		},
+		"./tasks/v1": {
+			"types": "./dist/tasks/v1.d.ts",
+			"default": "./dist/tasks/v1.js"
+		},
+		"./framework/task-frames": {
+			"types": "./dist/framework/task-frames.d.ts",
+			"default": "./dist/framework/task-frames.js"
 		}
 	},
 	"main": "./dist/index.js",

@@ -167,7 +167,7 @@ function createAction<Result>(
 		cancellationReason = undefined;
 		const generation = ++status.generation;
 		owner.domain.inspection?.publish({
-			kind: 'action.queue',
+			kind: 'task.queue',
 			component: owner,
 			...(sourceEntityId ? { sourceEntityId } : {}),
 			generation,
@@ -224,7 +224,7 @@ function createAction<Result>(
 		}
 		record.started = true;
 		owner.domain.inspection?.publish({
-			kind: 'action.start',
+			kind: 'task.start',
 			component: owner,
 			...(sourceEntityId ? { sourceEntityId } : {}),
 			generation: record.generation,
@@ -248,7 +248,7 @@ function createAction<Result>(
 				}
 				record.journals.push(journal);
 				owner.domain.inspection?.publish({
-					kind: 'action.optimistic',
+					kind: 'task.optimistic',
 					component: owner,
 					...(sourceEntityId ? { sourceEntityId } : {}),
 					generation: record.generation,
@@ -260,7 +260,7 @@ function createAction<Result>(
 		try {
 			execution = runComponentInteraction(
 				owner,
-				'action',
+				'invoked',
 				record.generation,
 				policy.priority,
 				record.controller,
@@ -277,7 +277,7 @@ function createAction<Result>(
 				status.result = value;
 				finish(record);
 				owner.domain.inspection?.publish({
-					kind: 'action.settle',
+					kind: 'task.settle',
 					component: owner,
 					...(sourceEntityId ? { sourceEntityId } : {}),
 					generation: record.generation,
@@ -294,7 +294,7 @@ function createAction<Result>(
 		record.journals.length = 0;
 		if (!isInteractionCancellation(error)) status.error = error;
 		owner.domain.inspection?.publish({
-			kind: isInteractionCancellation(error) ? 'action.cancel' : 'action.rollback',
+			kind: isInteractionCancellation(error) ? 'task.cancel' : 'task.rollback',
 			component: owner,
 			...(sourceEntityId ? { sourceEntityId } : {}),
 			generation: record.generation,
@@ -325,7 +325,7 @@ function createAction<Result>(
 			record.journals.length = 0;
 			record.controller.abort(reason);
 			owner.domain.inspection?.publish({
-				kind: 'action.cancel',
+				kind: 'task.cancel',
 				component: owner,
 				...(sourceEntityId ? { sourceEntityId } : {}),
 				generation: record.generation,

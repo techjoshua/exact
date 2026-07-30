@@ -9,7 +9,6 @@ import type {
 	ExactSourceInspection
 } from './contracts.js';
 import {
-	actionEntities,
 	bindingEntities,
 	contextEntities,
 	derivedEntities,
@@ -39,7 +38,7 @@ export function createExactSourceInspection(
 	response: NativeCompilerResponse,
 	includeReasons = true
 ): ExactSourceInspection {
-	const taskRegions = findTaskRegions(source);
+	const taskRegions = findTaskRegions(source, response.analysis.tasks);
 	const components = response.analysis.components.map((component) =>
 		inspectComponent(component, source, response.analysis, taskRegions, includeReasons)
 	);
@@ -75,7 +74,8 @@ function inspectComponent(
 		.filter((candidate) => contains(range, candidate.range))
 		.map((candidate, index) =>
 			taskEntity(
-				componentTasks[index],
+				componentTasks.find((task) => taskRegionMatches(source, task, candidate)) ??
+					componentTasks[index],
 				candidate,
 				source,
 				`${component.id}:task:${index}`,
@@ -92,7 +92,6 @@ function inspectComponent(
 	const setupEntities = [
 		...regions,
 		...derivedEntities(component, source, analysis),
-		...actionEntities(component, source, analysis),
 		...stateAssignmentEntities(component, source, analysis),
 		...lifecycleEntities(component, source),
 		...contextEntities(component, source),
@@ -132,6 +131,18 @@ function inspectComponent(
 		children: Object.freeze(children.sort((left, right) => left.range.start - right.range.start)),
 		reasons: Object.freeze(componentReasons(component, range, includeReasons))
 	});
+}
+
+function taskRegionMatches(
+	source: string,
+	task: NativeCompilerAnalysis['tasks'][number],
+	region: AuthoredTaskRegion
+): boolean {
+	const taskRange =
+		task.functionDefined && task.workStart !== undefined && task.workLength !== undefined
+			? clampRange(source, task.workStart, task.workLength)
+			: clampRange(source, task.start, task.length);
+	return taskRange.start === region.range.start && taskRange.end === region.range.end;
 }
 
 function renderEntity(

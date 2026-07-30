@@ -2,186 +2,178 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 
-const taskSource = `function Search(this: Component<SearchState>) {
+const reactiveTaskSource = `import { TaskContext } from '@exactjs/core';
+
+function Search(this: Component<SearchState>) {
   this.state.query = '';
   this.state.results = [];
 
-  this.task(async () => {
-    // Inferred dependency: this read makes the task rerun when query changes.
-    const query = this.state.query;
-
+  async function search(
+    query: string,
+    task: TaskContext = TaskContext.client().latest()
+  ) {
     if (!query) {
-      // Effect: this is a write, so results is not a task dependency.
       this.state.results = [];
       return;
     }
-
-    // Managed resource: the compiler connects fetch to the task's abort signal.
-    const response = await fetch('/api/search?q=' + encodeURIComponent(query));
-
-    // Effect: the write notifies reactive consumers of results. It does not
-    // cause this task to rerun because the task never reads results.
+    const response = await fetch('/api/search?q=' + encodeURIComponent(query), {
+      signal: task.signal
+    });
     this.state.results = await response.json();
-  });
+  }
+
+  // Initialization plus reactive activation when query changes.
+  search(this.state.query);
 
   return () => <SearchView results={this.state.results} />;
 }`;
 
-const compiledTaskSource = `this.task(
-  // Inferred dependency made explicit by the compiler.
-  this.reactive(() => this.state.query),
-  async (__exactDependency, { signal }) => {
-    // The callback receives the captured value for this task generation.
-    const query = __exactDependency;
+const capturedInputSource = `async function refreshRates(
+  revision: number,
+  draft: ShipmentDraft = this.state.draft,
+  task: TaskContext = TaskContext.client().latest()
+) {
+  await loadRates(revision, draft, task.signal);
+}
 
-    if (!query) {
-      this.state.results = [];
-      return;
-    }
+// revision is tracked; draft is sampled for each resulting generation.
+refreshRates(this.state.revision);`;
 
-    // Managed cancellation made explicit by the compiler.
-    const response = await fetch(
-      '/api/search?q=' + encodeURIComponent(query),
-      { signal }
-    );
+const invokedTaskSource = `async function save(
+  profile: Profile,
+  task: TaskContext = TaskContext.server().latest().immediate()
+) {
+  task.optimistic(() => {
+    this.state.profile = profile;
+  });
+  this.state.profile = await repository.save(profile, task.signal);
+}
 
-    this.state.results = await response.json();
-  }
+return () => (
+  <button disabled={save.pending} onClick={() => save(this.state.profile)}>
+    {save.pending ? 'Saving…' : 'Save'}
+  </button>
 );`;
 
-const ownedResourcesSource = `function LivePanel(this: Component<{}>) {
-  this.task.client(() => {
-    // The compiler supplies the task signal to cancellable calls.
-    fetch('/api/snapshot');
-    window.addEventListener('resize', measure);
-
-    // Known resources are disposed with this task generation.
-    const socket = new WebSocket('/events');       // close()
-    const observer = new ResizeObserver(measure);  // disconnect()
-    const timer = setInterval(refresh, 5_000);      // clearInterval()
-    const subscription = store.subscribe(refresh); // unsubscribe()
-
-    // Returning cleanup remains available for an unknown resource.
-    const custom = openCustomChannel();
-    return () => custom.release();
-  });
-
-  return () => <Dashboard />;
+const ownedResourcesSource = `async function watch(
+  url: string,
+  task: TaskContext = TaskContext.client()
+) {
+  const socket = task.own(new ManagedSocket(url));
+  const unsubscribe = socket.subscribe(receiveMessage);
+  task.cleanup(unsubscribe);
+  return socket.ready;
 }`;
 
-const placedTasksSource = `import { readFile } from 'node:fs/promises';
+const librarySource = `import {
+  createTaskOwner,
+  defineTask,
+  bindTask
+} from '@exactjs/core/tasks/v1';
 
-function ProjectPage(this: Component<ProjectState>) {
-  // Inferred server: this task reaches a server-only import.
-  this.task(async () => {
-    this.state.title = await readFile('title.txt', 'utf8');
-  });
+const owner = createTaskOwner({ label: 'catalog session' });
+const search = bindTask(
+  defineTask(
+    { concurrency: 'latest', priority: 'deferred' },
+    async (query: string, task) => catalog.search(query, task.signal)
+  ),
+  { owner }
+);
 
-  // Inferred client: this task reads a browser global.
-  this.task(() => {
-    this.state.width = window.innerWidth;
-  });
+const results = await search(query);
+await owner[Symbol.asyncDispose]();`;
 
-  // Manual placement is for intent the compiler cannot prove.
-  this.task.client(() => opaqueBrowserLibrary.start());
-  this.task.server(() => opaqueServerLibrary.warmCache());
-
-  return () => <h1>{this.state.title}</h1>;
-}`;
-
-/** Documents inferred task generations, cancellation, cleanup, and placement. */
+/** Documents function-defined tasks, structured lifetime, policy, and the public task ABI. */
 export function TasksPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="Work follows the component"
-			description="Tasks are setup declarations for work the component owns. The compiler turns state, prop, and context reads into rerun dependencies; reruns and unmounts cancel the previous generation."
+			title="Ordinary functions become structured tasks"
+			description="eXact infers coordinated work from ordinary functions and activation sites. One task tree owns invocation, reactivity, cancellation, cleanup, optimism, and client/server placement."
 			previous={{ path: '/learn/component-registries', label: 'Component registries' }}
-			next={{ path: '/learn/actions', label: 'Actions & optimistic state' }}
+			next={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
 		>
 			<section>
-				<h2>Why tasks are a framework primitive</h2>
+				<h2>Define work as a local function</h2>
 				<p>
-					Async work creates ownership questions: which inputs make it stale, who cancels it, where
-					is it allowed to run, and what resources must be released? eXact tasks answer those
-					questions at component setup instead of scattering them across effects, controller
-					variables, and unmount callbacks.
+					A function becomes a task when its effects, host, placement, capabilities, or final{' '}
+					<code>TaskContext</code> parameter require coordinated work. A setup-scope call declares
+					initialization and reactive activation; a call from an event, form, router, lifecycle, or
+					another task is an invocation.
 				</p>
+				<CodeBlock source={reactiveTaskSource} language="tsx" title="Search.tsx" />
 				<p>
-					When computation simply produces component state, ordinary assignment is usually enough:
-					eXact lowers synchronous derived assignments and awaited async-component assignments
-					automatically. Use <code>this.task()</code> when the work is itself the effect, when it
-					should remain nonblocking, or when you need cleanup, placement, or scheduling policy.
-				</p>
-			</section>
-			<section>
-				<h2>Write the task; let the compiler find its dependencies</h2>
-				<p>
-					The idiomatic explicit-task form puts the work directly in <code>this.task()</code>. Exact
-					state, prop, and reactive context reads inside a task become dependencies automatically.
-					When one changes, eXact aborts the current generation, waits for registered cleanup as
-					needed, and invokes the task again.
-				</p>
-				<CodeBlock source={taskSource} language="tsx" title="Search.tsx" />
-				<p>
-					The read of <code>this.state.query</code> is the dependency. Assignments to{' '}
-					<code>this.state.results</code> are effects, not reads, so they do not make the task
-					depend on <code>results</code> or create a rerun loop. Those writes still notify reactive
-					consumers—including <code>SearchView</code>—and cause the affected interface expressions
-					to update.
-				</p>
-				<p>
-					The authored task does not need to request a signal. The compiler recognizes the fetch as
-					cancellable and wires in the task generation's <code>AbortSignal</code>. Changing{' '}
-					<code>query</code> therefore aborts the older fetch before a new request begins. The same
-					signal aborts when the component unmounts, preventing a stale response from continuing as
-					live component work.
+					The argument expression is the reactive input. A changed query supersedes the prior
+					generation. Pure helpers remain ordinary JavaScript, and an async function is not remotely
+					callable merely because it is async.
 				</p>
 			</section>
 			<section>
-				<h2>What the compiler makes explicit</h2>
+				<h2>Capture stable generation inputs with defaults</h2>
 				<p>
-					Conceptually, the compiler lowers the detected read into the explicit dependency form and
-					connects its generated task signal to the fetch, as shown below. You can still author the
-					explicit dependency form when a dependency must be supplied indirectly, or accept{' '}
-					<code>{'{ signal }'}</code> yourself when passing it to an API the compiler cannot
-					recognize. Each invocation receives the values captured for that generation, including
-					after an <code>await</code>. Ordinary component code should prefer the simpler inferred
-					form.
+					A reactive default on a non-context task parameter is sampled once for every generation
+					without subscribing the task to that read. The resolved parameter is an ordinary stable
+					value throughout the body and after <code>await</code>.
 				</p>
-				<CodeBlock source={compiledTaskSource} language="tsx" title="Conceptual compiler output" />
-			</section>
-			<section>
-				<h2>The compiler also looks for owned resources</h2>
+				<CodeBlock source={capturedInputSource} language="tsx" title="captured-task-input.tsx" />
 				<p>
-					Task analysis recognizes cancellable calls and values with known disposal protocols. It
-					can combine the task's <code>AbortSignal</code> with a fetch or listener call, clear
-					timers, disconnect observers, close sockets and channels, terminate workers, unsubscribe
-					subscriptions, and invoke
-					<code>Symbol.dispose</code> or <code>Symbol.asyncDispose</code>.
-				</p>
-				<CodeBlock source={ownedResourcesSource} language="tsx" title="LivePanel.tsx" />
-				<p>
-					Ownership is generation-scoped, not merely component-scoped: a rerun disposes resources
-					from the previous inputs before creating replacements. If a resource escapes into
-					component state or the compiler cannot preserve its expression result safely, compilation
-					asks you to move it or dispose it explicitly rather than pretending ownership is solved.
+					Changing <code>draft</code> alone does not reactivate this task. When{' '}
+					<code>revision</code> changes, the next generation captures the latest draft. An explicit
+					argument remains normally tracked and replaces the default. Server tasks resolve the
+					capture before dispatch and apply the usual serialization and data-policy checks. Use{' '}
+					<code>task.peek()</code> for conditional or mid-body snapshots.
 				</p>
 			</section>
 			<section>
-				<h2>Server and client placement is useful, not mysterious</h2>
+				<h2>Policy and capabilities share one context</h2>
 				<p>
-					In a split build, the compiler follows effects through task calls. Browser globals and
-					browser-only APIs select the client. Server-only imports select the server.
-					Environment-neutral state-writing work can be isomorphic so server rendering may run it
-					and hydration can avoid duplicating initial work.
+					The default on the final context parameter is declarative compiler syntax. Placement,
+					concurrency, priority, readiness, keys, and detachment compose there. The compiler erases
+					the builder and supplies a fresh context for every generation.
 				</p>
-				<CodeBlock source={placedTasksSource} language="tsx" title="ProjectPage.tsx" />
+				<CodeBlock source={invokedTaskSource} language="tsx" title="ProfileEditor.tsx" />
 				<p>
-					Explicit placement is not a discouraged last resort. It is the correct declaration when an
-					opaque library hides its environment behavior or when architecture requires a specific
-					side. The compiler still checks for contradictions, such as a server task that references{' '}
-					<code>window</code>.
+					Direct calls use ordinary function syntax. When status is observed, the compiler
+					materializes an owner-bound facade with <code>pending</code>, <code>pendingCount</code>,{' '}
+					<code>generation</code>, <code>result</code>, <code>error</code>, and{' '}
+					<code>cancel()</code>. Optimistic mutation is synchronous and rolls back if its generation
+					fails or is superseded.
+				</p>
+			</section>
+			<section>
+				<h2>Children settle structurally</h2>
+				<p>
+					A task called by another task attaches automatically. The parent cannot structurally
+					settle until attached descendants and their cleanup finish, even when it does not await a
+					child result. Awaiting still coordinates values and catches failures through ordinary
+					JavaScript control flow. <code>detached()</code> is the explicit escape hatch for owned
+					work that must not delay its causal parent.
+				</p>
+				<p>
+					Cancellation travels down the tree. Cleanup runs child-first and last-in-first-out within
+					a frame. Use <code>task.cleanup()</code> for callbacks and <code>task.own()</code> for
+					disposable resources.
+				</p>
+				<CodeBlock source={ownedResourcesSource} language="tsx" title="socket-task.ts" />
+				<p>
+					Server continuations run through the same frame contract. Their trusted{' '}
+					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
+					attached-child settlement without serializing task authority through the browser.
+				</p>
+			</section>
+			<section>
+				<h2>Compilerless libraries use the same runtime</h2>
+				<p>
+					Published libraries and adapters can import the versioned{' '}
+					<code>@exactjs/core/tasks/v1</code> ABI. <code>defineTask()</code> creates a stable
+					definition, <code>bindTask()</code> captures durable ownership, and{' '}
+					<code>createTaskOwner()</code> makes an explicit lifetime for cross-root concurrency.
+				</p>
+				<CodeBlock source={librarySource} language="ts" title="catalog-task.ts" />
+				<p>
+					Explicit owners are async-disposable: disposal cancels their queued and active generations
+					and waits for structural cleanup. Framework packages use the narrower opaque frame SPI at{' '}
+					<code>@exactjs/core/framework/task-frames</code>.
 				</p>
 			</section>
 		</Article>

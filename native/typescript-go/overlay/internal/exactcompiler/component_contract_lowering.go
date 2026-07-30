@@ -1044,40 +1044,12 @@ func continuationExecutor(
 			),
 		)
 	}
-	contextProperties := []*ast.Node{
-		contractProperty(
-			factory,
-			"signal",
-			factory.NewPropertyAccessExpression(
-				execution,
-				nil,
-				factory.NewIdentifier("signal"),
-				ast.NodeFlagsNone,
-			),
-		),
-	}
-	if continuation.Kind == "action" {
-		contextProperties = append(contextProperties, contractProperty(
-			factory,
-			"generation",
-			factory.NewPropertyAccessExpression(
-				activation,
-				nil,
-				factory.NewIdentifier("generation"),
-				ast.NodeFlagsNone,
-			),
-		))
-	}
-	contextArgument := contractObject(factory, false, contextProperties...)
-	if continuation.Kind == "action" {
-		// The server half receives cancellation and generation only. Optimistic
-		// mutation is a client prelude and must never become executable server
-		// authority, even when the authored callback names ActionContext.
-		contextArgument = factory.NewAsExpression(
-			contextArgument,
-			factory.NewKeywordTypeNode(ast.KindAnyKeyword),
-		)
-	}
+	contextArgument := factory.NewPropertyAccessExpression(
+		execution,
+		nil,
+		factory.NewIdentifier("task"),
+		ast.NodeFlagsNone,
+	)
 	arguments = append(arguments, contextArgument)
 	invocation := factory.NewCallExpression(
 		factory.NewParenthesizedExpression(rewrittenWork),

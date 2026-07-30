@@ -11,7 +11,10 @@ export type AuthoredTaskRegion = Readonly<{
 }>;
 
 /** Finds explicit registrations and inferred awaits without double-counting callback awaits. */
-export function findTaskRegions(source: string): AuthoredTaskRegion[] {
+export function findTaskRegions(
+	source: string,
+	tasks: readonly NativeCompilerTask[] = []
+): AuthoredTaskRegion[] {
 	const explicit = [
 		...source.matchAll(/\b(?:await\s+)?this\.task(?:\.[A-Za-z_$][\w$]*)*\s*\(/g)
 	].map((match) => {
@@ -51,7 +54,48 @@ export function findTaskRegions(source: string): AuthoredTaskRegion[] {
 				dependencyPaths: Object.freeze([])
 			});
 		});
-	return [...explicit, ...inferred].sort((left, right) => left.range.start - right.range.start);
+	const functions = tasks
+		.filter(
+			(task) =>
+				task.functionDefined &&
+				task.workStart !== undefined &&
+				task.workLength !== undefined &&
+				task.workLength > 0
+		)
+		.map((task) => {
+			const range = clampRange(source, task.workStart!, task.workLength!);
+			const authored = source.slice(range.start, range.end);
+			return Object.freeze({
+				origin: /\bTaskContext\b\s*=/.test(authored)
+					? ('explicit' as const)
+					: ('inferred' as const),
+				range,
+				selectionRange: functionSelectionRange(source, range),
+				awaited: task.readiness === 'blocking',
+				dependencyPaths: Object.freeze(
+					task.dependencies.flatMap((dependency) => (dependency.path ? [dependency.path] : []))
+				)
+			});
+		});
+	const seen = new Set<string>();
+	return [...explicit, ...inferred, ...functions]
+		.sort((left, right) => left.range.start - right.range.start)
+		.filter((region) => {
+			const key = `${region.range.start}:${region.range.end}`;
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		});
+}
+
+function functionSelectionRange(source: string, range: ExactSourceRange): ExactSourceRange {
+	const authored = source.slice(range.start, range.end);
+	const match =
+		/\bfunction\s+([A-Za-z_$][\w$]*)/.exec(authored) ??
+		/^\s*(?:async\s*)?([A-Za-z_$][\w$]*)\s*(?==)/.exec(authored);
+	if (!match?.[1]) return range;
+	const start = range.start + match.index + match[0].lastIndexOf(match[1]);
+	return Object.freeze({ start, end: start + match[1].length });
 }
 
 /** Finds the returned render callback that owns a component's reactive view. */

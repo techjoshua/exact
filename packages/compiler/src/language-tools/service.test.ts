@@ -103,6 +103,8 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 		environmentEffect: match[0].includes('this.task') ? ('browser' as const) : ('server' as const),
 		reactiveDependencies: [],
 		dependencies: match[0].startsWith('await') ? [{ index: 0, source: 'props' as const }] : [],
+		capturedParameters: [],
+		capturedInputs: [],
 		reads: [],
 		writes: match[0].startsWith('await')
 			? [{ path: 'state.product', kind: 'write' as const, confidence: 'exact' as const }]

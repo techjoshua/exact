@@ -5,11 +5,12 @@ import {
 	type ExactRefactorPlan,
 	type ExactSourceEntity
 } from '../index.js';
+import { planExactTaskRefactor } from './task-refactor.js';
 
 afterEach(() => clearExpressionProjectCache());
 
 describe('compiler-planned task refactors', () => {
-	it('round trips one simple inferred task through normalized explicit source', async () => {
+	it('converts one simple inferred task to normalized function-defined source', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		let source = `export async function Page(
 	this: Component<{ value?: string }>,
@@ -19,32 +20,38 @@ describe('compiler-planned task refactors', () => {
 	return () => <main>{this.state.value}</main>;
 }`;
 		await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 1, source }]);
-		let inspection = await service.inspect('Page.tsx');
+		const inspection = await service.inspect('Page.tsx');
 		const inferred = tasks(inspection.components[0]!)[0]!;
-		const explicitPlan = await service.refactor({
-			generation: inspection.generation,
-			filename: 'Page.tsx',
-			range: inferred.range,
-			kind: 'convert-to-explicit-task'
-		});
+		const explicitPlan = planExactTaskRefactor(
+			{
+				generation: inspection.generation,
+				filename: 'Page.tsx',
+				range: inferred.range,
+				kind: 'convert-to-explicit-task'
+			},
+			source,
+			inspection
+		);
 		expect(explicitPlan?.semanticChange).toBe('none');
 		source = apply(source, explicitPlan!);
-		expect(source).toContain('this.task.blocking(props.id, async (id)');
+		expect(source).toContain(
+			'const runTask = async (id: typeof props.id, task: TaskContext = TaskContext.blocking())'
+		);
+		expect(source).toContain('runTask(props.id);');
 		expect(source).not.toContain('export async function');
-
 		await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 2, source }]);
-		inspection = await service.inspect('Page.tsx');
-		const explicit = tasks(inspection.components[0]!)[0]!;
+		const explicitInspection = await service.inspect('Page.tsx');
+		const explicit = tasks(explicitInspection.components[0]!)[0]!;
 		const inferredPlan = await service.refactor({
-			generation: inspection.generation,
+			generation: explicitInspection.generation,
 			filename: 'Page.tsx',
 			range: explicit.range,
 			kind: 'convert-to-inferred-task'
 		});
 		expect(inferredPlan?.semanticChange).toBe('none');
-		const roundTrip = apply(source, inferredPlan!);
-		expect(roundTrip).toContain('export async function Page');
-		expect(roundTrip).toContain('this.state.value = await load(props.id);');
+		const roundTripped = apply(source, inferredPlan!);
+		expect(roundTripped).toContain('this.state.value = await load(props.id);');
+		expect(roundTripped).not.toContain('const runTask');
 		await service.dispose();
 	});
 

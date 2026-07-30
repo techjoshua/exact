@@ -1,4 +1,4 @@
-import { peek, type Component } from '@exactjs/core';
+import { peek, TaskContext, type Component } from '@exactjs/core';
 import { resolveRoute } from '../geography.js';
 import { draftFromUrl, emptyInitialModel, normalizeDraft } from '../model.js';
 import { configuredProviderIds, quoteProvider } from '../providers/registry.js';
@@ -8,14 +8,16 @@ import type { PageState } from './workspace/contracts.js';
 
 /** Performs the shipping calculator page domain operation. */
 export function ShippingCalculatorPage(this: Component<PageState>, props: { url: string }) {
-	const parsed = draftFromUrl(new URL(props.url));
-	const request = peek(() => normalizeDraft(parsed.draft));
-	this.state.model = peek(() => emptyInitialModel(parsed.draft, request, parsed.explicit));
-	this.state.model.configuredProviders = configuredProviderIds();
-
-	this.task(async ({ signal }) => {
+	const loadInitialRates = async (
+		url: string,
+		task: TaskContext = TaskContext.server().blocking()
+	) => {
+		const parsed = draftFromUrl(new URL(url));
+		const request = peek(() => normalizeDraft(parsed.draft));
+		this.state.model = peek(() => emptyInitialModel(parsed.draft, request, parsed.explicit));
+		this.state.model.configuredProviders = configuredProviderIds();
 		const providers = await Promise.all(
-			this.state.model.configuredProviders.map((id) => quoteProvider(id, request, signal))
+			this.state.model.configuredProviders.map((id) => quoteProvider(id, request, task.signal))
 		);
 
 		this.state.model = {
@@ -23,7 +25,8 @@ export function ShippingCalculatorPage(this: Component<PageState>, props: { url:
 			route: resolveRoute(request.originZip5, request.destinationZip5),
 			providers
 		};
-	});
+	};
+	void loadInitialRates(props.url);
 
 	return () => (
 		<div className="page-shell">

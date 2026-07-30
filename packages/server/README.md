@@ -1,9 +1,9 @@
 # @exactjs/server
 
-Transport-neutral server protocol runtime for eXact actions, refreshes, patches, and
+Transport-neutral server protocol runtime for eXact operations, refreshes, patches, and
 server-component requests.
 
-`handleExactRequest` validates the configured endpoint, request envelope, action and boundary
+`handleExactRequest` validates the configured endpoint, request envelope, operation and boundary
 allowlists, authorization, CSRF policy, payload limits, batching, cancellation, and response
 shape. Runtime adapters translate platform requests into this central contract.
 
@@ -18,11 +18,18 @@ authority automatically.
 Generated continuation handlers resolve application and request resources from trusted server
 context rather than client payloads. `onContextAccess` can report the authored token and opaque
 operation identity for tests and diagnostics; resolved context values are never included.
-Action continuations accept only compiler-declared argument slots, receive request cancellation
-and invocation generation through their runtime context, and return the authored result only
-inside the validated continuation envelope.
+Task operation continuations accept only compiler-declared argument slots and execute in a real
+server task frame. Their `TaskContext` carries request cancellation, invocation generation,
+cleanup, disposable ownership, and structural child settlement without placing those capabilities
+in the transport payload. The authored result returns only inside the validated continuation
+envelope.
 
-See [Actions, interactions, optimistic state, and forms](../../docs/actions-and-forms.md).
+Reactive defaults on task parameters are resolved by the originating task
+runtime before dispatch. The server receives only the resulting
+compiler-authorized argument slots; it never reevaluates a client capture or
+accepts authored capture expressions as dispatch authority.
+
+See [Task interactions, optimistic state, and forms](../../docs/actions-and-forms.md).
 
 ## Server-cooperative inspection
 

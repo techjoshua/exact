@@ -50,11 +50,12 @@ function Toolbar(this: Component<{}>) {
 const componentTaskSource = `function Presence(this: Component<{ userId: string; status: string }>, props: { userId: string }) {
   this.state.status = 'connecting';
 
-  this.task(async () => {
+  async function observePresence(userId: string) {
     // The compiler infers props.userId and captures it for this generation.
-    const response = await fetch('/api/presence/' + props.userId);
+    const response = await fetch('/api/presence/' + userId);
     this.state.status = (await response.json()).status;
-  });
+  }
+  observePresence(props.userId);
 
   return () => <span>{this.state.status}</span>;
 }`;
@@ -150,8 +151,8 @@ export function ComponentsPage(this: Component<{}>) {
 					The compiler also analyzes environment usage. Browser globals imply client placement,
 					server-only imports imply server placement, and state-writing work with neither can be
 					isomorphic. If an opaque call makes placement unknowable, or intent matters more than
-					inference, use
-					<code>this.task.client()</code> or <code>this.task.server()</code>. Contradictory
+					inference, add a final <code>TaskContext</code> parameter with{' '}
+					<code>TaskContext.client()</code> or <code>TaskContext.server()</code>. Contradictory
 					placement is a compile error rather than a runtime surprise.
 				</p>
 				<Link className="secondary-link" to="/learn/tasks">
@@ -165,12 +166,12 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>Reactive, instance-owned data.</p>
 					<code>this.reactive()</code>
 					<p>An explicit derived reactive value.</p>
-					<code>this.task()</code>
-					<p>Owned synchronous or asynchronous work with reactive dependencies.</p>
-					<code>this.task.client()</code>
-					<p>Work explicitly retained in the client build.</p>
-					<code>this.task.server()</code>
-					<p>Work explicitly retained in the server build.</p>
+					<code>function work(..., task?: TaskContext)</code>
+					<p>Ordinary function-defined work with inferred or explicit policy.</p>
+					<code>TaskContext.client()</code>
+					<p>Explicit client placement on a task function.</p>
+					<code>TaskContext.server()</code>
+					<p>Explicit server placement on a task function.</p>
 					<code>this.map()</code>
 					<p>Explicit stable-key collection rendering.</p>
 					<code>this.setContext()</code>

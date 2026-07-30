@@ -127,7 +127,7 @@ describe('DOM adoption modes', () => {
 			resolve = settle;
 		});
 		function Pending(this: Component<{}>) {
-			this.task.blocking(async () => {
+			(this as any).task.blocking(async () => {
 				await pending;
 			});
 			return () => createVNode('p', null, 'ready');
