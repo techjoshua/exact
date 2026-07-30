@@ -164,7 +164,8 @@ These are deliberate breaking changes, not incidental refactors:
 Package consequences include:
 
 - `@exactjs/core` removes component registration factories, merges context and
-  status contracts, and exports the policy-builder marker.
+  status contracts, exports the policy-builder marker, and provides a
+  framework-facing task-frame coordination subpath.
 - `@exactjs/compiler` and the native compiler replace action/task collectors,
   manifests, lowering, and diagnostics with the unified model.
 - `@exactjs/server`, hydration, adapters, and microfrontend packages consume
@@ -377,6 +378,96 @@ Use a named `task` binding when registering ownership, excluding a read from
 the task's dependencies, applying optimistic state, or consuming an explicit
 capability such as `signal`. Child task attachment does not require passing
 this binding.
+
+### Priority in the task graph
+
+Priority affects when an eligible frame runs, not whether it belongs to the
+structured tree. Every frame records both a declared priority and an effective
+priority:
+
+- a root inherits its known host priority unless its definition overrides it;
+- an attached child inherits its parent's effective priority by default;
+- `immediate()`, `normal()`, or `deferred()` on the child definition makes an
+  explicit scheduling request;
+- renderer, reactive, router, form, and lifecycle jobs inherit the frame that
+  caused them; and
+- detached work keeps its declared/inherited priority even though it no longer
+  delays its causal parent.
+
+The graph distinguishes a structural attachment edge from a JavaScript result
+wait edge. Structural attachment guarantees cancellation, ownership, and
+terminal settlement. A result wait means the parent function cannot continue
+until the child produces a value:
+
+```ts
+const route = await resolveRoute(); // attachment edge and result-wait edge
+startDeferredIndexing(); // attachment edge only
+```
+
+If an immediate parent is blocked on the result of an explicitly deferred
+child, the scheduler temporarily donates the parent's effective priority to
+that child and to the result-producing descendants on which it is blocked.
+This prevents priority inversion. Merely remaining structurally attached after
+the parent body has returned does not donate priority; a deliberately deferred
+child may finish later while the root remains in its settling state.
+
+An author uses `detached()` when work such as best-effort telemetry must not
+extend the parent lifetime. Cancellation and cleanup are always scheduled
+promptly regardless of the cancelled frame's prior priority so deferred work
+cannot retain resources indefinitely. The scheduler must also age deferred
+frames to prevent starvation.
+
+DevTools shows declared priority, effective priority, inheritance, and active
+priority donation separately. Tests must cover immediate-to-deferred waits,
+deferred structural children, priority restoration, starvation prevention,
+and cancellation cleanup.
+
+### Function decorators and annotations
+
+Task policy is function metadata, so decorator syntax is conceptually
+attractive:
+
+```ts
+@task({ placement: 'server', priority: 'immediate', concurrency: 'parallel' })
+async function quoteProvider(id: ProviderId, request: RateRequest) {
+	// ...
+}
+```
+
+It is not currently a native JavaScript option for eXact's ordinary inner
+functions. The TC39
+[decorators proposal](https://github.com/tc39/proposal-decorators) applies to
+classes and class elements, while
+[decorators for function declarations and expressions](https://github.com/tc39/proposal-function-and-object-literal-element-decorators)
+remain a separate Stage 1 proposal. Its current favored semantics also change
+decorated function declaration hoisting, which would be a material
+JavaScript-level behavior change for eXact source.
+
+The initial implementation therefore keeps the final `TaskContext` default as
+the standards-compatible, typed policy surface:
+
+```ts
+async function quoteProvider(
+	id: ProviderId,
+	request: RateRequest,
+	task: TaskContext = TaskContext.server().parallel().immediate()
+) {
+	// ...
+}
+```
+
+The compiler canonicalizes every syntax frontend to the same `TaskPolicy`
+record. If function decorators reach a sufficiently stable standard stage and
+are supported by the repository's TypeScript and JavaScript toolchain, eXact
+may add a framework-provided decorator as optional sugar. It must not change
+runtime semantics, become protocol identity, require class-shaped components,
+or replace inference for ordinary tasks.
+
+JSDoc tags, string directives such as `"use server"`, and custom `@` syntax
+are not adopted as primary policy declarations. They are respectively
+untyped/comment-dependent, too narrow and non-composable, or nonstandard.
+Language tools may offer them only for compatibility with external ecosystems,
+normalizing them immediately to the canonical policy model.
 
 ### Inferred dependencies and `task.peek()`
 
@@ -809,6 +900,90 @@ than a second lifetime system. DOM events, forms, and router navigation keep
 their useful semantic source labels while sharing cancellation, settlement,
 ownership, and inspection with every other task.
 
+### Framework task-frame coordination SPI
+
+Frame coordination is not an application-authoring API, but it must be a
+supported framework-level contract because the renderer, router, forms,
+server adapters, and future motion package are separate published packages.
+Expose it through an explicitly framework-facing subpath such as:
+
+```ts
+import {
+	captureTaskFrame,
+	reserveTaskFrame,
+	runTaskFrame,
+	runWithTaskFrame,
+	type TaskFrameReservation,
+	type TaskFrameToken
+} from '@exactjs/core/framework/task-frames';
+```
+
+The SPI exposes opaque authority and safe operations, not mutable frame
+records, raw producer scopes, child counters, or settlement resolvers:
+
+```ts
+declare const taskFrameTokenBrand: unique symbol;
+
+export interface TaskFrameToken {
+	readonly [taskFrameTokenBrand]: true;
+}
+
+export interface RunTaskFrameOptions {
+	readonly parent?: TaskFrameToken;
+	readonly kind: string;
+	readonly label?: string;
+	readonly detached?: boolean;
+	readonly priority?: 'immediate' | 'normal' | 'deferred';
+}
+
+export type TaskFrameOutcome<T> =
+	| { readonly status: 'fulfilled'; readonly value: T }
+	| { readonly status: 'rejected'; readonly error: unknown }
+	| { readonly status: 'cancelled'; readonly reason: unknown };
+
+export interface RunTaskFrameHooks<T> {
+	work(context: TaskContext): T | Promise<T>;
+	afterChildren?(outcome: TaskFrameOutcome<T>): void | Promise<void>;
+}
+
+export function captureTaskFrame(): TaskFrameToken | undefined;
+
+export function runTaskFrame<T>(
+	options: RunTaskFrameOptions,
+	hooks: RunTaskFrameHooks<T>
+): Promise<T>;
+
+export interface TaskFrameReservation extends Disposable {
+	run<T>(work: (context: TaskContext) => T | Promise<T>): Promise<T>;
+	cancel(reason?: unknown): void;
+}
+
+export function reserveTaskFrame(options: RunTaskFrameOptions): TaskFrameReservation;
+
+export function runWithTaskFrame<T>(frame: TaskFrameToken, work: () => T): T;
+```
+
+`runTaskFrame` performs the same attach, producer-scope, descendant-settlement,
+cleanup, commit, and outcome sequence as compiler-generated task invocation.
+`afterChildren` supports framework coordinators such as presence removal,
+router settlement, and readiness publication without exposing
+`childrenSettled`. It runs after descendant settlement for fulfilled, rejected,
+and cancelled work; `runTaskFrame` publishes or throws the semantic outcome
+only after that structural finalizer completes.
+
+`reserveTaskFrame` attaches atomically before a package queues work. Running
+the reservation opens the frame's producer scope; cancelling or disposing an
+unused reservation releases it exactly once. `runWithTaskFrame` establishes
+synchronous ambient context for a callback and restores the previous frame in
+`finally`; it does not turn an arbitrary future event into a descendant.
+
+The compiler lowers to this same semantic SPI rather than a separate secret
+coordination protocol. Implementations may use more direct internal calls
+after proving equivalence. Framework packages document this subpath in their
+README and package-local `AGENTS.md`, but ordinary application guidance does
+not recommend it. Opaque branding prevents fabrication; semver and
+cross-package acceptance tests protect the contract.
+
 ### Current-frame propagation
 
 The browser cannot depend on a process-global async-local variable to preserve
@@ -835,6 +1010,13 @@ and generation registry, rejects stale attachments, and uses it to establish
 structural parentage and causal origin. A server may use `AsyncLocalStorage` as
 an optimization, but correctness must remain based on the explicit token so
 browser and server behavior agree.
+
+TC39's [Async Context proposal](https://github.com/tc39/proposal-async-context)
+may eventually provide a native implementation substrate for capturing and
+restoring the ambient token. It remains Stage 2 and explicitly does not define
+task scheduling, interception, error propagation, reservation, or structured
+settlement. eXact can adopt it behind the framework SPI when sufficiently
+available, but the frame graph and scheduler contracts cannot depend on it.
 
 ### Reactive runtime and DOM renderer
 
@@ -1198,23 +1380,30 @@ wrapper can implement `AsyncDisposable`. Cancellation, reduced motion,
 component disposal, and rapid enter/leave reversal therefore use task
 semantics rather than a second transition token.
 
-An internal renderer/runtime operation can express the boundary:
+A framework-level coordination operation can express the boundary:
 
 ```ts
-runtime.runTaskFrame({
-	parent: currentFrame,
-	kind: 'presence-leave',
-	work: () => renderRetainedLeavingRange(),
-	afterChildren: () => removeRetainedRange()
-});
+runTaskFrame(
+	{
+		parent: captureTaskFrame(),
+		kind: 'presence-leave',
+		priority: 'immediate'
+	},
+	{
+		work: () => renderRetainedLeavingRange(),
+		afterChildren: () => removeRetainedRange()
+	}
+);
 ```
 
 `runTaskFrame` reserves the frame, wraps `work` with its disposable producer
 scope, waits for its internal descendant-settlement signal, and then runs
 `afterChildren` under the appropriate still-active parent frame. Neither
 `scope` nor `childrenSettled` appears in application or motion component
-source. This works only if renderer consequences inherit the active frame as
-required above. No public DOM-commit token is needed.
+source. The operation comes from the framework coordination SPI rather than
+the application `TaskContext` surface. This works only if renderer
+consequences inherit the active frame as required above. No public DOM-commit
+token is needed.
 
 ### Planned package surface
 
@@ -1256,6 +1445,8 @@ retained current guarantee has a named regression test.
 
 - Implement definitions, generations, frames, common status, scheduling,
   concurrency, cancellation, cleanup, and inspection internally.
+- Add the opaque framework task-frame token, run, reservation, and synchronous
+  propagation SPI with cross-package contract tests.
 - Adapt current `this.task` and `this.action` registrations onto it.
 - Replace interaction settlement internals with task roots while preserving
   public behavior.
@@ -1274,6 +1465,8 @@ automatic settlement.
 - Lower local client-only tasks first.
 - Preserve inferred signal/resource behavior.
 - Implement direct-call lowering, safe hoisting, and facade elision.
+- Normalize inferred policy and `TaskContext` defaults to one canonical policy
+  record, leaving room for a future standards-based decorator frontend.
 - Add migration diagnostics and code actions for legacy registrations.
 
 Exit gate: client-only examples compile without wrappers, raw authored syntax
@@ -1286,6 +1479,8 @@ is highlighted normally, and benchmarks remain within agreed budgets.
   consequences.
 - Implement compiler-owned producer scopes, atomic child reservation,
   descendant-settlement signals, and commit/cancel fencing.
+- Implement declared/effective priority inheritance, result-wait donation,
+  deferred aging, and prompt cancellation cleanup.
 - Add stress tests for rapid invalidation, keyed removal, portals, Suspense,
   Activity, and component disposal.
 
@@ -1309,6 +1504,8 @@ pass under invoked tasks.
 
 - Ship synthetic function typing, policy completion, semantic classification,
   hover, code actions, and snapshot-consistent updates.
+- Show structural versus result-wait edges and declared, inherited, donated,
+  and effective priority.
 - Version the DevTools protocol and implement task trees in browser/server
   agents and the Chrome panel.
 - Retain compatibility query aliases for one release.
@@ -1360,13 +1557,19 @@ Protection should match the risk of each boundary:
 - **Compiler contract tests:** semantic activation, effects, placement,
   capture/serialization, builder erasure, source maps, synthetic types, alias
   resolution, recursion, canonical dependency deduplication, `task.peek()`
-  suppression, and diagnostics.
+  suppression, canonical policy normalization, and diagnostics.
 - **Runtime invariant tests:** generation transitions, parallel/latest/queue,
   attached/detached settlement, cancellation direction, error propagation,
   producer-scope disposal, atomic child reservation, exactly-once descendant
   settlement, cleanup order, disposal, dynamic dependency replacement,
   failed-generation retry dependencies, stale-generation rejection, and
   component teardown.
+- **Scheduling tests:** inherited and explicit priority, immediate-to-deferred
+  result waits, donation propagation and restoration, deferred structural
+  children, starvation prevention, and cancellation cleanup.
+- **Framework SPI tests:** compiler, DOM, forms, router, server, and motion-like
+  consumers produce identical frame trees through run and reservation paths;
+  opaque tokens cannot be fabricated or reused after settlement.
 - **Property/model tests:** random task trees compared with a small reference
   state machine for terminal settlement, late scheduling races, and
   exactly-once cleanup.
@@ -1412,11 +1615,15 @@ The proposal is complete only when:
 7. compiler-owned producer scopes and descendant-settlement signals include
    renderer consequences without late-child races or application-visible
    lifetime controls;
-8. the compiler can erase builders and elide facades without observable
-   semantic changes;
-9. the native checker and editor fully understand synthetic task functions;
-10. DevTools presents one authorized task tree in client-only and federated
+8. separately published framework packages coordinate through the opaque,
+   versioned task-frame SPI without accessing mutable frame internals;
+9. immediate, normal, and deferred priority compose through inheritance,
+   explicit override, result-wait donation, aging, and cancellation cleanup;
+10. the compiler can erase builders and elide facades without observable
+    semantic changes;
+11. the native checker and editor fully understand synthetic task functions;
+12. DevTools presents one authorized task tree in client-only and federated
     deployments;
-11. every existing sample and public document uses the new model; and
-12. `Presence` can retain and remove a stable child through internal frame
+13. every existing sample and public document uses the new model; and
+14. `Presence` can retain and remove a stable child through internal frame
     settlement without requiring another public lifetime primitive.
