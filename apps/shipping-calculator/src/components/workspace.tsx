@@ -11,16 +11,16 @@ import { cloneDraft, createWorkspaceInputs, delay } from './workspace/inputs.js'
 /** Performs the calculator workspace domain operation. */
 export function CalculatorWorkspace(
 	this: Component<WorkspaceState>,
-	props: { initial: InitialModel }
+	{ initial }: { initial: InitialModel }
 ) {
-	this.state.draft = peek(() => cloneDraft(props.initial.draft));
-	this.state.providers = peek(() => props.initial.providers);
-	this.state.route = peek(() => props.initial.route);
+	this.state.draft = peek(() => cloneDraft(initial.draft));
+	this.state.providers = peek(() => initial.providers);
+	this.state.route = peek(() => initial.route);
 	this.state.revision = 0;
 	this.state.loading = [];
 	this.state.error = undefined;
 	this.state.sort = 'recommended';
-	this.state.enabledFilters = peek(() => [...props.initial.configuredProviders]);
+	this.state.enabledFilters = peek(() => [...initial.configuredProviders]);
 	this.state.restored = false;
 
 	const resolveRouteOnServer = this.action.server('resolve route', (request: RateRequest) =>
@@ -34,7 +34,7 @@ export function CalculatorWorkspace(
 	);
 
 	this.task(() => {
-		if (props.initial.explicitUrlState) return;
+		if (initial.explicitUrlState) return;
 		try {
 			const saved = localStorage.getItem('parcel-lab:last-shipment');
 			if (!saved) return;
@@ -61,7 +61,7 @@ export function CalculatorWorkspace(
 		}
 		history.replaceState(null, '', draftUrl(this.state.draft, new URL(location.href)));
 		const generation = this.state.revision;
-		const ids = props.initial.configuredProviders;
+		const ids = initial.configuredProviders;
 		this.state.loading = [...ids];
 		const routePromise = resolveRouteOnServer(request);
 		const providerPromises = ids.map((id) => ({
@@ -119,5 +119,5 @@ export function CalculatorWorkspace(
 	});
 
 	const inputs = createWorkspaceInputs(this.state);
-	return () => renderWorkspace(this.state, props, inputs);
+	return () => renderWorkspace(this.state, { initial }, inputs);
 }

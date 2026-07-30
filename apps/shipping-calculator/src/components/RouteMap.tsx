@@ -14,13 +14,11 @@ type RouteMapProps = {
 };
 
 /** Renders an approximate route and any available ZIP-code locations. */
-export function RouteMap(this: Component<{}>, props: RouteMapProps) {
+export function RouteMap(this: Component<{}>, { route, origin, destination }: RouteMapProps) {
 	return () => {
-		const start = props.route.origin
-			? project(props.route.origin.latitude, props.route.origin.longitude)
-			: undefined;
-		const end = props.route.destination
-			? project(props.route.destination.latitude, props.route.destination.longitude)
+		const start = route.origin ? project(route.origin.latitude, route.origin.longitude) : undefined;
+		const end = route.destination
+			? project(route.destination.latitude, route.destination.longitude)
 			: undefined;
 		const arc = start && end ? arcPath(start, end) : undefined;
 
@@ -32,7 +30,7 @@ export function RouteMap(this: Component<{}>, props: RouteMapProps) {
 					role="img"
 					aria-label={
 						start && end
-							? `Approximate route from ${props.origin} to ${props.destination}`
+							? `Approximate route from ${origin} to ${destination}`
 							: 'Approximate United States route map; one or both ZIP codes are unavailable'
 					}
 				>

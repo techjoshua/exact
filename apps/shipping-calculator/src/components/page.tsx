@@ -17,6 +17,7 @@ export function ShippingCalculatorPage(this: Component<PageState>, props: { url:
 		const providers = await Promise.all(
 			this.state.model.configuredProviders.map((id) => quoteProvider(id, request, signal))
 		);
+
 		this.state.model = {
 			...this.state.model,
 			route: resolveRoute(request.originZip5, request.destinationZip5),
