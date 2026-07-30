@@ -76,6 +76,12 @@ scope-management API. Awaiting a returned value is ordinary result
 coordination. Structural descendant settlement is automatic even when an
 application does not await a child result.
 
+The compiler has no private task capability. It lowers this source to a
+supported, versioned JavaScript task ABI that external libraries and adapters
+can call directly. Compiler inference removes ceremony and enables static
+validation and optimization; it does not create runtime semantics that cannot
+be reproduced with exported JavaScript functions.
+
 ## Why one concept is better
 
 The current distinction is based mainly on how work is registered:
@@ -119,6 +125,8 @@ kind.
   deterministic.
 - Give the compiler freedom to hoist, lambda-lift, specialize, or inline inner
   functions without changing source semantics.
+- Make every compiler-generated task operation reproducible through a shared
+  JavaScript ABI available to externally authored libraries and adapters.
 - Make the task tree sufficient infrastructure for a later presence and motion
   package.
 - Replace, rather than layer over, the duplicate task/action concepts in the
@@ -477,33 +485,11 @@ normalizing them immediately to the canonical policy model.
 ### Compilerless libraries and adapters
 
 Externally created libraries must be able to participate in the same frame
-graph without running the eXact compiler over their source. A completely
-untouched function cannot gain these semantics: some runtime code must
-intercept the call, create the frame, and supply `TaskContext`. Provide a
-standards-compatible library-authoring helper:
+graph without running the eXact compiler over their source. The compiler emits
+ordinary JavaScript calls to the same supported runtime functions available to
+those libraries. It must not target an unexported task protocol.
 
-```ts
-import { defineTask } from '@exactjs/core/tasks';
-
-export const search = defineTask(
-	{
-		label: 'search catalog',
-		priority: 'deferred',
-		concurrency: 'latest'
-	},
-	async (query: string, task: TaskContext) => {
-		return index.search(query, task.signal);
-	}
-);
-```
-
-The consumer sees an ordinary typed callable and does not pass a context:
-
-```ts
-const results = await search(query);
-```
-
-The core contract is:
+Provide a standards-compatible library ABI from `@exactjs/core/tasks`:
 
 ```ts
 export interface RuntimeTaskOptions {
@@ -519,19 +505,100 @@ export function defineTask<Args extends unknown[], Result>(
 	options: RuntimeTaskOptions,
 	implementation: (...args: [...Args, TaskContext]) => Result | Promise<Result>
 ): TaskFunction<Args, Awaited<Result>>;
+
+export function invokeTask<Args extends unknown[], Result>(
+	parent: TaskContext,
+	child: TaskFunction<Args, Result>,
+	...args: Args
+): Promise<Result>;
+
+export function runTaskContinuation<T>(task: TaskContext, work: () => T): T;
+
+export function trackTaskReads<T>(task: TaskContext, read: () => T): T;
+
+export function bindTaskCallback<Args extends unknown[], Result>(
+	task: TaskContext,
+	callback: (...args: Args) => Result
+): (...args: Args) => Result;
+
+export interface ReservedTaskCallback<Args extends unknown[], Result> extends Disposable {
+	(...args: Args): Result;
+	cancel(reason?: unknown): void;
+}
+
+export function reserveTaskCallback<Args extends unknown[], Result>(
+	task: TaskContext,
+	callback: (...args: Args) => Result
+): ReservedTaskCallback<Args, Result>;
 ```
 
 `defineTask()` creates one stable runtime definition, captures the ambient
-frame on invocation, attaches or roots the new frame using the framework SPI,
-supplies a fresh context, applies policy, exposes status, and returns a promise
-that observes full structural settlement. It is a supported public
-library/adapter surface, not a return to component-owned `this.task()` or
-`this.action()` registration.
+frame on its public entry call, attaches or roots a frame through the
+framework SPI, supplies a fresh context, applies policy, exposes status, and
+returns a promise that observes full structural settlement.
+
+After an asynchronous suspension, portable library code uses the retained
+`TaskContext` with the shared ABI rather than depending on ambient state:
+
+```ts
+import { defineTask, invokeTask, trackTaskReads } from '@exactjs/core/tasks';
+
+export const search = defineTask(
+	{
+		label: 'search catalog',
+		priority: 'deferred',
+		concurrency: 'latest'
+	},
+	async (query: string, task: TaskContext) => {
+		const index = await openIndex(task.signal);
+
+		return trackTaskReads(task, () => {
+			const locale = catalogState.locale;
+			return invokeTask(task, searchIndex, index, query, locale);
+		});
+	}
+);
+```
+
+The consumer sees an ordinary typed callable and does not pass a context:
+
+```ts
+const results = await search(query);
+```
+
+The compiler may lower equivalent authored source to the same JavaScript:
+
+```ts
+const parent = defineTask(policy, async (query, task) => {
+	await prepare(task.signal);
+	return invokeTask(task, child, query);
+});
+```
+
+`invokeTask()` performs automatic child attachment with an explicit retained
+parent and therefore works after any number of `await` boundaries.
+`runTaskContinuation()` restores the frame's synchronous ambient context for a
+manually authored continuation segment. `trackTaskReads()` is the narrower
+form for attributing reactive reads without relying on ambient async context.
+These operations reject a stale parent rather than silently attaching late
+work to an already settled frame.
+
+`bindTaskCallback()` restores causal context if and when a callback runs but
+does not keep its parent unsettled. If the original frame has already settled,
+the callback starts a new root carrying the prior causal origin.
+`reserveTaskCallback()` atomically reserves an attached child before handing a
+callback to an external scheduler; the callback or an explicit
+cancel/dispose must release that reservation exactly once.
+
+These functions are a supported public library/adapter surface, not a return
+to component-owned `this.task()` or `this.action()` registration. Compiler
+output and external code must produce equivalent frame trees when they call
+the same ABI.
 
 Compilerless definitions must state behavior the compiler cannot safely
 discover. They use `task.signal`, `task.own()`, `task.cleanup()`, and
-`task.peek()` explicitly. Runtime reactive observation may discover reads made
-through eXact state, but compilerless code does not receive:
+`task.peek()` explicitly and use `trackTaskReads()` where dependency
+attribution crosses an async boundary. Compilerless code does not receive:
 
 - static signal injection into arbitrary calls;
 - disposable escape analysis;
@@ -764,7 +831,7 @@ lower calls directly with no facade allocation.
 
 A task frame settles when:
 
-1. its compiler-created producer scope has been disposed after the function
+1. its runtime-created producer scope has been disposed after the function
    returns or throws;
 2. every reserved and attached child frame has settled;
 3. renderer, router, form, and resource jobs attached to the frame have
@@ -777,13 +844,13 @@ layer. Awaiting a task's returned promise observes the whole attached subtree,
 not only the immediate function promise. Not awaiting a child result does not
 detach it.
 
-### Compiler-owned frame scope
+### Runtime-owned frame scope
 
 Scope closure and descendant settlement are internal frame mechanics, not
 public `TaskContext` capabilities. Lowering is semantically equivalent to:
 
 ```ts
-async function invokeTask(parentFrame: TaskFrame | undefined, args: unknown[]) {
+async function runTaskFrameInternals(parentFrame: TaskFrame | undefined, args: unknown[]) {
 	const frame = runtime.attachTask(parentFrame, definition);
 	let outcome;
 
@@ -952,7 +1019,32 @@ The compiler emits diagnostics for dynamic builders, conditional chains,
 aliases of the builder value, duplicate facets, unsupported facet/activation
 combinations, and attempts to transmit `TaskContext`.
 
-### 4. Preserve ordinary JavaScript and optimize safely
+### 4. Lower to the shared JavaScript task ABI
+
+The compiler expresses task semantics through the exported functions from
+`@exactjs/core/tasks` and the framework frame SPI:
+
+- task definitions lower to `defineTask()` or a semantically equivalent
+  definition primitive;
+- attached calls lower to `invokeTask(parentContext, child, ...args)`;
+- resumed async segments that need ambient runtime behavior lower through
+  `runTaskContinuation()`;
+- dependency-attributed read segments lower through `trackTaskReads()`;
+- callbacks lower through `bindTaskCallback()` or
+  `reserveTaskCallback()` according to whether they extend settlement; and
+- renderer/framework scheduling lowers through frame run and reservation
+  operations.
+
+Generated modules import a versioned ABI subpath and record the required ABI
+version in their artifact metadata. External libraries may write the same
+calls by hand and must produce the same frame tree and observable behavior.
+
+Optimized production output may bypass a public wrapper only when compiler and
+runtime conformance tests prove semantic equivalence. A diagnostic/conformance
+build mode emits the direct shared-ABI form so generated behavior can be
+inspected, tested, and reproduced without reverse-engineering private helpers.
+
+### 5. Preserve ordinary JavaScript and optimize safely
 
 Lowering selects the least expensive representation:
 
@@ -972,7 +1064,7 @@ runs once per instance. Hoisting is therefore an optimization, not a semantic
 requirement. Compiler benchmarks must reject transformations that increase
 startup cost, retained closures, or hot-call overhead without a measured win.
 
-### 5. Unify continuation and artifact generation
+### 6. Unify continuation and artifact generation
 
 Generated continuations use activation metadata rather than an `Action` kind.
 The compiler still:
@@ -989,7 +1081,7 @@ The compiler still:
 The recent typed action-result and stub work becomes typed invoked-task result
 generation.
 
-### 6. Extend the native checker
+### 7. Extend the native checker
 
 The checker must understand:
 
@@ -1017,7 +1109,7 @@ Replace the separate component task and action resources with:
 - `TaskDefinitionRuntime`;
 - `TaskGenerationRuntime`;
 - `TaskFrameRuntime`;
-- compiler-owned disposable producer scopes and descendant-settlement signals;
+- runtime-owned disposable producer scopes and descendant-settlement signals;
 - one callable facade/status implementation;
 - one scheduling and concurrency implementation;
 - one optimistic journal integration; and
@@ -1111,12 +1203,13 @@ unused reservation releases it exactly once. `runWithTaskFrame` establishes
 synchronous ambient context for a callback and restores the previous frame in
 `finally`; it does not turn an arbitrary future event into a descendant.
 
-The compiler lowers to this same semantic SPI rather than a separate secret
-coordination protocol. Implementations may use more direct internal calls
-after proving equivalence. Framework packages document this subpath in their
-README and package-local `AGENTS.md`, but ordinary application guidance does
-not recommend it. Opaque branding prevents fabrication; semver and
-cross-package acceptance tests protect the contract.
+The shared task ABI builds on this frame SPI. The compiler uses the task ABI
+for authored functions and this lower-level SPI for renderer/framework work;
+external libraries and adapters may do the same. Implementations may use more
+direct internal calls only after proving equivalence. Framework packages
+document this subpath in their README and package-local `AGENTS.md`, but
+ordinary application guidance does not recommend it. Opaque branding prevents
+fabrication; semver and cross-package acceptance tests protect the contract.
 
 ### Current-frame propagation
 
@@ -1124,11 +1217,12 @@ The browser cannot depend on a process-global async-local variable to preserve
 the current frame across concurrent Promise continuations. Frame propagation
 must therefore be explicit in generated and scheduled work:
 
-- direct compiler-visible task calls receive a hidden parent-frame operand;
-- instrumented reactive reads, writes, and capability operations carry the
-  current frame token after an `await`;
-- compiler-generated callbacks capture the token when they represent
-  continuation work;
+- direct compiler-visible calls lower to `invokeTask()` with the retained
+  parent `TaskContext`;
+- resumed async segments use `runTaskContinuation()` or narrower explicit ABI
+  operations such as `trackTaskReads()` and `invokeTask()`;
+- compiler-generated callbacks use `bindTaskCallback()` or
+  `reserveTaskCallback()` according to whether they extend settlement;
 - reactive, renderer, router, form, and lifecycle queue records store the
   token and reserve their child frame before enqueueing;
 - the scheduler pushes the token on a short synchronous runtime stack only
@@ -1138,12 +1232,14 @@ must therefore be explicit in generated and scheduled work:
 - remote calls transmit only opaque generation/parent correlation metadata,
   from which the authorized destination runtime creates a remote child frame.
 
-A token is a small runtime identity such as generation and frame IDs, not a
-retained `TaskContext`. The runtime resolves it through the owning component
-and generation registry, rejects stale attachments, and uses it to establish
-structural parentage and causal origin. A server may use `AsyncLocalStorage` as
-an optimization, but correctness must remain based on the explicit token so
-browser and server behavior agree.
+A token is a small runtime identity such as generation and frame IDs. A
+`TaskContext` retains an opaque association with its frame so shared ABI
+functions can recover that token without exposing it to application code. The
+runtime resolves tokens through the owning component and generation registry,
+rejects stale attachments, and uses them to establish structural parentage
+and causal origin. A server may use `AsyncLocalStorage` as an optimization, but
+correctness must remain based on explicit contexts/tokens so compiler output,
+external browser libraries, and server packages agree.
 
 TC39's [Async Context proposal](https://github.com/tc39/proposal-async-context)
 may eventually provide a native implementation substrate for capturing and
@@ -1221,8 +1317,9 @@ allowlist, authorization, CSRF, serialization, redaction, cancellation, replay,
 and stale-generation adversarial tests must pass before removal.
 
 SSR and hydration serialize task definitions and resumable generation
-metadata using compiler-owned identities. They never serialize `TaskContext`,
-cleanup callbacks, resources, or generated continuation names.
+metadata using framework-owned opaque identities produced by compiled or
+runtime definitions. They never serialize `TaskContext`, cleanup callbacks,
+resources, or generated continuation names.
 
 ## Developer tooling
 
@@ -1235,7 +1332,8 @@ It must provide:
 
 - completion and hover for synthetic task status members;
 - ordinary TypeScript completion and hover for `defineTask()` options,
-  implementation context, callable status, and remote contract schemas;
+  implementation context, callable status, shared ABI helpers, callback
+  reservation ownership, and remote contract schemas;
 - completion and hover for `task.peek()`, including the suppressed dependency
   paths;
 - policy-builder completion, validation, and quick fixes;
@@ -1458,19 +1556,19 @@ runs cleanup.
 Migration is repository-wide and is not complete until all of these classes
 are addressed:
 
-| Area                          | Required change                                                                                                             |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Shipping calculator           | Replace server actions and reactive tasks; remove manual generation fences made redundant by attached latest generations    |
-| Kanban                        | Replace persistence registration with a reactive activation                                                                 |
-| Server-components sample      | Replace server setup task registrations and verify SSR/hydration                                                            |
-| Sudoku                        | Migrate timers, generation, persistence, and worker/server work; verify disposal and cancellation                           |
-| Workbench/compiler demos      | Show inferred, explicit-policy, attached, detached, optimistic, and server examples                                         |
-| Docs application              | Replace every `this.task`/`this.action` example and add a task-tree guide                                                   |
-| Core/compiler fixtures        | Recast task/action fixtures around definitions, activations, frames, and protocol v2                                        |
-| Forms/router samples          | Preserve pending, duplicate suppression, redirects, and automatic navigation attachment                                     |
-| Microfrontend/server samples  | Regenerate invoked-task contracts and verify scope/authorization boundaries                                                 |
-| External library fixtures     | Validate ordinary-TypeScript `defineTask()`, remote conditional exports, adapter reservations, and fail-closed registration |
-| Chrome and VS Code extensions | Remove action-only UI and consume the unified inspection schema                                                             |
+| Area                          | Required change                                                                                                            |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Shipping calculator           | Replace server actions and reactive tasks; remove manual generation fences made redundant by attached latest generations   |
+| Kanban                        | Replace persistence registration with a reactive activation                                                                |
+| Server-components sample      | Replace server setup task registrations and verify SSR/hydration                                                           |
+| Sudoku                        | Migrate timers, generation, persistence, and worker/server work; verify disposal and cancellation                          |
+| Workbench/compiler demos      | Show inferred, explicit-policy, attached, detached, optimistic, and server examples                                        |
+| Docs application              | Replace every `this.task`/`this.action` example and add a task-tree guide                                                  |
+| Core/compiler fixtures        | Recast task/action fixtures around definitions, activations, frames, and protocol v2                                       |
+| Forms/router samples          | Preserve pending, duplicate suppression, redirects, and automatic navigation attachment                                    |
+| Microfrontend/server samples  | Regenerate invoked-task contracts and verify scope/authorization boundaries                                                |
+| External library fixtures     | Validate hand-authored shared ABI, async continuation attachment, remote conditional exports, and fail-closed registration |
+| Chrome and VS Code extensions | Remove action-only UI and consume the unified inspection schema                                                            |
 
 Every affected package README and package-local `AGENTS.md` must explain the
 new public contract and safest authoring pattern. Current references that must
@@ -1598,6 +1696,8 @@ retained current guarantee has a named regression test.
   propagation SPI with cross-package contract tests.
 - Add `defineTask()` and prove that compilerless local definitions use the same
   generation, status, cancellation, priority, cleanup, and inspection runtime.
+- Add `invokeTask()`, continuation/read tracking, callback binding, and callback
+  reservation as the versioned JavaScript task ABI.
 - Adapt current `this.task` and `this.action` registrations onto it.
 - Replace interaction settlement internals with task roots while preserving
   public behavior.
@@ -1616,6 +1716,8 @@ automatic settlement.
 - Lower local client-only tasks first.
 - Preserve inferred signal/resource behavior.
 - Implement direct-call lowering, safe hoisting, and facade elision.
+- Lower an inspectable conformance mode exclusively through the exported task
+  ABI and compare it with hand-authored library equivalents.
 - Normalize inferred policy and `TaskContext` defaults to one canonical policy
   record, leaving room for a future standards-based decorator frontend.
 - Add migration diagnostics and code actions for legacy registrations.
@@ -1628,7 +1730,7 @@ is highlighted normally, and benchmarks remain within agreed budgets.
 - Propagate frame tokens through reactive scheduling and DOM commit.
 - Attach bindings, reconciliation, refs, portals, blocking work, and lifecycle
   consequences.
-- Implement compiler-owned producer scopes, atomic child reservation,
+- Implement runtime-owned producer scopes, atomic child reservation,
   descendant-settlement signals, and commit/cancel fencing.
 - Implement declared/effective priority inheritance, result-wait donation,
   deferred aging, and prompt cancellation cleanup.
@@ -1728,7 +1830,12 @@ Protection should match the risk of each boundary:
   opaque tokens cannot be fabricated or reused after settlement.
 - **Compilerless library tests:** ordinary JavaScript and TypeScript builds can
   define, invoke, observe, cancel, queue, supersede, detach, clean up, and
-  inspect local tasks without compiler transformation.
+  inspect local tasks without compiler transformation, including attachment
+  and tracked reads after async suspension through explicit ABI calls.
+- **Generated-ABI equivalence tests:** compiler conformance output and
+  hand-authored JavaScript using `defineTask()`, `invokeTask()`,
+  continuation/read tracking, and callback reservation produce equivalent
+  frame trees, results, errors, priorities, cancellation, and cleanup.
 - **Compilerless remote tests:** conditional exports exclude handlers from
   browser bundles; registered contracts dispatch through opaque capabilities;
   missing handlers, schema mismatches, unallowlisted contracts, forged
@@ -1775,7 +1882,7 @@ The proposal is complete only when:
    context parameters;
 6. optimistic state, forms, router work, and distributed execution preserve
    their current guarantees;
-7. compiler-owned producer scopes and descendant-settlement signals include
+7. runtime-owned producer scopes and descendant-settlement signals include
    renderer consequences without late-child races or application-visible
    lifetime controls;
 8. separately published framework packages coordinate through the opaque,
@@ -1783,13 +1890,15 @@ The proposal is complete only when:
 9. compilerless libraries can define local tasks with identical runtime
    semantics, and compilerless remote libraries can use explicit,
    schema-validated, allowlisted dual-sided contracts;
-10. immediate, normal, and deferred priority compose through inheritance,
+10. every compiler-generated task semantic is reproducible through the
+    supported JavaScript ABI without private compiler-only runtime authority;
+11. immediate, normal, and deferred priority compose through inheritance,
     explicit override, result-wait donation, aging, and cancellation cleanup;
-11. the compiler can erase builders and elide facades without observable
+12. the compiler can erase builders and elide facades without observable
     semantic changes;
-12. the native checker and editor fully understand synthetic task functions;
-13. DevTools presents one authorized task tree in client-only and federated
+13. the native checker and editor fully understand synthetic task functions;
+14. DevTools presents one authorized task tree in client-only and federated
     deployments;
-14. every existing sample and public document uses the new model; and
-15. `Presence` can retain and remove a stable child through internal frame
+15. every existing sample and public document uses the new model; and
+16. `Presence` can retain and remove a stable child through internal frame
     settlement without requiring another public lifetime primitive.
