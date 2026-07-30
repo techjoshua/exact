@@ -134,6 +134,9 @@ kind.
   generation.
 - Inferring optimistic intent from arbitrary writes before an `await`.
 - Making arbitrary functions remotely callable.
+- Pretending runtime task metadata can partition server code, validate unknown
+  captures, or create a secure remote endpoint without an explicit build or
+  dual-sided contract.
 - Exposing generated continuation names or transport clients to application
   source.
 - Changing HTML's `action` attribute, user-interface actions in testing
@@ -155,6 +158,7 @@ These are deliberate breaking changes, not incidental refactors:
 | Separate `ComponentAction` callable/status type                                     | Compiler-synthetic task-function status members when a facade is required                                                                  |
 | Separate action and task runtime state machines                                     | One definition/generation/frame scheduler and ownership model                                                                              |
 | Separate internal interaction settlement                                            | Interaction hosts create root task generations                                                                                             |
+| eXact compilation required for a function to participate as a task                  | Compiler-authored functions plus `defineTask()` and explicit remote contracts for compilerless libraries                                   |
 | `interactive` in some scheduling packages and `immediate` in proposed source syntax | One public `immediate` priority term, normalized internally                                                                                |
 | Generated `type: "action"` requests and action manifests                            | Versioned invoked-task requests and task manifests, with a bounded compatibility decoder                                                   |
 | Separate task/action compiler collectors and continuation kinds                     | Activation metadata on one task definition model                                                                                           |
@@ -165,7 +169,8 @@ Package consequences include:
 
 - `@exactjs/core` removes component registration factories, merges context and
   status contracts, exports the policy-builder marker, and provides a
-  framework-facing task-frame coordination subpath.
+  framework-facing task-frame coordination subpath plus compilerless library
+  task definitions.
 - `@exactjs/compiler` and the native compiler replace action/task collectors,
   manifests, lowering, and diagnostics with the unified model.
 - `@exactjs/server`, hydration, adapters, and microfrontend packages consume
@@ -468,6 +473,135 @@ are not adopted as primary policy declarations. They are respectively
 untyped/comment-dependent, too narrow and non-composable, or nonstandard.
 Language tools may offer them only for compatibility with external ecosystems,
 normalizing them immediately to the canonical policy model.
+
+### Compilerless libraries and adapters
+
+Externally created libraries must be able to participate in the same frame
+graph without running the eXact compiler over their source. A completely
+untouched function cannot gain these semantics: some runtime code must
+intercept the call, create the frame, and supply `TaskContext`. Provide a
+standards-compatible library-authoring helper:
+
+```ts
+import { defineTask } from '@exactjs/core/tasks';
+
+export const search = defineTask(
+	{
+		label: 'search catalog',
+		priority: 'deferred',
+		concurrency: 'latest'
+	},
+	async (query: string, task: TaskContext) => {
+		return index.search(query, task.signal);
+	}
+);
+```
+
+The consumer sees an ordinary typed callable and does not pass a context:
+
+```ts
+const results = await search(query);
+```
+
+The core contract is:
+
+```ts
+export interface RuntimeTaskOptions {
+	readonly label?: string;
+	readonly placement?: 'current' | 'client' | 'server';
+	readonly priority?: 'immediate' | 'normal' | 'deferred';
+	readonly concurrency?: 'parallel' | 'latest' | 'queue';
+	readonly readiness?: 'blocking' | 'nonblocking';
+	readonly detached?: boolean;
+}
+
+export function defineTask<Args extends unknown[], Result>(
+	options: RuntimeTaskOptions,
+	implementation: (...args: [...Args, TaskContext]) => Result | Promise<Result>
+): TaskFunction<Args, Awaited<Result>>;
+```
+
+`defineTask()` creates one stable runtime definition, captures the ambient
+frame on invocation, attaches or roots the new frame using the framework SPI,
+supplies a fresh context, applies policy, exposes status, and returns a promise
+that observes full structural settlement. It is a supported public
+library/adapter surface, not a return to component-owned `this.task()` or
+`this.action()` registration.
+
+Compilerless definitions must state behavior the compiler cannot safely
+discover. They use `task.signal`, `task.own()`, `task.cleanup()`, and
+`task.peek()` explicitly. Runtime reactive observation may discover reads made
+through eXact state, but compilerless code does not receive:
+
+- static signal injection into arbitrary calls;
+- disposable escape analysis;
+- capture, secret-flow, or serialization analysis;
+- client/server source partitioning;
+- generated remote continuations;
+- compile-time placement diagnostics; or
+- hoisting, direct-call lowering, and facade elision.
+
+`placement: "server"` on `defineTask()` is only an assertion for code already
+loaded in a server-only entry point. It cannot move an implementation out of a
+browser bundle or make it remotely callable.
+
+#### Compilerless remote contracts
+
+Remote compilerless libraries require an explicit shared contract, client
+stub, and server implementation:
+
+```ts
+// shared entry point
+export const searchContract = defineRemoteTaskContract<[query: string], SearchResult[]>({
+	name: '@catalog/search',
+	input: searchInputSchema,
+	output: searchOutputSchema
+});
+```
+
+```ts
+// server-only entry point
+export const searchHandler = implementRemoteTask(searchContract, async (query, task) =>
+	index.search(query, task.signal)
+);
+```
+
+```ts
+// browser entry point
+export const search = createRemoteTask(searchContract);
+```
+
+Recommended package conditional exports keep the server implementation out of
+the browser graph. The application server explicitly registers and allowlists
+`searchHandler`. Registration assigns a deployment-specific opaque operation
+capability; the stable library contract name identifies the schema but is not
+itself dispatch authority. Hydration or the authorized runtime registry maps
+the client stub to that capability without exposing the raw transport client
+to application components.
+
+The existing authorization, CSRF, scope, schema validation, result validation,
+redaction, cancellation, build compatibility, replay, and stale-generation
+rules apply. A missing handler, schema mismatch, browser import of a
+server-only implementation, or unallowlisted contract fails closed.
+
+This yields three supported paths:
+
+```text
+compiler-authored function
+  → inference, erasure, partitioning, and optimization
+
+compilerless local library
+  → defineTask(options, implementation)
+
+compilerless remote library
+  → shared contract + client stub + allowlisted server implementation
+```
+
+Adapters that schedule callbacks use the framework task-frame SPI directly;
+adapters that expose callable coordinated work may build their public
+functions with `defineTask()`. Both paths produce the same runtime frame,
+inspection, cancellation, priority, and settlement semantics as compiled
+tasks.
 
 ### Inferred dependencies and `task.peek()`
 
@@ -1072,6 +1206,13 @@ Low-level `defineExactActionContract`-style APIs are renamed to invoked-task
 contracts where they remain necessary. Application authors still do not
 construct requests or acquire an eXact client directly.
 
+Compilerless remote contracts enter the same dispatcher through explicit
+server registration. The stable package contract identifies schemas and
+compatibility; registration creates the deployment-specific opaque operation
+capability used on the wire. The client stub resolves that capability through
+the authorized runtime registry. It cannot dispatch an unregistered contract
+or use the stable contract name as endpoint authority.
+
 This requires a protocol-version bump. During one release window, servers may
 decode the previous `type: "action"` request for rolling deployment, mapping it
 to an invoked task internally. New clients emit only the new format. The
@@ -1093,6 +1234,8 @@ classification with task definition, activation, and frame information.
 It must provide:
 
 - completion and hover for synthetic task status members;
+- ordinary TypeScript completion and hover for `defineTask()` options,
+  implementation context, callable status, and remote contract schemas;
 - completion and hover for `task.peek()`, including the suppressed dependency
   paths;
 - policy-builder completion, validation, and quick fixes;
@@ -1144,6 +1287,11 @@ optimistic journal, resources, cancellation reason, and error. Timeline events
 include queue, start, frame enter/exit, remote dispatch/return, optimistic
 apply/commit/rollback, resource acquire/release, renderer commit, cancel, and
 settle.
+
+Definitions identify their source as compiler-authored, compilerless runtime,
+or compilerless remote contract. All three use the same generation/frame event
+model; tooling must not relegate external libraries to an uninspectable
+“other” category.
 
 Protocol query methods become `tasks.list`, `tasks.get`, and
 `tasks.getTree`; action-only queries remain aliases only during the
@@ -1310,18 +1458,19 @@ runs cleanup.
 Migration is repository-wide and is not complete until all of these classes
 are addressed:
 
-| Area                          | Required change                                                                                                          |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Shipping calculator           | Replace server actions and reactive tasks; remove manual generation fences made redundant by attached latest generations |
-| Kanban                        | Replace persistence registration with a reactive activation                                                              |
-| Server-components sample      | Replace server setup task registrations and verify SSR/hydration                                                         |
-| Sudoku                        | Migrate timers, generation, persistence, and worker/server work; verify disposal and cancellation                        |
-| Workbench/compiler demos      | Show inferred, explicit-policy, attached, detached, optimistic, and server examples                                      |
-| Docs application              | Replace every `this.task`/`this.action` example and add a task-tree guide                                                |
-| Core/compiler fixtures        | Recast task/action fixtures around definitions, activations, frames, and protocol v2                                     |
-| Forms/router samples          | Preserve pending, duplicate suppression, redirects, and automatic navigation attachment                                  |
-| Microfrontend/server samples  | Regenerate invoked-task contracts and verify scope/authorization boundaries                                              |
-| Chrome and VS Code extensions | Remove action-only UI and consume the unified inspection schema                                                          |
+| Area                          | Required change                                                                                                             |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Shipping calculator           | Replace server actions and reactive tasks; remove manual generation fences made redundant by attached latest generations    |
+| Kanban                        | Replace persistence registration with a reactive activation                                                                 |
+| Server-components sample      | Replace server setup task registrations and verify SSR/hydration                                                            |
+| Sudoku                        | Migrate timers, generation, persistence, and worker/server work; verify disposal and cancellation                           |
+| Workbench/compiler demos      | Show inferred, explicit-policy, attached, detached, optimistic, and server examples                                         |
+| Docs application              | Replace every `this.task`/`this.action` example and add a task-tree guide                                                   |
+| Core/compiler fixtures        | Recast task/action fixtures around definitions, activations, frames, and protocol v2                                        |
+| Forms/router samples          | Preserve pending, duplicate suppression, redirects, and automatic navigation attachment                                     |
+| Microfrontend/server samples  | Regenerate invoked-task contracts and verify scope/authorization boundaries                                                 |
+| External library fixtures     | Validate ordinary-TypeScript `defineTask()`, remote conditional exports, adapter reservations, and fail-closed registration |
+| Chrome and VS Code extensions | Remove action-only UI and consume the unified inspection schema                                                             |
 
 Every affected package README and package-local `AGENTS.md` must explain the
 new public contract and safest authoring pattern. Current references that must
@@ -1447,6 +1596,8 @@ retained current guarantee has a named regression test.
   concurrency, cancellation, cleanup, and inspection internally.
 - Add the opaque framework task-frame token, run, reservation, and synchronous
   propagation SPI with cross-package contract tests.
+- Add `defineTask()` and prove that compilerless local definitions use the same
+  generation, status, cancellation, priority, cleanup, and inspection runtime.
 - Adapt current `this.task` and `this.action` registrations onto it.
 - Replace interaction settlement internals with task roots while preserving
   public behavior.
@@ -1492,6 +1643,8 @@ effects without leaking frames or delaying unrelated work.
 - Generalize continuation compilation from action to invoked-task activation.
 - Emit new typed stubs and manifests.
 - Add the versioned protocol and rolling-deployment decoder.
+- Add compilerless remote contract, client-stub, server-implementation,
+  conditional-export, registration, schema, and opaque-capability support.
 - Move optimistic journals, concurrency, argument/results, authorization, and
   generation fencing to unified definitions.
 - Verify no authored source imports a transport client or generated operation
@@ -1524,6 +1677,9 @@ renderer, cleanup, and settlement.
 - Remove manual cancellation, generation, and transport plumbing only where
   the new compiler contract makes it redundant.
 - Run every sample in client, SSR, hydration, and applicable distributed modes.
+- Add an external-library fixture that is built with ordinary TypeScript only,
+  plus an adapter fixture that uses frame reservations without compiler
+  transformation.
 
 Exit gate: repository search finds no authored `this.task`, `this.action`,
 `ActionContext`, component-action type, or direct generated continuation
@@ -1570,6 +1726,13 @@ Protection should match the risk of each boundary:
 - **Framework SPI tests:** compiler, DOM, forms, router, server, and motion-like
   consumers produce identical frame trees through run and reservation paths;
   opaque tokens cannot be fabricated or reused after settlement.
+- **Compilerless library tests:** ordinary JavaScript and TypeScript builds can
+  define, invoke, observe, cancel, queue, supersede, detach, clean up, and
+  inspect local tasks without compiler transformation.
+- **Compilerless remote tests:** conditional exports exclude handlers from
+  browser bundles; registered contracts dispatch through opaque capabilities;
+  missing handlers, schema mismatches, unallowlisted contracts, forged
+  capabilities, and incompatible versions fail closed.
 - **Property/model tests:** random task trees compared with a small reference
   state machine for terminal settlement, late scheduling races, and
   exactly-once cleanup.
@@ -1617,13 +1780,16 @@ The proposal is complete only when:
    lifetime controls;
 8. separately published framework packages coordinate through the opaque,
    versioned task-frame SPI without accessing mutable frame internals;
-9. immediate, normal, and deferred priority compose through inheritance,
-   explicit override, result-wait donation, aging, and cancellation cleanup;
-10. the compiler can erase builders and elide facades without observable
+9. compilerless libraries can define local tasks with identical runtime
+   semantics, and compilerless remote libraries can use explicit,
+   schema-validated, allowlisted dual-sided contracts;
+10. immediate, normal, and deferred priority compose through inheritance,
+    explicit override, result-wait donation, aging, and cancellation cleanup;
+11. the compiler can erase builders and elide facades without observable
     semantic changes;
-11. the native checker and editor fully understand synthetic task functions;
-12. DevTools presents one authorized task tree in client-only and federated
+12. the native checker and editor fully understand synthetic task functions;
+13. DevTools presents one authorized task tree in client-only and federated
     deployments;
-13. every existing sample and public document uses the new model; and
-14. `Presence` can retain and remove a stable child through internal frame
+14. every existing sample and public document uses the new model; and
+15. `Presence` can retain and remove a stable child through internal frame
     settlement without requiring another public lifetime primitive.
