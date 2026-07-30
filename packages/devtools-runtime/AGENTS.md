@@ -10,5 +10,5 @@ sessions, highlights, and global hook ownership are released deterministically.
 
 Project all coordinated work through `tasks.list`, `tasks.get`, and
 `tasks.getTree`. Preserve activation, parent, generation, readiness, priority,
-placement, and structural-settlement metadata; do not restore an action-only
-collection.
+placement, semantic kind, optional name, and structural-settlement metadata;
+do not restore an action-only collection or treat kind/name as authority.

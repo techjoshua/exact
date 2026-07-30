@@ -7,6 +7,7 @@ import { taskOwnerForHost } from './owner-hosts.js';
 export type TaskFrameInspection = Readonly<{
 	id: number;
 	parentId?: number;
+	kind: string;
 	label?: string;
 	activation: 'initialization' | 'reactive' | 'interaction' | 'invoked' | 'lifecycle';
 	generation: number;
@@ -28,6 +29,7 @@ export function inspectTaskFramesForHost(host: object): readonly TaskFrameInspec
 			Object.freeze({
 				id: frame.id,
 				...(frame.parent ? { parentId: frame.parent.id } : {}),
+				kind: frame.kind,
 				...(frame.label === undefined ? {} : { label: frame.label }),
 				activation: frame.activation,
 				generation: frame.generation,

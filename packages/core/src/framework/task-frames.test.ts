@@ -6,6 +6,9 @@ import {
 	runTaskFrame,
 	runWithTaskFrame
 } from './task-frames.js';
+import { inspectTaskFramesForHost } from '../tasks/frame-inspection.js';
+import { createTaskOwnerRecord, executeTaskFrame } from '../tasks/frame-runtime.js';
+import { registerTaskOwnerHost } from '../tasks/owner-hosts.js';
 
 describe('framework task frame SPI', () => {
 	it('keeps tokens opaque and restores synchronous ambient context', async () => {
@@ -21,6 +24,32 @@ describe('framework task frame SPI', () => {
 		);
 		expect(captureTaskFrame()).toBeUndefined();
 		expect(() => runWithTaskFrame(token!, () => undefined)).toThrow('settled');
+	});
+
+	it('projects framework kind and label through runtime inspection', async () => {
+		const host = {};
+		const owner = createTaskOwnerRecord('test host');
+		registerTaskOwnerHost(host, owner);
+		let inspection: ReturnType<typeof inspectTaskFramesForHost>[number] | undefined;
+
+		await executeTaskFrame({ owner }, () =>
+			runTaskFrame(
+				{ kind: 'presence-leave', label: 'Leave dialog' },
+				{
+					work() {
+						inspection = inspectTaskFramesForHost(host).find(
+							(frame) => frame.kind === 'presence-leave'
+						);
+					}
+				}
+			)
+		);
+
+		expect(inspection).toMatchObject({
+			kind: 'presence-leave',
+			label: 'Leave dialog'
+		});
+		await owner[Symbol.asyncDispose]();
 	});
 
 	it('reserves descendants atomically before scheduler handoff', async () => {
@@ -47,6 +76,51 @@ describe('framework task frame SPI', () => {
 		await runReserved();
 		await parent;
 		expect(order).toEqual(['parent-body', 'child', 'parent-settled']);
+	});
+
+	it('keeps a parent structurally pending through a child finalizer', async () => {
+		const order: string[] = [];
+		let reportFinalizerStarted!: () => void;
+		const finalizerStarted = new Promise<void>((resolve) => {
+			reportFinalizerStarted = resolve;
+		});
+		let releaseFinalizer!: () => void;
+		const finalizerGate = new Promise<void>((resolve) => {
+			releaseFinalizer = resolve;
+		});
+		const parent = runTaskFrame(
+			{ kind: 'parent' },
+			{
+				work() {
+					void runTaskFrame(
+						{ kind: 'child' },
+						{
+							work: () => order.push('child-work'),
+							async afterChildren() {
+								order.push('child-finalizer-start');
+								reportFinalizerStarted();
+								await finalizerGate;
+								order.push('child-finalizer-end');
+							}
+						}
+					);
+				},
+				afterChildren() {
+					order.push('parent-finalizer');
+				}
+			}
+		);
+
+		await finalizerStarted;
+		expect(order).toEqual(['child-work', 'child-finalizer-start']);
+		releaseFinalizer();
+		await parent;
+		expect(order).toEqual([
+			'child-work',
+			'child-finalizer-start',
+			'child-finalizer-end',
+			'parent-finalizer'
+		]);
 	});
 
 	it('reports foreground and structural outcomes exactly once', async () => {

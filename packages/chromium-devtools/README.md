@@ -4,7 +4,9 @@ Manifest V3 DevTools extension for inspecting durable eXact components across br
 runtimes.
 
 The panel provides Components, State/Context, Tasks, Dependencies, Timeline, and
-Microfrontends projections. It connects only to the versioned page hook installed by
+Microfrontends projections. Task projections preserve framework semantic kinds
+and optional human-facing labels so motion, routing, and other coordinated work
+remain distinguishable beneath their causal parent. It connects only to the versioned page hook installed by
 `@exactjs/devtools-runtime`; server cooperation remains behind the page’s existing authenticated
 eXact endpoint.
 

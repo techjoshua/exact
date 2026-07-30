@@ -13,5 +13,6 @@ bounded.
 Expose one authorized task tree through `tasks.list`, `tasks.get`, and
 `tasks.getTree`. Keep activation, owner, generation, parentage, foreground and
 structural settlement, transport, optimism, cleanup, and suppressed failures
-on task nodes and events; do not reintroduce action-only collections or event
-kinds.
+on task nodes and events. Preserve stable framework task `kind` separately from
+the optional human-facing name; neither is invocation authority. Do not
+reintroduce action-only collections or event kinds.

@@ -135,7 +135,9 @@ Framework packages coordinate renderer, router, form, and adapter work through
 atomic reservations, cancelable scoped execution, and foreground/structural
 hooks. Cancelling an execution aborts its frame and attached descendants, then
 waits for cooperative cleanup before reporting a `cancelled` structural
-outcome. It does not expose mutable frame records or settlement counters.
+outcome. A structural finalizer remains part of the parent's settlement, and
+runtime inspection preserves both its semantic `kind` and optional human
+label. The SPI does not expose mutable frame records or settlement counters.
 
 Compilerless code must state policy and capabilities that the compiler cannot
 infer. It does not receive source partitioning, static capture or secret-flow

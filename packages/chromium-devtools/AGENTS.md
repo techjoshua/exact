@@ -8,5 +8,8 @@ Source links require matching hashes. Preserve build, execution-root, binding, i
 operation, and generation identity across selections. Panel disposal must disconnect the page
 hook, close subscriptions, clear highlights, and release extension ports.
 
+Render stable task `kind` independently from an optional human-facing name. Do
+not infer identity or authority from either field.
+
 Version 1 is read-only. Do not add task invocation, state editing, task cancellation, arbitrary
 evaluation, or redaction overrides.

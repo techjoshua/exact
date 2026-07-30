@@ -89,6 +89,11 @@ function createTaskFrameExecution<T>(
 ): TaskFrameExecution<T> {
 	const controller = new AbortController();
 	const execution = runTaskFrameInternal(options, hooks, parentReserved, controller);
+	const parent = options.detached
+		? undefined
+		: ((options.parent as TaskFrameRecord | undefined) ?? currentTaskFrameRecord());
+	if (parent && !parentReserved && parent.producerOpen && !parent.settled)
+		attachTaskFrameSettlement(parent, execution);
 	return exposeTaskFrameExecution(execution, controller);
 }
 
@@ -140,6 +145,8 @@ async function runTaskFrameInternal<T>(
 				controller,
 				generation: options.generation,
 				detached: options.detached,
+				kind: options.kind,
+				label: options.label,
 				priority: options.priority,
 				readiness: options.readiness
 			},
@@ -214,9 +221,9 @@ export function reserveTaskFrame(options: RunTaskFrameOptions): TaskFrameReserva
 				{ work },
 				true
 			);
-			// The child is attached synchronously before runTaskFrame returns, so
-			// ownership transfers without an empty-tree race.
-			release();
+			// Keep the atomic placeholder until the public execution, including
+			// its structural finalizer, has settled.
+			void execution.then(release, release);
 			return execution;
 		},
 		cancel() {

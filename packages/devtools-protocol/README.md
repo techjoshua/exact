@@ -11,5 +11,9 @@ continuation, module, or authorization selectors. Values must pass through `prev
 before entering protocol records; compiler-qualified secrets and server resources must be redacted
 before traversal.
 
+Task snapshots keep a bounded semantic `kind` independently from their optional human-facing
+`name`. Framework packages use stable kinds for grouping and filtering while labels remain
+descriptive presentation rather than protocol identity.
+
 Use `parseExactInspectionRequest()` and `parseExactDebugRequest()` at every untrusted transport
 boundary. Collection requests are bounded by validated pagination and filters.

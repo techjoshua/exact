@@ -58,6 +58,7 @@ The Chromium panel and automation agent consume the same versioned protocol. The
 - durable component parents, children, status, and owned elements;
 - bounded previews of props, state, and public contexts;
 - task placement, readiness, priority, generation, cancellation, and settlement;
+- framework task kinds and optional human-facing labels without treating either as authority;
 - named action placement, concurrency, pending work, and optimistic generations;
 - lifecycle, render invalidation, Activity, Suspense, hydration, and resumption events;
 - server requests, continuations, context access, patches, errors, and profiling observations; and

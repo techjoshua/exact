@@ -2013,6 +2013,11 @@ rationale or moved under history so it cannot be mistaken for the current API.
 The motion package is explicitly deferred, but the task work must leave a
 usable contract for it.
 
+The package-level design, public API, router dependency inversion, delivery
+plan, and acceptance criteria are now maintained in
+[`motion-component-library.md`](motion-component-library.md). This section
+retains the task-foundation requirements that proposal builds upon.
+
 ### Presence without another public lifetime primitive
 
 A stable component can retain the previous child while leave work runs:

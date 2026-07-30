@@ -15,6 +15,7 @@ export type ExactContextPreview = Readonly<{
 export type ExactTaskRuntimeSnapshot = Readonly<{
 	id: ExactInspectionRuntimeId;
 	parent?: ExactInspectionRuntimeId;
+	kind?: string;
 	name?: string;
 	activation: 'initialization' | 'reactive' | 'interaction' | 'invoked' | 'lifecycle';
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';

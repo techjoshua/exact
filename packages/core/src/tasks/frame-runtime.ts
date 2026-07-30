@@ -46,6 +46,7 @@ export type TaskFrameRecord = {
 	readonly children: Set<Promise<void>>;
 	readonly cleanups: Cleanup[];
 	readonly context: TaskContext;
+	readonly kind: string;
 	readonly label?: string;
 	readonly activation: TaskActivation;
 	readonly generation: number;
@@ -69,6 +70,7 @@ export type InternalTaskFrameOptions = {
 	readonly priority?: 'immediate' | 'normal' | 'deferred';
 	readonly readiness?: 'blocking' | 'nonblocking';
 	readonly optimistic?: (work: () => void) => void;
+	readonly kind?: string;
 	readonly label?: string;
 	readonly placement?: 'current' | 'client' | 'server';
 	readonly concurrency?: 'parallel' | 'latest' | 'queue';
@@ -208,6 +210,7 @@ export function executeTaskFrame<T>(
 			(options.priority === 'deferred'
 				? 'nonblocking'
 				: (structuralParent?.readiness ?? 'blocking')),
+		kind: options.kind ?? 'task',
 		producerOpen: true,
 		settled: false,
 		startedAt: monotonicTimestamp(),

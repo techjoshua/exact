@@ -175,7 +175,8 @@ export function TasksPage(this: Component<{}>) {
 					and waits for structural cleanup. Framework packages use the narrower opaque frame SPI at{' '}
 					<code>@exactjs/core/framework/task-frames</code>. Its executions are cancelable:
 					cancellation aborts attached descendants and reports completion only after their
-					cooperative cleanup.
+					cooperative cleanup. Structural finalizers remain attached to the parent task, while
+					semantic frame kinds and human labels remain visible to inspection tools.
 				</p>
 			</section>
 		</Article>

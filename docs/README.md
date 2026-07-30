@@ -49,6 +49,7 @@ Active proposals:
 | Proposal                                                                                                | Scope                                                                                                                                                     |
 | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Unified function-defined tasks and structured task trees](proposals/unified-function-defined-tasks.md) | Replaces separate authored task/action APIs with compiler-recognized functions, one structured lifetime, unified tooling, and a future motion foundation. |
+| [Optional motion component library](proposals/motion-component-library.md)                              | Defines task-owned presence, element, list, layout, reduced-motion, and dependency-neutral router transition coordination.                                |
 
 ## Historical evidence
 

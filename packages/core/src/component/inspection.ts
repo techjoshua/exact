@@ -221,6 +221,7 @@ function inspectTaskFrame(
 					})!
 				}),
 		...(frame.label === undefined ? {} : { name: frame.label }),
+		kind: frame.kind,
 		activation: frame.activation,
 		placement: frame.placement === 'current' ? 'isomorphic' : frame.placement,
 		readiness: frame.readiness,

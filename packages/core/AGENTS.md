@@ -29,9 +29,10 @@ extend structural settlement. Framework packages may use
 `@exactjs/core/framework/task-frames`; application code should not. Retain the returned execution
 when framework work must be reversible, call `cancel()` instead of building a second cancellation
 channel, and handle the `cancelled` structural outcome without publishing stale completion work.
-Cancellation remains cooperative and settles only after descendants and cleanup finish. Never
-acquire an `ExactClient`, call low-level dispatch APIs, or author operation identifiers inside a
-component.
+Cancellation remains cooperative and settles only after descendants, cleanup, and the structural
+finalizer finish. Supply a stable semantic `kind` for tooling and reserve `label` for concise
+human-facing context. Never acquire an `ExactClient`, call low-level dispatch APIs, or author
+operation identifiers inside a component.
 Do not author `RuntimeTaskOptions.captureArguments`; it is emitted by the
 compiler to implement captured parameter defaults.
 

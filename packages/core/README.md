@@ -55,8 +55,9 @@ resolve its ordinary arguments explicitly.
 Framework packages use `@exactjs/core/framework/task-frames` for opaque frame capture,
 reservation, cancelable execution, and synchronous restoration. A frame execution remains pending
 through attached descendants and cleanup; cancelling it aborts the frame and descendants before
-reporting a `cancelled` structural outcome. Application components should prefer compiler-authored
-ordinary functions over either lower-level surface.
+reporting a `cancelled` structural outcome. Structural finalizers remain attached to their parent,
+and inspection retains the frame's semantic kind and optional label. Application components should
+prefer compiler-authored ordinary functions over either lower-level surface.
 
 `createComponentRegistry()` declares a finite immutable set of eager and lazy components.
 Registry members are stable component facades, `KeyOf<typeof Registry>` derives the key union,
