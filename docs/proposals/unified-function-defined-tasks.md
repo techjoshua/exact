@@ -13,18 +13,18 @@ described in
 retaining its concurrency, optimistic-state, form, router, security, and
 distributed-execution guarantees.
 
-| Delivery area         | Current state                                             | Proposed state                                                                  |
-| --------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Reactive work         | Registered with `this.task(...)`                          | Inferred from ordinary inner functions and their activation sites               |
-| Explicit invocation   | Registered with `this.action(...)`                        | An ordinary function invoked without a parent `TaskContext`                     |
-| Placement and policy  | Fluent component factories and positional arguments       | A compiler-read default value on the final `TaskContext` parameter              |
-| Cancellation          | Task/action contexts and inferred abort signals           | One `TaskContext.signal`, with the existing cancellable-call inference retained |
-| Optimistic state      | `ActionContext.optimistic(...)` only                      | `TaskContext.optimistic(...)` for eligible invoked task generations             |
-| Cleanup and ownership | Returned cleanup, inferred resources, component ownership | `task.cleanup(...)`, `task.own(...)`, and compiler-owned disposables            |
-| Parent/child work     | Interaction settlement plus independent tasks/actions     | An inspectable structured task tree                                             |
-| Server dispatch       | Generated action continuations using `type: "action"`     | Generated invoked-task operations; opaque identity and security remain          |
-| DevTools              | Separate task and action views                            | One task tree with activation, placement, policy, ownership, and effects        |
-| Motion/presence       | Not implemented                                           | A later package built on attached task descendants and `task.join()`            |
+| Delivery area         | Current state                                             | Proposed state                                                                         |
+| --------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Reactive work         | Registered with `this.task(...)`                          | Inferred from ordinary inner functions and their activation sites                      |
+| Explicit invocation   | Registered with `this.action(...)`                        | An ordinary function call, attached to the ambient frame or rooted when none exists    |
+| Placement and policy  | Fluent component factories and positional arguments       | A compiler-read default value on the final `TaskContext` parameter                     |
+| Cancellation          | Task/action contexts and inferred abort signals           | One `TaskContext.signal`, with the existing cancellable-call inference retained        |
+| Optimistic state      | `ActionContext.optimistic(...)` only                      | `TaskContext.optimistic(...)` for eligible invoked task generations                    |
+| Cleanup and ownership | Returned cleanup, inferred resources, component ownership | `task.cleanup(...)`, `task.own(...)`, and compiler-owned disposables                   |
+| Parent/child work     | Interaction settlement plus independent tasks/actions     | An inspectable structured task tree                                                    |
+| Server dispatch       | Generated action continuations using `type: "action"`     | Generated invoked-task operations; opaque identity and security remain                 |
+| DevTools              | Separate task and action views                            | One task tree with activation, placement, policy, ownership, and effects               |
+| Motion/presence       | Not implemented                                           | A later package built on automatic descendant attachment and internal frame settlement |
 
 ## Decision
 
@@ -58,23 +58,23 @@ stores the policy in generated metadata, and removes the builder execution from
 production output. A development fallback may throw a focused diagnostic if
 uncompiled code tries to execute it.
 
-There are two call forms:
+Application calls use ordinary function syntax:
 
 ```ts
-const result = await quoteProviderOnServer(id, request); // new invoked generation
-const result = await quoteProviderOnServer(id, request, task); // attached child frame
+const result = await quoteProviderOnServer(id, request);
 ```
 
-Passing `task` does not merely forward an abort signal. It explicitly joins the
-callee to the current structured lifetime. Omitting it activates an
-independently scheduled generation of the callee's task definition. When that
-invocation occurs inside another task, DevTools retains causal parentage, but
-the invoked generation has its own policy, status, optimistic journal, and
-settlement.
+When a compiler-visible call runs under an active task frame, the compiler and
+runtime attach the callee automatically. With no ambient frame, the call
+creates a root invoked generation. `detached()` is the explicit policy for
+component-owned work that must not delay its causal parent. The compiler
+supplies a fresh final `TaskContext` for each generated frame; application code
+does not thread a parent's context through child calls.
 
-`TaskContext` is deliberately not promise-like. Authors await returned values
-normally and use `await task.join()` only when they need an intermediate
-barrier for all currently attached descendants.
+`TaskContext` is deliberately not promise-like and exposes no general join or
+scope-management API. Awaiting a returned value is ordinary result
+coordination. Structural descendant settlement is automatic even when an
+application does not await a child result.
 
 ## Why one concept is better
 
@@ -127,8 +127,8 @@ kind.
 ## Non-goals
 
 - Making every JavaScript function globally inspectable or scheduled.
-- Turning `TaskContext` into a Promise or requiring an `await` at every nesting
-  level.
+- Turning `TaskContext` into a Promise, exposing frame-lifetime bookkeeping,
+  or requiring an `await` at every nesting level.
 - Treating every reactive invalidation as an application “action.” An
   invalidation is a cause; the scheduled work it activates is a task
   generation.
@@ -150,7 +150,7 @@ These are deliberate breaking changes, not incidental refactors:
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Component.task(...)` and placement/priority task facets                            | Setup-scope calls to task-classified functions, with policy on the final `TaskContext` default                                             |
 | `Component.action(...)` and `ComponentActionFactory`                                | Direct calls to function-defined tasks                                                                                                     |
-| Separate `ActionContext` and task `{ signal }` context                              | One `TaskContext` with signal, generation, activation, optimism, cleanup, ownership, and joining                                           |
+| Separate `ActionContext` and task `{ signal }` context                              | One author-facing `TaskContext` with signal, generation, activation, optimism, cleanup, ownership, and dependency control                  |
 | A task callback may return a cleanup function                                       | New tasks return data normally and register cleanup with `task.cleanup(...)`                                                               |
 | Separate `ComponentAction` callable/status type                                     | Compiler-synthetic task-function status members when a facade is required                                                                  |
 | Separate action and task runtime state machines                                     | One definition/generation/frame scheduler and ownership model                                                                              |
@@ -195,9 +195,9 @@ The implementation must keep four identities distinct:
    operation identity.
 3. A **task generation** is one independently scheduled activation with
    status, cancellation, optimistic journal, and result.
-4. A **task frame** is one attached execution in a generation's structured
-   tree. Passing a `TaskContext` creates a child frame; it does not create a
-   second independently scheduled generation.
+4. A **task frame** is one execution in a generation's structured tree. A
+   compiler-visible call under an ambient frame creates an attached child
+   automatically; a call without an ambient frame creates a root generation.
 
 The same implementation may have more than one task definition when it is used
 at meaningfully different activation sites. This prevents a reactive host and
@@ -254,13 +254,13 @@ reactive generation whenever the resulting dependency changes. The generated
 runtime receives the argument value captured for that generation.
 
 A setup-scope call with no reactive input is initialization-only. A call from
-inside another function is an ordinary invoked or attached call according to
-whether its final context argument is omitted or passed. This rule applies
-only when the target is already task-classified by effects, placement,
-capabilities, or a known host; ordinary pure setup helpers retain ordinary
-JavaScript call semantics. The language service shows the inferred activation
-at the call site and offers an explicit policy parameter when the inference is
-not what the author intended.
+inside active task work attaches automatically to that frame; otherwise it
+creates a root invoked generation. This rule applies only when the target is
+already task-classified by effects, placement, capabilities, or a known host;
+ordinary pure setup helpers retain ordinary JavaScript call semantics. The
+language service shows the inferred activation and attachment at the call site
+and offers an explicit policy parameter when the inference is not what the
+author intended.
 
 ### Supported function shapes
 
@@ -307,7 +307,6 @@ export interface TaskContext {
 	optimistic(work: () => void): void;
 	cleanup(cleanup: () => void | Promise<void>): void;
 	own<T extends Disposable | AsyncDisposable>(resource: T): T;
-	join(): Promise<void>;
 }
 
 export interface TaskContextPolicy extends TaskContext {
@@ -331,16 +330,21 @@ TypeScript permits the type and value to share the `TaskContext` name. Only a
 chain rooted at the imported framework `TaskContext` value is accepted as
 policy syntax; lookalike user objects are ordinary defaults.
 
+The final parameter is compiler-supplied. Application calls omit it even when
+the caller is another task; passing a parent `TaskContext` manually is a
+diagnostic. The generated child receives its own context associated with its
+automatically attached runtime frame.
+
 Policy defaults are:
 
-| Facet                | Default                                                               |
-| -------------------- | --------------------------------------------------------------------- |
-| Placement            | Inferred                                                              |
-| Invoked concurrency  | `parallel`                                                            |
-| Reactive concurrency | Latest generation supersedes the prior generation                     |
-| Priority             | `normal`                                                              |
-| Readiness            | `nonblocking`                                                         |
-| Attachment           | Attached when a context is passed; independently invoked when omitted |
+| Facet                | Default                                                                     |
+| -------------------- | --------------------------------------------------------------------------- |
+| Placement            | Inferred                                                                    |
+| Invoked concurrency  | `parallel`                                                                  |
+| Reactive concurrency | Latest generation supersedes the prior generation                           |
+| Priority             | `normal`                                                                    |
+| Readiness            | `nonblocking`                                                               |
+| Attachment           | Attached to the ambient frame; root when none exists; `detached()` opts out |
 
 `immediate` means eligible in the current interactive scheduling turn. It does
 not guarantee synchronous completion or a paint. It replaces the current
@@ -360,7 +364,8 @@ Contradictory or repeated facets are compile errors:
 task: TaskContext = TaskContext.client().server();
 ```
 
-The parameter may be destructured when no child context must be forwarded:
+The parameter may be destructured when the implementation needs only selected
+capabilities:
 
 ```ts
 async function load(url: string, { signal }: TaskContext = TaskContext.server().latest()) {
@@ -368,9 +373,10 @@ async function load(url: string, { signal }: TaskContext = TaskContext.server().
 }
 ```
 
-Use a named `task` binding when calling attached children, registering
-ownership, excluding a read from the task's dependencies, applying optimistic
-state, or joining descendants.
+Use a named `task` binding when registering ownership, excluding a read from
+the task's dependencies, applying optimistic state, or consuming an explicit
+capability such as `signal`. Child task attachment does not require passing
+this binding.
 
 ### Inferred dependencies and `task.peek()`
 
@@ -409,7 +415,7 @@ async function refreshRates(task: TaskContext = TaskContext.client().deferred())
 	const revision = this.state.revision;
 	const draft = task.peek(() => this.state.draft);
 
-	await loadRates(revision, draft, task);
+	await loadRates(revision, draft);
 }
 
 refreshRates();
@@ -472,29 +478,24 @@ cannot be proven.
 
 ```ts
 async function refresh(request: RateRequest, task: TaskContext = TaskContext.client().latest()) {
-	const route = await resolveRouteOnServer(request, task);
-	const quotes = await Promise.all(providers.map((id) => quoteProviderOnServer(id, request, task)));
+	const route = await resolveRouteOnServer(request);
+	const quotes = await Promise.all(providers.map((id) => quoteProviderOnServer(id, request)));
 	this.state.route = route;
 	this.state.providers = quotes;
 }
 ```
 
 Calling `refresh(request)` creates a latest-wins invoked generation. Both
-server calls receive its context and become attached child frames. The parent
-does not settle until its returned promise and every attached descendant have
-settled. An explicit `await task.join()` is needed only for an intermediate
-barrier:
+server calls run under its ambient frame and become attached children
+automatically. `Promise.all()` is used only because `refresh` needs both result
+values; it does not construct the structural lifetime. If `refresh` started an
+attached child without awaiting its result, the frame still could not settle
+before that child.
 
-```ts
-function publish(update: () => void, task: TaskContext) {
-	update();
-	return task.join(); // wait for reactive/renderer descendants caused so far
-}
-```
-
-Passing a context through a synchronous helper does not require an `await`.
-The runtime frame tracks descendants independently of the JavaScript call
-stack.
+The compiler supplies each child function's own `TaskContext`. It also carries
+the parent frame through transparent synchronous helpers and compiler-known
+scheduled callbacks. An explicit `TaskContext` argument is not an application
+attachment protocol.
 
 ### Observable status
 
@@ -538,15 +539,55 @@ lower calls directly with no facade allocation.
 
 A task frame settles when:
 
-1. its function has returned or thrown;
-2. every attached child frame has settled;
+1. its compiler-created producer scope has been disposed after the function
+   returns or throws;
+2. every reserved and attached child frame has settled;
 3. renderer, router, form, and resource jobs attached to the frame have
-   settled; and
-4. required optimistic commit or rollback work has completed.
+   settled;
+4. descendant cleanup has completed; and
+5. required optimistic commit or rollback work has completed.
 
 This automatic settlement is the reason callers do not have to await at every
 layer. Awaiting a task's returned promise observes the whole attached subtree,
-not only the immediate function promise.
+not only the immediate function promise. Not awaiting a child result does not
+detach it.
+
+### Compiler-owned frame scope
+
+Scope closure and descendant settlement are internal frame mechanics, not
+public `TaskContext` capabilities. Lowering is semantically equivalent to:
+
+```ts
+async function invokeTask(parentFrame: TaskFrame | undefined, args: unknown[]) {
+	const frame = runtime.attachTask(parentFrame, definition);
+	let outcome;
+
+	try {
+		using scope = frame.scope;
+		outcome = await implementation(...args, frame.context);
+	} catch (error) {
+		outcome = runtime.failure(error);
+	}
+
+	await frame.childrenSettled;
+	await frame.finishCleanupAndCommit();
+	return runtime.unwrap(outcome);
+}
+```
+
+`frame.scope` is a compiler/runtime-owned disposable producer lease. Disposing
+it means that invocation has finished directly initiating children; it does
+not mean the frame is settled. `frame.childrenSettled` is one stable internal
+completion signal for the dynamically discovered subtree, not a
+`Promise.all()` snapshot. It fulfills after success, failure, or cancellation
+once every reserved descendant is terminal, while semantic failure propagates
+through the frame outcome separately.
+
+The runtime reserves a child atomically before queueing its work. A queued
+child therefore cannot appear after `childrenSettled` has observed an empty
+tree. Descendants may reserve further descendants while their own producer
+scopes remain open. Application code cannot dispose a scope, await the wrong
+subtree, or deadlock by awaiting its own still-open frame.
 
 ### Cancellation, failure, and cleanup
 
@@ -561,9 +602,10 @@ not only the immediate function promise.
 - Detached failures are reported to the component error/inspection channel;
   they cannot become unhandled process rejections.
 
-The runtime records both a structural parent and a causal origin. An omitted
-context starts a new generation, so it is not structurally attached, but
-DevTools can still answer “which interaction invoked this work?”
+The runtime records both a structural parent and a causal origin. Explicitly
+detached work has no structural parent that delays settlement, but retains its
+causal origin so DevTools can still answer “which interaction invoked this
+work?”
 
 ### Cleanup and owned resources
 
@@ -616,12 +658,13 @@ async function renameCard(
 }
 ```
 
-An attached child shares its generation's optimistic journal. An omitted-
-context invocation owns a new journal. The current path/collection conflict
-rules, rollback ordering, generation fences, staged server effects, and
-parallel-overlay diagnostic remain. `optimistic()` is rejected in reactive,
-initialization, lifecycle, and detached generations unless a later proposal
-defines a sound commit authority for those activations.
+An attached child shares its root generation's optimistic journal. A call with
+no ambient frame creates a root invocation and therefore owns a new journal.
+The current path/collection conflict rules, rollback ordering, generation
+fences, staged server effects, and parallel-overlay diagnostic remain.
+`optimistic()` is rejected in reactive, initialization, lifecycle, and
+detached generations unless a later proposal defines a sound commit authority
+for those activations.
 
 ## Compiler implementation
 
@@ -667,10 +710,9 @@ dependency set. A current generation that fails does install the dependencies
 it observed before failing, so changing the input that caused the failure can
 activate a retry.
 
-Recursive task calls without a passed context create invoked generations and
-therefore obey concurrency policy. Passing the current context performs
-ordinary recursion within an attached frame. The compiler must preserve stack
-and tail-call behavior; the task runtime must not flatten recursion into one
+Recursive task calls attach new child frames automatically unless the
+definition is explicitly detached. The compiler must preserve stack and
+tail-call behavior; the task runtime must not flatten recursion into one
 frame.
 
 ### 3. Parse and erase policy builders
@@ -727,7 +769,8 @@ generation.
 The checker must understand:
 
 - synthetic task-function status members;
-- omitted versus explicit compiler-supplied final context arguments;
+- compiler-supplied final context arguments and diagnostics for attempts to
+  pass or transmit a parent context manually;
 - policy builder validity;
 - serializable invoked-task arguments and results;
 - activation-specific capability availability;
@@ -749,6 +792,7 @@ Replace the separate component task and action resources with:
 - `TaskDefinitionRuntime`;
 - `TaskGenerationRuntime`;
 - `TaskFrameRuntime`;
+- compiler-owned disposable producer scopes and descendant-settlement signals;
 - one callable facade/status implementation;
 - one scheduling and concurrency implementation;
 - one optimistic journal integration; and
@@ -765,6 +809,33 @@ than a second lifetime system. DOM events, forms, and router navigation keep
 their useful semantic source labels while sharing cancellation, settlement,
 ownership, and inspection with every other task.
 
+### Current-frame propagation
+
+The browser cannot depend on a process-global async-local variable to preserve
+the current frame across concurrent Promise continuations. Frame propagation
+must therefore be explicit in generated and scheduled work:
+
+- direct compiler-visible task calls receive a hidden parent-frame operand;
+- instrumented reactive reads, writes, and capability operations carry the
+  current frame token after an `await`;
+- compiler-generated callbacks capture the token when they represent
+  continuation work;
+- reactive, renderer, router, form, and lifecycle queue records store the
+  token and reserve their child frame before enqueueing;
+- the scheduler pushes the token on a short synchronous runtime stack only
+  while invoking code, then restores the previous token in `finally`;
+- future independent hosts such as a later DOM event intentionally create a
+  new root instead of retaining the frame that installed the handler; and
+- remote calls transmit only opaque generation/parent correlation metadata,
+  from which the authorized destination runtime creates a remote child frame.
+
+A token is a small runtime identity such as generation and frame IDs, not a
+retained `TaskContext`. The runtime resolves it through the owning component
+and generation registry, rejects stale attachments, and uses it to establish
+structural parentage and causal origin. A server may use `AsyncLocalStorage` as
+an optimization, but correctness must remain based on the explicit token so
+browser and server behavior agree.
+
 ### Reactive runtime and DOM renderer
 
 Reactive invalidation itself is recorded as a causal edge. Any derived
@@ -772,10 +843,10 @@ computation, binding, reconciliation job, ref callback, portal update,
 blocking candidate, or mount/remove lifecycle scheduled as a consequence of a
 task frame inherits that frame unless explicitly detached.
 
-This is required for `task.join()` to mean “the visible consequences of work
-started so far are settled,” rather than merely “some promises resolved.”
-The renderer must propagate a small frame token through its scheduler and
-settle the corresponding child job after commit. It must not retain a whole
+This is required for internal `frame.childrenSettled` to include visible
+consequences rather than merely function promises. The renderer must propagate
+a small frame token through its scheduler, reserve a child job before
+queueing, and settle that child only after commit. It must not retain a whole
 `TaskContext` in every reactive node.
 
 The existing precise dependency graph remains. A state change does not create
@@ -789,10 +860,10 @@ Pending UI, duplicate-submit suppression, external errors, focus behavior,
 and native-form fallback remain package-owned. Their settlement source changes
 from the separate interaction object to the task subtree.
 
-Router navigation, fetch, submit, redirect, and revalidation join the current
-task frame when initiated synchronously from it. A standalone navigation
-creates its own interaction generation. Latest-wins navigation and stale
-response fencing remain.
+Router navigation, fetch, submit, redirect, and revalidation attach to the
+current task frame when initiated from it. A standalone navigation creates its
+own interaction generation. Latest-wins navigation and stale response fencing
+remain.
 
 `InteractionHandler` may remain as a contextual host type because it describes
 why a callback runs, not a second runtime resource. Any public action-specific
@@ -844,7 +915,8 @@ It must provide:
   paths;
 - policy-builder completion, validation, and quick fixes;
 - “Convert `this.task`/`this.action` to function-defined task” refactors;
-- call-site hints distinguishing new invocation from attached child;
+- call-site hints distinguishing root, automatically attached, and explicitly
+  detached invocation;
 - placement, priority, concurrency, readiness, activation, dependencies,
   captured values, resources, cleanup, and optimistic information;
 - diagnostics for uncancellable unknown calls, escaped disposables,
@@ -954,8 +1026,8 @@ export function CalculatorWorkspace(
 		await delay(450, task.signal);
 		const request = normalizeDraft(task.peek(() => this.state.draft));
 		const ids = task.peek(() => initial.configuredProviders);
-		const route = resolveRouteOnServer(request, task);
-		const quotes = ids.map((id) => quoteProviderOnServer(id, request, task));
+		const route = resolveRouteOnServer(request);
+		const quotes = ids.map((id) => quoteProviderOnServer(id, request));
 		this.state.route = await route;
 		this.state.providers = await Promise.all(quotes);
 	}
@@ -976,12 +1048,13 @@ refreshed when `revision` activates the task without independently triggering
 it. If those `task.peek()` calls were removed, the body reads would become
 inferred dependencies as well.
 Calling `refreshRates(...)` later from inside another function remains an
-ordinary invoked generation unless that caller passes its `TaskContext`.
+ordinary invocation. It attaches automatically when the caller runs under a
+task frame and creates a root generation otherwise.
 
-The refresh code passes `task`, so every quote and route request is attached.
-Manual generation comparisons can then be removed: latest cancellation and
-commit fencing are runtime guarantees. The component never imports a
-transport client or names a continuation.
+The compiler attaches every quote and route request to the ambient refresh
+frame without passing `task`. Manual generation comparisons can then be
+removed: latest cancellation and commit fencing are runtime guarantees. The
+component never imports a transport client or names a continuation.
 
 ### Kanban persistence
 
@@ -1032,10 +1105,10 @@ return () => (
 );
 ```
 
-The form creates an interaction root; `saveProfile(...)` intentionally omits
-the context and therefore creates its own latest-wins invoked generation with
-causal linkage. A framework host may instead pass its context when the desired
-contract is one attached lifetime.
+The form creates an interaction root, and `saveProfile(...)` attaches
+automatically. Its latest-wins policy still fences overlapping save
+activations across interaction roots. No handler or application component
+passes a context to establish that relationship.
 
 ### Explicit resource lifetime
 
@@ -1064,7 +1137,7 @@ are addressed:
 | Workbench/compiler demos      | Show inferred, explicit-policy, attached, detached, optimistic, and server examples                                      |
 | Docs application              | Replace every `this.task`/`this.action` example and add a task-tree guide                                                |
 | Core/compiler fixtures        | Recast task/action fixtures around definitions, activations, frames, and protocol v2                                     |
-| Forms/router samples          | Preserve pending, duplicate suppression, redirects, and navigation joining                                               |
+| Forms/router samples          | Preserve pending, duplicate suppression, redirects, and automatic navigation attachment                                  |
 | Microfrontend/server samples  | Regenerate invoked-task contracts and verify scope/authorization boundaries                                              |
 | Chrome and VS Code extensions | Remove action-only UI and consume the unified inspection schema                                                          |
 
@@ -1110,11 +1183,14 @@ A stable component can retain the previous child while leave work runs:
 `Presence` owns phase and retained-child state. On removal it:
 
 1. keeps rendering the prior keyed child;
-2. opens an attached motion task frame;
-3. asks registered descendant motion participants to leave;
-4. awaits the motion subtree with `task.join()`;
-5. cancels stale leave work if presence returns; and
-6. stops rendering only after the subtree settles.
+2. asks the runtime to open an attached, internal motion task frame;
+3. renders the retained range under that frame while the compiler/runtime
+   manages its producer scope;
+4. lets descendant motion participants attach automatically;
+5. schedules range removal as the frame's post-children continuation;
+6. lets the runtime wait on the frame's internal `childrenSettled`;
+7. cancels stale leave work if presence returns; and
+8. stops rendering only after the subtree settles.
 
 `Motion` registers a participant through ordinary component context.
 Animations, observers, and frame callbacks are owned resources; an animation
@@ -1122,21 +1198,23 @@ wrapper can implement `AsyncDisposable`. Cancellation, reduced motion,
 component disposal, and rapid enter/leave reversal therefore use task
 semantics rather than a second transition token.
 
-An internal helper can express the renderer boundary:
+An internal renderer/runtime operation can express the boundary:
 
 ```ts
-async function commitDomUpdate(
-	update: () => void,
-	task: TaskContext = TaskContext.client().immediate()
-) {
-	const value = update();
-	await task.join();
-	return value;
-}
+runtime.runTaskFrame({
+	parent: currentFrame,
+	kind: 'presence-leave',
+	work: () => renderRetainedLeavingRange(),
+	afterChildren: () => removeRetainedRange()
+});
 ```
 
-This works only if renderer consequences inherit the active frame as required
-above. No public DOM-commit token is needed.
+`runTaskFrame` reserves the frame, wraps `work` with its disposable producer
+scope, waits for its internal descendant-settlement signal, and then runs
+`afterChildren` under the appropriate still-active parent frame. Neither
+`scope` nor `childrenSettled` appears in application or motion component
+source. This works only if renderer consequences inherit the active frame as
+required above. No public DOM-commit token is needed.
 
 ### Planned package surface
 
@@ -1163,8 +1241,8 @@ consequences and is intentionally not smuggled into this task proposal.
 ### Phase 0: freeze semantics with executable fixtures
 
 - Add compiler fixtures for every function shape, activation kind, policy
-  facet, context-passing form, recursion form, resource outcome, and placement
-  boundary.
+  facet, automatic attachment form, recursion form, resource outcome, and
+  placement boundary.
 - Add protocol fixtures for old action and new invoked-task requests.
 - Record current action/task/form/router behavior as black-box compatibility
   tests.
@@ -1206,12 +1284,13 @@ is highlighted normally, and benchmarks remain within agreed budgets.
 - Propagate frame tokens through reactive scheduling and DOM commit.
 - Attach bindings, reconciliation, refs, portals, blocking work, and lifecycle
   consequences.
-- Implement `join()` barriers and commit/cancel fencing.
+- Implement compiler-owned producer scopes, atomic child reservation,
+  descendant-settlement signals, and commit/cancel fencing.
 - Add stress tests for rapid invalidation, keyed removal, portals, Suspense,
   Activity, and component disposal.
 
-Exit gate: awaiting a subtree deterministically observes visible DOM effects
-without leaking frames or delaying unrelated work.
+Exit gate: automatic frame settlement deterministically includes visible DOM
+effects without leaking frames or delaying unrelated work.
 
 ### Phase 4: invoked server tasks and optimism
 
@@ -1268,11 +1347,11 @@ machinery is gone.
 
 ### Later: motion proposal and package
 
-Start `@exactjs/motion` only after task-frame renderer propagation and
-`task.join()` are stable. Its own proposal must specify animation ownership,
-presence identity, list reconciliation, layout measurement, SSR/hydration,
-reduced motion, router/view transitions, accessibility, performance budgets,
-and DevTools presentation.
+Start `@exactjs/motion` only after task-frame renderer propagation, internal
+producer scopes, and descendant settlement are stable. Its own proposal must
+specify animation ownership, presence identity, list reconciliation, layout
+measurement, SSR/hydration, reduced motion, router/view transitions,
+accessibility, performance budgets, and DevTools presentation.
 
 ## Verification strategy
 
@@ -1284,12 +1363,16 @@ Protection should match the risk of each boundary:
   suppression, and diagnostics.
 - **Runtime invariant tests:** generation transitions, parallel/latest/queue,
   attached/detached settlement, cancellation direction, error propagation,
-  cleanup order, disposal, dynamic dependency replacement, failed-generation
-  retry dependencies, stale-generation rejection, and component teardown.
+  producer-scope disposal, atomic child reservation, exactly-once descendant
+  settlement, cleanup order, disposal, dynamic dependency replacement,
+  failed-generation retry dependencies, stale-generation rejection, and
+  component teardown.
 - **Property/model tests:** random task trees compared with a small reference
-  state machine for terminal settlement and exactly-once cleanup.
+  state machine for terminal settlement, late scheduling races, and
+  exactly-once cleanup.
 - **Renderer integration tests:** task-caused state changes through bindings,
-  keyed ranges, portals, refs, blocking work, hydration, and rapid reversal.
+  keyed ranges, portals, refs, blocking work, hydration, concurrent async
+  continuations, and rapid reversal.
 - **Security tests:** forged IDs, unauthorized calls, secret captures,
   malformed serialization, replay, CSRF, mixed builds, stale generations, and
   redacted inspection.
@@ -1304,7 +1387,7 @@ Protection should match the risk of each boundary:
   sample rather than source-shape snapshots.
 - **Performance tests:** component setup, facade allocations, hot direct calls,
   reactive invalidation, deep/broad trees, renderer token propagation,
-  protocol payload, and inspection overhead.
+  frame reservation/settlement, protocol payload, and inspection overhead.
 
 Exact generated text should be snapshotted only where it is a public protocol
 or artifact contract. Compiler tests should otherwise assert semantic
@@ -1317,8 +1400,8 @@ The proposal is complete only when:
 1. ordinary declared, assigned, and expression functions cover every current
    task and action use case;
 2. no separate public component action/task registration APIs remain;
-3. passing a context creates a deterministic attached child frame, while
-   omitting it creates a policy-governed invoked generation;
+3. compiler-visible calls attach automatically to the active frame, calls
+   without an active frame create roots, and detachment is explicit;
 4. body, argument, helper, prop, context, and derived reads infer canonical
    dependencies, while `task.peek()` excludes only the current task's
    dependency;
@@ -1326,13 +1409,14 @@ The proposal is complete only when:
    context parameters;
 6. optimistic state, forms, router work, and distributed execution preserve
    their current guarantees;
-7. `task.join()` includes renderer consequences and cannot hang on unrelated
-   work;
+7. compiler-owned producer scopes and descendant-settlement signals include
+   renderer consequences without late-child races or application-visible
+   lifetime controls;
 8. the compiler can erase builders and elide facades without observable
    semantic changes;
 9. the native checker and editor fully understand synthetic task functions;
 10. DevTools presents one authorized task tree in client-only and federated
     deployments;
 11. every existing sample and public document uses the new model; and
-12. `Presence` can retain and remove a stable child by awaiting descendant task
-    frames without requiring another public lifetime primitive.
+12. `Presence` can retain and remove a stable child through internal frame
+    settlement without requiring another public lifetime primitive.
