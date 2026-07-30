@@ -303,6 +303,7 @@ export interface TaskContext {
 	readonly generation: number;
 	readonly activation: TaskActivation;
 
+	peek<T>(read: () => T): T;
 	optimistic(work: () => void): void;
 	cleanup(cleanup: () => void | Promise<void>): void;
 	own<T extends Disposable | AsyncDisposable>(resource: T): T;
@@ -368,7 +369,83 @@ async function load(url: string, { signal }: TaskContext = TaskContext.server().
 ```
 
 Use a named `task` binding when calling attached children, registering
-ownership, applying optimistic state, or joining descendants.
+ownership, excluding a read from the task's dependencies, applying optimistic
+state, or joining descendants.
+
+### Inferred dependencies and `task.peek()`
+
+A setup-activated task infers dependencies from reactive reads:
+
+- while evaluating its setup-call arguments;
+- in the task implementation;
+- through statically resolved helper calls; and
+- through prop, context, and derived-value provenance.
+
+Those reads form the candidate dependency set. Runtime observation records the
+active subset for the completed generation, so branch-dependent subscriptions
+can be added and removed precisely:
+
+```ts
+async function refresh() {
+	if (this.state.useCustomProvider) {
+		await loadProvider(this.state.customProvider);
+	}
+}
+
+refresh();
+```
+
+`refresh` always depends on `useCustomProvider`. It depends on
+`customProvider` only after a generation takes that branch. Reads are
+canonicalized by reactive source and path, so reading the same value four
+times creates one dependency. Tooling may show the individual read locations,
+but must not present them as four dependencies.
+
+`task.peek()` reads the current value without adding it to this task's
+activation dependencies:
+
+```ts
+async function refreshRates(task: TaskContext = TaskContext.client().deferred()) {
+	const revision = this.state.revision;
+	const draft = task.peek(() => this.state.draft);
+
+	await loadRates(revision, draft, task);
+}
+
+refreshRates();
+```
+
+Changing `revision` activates a superseding generation. That generation reads
+the latest `draft`, but changing `draft` alone does not activate the task.
+`task.peek()` is the documented task-authoring idiom because it states which
+task's dependency collection is being suppressed. It suppresses only the
+current task frame's collector and must not disable an unrelated nested
+reactive scope.
+
+The standalone `peek()` export remains a supported lower-level reactive
+primitive for initialization, derived expressions, and code that has no task
+context:
+
+```ts
+this.state.draft = peek(() => cloneDraft(initial.draft));
+```
+
+Inside a task, standalone `peek()` remains valid for general untracked
+reactivity, but the language service recommends `task.peek()` when the intent
+is specifically to exclude a task dependency. DevTools and compiler
+inspection distinguish:
+
+```text
+Dependencies
+  this.state.revision
+
+Untracked task reads
+  this.state.draft — excluded by task.peek()
+```
+
+The compiler must preserve source provenance. Given a destructured prop named
+`revision`, tooling reports `revision (prop)` rather than inventing a
+nonexistent `props` identifier.
 
 ### Inferred cancellation remains first class
 
@@ -577,9 +654,18 @@ The analysis pipeline must:
 3. parse the final `TaskContext` parameter and fluent default policy;
 4. run the existing effect/call graph to a fixed point;
 5. create one task definition per distinct activation role;
-6. classify captured inputs, state/context reads and writes, placement,
-   resources, cancellation, serialization, and optimistic effects; and
+6. classify candidate dependencies, `task.peek()` suppression boundaries,
+   captured inputs, state/context reads and writes, placement, resources,
+   cancellation, serialization, and optimistic effects; and
 7. diagnose unresolved escapes and incompatible multi-role policies.
+
+Generated dependency metadata keeps canonical source identity separate from
+read locations and source spelling. At runtime, each generation replaces its
+active dependency set with the paths actually observed outside
+`task.peek()`. A cancelled or superseded generation must not install a stale
+dependency set. A current generation that fails does install the dependencies
+it observed before failing, so changing the input that caused the failure can
+activate a retry.
 
 Recursive task calls without a passed context create invoked generations and
 therefore obey concurrency policy. Passing the current context performs
@@ -754,6 +840,8 @@ classification with task definition, activation, and frame information.
 It must provide:
 
 - completion and hover for synthetic task status members;
+- completion and hover for `task.peek()`, including the suppressed dependency
+  paths;
 - policy-builder completion, validation, and quick fixes;
 - “Convert `this.task`/`this.action` to function-defined task” refactors;
 - call-site hints distinguishing new invocation from attached child;
@@ -864,11 +952,10 @@ export function CalculatorWorkspace(
 		task: TaskContext = TaskContext.client().deferred()
 	) {
 		await delay(450, task.signal);
-		const request = normalizeDraft(this.state.draft);
+		const request = normalizeDraft(task.peek(() => this.state.draft));
+		const ids = task.peek(() => initial.configuredProviders);
 		const route = resolveRouteOnServer(request, task);
-		const quotes = initial.configuredProviders.map((id) =>
-			quoteProviderOnServer(id, request, task)
-		);
+		const quotes = ids.map((id) => quoteProviderOnServer(id, request, task));
 		this.state.route = await route;
 		this.state.providers = await Promise.all(quotes);
 	}
@@ -884,6 +971,10 @@ export function CalculatorWorkspace(
 The setup-scope call is both readable TypeScript and the reactive activation:
 `this.state.revision` is its dependency and the evaluated revision is its
 generation argument. No `observe(...)` or registration wrapper is introduced.
+The `draft` and configured-provider reads use `task.peek()`, so they are
+refreshed when `revision` activates the task without independently triggering
+it. If those `task.peek()` calls were removed, the body reads would become
+inferred dependencies as well.
 Calling `refreshRates(...)` later from inside another function remains an
 ordinary invoked generation unless that caller passes its `TaskContext`.
 
@@ -1189,10 +1280,12 @@ Protection should match the risk of each boundary:
 
 - **Compiler contract tests:** semantic activation, effects, placement,
   capture/serialization, builder erasure, source maps, synthetic types, alias
-  resolution, recursion, and diagnostics.
+  resolution, recursion, canonical dependency deduplication, `task.peek()`
+  suppression, and diagnostics.
 - **Runtime invariant tests:** generation transitions, parallel/latest/queue,
   attached/detached settlement, cancellation direction, error propagation,
-  cleanup order, disposal, and component teardown.
+  cleanup order, disposal, dynamic dependency replacement, failed-generation
+  retry dependencies, stale-generation rejection, and component teardown.
 - **Property/model tests:** random task trees compared with a small reference
   state machine for terminal settlement and exactly-once cleanup.
 - **Renderer integration tests:** task-caused state changes through bindings,
@@ -1226,17 +1319,20 @@ The proposal is complete only when:
 2. no separate public component action/task registration APIs remain;
 3. passing a context creates a deterministic attached child frame, while
    omitting it creates a policy-governed invoked generation;
-4. inferred cancellation and disposable ownership work without ceremonial
+4. body, argument, helper, prop, context, and derived reads infer canonical
+   dependencies, while `task.peek()` excludes only the current task's
+   dependency;
+5. inferred cancellation and disposable ownership work without ceremonial
    context parameters;
-5. optimistic state, forms, router work, and distributed execution preserve
+6. optimistic state, forms, router work, and distributed execution preserve
    their current guarantees;
-6. `task.join()` includes renderer consequences and cannot hang on unrelated
+7. `task.join()` includes renderer consequences and cannot hang on unrelated
    work;
-7. the compiler can erase builders and elide facades without observable
+8. the compiler can erase builders and elide facades without observable
    semantic changes;
-8. the native checker and editor fully understand synthetic task functions;
-9. DevTools presents one authorized task tree in client-only and federated
-   deployments;
-10. every existing sample and public document uses the new model; and
-11. `Presence` can retain and remove a stable child by awaiting descendant task
+9. the native checker and editor fully understand synthetic task functions;
+10. DevTools presents one authorized task tree in client-only and federated
+    deployments;
+11. every existing sample and public document uses the new model; and
+12. `Presence` can retain and remove a stable child by awaiting descendant task
     frames without requiring another public lifetime primitive.
