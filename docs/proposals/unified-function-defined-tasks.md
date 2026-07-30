@@ -22,7 +22,7 @@ distributed-execution guarantees.
 | Optimistic state      | `ActionContext.optimistic(...)` only                      | `TaskContext.optimistic(...)` for eligible invoked task generations                    |
 | Cleanup and ownership | Returned cleanup, inferred resources, component ownership | `task.cleanup(...)`, `task.own(...)`, and compiler-owned disposables                   |
 | Parent/child work     | Interaction settlement plus independent tasks/actions     | An inspectable structured task tree                                                    |
-| Server dispatch       | Generated action continuations using `type: "action"`     | Generated invoked-task operations; opaque identity and security remain                 |
+| Server dispatch       | Generated action continuations using `type: "action"`     | Neutral operation invocation; opaque identity and security remain                      |
 | DevTools              | Separate task and action views                            | One task tree with activation, placement, policy, ownership, and effects               |
 | Motion/presence       | Not implemented                                           | A later package built on automatic descendant attachment and internal frame settlement |
 
@@ -164,11 +164,12 @@ These are deliberate breaking changes, not incidental refactors:
 | Separate `ActionContext` and task `{ signal }` context                              | One author-facing `TaskContext` with signal, generation, activation, optimism, cleanup, ownership, and dependency control                  |
 | A task callback may return a cleanup function                                       | New tasks return data normally and register cleanup with `task.cleanup(...)`                                                               |
 | Separate `ComponentAction` callable/status type                                     | Compiler-synthetic task-function status members when a facade is required                                                                  |
+| Task pending status conflates active work with host readiness                       | Owner-bound `pending` reports foreground work; deferred structural settlement remains separately inspectable                               |
 | Separate action and task runtime state machines                                     | One definition/generation/frame scheduler and ownership model                                                                              |
 | Separate internal interaction settlement                                            | Interaction hosts create root task generations                                                                                             |
 | eXact compilation required for a function to participate as a task                  | Compiler-authored functions plus `defineTask()` and explicit remote contracts for compilerless libraries                                   |
 | `interactive` in some scheduling packages and `immediate` in proposed source syntax | One public `immediate` priority term, normalized internally                                                                                |
-| Generated `type: "action"` requests and action manifests                            | Versioned invoked-task requests and task manifests, with a bounded compatibility decoder                                                   |
+| Generated `type: "action"` requests and action manifests                            | Neutral operation requests and task-aware manifests, migrated only with a behaviorally necessary protocol version                          |
 | Separate task/action compiler collectors and continuation kinds                     | Activation metadata on one task definition model                                                                                           |
 | Separate DevTools action/task snapshots, queries, and panels                        | One authorized task tree                                                                                                                   |
 | Raw TypeScript diagnostics treated as authoritative for component source            | `exactc` and the eXact language service own compiler-synthetic source semantics; TypeScript still validates public declarations and output |
@@ -182,7 +183,7 @@ Package consequences include:
 - `@exactjs/compiler` and the native compiler replace action/task collectors,
   manifests, lowering, and diagnostics with the unified model.
 - `@exactjs/server`, hydration, adapters, and microfrontend packages consume
-  versioned invoked-task contracts while preserving all existing authority and
+  neutral operation contracts while preserving all existing authority and
   serialization checks.
 - `@exactjs/dom`, `@exactjs/forms`, and the router propagate task frames rather
   than owning a separate interaction lifetime.
@@ -200,16 +201,20 @@ than retaining permanent aliases.
 
 ## Terminology and identity
 
-The implementation must keep four identities distinct:
+The implementation must keep six identities distinct:
 
 1. A **function implementation** is authored JavaScript/TypeScript code. A
    capture-free implementation may be shared by every component instance.
 2. A **task definition** is compiler metadata for one activation role of that
    function: policy, placement, effect summary, source location, and opaque
    operation identity.
-3. A **task generation** is one independently scheduled activation with
+3. A **task owner** is a durable component, router, form, request, adapter, or
+   explicitly created lifetime that isolates cancellation and concurrency.
+4. A **concurrency lane** is one owner, definition, and optional key tuple over
+   which `parallel`, `latest`, or `queue` is enforced.
+5. A **task generation** is one independently scheduled activation in a lane with
    status, cancellation, optimistic journal, and result.
-4. A **task frame** is one execution in a generation's structured tree. A
+6. A **task frame** is one execution in a generation's structured tree. A
    compiler-visible call under an ambient frame creates an attached child
    automatically; a call without an ambient frame creates a root generation.
 
@@ -329,6 +334,7 @@ export interface TaskContextPolicy extends TaskContext {
 	parallel(): TaskContextPolicy;
 	latest(): TaskContextPolicy;
 	queue(): TaskContextPolicy;
+	key<T>(value: T): TaskContextPolicy;
 	immediate(): TaskContextPolicy;
 	normal(): TaskContextPolicy;
 	deferred(): TaskContextPolicy;
@@ -357,7 +363,7 @@ Policy defaults are:
 | Invoked concurrency  | `parallel`                                                                  |
 | Reactive concurrency | Latest generation supersedes the prior generation                           |
 | Priority             | `normal`                                                                    |
-| Readiness            | `nonblocking`                                                               |
+| Readiness            | Inferred from priority, result waits, and the activation host               |
 | Attachment           | Attached to the ambient frame; root when none exists; `detached()` opts out |
 
 `immediate` means eligible in the current interactive scheduling turn. It does
@@ -366,10 +372,70 @@ cross-package ambiguity between “interactive” and “immediate.”
 
 Concurrency facets apply to independently invoked generations. A reactive
 activation always uses superseding generations; applying `parallel()` or
-`queue()` to a purely reactive definition is a diagnostic. Readiness affects
-only an activation with a renderer or server-readiness owner. `detached()`
-allows work to outlive its causal parent, but it remains owned by the component
-and is cancelled on component disposal.
+`queue()` to a purely reactive definition is a diagnostic. `blocking()` and
+`nonblocking()` explicitly override inferred readiness; they do not change
+scheduler priority or structural attachment. `detached()` allows work to
+outlive its causal parent, but it remains owned by its durable owner and is
+cancelled when that owner is disposed.
+
+#### Concurrency ownership and lanes
+
+A stable task definition is not itself a global concurrency boundary.
+`parallel`, `latest`, and `queue` operate within a concurrency lane:
+
+```ts
+type ConcurrencyLane = {
+	owner: TaskOwner;
+	definition: TaskDefinition;
+	key?: unknown;
+};
+```
+
+The owner is the nearest durable task owner, not the current activation frame.
+For component work it is normally the component instance; router, request,
+worker, and other framework hosts provide equivalent durable owners. A
+module-level task called by two component instances therefore has two
+independent `latest` lanes. Repeated calls from one component share a lane even
+when separate interaction roots caused them. Generation numbers increase
+monotonically for an owner and definition across all keys; the optional key
+selects concurrency peers but does not create a second generation namespace.
+
+`key(value)` divides one definition and owner into independent lanes:
+
+```ts
+async function saveDocument(
+	documentId: string,
+	task: TaskContext = TaskContext.latest().key(documentId)
+) {
+	await documents.save(documentId, task.signal);
+}
+```
+
+Calls for the same document supersede each other; calls for different documents
+do not. The key expression is the one permitted dynamic policy expression. It
+may reference earlier parameters, is evaluated once before activation, must be
+pure, and must satisfy the placement boundary's key constraints. The compiler
+extracts it from the erased default builder.
+
+`key()` partitions invoked concurrency only. A reactive definition remains one
+superseding lane per owner and activation site even when the same implementation
+also has an invoked definition. Using `key()` on a purely reactive function is a
+diagnostic because changing a reactive argument must supersede the prior work,
+not leave the old key running.
+
+An invocation under an existing task inherits its durable owner. An invocation
+under a component, router, form, request, or other host uses that host's owner.
+A call with neither an ambient task nor a durable host receives a fresh owner,
+so module evaluation cannot accidentally create process-global `latest` or
+`queue` behavior. Cross-root or application-wide concurrency requires an
+explicit async-disposable `TaskOwner` supplied through the JavaScript ABI.
+
+Placement across a remote boundary preserves the authorized logical owner and
+lane through opaque runtime correlation metadata. It never serializes a
+`TaskOwner` or accepts an application-provided owner identifier. The destination
+maps the authenticated correlation to a scoped server owner, allowing a newer
+generation from the same client owner and key to fence older server work
+without allowing unrelated clients or components to cancel one another.
 
 Contradictory or repeated facets are compile errors:
 
@@ -392,7 +458,7 @@ the task's dependencies, applying optimistic state, or consuming an explicit
 capability such as `signal`. Child task attachment does not require passing
 this binding.
 
-### Priority in the task graph
+### Priority and readiness in the task graph
 
 Priority affects when an eligible frame runs, not whether it belongs to the
 structured tree. Every frame records both a declared priority and an effective
@@ -424,16 +490,49 @@ This prevents priority inversion. Merely remaining structurally attached after
 the parent body has returned does not donate priority; a deliberately deferred
 child may finish later while the root remains in its settling state.
 
+Priority controls scheduling; readiness controls whether work keeps its host or
+task facade visibly pending. Structural attachment controls lifetime. These are
+three independent properties.
+
+Each frame contributes to two internal completion barriers:
+
+- `foregroundSettled` covers work whose readiness is blocking; and
+- `childrenSettled` covers every attached descendant, including nonblocking
+  deferred work.
+
+Absent an explicit readiness facet, immediate and normal work is blocking,
+deferred work is nonblocking, and a result wait temporarily donates both
+effective priority and blocking readiness to the result-producing path. An
+activation host may impose blocking readiness for work required to publish SSR,
+hydration, navigation, or another host result. Explicit `blocking()` and
+`nonblocking()` override the priority-derived default except that an actual
+result wait must remain blocking to avoid reporting readiness before the
+required value exists.
+
+An open optimistic journal also donates blocking readiness to every attached
+descendant whose failure could still roll it back. Authors cannot make a
+rollback-capable child nonblocking merely by lowering its scheduling priority;
+they must handle its failure before foreground settlement or detach it from the
+optimistic outcome. This prevents controls from reporting completion while
+visible state is still provisional.
+
+Forms, buttons, navigation indicators, and task-facade `pending` state observe
+`foregroundSettled`. Presence, cleanup, cancellation, frame finalization, and
+motion observe `childrenSettled`. DevTools exposes both foreground pending and
+structural settling so deferred descendants remain inspectable without keeping
+unrelated controls disabled.
+
 An author uses `detached()` when work such as best-effort telemetry must not
 extend the parent lifetime. Cancellation and cleanup are always scheduled
 promptly regardless of the cancelled frame's prior priority so deferred work
 cannot retain resources indefinitely. The scheduler must also age deferred
 frames to prevent starvation.
 
-DevTools shows declared priority, effective priority, inheritance, and active
-priority donation separately. Tests must cover immediate-to-deferred waits,
-deferred structural children, priority restoration, starvation prevention,
-and cancellation cleanup.
+DevTools shows declared priority, effective priority, readiness, inheritance,
+and active donation separately. Tests must cover immediate-to-deferred waits,
+deferred structural children, foreground versus structural settlement,
+priority/readiness restoration, starvation prevention, and cancellation
+cleanup.
 
 ### Function decorators and annotations
 
@@ -489,20 +588,58 @@ graph without running the eXact compiler over their source. The compiler emits
 ordinary JavaScript calls to the same supported runtime functions available to
 those libraries. It must not target an unexported task protocol.
 
-Provide a standards-compatible library ABI from `@exactjs/core/tasks`:
+Provide a standards-compatible library ABI from the versioned
+`@exactjs/core/tasks/v1` entry point:
 
 ```ts
-export interface RuntimeTaskOptions {
+export interface TaskOwner extends AsyncDisposable {
+	readonly signal: AbortSignal;
+}
+
+export function createTaskOwner(options?: { readonly label?: string }): TaskOwner;
+
+export interface TaskStatus<Result> {
+	readonly pending: boolean;
+	readonly pendingCount: number;
+	readonly generation: number;
+	readonly result: Result | undefined;
+	readonly error: unknown;
+	cancel(reason?: unknown): void;
+}
+
+export interface TaskInvocation<Result> extends PromiseLike<Result> {
+	then<TResult1 = Result, TResult2 = never>(
+		onFulfilled?: ((value: Result) => TResult1 | PromiseLike<TResult1>) | null,
+		onRejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+	): TaskInvocation<TResult1 | TResult2>;
+	catch<TResult = never>(
+		onRejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
+	): TaskInvocation<Result | TResult>;
+	finally(onFinally?: (() => void) | null): TaskInvocation<Result>;
+	readonly [Symbol.toStringTag]: 'TaskInvocation';
+}
+
+export interface TaskFunction<Args extends unknown[], Result> {
+	(...args: Args): TaskInvocation<Result>;
+}
+
+export interface BoundTaskFunction<Args extends unknown[], Result>
+	extends TaskFunction<Args, Result>,
+		TaskStatus<Result> {}
+
+export interface RuntimeTaskOptions<Args extends unknown[]> {
 	readonly label?: string;
 	readonly placement?: 'current' | 'client' | 'server';
 	readonly priority?: 'immediate' | 'normal' | 'deferred';
 	readonly concurrency?: 'parallel' | 'latest' | 'queue';
+	readonly concurrencyKey?: (...args: Args) => unknown;
 	readonly readiness?: 'blocking' | 'nonblocking';
 	readonly detached?: boolean;
+	readonly owner?: TaskOwner;
 }
 
 export function defineTask<Args extends unknown[], Result>(
-	options: RuntimeTaskOptions,
+	options: RuntimeTaskOptions<Args>,
 	implementation: (...args: [...Args, TaskContext]) => Result | Promise<Result>
 ): TaskFunction<Args, Awaited<Result>>;
 
@@ -510,7 +647,22 @@ export function invokeTask<Args extends unknown[], Result>(
 	parent: TaskContext,
 	child: TaskFunction<Args, Result>,
 	...args: Args
-): Promise<Result>;
+): TaskInvocation<Result>;
+
+export function bindTask<Args extends unknown[], Result>(
+	task: TaskFunction<Args, Result>,
+	options?: { readonly owner?: TaskOwner }
+): BoundTaskFunction<Args, Result>;
+
+export function taskStatus<Args extends unknown[], Result>(
+	task: TaskFunction<Args, Result>,
+	options?: { readonly owner?: TaskOwner; readonly key?: unknown }
+): TaskStatus<Result>;
+
+export function taskStatus<Args extends unknown[], Result>(
+	task: (...args: Args) => Result,
+	options?: { readonly owner?: TaskOwner; readonly key?: unknown }
+): TaskStatus<Awaited<Result>>;
 
 export function runTaskContinuation<T>(task: TaskContext, work: () => T): T;
 
@@ -532,22 +684,60 @@ export function reserveTaskCallback<Args extends unknown[], Result>(
 ): ReservedTaskCallback<Args, Result>;
 ```
 
-`defineTask()` creates one stable runtime definition, captures the ambient
-frame on its public entry call, attaches or roots a frame through the
-framework SPI, supplies a fresh context, applies policy, exposes status, and
-returns a promise that observes full structural settlement.
+`defineTask()` creates one stable runtime definition, captures the ambient frame
+and durable owner on its public entry call, selects a concurrency lane, attaches
+or roots a frame through the framework SPI, supplies a fresh context, applies
+policy, and returns a `TaskInvocation` that observes full structural settlement.
+The definition itself does not expose global mutable status because it may run
+under many unrelated owners.
+
+`TaskInvocation` is a standards-compatible thenable rather than a promise-brand
+contract. It works with `await`, `Promise.resolve()`, `Promise.all()`, and other
+thenable-assimilating APIs, but code must not depend on
+`invocation instanceof Promise`. A consumer that requires a native promise
+normalizes it with `Promise.resolve(invocation)`.
+
+`bindTask()` creates the actual owner-bound callable facade used when source
+observes `save.pending`; calls through the facade use that owner and its status
+aggregates every key for that owner.
+`taskStatus()` creates a non-callable view over the same owner and can optionally
+filter one key. Without an explicit owner, both capture the ambient durable host
+during setup and diagnose use where no host exists. An unkeyed view aggregates
+`pending` and `pendingCount` over the owner's lanes while `generation`, `result`,
+and `error` describe the greatest started generation that has reached an
+accepted terminal outcome. `cancel()` cancels every lane represented by the
+view.
+
+The wider `taskStatus()` source signature lets standard TypeScript validate an
+ordinary function that `exactc` will classify and lower. In emitted JavaScript
+the argument is always the corresponding runtime definition. Calling
+`taskStatus()` on an uncompiled, unregistered plain function is a targeted
+runtime error; compilerless code first uses `defineTask()`.
+
+`createTaskOwner()` is the explicit escape hatch for application-wide,
+session-wide, or adapter-defined concurrency. Async disposal cancels every
+generation it owns and awaits their structural cleanup. Passing an owner is
+therefore a lifecycle commitment, not a convenient global key. Normal libraries
+omit it and inherit the invocation host's owner.
+
+`RuntimeTaskOptions.concurrencyKey` is the compilerless equivalent of
+`TaskContext.key(value)`. It is called once with the authored arguments before
+the lane is selected. A remote task key must pass the same serialization and
+trust-boundary validation as its arguments; it never becomes transport
+authority.
 
 After an asynchronous suspension, portable library code uses the retained
 `TaskContext` with the shared ABI rather than depending on ambient state:
 
 ```ts
-import { defineTask, invokeTask, trackTaskReads } from '@exactjs/core/tasks';
+import { defineTask, invokeTask, trackTaskReads } from '@exactjs/core/tasks/v1';
 
 export const search = defineTask(
 	{
 		label: 'search catalog',
 		priority: 'deferred',
-		concurrency: 'latest'
+		concurrency: 'latest',
+		concurrencyKey: (query) => query
 	},
 	async (query: string, task: TaskContext) => {
 		const index = await openIndex(task.signal);
@@ -583,11 +773,12 @@ form for attributing reactive reads without relying on ambient async context.
 These operations reject a stale parent rather than silently attaching late
 work to an already settled frame.
 
-`bindTaskCallback()` restores causal context if and when a callback runs but
-does not keep its parent unsettled. If the original frame has already settled,
-the callback starts a new root carrying the prior causal origin.
-`reserveTaskCallback()` atomically reserves an attached child before handing a
-callback to an external scheduler; the callback or an explicit
+`bindTaskCallback()` preserves causal origin and durable ownership but never
+keeps or later joins the original structural parent. Whenever the callback
+runs, it starts a new root; its structure therefore cannot depend on whether
+the prior frame happened to settle first. `reserveTaskCallback()` is the
+explicit structural form: it atomically reserves an attached child before
+handing a callback to an external scheduler, and the callback or an explicit
 cancel/dispose must release that reservation exactly once.
 
 These functions are a supported public library/adapter surface, not a return
@@ -611,6 +802,30 @@ attribution crosses an async boundary. Compilerless code does not receive:
 `placement: "server"` on `defineTask()` is only an assertion for code already
 loaded in a server-only entry point. It cannot move an implementation out of a
 browser bundle or make it remotely callable.
+
+#### ABI compatibility
+
+The unversioned `@exactjs/core/tasks` entry point may re-export the current ABI
+for application convenience. Generated code and published compilerless
+libraries import an explicit major such as `@exactjs/core/tasks/v1`. Artifact
+metadata records the required ABI major and minimum minor; loading fails early
+with a targeted diagnostic when the runtime cannot satisfy it.
+
+Compatibility follows observable task semantics:
+
+- patches fix defects without changing ownership, attachment, result,
+  cancellation, readiness, or cleanup behavior;
+- minors add capabilities and optional helpers without changing existing frame
+  trees or outcomes; and
+- majors are required for incompatible changes to lanes, settlement, failure,
+  cancellation, ownership, or the meaning of an existing option.
+
+The local JavaScript ABI, framework frame SPI, DevTools protocol, and remote
+wire protocol are independently versioned. A source vocabulary change does not
+force any of them to rev. Each published ABI major includes a conformance kit
+that compiler output and third-party libraries can run. Optimized compiler
+lowering is supported only while differential tests prove it equivalent to
+direct calls through the corresponding public ABI major.
 
 #### Compilerless remote contracts
 
@@ -809,10 +1024,35 @@ return () => (
 );
 ```
 
-Recognized task functions have a compiler-synthetic intersection type with the
-existing stable status surface: `pending`, `pendingCount`, `generation`,
-`result`, `error`, and `cancel()`. The native checker and language service must
-provide completion, hover, rename, and diagnostics for these members.
+Recognized task functions have a compiler-synthetic intersection with the
+`BoundTaskFunction` status surface: `pending`, `pendingCount`, `generation`,
+`result`, `error`, and `cancel()`. The compiler lowers the materialization to
+the shared `bindTask()` ABI, producing an actual owner-bound callable with
+runtime getters; it is not inventing status that does not exist in JavaScript
+or aggregating unrelated owners.
+
+`pending` and `pendingCount` observe foreground generations, not merely
+structurally settling deferred descendants. The remaining status fields follow
+the bound-view aggregation rules defined by the ABI. `cancel()` includes
+structurally attached background descendants of every represented generation.
+
+Portable standard TypeScript and compilerless libraries use the same runtime
+status through `taskStatus()`:
+
+```tsx
+const saveStatus = taskStatus(save);
+
+return () => (
+	<button disabled={saveStatus.pending} onClick={() => save(this.state.profile)}>
+		{saveStatus.pending ? 'Saving…' : 'Save'}
+	</button>
+);
+```
+
+The native checker and language service must provide completion, hover, rename,
+and diagnostics for the concise `save.pending` form and a refactor between it
+and `taskStatus(save)`. The portable form is canonical in published declarations
+that must compile under standard TypeScript.
 
 This is an intentional tooling boundary change. Raw TypeScript does not know
 that an unmodified function declaration has compiler-synthesized members.
@@ -843,6 +1083,15 @@ This automatic settlement is the reason callers do not have to await at every
 layer. Awaiting a task's returned promise observes the whole attached subtree,
 not only the immediate function promise. Not awaiting a child result does not
 detach it.
+
+Foreground settlement is an earlier readiness milestone, not a second terminal
+state. It occurs when every blocking contribution has either completed or
+failed: the frame body when the activation itself is blocking, plus blocking
+result, renderer, router, form, and descendant work. Nonblocking attached work
+may continue afterward. A nonblocking deferred root with no donated result wait
+can therefore be structurally active without ever making its bound facade
+`pending`. Cancellation, cleanup, final success/failure publication, and the
+`TaskInvocation` result still wait for full structural settlement.
 
 ### Runtime-owned frame scope
 
@@ -885,14 +1134,66 @@ subtree, or deadlock by awaiting its own still-open frame.
 
 - Cancellation travels from a generation to all attached descendants.
 - Component disposal cancels every attached and detached generation it owns.
-- An unhandled child failure rejects its nearest attached parent; handled
-  failures remain handled by ordinary JavaScript.
+- A result-observed child failure follows ordinary JavaScript control flow; an
+  unobserved attached child failure rejects its nearest attached parent.
 - Cleanup runs child-first, then registration-last-in-first-out within a frame.
 - Cleanup is awaited before terminal settlement.
 - `latest` cancellation fences stale state, DOM, transport, and optimistic
   commits even when an external API ignores its signal.
 - Detached failures are reported to the component error/inspection channel;
   they cannot become unhandled process rejections.
+
+`TaskInvocation` is a task-aware promise. Calling its `then`, `catch`, or
+`finally` method establishes a result-observation edge; `await` does so through
+the standard thenable protocol. Chained continuations remain attached
+`TaskInvocation` work, so a handler that throws cannot escape structural
+failure tracking.
+
+```ts
+try {
+	const route = await resolveRoute(); // observed; rejection enters this catch
+} catch (error) {
+	reportRouteFailure(error);
+}
+
+void refreshIndex(); // unobserved; a rejection fails the attached parent
+
+void refreshIndex().catch(reportIndexFailure); // observed and recovered
+```
+
+The runtime reserves the structural child immediately. When a result edge is
+observed, rejection is delivered through that edge and succeeds or fails the
+parent according to the parent's ordinary control flow. When no result edge is
+observed before the parent producer closes, rejection becomes a structural
+failure. Merely prefixing a call with `void` does not detach or supervise it.
+Observation after producer closure cannot retroactively change the settled
+failure relationship. The compiler diagnoses an invocation that escapes its
+producer without being observed, explicitly detached, or transferred through a
+reserved callback/adapter contract.
+
+Each frame retains a structured failure outcome:
+
+```ts
+interface TaskFailureOutcome {
+	readonly primary: unknown;
+	readonly suppressed: readonly unknown[];
+}
+```
+
+Failure selection is deterministic: an uncaught body/result-edge failure is
+primary; otherwise the failed unobserved child or framework contribution with
+the lowest stable attachment ordinal is primary. Remaining failures follow
+attachment order, followed by cleanup/finalizer failures in their execution
+order, and are retained as suppressed inspection data. The same propagated
+error is deduplicated across child and body records. Cleanup never replaces the
+application failure that caused cleanup to run.
+
+Cancellation is a distinct terminal outcome rather than an application failure
+unless authored code explicitly converts it into one. The first committed
+terminal cause wins between cancellation and failure: a cancellation request
+immediately fences commits and makes later failures suppressed diagnostic data;
+a failure committed first remains the public rejection while cancellation
+still propagates to unfinished descendants.
 
 The runtime records both a structural parent and a causal origin. Explicitly
 detached work has no structural parent that delays settlement, but retains its
@@ -1017,15 +1318,20 @@ on the destination.
 
 The compiler emits diagnostics for dynamic builders, conditional chains,
 aliases of the builder value, duplicate facets, unsupported facet/activation
-combinations, and attempts to transmit `TaskContext`.
+combinations, and attempts to transmit `TaskContext`. The sole dynamic builder
+operand is `key(expression)`, whose pure expression is extracted and evaluated
+once from authored arguments before concurrency-lane selection.
 
 ### 4. Lower to the shared JavaScript task ABI
 
-The compiler expresses task semantics through the exported functions from
-`@exactjs/core/tasks` and the framework frame SPI:
+The compiler expresses task semantics through the exported functions from a
+versioned entry point such as `@exactjs/core/tasks/v1` and the framework frame
+SPI:
 
 - task definitions lower to `defineTask()` or a semantically equivalent
   definition primitive;
+- owner-bound callable status lowers to `bindTask()` and portable status reads
+  lower to `taskStatus()`;
 - attached calls lower to `invokeTask(parentContext, child, ...args)`;
 - resumed async segments that need ambient runtime behavior lower through
   `runTaskContinuation()`;
@@ -1078,8 +1384,8 @@ The compiler still:
 - emits typed client stubs without exposing the transport client; and
 - prevents authored code from naming generated continuations.
 
-The recent typed action-result and stub work becomes typed invoked-task result
-generation.
+The recent typed action-result and stub work becomes typed task-aware operation
+result generation.
 
 ### 7. Extend the native checker
 
@@ -1107,10 +1413,13 @@ classification.
 Replace the separate component task and action resources with:
 
 - `TaskDefinitionRuntime`;
+- `TaskOwnerRuntime`;
+- `TaskConcurrencyLaneRuntime`;
 - `TaskGenerationRuntime`;
 - `TaskFrameRuntime`;
-- runtime-owned disposable producer scopes and descendant-settlement signals;
-- one callable facade/status implementation;
+- runtime-owned disposable producer scopes and foreground/descendant-settlement
+  signals;
+- one owner-bound callable facade/status implementation;
 - one scheduling and concurrency implementation;
 - one optimistic journal integration; and
 - one resource/cleanup stack.
@@ -1160,6 +1469,7 @@ export interface RunTaskFrameOptions {
 	readonly label?: string;
 	readonly detached?: boolean;
 	readonly priority?: 'immediate' | 'normal' | 'deferred';
+	readonly readiness?: 'blocking' | 'nonblocking';
 }
 
 export type TaskFrameOutcome<T> =
@@ -1167,8 +1477,14 @@ export type TaskFrameOutcome<T> =
 	| { readonly status: 'rejected'; readonly error: unknown }
 	| { readonly status: 'cancelled'; readonly reason: unknown };
 
+export type TaskForegroundOutcome =
+	| { readonly status: 'ready' }
+	| { readonly status: 'rejected'; readonly error: unknown }
+	| { readonly status: 'cancelled'; readonly reason: unknown };
+
 export interface RunTaskFrameHooks<T> {
 	work(context: TaskContext): T | Promise<T>;
+	afterForeground?(outcome: TaskForegroundOutcome): void | Promise<void>;
 	afterChildren?(outcome: TaskFrameOutcome<T>): void | Promise<void>;
 }
 
@@ -1191,11 +1507,19 @@ export function runWithTaskFrame<T>(frame: TaskFrameToken, work: () => T): T;
 
 `runTaskFrame` performs the same attach, producer-scope, descendant-settlement,
 cleanup, commit, and outcome sequence as compiler-generated task invocation.
-`afterChildren` supports framework coordinators such as presence removal,
-router settlement, and readiness publication without exposing
-`childrenSettled`. It runs after descendant settlement for fulfilled, rejected,
-and cancelled work; `runTaskFrame` publishes or throws the semantic outcome
-only after that structural finalizer completes.
+`afterForeground` lets form, router, SSR, and similar hosts publish readiness
+after the foreground barrier without exposing `foregroundSettled`.
+`afterChildren` supports framework coordinators such as presence removal and
+final router settlement without exposing `childrenSettled`. It runs after
+descendant settlement for fulfilled, rejected, and cancelled work;
+`runTaskFrame` publishes or throws the semantic outcome only after that
+structural finalizer completes. `afterForeground` runs exactly once for ready,
+rejected, and cancelled foreground outcomes so a host can always clear pending
+UI; only `ready` permits successful readiness publication. A later nonblocking
+failure is reported through the final structural outcome without reopening the
+foreground barrier. The runtime awaits the hook before marking foreground
+settled; a hook rejection becomes a framework failure in the structural outcome
+but does not cause a second foreground notification.
 
 `reserveTaskFrame` attaches atomically before a package queues work. Running
 the reservation opens the frame's producer scope; cancelling or disposing an
@@ -1269,13 +1593,18 @@ definitions and renderer jobs that consume the changed path.
 
 Known event and form callbacks create interaction-activated root generations.
 Pending UI, duplicate-submit suppression, external errors, focus behavior,
-and native-form fallback remain package-owned. Their settlement source changes
-from the separate interaction object to the task subtree.
+and native-form fallback remain package-owned. Pending UI and duplicate-submit
+suppression observe the root's foreground barrier rather than awaiting the
+`TaskInvocation`, which represents full structural settlement. Final errors,
+cleanup, and optimistic commit/rollback observe the structural outcome. This
+replaces the separate interaction object without making deferred background
+work hold controls disabled.
 
 Router navigation, fetch, submit, redirect, and revalidation attach to the
 current task frame when initiated from it. A standalone navigation creates its
-own interaction generation. Latest-wins navigation and stale response fencing
-remain.
+own interaction generation. The router may publish foreground readiness while
+retaining the structural frame for deferred descendants, presence, cleanup, and
+final inspection. Latest-wins navigation and stale response fencing remain.
 
 `InteractionHandler` may remain as a contextual host type because it describes
 why a callback runs, not a second runtime resource. Any public action-specific
@@ -1283,13 +1612,13 @@ handler or status types are renamed to task equivalents.
 
 ### Server, hydration, and protocol
 
-The wire protocol intentionally changes from an action operation to an invoked
-task operation:
+Task unification does not by itself justify a wire-protocol migration. The
+transport concept is a neutral allowlisted operation invocation, not a public
+task or action identity:
 
 ```ts
-type InvokedTaskRequest = {
-	type: 'task';
-	activation: 'invoked';
+type OperationRequest = {
+	type: 'invoke';
 	operation: OpaqueOperationId;
 	generation: number;
 	args: SerializedValue[];
@@ -1297,10 +1626,19 @@ type InvokedTaskRequest = {
 };
 ```
 
-Generated manifests expose invoked-task contracts, not authored function names.
-Low-level `defineExactActionContract`-style APIs are renamed to invoked-task
-contracts where they remain necessary. Application authors still do not
-construct requests or acquire an eXact client directly.
+This is the canonical shape for the next behaviorally necessary protocol
+version, not a requirement to rev the current protocol merely to replace the
+word `action`. Until another payload, security, compatibility, or dispatch
+change requires that version, generated code may continue emitting the current
+`type: "action"` discriminator as a legacy transport spelling. The dispatcher
+normalizes both spellings immediately to an internal operation request.
+
+Generated manifests expose operation contracts annotated with task semantics,
+not authored function names. Low-level `defineExactActionContract`-style APIs
+gain neutral operation-contract replacements where they remain necessary, with
+the action-named entry points deprecated rather than forcing an unrelated
+migration. Application authors still do not construct requests or acquire an
+eXact client directly.
 
 Compilerless remote contracts enter the same dispatcher through explicit
 server registration. The stable package contract identifies schemas and
@@ -1309,12 +1647,14 @@ capability used on the wire. The client stub resolves that capability through
 the authorized runtime registry. It cannot dispatch an unregistered contract
 or use the stable contract name as endpoint authority.
 
-This requires a protocol-version bump. During one release window, servers may
-decode the previous `type: "action"` request for rolling deployment, mapping it
-to an invoked task internally. New clients emit only the new format. The
-compatibility decoder is removed after the documented window. Mixed-build,
-allowlist, authorization, CSRF, serialization, redaction, cancellation, replay,
-and stale-generation adversarial tests must pass before removal.
+When a behaviorally necessary protocol version adopts `type: "invoke"`, clients
+and servers negotiate it through existing build/protocol metadata. Servers
+decode the previous `type: "action"` request for the documented rolling
+deployment window and normalize it to the same internal operation. Removal of
+the compatibility decoder follows the repository's protocol support policy,
+not the source API migration schedule. Mixed-build, allowlist, authorization,
+CSRF, serialization, redaction, cancellation, replay, and stale-generation
+adversarial tests must pass before removal.
 
 SSR and hydration serialize task definitions and resumable generation
 metadata using framework-owned opaque identities produced by compiled or
@@ -1340,8 +1680,9 @@ It must provide:
 - “Convert `this.task`/`this.action` to function-defined task” refactors;
 - call-site hints distinguishing root, automatically attached, and explicitly
   detached invocation;
-- placement, priority, concurrency, readiness, activation, dependencies,
-  captured values, resources, cleanup, and optimistic information;
+- placement, priority, owner/key concurrency lane, readiness, activation,
+  dependencies, captured values, resources, cleanup, and optimistic
+  information;
 - diagnostics for uncancellable unknown calls, escaped disposables,
   invalid optimism, detached leaks, and ambiguous activation roles;
 - navigation between a client call and its generated server operation without
@@ -1379,12 +1720,13 @@ component
    └─ owned resources / cleanup
 ```
 
-Each node shows definition, activation, policy, generation, parent, causal
-origin, placement, status, duration, dependencies, writes, transport,
-optimistic journal, resources, cancellation reason, and error. Timeline events
-include queue, start, frame enter/exit, remote dispatch/return, optimistic
-apply/commit/rollback, resource acquire/release, renderer commit, cancel, and
-settle.
+Each node shows definition, durable owner, lane key, activation, policy,
+generation, parent, causal origin, placement, foreground/structural status,
+duration, dependencies, writes, transport, optimistic journal, resources,
+cancellation reason, primary error, and suppressed failures. Timeline events
+include queue, start, frame enter/exit, foreground settle, remote
+dispatch/return, optimistic apply/commit/rollback, resource acquire/release,
+renderer commit, cancel, and structural settle.
 
 Definitions identify their source as compiler-authored, compilerless runtime,
 or compilerless remote contract. All three use the same generation/frame event
@@ -1564,9 +1906,9 @@ are addressed:
 | Sudoku                        | Migrate timers, generation, persistence, and worker/server work; verify disposal and cancellation                          |
 | Workbench/compiler demos      | Show inferred, explicit-policy, attached, detached, optimistic, and server examples                                        |
 | Docs application              | Replace every `this.task`/`this.action` example and add a task-tree guide                                                  |
-| Core/compiler fixtures        | Recast task/action fixtures around definitions, activations, frames, and protocol v2                                       |
+| Core/compiler fixtures        | Recast task/action fixtures around definitions, activations, frames, lanes, readiness, and neutral operation contracts     |
 | Forms/router samples          | Preserve pending, duplicate suppression, redirects, and automatic navigation attachment                                    |
-| Microfrontend/server samples  | Regenerate invoked-task contracts and verify scope/authorization boundaries                                                |
+| Microfrontend/server samples  | Regenerate operation contracts with task metadata and verify scope/authorization boundaries                                |
 | External library fixtures     | Validate hand-authored shared ABI, async continuation attachment, remote conditional exports, and fail-closed registration |
 | Chrome and VS Code extensions | Remove action-only UI and consume the unified inspection schema                                                            |
 
@@ -1679,7 +2021,9 @@ consequences and is intentionally not smuggled into this task proposal.
 - Add compiler fixtures for every function shape, activation kind, policy
   facet, automatic attachment form, recursion form, resource outcome, and
   placement boundary.
-- Add protocol fixtures for old action and new invoked-task requests.
+- Preserve fixtures for the current action-spelled transport and add neutral
+  invocation fixtures only when another behavioral protocol change requires
+  the new version.
 - Record current action/task/form/router behavior as black-box compatibility
   tests.
 - Benchmark current allocations, setup time, task/action invocation, reactive
@@ -1690,23 +2034,26 @@ retained current guarantee has a named regression test.
 
 ### Phase 1: unified internal runtime behind existing APIs
 
-- Implement definitions, generations, frames, common status, scheduling,
-  concurrency, cancellation, cleanup, and inspection internally.
+- Implement definitions, durable owners, keyed concurrency lanes, generations,
+  frames, owner-bound status, scheduling, cancellation, cleanup, and inspection
+  internally.
 - Add the opaque framework task-frame token, run, reservation, and synchronous
   propagation SPI with cross-package contract tests.
 - Add `defineTask()` and prove that compilerless local definitions use the same
   generation, status, cancellation, priority, cleanup, and inspection runtime.
-- Add `invokeTask()`, continuation/read tracking, callback binding, and callback
+- Add `invokeTask()`, task-aware result observation, `bindTask()`/
+  `taskStatus()`, continuation/read tracking, callback binding, and callback
   reservation as the versioned JavaScript task ABI.
 - Adapt current `this.task` and `this.action` registrations onto it.
-- Replace interaction settlement internals with task roots while preserving
-  public behavior.
+- Replace interaction settlement internals with task roots and separate
+  foreground readiness from full structural settlement while preserving public
+  behavior.
 - Attach forms and router jobs to frames.
 - Keep existing compiler output and protocol unchanged.
 
 Exit gate: the existing suite passes unchanged and the new tree tests prove
-child-first cancellation/cleanup, error propagation, detached ownership, and
-automatic settlement.
+owner-isolated lanes, child-first cancellation/cleanup, observed and unobserved
+error propagation, detached ownership, and both readiness barriers.
 
 ### Phase 2: compiler function discovery and `TaskContext`
 
@@ -1731,20 +2078,23 @@ is highlighted normally, and benchmarks remain within agreed budgets.
 - Attach bindings, reconciliation, refs, portals, blocking work, and lifecycle
   consequences.
 - Implement runtime-owned producer scopes, atomic child reservation,
-  descendant-settlement signals, and commit/cancel fencing.
+  foreground/descendant-settlement signals, and commit/cancel fencing.
 - Implement declared/effective priority inheritance, result-wait donation,
-  deferred aging, and prompt cancellation cleanup.
+  readiness donation, deferred aging, and prompt cancellation cleanup.
 - Add stress tests for rapid invalidation, keyed removal, portals, Suspense,
   Activity, and component disposal.
 
 Exit gate: automatic frame settlement deterministically includes visible DOM
 effects without leaking frames or delaying unrelated work.
 
-### Phase 4: invoked server tasks and optimism
+### Phase 4: server task activation and optimism
 
-- Generalize continuation compilation from action to invoked-task activation.
-- Emit new typed stubs and manifests.
-- Add the versioned protocol and rolling-deployment decoder.
+- Generalize continuation compilation from action to invoked task activation.
+- Emit new typed stubs and neutral operation manifests annotated with task
+  semantics.
+- Keep the current remote protocol unless another behavioral requirement
+  justifies a version; when it does, adopt neutral `type: "invoke"` with the
+  rolling-deployment decoder.
 - Add compilerless remote contract, client-stub, server-implementation,
   conditional-export, registration, schema, and opaque-capability support.
 - Move optimistic journals, concurrency, argument/results, authorization, and
@@ -1753,14 +2103,16 @@ effects without leaking frames or delaying unrelated work.
   identifier.
 
 Exit gate: all security/adversarial suites and distributed action guarantees
-pass under invoked tasks.
+pass under server task activation without application-visible transport
+identity.
 
 ### Phase 5: language tools and DevTools
 
 - Ship synthetic function typing, policy completion, semantic classification,
-  hover, code actions, and snapshot-consistent updates.
+  owner-bound status, `taskStatus()` portability refactors, hover, code actions,
+  and snapshot-consistent updates.
 - Show structural versus result-wait edges and declared, inherited, donated,
-  and effective priority.
+  and effective priority/readiness.
 - Version the DevTools protocol and implement task trees in browser/server
   agents and the Chrome panel.
 - Retain compatibility query aliases for one release.
@@ -1791,8 +2143,10 @@ knowledge outside compatibility fixtures and historical material.
 
 - Remove `Component.task`, `Component.action`, legacy adapters, separate
   action runtime/compiler records, and action-only inspection events.
-- Remove the old protocol decoder after its announced support window.
-- Rename or retire action-specific low-level contracts.
+- If a behaviorally justified remote protocol version shipped, remove its old
+  decoder after the independently announced protocol support window.
+- Remove deprecated action-named low-level contract aliases after their source
+  API support window; retain neutral operation contracts.
 - Publish migration notes with before/after examples and explicit terminology
   exceptions for HTML, testing, and user interactions.
 
@@ -1815,27 +2169,33 @@ Protection should match the risk of each boundary:
 - **Compiler contract tests:** semantic activation, effects, placement,
   capture/serialization, builder erasure, source maps, synthetic types, alias
   resolution, recursion, canonical dependency deduplication, `task.peek()`
-  suppression, canonical policy normalization, and diagnostics.
+  suppression, pure concurrency-key extraction, canonical policy normalization,
+  and diagnostics.
 - **Runtime invariant tests:** generation transitions, parallel/latest/queue,
-  attached/detached settlement, cancellation direction, error propagation,
-  producer-scope disposal, atomic child reservation, exactly-once descendant
-  settlement, cleanup order, disposal, dynamic dependency replacement,
-  failed-generation retry dependencies, stale-generation rejection, and
-  component teardown.
+  owner and key lane isolation, attached/detached settlement, cancellation
+  direction, observed/unobserved error propagation, suppressed failures,
+  failure/cancellation race precedence, producer-scope disposal, atomic child
+  reservation, exactly-once foreground and descendant settlement, cleanup
+  order, disposal, dynamic dependency replacement, failed-generation retry
+  dependencies, stale-generation rejection, and component teardown.
 - **Scheduling tests:** inherited and explicit priority, immediate-to-deferred
-  result waits, donation propagation and restoration, deferred structural
-  children, starvation prevention, and cancellation cleanup.
+  result waits, priority/readiness donation and restoration, deferred
+  structural children that do not remain visibly pending, starvation
+  prevention, and cancellation cleanup.
 - **Framework SPI tests:** compiler, DOM, forms, router, server, and motion-like
   consumers produce identical frame trees through run and reservation paths;
   opaque tokens cannot be fabricated or reused after settlement.
 - **Compilerless library tests:** ordinary JavaScript and TypeScript builds can
-  define, invoke, observe, cancel, queue, supersede, detach, clean up, and
-  inspect local tasks without compiler transformation, including attachment
-  and tracked reads after async suspension through explicit ABI calls.
+  define, owner-bind, invoke, observe, cancel, key, queue, supersede, detach,
+  clean up, and inspect local tasks without compiler transformation, including
+  task-aware thenable chains, native `Promise` assimilation without brand
+  dependence, attachment, and tracked reads after async suspension through
+  explicit ABI calls.
 - **Generated-ABI equivalence tests:** compiler conformance output and
-  hand-authored JavaScript using `defineTask()`, `invokeTask()`,
-  continuation/read tracking, and callback reservation produce equivalent
-  frame trees, results, errors, priorities, cancellation, and cleanup.
+  hand-authored JavaScript using the same versioned `defineTask()`,
+  `bindTask()`, `invokeTask()`, continuation/read tracking, and callback
+  reservation ABI produce equivalent frame trees, lanes, results, errors,
+  readiness, priorities, cancellation, and cleanup.
 - **Compilerless remote tests:** conditional exports exclude handlers from
   browser bundles; registered contracts dispatch through opaque capabilities;
   missing handlers, schema mismatches, unallowlisted contracts, forged
@@ -1850,8 +2210,8 @@ Protection should match the risk of each boundary:
   malformed serialization, replay, CSRF, mixed builds, stale generations, and
   redacted inspection.
 - **Forms/router tests:** duplicate submission, validation, optimistic
-  rollback, redirects, navigation cancellation, revalidation, and native
-  fallback.
+  rollback, redirects, navigation cancellation, foreground versus background
+  pending behavior, revalidation, and native fallback.
 - **Language-tool tests:** same-snapshot edits, semantic-token preservation,
   hover targeting, refactors, virtual synthetic members, and badge positions.
 - **DevTools tests:** client-only operation, federated server frames,
@@ -1881,24 +2241,35 @@ The proposal is complete only when:
 5. inferred cancellation and disposable ownership work without ceremonial
    context parameters;
 6. optimistic state, forms, router work, and distributed execution preserve
-   their current guarantees;
-7. runtime-owned producer scopes and descendant-settlement signals include
-   renderer consequences without late-child races or application-visible
-   lifetime controls;
+   their current guarantees except for the explicitly documented split between
+   foreground pending and structural settlement;
+7. runtime-owned producer scopes and foreground/descendant-settlement signals
+   include renderer consequences without late-child races or
+   application-visible lifetime controls;
 8. separately published framework packages coordinate through the opaque,
    versioned task-frame SPI without accessing mutable frame internals;
 9. compilerless libraries can define local tasks with identical runtime
    semantics, and compilerless remote libraries can use explicit,
    schema-validated, allowlisted dual-sided contracts;
-10. every compiler-generated task semantic is reproducible through the
-    supported JavaScript ABI without private compiler-only runtime authority;
-11. immediate, normal, and deferred priority compose through inheritance,
-    explicit override, result-wait donation, aging, and cancellation cleanup;
-12. the compiler can erase builders and elide facades without observable
+10. every compiler-generated task semantic is reproducible through a supported,
+    versioned JavaScript ABI without private compiler-only runtime authority;
+11. concurrency lanes are isolated by durable owner, stable definition, and
+    optional key, and cross-root ownership is explicit and disposable;
+12. awaited and chained child failures follow ordinary JavaScript while
+    unobserved attached failures deterministically fail their structural
+    parent without losing secondary errors;
+13. immediate, normal, and deferred priority compose through inheritance,
+    explicit override, result-wait donation, aging, and cancellation cleanup,
+    while readiness and structural settlement remain independently observable;
+14. synthetic task status lowers to an actual owner-bound facade and every
+    status operation has a standard-TypeScript `taskStatus()` equivalent;
+15. remote dispatch uses neutral opaque operation semantics and no protocol is
+    versioned solely to rename an action as a task;
+16. the compiler can erase builders and elide facades without observable
     semantic changes;
-13. the native checker and editor fully understand synthetic task functions;
-14. DevTools presents one authorized task tree in client-only and federated
+17. the native checker and editor fully understand synthetic task functions;
+18. DevTools presents one authorized task tree in client-only and federated
     deployments;
-15. every existing sample and public document uses the new model; and
-16. `Presence` can retain and remove a stable child through internal frame
+19. every existing sample and public document uses the new model; and
+20. `Presence` can retain and remove a stable child through internal frame
     settlement without requiring another public lifetime primitive.
