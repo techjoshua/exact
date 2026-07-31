@@ -2225,6 +2225,28 @@ func TestSessionRejectsSharedArrowRender(t *testing.T) {
 	}
 }
 
+func TestSessionPassesThroughExplicitForeignJSXModules(t *testing.T) {
+	source := `/** @jsxImportSource react */
+			import { useState } from "react";
+			export function ReactStepper() {
+				const [count, setCount] = useState(0);
+				if (count < 0) return <p>Invalid</p>;
+				return <button onClick={() => setCount(count + 1)}>{count}</button>;
+			}
+		`
+	response := NewSession(nil).Execute(Request{
+		ID:     "react-stepper.tsx",
+		Kind:   "compile",
+		Source: source,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("foreign JSX module was analyzed as eXact: %#v", response)
+	}
+	if len(response.Analysis.Components) != 0 || response.Code != source {
+		t.Fatalf("foreign JSX module was not passed through: %#v", response)
+	}
+}
+
 func TestSessionValidatesStandaloneRegularRenderBody(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "shared-render.tsx",

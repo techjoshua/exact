@@ -52,6 +52,10 @@ npx exactc --help
 
 Compiler diagnostics are part of the programming model: writable bindings, stable list identity,
 task placement, and server/client boundaries are validated before runtime.
+An explicit foreign `@jsxImportSource` such as `react` keeps that module in the
+shared TypeScript project but outside native eXact component analysis and
+lowering. The module is passed through for its owning JSX pipeline; it is not
+removed from compiler corpus or project checks.
 Task diagnostics use the function-defined model: fixes name local task functions and final
 `TaskContext` policy rather than removed `this.task()` registration APIs. Legacy syntax remains
 recognizable for migration, but its errors identify it as legacy.

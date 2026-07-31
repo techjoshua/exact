@@ -1,7 +1,7 @@
 # Maintaining the eXact documentation app
 
 Treat the docs app as the public learning guide. Add every routable article to
-`src/docs-manifest.ts` so navigation, search, SSR route collection, and the standalone build see
+`src/docs-manifest.ts` so navigation, search, and the standalone build see
 the same page inventory. Keep previous/next links consistent with manifest order.
 
 When a framework proposal lands, update its status ledger, the authoritative engineering
@@ -21,9 +21,8 @@ lanes by authored component type; describe profiling as an explicit bounded capt
 frames finalized from retained history at Stop, never as an invented total order across federated
 hosts.
 
-Keep browser startup aligned with its input document: Vite development mounts into the empty app
-root, while the standalone prerendered artifact hydrates its existing marked-up root. Do not use
-hydration mismatch recovery as the ordinary client-only development path.
+Keep browser startup client-only in both Vite development and the standalone artifact. Mount into
+the empty app root; do not add an SSR build or hydration path merely to prerender GitHub Pages.
 
 Present reactive and invoked work as activation modes of one function-defined task model. Keep
 `TaskContext` policy, structured settlement, owner-bound status, cleanup/optimism, the versioned
@@ -68,3 +67,8 @@ signal checks where compiler-lowered awaits and staged writes already reject sta
 that cleanup runs when its generation settles: do not register an opaque subscription in a
 synchronous task and expect it to survive for the component lifetime. Prefer reactive activation
 for effects driven by reactive framework state.
+
+Keep React-owned demos marked with an explicit `@jsxImportSource react`.
+They must remain in the docs TypeScript project and native compiler corpus;
+rely on the compiler ownership boundary to pass them to the compatibility
+pipeline instead of excluding them from repository checks.

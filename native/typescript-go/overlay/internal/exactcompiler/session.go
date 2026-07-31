@@ -102,6 +102,7 @@ func (s *Session) Execute(request Request) Response {
 		response.Error = err.Error()
 		return response
 	}
+	authoredSource := request.Source
 	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, request.Source)
 	normalization, err := normalizeAuthoredSource(fileName, request.Source)
 	if err != nil {
@@ -158,6 +159,13 @@ func (s *Session) Execute(request Request) Response {
 			}
 		}
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
+		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
+		return response
+	}
+	if usesForeignJSXRuntime(sourceFile) {
+		if request.Kind == "compile" {
+			response.Code = authoredSource
+		}
 		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 		return response
 	}

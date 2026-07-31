@@ -147,6 +147,12 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					mark an individual source module; <code>@jsxImportSource @exactjs/jsx</code> keeps native
 					eXact ownership explicit.
 				</p>
+				<p>
+					The native compiler still keeps an explicitly React-owned module in its TypeScript project
+					and release corpus. It passes that source through without applying eXact component
+					diagnostics or JSX lowering, leaving transformation to the selected React compatibility
+					pipeline.
+				</p>
 			</section>
 
 			<section>

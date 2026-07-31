@@ -25,7 +25,8 @@ import { isJsonSafe } from './validation.js';
 import { roots } from './runtime/state.js';
 import {
 	checkpointComponentResumptions,
-	rollbackComponentResumptions
+	rollbackComponentResumptions,
+	withComponentResumptionFallback
 } from './runtime/resumption.js';
 
 /** Hydrates all unhydrated client island boundaries found under a container. */
@@ -203,7 +204,9 @@ function mountIslandBoundary(
 	if (!adopted) {
 		if (adopting) rollbackComponentResumptions(domain, checkpoint);
 		if (adopting) boundary.replaceChildren();
-		render(vnode, boundary, rendererOptions);
+		if (adopting)
+			withComponentResumptionFallback(domain, () => render(vnode, boundary, rendererOptions));
+		else render(vnode, boundary, rendererOptions);
 	}
 	if (captured)
 		for (const control of restoreFormState(boundary, captured.formState, work))

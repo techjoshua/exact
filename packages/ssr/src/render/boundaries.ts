@@ -1,5 +1,5 @@
-import { readExactComponentContract, type VNode } from '@exactjs/core';
-import { peek, unwrap } from '@exactjs/reactive';
+import { exactComponentIdentity, readExactComponentContract, type VNode } from '@exactjs/core';
+import { isReactive, isReactiveValue, peek, unwrap } from '@exactjs/reactive';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
 import { markerId, markerPair } from '../markup.js';
@@ -42,7 +42,8 @@ export function renderResumableComponentBoundary(
 ): string {
 	if (typeof vnode.type !== 'function') return markerPair(context, id, () => html);
 	const contract = readExactComponentContract(vnode.type);
-	if (!contract?.resumption) return markerPair(context, id, () => html);
+	if (!contract?.resumption || !contract.continuations.length)
+		return markerPair(context, id, () => html);
 	const name =
 		contract.implementations.find((implementation) => implementation.role === 'root')?.name ??
 		componentName(vnode.type);
@@ -63,7 +64,22 @@ function snapshotResumptionProps(
 }
 
 function snapshotResumptionValue(value: unknown, seen: WeakMap<object, unknown>): unknown {
-	const raw = unwrap(value);
+	return snapshotResumptionValueWithPolicy(value, seen, true);
+}
+
+function snapshotResumptionValueWithPolicy(
+	value: unknown,
+	seen: WeakMap<object, unknown>,
+	evaluateReactiveValues: boolean
+): unknown {
+	// Authored activation props must resolve to the value the component
+	// consumed. Children remain a server-owned graph and must never be
+	// traversed by evaluating their reactive VNode cells.
+	if (isReactiveValue(value)) {
+		if (!evaluateReactiveValues) return value;
+		value = unwrap(value);
+	}
+	const raw = isReactive(value) ? unwrap(value) : value;
 	if (!raw || typeof raw !== 'object') return raw;
 	if (!Array.isArray(raw) && Object.getPrototypeOf(raw) !== Object.prototype) return raw;
 	const previous = seen.get(raw);
@@ -85,7 +101,11 @@ function snapshotResumptionValue(value: unknown, seen: WeakMap<object, unknown>)
 			configurable: true,
 			enumerable: true,
 			writable: true,
-			value: snapshotResumptionValue(descriptor.value, seen)
+			value: snapshotResumptionValueWithPolicy(
+				descriptor.value,
+				seen,
+				evaluateReactiveValues && key !== 'children'
+			)
 		});
 	}
 	return output;
@@ -229,4 +249,14 @@ export function getComponentProps(vnode: VNode): Record<string, unknown> {
 /** Performs the component name domain operation. */
 export function componentName(type: VNode['type']): string {
 	return typeof type === 'function' ? type.name || 'anonymous' : String(type);
+}
+
+/** Returns the stable protocol identity embedded in a hydratable component marker. */
+export function componentMarkerIdentity(type: VNode['type']): string {
+	return typeof type === 'function' ? exactComponentIdentity(type) : String(type);
+}
+
+/** Allocates one component marker from its compiler identity and authored key. */
+export function componentMarkerId(context: SsrContext, vnode: VNode): string {
+	return markerId(context, 'component', componentMarkerIdentity(vnode.type), vnode.key);
 }

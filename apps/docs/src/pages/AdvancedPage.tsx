@@ -76,6 +76,12 @@ export function AdvancedPage(this: Component<{}>) {
 			<section>
 				<h2>Interactive HTML does not have to hydrate eagerly</h2>
 				<p>
+					SSR resumption records apply only when a component&apos;s compiler identity matches its
+					server marker and that existing range is adopted. Mismatched pages introduced before
+					hydration, later client routes, and conditional views initialize as fresh browser
+					instances.
+				</p>
+				<p>
 					The compiler recognizes client islands whose initial browser responsibility is limited to
 					supported events and reactive form bindings. SSR emits the real inert control, and the
 					generated hydration registration loads that island&apos;s chunk when its first interaction

@@ -203,7 +203,11 @@ func componentRootContract(
 		}
 	}
 	for _, resumption := range resumptions {
-		if resumption.ComponentID == component.ID {
+		if resumption.ComponentID == component.ID &&
+			(len(resumption.Client.StatePaths) != 0 ||
+				len(resumption.Client.ValueCaptures) != 0 ||
+				len(resumption.Client.Contexts) != 0 ||
+				len(resumption.Client.Boundaries) != 0) {
 			return target == TargetClient || target == TargetServer
 		}
 	}

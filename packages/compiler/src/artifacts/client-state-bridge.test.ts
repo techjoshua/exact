@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'vitest';
+import { transform } from '../index.js';
+
+describe('@exactjs/compiler: client state bridges', () => {
+	it('emits valid state snapshots for non-identifier path segments', () => {
+		const output = transform(
+			`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ items: Record<string, { title: string }> }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button title={this.state.items["first-item"].title} onClick={() => save()} />;
+      }
+    `,
+			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
+		);
+
+		expect(output).toContain('"first-item": { title: this.state.items["first-item"].title }');
+		expect(output).not.toContain('this.state.items.first-item');
+	});
+
+	it('generates client island components with state bridge initialization', () => {
+		const output = transform(
+			`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button title={this.state.count} onClick={() => this.state.count++} />;
+      }
+    `,
+			{ filename: 'Panel.tsx', target: 'client', serverComponents: true }
+		);
+
+		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
+		expect(output).toContain('Object.assign(this.state, props.__exactState)');
+		expect(output).toContain('title: props.title');
+		expect(output).toContain(
+			'onClick: () => __exactUpdateResult(this.state, ["count"], previous =>'
+		);
+		expect(output).not.toContain('export const Panel_ExactClient_1 = Panel');
+	});
+
+	it('omits server-owned roots from client artifacts in server component mode', () => {
+		const output = transform(
+			`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button title={this.state.count} onClick={() => this.state.count++} />;
+      }
+    `,
+			{ filename: 'Panel.tsx', target: 'client', serverComponents: true }
+		);
+
+		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
+		expect(output).toMatch(
+			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
+		);
+		expect(output).toContain('__exactBoundary(');
+		expect(output).not.toContain('node:fs/promises');
+		expect(output).not.toContain('readFile');
+		expect(output).toContain(
+			'onClick: () => __exactUpdateResult(this.state, ["count"], previous =>'
+		);
+	});
+
+	it('keeps pure client components in client artifacts during server component mode', () => {
+		const output = transform(
+			`
+      function ClientWidget() {
+        return () => <button onClick={() => save()}>Save</button>;
+      }
+
+      export function Page() {
+        return () => <main><ClientWidget /></main>;
+      }
+    `,
+			{ filename: 'Page.tsx', target: 'client', serverComponents: true }
+		);
+
+		expect(output).toContain('function ClientWidget()');
+		expect(output).toMatch(
+			/export const Page: typeof __exactImplementation_Page_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
+		);
+		expect(output).toContain('onClick: () => save()');
+	});
+});

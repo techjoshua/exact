@@ -31,6 +31,9 @@ type componentCandidate struct {
 // lifecycle and state. Signals are retained so differential tests can protect
 // each supported declaration form independently of TypeScript node identity.
 func collectComponents(sourceFile *ast.SourceFile) []Component {
+	if usesForeignJSXRuntime(sourceFile) {
+		return nil
+	}
 	var components []Component
 	for _, candidate := range componentCandidates(sourceFile) {
 		signals := componentSignals(candidate, sourceFile)
@@ -58,6 +61,20 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 		return components[left].Start < components[right].Start
 	})
 	return components
+}
+
+// usesForeignJSXRuntime keeps React, Preact, and other explicitly authored JSX
+// modules outside eXact component analysis even when they share an eXact
+// package-level TypeScript project.
+func usesForeignJSXRuntime(sourceFile *ast.SourceFile) bool {
+	pragma := ast.GetPragmaFromSourceFile(sourceFile, "jsximportsource")
+	if pragma == nil {
+		return false
+	}
+	runtime := ast.GetPragmaArgument(pragma, "factory")
+	return runtime != "" &&
+		runtime != "@exactjs/jsx" &&
+		!strings.HasPrefix(runtime, "@exactjs/")
 }
 
 func assignComponentIDs(

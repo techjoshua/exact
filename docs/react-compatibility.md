@@ -15,6 +15,12 @@ select the matching compatibility target. React-owned source is identified by:
 - configured source filters; or
 - imports/package metadata that establish React ownership.
 
+An explicit foreign JSX directive is a compiler ownership boundary, not a
+corpus exclusion. The native compiler retains the module in its configured
+TypeScript project and release corpus while passing its source through without
+eXact component diagnostics or JSX lowering. The selected React compatibility
+pipeline then owns its transformation.
+
 Generated React-owned modules import target-specific
 `@exactjs/react-compat` JSX/runtime entrypoints. Public `react`, JSX runtime,
 React DOM client/server/static, and supported scheduler imports resolve to the

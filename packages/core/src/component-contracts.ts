@@ -161,6 +161,11 @@ export function readExactComponentContract(
 	return contract;
 }
 
+/** Returns the stable compiler identity used to pair SSR and client component boundaries. */
+export function exactComponentIdentity(component: (...args: any[]) => unknown): string {
+	return readExactComponentContract(component)?.id ?? (component.name || 'anonymous');
+}
+
 /**
  * Composes imported component contracts into duplicate-checked runtime indexes.
  *
