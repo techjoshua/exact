@@ -253,6 +253,12 @@ export function TasksPage(this: Component<{}>) {
 					generation automatically. The source remains ordinary function calls; the compiler
 					supplies the ownership and scheduling machinery.
 				</p>
+				<p>
+					A setup call whose value initializes a local synchronously remains ordinary JavaScript.
+					Factories, context lookups, and similar helpers must return that value directly, so the
+					compiler does not reinterpret them as inferred task activations. Awaited work can still be
+					a task, and an authored final <code>TaskContext</code> remains explicit.
+				</p>
 				<Callout title="Async is not the marker">
 					<p>
 						A function does not become a task merely because it is <code>async</code>, and a task

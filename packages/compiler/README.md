@@ -133,6 +133,9 @@ generation signal automatically, and local known or typed disposable resources r
 generation ownership. Existing signals and event options are preserved and combined. Use a final
 `TaskContext` policy parameter when an opaque external effect needs an explicit signal, cleanup,
 or owned resource, or for placement, scheduling policy, and deliberately nonblocking work.
+Calls whose values are consumed synchronously during component setup remain ordinary initialization
+unless an authored final `TaskContext` explicitly requests task semantics; inferred activation
+cannot replace the immediate return contract of a factory or context helper.
 
 Defaulted non-context task parameters are compiler-captured inputs. Their
 initializers are evaluated once per generation without becoming activation

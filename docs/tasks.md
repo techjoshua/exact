@@ -86,6 +86,13 @@ the retained context and the public task ABI to restore the same relationship.
 Synchronous setup activations through normal priority settle before the first
 render so their state output is available to the component and its children.
 
+A setup expression that consumes a call's value synchronously remains ordinary
+initialization. Factory calls, context lookups, and other helpers used to
+initialize local values must return their JavaScript value directly; inferred
+task activation cannot provide that value synchronously. An awaited call can
+still be task work, and a final authored `TaskContext` remains an explicit
+request for task semantics.
+
 `async`, `await`, and readiness are separate concepts. `async` supplies normal
 JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task

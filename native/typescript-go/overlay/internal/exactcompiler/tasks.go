@@ -566,6 +566,9 @@ func functionTaskActivation(
 		sourceFile,
 		taskPolicyBindings,
 	)
+	if !nested && !explicit && setupCallConsumesSynchronousResult(node) {
+		return nil, nil, false
+	}
 	classified := explicit || looksLikeTaskPolicy(work, sourceFile) ||
 		summary.Effect != "" && summary.Effect != "neutral" ||
 		len(summary.StateWrites) != 0 ||
@@ -577,6 +580,25 @@ func functionTaskActivation(
 		return nil, nil, false
 	}
 	return work, facets, true
+}
+
+// setupCallConsumesSynchronousResult distinguishes ordinary setup
+// initialization from an activation declaration. Inferred task activation
+// cannot synchronously provide the value of a scheduled generation, so calls
+// used as setup values must retain ordinary JavaScript semantics. An authored
+// TaskContext remains authoritative and is validated by the task pipeline.
+func setupCallConsumesSynchronousResult(call *ast.Node) bool {
+	current := call
+	for current.Parent != nil && ast.IsParenthesizedExpression(current.Parent) {
+		current = current.Parent
+	}
+	if current.Parent == nil {
+		return false
+	}
+	if ast.IsAwaitExpression(current.Parent) || ast.IsVoidExpression(current.Parent) {
+		return false
+	}
+	return !ast.IsExpressionStatement(current.Parent)
 }
 
 func applyFunctionTaskPolicy(

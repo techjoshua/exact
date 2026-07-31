@@ -68,6 +68,9 @@ Classify ordinary declared, assigned, and expression functions from their activa
 effects, and final `TaskContext` policy parameter. Erase policy builders, lower setup activation
 through `activateTask(defineTask(...))`, lower invoked facades through `bindTask(defineTask(...))`,
 and lower calls after suspension through `invokeTask()` with the retained context. Preserve
+ordinary synchronous setup value contracts: do not infer task activation for a call whose result
+initializes or participates in a setup value unless its final authored `TaskContext` explicitly
+requests task semantics. Preserve
 compiler-generated opaque operation identity, argument slots, generations, placement, optimism,
 and server/client artifact partitioning. Authored function names are labels, never dispatch
 authority. Treat an authored final `TaskContext` as the server continuation's runtime context; do

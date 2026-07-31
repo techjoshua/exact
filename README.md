@@ -82,7 +82,9 @@ Ordinary local functions become structured tasks when their effects or activatio
 coordination. Reactive and invoked work share lifecycle, cancellation, cleanup, concurrency,
 optimism, placement, and error ownership without separate task/action wrappers. The compiler
 supplies generation cancellation to discoverable `AbortSignal` parameters and owns local
-disposable resources when their cleanup contract is visible.
+disposable resources when their cleanup contract is visible. A setup call whose value is consumed
+synchronously remains ordinary initialization unless an authored `TaskContext` explicitly makes
+it task work.
 
 ### Client and server use one model
 

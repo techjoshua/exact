@@ -3055,6 +3055,96 @@ func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
 	}
 }
 
+func TestSessionKeepsValueProducingSetupHelpersOutOfTaskAnalysis(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			declare const RouterContext: unknown;
+			declare class Component<State> {
+				state: State;
+				getContext<T>(token: unknown): T;
+			}
+			type Source = {
+				subscribe(callback: () => void): () => void;
+			};
+			function componentContext(component: Component<{}>) {
+				return component.getContext(RouterContext);
+			}
+			function createController(source: Source) {
+				const unsubscribe = source.subscribe(() => {});
+				return {
+					dispose: unsubscribe,
+					load() {
+						return fetch("/deferred");
+					}
+				};
+			}
+			function Router(this: Component<{ version: number }>, source: Source) {
+				this.state.version = 0;
+				void window.location.href;
+				const context = componentContext(this);
+				const controller = createController(source);
+				void context;
+				void controller;
+				return () => <output>{this.state.version}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 0 {
+		t.Fatalf(
+			"value-producing setup helpers were classified as tasks: %#v %#v",
+			response.Analysis.Tasks,
+			response.Diagnostics,
+		)
+	}
+	for _, expected := range []string{
+		"const context = componentContext(this);",
+		"const controller = createController(source);",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("ordinary setup call is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, "__exactActivateTask") {
+		t.Fatalf("ordinary setup calls received task lowering:\n%s", response.Code)
+	}
+}
+
+func TestSessionTreatsDiscardedVoidSetupCallsAsTaskActivations(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function Panel(this: Component<{ value: string }>) {
+				function persist(value: string) {
+					localStorage.setItem("value", value);
+				}
+				void persist(this.state.value);
+				return () => <output>{this.state.value}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 1 {
+		t.Fatalf(
+			"discarded setup activation was not classified as a task: %#v %#v",
+			response.Analysis.Tasks,
+			response.Diagnostics,
+		)
+	}
+	if !response.Analysis.Tasks[0].FunctionDefined ||
+		response.Analysis.Tasks[0].Placement != "client" {
+		t.Fatalf("unexpected discarded setup task: %#v", response.Analysis.Tasks[0])
+	}
+}
+
 func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "component.tsx",
