@@ -148,6 +148,9 @@ and architecture.
 - Node, Fetch, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, and serverless runtime adapters
 
 The package-specific READMEs describe the supported APIs and environment boundaries in detail.
+Explicit foreign `@jsxImportSource` modules remain part of their configured
+TypeScript project and compiler corpus while bypassing native eXact component
+lowering for their owning JSX pipeline.
 
 ## Explore the project
 

@@ -74,6 +74,9 @@ npm run verify -w @exactjs/docs
 ```
 
 This runs the package-local typecheck followed by the standalone production build.
+The build also exercises mixed JSX ownership: explicitly React-owned demo
+modules remain in the TypeScript project while the native eXact compiler passes
+them to the React compatibility pipeline.
 
 ## Preview the production artifact
 

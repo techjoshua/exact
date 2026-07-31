@@ -25,11 +25,11 @@ export function createClientIslandRegistryEntries(
 			result.clientFile,
 			options.rootDir ?? path.dirname(result.manifestFile)
 		);
-		const resumableComponents = new Set(
-			result.manifest.resumptions.map((resumption) => resumption.componentId)
+		const continuationComponents = new Set(
+			result.manifest.continuations.map((continuation) => continuation.componentId)
 		);
 		for (const symbol of result.manifest.symbols) {
-			if (!clientRegistrySymbol(symbol, resumableComponents)) continue;
+			if (!clientRegistrySymbol(symbol, continuationComponents)) continue;
 			entries.push({
 				id: symbol.id,
 				name: symbol.generatedName,
@@ -193,7 +193,7 @@ function statePathDescriptor(
 
 function clientRegistrySymbol(
 	symbol: ExactSymbolIR,
-	resumableComponents: ReadonlySet<string>
+	continuationComponents: ReadonlySet<string>
 ): symbol is ExactSymbolIR & { exportName: string } {
 	if (!symbol.exportName) return false;
 	return (
@@ -206,7 +206,7 @@ function clientRegistrySymbol(
 			symbol.role === 'root' &&
 			symbol.kind === 'component' &&
 			!!symbol.componentId &&
-			resumableComponents.has(symbol.componentId))
+			continuationComponents.has(symbol.componentId))
 	);
 }
 

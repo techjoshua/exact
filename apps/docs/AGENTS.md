@@ -68,3 +68,8 @@ signal checks where compiler-lowered awaits and staged writes already reject sta
 that cleanup runs when its generation settles: do not register an opaque subscription in a
 synchronous task and expect it to survive for the component lifetime. Prefer reactive activation
 for effects driven by reactive framework state.
+
+Keep React-owned demos marked with an explicit `@jsxImportSource react`.
+They must remain in the docs TypeScript project and native compiler corpus;
+rely on the compiler ownership boundary to pass them to the compatibility
+pipeline instead of excluding them from repository checks.

@@ -326,7 +326,7 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).not.toContain('"actionBoundaries"');
 	});
 
-	it('registers resumable dual-root components for client hydration', async () => {
+	it('registers continuation-owning dual-root components for client hydration', async () => {
 		const root = await createTestWorkspace('exact-resumable-root-registration-');
 		const input = path.join(root, 'src', 'workspace.tsx');
 		const outDir = path.join(root, 'dist');
@@ -370,6 +370,31 @@ describe('@exactjs/compiler: registries', () => {
 		);
 		expect(module).toContain('import("./dist/workspace.exact.client.js")');
 		expect(module).toContain('.then((module) => module["Workspace"])');
+	});
+
+	it('does not promote state-only dual roots into standalone client islands', async () => {
+		const root = await createTestWorkspace('exact-state-only-root-registration-');
+		const input = path.join(root, 'src', 'Counter.tsx');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`
+				export function Counter(this: Component<{ count: number }>) {
+					this.state.count = 1;
+					return () => <output>{this.state.count}</output>;
+				}
+			`
+		);
+
+		const result = await compileFileArtifacts(input, {
+			outDir,
+			rootDir: path.join(root, 'src')
+		});
+
+		expect(result.manifest.resumptions).toHaveLength(1);
+		expect(result.manifest.continuations).toHaveLength(0);
+		expect(createClientIslandRegistryEntries([result], { rootDir: root })).toEqual([]);
 	});
 
 	it('includes component render edges in artifact graphs', async () => {
