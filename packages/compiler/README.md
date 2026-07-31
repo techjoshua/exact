@@ -106,6 +106,11 @@ DOM or storage effects are compile errors. A local expression-bodied arrow is
 the normal form. A shared regular function is also supported and receives the
 component instance as `this`; a shared arrow cannot be returned directly.
 
+Task bodies remain distributed placement boundaries. Their browser/server
+effects do not make the enclosing setup indivisible. An isomorphic exported
+component with client tasks and server continuations emits both artifact roots
+and a client resumption registration.
+
 Static conditional class tokens can use compiler-owned namespaced props:
 
 ```tsx

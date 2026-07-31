@@ -37,6 +37,7 @@ func lowerComponentContracts(
 			component,
 			target,
 			continuations,
+			resumptions,
 			boundaries,
 		) {
 			rootContracts[component.Name] = component
@@ -184,6 +185,7 @@ func componentRootContract(
 	component Component,
 	target Target,
 	continuations []Continuation,
+	resumptions []ComponentResumption,
 	boundaries []Boundary,
 ) bool {
 	if !component.Exported {
@@ -197,6 +199,11 @@ func componentRootContract(
 	}
 	for _, continuation := range continuations {
 		if continuation.ComponentID == component.ID {
+			return target == TargetClient || target == TargetServer
+		}
+	}
+	for _, resumption := range resumptions {
+		if resumption.ComponentID == component.ID {
 			return target == TargetClient || target == TargetServer
 		}
 	}

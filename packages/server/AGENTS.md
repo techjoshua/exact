@@ -12,6 +12,9 @@ the framework task-frame SPI so their trusted `TaskContext` owns cancellation, g
 cleanup, disposables, and attached children. Return the authored value inside the validated
 envelope, and keep authored labels, task contexts, services, secrets, and raw DOM or form objects
 out of the transport contract.
+Preserve that validated `value` in both ordinary and NDJSON responses.
+Streaming may emit other effects separately, but its terminal operation result
+must retain the value and its operation index.
 Treat captured task-parameter defaults as already-resolved originating-host arguments. Validate
 their compiler-declared slots normally; never reevaluate a client capture on the server or accept
 an authored capture expression through the protocol.

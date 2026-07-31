@@ -20,6 +20,12 @@ Hydratable results expose the same public component resumption activations seria
 hydration script. Server-only context and resources may influence permitted HTML but never enter
 that client record.
 
+An SSR-rendered component with a compiler resumption contract is enclosed in
+an eager client boundary containing a detached, JSON-safe snapshot of its
+props. Snapshotting must not subscribe the active render to the serialized
+object graph. Repeated plain-object references are allowed; true cycles remain
+rejected.
+
 Eager and lazy registry selections render through the ordinary component/Suspense pipeline.
 Registry binding, key, and opaque compiled identity are retained in the component marker name so
 the hydration client can reject a stale or different selection without accepting ambiguous

@@ -22,4 +22,9 @@ boundary. Do not restore redundant `parallel()`/`latest()` policy, manual signal
 revision comparisons, post-await abort checks, authored operation IDs, or direct `ExactClient`
 calls. Provider credentials, registry modules, and quote execution remain server-only.
 
+Keep every generated executor-bearing root used by the app in the server's
+`composeExactExecutorContract()` input. For the current app that includes both
+`ShippingCalculatorPage` and `CalculatorWorkspace`; never replace that allowlist
+with authored operation IDs or a permissive dispatch table.
+
 Run `npm run test:shipping` and `npm run build:shipping` after component or task changes.

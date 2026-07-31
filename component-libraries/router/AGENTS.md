@@ -7,3 +7,7 @@ Navigation, fetch, submit, and revalidation started synchronously inside an even
 must join the current component interaction task frame. Preserve latest-wins navigation, cancellation,
 redirects, blockers, stale-result fencing, and durable error ownership while doing so. Do not
 invent a second transition or pending-state model around the router.
+
+Keep prop destructuring, route matching, and link presentation in setup. Return
+only a view expression from render functions; use a named pure helper for a
+setup-derived projection rather than imperative render-body control flow.

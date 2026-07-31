@@ -245,7 +245,8 @@ async function emitOperationStreamEvents(
 			ok: true,
 			type: result.type,
 			id: result.id,
-			...(result.opId === undefined ? {} : { opId: result.opId })
+			...(result.opId === undefined ? {} : { opId: result.opId }),
+			...('value' in result ? { value: result.value } : {})
 		}
 	});
 }

@@ -39,6 +39,7 @@ func analyzeComponents(
 		component := &components[index]
 		candidate := candidates[index]
 		clientEffects, serverEffects := false, false
+		clientTaskEffects := false
 		indivisible := ""
 		opaquePath := ""
 		splitBoundaries := make(map[string]struct{})
@@ -49,40 +50,54 @@ func analyzeComponents(
 			sourceFile,
 		)
 		diagnostics := []string{}
+		taskActivations := make(map[string]struct{})
+		for _, task := range tasks {
+			if task.Component == component.Name &&
+				task.Start >= component.Start &&
+				task.Start+task.Length <= component.Start+component.Length {
+				taskActivations[fmt.Sprintf("%d:%d", task.Start, task.Length)] = struct{}{}
+			}
+		}
 
-		if setup, exists := callables.byNode[candidate.node]; exists {
-			switch setup.Effect {
-			case "browser":
-				clientEffects = true
-			case "server":
-				serverEffects = true
-			case "mixed":
-				indivisible = setup.Effect
-				diagnostics = append(
-					diagnostics,
-					"error: component setup has mixed placement effects ("+
-						effectSourcePath(setup.EffectSources)+")",
-				)
-			case "unknown":
-				knownBrowser, knownServer := knownEffectEnvironments(setup.EffectSources)
-				switch {
-				case knownBrowser && knownServer:
-					indivisible = "mixed"
+		// A task-owning component is classified from its non-task setup walk and
+		// the task placements below. The callable summary intentionally includes
+		// task bodies, whose distributed effects must not become indivisible setup.
+		if len(taskActivations) == 0 {
+			if setup, exists := callables.byNode[candidate.node]; exists {
+				switch setup.Effect {
+				case "browser":
+					clientEffects = true
+				case "server":
+					serverEffects = true
+				case "mixed":
+					indivisible = setup.Effect
 					diagnostics = append(
 						diagnostics,
 						"error: component setup has mixed placement effects ("+
 							effectSourcePath(setup.EffectSources)+")",
 					)
-				case knownBrowser:
-					clientEffects = true
-				case knownServer:
-					serverEffects = true
-				default:
-					indivisible = "unknown"
-					opaquePath = effectSourcePath(setup.EffectSources)
+				case "unknown":
+					knownBrowser, knownServer := knownEffectEnvironments(setup.EffectSources)
+					switch {
+					case knownBrowser && knownServer:
+						indivisible = "mixed"
+						diagnostics = append(
+							diagnostics,
+							"error: component setup has mixed placement effects ("+
+								effectSourcePath(setup.EffectSources)+")",
+						)
+					case knownBrowser:
+						clientEffects = true
+					case knownServer:
+						serverEffects = true
+					default:
+						indivisible = "unknown"
+						opaquePath = effectSourcePath(setup.EffectSources)
+					}
 				}
 			}
 		}
+
 		ownedElements := make([]componentElement, 0)
 		for _, element := range elements {
 			if componentOwnerIndex(element.node, candidates) != index ||
@@ -138,6 +153,9 @@ func analyzeComponents(
 				}
 			}
 			if ast.IsCallExpression(node) {
+				if _, activation := taskActivations[nodeSpanKey(node)]; activation {
+					return true
+				}
 				call := node.AsCallExpression()
 				target, exists := callableEffectForCall(callables, node.Pos())
 				if !exists {
@@ -198,6 +216,7 @@ func analyzeComponents(
 			}
 			if task.Placement == "client" || task.Placement == "isomorphic" {
 				clientEffects = true
+				clientTaskEffects = true
 			}
 			if task.Placement == "server" || task.Placement == "isomorphic" {
 				serverEffects = true
@@ -246,6 +265,8 @@ func analyzeComponents(
 		switch {
 		case component.Placement == "unknown":
 			component.ArtifactTargets = []string{}
+		case serverEffects && clientTaskEffects:
+			component.ArtifactTargets = []string{"client", "server"}
 		case serverEffects:
 			component.ArtifactTargets = []string{"server"}
 		case clientEffects:

@@ -7,6 +7,11 @@ hydratable output. Do not add hydration data when the page has no eXact-owned br
 Keep component inputs deterministic and serializable. Use compiler/runtime contracts for server
 components and continuations; never invent operation IDs or depend on generated manifest shape.
 
+Emit eager boundaries for SSR components with resumption contracts and snapshot
+their props without reactive tracking or accessor invocation. Permit repeated
+plain-data references in hydration payloads while rejecting active cycles and
+unsupported prototypes.
+
 Render eager and lazy registry entries through the ordinary component and Suspense pipeline.
 Preserve the compiler-owned registry binding, selected key, and opaque entry identity in
 hydratable component markers. Compose distributed task handlers from generated artifacts rather

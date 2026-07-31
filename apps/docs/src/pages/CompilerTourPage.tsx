@@ -139,6 +139,11 @@ export function CompilerTourPage(this: Component<{}>) {
 						state is resumed in the browser, so hydration adopts the rendered DOM without shipping
 						or rerunning the repository client.
 					</p>
+					<p>
+						A component may own client tasks and server continuations without turning those task
+						bodies into mixed setup. The compiler emits both roots, marks the SSR component range
+						for eager resumption, and preserves invoked return values in streamed responses.
+					</p>
 				</div>
 			</section>
 			<Callout title="Generated code is an implementation contract, not an authoring API">

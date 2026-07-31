@@ -58,9 +58,14 @@ describe('@exactjs/ssr component resumption', () => {
 			}
 		});
 
-		const rendered = await renderToHydratableStringAsync(createVNode(Counter, {}));
+		function Root() {
+			return () => createVNode(Counter, {});
+		}
+		const rendered = await renderToHydratableStringAsync(createVNode(Root, {}));
 
 		expect(rendered.html).toContain('<output>7</output>');
+		expect(rendered.html).toContain('data-exact-client-name="Counter"');
+		expect(rendered.html).toContain('data-exact-client-resumption="true"');
 		expect(rendered.resumptions).toEqual([
 			{
 				componentId: 'component:Counter',

@@ -30,6 +30,11 @@ optional-signal injection remain inferred. Components never acquire an
 compiler keeps provider modules in the server artifact and emits opaque
 dispatch stubs in the client artifact.
 
+The server composes both generated executor-bearing roots exported by
+`App.exact.server`: the page and `CalculatorWorkspace`. This is the explicit
+allowlist for the workspace's opaque route and provider continuations; authored
+components still never import or invoke those IDs.
+
 The rate refresh task uses defaulted `draft` and provider parameters as
 captured inputs. They are sampled once whenever the tracked revision activates
 a generation, so edits alone do not create an additional trigger and the

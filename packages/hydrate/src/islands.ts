@@ -23,6 +23,10 @@ import { isSafeObjectKey } from './safety.js';
 import type { ClientIslandRegistry, HydrateOptions } from './types.js';
 import { isJsonSafe } from './validation.js';
 import { roots } from './runtime/state.js';
+import {
+	checkpointComponentResumptions,
+	rollbackComponentResumptions
+} from './runtime/resumption.js';
 
 /** Hydrates all unhydrated client island boundaries found under a container. */
 export function hydrateClientIslands(
@@ -189,12 +193,16 @@ function mountIslandBoundary(
 	const interaction =
 		boundary.getAttribute('data-exact-client-hydration') === 'interaction' &&
 		boundary.childNodes.length > 0;
-	const captured = interaction ? captureHydrationDom(boundary, work) : undefined;
-	const adopted = interaction
-		? adoptMarkerlessComponentRoot(vnode, boundary, rendererOptions)
-		: false;
+	const resumption =
+		boundary.getAttribute('data-exact-client-resumption') === 'true' &&
+		boundary.childNodes.length > 0;
+	const adopting = interaction || resumption;
+	const captured = adopting ? captureHydrationDom(boundary, work) : undefined;
+	const checkpoint = adopting ? checkpointComponentResumptions(domain) : 0;
+	const adopted = adopting ? adoptMarkerlessComponentRoot(vnode, boundary, rendererOptions) : false;
 	if (!adopted) {
-		if (interaction) boundary.replaceChildren();
+		if (adopting) rollbackComponentResumptions(domain, checkpoint);
+		if (adopting) boundary.replaceChildren();
 		render(vnode, boundary, rendererOptions);
 	}
 	if (captured)

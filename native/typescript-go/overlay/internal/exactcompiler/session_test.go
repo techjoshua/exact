@@ -4610,7 +4610,10 @@ func TestSessionAnalyzesComponentPlacementIslandsAndContexts(t *testing.T) {
 	component := response.Analysis.Components[0]
 	if component.Placement != "isomorphic" ||
 		component.EnvironmentEffect != "server" ||
-		component.ClientIslandCount != 1 {
+		component.ClientIslandCount != 1 ||
+		len(component.ArtifactTargets) != 2 ||
+		component.ArtifactTargets[0] != "client" ||
+		component.ArtifactTargets[1] != "server" {
 		t.Fatalf("unexpected component placement: %#v", component)
 	}
 	if !containsString(component.SplitBoundaries, "event-handler") ||
@@ -4621,6 +4624,39 @@ func TestSessionAnalyzesComponentPlacementIslandsAndContexts(t *testing.T) {
 	if !containsContextEffect(component.Contexts, "Theme", "read") ||
 		!containsContextEffect(component.Contexts, "this.state.token", "write") {
 		t.Fatalf("missing component context effects: %#v", component.Contexts)
+	}
+}
+
+func TestSessionSeparatesTaskEffectsFromComponentSetupPlacement(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "workspace.tsx",
+		Kind: "analyze",
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare function loadOnServer(): Promise<number>;
+			export function Workspace(this: Component<{ count: number }>) {
+				async function load(_task: TaskContext = TaskContext.server()) {
+					return loadOnServer();
+				}
+				async function refresh(_task: TaskContext = TaskContext.client()) {
+					localStorage.setItem("refreshing", "true");
+					this.state.count = await load();
+				}
+				void refresh();
+				return () => <output>{this.state.count}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	workspace := findComponent(t, response.Analysis.Components, "Workspace")
+	if workspace.Placement != "isomorphic" ||
+		len(workspace.ArtifactTargets) != 2 ||
+		workspace.ArtifactTargets[0] != "client" ||
+		workspace.ArtifactTargets[1] != "server" ||
+		strings.Contains(strings.Join(workspace.Diagnostics, "\n"), "mixed placement effects") {
+		t.Fatalf("task effects contaminated component setup placement: %#v", workspace)
 	}
 }
 

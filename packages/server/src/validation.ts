@@ -38,7 +38,8 @@ export function isInvocationResultSafe(
 		return false;
 	if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
 	const record = result as Record<string, unknown>;
-	if (!hasOnlyKeys(record, ['patches', 'state', 'mutations', 'contexts', 'html'])) return false;
+	if (!hasOnlyKeys(record, ['patches', 'state', 'mutations', 'contexts', 'html', 'value']))
+		return false;
 	if ('state' in record && record.state === undefined) return false;
 	if (
 		record.contexts !== undefined &&

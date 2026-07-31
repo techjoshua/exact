@@ -98,6 +98,11 @@ The compiler analyzes placement, produces client and server artifacts, and coord
 actions, continuations, cancellation, and secure server dispatch. Application code expresses the
 operation; generated code owns the transport plumbing.
 
+Task bodies are placement boundaries, not component-setup effects. A component that renders on the
+server while owning client tasks and server continuations emits both roots: SSR records its public
+resumption state, hydration eagerly adopts that component range, and invoked continuation values
+remain intact through batched or streamed transport.
+
 eXact deliberately uses familiar TSX without adopting React's runtime architecture. React
 compatibility is available for React-owned libraries and migration boundaries, while native eXact
 components keep the setup-once model.

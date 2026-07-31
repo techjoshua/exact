@@ -6,10 +6,10 @@ import {
 	renderExactRequestToProgressiveHtmlResponse
 } from '@exactjs/ssr';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { ShippingCalculatorPage } from '../.exact/App.exact.server.js';
+import { CalculatorWorkspace, ShippingCalculatorPage } from '../.exact/App.exact.server.js';
 import { configuredProviderIds } from './providers/registry.js';
 
-const exactContract = composeExactExecutorContract([ShippingCalculatorPage], {
+const exactContract = composeExactExecutorContract([ShippingCalculatorPage, CalculatorWorkspace], {
 	endpoint: '/__exact'
 });
 

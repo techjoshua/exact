@@ -19,6 +19,23 @@ describe('@exactjs/server security-validation', () => {
 		);
 	});
 
+	it('accepts a transport-safe continuation return value', async () => {
+		const response = await handleExactRequest(
+			{
+				method: 'POST',
+				body: { type: 'action', id: 'allowed-action' }
+			},
+			context({
+				actions: {
+					'allowed-action': () => ({ value: { status: 'ready' } })
+				}
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(JSON.parse(response.body).value).toEqual({ status: 'ready' });
+	});
+
 	it('encodes registered keyed collections in response state', async () => {
 		const records = [
 			{ id: 'a', title: 'A' },

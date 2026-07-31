@@ -10,3 +10,7 @@ work, and router operations joined by that callback. The host must begin an
 interaction-activated root task frame so invoked task descendants contribute
 to structural settlement. Use `Submit` for coordinated pending text and the
 `errors` prop for application-owned field messages.
+
+Keep prop destructuring and accessibility/validation derivation in setup. A
+returned render function must contain only the JSX view expression; do not add
+declarations or imperative branches to library renders.

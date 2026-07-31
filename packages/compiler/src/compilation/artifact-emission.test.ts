@@ -143,7 +143,7 @@ describe('@exactjs/compiler: artifacts', () => {
 					localName: 'Page',
 					generatedName: 'Page',
 					role: 'root',
-					target: 'server'
+					target: 'both'
 				})
 			],
 			boundaries: []

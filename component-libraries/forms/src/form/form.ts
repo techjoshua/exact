@@ -67,16 +67,16 @@ export function Form(this: Component<FormState>, props: FormProps) {
 			this.state.submitting = false;
 		}
 	};
-	return () => {
-		const {
-			children,
-			errors: _errors,
-			onSubmit: _submit,
-			onValidSubmit: _valid,
-			onInvalidSubmit: _invalid,
-			...rest
-		} = props;
-		return createVNode(
+	const {
+		children,
+		errors: _errors,
+		onSubmit: _submit,
+		onValidSubmit: _valid,
+		onInvalidSubmit: _invalid,
+		...rest
+	} = props;
+	return () =>
+		createVNode(
 			'form',
 			{
 				...rest,
@@ -86,7 +86,6 @@ export function Form(this: Component<FormState>, props: FormProps) {
 			},
 			...childrenArray(children)
 		);
-	};
 }
 
 markExactComponent(Form);

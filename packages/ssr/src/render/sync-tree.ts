@@ -13,6 +13,7 @@ import {
 	isVNode,
 	normalizeRenderResult,
 	normalizeActivityMode,
+	readExactComponentContract,
 	renderInstance,
 	type VNode
 } from '@exactjs/core';
@@ -44,6 +45,7 @@ import {
 	clientBoundarySerializationMessage,
 	componentName,
 	getComponentProps,
+	renderResumableComponentBoundary,
 	renderServerBoundary,
 	serverSlotId
 } from './boundaries.js';
@@ -172,10 +174,12 @@ export function* renderVNodeChunks(
 		const componentId = markerId(context, 'component', componentName(vnode.type), vnode.key);
 		let childParent = parent;
 		let children: Child[];
+		let componentProps: Record<string, unknown> = {};
 		try {
+			componentProps = getComponentProps(vnode);
 			const instance = createComponentInstance(
 				vnode.type as ComponentFunction<any, Record<string, unknown>>,
-				getComponentProps(vnode),
+				componentProps,
 				parent,
 				context.componentContexts,
 				context.componentDomain
@@ -197,6 +201,18 @@ export function* renderVNodeChunks(
 		};
 		if (context.documentProbe && context.hostStack.length === 0) {
 			yield* renderRootComponentChunks(context, componentId, rendered());
+		} else if (
+			parent &&
+			typeof vnode.type === 'function' &&
+			readExactComponentContract(vnode.type)?.resumption
+		) {
+			yield renderResumableComponentBoundary(
+				context,
+				vnode,
+				componentId,
+				boundedJoin(context, [...rendered()]),
+				componentProps
+			);
 		} else {
 			yield* marked(componentId, rendered);
 		}

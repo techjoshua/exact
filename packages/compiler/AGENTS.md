@@ -17,6 +17,11 @@ multiple components genuinely share a view and need their component instance as 
 return a shared arrow. Keep state writes, registration, scheduling, DOM mutation, and storage
 effects out of render functions.
 
+Classify component setup independently from owned task bodies. Preserve the
+non-task setup call graph, then apply each task's placement as a split boundary.
+When server work and client task activation require both roots, retain the
+exported component's resumption contract and client registry entry.
+
 Treat generated `.exact` directories and `.exact.*` files as disposable build output. Never edit
 or commit them.
 

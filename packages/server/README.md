@@ -24,6 +24,11 @@ cleanup, disposable ownership, and structural child settlement without placing t
 in the transport payload. The authored result returns only inside the validated continuation
 envelope.
 
+Transport-safe authored return values are valid invocation results. Non-stream
+responses carry them directly, while NDJSON batching retains them on each
+terminal operation event after any incremental state, mutation, patch, or HTML
+events.
+
 Reactive defaults on task parameters are resolved by the originating task
 runtime before dispatch. The server receives only the resulting
 compiler-authorized argument slots; it never reevaluates a client capture or

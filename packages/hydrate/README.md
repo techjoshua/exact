@@ -15,6 +15,11 @@ mounted fresh DOM, or updated an existing hydrated root. Component resumption re
 compiler-declared state and shared context, and settled server work is armed without an immediate
 duplicate run.
 
+Resumable SSR component ranges hydrate eagerly. They first attempt static DOM
+adoption; a mismatch rolls back any activation records consumed by that attempt
+before mounting fresh DOM. Generated continuation descriptors retain task/action
+kind and invocation concurrency metadata when read from serialized config.
+
 Blocking distributed continuations validate their response first, then stage authorized DOM,
 component-state, and public-context changes under the task generation signal. The nearest
 readiness boundary publishes that response atomically or discards it when the generation is stale.

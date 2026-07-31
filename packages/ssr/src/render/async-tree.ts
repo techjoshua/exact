@@ -46,7 +46,12 @@ import type {
 	SsrContext,
 	TaskObserver
 } from '../types.js';
-import { componentName, getComponentProps, renderServerBoundaryAsync } from './boundaries.js';
+import {
+	componentName,
+	getComponentProps,
+	renderResumableComponentBoundary,
+	renderServerBoundaryAsync
+} from './boundaries.js';
 import { handleSsrConstructionError } from './construction-errors.js';
 import { awaitWithAbort, drainTasks } from './context.js';
 import { type SsrRenderOptions } from './entrypoints.js';
@@ -298,9 +303,10 @@ export function renderComponent(
 	let instance: ComponentInstance<any> | undefined;
 	let output!: string;
 	try {
+		const componentProps = getComponentProps(vnode);
 		instance = createComponentInstance(
 			vnode.type as ComponentFunction<any, Record<string, unknown>>,
-			getComponentProps(vnode),
+			componentProps,
 			parent,
 			context.componentContexts,
 			context.componentDomain
@@ -320,7 +326,9 @@ export function renderComponent(
 				output =
 					documentProbe && context.documentRootSeen
 						? html
-						: markerPair(context, componentId, () => html);
+						: parent
+							? renderResumableComponentBoundary(context, vnode, componentId, html, componentProps)
+							: markerPair(context, componentId, () => html);
 				stabilized = true;
 				break;
 			}
@@ -362,10 +370,11 @@ export async function renderComponentAsync(
 				},
 				retain() {}
 			};
+			const componentProps = getComponentProps(vnode);
 			instance = withTaskObserver(observer, () =>
 				createComponentInstance(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
-					getComponentProps(vnode),
+					componentProps,
 					parent,
 					context.componentContexts,
 					context.componentDomain
@@ -387,7 +396,9 @@ export async function renderComponentAsync(
 				if (!invalidated)
 					return documentProbe && context.documentRootSeen
 						? html
-						: markerPair(context, componentId, () => html);
+						: parent
+							? renderResumableComponentBoundary(context, vnode, componentId, html, componentProps)
+							: markerPair(context, componentId, () => html);
 			}
 			throw new Error(
 				`eXact async SSR component did not stabilize after ${maxPasses} render passes`

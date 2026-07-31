@@ -112,7 +112,7 @@ describe('@exactjs/compiler: reactivity', () => {
 					debugName: 'ProjectPage',
 					kind: 'component',
 					role: 'root',
-					target: 'server',
+					target: 'both',
 					placement: 'isomorphic'
 				}),
 				expect.objectContaining({
