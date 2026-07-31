@@ -75,7 +75,9 @@ props never observe an intermediate uninitialized value.
 
 eXact does not rerun the component to produce another virtual tree. Generated code updates the
 specific expression or structural range affected by a change while preserving component and DOM
-identity.
+identity. Synchronous writes from one DOM interaction publish against one deduplicated subscriber
+snapshot, so a consumer updates once even when a collection replacement changes many paths it
+reads.
 
 ### Async work has an owner
 
@@ -165,8 +167,9 @@ The repository also includes complete sample applications:
 - [Server Components](apps/server-components)
 
 The native samples follow the setup-once component model: state stays directly inspectable,
-reactive calls define task dependencies, concurrent work attaches as child tasks, and timers,
-subscriptions, and other resources remain generation-owned.
+reactive calls define task dependencies and latest-wins activation, concurrent work attaches as
+default-parallel child tasks, and known browser APIs infer placement and generation-owned
+cancellation. They author `TaskContext` only for boundaries or policy the compiler cannot infer.
 
 From a repository checkout, try:
 

@@ -2,7 +2,6 @@ import {
 	createConsoleLogger,
 	ErrorContext,
 	LoggerContext,
-	TaskContext,
 	type Component,
 	type Logger
 } from '@exactjs/core';
@@ -47,12 +46,9 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 	this.state.syncState = 'idle';
 	const errors = this.getContext(ErrorContext);
 
-	const persistTasks = async (
-		tasksJson: string,
-		task: TaskContext = TaskContext.client().latest()
-	) => {
+	const persistTasks = async (tasksJson: string) => {
 		this.state.syncState = 'saving';
-		await delay(160, task.signal);
+		await delay(160);
 		localStorage.setItem(storageKey, tasksJson);
 		this.state.syncState = 'synced';
 	};
@@ -195,7 +191,7 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 
 	this.setContext(WorkbenchContext, services);
 
-	const observeKeyboard = (task: TaskContext = TaskContext.client()) => {
+	const observeKeyboard = () => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
 				event.preventDefault();
@@ -206,7 +202,7 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 				this.state.importOpen = false;
 			}
 		};
-		window.addEventListener('keydown', onKeyDown, { signal: task.signal });
+		window.addEventListener('keydown', onKeyDown);
 	};
 	observeKeyboard();
 
@@ -288,9 +284,10 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
  * Waits for the debounce window and settles early when its owning task is cancelled.
  * The timer stays inside this adapter because a Promise executor is opaque to compiler ownership.
  */
-function delay(ms: number, signal: AbortSignal): Promise<void> {
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
 	return new Promise((resolve) => {
 		const timeout = setTimeout(resolve, ms);
+		if (!signal) return;
 		signal.addEventListener(
 			'abort',
 			() => {

@@ -27,9 +27,11 @@ causal frames aggregated into per-component-type waterfall lanes, including reli
 finalization from retained event history.
 
 Native documentation components use function-defined tasks for transient UI
-work and register opaque subscriptions with `TaskContext.cleanup()`. Examples
-should rely on attached task generations and compiler stale-write fencing
-instead of teaching manual revision or post-await cancellation checks.
+work. Known browser APIs infer placement and cancellation; authored
+`TaskContext` policy remains only when behavior such as latest-wins repeated
+copy feedback is not inferable. Examples should rely on attached task
+generations and compiler stale-write fencing instead of teaching manual
+revision, signal plumbing, or post-await cancellation checks.
 
 ## Develop
 

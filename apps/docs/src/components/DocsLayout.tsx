@@ -1,4 +1,4 @@
-import { TaskContext, type Component } from '@exactjs/core';
+import type { Component } from '@exactjs/core';
 import { Outlet, RouteContext } from '@exactjs/router';
 import { DocsHeader } from './DocsHeader.jsx';
 import { DocsSearch } from './DocsSearch.jsx';
@@ -15,10 +15,7 @@ export function DocsLayout(this: Component<LayoutState>) {
 	this.state.mobileOpen = false;
 	this.state.searchOpen = false;
 
-	const scrollToRoute = (
-		_locationKey: string,
-		_task: TaskContext = TaskContext.client().immediate()
-	) => {
+	const scrollToRoute = (_locationKey: string) => {
 		window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 	};
 	scrollToRoute(route.location.key);

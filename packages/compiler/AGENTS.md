@@ -76,7 +76,9 @@ compiler-generated opaque operation identity, argument slots, generations, place
 and server/client artifact partitioning. Authored function names are labels, never dispatch
 authority. Treat an authored final `TaskContext` as the server continuation's runtime context; do
 not append a second executor context parameter or expose the authored context as a callable task
-argument. Do not transport `TaskContext`, DOM values, services, resources, or secrets.
+argument. Emit empty invocation arguments as an empty protocol array, never `null`, so a
+parameterless task may author only non-default policy such as `TaskContext.latest()`. Do not
+transport `TaskContext`, DOM values, services, resources, or secrets.
 Preserve automatic generation-signal injection for discoverable direct and options-object
 `AbortSignal` parameters, combining authored values instead of replacing them. Give only local,
 non-escaping known or typed disposable resources automatic generation ownership; diagnose an

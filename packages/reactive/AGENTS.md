@@ -9,6 +9,10 @@ Use native-looking array, `Map`, and `Set` reads and mutations on reactive proxi
 only when an external integration must define a transaction explicitly. Component code should
 prefer compiler-owned batching and function-defined tasks.
 
+Preserve the transaction publication invariant: collect and deduplicate every affected subscriber
+before invoking any scheduler. A custom scheduler may synchronously replace its watcher, and that
+replacement must not observe another key from the transaction that caused it.
+
 Optimistic task rollback is implemented with internal mutation journals. Preserve path,
 array-sequence, Map-entry, and Set-membership granularity so rollback does not overwrite later
 authoritative writes. Applications should not call journal internals or maintain a parallel

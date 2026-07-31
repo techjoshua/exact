@@ -1,4 +1,4 @@
-import { TaskContext, type Component } from '@exactjs/core';
+import type { Component } from '@exactjs/core';
 import { SudokuContext } from './context.js';
 import {
 	applyMove,
@@ -170,81 +170,65 @@ export function SudokuApp(this: Component<SudokuState>) {
 		);
 	};
 
-	const runTimer = (
-		paused: boolean,
-		solved: boolean,
-		_task: TaskContext = TaskContext.client()
-	) => {
+	const runTimer = (paused: boolean, solved: boolean) => {
 		if (paused || solved) return;
 		setInterval(() => this.state.elapsedSeconds++, 1000);
 	};
 	runTimer(this.state.paused, complete);
 
-	const persistChangedGame = (
-		_puzzleId: string,
-		_cells: string,
-		_theme: string,
-		_task: TaskContext = TaskContext.client()
-	) => {
+	const persistChangedGame = (_puzzleId: string, _cells: string, _theme: string) => {
 		persistGame();
 	};
 	persistChangedGame(this.state.puzzleId, JSON.stringify(this.state.cells), this.state.theme);
 
 	// Capture timer-only progress when the session is suspended without making
 	// the one-second display update a persistence dependency.
-	const observePageLifetime = (task: TaskContext = TaskContext.client()) => {
+	const observePageLifetime = () => {
 		const persistWhenHidden = () => {
 			if (document.visibilityState === 'hidden') persistGame();
 		};
-		document.addEventListener('visibilitychange', persistWhenHidden, { signal: task.signal });
-		window.addEventListener('pagehide', persistGame, { signal: task.signal });
+		document.addEventListener('visibilitychange', persistWhenHidden);
+		window.addEventListener('pagehide', persistGame);
 	};
 	observePageLifetime();
 
-	const observeKeyboard = (task: TaskContext = TaskContext.client()) => {
-		window.addEventListener(
-			'keydown',
-			(event) => {
-				if (event.target instanceof HTMLSelectElement) return;
-				if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-					event.preventDefault();
-					if (event.shiftKey) redo();
-					else undo();
-					return;
-				}
-				const digit = Number(event.key);
-				if (isDigit(digit)) {
-					event.preventDefault();
-					this.state.selectedDigit = this.state.selectedDigit === digit ? undefined : digit;
-					return;
-				}
-				if (
-					(event.key === 'Enter' || event.key === ' ') &&
-					this.state.selectedDigit !== undefined
-				) {
-					event.preventDefault();
-					enter(this.state.selectedDigit);
-					return;
-				}
-				if (event.key === 'Backspace' || event.key === 'Delete') {
-					event.preventDefault();
-					erase();
-					return;
-				}
-				if (event.key.toLowerCase() === 'n') {
-					event.preventDefault();
-					this.state.noteMode = !this.state.noteMode;
-					return;
-				}
-				const nextIndex = keyboardSelection(this.state.selectedIndex, event.key);
-				if (nextIndex !== this.state.selectedIndex) {
-					event.preventDefault();
-					this.state.selectedIndex = nextIndex;
-				}
-				if (event.key === 'Escape') this.state.themeMenuOpen = false;
-			},
-			{ signal: task.signal }
-		);
+	const observeKeyboard = () => {
+		window.addEventListener('keydown', (event) => {
+			if (event.target instanceof HTMLSelectElement) return;
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+				event.preventDefault();
+				if (event.shiftKey) redo();
+				else undo();
+				return;
+			}
+			const digit = Number(event.key);
+			if (isDigit(digit)) {
+				event.preventDefault();
+				this.state.selectedDigit = this.state.selectedDigit === digit ? undefined : digit;
+				return;
+			}
+			if ((event.key === 'Enter' || event.key === ' ') && this.state.selectedDigit !== undefined) {
+				event.preventDefault();
+				enter(this.state.selectedDigit);
+				return;
+			}
+			if (event.key === 'Backspace' || event.key === 'Delete') {
+				event.preventDefault();
+				erase();
+				return;
+			}
+			if (event.key.toLowerCase() === 'n') {
+				event.preventDefault();
+				this.state.noteMode = !this.state.noteMode;
+				return;
+			}
+			const nextIndex = keyboardSelection(this.state.selectedIndex, event.key);
+			if (nextIndex !== this.state.selectedIndex) {
+				event.preventDefault();
+				this.state.selectedIndex = nextIndex;
+			}
+			if (event.key === 'Escape') this.state.themeMenuOpen = false;
+		});
 	};
 	observeKeyboard();
 

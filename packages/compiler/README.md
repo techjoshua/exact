@@ -167,6 +167,9 @@ source.
 Direct calls to function-defined tasks use the same continuation model with
 invocation arguments, concurrency, opaque operation identity, cancellation
 fencing, and compiler-owned optimistic client preludes for server work.
+Parameterless invoked tasks still emit an empty invocation-argument array;
+policy such as `TaskContext.latest()` does not require an artificial application
+argument or placement modifier.
 Authored server-task result types survive the generated client dispatch stub,
 while server-only body imports and implementations remain in the server
 artifact. Applications call the authored function and never name or dispatch

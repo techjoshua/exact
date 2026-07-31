@@ -60,10 +60,11 @@ Establish the definition/activation/generation mental model with an inferred tas
 introducing `TaskContext`; explain its default expression as erased compiler policy and its
 parameter value as the real per-generation runtime capability.
 
-In docs application components, keep compiler-known timers local to their task generation and pass
-opaque unsubscribe callbacks directly to `task.cleanup()`. Model concurrent state-publishing
-branches as attached child task functions. Do not add manual revision fences or post-await signal
-checks where compiler-lowered awaits and staged writes already reject stale work. Remember that
-cleanup runs when its generation settles: do not register a subscription in a synchronous task and
-expect it to survive for the component lifetime. Prefer reactive activation for effects driven by
-reactive framework state.
+In docs application components, keep compiler-known timers and listeners local to their task
+generation so placement and cancellation are inferred. Author `TaskContext` only for policy or
+opaque capabilities that behavior cannot reveal. Model concurrent state-publishing branches as
+attached child task functions. Do not add manual signal plumbing, revision fences, or post-await
+signal checks where compiler-lowered awaits and staged writes already reject stale work. Remember
+that cleanup runs when its generation settles: do not register an opaque subscription in a
+synchronous task and expect it to survive for the component lifetime. Prefer reactive activation
+for effects driven by reactive framework state.

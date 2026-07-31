@@ -1,10 +1,4 @@
-import {
-	createConsoleLogger,
-	LoggerContext,
-	TaskContext,
-	type Component,
-	type Logger
-} from '@exactjs/core';
+import { createConsoleLogger, LoggerContext, type Component, type Logger } from '@exactjs/core';
 import { px } from '@exactjs/dom';
 import { _ } from '@exactjs/jsx';
 import { BoardContext } from '../context.js';
@@ -27,7 +21,7 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
 	this.state.selectedTaskId = undefined;
 	this.state.dragPlacement = undefined;
 
-	function persistTasks(tasksJson: string, _task: TaskContext = TaskContext.client()) {
+	function persistTasks(tasksJson: string) {
 		localStorage.setItem(storageKey, tasksJson);
 	}
 	persistTasks(JSON.stringify(this.state.tasks));

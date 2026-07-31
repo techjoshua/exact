@@ -245,6 +245,13 @@ export function StatePage(this: Component<{}>) {
 					state value instead of a dynamic path such as <code>rows[index].value</code> at that
 					boundary.
 				</p>
+				<p>
+					Ordinary DOM event callbacks publish their synchronous writes as one transaction. The
+					runtime snapshots and deduplicates affected consumers before patching, so replacing a
+					large reactive collection does not repeatedly update a component merely because it reads
+					several changed entries. Use an explicit <code>batch()</code> only when an external
+					integration needs to define that same boundary itself.
+				</p>
 			</section>
 			<section>
 				<h2>Where reactive values can flow</h2>

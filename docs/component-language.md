@@ -439,7 +439,11 @@ created `ReactiveValue` instances.
 `batch(() => { ... })`, exported by `@exactjs/core`, may group multiple
 imperative writes into one reactive publication when an application operation
 needs an explicit transaction. Compiler-lowered derived destructuring already
-publishes transactionally.
+publishes transactionally, and ordinary DOM event callbacks receive the same
+transaction boundary automatically. Publication snapshots the affected
+subscribers before any of them patch: a consumer that reads several changed
+paths still updates once for that synchronous operation, even when its update
+replaces the underlying watcher.
 
 ## JSX
 

@@ -18,7 +18,7 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 	const lines = tokenize(props.source.trim(), language);
 	const highlighted = new Set(props.highlightLines ?? []);
 
-	const clearCopiedFeedback = (_task: TaskContext = TaskContext.client().latest()) => {
+	const clearCopiedFeedback = (_task: TaskContext = TaskContext.latest()) => {
 		setTimeout(() => {
 			this.state.copied = false;
 		}, 1400);

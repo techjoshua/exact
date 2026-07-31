@@ -200,7 +200,7 @@ func createContinuationContracts(
 			},
 			Cancellation: "abort-signal",
 			Invocation: &ContinuationInvocation{
-				Arguments:   append([]TaskDependency(nil), action.Arguments...),
+				Arguments:   append([]TaskDependency{}, action.Arguments...),
 				Concurrency: action.Concurrency,
 			},
 		})

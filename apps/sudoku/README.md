@@ -20,9 +20,11 @@ whether player entries match the solution. Mobile layouts expose new-game contro
 and after a win. Tests cover the puzzle generator, puzzle model, and user-facing game behavior.
 
 The game timer, persistence, keyboard input, and page-lifetime listeners are
-component-owned client tasks. Reactive timer and persistence activations use
-their inherent superseding behavior; compiler-known intervals remain local so
-the generated task generation owns cancellation and cleanup.
+component-owned tasks. Timer, storage, and DOM APIs let the compiler infer
+client placement; reactive timer and persistence activations use their
+inherent superseding behavior. Compiler-known intervals and listeners remain
+local so generated task generations own cancellation and cleanup without
+authored signals.
 
 Board-wide relationships such as the selected value stay setup-derived so every cell shares one
 cached result. Cell-only presentation calculations remain directly in their compiled binding,

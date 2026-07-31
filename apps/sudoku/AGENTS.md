@@ -8,9 +8,10 @@ Keep board-wide derived values in component setup when all cells share them, and
 presentation calculations directly in their JSX binding. Do not move either calculation into an
 imperative cache or a render-local declaration that makes the whole component observe it.
 
-Timer and persistence calls are reactive client task activations. Their changing arguments define
-dependencies and reactive activation already supersedes the prior generation. Leave
-compiler-known intervals local to the task expression, and use task abort signals for browser
-listeners. Do not store timer handles in component state or recreate React-style effect cleanup.
+Timer and persistence calls are reactive task activations. Their changing arguments define
+dependencies, reactive activation already supersedes the prior generation, and known timer,
+storage, and DOM APIs let the compiler infer client placement. Leave compiler-known intervals and
+listeners local to the task expression so the compiler injects cancellation; do not author task
+signals, store timer handles in component state, or recreate React-style effect cleanup.
 
 Run `npm run test:sudoku` and `npm run build:sudoku` after component changes.

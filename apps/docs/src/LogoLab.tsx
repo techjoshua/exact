@@ -99,13 +99,15 @@ export function LogoLab(this: Component<LogoState>) {
 		if (this.state.cursor >= this.state.instructions.length) this.state.running = false;
 	};
 
-	this.onMount(({ signal }) => {
+	this.onMount(() => {
 		compile();
-		const interval = window.setInterval(() => {
+	});
+	const advanceLogo = () => {
+		window.setInterval(() => {
 			if (this.state.running) step();
 		}, 90);
-		signal.addEventListener('abort', () => window.clearInterval(interval), { once: true });
-	});
+	};
+	advanceLogo();
 
 	const run = () => {
 		if (!this.state.instructions.length && !compile()) return;

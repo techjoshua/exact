@@ -1,4 +1,4 @@
-import { peek, TaskContext, type Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 import { resolveRoute } from '../geography.js';
 import { draftFromUrl, emptyInitialModel, normalizeDraft } from '../model.js';
 import { configuredProviderIds, quoteProvider } from '../providers/registry.js';
@@ -13,8 +13,8 @@ export function ShippingCalculatorPage(this: Component<PageState>, props: { url:
 		task: TaskContext = TaskContext.server().blocking()
 	) => {
 		const parsed = draftFromUrl(new URL(url));
-		const request = peek(() => normalizeDraft(parsed.draft));
-		this.state.model = peek(() => emptyInitialModel(parsed.draft, request, parsed.explicit));
+		const request = normalizeDraft(parsed.draft);
+		this.state.model = emptyInitialModel(parsed.draft, request, parsed.explicit);
 		this.state.model.configuredProviders = configuredProviderIds();
 		const providers = await Promise.all(
 			this.state.model.configuredProviders.map((id) => quoteProvider(id, request, task.signal))

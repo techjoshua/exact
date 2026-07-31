@@ -34,6 +34,13 @@ export function TasksPage(this: Component<{}>) {
 					supplies the ownership and scheduling machinery.
 				</p>
 				<p>
+					The repository&apos;s native sample applications follow this same rule: known storage,
+					timer, listener, and DOM APIs infer client work and cancellation; reactive setup calls
+					infer latest-wins activation; and ordinary child calls infer parallel invocation. They
+					author <code>TaskContext</code> only for an environment boundary, a non-default policy, or
+					an opaque capability the compiler cannot discover.
+				</p>
+				<p>
 					A setup call whose value initializes a local synchronously remains ordinary JavaScript.
 					Factories, context lookups, and similar helpers must return that value directly, so the
 					compiler does not reinterpret them as inferred task activations. Awaited work can still be

@@ -18,7 +18,9 @@ models.
 
 Framework work is scheduled at `interactive`, `normal`, or `deferred` priority. Effect scopes can
 be paused and resumed without disposal; invalidations received while paused settle once after
-reactivation.
+reactivation. A transaction snapshots its complete subscriber set before invoking schedulers, so
+even a synchronous custom scheduler that replaces a watcher cannot rediscover that replacement
+through another changed key in the same publication.
 
 The package also owns the internal mutation journals used by optimistic task generations. Journals track
 object paths, array sequences, Map entries, and Set memberships so optimistic rollback preserves

@@ -3344,6 +3344,46 @@ func TestSessionSupportsAssignedAndExpressionTaskFunctions(t *testing.T) {
 	}
 }
 
+func TestSessionEmitsEmptyInvocationArgumentsAsAnArray(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Feedback(this: Component<{ copied: boolean }>) {
+				const clear = (
+					_task: TaskContext = TaskContext.latest()
+				) => {
+					setTimeout(() => {
+						this.state.copied = false;
+					}, 100);
+				};
+				return () => <button onClick={() => clear()}>Clear</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("parameterless task policy produced diagnostics: %#v", response.Diagnostics)
+	}
+	foundInvocation := false
+	for _, continuation := range response.Analysis.Continuations {
+		if continuation.Invocation == nil {
+			continue
+		}
+		foundInvocation = true
+		if continuation.Invocation.Arguments == nil {
+			t.Fatalf("empty invocation arguments must serialize as an array: %#v", continuation)
+		}
+	}
+	if !foundInvocation {
+		t.Fatalf("parameterless invoked task did not produce invocation metadata: %#v", response.Analysis)
+	}
+}
+
 func TestSessionTreatsNestedChildTaskCallsAsPlacementBoundaries(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:     "component.tsx",

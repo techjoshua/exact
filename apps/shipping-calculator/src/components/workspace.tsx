@@ -25,19 +25,19 @@ export function CalculatorWorkspace(
 
 	async function resolveRouteOnServer(
 		request: RateRequest,
-		_task: TaskContext = TaskContext.server().parallel()
+		_task: TaskContext = TaskContext.server()
 	) {
 		return resolveRoute(request.originZip5, request.destinationZip5);
 	}
 	function quoteProviderOnServer(
 		id: ProviderId,
 		request: RateRequest,
-		task: TaskContext = TaskContext.server().parallel()
+		task: TaskContext = TaskContext.server()
 	) {
 		return quoteProvider(id, request, task.signal);
 	}
 
-	const restoreDraft = (_task: TaskContext = TaskContext.client()) => {
+	const restoreDraft = () => {
 		if (initial.explicitUrlState) return;
 		try {
 			const saved = localStorage.getItem('parcel-lab:last-shipment');
@@ -53,10 +53,7 @@ export function CalculatorWorkspace(
 	};
 	restoreDraft();
 
-	const refreshRoute = async (
-		request: RateRequest,
-		_task: TaskContext = TaskContext.client().parallel()
-	) => {
+	const refreshRoute = async (request: RateRequest, _task: TaskContext = TaskContext.client()) => {
 		try {
 			this.state.route = await resolveRouteOnServer(request);
 		} catch {
@@ -68,7 +65,7 @@ export function CalculatorWorkspace(
 	const refreshProvider = async (
 		id: ProviderId,
 		request: RateRequest,
-		_task: TaskContext = TaskContext.client().parallel()
+		_task: TaskContext = TaskContext.client()
 	) => {
 		try {
 			const result = await quoteProviderOnServer(id, request);
@@ -101,10 +98,9 @@ export function CalculatorWorkspace(
 	const refreshRates = async (
 		_revision: number,
 		draft: ShipmentDraft = this.state.draft,
-		ids: readonly ProviderId[] = initial.configuredProviders,
-		task: TaskContext = TaskContext.client().latest()
+		ids: readonly ProviderId[] = initial.configuredProviders
 	) => {
-		await delay(450, task.signal);
+		await delay(450);
 		let request;
 		try {
 			request = normalizeDraft(draft);
