@@ -44,8 +44,9 @@ Treat setup-derived declarations as component-owned shared relationships and vie
 declarations as region-owned presentation calculations. Elide an inferred setup cell only for a
 safe scalar or forwarded-identity calculation with one eager view consumer. Preserve cells for
 shared bindings, fresh identity allocations, deferred handlers, tasks, and explicit
-`this.reactive()` values, while retaining the authored definition and references in source
-inspection.
+`this.reactive()` values. After every use of a safe view-local declaration is materialized into
+its reactive consumer, omit the dead emitted declaration while retaining the authored definition
+and references in source inspection.
 For task functions with an authored final `TaskContext` policy parameter, project only authored
 call arguments as activation dependencies. Do not promote body reads or captures into
 dependencies. Treat the internal `explicit` origin discriminator as compatibility vocabulary, not

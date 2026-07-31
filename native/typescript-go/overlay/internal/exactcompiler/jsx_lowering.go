@@ -173,6 +173,7 @@ func lowerExactJSX(
 		ast.NodeVisitorHooks{},
 	)
 	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
+	transformed = lowering.omitFullyMaterializedRenderLocals(transformed.AsNode()).AsSourceFile()
 	if len(lowering.clientDefinitions) != 0 {
 		statements := append(
 			[]*ast.Node(nil),
@@ -209,6 +210,95 @@ func lowerExactJSX(
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
 	return result
+}
+
+// omitFullyMaterializedRenderLocals removes safe view-local declarations after every authored
+// reference has been moved into a precise reactive closure. The first lowering pass must finish
+// before this decision because declarations precede the JSX consumers that materialize them.
+func (lowering *jsxLowering) omitFullyMaterializedRenderLocals(root *ast.Node) *ast.Node {
+	if lowering.checker == nil || len(lowering.materializedNames) == 0 {
+		return root
+	}
+	candidates := make(map[ast.SymbolId]int)
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsVariableDeclaration(node) {
+			return true
+		}
+		name := node.AsVariableDeclaration().Name()
+		if name == nil || !ast.IsIdentifier(name) ||
+			lowering.materializedNames[name.Pos()] == "" {
+			return true
+		}
+		if symbol := lowering.checker.GetSymbolAtLocation(name); symbol != nil {
+			candidates[ast.GetSymbolId(symbol)] = name.Pos()
+		}
+		return true
+	})
+	if len(candidates) == 0 {
+		return root
+	}
+	remaining := make(map[ast.SymbolId]struct{})
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsIdentifier(node) || node.Parent == nil ||
+			ast.IsDeclarationName(node) ||
+			isStaticPropertyName(node) {
+			return true
+		}
+		if symbol := lowering.checker.GetSymbolAtLocation(node); symbol != nil {
+			id := ast.GetSymbolId(symbol)
+			if _, candidate := candidates[id]; candidate {
+				remaining[id] = struct{}{}
+			}
+		}
+		return true
+	})
+	removable := make(map[int]struct{})
+	for symbol, start := range candidates {
+		if _, retained := remaining[symbol]; !retained {
+			removable[start] = struct{}{}
+		}
+	}
+	if len(removable) == 0 {
+		return root
+	}
+	var visitor *ast.NodeVisitor
+	visitor = ast.NewNodeVisitor(
+		func(node *ast.Node) *ast.Node {
+			if !ast.IsVariableStatement(node) {
+				return visitor.VisitEachChild(node)
+			}
+			statement := node.AsVariableStatement()
+			list := statement.DeclarationList.AsVariableDeclarationList()
+			declarations := make([]*ast.Node, 0, len(list.Declarations.Nodes))
+			for _, declaration := range list.Declarations.Nodes {
+				name := declaration.AsVariableDeclaration().Name()
+				if name != nil && ast.IsIdentifier(name) {
+					if _, remove := removable[name.Pos()]; remove {
+						continue
+					}
+				}
+				declarations = append(declarations, visitor.VisitEachChild(declaration))
+			}
+			if len(declarations) == len(list.Declarations.Nodes) {
+				return visitor.VisitEachChild(node)
+			}
+			if len(declarations) == 0 {
+				return lowering.factory.NewEmptyStatement()
+			}
+			return lowering.factory.UpdateVariableStatement(
+				statement,
+				statement.Modifiers(),
+				lowering.factory.UpdateVariableDeclarationList(
+					list,
+					lowering.factory.NewNodeList(declarations),
+					list.Flags,
+				),
+			)
+		},
+		&lowering.factory.NodeFactory,
+		ast.NodeVisitorHooks{},
+	)
+	return visitor.VisitNode(root)
 }
 
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {

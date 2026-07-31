@@ -1,22 +1,12 @@
 import {
 	computed,
 	createEffectScope,
-	isReactiveValue,
-	peek,
-	reactive,
-	ref as reactiveRef,
-	registerReactiveListKey,
 	unwrap,
 	updateReactive,
 	withEffectScope,
 	type Reactive,
-	type ReactiveRef,
-	type ReactiveValue,
-	type StopHandle
+	type ReactiveValue
 } from '@exactjs/reactive';
-
-import { Fragment } from '../symbols.js';
-import { createVNode } from '../vnode.js';
 
 import type {
 	ComponentContextValues,
@@ -25,7 +15,6 @@ import type {
 	ComponentReactiveValue,
 	ContextToken,
 	LifecycleHandler,
-	ListBinding,
 	RefBinding,
 	RefKey,
 	RenderEventHandler,
@@ -64,6 +53,10 @@ import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runti
 import { registerTaskOwnerHost } from '../tasks/owner-hosts.js';
 import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks/activation.js';
 import { componentContinuationTaskId } from '../task/continuation.js';
+import { createComponentProps, createComponentState } from './state.js';
+import { publishContextAccess } from './context-inspection.js';
+import { createComponentListController } from './list-controller.js';
+export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
 
@@ -80,41 +73,16 @@ export function createComponentInstance<
 ): ComponentInstance<State> {
 	const resumption = domain.resumeComponent?.(type);
 	const refs = new Map<symbol, unknown>();
-	const listCaches = new Map<
-		string,
-		{ render: unknown; cache: Map<string, { item: unknown; vnode: VNode }> }
-	>();
-	const listKeyRegistrations = new Map<
-		string,
-		{ collection: object; identity: string; stop: StopHandle }
-	>();
-	const activeListSlots = new Set<string>();
-	let mapCallIndex = 0;
+	const lists = createComponentListController();
 	// Assignment follows scope creation because the scope error callback closes over the final instance.
 	// eslint-disable-next-line prefer-const
 	let instance!: ComponentInstance<State>;
 	const scope = createEffectScope(undefined, (error) => {
 		handleComponentError(instance, createErrorReport(error, 'reactive', instance, 'watch'));
 	});
-	const state = reactive({} as State, {
-		onMutation(key, operation) {
-			if (!instance) return;
-			domain.inspection?.publish({
-				kind: 'state.change',
-				component: instance,
-				path: key === undefined ? 'state' : `state.${String(key)}`,
-				attributes: Object.freeze({ operation })
-			});
-		}
-	});
+	const state = createComponentState<State>(domain, () => instance);
 	if (resumption) applyComponentResumption(state as Reactive<Record<string, unknown>>, resumption);
-	const props = reactive(rawProps, {
-		readonly: true,
-		passthroughKeys: ['children'],
-		onReadonlyWrite(key) {
-			throw new TypeError(`Cannot write to readonly props.${String(key)}`);
-		}
-	}) as Reactive<Record<string, unknown>>;
+	const props = createComponentProps(rawProps);
 
 	let mounted = false;
 	let disposed = false;
@@ -153,16 +121,10 @@ export function createComponentInstance<
 			return mounted;
 		},
 		beginRender(): void {
-			mapCallIndex = 0;
-			activeListSlots.clear();
+			lists.beginRender();
 		},
 		endRender(): void {
-			for (const [slot, registration] of listKeyRegistrations) {
-				if (activeListSlots.has(slot)) continue;
-				registration.stop();
-				listKeyRegistrations.delete(slot);
-				listCaches.delete(slot);
-			}
+			lists.endRender();
 		},
 		get renderFunction() {
 			return renderFunction;
@@ -254,53 +216,7 @@ export function createComponentInstance<
 			provenance?: Iterable<T>,
 			keyIdentity?: string
 		): VNode {
-			const source = peek(() => reactiveRef(collection)) as ReactiveRef<Iterable<T>> | undefined;
-			const current =
-				isReactiveValue(collection) && source
-					? peek(() => source.get())
-					: (collection as Iterable<T>);
-			// A render pass gives every map call a stable slot. Reuse only when the
-			// renderer itself is stable; inline render callbacks are recreated on a
-			// parent render and may capture a different parent value.
-			const cacheId = id ?? `map:${mapCallIndex++}`;
-			activeListSlots.add(cacheId);
-			const registrationCollection = unwrap(provenance ?? current) as object;
-			const registrationIdentity = keyIdentity ?? Function.prototype.toString.call(key);
-			const registered = listKeyRegistrations.get(cacheId);
-			if (
-				!registered ||
-				registered.collection !== registrationCollection ||
-				registered.identity !== registrationIdentity
-			) {
-				registered?.stop();
-				const stop = registerReactiveListKey(
-					provenance ?? current,
-					key as (item: unknown) => string,
-					id ?? 'an unlabelled this.map() call',
-					keyIdentity
-				);
-				listKeyRegistrations.set(cacheId, {
-					collection: registrationCollection,
-					identity: registrationIdentity,
-					stop
-				});
-			}
-			const previous = listCaches.get(cacheId);
-			const cache =
-				previous?.render === render
-					? previous.cache
-					: new Map<string, { item: unknown; vnode: VNode }>();
-			if (!previous || previous.render !== render) listCaches.set(cacheId, { render, cache });
-			return createVNode(Fragment, {
-				key: id,
-				list: {
-					collection: current,
-					source,
-					key,
-					render,
-					cache: cache as Map<string, { item: T; vnode: VNode }>
-				} satisfies ListBinding<T>
-			});
+			return lists.map(collection, key, render, id, provenance, keyIdentity);
 		},
 		onMount(handler: LifecycleHandler): void {
 			instance.mountHandlers.push(handler);
@@ -374,8 +290,7 @@ export function createComponentInstance<
 			};
 			if (instance.renderStop) teardown(instance.renderStop);
 			teardown(() => instance.scope.stop());
-			for (const registration of listKeyRegistrations.values()) teardown(registration.stop);
-			listKeyRegistrations.clear();
+			teardown(() => lists.dispose());
 			if (instance.mountController) teardown(() => instance.mountController!.abort(reason));
 			teardown(() => actionApi.dispose(reason));
 			teardown(() => cancelComponentInteractions(instance, reason));
@@ -454,33 +369,4 @@ export function createComponentInstance<
 	if (taskObserver?.retain) retainTaskObserver(instance, taskObserver);
 
 	return instance;
-}
-
-function publishContextAccess(
-	instance: ComponentInstance<any>,
-	token: ContextToken<unknown>,
-	operation: 'read' | 'write'
-): void {
-	instance.domain.inspection?.publish({
-		kind: 'context.access',
-		component: instance,
-		attributes: Object.freeze({
-			name: token.description,
-			scope: token.scope,
-			availability:
-				token.keep === 'secret' ? 'secret' : token.keep === 'server' ? 'resource' : 'value',
-			operation
-		})
-	});
-}
-
-/** Transfers a live component to a new logical parent during renderer-owned root replacement. */
-export function reparentComponentInstance(
-	instance: ComponentInstance<any>,
-	parent?: ComponentInstance<any>
-): void {
-	for (let cursor = parent; cursor; cursor = cursor.parent) {
-		if (cursor === instance) throw new Error('Cannot create a component parent cycle');
-	}
-	instance.parent = parent;
 }

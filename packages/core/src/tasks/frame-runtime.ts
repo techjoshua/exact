@@ -1,91 +1,35 @@
 import { InteractionCancellation } from '../interaction/execution.js';
 import { peek, setScheduledWorkContextCapture, type ScheduledWorkContext } from '@exactjs/reactive';
-import type { TaskActivation, TaskContext, TaskOwner } from './contracts.js';
-import type { TaskFunction } from './contracts.js';
+import type { TaskContext, TaskOwner } from './contracts.js';
 import { publishTaskFrameEvent } from './frame-inspection.js';
 import { runTaskFrameCleanups, settleTaskFrameChildren } from './frame-settlement.js';
 
-const taskFrameTokenBrand = Symbol('exact.task-frame-token');
-const taskOwnerBrand = Symbol.for('@exactjs/task-owner');
+import {
+	taskFrameTokenBrand,
+	taskOwnerBrand,
+	type InternalTaskFrameOptions,
+	type TaskActivationRegistration,
+	type TaskFrameCleanup,
+	type TaskFrameRecord,
+	type TaskOwnerRecord
+} from './frame-contracts.js';
+export type {
+	InternalTaskFrameOptions,
+	TaskActivationRegistration,
+	TaskFrameRecord,
+	TaskOwnerRecord
+} from './frame-contracts.js';
 let nextFrameId = 1;
 let currentFrame: TaskFrameRecord | undefined;
 let currentOwner: TaskOwnerRecord | undefined;
 const synchronousFrameErrors = new WeakMap<Promise<unknown>, { readonly error: unknown }>();
-
-type Cleanup = () => void | Promise<void>;
-
-/** Deferred setup activation held while a durable host restores SSR state. */
-export type TaskActivationRegistration = {
-	readonly task: TaskFunction<any[], unknown>;
-	settled: boolean;
-	start(skipInitial: boolean): void;
-};
-
-/** Internal durable owner representation shared by the task ABI and framework SPI. */
-export type TaskOwnerRecord = TaskOwner & {
-	readonly [taskOwnerBrand]: true;
-	readonly label?: string;
-	readonly frames: Set<TaskFrameRecord>;
-	readonly settlements: Set<PromiseLike<unknown>>;
-	readonly ownerCleanups: Set<Cleanup>;
-	readonly activationRegistrations: Set<TaskActivationRegistration>;
-	readonly controller: AbortController;
-	host?: object;
-	observeSettlement?: (settlement: Promise<unknown>) => void;
-	activationsDeferred: boolean;
-	disposed: boolean;
-};
-
-/** Internal opaque frame token implementation. */
-export type TaskFrameRecord = {
-	readonly [taskFrameTokenBrand]: true;
-	readonly id: number;
-	readonly owner: TaskOwnerRecord;
-	readonly parent?: TaskFrameRecord;
-	readonly controller: AbortController;
-	readonly children: Set<Promise<void>>;
-	readonly cleanups: Cleanup[];
-	readonly context: TaskContext;
-	readonly kind: string;
-	readonly label?: string;
-	readonly activation: TaskActivation;
-	readonly generation: number;
-	readonly placement: 'current' | 'client' | 'server';
-	readonly concurrency: 'parallel' | 'latest' | 'queue';
-	readonly priority: 'immediate' | 'normal' | 'deferred';
-	readonly readiness: 'blocking' | 'nonblocking';
-	readonly startedAt: number;
-	producerOpen: boolean;
-	settled: boolean;
-};
-
-/** Internal options used to create a task frame. */
-export type InternalTaskFrameOptions = {
-	readonly parent?: TaskFrameRecord;
-	readonly owner?: TaskOwnerRecord;
-	readonly controller?: AbortController;
-	readonly generation?: number;
-	readonly activation?: TaskActivation;
-	readonly detached?: boolean;
-	readonly priority?: 'immediate' | 'normal' | 'deferred';
-	readonly readiness?: 'blocking' | 'nonblocking';
-	readonly optimistic?: (work: () => void) => void;
-	readonly kind?: string;
-	readonly label?: string;
-	readonly placement?: 'current' | 'client' | 'server';
-	readonly concurrency?: 'parallel' | 'latest' | 'queue';
-	/** Whether a failed child contributes structural failure to its parent. */
-	readonly propagateFailure?: () => boolean;
-	/** Confirms that the caller atomically reserved this parent before scheduling. */
-	readonly parentReserved?: boolean;
-};
 
 /** Creates a durable task owner and its cancellation lifetime. */
 export function createTaskOwnerRecord(label?: string): TaskOwnerRecord {
 	const controller = new AbortController();
 	const frames = new Set<TaskFrameRecord>();
 	const settlements = new Set<PromiseLike<unknown>>();
-	const ownerCleanups = new Set<Cleanup>();
+	const ownerCleanups = new Set<TaskFrameCleanup>();
 	const activationRegistrations = new Set<TaskActivationRegistration>();
 	const owner: TaskOwnerRecord = {
 		[taskOwnerBrand]: true,
@@ -117,7 +61,7 @@ export function createTaskOwnerRecord(label?: string): TaskOwnerRecord {
 }
 
 /** Retains setup-owned cleanup until its durable task owner is disposed. */
-export function registerTaskOwnerCleanup(owner: TaskOwnerRecord, cleanup: Cleanup): void {
+export function registerTaskOwnerCleanup(owner: TaskOwnerRecord, cleanup: TaskFrameCleanup): void {
 	if (owner.disposed) throw new Error('Task owner has been disposed');
 	owner.ownerCleanups.add(cleanup);
 }

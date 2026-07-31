@@ -10,10 +10,15 @@ import {
 	findConflicts,
 	isDigit,
 	isSolved,
-	moveSelection,
 	planNoteToggle,
 	planValueEntry
 } from './game-engine.js';
+import {
+	difficultyLabel,
+	firstEditableIndex,
+	formatElapsed,
+	keyboardSelection
+} from './presentation.js';
 import { findPuzzle, nextPuzzle } from './puzzles.js';
 import { createSavedGame, loadSavedGame, storageKey } from './storage.js';
 import { themeName } from './themes.js';
@@ -404,29 +409,4 @@ export function SudokuApp(this: Component<SudokuState>) {
 			</div>
 		);
 	};
-}
-
-function firstEditableIndex(cells: SudokuState['cells']): number {
-	const index = cells.findIndex((cell) => !cell.given);
-	return index < 0 ? 0 : index;
-}
-
-function keyboardSelection(index: number, key: string): number {
-	if (key === 'ArrowUp') return moveSelection(index, -1, 0);
-	if (key === 'ArrowDown') return moveSelection(index, 1, 0);
-	if (key === 'ArrowLeft') return moveSelection(index, 0, -1);
-	if (key === 'ArrowRight') return moveSelection(index, 0, 1);
-	return index;
-}
-
-function formatElapsed(seconds: number): string {
-	const minutes = Math.floor(seconds / 60);
-	const remainder = seconds % 60;
-	return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
-}
-
-function difficultyLabel(difficulty: Difficulty): string {
-	if (difficulty === 'gentle') return 'gentle';
-	if (difficulty === 'tricky') return 'tricky';
-	return 'fiendish';
 }

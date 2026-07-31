@@ -82,7 +82,8 @@ Ordinary derived declarations in component setup normally lower to lazy,
 component-owned cells so several DOM, prop, list, or task consumers share one
 result. Pure declarations inside the returned view are materialized in the
 reactive expression that consumes them; the view function does not rerun as an
-update loop. When a safe inferred setup calculation has exactly one eager view
+update loop. Fully materialized declarations are omitted from the emitted view
+so they do not leave redundant render subscriptions behind. When a safe inferred setup calculation has exactly one eager view
 consumer and produces a scalar or forwards an existing identity, the compiler
 elides its standalone cells and fuses the calculation into that consumer.
 Shared bindings, fresh identity allocations, event or task consumers, and

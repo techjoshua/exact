@@ -62,9 +62,10 @@ compiler preserves the relationships between state and text, attributes, styles,
 component props, and keyed collections.
 
 Setup-derived values can share one lazy result across the component. View-local
-calculations stay with their consuming reactive region, and the compiler elides
-an otherwise unnecessary setup cell for safe single-consumer calculations that
-produce a scalar or forward an existing identity. Explicit `this.reactive()`
+calculations stay with their consuming reactive region, and the compiler elides fully materialized
+view declarations so they cannot leave redundant render subscriptions behind. It also elides an
+otherwise unnecessary setup cell for safe single-consumer calculations that produce a scalar or
+forward an existing identity. Explicit `this.reactive()`
 values remain durable first-class boundaries.
 
 Initial synchronous derived-state calculations settle before the first render, so required child

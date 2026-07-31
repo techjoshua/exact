@@ -178,7 +178,9 @@ export function StatePage(this: Component<{}>) {
 					A pure declaration inside the returned view is presentation-local. eXact does not rerun
 					the whole view function when its inputs change. Instead, the compiler materializes that
 					calculation inside the reactive DOM or prop closure that consumes it, so the closure reads
-					fresh state rather than retaining the first render&apos;s local value.
+					fresh state rather than retaining the first render&apos;s local value. When every use has
+					been materialized this way, the emitted render function drops the unused declaration and
+					does not subscribe itself to the same inputs.
 				</p>
 				<CodeBlock source={viewDerivedSource} language="tsx" title="AccountBadge.tsx" />
 				<p>

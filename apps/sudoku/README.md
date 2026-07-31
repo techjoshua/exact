@@ -24,6 +24,10 @@ component-owned client tasks. Reactive timer and persistence activations use
 their inherent superseding behavior; compiler-known intervals remain local so
 the generated task generation owns cancellation and cleanup.
 
+Board-wide relationships such as the selected value stay setup-derived so every cell shares one
+cached result. Cell-only presentation calculations remain directly in their compiled binding,
+avoiding redundant component render subscriptions during a move.
+
 Both production formats are installable progressive web apps. Their service worker precaches the
 application shell, manifest, icons, and generated code so saved and newly generated games remain
 playable offline after the first successful installation. The GitHub Pages build keeps its app

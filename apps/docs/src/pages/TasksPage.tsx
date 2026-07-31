@@ -2,193 +2,8 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
-
-const inferredTaskSource = `function DraftEditor(this: Component<DraftState>) {
-  this.state.draft = loadInitialDraft();
-
-  function persistDraft(serialized: string) {
-    localStorage.setItem('draft', serialized);
-  }
-
-  // The setup call activates the task now and whenever draft changes.
-  persistDraft(JSON.stringify(this.state.draft));
-
-  return () => <DraftForm value={this.state.draft} />;
-}`;
-
-const inferredLifetimeSource = `async function watchFeed(url: string) {
-  const socket = new WebSocket(url);
-
-  socket.addEventListener('message', receiveMessage);
-  await new Promise<void>((resolve) => {
-    socket.addEventListener('close', () => resolve(), { once: true });
-  });
-}
-
-// No authored signal or cleanup is needed for these discoverable APIs.
-watchFeed(this.state.feedUrl);`;
-
-const reactiveTaskSource = `import { TaskContext } from '@exactjs/core';
-
-function Search(this: Component<SearchState>) {
-  this.state.query = '';
-  this.state.results = [];
-
-  async function search(
-    query: string,
-    task: TaskContext = TaskContext.client()
-  ) {
-    if (!query) {
-      this.state.results = [];
-      return;
-    }
-    const response = await fetch('/api/search?q=' + encodeURIComponent(query), {
-      signal: task.signal
-    });
-    this.state.results = await response.json();
-  }
-
-  // Initialization plus reactive activation when query changes.
-  search(this.state.query);
-
-  return () => <SearchView results={this.state.results} />;
-}`;
-
-const capturedInputSource = `async function refreshRates(
-  revision: number,
-  draft: ShipmentDraft = this.state.draft,
-  task: TaskContext = TaskContext.client()
-) {
-  await loadRates(revision, draft, task.signal);
-}
-
-// revision is tracked; draft is sampled for each resulting generation.
-refreshRates(this.state.revision);`;
-
-const schedulingSource = `async function saveDocument(
-  documentId: string,
-  document: Document,
-  task: TaskContext = TaskContext.server()
-    .queue()
-    .key(documentId)
-    .immediate()
-) {
-  await documents.save(documentId, document, task.signal);
-}
-
-return () => (
-  <>
-    <button onClick={() => saveDocument(this.state.id, this.state.document)}>
-      Save current document
-    </button>
-    <p>
-      {saveDocument.pendingCount > 0
-        ? 'Saving ' + saveDocument.pendingCount + ' document(s)\u2026'
-        : 'No saves pending'}
-    </p>
-  </>
-);`;
-
-const keyedStatusSource = `import { taskStatus } from '@exactjs/core';
-
-// Create a status view during setup for a durable lane key.
-const invoiceSave = taskStatus(saveDocument, { key: 'invoice' });
-
-return () => (
-  <button
-    disabled={invoiceSave.pending}
-    onClick={() => saveDocument('invoice', this.state.invoice)}
-  >
-    {invoiceSave.pending ? 'Saving invoice\u2026' : 'Save invoice'}
-  </button>
-);`;
-
-const readinessSource = `function CheckoutData(this: Component<CheckoutState>) {
-  async function loadCheckout(
-    task: TaskContext = TaskContext.server().blocking()
-  ) {
-    this.state.checkout = await checkoutRepository.load(task.signal);
-  }
-
-  async function warmRecommendations(
-    task: TaskContext = TaskContext.server().deferred().nonblocking()
-  ) {
-    this.state.recommendations = await recommendations.load(task.signal);
-  }
-
-  loadCheckout();
-  warmRecommendations();
-  return () => <CheckoutView state={this.state} />;
-}
-
-function Checkout(this: Component<{}>) {
-  return () => (
-    <Suspense fallback={<CheckoutSkeleton />}>
-      <CheckoutData />
-    </Suspense>
-  );
-}`;
-
-const invokedTaskSource = `async function save(
-  profile: Profile,
-  task: TaskContext = TaskContext.server().latest().immediate()
-) {
-  task.optimistic(() => {
-    this.state.profile = profile;
-  });
-  this.state.profile = await repository.save(profile, task.signal);
-}
-
-return () => (
-  <button disabled={save.pending} onClick={() => save(this.state.profile)}>
-    {save.pending ? 'Saving…' : 'Save'}
-  </button>
-);`;
-
-const effectsAndResultsSource = `async function refreshIndex(
-  task: TaskContext = TaskContext.client()
-) {
-  const entries = await fetchIndex(task.signal);
-  this.state.entries = entries; // effect published by this generation
-  return entries.length;        // result exposed to the caller
-}
-
-async function synchronize() {
-  const count = await refreshIndex(); // observe and sequence the result
-
-  void refreshBadges();               // effects still run and stay attached
-  void refreshAudit().catch(report);  // observe and recover its result edge
-
-  this.state.lastCount = count;
-}`;
-
-const ownedResourcesSource = `async function watch(
-  url: string,
-  task: TaskContext = TaskContext.client()
-) {
-  const socket = task.own(new ManagedSocket(url));
-  const unsubscribe = socket.subscribe(receiveMessage);
-  task.cleanup(unsubscribe);
-  return socket.ready;
-}`;
-
-const librarySource = `import {
-  createTaskOwner,
-  defineTask,
-  bindTask
-} from '@exactjs/core/tasks/v1';
-
-const owner = createTaskOwner({ label: 'catalog session' });
-const search = bindTask(
-  defineTask(
-    { concurrency: 'latest', priority: 'deferred' },
-    async (query: string, task) => catalog.search(query, task.signal)
-  ),
-  { owner }
-);
-
-const results = await search(query);
-await owner[Symbol.asyncDispose]();`;
+import { TaskIntroduction } from './TaskIntroduction.jsx';
+import { taskSources } from './task-sources.js';
 
 /** Documents function-defined tasks, structured lifetime, policy, and the public task ABI. */
 export function TasksPage(this: Component<{}>) {
@@ -200,45 +15,10 @@ export function TasksPage(this: Component<{}>) {
 			previous={{ path: '/learn/state', label: 'State & derived values' }}
 			next={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
 		>
-			<section>
-				<h2>Tasks are eXact&apos;s unit of coordinated work</h2>
-				<p>
-					An eXact component is a durable instance whose setup runs once. Some work associated with
-					that instance must run again when an input changes, wait for asynchronous operations,
-					publish state safely, respond to an interaction, or own a resource. A{' '}
-					<strong>task</strong> is the framework&apos;s model for that coordinated work.
-				</p>
-				<p>
-					In source, a task begins as an ordinary TypeScript function. The compiler recognizes when
-					that function needs framework coordination from its effects, where it is called, known
-					framework or platform APIs, transitive calls, or explicit policy. It gives the function a
-					stable task definition owned by the component. A pure helper that needs none of this stays
-					an ordinary JavaScript function.
-				</p>
-				<p>Three terms describe what happens next:</p>
-				<ul>
-					<li>
-						The <strong>definition</strong> is the function-shaped unit the compiler discovers.
-					</li>
-					<li>
-						An <strong>activation</strong> is the reason it runs: initialization, a reactive change,
-						an interaction, lifecycle work, or direct invocation.
-					</li>
-					<li>
-						A <strong>generation</strong> is one scheduled run, with its own cancellation signal,
-						status, result, effects, children, resources, and cleanup.
-					</li>
-				</ul>
-				<p>
-					The scheduler runs generations according to their owner, activation, concurrency lane,
-					priority, and readiness. This lets eXact cancel obsolete work, prevent stale state from
-					publishing, attach child work structurally, expose useful status, and coordinate client,
-					server, and Suspense behavior without rerunning the whole component.
-				</p>
-			</section>
+			<TaskIntroduction />
 			<section>
 				<h2>Start with an ordinary function</h2>
-				<CodeBlock source={inferredTaskSource} language="tsx" title="DraftEditor.tsx" />
+				<CodeBlock source={taskSources.inferredTaskSource} language="tsx" title="DraftEditor.tsx" />
 				<p>
 					There is no task registration API in this example. The compiler sees the browser storage
 					effect and classifies <code>persistDraft</code> as client work. Its setup-scope call is
@@ -283,7 +63,11 @@ export function TasksPage(this: Component<{}>) {
 					are recognized directly. If source already provides a signal or event options, eXact
 					combines or extends them rather than silently replacing them.
 				</p>
-				<CodeBlock source={inferredLifetimeSource} language="tsx" title="FeedConnection.tsx" />
+				<CodeBlock
+					source={taskSources.inferredLifetimeSource}
+					language="tsx"
+					title="FeedConnection.tsx"
+				/>
 				<p>
 					The compiler also owns resources whose cleanup protocol and lifetime are visible. This
 					includes timers, animation and idle callbacks, observers, sockets, workers, subscription
@@ -314,7 +98,7 @@ export function TasksPage(this: Component<{}>) {
 					override a default, or when the body needs a generation capability such as cancellation,
 					optimistic state, cleanup, owned disposal, or an untracked read.
 				</p>
-				<CodeBlock source={reactiveTaskSource} language="tsx" title="Search.tsx" />
+				<CodeBlock source={taskSources.reactiveTaskSource} language="tsx" title="Search.tsx" />
 				<p>
 					The final declaration has two distinct jobs. Inside the function, <code>task</code> is the
 					real context for the current generation, which is why the request can use{' '}
@@ -382,7 +166,11 @@ export function TasksPage(this: Component<{}>) {
 					without subscribing the task to that read. The resolved parameter is an ordinary stable
 					value throughout the body and after <code>await</code>.
 				</p>
-				<CodeBlock source={capturedInputSource} language="tsx" title="captured-task-input.tsx" />
+				<CodeBlock
+					source={taskSources.capturedInputSource}
+					language="tsx"
+					title="captured-task-input.tsx"
+				/>
 				<p>
 					Changing <code>draft</code> alone does not reactivate this task. When{' '}
 					<code>revision</code> changes, the next generation captures the latest draft. An explicit
@@ -405,7 +193,11 @@ export function TasksPage(this: Component<{}>) {
 					Placement, concurrency, priority, readiness, keys, and detachment compose in the compiler
 					syntax. The compiler erases the builder and supplies a fresh context for every generation.
 				</p>
-				<CodeBlock source={schedulingSource} language="tsx" title="Scheduled save task" />
+				<CodeBlock
+					source={taskSources.schedulingSource}
+					language="tsx"
+					title="Scheduled save task"
+				/>
 				<ul>
 					<li>
 						<strong>Concurrency:</strong> <code>parallel()</code> overlaps invoked generations,{' '}
@@ -451,7 +243,11 @@ export function TasksPage(this: Component<{}>) {
 					fallback. Conversely, a blocking task can hold readiness through an attached child or a
 					returned promise even if the parent body contains no authored <code>await</code>.
 				</p>
-				<CodeBlock source={readinessSource} language="tsx" title="Blocking and background work" />
+				<CodeBlock
+					source={taskSources.readinessSource}
+					language="tsx"
+					title="Blocking and background work"
+				/>
 				<Callout title="The async-component shorthand">
 					<p>
 						When an <code>async</code> component directly awaits a value into{' '}
@@ -465,7 +261,11 @@ export function TasksPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Status and capabilities share one context</h2>
-				<CodeBlock source={invokedTaskSource} language="tsx" title="ProfileEditor.tsx" />
+				<CodeBlock
+					source={taskSources.invokedTaskSource}
+					language="tsx"
+					title="ProfileEditor.tsx"
+				/>
 				<p>
 					Direct calls use ordinary function syntax. When status is observed, the compiler
 					materializes an owner-bound facade with <code>pending</code>, <code>pendingCount</code>,{' '}
@@ -473,7 +273,11 @@ export function TasksPage(this: Component<{}>) {
 					<code>cancel()</code>. Optimistic mutation is synchronous and rolls back if its generation
 					fails or is superseded.
 				</p>
-				<CodeBlock source={keyedStatusSource} language="tsx" title="Status for one keyed lane" />
+				<CodeBlock
+					source={taskSources.keyedStatusSource}
+					language="tsx"
+					title="Status for one keyed lane"
+				/>
 				<p>
 					Use <code>taskStatus(task, {'{ key }'})</code> during setup when the UI needs one lane.
 					Its <code>pending</code>, <code>pendingCount</code>, <code>generation</code>,{' '}
@@ -495,7 +299,11 @@ export function TasksPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Effects and results are separate</h2>
-				<CodeBlock source={effectsAndResultsSource} language="tsx" title="SearchIndex.tsx" />
+				<CodeBlock
+					source={taskSources.effectsAndResultsSource}
+					language="tsx"
+					title="SearchIndex.tsx"
+				/>
 				<p>
 					A task&apos;s <strong>effects</strong> are the work its generation performs or publishes:
 					state, context, or DOM changes; optimistic writes; external I/O; and owned resources or
@@ -548,7 +356,11 @@ export function TasksPage(this: Component<{}>) {
 					already fence superseded generations, so component revision comparisons and post-await{' '}
 					<code>task.signal.aborted</code> checks only duplicate framework behavior.
 				</p>
-				<CodeBlock source={ownedResourcesSource} language="tsx" title="socket-task.ts" />
+				<CodeBlock
+					source={taskSources.ownedResourcesSource}
+					language="tsx"
+					title="socket-task.ts"
+				/>
 				<p>
 					Server continuations run through the same frame contract. Their trusted{' '}
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
@@ -563,7 +375,7 @@ export function TasksPage(this: Component<{}>) {
 					definition, <code>bindTask()</code> captures durable ownership, and{' '}
 					<code>createTaskOwner()</code> makes an explicit lifetime for cross-root concurrency.
 				</p>
-				<CodeBlock source={librarySource} language="ts" title="catalog-task.ts" />
+				<CodeBlock source={taskSources.librarySource} language="ts" title="catalog-task.ts" />
 				<p>
 					Explicit owners are async-disposable: disposal cancels their queued and active generations
 					and waits for structural cleanup. Framework packages use the narrower opaque frame SPI at{' '}

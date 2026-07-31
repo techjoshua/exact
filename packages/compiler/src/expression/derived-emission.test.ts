@@ -328,6 +328,21 @@ describe('@exactjs/compiler: derived values', () => {
 			'const __exact_fullName_1 = `${this.state.first} ${this.state.last}`;'
 		);
 		expect(output).toContain('return __exact_fullName_1;');
+		expect(output).not.toContain('const fullName =');
+	});
+
+	it('retains a materialized render local when a deferred handler still reads it', () => {
+		const output = transform(`
+      function View(this: Component<{ first: string; last: string }>) {
+        return () => {
+          const fullName = \`\${this.state.first} \${this.state.last}\`;
+          return <button title={fullName} onClick={() => save(fullName)}>Save</button>;
+        };
+      }
+    `);
+
+		expect(output).toContain('const fullName =');
+		expect(output).toContain('save(fullName)');
 	});
 
 	it('materializes safe derived consts declared inside map render callbacks', () => {

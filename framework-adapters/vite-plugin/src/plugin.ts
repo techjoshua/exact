@@ -1,26 +1,15 @@
 import {
 	createCompilerSession,
-	createExactBuildInspectionCatalog,
-	createExactInspectionBuildKey,
-	createExactInspectionRedactions,
 	createLineSourceMap,
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
 	resolveExactArtifactImport,
 	transformSource,
-	type ExactAssetRule,
 	type ExactCompilerManifest,
-	type ExactSourceInspection,
-	type TransformTarget
+	type ExactSourceInspection
 } from '@exactjs/compiler';
-import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
-import {
-	profileTimestamp,
-	type ExactProfileEvent,
-	type ExactProfileSink
-} from '@exactjs/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+import { profileTimestamp } from '@exactjs/instrumentation';
 import {
 	invalidateExactPluginRegistry,
 	prepareExactPluginRegistry,
@@ -30,15 +19,11 @@ import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build
 import {
 	jsxSourceOwnership,
 	resolveReactCompatibility,
-	validateInstalledReactReconciler,
-	type ReactCompatibilityOptions
+	validateInstalledReactReconciler
 } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
-import {
-	assertExactViteClientArtifactIsolation,
-	type ExactRollupOutputLike
-} from './artifact-isolation.js';
+import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js';
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 import {
 	containsExactJsx,
@@ -49,129 +34,25 @@ import {
 	shouldCompileExactModule
 } from './module-selection.js';
 import { rewriteWithCompatibility, viteReactAliases } from './react-compatibility-emission.js';
+import {
+	createViteInspectionCatalog,
+	exactDevtoolsRuntimeBootstrap,
+	exactDevtoolsRuntimeModule,
+	injectModuleBootstrap,
+	inspectionCatalogEnabled,
+	inspectionRuntimeEnabled,
+	prependViteDevtoolsRuntimeImport,
+	resolvedExactDevtoolsRuntimeModule,
+	validateViteDebugIdentity
+} from './debug-output.js';
+import type { ExactPlugin, ExactPluginOptions } from './plugin-contracts.js';
 
-/** Configures exact plugin. */
-export type ExactPluginOptions = {
-	include?: FilterPattern;
-	exclude?: FilterPattern;
-	target?: TransformTarget;
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
-	clientCondition?: string;
-	serverCondition?: string;
-	serverComponents?: boolean;
-	sourceMap?: boolean;
-	reactCompatibility?: boolean | ReactCompatibilityOptions;
-	applicationRoot?: string;
-	configPath?: string;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
-	assetRules?: readonly ExactAssetRule[];
-	diagnostics?: boolean;
-	configureJsxRuntime?: boolean;
-	compileTestModules?: boolean;
-	onProfile?: ExactProfileSink;
-	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
-	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
-	/** Derives server catalog emission and compact client runtime correlation together. */
-	debug?: ExactViteDebugOptions;
-};
-
-/** Higher-level build controls for server-cooperative DevTools output. */
-export type ExactViteDebugOptions = {
-	catalog?: boolean | 'auto';
-	runtime?: boolean | 'auto';
-	buildKey?: string;
-	executionRoot?: string;
-	rootComponentId?: string;
-	producer?: Readonly<{ packageName?: string; version?: string }>;
-	redactions?: Partial<ExactInspectionRedactionCatalog>;
-};
-
-/** Reports an observable exact vite profile event. */
-export type ExactViteProfileEvent = ExactProfileEvent<'vite-plugin', 'transform'>;
-
-type FilterPattern = string | RegExp | readonly (string | RegExp)[];
-const exactDevtoolsRuntimeModule = 'virtual:exact/devtools-runtime';
-const resolvedExactDevtoolsRuntimeModule = `\0${exactDevtoolsRuntimeModule}`;
-
-/** Defines the exact plugin type contract. */
-export type ExactPlugin = {
-	name: string;
-	enforce: 'pre';
-	warn?(message: string): void;
-	config?(): {
-		resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> };
-		oxc?: {
-			jsx: {
-				runtime: 'automatic';
-				importSource: '@exactjs/jsx';
-			};
-		};
-	};
-	configResolved?(config: { command: 'build' | 'serve' }): void;
-	buildStart?(this: {
-		addWatchFile(file: string): void;
-		warn?(message: string): void;
-		emitFile?(file: {
-			type: 'chunk' | 'asset';
-			id?: string;
-			name?: string;
-			fileName?: string;
-			source?: string;
-			preserveSignature?: 'strict';
-		}): string;
-	}): void | Promise<void>;
-	configureServer?(server: {
-		httpServer?: { once(event: 'close', listener: () => void): unknown };
-		watcher?: { once(event: 'close', listener: () => void): unknown };
-	}): void;
-	resolveId?(
-		this: {
-			warn?(message: string): void;
-			resolve?(
-				source: string,
-				importer?: string,
-				options?: { skipSelf?: boolean }
-			): Promise<{ id: string; external?: boolean | 'absolute' | 'relative' } | null>;
-		},
-		source: string,
-		importer?: string
-	):
-		| string
-		| { id: string; external?: boolean | 'absolute' | 'relative' }
-		| null
-		| Promise<string | { id: string; external?: boolean | 'absolute' | 'relative' } | null>;
-	load?(
-		id: string
-	):
-		| string
-		| { code: string; moduleType: 'js' | 'jsx' | 'ts' | 'tsx' }
-		| null
-		| Promise<string | { code: string; moduleType: 'js' | 'jsx' | 'ts' | 'tsx' } | null>;
-	transform(
-		this: { warn?(message: string): void },
-		code: string,
-		id: string
-	): { code: string; map: unknown; moduleType?: 'js' } | null;
-	handleHotUpdate?(this: { warn?(message: string): void }, context: { file: string }): void;
-	watchChange?(
-		this: { warn?(message: string): void },
-		id: string,
-		change: { event: 'create' | 'update' | 'delete' }
-	): void;
-	transformIndexHtml?: {
-		order: 'pre';
-		handler(html: string): string;
-	};
-	generateBundle?(
-		this: {
-			emitFile?(file: { type: 'asset'; fileName: string; source: string }): string;
-		},
-		_options: unknown,
-		bundle: Readonly<Record<string, ExactRollupOutputLike>>
-	): void;
-	closeBundle?(): void;
-};
+export type {
+	ExactPlugin,
+	ExactPluginOptions,
+	ExactViteDebugOptions,
+	ExactViteProfileEvent
+} from './plugin-contracts.js';
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
@@ -336,7 +217,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			if (options.target !== 'server') assertExactViteClientArtifactIsolation(bundle);
 			if (options.target === 'server' && inspectionCatalogEnabled(configuredDebug, viteCommand)) {
 				const catalog = createViteInspectionCatalog(
-					options,
+					options.applicationRoot,
 					configuredDebug,
 					inspectionModules,
 					viteCommand
@@ -490,110 +371,4 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			}
 		}
 	};
-}
-
-/**
- * Establishes an execution dependency on the page-world runtime before an instrumented native
- * module evaluates. The HTML bootstrap remains the fallback for pages without transformed roots.
- */
-function prependViteDevtoolsRuntimeImport(code: string, enabled: boolean): string {
-	return enabled ? `import '${exactDevtoolsRuntimeModule}';\n${code}` : code;
-}
-
-function exactDevtoolsRuntimeBootstrap(debug: ExactViteDebugOptions | undefined): string {
-	return `import { installExactDevtoolsRuntime } from '@exactjs/devtools-runtime';
-const key = Symbol.for('@exactjs/devtools-installation');
-globalThis[key] ??= installExactDevtoolsRuntime(${JSON.stringify({
-		buildKey: debug?.buildKey ?? 'development',
-		executionRoot: debug?.executionRoot ?? debug?.rootComponentId ?? 'page',
-		...(debug?.redactions ? { redactions: debug.redactions } : {})
-	})});
-`;
-}
-
-function injectModuleBootstrap(html: string, moduleId: string): string {
-	const bootstrap = `<script type="module" src=${JSON.stringify(moduleId)}></script>`;
-	const firstModule = /<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*>/i;
-	if (firstModule.test(html)) return html.replace(firstModule, `${bootstrap}$&`);
-	const body = /<\/body\s*>/i;
-	if (body.test(html)) return html.replace(body, `${bootstrap}$&`);
-	return `${html}${bootstrap}`;
-}
-
-function inspectionCatalogEnabled(
-	debug: ExactViteDebugOptions | undefined,
-	command: 'build' | 'serve'
-): boolean {
-	const value = debug?.catalog ?? 'auto';
-	return value === true || (value === 'auto' && command === 'serve');
-}
-
-function inspectionRuntimeEnabled(
-	debug: ExactViteDebugOptions | undefined,
-	command: 'build' | 'serve'
-): boolean {
-	const value = debug?.runtime ?? 'auto';
-	return value === true || (value === 'auto' && command === 'serve');
-}
-
-function createViteInspectionCatalog(
-	options: ExactPluginOptions,
-	debug: ExactViteDebugOptions | undefined,
-	modules: ReadonlyMap<
-		string,
-		Readonly<{
-			inspection: ExactSourceInspection;
-			manifest: ExactCompilerManifest;
-			source: string;
-		}>
-	>,
-	command: 'build' | 'serve'
-) {
-	if (!modules.size) return undefined;
-	const root = path.resolve(options.applicationRoot ?? process.cwd());
-	const entries = [...modules.entries()].map(([filename, entry]) => ({
-		filename,
-		source: entry.source
-	}));
-	const buildKey =
-		debug?.buildKey ??
-		(command === 'serve' ? 'development' : createExactInspectionBuildKey(root, entries));
-	const inspections = [...modules.values()].map((entry) => entry.inspection);
-	const rootComponentId =
-		debug?.rootComponentId ?? inspections.flatMap((inspection) => inspection.components)[0]?.id;
-	if (!rootComponentId) return undefined;
-	const sources = Object.fromEntries(
-		[...modules.entries()].map(([filename, entry]) => [filename, entry.source])
-	);
-	return createExactBuildInspectionCatalog({
-		buildKey,
-		root,
-		...(debug?.producer ? { producer: debug.producer } : {}),
-		roots: [
-			{
-				executionRoot: debug?.executionRoot ?? rootComponentId,
-				rootComponentId,
-				inspections,
-				sources,
-				redactions: createExactInspectionRedactions(
-					[...modules.values()].map((entry) => entry.manifest),
-					debug?.redactions
-				)
-			}
-		]
-	});
-}
-
-function validateViteDebugIdentity(
-	debug: ExactViteDebugOptions | undefined,
-	command: 'build' | 'serve'
-): void {
-	if (
-		command === 'build' &&
-		(debug?.catalog === true || debug?.runtime === true) &&
-		!debug.buildKey
-	)
-		throw new Error(
-			'eXact production DevTools output requires one explicit immutable debug.buildKey'
-		);
 }

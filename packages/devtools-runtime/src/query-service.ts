@@ -1,5 +1,4 @@
 import {
-	isExactRuntimeInspectionEvent,
 	paginateExactInspection,
 	parseExactInspectionRequest,
 	parseExactInspectionSubscription,
@@ -7,16 +6,19 @@ import {
 	type ExactInspectionRequest,
 	type ExactInspectionResponse,
 	type ExactInspectionRuntimeId,
-	type ExactInspectionSubscription,
 	type ExactInspectionSubscriptionHandle,
-	type ExactInspectionExecutionRoot,
 	type ExactInspectedRuntimeComponent,
-	type ExactTaskRuntimeSnapshot,
-	type ExactRuntimeInspectionEvent
+	type ExactTaskRuntimeSnapshot
 } from '@exactjs/devtools-protocol';
 import type { ExactDomInspectionHost } from '@exactjs/dom';
 import type { ExactClientEventStore } from './client-events.js';
 import type { ExactBrowserServerInspectionClient } from './server-client.js';
+import { CLIENT_HOST, PAGE_SERVER_HOST, serverTargets, splitHostCursors } from './query/hosts.js';
+import {
+	failedInspectionResponse as failure,
+	successfulInspectionResponse as success
+} from './query/response.js';
+import { mergedTimeline } from './query/timeline.js';
 
 /** Inputs retained by the shared page query service while one session is attached. */
 export type ExactClientQueryServiceOptions = Readonly<{
@@ -160,147 +162,6 @@ export function createExactClientInspectionQueryService(
 	return Object.freeze(service);
 }
 
-async function mergedTimeline(
-	request: ExactInspectionRequest,
-	options: ExactClientQueryServiceOptions,
-	maximum: number,
-	errorsOnly = false
-): Promise<ExactInspectionResponse> {
-	const cursors = splitHostCursors(request.params?.page?.cursor);
-	const filter = errorsOnly
-		? { ...request.params?.filter, kinds: ['error'] }
-		: request.params?.filter;
-	const hosts: Array<Readonly<{ key: string; events: readonly ExactRuntimeInspectionEvent[] }>> = [
-		{
-			key: CLIENT_HOST,
-			events: options.events.query(cursors.get(CLIENT_HOST), filter)
-		}
-	];
-	if (options.serverConnected && options.server) {
-		hosts.push(
-			...(await Promise.all(
-				serverTargets(options.dom.snapshot().roots, filter).map(async (target) => {
-					try {
-						const cursor = cursors.get(target.key);
-						const remote = await options.server!.query(options.sessionId, {
-							...request,
-							params: {
-								...request.params,
-								filter: target.filter,
-								page: {
-									limit: maximum,
-									...(cursor ? { cursor } : {})
-								}
-							}
-						});
-						return Object.freeze({
-							key: target.key,
-							events:
-								remote.ok && Array.isArray(remote.result)
-									? remote.result.filter(isExactRuntimeInspectionEvent)
-									: []
-						});
-					} catch {
-						return Object.freeze({ key: target.key, events: [] });
-					}
-				})
-			))
-		);
-	}
-	const limit = Math.min(request.params?.page?.limit ?? 100, maximum);
-	const selected: ExactRuntimeInspectionEvent[] = [];
-	const indexes = new Map(hosts.map((host) => [host.key, 0]));
-	while (selected.length < limit) {
-		let progressed = false;
-		for (const host of hosts) {
-			const index = indexes.get(host.key) ?? 0;
-			const event = host.events[index];
-			if (!event || selected.length >= limit) continue;
-			selected.push(event);
-			indexes.set(host.key, index + 1);
-			cursors.set(host.key, event.cursor);
-			progressed = true;
-		}
-		if (!progressed) break;
-	}
-	const hasMore = hosts.some((host) => (indexes.get(host.key) ?? 0) < host.events.length);
-	const nextCursor =
-		selected.length || hasMore ? joinHostCursors(cursors) : request.params?.page?.cursor;
-	return success(request, options.sessionId, Object.freeze(selected), nextCursor);
-}
-
-const CLIENT_HOST = '$client';
-const PAGE_SERVER_HOST = '$server';
-
-function splitHostCursors(cursor: string | undefined): Map<string, string> {
-	if (!cursor) return new Map();
-	if (cursor.startsWith('m2:')) {
-		try {
-			const decoded = JSON.parse(decodeURIComponent(cursor.slice(3))) as unknown;
-			if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) return new Map();
-			return new Map(
-				Object.entries(decoded)
-					.filter(
-						(entry): entry is [string, string] =>
-							entry[0].length <= 512 && typeof entry[1] === 'string' && entry[1].length <= 512
-					)
-					.slice(0, 32)
-			);
-		} catch {
-			return new Map();
-		}
-	}
-	if (!cursor.startsWith('m:'))
-		return new Map([
-			[CLIENT_HOST, cursor],
-			[PAGE_SERVER_HOST, cursor]
-		]);
-	const [, client = '', server = ''] = cursor.split(':', 3);
-	return new Map([
-		...(client && client !== '-' ? ([[CLIENT_HOST, decodeURIComponent(client)]] as const) : []),
-		...(server && server !== '-' ? ([[PAGE_SERVER_HOST, decodeURIComponent(server)]] as const) : [])
-	]);
-}
-
-function joinHostCursors(cursors: ReadonlyMap<string, string>): string {
-	const sorted = [...cursors].sort(([left], [right]) => left.localeCompare(right));
-	return `m2:${encodeURIComponent(JSON.stringify(Object.fromEntries(sorted)))}`;
-}
-
-type ServerTarget = Readonly<{
-	key: string;
-	filter: ExactInspectionSubscription['filter'];
-}>;
-
-function serverTargets(
-	roots: readonly ExactInspectionExecutionRoot[],
-	filter: ExactInspectionSubscription['filter']
-): readonly ServerTarget[] {
-	if (filter?.side === 'client') return [];
-	const targets: ServerTarget[] = [];
-	if (!filter?.binding) targets.push({ key: PAGE_SERVER_HOST, filter });
-	const seen = new Set<string>();
-	for (const root of roots) {
-		if (!root.binding || (filter?.binding && filter.binding !== root.binding)) continue;
-		if (filter?.buildKey && filter.buildKey !== root.buildKey) continue;
-		if (filter?.executionRoot && filter.executionRoot !== root.executionRoot) continue;
-		const key = `binding:${root.binding}:${root.buildKey}:${root.executionRoot}`;
-		if (seen.has(key)) continue;
-		seen.add(key);
-		targets.push({
-			key,
-			filter: {
-				...filter,
-				side: 'server',
-				binding: root.binding,
-				buildKey: root.buildKey,
-				executionRoot: root.executionRoot
-			}
-		});
-	}
-	return targets;
-}
-
 async function mergedServerCollection(
 	request: ExactInspectionRequest,
 	options: ExactClientQueryServiceOptions,
@@ -427,45 +288,6 @@ function collection(
 ): ExactInspectionResponse {
 	const page = paginateExactInspection(values, request.params?.page, maximum);
 	return success(request, sessionId, page.values, page.nextCursor);
-}
-
-function success(
-	request: ExactInspectionRequest,
-	sessionId: string,
-	result: unknown,
-	nextCursor?: string
-): ExactInspectionResponse {
-	return Object.freeze({
-		protocol: 1,
-		id: request.id,
-		ok: true,
-		identity: Object.freeze({
-			sessionId,
-			...(request.params?.identity?.buildKey ? { buildKey: request.params.identity.buildKey } : {}),
-			...(request.params?.identity?.executionRoot
-				? { executionRoot: request.params.identity.executionRoot }
-				: {}),
-			...(request.params?.identity?.binding ? { binding: request.params.identity.binding } : {})
-		}),
-		result,
-		...(nextCursor
-			? { page: Object.freeze({ nextCursor, count: Array.isArray(result) ? result.length : 1 }) }
-			: {})
-	});
-}
-
-function failure(
-	id: string,
-	error: 'bad-request' | 'not-found' | 'unavailable',
-	reason: unknown
-): ExactInspectionResponse {
-	return Object.freeze({
-		protocol: 1,
-		id,
-		ok: false,
-		error,
-		reason: reason instanceof Error ? reason.message : String(reason)
-	});
 }
 
 function closedSubscription(): ExactInspectionSubscriptionHandle {

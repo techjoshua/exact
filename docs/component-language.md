@@ -357,10 +357,12 @@ return () => {
 
 The returned view does not rerun as a unit. The compiler materializes `label`
 inside the reactive DOM closure that consumes it so dependency changes cannot
-leave a first-render snapshot behind. This form, or a direct JSX expression,
-is appropriate for a cheap presentation calculation with one visual consumer.
-Separate DOM or prop boundaries do not implicitly share a view-local
-calculation.
+leave a first-render snapshot behind. Once every authored use has moved into
+such a closure, emitted code omits the now-unused view-local declaration so it
+cannot accidentally subscribe the component render watcher to the same inputs.
+This form, or a direct JSX expression, is appropriate for a cheap presentation
+calculation with one visual consumer. Separate DOM or prop boundaries do not
+implicitly share a view-local calculation.
 
 The compiler may elide the runtime cell for an ordinary setup-derived value
 when it is safe to reevaluate, has exactly one eager view consumer, and either

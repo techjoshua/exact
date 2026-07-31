@@ -1,29 +1,6 @@
 import { hashCanonicalJson, hashStringSequence } from './hash.js';
-
-/** Defines the keyed collection envelope interface contract. */
-export interface KeyedCollectionEnvelope {
-	readonly $exact: 'keyed-collection';
-	readonly version: 1;
-	readonly keys: string[];
-	readonly keyHash: string;
-	readonly itemHashes: string[];
-	readonly itemsHash: string;
-	readonly items: unknown[];
-}
-
-/** Tagged JSON representation of one transport-safe Map. */
-export interface MapEnvelope {
-	readonly $exact: 'map';
-	readonly version: 1;
-	readonly entries: Array<[unknown, unknown]>;
-}
-
-/** Tagged JSON representation of one transport-safe Set. */
-export interface SetEnvelope {
-	readonly $exact: 'set';
-	readonly version: 1;
-	readonly values: unknown[];
-}
+import { decodeKeyedProtocolValue, encodeKeyedProtocolValue } from './keyed/protocol.js';
+export type { KeyedCollectionEnvelope, MapEnvelope, SetEnvelope } from './keyed/protocol.js';
 
 /** Defines the keyed collection metadata interface contract. */
 export interface KeyedCollectionMetadata {
@@ -41,7 +18,6 @@ type OwnerRecord = { collection: unknown[]; key: string; nodes: object[] };
 
 const metadataByCollection = new WeakMap<object, KeyedCollectionMetadata>();
 const ownersByObject = new WeakMap<object, Set<OwnerRecord>>();
-const hashPattern = /^[0-9a-f]{32}$/;
 
 /** Performs the seed keyed collection metadata domain operation. */
 export function seedKeyedCollectionMetadata(
@@ -152,12 +128,14 @@ export function encodeReactiveProtocolValueInternal(
 	value: unknown,
 	extractorFor: (collection: unknown[]) => KeyExtractor | undefined
 ): unknown {
-	return encodeValue(value, extractorFor, new WeakSet(), 0);
+	return encodeKeyedProtocolValue(value, extractorFor, keyedCollectionMetadata);
 }
 
 /** Reads a reactive protocol value internal from its source representation. */
 export function decodeReactiveProtocolValueInternal(value: unknown): unknown {
-	return decodeValue(value, new WeakSet(), 0);
+	return decodeKeyedProtocolValue(value, (items, envelope) =>
+		installKeyedCollectionMetadata(items, envelope, false)
+	);
 }
 
 function rebuildMetadata(
@@ -280,180 +258,4 @@ function clearOwner(owner: OwnerRecord): void {
 
 function ownerMetadata(owner: OwnerRecord): KeyedCollectionMetadata | undefined {
 	return metadataByCollection.get(owner.collection);
-}
-
-function encodeValue(
-	value: unknown,
-	extractorFor: (collection: unknown[]) => KeyExtractor | undefined,
-	active: WeakSet<object>,
-	depth: number
-): unknown {
-	if (!value || typeof value !== 'object') return value;
-	if (depth > 100 || active.has(value))
-		throw new TypeError('Cannot encode cyclic or excessively deep reactive protocol data');
-	active.add(value);
-	try {
-		if (value instanceof Map) {
-			const entries: Array<[unknown, unknown]> = [];
-			for (const [key, item] of value) {
-				assertTransportableMapKey(key);
-				entries.push([key, encodeValue(item, extractorFor, active, depth + 1)]);
-			}
-			return {
-				$exact: 'map',
-				version: 1,
-				entries
-			} satisfies MapEnvelope;
-		}
-		if (value instanceof Set) {
-			return {
-				$exact: 'set',
-				version: 1,
-				values: [...value].map((item) => encodeValue(item, extractorFor, active, depth + 1))
-			} satisfies SetEnvelope;
-		}
-		if (Array.isArray(value)) {
-			const metadata = keyedCollectionMetadata(value, extractorFor(value));
-			const items = value.map((item) => encodeValue(item, extractorFor, active, depth + 1));
-			if (!metadata) return items;
-			return {
-				$exact: 'keyed-collection',
-				version: 1,
-				keys: [...metadata.keys],
-				keyHash: metadata.keyHash,
-				itemHashes: [...metadata.itemHashes],
-				itemsHash: metadata.itemsHash,
-				items
-			} satisfies KeyedCollectionEnvelope;
-		}
-		const output: Record<string, unknown> = {};
-		for (const key of Object.keys(value)) {
-			Object.defineProperty(output, key, {
-				configurable: true,
-				enumerable: true,
-				writable: true,
-				value: encodeValue((value as Record<string, unknown>)[key], extractorFor, active, depth + 1)
-			});
-		}
-		return output;
-	} finally {
-		active.delete(value);
-	}
-}
-
-function decodeValue(value: unknown, active: WeakSet<object>, depth: number): unknown {
-	if (!value || typeof value !== 'object') return value;
-	if (depth > 100 || active.has(value))
-		throw new TypeError('Cannot decode cyclic or excessively deep reactive protocol data');
-	active.add(value);
-	try {
-		if (Array.isArray(value)) return value.map((item) => decodeValue(item, active, depth + 1));
-		if ((value as Record<string, unknown>).$exact === 'map') {
-			const envelope = validateMapEnvelope(value as Record<string, unknown>);
-			return new Map(
-				envelope.entries.map(([key, item]) => [key, decodeValue(item, active, depth + 1)])
-			);
-		}
-		if ((value as Record<string, unknown>).$exact === 'set') {
-			const envelope = validateSetEnvelope(value as Record<string, unknown>);
-			return new Set(envelope.values.map((item) => decodeValue(item, active, depth + 1)));
-		}
-		if ((value as Record<string, unknown>).$exact === 'keyed-collection') {
-			const envelope = validateEnvelope(value as Record<string, unknown>);
-			const items = envelope.items.map((item) => decodeValue(item, active, depth + 1));
-			// Incoming snapshots are immutable comparison candidates. Ownership links
-			// are attached only if the collection is adopted or registered as live state.
-			installKeyedCollectionMetadata(items, envelope, false);
-			return items;
-		}
-		const output: Record<string, unknown> = {};
-		for (const key of Object.keys(value)) {
-			Object.defineProperty(output, key, {
-				configurable: true,
-				enumerable: true,
-				writable: true,
-				value: decodeValue((value as Record<string, unknown>)[key], active, depth + 1)
-			});
-		}
-		return output;
-	} finally {
-		active.delete(value);
-	}
-}
-
-function validateMapEnvelope(value: Record<string, unknown>): MapEnvelope {
-	if (
-		!hasOnlyEnvelopeKeys(value, ['$exact', 'version', 'entries']) ||
-		value.version !== 1 ||
-		!Array.isArray(value.entries) ||
-		!value.entries.every(
-			(entry) => Array.isArray(entry) && entry.length === 2 && isTransportableMapKey(entry[0])
-		)
-	) {
-		throw new TypeError('Malformed eXact Map envelope');
-	}
-	return value as unknown as MapEnvelope;
-}
-
-function validateSetEnvelope(value: Record<string, unknown>): SetEnvelope {
-	if (
-		!hasOnlyEnvelopeKeys(value, ['$exact', 'version', 'values']) ||
-		value.version !== 1 ||
-		!Array.isArray(value.values)
-	) {
-		throw new TypeError('Malformed eXact Set envelope');
-	}
-	return value as unknown as SetEnvelope;
-}
-
-function validateEnvelope(value: Record<string, unknown>): KeyedCollectionEnvelope {
-	const allowed = new Set([
-		'$exact',
-		'version',
-		'keys',
-		'keyHash',
-		'itemHashes',
-		'itemsHash',
-		'items'
-	]);
-	if (
-		Object.keys(value).some((key) => !allowed.has(key)) ||
-		value.version !== 1 ||
-		!Array.isArray(value.keys) ||
-		!value.keys.every((key) => typeof key === 'string') ||
-		new Set(value.keys).size !== value.keys.length ||
-		!Array.isArray(value.itemHashes) ||
-		!value.itemHashes.every((hash) => typeof hash === 'string' && hashPattern.test(hash)) ||
-		!Array.isArray(value.items) ||
-		value.keys.length !== value.itemHashes.length ||
-		value.keys.length !== value.items.length ||
-		typeof value.keyHash !== 'string' ||
-		!hashPattern.test(value.keyHash) ||
-		typeof value.itemsHash !== 'string' ||
-		!hashPattern.test(value.itemsHash)
-	) {
-		throw new TypeError('Malformed eXact keyed-collection envelope');
-	}
-	return value as unknown as KeyedCollectionEnvelope;
-}
-
-function assertTransportableMapKey(value: unknown): void {
-	if (!isTransportableMapKey(value))
-		throw new TypeError(
-			'eXact Map protocol keys must be null, boolean, finite number, or string values'
-		);
-}
-
-function isTransportableMapKey(value: unknown): value is null | boolean | number | string {
-	return (
-		value === null ||
-		typeof value === 'boolean' ||
-		typeof value === 'string' ||
-		(typeof value === 'number' && Number.isFinite(value))
-	);
-}
-
-function hasOnlyEnvelopeKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
-	const keys = new Set(allowed);
-	return Object.keys(value).every((key) => keys.has(key));
 }

@@ -21,6 +21,7 @@
 		"src/compilation/artifact-compilation.ts",
 		"src/compilation/artifact-dependencies.ts",
 		"src/compilation/artifact-entry-output.ts",
+		"src/compilation/artifact-inspection.ts",
 		"src/compilation/artifact-plan.ts",
 		"src/compilation/capability-options.ts",
 		"src/compilation/compiler.ts",

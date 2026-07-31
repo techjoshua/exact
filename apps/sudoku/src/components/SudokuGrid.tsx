@@ -18,10 +18,9 @@ type SudokuGridProps = {
 /** Renders the stable accessible board and its derived cell relationships. */
 export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 	const game = this.getContext(SudokuContext);
+	const selectedValue = props.selectedDigit ?? props.cells[props.selectedIndex]?.value;
 
 	return () => {
-		const selectedValue = props.selectedDigit ?? props.cells[props.selectedIndex]?.value;
-
 		return (
 			<div className="board-frame" className:is-complete={props.complete}>
 				<div
@@ -93,8 +92,6 @@ function CellButton(this: Component<{}>, props: CellButtonProps) {
 	const game = this.getContext(SudokuContext);
 
 	return () => {
-		const label = cellLabel(props.cell, props.conflict);
-
 		return (
 			<button
 				type="button"
@@ -105,7 +102,7 @@ function CellButton(this: Component<{}>, props: CellButtonProps) {
 				className:is-peer={props.peer}
 				className:is-matching={props.matching}
 				className:is-conflict={props.conflict}
-				aria-label={label}
+				aria-label={cellLabel(props.cell, props.conflict)}
 				aria-selected={props.selected}
 				disabled={props.paused}
 				tabIndex={props.selected ? 0 : -1}
