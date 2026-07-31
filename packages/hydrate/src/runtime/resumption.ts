@@ -31,7 +31,10 @@ export function createComponentResumptionResolver(
 		const available = records();
 		if (!available?.length) return undefined;
 		const record = available[index];
-		if (!record) throw new Error(`Missing eXact SSR resumption for component ${contract.id}`);
+		// A changed URL or conditional may select a new client component before the
+		// SSR tree finishes adopting. Exhaustion means that component has no server
+		// activation; records that are present remain ordered and strictly validated.
+		if (!record) return undefined;
 		if (record.componentId !== contract.id) {
 			throw new Error(
 				`eXact SSR resumption expected component ${record.componentId}, received ${contract.id}`
