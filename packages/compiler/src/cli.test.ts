@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,8 +55,8 @@ describe('exactc', { timeout: 15_000 }, () => {
 		expect(map.sources).toEqual([input]);
 	});
 
-	it('emits manifests and honors target flags through the CLI', async () => {
-		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-manifest-'));
+	it('honors target flags without emitting compiler sidecars', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-analysis-'));
 		const input = path.join(root, 'src', 'page.tsx');
 		const outDir = path.join(root, 'out');
 		await mkdir(path.dirname(input), { recursive: true });
@@ -73,16 +73,14 @@ describe('exactc', { timeout: 15_000 }, () => {
 			outDir,
 			'--target',
 			'client',
-			'--manifest',
 			input
 		]);
 
 		const output = await readFile(path.join(outDir, 'page.ts'), 'utf8');
-		const manifest = JSON.parse(await readFile(path.join(outDir, 'page.exact.json'), 'utf8'));
 
 		expect(output).not.toContain('node:fs/promises');
 		expect(output).toContain('window.innerWidth');
-		expect(Object.keys(manifest.serverActions)).toHaveLength(1);
+		expect(await readdir(outDir)).toEqual(['page.ts']);
 	});
 
 	it('runs JavaScript compatibility plugins while compilation remains native', async () => {
@@ -138,7 +136,7 @@ describe('exactc', { timeout: 15_000 }, () => {
 								namespace: "cliTest",
 								directives: ["mark"],
 								analyzeModule(view) {
-									return { manifestData: { target: view.target } };
+									return { analysisData: { target: view.target } };
 								}
 							}
 						};
@@ -154,12 +152,12 @@ describe('exactc', { timeout: 15_000 }, () => {
 			sourceRoot,
 			'--outDir',
 			outDir,
-			'--manifest',
 			input
 		]);
 
-		const manifest = JSON.parse(await readFile(path.join(outDir, 'config.exact.json'), 'utf8'));
-		expect(manifest.pluginData['@exactjs/cli-test-plugin']).toEqual({ target: 'default' });
+		const output = await readFile(path.join(outDir, 'config.ts'), 'utf8');
+		expect(output).toContain('export const value = 1');
+		expect(await readdir(outDir)).toEqual(['config.ts']);
 	});
 
 	it('emits paired target artifacts through the CLI', async () => {
@@ -184,15 +182,15 @@ describe('exactc', { timeout: 15_000 }, () => {
 
 		const client = await readFile(path.join(outDir, 'page.exact.client.ts'), 'utf8');
 		const server = await readFile(path.join(outDir, 'page.exact.server.ts'), 'utf8');
-		const manifest = JSON.parse(
-			await readFile(path.join(outDir, 'page.exact.manifest.json'), 'utf8')
-		);
 
 		expect(client).not.toContain('node:fs/promises');
 		expect(client).toContain('window.innerWidth');
 		expect(server).toContain('node:fs/promises');
 		expect(server).not.toContain('window.innerWidth');
-		expect(Object.keys(manifest.serverActions)).toHaveLength(1);
+		expect((await readdir(outDir)).sort()).toEqual([
+			'page.exact.client.ts',
+			'page.exact.server.ts'
+		]);
 	});
 
 	it('emits server component client artifacts through the CLI', async () => {

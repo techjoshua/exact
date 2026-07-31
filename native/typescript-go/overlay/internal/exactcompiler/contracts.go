@@ -47,7 +47,6 @@ type Request struct {
 	AssetRules                 []AssetRule                `json:"assetRules,omitempty"`
 	PreserveClientAssetImports bool                       `json:"preserveClientAssetImports,omitempty"`
 	JSXInterop                 *JSXInterop                `json:"jsxInterop,omitempty"`
-	Manifests                  []ExternalManifest         `json:"manifests,omitempty"`
 	Extensions                 map[string]json.RawMessage `json:"extensions,omitempty"`
 	CompatibilityExtensions    map[string][]string        `json:"compatibilityExtensions,omitempty"`
 	ModuleRewrite              *ModuleRewrite             `json:"moduleRewrite,omitempty"`
@@ -73,25 +72,6 @@ type ModuleExportReplacement struct {
 type JSXInterop struct {
 	AdapterModule string `json:"adapterModule"`
 	AdapterExport string `json:"adapterExport"`
-}
-
-// ExternalManifest is the compact, compiler-owned interface of an imported
-// eXact module. It intentionally excludes emitted artifact representation.
-type ExternalManifest struct {
-	Filename     string                    `json:"filename"`
-	PackageName  string                    `json:"packageName,omitempty"`
-	Components   []ExternalComponentExport `json:"components"`
-	Callables    []CallableSummary         `json:"callables"`
-	Policy       PolicyManifest            `json:"policy"`
-	Capabilities CapabilityRequirements    `json:"capabilities"`
-}
-
-// ExternalComponentExport maps an imported export to its component contract.
-type ExternalComponentExport struct {
-	ExportName  string `json:"exportName"`
-	Name        string `json:"name"`
-	ComponentID string `json:"componentId,omitempty"`
-	Placement   string `json:"placement"`
 }
 
 // CapabilityPolicy contains application-owned grants for privileged features.
@@ -295,8 +275,8 @@ type SecretConsumerTarget struct {
 	Parameter int    `json:"parameter"`
 }
 
-// PolicyManifest is the native compiler's portable residency and secrecy graph.
-type PolicyManifest struct {
+// PolicyAnalysis is the native compiler's portable residency and secrecy graph.
+type PolicyAnalysis struct {
 	Version         int              `json:"version"`
 	Subjects        []PolicySubject  `json:"subjects"`
 	Flows           []PolicyFlow     `json:"flows"`
@@ -671,7 +651,7 @@ type Analysis struct {
 	Continuations    []Continuation         `json:"continuations"`
 	Registries       []ComponentRegistry    `json:"registries"`
 	Resumptions      []ComponentResumption  `json:"resumptions"`
-	Policy           PolicyManifest         `json:"policy"`
+	Policy           PolicyAnalysis         `json:"policy"`
 	Capabilities     CapabilityRequirements `json:"requiredCapabilities"`
 	Assets           []AssetDependency      `json:"assets"`
 	SemanticGraph    SemanticGraph          `json:"semanticGraph"`
@@ -695,7 +675,7 @@ func NewAnalysis(
 	continuations []Continuation,
 	registries []ComponentRegistry,
 	resumptions []ComponentResumption,
-	policy PolicyManifest,
+	policy PolicyAnalysis,
 	capabilities CapabilityRequirements,
 	assets []AssetDependency,
 	semanticGraph SemanticGraph,
@@ -866,7 +846,7 @@ func normalizedResumptions(values []ComponentResumption) []ComponentResumption {
 	return values
 }
 
-func normalizedPolicy(value PolicyManifest) PolicyManifest {
+func normalizedPolicy(value PolicyAnalysis) PolicyAnalysis {
 	value.Subjects = nonNilSlice(value.Subjects)
 	value.Flows = nonNilSlice(value.Flows)
 	for index := range value.Flows {
@@ -901,7 +881,7 @@ type Response struct {
 	Code              string                     `json:"code"`
 	SourceMap         *sourcemap.RawSourceMap    `json:"sourceMap,omitempty"`
 	Diagnostics       []Diagnostic               `json:"diagnostics"`
-	ManifestData      map[string]json.RawMessage `json:"manifestData,omitempty"`
+	AnalysisData      map[string]json.RawMessage `json:"analysisData,omitempty"`
 	Analysis          Analysis                   `json:"analysis"`
 	Timings           Timings                    `json:"timings"`
 	CacheHit          bool                       `json:"cacheHit,omitempty"`
@@ -941,7 +921,7 @@ type Module struct {
 	Boundaries       []Boundary
 	Continuations    []Continuation
 	Resumptions      []ComponentResumption
-	Policy           PolicyManifest
+	Policy           PolicyAnalysis
 	Config           json.RawMessage
 }
 
@@ -949,12 +929,12 @@ type Module struct {
 type Contribution struct {
 	SourceFile   *ast.SourceFile
 	Diagnostics  []Diagnostic
-	ManifestData json.RawMessage
+	AnalysisData json.RawMessage
 }
 
 // Extension is a statically linked native compiler extension.
 //
-// Namespace is a stable manifest and configuration key. Transform may return
+// Namespace is a stable analysis and configuration key. Transform may return
 // the input SourceFile when it has no work. Implementations must be
 // deterministic and must not retain snapshot-local AST nodes.
 type Extension interface {

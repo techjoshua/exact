@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { transform, transformSource } from '../index.js';
+import { analyzeSource, transform, transformSource } from '../index.js';
 
 describe('@exactjs/compiler component computations', () => {
 	it('keeps nullish component-state initialization in setup', () => {
@@ -48,7 +48,15 @@ describe('@exactjs/compiler component computations', () => {
 		);
 		expect(result.code).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(result.code).toContain('__exactWrite(this.state, ["value"]');
-		expect(result.manifest.components[0]?.tasks[0]?.placement).toBe('client');
+		expect(
+			analyzeSource(
+				`function Width(this: Component<{ value: number }>) {
+					this.state.value = window.innerWidth;
+					return () => <output>{this.state.value}</output>;
+				}`,
+				{ filename: 'Width.tsx' }
+			).components[0]?.tasks[0]?.placement
+		).toBe('client');
 	});
 
 	it('keeps peeked setup assignments as one-time snapshots', () => {

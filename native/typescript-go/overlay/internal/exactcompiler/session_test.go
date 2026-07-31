@@ -13,7 +13,7 @@ import (
 
 type recordingExtension struct {
 	calls        int
-	manifestData json.RawMessage
+	analysisData json.RawMessage
 	observedType string
 	directives   []Directive
 	imports      []Import
@@ -56,12 +56,12 @@ func (extension *recordingExtension) Transform(module Module) (Contribution, err
 	extension.imports = append([]Import(nil), module.Imports...)
 	return Contribution{
 		SourceFile:   module.SourceFile,
-		ManifestData: extension.manifestData,
+		AnalysisData: extension.analysisData,
 	}, nil
 }
 
 func TestSessionProvidesCanonicalImportFactsToNativeExtensions(t *testing.T) {
-	extension := &recordingExtension{manifestData: json.RawMessage(`{}`)}
+	extension := &recordingExtension{analysisData: json.RawMessage(`{}`)}
 	registry, err := NewRegistry(extension)
 	if err != nil {
 		t.Fatal(err)
@@ -419,7 +419,7 @@ func TestSessionSemanticallyValidatesGeneratedNativeArtifact(t *testing.T) {
 }
 
 func TestSessionProvidesNamespacedDirectivesToNativeExtensions(t *testing.T) {
-	extension := &recordingExtension{manifestData: json.RawMessage(`{}`)}
+	extension := &recordingExtension{analysisData: json.RawMessage(`{}`)}
 	registry, err := NewRegistry(extension)
 	if err != nil {
 		t.Fatal(err)
@@ -5005,32 +5005,6 @@ func TestSessionValidatesNativeUnsafeHTMLCapabilities(t *testing.T) {
 			library.Diagnostics,
 		)
 	}
-	applicationRequest := Request{
-		ID:          "application.ts",
-		Kind:        "analyze",
-		PackageType: "application",
-		Manifests: []ExternalManifest{{
-			Filename:     "/published/article.ts",
-			PackageName:  "@scope/article",
-			Components:   []ExternalComponentExport{},
-			Callables:    []CallableSummary{},
-			Policy:       newPolicyManifest(),
-			Capabilities: library.Analysis.Capabilities,
-		}},
-		Capabilities: CapabilityPolicy{
-			UnsafeHTML: UnsafeHTMLPolicy{Enabled: true},
-		},
-		Source: "export const value = 1;",
-	}
-	denied := NewSession(nil).Execute(applicationRequest)
-	if !containsDiagnosticCode(denied.Diagnostics, "EXACT4003") {
-		t.Fatalf("missing dependency unsafeHtml grant was accepted: %#v", denied.Diagnostics)
-	}
-	applicationRequest.Capabilities.UnsafeHTML.Grants = []string{"@scope/article"}
-	allowed := NewSession(nil).Execute(applicationRequest)
-	if len(allowed.Diagnostics) != 0 {
-		t.Fatalf("granted dependency unsafeHtml was rejected: %#v", allowed.Diagnostics)
-	}
 }
 
 func TestSessionPlansAndPartitionsNativeAssetImports(t *testing.T) {
@@ -5399,10 +5373,9 @@ func TestSessionPropagatesInteractiveHelperEffectsAcrossProjectImports(t *testin
 	}
 	pageFile := filepath.Join(root, "page.tsx")
 	pageResponse := NewSession(nil).Execute(Request{
-		ID:        pageFile,
-		Root:      root,
-		Kind:      "analyze",
-		Manifests: []ExternalManifest{{Filename: "unrelated.ts"}},
+		ID:   pageFile,
+		Root: root,
+		Kind: "analyze",
 		Source: `
 			import { Workspace } from "./workspace.js";
 			export function Page() {
@@ -5746,131 +5719,9 @@ func TestSessionInvalidatesRetainedProjectComponentGraph(t *testing.T) {
 	}
 }
 
-func TestSessionResolvesExternalManifestComponentPlacements(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
-		ID:   "entry.tsx",
-		Kind: "analyze",
-		Source: `
-			import DefaultCard, { ClientWidget as Widget } from "@scope/ui";
-			import * as UI from "@scope/ui";
-			export function Parent() {
-				return () => <main><DefaultCard /><Widget /><UI.ServerBadge /></main>;
-			}
-		`,
-		Manifests: []ExternalManifest{{
-			Filename:    "/published/ui/index.tsx",
-			PackageName: "@scope/ui",
-			Components: []ExternalComponentExport{
-				{
-					ExportName: "default", Name: "Card",
-					ComponentID: "ui:card", Placement: "client",
-				},
-				{
-					ExportName: "ClientWidget", Name: "ClientWidget",
-					ComponentID: "ui:widget", Placement: "client",
-				},
-				{
-					ExportName: "ServerBadge", Name: "ServerBadge",
-					ComponentID: "ui:badge", Placement: "server",
-				},
-			},
-			Callables: []CallableSummary{},
-		}},
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	parent := findComponent(t, response.Analysis.Components, "Parent")
-	if len(parent.RenderEdges) != 3 {
-		t.Fatalf("external component edges were not linked: %#v", parent.RenderEdges)
-	}
-	if parent.RenderEdges[0].Name != "Card" ||
-		parent.RenderEdges[0].Placement != "client" ||
-		parent.RenderEdges[1].Name != "ClientWidget" ||
-		parent.RenderEdges[1].Placement != "client" ||
-		parent.RenderEdges[2].Name != "ServerBadge" ||
-		parent.RenderEdges[2].Placement != "server" ||
-		parent.SubgraphPlacement != "isomorphic" {
-		t.Fatalf("unexpected external component subgraph: %#v", parent)
-	}
-}
-
-func TestSessionPropagatesExternalManifestCallableEffects(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
-		ID:   "entry.tsx",
-		Kind: "analyze",
-		Source: `
-			import { TaskContext } from "@exactjs/core";
-			import { loadConfig as load } from "@scope/data";
-			export function Panel() {
-				const __fixtureTask43 = (_task: TaskContext = TaskContext.latest()) => load();
-__fixtureTask43();
-				return () => <output />;
-			}
-		`,
-		Manifests: []ExternalManifest{{
-			Filename:    "/published/data/index.ts",
-			PackageName: "@scope/data",
-			Components:  []ExternalComponentExport{},
-			Callables: []CallableSummary{{
-				ID:           "data:load-config",
-				Name:         "loadConfig",
-				Kind:         "function",
-				ExportNames:  []string{"loadConfig"},
-				DirectEffect: "server",
-				Effect:       "server",
-				DirectEffectSources: []EnvironmentEffectSource{{
-					Environment: "server",
-					Description: "node:fs",
-					Path:        []string{"loadConfig", "node:fs"},
-				}},
-				EffectSources: []EnvironmentEffectSource{{
-					Environment: "server",
-					Description: "node:fs",
-					Path:        []string{"loadConfig", "node:fs"},
-				}},
-				Calls:           []CallEdge{},
-				ArtifactTargets: []string{"server"},
-				StateReads:      []StateEffect{},
-				StateWrites:     []StateEffect{},
-				Contexts:        []ContextEffect{},
-			}},
-		}},
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	task := response.Analysis.Tasks[0]
-	if task.EnvironmentEffect != "server" || task.Placement != "server" {
-		t.Fatalf("external callable effect did not reach task: %#v", task)
-	}
-	taskCallable := CallableSummary{}
-	for _, callable := range response.Analysis.Callables {
-		if callable.Name == "__fixtureTask43" {
-			taskCallable = callable
-			break
-		}
-	}
-	if taskCallable.ID == "" {
-		t.Fatalf("missing task function callable: %#v", response.Analysis.Callables)
-	}
-	resolvedExternalCall := CallEdge{}
-	for _, call := range taskCallable.Calls {
-		if call.TargetID == "data:load-config" {
-			resolvedExternalCall = call
-			break
-		}
-	}
-	if !resolvedExternalCall.Resolved ||
-		resolvedExternalCall.ModuleSpecifier != "@scope/data" ||
-		resolvedExternalCall.ExportName != "loadConfig" {
-		t.Fatalf("external callable edge was not resolved: %#v", taskCallable.Calls)
-	}
-}
-
 func TestSessionRetainsParsedSourceAndRunsExtensions(t *testing.T) {
 	extension := &recordingExtension{
-		manifestData: json.RawMessage(`{"target":"client"}`),
+		analysisData: json.RawMessage(`{"target":"client"}`),
 	}
 	registry, err := NewRegistry(extension)
 	if err != nil {
@@ -5897,8 +5748,8 @@ func TestSessionRetainsParsedSourceAndRunsExtensions(t *testing.T) {
 	if first.Code == "" {
 		t.Fatal("native printer returned empty output")
 	}
-	if string(first.ManifestData["test"]) != `{"target":"client"}` {
-		t.Fatalf("unexpected extension data: %s", first.ManifestData["test"])
+	if string(first.AnalysisData["test"]) != `{"target":"client"}` {
+		t.Fatalf("unexpected extension data: %s", first.AnalysisData["test"])
 	}
 
 	second := session.Execute(request)
@@ -5947,8 +5798,8 @@ func TestSessionRequiresNamespacedDirectiveConfiguration(t *testing.T) {
 	}
 }
 
-func TestSessionRejectsInvalidExtensionManifestData(t *testing.T) {
-	extension := &recordingExtension{manifestData: json.RawMessage(`{`)}
+func TestSessionRejectsInvalidExtensionAnalysisData(t *testing.T) {
+	extension := &recordingExtension{analysisData: json.RawMessage(`{`)}
 	registry, err := NewRegistry(extension)
 	if err != nil {
 		t.Fatal(err)
@@ -5962,12 +5813,12 @@ func TestSessionRejectsInvalidExtensionManifestData(t *testing.T) {
 		},
 	})
 	if response.Error == "" {
-		t.Fatal("invalid extension manifest data was accepted")
+		t.Fatal("invalid extension analysis data was accepted")
 	}
 }
 
 func TestSessionIncrementallyUpdatesProgramAndChecker(t *testing.T) {
-	extension := &recordingExtension{manifestData: json.RawMessage(`{}`)}
+	extension := &recordingExtension{analysisData: json.RawMessage(`{}`)}
 	registry, err := NewRegistry(extension)
 	if err != nil {
 		t.Fatal(err)

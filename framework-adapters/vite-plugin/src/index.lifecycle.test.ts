@@ -95,16 +95,16 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 	it('ignores watcher events for files outside the compiler program', () => {
 		const directory = mkdtempSync(path.join(tmpdir(), 'exact-vite-watch-'));
 		const style = path.join(directory, 'styles.css');
-		const manifest = path.join(directory, 'manifest.webmanifest');
+		const analysis = path.join(directory, 'analysis.webmanifest');
 		const buildInfo = path.join(directory, 'tsconfig.tsbuildinfo');
 		const plugin = exact({ reactCompatibility: false });
 		try {
 			writeFileSync(style, '.view { display: grid; }');
-			writeFileSync(manifest, '{"name":"fixture"}');
+			writeFileSync(analysis, '{"name":"fixture"}');
 			writeFileSync(buildInfo, '{}');
 
 			expect(() => plugin.handleHotUpdate?.({ file: style })).not.toThrow();
-			expect(() => plugin.watchChange?.(manifest, { event: 'update' })).not.toThrow();
+			expect(() => plugin.watchChange?.(analysis, { event: 'update' })).not.toThrow();
 			expect(() => plugin.watchChange?.(buildInfo, { event: 'update' })).not.toThrow();
 		} finally {
 			plugin.closeBundle?.();

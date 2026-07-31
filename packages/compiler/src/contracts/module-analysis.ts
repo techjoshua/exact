@@ -1,6 +1,5 @@
 import type { ExactJsonValue } from '@exactjs/plugin-api';
 import type {
-	ExactArtifactExportIR,
 	ExactBoundaryIR,
 	ExactCallableSummaryIR,
 	ExactComponentIR,
@@ -12,28 +11,11 @@ import type {
 } from './analysis.js';
 import type { ExactComponentResumptionIR, ExactContinuationIR } from './continuations.js';
 import type { ExactComponentRegistryIR } from './registries.js';
-import type { ExactPlacement, ExactPolicyManifestIR } from './policy.js';
+import type { ExactPlacement, ExactPolicyAnalysisIR } from './policy.js';
 import type { ExactAssetDependencyIR, ExactRawHtmlCapabilityIR } from './transform.js';
 
-/** Defines the exact artifact manifest type contract. */
-export type ExactArtifactManifest = {
-	source: string;
-	client: string;
-	server: string;
-	shared?: string;
-	manifest: string;
-	targets: {
-		client: 'client';
-		server: 'server';
-		shared?: 'shared';
-	};
-	exports: ExactArtifactExportIR[];
-	symbols: ExactSymbolIR[];
-	boundaries: ExactBoundaryIR[];
-};
-
-/** Defines the exact compiler manifest type contract. */
-export type ExactCompilerManifest = {
+/** Ephemeral analysis retained only by an owned compiler session. */
+export type ExactModuleAnalysis = {
 	version: 1;
 	filename: string;
 	dependencies: string[];
@@ -47,12 +29,11 @@ export type ExactCompilerManifest = {
 	continuations: ExactContinuationIR[];
 	registries?: ExactComponentRegistryIR[];
 	resumptions: ExactComponentResumptionIR[];
-	policy: ExactPolicyManifestIR;
+	policy: ExactPolicyAnalysisIR;
 	packageName?: string;
 	requiredCapabilities?: {
 		rawHtml: ExactRawHtmlCapabilityIR[];
 	};
-	artifacts?: ExactArtifactManifest;
 	serverActions: Record<
 		string,
 		{

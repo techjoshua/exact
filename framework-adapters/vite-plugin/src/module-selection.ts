@@ -1,8 +1,5 @@
-import {
-	loadExactImportedManifests,
-	matchesExactBuildFilter
-} from '@exactjs/compiler/adapter-support';
-import type { ExactCompilerManifest, TransformTarget } from '@exactjs/compiler';
+import { matchesExactBuildFilter } from '@exactjs/compiler/adapter-support';
+import type { TransformTarget } from '@exactjs/compiler';
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -12,8 +9,6 @@ export type ExactModuleSelectionOptions = {
 	include?: FilterPattern;
 	exclude?: FilterPattern;
 	target?: TransformTarget;
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
 	compileTestModules?: boolean;
 };
 
@@ -25,13 +20,6 @@ export function exactModuleFilename(id: string): string {
 /** Selects the concrete compiler target used by a client or server Vite build. */
 export function exactTransformTarget(options: ExactModuleSelectionOptions): 'client' | 'server' {
 	return options.target === 'server' ? 'server' : 'client';
-}
-
-/** Loads imported analysis manifests from the supported inline and file options. */
-export function exactImportedManifests(
-	options: ExactModuleSelectionOptions
-): ExactCompilerManifest[] {
-	return loadExactImportedManifests(options);
 }
 
 /** Determines whether compiler analysis is required for one authored module. */

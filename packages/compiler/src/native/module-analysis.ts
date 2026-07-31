@@ -1,5 +1,5 @@
 import type {
-	ExactCompilerManifest,
+	ExactModuleAnalysis,
 	ExactComponentIR,
 	ExactContinuationIR,
 	ExactTaskIR
@@ -12,23 +12,23 @@ import type {
 } from './process-contracts.js';
 
 /**
- * Projects the process-safe native analysis into the public compiler manifest.
+ * Projects the process-safe native analysis into the public compiler analysis.
  *
  * This is a structural copy rather than a compatibility AST projection: no
  * TypeScript nodes, checker handles, or JavaScript expression wrappers are
  * reconstructed after the Go host has completed analysis.
  */
-export function nativeCompilerManifest(
+export function nativeModuleAnalysis(
 	filename: string,
 	response: NativeCompilerResponse
-): ExactCompilerManifest {
+): ExactModuleAnalysis {
 	const components = response.analysis.components.map((component) =>
 		nativeComponent(component, response.analysis.tasks)
 	);
 	const continuations = response.analysis.continuations.map(nativeContinuation);
 	const symbols = response.analysis.symbols.map((symbol) => ({ ...symbol }));
 	const exports = response.analysis.exports.map((record) => ({ ...record }));
-	const serverActions: ExactCompilerManifest['serverActions'] = {};
+	const serverActions: ExactModuleAnalysis['serverActions'] = {};
 	for (const continuation of continuations) {
 		serverActions[continuation.id] = {
 			id: continuation.id,

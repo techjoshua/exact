@@ -170,7 +170,7 @@ export interface ExactCompilerPluginExtension {
 	readonly jsx?: ExactCompilerJsxExtension;
 	readonly include?: RegExp;
 	analyzeModule?(view: ExactCompilerModuleView): ExactCompilerModuleContribution | undefined;
-	validateManifestData?(value: ExactJsonValue): undefined;
+	validateAnalysisData?(value: ExactJsonValue): undefined;
 }
 
 export interface ExactCompilerJsxExtension {
@@ -295,7 +295,7 @@ export function exactDirective(
 Generated code imports this generic helper from `@exactjs/core`. It does not
 import a plugin runtime. Descriptor values may include stable authored values
 and compiler-owned reactive cells according to the member schema; they are not
-required to be JSON and are never copied into compiler manifests or hydration
+required to be JSON and are never copied into persisted compiler data or hydration
 payloads without an explicit serialization contract.
 
 The descriptor attaches to existing vnode identity. It does not wrap the

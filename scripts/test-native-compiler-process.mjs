@@ -28,7 +28,7 @@ try {
 		diagnostics: 'syntax'
 	};
 	const first = compiler.request(request);
-	assert.equal(first.protocolVersion, '1.24.0');
+	assert.equal(first.protocolVersion, '1.26.0');
 	assert.match(first.typescriptVersion, /^7\./);
 	assert.equal(first.backendVersion, first.protocolVersion);
 	assert.equal(first.cacheHit, undefined);
@@ -143,7 +143,7 @@ try {
 	assert.equal(invalid.diagnostics[0]?.code, 'TS2322');
 	assert.throws(
 		() => compiler.request({ kind: 'unsupported' }),
-		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.23\.0/
+		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.26\.0/
 	);
 } finally {
 	compiler.dispose();
@@ -166,14 +166,18 @@ try {
 			session
 		}
 	);
+	const resultAnalysis = publicCompiler.analyzeSource(
+		'export function NativePanel() { return () => <button onClick={() => alert(1)}>Go</button>; }',
+		{ filename: 'native-panel.tsx', serverComponents: true, session }
+	);
 	assert.match(result.code, /createCompiledVNode/);
-	assert.equal(result.manifest.components[0]?.name, 'NativePanel');
+	assert.equal(resultAnalysis.components[0]?.name, 'NativePanel');
 	assert.equal(
-		result.manifest.symbols.some((symbol) => symbol.role === 'root'),
+		resultAnalysis.symbols.some((symbol) => symbol.role === 'root'),
 		true
 	);
 	assert.equal(
-		result.manifest.boundaries.some((boundary) => boundary.kind === 'client-island'),
+		resultAnalysis.boundaries.some((boundary) => boundary.kind === 'client-island'),
 		true
 	);
 	assert.equal(result.map?.version, 3);
@@ -192,12 +196,12 @@ try {
 			}
 		}
 	};
-	const configured = publicCompiler.transformSource('export const configured = true;', {
+	const configured = publicCompiler.analyzeSource('export const configured = true;', {
 		filename: 'configured.ts',
 		pluginRegistry: configurationRegistry,
 		session
 	});
-	assert.deepEqual(configured.manifest.pluginRegistry, {
+	assert.deepEqual(configured.pluginRegistry, {
 		fingerprint: configurationRegistry.fingerprint,
 		plugins: {
 			'@scope/configuration': {
@@ -209,28 +213,7 @@ try {
 		}
 	});
 
-	const provider = publicCompiler.transformSource(
-		'export function Widget() { return () => <button onClick={() => alert(1)}>Widget</button>; }',
-		{
-			filename: 'provider.tsx',
-			packageName: '@scope/native-ui',
-			serverComponents: true,
-			session
-		}
-	);
-	const consumer = publicCompiler.transformSource(
-		'import { Widget as ImportedWidget } from "@scope/native-ui"; export function Page() { return () => <main><ImportedWidget /></main>; }',
-		{
-			filename: 'consumer.tsx',
-			importedManifests: [provider.manifest],
-			serverComponents: true,
-			session
-		}
-	);
-	assert.equal(consumer.manifest.components[0]?.renderEdges[0]?.name, 'Widget');
-	assert.equal(consumer.manifest.components[0]?.renderEdges[0]?.placement, 'client');
-
-	const htmlLibrary = publicCompiler.transformSource(
+	const htmlLibrary = publicCompiler.analyzeSource(
 		'import { unsafeHtml } from "@exactjs/core"; export function article(value: string) { return unsafeHtml(value); }',
 		{
 			filename: 'article.ts',
@@ -239,28 +222,7 @@ try {
 			session
 		}
 	);
-	assert.equal(htmlLibrary.manifest.requiredCapabilities?.rawHtml.length, 1);
-	assert.throws(
-		() =>
-			publicCompiler.transformSource('export const application = true;', {
-				filename: 'application.ts',
-				packageType: 'application',
-				importedManifests: [htmlLibrary.manifest],
-				capabilityPolicy: { unsafeHtml: { enabled: true } },
-				session
-			}),
-		/without an application grant/
-	);
-	const grantedApplication = publicCompiler.transformSource('export const application = true;', {
-		filename: 'application.ts',
-		packageType: 'application',
-		importedManifests: [htmlLibrary.manifest],
-		capabilityPolicy: {
-			unsafeHtml: { enabled: true, grants: ['@scope/article'] }
-		},
-		session
-	});
-	assert.deepEqual(grantedApplication.manifest.diagnostics, []);
+	assert.equal(htmlLibrary.requiredCapabilities?.rawHtml.length, 1);
 
 	const assetResult = publicCompiler.transformSource(
 		'import "./app.scss"; import poster from "./poster.avif?url"; export const asset = poster;',
@@ -271,9 +233,18 @@ try {
 			session
 		}
 	);
+	const assetAnalysis = publicCompiler.analyzeSource(
+		'import "./app.scss"; import poster from "./poster.avif?url"; export const asset = poster;',
+		{
+			filename: 'assets.ts',
+			target: 'server',
+			assetRules: [{ extensions: ['.avif'], queries: ['url'], kind: 'image', importMode: 'url' }],
+			session
+		}
+	);
 	assert.equal(assetResult.code.includes('./app.scss'), false);
 	assert.equal(assetResult.code.includes('./poster.avif?url'), true);
-	assert.equal(assetResult.manifest.assets.length, 2);
+	assert.equal(assetAnalysis.assets.length, 2);
 
 	const artifactRoot = await mkdtemp(path.join(os.tmpdir(), 'exact-native-artifacts-'));
 	try {
@@ -292,13 +263,12 @@ try {
 			outDir,
 			rootDir: artifactRoot,
 			session,
-			serverComponents: true,
-			discoverPackageManifests: false
+			serverComponents: true
 		});
 		assert.match(await readFile(artifacts.clientFile, 'utf8'), /Panel_ExactClient_1/);
 		assert.match(await readFile(artifacts.serverFile, 'utf8'), /createServerBoundary/);
 		assert.equal(
-			artifacts.manifest.symbols.some((symbol) => symbol.role === 'client-island'),
+			artifacts.analysis.symbols.some((symbol) => symbol.role === 'client-island'),
 			true
 		);
 	} finally {

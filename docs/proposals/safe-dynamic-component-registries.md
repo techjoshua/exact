@@ -30,7 +30,7 @@ mismatched entry inside its owned range.
 | Reactive finite selection and key narrowing                          | Implemented    |
 | Heterogeneous props and `ComponentSelection`                         | Implemented    |
 | Lazy loading, deduplication, retry, preload, and generation fencing  | Implemented    |
-| Compiler diagnostics, opaque identities, manifests, and explanations | Implemented    |
+| Compiler diagnostics, opaque identities, contracts, and explanations | Implemented    |
 | Placement-aware client/server artifact planning                      | Implemented    |
 | SSR, Suspense, hydration identity, and range-local mismatch recovery | Implemented    |
 | Immutable runtime inspection                                         | Implemented    |
@@ -132,8 +132,8 @@ authority machinery.
   hydration, and interaction activation.
 - Preserve per-entry client/server placement and server operation allowlisting.
 - Preserve entry-level tree shaking, code splitting, CSS, and asset ownership.
-- Support compiled library registries without making manifest sidecars a
-  runtime API.
+- Support compiled library registries without persisted compiler-analysis
+  sidecars.
 - Retain explicit React compatibility ownership at mixed boundaries.
 
 ## Non-goals

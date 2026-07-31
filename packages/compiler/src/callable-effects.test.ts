@@ -12,7 +12,7 @@ import {
 
 describe('symbol-level placement inference', () => {
 	it('uses callable client and server directives at invocation sites', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       /** @exact client */
       declare function render(): void;
@@ -25,15 +25,15 @@ describe('symbol-level placement inference', () => {
 		);
 
 		expect(
-			manifest.components.find((component) => component.name === 'ClientPage')?.placement
+			analysis.components.find((component) => component.name === 'ClientPage')?.placement
 		).toBe('client');
 		expect(
-			manifest.components.find((component) => component.name === 'ServerPage')?.placement
+			analysis.components.find((component) => component.name === 'ServerPage')?.placement
 		).toBe('server');
 	});
 
 	it('keeps imported references neutral until they are invoked', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { createThing } from "opaque-package";
       export const factory = createThing;
@@ -41,35 +41,13 @@ describe('symbol-level placement inference', () => {
 			{ filename: 'C:/src/reference.ts' }
 		);
 
-		expect(manifest.exports.find((value) => value.name === 'factory')?.placement).toBe(
+		expect(analysis.exports.find((value) => value.name === 'factory')?.placement).toBe(
 			'isomorphic'
 		);
 	});
 
-	it('propagates interactive JSX placement through imported render helpers', () => {
-		const helper = analyzeSource(
-			`export function renderButton(click: () => void) { return <button onClick={click}>Save</button>; }`,
-			{ filename: 'C:/src/render-button.tsx' }
-		);
-		const manifest = analyzeSource(
-			`
-      import { renderButton } from './render-button.js';
-      export function Page() { return () => <section>{renderButton(() => undefined)}</section>; }
-    `,
-			{ filename: 'C:/src/page.tsx', importedManifests: [helper] }
-		);
-
-		expect(helper.callables.find((callable) => callable.name === 'renderButton')?.effect).toBe(
-			'browser'
-		);
-		expect(manifest.components.find((component) => component.name === 'Page')).toMatchObject({
-			placement: 'client',
-			artifactTargets: ['client']
-		});
-	});
-
 	it('constrains opaque helpers through a client event invocation', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       declare const service: { run(): void };
       function invoke(action: () => void) { action(); service.run(); }
@@ -78,17 +56,17 @@ describe('symbol-level placement inference', () => {
 			{ filename: 'C:/src/client-invocation.tsx' }
 		);
 
-		const invoke = manifest.callables.find((callable) => callable.name === 'invoke');
+		const invoke = analysis.callables.find((callable) => callable.name === 'invoke');
 		expect(invoke?.effect).toBe('unknown');
 		expect(invoke?.artifactTargets).toEqual(['client']);
 	});
 
 	it('propagates server effects through local helper chains', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      function read() { return readFile("title.txt", "utf8"); }\n      function load() { return read(); }\n      export function Page(this: Component<{ title?: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => { this.state.title = await load(); };\nrunFixtureTask();\n        return () => <p>{this.state.title}</p>;\n      }\n    ',
 			{ filename: 'C:/src/Page.tsx' }
 		);
-		const task = manifest.components[0]!.tasks[0]!;
+		const task = analysis.components[0]!.tasks[0]!;
 		expect(task.placement).toBe('server');
 		expect(task.effectSources).toContainEqual(
 			expect.objectContaining({
@@ -99,11 +77,11 @@ describe('symbol-level placement inference', () => {
 	});
 
 	it('converges recursive summaries without growing diagnostic paths', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			'import { TaskContext } from "@exactjs/core";\n\n      function left(value: number): number { return value ? right(value - 1) : process.pid; }\n      function right(value: number): number { return left(value); }\n      export function Page(this: Component<{ value?: number }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = right(2); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/Recursive.tsx' }
 		);
-		const task = manifest.components[0]!.tasks[0]!;
+		const task = analysis.components[0]!.tasks[0]!;
 		expect(task.placement).toBe('server');
 		expect(task.effectSources?.[0]?.path.length).toBeLessThanOrEqual(5);
 	});
@@ -127,60 +105,39 @@ describe('symbol-level placement inference', () => {
 	});
 
 	it('keeps unknown calls visible when a known effect already restricts placement', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			'import { TaskContext } from "@exactjs/core";\n\n      function invoke(callback: () => string) { return process.env.VALUE ?? callback(); }\n      export function Page(this: Component<{ value?: string }>, props: { callback: () => string }) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = invoke(props.callback); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/restricted-unknown.tsx' }
 		);
-		expect(manifest.components[0]!.tasks[0]).toMatchObject({
+		expect(analysis.components[0]!.tasks[0]).toMatchObject({
 			placement: 'server',
 			environmentEffect: 'unknown'
 		});
 		expect(
-			new Set(manifest.components[0]!.tasks[0]!.effectSources?.map((source) => source.environment))
+			new Set(analysis.components[0]!.tasks[0]!.effectSources?.map((source) => source.environment))
 		).toEqual(new Set(['server', 'unknown']));
 	});
 
 	it('keeps opaque component setup visibly unknown', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { inspect } from "opaque-package";
       export function Page() { const value = inspect(); return () => <p>{value}</p>; }
     `,
 			{ filename: 'C:/src/OpaquePage.tsx' }
 		);
-		expect(manifest.components[0]).toMatchObject({
+		expect(analysis.components[0]).toMatchObject({
 			placement: 'unknown',
 			environmentEffect: 'unknown',
 			artifactTargets: []
 		});
-		expect(manifest.components[0]!.diagnostics.join('\n')).toContain(
+		expect(analysis.components[0]!.diagnostics.join('\n')).toContain(
 			'component placement depends on an opaque call'
 		);
 	});
 
-	it('resolves namespace imports and re-export chains through v2 summaries', () => {
-		const provider = analyzeSource(`export function quote() { return process.env.RATE; }`, {
-			filename: 'C:/src/provider.ts'
-		});
-		const barrel = analyzeSource(`export { quote as getQuote } from "./provider.js";`, {
-			filename: 'C:/src/barrel.ts',
-			importedManifests: [provider]
-		});
-		const manifest = analyzeSource(
-			'import { TaskContext } from "@exactjs/core";\n\n      import * as rates from "./barrel.js";\n      export function Page(this: Component<{ value?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = rates.getQuote(); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
-			{ filename: 'C:/src/Page.tsx', importedManifests: [provider, barrel] }
-		);
-		expect(manifest.components[0]!.tasks[0]!.placement).toBe('server');
-		expect(manifest.components[0]!.tasks[0]!.effectSources).toContainEqual(
-			expect.objectContaining({
-				environment: 'server',
-				path: expect.arrayContaining(['getQuote', 'quote', 'process'])
-			})
-		);
-	});
-
 	it('uses declaration identity for shadowed platform globals and exports', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       const process = { env: { SAFE: "yes" } };
       function hidden() { const process = { env: { SAFE: "also" } }; return process.env.SAFE; }
@@ -189,10 +146,10 @@ describe('symbol-level placement inference', () => {
 			{ filename: 'C:/src/shadowed.ts' }
 		);
 		expect(
-			manifest.callables.find((callable) => callable.exportNames.includes('value'))?.effect
+			analysis.callables.find((callable) => callable.exportNames.includes('value'))?.effect
 		).toBe('neutral');
 		expect(
-			manifest.callables
+			analysis.callables
 				.filter((callable) => callable.exportNames.length)
 				.flatMap((callable) => callable.exportNames)
 		).toEqual(['value']);
@@ -204,14 +161,14 @@ describe('symbol-level placement inference', () => {
       export { secret };
       export const universal = 42;
     `;
-		const manifest = analyzeSource(source, { filename: 'C:/src/values.ts' });
-		expect(manifest.exports).toEqual(
+		const analysis = analyzeSource(source, { filename: 'C:/src/values.ts' });
+		expect(analysis.exports).toEqual(
 			expect.arrayContaining([
 				{ name: 'secret', kind: 'value', placement: 'server' },
 				{ name: 'universal', kind: 'value', placement: 'isomorphic' }
 			])
 		);
-		expect(manifest.symbols).toEqual(
+		expect(analysis.symbols).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ exportName: 'secret', kind: 'value', target: 'server' }),
 				expect.objectContaining({ exportName: 'universal', kind: 'value', target: 'both' })
@@ -226,12 +183,12 @@ describe('symbol-level placement inference', () => {
 	});
 
 	it('resolves methods with known receivers and callable aliases', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			'import { TaskContext } from "@exactjs/core";\n\n      const registry = { quote() { return process.env.RATE; } };\n      const quote = registry.quote;\n      export function Page(this: Component<{ direct?: string; alias?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.direct = registry.quote(); this.state.alias = quote(); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/methods.tsx' }
 		);
-		expect(manifest.components[0]!.tasks[0]!.placement).toBe('server');
-		expect(manifest.components[0]!.tasks[0]!.effectSources?.[0]?.path).toContain('process');
+		expect(analysis.components[0]!.tasks[0]!.placement).toBe('server');
+		expect(analysis.components[0]!.tasks[0]!.effectSources?.[0]?.path).toContain('process');
 	});
 
 	it('maps state effects through helper parameters and preserves unknown receiver flow', () => {
@@ -266,9 +223,9 @@ describe('symbol-level placement inference', () => {
       process.stdout.write("ready");
       export function Pure() { return () => <p />; }
     `;
-		const manifest = analyzeSource(source, { filename: 'C:/src/initializers.tsx' });
+		const analysis = analyzeSource(source, { filename: 'C:/src/initializers.tsx' });
 		expect(
-			manifest.callables
+			analysis.callables
 				.filter((callable) => callable.kind === 'module-initializer')
 				.map((callable) => callable.effect)
 		).toEqual(['browser', 'server']);
@@ -278,34 +235,6 @@ describe('symbol-level placement inference', () => {
 		expect(client).not.toContain('process.stdout.write');
 		expect(server).not.toContain('window.addEventListener');
 		expect(server).toContain('process.stdout.write');
-	});
-
-	it('resolves side-effect-only imports through module initializer summaries', () => {
-		const provider = analyzeSource(`process.stdout.write("provider");`, {
-			filename: 'C:/src/provider.ts'
-		});
-		const source = `import "./provider.js"; export function Pure() { return () => <p />; }`;
-		const manifest = analyzeSource(source, {
-			filename: 'C:/src/Page.tsx',
-			importedManifests: [provider]
-		});
-		expect(
-			manifest.callables.find((callable) => callable.kind === 'module-initializer')?.effect
-		).toBe('server');
-		expect(
-			transform(source, {
-				filename: 'C:/src/Page.tsx',
-				target: 'client',
-				importedManifests: [provider]
-			})
-		).not.toContain('provider.js');
-		expect(
-			transform(source, {
-				filename: 'C:/src/Page.tsx',
-				target: 'server',
-				importedManifests: [provider]
-			})
-		).toContain('provider.js');
 	});
 
 	it('rejects opaque side-effect imports instead of assuming they are neutral', () => {
@@ -337,7 +266,7 @@ describe('symbol-level placement inference', () => {
 			outDir: path.join(root, '.exact'),
 			serverComponents: true
 		});
-		expect(compiled!.manifest.components[0]!.tasks[0]!.placement).toBe('server');
+		expect(compiled!.analysis.components[0]!.tasks[0]!.placement).toBe('server');
 		expect(await readFile(compiled!.clientFile, 'utf8')).not.toContain('quote()');
 		expect(await readFile(compiled!.serverFile, 'utf8')).toContain('quote()');
 	});
@@ -373,21 +302,21 @@ describe('symbol-level placement inference', () => {
 			serverComponents: true
 		};
 		const state = await createExactArtifactDevState([page], artifactOptions);
-		expect(state.entries[0]!.manifest.dependencies).toContain('provider.ts');
-		expect(state.entries[0]!.manifest.components[0]!.tasks[0]!.placement).toBe('server');
+		expect(state.entries[0]!.analysis.dependencies).toContain('provider.ts');
+		expect(state.entries[0]!.analysis.components[0]!.tasks[0]!.placement).toBe('server');
 
 		await writeFile(provider, `export function value() { return window.location.href; }`);
 		const updated = await updateExactArtifactDevState(state, [page], [provider], artifactOptions);
 		expect(updated.diff.changed.map((entry) => path.resolve(entry.inputFile))).toEqual([
 			path.resolve(page)
 		]);
-		expect(updated.entries[0]!.manifest.components[0]!.tasks[0]!.placement).toBe('client');
+		expect(updated.entries[0]!.analysis.components[0]!.tasks[0]!.placement).toBe('client');
 		const warmClient = await readFile(updated.compiled[0]!.clientFile, 'utf8');
 		const warmServer = await readFile(updated.compiled[0]!.serverFile, 'utf8');
-		const warmManifest = JSON.stringify(updated.compiled[0]!.manifest);
+		const warmManifest = JSON.stringify(updated.compiled[0]!.analysis);
 		const [clean] = await compileProjectArtifacts([page], artifactOptions);
 		expect(await readFile(clean!.clientFile, 'utf8')).toBe(warmClient);
 		expect(await readFile(clean!.serverFile, 'utf8')).toBe(warmServer);
-		expect(JSON.stringify(clean!.manifest)).toBe(warmManifest);
+		expect(JSON.stringify(clean!.analysis)).toBe(warmManifest);
 	});
 });

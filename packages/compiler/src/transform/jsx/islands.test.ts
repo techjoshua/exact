@@ -177,7 +177,7 @@ describe('@exactjs/compiler: islands', () => {
 	it('does not generate nested client islands inside an extracted element island', () => {
 		const source =
 			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <section onClick={() => this.state.count++}>\n          <button onClick={() => this.state.count++}>Nested</button>\n        </section>;\n      }\n    ';
-		const manifest = analyzeSource(source, { filename: 'Panel.tsx' });
+		const analysis = analyzeSource(source, { filename: 'Panel.tsx' });
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
@@ -189,7 +189,7 @@ describe('@exactjs/compiler: islands', () => {
 			serverComponents: true
 		});
 
-		expect(manifest.components[0]!.clientIslandCount).toBe(1);
+		expect(analysis.components[0]!.clientIslandCount).toBe(1);
 		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(client).not.toContain('export function Panel_ExactClient_2');
 		expect(server).toContain('Panel_ExactClient_1');
@@ -199,7 +199,7 @@ describe('@exactjs/compiler: islands', () => {
 	it('keeps server-only child subgraphs server-owned inside generated element islands', () => {
 		const source =
 			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      function ServerSummary(this: Component<{ title: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("summary.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <p>{this.state.title}</p>;\n      }\n\n      export function Panel(this: Component<{ count: number }>) {\n        this.state.count = 0;\n        const runFixtureTask2 = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask2();\n        return () => <section onClick={() => this.state.count++}>\n          <div className="summary"><ServerSummary /></div>\n        </section>;\n      }\n    ';
-		const manifest = analyzeSource(source, { filename: 'Panel.tsx' });
+		const analysis = analyzeSource(source, { filename: 'Panel.tsx' });
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
@@ -212,9 +212,9 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(
-			manifest.components.find((component) => component.name === 'Panel')!.clientIslandCount
+			analysis.components.find((component) => component.name === 'Panel')!.clientIslandCount
 		).toBe(1);
-		expect(manifest.boundaries).toContainEqual(
+		expect(analysis.boundaries).toContainEqual(
 			expect.objectContaining({
 				name: 'Panel_ExactClient_1:children',
 				kind: 'server-slot'
@@ -229,32 +229,5 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).toContain('__exactVNode("div"');
 		expect(server).toContain('__exactVNode(ServerSummary');
 		expect(server).toContain('readFile');
-	});
-
-	it('keeps imported server child subgraphs server-owned inside generated element islands', () => {
-		const childManifest = analyzeSource(
-			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function ServerSummary(this: Component<{ title: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("summary.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <p>{this.state.title}</p>;\n      }\n    ',
-			{ filename: '/pkg/ServerSummary.tsx' }
-		);
-		const source =
-			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      import { ServerSummary } from "./ServerSummary";\n\n      export function Panel(this: Component<{ count: number }>) {\n        this.state.count = 0;\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <section onClick={() => this.state.count++}>\n          <div className="summary"><ServerSummary /></div>\n        </section>;\n      }\n    ';
-		const client = transform(source, {
-			filename: '/pkg/Panel.tsx',
-			target: 'client',
-			serverComponents: true,
-			importedManifests: [childManifest]
-		});
-		const server = transform(source, {
-			filename: '/pkg/Panel.tsx',
-			target: 'server',
-			serverComponents: true,
-			importedManifests: [childManifest]
-		});
-
-		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(client).toContain('props.children');
-		expect(client).not.toContain('ServerSummary');
-		expect(server).toContain('__exactVNode(ServerSummary');
-		expect(server).toContain('from "./ServerSummary"');
 	});
 });

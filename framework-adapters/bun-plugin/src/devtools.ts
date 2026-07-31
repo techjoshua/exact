@@ -1,8 +1,6 @@
 import {
 	createExactBuildInspectionCatalog,
 	createExactInspectionBuildKey,
-	createExactInspectionRedactions,
-	type ExactCompilerManifest,
 	type ExactSourceInspection
 } from '@exactjs/compiler';
 import path from 'node:path';
@@ -11,7 +9,7 @@ import type { ExactBunDebugOptions, ExactBunPluginOptions } from './plugin.js';
 /** Compiler output retained only until one Bun server catalog is emitted. */
 export type ExactBunInspectionModule = Readonly<{
 	inspection: ExactSourceInspection;
-	manifest: ExactCompilerManifest;
+	redactions?: import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog;
 	source: string;
 }>;
 
@@ -84,11 +82,35 @@ export function createBunInspectionCatalog(
 				sources: Object.fromEntries(
 					[...modules.entries()].map(([filename, entry]) => [filename, entry.source])
 				),
-				redactions: createExactInspectionRedactions(
-					[...modules.values()].map((entry) => entry.manifest),
+				redactions: mergeInspectionRedactions(
+					[...modules.values()].flatMap((entry) => entry.redactions ?? []),
 					debug.redactions
 				)
 			}
 		]
 	});
+}
+
+function mergeInspectionRedactions(
+	generated: readonly import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog[],
+	configured: Partial<import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog> = {}
+): import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog {
+	return {
+		statePaths: [
+			...new Set([
+				...generated.flatMap((value) => value.statePaths),
+				...(configured.statePaths ?? [])
+			])
+		].sort(),
+		contextTokens: [
+			...generated.flatMap((value) => value.contextTokens),
+			...(configured.contextTokens ?? [])
+		],
+		secretNames: [
+			...new Set([
+				...generated.flatMap((value) => value.secretNames),
+				...(configured.secretNames ?? [])
+			])
+		].sort()
+	};
 }

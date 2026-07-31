@@ -7,7 +7,7 @@ import type {
 	ExactArtifactGraphEntry,
 	ExactArtifactGraphOptions
 } from './artifacts.js';
-import type { ExactCompilerManifest } from './manifest.js';
+import type { ExactModuleAnalysis } from './module-analysis.js';
 import type {
 	ExactAssetRule,
 	ModuleRewriteOptions,
@@ -20,7 +20,6 @@ import type {
 export type CompileFileOptions = TransformOptions & {
 	outDir?: string;
 	rootDir?: string;
-	emitManifest?: boolean;
 };
 
 /** Describes the result produced by compile file. */
@@ -28,14 +27,12 @@ export type CompileFileResult = TransformResult & {
 	inputFile: string;
 	outputFile?: string;
 	sourceMapFile?: string;
-	manifestFile?: string;
 };
 
 /** Configures compile project. */
 export type CompileProjectOptions = TransformOptions & {
 	outDir?: string;
 	rootDir?: string;
-	emitManifest?: boolean;
 };
 
 /** Configures compile artifacts. */
@@ -43,7 +40,6 @@ export type CompileArtifactsOptions = {
 	outDir: string;
 	rootDir?: string;
 	filename?: string;
-	importedManifests?: readonly ExactCompilerManifest[];
 	serverComponents?: boolean;
 	sourceMap?: boolean;
 	moduleRewrite?: ModuleRewriteOptions;
@@ -62,8 +58,6 @@ export type CompileArtifactsOptions = {
 	instrumentInspection?: TransformOptions['instrumentInspection'];
 	/** Controls the server-only build catalog packaged from emitted module inspections. */
 	inspection?: ExactArtifactInspectionOptions;
-	/** Discovers manifests advertised by installed packages. Defaults to true. */
-	discoverPackageManifests?: boolean;
 };
 
 /** Configures packaging for one immutable, server-owned build inspection catalog. */
@@ -96,11 +90,10 @@ export type CompileArtifactsResult = {
 	sharedFile?: string;
 	clientMapFile?: string;
 	serverMapFile?: string;
-	manifestFile: string;
 	client: TransformResult;
 	server: TransformResult;
 	shared?: TransformResult;
-	manifest: ExactCompilerManifest;
+	analysis: ExactModuleAnalysis;
 	inspection?: ExactCompiledArtifactInspection;
 };
 
@@ -110,14 +103,12 @@ export type ExactArtifactGraphInput = {
 	clientFile: string;
 	serverFile: string;
 	sharedFile?: string;
-	manifestFile: string;
-	manifest: ExactCompilerManifest;
+	analysis: ExactModuleAnalysis;
 };
 
 /** Configures compile artifact plan entries. */
 export type CompileArtifactPlanEntriesOptions = {
 	filename?(entry: ExactArtifactPlanEntry): string;
-	importedManifests?: readonly ExactCompilerManifest[];
 	serverComponents?: boolean;
 	sourceMap?: boolean;
 	moduleRewrite?: ModuleRewriteOptions;
@@ -132,16 +123,6 @@ export type CompileArtifactPlanEntriesOptions = {
 	capabilityPolicy?: TransformOptions['capabilityPolicy'];
 	emitInspection?: TransformOptions['emitInspection'];
 	instrumentInspection?: TransformOptions['instrumentInspection'];
-	/** Discovers manifests advertised by installed packages. Defaults to true. */
-	discoverPackageManifests?: boolean;
-};
-
-/** Defines the exact discovered package manifest type contract. */
-export type ExactDiscoveredPackageManifest = {
-	packageName: string;
-	packageRoot: string;
-	manifestFile: string;
-	manifest: ExactCompilerManifest;
 };
 
 /** Configures exact artifact plan. */
@@ -162,7 +143,6 @@ export type ExactArtifactPlanEntry = {
 	clientFile: string;
 	serverFile: string;
 	sharedFile: string;
-	manifestFile: string;
 };
 
 /** Defines the exact artifact plan diff type contract. */

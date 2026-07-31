@@ -1,4 +1,3 @@
-import { analyzeSource } from '@exactjs/compiler';
 import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
 
@@ -125,36 +124,6 @@ describe('@exactjs/vite-plugin: transform', () => {
 
 		expect(result?.code).not.toContain('node:fs/promises');
 		expect(result?.code).not.toContain('readFile');
-	});
-
-	it('passes imported manifests through to the compiler', () => {
-		const manifest = analyzeSource(
-			`
-      export function ClientWidget(this: Component<{ width: number }>) {
-        this.state.width = window.innerWidth;
-        return () => <button onClick={() => this.state.width++} />;
-      }
-    `,
-			{ filename: '/src/ClientWidget.tsx' }
-		);
-		const plugin = exact({
-			target: 'server',
-			importedManifests: [manifest],
-			reactCompatibility: false
-		});
-		const result = plugin.transform(
-			`
-      import { ClientWidget } from "./ClientWidget";
-      export function Page() {
-        return () => <ClientWidget />;
-      }
-    `,
-			'/src/Page.tsx'
-		);
-
-		expect(result?.code).toContain('__exactBoundary');
-		expect(result?.code).toContain('"ClientWidget"');
-		expect(result?.code).not.toContain('from "./ClientWidget"');
 	});
 
 	it('passes server component mode through to client transforms', () => {

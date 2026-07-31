@@ -6,8 +6,8 @@ eXact framework plugins add cross-cutting behavior to compiler, server,
 rendering, client, and testing hosts through one validated package protocol.
 The implementation is divided between:
 
-- `@exactjs/plugin-api`, which owns browser-safe public contracts and manifest
-  helpers;
+- `@exactjs/plugin-api`, which owns browser-safe public contracts and package
+  participation helpers;
 - `@exactjs/config`, which owns `exact.config.ts` loading and typed
   configuration;
 - `@exactjs/plugin-host`, which owns Node-side discovery, trust, version
@@ -74,10 +74,10 @@ Output processing follows a strict boundary:
 
 ## Authoring guidance
 
-Use `@exactjs/plugin-api` for shared contracts and manifest construction. Use
-`@exactjs/plugin-host/node` only in filesystem-backed hosts. Keep manifests
-deterministic and JSON-safe, declare capabilities and ordering explicitly, and
-put host-specific behavior in the appropriate projection.
+Use `@exactjs/plugin-api` for shared contracts and package participation. Use
+`@exactjs/plugin-host/node` only in filesystem-backed hosts. Keep plugin
+analysis data bounded and JSON-safe, declare capabilities and ordering
+explicitly, and put host-specific behavior in the appropriate projection.
 
 An application feature that can be expressed as a component, context, or
 ordinary task should remain application code. A framework plugin is warranted
@@ -89,6 +89,5 @@ hosts or enforce a cross-cutting boundary.
 - Vite has the most complete automatic integration.
 - Webpack and Bun use the shared contracts but individual plugins may expose a
   narrower host-specific feature set. Check the plugin and runtime docs.
-- The current compiler planning manifest can carry validated plugin metadata;
-  the proposal to remove manifest files will replace that transport rather
-  than remove plugin validation.
+- Compiler extensions may contribute bounded, validated analysis data retained
+  only for the active compiler session.

@@ -23,7 +23,7 @@ editor state. Disposal releases overlays, dependency indexes, pending work, and
 the native process.
 
 Language sessions are permanently `noEmit: true`: they never write JavaScript,
-target artifacts, manifests, source maps, or inspection catalogs. Source
+target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
 Native protocol 1.25 retains `setupExecution` on authored state assignments
@@ -62,16 +62,16 @@ provide an explicit executable.
 
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
-`createCompilerSession`, `transformSource`, `analyzeSource`, and the artifact-planning APIs from
+`createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
 diagnostics, and dispose it when the build closes.
 
-Generated operation identifiers, compiler manifests, helper imports, and lowered source are
-coordination details. Applications should depend on authored TypeScript behavior and documented
-runtime contracts rather than generated representation.
+Generated operation identifiers, ephemeral module analysis, helper imports, and lowered source
+are compiler-session details. Applications should depend on authored TypeScript behavior and
+documented executable runtime contracts rather than generated representation.
 
 ## Repository-only migration code
 

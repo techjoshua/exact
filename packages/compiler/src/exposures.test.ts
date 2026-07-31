@@ -55,8 +55,7 @@ function fixtureGraph(): ExactArtifactGraph {
 		inputFile,
 		clientFile: `${inputFile}.client.js`,
 		serverFile: `${inputFile}.server.js`,
-		manifestFile: `${inputFile}.json`,
-		manifest: {
+		analysis: {
 			version: 1 as const,
 			filename: inputFile,
 			dependencies: [],

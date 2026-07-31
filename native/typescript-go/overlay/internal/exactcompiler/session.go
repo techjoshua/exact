@@ -17,7 +17,7 @@ import (
 	"github.com/microsoft/typescript-go/internal/tspath"
 )
 
-const maxExtensionManifestBytes = 256 * 1024
+const maxExtensionAnalysisBytes = 256 * 1024
 
 // Session owns persistent native compiler state for a stream of requests.
 type Session struct {
@@ -46,7 +46,7 @@ func (s *Session) Execute(request Request) Response {
 		Analysis: NewAnalysis(
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil,
-			newPolicyManifest(),
+			newPolicyAnalysis(),
 			CapabilityRequirements{},
 			nil,
 			SemanticGraph{},
@@ -212,7 +212,6 @@ func (s *Session) Execute(request Request) Response {
 		components,
 		stateReads,
 		stateWrites,
-		request.Manifests,
 	)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
@@ -272,7 +271,6 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		components,
 		callables,
-		request.Manifests,
 	)
 	response.Timings.ProjectLinkMicroseconds = time.Since(
 		projectLinkStarted,
@@ -282,7 +280,7 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		components,
 		callables.summaries,
-		policy.manifest,
+		policy.graph,
 	)
 	semanticGraph := collectSemanticGraph(
 		sourceFile,
@@ -339,7 +337,7 @@ func (s *Session) Execute(request Request) Response {
 		continuations,
 		registries,
 		resumptions,
-		policy.manifest,
+		policy.graph,
 		capabilities,
 		assets.dependencies,
 		semanticGraph,
@@ -351,7 +349,7 @@ func (s *Session) Execute(request Request) Response {
 			callables,
 			request.Target,
 			sourceFile,
-			policy.manifest,
+			policy.graph,
 		)...,
 	)
 	response.Diagnostics = append(
@@ -531,7 +529,7 @@ func (s *Session) Execute(request Request) Response {
 			Boundaries:       boundaries,
 			Continuations:    continuations,
 			Resumptions:      resumptions,
-			Policy:           policy.manifest,
+			Policy:           policy.graph,
 			Config:           config,
 		})
 		if transformErr != nil {
@@ -546,26 +544,26 @@ func (s *Session) Execute(request Request) Response {
 			transformed = contribution.SourceFile
 		}
 		response.Diagnostics = append(response.Diagnostics, contribution.Diagnostics...)
-		if len(contribution.ManifestData) != 0 {
-			if len(contribution.ManifestData) > maxExtensionManifestBytes {
+		if len(contribution.AnalysisData) != 0 {
+			if len(contribution.AnalysisData) > maxExtensionAnalysisBytes {
 				response.Error = fmt.Sprintf(
-					"native compiler extension %q manifest data exceeds %d bytes",
+					"native compiler extension %q analysis data exceeds %d bytes",
 					extension.Namespace(),
-					maxExtensionManifestBytes,
+					maxExtensionAnalysisBytes,
 				)
 				return response
 			}
-			if !json.Valid(contribution.ManifestData) {
+			if !json.Valid(contribution.AnalysisData) {
 				response.Error = fmt.Sprintf(
-					"native compiler extension %q returned invalid JSON manifest data",
+					"native compiler extension %q returned invalid JSON analysis data",
 					extension.Namespace(),
 				)
 				return response
 			}
-			if response.ManifestData == nil {
-				response.ManifestData = make(map[string]json.RawMessage)
+			if response.AnalysisData == nil {
+				response.AnalysisData = make(map[string]json.RawMessage)
 			}
-			response.ManifestData[extension.Namespace()] = contribution.ManifestData
+			response.AnalysisData[extension.Namespace()] = contribution.AnalysisData
 		}
 	}
 	response.Timings.ExtensionMicroseconds = time.Since(extensionStarted).Microseconds()

@@ -78,7 +78,7 @@ export interface ExactCompilerDirective {
 /** Defines the exact compiler module contribution interface contract. */
 export interface ExactCompilerModuleContribution {
 	readonly diagnostics?: readonly ExactCompilerDiagnostic[];
-	readonly manifestData?: ExactJsonValue;
+	readonly analysisData?: ExactJsonValue;
 }
 
 /** Defines the exact compiler plugin extension interface contract. */
@@ -87,7 +87,7 @@ export interface ExactCompilerPluginExtension {
 	readonly directives?: readonly string[];
 	readonly include?: RegExp;
 	analyzeModule?(view: ExactCompilerModuleView): ExactCompilerModuleContribution | undefined;
-	validateManifestData?(value: ExactJsonValue): undefined;
+	validateAnalysisData?(value: ExactJsonValue): undefined;
 }
 
 /** Configures exact compiler plugin. */

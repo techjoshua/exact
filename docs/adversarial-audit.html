@@ -283,7 +283,7 @@
 							<td>F-01</td>
 							<td class="resolved">Resolved</td>
 							<td>Compiler/runtime IDs were 32-bit hashes used as protocol identity.</td>
-							<td>Compiler, server manifest</td>
+							<td>Compiler, server allowlist</td>
 						</tr>
 						<tr>
 							<td>F-02</td>
@@ -411,15 +411,16 @@
 						</p>
 						<p>
 							A collision inside <code>serverActions</code> can overwrite an entry before the
-							runtime manifest ever sees it. A collision across manifests is detected only if the
-							conflicting object metadata differs; a same-looking collision can remain invisible.
-							Even non-malicious large projects eventually make 32-bit collisions plausible.
+							runtime allowlist ever sees it. A collision across composed contracts is detected only
+							if the conflicting object metadata differs; a same-looking collision can remain
+							invisible. Even non-malicious large projects eventually make 32-bit collisions
+							plausible.
 						</p>
 						<p>
 							<strong>Recommendation:</strong> move to a longer deterministic digest, for example
 							SHA-256 truncated to at least 96 or 128 bits, and add explicit duplicate-ID detection
-							during compiler manifest creation before object insertion. Treat duplicate IDs as
-							compiler errors.
+							during compiler analysis before object insertion. Treat duplicate IDs as compiler
+							errors.
 						</p>
 						<p class="resolved">
 							<strong>Status:</strong> resolved with SHA-256 based IDs and duplicate checks for

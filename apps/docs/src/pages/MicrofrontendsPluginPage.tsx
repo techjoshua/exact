@@ -112,7 +112,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			<Callout title="Trust boundary" tone="warning">
 				<p>
 					Remote endpoints are application-configured trusted systems. The plugin validates module
-					shape and manifest contracts; it is not a sandbox for hostile code.
+					shape and versioned executable contracts; it is not a sandbox for hostile code.
 				</p>
 			</Callout>
 		</Article>

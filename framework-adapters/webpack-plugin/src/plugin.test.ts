@@ -235,7 +235,7 @@ describe('@exactjs/webpack-plugin', () => {
 	it('ignores broad watch sets that contain files outside the compiler program', () => {
 		const directory = mkdtempSync(path.join(tmpdir(), 'exact-webpack-watch-'));
 		const style = path.join(directory, 'styles.css');
-		const manifest = path.join(directory, 'manifest.webmanifest');
+		const analysis = path.join(directory, 'analysis.webmanifest');
 		const buildInfo = path.join(directory, 'tsconfig.tsbuildinfo');
 		let watchRun!: (
 			compiler: WebpackCompilerLike & {
@@ -261,14 +261,14 @@ describe('@exactjs/webpack-plugin', () => {
 		};
 		try {
 			writeFileSync(style, '.view { display: grid; }');
-			writeFileSync(manifest, '{"name":"fixture"}');
+			writeFileSync(analysis, '{"name":"fixture"}');
 			writeFileSync(buildInfo, '{}');
 			new ExactWebpackPlugin().apply(compiler);
 
 			expect(() =>
 				watchRun({
 					options: compiler.options,
-					modifiedFiles: [style, manifest, buildInfo]
+					modifiedFiles: [style, analysis, buildInfo]
 				})
 			).not.toThrow();
 		} finally {

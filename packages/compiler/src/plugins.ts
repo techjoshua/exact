@@ -3,7 +3,7 @@ import type {
 	ExactJsonValue,
 	ExactPreparedCompilerRegistry
 } from '@exactjs/plugin-api';
-import type { ExactCompilerManifest, TransformTarget } from './types.js';
+import type { ExactModuleAnalysis, TransformTarget } from './types.js';
 
 const maxPluginDataBytes = 256 * 1024;
 const maxPluginDataDepth = 32;
@@ -15,7 +15,7 @@ export function applyCompilerPlugins(
 	filename: string,
 	target: TransformTarget,
 	registry: ExactPreparedCompilerRegistry | undefined
-): Pick<ExactCompilerManifest, 'pluginRegistry' | 'pluginData' | 'diagnostics'> {
+): Pick<ExactModuleAnalysis, 'pluginRegistry' | 'pluginData' | 'diagnostics'> {
 	const directives = collectPluginDirectives(source);
 	const byNamespace = new Map(
 		Object.values(registry?.plugins ?? {}).flatMap((plugin) =>
@@ -58,10 +58,10 @@ export function applyCompilerPlugins(
 				`${diagnostic.severity}: [${plugin.packageName}/${diagnostic.code}] ${diagnostic.message}`
 			);
 		}
-		if (contribution?.manifestData !== undefined) {
-			assertBoundedJson(contribution.manifestData, `${plugin.packageName} manifest data`);
-			extension.validateManifestData?.(contribution.manifestData);
-			pluginData[plugin.packageName] = contribution.manifestData;
+		if (contribution?.analysisData !== undefined) {
+			assertBoundedJson(contribution.analysisData, `${plugin.packageName} analysis data`);
+			extension.validateAnalysisData?.(contribution.analysisData);
+			pluginData[plugin.packageName] = contribution.analysisData;
 		}
 	}
 	if (!registry || !Object.keys(registry.plugins).length) return { diagnostics };
@@ -85,31 +85,6 @@ export function applyCompilerPlugins(
 		pluginData,
 		diagnostics
 	};
-}
-
-/** Validates imported plugin registries and throws when the contract is violated. */
-export function validateImportedPluginRegistries(
-	manifests: readonly ExactCompilerManifest[],
-	registry: ExactPreparedCompilerRegistry | undefined
-): void {
-	for (const manifest of manifests) {
-		const imported = manifest.pluginRegistry;
-		if (!imported) continue;
-		if (!registry || imported.fingerprint !== registry.fingerprint) {
-			throw new Error(
-				`Imported compiler manifest ${manifest.filename} requires plugin registry ${imported.fingerprint}, ` +
-					`but the active compiler registry is ${registry?.fingerprint ?? 'unavailable'}`
-			);
-		}
-		for (const [name, metadata] of Object.entries(imported.plugins)) {
-			const plugin = registry.plugins[name];
-			if (metadata.required && (!plugin || plugin.protocolVersion !== metadata.protocolVersion)) {
-				throw new Error(
-					`Imported compiler manifest ${manifest.filename} requires incompatible plugin ${name}`
-				);
-			}
-		}
-	}
 }
 
 /** Collects plugin directives in deterministic order. */
@@ -139,7 +114,7 @@ function assertBoundedJson(value: ExactJsonValue, label: string): void {
 	while (pending.length) {
 		const current = pending.pop()!;
 		if (++nodes > maxPluginDataNodes || current.depth > maxPluginDataDepth) {
-			throw new Error(`${label} exceeds compiler manifest resource limits`);
+			throw new Error(`${label} exceeds compiler analysis resource limits`);
 		}
 		if (current.value && typeof current.value === 'object') {
 			for (const child of Object.values(current.value))
@@ -147,7 +122,7 @@ function assertBoundedJson(value: ExactJsonValue, label: string): void {
 		}
 	}
 	if (new TextEncoder().encode(JSON.stringify(value)).byteLength > maxPluginDataBytes) {
-		throw new Error(`${label} exceeds compiler manifest byte limit`);
+		throw new Error(`${label} exceeds compiler analysis byte limit`);
 	}
 }
 

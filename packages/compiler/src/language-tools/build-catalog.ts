@@ -9,7 +9,7 @@ import type {
 	ExactRuntimeSourceLocation
 } from '@exactjs/devtools-protocol';
 import type { ExactSourceEntity, ExactSourceInspection, ExactSourceRange } from './contracts.js';
-import type { ExactCompilerManifest } from '../contracts/manifest.js';
+import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 
 /** One execution-root partition supplied to build catalog creation. */
 export type ExactBuildInspectionRootInput = Readonly<{
@@ -78,7 +78,7 @@ export function createExactInspectionBuildKey(
 
 /** Projects compiler data-policy identities into a value-free runtime redaction catalog. */
 export function createExactInspectionRedactions(
-	manifests: readonly ExactCompilerManifest[],
+	analyses: readonly ExactModuleAnalysis[],
 	configured: Partial<ExactInspectionRedactionCatalog> = {}
 ): ExactInspectionRedactionCatalog {
 	const statePaths = new Set(configured.statePaths ?? []);
@@ -89,8 +89,8 @@ export function createExactInspectionRedactions(
 		])
 	);
 	const secretNames = new Set(configured.secretNames ?? []);
-	for (const manifest of manifests) {
-		for (const subject of manifest.policy.subjects) {
+	for (const analysis of analyses) {
+		for (const subject of analysis.policy.subjects) {
 			if (subject.policy.secret) secretNames.add(subject.selector ?? subject.name);
 			if (subject.kind === 'state' && subject.policy.secret) {
 				const path = subject.path ?? subject.name;
@@ -106,7 +106,7 @@ export function createExactInspectionRedactions(
 					contextTokens.set(`${token.name}\0${token.scope}\0${token.kind}`, token);
 			}
 		}
-		for (const consumer of manifest.policy.secretConsumers)
+		for (const consumer of analysis.policy.secretConsumers)
 			if (consumer.selector) secretNames.add(consumer.selector);
 	}
 	return Object.freeze({

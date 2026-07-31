@@ -14,7 +14,7 @@ describe('@exactjs/secrets', () => {
 	});
 
 	it('records call-argument application-owned secret consumption', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume, type Secret } from "@exactjs/secrets";
       declare const secrets: { require(name: string): Secret<string> };
@@ -29,7 +29,7 @@ describe('@exactjs/secrets', () => {
 				target: 'server'
 			}
 		);
-		expect(manifest.policy.secretConsumers).toEqual([
+		expect(analysis.policy.secretConsumers).toEqual([
 			expect.objectContaining({
 				selector: 'STRIPE_SECRET_KEY',
 				authorization: 'implicit-application-owner',
@@ -46,7 +46,7 @@ describe('@exactjs/secrets', () => {
       const apiKey = secrets.require("STRIPE_SECRET_KEY");
       export const client = createClient(consume(apiKey));
     `;
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       ${source}
     `,
@@ -57,7 +57,7 @@ describe('@exactjs/secrets', () => {
 				target: 'server'
 			}
 		);
-		expect(manifest.policy.secretConsumers[0]).toEqual(
+		expect(analysis.policy.secretConsumers[0]).toEqual(
 			expect.objectContaining({
 				authorization: 'implicit-application-owner',
 				consumer: expect.objectContaining({ package: '@acme/app', symbol: 'consume' })
@@ -75,124 +75,8 @@ describe('@exactjs/secrets', () => {
 		).toBe(true);
 	});
 
-	it('uses the package allowlist for dependencies that contain consume()', () => {
-		const dependency = analyzeSource(
-			`
-      import { consume } from "@exactjs/secrets";
-      /** @exact keep=secret */
-      declare const apiKey: string;
-      export const raw = consume(apiKey);
-    `,
-			{
-				filename: 'payments.ts',
-				packageType: 'library',
-				packageName: '@acme/payments',
-				target: 'server'
-			}
-		);
-		const manifest = analyzeSource('export {};', {
-			filename: 'app.ts',
-			packageType: 'application',
-			packageName: '@acme/app',
-			target: 'server',
-			importedManifests: [dependency],
-			pluginRegistry: {
-				fingerprint: 'secrets-config',
-				plugins: {
-					'@exactjs/secrets': {
-						packageName: '@exactjs/secrets',
-						version: '1.0.0',
-						protocolVersion: '1.0.0',
-						required: true,
-						cacheKey: {
-							policyVersion: 3,
-							allowPackages: ['@acme/payments']
-						}
-					}
-				}
-			}
-		});
-
-		expect(
-			manifest.diagnostics.some((value) => value.includes('not in secrets.allowPackages'))
-		).toBe(false);
-		const denied = analyzeSource('export {};', {
-			filename: 'app.ts',
-			packageType: 'application',
-			packageName: '@acme/app',
-			target: 'server',
-			importedManifests: [dependency]
-		});
-		expect(denied.diagnostics).toEqual(
-			expect.arrayContaining([
-				expect.stringContaining('dependency @acme/payments consumes a secret')
-			])
-		);
-	});
-
-	it('does not treat consuming-package permission as selector policy', () => {
-		const manifest = analyzeSource(
-			`
-      import { consume } from "@exactjs/secrets";
-      /** @exact keep=secret */
-      declare const apiKey: string;
-      export const raw = consume(apiKey);
-    `,
-			{
-				filename: 'payments.ts',
-				packageType: 'library',
-				packageName: '@acme/payments',
-				target: 'server'
-			}
-		);
-		expect(manifest.policy.secretConsumers[0]?.authorization).toBe('library-requirement');
-		expect(manifest.policy.secretConsumers[0]?.selector).toBeUndefined();
-	});
-
-	it('trusts the package containing consume() without authorizing downstream receivers', () => {
-		const dependency = analyzeSource(
-			`
-      import { consume, type Secret } from "@exactjs/secrets";
-      import { charge } from "@untrusted/gateway";
-      export function createClient(value: Secret<string>) {
-        return charge(consume(value));
-      }
-    `,
-			{
-				filename: 'payments.ts',
-				packageType: 'library',
-				packageName: '@acme/payments',
-				target: 'server'
-			}
-		);
-		const manifest = analyzeSource('export {};', {
-			filename: 'app.ts',
-			packageType: 'application',
-			packageName: '@acme/app',
-			target: 'server',
-			importedManifests: [dependency],
-			capabilityPolicy: {
-				secrets: {
-					allowPackages: ['@acme/payments']
-				}
-			}
-		});
-		expect(dependency.policy.secretConsumers).toEqual([
-			expect.objectContaining({
-				authorization: 'library-requirement',
-				consumer: expect.objectContaining({ package: '@acme/payments', symbol: 'consume' })
-			})
-		]);
-		expect(
-			dependency.policy.secretConsumers.some(
-				(consumer) => consumer.consumer.package === '@untrusted/gateway'
-			)
-		).toBe(false);
-		expect(manifest.diagnostics.some((value) => value.includes('allowPackages'))).toBe(false);
-	});
-
 	it('tracks local secret forwarding by binding identity instead of shadowed names', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume } from "@exactjs/secrets";
       import { send } from "@untrusted/gateway";
@@ -220,7 +104,7 @@ describe('@exactjs/secrets', () => {
 			}
 		);
 
-		expect(manifest.policy.secretConsumers).toEqual([
+		expect(analysis.policy.secretConsumers).toEqual([
 			expect.objectContaining({
 				authorization: 'implicit-application-owner',
 				consumer: expect.objectContaining({
@@ -231,14 +115,14 @@ describe('@exactjs/secrets', () => {
 			})
 		]);
 		expect(
-			manifest.policy.secretConsumers.some(
+			analysis.policy.secretConsumers.some(
 				(consumer) => consumer.consumer.package === '@untrusted/gateway'
 			)
 		).toBe(false);
 	});
 
 	it('stops tracking after consumption inside an application helper call', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume } from "@exactjs/secrets";
       import { send } from "@acme/gateway";
@@ -264,24 +148,24 @@ describe('@exactjs/secrets', () => {
 			}
 		);
 
-		expect(manifest.policy.secretConsumers).toEqual([
+		expect(analysis.policy.secretConsumers).toEqual([
 			expect.objectContaining({
 				authorization: 'implicit-application-owner',
 				consumer: expect.objectContaining({ package: '@acme/app', symbol: 'consume' })
 			})
 		]);
 		expect(
-			manifest.policy.secretConsumers.some(
+			analysis.policy.secretConsumers.some(
 				(consumer) => consumer.consumer.package === '@acme/gateway'
 			)
 		).toBe(false);
-		expect(manifest.diagnostics).not.toEqual(
+		expect(analysis.diagnostics).not.toEqual(
 			expect.arrayContaining([expect.stringContaining('Secret<T> parameter or consume()')])
 		);
 	});
 
 	it('rejects secret consumers retained in client compilation', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume, type Secret } from "@exactjs/secrets";
       declare const secrets: { require(name: string): Secret<string> };
@@ -296,7 +180,7 @@ describe('@exactjs/secrets', () => {
 				target: 'client'
 			}
 		);
-		expect(manifest.diagnostics.some((value) => value.includes('client artifact'))).toBe(true);
+		expect(analysis.diagnostics.some((value) => value.includes('client artifact'))).toBe(true);
 	});
 
 	it('parses environment providers without exposing values in errors', () => {

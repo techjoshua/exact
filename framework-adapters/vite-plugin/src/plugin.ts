@@ -5,9 +5,9 @@ import {
 	resolveNativeCompilerExecutable,
 	resolveExactArtifactImport,
 	transformSource,
-	type ExactCompilerManifest,
 	type ExactSourceInspection
 } from '@exactjs/compiler';
+import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import { profileTimestamp } from '@exactjs/instrumentation';
 import {
@@ -27,7 +27,6 @@ import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js'
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 import {
 	containsExactJsx,
-	exactImportedManifests,
 	exactModuleFilename,
 	exactTransformTarget,
 	isExactTransformableModule,
@@ -94,7 +93,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		string,
 		Readonly<{
 			inspection: ExactSourceInspection;
-			manifest: ExactCompilerManifest;
+			redactions?: ExactInspectionRedactionCatalog;
 			source: string;
 		}>
 	>();
@@ -303,7 +302,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						filename,
 						session: compilerSession,
 						target: exactTransformTarget(options),
-						importedManifests: exactImportedManifests(options),
 						serverComponents: options.serverComponents,
 						sourceMap: false,
 						assetRules: options.assetRules,
@@ -317,7 +315,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					if (result.inspectionCatalog && options.target === 'server') {
 						inspectionModules.set(path.resolve(filename), {
 							inspection: result.inspectionCatalog,
-							manifest: result.manifest,
+							redactions: result.inspectionRedactions,
 							source: code
 						});
 					}

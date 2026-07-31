@@ -74,8 +74,8 @@ function exposureExecutorContract(graph: ExactArtifactGraph) {
 	const invocations: Record<string, ReturnType<typeof defineExactOperationContract>> = {};
 	const boundaries: Record<string, ReturnType<typeof defineExactBoundaryContract>> = {};
 	for (const artifact of graph.artifacts) {
-		for (const [id, invocation] of Object.entries(artifact.manifest.serverActions)) {
-			const continuation = artifact.manifest.continuations.find((entry) => entry.id === id);
+		for (const [id, invocation] of Object.entries(artifact.analysis.serverActions)) {
+			const continuation = artifact.analysis.continuations.find((entry) => entry.id === id);
 			invocations[id] = defineExactOperationContract(id, {
 				componentId: invocation.componentId,
 				reads: invocation.stateContract.reads,
@@ -85,7 +85,7 @@ function exposureExecutorContract(graph: ExactArtifactGraph) {
 				boundaries: continuation?.effects.boundaries ?? []
 			});
 		}
-		for (const boundary of artifact.manifest.boundaries)
+		for (const boundary of artifact.analysis.boundaries)
 			boundaries[boundary.id] = defineExactBoundaryContract(boundary.id, {
 				componentId: boundary.componentId,
 				ownerComponentId: boundary.ownerComponentId,
@@ -109,7 +109,7 @@ function selectedExposureGraph(
 		throw new Error(
 			`Remote exposure ${JSON.stringify(exposure)} does not resolve to a compiled eXact component module: ${componentFile}`
 		);
-	const root = artifact.manifest.symbols.find(
+	const root = artifact.analysis.symbols.find(
 		(symbol) =>
 			symbol.role === 'root' &&
 			symbol.kind === 'component' &&
@@ -143,7 +143,7 @@ function withAuthoredClientModules(graph: ExactArtifactGraph): ExactArtifactGrap
 	const moduleByComponent = new Map<string, string>();
 	for (const artifact of graph.artifacts) {
 		const authoredModule = slashPath(path.resolve(artifact.inputFile));
-		for (const symbol of artifact.manifest.symbols)
+		for (const symbol of artifact.analysis.symbols)
 			if (symbol.componentId) moduleByComponent.set(symbol.componentId, authoredModule);
 	}
 	return {

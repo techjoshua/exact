@@ -1,4 +1,4 @@
-import type { ExactAssetRule, ExactCompilerManifest, TransformTarget } from '@exactjs/compiler';
+import type { ExactAssetRule, TransformTarget } from '@exactjs/compiler';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ReactCompatibilityOptions } from '@exactjs/react-compat/plugin';
@@ -12,8 +12,6 @@ export type ExactPluginOptions = {
 	include?: FilterPattern;
 	exclude?: FilterPattern;
 	target?: TransformTarget;
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
 	clientCondition?: string;
 	serverCondition?: string;
 	serverComponents?: boolean;

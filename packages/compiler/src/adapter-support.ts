@@ -1,19 +1,9 @@
-import { readFileSync } from 'node:fs';
-import { parseExactCompilerManifest } from './manifest-parse.js';
-import type { ExactCompilerManifest } from './types.js';
-
 /** A compiler diagnostic shape that build-tool integrations can report. */
 export type ExactBuildDiagnostic = Readonly<{
 	code: string;
 	message: string;
 	filename?: string;
 	span?: Readonly<{ line: number; column: number }>;
-}>;
-
-/** Input accepted by {@link loadExactImportedManifests}. */
-export type ExactImportedManifestOptions = Readonly<{
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
 }>;
 
 /** A string, regular expression, or list used to filter build input paths. */
@@ -61,23 +51,6 @@ export function formatExactDiagnostic(diagnostic: ExactBuildDiagnostic): string 
 		? `${diagnostic.filename}${diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : ''}`
 		: 'TypeScript';
 	return `${location} - ${diagnostic.code}: ${diagnostic.message}`;
-}
-
-/**
- * Resolves in-memory and file-backed manifests for one transformation.
- *
- * Files are deliberately reread on every call so watch-mode transformations do
- * not retain manifests produced by an earlier build.
- */
-export function loadExactImportedManifests(
-	options: ExactImportedManifestOptions
-): ExactCompilerManifest[] {
-	return [
-		...(options.importedManifests ?? []),
-		...(options.manifestFiles ?? []).map((file) =>
-			parseExactCompilerManifest(JSON.parse(readFileSync(file, 'utf8')), file)
-		)
-	];
 }
 
 /** Tests a build path against a string/regular-expression filter collection. */
