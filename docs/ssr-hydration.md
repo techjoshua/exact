@@ -32,6 +32,12 @@ Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
 
+Component resumption records authorize state restoration only while hydration
+adopts an SSR range or mounts its mismatch fallback. Once that synchronous
+transaction completes, components introduced by routing, conditional views, or
+other browser updates are ordinary fresh client instances; exhausted SSR records
+cannot claim them.
+
 Finite component-registry selections retain the registry binding, selected
 key, and opaque compiled entry identity in their component marker. A matching
 selection adopts normally. A nested mismatch remounts only that owned

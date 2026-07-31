@@ -10,6 +10,7 @@ export type ComponentResumptionResolver = ((
 	type: ComponentFunction<any, any>
 ) => ComponentResumptionActivation | undefined) & {
 	checkpoint(): number;
+	commit(checkpoint: number): void;
 	rollback(checkpoint: number): void;
 };
 
@@ -20,7 +21,11 @@ export function createComponentResumptionResolver(
 	records: () => readonly ComponentResumptionActivation[] | undefined
 ): ComponentResumptionResolver {
 	let index = 0;
+	const checkpoints: number[] = [];
 	const resolve = ((type: ComponentFunction<any, any>) => {
+		// Resumption records authorize only an active SSR adoption attempt. Components
+		// created later by routing or ordinary reactive updates are fresh client work.
+		if (checkpoints.length === 0) return undefined;
 		const contract = readExactComponentContract(type);
 		if (!contract?.resumption) return undefined;
 		const available = records();
@@ -56,12 +61,20 @@ export function createComponentResumptionResolver(
 		index++;
 		return record;
 	}) as ComponentResumptionResolver;
-	resolve.checkpoint = () => index;
-	resolve.rollback = (checkpoint) => {
+	resolve.checkpoint = () => {
+		checkpoints.push(index);
+		return index;
+	};
+	resolve.commit = (checkpoint) => finishCheckpoint(checkpoint, false);
+	resolve.rollback = (checkpoint) => finishCheckpoint(checkpoint, true);
+	function finishCheckpoint(checkpoint: number, rollback: boolean): void {
 		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > index)
 			throw new Error('Malformed eXact component resumption checkpoint');
-		index = checkpoint;
-	};
+		const activeCheckpoint = checkpoints.pop();
+		if (activeCheckpoint !== checkpoint)
+			throw new Error('Malformed eXact component resumption checkpoint');
+		if (rollback) index = checkpoint;
+	}
 	return resolve;
 }
 
@@ -76,6 +89,26 @@ export function bindComponentResumptionResolver(
 /** Captures the current activation cursor before a fallible adoption attempt. */
 export function checkpointComponentResumptions(domain: ComponentDomain): number {
 	return resolvers.get(domain)?.checkpoint() ?? 0;
+}
+
+/** Commits activations consumed by a successful DOM adoption attempt. */
+export function commitComponentResumptions(domain: ComponentDomain, checkpoint: number): void {
+	resolvers.get(domain)?.commit(checkpoint);
+}
+
+/** Runs one fallback mount with SSR activations scoped to that synchronous construction. */
+export function withComponentResumptions<T>(domain: ComponentDomain, work: () => T): T {
+	const resolver = resolvers.get(domain);
+	if (!resolver) return work();
+	const checkpoint = resolver.checkpoint();
+	try {
+		const result = work();
+		resolver.commit(checkpoint);
+		return result;
+	} catch (error) {
+		resolver.rollback(checkpoint);
+		throw error;
+	}
 }
 
 /** Restores activations consumed by a failed adoption attempt. */

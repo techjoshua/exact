@@ -14,6 +14,46 @@ import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
 
 describe('@exactjs/hydrate component resumption', () => {
+	it('limits SSR activation records to adoption so later client navigation mounts fresh state', async () => {
+		function resumablePage(id: string, label: string) {
+			const implementation = function Page(this: Component<{ label: string }>) {
+				this.state.label = label;
+				return () => createVNode('p', null, this.state.label);
+			};
+			return Object.assign(implementation, {
+				[exactComponentContract]: {
+					version: 1 as const,
+					id,
+					placement: 'isomorphic' as const,
+					role: 'client' as const,
+					implementations: [],
+					continuations: [],
+					executors: [],
+					boundaries: [],
+					resumption: {
+						componentId: id,
+						statePaths: ['label'],
+						valueCaptures: [],
+						contexts: [],
+						boundaries: []
+					}
+				}
+			});
+		}
+		const InitialPage = resumablePage('component:InitialPage', 'initial');
+		const NavigatedPage = resumablePage('component:NavigatedPage', 'navigated');
+		const rendered = await renderToHydratableStringAsync(createVNode(InitialPage, {}));
+		const container = document.createElement('main');
+		container.innerHTML = rendered.htmlWithHydration;
+
+		const client = hydrate(createVNode(InitialPage, {}), container, { onMismatch: 'throw' });
+
+		expect(container.querySelector('p')?.textContent).toBe('initial');
+		expect(() => hydrate(createVNode(NavigatedPage, {}), container)).not.toThrow();
+		expect(container.querySelector('p')?.textContent).toBe('navigated');
+		client.dispose();
+	});
+
 	it('adopts SSR state without repeating settled work and reruns after a dependency change', async () => {
 		let runs = 0;
 		const implementation = function Search(this: Component<{ query: string; result: string }>) {

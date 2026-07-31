@@ -98,6 +98,8 @@ the compiler emits client and server roots, registers the resumable client
 root, and SSR encloses the rendered component range in an eager resumption
 boundary. If static adoption fails, hydration restores the resumption cursor
 before mounting the fallback so the same activation is consumed exactly once.
+The resolver closes that activation transaction afterward, so a later route or
+conditional client mount cannot be mistaken for missing SSR output.
 
 Invoked continuation return values use the same validated result envelope for
 single, batched, and NDJSON-streamed requests. A streaming transport may split

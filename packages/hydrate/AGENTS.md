@@ -14,8 +14,10 @@ accept an authored display name as identity.
 
 Treat eager resumption adoption as a transaction. Checkpoint the ordered
 resumption resolver before attempting DOM adoption and roll it back before a
-fallback mount. Accept only validated generated invocation metadata from
-serialized hydration configuration.
+fallback mount. Keep activation authority scoped to the successful adoption or
+fallback-mount transaction; never let unused or exhausted SSR records affect
+components created later by routing or reactive client updates. Accept only
+validated generated invocation metadata from serialized hydration configuration.
 
 Carry the installed inspection owner through hydration and resumption domains. Correlate
 continuation dispatch/apply and patch counts with opaque operation generations, but never retain
