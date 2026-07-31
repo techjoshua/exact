@@ -2138,8 +2138,7 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 		Source: `
 			declare class Component<State> { state: State }
 			function renderPanel(this: Component<{ count: number }>) {
-				const label = String(this.state.count);
-				return <button onClick={() => this.state.count++}>{label}</button>;
+				return <button onClick={() => this.state.count++}>{String(this.state.count)}</button>;
 			}
 			function Panel(this: Component<{ count: number }>) {
 				return renderPanel;
@@ -2182,8 +2181,22 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 			messages = append(messages, diagnostic.Message)
 		}
 	}
-	if len(messages) != 3 {
-		t.Fatalf("expected three render diagnostics, received %#v", rejected.Diagnostics)
+	for _, expected := range []string{
+		"may only return the view expression",
+		"may not write component state",
+		"may not register lifecycle work",
+		"may not schedule asynchronous work",
+	} {
+		found := false
+		for _, message := range messages {
+			if strings.Contains(message, expected) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("missing %q render diagnostic: %#v", expected, rejected.Diagnostics)
+		}
 	}
 }
 

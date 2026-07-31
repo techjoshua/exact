@@ -26,121 +26,119 @@ export function TaskDetailsDialog(
 	this.onMount(() => this.log.debug('details mount', { taskId }));
 	this.onUnmount(() => this.log.debug('details unmount', { taskId }));
 
-	return () => {
-		return (
-			<div className="dialog-backdrop" onClick={board.closeTask}>
-				<section
-					className="task-dialog"
-					onClick={(event) => {
-						event.stopPropagation();
-					}}
-					onFocusIn={(event) => {
-						this.log.debug('details focusin', {
-							taskId,
-							target: eventTargetName(event.target),
-							active: activeElementName()
-						});
-					}}
-					onFocusOut={(event) => {
-						this.log.debug('details focusout', {
-							taskId,
-							target: eventTargetName(event.target),
-							relatedTarget: eventTargetName(event.relatedTarget),
-							active: activeElementName()
-						});
-					}}
-				>
-					<header>
-						<h2>Edit card</h2>
-						<button type="button" className="quiet-button" onClick={board.closeTask}>
-							Close
-						</button>
-					</header>
+	return () => (
+		<div className="dialog-backdrop" onClick={board.closeTask}>
+			<section
+				className="task-dialog"
+				onClick={(event) => {
+					event.stopPropagation();
+				}}
+				onFocusIn={(event) => {
+					this.log.debug('details focusin', {
+						taskId,
+						target: eventTargetName(event.target),
+						active: activeElementName()
+					});
+				}}
+				onFocusOut={(event) => {
+					this.log.debug('details focusout', {
+						taskId,
+						target: eventTargetName(event.target),
+						relatedTarget: eventTargetName(event.relatedTarget),
+						active: activeElementName()
+					});
+				}}
+			>
+				<header>
+					<h2>Edit card</h2>
+					<button type="button" className="quiet-button" onClick={board.closeTask}>
+						Close
+					</button>
+				</header>
 
-					<label>
-						<span>Title</span>
-						<input
-							defaultValue={title}
-							onFocusIn={(event) => {
-								this.log.debug('title focusin', {
-									taskId,
-									target: eventTargetName(event.target),
-									active: activeElementName()
-								});
-							}}
-							onFocusOut={(event) => {
-								this.log.debug('title focusout', {
-									taskId,
-									relatedTarget: eventTargetName(event.relatedTarget),
-									active: activeElementName()
-								});
-							}}
-							onInput={(event) => {
-								const title = event.currentTarget.value;
-								this.log.debug('title input', {
-									taskId,
-									value: title,
-									active: activeElementName()
-								});
-								board.updateTask(taskId, {
-									title
-								});
-							}}
-						/>
-					</label>
+				<label>
+					<span>Title</span>
+					<input
+						defaultValue={title}
+						onFocusIn={(event) => {
+							this.log.debug('title focusin', {
+								taskId,
+								target: eventTargetName(event.target),
+								active: activeElementName()
+							});
+						}}
+						onFocusOut={(event) => {
+							this.log.debug('title focusout', {
+								taskId,
+								relatedTarget: eventTargetName(event.relatedTarget),
+								active: activeElementName()
+							});
+						}}
+						onInput={(event) => {
+							const title = event.currentTarget.value;
+							this.log.debug('title input', {
+								taskId,
+								value: title,
+								active: activeElementName()
+							});
+							board.updateTask(taskId, {
+								title
+							});
+						}}
+					/>
+				</label>
 
-					<label>
-						<span>Status</span>
-						<select
-							value={status}
-							onChange={(event) => {
-								board.updateTask(taskId, {
-									status: event.currentTarget.value as Status
-								});
-							}}
-						>
-							{columns.map((column) => (
-								<option value={column.id}>{column.title}</option>
-							))}
-						</select>
-					</label>
+				<label>
+					<span>Status</span>
+					<select
+						value={status}
+						onChange={(event) => {
+							board.updateTask(taskId, {
+								status: event.currentTarget.value as Status
+							});
+						}}
+					>
+						{columns.map((column) => (
+							<option value={column.id}>{column.title}</option>
+						))}
+					</select>
+				</label>
 
-					<label>
-						<span>Notes</span>
-						<textarea
-							defaultValue={notes}
-							rows={8}
-							onFocusIn={(event) => {
-								this.log.debug('notes focusin', {
-									taskId,
-									target: eventTargetName(event.target),
-									active: activeElementName()
-								});
-							}}
-							onFocusOut={(event) => {
-								this.log.debug('notes focusout', {
-									taskId,
-									relatedTarget: eventTargetName(event.relatedTarget),
-									active: activeElementName()
-								});
-							}}
-							onInput={(event) => {
-								const notes = event.currentTarget.value;
-								this.log.debug('notes input', {
-									taskId,
-									length: notes.length,
-									active: activeElementName()
-								});
-								board.updateTask(taskId, {
-									notes
-								});
-							}}
-						/>
-					</label>
-				</section>
-			</div>
-		);
-	};
+				<label>
+					<span>Notes</span>
+					<textarea
+						defaultValue={notes}
+						rows={8}
+						onFocusIn={(event) => {
+							this.log.debug('notes focusin', {
+								taskId,
+								target: eventTargetName(event.target),
+								active: activeElementName()
+							});
+						}}
+						onFocusOut={(event) => {
+							this.log.debug('notes focusout', {
+								taskId,
+								relatedTarget: eventTargetName(event.relatedTarget),
+								active: activeElementName()
+							});
+						}}
+						onInput={(event) => {
+							const notes = event.currentTarget.value;
+							this.log.debug('notes input', {
+								taskId,
+								length: notes.length,
+								active: activeElementName()
+							});
+							board.updateTask(taskId, {
+								notes
+							});
+						}}
+					/>
+				</label>
+			</section>
+		</div>
+	);
 }
 
 function activeElementName(): string {

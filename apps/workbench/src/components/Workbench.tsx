@@ -206,78 +206,76 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 	};
 	observeKeyboard();
 
-	return () => {
-		const normalizedQuery = this.state.query.trim().toLowerCase();
-		const visibleTasks = normalizedQuery
-			? this.state.tasks.filter(
-					(task) =>
-						task.title.toLowerCase().includes(normalizedQuery) ||
-						task.notes.toLowerCase().includes(normalizedQuery) ||
-						task.owner.toLowerCase().includes(normalizedQuery) ||
-						task.labels.some((label) => label.toLowerCase().includes(normalizedQuery))
-				)
-			: this.state.tasks;
-		const selectedTask = this.state.selectedTaskId
-			? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
-			: undefined;
+	const normalizedQuery = this.state.query.trim().toLowerCase();
+	const visibleTasks = normalizedQuery
+		? this.state.tasks.filter(
+				(task) =>
+					task.title.toLowerCase().includes(normalizedQuery) ||
+					task.notes.toLowerCase().includes(normalizedQuery) ||
+					task.owner.toLowerCase().includes(normalizedQuery) ||
+					task.labels.some((label) => label.toLowerCase().includes(normalizedQuery))
+			)
+		: this.state.tasks;
+	const selectedTask = this.state.selectedTaskId
+		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
+		: undefined;
 
-		return (
-			<main className="shell">
-				<WorkbenchHeader
-					query={this.state.query}
-					draftTitle={this.state.draftTitle}
-					view={this.state.view}
-					total={this.state.tasks.length}
-					visible={visibleTasks.length}
-					syncState={this.state.syncState}
-				/>
+	return () => (
+		<main className="shell">
+			<WorkbenchHeader
+				query={this.state.query}
+				draftTitle={this.state.draftTitle}
+				view={this.state.view}
+				total={this.state.tasks.length}
+				visible={visibleTasks.length}
+				syncState={this.state.syncState}
+			/>
 
-				<section className="layout">
-					<div className="primary-pane">
-						{this.state.view === 'board' ? (
-							<BoardView columns={columns} tasks={visibleTasks} />
+			<section className="layout">
+				<div className="primary-pane">
+					{this.state.view === 'board' ? (
+						<BoardView columns={columns} tasks={visibleTasks} />
+					) : (
+						<ListView tasks={visibleTasks} />
+					)}
+				</div>
+
+				<aside className="side-pane">
+					{selectedTask ? (
+						<DetailPanel
+							key={selectedTask.id}
+							task={selectedTask}
+							draftLabel={this.state.draftLabel}
+						/>
+					) : (
+						<EmptyDetailPanel />
+					)}
+					<section className="activity-panel">
+						<h2>Activity</h2>
+						{this.state.activity.length ? (
+							<ol>
+								{this.state.activity.map((item) => (
+									<li>
+										<span>{formatTime(item.at)}</span>
+										{item.message}
+									</li>
+								))}
+							</ol>
 						) : (
-							<ListView tasks={visibleTasks} />
+							<p>No activity yet.</p>
 						)}
-					</div>
+					</section>
+				</aside>
+			</section>
 
-					<aside className="side-pane">
-						{selectedTask ? (
-							<DetailPanel
-								key={selectedTask.id}
-								task={selectedTask}
-								draftLabel={this.state.draftLabel}
-							/>
-						) : (
-							<EmptyDetailPanel />
-						)}
-						<section className="activity-panel">
-							<h2>Activity</h2>
-							{this.state.activity.length ? (
-								<ol>
-									{this.state.activity.map((item) => (
-										<li>
-											<span>{formatTime(item.at)}</span>
-											{item.message}
-										</li>
-									))}
-								</ol>
-							) : (
-								<p>No activity yet.</p>
-							)}
-						</section>
-					</aside>
-				</section>
-
-				{this.state.paletteOpen ? (
-					<CommandPalette tasks={visibleTasks} selectedTask={selectedTask} />
-				) : null}
-				{this.state.importOpen ? (
-					<ImportDialog value={this.state.importText} error={this.state.importError} />
-				) : null}
-			</main>
-		);
-	};
+			{this.state.paletteOpen ? (
+				<CommandPalette tasks={visibleTasks} selectedTask={selectedTask} />
+			) : null}
+			{this.state.importOpen ? (
+				<ImportDialog value={this.state.importText} error={this.state.importError} />
+			) : null}
+		</main>
+	);
 }
 
 /**

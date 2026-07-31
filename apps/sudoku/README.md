@@ -28,7 +28,8 @@ authored signals.
 
 Board-wide relationships such as the selected value stay setup-derived so every cell shares one
 cached result. Cell-only presentation calculations remain directly in their compiled binding,
-avoiding redundant component render subscriptions during a move.
+avoiding redundant component render subscriptions during a move. Conflict detection indexes each
+row, column, and box in one board pass, keeping move cost stable as more cells become filled.
 
 Both production formats are installable progressive web apps. Their service worker precaches the
 application shell, manifest, icons, and generated code so saved and newly generated games remain

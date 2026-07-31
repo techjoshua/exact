@@ -15,55 +15,53 @@ type RouteMapProps = {
 
 /** Renders an approximate route and any available ZIP-code locations. */
 export function RouteMap(this: Component<{}>, { route, origin, destination }: RouteMapProps) {
-	return () => {
-		const start = route.origin ? project(route.origin.latitude, route.origin.longitude) : undefined;
-		const end = route.destination
-			? project(route.destination.latitude, route.destination.longitude)
-			: undefined;
-		const arc = start && end ? arcPath(start, end) : undefined;
+	const start = route.origin ? project(route.origin.latitude, route.origin.longitude) : undefined;
+	const end = route.destination
+		? project(route.destination.latitude, route.destination.longitude)
+		: undefined;
+	const arc = start && end ? arcPath(start, end) : undefined;
 
-		return (
-			<div className="map-wrap">
-				<svg
-					className="route-map"
-					viewBox="0 0 800 370"
-					role="img"
-					aria-label={
-						start && end
-							? `Approximate route from ${origin} to ${destination}`
-							: 'Approximate United States route map; one or both ZIP codes are unavailable'
-					}
-				>
-					<g className="map-states">
-						{usStatePaths.map((state) => (
-							<path
-								className={['land', 'state', `state-${state.abbreviation.toLowerCase()}`]}
-								d={state.d}
-							>
-								<title>{state.name}</title>
-							</path>
-						))}
-					</g>
-					{arc ? <path className="route-arc" d={arc} /> : null}
-					{start ? (
-						<>
-							<circle className="map-point origin" cx={start.x} cy={start.y} r="6" />
-							<circle className="map-halo" cx={start.x} cy={start.y} r="12" />
-						</>
-					) : null}
-					{end ? (
-						<>
-							<circle className="map-point destination" cx={end.x} cy={end.y} r="6" />
-							<circle className="map-halo" cx={end.x} cy={end.y} r="12" />
-						</>
-					) : null}
-				</svg>
-				{!start || !end ? (
-					<p className="map-unavailable">Map location unavailable for one or both ZIP codes.</p>
+	return () => (
+		<div className="map-wrap">
+			<svg
+				className="route-map"
+				viewBox="0 0 800 370"
+				role="img"
+				aria-label={
+					start && end
+						? `Approximate route from ${origin} to ${destination}`
+						: 'Approximate United States route map; one or both ZIP codes are unavailable'
+				}
+			>
+				<g className="map-states">
+					{usStatePaths.map((state) => (
+						<path
+							className={['land', 'state', `state-${state.abbreviation.toLowerCase()}`]}
+							d={state.d}
+						>
+							<title>{state.name}</title>
+						</path>
+					))}
+				</g>
+				{arc ? <path className="route-arc" d={arc} /> : null}
+				{start ? (
+					<>
+						<circle className="map-point origin" cx={start.x} cy={start.y} r="6" />
+						<circle className="map-halo" cx={start.x} cy={start.y} r="12" />
+					</>
 				) : null}
-			</div>
-		);
-	};
+				{end ? (
+					<>
+						<circle className="map-point destination" cx={end.x} cy={end.y} r="6" />
+						<circle className="map-halo" cx={end.x} cy={end.y} r="12" />
+					</>
+				) : null}
+			</svg>
+			{!start || !end ? (
+				<p className="map-unavailable">Map location unavailable for one or both ZIP codes.</p>
+			) : null}
+		</div>
+	);
 }
 
 function project(latitude: number, longitude: number): MapPoint {

@@ -20,61 +20,57 @@ export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 	const game = this.getContext(SudokuContext);
 	const selectedValue = props.selectedDigit ?? props.cells[props.selectedIndex]?.value;
 
-	return () => {
-		return (
-			<div className="board-frame" className:is-complete={props.complete}>
-				<div
-					className="sudoku-board"
-					className:is-paused={props.paused}
-					role="grid"
-					aria-label="Sudoku puzzle"
-					aria-rowcount={9}
-					aria-colcount={9}
-				>
-					{rows.map((row) => (
-						<div className="sudoku-row" role="row">
-							{props.cells
-								.filter((cell) => cell.row === row)
-								.map((cell) => (
-									<CellButton
-										cell={cell}
-										selected={
-											props.selectedDigit === undefined && cell.index === props.selectedIndex
-										}
-										peer={
-											props.selectedDigit === undefined && arePeers(cell.index, props.selectedIndex)
-										}
-										matching={
-											selectedValue !== undefined &&
-											(cell.value === selectedValue || cell.notes.includes(selectedValue))
-										}
-										matchingDigit={selectedValue}
-										conflict={props.conflicts.includes(cell.index)}
-										paused={props.paused}
-									/>
-								))}
-						</div>
-					))}
-				</div>
-				{props.paused ? (
-					<button className="pause-cover" type="button" onClick={() => game.togglePause()}>
-						<span>Game paused</span>
-						<small>Tap to return</small>
-					</button>
-				) : null}
-				{props.complete ? (
-					<div className="victory-banner" role="status">
-						<span className="victory-mark">✦</span>
-						<strong>Beautifully solved</strong>
-						<small>Every row, column and house is complete.</small>
-						<button type="button" onClick={() => game.newGame()}>
-							Start a new puzzle
-						</button>
+	return () => (
+		<div className="board-frame" className:is-complete={props.complete}>
+			<div
+				className="sudoku-board"
+				className:is-paused={props.paused}
+				role="grid"
+				aria-label="Sudoku puzzle"
+				aria-rowcount={9}
+				aria-colcount={9}
+			>
+				{rows.map((row) => (
+					<div className="sudoku-row" role="row">
+						{props.cells
+							.filter((cell) => cell.row === row)
+							.map((cell) => (
+								<CellButton
+									cell={cell}
+									selected={props.selectedDigit === undefined && cell.index === props.selectedIndex}
+									peer={
+										props.selectedDigit === undefined && arePeers(cell.index, props.selectedIndex)
+									}
+									matching={
+										selectedValue !== undefined &&
+										(cell.value === selectedValue || cell.notes.includes(selectedValue))
+									}
+									matchingDigit={selectedValue}
+									conflict={props.conflicts.includes(cell.index)}
+									paused={props.paused}
+								/>
+							))}
 					</div>
-				) : null}
+				))}
 			</div>
-		);
-	};
+			{props.paused ? (
+				<button className="pause-cover" type="button" onClick={() => game.togglePause()}>
+					<span>Game paused</span>
+					<small>Tap to return</small>
+				</button>
+			) : null}
+			{props.complete ? (
+				<div className="victory-banner" role="status">
+					<span className="victory-mark">✦</span>
+					<strong>Beautifully solved</strong>
+					<small>Every row, column and house is complete.</small>
+					<button type="button" onClick={() => game.newGame()}>
+						Start a new puzzle
+					</button>
+				</div>
+			) : null}
+		</div>
+	);
 }
 
 type CellButtonProps = {
@@ -91,41 +87,39 @@ type CellButtonProps = {
 function CellButton(this: Component<{}>, props: CellButtonProps) {
 	const game = this.getContext(SudokuContext);
 
-	return () => {
-		return (
-			<button
-				type="button"
-				role="gridcell"
-				className="sudoku-cell"
-				className:is-given={props.cell.given}
-				className:is-selected={props.selected}
-				className:is-peer={props.peer}
-				className:is-matching={props.matching}
-				className:is-conflict={props.conflict}
-				aria-label={cellLabel(props.cell, props.conflict)}
-				aria-selected={props.selected}
-				disabled={props.paused}
-				tabIndex={props.selected ? 0 : -1}
-				onClick={() => game.select(props.cell.index)}
-			>
-				{props.cell.value !== undefined ? (
-					<span className="cell-value">{props.cell.value}</span>
-				) : (
-					<span className="cell-notes" aria-hidden="true">
-						{noteDigits.map((digit) => (
-							<span
-								className:is-note-match={
-									props.cell.notes.includes(digit) && digit === props.matchingDigit
-								}
-							>
-								{props.cell.notes.includes(digit) ? digit : ''}
-							</span>
-						))}
-					</span>
-				)}
-			</button>
-		);
-	};
+	return () => (
+		<button
+			type="button"
+			role="gridcell"
+			className="sudoku-cell"
+			className:is-given={props.cell.given}
+			className:is-selected={props.selected}
+			className:is-peer={props.peer}
+			className:is-matching={props.matching}
+			className:is-conflict={props.conflict}
+			aria-label={cellLabel(props.cell, props.conflict)}
+			aria-selected={props.selected}
+			disabled={props.paused}
+			tabIndex={props.selected ? 0 : -1}
+			onClick={() => game.select(props.cell.index)}
+		>
+			{props.cell.value !== undefined ? (
+				<span className="cell-value">{props.cell.value}</span>
+			) : (
+				<span className="cell-notes" aria-hidden="true">
+					{noteDigits.map((digit) => (
+						<span
+							className:is-note-match={
+								props.cell.notes.includes(digit) && digit === props.matchingDigit
+							}
+						>
+							{props.cell.notes.includes(digit) ? digit : ''}
+						</span>
+					))}
+				</span>
+			)}
+		</button>
+	);
 }
 
 function cellLabel(cell: SudokuCell, conflict: boolean): string {

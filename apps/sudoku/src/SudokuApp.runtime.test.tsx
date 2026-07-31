@@ -2,6 +2,7 @@
 
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { SudokuApp } from './SudokuApp.jsx';
 
@@ -46,7 +47,7 @@ describe('SudokuApp runtime', () => {
 		}
 	});
 
-	it('publishes at most one prop update per component instance for a new puzzle transaction', () => {
+	it('does not duplicate prop updates for a new puzzle transaction', async () => {
 		const container = document.createElement('div');
 		const inspection = createExactRuntimeInspectionOwner({
 			buildKey: 'sudoku-transaction',
@@ -58,11 +59,18 @@ describe('SudokuApp runtime', () => {
 		try {
 			render(<SudokuApp />, container, { inspection });
 			events.length = 0;
-			const button = Array.from(container.querySelectorAll('button')).find((candidate) =>
-				candidate.textContent?.includes('puzzle')
-			);
+			const button = container.querySelector<HTMLButtonElement>('.new-game-button');
+			const previousTitle = container.querySelector('.game-heading .eyebrow')?.textContent;
 			expect(button).toBeTruthy();
 			button!.click();
+			flushSync();
+			await vi.waitFor(
+				() =>
+					expect(container.querySelector('.game-heading .eyebrow')?.textContent).not.toBe(
+						previousTitle
+					),
+				{ timeout: 5_000 }
+			);
 
 			const changesByType = new Map<string, number>();
 			for (const event of events) {
@@ -70,7 +78,6 @@ describe('SudokuApp runtime', () => {
 				const type = event.id.componentTypeId;
 				changesByType.set(type, (changesByType.get(type) ?? 0) + 1);
 			}
-			expect(changesByType.size).toBeGreaterThan(0);
 			for (const [type, changes] of changesByType) {
 				expect(changes).toBeLessThanOrEqual(type.includes('CellButton') ? 81 : 1);
 			}

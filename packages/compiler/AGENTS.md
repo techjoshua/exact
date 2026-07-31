@@ -40,13 +40,12 @@ Treat awaits inside a function-defined task as suspension points of that task,
 not nested inferred-task entities. Retain symbol-resolved derived-binding reads
 in source inspection so presentation clients never reconstruct lexical identity
 from matching text.
-Treat setup-derived declarations as component-owned shared relationships and view-local
-declarations as region-owned presentation calculations. Elide an inferred setup cell only for a
-safe scalar or forwarded-identity calculation with one eager view consumer. Preserve cells for
-shared bindings, fresh identity allocations, deferred handlers, tasks, and explicit
-`this.reactive()` values. After every use of a safe view-local declaration is materialized into
-its reactive consumer, omit the dead emitted declaration while retaining the authored definition
-and references in source inspection.
+Treat setup-derived declarations as component-owned shared relationships. Require the returned
+render callable to contain only its view return: move declarations and imperative control flow to
+setup, and preserve conditional JSX and keyed callbacks as precise region-local logic. Elide an
+inferred setup cell only for a safe scalar or forwarded-identity calculation with one eager view
+consumer. Preserve cells for shared bindings, fresh identity allocations, deferred handlers,
+tasks, and explicit `this.reactive()` values.
 For task functions with an authored final `TaskContext` policy parameter, project only authored
 call arguments as activation dependencies. Do not promote body reads or captures into
 dependencies. Treat the internal `explicit` origin discriminator as compatibility vocabulary, not

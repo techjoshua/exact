@@ -12,6 +12,22 @@ describe('@exactjs/compiler: reactivity', () => {
 		expect(output).toContain('"Save"');
 	});
 
+	it('keeps conditional JSX inside one dynamic child boundary', () => {
+		const output = transform(`
+      function Panel(this: Component<{ ready: boolean }>) {
+        return () => (
+          <section>
+            {this.state.ready ? <strong>Ready</strong> : <span>Loading</span>}
+          </section>
+        );
+      }
+    `);
+
+		expect(output.match(/__exactDynamic\(/g)).toHaveLength(1);
+		expect(output).toContain('this.state.ready ? __exactVNode("strong"');
+		expect(output).toContain(': __exactVNode("span"');
+	});
+
 	it('returns transform results for generic adapters', () => {
 		const result = transformSource('const view = <span />;', { filename: 'view.tsx' });
 

@@ -62,10 +62,8 @@ const componentTaskSource = `function Presence(this: Component<{ userId: string;
 
 const componentValueSource = `function Results(this: Component<{ layout: 'grid' | 'list' }>) {
   // Immutable aliases and finite choices remain ordinary component values.
-  return () => {
-    const View = this.state.layout === 'grid' ? ResultGrid : ResultList;
-    return <View />;
-  };
+  const View = this.state.layout === 'grid' ? ResultGrid : ResultList;
+  return () => <View />;
 }`;
 
 /** Explains setup-once components, component values, context, and owned task behavior. */

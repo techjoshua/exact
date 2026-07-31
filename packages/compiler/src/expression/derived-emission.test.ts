@@ -314,35 +314,30 @@ describe('@exactjs/compiler: derived values', () => {
 		);
 	});
 
-	it('materializes safe derived consts declared inside render functions', () => {
-		const output = transform(`
+	it('rejects declarations inside returned view functions', () => {
+		expect(() =>
+			transform(`
       function View(this: Component<{ first: string; last: string }>) {
         return () => {
           const fullName = \`\${this.state.first} \${this.state.last}\`;
           return <p>{fullName}</p>;
         };
       }
-    `);
-
-		expect(output).toContain(
-			'const __exact_fullName_1 = `${this.state.first} ${this.state.last}`;'
-		);
-		expect(output).toContain('return __exact_fullName_1;');
-		expect(output).not.toContain('const fullName =');
+    `)
+		).toThrow(/render functions may only return the view expression/);
 	});
 
-	it('retains a materialized render local when a deferred handler still reads it', () => {
-		const output = transform(`
+	it('rejects declarations captured by returned-view handlers', () => {
+		expect(() =>
+			transform(`
       function View(this: Component<{ first: string; last: string }>) {
         return () => {
           const fullName = \`\${this.state.first} \${this.state.last}\`;
           return <button title={fullName} onClick={() => save(fullName)}>Save</button>;
         };
       }
-    `);
-
-		expect(output).toContain('const fullName =');
-		expect(output).toContain('save(fullName)');
+    `)
+		).toThrow(/render functions may only return the view expression/);
 	});
 
 	it('materializes safe derived consts declared inside map render callbacks', () => {
@@ -365,15 +360,15 @@ describe('@exactjs/compiler: derived values', () => {
 	it('preserves narrowing for nullable derived locals', () => {
 		const output = transform(`
       function View(this: Component<{ enabled: boolean }>) {
-        return () => {
-          const point = this.state.enabled ? { x: 1 } : undefined;
-          return <p title={point ? String(point.x) : "missing"} />;
-        };
+        const point = this.state.enabled ? { x: 1 } : undefined;
+        return () => <p title={point ? String(point.x) : "missing"} />;
       }
     `);
 
-		expect(output).toContain('const __exact_point_1 = this.state.enabled ? { x: 1 } : undefined;');
-		expect(output).toContain('return __exact_point_1 ? String(__exact_point_1.x) : "missing";');
+		expect(output).toContain(
+			'const point = __exactDerived(() => this.state.enabled ? { x: 1 } : undefined);'
+		);
+		expect(output).toContain('point.get() ? String(point.get().x) : "missing"');
 	});
 
 	it('inlines safe derived consts inside explicit reactive captures', () => {

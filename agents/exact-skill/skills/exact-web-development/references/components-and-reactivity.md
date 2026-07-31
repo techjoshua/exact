@@ -38,6 +38,9 @@ function Panel(this: Component<PanelState>, props: PanelProps) {
 
 The component instance owns reactive state, lifecycle, tasks, refs, context, and logging. Assigning
 state invalidates only consumers that read the changed data; it does not rerun the setup function.
+Keep the returned function declarative: its body is the JSX view expression. Put declarations and
+imperative control flow in setup, while conditional JSX and keyed callbacks retain precise
+view-local ownership.
 
 ## Derived values
 

@@ -33,52 +33,50 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 		});
 	};
 
-	return () => {
-		const columnTasks = props.tasks.filter((task) => task.status === props.column.id);
-		const countLabel = columnTasks.length === 1 ? '1 task' : `${columnTasks.length} tasks`;
+	const columnTasks = props.tasks.filter((task) => task.status === props.column.id);
+	const countLabel = columnTasks.length === 1 ? '1 task' : `${columnTasks.length} tasks`;
 
-		return (
-			<article
-				id={`column-${props.column.id}`}
-				className="column"
-				className:empty={columnTasks.length === 0}
-				onDragEnter={(event) => allowDrop(event)}
-				onDragOver={(event) => allowDrop(event)}
-				onDrop={(event) => dropTask(event)}
-			>
-				<header>
-					<h2>{props.column.title}</h2>
-					<span>{countLabel}</span>
-				</header>
+	return () => (
+		<article
+			id={`column-${props.column.id}`}
+			className="column"
+			className:empty={columnTasks.length === 0}
+			onDragEnter={(event) => allowDrop(event)}
+			onDragOver={(event) => allowDrop(event)}
+			onDrop={(event) => dropTask(event)}
+		>
+			<header>
+				<h2>{props.column.title}</h2>
+				<span>{countLabel}</span>
+			</header>
 
-				<div className="cards">
-					{columnTasks.length === 0 ? (
-						props.dragPlacement?.status === props.column.id ? (
-							<DropMarker />
-						) : (
-							<p className="empty-state">Drop a card here</p>
-						)
+			<div className="cards">
+				{columnTasks.length === 0 ? (
+					props.dragPlacement?.status === props.column.id ? (
+						<DropMarker />
 					) : (
-						<>
-							{columnTasks.map((task) => (
-								<>
-									{props.dragPlacement?.status === props.column.id &&
-									props.dragPlacement.beforeTaskId === task.id ? (
-										<DropMarker />
-									) : null}
-									<TaskCard task={task} />
-								</>
-							))}
-							{props.dragPlacement?.status === props.column.id &&
-							props.dragPlacement.beforeTaskId === undefined ? (
-								<DropMarker />
-							) : null}
-						</>
-					)}
-				</div>
-			</article>
-		);
-	};
+						<p className="empty-state">Drop a card here</p>
+					)
+				) : (
+					<>
+						{columnTasks.map((task) => (
+							<>
+								{props.dragPlacement?.status === props.column.id &&
+								props.dragPlacement.beforeTaskId === task.id ? (
+									<DropMarker />
+								) : null}
+								<TaskCard task={task} />
+							</>
+						))}
+						{props.dragPlacement?.status === props.column.id &&
+						props.dragPlacement.beforeTaskId === undefined ? (
+							<DropMarker />
+						) : null}
+					</>
+				)}
+			</div>
+		</article>
+	);
 }
 
 function DropMarker() {

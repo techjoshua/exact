@@ -111,31 +111,29 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
 
 	this.setContext(BoardContext, services);
 
-	return () => {
-		const selectedTask = this.state.selectedTaskId
-			? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
-			: undefined;
+	const selectedTask = this.state.selectedTaskId
+		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
+		: undefined;
 
-		return (
-			<main className="shell">
-				<BoardHeader draft={this.state.draft} total={this.state.tasks.length} />
+	return () => (
+		<main className="shell">
+			<BoardHeader draft={this.state.draft} total={this.state.tasks.length} />
 
-				<section className="board" style={{ gap: px(16) }}>
-					{columns.map((column) => (
-						<_ key={column.id}>
-							<ColumnView
-								column={column}
-								tasks={this.state.tasks}
-								dragPlacement={this.state.dragPlacement}
-							/>
-						</_>
-					))}
-				</section>
+			<section className="board" style={{ gap: px(16) }}>
+				{columns.map((column) => (
+					<_ key={column.id}>
+						<ColumnView
+							column={column}
+							tasks={this.state.tasks}
+							dragPlacement={this.state.dragPlacement}
+						/>
+					</_>
+				))}
+			</section>
 
-				{selectedTask ? <TaskDetailsDialog key={selectedTask.id} task={selectedTask} /> : null}
-			</main>
-		);
-	};
+			{selectedTask ? <TaskDetailsDialog key={selectedTask.id} task={selectedTask} /> : null}
+		</main>
+	);
 }
 
 function findAfterLastColumnTask(tasks: Task[], status: Status): number {

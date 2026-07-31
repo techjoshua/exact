@@ -24,7 +24,8 @@ When creating or repairing compiler configuration, read
 
 - Define an eXact component as a function whose typed `this` is `Component<State>`.
 - Initialize state, context, refs, lifecycle, and task activation in the outer setup function.
-- Return a render function containing JSX.
+- Return a render function whose body is the view expression. Keep declarations and imperative
+  control flow in setup; use conditional JSX and keyed callbacks for view-local branching.
 - Mutate `this.state` directly. Do not use `useState`, reducers, setter wrappers, or immutable
   replacement merely because the file contains JSX.
 - Keep props parent-owned. Store local mutable data in `this.state`.

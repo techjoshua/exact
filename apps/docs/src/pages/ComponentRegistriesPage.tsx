@@ -12,10 +12,8 @@ const registrySource = `const Widget = createComponentRegistry(({ lazy }) => ({
 type WidgetKey = KeyOf<typeof Widget>;
 
 function Dashboard(this: Component<{ selected: WidgetKey }>) {
-  return () => {
-    const CurrentWidget = Widget[this.state.selected];
-    return <CurrentWidget />;
-  };
+  const CurrentWidget = Widget[this.state.selected];
+  return () => <CurrentWidget />;
 }`;
 
 const narrowingSource = `if (!hasComponent(Widget, requested)) {

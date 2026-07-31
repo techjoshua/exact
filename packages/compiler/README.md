@@ -80,14 +80,14 @@ continuation effect; assign an enclosing statically named state value at that bo
 
 Ordinary derived declarations in component setup normally lower to lazy,
 component-owned cells so several DOM, prop, list, or task consumers share one
-result. Pure declarations inside the returned view are materialized in the
-reactive expression that consumes them; the view function does not rerun as an
-update loop. Fully materialized declarations are omitted from the emitted view
-so they do not leave redundant render subscriptions behind. When a safe inferred setup calculation has exactly one eager view
-consumer and produces a scalar or forwards an existing identity, the compiler
-elides its standalone cells and fuses the calculation into that consumer.
-Shared bindings, fresh identity allocations, event or task consumers, and
-explicit `this.reactive()` values retain durable cells.
+result. The returned view contains only its view expression; declarations and
+imperative control flow belong in component setup, while conditional JSX and
+keyed-item callbacks retain precise region ownership. The view function does
+not rerun as an update loop. When a safe inferred setup calculation has
+exactly one eager view consumer and produces a scalar or forwards an existing
+identity, the compiler elides its standalone cell and fuses the calculation
+into that consumer. Shared bindings, fresh identity allocations, event or task
+consumers, and explicit `this.reactive()` values retain durable cells.
 
 State-owned `Map` and `Set` mutations are also recognized. The compiler lowers
 `Map.set/delete/clear` and `Set.add/delete/clear` with native return semantics and records them as
@@ -95,12 +95,12 @@ precise continuation effects. Server continuations transport effective mutations
 deltas; transported Map keys are limited to `null`, booleans, finite numbers, and strings.
 
 The returned render function is synchronous and establishes the compiled view.
-Deterministic statements and tree control are supported, and their safe locals
-are materialized inside the precise reactive regions that consume them. State
-writes, lifecycle or task registration, scheduling, and known DOM or storage
-effects are compile errors. A local arrow is the normal form. A shared regular
-function is also supported and receives the component instance as `this`; a
-shared arrow cannot be returned directly.
+Its body may only return the view expression. Keep declarations and imperative
+control flow in setup; use JSX conditions and keyed callbacks for tree-local
+control. State writes, lifecycle or task registration, scheduling, and known
+DOM or storage effects are compile errors. A local expression-bodied arrow is
+the normal form. A shared regular function is also supported and receives the
+component instance as `this`; a shared arrow cannot be returned directly.
 
 Static conditional class tokens can use compiler-owned namespaced props:
 

@@ -232,165 +232,161 @@ export function SudokuApp(this: Component<SudokuState>) {
 	};
 	observeKeyboard();
 
-	return () => {
-		const puzzle = findPuzzle(this.state.puzzleId);
-		const conflicts = findConflicts(this.state.cells);
-		const entered = enteredCellCount(this.state.cells);
-		const editable = editableCellCount(this.state.cells);
-		const selectedCell = this.state.cells[this.state.selectedIndex]!;
-		const selectedCandidates = candidatesFor(this.state.cells, this.state.selectedIndex);
-		const lastMove = this.state.history[this.state.history.length - 1];
-		const remaining = editable - entered;
-		const progress = editable === 0 ? 100 : Math.round((entered / editable) * 100);
-		const digitProgress = digitPlacementProgress(this.state.cells, conflicts);
+	const puzzle = findPuzzle(this.state.puzzleId);
+	const conflicts = findConflicts(this.state.cells);
+	const entered = enteredCellCount(this.state.cells);
+	const editable = editableCellCount(this.state.cells);
+	const selectedCell = this.state.cells[this.state.selectedIndex]!;
+	const selectedCandidates = candidatesFor(this.state.cells, this.state.selectedIndex);
+	const lastMove = this.state.history[this.state.history.length - 1];
+	const remaining = editable - entered;
+	const progress = editable === 0 ? 100 : Math.round((entered / editable) * 100);
+	const digitProgress = digitPlacementProgress(this.state.cells, conflicts);
 
-		return (
-			<div className={['sudoku-app', `theme-${this.state.theme}`]}>
-				<div className="ambient ambient-one" aria-hidden="true" />
-				<div className="ambient ambient-two" aria-hidden="true" />
-				<header className="topbar">
-					<a className="brand" href="/" aria-label="Sudoku Atelier home">
-						<span className="brand-mark" aria-hidden="true">
-							<span>9</span>
-							<span>3</span>
-							<span>6</span>
-							<span>1</span>
-						</span>
-						<span>
-							<strong>Sudoku Atelier</strong>
-							<small>crafted with eXact</small>
-						</span>
-					</a>
-					<div className="topbar-actions">
-						<span className="theme-label">{themeName(this.state.theme)}</span>
-						<button
-							type="button"
-							className="icon-button mobile-lens-trigger"
-							aria-label={this.state.lensOpen ? 'Close eXact Lens' : 'Open eXact Lens'}
-							aria-expanded={this.state.lensOpen}
-							onClick={() => commands.toggleLens()}
-						>
-							<span aria-hidden="true">⌁</span>
-						</button>
-						<ThemePicker current={this.state.theme} open={this.state.themeMenuOpen} />
-						<button
-							type="button"
-							className="icon-button"
-							aria-label={this.state.paused ? 'Resume game' : 'Pause game'}
-							onClick={() => commands.togglePause()}
-						>
-							<span aria-hidden="true">{this.state.paused ? '▶' : 'Ⅱ'}</span>
-						</button>
+	return () => (
+		<div className={['sudoku-app', `theme-${this.state.theme}`]}>
+			<div className="ambient ambient-one" aria-hidden="true" />
+			<div className="ambient ambient-two" aria-hidden="true" />
+			<header className="topbar">
+				<a className="brand" href="/" aria-label="Sudoku Atelier home">
+					<span className="brand-mark" aria-hidden="true">
+						<span>9</span>
+						<span>3</span>
+						<span>6</span>
+						<span>1</span>
+					</span>
+					<span>
+						<strong>Sudoku Atelier</strong>
+						<small>crafted with eXact</small>
+					</span>
+				</a>
+				<div className="topbar-actions">
+					<span className="theme-label">{themeName(this.state.theme)}</span>
+					<button
+						type="button"
+						className="icon-button mobile-lens-trigger"
+						aria-label={this.state.lensOpen ? 'Close eXact Lens' : 'Open eXact Lens'}
+						aria-expanded={this.state.lensOpen}
+						onClick={() => commands.toggleLens()}
+					>
+						<span aria-hidden="true">⌁</span>
+					</button>
+					<ThemePicker current={this.state.theme} open={this.state.themeMenuOpen} />
+					<button
+						type="button"
+						className="icon-button"
+						aria-label={this.state.paused ? 'Resume game' : 'Pause game'}
+						onClick={() => commands.togglePause()}
+					>
+						<span aria-hidden="true">{this.state.paused ? '▶' : 'Ⅱ'}</span>
+					</button>
+				</div>
+			</header>
+
+			<main className="game-layout">
+				<header className="game-heading">
+					<div>
+						<p className="eyebrow">{puzzle.title}</p>
+						<h1>A quiet place to think.</h1>
+					</div>
+					<div className="game-meta">
+						<label>
+							<span>Difficulty</span>
+							<select
+								value={this.state.difficulty}
+								onInput={(event) => commands.setDifficulty(event.currentTarget.value as Difficulty)}
+							>
+								<option value="gentle">Gentle</option>
+								<option value="tricky">Tricky</option>
+								<option value="fiendish">Fiendish</option>
+							</select>
+						</label>
+						<div>
+							<span>Time</span>
+							<strong>{formatElapsed(this.state.elapsedSeconds)}</strong>
+						</div>
 					</div>
 				</header>
 
-				<main className="game-layout">
-					<header className="game-heading">
-						<div>
-							<p className="eyebrow">{puzzle.title}</p>
-							<h1>A quiet place to think.</h1>
-						</div>
-						<div className="game-meta">
-							<label>
-								<span>Difficulty</span>
-								<select
-									value={this.state.difficulty}
-									onInput={(event) =>
-										commands.setDifficulty(event.currentTarget.value as Difficulty)
-									}
-								>
-									<option value="gentle">Gentle</option>
-									<option value="tricky">Tricky</option>
-									<option value="fiendish">Fiendish</option>
-								</select>
-							</label>
-							<div>
-								<span>Time</span>
-								<strong>{formatElapsed(this.state.elapsedSeconds)}</strong>
-							</div>
-						</div>
-					</header>
+				<div className="progress-line">
+					<span style={{ width: `${progress}%` }} />
+				</div>
 
-					<div className="progress-line">
-						<span style={{ width: `${progress}%` }} />
+				<section className="game-column">
+					<div className="board-slot">
+						<SudokuGrid
+							cells={this.state.cells}
+							selectedIndex={this.state.selectedIndex}
+							selectedDigit={this.state.selectedDigit}
+							conflicts={conflicts}
+							paused={this.state.paused}
+							complete={complete}
+						/>
 					</div>
 
-					<section className="game-column">
-						<div className="board-slot">
-							<SudokuGrid
-								cells={this.state.cells}
-								selectedIndex={this.state.selectedIndex}
-								selectedDigit={this.state.selectedDigit}
-								conflicts={conflicts}
-								paused={this.state.paused}
-								complete={complete}
-							/>
+					<GameControls
+						selectedDigit={this.state.selectedDigit}
+						noteMode={this.state.noteMode}
+						canUndo={this.state.history.length > 0}
+						canRedo={this.state.future.length > 0}
+						paused={this.state.paused}
+						remaining={remaining}
+						digitProgress={digitProgress}
+					/>
+				</section>
+
+				<aside className="side-card">
+					<div className="side-card-top">
+						<p className="eyebrow">Today’s practice</p>
+						<h2>{puzzle.title}</h2>
+						<p>
+							{complete
+								? 'A clean finish. Take a breath and enjoy it.'
+								: 'Notice the patterns. The board will tell you what comes next.'}
+						</p>
+					</div>
+					<div className="progress-summary">
+						<div className="progress-orbit">
+							<strong>{progress}%</strong>
+							<span>filled</span>
 						</div>
-
-						<GameControls
-							selectedDigit={this.state.selectedDigit}
-							noteMode={this.state.noteMode}
-							canUndo={this.state.history.length > 0}
-							canRedo={this.state.future.length > 0}
-							paused={this.state.paused}
-							remaining={remaining}
-							digitProgress={digitProgress}
-						/>
-					</section>
-
-					<aside className="side-card">
-						<div className="side-card-top">
-							<p className="eyebrow">Today’s practice</p>
-							<h2>{puzzle.title}</h2>
+						<div>
+							<strong>
+								{entered} / {editable}
+							</strong>
+							<span>open cells explored</span>
+						</div>
+					</div>
+					<div className="tip-card">
+						<span aria-hidden="true">✦</span>
+						<div>
+							<strong>Gentle hint</strong>
 							<p>
-								{complete
-									? 'A clean finish. Take a breath and enjoy it.'
-									: 'Notice the patterns. The board will tell you what comes next.'}
+								{selectedCandidates.length
+									? `This cell currently allows ${selectedCandidates.join(', ')}.`
+									: selectedCell.value
+										? 'This cell already has a value.'
+										: 'This cell has no legal candidates yet.'}
 							</p>
 						</div>
-						<div className="progress-summary">
-							<div className="progress-orbit">
-								<strong>{progress}%</strong>
-								<span>filled</span>
-							</div>
-							<div>
-								<strong>
-									{entered} / {editable}
-								</strong>
-								<span>open cells explored</span>
-							</div>
-						</div>
-						<div className="tip-card">
-							<span aria-hidden="true">✦</span>
-							<div>
-								<strong>Gentle hint</strong>
-								<p>
-									{selectedCandidates.length
-										? `This cell currently allows ${selectedCandidates.join(', ')}.`
-										: selectedCell.value
-											? 'This cell already has a value.'
-											: 'This cell has no legal candidates yet.'}
-								</p>
-							</div>
-						</div>
-						<button type="button" className="new-game-button" onClick={() => commands.newGame()}>
-							<span aria-hidden="true">↻</span>
-							New {difficultyLabel(this.state.difficulty)} puzzle
-						</button>
-						<p className="shortcut-note">
-							Keyboard: 1–9 choose · Enter applies · N notes · arrows move · ⌘Z undo
-						</p>
-					</aside>
-				</main>
+					</div>
+					<button type="button" className="new-game-button" onClick={() => commands.newGame()}>
+						<span aria-hidden="true">↻</span>
+						New {difficultyLabel(this.state.difficulty)} puzzle
+					</button>
+					<p className="shortcut-note">
+						Keyboard: 1–9 choose · Enter applies · N notes · arrows move · ⌘Z undo
+					</p>
+				</aside>
+			</main>
 
-				<ExactLens
-					open={this.state.lensOpen}
-					cell={selectedCell}
-					candidates={selectedCandidates}
-					conflicts={conflicts}
-					lastMove={lastMove}
-				/>
-			</div>
-		);
-	};
+			<ExactLens
+				open={this.state.lensOpen}
+				cell={selectedCell}
+				candidates={selectedCandidates}
+				conflicts={conflicts}
+				lastMove={lastMove}
+			/>
+		</div>
+	);
 }

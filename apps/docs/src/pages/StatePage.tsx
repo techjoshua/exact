@@ -74,15 +74,11 @@ return () => <strong>\${subtotal}</strong>;`;
 const viewDerivedSource = `function AccountBadge(
   this: Component<AccountState>
 ) {
-  return () => {
-    // This calculation belongs to one visual boundary. The compiler moves it
-    // into that boundary's reactive closure; the whole view does not rerun.
-    const label = this.state.online
-      ? \`\${this.state.name} · online\`
-      : this.state.name;
+  const label = this.state.online
+    ? \`\${this.state.name} · online\`
+    : this.state.name;
 
-    return <strong>{label}</strong>;
-  };
+  return () => <strong>{label}</strong>;
 }`;
 
 const derivedAssignmentSource = `function Summary(
@@ -173,21 +169,19 @@ export function StatePage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>View-local values belong to one visual boundary</h2>
+				<h2>Keep the returned view declarative</h2>
 				<p>
-					A pure declaration inside the returned view is presentation-local. eXact does not rerun
-					the whole view function when its inputs change. Instead, the compiler materializes that
-					calculation inside the reactive DOM or prop closure that consumes it, so the closure reads
-					fresh state rather than retaining the first render&apos;s local value. When every use has
-					been materialized this way, the emitted render function drops the unused declaration and
-					does not subscribe itself to the same inputs.
+					eXact does not rerun the whole view function when its inputs change. Keep declarations and
+					imperative control flow in component setup, then return the JSX expression directly. This
+					gives a derived relationship one clear owner and lets every generated DOM or
+					component-prop boundary reuse its cached result.
 				</p>
 				<CodeBlock source={viewDerivedSource} language="tsx" title="AccountBadge.tsx" />
 				<p>
-					Use this form—or put the expression directly in JSX—for a cheap calculation with one
-					visual consumer, especially when it belongs to a branch or keyed item. Separate view
-					boundaries do not implicitly share a view-local calculation; place it in setup when shared
-					caching or identity is part of the relationship.
+					Conditional expressions remain idiomatic inside JSX and update only their structural
+					range. A callback owned by a keyed branch or item may also keep item-local calculations
+					beside that item; it does not turn the top-level returned view into an imperative rerender
+					body.
 				</p>
 				<p>
 					For an ordinary setup declaration whose safe result has only one view consumer, the

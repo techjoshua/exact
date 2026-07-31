@@ -171,20 +171,24 @@ Code belongs to one of three important execution regions:
 - event, task, lifecycle, timer, and other callbacks run later.
 
 Setup may initialize state, create derived values, register tasks and
-lifecycle work, publish context, and create refs. A render function may use
-ordinary deterministic statements for derivation, branching, loops, and tree
-construction:
+lifecycle work, publish context, and create refs. The returned render function
+contains only its view expression. Put declarations and imperative control flow
+in setup; keep conditional tree logic and keyed iteration in JSX:
 
 ```tsx
 function Summary(this: Component<SummaryState>) {
-	return () => {
-		const visible = this.state.rows.filter((row) => !row.hidden);
-		if (visible.length === 0) return <Empty />;
+	const visible = this.state.rows.filter((row) => !row.hidden);
 
-		const children = [];
-		for (const row of visible) children.push(<Row key={row.id} row={row} />);
-		return <section>{children}</section>;
-	};
+	return () =>
+		visible.length === 0 ? (
+			<Empty />
+		) : (
+			<section>
+				{visible.map((row) => (
+					<Row key={row.id} row={row} />
+				))}
+			</section>
+		);
 }
 ```
 
@@ -346,23 +350,19 @@ the graph. Keep a derived declaration in setup when several consumers should
 share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
 
-A safe declaration inside the returned view has a narrower owner:
+A returned view is a direct view expression:
 
 ```tsx
-return () => {
-	const label = this.state.online ? `${this.state.name} · online` : this.state.name;
-	return <strong>{label}</strong>;
-};
+const label = this.state.online ? `${this.state.name} · online` : this.state.name;
+return () => <strong>{label}</strong>;
 ```
 
-The returned view does not rerun as a unit. The compiler materializes `label`
-inside the reactive DOM closure that consumes it so dependency changes cannot
-leave a first-render snapshot behind. Once every authored use has moved into
-such a closure, emitted code omits the now-unused view-local declaration so it
-cannot accidentally subscribe the component render watcher to the same inputs.
-This form, or a direct JSX expression, is appropriate for a cheap presentation
-calculation with one visual consumer. Separate DOM or prop boundaries do not
-implicitly share a view-local calculation.
+The returned view does not rerun as a unit, so declarations and imperative
+control flow belong in component setup. Conditional expressions in JSX and
+callbacks owned by keyed branches or items remain region-local and update only
+their structural range. This keeps authored ownership unambiguous and prevents
+the same view-local calculation from being duplicated across generated
+reactive boundaries.
 
 The compiler may elide the runtime cell for an ordinary setup-derived value
 when it is safe to reevaluate, has exactly one eager view consumer, and either
