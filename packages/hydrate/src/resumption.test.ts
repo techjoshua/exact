@@ -56,9 +56,7 @@ describe('@exactjs/hydrate component resumption', () => {
 	});
 
 	it('mounts a fresh route when the browser location changes before SSR adoption', async () => {
-		function InitialPage() {
-			return () => createVNode('p', null, 'initial');
-		}
+		const InitialPage = resumablePage('component:PrerenderedRoute', 'initial');
 		const NavigatedPage = resumablePage('component:PreHydrationRoute', 'navigated');
 		const implementation = function Shell(
 			this: Component<{}>,

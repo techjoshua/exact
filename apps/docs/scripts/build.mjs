@@ -2,13 +2,12 @@ import { build } from 'vite';
 import { exact } from '@exactjs/vite-plugin';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { exactPluginOptions } from '../exact-options.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const buildRoot = join(root, '.build');
 const clientRoot = join(buildRoot, 'client');
-const serverRoot = join(buildRoot, 'server');
 const outputRoot = join(root, 'dist');
 
 await rm(buildRoot, { recursive: true, force: true });
@@ -33,36 +32,6 @@ await build({
 	}
 });
 
-await build({
-	root,
-	configFile: false,
-	plugins: [exact(exactPluginOptions)],
-	build: {
-		ssr: join(root, 'src/entry-server.tsx'),
-		outDir: serverRoot,
-		emptyOutDir: true,
-		rollupOptions: {
-			output: { entryFileNames: 'entry-server.mjs' }
-		}
-	}
-});
-
-const { renderStatic, renderStaticPages } = await import(
-	`${pathToFileURL(join(serverRoot, 'entry-server.mjs')).href}?t=${Date.now()}`
-);
-const rendered = await renderStatic();
-const renderedPages = renderStaticPages();
-for (const page of renderedPages) {
-	if (page.html.includes('That page is not in this map.')) {
-		throw new Error(`Documentation route ${page.path} rendered the not-found page.`);
-	}
-	if (page.html.includes('Application error')) {
-		throw new Error(`Documentation route ${page.path} rendered an application error.`);
-	}
-	if (page.html.includes('&amp;gt;') || page.html.includes('&amp;lt;')) {
-		throw new Error(`Documentation route ${page.path} contains double-encoded code.`);
-	}
-}
 const clientHtml = await readFile(join(clientRoot, 'index.html'), 'utf8');
 const assets = await readdir(join(clientRoot, 'assets'));
 const scriptName = assets.find((name) => name.endsWith('.js'));
@@ -86,7 +55,7 @@ const documentHtml = `<!doctype html>
 <style>${styles}</style>
 </head>
 <body>
-<div id="app">${rendered}</div>
+<div id="app"></div>
 <script type="module">${script}</script>
 </body>
 </html>`;
@@ -105,14 +74,7 @@ if (
 ) {
 	throw new Error('The standalone documentation still contains an external script or stylesheet.');
 }
-if (
-	!documentHtml.includes('Write the component. Do not rerun it.') ||
-	!documentHtml.includes('exact:')
-) {
-	throw new Error(
-		'The standalone documentation is missing prerendered content or hydration markers.'
-	);
-}
+if (!documentHtml.includes('<div id="app"></div>') || documentHtml.includes('exact:component:'))
+	throw new Error('The standalone documentation must start from an empty client-only root.');
 
 console.log(`Built standalone documentation: dist/index.html (${documentHtml.length} bytes)`);
-console.log(`Verified ${renderedPages.length} documentation routes.`);

@@ -17,6 +17,10 @@ Registry entry keys
 are component identities: retain same-key ranges, replace different-key ranges, and discard stale
 lazy candidates without disturbing compatible siblings.
 
+Authorize `withComponentResumption()` only around construction whose SSR marker matches the
+component's compiler contract identity. Do not carry that authority through rendering or into
+mismatch recovery; fresh mounts must never consume a hydration domain's remaining records.
+
 For instrumented builds, use the weak root registry and `createExactDomInspectionHost()` for late
 attachment, logical element ownership, and highlighting. Remove disposed roots immediately and
 restore authored element styles on disconnect. Keep compiler-generated cell wrappers transparent

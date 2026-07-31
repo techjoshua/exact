@@ -13,10 +13,10 @@ nested mismatch inside its owned component range; do not remount an otherwise co
 accept an authored display name as identity.
 
 Treat eager resumption adoption as a transaction. Checkpoint the ordered
-resumption resolver before attempting DOM adoption and roll it back before a
-fallback mount. Keep activation authority scoped to the successful adoption or
-fallback-mount transaction; never let unused or exhausted SSR records affect
-components created later by routing or reactive client updates. Accept only
+resumption resolver before attempting DOM adoption and roll it back after a
+failed attempt. Let only a compiler-identity-matched DOM adoption boundary
+authorize component construction to consume a record; never let mismatched,
+unused, or exhausted records affect routing or reactive client mounts. Accept only
 validated generated invocation metadata from serialized hydration configuration.
 
 Carry the installed inspection owner through hydration and resumption domains. Correlate

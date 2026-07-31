@@ -1,4 +1,4 @@
-import { readExactComponentContract, type VNode } from '@exactjs/core';
+import { exactComponentIdentity, readExactComponentContract, type VNode } from '@exactjs/core';
 import { isReactive, isReactiveValue, peek, unwrap } from '@exactjs/reactive';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
@@ -249,4 +249,14 @@ export function getComponentProps(vnode: VNode): Record<string, unknown> {
 /** Performs the component name domain operation. */
 export function componentName(type: VNode['type']): string {
 	return typeof type === 'function' ? type.name || 'anonymous' : String(type);
+}
+
+/** Returns the stable protocol identity embedded in a hydratable component marker. */
+export function componentMarkerIdentity(type: VNode['type']): string {
+	return typeof type === 'function' ? exactComponentIdentity(type) : String(type);
+}
+
+/** Allocates one component marker from its compiler identity and authored key. */
+export function componentMarkerId(context: SsrContext, vnode: VNode): string {
+	return markerId(context, 'component', componentMarkerIdentity(vnode.type), vnode.key);
 }

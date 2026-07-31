@@ -1,4 +1,9 @@
-import { decodeExactMarkerPart, type ComponentInstance, type VNode } from '@exactjs/core';
+import {
+	decodeExactMarkerPart,
+	exactComponentIdentity,
+	type ComponentInstance,
+	type VNode
+} from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
 
 import { describeVNodeType } from '../../debug.js';
@@ -22,7 +27,10 @@ export function stopFailedAdoption(scope: EffectScope): undefined {
 export function componentMarkerMatchesType(marker: Comment, type: VNode['type']): boolean {
 	const parts = marker.data.split(':');
 	if (parts.length < 4 || parts[0] !== 'exact' || parts[1] !== 'component') return true;
-	return decodeExactMarkerPart(parts[3]!) === describeVNodeType(type);
+	return (
+		decodeExactMarkerPart(parts[3]!) ===
+		(typeof type === 'function' ? exactComponentIdentity(type) : describeVNodeType(type))
+	);
 }
 
 /** Locates a complete component marker pair and compares its optional named identity. */

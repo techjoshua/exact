@@ -16,9 +16,9 @@ compiler-declared state and shared context, and settled server work is armed wit
 duplicate run.
 
 Resumable SSR component ranges hydrate eagerly. They first attempt static DOM
-adoption; a mismatch rolls back any activation records consumed by that attempt
-before mounting fresh DOM. Resumption records are scoped to that adoption or
-fallback-mount transaction; components created later by routing, conditional
+adoption; a mismatch rolls back any activation records consumed by that attempt.
+Only construction for a marker-matched component may consume its compiler-identified
+record. Mismatched ranges and components created later by routing, conditional
 views, or other client updates initialize fresh client state. Generated
 continuation descriptors retain task/action kind and invocation concurrency
 metadata when read from serialized config.
@@ -28,8 +28,8 @@ component-state, and public-context changes under the task generation signal. Th
 readiness boundary publishes that response atomically or discards it when the generation is stale.
 
 Invoked task continuations return their validated result through the existing response envelope and
-carry invocation generations for stale-commit fencing. Named component markers validate registry
-and selected-entry identity; a nested mismatch mounts only that component range and preserves
+carry invocation generations for stale-commit fencing. Component markers validate compiler
+contract identity, including registry and selected-entry identity; a nested mismatch mounts only that component range and preserves
 compatible adopted siblings.
 
 ## Interaction hydration

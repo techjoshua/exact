@@ -41,8 +41,9 @@ From the repository root:
 npm run dev -w @exactjs/docs
 ```
 
-Development uses Vite and mounts directly into its empty document root. The production build
-additionally prerenders the initial documentation route and hydrates that existing markup.
+Development and production both mount directly into an empty document root. The standalone
+GitHub Pages artifact is intentionally client-only; SSR and hydration are demonstrated and tested
+by their owning framework packages and server-capable applications.
 
 The Vite integration uses the same native-only compiler path as generated applications. npm
 selects one platform-specific `exactc-native` package; the docs app does not carry a JavaScript
@@ -54,18 +55,15 @@ compiler fallback.
 npm run build -w @exactjs/docs
 ```
 
-The build performs two eXact compilations:
-
-1. A browser bundle containing routing, theme controls, search, demos, and hydration.
-2. An SSR bundle used only during the build to render the initial route with hydration markers.
-
-It then embeds the browser JavaScript and extracted CSS into the prerendered document. Temporary build directories are removed. The only final artifact is:
+The build compiles the browser application, then embeds its JavaScript and extracted CSS into an
+empty application document. Temporary build directories are removed. The only final artifact is:
 
 ```text
 apps/docs/dist/index.html
 ```
 
-The build fails if the output contains an external script or stylesheet, if more than one output file is present, or if prerendered content and hydration markers are missing.
+The build fails if the output contains an external script or stylesheet, if more than one output
+file is present, or if the application root contains prerendered component markers.
 
 ## Verify
 

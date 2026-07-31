@@ -1,6 +1,5 @@
 import {
 	Activity,
-	createComponentInstance,
 	Dynamic,
 	Fragment,
 	isCellVNode,
@@ -12,14 +11,12 @@ import {
 	unwrap,
 	watch,
 	type Child,
-	type ComponentFunction,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
 import {
-	getComponentProps,
 	getListBinding,
 	materializeList,
 	stopRemovedListChildren,
@@ -49,6 +46,7 @@ import {
 } from './boundaries.js';
 import { adoptKeyedListChildren } from './keyed.js';
 import { normalizeAdoptionVNode } from './normalization.js';
+import { constructAdoptedComponent } from './construction.js';
 
 /** Performs the adopt static mounted inner domain operation. */
 export function adoptStaticMountedInner(
@@ -66,13 +64,7 @@ export function adoptStaticMountedInner(
 			const mounted: Mounted = { vnode, dom: undefined as never, scope, children: [] };
 			try {
 				const instance = withEffectScope(scope, () =>
-					createComponentInstance(
-						vnode.type as ComponentFunction<any, Record<string, unknown>>,
-						getComponentProps(vnode),
-						parentInstance,
-						undefined,
-						vnode.domain ?? parentInstance?.domain
-					)
+					constructAdoptedComponent(vnode, parentInstance)
 				);
 				ownMountedInstance(mounted, instance);
 				const rendered = withEffectScope(scope, () =>
@@ -135,13 +127,7 @@ export function adoptStaticMountedInner(
 		const mounted: Mounted = { vnode, dom: start, end: nodes[endIndex]!, scope, children: [] };
 		try {
 			const instance = withEffectScope(scope, () =>
-				createComponentInstance(
-					vnode.type as ComponentFunction<any, Record<string, unknown>>,
-					getComponentProps(vnode),
-					parentInstance,
-					undefined,
-					vnode.domain ?? parentInstance?.domain
-				)
+				constructAdoptedComponent(vnode, parentInstance)
 			);
 			ownMountedInstance(mounted, instance);
 			const rendered = withEffectScope(scope, () =>

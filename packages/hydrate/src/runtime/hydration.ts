@@ -16,12 +16,7 @@ import { resolveHydrateOptions } from '../config.js';
 import { reportMismatch } from '../patches.js';
 import type { HydrateOptions, HydrateProfileEvent, HydrationRoot } from '../types.js';
 import { createExactClient, remainingDomWork } from './client.js';
-import {
-	checkpointComponentResumptions,
-	commitComponentResumptions,
-	rollbackComponentResumptions,
-	withComponentResumptions
-} from './resumption.js';
+import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
 import { roots } from './state.js';
 
 /** Hydrates a server-rendered container and returns ownership of its client root. */
@@ -128,7 +123,6 @@ function adoptOrMountRoot(
 	if (documentNode) {
 		const checkpoint = checkpointComponentResumptions(domain);
 		if (adoptDocumentRoot(vnode, documentNode, rendererOptions(options, work))) {
-			commitComponentResumptions(domain, checkpoint);
 			return 'adopted';
 		}
 		rollbackComponentResumptions(domain, checkpoint);
@@ -148,7 +142,6 @@ function adoptOrMountRoot(
 				? adoptMarkerlessComponentRoot(vnode, container, rendererOptions(options, work))
 				: false;
 		if (adopted) {
-			commitComponentResumptions(domain, checkpoint);
 			return 'adopted';
 		}
 		rollbackComponentResumptions(domain, checkpoint);
@@ -159,7 +152,7 @@ function adoptOrMountRoot(
 				: 'missing exact hydration markers',
 			options.allowMarkerless ? 'adoption-mismatch' : 'missing-markers'
 		);
-		mountFreshRoot(vnode, container, options, work, domain);
+		mountFreshRoot(vnode, container, options, work);
 		return 'mounted';
 	}
 	const checkpoint = checkpointComponentResumptions(domain);
@@ -169,13 +162,12 @@ function adoptOrMountRoot(
 			: adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work)) &&
 				adoptStatic(vnode, container, rendererOptions(options, work));
 	if (adopted) {
-		commitComponentResumptions(domain, checkpoint);
 		return 'adopted';
 	}
 	rollbackComponentResumptions(domain, checkpoint);
 	// Clear the SSR range before mounting so a failed adoption cannot leave a
 	// duplicate interactive tree beside stale server markup.
-	mountFreshRoot(vnode, container, options, work, domain);
+	mountFreshRoot(vnode, container, options, work);
 	return 'mounted';
 }
 
@@ -184,11 +176,10 @@ function mountFreshRoot(
 	vnode: VNode,
 	container: Element,
 	options: HydrateOptions,
-	work: DomWorkBudget,
-	domain: ComponentDomain
+	work: DomWorkBudget
 ): void {
 	container.replaceChildren();
-	withComponentResumptions(domain, () => render(vnode, container, rendererOptions(options, work)));
+	render(vnode, container, rendererOptions(options, work));
 }
 
 /** Creates renderer options against the one shared hydration traversal budget. */

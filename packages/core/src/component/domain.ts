@@ -9,6 +9,7 @@ import type {
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
 
 let activeDomain: ComponentDomain | undefined;
+const resumingDomains = new WeakMap<ComponentDomain, number>();
 
 /** The default execution namespace for ordinary page-authored component instances. */
 export const pageComponentDomain = createComponentDomain('page');
@@ -63,6 +64,26 @@ export function withComponentDomain<T>(domain: ComponentDomain, work: () => T): 
 	} finally {
 		activeDomain = previous;
 	}
+}
+
+/** Runs component construction with permission to consume this domain's SSR activation. */
+export function withComponentResumption<T>(domain: ComponentDomain, work: () => T): T {
+	const depth = resumingDomains.get(domain) ?? 0;
+	resumingDomains.set(domain, depth + 1);
+	try {
+		return work();
+	} finally {
+		if (depth === 0) resumingDomains.delete(domain);
+		else resumingDomains.set(domain, depth);
+	}
+}
+
+/** Resolves SSR state only for construction explicitly authorized by an adoption boundary. */
+export function resolveComponentResumption(
+	domain: ComponentDomain,
+	type: ComponentFunction<any, any>
+): ComponentResumptionActivation | undefined {
+	return resumingDomains.has(domain) ? domain.resumeComponent?.(type) : undefined;
 }
 
 /** Returns the domain currently responsible for authored VNode creation. */

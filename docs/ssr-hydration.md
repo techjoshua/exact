@@ -32,11 +32,11 @@ Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
 
-Component resumption records authorize state restoration only while hydration
-adopts an SSR range or mounts its mismatch fallback. Once that synchronous
-transaction completes, components introduced by routing, conditional views, or
-other browser updates are ordinary fresh client instances; exhausted SSR records
-cannot claim them.
+Component resumption records authorize state restoration only when the DOM
+renderer has matched an SSR component marker and is constructing that exact
+component for adoption. Compiled markers use the same contract identity as
+resumption records. Mismatched route or conditional ranges mount as fresh client
+instances, even while compatible ancestors continue adopting.
 
 Finite component-registry selections retain the registry binding, selected
 key, and opaque compiled entry identity in their component marker. A matching

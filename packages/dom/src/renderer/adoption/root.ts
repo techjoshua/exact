@@ -1,12 +1,5 @@
-import {
-	createComponentInstance,
-	createVNode,
-	renderInstance,
-	type ComponentFunction,
-	type VNode
-} from '@exactjs/core';
+import { createComponentInstance, createVNode, renderInstance, type VNode } from '@exactjs/core';
 import { createEffectScope, withEffectScope } from '@exactjs/reactive';
-import { getComponentProps } from '../../children.js';
 import { clearDelegated } from '../../events.js';
 import { roots } from '../../state.js';
 import type { Mounted, RenderOptions, Root } from '../../types.js';
@@ -23,6 +16,7 @@ import { createDomErrorContext, createRootBoundary } from '../root-support.js';
 import { unmountMounted } from '../teardown.js';
 import { adoptStaticChildren, boundaryMarkers, contentNodesBetween } from './boundaries.js';
 import { componentMarkerMatchesType } from './identity.js';
+import { constructAdoptedComponent } from './construction.js';
 
 /** Performs the adopt static domain operation. */
 export function adoptStatic(
@@ -137,13 +131,7 @@ export function adoptComponentRoot(
 		return withDomWork(root, () => {
 			countDomWork(root);
 			const instance = withEffectScope(scope, () =>
-				createComponentInstance(
-					vnode.type as ComponentFunction<any, Record<string, unknown>>,
-					getComponentProps(vnode),
-					options.logicalParent,
-					undefined,
-					vnode.domain
-				)
+				constructAdoptedComponent(vnode, options.logicalParent)
 			);
 			ownMountedInstance(mounted, instance);
 			const rendered = withEffectScope(scope, () =>
@@ -216,13 +204,7 @@ export function adoptMarkerlessComponentRoot(
 		return withDomWork(root, () => {
 			countDomWork(root);
 			const instance = withEffectScope(scope, () =>
-				createComponentInstance(
-					vnode.type as ComponentFunction<any, Record<string, unknown>>,
-					getComponentProps(vnode),
-					options.logicalParent,
-					undefined,
-					vnode.domain
-				)
+				constructAdoptedComponent(vnode, options.logicalParent)
 			);
 			ownMountedInstance(mounted, instance);
 			const rendered = withEffectScope(scope, () =>

@@ -20,6 +20,10 @@ Hydratable results expose the same public component resumption activations seria
 hydration script. Server-only context and resources may influence permitted HTML but never enter
 that client record.
 
+Compiled component markers carry the same contract ID used by resumption records. This lets the
+DOM renderer authorize state restoration only after it has identified the exact component range;
+uncompiled components retain their function name as the fallback identity.
+
 An SSR-rendered nested component with a distributed continuation is enclosed
 in an eager client boundary containing a detached, JSON-safe snapshot of its
 authored activation props. An ordinary state-only resumption remains part of

@@ -101,8 +101,9 @@ operation; generated code owns the transport plumbing.
 Task bodies are placement boundaries, not component-setup effects. A component that renders on the
 server while owning client tasks and server continuations emits both roots: SSR records its public
 resumption state, hydration eagerly adopts that component range, and invoked continuation values
-remain intact through batched or streamed transport. Resumption authority ends with initial DOM
-adoption or its mismatch fallback, so components mounted later by client routing start normally.
+remain intact through batched or streamed transport. Compiled SSR markers and resumption records
+share one contract identity, and only marker-matched adoption construction may restore that state;
+mismatch replacements and components mounted later by client routing start normally.
 
 eXact deliberately uses familiar TSX without adopting React's runtime architecture. React
 compatibility is available for React-owned libraries and migration boundaries, while native eXact

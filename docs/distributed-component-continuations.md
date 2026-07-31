@@ -96,10 +96,10 @@ Task placement does not contaminate indivisible component setup placement. When
 an otherwise isomorphic component owns client tasks plus server continuations,
 the compiler emits client and server roots, registers the resumable client
 root, and SSR encloses the rendered component range in an eager resumption
-boundary. If static adoption fails, hydration restores the resumption cursor
-before mounting the fallback so the same activation is consumed exactly once.
-The resolver closes that activation transaction afterward, so a later route or
-conditional client mount cannot be mistaken for missing SSR output.
+boundary. The DOM renderer authorizes resumption only after the component marker's
+compiler identity matches the client component. If adoption fails, hydration
+restores the ordered resumption cursor; mismatched nested ranges and later route
+or conditional mounts remain fresh client construction.
 
 Invoked continuation return values use the same validated result envelope for
 single, batched, and NDJSON-streamed requests. A streaming transport may split

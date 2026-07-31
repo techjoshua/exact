@@ -1,16 +1,16 @@
 import {
 	readExactComponentContract,
+	withComponentResumption,
 	type ComponentDomain,
 	type ComponentFunction,
 	type ComponentResumptionActivation
 } from '@exactjs/core';
 
-/** Ordered resolver with transaction checkpoints for fallible DOM adoption. */
+/** Ordered resolver with checkpoints for fallible DOM adoption. */
 export type ComponentResumptionResolver = ((
 	type: ComponentFunction<any, any>
 ) => ComponentResumptionActivation | undefined) & {
 	checkpoint(): number;
-	commit(checkpoint: number): void;
 	rollback(checkpoint: number): void;
 };
 
@@ -21,25 +21,17 @@ export function createComponentResumptionResolver(
 	records: () => readonly ComponentResumptionActivation[] | undefined
 ): ComponentResumptionResolver {
 	let index = 0;
-	const checkpoints: number[] = [];
 	const resolve = ((type: ComponentFunction<any, any>) => {
-		// Resumption records authorize only an active SSR adoption attempt. Components
-		// created later by routing or ordinary reactive updates are fresh client work.
-		if (checkpoints.length === 0) return undefined;
 		const contract = readExactComponentContract(type);
 		if (!contract?.resumption) return undefined;
 		const available = records();
-		if (!available?.length) return undefined;
+		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
 		const record = available[index];
-		// A changed URL or conditional may select a new client component before the
-		// SSR tree finishes adopting. Exhaustion means that component has no server
-		// activation; records that are present remain ordered and strictly validated.
-		if (!record) return undefined;
-		if (record.componentId !== contract.id) {
+		if (!record) throw new Error(`eXact SSR resumption is missing component ${contract.id}`);
+		if (record.componentId !== contract.id)
 			throw new Error(
 				`eXact SSR resumption expected component ${record.componentId}, received ${contract.id}`
 			);
-		}
 		const allowedPaths = new Set(contract.resumption.statePaths);
 		for (const path of Object.keys(record.values)) {
 			if (!allowedPaths.has(path))
@@ -64,20 +56,12 @@ export function createComponentResumptionResolver(
 		index++;
 		return record;
 	}) as ComponentResumptionResolver;
-	resolve.checkpoint = () => {
-		checkpoints.push(index);
-		return index;
-	};
-	resolve.commit = (checkpoint) => finishCheckpoint(checkpoint, false);
-	resolve.rollback = (checkpoint) => finishCheckpoint(checkpoint, true);
-	function finishCheckpoint(checkpoint: number, rollback: boolean): void {
+	resolve.checkpoint = () => index;
+	resolve.rollback = (checkpoint) => {
 		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > index)
 			throw new Error('Malformed eXact component resumption checkpoint');
-		const activeCheckpoint = checkpoints.pop();
-		if (activeCheckpoint !== checkpoint)
-			throw new Error('Malformed eXact component resumption checkpoint');
-		if (rollback) index = checkpoint;
-	}
+		index = checkpoint;
+	};
 	return resolve;
 }
 
@@ -94,20 +78,13 @@ export function checkpointComponentResumptions(domain: ComponentDomain): number 
 	return resolvers.get(domain)?.checkpoint() ?? 0;
 }
 
-/** Commits activations consumed by a successful DOM adoption attempt. */
-export function commitComponentResumptions(domain: ComponentDomain, checkpoint: number): void {
-	resolvers.get(domain)?.commit(checkpoint);
-}
-
-/** Runs one fallback mount with SSR activations scoped to that synchronous construction. */
-export function withComponentResumptions<T>(domain: ComponentDomain, work: () => T): T {
+/** Retries a known component fallback with its rolled-back SSR activations. */
+export function withComponentResumptionFallback<T>(domain: ComponentDomain, work: () => T): T {
 	const resolver = resolvers.get(domain);
 	if (!resolver) return work();
 	const checkpoint = resolver.checkpoint();
 	try {
-		const result = work();
-		resolver.commit(checkpoint);
-		return result;
+		return withComponentResumption(domain, work);
 	} catch (error) {
 		resolver.rollback(checkpoint);
 		throw error;
