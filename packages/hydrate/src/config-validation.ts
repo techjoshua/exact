@@ -44,13 +44,13 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 	return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** Validates serialized action and boundary endpoint routing maps. */
+/** Validates serialized invocation and boundary endpoint routing maps. */
 export function isEndpointRoutes(value: unknown): value is ExactEndpointRoutes {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const record = value as Record<string, unknown>;
-	if (!hasOnlyKeys(record, ['actions', 'boundaries'])) return false;
+	if (!hasOnlyKeys(record, ['invocations', 'boundaries'])) return false;
 	return (
-		(record.actions === undefined || isEndpointMap(record.actions)) &&
+		(record.invocations === undefined || isEndpointMap(record.invocations)) &&
 		(record.boundaries === undefined || isEndpointMap(record.boundaries))
 	);
 }
@@ -93,7 +93,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 			'serverContextWrites',
 			'boundaries'
 		]) &&
-		(record.kind === undefined || record.kind === 'task' || record.kind === 'action') &&
+		record.kind === 'task' &&
 		typeof record.id === 'string' &&
 		typeof record.componentId === 'string' &&
 		(record.readiness === 'blocking' || record.readiness === 'nonblocking') &&

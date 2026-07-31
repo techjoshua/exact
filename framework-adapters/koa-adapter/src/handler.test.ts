@@ -10,10 +10,10 @@ describe('@exactjs/koa-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: (_input, context) => ({
 					state: {
 						runtime: 'koa',
@@ -23,14 +23,14 @@ describe('@exactjs/koa-adapter', () => {
 				})
 			}
 		});
-		const ctx = createKoaContext({ type: 'action', id: 'save' });
+		const ctx = createKoaContext({ type: 'invoke', id: 'save' });
 
 		await middleware(ctx);
 
 		expect(ctx.status).toBe(200);
 		expect(JSON.parse(String(ctx.body))).toEqual({
 			ok: true,
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			state: {
 				runtime: 'koa',
@@ -45,7 +45,7 @@ describe('@exactjs/koa-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: {},
+				invocations: {},
 				boundaries: {}
 			}
 		});
@@ -67,15 +67,15 @@ describe('@exactjs/koa-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: () => ({ state: { ok: true } })
 			}
 		});
 		const ctx = createKoaContext(undefined);
-		ctx.request.rawBody = JSON.stringify({ type: 'action', id: 'save' });
+		ctx.request.rawBody = JSON.stringify({ type: 'invoke', id: 'save' });
 		const headers = new Map<string, string>();
 		ctx.set = (name, value) => headers.set(name, value);
 
@@ -92,10 +92,10 @@ describe('@exactjs/koa-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { wait: stateAction('wait') },
+				invocations: { wait: stateAction('wait') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				wait: async (_input, context) => {
 					actionSignal = context.signal!;
 					await new Promise<void>((resolve) =>
@@ -105,7 +105,7 @@ describe('@exactjs/koa-adapter', () => {
 				}
 			}
 		});
-		const ctx = createKoaContext({ type: 'action', id: 'wait' });
+		const ctx = createKoaContext({ type: 'invoke', id: 'wait' });
 		ctx.res = response;
 		const pending = middleware(ctx);
 

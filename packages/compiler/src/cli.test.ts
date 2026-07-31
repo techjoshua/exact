@@ -62,18 +62,7 @@ describe('exactc', { timeout: 15_000 }, () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-      function Page(this: Component<{ title?: string; width?: number }>) {
-        this.task(async () => {
-          this.state.title = await readFile("title.txt", "utf8");
-        });
-        this.task(() => {
-          this.state.width = window.innerWidth;
-        });
-        return () => <h1>{this.state.title}</h1>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      function Page(this: Component<{ title?: string; width?: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => {\n          this.state.title = await readFile("title.txt", "utf8");\n        };\nrunFixtureTask();\n        const runFixtureTask2 = (_task: TaskContext = TaskContext.latest()) => {\n          this.state.width = window.innerWidth;\n        };\nrunFixtureTask2();\n        return () => <h1>{this.state.title}</h1>;\n      }\n    '
 		);
 
 		await execFileAsync(process.execPath, [
@@ -180,18 +169,7 @@ describe('exactc', { timeout: 15_000 }, () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-      function Page(this: Component<{ title?: string; width?: number }>) {
-        this.task.server(async () => {
-          this.state.title = await readFile("title.txt", "utf8");
-        });
-        this.task.client(() => {
-          this.state.width = window.innerWidth;
-        });
-        return () => <h1>{this.state.title}</h1>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      function Page(this: Component<{ title?: string; width?: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("title.txt", "utf8");\n        };\nrunFixtureTask();\n        const runFixtureTask2 = (_task: TaskContext = TaskContext.client()) => {\n          this.state.width = window.innerWidth;\n        };\nrunFixtureTask2();\n        return () => <h1>{this.state.title}</h1>;\n      }\n    '
 		);
 
 		await execFileAsync(process.execPath, [
@@ -224,15 +202,7 @@ describe('exactc', { timeout: 15_000 }, () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-      export function Page(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("page.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      export function Page(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("page.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		await execFileAsync(process.execPath, [

@@ -15,7 +15,7 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/core',
 				purpose:
-					'Components, state ownership, context, tasks, actions, finite registries, lifecycle, and errors.'
+					'Components, state ownership, context, function-defined tasks, interactions, finite registries, lifecycle, and errors.'
 			},
 			{
 				name: '@exactjs/dom',
@@ -50,7 +50,7 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/compiler',
 				purpose:
-					'Native analysis and artifacts for reactivity, actions, registries, placement, and the exactc CLI.'
+					'Native analysis and artifacts for reactivity, tasks, registries, placement, and the exactc CLI.'
 			},
 			{
 				name: '@exactjs/language-server',

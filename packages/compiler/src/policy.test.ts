@@ -7,17 +7,7 @@ const fixture = (name: string) => path.join(process.cwd(), `${name}.policy-fixtu
 describe('generic data policy IR', () => {
 	it('records explicit fields and inferred shared island transfers', () => {
 		const manifest = analyzeSource(
-			`
-      import type { Component } from "@exactjs/core";
-      interface State {
-        /** @exact keep=server */ internal: string;
-        title: string;
-      }
-      export function Panel(this: Component<State>) {
-        this.task.server(() => { this.state.title = "ready"; });
-        return () => <button title={this.state.title} onClick={() => this.state.title = "next"} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import type { Component } from "@exactjs/core";\n      interface State {\n        /** @exact keep=server */ internal: string;\n        title: string;\n      }\n      export function Panel(this: Component<State>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.server()) => { this.state.title = "ready"; };\nrunFixtureTask();\n        return () => <button title={this.state.title} onClick={() => this.state.title = "next"} />;\n      }\n    ',
 			{ filename: fixture('manifest') }
 		);
 
@@ -224,16 +214,7 @@ describe('generic data policy IR', () => {
 
 	it('uses protected state reads as task placement effects', () => {
 		const manifest = analyzeSource(
-			`
-      import type { Component } from "@exactjs/core";
-      interface State {
-        /** @exact keep=server */ internal: string;
-      }
-      export function Panel(this: Component<State>) {
-        this.task(() => { void this.state.internal; });
-        return () => <p>Ready</p>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import type { Component } from "@exactjs/core";\n      interface State {\n        /** @exact keep=server */ internal: string;\n      }\n      export function Panel(this: Component<State>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { void this.state.internal; };\nrunFixtureTask();\n        return () => <p>Ready</p>;\n      }\n    ',
 			{ filename: fixture('task-placement') }
 		);
 
@@ -243,17 +224,7 @@ describe('generic data policy IR', () => {
 	it('rejects explicit client tasks that access server-kept contexts', () => {
 		expect(() =>
 			transform(
-				`
-      import { createContext, type Component } from "@exactjs/core";
-      export const AuthorizationContext = createContext<{ hasRole(role: string): boolean }>(
-        "authorization",
-        { global: true, keep: "server", scope: "request" }
-      );
-      export function Panel(this: Component<{}>) {
-        this.task.client(() => { this.getContext(AuthorizationContext); });
-        return () => <p>Ready</p>;
-      }
-    `,
+				'import { TaskContext } from "@exactjs/core";\n\n      import { createContext, type Component } from "@exactjs/core";\n      export const AuthorizationContext = createContext<{ hasRole(role: string): boolean }>(\n        "authorization",\n        { global: true, keep: "server", scope: "request" }\n      );\n      export function Panel(this: Component<{}>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.client()) => { this.getContext(AuthorizationContext); };\nrunFixtureTask();\n        return () => <p>Ready</p>;\n      }\n    ',
 				{ filename: fixture('context-placement'), target: 'client' }
 			)
 		).toThrow('client task reads or writes server-kept data');

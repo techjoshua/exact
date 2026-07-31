@@ -85,15 +85,7 @@ describe('symbol-level placement inference', () => {
 
 	it('propagates server effects through local helper chains', () => {
 		const manifest = analyzeSource(
-			`
-      import { readFile } from "node:fs/promises";
-      function read() { return readFile("title.txt", "utf8"); }
-      function load() { return read(); }
-      export function Page(this: Component<{ title?: string }>) {
-        this.task(async () => { this.state.title = await load(); });
-        return () => <p>{this.state.title}</p>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      function read() { return readFile("title.txt", "utf8"); }\n      function load() { return read(); }\n      export function Page(this: Component<{ title?: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => { this.state.title = await load(); };\nrunFixtureTask();\n        return () => <p>{this.state.title}</p>;\n      }\n    ',
 			{ filename: 'C:/src/Page.tsx' }
 		);
 		const task = manifest.components[0]!.tasks[0]!;
@@ -108,14 +100,7 @@ describe('symbol-level placement inference', () => {
 
 	it('converges recursive summaries without growing diagnostic paths', () => {
 		const manifest = analyzeSource(
-			`
-      function left(value: number): number { return value ? right(value - 1) : process.pid; }
-      function right(value: number): number { return left(value); }
-      export function Page(this: Component<{ value?: number }>) {
-        this.task(() => { this.state.value = right(2); });
-        return () => <p />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      function left(value: number): number { return value ? right(value - 1) : process.pid; }\n      function right(value: number): number { return left(value); }\n      export function Page(this: Component<{ value?: number }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = right(2); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/Recursive.tsx' }
 		);
 		const task = manifest.components[0]!.tasks[0]!;
@@ -126,13 +111,7 @@ describe('symbol-level placement inference', () => {
 	it('requires an explicit task boundary for opaque imported calls', () => {
 		expect(() =>
 			transform(
-				`
-      import { inspect } from "opaque-package";
-      function Page(this: Component<{ value?: string }>) {
-        this.task(() => { this.state.value = inspect(); });
-        return () => <p />;
-      }
-    `,
+				'import { TaskContext } from "@exactjs/core";\n\n      import { inspect } from "opaque-package";\n      function Page(this: Component<{ value?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = inspect(); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 				{ filename: 'C:/src/Opaque.tsx' }
 			)
 		).toThrow('task placement depends on an opaque call');
@@ -141,13 +120,7 @@ describe('symbol-level placement inference', () => {
 	it('does not silently neutralize unresolved dynamic dispatch', () => {
 		expect(() =>
 			transform(
-				`
-      function invoke(callback: () => string) { return callback(); }
-      export function Page(this: Component<{ value?: string }>, props: { callback: () => string }) {
-        this.task(() => { this.state.value = invoke(props.callback); });
-        return () => <p />;
-      }
-    `,
+				'import { TaskContext } from "@exactjs/core";\n\n      function invoke(callback: () => string) { return callback(); }\n      export function Page(this: Component<{ value?: string }>, props: { callback: () => string }) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = invoke(props.callback); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 				{ filename: 'C:/src/dynamic.tsx' }
 			)
 		).toThrow('task placement depends on an opaque call');
@@ -155,13 +128,7 @@ describe('symbol-level placement inference', () => {
 
 	it('keeps unknown calls visible when a known effect already restricts placement', () => {
 		const manifest = analyzeSource(
-			`
-      function invoke(callback: () => string) { return process.env.VALUE ?? callback(); }
-      export function Page(this: Component<{ value?: string }>, props: { callback: () => string }) {
-        this.task(() => { this.state.value = invoke(props.callback); });
-        return () => <p />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      function invoke(callback: () => string) { return process.env.VALUE ?? callback(); }\n      export function Page(this: Component<{ value?: string }>, props: { callback: () => string }) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = invoke(props.callback); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/restricted-unknown.tsx' }
 		);
 		expect(manifest.components[0]!.tasks[0]).toMatchObject({
@@ -200,13 +167,7 @@ describe('symbol-level placement inference', () => {
 			importedManifests: [provider]
 		});
 		const manifest = analyzeSource(
-			`
-      import * as rates from "./barrel.js";
-      export function Page(this: Component<{ value?: string }>) {
-        this.task(() => { this.state.value = rates.getQuote(); });
-        return () => <p />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import * as rates from "./barrel.js";\n      export function Page(this: Component<{ value?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = rates.getQuote(); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/Page.tsx', importedManifests: [provider, barrel] }
 		);
 		expect(manifest.components[0]!.tasks[0]!.placement).toBe('server');
@@ -266,14 +227,7 @@ describe('symbol-level placement inference', () => {
 
 	it('resolves methods with known receivers and callable aliases', () => {
 		const manifest = analyzeSource(
-			`
-      const registry = { quote() { return process.env.RATE; } };
-      const quote = registry.quote;
-      export function Page(this: Component<{ direct?: string; alias?: string }>) {
-        this.task(() => { this.state.direct = registry.quote(); this.state.alias = quote(); });
-        return () => <p />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      const registry = { quote() { return process.env.RATE; } };\n      const quote = registry.quote;\n      export function Page(this: Component<{ direct?: string; alias?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.direct = registry.quote(); this.state.alias = quote(); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/methods.tsx' }
 		);
 		expect(manifest.components[0]!.tasks[0]!.placement).toBe('server');
@@ -282,14 +236,7 @@ describe('symbol-level placement inference', () => {
 
 	it('maps state effects through helper parameters and preserves unknown receiver flow', () => {
 		const exact = analyzeSource(
-			`
-      function assign(owner: Component<{ value?: string }>) { owner.state.value = "ready"; }
-      function forward(owner: Component<{ value?: string }>) { assign(owner); }
-      export function Page(this: Component<{ value?: string }>) {
-        this.task(() => forward(this));
-        return () => <p />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      function assign(owner: Component<{ value?: string }>) { owner.state.value = "ready"; }\n      function forward(owner: Component<{ value?: string }>) { assign(owner); }\n      export function Page(this: Component<{ value?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => forward(this);\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/state-flow.tsx' }
 		);
 		expect(exact.components[0]!.tasks[0]!.writes).toContainEqual(
@@ -301,13 +248,7 @@ describe('symbol-level placement inference', () => {
 		);
 
 		const broad = analyzeSource(
-			`
-      function assign(owner: Component<{ value?: string }>) { owner.state.value = "ready"; }
-      export function Page(this: Component<{ value?: string }>) {
-        this.task(() => assign({} as Component<{ value?: string }>));
-        return () => <p />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      function assign(owner: Component<{ value?: string }>) { owner.state.value = "ready"; }\n      export function Page(this: Component<{ value?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => assign({} as Component<{ value?: string }>);\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/state-flow-unknown.tsx' }
 		);
 		expect(broad.components[0]!.tasks[0]!.writes).toContainEqual(
@@ -389,13 +330,7 @@ describe('symbol-level placement inference', () => {
 		const pageFile = path.join(root, 'Page.tsx');
 		await writeFile(
 			pageFile,
-			`
-      import { quote } from "./provider.js";
-      export function Page(this: Component<{ value?: string }>) {
-        this.task(() => { this.state.value = quote(); });
-        return () => <p />;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { quote } from "./provider.js";\n      export function Page(this: Component<{ value?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = quote(); };\nrunFixtureTask();\n        return () => <p />;\n      }\n    '
 		);
 		const [compiled] = await compileProjectArtifacts([pageFile], {
 			rootDir: root,
@@ -428,7 +363,7 @@ describe('symbol-level placement inference', () => {
 		await writeFile(provider, `export function value() { return process.env.VALUE; }`);
 		await writeFile(
 			page,
-			`import { value } from "./provider.js"; export function Page(this: Component<{ value?: string }>) { this.task(() => { this.state.value = value(); }); return () => <p />; }`
+			'import { TaskContext } from "@exactjs/core";\nimport { value } from "./provider.js"; export function Page(this: Component<{ value?: string }>) { const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { this.state.value = value(); };\nrunFixtureTask(); return () => <p />; }'
 		);
 		const artifactOptions = {
 			rootDir: root,

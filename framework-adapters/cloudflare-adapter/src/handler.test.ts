@@ -9,10 +9,10 @@ describe('@exactjs/cloudflare-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: (_input, context) => {
 					const platform = context.platformRequest as {
 						env: { name: string };
@@ -33,7 +33,7 @@ describe('@exactjs/cloudflare-adapter', () => {
 		const response = await handler(
 			new Request('https://example.com/__exact', {
 				method: 'POST',
-				body: JSON.stringify({ type: 'action', id: 'save' })
+				body: JSON.stringify({ type: 'invoke', id: 'save' })
 			}),
 			{ name: 'production' },
 			{ requestId: 'cf-1' }
@@ -42,7 +42,7 @@ describe('@exactjs/cloudflare-adapter', () => {
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({
 			ok: true,
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			state: {
 				runtime: 'cloudflare',

@@ -16,9 +16,9 @@ describe('@exactjs/server batching', () => {
 					type: 'batch',
 					version: 1,
 					operations: [
-						{ type: 'action', id: 'allowed-action', payload: { title: 'Ready' } },
+						{ type: 'invoke', id: 'allowed-action', payload: { title: 'Ready' } },
 						{ type: 'refresh', id: 'allowed-boundary' },
-						{ type: 'action', id: 'missing-action' }
+						{ type: 'invoke', id: 'missing-action' }
 					]
 				}
 			},
@@ -32,7 +32,7 @@ describe('@exactjs/server batching', () => {
 			results: [
 				{
 					ok: true,
-					type: 'action',
+					type: 'invoke',
 					id: 'allowed-action',
 					patches: [{ type: 'text', id: 'title', value: 'Ready' }]
 				},
@@ -44,7 +44,7 @@ describe('@exactjs/server batching', () => {
 				},
 				{
 					ok: false,
-					type: 'action',
+					type: 'invoke',
 					id: 'missing-action',
 					status: 404,
 					error: 'not_found'
@@ -66,14 +66,14 @@ describe('@exactjs/server batching', () => {
 				body: {
 					type: 'batch',
 					operations: [
-						{ type: 'action', id: 'allowed-action', opId: 'slow' },
+						{ type: 'invoke', id: 'allowed-action', opId: 'slow' },
 						{ type: 'refresh', id: 'allowed-boundary', opId: 'fast' }
 					]
 				}
 			},
 			context({
 				contract: actionStateContract('slow'),
-				actions: {
+				invocations: {
 					'allowed-action': async () => {
 						started.push('slow');
 						await slow;
@@ -98,7 +98,7 @@ describe('@exactjs/server batching', () => {
 			ok: true,
 			version: 1,
 			results: [
-				{ ok: true, type: 'action', id: 'allowed-action', opId: 'slow', state: { slow: true } },
+				{ ok: true, type: 'invoke', id: 'allowed-action', opId: 'slow', state: { slow: true } },
 				{ ok: true, type: 'refresh', id: 'allowed-boundary', opId: 'fast', state: { fast: true } }
 			]
 		});
@@ -109,8 +109,8 @@ describe('@exactjs/server batching', () => {
 		let siblingSettled = false;
 		const request = { method: 'POST' };
 		const operations = [
-			{ type: 'action' as const, id: 'fail', opId: 'fail' },
-			{ type: 'action' as const, id: 'sibling', opId: 'sibling' }
+			{ type: 'invoke' as const, id: 'fail', opId: 'fail' },
+			{ type: 'invoke' as const, id: 'sibling', opId: 'sibling' }
 		];
 		await expect(
 			dispatchExactBatch(request, operations, context(), async (ownedRequest, operation) => {
@@ -145,8 +145,8 @@ describe('@exactjs/server batching', () => {
 				body: {
 					type: 'batch',
 					operations: [
-						{ type: 'action', id: 'allowed-action' },
-						{ type: 'action', id: 'allowed-action' }
+						{ type: 'invoke', id: 'allowed-action' },
+						{ type: 'invoke', id: 'allowed-action' }
 					]
 				}
 			},
@@ -166,7 +166,7 @@ describe('@exactjs/server batching', () => {
 				body: {
 					type: 'batch',
 					operations: Array.from({ length: 6 }, (_, index) => ({
-						type: 'action',
+						type: 'invoke',
 						id: 'allowed-action',
 						opId: `op-${index}`
 					}))
@@ -174,7 +174,7 @@ describe('@exactjs/server batching', () => {
 			},
 			context({
 				limits: { maxBatchConcurrency: 2 },
-				actions: {
+				invocations: {
 					'allowed-action': async () => {
 						active++;
 						peak = Math.max(peak, active);
@@ -205,14 +205,14 @@ describe('@exactjs/server batching', () => {
 				body: {
 					type: 'batch',
 					operations: [
-						{ type: 'action', id: 'allowed-action', opId: 'slow' },
+						{ type: 'invoke', id: 'allowed-action', opId: 'slow' },
 						{ type: 'refresh', id: 'allowed-boundary', opId: 'fast' }
 					]
 				}
 			},
 			context({
 				contract: actionStateContract('slow'),
-				actions: {
+				invocations: {
 					'allowed-action': async () => {
 						await slow;
 						return { state: { slow: true } };
@@ -252,7 +252,7 @@ describe('@exactjs/server batching', () => {
 				event: 'state',
 				version: 1,
 				index: 0,
-				type: 'action',
+				type: 'invoke',
 				id: 'allowed-action',
 				opId: 'slow',
 				value: { slow: true }
@@ -261,7 +261,7 @@ describe('@exactjs/server batching', () => {
 				event: 'result',
 				version: 1,
 				index: 0,
-				result: { ok: true, type: 'action', id: 'allowed-action', opId: 'slow' }
+				result: { ok: true, type: 'invoke', id: 'allowed-action', opId: 'slow' }
 			},
 			{ event: 'complete', version: 1 }
 		]);
@@ -275,7 +275,7 @@ describe('@exactjs/server batching', () => {
 				body: {
 					type: 'batch',
 					operations: [
-						{ type: 'action', id: 'missing-action', opId: 'save' },
+						{ type: 'invoke', id: 'missing-action', opId: 'save' },
 						{ type: 'refresh', id: 'allowed-boundary', opId: 'refresh', dependsOn: ['save'] }
 					]
 				}
@@ -295,7 +295,7 @@ describe('@exactjs/server batching', () => {
 			results: [
 				{
 					ok: false,
-					type: 'action',
+					type: 'invoke',
 					id: 'missing-action',
 					opId: 'save',
 					status: 404,
@@ -320,7 +320,7 @@ describe('@exactjs/server batching', () => {
 				body: {
 					type: 'batch',
 					operations: [
-						{ type: 'action', id: 'allowed-action', opId: 'save', payload: { title: 'Ready' } },
+						{ type: 'invoke', id: 'allowed-action', opId: 'save', payload: { title: 'Ready' } },
 						{ type: 'refresh', id: 'allowed-boundary', opId: 'refresh', dependsOn: ['save'] }
 					]
 				}
@@ -335,7 +335,7 @@ describe('@exactjs/server batching', () => {
 			results: [
 				{
 					ok: true,
-					type: 'action',
+					type: 'invoke',
 					id: 'allowed-action',
 					opId: 'save'
 				},
@@ -356,12 +356,12 @@ describe('@exactjs/server batching', () => {
 				method: 'POST',
 				body: {
 					type: 'batch',
-					operations: [{ type: 'action', id: 'allowed-action' }],
+					operations: [{ type: 'invoke', id: 'allowed-action' }],
 					module: '../server/private'
 				}
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': action
 				}
 			})
@@ -379,13 +379,13 @@ describe('@exactjs/server batching', () => {
 				body: {
 					type: 'batch',
 					operations: [
-						{ type: 'action', id: 'allowed-action', opId: 'save' },
-						{ type: 'action', id: 'allowed-action', opId: 'save' }
+						{ type: 'invoke', id: 'allowed-action', opId: 'save' },
+						{ type: 'invoke', id: 'allowed-action', opId: 'save' }
 					]
 				}
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': action
 				}
 			})
@@ -403,11 +403,11 @@ describe('@exactjs/server batching', () => {
 				method: 'POST',
 				body: {
 					type: 'batch',
-					operations: [{ type: 'action', id: 'allowed-action' }]
+					operations: [{ type: 'invoke', id: 'allowed-action' }]
 				}
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': action
 				},
 				authorize: (_request, input) => input.type !== 'batch'
@@ -422,7 +422,7 @@ describe('@exactjs/server batching', () => {
 function actionStateContract(path: string) {
 	return {
 		version: 1 as const,
-		actions: {
+		invocations: {
 			'allowed-action': defineExactOperationContract('allowed-action', {
 				writes: [{ path, kind: 'write', confidence: 'exact' }]
 			})

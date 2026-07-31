@@ -6,18 +6,18 @@ Implemented for the repository's current framework, package, application, and
 documentation scope. The versioned task ABI, durable owners and keyed lanes,
 task invocation and status, setup activation, opaque framework frame SPI,
 structured settlement, cancellation, cleanup, optimism, atomic reservations,
-function discovery and lowering, server task frames, neutral public operation
+function discovery and lowering, server task frames, neutral invocation
 contracts, unified DevTools queries, and language-tool task synthetics and
 reversible refactors are verified through the native compiler and package
-distribution. Legacy registration machinery remains internal only for
-historical regression fixtures; it is not a public declaration, generated
-output contract, or source-compatibility promise.
+distribution. The former component task/action registration runtimes,
+compiler lowering, declarations, inspection records, and authored fixtures
+have been removed.
 
 The function-defined task model is authoritative. There is no source
 compatibility requirement for `this.task(...)`, `this.action(...)`,
 `ActionContext`, or component-action types because every current framework
-consumer is in this repository. The existing wire tag may remain internal
-until a behavioral protocol change justifies a version. This proposal
+consumer is in this repository. Distributed work uses the neutral `invoke`
+protocol discriminator. This proposal
 supersedes the separate authored task/action model described in
 [`coordinated-actions-and-forms.md`](coordinated-actions-and-forms.md), while
 retaining its concurrency, optimistic-state, form, router, security, and
@@ -1287,9 +1287,8 @@ Authored `using` retains lexical JavaScript disposal semantics. The compiler
 must never double-register it. When ownership cannot be proven, a diagnostic
 offers `task.own(...)` rather than guessing.
 
-Returning a cleanup function from legacy `this.task` work remains supported
-only by the migration adapter. New function-defined tasks use
-`task.cleanup(...)`; an ordinary returned function is ordinary result data.
+Function-defined tasks use `task.cleanup(...)`; an ordinary returned function
+is ordinary result data. There is no legacy cleanup-return adapter.
 
 ### Optimistic work
 

@@ -124,8 +124,8 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 			assertActive();
 			return applyPatches(container, patches, runtimeOptions);
 		},
-		invokeAction(id, payload) {
-			return run(() => invokeAndApply(container, client, 'action', id, payload, runtimeOptions));
+		invokeTask(id, payload) {
+			return run(() => invokeAndApply(container, client, 'invoke', id, payload, runtimeOptions));
 		},
 		refreshBoundary(id, payload) {
 			return run(() => invokeAndApply(container, client, 'refresh', id, payload, runtimeOptions));
@@ -178,7 +178,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 		runtimeOptions.executionRoot ?? 'page',
 		(request) =>
 			run(() =>
-				invokeAndApply(container, client, 'action', request.id, undefined, runtimeOptions, {
+				invokeAndApply(container, client, 'invoke', request.id, undefined, runtimeOptions, {
 					instance: request.instance,
 					dependencies: request.dependencies,
 					contextWrites: request.contextWrites,

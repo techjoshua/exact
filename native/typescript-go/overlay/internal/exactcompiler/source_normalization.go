@@ -864,17 +864,7 @@ func collectAuthoredSetupAssignmentExecutions(
 		}
 		locals := analyzeComponentComputationLocals(candidate.node, statements, environment)
 		for _, statement := range statements {
-			if isAuthoredTaskStatement(statement) {
-				continue
-			}
-			hasInferredTask := false
-			for _, await := range collectDirectComponentAwaits(statement) {
-				if !isAwaitedComponentTask(await) {
-					hasInferredTask = true
-					break
-				}
-			}
-			if hasInferredTask {
+			if len(collectDirectComponentAwaits(statement)) != 0 {
 				continue
 			}
 			effects := inspectComponentComputationStatement(statement, locals)
@@ -938,10 +928,8 @@ func planComponentComputationEdits(
 	asyncModifier := componentAsyncModifier(component)
 	hasRawAwait := false
 	for _, statement := range statements {
-		for _, await := range collectDirectComponentAwaits(statement) {
-			if !isAwaitedComponentTask(await) {
-				hasRawAwait = true
-			}
+		if len(collectDirectComponentAwaits(statement)) != 0 {
+			hasRawAwait = true
 		}
 	}
 	if asyncModifier != nil && hasRawAwait {
@@ -957,8 +945,7 @@ func planComponentComputationEdits(
 	locals := analyzeComponentComputationLocals(component, statements, environment)
 	computations := []componentComputation{}
 	for _, statement := range statements {
-		if isAuthoredTaskStatement(statement) ||
-			isComponentStateInitialization(statement) {
+		if isComponentStateInitialization(statement) {
 			continue
 		}
 		effects := inspectComponentComputationStatement(statement, locals)
@@ -974,18 +961,19 @@ func planComponentComputationEdits(
 	}
 	for _, computation := range computations {
 		start := nodeTokenStart(sourceFile, computation.statement)
+		name := fmt.Sprintf("__exactComponentComputation_%d", start)
 		*edits = append(
 			*edits,
 			sourceEdit{
 				start: start,
 				end:   start,
-				text:  "this.task(() => { ",
+				text:  "function " + name + "() { ",
 				order: 0,
 			},
 			sourceEdit{
 				start: computation.statement.End(),
 				end:   computation.statement.End(),
-				text:  " });",
+				text:  " } " + name + "();",
 				order: 1,
 			},
 		)
@@ -1017,15 +1005,6 @@ func isComponentStateInitialization(statement *ast.Node) bool {
 		len(componentComputationStateTargets(
 			expression.AsBinaryExpression().Left,
 		)) != 0
-}
-
-func isAuthoredTaskStatement(statement *ast.Node) bool {
-	if !ast.IsExpressionStatement(statement) {
-		return false
-	}
-	expression := statement.AsExpressionStatement().Expression
-	return ast.IsCallExpression(expression) &&
-		isComponentTaskExpression(expression.AsCallExpression().Expression)
 }
 
 func validateSynchronousComputationCycles(
@@ -1503,24 +1482,6 @@ func collectDirectComponentAwaits(root *ast.Node) []*ast.Node {
 	return result
 }
 
-func isAwaitedComponentTask(await *ast.Node) bool {
-	expression := await.AsAwaitExpression().Expression
-	return ast.IsCallExpression(expression) &&
-		isComponentTaskExpression(expression.AsCallExpression().Expression)
-}
-
-func isComponentTaskExpression(expression *ast.Node) bool {
-	current := expression
-	for ast.IsPropertyAccessExpression(current) {
-		member := current.AsPropertyAccessExpression()
-		if member.Expression.Kind == ast.KindThisKeyword {
-			return member.Name() != nil && member.Name().Text() == "task"
-		}
-		current = member.Expression
-	}
-	return false
-}
-
 func planAsyncComponentComputation(
 	sourceFile *ast.SourceFile,
 	setupStatements []*ast.Node,
@@ -1538,8 +1499,15 @@ func planAsyncComponentComputation(
 	}
 	first := statements[0]
 	last := statements[len(statements)-1]
+	name := fmt.Sprintf("__exactComponentSetupTask_%d", nodeTokenStart(sourceFile, first))
 	*edits = append(
 		*edits,
+		sourceEdit{
+			start: 0,
+			end:   0,
+			text:  "import { TaskContext as __exactTaskContext } from \"@exactjs/core\"; ",
+			order: -1,
+		},
 		sourceEdit{
 			start: nodeTokenStart(sourceFile, asyncModifier),
 			end:   asyncModifier.End(),
@@ -1548,13 +1516,14 @@ func planAsyncComponentComputation(
 		sourceEdit{
 			start: nodeTokenStart(sourceFile, first),
 			end:   nodeTokenStart(sourceFile, first),
-			text:  "this.task.blocking(async ({ signal: __exactComponentSignal }) => { ",
+			text: "async function " + name +
+				"(__exactComponentTaskContext: __exactTaskContext = __exactTaskContext.server().blocking()) { ",
 			order: 0,
 		},
 		sourceEdit{
 			start: last.End(),
 			end:   last.End(),
-			text:  " });",
+			text:  " } " + name + "();",
 			order: 1,
 		},
 	)
@@ -1568,7 +1537,8 @@ func planAsyncComponentComputation(
 			*edits = append(*edits, sourceEdit{
 				start: start,
 				end:   start,
-				text:  " if (__exactComponentSignal.aborted) throw __exactComponentSignal.reason;",
+				text: " if (__exactComponentTaskContext.signal.aborted) " +
+					"throw __exactComponentTaskContext.signal.reason;",
 				order: 0,
 			})
 		})
@@ -1624,9 +1594,6 @@ func isFrameworkSetupRegistration(statement *ast.Node) bool {
 		return false
 	}
 	callee := expression.AsCallExpression().Expression
-	if isComponentTaskExpression(callee) {
-		return true
-	}
 	if !ast.IsPropertyAccessExpression(callee) {
 		return false
 	}

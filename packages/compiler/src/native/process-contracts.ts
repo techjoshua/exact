@@ -239,7 +239,7 @@ export type NativeCompilerStateRead = Readonly<{
 /** Describes one compiler-owned cross-runtime task transition. */
 export type NativeCompilerContinuation = Readonly<{
 	id: string;
-	kind: 'task' | 'action';
+	kind: 'task';
 	label?: string;
 	componentId: string;
 	taskId: string;
@@ -374,7 +374,6 @@ export type NativeCompilerAnalysis = Readonly<{
 	reactiveBindings: readonly NativeCompilerReactiveBinding[];
 	callables: readonly NativeCompilerCallable[];
 	tasks: readonly NativeCompilerTask[];
-	actions?: readonly NativeCompilerAction[];
 	exports: readonly NativeCompilerExport[];
 	symbols: readonly NativeCompilerSymbol[];
 	boundaries: readonly NativeCompilerBoundary[];
@@ -385,18 +384,6 @@ export type NativeCompilerAnalysis = Readonly<{
 	requiredCapabilities: NativeCompilerCapabilityRequirements;
 	assets: readonly NativeCompilerAssetDependency[];
 	semanticGraph: NativeCompilerSemanticGraph;
-}>;
-
-/** Compiler-owned identity for one component action registration. */
-export type NativeCompilerAction = Readonly<{
-	id: string;
-	label: string;
-	component: string;
-	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	priority: 'normal' | 'deferred';
-	concurrency: 'parallel' | 'latest' | 'queue';
-	start: number;
-	length: number;
 }>;
 
 /** Process-safe component registry provenance emitted by the native compiler. */

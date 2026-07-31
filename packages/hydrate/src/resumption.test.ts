@@ -2,12 +2,15 @@
  * @vitest-environment jsdom
  */
 import {
+	activateTaskForHost,
 	createContext,
+	defineTask,
 	exactComponentContract,
 	exactComponentType,
 	markComponentContinuationTask,
 	registerComponentContinuationContexts,
-	type Component
+	type Component,
+	type TaskContext
 } from '@exactjs/core';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
@@ -101,13 +104,20 @@ describe('@exactjs/hydrate component resumption', () => {
 		const implementation = function Search(this: Component<{ query: string; result: string }>) {
 			this.state.query = 'first';
 			this.state.result = 'waiting';
-			(this as any).task(
-				this.reactive(() => this.state.query),
-				markComponentContinuationTask('task:search', async (query: string) => {
-					runs++;
-					await Promise.resolve();
-					this.state.result = query.toUpperCase();
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask(
+						'task:search',
+						async (query: string, _task: TaskContext) => {
+							runs++;
+							await Promise.resolve();
+							this.state.result = query.toUpperCase();
+						}
+					)
+				),
+				this.reactive(() => this.state.query)
 			);
 			return () =>
 				createVNode(
@@ -136,6 +146,7 @@ describe('@exactjs/hydrate component resumption', () => {
 					{
 						id: 'task:search',
 						componentId: 'component:Search',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [{ source: 'state' as const }],
 						stateReads: [{ path: 'query', kind: 'read' as const, confidence: 'exact' as const }],
@@ -201,11 +212,15 @@ describe('@exactjs/hydrate component resumption', () => {
 		}
 		const implementation = function Provider(this: Component<{}>) {
 			registerComponentContinuationContexts(this, [{ name: 'Status', token: Status }]);
-			(this as any).task(
-				markComponentContinuationTask('task:status', () => {
-					runs++;
-					this.setContext(Status, { message: 'ready' });
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask('task:status', () => {
+						runs++;
+						this.setContext(Status, { message: 'ready' });
+					})
+				)
 			);
 			return () => createVNode(Consumer, {});
 		};
@@ -220,6 +235,7 @@ describe('@exactjs/hydrate component resumption', () => {
 					{
 						id: 'task:status',
 						componentId: 'component:Provider',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],

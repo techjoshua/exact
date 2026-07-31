@@ -1097,9 +1097,9 @@ func continuationExecutor(
 			contextWrites,
 		),
 	}
-	if continuation.Kind == "action" {
+	if continuation.Invocation != nil {
 		result := factory.NewIdentifier(
-			allocateGeneratedName(used, "__exactActionResult"),
+			allocateGeneratedName(used, "__exactTaskResult"),
 		)
 		statements = append(statements, constStatement(
 			factory,

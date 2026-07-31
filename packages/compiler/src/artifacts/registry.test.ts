@@ -22,16 +22,7 @@ describe('@exactjs/compiler: registries', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -125,16 +116,7 @@ describe('@exactjs/compiler: registries', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -240,16 +222,7 @@ describe('@exactjs/compiler: registries', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -279,16 +252,7 @@ describe('@exactjs/compiler: registries', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number; title: string }>) {
-        this.task.server(async () => {
-          this.state.title = await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number; title: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -338,13 +302,13 @@ describe('@exactjs/compiler: registries', () => {
 
       export function Workspace(this: Component<{ count: number }>) {
         async function load(_task: TaskContext = TaskContext.server()) {
-          return 1;
+		  this.state.count = 1;
         }
-        async function refresh(_task: TaskContext = TaskContext.client()) {
+		function refresh(_task: TaskContext = TaskContext.client()) {
           localStorage.setItem("refreshing", "true");
-          this.state.count = await load();
         }
-        void refresh();
+		load();
+		refresh();
         return () => <output>{this.state.count}</output>;
       }
     `
@@ -509,17 +473,7 @@ describe('@exactjs/compiler: registries', () => {
 
 	it('infers arbitrary dynamic client island props in isomorphic server artifacts', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        const label = String(this.state.count);
-        return () => <button title={label} onClick={() => this.state.count++} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        const label = String(this.state.count);\n        return () => <button title={label} onClick={() => this.state.count++} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
@@ -531,17 +485,7 @@ describe('@exactjs/compiler: registries', () => {
 
 	it('infers aliased state reads for client island snapshots', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ project: { title: string } }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        const project = this.state.project;
-        return () => <button title={project.title} onClick={() => project.title = "Updated"} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ project: { title: string } }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        const project = this.state.project;\n        return () => <button title={project.title} onClick={() => project.title = "Updated"} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
@@ -552,17 +496,7 @@ describe('@exactjs/compiler: registries', () => {
 
 	it('retains whole-object snapshots when a state alias is consumed as a value', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ project: { title: string } }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        const project = this.state.project;
-        return () => <button title={String(project)} onClick={() => save(project)} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ project: { title: string } }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        const project = this.state.project;\n        return () => <button title={String(project)} onClick={() => save(project)} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
@@ -572,18 +506,7 @@ describe('@exactjs/compiler: registries', () => {
 
 	it('infers derived state reads for client island snapshots', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ project: { title: string; owner: string } }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        const title = this.state.project.title;
-        const label = \`\${title} by \${this.state.project.owner}\`;
-        return () => <button title={label} onClick={() => this.state.project.title = "Updated"}>{label}</button>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ project: { title: string; owner: string } }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        const title = this.state.project.title;\n        const label = `${title} by ${this.state.project.owner}`;\n        return () => <button title={label} onClick={() => this.state.project.title = "Updated"}>{label}</button>;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 

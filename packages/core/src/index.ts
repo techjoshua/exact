@@ -63,7 +63,7 @@ export {
 	type ErrorBoundaryFallbackProps,
 	type ErrorBoundaryProps
 } from './component/error-boundary.js';
-export { interactionHandler, type InteractionHandler } from './component/action-contracts.js';
+export { interactionHandler, type InteractionHandler } from './component/interaction-contracts.js';
 export {
 	createExactRuntimeInspectionOwner,
 	inspectExactRuntimeComponent,
@@ -103,7 +103,6 @@ export type {
 	ActivityMode,
 	AsyncComponentFunction,
 	Child,
-	Cleanup,
 	Component,
 	ComponentContinuationContextBinding,
 	ComponentContinuationDispatch,
@@ -112,7 +111,6 @@ export type {
 	ComponentDomain,
 	ComponentFunction,
 	ComponentInstance,
-	ComponentReactiveValue,
 	BlockingWork,
 	ComponentResumptionActivation,
 	ContextToken,
@@ -136,12 +134,8 @@ export type {
 	TaskIdleDeadline,
 	TaskIdleOptions,
 	TaskObserver,
-	TaskPlacementRequest,
-	TaskPolicy,
 	TaskResourceDisposal,
-	TaskResult,
 	UnsafeHtmlAuditEvent,
-	Unwrapped,
 	VNode,
 	VNodeCell,
 	VNodeType
@@ -229,7 +223,6 @@ export {
 } from './symbols.js';
 export { withTaskObserver } from './task/observers.js';
 export {
-	markComponentContinuationAction,
 	markComponentContinuationTask,
 	settledComponentContinuationIds
 } from './task/continuation.js';

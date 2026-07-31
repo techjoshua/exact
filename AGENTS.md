@@ -100,18 +100,19 @@ Props remain parent-owned inputs. Local mutable data belongs in `this.state`; de
 usually remain an ordinary compiler-observed expression or an explicit reactive value when a
 first-class value is useful.
 
-### Actions, interactions, and optimistic state
+### Tasks, interactions, and optimistic state
 
-Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Use
-`this.action()` when work needs a name, inspectable status, direct invocation, an explicit
-placement or priority, a concurrency policy, or synchronous optimistic state. Actions are
-setup-owned component resources; do not register them from render or recreate them per update.
+Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Define a
+function task with a `TaskContext` policy parameter when work needs a name, inspectable status,
+direct invocation, an explicit placement or priority, a concurrency policy, or synchronous
+optimistic state. Function-defined tasks are setup-owned component resources; define them during
+setup and invoke them normally.
 
-Optimistic work mutates `this.state` normally inside the action context's synchronous
+Optimistic work mutates `this.state` normally inside the task context's synchronous
 `optimistic()` callback. Do not introduce reducers, authored patches, shadow stores, or manual
-rollback to imitate another framework. Router work begun synchronously by an event, form, or action
+rollback to imitate another framework. Router work begun synchronously by an event, form, or task
 joins that interaction. Preserve opaque compiler operation identities and generation fencing
-across distributed actions.
+across distributed tasks.
 
 ### Finite component registries
 

@@ -16,6 +16,7 @@ function continuation(
 	return {
 		id,
 		componentId: `test:${id}`,
+		kind: 'task' as const,
 		readiness: 'nonblocking' as const,
 		dependencies: [],
 		stateReads: options.reads ?? [],
@@ -27,7 +28,7 @@ function continuation(
 	};
 }
 
-describe('@exactjs/hydrate action-operations', () => {
+describe('@exactjs/hydrate invocation operations', () => {
 	it('uses continuation descriptors for minimal activation records', async () => {
 		const container = document.createElement('main');
 		container.innerHTML = '<!--exact:profile--><p>Ada</p><!--/exact:profile-->';
@@ -42,6 +43,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					kind: 'task',
 					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
@@ -62,16 +64,16 @@ describe('@exactjs/hydrate action-operations', () => {
 					ok: true,
 					status: 200,
 					async json() {
-						return { ok: true, type: 'action', id: 'save' };
+						return { ok: true, type: 'invoke', id: 'save' };
 					}
 				};
 			}
 		});
 
-		await client.invokeAction('save');
+		await client.invokeTask('save');
 
 		expect(requestBody).toEqual({
-			type: 'action',
+			type: 'invoke',
 			root: 'page',
 			id: 'save',
 			state: { project: { id: 'p1' } },
@@ -96,6 +98,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					kind: 'task',
 					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [],
@@ -112,7 +115,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				async json() {
 					return {
 						ok: true,
-						type: 'action',
+						type: 'invoke',
 						id: 'save',
 						state: { profile: { name: 'After' } }
 					};
@@ -120,7 +123,7 @@ describe('@exactjs/hydrate action-operations', () => {
 			})
 		});
 
-		await client.invokeAction('save');
+		await client.invokeTask('save');
 
 		expect(client.state).toEqual({
 			profile: { name: 'After', role: 'admin' },
@@ -141,6 +144,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					kind: 'task',
 					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [],
@@ -158,7 +162,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				async json() {
 					return {
 						ok: true,
-						type: 'action',
+						type: 'invoke',
 						id: 'save',
 						state: {
 							profile: { name: 'After' },
@@ -170,14 +174,14 @@ describe('@exactjs/hydrate action-operations', () => {
 			})
 		});
 
-		await client.invokeAction('save');
+		await client.invokeTask('save');
 
 		expect(client.state).toEqual({ profile: { name: 'Before' } });
 		expect(container.querySelector('[data-exact-id="other-text"]')?.textContent).toBe('Private');
 		expect(diagnostics).toEqual(['invalid-response']);
 	});
 
-	it('sends configured action boundary snapshots with action invocations', async () => {
+	it('sends configured boundary snapshots with task invocations', async () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<!--exact:profile--><p>Ada</p><!--/exact:profile--><span data-exact-server-slot="profile:children"><em>Child</em></span>';
@@ -195,13 +199,13 @@ describe('@exactjs/hydrate action-operations', () => {
 					ok: true,
 					status: 200,
 					async json() {
-						return { ok: true, type: 'action', id: 'save' };
+						return { ok: true, type: 'invoke', id: 'save' };
 					}
 				};
 			}
 		});
 
-		await client.invokeAction('save');
+		await client.invokeTask('save');
 
 		expect(requestBody.boundaryHtmls).toEqual({
 			profile: '<p>Ada</p>',
@@ -231,19 +235,19 @@ describe('@exactjs/hydrate action-operations', () => {
 		).not.toThrow();
 	});
 
-	it('applies only current boundaries from a partially stale action response', async () => {
+	it('applies only current boundaries from a partially stale invocation response', async () => {
 		const container = document.createElement('div');
 		container.innerHTML = [
 			'<!--exact:left--><span data-exact-id="left-value">Left old</span><!--/exact:left-->',
 			'<!--exact:right--><span data-exact-id="right-value">Right old</span><!--/exact:right-->'
 		].join('');
 		type Response = { ok: true; status: 200; json(): Promise<unknown> };
-		let resolveAction!: (response: Response) => void;
+		let resolveInvocation!: (response: Response) => void;
 		let resolveRefresh!: (response: Response) => void;
 		const fetch = async (_input: string, init: { body: string }) => {
 			const request = JSON.parse(init.body) as { type: string };
 			return await new Promise<Response>((resolve) => {
-				if (request.type === 'action') resolveAction = resolve;
+				if (request.type === 'invoke') resolveInvocation = resolve;
 				else resolveRefresh = resolve;
 			});
 		};
@@ -275,7 +279,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				})
 		});
 
-		const action = client.invokeAction('save');
+		const invocation = client.invokeTask('save');
 		const refresh = client.refreshBoundary('left');
 		await Promise.resolve();
 		resolveRefresh({
@@ -292,13 +296,13 @@ describe('@exactjs/hydrate action-operations', () => {
 			}
 		});
 		await refresh;
-		resolveAction({
+		resolveInvocation({
 			ok: true,
 			status: 200,
 			async json() {
 				return {
 					ok: true,
-					type: 'action',
+					type: 'invoke',
 					id: 'save',
 					patches: [
 						{ type: 'text', id: 'left-value', value: 'Left stale' },
@@ -308,13 +312,13 @@ describe('@exactjs/hydrate action-operations', () => {
 				};
 			}
 		});
-		await action;
+		await invocation;
 
 		expect(container.querySelector('[data-exact-id=left-value]')?.textContent).toBe('Left newest');
 		expect(container.querySelector('[data-exact-id=right-value]')?.textContent).toBe('Right saved');
 		expect(client.state).toEqual({ version: 2 });
 		expect(diagnostics).toEqual([
-			'partially ignored stale exact action response for save (text:left-value)'
+			'partially ignored stale exact invoke response for save (text:left-value)'
 		]);
 		expect(operations).toContainEqual({
 			id: 'save',
@@ -355,7 +359,7 @@ describe('@exactjs/hydrate action-operations', () => {
 		]);
 	});
 
-	it('sends only exact state contract reads for actions when available', async () => {
+	it('sends only exact state contract reads for invocations when available', async () => {
 		const container = document.createElement('div');
 		const requests: unknown[] = [];
 		const fetch = async (_input: string, init: { body: string }) => {
@@ -364,7 +368,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				ok: true,
 				status: 200,
 				async json() {
-					return { ok: true, type: 'action', id: 'save-project' };
+					return { ok: true, type: 'invoke', id: 'save-project' };
 				}
 			};
 		};
@@ -383,11 +387,11 @@ describe('@exactjs/hydrate action-operations', () => {
 			fetch
 		});
 
-		await client.invokeAction('save-project');
+		await client.invokeTask('save-project');
 
 		expect(requests).toEqual([
 			{
-				type: 'action',
+				type: 'invoke',
 				root: 'page',
 				id: 'save-project',
 				state: { project: { id: 'p1' } }
@@ -417,17 +421,17 @@ describe('@exactjs/hydrate action-operations', () => {
 					ok: true,
 					status: 200,
 					async json() {
-						return { ok: true, type: 'action', id: 'save-project' };
+						return { ok: true, type: 'invoke', id: 'save-project' };
 					}
 				};
 			}
 		});
 
-		await client.invokeAction('save-project');
+		await client.invokeTask('save-project');
 
 		expect(requests).toEqual([
 			{
-				type: 'action',
+				type: 'invoke',
 				root: 'page',
 				id: 'save-project',
 				state: { projects: [null, { id: 'p2' }] }
@@ -455,17 +459,17 @@ describe('@exactjs/hydrate action-operations', () => {
 					ok: true,
 					status: 200,
 					async json() {
-						return { ok: true, type: 'action', id: 'save-project' };
+						return { ok: true, type: 'invoke', id: 'save-project' };
 					}
 				};
 			}
 		});
 
-		await client.invokeAction('save-project');
+		await client.invokeTask('save-project');
 
 		expect(requests).toEqual([
 			{
-				type: 'action',
+				type: 'invoke',
 				root: 'page',
 				id: 'save-project',
 				state: { project: { id: 'p1' } }

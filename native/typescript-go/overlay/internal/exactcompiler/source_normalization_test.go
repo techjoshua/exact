@@ -49,11 +49,13 @@ func TestNormalizeAuthoredSourceOwnsDerivedComponentWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(
-		normalized.text,
-		`this.task(() => { this.state.subtotal = this.state.quantity * this.state.price; });`,
-	) {
-		t.Fatalf("derived setup work was not owned by a task:\n%s", normalized.text)
+	for _, expected := range []string{
+		`function __exactComponentComputation_`,
+		`this.state.subtotal = this.state.quantity * this.state.price; } __exactComponentComputation_`,
+	} {
+		if !strings.Contains(normalized.text, expected) {
+			t.Fatalf("derived setup work is missing %q:\n%s", expected, normalized.text)
+		}
 	}
 }
 
@@ -79,8 +81,10 @@ func TestNormalizeAuthoredSourceOwnsAsyncComponentContinuation(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"export  function Customer",
-		"this.task.blocking(async ({ signal: __exactComponentSignal }) => {",
-		"if (__exactComponentSignal.aborted) throw __exactComponentSignal.reason;",
+		"import { TaskContext as __exactTaskContext } from \"@exactjs/core\";",
+		"async function __exactComponentSetupTask_",
+		"__exactComponentTaskContext: __exactTaskContext = __exactTaskContext.server().blocking()",
+		"if (__exactComponentTaskContext.signal.aborted) throw __exactComponentTaskContext.signal.reason;",
 	} {
 		if !strings.Contains(normalized.text, expected) {
 			t.Fatalf("async normalization is missing %q:\n%s", expected, normalized.text)

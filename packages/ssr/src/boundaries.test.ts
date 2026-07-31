@@ -7,7 +7,7 @@ import {
 } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
-	createActionRefreshHandler,
+	createInvocationRefreshHandler,
 	createBoundaryRefreshHandler,
 	createKeyedListRefreshHandler,
 	diffBoundaryHtml,
@@ -32,7 +32,7 @@ describe('@exactjs/ssr boundaries', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {},
+					invocations: {},
 					boundaries: { panel: defineExactBoundaryContract('panel') }
 				},
 				signal: abort.signal
@@ -166,7 +166,7 @@ describe('@exactjs/ssr boundaries', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {},
+					invocations: {},
 					boundaries: {
 						profile: defineExactBoundaryContract('profile')
 					}
@@ -201,7 +201,7 @@ describe('@exactjs/ssr boundaries', () => {
 			{
 				method: 'POST',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'save-profile',
 					boundaryHtmls: {
 						profile: '<p class="old">Loading</p>'
@@ -211,7 +211,7 @@ describe('@exactjs/ssr boundaries', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {
+					invocations: {
 						'save-profile': defineExactOperationContract('save-profile', {
 							writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
 							boundaries: ['profile']
@@ -222,9 +222,9 @@ describe('@exactjs/ssr boundaries', () => {
 						profile: defineExactBoundaryContract('profile')
 					}
 				},
-				actions: {
-					'save-profile': createActionRefreshHandler({
-						action: () => ({ state: { saved: true } }),
+				invocations: {
+					'save-profile': createInvocationRefreshHandler({
+						invoke: () => ({ state: { saved: true } }),
 						boundaries: [
 							{
 								boundaryId: 'profile',
@@ -258,7 +258,7 @@ describe('@exactjs/ssr boundaries', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {},
+					invocations: {},
 					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
@@ -286,7 +286,7 @@ describe('@exactjs/ssr boundaries', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {},
+					invocations: {},
 					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
@@ -327,7 +327,7 @@ describe('@exactjs/ssr boundaries', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {},
+					invocations: {},
 					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
@@ -399,7 +399,7 @@ describe('@exactjs/ssr boundaries', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {},
+					invocations: {},
 					boundaries: { tasks: defineExactBoundaryContract('tasks') }
 				},
 				refreshBoundaries: {

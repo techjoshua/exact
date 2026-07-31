@@ -110,11 +110,13 @@ describe('@exactjs/vite-plugin: transform', () => {
 		const plugin = exact({ target: 'client', reactCompatibility: false });
 		const result = plugin.transform(
 			`
+			import { TaskContext } from "@exactjs/core";
       import { readFile } from "node:fs/promises";
       function Page(this: Component<{ title?: string }>) {
-        this.task(async () => {
+				const loadTitle = async (_task: TaskContext = TaskContext.server()) => {
           this.state.title = await readFile("title.txt", "utf8");
-        });
+				};
+				loadTitle();
         return () => <p>{this.state.title}</p>;
       }
     `,
@@ -159,11 +161,13 @@ describe('@exactjs/vite-plugin: transform', () => {
 		const plugin = exact({ target: 'client', serverComponents: true, reactCompatibility: false });
 		const result = plugin.transform(
 			`
+			import { TaskContext } from "@exactjs/core";
       import { readFile } from "node:fs/promises";
       export function Page(this: Component<{ count: number }>) {
-        this.task.server(async () => {
+				const loadPage = async (_task: TaskContext = TaskContext.server()) => {
           await readFile("page.txt", "utf8");
-        });
+				};
+				loadPage();
         return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
       }
     `,

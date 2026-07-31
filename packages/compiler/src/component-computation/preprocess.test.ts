@@ -11,7 +11,6 @@ describe('@exactjs/compiler component computations', () => {
 		);
 
 		expect(output).toContain('__exactUpdate(this.state, ["name"]');
-		expect(output).not.toContain('this.task(');
 	});
 
 	it('lowers synchronous derived state assignments into owned reactive computations', () => {
@@ -36,7 +35,6 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Counter.tsx' }
 		);
-		expect(output).not.toContain('this.task(');
 		expect(output).toContain('__exactWrite(this.state, ["count"], () => 0)');
 	});
 
@@ -61,7 +59,6 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Editor.tsx' }
 		);
-		expect(output).not.toContain('this.task(');
 		expect(output).toContain('peek(() => props.value)');
 	});
 
@@ -186,7 +183,7 @@ describe('@exactjs/compiler component computations', () => {
 		expect(output).not.toContain('async function Customer');
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(output).toContain('readiness: "blocking"');
-		expect(output).toContain('if (__exactComponentSignal.aborted)');
+		expect(output).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');
 		expect(output).toContain('finally');

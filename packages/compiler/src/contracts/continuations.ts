@@ -31,7 +31,7 @@ export type ExactContinuationEffectsIR = {
 /** Compiler-owned description of one cross-runtime component state-machine transition. */
 export type ExactContinuationIR = {
 	id: string;
-	kind: 'task' | 'action';
+	kind: 'task';
 	/** Authored diagnostic label; never used as a protocol operation identity. */
 	label?: string;
 	componentId: string;

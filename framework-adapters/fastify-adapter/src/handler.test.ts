@@ -10,10 +10,10 @@ describe('@exactjs/fastify-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: (_input, context) => ({
 					state: {
 						runtime: 'fastify',
@@ -30,7 +30,7 @@ describe('@exactjs/fastify-adapter', () => {
 				method: 'POST',
 				url: '/__exact',
 				headers: { host: 'fastify.example.test' },
-				body: { type: 'action', id: 'save' }
+				body: { type: 'invoke', id: 'save' }
 			},
 			reply
 		);
@@ -38,7 +38,7 @@ describe('@exactjs/fastify-adapter', () => {
 		expect(reply.statusCode).toBe(200);
 		expect(JSON.parse(String(reply.body))).toEqual({
 			ok: true,
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			state: {
 				runtime: 'fastify',
@@ -55,10 +55,10 @@ describe('@exactjs/fastify-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { wait: stateAction('wait') },
+				invocations: { wait: stateAction('wait') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				wait: async (_input, context) => {
 					actionSignal = context.signal!;
 					await new Promise<void>((resolve) =>
@@ -75,7 +75,7 @@ describe('@exactjs/fastify-adapter', () => {
 				method: 'POST',
 				url: '/__exact',
 				headers: { host: 'fastify.example.test' },
-				body: { type: 'action', id: 'wait' }
+				body: { type: 'invoke', id: 'wait' }
 			},
 			reply
 		);

@@ -70,7 +70,7 @@ describe('@exactjs/ssr hydration', () => {
 		const script = renderHydrationScript({
 			endpoint: '/__exact',
 			endpoints: {
-				actions: {
+				invocations: {
 					'remote-save': 'https://remote.example/__exact'
 				},
 				boundaries: {
@@ -82,6 +82,7 @@ describe('@exactjs/ssr hydration', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					kind: 'task',
 					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
@@ -118,7 +119,7 @@ describe('@exactjs/ssr hydration', () => {
 		expect(() =>
 			renderHydrationScript({
 				endpoints: {
-					actions: {
+					invocations: {
 						save: (() => '/__exact') as unknown as string
 					}
 				}
@@ -140,6 +141,7 @@ describe('@exactjs/ssr hydration', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					kind: 'task',
 					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'ready', kind: 'read', confidence: 'exact' }],

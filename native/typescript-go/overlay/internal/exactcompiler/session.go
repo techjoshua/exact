@@ -45,7 +45,7 @@ func (s *Session) Execute(request Request) Response {
 		Diagnostics: []Diagnostic{},
 		Analysis: NewAnalysis(
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-			nil, nil, nil, nil,
+			nil, nil, nil,
 			newPolicyManifest(),
 			CapabilityRequirements{},
 			nil,
@@ -197,10 +197,6 @@ func (s *Session) Execute(request Request) Response {
 		sourceFile,
 		generation.checker,
 	)
-	componentActionDiagnostics := actionDiagnostics(
-		sourceFile,
-		generation.checker,
-	)
 	reactiveBindings := collectReactiveBindings(
 		sourceFile,
 		generation.checker,
@@ -249,16 +245,8 @@ func (s *Session) Execute(request Request) Response {
 		)...,
 	)
 	assignTaskIDs(tasks, components, request.ID)
-	actions := collectActions(
-		sourceFile,
-		generation.checker,
-		stateReads,
-		stateWrites,
-		callables,
-	)
-	assignActionIDs(actions, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
-	actions = append(actions, invokedTaskActions(tasks)...)
+	operations := invokedTaskOperations(tasks)
 	components = analyzeComponents(
 		sourceFile,
 		components,
@@ -319,7 +307,7 @@ func (s *Session) Execute(request Request) Response {
 	continuations, resumptions := createContinuationContracts(
 		components,
 		tasks,
-		actions,
+		operations,
 		stateReads,
 		policy,
 		boundaries,
@@ -345,7 +333,6 @@ func (s *Session) Execute(request Request) Response {
 		reactiveBindings,
 		callables.summaries,
 		tasks,
-		actions,
 		exports,
 		symbols,
 		boundaries,
@@ -406,7 +393,6 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
-	response.Diagnostics = append(response.Diagnostics, componentActionDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
@@ -484,7 +470,7 @@ func (s *Session) Execute(request Request) Response {
 		formBindings,
 		components,
 		tasks,
-		actions,
+		operations,
 		continuations,
 		clientIslands,
 		request.Target,
@@ -494,7 +480,7 @@ func (s *Session) Execute(request Request) Response {
 		request.JSXInterop,
 	)
 	// Contract wrapping synthesizes nested component implementations. Retain
-	// target-local import uses observed after task/action lowering so wrapping
+	// target-local import uses observed after task lowering so wrapping
 	// cannot make an authored render-helper reference invisible to import
 	// pruning.
 	targetImportUses := artifactIdentifierUses(transformed)

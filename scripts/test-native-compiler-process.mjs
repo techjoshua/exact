@@ -281,8 +281,10 @@ try {
 		const outDir = path.join(artifactRoot, 'out');
 		await writeFile(
 			input,
-			`export function Panel(this: Component<{ count: number }>) {
-				this.task.server(async () => loadPanel());
+			`import { TaskContext } from '@exactjs/core';
+			export function Panel(this: Component<{ count: number }>) {
+				async function load(_task: TaskContext = TaskContext.server()) { await loadPanel(); }
+				load();
 				return () => <button onClick={() => this.state.count++}>Go</button>;
 			}`
 		);

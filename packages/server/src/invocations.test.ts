@@ -6,13 +6,13 @@ import {
 } from './index.js';
 import { context } from './test-support/server.js';
 
-describe('@exactjs/server actions', () => {
-	it('rejects action boundary snapshots outside the composed contract', async () => {
+describe('@exactjs/server invocations', () => {
+	it('rejects submitted boundary snapshots outside the composed contract', async () => {
 		const result = await handleExactRequest(
 			{
 				method: 'POST',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'save',
 					boundaryHtmls: { other: '<p>Other</p>' }
 				}
@@ -20,7 +20,7 @@ describe('@exactjs/server actions', () => {
 			context({
 				contract: {
 					version: 1,
-					actions: {
+					invocations: {
 						save: defineExactOperationContract('save', { boundaries: ['allowed'] })
 					},
 					boundaries: {
@@ -28,7 +28,7 @@ describe('@exactjs/server actions', () => {
 						other: defineExactBoundaryContract('other')
 					}
 				},
-				actions: { save: () => ({}) }
+				invocations: { save: () => ({}) }
 			})
 		);
 
@@ -40,26 +40,26 @@ describe('@exactjs/server actions', () => {
 		const exactContext = context({
 			contract: {
 				version: 1,
-				actions: {
+				invocations: {
 					save: defineExactOperationContract('save', {
 						reads: [{ path: 'projects.0.id', kind: 'read', confidence: 'exact' }]
 					})
 				},
 				boundaries: {}
 			},
-			actions: { save: () => ({}) }
+			invocations: { save: () => ({}) }
 		});
 		const accepted = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'save', state: { projects: [{ id: 'p1' }] } }
+				body: { type: 'invoke', id: 'save', state: { projects: [{ id: 'p1' }] } }
 			},
 			exactContext
 		);
 		const rejected = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'save', state: { projects: [] } }
+				body: { type: 'invoke', id: 'save', state: { projects: [] } }
 			},
 			exactContext
 		);
@@ -69,11 +69,11 @@ describe('@exactjs/server actions', () => {
 	});
 
 	it('keeps server context resolution out of the client request', async () => {
-		const action = vi.fn(() => ({ state: { ready: true } }));
+		const invocation = vi.fn(() => ({ state: { ready: true } }));
 		const exactContext = context({
 			contract: {
 				version: 1,
-				actions: {
+				invocations: {
 					save: defineExactOperationContract('save', {
 						writes: [{ path: 'ready', kind: 'write', confidence: 'exact' }],
 						serverContexts: ['AuthContext']
@@ -81,17 +81,17 @@ describe('@exactjs/server actions', () => {
 				},
 				boundaries: {}
 			},
-			actions: { save: action }
+			invocations: { save: invocation }
 		});
 		const accepted = await handleExactRequest(
-			{ method: 'POST', body: { type: 'action', id: 'save' } },
+			{ method: 'POST', body: { type: 'invoke', id: 'save' } },
 			exactContext
 		);
 		const submitted = await handleExactRequest(
 			{
 				method: 'POST',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'save',
 					publicContext: { AuthContext: { id: 'u1' } }
 				}
@@ -101,17 +101,17 @@ describe('@exactjs/server actions', () => {
 
 		expect(accepted.status).toBe(200);
 		expect(submitted.status).toBe(400);
-		expect(action).toHaveBeenCalledOnce();
+		expect(invocation).toHaveBeenCalledOnce();
 	});
 
 	it('accepts only compiler-contracted public context projections', async () => {
-		const action = vi.fn((input) => ({
+		const invocation = vi.fn((input) => ({
 			state: { domain: input.publicContext?.PublicConfig }
 		}));
 		const exactContext = context({
 			contract: {
 				version: 1,
-				actions: {
+				invocations: {
 					save: defineExactOperationContract('save', {
 						writes: [{ path: 'domain', kind: 'write', confidence: 'exact' }],
 						publicContexts: ['PublicConfig']
@@ -119,13 +119,13 @@ describe('@exactjs/server actions', () => {
 				},
 				boundaries: {}
 			},
-			actions: { save: action }
+			invocations: { save: invocation }
 		});
 		const accepted = await handleExactRequest(
 			{
 				method: 'POST',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'save',
 					publicContext: { PublicConfig: { domain: 'https://example.test' } }
 				}
@@ -136,7 +136,7 @@ describe('@exactjs/server actions', () => {
 			{
 				method: 'POST',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'save',
 					publicContext: { SecretContext: 'nope' }
 				}
@@ -146,23 +146,23 @@ describe('@exactjs/server actions', () => {
 
 		expect(accepted.status).toBe(200);
 		expect(rejected.status).toBe(400);
-		expect(action).toHaveBeenCalledOnce();
+		expect(invocation).toHaveBeenCalledOnce();
 	});
 
 	it('rejects state outside the compiler-declared response write contract', async () => {
 		const result = await handleExactRequest(
-			{ method: 'POST', body: { type: 'action', id: 'save' } },
+			{ method: 'POST', body: { type: 'invoke', id: 'save' } },
 			context({
 				contract: {
 					version: 1,
-					actions: {
+					invocations: {
 						save: defineExactOperationContract('save', {
 							writes: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }]
 						})
 					},
 					boundaries: {}
 				},
-				actions: {
+				invocations: {
 					save: () => ({
 						state: {
 							profile: { name: 'Ada' },

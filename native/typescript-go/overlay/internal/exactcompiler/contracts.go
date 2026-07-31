@@ -665,7 +665,6 @@ type Analysis struct {
 	ReactiveBindings []ReactiveBinding      `json:"reactiveBindings"`
 	Callables        []CallableSummary      `json:"callables"`
 	Tasks            []Task                 `json:"tasks"`
-	Actions          []Action               `json:"actions"`
 	Exports          []ExportRecord         `json:"exports"`
 	Symbols          []SymbolRecord         `json:"symbols"`
 	Boundaries       []Boundary             `json:"boundaries"`
@@ -690,7 +689,6 @@ func NewAnalysis(
 	reactiveBindings []ReactiveBinding,
 	callables []CallableSummary,
 	tasks []Task,
-	actions []Action,
 	exports []ExportRecord,
 	symbols []SymbolRecord,
 	boundaries []Boundary,
@@ -712,7 +710,6 @@ func NewAnalysis(
 		ReactiveBindings: nonNilSlice(reactiveBindings),
 		Callables:        normalizedCallables(callables),
 		Tasks:            normalizedTasks(tasks),
-		Actions:          normalizedActions(actions),
 		Exports:          nonNilSlice(exports),
 		Symbols:          nonNilSlice(symbols),
 		Boundaries:       nonNilSlice(boundaries),
@@ -726,17 +723,6 @@ func NewAnalysis(
 		Assets:        nonNilSlice(assets),
 		SemanticGraph: normalizedSemanticGraph(semanticGraph),
 	}
-}
-
-func normalizedActions(values []Action) []Action {
-	values = nonNilSlice(values)
-	for index := range values {
-		values[index].Arguments = nonNilSlice(values[index].Arguments)
-		values[index].Reads = nonNilSlice(values[index].Reads)
-		values[index].Writes = nonNilSlice(values[index].Writes)
-		values[index].Contexts = nonNilSlice(values[index].Contexts)
-	}
-	return values
 }
 
 func normalizedComponentRegistries(

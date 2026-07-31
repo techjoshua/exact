@@ -257,7 +257,7 @@ describe('@exactjs/hydrate islands', () => {
 					contract: {
 						version: 1,
 						endpoint: '/__exact',
-						actions: {
+						invocations: {
 							save: defineExactOperationContract('save', {
 								boundaries: ['panel'],
 								writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
@@ -268,7 +268,7 @@ describe('@exactjs/hydrate islands', () => {
 							panel: defineExactBoundaryContract('panel')
 						}
 					},
-					actions: {
+					invocations: {
 						save: () => ({
 							patches: [
 								{
@@ -305,7 +305,7 @@ describe('@exactjs/hydrate islands', () => {
 				Counter_ExactClient_1: Counter
 			})
 		});
-		await client.invokeAction('save');
+		await client.invokeTask('save');
 
 		expect(container.querySelector('button')?.textContent).toBe('8');
 		expect(container.querySelector('[data-exact-client-hydrated="true"]')).not.toBeNull();
@@ -457,7 +457,7 @@ describe('@exactjs/hydrate islands', () => {
 				{
 					contract: {
 						version: 1,
-						actions: {},
+						invocations: {},
 						boundaries: {
 							panel: defineExactBoundaryContract('panel')
 						}
@@ -517,7 +517,7 @@ describe('@exactjs/hydrate islands', () => {
 				{
 					contract: {
 						version: 1,
-						actions: {},
+						invocations: {},
 						boundaries: {
 							panel: defineExactBoundaryContract('panel')
 						}
@@ -577,7 +577,7 @@ describe('@exactjs/hydrate islands', () => {
 				{
 					contract: {
 						version: 1,
-						actions: {},
+						invocations: {},
 						boundaries: {
 							'island-children:children': defineExactBoundaryContract('island-children:children')
 						}

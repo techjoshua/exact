@@ -9,10 +9,10 @@ describe('@exactjs/deno-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: (_input, context) => ({
 					state: {
 						runtime: 'deno',
@@ -26,14 +26,14 @@ describe('@exactjs/deno-adapter', () => {
 		const response = await handler(
 			new Request('https://example.com/__exact', {
 				method: 'POST',
-				body: JSON.stringify({ type: 'action', id: 'save' })
+				body: JSON.stringify({ type: 'invoke', id: 'save' })
 			})
 		);
 
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({
 			ok: true,
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			state: { runtime: 'deno', url: 'https://example.com/__exact', platform: true }
 		});

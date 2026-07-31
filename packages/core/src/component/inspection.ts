@@ -12,8 +12,7 @@ import {
 } from '@exactjs/devtools-protocol';
 import { exactComponentIdentity, isExactComponent } from '../component-contracts.js';
 import { inspectTaskFramesForHost, type TaskFrameInspection } from '../tasks/frame-inspection.js';
-import type { ComponentInstance, TaskRegistration } from './contracts.js';
-import { inspectComponentActions } from './action-api.js';
+import type { ComponentInstance } from './contracts.js';
 
 /** Runtime fields fixed for one build and component-domain owner. */
 export type ExactRuntimeInspectionOwnerOptions = Readonly<{
@@ -166,39 +165,9 @@ export function inspectExactRuntimeComponent(
 		state: owner.preview(component.state, ['state']),
 		contexts: Object.freeze([...(options.contexts ?? inspectContexts(component, owner))]),
 		tasks: Object.freeze([
-			...component.tasks.map((task) => inspectTask(owner, component, task)),
-			...inspectComponentActions(component).map((action) => {
-				const actionId = owner.identity(component, {
-					...(action.sourceEntityId ? { sourceEntityId: action.sourceEntityId } : {}),
-					generation: action.generation
-				})!;
-				return Object.freeze({
-					id: actionId,
-					name: action.name,
-					activation: 'invoked',
-					placement: action.placement === 'inferred' ? 'isomorphic' : action.placement,
-					readiness: action.priority === 'deferred' ? 'nonblocking' : 'blocking',
-					priority: action.priority,
-					concurrency: action.concurrency,
-					status: action.disposed
-						? 'cancelled'
-						: action.pending
-							? 'running'
-							: action.error
-								? 'failed'
-								: action.generation
-									? 'settled'
-									: 'idle',
-					generation: action.generation,
-					pending: action.pendingCount,
-					foreground: action.priority !== 'deferred',
-					structuralPending: action.pending,
-					optimistic: action.optimistic
-				} satisfies ExactTaskRuntimeSnapshot);
-			}),
-			...inspectTaskFramesForHost(component)
-				.filter((frame) => frame.label !== 'action interaction')
-				.map((frame) => inspectTaskFrame(owner, component, frame))
+			...inspectTaskFramesForHost(component).map((frame) =>
+				inspectTaskFrame(owner, component, frame)
+			)
 		]),
 		...(options.activity ? { activity: options.activity } : {}),
 		...(options.suspense ? { suspense: options.suspense } : {}),
@@ -240,7 +209,7 @@ function inspectTaskFrame(
 }
 
 function taskFrameSourceEntityId(frame: TaskFrameInspection): string {
-	return `runtime-task-frame:${frame.id}`;
+	return frame.sourceEntityId ?? `runtime-task-frame:${frame.id}`;
 }
 
 function inspectContexts(
@@ -298,48 +267,6 @@ function resolveInspectedContext(
 	if (component.ambientContexts?.has(token))
 		return Object.freeze({ found: true, value: component.ambientContexts.get(token) });
 	return Object.freeze({ found: false });
-}
-
-function inspectTask(
-	owner: ExactRuntimeInspectionOwner,
-	component: ComponentInstance<any>,
-	task: TaskRegistration
-): ExactTaskRuntimeSnapshot {
-	const id = owner.identity(component, {
-		...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
-		generation: task.generation
-	})!;
-	return Object.freeze({
-		id,
-		activation: task.generation <= 1 ? 'initialization' : 'reactive',
-		placement: task.policy.placement === 'inferred' ? 'unknown' : task.policy.placement,
-		readiness: task.policy.readiness,
-		priority: task.policy.priority,
-		concurrency: 'latest',
-		status: task.stopped
-			? 'cancelled'
-			: task.queuedGeneration !== undefined
-				? 'queued'
-				: task.settlement
-					? 'running'
-					: task.failedGeneration === task.generation
-						? 'failed'
-						: task.completedGeneration === task.generation
-							? 'settled'
-							: 'idle',
-		generation: task.generation,
-		pending:
-			task.settlement && task.policy.readiness === 'blocking' && task.policy.priority !== 'deferred'
-				? 1
-				: 0,
-		foreground: task.policy.readiness === 'blocking' && task.policy.priority !== 'deferred',
-		structuralPending: task.settlement !== undefined,
-		optimistic: false,
-		...(task.completedGeneration === undefined
-			? {}
-			: { completedGeneration: task.completedGeneration }),
-		...(task.failedGeneration === undefined ? {} : { failedGeneration: task.failedGeneration })
-	});
 }
 
 function monotonicTimestamp(): number {

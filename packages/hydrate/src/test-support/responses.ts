@@ -33,6 +33,7 @@ export function testContinuation(
 	return {
 		id,
 		componentId: `test:${id}`,
+		kind: 'task',
 		readiness: options.readiness ?? 'nonblocking',
 		dependencies: options.dependencies ?? [],
 		stateReads: options.reads ?? ([{ path: '*', kind: 'read', confidence: 'exact' }] as const),

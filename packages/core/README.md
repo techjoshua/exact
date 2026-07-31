@@ -5,7 +5,7 @@ Application-authoring primitives and shared runtime contracts for eXact.
 ## Overview
 
 `@exactjs/core` provides component types, contexts, lifecycle APIs, refs, error boundaries,
-Suspense, tasks, actions, and finite component registries. Applications normally combine it with
+Suspense, function-defined tasks, interactions, and finite component registries. Applications normally combine it with
 `@exactjs/jsx`, an eXact compiler integration, and a renderer such as `@exactjs/dom` or
 `@exactjs/ssr`.
 
@@ -31,7 +31,7 @@ re-executing the component.
 
 - Context, refs, lifecycle cleanup, Suspense, Activity, and error boundaries
 - Function-defined tasks with optional `TaskContext` placement and concurrency policy
-- Named actions with status, direct invocation, and synchronous optimistic state
+- Function-defined tasks with status, direct invocation, and synchronous optimistic state
 - `createComponentRegistry()` for finite eager or lazy component selection
 - Shared component, VNode, task, and inspection types used by framework integrations
 

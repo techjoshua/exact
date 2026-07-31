@@ -1,7 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createErrorContext, ErrorContext, type Component } from '@exactjs/core';
+import {
+	activateTaskForHost,
+	createContext,
+	createErrorContext,
+	defineTask,
+	ErrorContext,
+	type Component
+} from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { installExactMatchers, mountTest, testComponent } from './index.js';
 import { installVitestMatchers } from './vitest.js';
@@ -40,10 +47,13 @@ describe('component testing', () => {
 	it('settles retained asynchronous component tasks', async () => {
 		function AsyncPanel(this: Component<{ ready: boolean }>) {
 			this.state.ready = false;
-			(this as any).task(async () => {
-				await Promise.resolve();
-				this.state.ready = true;
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await Promise.resolve();
+					this.state.ready = true;
+				})
+			);
 			return () => createVNode('p', null, this.state.ready ? 'Ready' : 'Waiting');
 		}
 		const view = await testComponent(markTestComponent(AsyncPanel)).mount();

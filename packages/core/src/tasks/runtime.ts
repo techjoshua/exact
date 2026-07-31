@@ -1,14 +1,9 @@
-import {
-	captureReactiveMutations,
-	peek,
-	reactive,
-	rollbackReactiveMutationJournals,
-	scheduleWork
-} from '@exactjs/reactive';
+import { peek, reactive, rollbackReactiveMutationJournals, scheduleWork } from '@exactjs/reactive';
 
-import { isPromiseLike } from '../component/async-value.js';
 import { InteractionCancellation } from '../interaction/execution.js';
 import { inheritComponentContinuationIdentity } from '../task/continuation.js';
+import { discardTaskMutations, publishTaskMutations } from '../task/resources.js';
+import { readExactInspectionSource } from '../component/inspection-source.js';
 import type {
 	BoundTaskFunction,
 	RuntimeTaskOptions,
@@ -32,6 +27,7 @@ import {
 import { taskOwnerForHost } from './owner-hosts.js';
 import { TaskInvocationValue } from './invocation.js';
 import { validateTaskOptions } from './options.js';
+import { applyTaskOptimistic } from './optimism.js';
 import { donateTaskPriority, taskWorkPriority } from './priority.js';
 import { createTaskStatus, defineTaskStatusProperties } from './status.js';
 import type {
@@ -53,6 +49,7 @@ type TaskDefinition<Args extends unknown[], Result> = {
 	readonly [taskDefinitionBrand]: true;
 	readonly options: RuntimeTaskOptions<Args>;
 	readonly implementation: (...args: [...Args, TaskContext]) => Result | Promise<Result>;
+	readonly sourceEntityId?: string;
 	readonly owners: WeakMap<TaskOwnerRecord, InternalTaskOwnerState<Result>>;
 };
 
@@ -67,10 +64,12 @@ export function defineTask<Args extends unknown[], Result>(
 	validateTaskOptions(options);
 	if (typeof implementation !== 'function')
 		throw new TypeError('defineTask() requires an implementation function');
+	const sourceEntityId = readExactInspectionSource(implementation);
 	const definition: TaskDefinition<Args, Awaited<Result>> = {
 		[taskDefinitionBrand]: true,
 		options,
 		implementation: implementation as TaskDefinition<Args, Awaited<Result>>['implementation'],
+		...(sourceEntityId ? { sourceEntityId } : {}),
 		owners: new WeakMap()
 	};
 	const callable = ((...args: Args) =>
@@ -222,6 +221,17 @@ function invokeDefinition<Args extends unknown[], Result>(
 	};
 	owner.settlements.add(promise);
 	owner.observeSettlement?.(promise);
+	if (foreground && owner.registerReadiness) {
+		record.readinessRegistration = owner.registerReadiness(
+			generation,
+			promise,
+			() => publishTaskMutations(controller.signal),
+			() => discardTaskMutations(controller.signal)
+		);
+		controller.signal.addEventListener('abort', () => record.readinessRegistration?.cancel(), {
+			once: true
+		});
+	}
 	void promise.finally(() => owner.settlements.delete(promise)).catch(() => undefined);
 	lane.active.add(record);
 	if (foreground) {
@@ -262,12 +272,13 @@ function startGeneration<Args extends unknown[], Result>(
 					generation: record.generation,
 					activation: record.activation,
 					label: definition.options.label,
+					sourceEntityId: definition.sourceEntityId,
 					placement: definition.options.placement,
 					concurrency: definition.options.concurrency,
 					detached: definition.options.detached,
 					priority: record.priority,
 					readiness: record.readiness,
-					optimistic: (work) => applyOptimistic(record, definition.options.concurrency, work),
+					optimistic: (work) => applyTaskOptimistic(record, definition.options.concurrency, work),
 					propagateFailure: () => !record.observed
 				},
 				(context) =>
@@ -284,6 +295,7 @@ function startGeneration<Args extends unknown[], Result>(
 	void execution.then(
 		(value) => {
 			for (const journal of record.journals) journal.discard();
+			if (!record.readinessRegistration) publishTaskMutations(record.controller.signal);
 			if (record.generation >= state.generation) {
 				state.generation = record.generation;
 				state.result = value;
@@ -299,6 +311,8 @@ function startGeneration<Args extends unknown[], Result>(
 		},
 		(error) => {
 			rollbackReactiveMutationJournals(record.journals);
+			discardTaskMutations(record.controller.signal);
+			record.readinessRegistration?.cancel();
 			if (record.generation >= state.generation) {
 				state.generation = record.generation;
 				if (!(error instanceof InteractionCancellation)) state.error = error;
@@ -342,24 +356,6 @@ function pumpLane<Args extends unknown[], Result>(
 	if (next) startGeneration(definition, owner, state, lane, next);
 }
 
-function applyOptimistic<Result>(
-	record: InternalTaskGeneration<Result>,
-	concurrency: RuntimeTaskOptions<unknown[]>['concurrency'],
-	work: () => void
-): void {
-	if ((concurrency ?? 'parallel') === 'parallel')
-		throw new Error('Optimistic state requires a latest or queue task');
-	let returned: unknown;
-	const journal = captureReactiveMutations(() => {
-		returned = work();
-	});
-	if (isPromiseLike(returned)) {
-		journal.rollback();
-		throw new TypeError('TaskContext.optimistic() requires a synchronous callback');
-	}
-	record.journals.push(journal);
-}
-
 function ownerState<Args extends unknown[], Result>(
 	definition: TaskDefinition<Args, Result>,
 	owner: TaskOwnerRecord
@@ -401,6 +397,7 @@ function taskLane<Result>(
 
 function cancelLane<Result>(lane: InternalTaskLane<Result>, reason: unknown): void {
 	for (const record of lane.active) {
+		record.readinessRegistration?.cancel();
 		rollbackReactiveMutationJournals(record.journals);
 		record.journals.length = 0;
 		record.controller.abort(reason);

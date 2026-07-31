@@ -1,5 +1,5 @@
 import { activateTaskForHost, defineTask, type Component, type TaskContext } from '@exactjs/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
 
@@ -8,9 +8,12 @@ describe('@exactjs/ssr ownership', () => {
 		let taskSignal: AbortSignal | undefined;
 		let unmounted = 0;
 		function Owned(this: Component<{}>) {
-			(this as any).task(({ signal }: { signal: AbortSignal }) => {
-				taskSignal = signal;
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, (_task: TaskContext) => {
+					taskSignal = _task.signal;
+				})
+			);
 			this.onUnmount(() => {
 				unmounted++;
 			});
@@ -71,20 +74,23 @@ describe('@exactjs/ssr ownership', () => {
 		let cleaned = 0;
 		function Owned(this: Component<{ ready: boolean }>) {
 			this.state.ready = false;
-			(this as any).task(async () => {
-				await new Promise<void>((done) => {
-					resolve = done;
-				});
-				this.state.ready = true;
-				return () => {
-					cleaned++;
-				};
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async (task: TaskContext) => {
+					task.cleanup(() => {
+						cleaned++;
+					});
+					await new Promise<void>((done) => {
+						resolve = done;
+					});
+					this.state.ready = true;
+				})
+			);
 			return () => createVNode('p', null, this.state.ready ? 'ready' : 'waiting');
 		}
 
 		const rendering = renderToStringAsync(createVNode(Owned, {}), { markers: false });
-		await Promise.resolve();
+		await vi.waitFor(() => expect(resolve).toBeTypeOf('function'));
 		expect(cleaned).toBe(0);
 		resolve();
 		await expect(rendering).resolves.toMatchObject({ html: '<p>ready</p>' });

@@ -17,6 +17,7 @@ export type InternalTaskGeneration<Result> = {
 	readonly foreground: boolean;
 	readonly activation: TaskActivation;
 	readonly readiness: 'blocking' | 'nonblocking';
+	readinessRegistration?: { cancel(): void };
 	priority: 'immediate' | 'normal' | 'deferred';
 	scheduledWork?: () => void;
 	observed: boolean;

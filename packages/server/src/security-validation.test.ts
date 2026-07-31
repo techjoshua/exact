@@ -23,10 +23,10 @@ describe('@exactjs/server security-validation', () => {
 		const response = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': () => ({ value: { status: 'ready' } })
 				}
 			})
@@ -50,11 +50,11 @@ describe('@exactjs/server security-validation', () => {
 		const response = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
 				contract: recordsStateContract(),
-				actions: {
+				invocations: {
 					'allowed-action': () => ({ state: { records } })
 				}
 			})
@@ -70,11 +70,11 @@ describe('@exactjs/server security-validation', () => {
 			{
 				method: 'POST',
 				headers: { accept: 'application/x-ndjson' },
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
 				contract: recordsStateContract(),
-				actions: {
+				invocations: {
 					'allowed-action': () => ({ state: { records } })
 				}
 			})
@@ -93,10 +93,10 @@ describe('@exactjs/server security-validation', () => {
 		const result = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: { 'allowed-action': action },
+				invocations: { 'allowed-action': action },
 				authorize: () => true,
 				validateCsrf: () => false
 			})
@@ -112,7 +112,7 @@ describe('@exactjs/server security-validation', () => {
 		const result = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action', payload: { title: 'Ready' } }
+				body: { type: 'invoke', id: 'allowed-action', payload: { title: 'Ready' } }
 			},
 			context({
 				authorize,
@@ -130,10 +130,10 @@ describe('@exactjs/server security-validation', () => {
 		const authResult = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: { 'allowed-action': authAction },
+				invocations: { 'allowed-action': authAction },
 				authorize: () => {
 					throw new Error('auth store unavailable');
 				}
@@ -148,10 +148,10 @@ describe('@exactjs/server security-validation', () => {
 		const csrfResult = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: { 'allowed-action': csrfAction },
+				invocations: { 'allowed-action': csrfAction },
 				validateCsrf: () => {
 					throw new Error('csrf store unavailable');
 				}
@@ -169,18 +169,18 @@ describe('@exactjs/server security-validation', () => {
 			{
 				method: 'POST',
 				url: '/wrong',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
 				contract: {
 					version: 1,
 					endpoint: '/__exact',
-					actions: {
+					invocations: {
 						'allowed-action': defineExactOperationContract('allowed-action')
 					},
 					boundaries: {}
 				},
-				actions: { 'allowed-action': action }
+				invocations: { 'allowed-action': action }
 			})
 		);
 
@@ -205,7 +205,7 @@ describe('@exactjs/server security-validation', () => {
 		const unsafe = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action', payload: cyclic }
+				body: { type: 'invoke', id: 'allowed-action', payload: cyclic }
 			},
 			context()
 		);
@@ -218,7 +218,7 @@ describe('@exactjs/server security-validation', () => {
 			{
 				method: 'POST',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'allowed-action',
 					module: '../server/private'
 				}
@@ -236,7 +236,7 @@ describe('@exactjs/server security-validation', () => {
 			{
 				method: 'POST',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'allowed-action',
 					opId: undefined,
 					dependsOn: undefined,
@@ -247,14 +247,14 @@ describe('@exactjs/server security-validation', () => {
 				}
 			},
 			context({
-				actions: { 'allowed-action': action }
+				invocations: { 'allowed-action': action }
 			})
 		);
 
 		expect(result.status).toBe(200);
 		expect(action).toHaveBeenCalledOnce();
 		expect(action.mock.calls[0][0]).toEqual({
-			type: 'action',
+			type: 'invoke',
 			id: 'allowed-action'
 		});
 	});
@@ -263,10 +263,10 @@ describe('@exactjs/server security-validation', () => {
 		const result = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': () => ({
 						patches: [{ type: 'replace', id: 1, html: '<p>bad</p>' } as any]
 					})
@@ -282,10 +282,10 @@ describe('@exactjs/server security-validation', () => {
 		const undefinedState = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': () => ({ state: undefined })
 				}
 			})
@@ -297,10 +297,10 @@ describe('@exactjs/server security-validation', () => {
 		const undefinedPropPatch = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': () => ({
 						patches: [{ type: 'prop', id: 'panel', name: 'title', value: undefined } as any]
 					})
@@ -314,10 +314,10 @@ describe('@exactjs/server security-validation', () => {
 		const undefinedStatePatch = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': () => ({
 						patches: [{ type: 'state', id: 'panel', value: undefined } as any]
 					})
@@ -333,10 +333,10 @@ describe('@exactjs/server security-validation', () => {
 		const extraResult = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': () =>
 						({
 							patches: [],
@@ -351,10 +351,10 @@ describe('@exactjs/server security-validation', () => {
 		const extraPatch = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': () => ({
 						patches: [
 							{ type: 'replace', id: 'panel', html: '<p />', module: '../server/private' } as any
@@ -402,7 +402,7 @@ describe('@exactjs/server security-validation', () => {
 function recordsStateContract() {
 	return {
 		version: 1 as const,
-		actions: {
+		invocations: {
 			'allowed-action': defineExactOperationContract('allowed-action', {
 				writes: [{ path: 'records', kind: 'write', confidence: 'exact' }]
 			})

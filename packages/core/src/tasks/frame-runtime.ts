@@ -144,6 +144,7 @@ export function executeTaskFrame<T>(
 		children: new Set<Promise<void>>(),
 		cleanups: [],
 		...(options.label === undefined ? {} : { label: options.label }),
+		...(options.sourceEntityId === undefined ? {} : { sourceEntityId: options.sourceEntityId }),
 		activation: options.activation ?? 'invoked',
 		generation: options.generation ?? 1,
 		placement: options.placement ?? 'current',

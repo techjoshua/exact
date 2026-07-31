@@ -1,4 +1,4 @@
-import { type Component } from '@exactjs/core';
+import { activateTaskForHost, defineTask, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderHydrationScript, renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
@@ -31,7 +31,10 @@ describe('@exactjs/ssr limits', () => {
 
 	it('bounds the wall-clock duration of tasks that never settle', async () => {
 		function Pending(this: Component<{}>) {
-			(this as any).task(() => new Promise<void>(() => undefined));
+			activateTaskForHost(
+				this,
+				defineTask({}, () => new Promise<void>(() => undefined))
+			);
 			return () => createVNode('p', null, 'Loading');
 		}
 

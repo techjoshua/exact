@@ -78,11 +78,11 @@ export function DevtoolsPage(this: Component<{}>) {
 				<h2>One durable tree, across runtimes</h2>
 				<p>
 					Select an element to find its logical component owner, source component, build, and
-					execution root. State and public contexts appear as bounded previews. Tasks and actions
-					keep their placement, readiness, priority, generation, cancellation, concurrency, and
-					optimistic status. Activity, Suspense, hydration, requests, continuations, patches, and
-					errors share the same timeline vocabulary. Compiler-marked task and action IDs travel with
-					each registered callback, so the inspector never guesses identity from array order.
+					execution root. State and public contexts appear as bounded previews. Tasks keep their
+					placement, readiness, priority, generation, cancellation, concurrency, and optimistic
+					status. Activity, Suspense, hydration, requests, continuations, patches, and errors share
+					the same timeline vocabulary. Compiler-marked task IDs travel with each function
+					definition, so the inspector never guesses identity from array order.
 				</p>
 			</section>
 			<section>
@@ -113,7 +113,7 @@ export function DevtoolsPage(this: Component<{}>) {
 					cursor, so delayed subscription delivery cannot leave a silent gap. The Microfrontends
 					view summarizes independently deployed roots. The CDP agent sends the same validated
 					requests through fixed functions. Neither surface can evaluate caller JavaScript, mutate
-					state, invoke actions, or receive raw component instances.
+					state, invoke tasks, or receive raw component instances.
 				</p>
 				<p>
 					For local use, build the Chromium package and load its package directory as an unpacked

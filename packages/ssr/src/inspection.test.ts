@@ -47,7 +47,7 @@ describe('@exactjs/ssr inspection ownership', () => {
 		const buildKey = 'a'.repeat(40);
 		const sourceHash = 'b'.repeat(64);
 		const server = createExactServerRuntime({
-			contract: { version: 1, actions: {}, executors: {}, boundaries: {} },
+			contract: { version: 1, invocations: {}, executors: {}, boundaries: {} },
 			allowDebug: true,
 			inspectionCatalogs: [
 				{

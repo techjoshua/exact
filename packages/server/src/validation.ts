@@ -13,7 +13,7 @@ export function isExecutorAllowed(
 	input: ExactInvocationRequest,
 	contract: ExactExecutorContract
 ): boolean {
-	if (input.type === 'action') return Boolean(contract.actions[input.id]);
+	if (input.type === 'invoke') return Boolean(contract.invocations[input.id]);
 	if (input.type === 'refresh') return Boolean(contract.boundaries[input.id]);
 	return false;
 }
@@ -126,8 +126,8 @@ export function boundaryHintsAllowed(
 	contract: ExactExecutorContract
 ): boolean {
 	if (!input.boundaryHtmls) return true;
-	if (input.type === 'action') {
-		const allowed = contract.actions[input.id]?.boundaries;
+	if (input.type === 'invoke') {
+		const allowed = contract.invocations[input.id]?.boundaries;
 		if (allowed) {
 			const allowedSet = new Set(allowed);
 			return Object.keys(input.boundaryHtmls).every((id) => allowedSet.has(id));

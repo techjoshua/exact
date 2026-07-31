@@ -39,7 +39,7 @@ export function createExactRemoteBuildRegistration(
 			Record<
 				string,
 				{
-					actions?: ExactServerContext['actions'];
+					invocations?: ExactServerContext['invocations'];
 					refreshBoundaries?: ExactServerContext['refreshBoundaries'];
 				}
 			>
@@ -55,7 +55,7 @@ export function createExactRemoteBuildRegistration(
 			exposure.root,
 			Object.freeze({
 				contract,
-				actions: selectHandlers(handlers?.actions, Object.keys(contract.actions)),
+				invocations: selectHandlers(handlers?.invocations, Object.keys(contract.invocations)),
 				refreshBoundaries: selectHandlers(
 					handlers?.refreshBoundaries,
 					Object.keys(contract.boundaries)
@@ -71,17 +71,17 @@ export function createExactRemoteBuildRegistration(
 
 /** Composes private executor authority from the selected build-time graph. */
 function exposureExecutorContract(graph: ExactArtifactGraph) {
-	const actions: Record<string, ReturnType<typeof defineExactOperationContract>> = {};
+	const invocations: Record<string, ReturnType<typeof defineExactOperationContract>> = {};
 	const boundaries: Record<string, ReturnType<typeof defineExactBoundaryContract>> = {};
 	for (const artifact of graph.artifacts) {
-		for (const [id, action] of Object.entries(artifact.manifest.serverActions)) {
+		for (const [id, invocation] of Object.entries(artifact.manifest.serverActions)) {
 			const continuation = artifact.manifest.continuations.find((entry) => entry.id === id);
-			actions[id] = defineExactOperationContract(id, {
-				componentId: action.componentId,
-				reads: action.stateContract.reads,
-				writes: action.stateContract.writes,
-				publicContexts: action.publicContextContract.map((entry) => entry.token),
-				serverContexts: action.serverContextContract.map((entry) => entry.token),
+			invocations[id] = defineExactOperationContract(id, {
+				componentId: invocation.componentId,
+				reads: invocation.stateContract.reads,
+				writes: invocation.stateContract.writes,
+				publicContexts: invocation.publicContextContract.map((entry) => entry.token),
+				serverContexts: invocation.serverContextContract.map((entry) => entry.token),
 				boundaries: continuation?.effects.boundaries ?? []
 			});
 		}
@@ -92,7 +92,7 @@ function exposureExecutorContract(graph: ExactArtifactGraph) {
 				kind: boundary.kind
 			});
 	}
-	return composeExactExecutorContract([], { actions, boundaries });
+	return composeExactExecutorContract([], { invocations, boundaries });
 }
 
 function selectedExposureGraph(

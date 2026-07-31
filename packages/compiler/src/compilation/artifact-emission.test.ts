@@ -54,15 +54,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-      function Page(this: Component<{ title?: string }>) {
-        this.task(async () => {
-          this.state.title = await readFile("title.txt", "utf8");
-        });
-        return () => <h1>{this.state.title}</h1>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      function Page(this: Component<{ title?: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => {\n          this.state.title = await readFile("title.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <h1>{this.state.title}</h1>;\n      }\n    '
 		);
 
 		const result = await compileFile(input, {
@@ -85,18 +77,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-      export function Page(this: Component<{ title?: string; width?: number }>) {
-        this.task.server(async () => {
-          this.state.title = await readFile("title.txt", "utf8");
-        });
-        this.task.client(() => {
-          this.state.width = window.innerWidth;
-        });
-        return () => <h1>{this.state.title}</h1>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      export function Page(this: Component<{ title?: string; width?: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("title.txt", "utf8");\n        };\nrunFixtureTask();\n        const runFixtureTask2 = (_task: TaskContext = TaskContext.client()) => {\n          this.state.width = window.innerWidth;\n        };\nrunFixtureTask2();\n        return () => <h1>{this.state.title}</h1>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -250,12 +231,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(() => { this.state.count = 1; });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.server()) => { this.state.count = 1; };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -311,17 +287,21 @@ describe('@exactjs/compiler: artifacts', () => {
 		await writeFile(
 			input,
 			`
-			import type { Component } from "@exactjs/core";
+			import { TaskContext, type Component } from "@exactjs/core";
 			declare function getOptions(
 				destination: string,
 				options?: { signal?: AbortSignal }
 			): Promise<string[]>;
-			export async function ShippingOptions(
+			export function ShippingOptions(
 				this: Component<{ destination: string; options: string[] }>
 			) {
-				this.state.options = await this.task.server(
-					() => getOptions(this.state.destination)
-				);
+				async function loadOptions(
+					destination: string,
+					task: TaskContext = TaskContext.server().blocking()
+				) {
+					return getOptions(destination, { signal: task.signal });
+				}
+				this.state.options = await loadOptions(this.state.destination);
 				return () => <button onClick={() => this.state.destination = "next"}>
 					{this.state.options.join(",")}
 				</button>;
@@ -386,7 +366,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).toContain('readiness: "blocking"');
 		expect(server).toContain('executors: [');
 		expect(server).toContain('getOptions(');
-		expect(server).toContain('if (__exactComponentSignal.aborted)');
+		expect(server).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(server).not.toContain('__exactStageTaskMutation');
 		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
 		expect(server).toMatch(/__exactComponent_\d+\.state, \["settled"\]/);
@@ -399,19 +379,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import type { Component, ContextToken } from "@exactjs/core";
-      declare const DatabaseContext: ContextToken<{
-        find(id: string): Promise<{ title: string }>;
-      }>;
-      export function Panel(this: Component<{ id: string; title?: string }>) {
-        this.task.server(async () => {
-          const row = await this.getContext(DatabaseContext).find(this.state.id);
-          this.state.title = row.title;
-        });
-        return () => <button onClick={() => this.state.id = "next"}>{this.state.title}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import type { Component, ContextToken } from "@exactjs/core";\n      declare const DatabaseContext: ContextToken<{\n        find(id: string): Promise<{ title: string }>;\n      }>;\n      export function Panel(this: Component<{ id: string; title?: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          const row = await this.getContext(DatabaseContext).find(this.state.id);\n          this.state.title = row.title;\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.id = "next"}>{this.state.title}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -441,18 +409,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      export function Page(this: Component<{ ready: boolean }>) {
-        this.task.server(async () => {
-          await Promise.resolve();
-          this.state.ready = true;
-        });
-        return () => <section>
-          <p>{this.state.ready ? "Ready" : "Loading"}</p>
-          <button onClick={() => console.log("client")}>Open</button>
-        </section>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      export function Page(this: Component<{ ready: boolean }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await Promise.resolve();\n          this.state.ready = true;\n        };\nrunFixtureTask();\n        return () => <section>\n          <p>{this.state.ready ? "Ready" : "Loading"}</p>\n          <button onClick={() => console.log("client")}>Open</button>\n        </section>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -512,15 +469,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await writeFile(path.join(srcDir, 'App.tsx'), `export { Page } from './components/page.js';`);
 		await writeFile(
 			path.join(components, 'page.tsx'),
-			`
-      import type { Component } from '@exactjs/core';
-      import { quote } from '../provider.js';
-      import { Workspace } from './workspace.js';
-      export function Page(this: Component<{ value: string }>) {
-        this.task(async () => { this.state.value = await quote(); });
-        return () => <main>{this.state.value}<Workspace /></main>;
-      }
-    `
+			"import { TaskContext } from \"@exactjs/core\";\n\n      import type { Component } from '@exactjs/core';\n      import { quote } from '../provider.js';\n      import { Workspace } from './workspace.js';\n      export function Page(this: Component<{ value: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => { this.state.value = await quote(); };\nrunFixtureTask();\n        return () => <main>{this.state.value}<Workspace /></main>;\n      }\n    "
 		);
 		await writeFile(
 			path.join(srcDir, 'provider.ts'),

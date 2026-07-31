@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import {
+	activateTaskForHost,
 	createExactRuntimeInspectionOwner,
 	createVNode,
+	defineTask,
 	exactComponentIdentity,
 	markExactInspectionSource,
 	type Component
@@ -198,15 +200,20 @@ describe('page-world eXact DevTools runtime', () => {
 	it('late-attaches to active roots and exposes only bounded read-only projections', async () => {
 		function Counter(this: Component<{ count?: number }>) {
 			this.state.count = 1;
-			(this as any).task(
-				markExactInspectionSource('Counter:task:load', async () => Promise.resolve())
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markExactInspectionSource('Counter:task:load', async () => Promise.resolve())
+				)
 			);
-			(this as any).action(
-				'Increment',
-				markExactInspectionSource('Counter:action:increment', () => {
+			const increment = defineTask(
+				{ label: 'Increment' },
+				markExactInspectionSource('Counter:task:increment', () => {
 					this.state.count = (this.state.count ?? 0) + 1;
 				})
 			);
+			increment();
 			return () => createVNode('button', { id: 'counter' }, this.state.count);
 		}
 		const owner = createExactRuntimeInspectionOwner({
@@ -248,7 +255,7 @@ describe('page-world eXact DevTools runtime', () => {
 					tasks: [
 						{ id: { sourceEntityId: 'Counter:task:load' } },
 						{
-							id: { sourceEntityId: 'Counter:action:increment' },
+							id: { sourceEntityId: 'Counter:task:increment' },
 							activation: 'invoked'
 						}
 					]

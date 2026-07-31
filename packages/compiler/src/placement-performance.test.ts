@@ -10,9 +10,11 @@ describe('placement inference performance guard', () => {
 				? `function helper${index}() { return process.env.VALUE; }`
 				: `function helper${index}() { return helper${index + 1}(); }`
 		).join('\n');
-		const source = `${helpers}
+		const source = `import { TaskContext } from "@exactjs/core";
+${helpers}
       export function Page(this: Component<{ value?: string }>) {
-        this.task(() => { this.state.value = helper0(); });
+        function load(_task: TaskContext = TaskContext.latest()) { this.state.value = helper0(); }
+        load();
         return () => <p />;
       }`;
 		const started = performance.now();

@@ -236,16 +236,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 	it('fails clearly when a generated client island references server-only imports', () => {
 		expect(() =>
 			transform(
-				`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          this.state.count = 1;
-        });
-        return () => <button onClick={() => readFile("secret.txt", "utf8")}>Read</button>;
-      }
-    `,
+				'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.count = 1;\n        };\nrunFixtureTask();\n        return () => <button onClick={() => readFile("secret.txt", "utf8")}>Read</button>;\n      }\n    ',
 				{ filename: 'Panel.tsx', target: 'server' }
 			)
 		).toThrow('client island cannot reference server-only imports');
@@ -254,16 +245,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 	it('fails clearly when isomorphic server-rendered code references browser globals outside a client island', () => {
 		expect(() =>
 			transform(
-				`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ title: string }>) {
-        this.task.server(async () => {
-          this.state.title = await readFile("title.txt", "utf8");
-        });
-        return () => <p>{window.innerWidth}</p>;
-      }
-    `,
+				'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ title: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("title.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <p>{window.innerWidth}</p>;\n      }\n    ',
 				{ filename: 'Panel.tsx', target: 'server' }
 			)
 		).toThrow('browser-only global window cannot be used in server-rendered component code');

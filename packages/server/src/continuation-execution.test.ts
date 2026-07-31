@@ -18,6 +18,7 @@ const StatusContext = createContext<{ ready: boolean }>('status', { scope: 'requ
 const contract: ExactComponentContinuationContract = {
 	id: 'task:load',
 	componentId: 'component:Page',
+	kind: 'task',
 	readiness: 'nonblocking',
 	dependencies: [{ source: 'state' }],
 	stateReads: [{ path: 'id', kind: 'read', confidence: 'exact' }],
@@ -53,7 +54,7 @@ describe('@exactjs/server generated continuation execution', () => {
 
 		await handler(
 			{
-				type: 'action',
+				type: 'invoke',
 				id: contract.id,
 				payload: { dependencies: ['p1'], generation: 7 },
 				state: { id: 'p1' }
@@ -80,7 +81,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		});
 		const result = await handler(
 			{
-				type: 'action',
+				type: 'invoke',
 				id: contract.id,
 				payload: { dependencies: ['p1'] },
 				state: { id: 'p1' }
@@ -118,7 +119,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		const handler = createExactContinuationHandler(
 			{
 				...contract,
-				kind: 'action',
+				kind: 'task',
 				dependencies: [{ source: 'argument' }],
 				invocation: {
 					arguments: [{ source: 'argument' }],
@@ -141,7 +142,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		await expect(
 			handler(
 				{
-					type: 'action',
+					type: 'invoke',
 					id: contract.id,
 					payload: { dependencies: ['title'], generation: 3 },
 					state: { id: 'p1' }
@@ -166,7 +167,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		);
 		await handler(
 			{
-				type: 'action',
+				type: 'invoke',
 				id: contract.id,
 				payload: { dependencies: ['p1'] },
 				state: { id: 'p1' }
@@ -204,7 +205,7 @@ describe('@exactjs/server generated continuation execution', () => {
 
 		await expect(
 			handler(
-				{ type: 'action', id: contract.id, payload: { dependencies: [] }, state: { id: 'p1' } },
+				{ type: 'invoke', id: contract.id, payload: { dependencies: [] }, state: { id: 'p1' } },
 				context()
 			)
 		).rejects.toThrow('Malformed activation record');
@@ -227,7 +228,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		await expect(
 			handler(
 				{
-					type: 'action',
+					type: 'invoke',
 					id: contract.id,
 					payload: { dependencies: ['p1'] },
 					state: { id: 'p1' }
@@ -266,7 +267,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		await expect(
 			handler(
 				{
-					type: 'action',
+					type: 'invoke',
 					id: contract.id,
 					payload: { dependencies: ['p1'] },
 					state: { lookup: new Map(), selected: new Set() }
@@ -297,7 +298,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		await expect(
 			handler(
 				{
-					type: 'action',
+					type: 'invoke',
 					id: contract.id,
 					payload: { dependencies: ['p1'] },
 					state: activationState
@@ -329,7 +330,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		await expect(
 			handler(
 				{
-					type: 'action',
+					type: 'invoke',
 					id: contract.id,
 					payload: { dependencies: ['p1'] },
 					state: { lookup: new Map() }
@@ -359,7 +360,7 @@ describe('@exactjs/server generated continuation execution', () => {
 		await expect(
 			handler(
 				{
-					type: 'action',
+					type: 'invoke',
 					id: contract.id,
 					payload: { dependencies: ['p1'] },
 					state: { id: 'p1' }
@@ -383,18 +384,18 @@ describe('@exactjs/server generated continuation execution', () => {
 		const server = context({
 			contract: {
 				version: 1,
-				actions: { [contract.id]: contract },
+				invocations: { [contract.id]: contract },
 				executors: { [contract.id]: executor },
 				boundaries: {}
 			},
-			actions: {}
+			invocations: {}
 		});
 
 		await expect(
 			dispatchExactOperation(
 				{ method: 'POST' },
 				{
-					type: 'action',
+					type: 'invoke',
 					id: contract.id,
 					payload: { dependencies: ['p1'] },
 					state: { id: 'p1' }
@@ -406,7 +407,7 @@ describe('@exactjs/server generated continuation execution', () => {
 			dispatchExactOperation(
 				{ method: 'POST' },
 				{
-					type: 'action',
+					type: 'invoke',
 					id: contract.id,
 					payload: { dependencies: [] },
 					state: { id: 'p1' }

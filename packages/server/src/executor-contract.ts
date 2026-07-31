@@ -24,13 +24,17 @@ export function composeExactExecutorContract(
 	options: ComposeExactExecutorContractOptions = {}
 ): ExactExecutorContract {
 	const composed = composeExactComponentContracts(components, 'executor');
-	const actions = mergeContractEntries(composed.continuations, options.actions, 'action');
+	const invocations = mergeContractEntries(
+		composed.continuations,
+		options.invocations,
+		'invocation'
+	);
 	const boundaries = mergeContractEntries(composed.boundaries, options.boundaries, 'boundary');
 	return Object.freeze({
 		version: 1,
 		endpoint: options.endpoint,
 		endpoints: normalizeEndpointRoutes(options.endpoints),
-		actions,
+		invocations,
 		executors: composed.executors,
 		boundaries
 	});
@@ -47,9 +51,9 @@ export function createExactHydrationConfig(
 		...(contract.endpoints === undefined ? {} : { endpoints: contract.endpoints }),
 		...(state === undefined ? {} : { state }),
 		continuations: Object.fromEntries(
-			Object.entries(contract.actions).map(([id, action]) => [
+			Object.entries(contract.invocations).map(([id, invocation]) => [
 				id,
-				{ ...action, serverContexts: [] }
+				{ ...invocation, serverContexts: [] }
 			])
 		),
 		...(publicContexts === undefined ? {} : { publicContexts })
@@ -79,11 +83,11 @@ function normalizeEndpointRoutes(
 	if (routes === undefined) return undefined;
 	if (!routes || typeof routes !== 'object' || Array.isArray(routes))
 		throw new Error('Malformed eXact endpoint routes');
-	const actions = normalizeEndpointMap(routes.actions);
+	const invocations = normalizeEndpointMap(routes.invocations);
 	const boundaries = normalizeEndpointMap(routes.boundaries);
-	return Object.keys(actions).length || Object.keys(boundaries).length
+	return Object.keys(invocations).length || Object.keys(boundaries).length
 		? {
-				...(Object.keys(actions).length ? { actions } : {}),
+				...(Object.keys(invocations).length ? { invocations } : {}),
 				...(Object.keys(boundaries).length ? { boundaries } : {})
 			}
 		: undefined;
@@ -120,6 +124,7 @@ export function defineExactOperationContract(
 	if (!id) throw new Error('eXact operation id must be non-empty');
 	return Object.freeze({
 		id,
+		kind: 'task',
 		componentId: options.componentId ?? `application:${id}`,
 		readiness: options.readiness ?? 'nonblocking',
 		dependencies: [],

@@ -1,23 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-	ErrorContext,
 	attachSuppressedCleanupFailure,
 	attemptCleanup,
 	createCleanupFailure,
-	createComponentInstance,
-	createErrorContext,
 	ownTaskResource,
 	registerTaskCleanup,
-	stageTaskMutation,
 	taskAwait,
 	taskIdleCallback,
 	taskObserver,
 	taskTimeout,
 	throwCleanupFailure,
 	withAbortSignal,
-	withTaskSignal,
-	type Component,
-	type ErrorReport
+	withTaskSignal
 } from './index.js';
 
 describe('@exactjs/core task-resources', () => {
@@ -39,15 +33,6 @@ describe('@exactjs/core task-resources', () => {
 		expect((primary as Error & { suppressed?: unknown[] }).suppressed).toEqual([failure.error]);
 	});
 
-	it('rejects task registration after component setup', () => {
-		let registerLate!: () => void;
-		createComponentInstance(function Panel(this: Component<{}>) {
-			registerLate = () => (this as any).task(() => undefined);
-			return () => null;
-		}, {});
-		expect(registerLate).toThrow('this.task() must be registered during component setup');
-	});
-
 	it('cancels compiler-owned resources and stale awaits', async () => {
 		vi.useFakeTimers();
 		try {
@@ -65,50 +50,6 @@ describe('@exactjs/core task-resources', () => {
 		} finally {
 			vi.useRealTimers();
 		}
-	});
-	it('lets awaited work settle while parking its authored continuation', async () => {
-		let resolveValue!: (value: string) => void;
-		const value = new Promise<string>((resolve) => {
-			resolveValue = resolve;
-		});
-		let continued: string | undefined;
-		const component = createComponentInstance(function Worker(this: Component<{}>) {
-			(this as any).task(async ({ signal }: { signal: AbortSignal }) => {
-				continued = await taskAwait(signal, value);
-			});
-			return () => null;
-		}, {});
-
-		component.markMounted();
-		component.scope.pause();
-		resolveValue('settled');
-		await Promise.resolve();
-		await Promise.resolve();
-		expect(continued).toBeUndefined();
-
-		component.scope.resume();
-		await Promise.resolve();
-		await Promise.resolve();
-		expect(continued).toBe('settled');
-		component.unmount();
-	});
-	it('publishes root blocking task mutations without requiring an authored boundary', async () => {
-		let instance!: Component<{ ready: boolean }>;
-		createComponentInstance(function Worker(this: Component<{ ready: boolean }>) {
-			instance = this;
-			this.state.ready = false;
-			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
-				await Promise.resolve();
-				stageTaskMutation(signal, () => {
-					this.state.ready = true;
-				});
-			});
-			return () => null;
-		}, {});
-
-		expect(instance.state.ready).toBe(false);
-		for (let index = 0; index < 6; index++) await Promise.resolve();
-		expect(instance.state.ready).toBe(true);
 	});
 	it('combines compiler-owned abort signals with listener options', () => {
 		const owner = new AbortController();
@@ -149,36 +90,6 @@ describe('@exactjs/core task-resources', () => {
 		expect(cleanup).toHaveBeenCalledWith('rerun');
 	});
 
-	it('routes task resource disposal failures through the owning error context', async () => {
-		let instance!: Component<{ errors: ErrorReport[] }>;
-		const component = createComponentInstance(function Worker(
-			this: Component<{ errors: ErrorReport[] }>
-		) {
-			instance = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			(this as any).task(({ signal }: { signal: AbortSignal }) => {
-				ownTaskResource(
-					signal,
-					{
-						close: async () => {
-							throw new Error('close failed');
-						}
-					},
-					'close'
-				);
-			});
-			return () => null;
-		}, {});
-
-		component.markMounted();
-		component.unmount();
-		await Promise.resolve();
-		await Promise.resolve();
-
-		expect(instance.state.errors).toHaveLength(1);
-		expect(instance.state.errors[0]).toMatchObject({ source: 'task', phase: 'resource-cleanup' });
-	});
 	it('combines task signals with typed API options', () => {
 		const owner = new AbortController();
 		const external = new AbortController();

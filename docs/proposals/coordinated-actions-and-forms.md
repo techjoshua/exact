@@ -2,9 +2,12 @@
 
 ## Status
 
-Implemented for the core interaction/action model, coordinated enhanced forms,
-optimistic state, router joining, distributed action continuations, inspection,
-and TypeScript 6/7 contracts.
+Superseded by
+[`unified-function-defined-tasks.md`](unified-function-defined-tasks.md). This
+document is retained as the historical design record for coordinated forms,
+optimistic state, router joining, and distributed execution. Current source
+uses ordinary function-defined tasks, `TaskContext`, and neutral invocation
+contracts; none of the component action APIs below remain available.
 
 | Delivery area                                                          | Current status |
 | ---------------------------------------------------------------------- | -------------- |

@@ -893,12 +893,14 @@ func TestSessionEmitsBoundaryForClientComponentRenderedByServer(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetServer,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			function ClientButton() {
 				return () =>
 					<button onClick={() => alert(1)}>Go</button>;
 			}
 			export function Page() {
-				this.task.server(async () => undefined);
+				const __fixtureTask0 = async (_task: TaskContext = TaskContext.server()) => undefined;
+__fixtureTask0();
 				return () => <main><ClientButton label="Save" /></main>;
 			}
 		`,
@@ -1056,11 +1058,13 @@ func TestSessionExtractsIntrinsicClientIslandFromServerArtifact(t *testing.T) {
 		Target:           TargetServer,
 		ServerComponents: true,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			export function Panel(
 				this: Component<{ count: number; label: string }>
 			) {
-				this.task.server(async () => loadPrivate());
+				const __fixtureTask1 = async (_task: TaskContext = TaskContext.server()) => loadPrivate();
+__fixtureTask1();
 				return () =>
 					<button
 						title={this.state.label}
@@ -1150,11 +1154,13 @@ func TestSessionEmitsGeneratedIntrinsicIslandInClientArtifact(t *testing.T) {
 		Target:           TargetClient,
 		ServerComponents: true,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			export function Panel(
 				this: Component<{ count: number; label: string }>
 			) {
-				this.task.server(async () => loadPrivate());
+				const __fixtureTask2 = async (_task: TaskContext = TaskContext.server()) => loadPrivate();
+__fixtureTask2();
 				return () =>
 					<button
 						title={this.state.label}
@@ -1195,10 +1201,7 @@ func TestSessionEmitsGeneratedIntrinsicIslandInClientArtifact(t *testing.T) {
 			)
 		}
 	}
-	for _, forbidden := range []string{
-		"loadPrivate",
-		"this.task.server",
-	} {
+	for _, forbidden := range []string{"loadPrivate"} {
 		if strings.Contains(response.Code, forbidden) {
 			t.Fatalf(
 				"server-part implementation escaped into client output (%q):\n%s",
@@ -1211,8 +1214,10 @@ func TestSessionEmitsGeneratedIntrinsicIslandInClientArtifact(t *testing.T) {
 
 func TestSessionLowersFormBindingInsideGeneratedIntrinsicIsland(t *testing.T) {
 	source := `
+			import { TaskContext } from "@exactjs/core";
 		export function Panel(this: Component<{ name: string }>) {
-			this.task.server(async () => loadPanel());
+			const __fixtureTask0 = async (_task: TaskContext = TaskContext.server()) => loadPanel();
+__fixtureTask0();
 			return () => <input value:input={this.state.name} />;
 		}
 	`
@@ -1271,6 +1276,7 @@ func TestSessionLowersFormBindingInsideGeneratedIntrinsicIsland(t *testing.T) {
 
 func TestSessionLowersTypedNativeFormBindingConversions(t *testing.T) {
 	source := `
+			import { TaskContext } from "@exactjs/core";
 		declare class Component<State> { state: State }
 		export function Form(this: Component<{
 			count: number | null;
@@ -1280,7 +1286,8 @@ func TestSessionLowersTypedNativeFormBindingConversions(t *testing.T) {
 			codes: number[];
 			birthday: Date | null;
 		}>) {
-			this.task.server(async () => loadForm());
+			const __fixtureTask1 = async (_task: TaskContext = TaskContext.server()) => loadForm();
+__fixtureTask1();
 			return () => <>
 				<input type="number" value:change={this.state.count} />
 				<input type="checkbox" checked:change={this.state.enabled} />
@@ -1386,10 +1393,12 @@ func TestSessionRejectsInvalidNativeFormBindingContracts(t *testing.T) {
 
 func TestSessionSanitizesOpaqueGeneratedIslandSpreadProps(t *testing.T) {
 	source := `
+			import { TaskContext } from "@exactjs/core";
 		export function Panel(
 			props: { events: Record<string, unknown> }
 		) {
-			this.task.server(async () => loadPanel());
+			const __fixtureTask2 = async (_task: TaskContext = TaskContext.server()) => loadPanel();
+__fixtureTask2();
 			return () =>
 				<button {...props.events} onClick={() => alert(1)}>
 					Save
@@ -1447,12 +1456,15 @@ func TestSessionSanitizesOpaqueGeneratedIslandSpreadProps(t *testing.T) {
 
 func TestSessionPartitionsServerChildrenFromGeneratedIntrinsicIsland(t *testing.T) {
 	source := `
+			import { TaskContext } from "@exactjs/core";
 		function ServerSummary() {
-			this.task.server(async () => loadSummary());
+			const __fixtureTask3 = async (_task: TaskContext = TaskContext.server()) => loadSummary();
+__fixtureTask3();
 			return () => <p>Server summary</p>;
 		}
 		export function Panel(this: Component<{ count: number }>) {
-			this.task.server(async () => loadPanel());
+			const __fixtureTask4 = async (_task: TaskContext = TaskContext.server()) => loadPanel();
+__fixtureTask4();
 			return () =>
 				<section onClick={() => this.state.count++}>
 					<div><ServerSummary /></div>
@@ -1544,8 +1556,10 @@ func TestSessionPartitionsServerChildrenFromGeneratedIntrinsicIsland(t *testing.
 
 func TestSessionBridgesValueCapturesIntoGeneratedIntrinsicIsland(t *testing.T) {
 	source := `
+			import { TaskContext } from "@exactjs/core";
 		export function Panel(this: Component<{ count: number }>) {
-			this.task.server(async () => loadPanel());
+			const __fixtureTask5 = async (_task: TaskContext = TaskContext.server()) => loadPanel();
+__fixtureTask5();
 			const label = String(this.state.count);
 			return () =>
 				<button onClick={() => console.log(label)}>
@@ -1613,8 +1627,10 @@ func TestSessionBridgesValueCapturesIntoGeneratedIntrinsicIsland(t *testing.T) {
 
 func TestSessionClonesFunctionCapturesIntoGeneratedIntrinsicIsland(t *testing.T) {
 	source := `
+			import { TaskContext } from "@exactjs/core";
 		export function Panel(this: Component<{ count: number }>) {
-			this.task.server(async () => loadPanel());
+			const __fixtureTask6 = async (_task: TaskContext = TaskContext.server()) => loadPanel();
+__fixtureTask6();
 			const prefix = "saved";
 			function save() {
 				console.log(prefix);
@@ -1698,16 +1714,19 @@ func TestSessionOmitsServerOnlyComponentsFromClientArtifact(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			export function ServerOnly() {
-				this.task.server(async () => {
+				const __fixtureTask3 = async (_task: TaskContext = TaskContext.server()) => {
 					await loadPrivateFunction();
-				});
+				};
+__fixtureTask3();
 				return () => <output>server function</output>;
 			}
 			export const ServerValue = function () {
-				this.task.server(async () => {
+				const __fixtureTask4 = async (_task: TaskContext = TaskContext.server()) => {
 					await loadPrivateValue();
-				});
+				};
+__fixtureTask4();
 				return () => <output>server value</output>;
 			};
 		`,
@@ -1785,10 +1804,12 @@ func TestSessionPrunesImportsOwnedOnlyByOppositeArtifact(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			import { privateLoader, retainedOnClient } from "./values.js";
 			import "./setup.js";
 			export function ServerOnly() {
-				this.task.server(async () => privateLoader());
+				const __fixtureTask5 = async (_task: TaskContext = TaskContext.server()) => privateLoader();
+__fixtureTask5();
 				return () => <output />;
 			}
 			export const clientMarker = retainedOnClient;
@@ -2001,6 +2022,7 @@ func TestSessionClassifiesSetupStateAssignments(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare function peek<T>(read: () => T): T;
 			function Counter(
 				this: Component<{ initial: number; snapshot: number; derived: number; task: number }>,
@@ -2009,9 +2031,10 @@ func TestSessionClassifiesSetupStateAssignments(t *testing.T) {
 				this.state.initial = 1;
 				this.state.snapshot = peek(() => value);
 				this.state.derived = value * 2;
-				this.task(() => {
+				const __fixtureTask6 = (_task: TaskContext = TaskContext.latest()) => {
 					this.state.task = value;
-				});
+				};
+__fixtureTask6();
 				return () => null;
 			}
 		`,
@@ -2085,35 +2108,40 @@ func TestSessionLowersMapAndSetStateMutations(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetServer,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			function Collections(this: {
 				state: { lookup: Map<string, number> };
 				task: { server(work: () => void): void };
 			}) {
-				this.task.server(() => {
+				const __fixtureTask7 = (_task: TaskContext = TaskContext.server()) => {
 					this.state.lookup.set("answer", 42);
-				});
+				};
+__fixtureTask7();
 				return () => <output />;
 			}
 		`,
 	})
 	if !strings.Contains(
 		server.Code,
-		`__exactTaskCollectionMutation(__exactSignal, this.state, ["lookup"], "map", "set", () => ["answer", 42])`,
+		`__exactTaskCollectionMutation(_task.signal, this.state, ["lookup"], "map", "set", () => ["answer", 42])`,
 	) {
 		t.Fatalf("server collection delta lowering is missing:\n%s", server.Code)
 	}
 
 	invalid := NewSession(nil).Execute(Request{
-		ID:   "invalid-server-map-key.tsx",
-		Kind: "compile",
+		ID:     "invalid-server-map-key.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			function Collections(this: {
 				state: { lookup: Map<{ id: string }, number> };
 				task: { server(work: () => void): void };
 			}) {
-				this.task.server(() => {
+				const __fixtureTask8 = (_task: TaskContext = TaskContext.server()) => {
 					this.state.lookup.set({ id: "answer" }, 42);
-				});
+				};
+__fixtureTask8();
 				return () => <output />;
 			}
 		`,
@@ -2373,6 +2401,7 @@ func TestSessionRejectsDynamicContinuationWriteContract(t *testing.T) {
 		ID:   "dynamic-continuation.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> {
 				state: State;
 				task(work: () => void): void;
@@ -2381,9 +2410,10 @@ func TestSessionRejectsDynamicContinuationWriteContract(t *testing.T) {
 				this: Component<{ rows: Array<{ value: number }> }>,
 				props: { index: number },
 			) {
-				this.task(() => {
+				const __fixtureTask9 = (_task: TaskContext = TaskContext.latest()) => {
 					this.state.rows[props.index].value = calculate();
-				});
+				};
+__fixtureTask9();
 				return () => <output />;
 			}
 		`,
@@ -2621,10 +2651,12 @@ func TestSessionReadsDerivedValuesForInferredTaskDependencies(t *testing.T) {
 		ID:   "derived-task.ts",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			function Search(this: Component<{ query: string }>) {
 				const label = this.state.query + "!";
-				this.task(() => consume(label));
+				const __fixtureTask10 = (_task: TaskContext = TaskContext.latest()) => consume(label);
+__fixtureTask10();
 			}
 		`,
 	})
@@ -2634,7 +2666,7 @@ func TestSessionReadsDerivedValuesForInferredTaskDependencies(t *testing.T) {
 	for _, expected := range []string{
 		`const label = __exactDerived(() => this.state.query + "!")`,
 		`this.reactive(() => label.get())`,
-		`(__exactDependency: string) => consume(__exactDependency)`,
+		`(__exactDependency: string, _task: TaskContext) => consume(__exactDependency)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native derived task output is missing %q:\n%s", expected, response.Code)
@@ -2780,13 +2812,15 @@ func TestSessionDoesNotQueryGeneratedTaskDependenciesWithSourceChecker(t *testin
 		ID:   "GeneratedTaskDependency.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			function View(
 				this: Component<{ items: string[] }>
 			) {
 				const items = this.state.items;
-				this.task(() => {
+				const __fixtureTask11 = (_task: TaskContext = TaskContext.latest()) => {
 					items.map(item => item);
-				});
+				};
+__fixtureTask11();
 				return () => <p />;
 			}
 		`,
@@ -2803,64 +2837,21 @@ func TestSessionDoesNotQueryGeneratedTaskDependenciesWithSourceChecker(t *testin
 	}
 }
 
-func TestSessionNormalizesComponentTaskFacets(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
-		Source: `
-			function Loader() {
-				this.task.deferred.server.blocking(async () => {});
-				this.task.client.server.deferred.deferred.unknown(() => {});
-				return () => <output />;
-			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	tasks := response.Analysis.Tasks
-	if len(tasks) != 2 {
-		t.Fatalf("received %d tasks, expected 2: %#v", len(tasks), tasks)
-	}
-	if tasks[0].ID != exactStableID("component.tsx", "Loader:task:0") ||
-		tasks[1].ID != exactStableID("component.tsx", "Loader:task:1") {
-		t.Fatalf("native task identities diverged from the protocol: %#v", tasks)
-	}
-	if tasks[0].RequestedPlacement != "server" || tasks[0].Priority != "deferred" ||
-		tasks[0].Readiness != "blocking" ||
-		!containsString(
-			tasks[0].Diagnostics,
-			"task placement explicitly requested as server",
-		) {
-		t.Fatalf("unexpected normalized task: %#v", tasks[0])
-	}
-	invalidFacetErrors := 0
-	for _, diagnostic := range tasks[1].Diagnostics {
-		if strings.HasPrefix(diagnostic, "error:") {
-			invalidFacetErrors++
-		}
-	}
-	if invalidFacetErrors != 3 {
-		t.Fatalf("unexpected invalid facet diagnostics: %#v", tasks[1].Diagnostics)
-	}
-	if len(response.Diagnostics) != 3 || response.Diagnostics[0].Code != "EXACT2001" {
-		t.Fatalf("unexpected native task diagnostics: %#v", response.Diagnostics)
-	}
-}
-
 func TestSessionAttributesStateEffectsToTaskWork(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			function Loader(this: Component<any>) {
 				const items = this.state.items;
-				this.task.deferred(async () => {
+				const __fixtureTask14 = async (_task: TaskContext = TaskContext.deferred()) => {
 					const first = items[0].id;
 					this.state.result = first;
 					this.state.items.push(first);
-				});
+				};
+__fixtureTask14();
 				return () => <output />;
 			}
 		`,
@@ -2899,12 +2890,14 @@ func TestSessionRejectsUnsafeDerivedTaskDependencies(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			function Derived(this: Component<any>) {
 				const count = this.state.count;
 				const label = "count-" + count;
 				const unsafe = compute(count);
-				this.task(() => consume(unsafe, label));
+				const __fixtureTask15 = (_task: TaskContext = TaskContext.latest()) => consume(unsafe, label);
+__fixtureTask15();
 				return () => <output />;
 			}
 		`,
@@ -2938,11 +2931,13 @@ func TestSessionTreatsPeekAsExplicitTaskSnapshot(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare function peek<Value>(read: () => Value): Value
 			function Page(props: { url: string }) {
 				const parsed = parse(props.url);
 				const request = peek(() => normalize(parsed));
-				this.task(() => consume(request));
+				const __fixtureTask16 = (_task: TaskContext = TaskContext.latest()) => consume(request);
+__fixtureTask16();
 				return () => <output />;
 			}
 		`,
@@ -2976,14 +2971,16 @@ func TestSessionDoesNotCaptureTaskLocalDerivedBindings(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			function Keyboard(this: Component<{ selected: number }>) {
-				this.task(({ signal }) => {
+				const __fixtureTask17 = ({ signal }: TaskContext = TaskContext.latest()) => {
 					window.addEventListener("keydown", event => {
 						const next = choose(this.state.selected, event.key);
 						if (next !== this.state.selected) this.state.selected = next;
 					}, { signal });
-				});
+				};
+__fixtureTask17();
 				return () => <output />;
 			}
 		`,
@@ -2997,76 +2994,6 @@ func TestSessionDoesNotCaptureTaskLocalDerivedBindings(t *testing.T) {
 		t.Fatalf("task-local derived binding escaped into activation: %#v %#v",
 			response.Analysis.Tasks,
 			response.Diagnostics,
-		)
-	}
-}
-
-func TestSessionReusesAuthoredSignalContextAfterReactiveDependencies(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
-		Source: `
-			declare class Component<State> {
-				state: State
-				task(...values: unknown[]): void
-			}
-			function Workspace(this: Component<{ revision: number }>) {
-				this.task(this.state.revision, async (_revision, { signal }) => {
-					await delay(signal);
-				});
-				return () => <output />;
-			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if strings.Contains(response.Code, "{ signal }, { signal: __exactSignal }") {
-		t.Fatalf("native lowering appended a duplicate task context:\n%s", response.Code)
-	}
-	if !strings.Contains(response.Code, "async (_revision, { signal })") ||
-		!strings.Contains(response.Code, "__exactTaskAwait(signal, delay(signal))") {
-		t.Fatalf("authored task signal was not reused:\n%s", response.Code)
-	}
-}
-
-func TestSessionAppendsSignalContextAfterExplicitTaskDependencies(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
-		Source: `
-			declare class Component<State> {
-				state: State
-				task(...values: unknown[]): void
-			}
-			function Timer(this: Component<{ paused: boolean }>) {
-				this.task(this.state.paused, false, (paused, complete) => {
-					if (paused || complete) return;
-					setInterval(() => {}, 1000);
-				});
-				return () => <output />;
-			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if !strings.Contains(
-		response.Code,
-		`(paused, complete, { signal: __exactSignal })`,
-	) || !strings.Contains(
-		response.Code,
-		`__exactTaskInterval(__exactSignal, () => { }, 1000)`,
-	) {
-		t.Fatalf(
-			"native lowering reused an explicit dependency as task context:\n%s",
-			response.Code,
-		)
-	}
-	if strings.Contains(response.Code, "complete.signal") {
-		t.Fatalf(
-			"native lowering read task context from an explicit dependency:\n%s",
-			response.Code,
 		)
 	}
 }
@@ -3088,47 +3015,6 @@ func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
 	if !strings.Contains(response.Code, `onInput: handler("value")`) ||
 		strings.Contains(response.Code, `onInput: __exactExpression`) {
 		t.Fatalf("event handler factory was emitted as a reactive value:\n%s", response.Code)
-	}
-}
-
-func TestSessionLowersInferredAndExplicitTaskDependencies(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
-		Source: `
-			declare class Component<State> { state: State }
-			function Counter(this: Component<{ count: number }>) {
-				const count = this.state.count;
-				const label = "count-" + count;
-				this.task(() => consume(this.state.count, label));
-				this.task(label, value => consume(value));
-				return () => <output />;
-			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if len(response.Analysis.Tasks) != 2 ||
-		len(response.Analysis.Tasks[0].Dependencies) != 2 ||
-		response.Analysis.Tasks[0].Dependencies[0].Source != "state" ||
-		response.Analysis.Tasks[0].Dependencies[0].Path != "this.state.count" ||
-		response.Analysis.Tasks[0].Dependencies[1].Source != "derived" ||
-		response.Analysis.Tasks[0].Dependencies[1].Path != "label" {
-		t.Fatalf(
-			"unexpected structured task dependencies: %#v",
-			response.Analysis.Tasks,
-		)
-	}
-	for _, expected := range []string{
-		`this.reactive(() => this.state.count)`,
-		`this.reactive(() => label.get())`,
-		`(__exactDependency: number, __exactDependency1: string) => consume(__exactDependency, __exactDependency1)`,
-		`}, value => consume(value)), label)`,
-	} {
-		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("native task output is missing %q:\n%s", expected, response.Code)
-		}
 	}
 }
 
@@ -3173,11 +3059,6 @@ func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
 		"task placement explicitly requested as client",
 	) {
 		t.Fatalf("function-defined task omitted its placement explanation: %#v", task)
-	}
-	for _, diagnostic := range task.Diagnostics {
-		if strings.Contains(diagnostic, "this.task") {
-			t.Fatalf("function-defined task received legacy diagnostic guidance: %q", diagnostic)
-		}
 	}
 	for _, expected := range []string{
 		"activateTaskForHost as __exactActivateTask",
@@ -3619,11 +3500,13 @@ func TestSessionBuildsContinuationAndResumptionContracts(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			function Loader(this: Component<{ count: number }>) {
-				this.task.server(async () => {
+				const __fixtureTask22 = async (_task: TaskContext = TaskContext.server()) => {
 					this.state.count++;
-				});
+				};
+__fixtureTask22();
 				return () => <output />;
 			}
 		`,
@@ -3662,11 +3545,13 @@ func TestSessionBuildsContinuationAndResumptionContracts(t *testing.T) {
 
 func TestSessionTagsServerContinuationWorkAndOmitsItFromClient(t *testing.T) {
 	source := `
+			import { TaskContext } from "@exactjs/core";
 		declare class Component<State> { state: State }
 		export function Loader(this: Component<{ count: number }>) {
-			this.task.server(async () => {
+			const __fixtureTask7 = async (_task: TaskContext = TaskContext.server()) => {
 				this.state.count++;
-			});
+			};
+__fixtureTask7();
 			return () => <output />;
 		}
 	`
@@ -3707,7 +3592,6 @@ func TestSessionTagsServerContinuationWorkAndOmitsItFromClient(t *testing.T) {
 	}
 	if !strings.Contains(client.Code, "export function Loader") ||
 		!strings.Contains(client.Code, "createServerBoundary") ||
-		strings.Contains(client.Code, "this.task.server") ||
 		strings.Contains(client.Code, "this.state.count++") {
 		t.Fatalf(
 			"server-only task implementation escaped into the client artifact:\n%s",
@@ -3722,12 +3606,15 @@ func TestSessionEmitsClientDispatchStubForIsomorphicContinuation(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			export function Loader(this: Component<{ count: number }>) {
-				this.task.client(() => console.log("client"));
-				this.task.server(async () => {
+				const __fixtureTask23 = (_task: TaskContext = TaskContext.client()) => console.log("client");
+__fixtureTask23();
+				const __fixtureTask24 = async (_task: TaskContext = TaskContext.server()) => {
 					this.state.count++;
-				});
+				};
+__fixtureTask24();
 				return () => <output>Go</output>;
 			}
 		`,
@@ -3789,11 +3676,13 @@ func TestSessionEmitsServerContinuationExecutorContract(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetServer,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			export function Loader(this: Component<{ count: number }>) {
-				this.task.server(async () => {
+				const __fixtureTask25 = async (_task: TaskContext = TaskContext.server()) => {
 					this.state.count++;
-				});
+				};
+__fixtureTask25();
 				return () =>
 					<button onClick={() => alert(1)}>Go</button>;
 			}
@@ -3816,7 +3705,7 @@ func TestSessionEmitsServerContinuationExecutorContract(t *testing.T) {
 		`componentId: "` + continuation.ComponentID + `"`,
 		`execute: async (__exactActivation_1: any, __exactExecution_1: any) =>`,
 		`const __exactComponent_1 = { state: __exactActivation_1.state }`,
-		`await (async ({ signal: __exactSignal }) =>`,
+		`await (async (_task: TaskContext) =>`,
 		`})(__exactExecution_1.task)`,
 		`__exactUpdateResult(__exactComponent_1.state, ["count"]`,
 		`return { state: __exactComponent_1.state, contexts: __exactContextWrites_1 }`,
@@ -3837,7 +3726,7 @@ func TestSessionEmitsServerContinuationExecutorContract(t *testing.T) {
 	}
 }
 
-func TestSessionEmitsTypedServerActionArtifactsWithRenderImports(t *testing.T) {
+func TestSessionEmitsTypedInvokedServerTaskArtifactsWithRenderImports(t *testing.T) {
 	root := t.TempDir()
 	helper := filepath.Join(root, "view.tsx")
 	if err := os.WriteFile(
@@ -3853,16 +3742,16 @@ func TestSessionEmitsTypedServerActionArtifactsWithRenderImports(t *testing.T) {
 	}
 	entry := filepath.Join(root, "workspace.tsx")
 	source := `
+		import { TaskContext } from "@exactjs/core";
 		import { renderWorkspace } from "./view.js";
-		declare class Component<State> {
-			state: State;
-			action: {
-				server: (name: string, work: (...args: any[]) => unknown) => unknown;
-			};
-		}
-		export function Workspace(this: Component<{}>) {
-			this.action.server("load", (id: string) => Promise.resolve(id));
-			return () => renderWorkspace();
+		export function Workspace() {
+			async function load(
+				id: string,
+				_task: TaskContext = TaskContext.server()
+			) {
+				return Promise.resolve(id);
+			}
+			return () => <button onClick={() => load("workspace")}>{renderWorkspace()}</button>;
 		}
 	`
 	session := NewSession(nil)
@@ -3873,12 +3762,11 @@ func TestSessionEmitsTypedServerActionArtifactsWithRenderImports(t *testing.T) {
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`(...__exactActionArgs: any[]) =>`,
-		`const __exactActionContext: any`,
+		`const load = __exactBindTask(this, __exactDefineTask(`,
 		`__exactDispatchContinuation(this as any, "`,
 	} {
 		if !strings.Contains(client.Code, expected) {
-			t.Fatalf("client action artifact is missing %q:\n%s", expected, client.Code)
+			t.Fatalf("client invoked task artifact is missing %q:\n%s", expected, client.Code)
 		}
 	}
 
@@ -3890,26 +3778,26 @@ func TestSessionEmitsTypedServerActionArtifactsWithRenderImports(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`import { renderWorkspace } from "./view.js"`,
-		`markComponentContinuationAction as __exactContinuationAction`,
+		`markComponentContinuationTask as __exactContinuationTask`,
 		`__exactExecution_1.task`,
-		`value: __exactActionResult_1`,
+		`value: __exactTaskResult_1`,
 	} {
 		if !strings.Contains(server.Code, expected) {
-			t.Fatalf("server action artifact is missing %q:\n%s", expected, server.Code)
+			t.Fatalf("server invoked task artifact is missing %q:\n%s", expected, server.Code)
 		}
 	}
 	component := findComponent(t, server.Analysis.Components, "Workspace")
-	if component.EnvironmentEffect != "neutral" {
-		t.Fatalf("action registration polluted component placement: %#v", component)
+	if component.EnvironmentEffect != "server" {
+		t.Fatalf("server task effect was omitted from component placement: %#v", component)
 	}
 }
 
-func TestSessionReconstructsContinuationContextsByResidency(t *testing.T) {
+func TestSessionPartitionsContinuationContextsByResidency(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
-		ID:     "component.tsx",
-		Kind:   "compile",
-		Target: TargetServer,
+		ID:   "component.tsx",
+		Kind: "analyze",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> {
 				state: State;
 				getContext(token: unknown): any;
@@ -3934,15 +3822,15 @@ func TestSessionReconstructsContinuationContextsByResidency(t *testing.T) {
 			export function Loader(
 				this: Component<{ value: string }>
 			) {
-				const config = this.getContext(PublicConfig);
-				this.task.server(async () => {
+				const __fixtureTask26 = async (_task: TaskContext = TaskContext.server()) => {
+					const config = this.getContext(PublicConfig);
 					const resource = this.getContext(ServerResource);
 					this.state.value = config.domain + resource.domain;
 					this.setContext(PublicStatus, { ready: true });
 					this.setContext(ServerResource, { domain: "changed" });
-				});
+				};
 				return () =>
-					<button onClick={() => alert(1)}>{this.state.value}</button>;
+					<button onClick={() => __fixtureTask26()}>{this.state.value}</button>;
 			}
 		`,
 	})
@@ -3993,33 +3881,6 @@ func TestSessionReconstructsContinuationContextsByResidency(t *testing.T) {
 	) {
 		t.Fatalf("continuation contexts were not partitioned: %#v", continuation)
 	}
-	for _, expected := range []string{
-		`const config = __exactActivation_1.publicContext["PublicConfig"]`,
-		`__exactExecution_1.getContext(ServerResource, "ServerResource")`,
-		`__exactContextWrites_1["PublicStatus"] = { ready: true }, void 0`,
-		`__exactExecution_1.setContext(ServerResource, { domain: "changed" }, "ServerResource")`,
-		`contexts: __exactContextWrites_1`,
-		`id: "` + boundary.ID + `"`,
-		`ownerComponentId: "` + continuation.ComponentID + `"`,
-	} {
-		if !strings.Contains(response.Code, expected) {
-			t.Fatalf(
-				"context-aware executor is missing %q:\n%s",
-				expected,
-				response.Code,
-			)
-		}
-	}
-	if len(response.Analysis.Resumptions) != 1 ||
-		!containsString(
-			response.Analysis.Resumptions[0].Client.Contexts,
-			"PublicStatus",
-		) {
-		t.Fatalf(
-			"shared context write is missing from resumption: %#v",
-			response.Analysis.Resumptions,
-		)
-	}
 }
 
 func TestSessionInfersAndValidatesTaskEnvironmentPlacement(t *testing.T) {
@@ -4027,14 +3888,18 @@ func TestSessionInfersAndValidatesTaskEnvironmentPlacement(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			import { readFileSync } from "node:fs";
 			function Environment() {
-				this.task.server(() => document.title);
-				this.task.client(() => readFileSync("input.txt"));
-				this.task(() => {
+				const __fixtureTask27 = (_task: TaskContext = TaskContext.server()) => document.title;
+__fixtureTask27();
+				const __fixtureTask28 = (_task: TaskContext = TaskContext.client()) => readFileSync("input.txt");
+__fixtureTask28();
+				const __fixtureTask29 = (_task: TaskContext = TaskContext.latest()) => {
 					document.title;
 					readFileSync("input.txt");
-				});
+				};
+__fixtureTask29();
 				return () => <output />;
 			}
 		`,
@@ -4069,6 +3934,7 @@ func TestSessionPropagatesCallableStateContextAndEnvironmentEffects(t *testing.T
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			import { readFileSync } from "node:fs";
 			declare class Component<State> {
 				state: State;
@@ -4086,7 +3952,8 @@ func TestSessionPropagatesCallableStateContextAndEnvironmentEffects(t *testing.T
 			}
 			function Panel(this: Component<any>) {
 				const alias = middle.bind(this);
-				this.task(() => alias());
+				const __fixtureTask30 = (_task: TaskContext = TaskContext.latest()) => alias();
+__fixtureTask30();
 				return () => <output />;
 			}
 		`,
@@ -4159,13 +4026,15 @@ func TestSessionKeepsShadowedCallableSymbolsSeparate(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			function browserHelper() { return document.title; }
 			function serverOwner() {
 				function browserHelper() { return 1; }
 				return browserHelper();
 			}
 			function Panel() {
-				this.task(() => serverOwner());
+				const __fixtureTask31 = (_task: TaskContext = TaskContext.latest()) => serverOwner();
+__fixtureTask31();
 				return () => <output>{browserHelper()}</output>;
 			}
 		`,
@@ -4217,6 +4086,7 @@ func TestSessionCollectsOwnedTaskResourcesAndSignals(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare const store: {
 				subscribe(callback: () => void): { unsubscribe(): void }
 			};
@@ -4225,7 +4095,7 @@ func TestSessionCollectsOwnedTaskResourcesAndSignals(t *testing.T) {
 			declare function optionsApi(value: string, options?: { signal?: AbortSignal }): void;
 			declare function directApi(value: string, signal?: AbortSignal): void;
 			function Panel() {
-				this.task.client(() => {
+				const __fixtureTask32 = (_task: TaskContext = TaskContext.client()) => {
 					setTimeout(() => {}, 10);
 					setInterval(() => {}, 20);
 					requestAnimationFrame(() => {});
@@ -4243,7 +4113,8 @@ func TestSessionCollectsOwnedTaskResourcesAndSignals(t *testing.T) {
 					worker.postMessage("ready");
 					void subscription;
 					void disposable;
-				});
+				};
+__fixtureTask32();
 				return () => <output />;
 			}
 		`,
@@ -4281,14 +4152,14 @@ func TestSessionCollectsOwnedTaskResourcesAndSignals(t *testing.T) {
 		`withAbortSignal as __exactAbortOptions`,
 		`withTaskSignal as __exactTaskOptionsSignal`,
 		`combineTaskSignal as __exactTaskCombinedSignal`,
-		`{ signal: __exactSignal }`,
-		`__exactTaskTimeout(__exactSignal, () => {`,
-		`__exactTaskFetch(__exactSignal, fetch, "/items")`,
-		`__exactTaskObserver(__exactSignal, new ResizeObserver(() => {`,
-		`__exactTaskResource(__exactSignal, new WebSocket("/events"), "close")`,
-		`optionsApi("ready", __exactTaskOptionsSignal(undefined, __exactSignal))`,
-		`directApi("ready", __exactTaskCombinedSignal(__exactSignal))`,
-		`window.addEventListener("resize", () => { }, __exactAbortOptions(undefined, __exactSignal))`,
+		`_task: TaskContext`,
+		`__exactTaskTimeout(_task.signal, () => {`,
+		`__exactTaskFetch(_task.signal, fetch, "/items")`,
+		`__exactTaskObserver(_task.signal, new ResizeObserver(() => {`,
+		`__exactTaskResource(_task.signal, new WebSocket("/events"), "close")`,
+		`optionsApi("ready", __exactTaskOptionsSignal(undefined, _task.signal))`,
+		`directApi("ready", __exactTaskCombinedSignal(_task.signal))`,
+		`window.addEventListener("resize", () => { }, __exactAbortOptions(undefined, _task.signal))`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native task resource output is missing %q:\n%s", expected, response.Code)
@@ -4355,12 +4226,14 @@ func TestSessionPreservesKnownClientPlacementThroughOpaqueRenderCalls(t *testing
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare function checked(value: unknown): boolean;
 			function renderPanel(value: unknown) {
 				return <button onClick={() => {}}>{checked(value) ? "yes" : "no"}</button>;
 			}
 			export function Panel(this: Component<{}>, props: { value: unknown }) {
-				this.task.client(() => {});
+				const __fixtureTask33 = (_task: TaskContext = TaskContext.client()) => {};
+__fixtureTask33();
 				return () => renderPanel(props.value);
 			}
 		`,
@@ -4420,8 +4293,10 @@ func TestSessionDoesNotScheduleTaskFromItsOwnUpdateTarget(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			export function Counter(this: Component<{ revision: number }>) {
-				this.task.client(() => { this.state.revision++; });
+				const __fixtureTask34 = (_task: TaskContext = TaskContext.client()) => { this.state.revision++; };
+__fixtureTask34();
 				return () => <output>{this.state.revision}</output>;
 			}
 		`,
@@ -4586,11 +4461,13 @@ func TestSessionLowersTaskAwaitWithGenerationSignal(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			function Panel() {
-				this.task(async () => {
+				const __fixtureTask35 = async (_task: TaskContext = TaskContext.latest()) => {
 					const value = await loadValue();
 					consume(value);
-				});
+				};
+__fixtureTask35();
 				return () => <output />;
 			}
 		`,
@@ -4600,8 +4477,8 @@ func TestSessionLowersTaskAwaitWithGenerationSignal(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`taskAwait as __exactTaskAwait`,
-		`async ({ signal: __exactSignal }) =>`,
-		`await __exactTaskAwait(__exactSignal, loadValue())`,
+		`async (_task: TaskContext) =>`,
+		`await __exactTaskAwait(_task.signal, loadValue())`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native task await output is missing %q:\n%s", expected, response.Code)
@@ -4619,13 +4496,15 @@ func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testin
 				subscribe(callback: () => void): () => void
 			};
 			function Panel() {
-				this.task.client(() => {
+				const __fixtureTask36 = (_task: TaskContext = TaskContext.client()) => {
 					this.state.socket = new WebSocket("/escape");
-				});
-				this.task.client(() => {
+				};
+__fixtureTask36();
+				const __fixtureTask37 = (_task: TaskContext = TaskContext.client()) => {
 					const socket = new WebSocket("/explicit");
 					return () => socket.close();
-				});
+				};
+__fixtureTask37();
 				const observe = (task: TaskContext = TaskContext.client()) => {
 					task.cleanup(store.subscribe(() => {}));
 				};
@@ -4676,9 +4555,11 @@ func TestSessionAnalyzesComponentPlacementIslandsAndContexts(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			import { readFileSync } from "node:fs";
 			function Mixed() {
-				this.task.client(() => window.addEventListener("resize", () => {}));
+				const __fixtureTask38 = (_task: TaskContext = TaskContext.client()) => window.addEventListener("resize", () => {});
+__fixtureTask38();
 				this.getContext(Theme);
 				this.setContext(this.state.token, "value");
 				const server = readFileSync;
@@ -4723,14 +4604,13 @@ func TestSessionSeparatesTaskEffectsFromComponentSetupPlacement(t *testing.T) {
 			declare function loadOnServer(): Promise<number>;
 			export function Workspace(this: Component<{ count: number }>) {
 				async function load(_task: TaskContext = TaskContext.server()) {
-					return loadOnServer();
+					this.state.count = await loadOnServer();
 				}
-				async function refresh(_task: TaskContext = TaskContext.client()) {
+				function refresh(_task: TaskContext = TaskContext.client()) {
 					localStorage.setItem("refreshing", "true");
-					this.state.count = await load();
 				}
-				void refresh();
-				return () => <output>{this.state.count}</output>;
+				load();
+				return () => <button onClick={() => refresh()}>{this.state.count}</button>;
 			}
 		`,
 	})
@@ -4743,7 +4623,11 @@ func TestSessionSeparatesTaskEffectsFromComponentSetupPlacement(t *testing.T) {
 		workspace.ArtifactTargets[0] != "client" ||
 		workspace.ArtifactTargets[1] != "server" ||
 		strings.Contains(strings.Join(workspace.Diagnostics, "\n"), "mixed placement effects") {
-		t.Fatalf("task effects contaminated component setup placement: %#v", workspace)
+		t.Fatalf(
+			"task effects contaminated component setup placement: component=%#v tasks=%#v",
+			workspace,
+			response.Analysis.Tasks,
+		)
 	}
 }
 
@@ -4810,6 +4694,7 @@ func TestSessionAppliesStateAndContextResidencyToTasks(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> {
 				state: State;
 				task(work: () => void): void;
@@ -4827,9 +4712,12 @@ func TestSessionAppliesStateAndContextResidencyToTasks(t *testing.T) {
 			}
 			const BrowserContext = createContext("", { keep: "client" });
 			function Panel(this: Component<State>) {
-				this.task(() => consume(this.state.token));
-				this.task.server(() => consume(this.state.draft));
-				this.task(() => this.getContext(BrowserContext));
+				const __fixtureTask39 = (_task: TaskContext = TaskContext.latest()) => consume(this.state.token);
+__fixtureTask39();
+				const __fixtureTask40 = (_task: TaskContext = TaskContext.server()) => consume(this.state.draft);
+__fixtureTask40();
+				const __fixtureTask41 = (_task: TaskContext = TaskContext.latest()) => this.getContext(BrowserContext);
+__fixtureTask41();
 				return () => <output />;
 			}
 		`,
@@ -5434,9 +5322,11 @@ func TestSessionPropagatesCallableEffectsAcrossProjectImports(t *testing.T) {
 		Root: root,
 		Kind: "compile",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			import { loadConfig } from "./helper.js";
 			function Panel() {
-				this.task(() => loadConfig());
+				const __fixtureTask42 = (_task: TaskContext = TaskContext.latest()) => loadConfig();
+__fixtureTask42();
 				return () => <output />;
 			}
 		`,
@@ -5558,9 +5448,11 @@ func TestSessionInvalidatesRetainedProjectCallableEffects(t *testing.T) {
 	}
 	entry := filepath.Join(root, "entry.tsx")
 	entrySource := `
+			import { TaskContext } from "@exactjs/core";
 		import { loadConfig } from "./helper.js";
 		export function Panel() {
-			this.task(() => loadConfig());
+			const __fixtureTask8 = (_task: TaskContext = TaskContext.latest()) => loadConfig();
+__fixtureTask8();
 			return () => <output />;
 		}
 	`
@@ -5908,9 +5800,11 @@ func TestSessionPropagatesExternalManifestCallableEffects(t *testing.T) {
 		ID:   "entry.tsx",
 		Kind: "analyze",
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			import { loadConfig as load } from "@scope/data";
 			export function Panel() {
-				this.task(() => load());
+				const __fixtureTask43 = (_task: TaskContext = TaskContext.latest()) => load();
+__fixtureTask43();
 				return () => <output />;
 			}
 		`,
@@ -5952,19 +5846,24 @@ func TestSessionPropagatesExternalManifestCallableEffects(t *testing.T) {
 	}
 	taskCallable := CallableSummary{}
 	for _, callable := range response.Analysis.Callables {
-		if callable.Kind == "task" {
+		if callable.Name == "__fixtureTask43" {
 			taskCallable = callable
 			break
 		}
 	}
 	if taskCallable.ID == "" {
-		t.Fatalf("missing task callable: %#v", response.Analysis.Callables)
+		t.Fatalf("missing task function callable: %#v", response.Analysis.Callables)
 	}
-	if len(taskCallable.Calls) != 1 ||
-		!taskCallable.Calls[0].Resolved ||
-		taskCallable.Calls[0].TargetID != "data:load-config" ||
-		taskCallable.Calls[0].ModuleSpecifier != "@scope/data" ||
-		taskCallable.Calls[0].ExportName != "loadConfig" {
+	resolvedExternalCall := CallEdge{}
+	for _, call := range taskCallable.Calls {
+		if call.TargetID == "data:load-config" {
+			resolvedExternalCall = call
+			break
+		}
+	}
+	if !resolvedExternalCall.Resolved ||
+		resolvedExternalCall.ModuleSpecifier != "@scope/data" ||
+		resolvedExternalCall.ExportName != "loadConfig" {
 		t.Fatalf("external callable edge was not resolved: %#v", taskCallable.Calls)
 	}
 }

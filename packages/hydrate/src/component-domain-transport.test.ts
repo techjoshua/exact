@@ -3,8 +3,10 @@
  */
 import {
 	Suspense,
+	activateTaskForHost,
 	createContext,
 	currentComponentDomain,
+	defineTask,
 	dispatchComponentContinuation,
 	withComponentDomain,
 	type Component,
@@ -26,12 +28,15 @@ describe('component-domain transport', () => {
 		});
 		function Options(this: Component<{ result: string }>) {
 			this.state.result = 'waiting';
-			(this as any).task.blocking(({ signal }: { signal: AbortSignal }) =>
-				dispatchComponentContinuation(
-					this as unknown as ComponentInstance<{ result: string }>,
-					'load-options',
-					[],
-					signal
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, ({ signal }) =>
+					dispatchComponentContinuation(
+						this as unknown as ComponentInstance<{ result: string }>,
+						'load-options',
+						[],
+						signal
+					)
 				)
 			);
 			return () => createVNode('output', null, this.state.result);
@@ -46,7 +51,7 @@ describe('component-domain transport', () => {
 				async json() {
 					return {
 						ok: true,
-						type: 'action' as const,
+						type: 'invoke' as const,
 						id: 'load-options',
 						state: { result: 'Ground' }
 					};
@@ -85,13 +90,16 @@ describe('component-domain transport', () => {
 		}
 		function Provider(this: Component<{}>) {
 			this.setContext(StatusContext, { message: 'initial' });
-			(this as any).task(({ signal }: { signal: AbortSignal }) =>
-				dispatchComponentContinuation(
-					this as unknown as ComponentInstance<{}>,
-					'publish-status',
-					[],
-					signal,
-					[{ name: 'StatusContext', token: StatusContext }]
+			activateTaskForHost(
+				this,
+				defineTask({}, ({ signal }) =>
+					dispatchComponentContinuation(
+						this as unknown as ComponentInstance<{}>,
+						'publish-status',
+						[],
+						signal,
+						[{ name: 'StatusContext', token: StatusContext }]
+					)
 				)
 			);
 			return () => createVNode(Status, {});
@@ -106,7 +114,7 @@ describe('component-domain transport', () => {
 				async json() {
 					return {
 						ok: true,
-						type: 'action' as const,
+						type: 'invoke' as const,
 						id: 'publish-status',
 						contexts: { StatusContext: { message: 'updated' } }
 					};
@@ -137,15 +145,17 @@ describe('component-domain transport', () => {
 		function Search(this: Component<{ query: string; result: string }>) {
 			this.state.query = 'first';
 			this.state.result = 'waiting';
-			(this as any).task(
-				this.reactive(() => this.state.query),
-				(query: string, { signal }: { signal: AbortSignal }) =>
+			activateTaskForHost(
+				this,
+				defineTask({}, (query: string, { signal }) =>
 					dispatchComponentContinuation(
 						this as unknown as ComponentInstance<{ query: string; result: string }>,
 						'load',
 						[query],
 						signal
 					)
+				),
+				this.reactive(() => this.state.query)
 			);
 			return () => createVNode('output', null, this.state.result);
 		}
@@ -161,7 +171,7 @@ describe('component-domain transport', () => {
 					async json() {
 						return {
 							ok: true,
-							type: 'action' as const,
+							type: 'invoke' as const,
 							id: 'load',
 							state: { result: 'FIRST' }
 						};
@@ -178,7 +188,7 @@ describe('component-domain transport', () => {
 				state: { query: 'first' }
 			})
 		]);
-		expect(container.querySelector('output')?.textContent).toBe('FIRST');
+		await vi.waitFor(() => expect(container.querySelector('output')?.textContent).toBe('FIRST'));
 		client.dispose();
 	});
 
@@ -201,13 +211,13 @@ describe('component-domain transport', () => {
 					ok: true,
 					status: 200,
 					async json() {
-						return { ok: true, type: 'action', id: 'save' };
+						return { ok: true, type: 'invoke', id: 'save' };
 					}
 				};
 			}
 		});
 
-		await client.invokeAction('save');
+		await client.invokeTask('save');
 		expect(client.domain.executionRoot).toBe('@company/billing#./Area');
 		expect(requests).toEqual([
 			{
@@ -216,7 +226,7 @@ describe('component-domain transport', () => {
 					'X-Exact-Build': '0123456789abcdef0123456789abcdef01234567'
 				}),
 				body: expect.objectContaining({
-					type: 'action',
+					type: 'invoke',
 					root: '@company/billing#./Area',
 					id: 'save'
 				})

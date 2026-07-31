@@ -9,6 +9,7 @@ export type TaskFrameInspection = Readonly<{
 	parentId?: number;
 	kind: string;
 	label?: string;
+	sourceEntityId?: string;
 	activation: 'initialization' | 'reactive' | 'interaction' | 'invoked' | 'lifecycle';
 	generation: number;
 	placement: 'current' | 'client' | 'server';
@@ -31,6 +32,7 @@ export function inspectTaskFramesForHost(host: object): readonly TaskFrameInspec
 				...(frame.parent ? { parentId: frame.parent.id } : {}),
 				kind: frame.kind,
 				...(frame.label === undefined ? {} : { label: frame.label }),
+				...(frame.sourceEntityId === undefined ? {} : { sourceEntityId: frame.sourceEntityId }),
 				activation: frame.activation,
 				generation: frame.generation,
 				placement: frame.placement,
@@ -57,7 +59,7 @@ export function publishTaskFrameEvent(
 	inspection.publish({
 		kind,
 		component: host,
-		sourceEntityId: `runtime-task-frame:${frame.id}`,
+		sourceEntityId: frame.sourceEntityId ?? `runtime-task-frame:${frame.id}`,
 		generation: frame.generation,
 		...(reason === undefined ? {} : { reason: String(reason) })
 	});

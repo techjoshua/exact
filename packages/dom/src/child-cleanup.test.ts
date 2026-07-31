@@ -1,7 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { createDynamicChild, createRef, unsafeHtml, type Component } from '@exactjs/core';
+import {
+	activateTaskForHost,
+	createDynamicChild,
+	createRef,
+	defineTask,
+	unsafeHtml,
+	type Component
+} from '@exactjs/core';
 import { jsx, jsxs } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
@@ -108,9 +115,12 @@ describe('@exactjs/dom child-cleanup', () => {
 
 		function Row(this: Component<{}>, props: { id: string }) {
 			this.onUnmount(() => unmounted.push(String(props.id)));
-			(this as any).task(({ signal }: { signal: AbortSignal }) => {
-				signal.addEventListener('abort', () => aborted.push(String(props.id)));
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, ({ signal }) => {
+					signal.addEventListener('abort', () => aborted.push(String(props.id)));
+				})
+			);
 			return () => jsx('li', { children: props.id });
 		}
 

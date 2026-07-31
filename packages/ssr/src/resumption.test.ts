@@ -1,5 +1,7 @@
 import {
+	activateTaskForHost,
 	createContext,
+	defineTask,
 	exactComponentContract,
 	exactComponentType,
 	markComponentContinuationTask,
@@ -21,11 +23,15 @@ describe('@exactjs/ssr component resumption', () => {
 		) {
 			this.state.count = 0;
 			this.state.serverOnly = 'private';
-			(this as any).task(
-				markComponentContinuationTask('task:load', async () => {
-					await Promise.resolve();
-					this.state.count = 7;
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask('task:load', async () => {
+						await Promise.resolve();
+						this.state.count = 7;
+					})
+				)
 			);
 			return () => createVNode('output', null, String(this.state.count));
 		};
@@ -40,6 +46,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:load',
 						componentId: 'component:Counter',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
@@ -163,6 +170,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:continuation-owner',
 						componentId: 'component:ContinuationOwner',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
@@ -215,11 +223,15 @@ describe('@exactjs/ssr component resumption', () => {
 	it('captures the settled render used by a hydratable document stream', async () => {
 		const implementation = function StreamedCounter(this: Component<{ count: number }>) {
 			this.state.count = 0;
-			(this as any).task(
-				markComponentContinuationTask('task:stream', async () => {
-					await Promise.resolve();
-					this.state.count = 9;
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask('task:stream', async () => {
+						await Promise.resolve();
+						this.state.count = 9;
+					})
+				)
 			);
 			return () => createVNode('output', null, String(this.state.count));
 		};
@@ -234,6 +246,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:stream',
 						componentId: 'component:StreamedCounter',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
@@ -276,10 +289,14 @@ describe('@exactjs/ssr component resumption', () => {
 		}
 		const implementation = function Provider(this: Component<{}>) {
 			registerComponentContinuationContexts(this, [{ name: 'Status', token: Status }]);
-			(this as any).task(
-				markComponentContinuationTask('task:status', () => {
-					this.setContext(Status, { message: 'ready' });
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask('task:status', () => {
+						this.setContext(Status, { message: 'ready' });
+					})
+				)
 			);
 			return () => createVNode(Consumer, {});
 		};
@@ -294,6 +311,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:status',
 						componentId: 'component:Provider',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],

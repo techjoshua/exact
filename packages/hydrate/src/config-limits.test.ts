@@ -11,6 +11,7 @@ describe('bounded hydration bootstrap and adoption', () => {
 		const continuation = (id: string) => ({
 			id,
 			componentId: `component:${id}`,
+			kind: 'task' as const,
 			readiness: 'nonblocking' as const,
 			dependencies: [],
 			stateReads: [],

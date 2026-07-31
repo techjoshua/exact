@@ -13,7 +13,7 @@ describe('@exactjs/ssr element-diffing', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {},
+					invocations: {},
 					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
@@ -203,7 +203,7 @@ describe('@exactjs/ssr element-diffing', () => {
 			{
 				contract: {
 					version: 1,
-					actions: {},
+					invocations: {},
 					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {

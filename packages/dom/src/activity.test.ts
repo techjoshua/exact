@@ -4,8 +4,10 @@
 import {
 	Activity,
 	Suspense,
+	activateTaskForHost,
 	createExpression,
 	createRef,
+	defineTask,
 	stageTaskMutation,
 	taskAwait,
 	type ActivityMode,
@@ -131,12 +133,15 @@ describe('@exactjs/dom native Activity', () => {
 		});
 		function Panel(this: Component<{ label: string }>) {
 			this.state.label = 'waiting';
-			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
-				await taskAwait(signal, pending);
-				stageTaskMutation(signal, () => {
-					this.state.label = 'ready';
-				});
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async ({ signal }) => {
+					await taskAwait(signal, pending);
+					stageTaskMutation(signal, () => {
+						this.state.label = 'ready';
+					});
+				})
+			);
 			return () =>
 				createCompiledVNode(
 					'p',
@@ -169,7 +174,11 @@ describe('@exactjs/dom native Activity', () => {
 		boundary.state.mode = 'active';
 		flushSync();
 		expect(container.textContent).toBe('');
-		for (let index = 0; index < 8; index++) await Promise.resolve();
+		for (let index = 0; index < 12; index++) {
+			flushSync();
+			await Promise.resolve();
+			await Promise.resolve();
+		}
 		flushSync();
 		expect(container.textContent).toBe('ready');
 		unmount(container);

@@ -10,7 +10,7 @@ export type AuthoredTaskRegion = Readonly<{
 	dependencyPaths: readonly string[];
 }>;
 
-/** Finds authored-policy task functions, legacy registrations, and inferred awaits. */
+/** Finds authored-policy task functions and compiler-inferred awaited work. */
 export function findTaskRegions(
 	source: string,
 	tasks: readonly NativeCompilerTask[] = []
@@ -43,30 +43,9 @@ export function findTaskRegions(
 				)
 			});
 		});
-	const explicit = [
-		...source.matchAll(/\b(?:await\s+)?this\.task(?:\.[A-Za-z_$][\w$]*)*\s*\(/g)
-	].map((match) => {
-		const start = match.index;
-		const callStart = start + (match[0].startsWith('await') ? match[0].indexOf('this') : 0);
-		const end = findBalancedCallEnd(source, callStart) ?? start + match[0].length;
-		const call = source.slice(callStart, end);
-		return Object.freeze({
-			origin: 'explicit' as const,
-			range: statementRange(source, start, end),
-			selectionRange: Object.freeze({
-				start: callStart + 'this.'.length,
-				end: callStart + 'this.task'.length
-			}),
-			awaited: /^\s*await\b/.test(match[0]),
-			dependencyPaths: Object.freeze(explicitDependencyPaths(call))
-		});
-	});
-	const inferred = [...source.matchAll(/\bawait\s+(?!this\.task\b)/g)]
+	const inferred = [...source.matchAll(/\bawait\s+/g)]
 		.filter(
 			(match) =>
-				!explicit.some(
-					(region) => match.index >= region.range.start && match.index <= region.range.end
-				) &&
 				!functions.some(
 					(region) => match.index >= region.range.start && match.index < region.range.end
 				)
@@ -86,7 +65,7 @@ export function findTaskRegions(
 			});
 		});
 	const seen = new Set<string>();
-	return [...explicit, ...inferred, ...functions]
+	return [...inferred, ...functions]
 		.sort((left, right) => left.range.start - right.range.start)
 		.filter((region) => {
 			const key = `${region.range.start}:${region.range.end}`;
@@ -285,36 +264,6 @@ export function inferredDependencyPath(
 	return text.match(pattern)?.[0] ?? sourceKind;
 }
 
-function explicitDependencyPaths(call: string): string[] {
-	const open = call.indexOf('(');
-	if (open < 0) return [];
-	const close = findMatchingDelimiter(call, open, '(', ')');
-	if (close === undefined) return [];
-	const argumentsList = splitTopLevel(call.slice(open + 1, close));
-	if (argumentsList.length < 2) return [];
-	return argumentsList
-		.slice(0, -1)
-		.map((value) => value.trim())
-		.filter(Boolean);
-}
-
-function splitTopLevel(source: string): string[] {
-	const values: string[] = [];
-	let depth = 0;
-	let start = 0;
-	for (let index = 0; index < source.length; index++) {
-		const character = source[index];
-		if (character === '(' || character === '[' || character === '{') depth++;
-		else if (character === ')' || character === ']' || character === '}') depth--;
-		else if (character === ',' && depth === 0) {
-			values.push(source.slice(start, index));
-			start = index + 1;
-		}
-	}
-	values.push(source.slice(start));
-	return values;
-}
-
 function findMatchingDelimiter(
 	source: string,
 	start: number,
@@ -342,11 +291,4 @@ function statementEnd(source: string, offset: number): number {
 	const line = source.indexOf('\n', offset);
 	if (semicolon >= 0 && (line < 0 || semicolon < line)) return semicolon + 1;
 	return line >= 0 ? line : source.length;
-}
-
-function statementRange(source: string, start: number, end: number): ExactSourceRange {
-	return Object.freeze({
-		start: statementStart(source, start),
-		end: statementEnd(source, end)
-	});
 }

@@ -95,11 +95,11 @@ describe('@exactjs/sample-server-components', () => {
 				?.getAttribute('data-exact-client-boundary')
 		);
 
-		await client.invokeAction('save-profile');
+		await client.invokeTask('save-profile');
 
 		expect(requests).toHaveLength(1);
 		expect(requests[0]).toMatchObject({
-			type: 'action',
+			type: 'invoke',
 			id: 'save-profile'
 		});
 		expect(container.querySelector('section.saved')?.textContent).toBe('Saved on the server');
@@ -165,7 +165,7 @@ describe('@exactjs/sample-server-components', () => {
 							'content-type': 'application/json',
 							'x-roles': roles
 						},
-						body: JSON.stringify({ type: 'action', id: 'save-profile' })
+						body: JSON.stringify({ type: 'invoke', id: 'save-profile' })
 					},
 					runtime
 				);
@@ -181,7 +181,7 @@ describe('@exactjs/sample-server-components', () => {
 function identityRuntime(identity: PublicIdentity) {
 	return createExactServerRuntime({
 		contract: exactContract,
-		actions: {
+		invocations: {
 			'save-profile': () => ({ state: { saved: true } })
 		},
 		applicationContexts: [

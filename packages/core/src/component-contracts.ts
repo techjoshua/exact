@@ -35,7 +35,7 @@ export type ExactCollectionMutation =
 /** Private operation contract attached to the component artifact that owns it. */
 export type ExactComponentContinuationContract = Readonly<{
 	id: string;
-	kind?: 'task' | 'action';
+	kind: 'task';
 	componentId: string;
 	readiness: 'blocking' | 'nonblocking';
 	dependencies: readonly Readonly<{
@@ -335,7 +335,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 			'invocation'
 		]) &&
 		isString(value.id) &&
-		(value.kind === undefined || value.kind === 'task' || value.kind === 'action') &&
+		value.kind === 'task' &&
 		isString(value.componentId) &&
 		(value.readiness === 'blocking' || value.readiness === 'nonblocking') &&
 		Array.isArray(value.dependencies) &&
@@ -353,7 +353,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 	);
 }
 
-/** Validates action-only invocation metadata attached to a continuation. */
+/** Validates direct-invocation metadata attached to a task continuation. */
 function isInvocation(value: unknown): boolean {
 	if (!isRecord(value)) return false;
 	return (

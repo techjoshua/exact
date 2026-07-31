@@ -12,7 +12,6 @@ import type {
 	ComponentContextValues,
 	ComponentFunction,
 	ComponentInstance,
-	ComponentReactiveValue,
 	ContextToken,
 	LifecycleHandler,
 	RefBinding,
@@ -20,7 +19,6 @@ import type {
 	RenderEventHandler,
 	RenderFunction,
 	RenderResult,
-	TaskResult,
 	VNode
 } from './contracts.js';
 
@@ -29,8 +27,6 @@ import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins } from './plugins.js';
 import { createComponentActivation, type ComponentActivation } from './activation.js';
 
-import { createComponentReactiveValue, createTask } from '../task/execution.js';
-import { createComponentTaskApi } from './task-api.js';
 import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../task/observers.js';
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
@@ -41,14 +37,9 @@ import { cleanupFailedComponentConstruction, isTemplateStringsArray } from './co
 import { pageComponentDomain, resolveComponentResumption, withComponentDomain } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { reactiveValue } from './reactive-value.js';
-import {
-	applyComponentResumption,
-	startRegisteredTask,
-	startResumedComponentTasks
-} from './resumption.js';
-import { createComponentActionApi } from './action-api.js';
+import { componentReadinessContext } from './readiness.js';
+import { applyComponentResumption } from './resumption.js';
 import { cancelComponentInteractions } from '../interaction/execution.js';
-import { readExactInspectionSource } from './inspection-source.js';
 import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
 import { registerTaskOwnerHost } from '../tasks/owner-hosts.js';
 import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks/activation.js';
@@ -87,17 +78,10 @@ export function createComponentInstance<
 	let mounted = false;
 	let disposed = false;
 	const activityBlockers = new Set<symbol>();
-	let acceptingTaskRegistrations = true;
-	let acceptingActionRegistrations = true;
 	let renderFunction: RenderFunction = () => null;
 	const id = `c${nextComponentId++}`;
 	const taskOwner = createTaskOwnerRecord(id);
 	if (resumption) deferTaskOwnerActivations(taskOwner);
-	const actionApi = createComponentActionApi(
-		() => instance,
-		() => acceptingActionRegistrations
-	);
-
 	instance = {
 		type,
 		parent,
@@ -106,12 +90,10 @@ export function createComponentInstance<
 		scope,
 		state,
 		log: createNoopComponentLog(),
-		action: actionApi.action,
 		props,
 		contexts: new Map(),
 		contextTokens: new Map(),
 		ambientContexts,
-		tasks: [],
 		mountHandlers: [],
 		activateHandlers: [],
 		deactivateHandlers: [],
@@ -152,49 +134,24 @@ export function createComponentInstance<
 		reactive<T>(
 			input: TemplateStringsArray | (() => T) | T,
 			...values: unknown[]
-		): ComponentReactiveValue<string> | ComponentReactiveValue<T> {
+		): ReactiveValue<string> | ReactiveValue<T> {
 			if (typeof input === 'function') {
-				return createComponentReactiveValue(instance, computed(input as () => T), (task) =>
-					startRegisteredTask(task, resumption)
-				);
+				return computed(input as () => T);
 			}
 
 			if (!isTemplateStringsArray(input)) {
-				return createComponentReactiveValue(
-					instance,
-					computed(() => input),
-					(task) => startRegisteredTask(task, resumption)
-				);
+				return computed(() => input);
 			}
 
-			return createComponentReactiveValue(
-				instance,
-				computed(() => {
-					let result = '';
-					for (let index = 0; index < input.length; index++) {
-						result += input[index];
-						if (index < values.length) result += String(unwrap(values[index]) ?? '');
-					}
-					return result;
-				}),
-				(task) => startRegisteredTask(task, resumption)
-			);
+			return computed(() => {
+				let result = '';
+				for (let index = 0; index < input.length; index++) {
+					result += input[index];
+					if (index < values.length) result += String(unwrap(values[index]) ?? '');
+				}
+				return result;
+			});
 		},
-		task: createComponentTaskApi((policy, args) => {
-			if (!acceptingTaskRegistrations) {
-				throw new Error('this.task() must be registered during component setup');
-			}
-			const work = args[args.length - 1];
-			if (typeof work !== 'function') {
-				throw new TypeError('this.task() requires a work callback');
-			}
-
-			const deps = args.slice(0, -1);
-			const task = createTask(instance, deps, work as (...args: any[]) => TaskResult, policy);
-			task.sourceEntityId = readExactInspectionSource(work);
-			instance.tasks.push(task);
-			startRegisteredTask(task, resumption);
-		}),
 		ref<T>(key: RefKey<T>): RefBinding<T> {
 			return {
 				key,
@@ -292,12 +249,10 @@ export function createComponentInstance<
 			teardown(() => instance.scope.stop());
 			teardown(() => lists.dispose());
 			if (instance.mountController) teardown(() => instance.mountController!.abort(reason));
-			teardown(() => actionApi.dispose(reason));
 			teardown(() => cancelComponentInteractions(instance, reason));
 			teardown(() => {
 				void taskOwner[Symbol.asyncDispose]();
 			});
-			for (const task of instance.tasks) teardown(() => task.stop());
 			for (const handler of instance.unmountHandlers) {
 				try {
 					const result = handler({ signal: AbortSignal.abort(reason), reason });
@@ -317,6 +272,11 @@ export function createComponentInstance<
 		}
 	} as ComponentInstance<State>;
 	registerTaskOwnerHost(instance, taskOwner);
+	const readiness = componentReadinessContext(instance);
+	if (readiness) {
+		taskOwner.registerReadiness = (taskGeneration, settlement, commit, discard) =>
+			readiness.register({ owner: instance, taskGeneration, settlement, commit, discard });
+	}
 	const taskObserver = taskObserverFor(instance);
 	if (taskObserver) {
 		taskOwner.observeSettlement = (settlement) => taskObserver.register(settlement, instance);
@@ -346,8 +306,6 @@ export function createComponentInstance<
 			)
 		);
 	} catch (error) {
-		acceptingTaskRegistrations = false;
-		acceptingActionRegistrations = false;
 		cleanupFailedComponentConstruction(instance, error);
 		throw error;
 	}
@@ -359,10 +317,7 @@ export function createComponentInstance<
 			const continuationId = componentContinuationTaskId(task);
 			return continuationId !== undefined && settledContinuations.has(continuationId);
 		});
-		startResumedComponentTasks(instance, resumption);
 	}
-	acceptingTaskRegistrations = false;
-	acceptingActionRegistrations = false;
 	renderFunction = typeof result === 'function' ? (result as RenderFunction) : () => result;
 
 	taskObserver?.retain?.(instance);

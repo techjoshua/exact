@@ -38,6 +38,7 @@ describe('@exactjs/core component contracts', () => {
 					{
 						id: 'task:Page:1',
 						componentId: 'component:Page',
+						kind: 'task' as const,
 						readiness: 'blocking' as const,
 						dependencies: [],
 						stateReads: [],

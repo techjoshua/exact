@@ -43,11 +43,13 @@ describe('@exactjs/webpack-plugin', () => {
 	it('passes target options through to transforms', () => {
 		const result = transformExactWebpackSource(
 			`
+			import { TaskContext } from "@exactjs/core";
       import { readFile } from "node:fs/promises";
       function Page(this: Component<{ title?: string }>) {
-        this.task.server(async () => {
+				const loadTitle = async (_task: TaskContext = TaskContext.server()) => {
           this.state.title = await readFile("title.txt", "utf8");
-        });
+				};
+				loadTitle();
         return () => <p>{this.state.title}</p>;
       }
     `,
@@ -59,8 +61,10 @@ describe('@exactjs/webpack-plugin', () => {
 	});
 
 	it('derives compact runtime instrumentation independently from hardened output', () => {
-		const source = `function Page() {
-			this.task(() => Promise.resolve());
+		const source = `import { TaskContext } from '@exactjs/core';
+		function Page() {
+			function load(_task: TaskContext = TaskContext.client()) { return Promise.resolve(); }
+			load();
 			return () => <main />;
 		}`;
 		const instrumented = transformExactWebpackSource(source, '/src/Page.tsx', {

@@ -98,7 +98,7 @@ it('decodes keyed hydration collection envelopes into ordinary arrays', () => {
 
 it('retains generated action invocation metadata from serialized hydration config', () => {
 	const continuation = {
-		kind: 'action' as const,
+		kind: 'task' as const,
 		id: 'action:quote',
 		componentId: 'component:Workspace',
 		readiness: 'nonblocking' as const,

@@ -7,20 +7,7 @@ const fixture = (name: string) => path.join(process.cwd(), `${name}.continuation
 describe('distributed component continuation IR', () => {
 	it('separates transported snapshots, server context, response effects, and ownership', () => {
 		const manifest = analyzeSource(
-			`
-      import { createContext, type Component } from "@exactjs/core";
-      const RepositoryContext = createContext<{ find(query: string): Promise<string[]> }>(
-        "repository",
-        { scope: "request" }
-      );
-      export function Search(this: Component<{ query: string; results: string[] }>) {
-        const repository = this.getContext(RepositoryContext);
-        this.task.server(async () => {
-          this.state.results = await repository.find(this.state.query);
-        });
-        return () => <button onClick={() => this.state.query = "next"}>{this.state.results.length}</button>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { createContext, type Component } from "@exactjs/core";\n      const RepositoryContext = createContext<{ find(query: string): Promise<string[]> }>(\n        "repository",\n        { scope: "request" }\n      );\n      export function Search(this: Component<{ query: string; results: string[] }>) {\n        const repository = this.getContext(RepositoryContext);\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.results = await repository.find(this.state.query);\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.query = "next"}>{this.state.results.length}</button>;\n      }\n    ',
 			{ filename: fixture('activation') }
 		);
 
@@ -61,22 +48,7 @@ describe('distributed component continuation IR', () => {
 
 	it('keeps server render authority out of the client resumption record', () => {
 		const manifest = analyzeSource(
-			`
-      import { createContext, type Component } from "@exactjs/core";
-      const DatabaseContext = createContext<{ count(): Promise<number> }>(
-        "database",
-        { scope: "application" }
-      );
-      export function Counter(this: Component<{ count: number; label: string }>) {
-        const database = this.getContext(DatabaseContext);
-        this.task.server(async () => {
-          this.state.count = await database.count();
-        });
-        return () => <button title={this.state.label} onClick={() => this.state.count++}>
-          {this.state.count}
-        </button>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { createContext, type Component } from "@exactjs/core";\n      const DatabaseContext = createContext<{ count(): Promise<number> }>(\n        "database",\n        { scope: "application" }\n      );\n      export function Counter(this: Component<{ count: number; label: string }>) {\n        const database = this.getContext(DatabaseContext);\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.count = await database.count();\n        };\nrunFixtureTask();\n        return () => <button title={this.state.label} onClick={() => this.state.count++}>\n          {this.state.count}\n        </button>;\n      }\n    ',
 			{ filename: fixture('resumption') }
 		);
 
@@ -92,16 +64,7 @@ describe('distributed component continuation IR', () => {
 
 	it('does not treat methods invoked on captured values as transport state paths', () => {
 		const manifest = analyzeSource(
-			`
-      export function Search(this: Component<{ query: string; result: string }>) {
-        this.task.server(async () => {
-          const query = this.state.query;
-          await Promise.resolve();
-          this.state.result = query.toUpperCase();
-        });
-        return () => <output>{this.state.result}</output>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      export function Search(this: Component<{ query: string; result: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          const query = this.state.query;\n          await Promise.resolve();\n          this.state.result = query.toUpperCase();\n        };\nrunFixtureTask();\n        return () => <output>{this.state.result}</output>;\n      }\n    ',
 			{ filename: fixture('captured-value-method') }
 		);
 
@@ -112,20 +75,7 @@ describe('distributed component continuation IR', () => {
 
 	it('separates explicitly shared context projections from server context lookups', () => {
 		const manifest = analyzeSource(
-			`
-      import { createContext, type Component } from "@exactjs/core";
-      const PublicConfig = createContext<{ domain: string }>(
-        "public config",
-        { scope: "application", keep: "shared" }
-      );
-      export function Link(this: Component<{ href: string }>) {
-        const config = this.getContext(PublicConfig);
-        this.task.server(() => {
-          this.state.href = config.domain;
-        });
-        return () => <a href={this.state.href}>Home</a>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { createContext, type Component } from "@exactjs/core";\n      const PublicConfig = createContext<{ domain: string }>(\n        "public config",\n        { scope: "application", keep: "shared" }\n      );\n      export function Link(this: Component<{ href: string }>) {\n        const config = this.getContext(PublicConfig);\n        const runFixtureTask = (_task: TaskContext = TaskContext.server()) => {\n          this.state.href = config.domain;\n        };\nrunFixtureTask();\n        return () => <a href={this.state.href}>Home</a>;\n      }\n    ',
 			{ filename: fixture('public-context') }
 		);
 
@@ -137,21 +87,7 @@ describe('distributed component continuation IR', () => {
 
 	it('includes only shared component-context writes in browser resumption data', () => {
 		const manifest = analyzeSource(
-			`
-      import { createContext, type Component } from "@exactjs/core";
-      const PublicStatus = createContext<{ text: string }>("status", { keep: "shared" });
-      const ServerResource = createContext<{ connected: boolean }>(
-        "resource",
-        { scope: "application" }
-      );
-      export function Provider(this: Component<{}>) {
-        this.task.server(() => {
-          this.setContext(PublicStatus, { text: "ready" });
-          this.setContext(ServerResource, { connected: true });
-        });
-        return () => <button onClick={() => undefined}>Ready</button>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { createContext, type Component } from "@exactjs/core";\n      const PublicStatus = createContext<{ text: string }>("status", { keep: "shared" });\n      const ServerResource = createContext<{ connected: boolean }>(\n        "resource",\n        { scope: "application" }\n      );\n      export function Provider(this: Component<{}>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.server()) => {\n          this.setContext(PublicStatus, { text: "ready" });\n          this.setContext(ServerResource, { connected: true });\n        };\nrunFixtureTask();\n        return () => <button onClick={() => undefined}>Ready</button>;\n      }\n    ',
 			{ filename: fixture('resumed-context') }
 		);
 

@@ -410,7 +410,7 @@ describe('RemoteComponent', () => {
 		render(createVNode(RemoteComponent, { binding: 'retiring' }), container);
 		await waitFor(() => container.textContent === 'Old remote');
 		void remoteClient(container, 'retiring')
-			.invokeAction('probe')
+			.invokeTask('probe')
 			.catch(() => undefined);
 
 		await waitFor(() => container.textContent === 'New remote');
@@ -463,7 +463,7 @@ describe('RemoteComponent', () => {
 		await waitFor(() => container.textContent === 'Old remoteOld remote');
 		for (const element of Array.from(container.querySelectorAll('[data-exact-remote="retiring"]')))
 			void getHydrationRoot(element)
-				?.invokeAction('probe')
+				?.invokeTask('probe')
 				.catch(() => undefined);
 
 		await waitFor(() => container.textContent === 'New remoteNew remote');
@@ -493,7 +493,7 @@ describe('RemoteComponent', () => {
 		);
 		await waitFor(() => container.textContent === 'Old remote');
 		void remoteClient(container, 'unchanged')
-			.invokeAction('probe')
+			.invokeTask('probe')
 			.catch(() => undefined);
 
 		await waitFor(() => container.textContent === 'Remote unavailable');
@@ -523,7 +523,7 @@ describe('RemoteComponent', () => {
 		);
 		await waitFor(() => container.textContent === 'Old remote');
 		void remoteClient(container, 'rejecting')
-			.invokeAction('probe')
+			.invokeTask('probe')
 			.catch(() => undefined);
 
 		await waitFor(() => container.textContent === 'Replacement unavailable');
@@ -577,7 +577,7 @@ describe('RemoteComponent', () => {
 		const before = namedInstance(inspectDomRoot(container), 'PageChild');
 		expect(before).toBeDefined();
 		void remoteClient(container, 'retiringShell')
-			.invokeAction('probe')
+			.invokeTask('probe')
 			.catch(() => undefined);
 
 		release();
