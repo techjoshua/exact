@@ -66,6 +66,9 @@ direct JSX expression: put component-owned declarations and control flow in setu
 conditional or keyed-item view logic in JSX. The compiler elides an otherwise unnecessary setup
 cell for safe single-consumer calculations that produce a scalar or forward an existing identity.
 Explicit `this.reactive()` values remain durable first-class boundaries.
+Repeated reads of a retained derived value are sampled once per eager reactive
+evaluation, preserving ordinary TypeScript narrowing without capturing stale
+values across deferred callbacks.
 
 Initial synchronous derived-state calculations settle before the first render, so required child
 props never observe an intermediate uninitialized value.

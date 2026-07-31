@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -2488,6 +2489,43 @@ func TestSessionRetainsSharedAndIdentityBearingDerivedBindings(t *testing.T) {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("retained derived output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+}
+
+func TestSessionCachesRepeatedDerivedReadsForControlFlowNarrowing(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "derived-narrowing.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function Marker(this: Component<{ enabled: boolean }>) {
+				const point = this.state.enabled ? { x: 1, y: 2 } : undefined;
+				return () => <output>{point ? <><i>{point.x}</i><b>{point.y}</b></> : "missing"}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`const point = __exactDerived(() => this.state.enabled ? { x: 1, y: 2 } : undefined)`,
+		`const __exact_cached_point_1 = point.get()`,
+		`return __exact_cached_point_1 ? __exactFragment`,
+		`__exact_cached_point_1.x`,
+		`__exact_cached_point_1.y`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("derived narrowing output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	identities := regexp.MustCompile(`data-exact-id": "([^"]+)"`).
+		FindAllStringSubmatch(response.Code, -1)
+	seen := make(map[string]struct{}, len(identities))
+	for _, identity := range identities {
+		if _, duplicate := seen[identity[1]]; duplicate {
+			t.Fatalf("cached derived lowering duplicated element identity %q:\n%s", identity[1], response.Code)
+		}
+		seen[identity[1]] = struct{}{}
 	}
 }
 

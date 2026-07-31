@@ -350,6 +350,13 @@ the graph. Keep a derived declaration in setup when several consumers should
 share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
 
+Generated reactive callbacks sample a retained derived cell once when an
+authored expression reads it repeatedly. Consequently, ordinary TypeScript
+narrowing remains valid for expressions such as
+`point ? point.x : "unavailable"` even though `point` is backed by a reactive
+cell. The sample belongs only to that eager callback evaluation; deferred
+handlers read the current value when they run.
+
 A returned view is a direct view expression:
 
 ```tsx

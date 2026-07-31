@@ -88,6 +88,10 @@ exactly one eager view consumer and produces a scalar or forwards an existing
 identity, the compiler elides its standalone cell and fuses the calculation
 into that consumer. Shared bindings, fresh identity allocations, event or task
 consumers, and explicit `this.reactive()` values retain durable cells.
+Within one generated reactive callback, repeated reads of a retained derived
+cell are sampled once. This preserves ordinary TypeScript control-flow
+narrowing for nullable or union-valued setup declarations and avoids redundant
+cell reads during the update.
 
 State-owned `Map` and `Set` mutations are also recognized. The compiler lowers
 `Map.set/delete/clear` and `Set.add/delete/clear` with native return semantics and records them as

@@ -92,6 +92,7 @@ type jsxLowering struct {
 	captureValues        map[ast.SymbolId]string
 	interop              *JSXInterop
 	materializedNames    map[int]string
+	cachedDerivedNames   map[int]string
 	contextWrites        map[string][]string
 	collectionMaps       map[string]collectionMapPlan
 }
@@ -154,6 +155,7 @@ func lowerExactJSX(
 		checker:              typeChecker,
 		taskHelpers:          make(map[string]string),
 		materializedNames:    make(map[int]string),
+		cachedDerivedNames:   make(map[int]string),
 		derived:              derived,
 		elidedDerived:        elidedDerived,
 		target:               target,
@@ -1980,6 +1982,7 @@ type materializedRenderLocal struct {
 	symbol      ast.SymbolId
 	declaration *ast.Node
 	name        string
+	cached      bool
 }
 
 // reactiveClosure moves render-local pure calculations into the reactive
@@ -2042,6 +2045,9 @@ func (lowering *jsxLowering) reactiveClosure(
 	for len(queue) != 0 {
 		local := queue[0]
 		queue = queue[1:]
+		if local.cached {
+			continue
+		}
 		initializer := local.declaration.AsVariableDeclaration().Initializer
 		walkNode(initializer, func(node *ast.Node) bool {
 			if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
@@ -2063,6 +2069,72 @@ func (lowering *jsxLowering) reactiveClosure(
 			return true
 		})
 	}
+	for symbol, local := range lowering.cachedDerivedLocals(expression) {
+		if _, exists := bySymbol[symbol]; !exists {
+			bySymbol[symbol] = local
+		}
+	}
+	return lowering.materializedClosure(expression, bySymbol)
+}
+
+// cachedDerivedLocals identifies retained derived values whose repeated reads
+// belong to one eager reactive evaluation. Reading the cell once preserves
+// TypeScript control-flow narrowing and avoids redundant get calls.
+func (lowering *jsxLowering) cachedDerivedLocals(
+	expression *ast.Node,
+) map[ast.SymbolId]materializedRenderLocal {
+	locals := make(map[ast.SymbolId]materializedRenderLocal)
+	counts := make(map[ast.SymbolId]int)
+	walkNode(expression, func(node *ast.Node) bool {
+		if node != expression && isCallableNode(node) {
+			return false
+		}
+		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+			isStaticPropertyName(node) {
+			return true
+		}
+		if _, exists := lowering.derivedBindingAtReference(node); !exists {
+			return true
+		}
+		symbol := lowering.checker.GetSymbolAtLocation(node)
+		if symbol == nil {
+			return true
+		}
+		id := ast.GetSymbolId(symbol)
+		counts[id]++
+		if _, exists := locals[id]; exists {
+			return true
+		}
+		for _, declaration := range symbol.Declarations {
+			if !ast.IsVariableDeclaration(declaration) {
+				continue
+			}
+			name := declaration.AsVariableDeclaration().Name()
+			if name == nil || !ast.IsIdentifier(name) {
+				continue
+			}
+			locals[id] = materializedRenderLocal{
+				symbol:      id,
+				declaration: declaration,
+				name:        lowering.cachedDerivedName(name.Text(), name.Pos()),
+				cached:      true,
+			}
+			break
+		}
+		return true
+	})
+	for symbol := range locals {
+		if counts[symbol] < 2 {
+			delete(locals, symbol)
+		}
+	}
+	return locals
+}
+
+func (lowering *jsxLowering) materializedClosure(
+	expression *ast.Node,
+	bySymbol map[ast.SymbolId]materializedRenderLocal,
+) *ast.Node {
 	if len(bySymbol) == 0 {
 		return nil
 	}
@@ -2076,10 +2148,17 @@ func (lowering *jsxLowering) reactiveClosure(
 	statements := make([]*ast.Node, 0, len(locals)+1)
 	for _, local := range locals {
 		variable := local.declaration.AsVariableDeclaration()
-		initializer := lowering.replaceMaterializedReferences(
-			variable.Initializer,
-			bySymbol,
-		)
+		var initializer *ast.Node
+		if local.cached {
+			initializer = lowering.derivedGet(
+				lowering.factory.NewIdentifier(variable.Name().Text()),
+			)
+		} else {
+			initializer = lowering.replaceMaterializedReferences(
+				variable.Initializer,
+				bySymbol,
+			)
+		}
 		statements = append(
 			statements,
 			lowering.factory.NewVariableStatement(
@@ -2169,6 +2248,24 @@ func (lowering *jsxLowering) materializedName(
 	return candidate
 }
 
+func (lowering *jsxLowering) cachedDerivedName(
+	name string,
+	start int,
+) string {
+	if existing := lowering.cachedDerivedNames[start]; existing != "" {
+		return existing
+	}
+	base := "__exact_cached_" + name + "_"
+	index := 1
+	candidate := base + strconv.Itoa(index)
+	for strings.Contains(lowering.sourceFile.Text(), candidate) {
+		index++
+		candidate = base + strconv.Itoa(index)
+	}
+	lowering.cachedDerivedNames[start] = candidate
+	return candidate
+}
+
 func (lowering *jsxLowering) replaceMaterializedReferences(
 	root *ast.Node,
 	locals map[ast.SymbolId]materializedRenderLocal,
@@ -2185,7 +2282,13 @@ func (lowering *jsxLowering) replaceMaterializedReferences(
 					}
 				}
 			}
-			return visitor.VisitEachChild(node)
+			updated := visitor.VisitEachChild(node)
+			if updated != node {
+				if identity := lowering.nodeIDs[node]; identity != "" {
+					lowering.nodeIDs[updated] = identity
+				}
+			}
+			return updated
 		},
 		&lowering.factory.NodeFactory,
 		ast.NodeVisitorHooks{},
@@ -2228,10 +2331,16 @@ func (lowering *jsxLowering) lowerDerivedDeclaration(node *ast.Node) *ast.Node {
 	if _, exists := lowering.derived[name.Pos()]; !exists {
 		return nil
 	}
-	initializer := lowering.visitor.VisitNode(declaration.Initializer)
+	closure := lowering.materializedClosure(
+		declaration.Initializer,
+		lowering.cachedDerivedLocals(declaration.Initializer),
+	)
+	if closure == nil {
+		closure = lowering.arrow(lowering.visitor.VisitNode(declaration.Initializer))
+	}
 	value := lowering.call(
 		lowering.names.derived,
-		[]*ast.Node{lowering.arrow(initializer)},
+		[]*ast.Node{closure},
 	)
 	return lowering.factory.UpdateVariableDeclaration(
 		declaration,

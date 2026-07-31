@@ -167,6 +167,13 @@ export function StatePage(this: Component<{}>) {
 					<code>subtotal</code>, <code>shipping</code>, and <code>total</code> declarations in the
 					demo form a component-owned graph rather than three pieces of render syntax.
 				</p>
+				<p>
+					When one reactive expression reads a nullable or union-valued derived declaration more
+					than once, generated code samples its cell once for that evaluation. Ordinary TypeScript
+					narrowing such as <code>point ? point.x : &quot;unavailable&quot;</code> therefore remains
+					valid without assertions, while deferred handlers still read the current value when they
+					run.
+				</p>
 			</section>
 			<section>
 				<h2>Keep the returned view declarative</h2>

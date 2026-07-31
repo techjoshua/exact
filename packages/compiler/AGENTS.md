@@ -46,6 +46,9 @@ setup, and preserve conditional JSX and keyed callbacks as precise region-local 
 inferred setup cell only for a safe scalar or forwarded-identity calculation with one eager view
 consumer. Preserve cells for shared bindings, fresh identity allocations, deferred handlers,
 tasks, and explicit `this.reactive()` values.
+Sample a retained derived cell once per eager reactive callback when the authored expression reads
+it repeatedly. Reuse that sample so generated code preserves TypeScript control-flow narrowing; do
+not cache reads across deferred handlers or other callable boundaries.
 For task functions with an authored final `TaskContext` policy parameter, project only authored
 call arguments as activation dependencies. Do not promote body reads or captures into
 dependencies. Treat the internal `explicit` origin discriminator as compatibility vocabulary, not

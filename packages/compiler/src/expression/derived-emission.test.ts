@@ -368,7 +368,10 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain(
 			'const point = __exactDerived(() => this.state.enabled ? { x: 1 } : undefined);'
 		);
-		expect(output).toContain('point.get() ? String(point.get().x) : "missing"');
+		expect(output).toContain('const __exact_cached_point_1 = point.get();');
+		expect(output).toContain(
+			'return __exact_cached_point_1 ? String(__exact_cached_point_1.x) : "missing";'
+		);
 	});
 
 	it('inlines safe derived consts inside explicit reactive captures', () => {
