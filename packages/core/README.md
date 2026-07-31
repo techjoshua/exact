@@ -61,8 +61,10 @@ Framework packages use `@exactjs/core/framework/task-frames` for opaque frame ca
 reservation, cancelable execution, and synchronous restoration. A frame execution remains pending
 through attached descendants and cleanup; cancelling it aborts the frame and descendants before
 reporting a `cancelled` structural outcome. Structural finalizers remain attached to their parent,
-and inspection retains the frame's semantic kind and optional label. Application components should
-prefer compiler-authored ordinary functions over either lower-level surface.
+and inspection retains the frame's semantic kind and optional label. Reactive consequences
+invalidated during one task transition share a single structural child frame; distinct work such
+as presence or motion remains an independently cancelable descendant. Application components
+should prefer compiler-authored ordinary functions over either lower-level surface.
 
 `createComponentRegistry()` declares a finite immutable set of eager and lazy components.
 Registry members are stable component facades, `KeyOf<typeof Registry>` derives the key union,

@@ -2,8 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { computed, currentWorkPriority, flushSync, reactive, watch } from '@exactjs/reactive';
 
 import type { TaskContext } from './contracts.js';
+import { runTaskFrame } from '../framework/task-frames.js';
 import { activateTask } from './activation.js';
-import { createTaskOwnerRecord, withTaskOwnerRecord } from './frame-runtime.js';
+import {
+	createTaskOwnerRecord,
+	currentTaskFrameRecord,
+	withTaskOwnerRecord
+} from './frame-runtime.js';
 import { createTaskOwner } from './owners.js';
 import { bindTask, defineTask, invokeTask, taskStatus } from './runtime.js';
 
@@ -97,6 +102,66 @@ describe('unified task runtime', () => {
 
 		await task();
 		expect(order).toEqual(['render:0', 'render:1', 'cleanup']);
+		stop();
+	});
+
+	it('shares one child frame across a broad reactive invalidation wave', async () => {
+		const state = reactive({ value: 0 });
+		const scheduledFrameIds = new Set<number>();
+		const stops = Array.from({ length: 100 }, () =>
+			watch(() => {
+				void state.value;
+				const frame = currentTaskFrameRecord();
+				if (frame) scheduledFrameIds.add(frame.id);
+			})
+		);
+		const task = defineTask({}, () => {
+			state.value++;
+		});
+
+		await task();
+
+		expect(scheduledFrameIds.size).toBe(1);
+		for (const stop of stops) stop();
+	});
+
+	it('keeps presence work independently attached beneath the shared reactive frame', async () => {
+		const state = reactive({ visible: false });
+		const presenceStarted = deferred<void>();
+		const presenceGate = deferred<void>();
+		let consequenceFrameId: number | undefined;
+		let presenceParentId: number | undefined;
+		const stop = watch(() => {
+			if (!state.visible) return;
+			consequenceFrameId = currentTaskFrameRecord()?.id;
+			void runTaskFrame(
+				{ kind: 'presence-leave' },
+				{
+					async work() {
+						presenceParentId = currentTaskFrameRecord()?.parent?.id;
+						presenceStarted.resolve();
+						await presenceGate.promise;
+					}
+				}
+			);
+		});
+		const task = defineTask({}, () => {
+			state.visible = true;
+		});
+
+		const execution = task();
+		await presenceStarted.promise;
+		let settled = false;
+		void Promise.resolve(execution).then(() => {
+			settled = true;
+		});
+		await Promise.resolve();
+
+		expect(presenceParentId).toBe(consequenceFrameId);
+		expect(settled).toBe(false);
+
+		presenceGate.resolve();
+		await execution;
 		stop();
 	});
 

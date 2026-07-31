@@ -1,5 +1,5 @@
 import { InteractionCancellation } from '../interaction/execution.js';
-import { peek, setScheduledWorkContextCapture } from '@exactjs/reactive';
+import { peek, setScheduledWorkContextCapture, type ScheduledWorkContext } from '@exactjs/reactive';
 import type { TaskActivation, TaskContext, TaskOwner } from './contracts.js';
 import type { TaskFunction } from './contracts.js';
 import { publishTaskFrameEvent } from './frame-inspection.js';
@@ -360,6 +360,17 @@ export function frameForTaskContext(context: TaskContext): TaskFrameRecord {
 
 const contextFrames = new WeakMap<TaskContext, TaskFrameRecord>();
 const frameWaiters = new WeakMap<TaskFrameRecord, Promise<void>>();
+type ScheduledReactionBatch = {
+	readonly frame: TaskFrameRecord;
+	readonly resolve: () => void;
+	readonly reject: (error: unknown) => void;
+	pending: number;
+	failed: boolean;
+	failure?: unknown;
+	closed: boolean;
+};
+const scheduledReactionBatches = new WeakMap<TaskFrameRecord, ScheduledReactionBatch>();
+
 function createFrameContext(
 	frame: TaskFrameRecord,
 	options: InternalTaskFrameOptions
@@ -410,34 +421,85 @@ function monotonicTimestamp(): number {
 setScheduledWorkContextCapture(() => {
 	const parent = currentTaskFrameRecord();
 	if (!parent || !parent.producerOpen || parent.settled) return undefined;
+	return acquireScheduledReactionBatch(parent);
+});
+
+/**
+ * Acquires one lease on the reactive consequence frame shared by a task invalidation wave.
+ *
+ * A single state transition can invalidate hundreds of DOM bindings. They have the same parent,
+ * cancellation lifetime, and scheduler turn, so allocating a complete child task frame for every
+ * reaction adds ownership machinery without adding an independently meaningful lifetime.
+ */
+function acquireScheduledReactionBatch(parent: TaskFrameRecord): ScheduledWorkContext {
+	let batch = scheduledReactionBatches.get(parent);
+	if (!batch || batch.closed) {
+		batch = createScheduledReactionBatch(parent);
+		scheduledReactionBatches.set(parent, batch);
+	}
+	batch.pending++;
 	let released = false;
-	let release!: () => void;
-	const placeholder = new Promise<void>((resolve) => {
-		release = resolve;
-	});
-	attachTaskFrameSettlement(parent, placeholder);
-	const finishReservation = () => {
+	const release = (error?: unknown, failed = false) => {
 		if (released) return;
 		released = true;
-		release();
+		if (failed && !batch!.failed) {
+			batch!.failed = true;
+			batch!.failure = error;
+		}
+		if (--batch!.pending !== 0) return;
+		batch!.closed = true;
+		if (scheduledReactionBatches.get(parent) === batch) scheduledReactionBatches.delete(parent);
+		if (batch!.failed) batch!.reject(batch!.failure);
+		else batch!.resolve();
 	};
 	return {
 		run(work) {
 			if (released) return;
-			const execution = executeTaskFrame(
-				{
-					parent,
-					parentReserved: true,
-					owner: parent.owner,
-					activation: parent.context.activation
-				},
-				work
-			);
-			finishReservation();
-			// Failure is propagated by the structural contribution; suppress a
-			// duplicate process-level unhandled rejection from this observer.
-			void execution.catch(() => undefined);
+			try {
+				if (batch!.frame.controller.signal.aborted)
+					throw new InteractionCancellation(batch!.frame.controller.signal.reason);
+				withTaskFrameRecord(batch!.frame, work);
+			} catch (error) {
+				release(error, true);
+				throw error;
+			}
+			release();
 		},
-		cancel: finishReservation
+		cancel: release
 	};
-});
+}
+
+/** Creates the one structurally attached frame that owns a scheduled reaction batch. */
+function createScheduledReactionBatch(parent: TaskFrameRecord): ScheduledReactionBatch {
+	let resolve!: () => void;
+	let reject!: (error: unknown) => void;
+	const completion = new Promise<void>((accept, fail) => {
+		resolve = accept;
+		reject = fail;
+	});
+	let frame!: TaskFrameRecord;
+	const execution = executeTaskFrame(
+		{
+			parent,
+			owner: parent.owner,
+			activation: parent.context.activation,
+			kind: 'reactive',
+			label: 'reactive consequences'
+		},
+		() => {
+			frame = currentTaskFrameRecord()!;
+			return completion;
+		}
+	);
+	// Structural attachment propagates failure to the parent. This observer only
+	// prevents a second process-level unhandled rejection.
+	void execution.catch(() => undefined);
+	return {
+		frame,
+		resolve,
+		reject,
+		pending: 0,
+		failed: false,
+		closed: false
+	};
+}

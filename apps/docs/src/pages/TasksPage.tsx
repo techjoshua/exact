@@ -259,6 +259,12 @@ export function TasksPage(this: Component<{}>) {
 					compiler does not reinterpret them as inferred task activations. Awaited work can still be
 					a task, and an authored final <code>TaskContext</code> remains explicit.
 				</p>
+				<p>
+					When one synchronous task transition invalidates many reactive bindings, those reactions
+					share one structural consequence frame. Cancellation and settlement still include the
+					whole update, while independently meaningful work started by a reaction—such as presence
+					leave motion—keeps its own child frame.
+				</p>
 				<Callout title="Async is not the marker">
 					<p>
 						A function does not become a task merely because it is <code>async</code>, and a task

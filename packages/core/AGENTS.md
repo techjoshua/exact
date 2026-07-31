@@ -33,9 +33,11 @@ extend structural settlement. Framework packages may use
 when framework work must be reversible, call `cancel()` instead of building a second cancellation
 channel, and handle the `cancelled` structural outcome without publishing stale completion work.
 Cancellation remains cooperative and settles only after descendants, cleanup, and the structural
-finalizer finish. Supply a stable semantic `kind` for tooling and reserve `label` for concise
-human-facing context. Never acquire an `ExactClient`, call low-level dispatch APIs, or author
-operation identifiers inside a component.
+finalizer finish. Share one structural consequence frame across reactions from the same task
+invalidation wave; do not allocate an ownership frame per DOM binding. Keep presence, motion, and
+other independently cancelable work as explicit descendants of that shared frame. Supply a stable
+semantic `kind` for tooling and reserve `label` for concise human-facing context. Never acquire an
+`ExactClient`, call low-level dispatch APIs, or author operation identifiers inside a component.
 Do not author `RuntimeTaskOptions.captureArguments`; it is emitted by the
 compiler to implement captured parameter defaults.
 

@@ -84,7 +84,8 @@ optimism, placement, and error ownership without separate task/action wrappers. 
 supplies generation cancellation to discoverable `AbortSignal` parameters and owns local
 disposable resources when their cleanup contract is visible. A setup call whose value is consumed
 synchronously remains ordinary initialization unless an authored `TaskContext` explicitly makes
-it task work.
+it task work. Reactive consequences from one invalidation wave share one structural frame rather
+than allocating task ownership independently for every DOM binding.
 
 ### Client and server use one model
 

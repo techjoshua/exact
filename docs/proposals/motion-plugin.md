@@ -565,6 +565,11 @@ interaction or reactive task
         └── nested descendant motion
 ```
 
+The renderer consequence is shared by the reactive bindings invalidated in
+that scheduler wave. It is an ownership envelope, not the presence lifetime:
+each `presence-leave` remains a distinct cancelable frame with its own
+generation, descendants, and finalizer.
+
 ## Presence
 
 A conditional intrinsic root with a leave phase uses the renderer's generic

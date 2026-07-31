@@ -93,6 +93,13 @@ task activation cannot provide that value synchronously. An awaited call can
 still be task work, and a final authored `TaskContext` remains an explicit
 request for task semantics.
 
+Reactive bindings invalidated by one synchronous task transition share a
+single structurally attached consequence frame. This preserves cancellation,
+settlement, and ambient ownership without allocating a child task frame for
+every text, property, or component-prop reaction. Independently meaningful
+work started by a reaction—such as a presence leave frame—remains its own
+cancelable child beneath that shared frame.
+
 `async`, `await`, and readiness are separate concepts. `async` supplies normal
 JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task
