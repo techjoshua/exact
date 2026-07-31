@@ -1,6 +1,8 @@
-# Agent guidance for `@exactjs/request`
+# Using `@exactjs/request`
 
-Read this package's `README.md` before changing request propagation. Keep public-origin authority
-explicit and install ambient storage only at the runtime adapter boundary. `RequestProvider` is a
-compilerless native framework component; preserve its stable `@exactjs/request:RequestProvider`
-brand and do not replace it with function-name or shape-based identity.
+See the [README](./README.md) for provider and accessor examples. Use this package to make the
+current request available to server-side eXact code.
+
+- Install request storage at the platform adapter boundary.
+- Keep public-origin authority explicit.
+- Do not transport request objects or private headers into browser state.

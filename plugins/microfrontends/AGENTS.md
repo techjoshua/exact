@@ -1,9 +1,8 @@
-# Agent guidance for `@exactjs/microfrontends`
+# Using `@exactjs/microfrontends`
 
-Preserve explicit host and remote ownership across build, server, and client boundaries. Remote
-application components must come from compiler-produced artifacts with their compiler-owned native
-identity; do not infer ownership from function names or component shape.
+See the [README](./README.md) for host and remote setup. Use this package to compose independently
+built eXact roots across an explicit microfrontend boundary.
 
-Keep the compilerless `RemoteComponent` host branded with its stable
-`@exactjs/microfrontends:RemoteComponent` identity. Do not use runtime branding to admit an
-uncompiled remote application component.
+- Keep host, remote, shared-context, and server-gateway ownership explicit.
+- Load remote application components from compiler-produced artifacts.
+- Keep page-authored child content under the page's original owner.

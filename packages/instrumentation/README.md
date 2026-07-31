@@ -1,15 +1,13 @@
 # @exactjs/instrumentation
 
-Shared profiling contracts and collectors for eXact compiler, bundler, server, and runtime
-integrations.
+Small, shared profiling contracts for eXact compiler, build, server, and runtime integrations.
 
-Profile events carry a subsystem, phase, elapsed time, and bounded serializable attributes.
-Integrations accept an `onProfile` sink so applications and tooling can aggregate timings without
-coupling to internal implementations.
+## Usage
 
-Use the supplied collector utilities for deterministic reports. Avoid placing secrets, request
-bodies, or unbounded application data in profiling attributes.
+Integrations publish immutable `ExactProfileEvent` values to an `onProfile` sink. Use
+`createProfileCollector()` for an in-memory event list and `summarizeProfile()` for totals by
+subsystem and phase.
 
-Full-stack DevTools may translate these bounded envelopes into `profile` events. Sink failures are
-observational and must not affect scheduling, rendering, cancellation, ownership, or dispatch.
-See [Server-cooperative full-stack DevTools](../../docs/devtools.md).
+Profile events contain elapsed time, counts, and bounded scalar metadata. They must not contain
+component instances, state values, request bodies, secrets, or other unbounded application data.
+Sink failures are observational and do not affect application behavior.

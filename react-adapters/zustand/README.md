@@ -1,10 +1,14 @@
 # @exactjs/zustand
 
-eXact adapter and compatible store utilities for Zustand.
+eXact integration and compatible store utilities for Zustand.
 
-The package exposes `createStore`, `createZustandSource`, and `createComponentStore` so component
-instances can observe selected slices through eXact's external-source lifecycle. It also declares
-compatible React package substitutions where supported.
+## When to use it
 
-Choose selectors and equality behavior deliberately to avoid unnecessary notifications. Store
-ownership remains separate from component subscription ownership.
+Use `createStore`, `createZustandSource`, or `createComponentStore` when eXact components need
+to observe an existing Zustand-style store. Selectors and equality functions control which changes
+notify each component.
+
+Store ownership remains separate from component subscription ownership. The package also declares
+supported React package substitutions where applicable.
+
+See [React ecosystem adapters](../../docs/react-ecosystem-adapters.md).

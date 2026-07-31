@@ -1,9 +1,8 @@
-# Using @exactjs/devtools-agent
+# Using `@exactjs/devtools-agent`
 
-Attach to a Chromium target the operator already controls and use only the exported read-only query
-service. Validate every request before it crosses CDP. Do not evaluate arbitrary JavaScript. Never
-add an API that invokes component work, mutates page state, forwards browser credentials, overrides
-redaction, or extends a server session.
+See the [README](./README.md) for connection and query examples. Use this package when an automated
+tool needs read-only access to eXact inspection data through Chrome DevTools Protocol (CDP).
 
-Always call `disconnect()` in cleanup. It removes the CDP binding, closes subscriptions, releases
-remote object ownership, and closes the transport.
+- Prefer structured inspection queries over evaluating arbitrary JavaScript in the page.
+- Connect only to runtimes that explicitly expose the DevTools bridge.
+- Treat returned state and source information according to the application's debug policy.

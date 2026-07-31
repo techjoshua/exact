@@ -2,6 +2,8 @@
 
 Bun runtime adapter for eXact server endpoints.
 
+## Usage
+
 ```ts
 import { createExactBunHandler } from '@exactjs/bun-adapter';
 
@@ -9,10 +11,9 @@ const exact = createExactBunHandler(exactRuntime);
 
 Bun.serve({
 	port: 3000,
-	fetch(request) {
-		return exact(request);
-	}
+	fetch: exact
 });
 ```
 
-Bun uses the Fetch API for server requests, so this adapter is intentionally thin while giving Bun users a clear package and documented entrypoint.
+Bun uses the Fetch API, so the adapter returns a standard `Response` while
+`@exactjs/server` remains responsible for protocol validation and dispatch.

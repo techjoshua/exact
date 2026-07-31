@@ -2,16 +2,19 @@
 
 Cloudflare Workers adapter for eXact server endpoints.
 
+## Usage
+
 ```ts
 import { createExactCloudflareHandler } from '@exactjs/cloudflare-adapter';
 
 const exact = createExactCloudflareHandler(exactRuntime);
 
 export default {
-	fetch(request, env, ctx) {
-		return exact(request, env, ctx);
+	fetch(request, env, context) {
+		return exact(request, env, context);
 	}
 };
 ```
 
-Workers use the Fetch API, but this adapter documents the Cloudflare handler signature and keeps eXact endpoint wiring explicit for edge deployments.
+The adapter preserves the Worker handler signature and delegates protocol validation and dispatch
+to `@exactjs/server`.

@@ -1,10 +1,11 @@
 # @exactjs/expressions
 
-Repository-only semantic expression-analysis laboratory retained for compiler experiments and
-corpus measurements.
+Repository-only laboratory for semantic expression analysis.
 
-The package models scopes, bindings, reads, writes, calls, effects, provenance, reactive
-dependencies, and placement constraints over TypeScript source. The supported eXact compiler uses
-the native TypeScript-Go host instead; no published framework package depends on this workspace.
+## Purpose
 
-This package is private and must not be published or added to application dependency graphs.
+The package models TypeScript scopes, bindings, reads, writes, effects, provenance, reactive
+dependencies, and placement constraints for compiler experiments and performance comparisons.
+
+The supported eXact compiler uses the native TypeScript-Go host. This workspace is private and
+must not be published or added to application dependencies.

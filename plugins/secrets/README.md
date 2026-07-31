@@ -1,16 +1,18 @@
 # @exactjs/secrets
 
-Runtime-scoped secret resolution for eXact framework plugins and applications.
+Runtime-scoped secret resolution for eXact applications and plugins.
 
-The plugin defines secret references, provider contracts, configuration, lifecycle management,
-and bounded resolution. Providers are ordered through the eXact plugin graph and can be selected
-per runtime.
+## Overview
 
-Secret values must remain server-only. Do not serialize them into compiler manifests, client
-configuration, diagnostics, profiling attributes, or hydration payloads.
+The package provides secret references, provider contracts, configuration, ordered provider
+selection, lifecycle management, and bounded resolution. Secret values remain server-owned.
 
-Inspection may expose compiler-qualified secret key names or presence only. Those names become
-redaction selectors and are applied before any value traversal; value length, shape, provider
-metadata, and error text remain private. Debug responses, events, source excerpts, audits, and
-exports must never contain a secret value. See
-[Server-cooperative full-stack DevTools](../../docs/devtools.md).
+## Safety
+
+Do not place secret values in client configuration, hydration data, compiler catalogs,
+diagnostics, profiling, logs, errors, audits, or DevTools responses. Inspection may expose a
+qualified secret name or presence only when policy allows it; configure redaction before values
+are traversed.
+
+See [server context and data policy](../../docs/server-context-and-data-policy.md) and
+[eXact DevTools](../../docs/devtools.md).

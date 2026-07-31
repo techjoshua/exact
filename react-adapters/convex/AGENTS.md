@@ -1,5 +1,4 @@
-# Convex adapter guidance
+# Using `@exactjs/convex`
 
-Use the exported provider and query sources rather than recreating client watches. Keep the
-compilerless native provider explicitly branded with its package-owned stable identity before
-exposing it through React compatibility.
+See the [README](./README.md) for setup. Use the exported provider and query sources to consume a
+Convex client from eXact components without recreating React subscription ownership.

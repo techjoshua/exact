@@ -1,8 +1,9 @@
 # @exactjs/router
 
-Native eXact routing with history, hash, memory, and request-backed location sources. It supports
-declarative nested routes, links, outlets, navigation, params, loaders, actions, fetchers,
-hydration data, and static rendering.
+Native routing for eXact applications, with compatibility entry points for supported React Router
+versions.
+
+## Usage
 
 ```tsx
 <Router>
@@ -13,23 +14,14 @@ hydration data, and static rendering.
 </Router>
 ```
 
-Native navigation, fetcher, submission, and revalidation promises join the synchronously active
-event, form, or task interaction. The initiating host therefore remains pending through route
-loaders and commit, while the router retains latest-wins navigation, redirects, blockers, and
-stale-result rejection.
+## What it provides
 
-Native router components prepare route branches and link presentation during
-setup. Their returned render functions contain only the view expression, with
-conditional view selection represented by JSX or pure setup-derived helpers.
+The native router includes browser, hash, memory, and request-backed locations; nested routes;
+links and outlets; params; loaders and actions; fetchers; redirects; blockers; revalidation;
+hydration data; and static rendering.
 
-Compilerless native router exports carry stable package-qualified component identities so DOM,
-SSR, and hydration never infer their ownership from function shape.
-
-Authored native test fixtures run through the package's `@exactjs/vitest` compiler configuration;
-React facade fixtures remain React-owned and cross the compatibility adapter normally.
-
-The package also exposes React Router compatibility facades for supported React Router 5, 6, and
-7 package substitutions. Native eXact applications should import the main entrypoint; compatibility
+Navigation and form work started inside an eXact interaction participates in that interaction's
+pending lifetime. Import the main package for native eXact code. React Router compatibility
 entrypoints are selected by the React compatibility build integration.
 
-See [Task interactions, optimistic state, and forms](../../docs/actions-and-forms.md).
+See [routing compatibility](../../docs/react-router-compatibility.md).

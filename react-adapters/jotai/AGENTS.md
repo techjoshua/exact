@@ -1,5 +1,4 @@
-# Jotai adapter guidance
+# Using `@exactjs/jotai`
 
-Use the exported provider and atom sources rather than recreating store ownership. Keep the
-compilerless native provider explicitly branded with its package-owned stable identity before
-exposing it through React compatibility.
+See the [README](./README.md) for setup. Use the exported provider and atom sources to consume a
+Jotai store from eXact components without recreating React store ownership.

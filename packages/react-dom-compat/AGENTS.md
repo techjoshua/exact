@@ -1,8 +1,7 @@
-# Agent guidance for `@exactjs/react-dom-compat`
+# Using `@exactjs/react-dom-compat`
 
-Preserve React ownership until the explicit compatibility boundary. Keep React component functions
-unbranded and let `@exactjs/react-compat` create its identified native adapters.
+See the [README](./README.md) for compatible client and server entry points. Use this package as the
+ReactDOM-facing bridge for React code hosted by eXact.
 
-Keep the compilerless client and server root hosts branded with their stable package-qualified
-identities. Do not infer native ownership from function shape or use a root-host brand to classify
-the React functions it contains.
+- Keep React component ownership intact until the compatibility boundary.
+- Use the provided root and server-rendering APIs instead of branding React functions as eXact.

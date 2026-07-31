@@ -1,6 +1,8 @@
 # @exactjs/config
 
-Typed configuration contracts for eXact applications and framework plugins.
+Typed project configuration for eXact applications and framework plugins.
+
+## Usage
 
 ```ts
 import { defineConfig } from '@exactjs/config';
@@ -10,12 +12,14 @@ export default defineConfig({
 });
 ```
 
-`defineConfig` preserves the concrete configuration type while validating the shared schema.
-Framework plugins augment the registry through TypeScript declaration merging, allowing one
-configuration file to project compiler, server, render, client, and testing behavior.
+`defineConfig()` validates the shared schema while preserving plugin-specific types added through
+TypeScript declaration merging. One configuration can supply compiler, server, renderer, client,
+testing, and plugin settings.
 
-`debug.catalog` controls rich server-only inspection catalog output; `debug.runtime` independently
-controls compact browser correlation and the page hook. Both accept booleans or `'auto'`.
-Production debugging should set both deliberately and configure `allowDebug` in the server
-runtime. Hardened builds set both to `false`. Debug redactions contain selectors and names only,
-never values. See [Server-cooperative full-stack DevTools](../../docs/devtools.md).
+## Debug configuration
+
+Build-time inspection catalogs and browser runtime instrumentation are separate controls. Enable
+only what the target environment needs, configure server authorization independently, and disable
+both for hardened output.
+
+See [eXact DevTools](../../docs/devtools.md) for the complete deployment model.

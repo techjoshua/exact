@@ -1,9 +1,8 @@
-# Agent guidance for `@exactjs/react-compat`
+# Using `@exactjs/react-compat`
 
-Read this package's `README.md` and preserve the explicit ownership boundary. A non-empty string
-at `Symbol.for('@exactjs/component')` identifies a native eXact component; unbranded functions
-belong to the configured React compatibility layer. Do not infer ownership from function shape,
-package name, or optional component-contract metadata.
+See the [README](./README.md) for supported React behavior and integration examples. Use this
+package when an eXact application needs to render React-owned components.
 
-Brand only the internal native adapter created after React ownership has been established. Keep
-the original React function unbranded, and use a distinct adapter identity per cached React type.
+- Keep React components unmodified and unbranded.
+- Cross into React through the explicit compatibility APIs.
+- Keep native eXact state and lifecycle outside React hook conventions.

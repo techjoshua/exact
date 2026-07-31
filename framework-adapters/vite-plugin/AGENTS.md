@@ -1,26 +1,8 @@
-# Using @exactjs/vite-plugin
+# Using `@exactjs/vite-plugin`
 
-Read this package's `README.md`, exported declarations, and the installed compiler guidance before
-editing Vite configuration. Use one `exact()` integration and enable only the rendering or
-server-component capabilities the application needs.
+See the [README](./README.md) for configuration examples. Use `exact()` in Vite applications to
+compile eXact modules and connect development and production runtime features.
 
-Apply `include`, `exclude`, and test-module selection before native or React-compatibility
-ownership analysis. A module outside the selected set must remain untouched by the whole plugin.
-
-Let the plugin own compiler watch invalidation, generated artifacts, client/server isolation, and
-development endpoint wiring. Do not add application-local file watchers or edit `.exact` output.
-
-Preserve generated task continuations and finite component-registry artifact targets through the
-final Rollup graph. Client isolation must reject server task bodies, server-only captures, and
-server-only lazy registry entries; do not replace final-graph verification with source-name
-conventions.
-
-Derive `emitInspection` and `instrumentInspection` independently from the prepared `debug` config.
-Emit one catalog asset only in the server graph; inject the optional browser runtime before client
-entries and keep its payload limited to opaque correlation and redaction selectors. Production
-client and server builds must use the same immutable build/root identity. Hardened output must
-contain neither the catalog nor the runtime bootstrap.
-
-Instrumented native client modules must retain a side-effect import of the virtual DevTools
-runtime. This import is the execution-order barrier that installs root ownership before application
-module evaluation; the HTML bootstrap remains coverage for pages without transformed roots.
+- Prefer one integration and enable only the rendering or server capabilities the app uses.
+- Use `include` and `exclude` to define the complete compiler-owned module set.
+- Treat generated `.exact` artifacts as build output; do not edit or recreate them in application code.

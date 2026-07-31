@@ -1,7 +1,8 @@
-# Agent guidance for `@exactjs/testing`
+# Using `@exactjs/testing`
 
-Use the main package or the runner integrations for application component tests so authored eXact
-components pass through the normal compiler. Import `@exactjs/testing/internal/fixtures` only in low-level
-framework, renderer, SSR, or hydration tests that deliberately construct raw VNodes. Do not use
-fixture branding to make application components bypass compilation or to admit foreign React or
-Preact functions into the native renderer.
+See the [README](./README.md) for component and server test examples. Use the main package or a
+runner integration so authored eXact test components pass through the normal compiler.
+
+- Test observable behavior through mounted components and generated server contracts.
+- Use `@exactjs/testing/internal/fixtures` only for low-level renderer, SSR, or hydration tests
+  that intentionally construct raw native VNodes.

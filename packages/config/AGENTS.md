@@ -1,10 +1,8 @@
-# Using @exactjs/config
+# Using `@exactjs/config`
 
-Read this package's README and exported declarations before changing application configuration.
-Keep `debug.catalog` and `debug.runtime` independent: catalogs are rich server-owned build output,
-while runtime instrumentation is compact client correlation. Use `'auto'` for development and
-explicit booleans for production or hardened builds.
+See the [README](./README.md) for the configuration shape. Use this package to define or load a
+typed eXact project configuration.
 
-Do not place `allowDebug`, credentials, secret values, source text, or server resources in
-`exact.config.ts`. Runtime authorization belongs to `@exactjs/server`; debug redactions contain
-selectors and names only.
+- Use `defineConfig()` in application configuration files.
+- Keep server-only values out of client-visible configuration.
+- Enable build-time inspection and server debug access independently for the intended environment.

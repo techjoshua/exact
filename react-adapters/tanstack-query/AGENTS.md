@@ -1,5 +1,4 @@
-# TanStack Query adapter guidance
+# Using `@exactjs/tanstack-query`
 
-Use the exported provider and observer sources rather than recreating query ownership. Keep the
-compilerless native provider explicitly branded with its package-owned stable identity before
-exposing it through React compatibility.
+See the [README](./README.md) for setup. Use the exported provider and observer sources to consume
+TanStack Query from eXact components without recreating React query ownership.
