@@ -1,4 +1,5 @@
 import {
+	exactComponentIdentity,
 	readExactComponentContract,
 	withComponentResumption,
 	type ComponentDomain,
@@ -24,25 +25,26 @@ export function createComponentResumptionResolver(
 	const resolve = ((type: ComponentFunction<any, any>) => {
 		const contract = readExactComponentContract(type);
 		if (!contract?.resumption) return undefined;
+		const componentId = exactComponentIdentity(type);
 		const available = records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
 		const record = available[index];
-		if (!record) throw new Error(`eXact SSR resumption is missing component ${contract.id}`);
-		if (record.componentId !== contract.id)
+		if (!record) throw new Error(`eXact SSR resumption is missing component ${componentId}`);
+		if (record.componentId !== componentId)
 			throw new Error(
-				`eXact SSR resumption expected component ${record.componentId}, received ${contract.id}`
+				`eXact SSR resumption expected component ${record.componentId}, received ${componentId}`
 			);
 		const allowedPaths = new Set(contract.resumption.statePaths);
 		for (const path of Object.keys(record.values)) {
 			if (!allowedPaths.has(path))
 				throw new Error(
-					`eXact SSR resumption contains undeclared state path ${contract.id}:${path}`
+					`eXact SSR resumption contains undeclared state path ${componentId}:${path}`
 				);
 		}
 		const allowedContexts = new Set(contract.resumption.contexts);
 		for (const name of Object.keys(record.contexts)) {
 			if (!allowedContexts.has(name))
-				throw new Error(`eXact SSR resumption contains undeclared context ${contract.id}:${name}`);
+				throw new Error(`eXact SSR resumption contains undeclared context ${componentId}:${name}`);
 		}
 		const allowedContinuations = new Set(
 			contract.continuations.map((continuation) => continuation.id)
@@ -50,7 +52,7 @@ export function createComponentResumptionResolver(
 		for (const id of record.settledContinuations) {
 			if (!allowedContinuations.has(id))
 				throw new Error(
-					`eXact SSR resumption contains undeclared continuation ${contract.id}:${id}`
+					`eXact SSR resumption contains undeclared continuation ${componentId}:${id}`
 				);
 		}
 		index++;

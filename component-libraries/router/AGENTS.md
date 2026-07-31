@@ -11,3 +11,8 @@ invent a second transition or pending-state model around the router.
 Keep prop destructuring, route matching, and link presentation in setup. Return
 only a view expression from render functions; use a named pure helper for a
 setup-derived projection rather than imperative render-body control flow.
+
+Keep compilerless native router components branded through `markExactComponent()` with stable
+`@exactjs/router:` identities. Do not restore function-name or shape-based ownership fallbacks.
+Compile authored native test fixtures through the package Vitest configuration. Leave React facade
+fixtures unbranded so they exercise the real compatibility boundary.

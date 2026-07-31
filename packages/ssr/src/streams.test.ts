@@ -1,4 +1,4 @@
-import { createVNode, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	renderToDocumentStream,
@@ -17,6 +17,7 @@ import {
 	readStreamEvent,
 	readStreamText
 } from './test-support/streams.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr streams', () => {
 	it('supports inert progressive replacement payloads without inline execution', async () => {

@@ -14,3 +14,6 @@ adapter wiring.
 `createRequestContextValue()` accepts a trusted `publicOrigin`. It never infers public authority
 from `Host` or forwarded headers. Without an explicit origin, normalized URLs use
 `http://exact.invalid`, and relative redirects remain relative in the response `Location` header.
+
+`RequestProvider` is a compilerless framework component and carries the stable native identity
+`@exactjs/request:RequestProvider`; renderers do not infer its ownership from function shape.

@@ -81,6 +81,13 @@ The outer function is setup. It normally executes once for each mounted
 instance. Props are parent-owned reactive inputs. State, tasks, contexts,
 refs, lifecycle registrations, and logging belong to the durable instance.
 
+Every component accepted by the native renderer is compiler-branded. The key
+`Symbol.for('@exactjs/component')` stores the component's opaque stable ID; a
+function name or setup/render shape is never sufficient runtime ownership.
+Compilerless framework libraries may call `markExactComponent()` with an
+explicit stable package-qualified identity. React, Preact, and other foreign
+functions remain unbranded and cross their compatibility adapter.
+
 The compiler discovers function declarations and function-valued variable
 declarations. An uppercase function that contains JSX is a component by
 convention. A typed `this: Component<...>` receiver or use of the component

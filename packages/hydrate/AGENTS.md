@@ -12,6 +12,10 @@ component registries, require matching compiler-owned registry, key, and entry i
 nested mismatch inside its owned component range; do not remount an otherwise compatible root or
 accept an authored display name as identity.
 
+Resolve component identity from the non-empty `@exactjs/component` brand value, not from optional
+contract metadata or function names. Detached resumption records retain `componentId` because the
+component function is not transported with them.
+
 Treat eager resumption adoption as a transaction. Checkpoint the ordered
 resumption resolver before attempting DOM adoption and roll it back after a
 failed attempt. Let only a compiler-identity-matched DOM adoption boundary

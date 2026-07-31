@@ -7,3 +7,6 @@ reactivity, and declares supported React Redux substitutions for compatibility b
 
 Selectors should be stable and side-effect free. The adapter unsubscribes component-owned
 observers on unmount; the Redux store itself remains owned by the application.
+
+The React-facing provider crosses an explicit compatibility boundary backed by a stable,
+framework-owned native eXact provider identity.

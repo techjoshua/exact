@@ -1,12 +1,7 @@
-import {
-	activateTaskForHost,
-	createVNode,
-	defineTask,
-	type Component,
-	type TaskContext
-} from '@exactjs/core';
+import { activateTaskForHost, defineTask, type Component, type TaskContext } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr ownership', () => {
 	it('disposes component tasks and lifecycle ownership after synchronous SSR', () => {

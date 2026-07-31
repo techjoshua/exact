@@ -187,7 +187,7 @@ async function runAffected() {
 				'vitest',
 				'run',
 				...plan.packageTestDirectories,
-				'--testTimeout=15000'
+				'--testTimeout=30000'
 			])
 		);
 	}

@@ -4,6 +4,9 @@ Read this package's `README.md`, exported declarations, and the installed compil
 editing Vite configuration. Use one `exact()` integration and enable only the rendering or
 server-component capabilities the application needs.
 
+Apply `include`, `exclude`, and test-module selection before native or React-compatibility
+ownership analysis. A module outside the selected set must remain untouched by the whole plugin.
+
 Let the plugin own compiler watch invalidation, generated artifacts, client/server isolation, and
 development endpoint wiring. Do not add application-local file watchers or edit `.exact` output.
 

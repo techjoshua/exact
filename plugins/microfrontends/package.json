@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"files": [
+		"AGENTS.md",
 		"dist",
 		"!dist/**/*.test.*"
 	],
@@ -59,6 +60,7 @@
 	"devDependencies": {
 		"@exactjs/dom": "^0.1.0",
 		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/testing": "^0.1.0",
 		"@types/node": "^22.10.2",
 		"vite": "^8.1.5"
 	},

@@ -1,6 +1,8 @@
+import { exactVitest } from '@exactjs/vitest';
 import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
+	plugins: [exactVitest({ compiler: { include: /\.fixtures\.tsx$/, reactCompatibility: false } })],
 	oxc: {
 		jsx: {
 			runtime: 'automatic',

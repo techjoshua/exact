@@ -4,7 +4,6 @@
 import {
 	Activity,
 	Suspense,
-	createCompiledVNode,
 	createExpression,
 	createRef,
 	stageTaskMutation,
@@ -12,7 +11,7 @@ import {
 	type ActivityMode,
 	type Component
 } from '@exactjs/core';
-import { jsx } from '@exactjs/jsx';
+import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render, unmount } from './index.js';

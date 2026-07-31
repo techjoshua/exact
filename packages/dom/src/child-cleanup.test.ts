@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { createDynamicChild, createRef, unsafeHtml, type Component } from '@exactjs/core';
-import { jsx, jsxs } from '@exactjs/jsx';
+import { jsx, jsxs } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';

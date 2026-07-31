@@ -1,5 +1,8 @@
 # @exactjs/convex
 
+The React-facing provider crosses an explicit compatibility boundary backed by a stable,
+framework-owned native eXact provider identity.
+
 eXact adapter for Convex React integrations.
 
 The package bridges supported Convex provider and client behavior into component-owned eXact

@@ -16,8 +16,10 @@ use `this.state`, lifecycle methods, tasks, and compiled JSX rather than React h
 When a build integration enables `reactCompatibility`, supported React components can be imported
 and rendered directly from native eXact JSX. The compiler inserts a cached compatibility adapter
 for every imported or runtime-selected component value.
-Compiler-branded eXact components pass through unchanged; unbranded values are owned by the one
-enabled compatibility layer. Dependency implementations in `node_modules` are not eXact-compiled.
+Compiler-branded eXact components pass through unchanged. The brand key is
+`Symbol.for('@exactjs/component')` and its string value is the canonical opaque component ID;
+unbranded values are owned by the one enabled compatibility layer. Dependency implementations in
+`node_modules` are not eXact-compiled.
 
 ```tsx
 import { DatePicker } from 'react-date-picker';
@@ -35,9 +37,13 @@ Use `ReactHost` or `adaptReactComponent()` from `@exactjs/react-compat/exact` fo
 outside compiler-owned native JSX. Dynamic component values in native JSX use the same automatic
 runtime brand check.
 
+The compatibility runtime leaves the original React function unbranded and gives its cached
+internal native adapter a separate runtime identity. This preserves ownership without pretending
+the React source was compiled as eXact.
+
 React-owned source may also render a compiled eXact component directly when the matching
 `types18` or `types19` facade is active. The facade admits eXact render results to the compatible
-React renderer, and the runtime checks the component-contract brand before mounting the component
+React renderer, and the runtime checks the native component brand before mounting the component
 natively. `exposeExactComponent()` remains the explicit bridge for stock React toolchains outside
 eXact compatibility and for custom ref-property projection.
 

@@ -1,10 +1,4 @@
-import {
-	BLOCKED_JAVASCRIPT_URL,
-	Suspense,
-	createVNode,
-	unsafeHtml,
-	type Component
-} from '@exactjs/core';
+import { BLOCKED_JAVASCRIPT_URL, Suspense, unsafeHtml, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerRuntime,
@@ -17,6 +11,7 @@ import {
 	renderToStream,
 	renderToString
 } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 import {
 	readRemainingStreamEvents,
 	readStreamEvent,

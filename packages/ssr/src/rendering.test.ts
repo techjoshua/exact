@@ -2,7 +2,6 @@ import {
 	Activity,
 	ErrorBoundary,
 	Suspense,
-	createVNode,
 	stageTaskMutation,
 	type Component,
 	type ErrorBoundaryFallbackProps
@@ -15,6 +14,7 @@ import {
 	renderToString,
 	renderToStringAsync
 } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr rendering', () => {
 	it('normalizes native class arrays and truthy maps', () => {

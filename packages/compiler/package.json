@@ -80,6 +80,7 @@
 	},
 	"devDependencies": {
 		"@exactjs/core": "^0.1.0",
+		"@exactjs/testing": "^0.1.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"vite": "^8.1.5"
 	},

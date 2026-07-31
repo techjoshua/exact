@@ -32,6 +32,12 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 				'/test/view.tsx'
 			)
 		).toBeNull();
+		expect(() =>
+			exact({ include: '/src/' }).transform(
+				'/** @jsxImportSource react */\n/** @jsxImportSource @exactjs/jsx */',
+				'/test/mixed.tsx'
+			)
+		).not.toThrow();
 		expect(
 			exact({ exclude: /ignored/, reactCompatibility: false }).transform(
 				'const view = <span />;',

@@ -42,13 +42,7 @@ export function shouldCompileExactModule(
 	registry: ExactPreparedCompilerRegistry | undefined
 ): boolean {
 	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
-	if (
-		options.compileTestModules !== true &&
-		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
-	)
-		return false;
-	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
-	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
+	if (!shouldTransformExactModule(id, options)) return false;
 	return (
 		containsExactJsx(id, code) ||
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code) ||
@@ -59,6 +53,21 @@ export function shouldCompileExactModule(
 			return include.test(id);
 		})
 	);
+}
+
+/** Applies module ownership filters before either native or compatibility lowering runs. */
+export function shouldTransformExactModule(
+	id: string,
+	options: ExactModuleSelectionOptions
+): boolean {
+	if (
+		options.compileTestModules !== true &&
+		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
+	)
+		return false;
+	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
+	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
+	return true;
 }
 
 /** Reports whether Vite supplied a JavaScript or TypeScript source module. */

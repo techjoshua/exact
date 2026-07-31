@@ -14,3 +14,9 @@ to structural settlement. Use `Submit` for coordinated pending text and the
 Keep prop destructuring and accessibility/validation derivation in setup. A
 returned render function must contain only the JSX view expression; do not add
 declarations or imperative branches to library renders.
+
+Keep every compilerless native form component branded through `markExactComponent()` with a
+stable `@exactjs/forms:` identity. Never rely on its function name or shape for renderer ownership.
+Put authored test components in the compiler-included fixture module used by the package's
+`@exactjs/vitest` configuration; do not brand application-shaped test components manually or
+compile Vitest's top-level registration calls as application initialization.

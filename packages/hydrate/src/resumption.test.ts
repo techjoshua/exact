@@ -3,8 +3,8 @@
  */
 import {
 	createContext,
-	createVNode,
 	exactComponentContract,
+	exactComponentType,
 	markComponentContinuationTask,
 	registerComponentContinuationContexts,
 	type Component
@@ -12,6 +12,7 @@ import {
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 function resumablePage(id: string, label: string) {
 	const implementation = function Page(this: Component<{ label: string }>) {
@@ -19,9 +20,9 @@ function resumablePage(id: string, label: string) {
 		return () => createVNode('p', null, this.state.label);
 	};
 	return Object.assign(implementation, {
+		[exactComponentType]: id,
 		[exactComponentContract]: {
 			version: 1 as const,
-			id,
 			placement: 'isomorphic' as const,
 			role: 'client' as const,
 			implementations: [],
@@ -65,9 +66,9 @@ describe('@exactjs/hydrate component resumption', () => {
 			return () => createVNode(props.page, {});
 		};
 		const Shell = Object.assign(implementation, {
+			[exactComponentType]: 'component:PreHydrationShell',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:PreHydrationShell',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -125,9 +126,9 @@ describe('@exactjs/hydrate component resumption', () => {
 				);
 		};
 		const Search = Object.assign(implementation, {
+			[exactComponentType]: 'component:Search',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:Search',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -209,9 +210,9 @@ describe('@exactjs/hydrate component resumption', () => {
 			return () => createVNode(Consumer, {});
 		};
 		const Provider = Object.assign(implementation, {
+			[exactComponentType]: 'component:Provider',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:Provider',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],

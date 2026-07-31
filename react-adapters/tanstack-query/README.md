@@ -1,5 +1,8 @@
 # @exactjs/tanstack-query
 
+The React-facing provider crosses an explicit compatibility boundary backed by a stable,
+framework-owned native eXact provider identity.
+
 Native eXact integration for TanStack Query.
 
 `ExactQueryClientProvider` shares a `QueryClient` through eXact context, while component query

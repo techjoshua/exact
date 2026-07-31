@@ -3,6 +3,12 @@
 Read this package's `README.md` and exported declarations before writing application code. Treat
 the installed package as authoritative when this guidance differs from another version's docs.
 
+Treat `Symbol.for('@exactjs/component')` as the native component brand key and its non-empty string
+value as the canonical opaque identity. Do not infer native ownership from function shape or name,
+and do not add a duplicate top-level ID to the attached component contract. Use
+`markExactComponent()` only for compilerless framework-owned components and supply a stable,
+package-qualified identity.
+
 Prefer the least ceremonial supported form:
 
 1. Use ordinary TypeScript expressions and direct `this.state` assignments.

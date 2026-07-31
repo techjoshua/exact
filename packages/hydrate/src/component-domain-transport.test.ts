@@ -4,13 +4,13 @@
 import {
 	Suspense,
 	createContext,
-	createVNode,
 	currentComponentDomain,
 	dispatchComponentContinuation,
 	withComponentDomain,
 	type Component,
 	type ComponentInstance
 } from '@exactjs/core';
+import { createVNode, markTestComponents } from './test-support/native-vnode.js';
 import { render, unmount } from '@exactjs/dom';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { describe, expect, it, vi } from 'vitest';
@@ -237,7 +237,7 @@ describe('component-domain transport', () => {
 		const client = createExactClient(container, {
 			executionRoot: '@company/billing#./Area'
 		});
-		client.registerComponents({ islands: { Late } });
+		client.registerComponents({ islands: markTestComponents({ Late }) });
 
 		expect(setupRoot).toBe('@company/billing#./Area');
 		expect(findComponentRoot(inspectDomRoot(container.firstElementChild!), 'Late')).toBe(
@@ -280,7 +280,7 @@ describe('component-domain transport', () => {
 		const client = createExactClient(remoteRoot, {
 			executionRoot: '@company/billing#./Area'
 		});
-		client.registerComponents({ islands: { Late } });
+		client.registerComponents({ islands: markTestComponents({ Late }) });
 
 		expect(remoteRoot.textContent).toBe('Ada');
 		host.state.profile.name = 'Grace';

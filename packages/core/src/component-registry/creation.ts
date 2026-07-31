@@ -1,4 +1,5 @@
 import type { ComponentFunction } from '../component/contracts.js';
+import { markExactComponent } from '../component-contracts.js';
 import { createVNode } from '../vnode.js';
 import type {
 	ComponentRegistry,
@@ -120,6 +121,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			configurable: true,
 			value: `${name ?? 'ComponentRegistry'}.${key}${id ? `#${id}` : ''}`
 		});
+		if (id) markExactComponent(facade, `${id}:${key}`);
 		const entry: ComponentRegistryEntryRuntime = {
 			registry: runtime,
 			key,

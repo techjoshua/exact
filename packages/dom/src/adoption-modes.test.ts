@@ -5,12 +5,12 @@ import {
 	Activity,
 	createDynamicChild,
 	createServerSlot,
-	createVNode,
 	Fragment,
 	Suspense,
 	type Component,
 	unsafeHtml
 } from '@exactjs/core';
+import { createVNode } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {

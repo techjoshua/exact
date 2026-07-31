@@ -1,5 +1,8 @@
 # @exactjs/jotai
 
+The React-facing provider crosses an explicit compatibility boundary backed by a stable,
+framework-owned native eXact provider identity.
+
 eXact adapter for Jotai stores and atoms.
 
 It exposes component-aware reactive bindings to Jotai state and compatibility metadata for

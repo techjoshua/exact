@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 import { testContinuation } from './test-support/responses.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/hydrate remote-registry', () => {
 	it('registers remote hydration metadata after client creation', async () => {

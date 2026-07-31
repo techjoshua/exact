@@ -19,9 +19,9 @@ Preserve the compiler-owned registry binding, selected key, and opaque entry ide
 hydratable component markers. Compose distributed task handlers from generated artifacts rather
 than deriving endpoints from authored labels.
 
-Use the compiled component contract ID in ordinary hydratable component markers so DOM adoption
-and resumption validate one protocol identity. Fall back to a function name only when no compiled
-contract exists; never substitute a display name for an available contract ID.
+Use the string value of the compiled `@exactjs/component` brand in ordinary hydratable component
+markers so DOM adoption and resumption validate one protocol identity. Reject unbranded function
+components; never substitute a function or display name for compiler-owned identity.
 
 Request rendering should inherit the server debug runtime's owner for the exact selected
 build/execution root. Keep SSR observations request-owned and value-free, release components after

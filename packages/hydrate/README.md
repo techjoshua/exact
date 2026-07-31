@@ -18,7 +18,8 @@ duplicate run.
 Resumable SSR component ranges hydrate eagerly. They first attempt static DOM
 adoption; a mismatch rolls back any activation records consumed by that attempt.
 Only construction for a marker-matched component may consume its compiler-identified
-record. Mismatched ranges and components created later by routing, conditional
+record. The non-empty string under `Symbol.for('@exactjs/component')` is the canonical identity;
+attached executable metadata does not duplicate a top-level component ID. Mismatched ranges and components created later by routing, conditional
 views, or other client updates initialize fresh client state. Generated
 continuation descriptors retain task/action kind and invocation concurrency
 metadata when read from serialized config.

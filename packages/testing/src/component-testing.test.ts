@@ -1,16 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createContext,
-	createErrorContext,
-	createVNode,
-	ErrorContext,
-	type Component
-} from '@exactjs/core';
+import { createContext, createErrorContext, ErrorContext, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { installExactMatchers, mountTest, testComponent } from './index.js';
 import { installVitestMatchers } from './vitest.js';
+import { createTestVNode as createVNode, markTestComponent } from './internal/fixtures.js';
 
 describe('component testing', () => {
 	it('reads and writes state, contexts, components, and events', async () => {
@@ -29,7 +24,10 @@ describe('component testing', () => {
 					createVNode(Child, {})
 				);
 		}
-		const view = await testComponent(Counter).props({ initial: 1 }).context(Name, 'Ada').mount();
+		const view = await testComponent(markTestComponent(Counter))
+			.props({ initial: 1 })
+			.context(Name, 'Ada')
+			.mount();
 		expect(view.root.state().count).toBe(1);
 		expect(view.root.find(Child).getByText('Ada').text()).toBe('Ada');
 		await view.root.getByRole('button', { name: 'Count 1' }).click();
@@ -48,7 +46,7 @@ describe('component testing', () => {
 			});
 			return () => createVNode('p', null, this.state.ready ? 'Ready' : 'Waiting');
 		}
-		const view = await testComponent(AsyncPanel).mount();
+		const view = await testComponent(markTestComponent(AsyncPanel)).mount();
 		expect(view.root.getByText('Ready')).toBeDefined();
 		view.unmount();
 	});
@@ -63,7 +61,7 @@ describe('component testing', () => {
 					createVNode('button', null, 'Two')
 				);
 		}
-		const view = await testComponent(Buttons).mount();
+		const view = await testComponent(markTestComponent(Buttons)).mount();
 		expect(() => view.root.getByRole('button')).toThrow('found 2');
 		let installed: Record<string, unknown> | undefined;
 		installExactMatchers({
@@ -86,7 +84,7 @@ describe('component testing', () => {
 					? createVNode(Recursive, { depth: props.depth - 1 })
 					: createVNode('p', null, 'Done');
 		}
-		const recursive = await testComponent(Recursive).props({ depth: 2 }).mount();
+		const recursive = await testComponent(markTestComponent(Recursive)).props({ depth: 2 }).mount();
 		expect(recursive.root.getByText('Done')).toBeDefined();
 		expect(recursive.root.findAll(Recursive)).toHaveLength(2);
 		recursive.unmount();
@@ -97,13 +95,13 @@ describe('component testing', () => {
 		function Missing(): never {
 			throw new Error('construct failed');
 		}
-		await expect(testComponent(Missing).mount()).rejects.toThrow();
+		await expect(testComponent(markTestComponent(Missing)).mount()).rejects.toThrow();
 		expect(document.body.children.length).toBe(before);
 
 		function Stable() {
 			return () => createVNode('p', null, 'Stable');
 		}
-		const view = await testComponent(Stable).mount();
+		const view = await testComponent(markTestComponent(Stable)).mount();
 		const component = view.root;
 		view.unmount();
 		expect(component.isMounted()).toBe(false);
@@ -118,6 +116,7 @@ describe('component testing', () => {
 					? createVNode('span', null, 'New')
 					: createVNode('button', null, 'Old');
 		}
+		markTestComponent(Existing);
 		const first = await testComponent(Existing).container(container).mount();
 		await expect(testComponent(Existing).container(container).mount()).rejects.toThrow(
 			'already has a mounted eXact root'
@@ -141,7 +140,9 @@ describe('component testing', () => {
 		teardownErrors.report = () => {
 			throw new Error('teardown failed');
 		};
-		const view = await testComponent(BrokenTeardown).context(ErrorContext, teardownErrors).mount();
+		const view = await testComponent(markTestComponent(BrokenTeardown))
+			.context(ErrorContext, teardownErrors)
+			.mount();
 		const root = view.root;
 		expect(() => view.unmount()).toThrow('teardown failed');
 		expect(root.isMounted()).toBe(false);
@@ -161,7 +162,7 @@ describe('component testing', () => {
 					createVNode('p', null, 'Repeat')
 				);
 		}
-		const view = await testComponent(Content).mount();
+		const view = await testComponent(markTestComponent(Content)).mount();
 		expect(view.getAllByRole('button')).toHaveLength(1);
 		expect(view.getAllByText(/Repeat/g)).toHaveLength(2);
 		view.unmount();
@@ -191,7 +192,7 @@ describe('component testing', () => {
 					this.state.done ? 'Done' : 'Run'
 				);
 		}
-		const view = await testComponent(AsyncButton).mount();
+		const view = await testComponent(markTestComponent(AsyncButton)).mount();
 		let settled = false;
 		const action = view
 			.getByRole('button')
@@ -219,7 +220,9 @@ describe('component testing', () => {
 					'Reject'
 				);
 		}
-		const rejected = await testComponent(RejectingButton).context(ErrorContext, errors).mount();
+		const rejected = await testComponent(markTestComponent(RejectingButton))
+			.context(ErrorContext, errors)
+			.mount();
 		await rejected.getByRole('button').click();
 		expect(errors.errors).toHaveLength(1);
 		expect(errors.errors[0]?.error).toEqual(new Error('event failed'));

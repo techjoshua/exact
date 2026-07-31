@@ -91,6 +91,12 @@ export function ComponentsPage(this: Component<{}>) {
 					because the compiler has already connected consumers of that field.
 				</p>
 				<p>
+					The compiler also stores an opaque stable ID under{' '}
+					<code>Symbol.for('@exactjs/component')</code>. Native renderers use that brand instead of
+					guessing from a function name or shape; unbranded React, Preact, and other foreign
+					components stay owned by their explicit compatibility layer.
+				</p>
+				<p>
 					The returned function is synchronous and may run again. Use ordinary statements for pure,
 					deterministic derivation and tree control. State writes, task or lifecycle registration,
 					scheduling, and known DOM or storage effects belong in setup, a task, or an interaction

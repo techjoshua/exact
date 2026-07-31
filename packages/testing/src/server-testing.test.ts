@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createVNode, type Component } from '@exactjs/core';
+import { createContext, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 
 import { ExactProtocolRecorder, mountClientServerTest, testServerComponent } from './index.js';
+import { createTestVNode as createVNode, markTestComponent } from './internal/fixtures.js';
 
 describe('server component testing', () => {
 	it('captures settled state and inherited, provided, application, and request contexts', async () => {
@@ -31,7 +32,7 @@ describe('server component testing', () => {
 				createVNode('main', null, props.label, this.state.ready ? createVNode(Child, {}) : null);
 		}
 
-		const view = await testServerComponent(Page)
+		const view = await testServerComponent(markTestComponent(Page))
 			.props({ label: 'Profile' })
 			.applicationContext(ApplicationName, 'Northwind')
 			.requestContext(RequestName, 'Ada')
@@ -66,7 +67,8 @@ describe('server component testing', () => {
 			this.setContext(ClientTheme, 'ocean');
 			return () => createVNode(ClientChild, {});
 		}
-		const server = await testServerComponent(ServerPage).render({
+		markTestComponent(ClientIsland);
+		const server = await testServerComponent(markTestComponent(ServerPage)).render({
 			hydration: { endpoint: '/__exact' }
 		});
 		const view = await mountClientServerTest({
@@ -148,7 +150,7 @@ describe('server component testing', () => {
 			settledContinuations: ['task:load']
 		} as const;
 
-		const view = await testServerComponent(Page).render({
+		const view = await testServerComponent(markTestComponent(Page)).render({
 			hydration: { resumptions: [activation] }
 		});
 

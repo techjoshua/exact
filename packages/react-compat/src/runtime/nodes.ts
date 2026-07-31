@@ -6,6 +6,7 @@ import {
 	createVNode,
 	isVNode,
 	isExactComponent,
+	markExactComponent,
 	type Child,
 	type Component,
 	type ComponentFunction,
@@ -115,6 +116,7 @@ const ExactVNodeBoundary = function ExactVNodeBoundary(
 ) {
 	return () => props.vnode;
 } as ComponentFunction<Record<string, never>, { vnode: VNode }>;
+markExactComponent(ExactVNodeBoundary, '@exactjs/react-compat:ExactVNodeBoundary');
 
 const ExactVNodeBoundaryType = Object.defineProperties(
 	function ReactExactVNodeBoundary(): never {
@@ -289,6 +291,9 @@ const ReactSuspenseBoundary = function ReactSuspenseBoundary(
 			toExactNode(props.children as ReactNode)
 		);
 } as ComponentFunction<Record<string, never>, Record<string, unknown>>;
+
+markExactComponent(ReactProfilerBoundary, '@exactjs/react-compat:ReactProfilerBoundary');
+markExactComponent(ReactSuspenseBoundary, '@exactjs/react-compat:ReactSuspenseBoundary');
 
 /** Reports whether react portal. */
 export function isReactPortal(value: unknown): value is import('../types.js').ReactPortal {

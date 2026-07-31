@@ -1,4 +1,4 @@
-import { createContext, type Child, type Component } from '@exactjs/core';
+import { createContext, markExactComponent, type Child, type Component } from '@exactjs/core';
 import { createExternalSource, type ExternalSource } from '@exactjs/reactive';
 import { atom, createStore, getDefaultStore, type Atom } from 'jotai/vanilla';
 
@@ -24,6 +24,7 @@ export function ExactJotaiProvider(
 	this.setContext(JotaiStoreContext, props.store ?? getDefaultStore());
 	return () => props.children ?? null;
 }
+markExactComponent(ExactJotaiProvider, '@exactjs/jotai:ExactJotaiProvider');
 
 /** Creates an atom source. */
 export function createAtomSource<Value>(

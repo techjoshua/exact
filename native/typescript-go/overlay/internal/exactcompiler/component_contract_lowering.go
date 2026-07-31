@@ -15,7 +15,6 @@ func lowerComponentContracts(
 	sourceFile *ast.SourceFile,
 	emitContext *printer.EmitContext,
 	components []Component,
-	tasks []Task,
 	continuations []Continuation,
 	resumptions []ComponentResumption,
 	boundaries []Boundary,
@@ -27,12 +26,9 @@ func lowerComponentContracts(
 		return sourceFile
 	}
 	factory := emitContext.Factory
-	eligible := make(map[string]struct{})
+	eligible := make(map[string]Component)
 	rootContracts := make(map[string]Component)
 	for _, component := range components {
-		if !componentExecutableOnTarget(component, target) {
-			continue
-		}
 		if componentRootContract(
 			component,
 			target,
@@ -41,8 +37,8 @@ func lowerComponentContracts(
 			boundaries,
 		) {
 			rootContracts[component.Name] = component
-		} else if componentBrandOnly(component, tasks, target) {
-			eligible[component.Name] = struct{}{}
+		} else {
+			eligible[component.Name] = component
 		}
 	}
 	if len(eligible) == 0 && len(rootContracts) == 0 {
@@ -79,12 +75,12 @@ func lowerComponentContracts(
 					)
 					continue
 				}
-				if _, attach := eligible[name.Text()]; attach {
+				if component, attach := eligible[name.Text()]; attach {
 					statements = append(
 						statements,
 						statement,
 						factory.NewExpressionStatement(
-							componentBrandAttachment(factory, name),
+							componentBrandAttachment(factory, name, component.ID),
 						),
 					)
 					continue
@@ -219,45 +215,10 @@ func componentRootContract(
 	return false
 }
 
-func componentExecutableOnTarget(component Component, target Target) bool {
-	switch target {
-	case TargetClient:
-		return component.Placement == "client" ||
-			component.Placement == "isomorphic"
-	case TargetServer:
-		return component.Placement == "server" ||
-			component.Placement == "isomorphic"
-	default:
-		return false
-	}
-}
-
-func componentBrandOnly(
-	component Component,
-	tasks []Task,
-	target Target,
-) bool {
-	if component.ClientIslandCount != 0 {
-		return false
-	}
-	if target == TargetClient && component.Placement == "client" &&
-		component.Exported {
-		return false
-	}
-	if component.Placement == "isomorphic" {
-		for _, task := range tasks {
-			if task.Component == component.Name && task.Placement == "server" {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 func brandComponentVariables(
 	factory *printer.NodeFactory,
 	statement *ast.Node,
-	eligible map[string]struct{},
+	eligible map[string]Component,
 ) (*ast.Node, bool) {
 	variable := statement.AsVariableStatement()
 	list := variable.DeclarationList.AsVariableDeclarationList()
@@ -270,7 +231,8 @@ func brandComponentVariables(
 			declaration.Initializer == nil {
 			continue
 		}
-		if _, attach := eligible[name.Text()]; !attach {
+		component, attach := eligible[name.Text()]
+		if !attach {
 			continue
 		}
 		if !ast.IsArrowFunction(declaration.Initializer) &&
@@ -282,7 +244,7 @@ func brandComponentVariables(
 			name,
 			declaration.ExclamationToken,
 			declaration.Type,
-			componentBrandAttachment(factory, declaration.Initializer),
+			componentBrandAttachment(factory, declaration.Initializer, component.ID),
 		)
 		changed = true
 	}
@@ -304,6 +266,7 @@ func brandComponentVariables(
 func componentBrandAttachment(
 	factory *printer.NodeFactory,
 	component *ast.Node,
+	identity string,
 ) *ast.Node {
 	symbol := factory.NewCallExpression(
 		factory.NewPropertyAccessExpression(
@@ -326,7 +289,7 @@ func componentBrandAttachment(
 				factory.NewComputedPropertyName(symbol),
 				nil,
 				nil,
-				factory.NewTrueExpression(),
+				contractString(factory, identity),
 			),
 		}),
 		false,
@@ -574,7 +537,6 @@ func rootComponentContractAttachment(
 			"version",
 			factory.NewNumericLiteral("1", ast.TokenFlagsNone),
 		),
-		contractProperty(factory, "id", contractString(factory, component.ID)),
 		contractProperty(
 			factory,
 			"placement",
@@ -626,7 +588,7 @@ func rootComponentContractAttachment(
 				brandSymbol,
 				nil,
 				nil,
-				factory.NewTrueExpression(),
+				contractString(factory, component.ID),
 			),
 			factory.NewPropertyAssignment(
 				nil,

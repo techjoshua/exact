@@ -1,17 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	Suspense,
-	createCompiledVNode,
-	createExpression,
-	createVNode,
-	stageTaskMutation,
-	type Component
-} from '@exactjs/core';
+import { Suspense, createExpression, stageTaskMutation, type Component } from '@exactjs/core';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render, unmount } from './index.js';
+import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/dom native Suspense', () => {
 	it('shows fallback until blocking descendant work settles', async () => {

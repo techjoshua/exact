@@ -601,10 +601,12 @@ func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
 		if response.Error != "" {
 			t.Fatal(response.Error)
 		}
+		panel := findComponent(t, response.Analysis.Components, "Panel")
+		inline := findComponent(t, response.Analysis.Components, "Inline")
 		for _, expected := range []string{
-			`Object.assign(Panel, { [Symbol.for("@exactjs/component")]: true })`,
+			`Object.assign(Panel, { [Symbol.for("@exactjs/component")]: "` + panel.ID + `" })`,
 			`const Inline = Object.assign(() =>`,
-			`[Symbol.for("@exactjs/component")]: true`,
+			`[Symbol.for("@exactjs/component")]: "` + inline.ID + `"`,
 		} {
 			if !strings.Contains(response.Code, expected) {
 				t.Fatalf(
@@ -626,6 +628,59 @@ func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
 			"default compilation unexpectedly attached a target contract:\n%s",
 			defaultResponse.Code,
 		)
+	}
+}
+
+func TestSessionBrandsPrivateComponentsInsideClientRoots(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:     "grid.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			export function Grid() {
+				return () => <main><Cell /></main>;
+			}
+			function Cell() {
+				return () => <button onClick={() => undefined}>Select</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	cell := findComponent(t, response.Analysis.Components, "Cell")
+	expected := `Object.assign(Cell, { [Symbol.for("@exactjs/component")]: "` + cell.ID + `" })`
+	if !strings.Contains(response.Code, expected) {
+		t.Fatalf("private client component brand output is missing %q:\n%s", expected, response.Code)
+	}
+}
+
+func TestSessionBrandsComponentsWithProjectResolvedPlacement(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		response := NewSession(nil).Execute(Request{
+			ID:     "card.tsx",
+			Kind:   "compile",
+			Target: target,
+			Source: `
+				function format(value: number): string {
+					return new Intl.NumberFormat("en-US").format(value);
+				}
+				export function Card(props: { value: number }) {
+					return () => <output>{format(props.value)}</output>;
+				}
+			`,
+		})
+		if response.Error != "" {
+			t.Fatal(response.Error)
+		}
+		card := findComponent(t, response.Analysis.Components, "Card")
+		if card.Placement != "unknown" {
+			t.Fatalf("expected project-resolved placement fixture, got %#v", card)
+		}
+		expected := `Object.assign(Card, { [Symbol.for("@exactjs/component")]: "` + card.ID + `" })`
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("%s component brand output is missing %q:\n%s", target, expected, response.Code)
+		}
 	}
 }
 
@@ -692,9 +747,8 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		`const __exactImplementation_Button_1 = function Button()`,
 		`export const Button: typeof __exactImplementation_Button_1`,
 		`Object.assign(__exactImplementation_Button_1, {`,
-		`[Symbol.for("@exactjs/component")]: true`,
+		`[Symbol.for("@exactjs/component")]: "` + component.ID + `"`,
 		`[__exactComponentContract_1]:`,
-		`id: "` + component.ID + `"`,
 		`id: "` + rootSymbolID + `"`,
 		`placement: "client"`,
 		`role: "client"`,
@@ -1114,8 +1168,19 @@ func TestSessionEmitsGeneratedIntrinsicIslandInClientArtifact(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
+	islandID := ""
+	for _, boundary := range response.Analysis.Boundaries {
+		if boundary.Name == "Panel_ExactClient_1" {
+			islandID = boundary.ID
+			break
+		}
+	}
+	if islandID == "" {
+		t.Fatalf("missing generated client island: %#v", response.Analysis.Boundaries)
+	}
 	for _, expected := range []string{
 		`export function Panel_ExactClient_1(this: any, props: any = {})`,
+		`Object.assign(Panel_ExactClient_1, { [Symbol.for("@exactjs/component")]: "` + islandID + `" })`,
 		`if (props.__exactState)`,
 		`Object.assign(this.state, props.__exactState)`,
 		`title: props.title`,
@@ -4341,7 +4406,7 @@ func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
 	if component.Placement != "client" ||
 		component.EnvironmentEffect != "browser" ||
 		strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
-		!strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: true`) {
+		!strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: "`+component.ID+`"`) {
 		t.Fatalf(
 			"opaque setup call erased the browser component contract: %#v\n%s",
 			component,

@@ -8,6 +8,10 @@ clear assignment forms—including chained, compound, logical, tuple, and destru
 assignments—when they express the intended JavaScript semantics. Use a diagnostic instead of
 rewriting valid source around an unsupported or ambiguous form.
 
+Brand every emitted native component at `Symbol.for('@exactjs/component')` with its opaque stable
+component ID, even when no rich artifact entries are needed. Keep that brand value canonical; do
+not emit a duplicate top-level component ID inside `@exactjs/component-contract` metadata.
+
 Write diagnostic fixes in current function-defined task terminology. Never recommend authoring
 removed `this.task()` registrations; when compatibility parsing encounters that syntax, identify
 it as legacy and direct the author to a local function with final `TaskContext` policy when needed.

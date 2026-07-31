@@ -31,7 +31,8 @@ import {
 	exactModuleFilename,
 	exactTransformTarget,
 	isExactTransformableModule,
-	shouldCompileExactModule
+	shouldCompileExactModule,
+	shouldTransformExactModule
 } from './module-selection.js';
 import { rewriteWithCompatibility, viteReactAliases } from './react-compatibility-emission.js';
 import {
@@ -263,8 +264,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		transform(code, id) {
 			if (!isExactTransformableModule(id)) return null;
-			microfrontends.recordModule(code, id);
 			const filename = exactModuleFilename(id);
+			if (!shouldTransformExactModule(filename, options)) return null;
+			microfrontends.recordModule(code, id);
 			const profileStarted = options.onProfile ? profileTimestamp() : undefined;
 			try {
 				const ownership = jsxSourceOwnership(filename, code, reactCompatibility);

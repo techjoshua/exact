@@ -1,4 +1,5 @@
-import { createServerBoundary, createTextVNode, createVNode, type Component } from '@exactjs/core';
+import { createServerBoundary, createTextVNode, type Component } from '@exactjs/core';
+import { createVNode } from './test-support/native-vnode.js';
 import {
 	defineExactOperationContract,
 	defineExactBoundaryContract,

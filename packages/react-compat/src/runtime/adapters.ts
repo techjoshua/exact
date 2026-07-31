@@ -3,6 +3,7 @@ import {
 	createErrorContext,
 	createVNode,
 	isExactComponent,
+	markExactComponent,
 	type Component,
 	type ComponentFunction,
 	type ComponentInstance
@@ -64,6 +65,14 @@ export * from './shared.js';
 import { createOwnerFrame, enterReactOwnerScope, removeOwnerFrame } from '../internals.js';
 
 const adapterCache = new WeakMap<object, ComponentFunction<any, any>>();
+let nextCompatibilityAdapterId = 0;
+
+function markCompatibilityAdapter<T extends ComponentFunction<any, any>>(adapter: T): T {
+	return markExactComponent(
+		adapter,
+		`@exactjs/react-compat:adapter:${++nextCompatibilityAdapterId}`
+	);
+}
 
 /**
  * Returns the stable eXact component adapter for a React type.
@@ -116,15 +125,18 @@ export function adaptReactType<P>(
 				return createVNode(component, snapshot);
 			};
 		} as ComponentFunction<Record<string, never>, Record<string, unknown>>;
-		adapterCache.set(identity, boundaryAdapter);
-		return boundaryAdapter as ComponentFunction<Record<string, unknown>, P>;
+		const markedBoundaryAdapter = markCompatibilityAdapter(boundaryAdapter);
+		adapterCache.set(identity, markedBoundaryAdapter);
+		return markedBoundaryAdapter as ComponentFunction<Record<string, unknown>, P>;
 	}
 	if (isReactClassType(type)) {
-		const classAdapter = createClassAdapter(type as ReactClassType<Record<string, unknown>>);
+		const classAdapter = markCompatibilityAdapter(
+			createClassAdapter(type as ReactClassType<Record<string, unknown>>)
+		);
 		adapterCache.set(identity, classAdapter);
 		return classAdapter as ComponentFunction<Record<string, unknown>, P>;
 	}
-	const adapter = createFunctionAdapter(type as ReactComponentType<any>);
+	const adapter = markCompatibilityAdapter(createFunctionAdapter(type as ReactComponentType<any>));
 	adapterCache.set(identity, adapter);
 	return adapter as ComponentFunction<Record<string, unknown>, P>;
 }

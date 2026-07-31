@@ -54,7 +54,8 @@
 		"@exactjs/dom": "^0.1.0",
 		"@exactjs/ssr": "^0.1.0",
 		"@exactjs/react-compat": "^0.1.0",
-		"@exactjs/react-dom-compat": "^0.1.0"
+		"@exactjs/react-dom-compat": "^0.1.0",
+		"@exactjs/vitest": "^0.1.0"
 	},
 	"exact": {
 		"reactCompatibility": {
@@ -1012,7 +1013,7 @@
 	},
 	"scripts": {
 		"build": "tsc -b",
-		"test": "vitest run --config ../../vitest.config.ts",
+		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

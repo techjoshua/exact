@@ -502,7 +502,6 @@ func (s *Session) Execute(request Request) Response {
 		transformed,
 		emitContext,
 		components,
-		tasks,
 		continuations,
 		resumptions,
 		boundaries,

@@ -47,6 +47,11 @@ is scheduled.
 
 There is no setter to call, dependency array to maintain, or component tree to redescribe.
 
+Every native component is compiler-branded with an opaque stable identity. DOM rendering, SSR,
+hydration, registries, and compatibility adapters use that brand rather than inferring ownership
+from a function's shape or name. React, Preact, and other unbranded functions remain owned by their
+explicit compatibility layer.
+
 ## What makes eXact different?
 
 ### Components are durable instances

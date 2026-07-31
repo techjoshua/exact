@@ -22,6 +22,12 @@ Native router components prepare route branches and link presentation during
 setup. Their returned render functions contain only the view expression, with
 conditional view selection represented by JSX or pure setup-derived helpers.
 
+Compilerless native router exports carry stable package-qualified component identities so DOM,
+SSR, and hydration never infer their ownership from function shape.
+
+Authored native test fixtures run through the package's `@exactjs/vitest` compiler configuration;
+React facade fixtures remain React-owned and cross the compatibility adapter normally.
+
 The package also exposes React Router compatibility facades for supported React Router 5, 6, and
 7 package substitutions. Native eXact applications should import the main entrypoint; compatibility
 entrypoints are selected by the React compatibility build integration.

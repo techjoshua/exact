@@ -10,7 +10,7 @@ import {
 	type ExactTaskRuntimeSnapshot,
 	type ExactValueRedactor
 } from '@exactjs/devtools-protocol';
-import { readExactComponentContract } from '../component-contracts.js';
+import { exactComponentIdentity, isExactComponent } from '../component-contracts.js';
 import { inspectTaskFramesForHost, type TaskFrameInspection } from '../tasks/frame-inspection.js';
 import type { ComponentInstance, TaskRegistration } from './contracts.js';
 import { inspectComponentActions } from './action-api.js';
@@ -119,14 +119,16 @@ export function createExactRuntimeInspectionOwner(
 		},
 		identity(component, details = {}) {
 			if (!sessionId) return undefined;
-			const contract = readExactComponentContract(component.type);
+			const authoredTypeName = component.type.name || 'anonymous-component';
 			return Object.freeze({
 				sessionId,
 				side: owner.side,
 				...(owner.binding ? { binding: owner.binding } : {}),
 				buildKey: owner.buildKey,
 				executionRoot: owner.executionRoot,
-				componentTypeId: contract?.id ?? component.type.name ?? 'anonymous-component',
+				componentTypeId: isExactComponent(component.type)
+					? exactComponentIdentity(component.type)
+					: authoredTypeName,
 				instanceId: component.id,
 				...(details.sourceEntityId ? { sourceEntityId: details.sourceEntityId } : {}),
 				...(details.operationId ? { operationId: details.operationId } : {}),

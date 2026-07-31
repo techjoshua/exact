@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	composeExactComponentContracts,
 	exactComponentContract,
+	exactComponentIdentity,
+	exactComponentType,
 	isExactComponent,
 	markExactComponent,
 	readExactComponentContract
@@ -9,18 +11,19 @@ import {
 
 describe('@exactjs/core component contracts', () => {
 	it('brands native library components without inventing an executable contract', () => {
-		const Component = markExactComponent(function Component() {});
+		const Component = markExactComponent(function Component() {}, '@exactjs/core:test-component');
 
 		expect(isExactComponent(Component)).toBe(true);
 		expect(readExactComponentContract(Component)).toBeUndefined();
+		expect(exactComponentIdentity(Component)).toBe('@exactjs/core:test-component');
 	});
 
 	it('reads and composes target-local executable contracts', () => {
 		const island = () => undefined;
 		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:Page',
 				placement: 'server' as const,
 				role: 'client' as const,
 				implementations: [
@@ -64,7 +67,8 @@ describe('@exactjs/core component contracts', () => {
 			}
 		});
 
-		expect(readExactComponentContract(component)?.id).toBe('component:Page');
+		expect(exactComponentIdentity(component)).toBe('component:Page');
+		expect(readExactComponentContract(component)?.role).toBe('client');
 		expect(composeExactComponentContracts([component], 'client')).toMatchObject({
 			implementations: { Page_ExactClient_1: island },
 			implementationsById: { 'island:Page:1': island },
@@ -78,9 +82,9 @@ describe('@exactjs/core component contracts', () => {
 	it('rejects conflicting stable implementation ids', () => {
 		const contract = (implementation: () => void) =>
 			Object.assign(() => undefined, {
+				[exactComponentType]: 'component:Page',
 				[exactComponentContract]: {
 					version: 1 as const,
-					id: 'component:Page',
 					placement: 'client' as const,
 					role: 'client' as const,
 					implementations: [
@@ -107,9 +111,9 @@ describe('@exactjs/core component contracts', () => {
 
 	it('rejects incomplete continuation metadata instead of assuming an older shape', () => {
 		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
 				version: 1,
-				id: 'component:Page',
 				placement: 'client',
 				role: 'client',
 				implementations: [],
@@ -127,6 +131,32 @@ describe('@exactjs/core component contracts', () => {
 				],
 				executors: [],
 				boundaries: []
+			}
+		});
+
+		expect(() => readExactComponentContract(component)).toThrow(
+			'Unsupported eXact component contract'
+		);
+	});
+
+	it('rejects contract records owned by a different branded component', () => {
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:Page',
+			[exactComponentContract]: {
+				version: 1 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:Other',
+					statePaths: [],
+					valueCaptures: [],
+					contexts: [],
+					boundaries: []
+				}
 			}
 		});
 

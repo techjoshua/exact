@@ -1,4 +1,4 @@
-import { createContext, createVNode, type Component } from '@exactjs/core';
+import { createContext, type Component } from '@exactjs/core';
 import { RequestContext } from '@exactjs/request';
 import {
 	defineExactOperationContract,
@@ -12,6 +12,7 @@ import {
 	renderExactRequestToProgressiveHtmlResponse
 } from './index.js';
 import { readStreamText } from './test-support/streams.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr request-context', () => {
 	const ApplicationName = createContext<string>('ssr.application', {

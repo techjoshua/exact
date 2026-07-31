@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { Fragment, createVNode } from '@exactjs/core';
+import { Fragment } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { defineExactBoundaryContract, handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
@@ -13,6 +13,7 @@ import {
 	invokeExactBatch,
 	readExactHydrationConfig
 } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 import { noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate request-operations', () => {

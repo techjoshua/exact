@@ -1,4 +1,4 @@
-import { createVNode, readExactComponentContract } from '@exactjs/core';
+import { createVNode, exactComponentIdentity, readExactComponentContract } from '@exactjs/core';
 import {
 	composeExactExecutorContract,
 	createExactHydrationConfig,
@@ -23,7 +23,7 @@ export const exactContract = composeExactExecutorContract([ProfilePage], {
 	endpoint: '/__exact',
 	actions: {
 		'save-profile': defineExactOperationContract('save-profile', {
-			componentId: profileContract.id,
+			componentId: exactComponentIdentity(ProfilePage),
 			writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
 			boundaries: [profileBoundaryId]
 		})

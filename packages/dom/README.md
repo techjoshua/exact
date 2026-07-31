@@ -27,6 +27,10 @@ Hydration adoption compares compiler contract identity in component markers befo
 SSR state resumption. A mismatched nested component is mounted fresh inside its owned range while
 compatible ancestors and siblings retain their adopted DOM.
 
+Function-valued native VNodes must carry the compiler-owned component identity brand. The renderer
+does not infer eXact ownership from a function's shape; foreign functions must cross an explicit
+compatibility adapter.
+
 Native `Suspense` keeps committed content visible while a blocking update prepares and publishes
 candidate state and DOM together. Native `Activity` detaches complete logical ranges—including
 portal output—without losing component, node, ref, handler, or form-control identity.

@@ -18,6 +18,7 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
+import { createTestVNode } from '@exactjs/testing/internal/fixtures';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -205,7 +206,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		const container = document.createElement('main');
 		document.body.append(container);
 		try {
-			render(createVNode(HiddenRootTasks, null), container);
+			render(createTestVNode(HiddenRootTasks, null), container);
 			await vi.waitFor(() => {
 				expect(container.querySelector('[data-result="billing"]')?.textContent).toBe(
 					'BILLING-READY'

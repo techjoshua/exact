@@ -9,6 +9,10 @@ error callbacks, batching, and package-export facades used by the React compatib
 Applications normally receive this package through automatic substitution configured by an eXact
 build plugin. Import it directly only when deliberately targeting the compatibility API.
 
+The client and server compatibility roots are compilerless native hosts with explicit stable
+package identities. React component functions remain React-owned and unbranded; the compatibility
+runtime wraps them in separately identified native adapters.
+
 Compatibility Suspense delegates range ownership and retry to the native renderer. Urgent updates
 may replace content with a fallback, while deferred transition updates retain committed content;
 React Activity retains hidden DOM and Hook/class state instead of remounting the subtree.

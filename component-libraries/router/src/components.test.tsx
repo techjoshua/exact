@@ -1,13 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createErrorContext,
-	createExpression,
-	createVNode,
-	ErrorContext,
-	type Component
-} from '@exactjs/core';
+import { createErrorContext, createExpression, createVNode, isExactComponent } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import {
 	createRequestContextValue,
@@ -18,35 +12,35 @@ import {
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import {
-	createMemoryLocationSource,
-	Link,
-	Navigate,
-	NavLink,
-	Outlet,
-	Route,
-	RouteContext,
-	Router
-} from './index.js';
+	ApplePage,
+	BasenamePage,
+	ErrorLinkApp,
+	GeneratedLayout,
+	GeneratedPage,
+	HashPage,
+	HomePage,
+	MissingPage,
+	NestedLayout,
+	StatePage,
+	TargetLinksPage,
+	UserPage
+} from './components.fixtures.js';
+import { createMemoryLocationSource, Navigate, Route, Router } from './index.js';
 
 describe('router', () => {
-	it('matches nested dynamic routes and navigates', () => {
-		function Layout() {
-			return () => createVNode('main', null, createVNode(Outlet, {}));
-		}
-		function User(this: Component<{}>) {
-			const route = this.getContext(RouteContext);
-			return () => createVNode('p', null, `User ${route.params.id}`);
-		}
-		function Home() {
-			return () => createVNode(Link, { to: '/users/42' }, 'Open');
-		}
+	it('uses compiler identity for authored native fixtures', () => {
+		expect(isExactComponent(NestedLayout)).toBe(true);
+		expect(isExactComponent(Router)).toBe(true);
+	});
+
+	it('matches nested dynamic routes and navigates', async () => {
 		const source = createMemoryLocationSource('https://example.test/');
 		const container = document.createElement('div');
 		render(
 			<Router source={source}>
-				<Route component={Layout}>
-					<Route index component={Home} />
-					<Route path="users/:id" component={User} />
+				<Route component={NestedLayout}>
+					<Route index component={HomePage} />
+					<Route path="users/:id" component={UserPage} />
 				</Route>
 			</Router>,
 			container
@@ -57,18 +51,15 @@ describe('router', () => {
 			.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
 		expect(container.textContent).toBe('User 42');
 		source.push(new URL('https://example.test/users/99'));
-		expect(container.textContent).toBe('User 99');
+		await vi.waitFor(() => expect(container.textContent).toBe('User 99'));
 	});
 
 	it('normalizes basenames and generates hash links', () => {
-		function Page() {
-			return () => <NavLink to="/start">Start</NavLink>;
-		}
 		const source = createMemoryLocationSource('https://example.test/app/start');
 		const container = document.createElement('div');
 		render(
 			<Router source={source} basename="/app" mode="hash">
-				<Route path="start" component={Page} />
+				<Route path="start" component={BasenamePage} />
 			</Router>,
 			container
 		);
@@ -77,20 +68,11 @@ describe('router', () => {
 	});
 
 	it('matches explicit fragment-bearing hash sources for SSR parity', () => {
-		function Page(this: Component<{}>) {
-			const route = this.getContext(RouteContext);
-			return () => (
-				<>
-					<p>{route.location.search}</p>
-					<Link to="?page=2">Next</Link>
-				</>
-			);
-		}
 		const source = createMemoryLocationSource('https://example.test/#/app/start?from=ssr');
 		const container = document.createElement('div');
 		render(
 			<Router source={source} basename="/app" mode="hash">
-				<Route path="start" component={Page} />
+				<Route path="start" component={HashPage} />
 			</Router>,
 			container
 		);
@@ -99,26 +81,6 @@ describe('router', () => {
 	});
 
 	it('collects routes generated inside compiled fragments', () => {
-		function Layout() {
-			return () => (
-				<>
-					<nav>
-						<NavLink to="/guides/routing">Routing</NavLink>
-						<NavLink to="/learn/state">State</NavLink>
-					</nav>
-					<Outlet />
-				</>
-			);
-		}
-		function GeneratedPage() {
-			return () => <p>Generated route</p>;
-		}
-		function StatePage() {
-			return () => <p>State route</p>;
-		}
-		function MissingPage() {
-			return () => <p>Missing route</p>;
-		}
 		const generated = [
 			createVNode(Route, {
 				path: createExpression(() => 'guides/routing'),
@@ -133,7 +95,7 @@ describe('router', () => {
 		const container = document.createElement('div');
 		render(
 			<Router source={source}>
-				<Route component={Layout}>
+				<Route component={GeneratedLayout}>
 					{generated}
 					<Route path="*" component={MissingPage} />
 				</Route>
@@ -149,19 +111,11 @@ describe('router', () => {
 	});
 
 	it('keeps the current pathname for query and fragment targets', () => {
-		function Page() {
-			return () => (
-				<>
-					<Link to="?page=2">Query</Link>
-					<Link to="#details">Hash</Link>
-				</>
-			);
-		}
 		const source = createMemoryLocationSource('https://example.test/users/42');
 		const container = document.createElement('div');
 		render(
 			<Router source={source}>
-				<Route path="users/:id" component={Page} />
+				<Route path="users/:id" component={TargetLinksPage} />
 			</Router>,
 			container
 		);
@@ -171,13 +125,10 @@ describe('router', () => {
 	});
 
 	it('does not strip a basename from a partial segment', () => {
-		function Page() {
-			return () => <p>Apple</p>;
-		}
 		const container = document.createElement('div');
 		render(
 			<Router source={createMemoryLocationSource('https://example.test/apple')} basename="/app">
-				<Route path="le" component={Page} />
+				<Route path="le" component={ApplePage} />
 			</Router>,
 			container
 		);
@@ -247,28 +198,8 @@ describe('router', () => {
 
 	it('observes rejected consumer link callbacks', async () => {
 		const errors = createErrorContext();
-		function Page() {
-			return () => (
-				<Link
-					to="/next"
-					onClick={async () => {
-						throw new Error('link failed');
-					}}
-				>
-					Next
-				</Link>
-			);
-		}
-		function App(this: Component<{}>) {
-			this.setContext(ErrorContext, errors);
-			return () => (
-				<Router source={createMemoryLocationSource('https://example.test/')}>
-					<Route index component={Page} />
-				</Router>
-			);
-		}
 		const container = document.createElement('div');
-		render(<App />, container);
+		render(<ErrorLinkApp errors={errors} />, container);
 		container.querySelector('a')!.click();
 		await vi.waitFor(() => expect(errors.errors[0]?.error).toEqual(new Error('link failed')));
 	});

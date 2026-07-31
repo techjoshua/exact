@@ -7,6 +7,10 @@ Keep renderer ownership in eXact: use compiled events, bindings, keyed collectio
 `Activity`, `Suspense`, and the core `ErrorBoundary` rather than manipulating owned DOM ranges.
 Use `@exactjs/dom/testing` only for renderer-aware test support.
 
+Require the non-empty `@exactjs/component` identity brand before mounting or adopting a
+function-valued native VNode. Do not restore function-name or shape-based ownership fallbacks;
+foreign component systems cross their compatibility adapter.
+
 Preserve the construction barrier between component setup and first rendering. Normal-priority
 synchronous setup activations must settle before rendering the component or mounting its children,
 while deferred work must retain its authored scheduling policy.

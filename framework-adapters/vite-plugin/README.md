@@ -34,6 +34,9 @@ default because their top-level test calls are not application placement boundar
 component modules still receive full compilation. Set `compileTestModules: true` only for a test
 module deliberately written to satisfy normal application-module placement rules.
 
+`include` and `exclude` scope the complete transform, including React compatibility ownership
+analysis, so excluded modules retain their original JSX runtime without partial processing.
+
 Use `target: "server"` for server artifacts, `serverComponents: true` for split server-component
 builds, and `reactCompatibility` only when the application intentionally consumes React packages.
 With compatibility enabled, imported and runtime-selected components can be rendered directly

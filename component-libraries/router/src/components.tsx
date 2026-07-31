@@ -379,8 +379,16 @@ export function Navigate(
 	return null;
 }
 
-for (const component of [Router, Route, Outlet, Link, NavLink, Navigate])
-	markExactComponent(component);
+for (const [component, identity] of [
+	[Router, '@exactjs/router:Router'],
+	[Route, '@exactjs/router:Route'],
+	[Outlet, '@exactjs/router:Outlet'],
+	[Link, '@exactjs/router:Link'],
+	[NavLink, '@exactjs/router:NavLink'],
+	[Navigate, '@exactjs/router:Navigate'],
+	[MatchedRoute, '@exactjs/router:MatchedRoute']
+] as const)
+	markExactComponent(component, identity);
 
 function requestSource(request: RequestContextValue | undefined): LocationSource | undefined {
 	if (!request) return undefined;

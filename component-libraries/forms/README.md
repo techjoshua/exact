@@ -23,6 +23,14 @@ The library components follow the native render contract: props, accessibility
 IDs, and validation projections are prepared during setup, while each returned
 render function contains only its JSX view expression.
 
+Because these framework-owned components are distributed without application compilation, each
+export carries an explicit package-qualified native component identity.
+
+The package's authored TSX test fixtures run through `@exactjs/vitest`; fixture components
+therefore exercise the normal compiler identity and lowering path rather than a runtime branding
+substitute. Test runner modules remain outside compilation so their top-level Vitest registration
+does not become application initialization.
+
 Submission is an interaction host. Duplicate submissions are dropped while one is active,
 `aria-busy` and submit disabled state follow the full joined settlement, and router work started
 by the callback remains part of that lifetime. The `errors` prop projects application-owned

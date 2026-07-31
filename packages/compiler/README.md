@@ -9,6 +9,11 @@ Most applications should consume the compiler through `@exactjs/vite-plugin`,
 compiler sessions, artifact planning, diagnostics, final client-artifact isolation, optional
 continuation explanations, and the CLI.
 
+Every emitted native component, including one without a rich executable contract, carries
+`Symbol.for('@exactjs/component')` with its opaque component ID as the value. Rich metadata under
+`Symbol.for('@exactjs/component-contract')` references that identity without duplicating a
+top-level `id` field.
+
 Editor and agent integrations can use `createExactLanguageService()` for a
 long-lived, asynchronous, no-emit project. Unsaved overlays produce immutable
 generations, compiler-owned component regions and inference reasons, rich eXact

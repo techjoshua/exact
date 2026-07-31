@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"files": [
+		"AGENTS.md",
 		"dist",
 		"!dist/**/*.test.*"
 	],
@@ -22,6 +23,10 @@
 		"./jest": {
 			"types": "./dist/jest.d.ts",
 			"default": "./dist/jest.js"
+		},
+		"./internal/fixtures": {
+			"types": "./dist/internal/fixtures.d.ts",
+			"default": "./dist/internal/fixtures.js"
 		}
 	},
 	"main": "./dist/index.js",
@@ -30,6 +35,7 @@
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",
 		"@exactjs/hydrate": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
 		"@exactjs/plugin-host": "^0.1.0",
 		"@exactjs/reactive": "^0.1.0",
 		"@exactjs/server": "^0.1.0",

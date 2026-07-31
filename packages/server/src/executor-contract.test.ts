@@ -1,4 +1,4 @@
-import { exactComponentContract } from '@exactjs/core';
+import { exactComponentContract, exactComponentType } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	composeExactExecutorContract,
@@ -11,9 +11,9 @@ describe('@exactjs/server executor contracts', () => {
 	it('composes explicitly imported executable component contracts', () => {
 		const execute = () => ({ state: {} });
 		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'Page',
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -78,9 +78,9 @@ describe('@exactjs/server executor contracts', () => {
 		const first = defineExactOperationContract('save', { componentId: 'Page' });
 		const second = defineExactOperationContract('save', { componentId: 'OtherPage' });
 		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'Page',
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],

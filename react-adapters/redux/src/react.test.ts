@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createContext, createElement, useContext } from '@exactjs/react-compat';
 import { createRoot } from '@exactjs/react-dom-compat/client19';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ReduxStore } from './index.js';
 import { Provider } from './react.js';
 
@@ -22,7 +22,7 @@ describe('@exactjs/redux React bridge', () => {
 		createRoot(container).render(
 			createElement(Provider, { store, context: CustomContext }, createElement(Reader, null))
 		);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await vi.waitFor(() => expect(observed).toBeDefined());
 		expect(observed.store).toBe(store);
 		expect(observed.subscription.isSubscribed()).toBe(true);
 	});

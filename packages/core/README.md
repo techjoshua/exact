@@ -73,8 +73,10 @@ Compiled registries carry opaque identity into SSR/hydration markers; a mismatch
 is recovered inside its own range. `inspectComponentRegistry()` reports entry mode, status, and
 load generation without exposing loaders.
 
-Compiled component contract IDs are also the protocol identity for ordinary SSR component
-markers and resumption records. A hydration renderer must use `withComponentResumption()` only
+The string stored at `Symbol.for('@exactjs/component')` is the canonical compiler-owned component
+identity used by ordinary SSR markers and resumption records. Rich metadata attached at
+`Symbol.for('@exactjs/component-contract')` does not duplicate that top-level ID; its detached
+continuation, boundary, executor, and resumption records retain `componentId` fields. A hydration renderer must use `withComponentResumption()` only
 around construction already authorized by a matching marker; a durable component domain alone
 does not authorize state restoration.
 

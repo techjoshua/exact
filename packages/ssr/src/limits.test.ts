@@ -1,6 +1,7 @@
-import { createVNode, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderHydrationScript, renderToString, renderToStringAsync } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr limits', () => {
 	it('rejects over-deep sync and async vnode trees with a deterministic limit error', async () => {
