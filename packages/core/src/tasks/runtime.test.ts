@@ -264,6 +264,54 @@ describe('unified task runtime', () => {
 		await owner[Symbol.asyncDispose]();
 	});
 
+	it('aggregates keyed lanes while keeping key-scoped status isolated', async () => {
+		const owner = createTaskOwner();
+		const gates = new Map([
+			['invoice', deferred<string>()],
+			['receipt', deferred<string>()]
+		]);
+		const task = defineTask(
+			{
+				concurrency: 'latest',
+				concurrencyKey: (documentId: string) => documentId
+			},
+			(documentId: string) => gates.get(documentId)!.promise
+		);
+		const bound = bindTask(task, { owner });
+		const aggregate = taskStatus(task, { owner });
+		const invoice = taskStatus(task, { owner, key: 'invoice' });
+		const receipt = taskStatus(task, { owner, key: 'receipt' });
+
+		const receiptInvocation = bound('receipt');
+		expect(aggregate.pendingCount).toBe(1);
+		expect(invoice.pending).toBe(false);
+		expect(invoice.pendingCount).toBe(0);
+		expect(invoice.generation).toBe(0);
+		expect(invoice.result).toBeUndefined();
+		expect(invoice.error).toBeUndefined();
+		expect(receipt.pending).toBe(true);
+
+		const invoiceInvocation = bound('invoice');
+		expect(aggregate.pendingCount).toBe(2);
+		expect(invoice.pendingCount).toBe(1);
+		expect(receipt.pendingCount).toBe(1);
+
+		gates.get('receipt')!.resolve('receipt saved');
+		await expect(receiptInvocation).resolves.toBe('receipt saved');
+		expect(aggregate.pendingCount).toBe(1);
+		expect(invoice.pending).toBe(true);
+		expect(invoice.result).toBeUndefined();
+		expect(receipt.result).toBe('receipt saved');
+
+		gates.get('invoice')!.resolve('invoice saved');
+		await expect(invoiceInvocation).resolves.toBe('invoice saved');
+		expect(aggregate.pending).toBe(false);
+		expect(aggregate.result).toBe('invoice saved');
+		expect(invoice.result).toBe('invoice saved');
+		expect(receipt.result).toBe('receipt saved');
+		await owner[Symbol.asyncDispose]();
+	});
+
 	it('rolls optimistic mutations back on failure and rejects async optimistic callbacks', async () => {
 		const state = reactive({ value: 'before' });
 		const task = defineTask({ concurrency: 'latest' }, async (context: TaskContext) => {

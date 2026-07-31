@@ -27,6 +27,16 @@ hardened build. The Vite, Webpack, and Bun integrations derive both compiler con
 emits its catalog in `processAssets`, Bun writes it beneath `outdir`, and all three keep the asset
 outside the client graph.
 
+An instrumented client-only page opens a local browser inspection session without probing a
+server URL. Server cooperation activates only from an explicit runtime endpoint or the bounded
+endpoint in compiler-owned hydration metadata; absence does not imply `/__exact`.
+
+Vite instrumented modules depend on the virtual browser runtime directly, so inspection ownership
+is installed before native module evaluation and the first client root render. The injected HTML
+bootstrap remains a fallback for pages without transformed native roots. Compiler-generated
+reactive cells are transparent at that boundary: a root inspection domain continues into the
+authored component tree when the renderer unwraps the compiled root.
+
 Runtime authorization is separate:
 
 ```ts
@@ -67,6 +77,21 @@ The Chromium panel and automation agent consume the same versioned protocol. The
 No query returns component instances, callbacks, task controllers, context resources, secret
 values, or executable operation handles. Selecting an element resolves its logical component owner;
 selecting a component highlights only its currently owned DOM elements.
+
+The Chromium **Components** view shows every durable instance in its live parent/child hierarchy.
+Selecting a node exposes that instance's bounded state, props, contexts, tasks, and dependency
+explanation. The tree and selected-instance details scroll independently.
+
+The **Profiler** is an explicit bounded capture rather than an always-running trace. Start
+recording, interact with the application, and stop recording to inspect causal frames. Explicit
+framework frame markers take precedence; otherwise interaction and request identities group
+related work. Unlike the instance-level Components tree, each frame summarizes state and props
+changes and plots event markers in one aggregated waterfall lane per authored component type.
+Instance identities remain attached underneath for exact selection and highlighting. Because
+federated hosts retain independent cursor order, the panel does not imply a total wall-clock
+ordering that the protocol cannot prove. Live subscription delivery previews the recording;
+pressing Stop pages retained history after the recording's merged cursor before presenting the
+final capture, so boundary races do not silently lose events.
 
 ## Catalog and source identity
 
@@ -120,9 +145,15 @@ npm run build -w @exactjs/chromium-devtools
 ```
 
 Load `packages/chromium-devtools` in Chromium's extension page, open DevTools, and select the
-**eXact** panel. The extension's main-world bridge is installed at document start, while the
-inspection hook becomes active only when a consumer connects. Closing the panel closes live
-subscriptions and releases highlights and bridges.
+**eXact** panel. Load the package directory, not its `dist` child: the manifest remains at the
+package root and references the generated assets. The build bundles both Manifest V3 content
+entries as classic scripts for Chromium and makes every extension-page entry self-contained.
+The extension's main-world bridge is installed at document start, while the inspection hook
+becomes active only when a consumer connects. Closing the panel closes live subscriptions and
+releases highlights and bridges. Reloading or disconnecting the extension fences the old content
+port before page-hook teardown, so late acknowledgements are not forwarded into a closed channel.
+The DevTools entry registers `dist/panel.html` from the extension root; generated document paths
+are not resolved relative to `dist/devtools.html`.
 
 `@exactjs/devtools-agent` attaches to an existing Chromium target through CDP. It accepts only
 validated read-only methods and uses fixed function declarations; callers cannot provide

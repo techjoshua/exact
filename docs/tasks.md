@@ -1,16 +1,55 @@
 # Function-defined tasks and structured task trees
 
-eXact has one authored unit of coordinated work: an ordinary TypeScript
-function. Reactive work, direct invocation, events, forms, navigation, and
-lifecycle hosts differ by activation metadata; they do not require separate
-task and action registration APIs.
+eXact has one authored unit of coordinated work: the task. In source, a task
+begins as an ordinary TypeScript function. The compiler promotes it to a
+stable, owner-bound task definition when its effects, activation host,
+placement, capabilities, or transitive calls require framework coordination.
+A pure helper remains ordinary JavaScript.
+
+Each reason the definition runs is an activation. Each scheduled run is a
+generation with its own cancellation, status, result, effects, structural
+children, resources, and cleanup. The scheduler places that generation in a
+lane determined by its durable owner, definition, optional key, concurrency
+policy, priority, and readiness. Reactive work, direct invocation, events,
+forms, navigation, and lifecycle hosts differ by activation metadata; they do
+not require separate task and action registration APIs.
 
 ## Authoring contract
 
-A function is classified as a task when compiler-visible effects, a known
-activation host, placement, a task capability, or a final `TaskContext`
-parameter requires coordinated work. A pure helper remains ordinary
-JavaScript.
+Begin with an ordinary function and call it normally:
+
+```ts
+function persistDraft(serialized: string) {
+	localStorage.setItem('draft', serialized);
+}
+
+persistDraft(JSON.stringify(this.state.draft));
+```
+
+The compiler sees the client storage effect and classifies `persistDraft` as a
+task. Its setup call declares initial and reactive activation, with
+`this.state.draft` as an input dependency. A new draft creates a superseding
+generation. The compiler supplies the task definition, component ownership,
+dependency subscription, scheduling, and cleanup machinery.
+
+Every generation has an `AbortSignal`. The compiler supplies it automatically
+to calls whose visible TypeScript signature accepts an optional direct
+`AbortSignal` or an options value with `signal?: AbortSignal`. It recognizes
+platform calls such as `fetch()` and `addEventListener()` directly and combines
+the generation signal with an authored signal or event options rather than
+discarding either.
+
+The compiler also gives discoverable resources generation ownership. Known
+timers, animation and idle callbacks, observers, sockets, workers,
+subscription results with callable or named disposal, and local `Disposable`
+or `AsyncDisposable` values are released on settlement or cancellation. A
+resource must remain local and expose a known, typed, or annotated disposal
+contract. An escape is a diagnostic rather than an inferred longer lifetime.
+Use explicit `task.signal`, `task.cleanup()`, or `task.own()` when a wrapper or
+third-party boundary hides those contracts.
+
+Add `TaskContext` only when policy must be explicit or the body needs a
+generation capability:
 
 ```ts
 async function saveDocument(
@@ -25,9 +64,12 @@ async function saveDocument(
 }
 ```
 
-The final parameter is compiler-supplied. Application calls omit it. Its
-default is declarative compiler syntax and is erased from emitted code.
-Recognized facets are:
+The final declaration has two roles. `task` is the real per-generation runtime
+context used by the body. The default expression rooted at the imported
+`TaskContext` value is declarative compiler syntax: the compiler validates the
+chain, records its policy, erases the builder, and supplies a fresh context
+when a generation starts. Application calls omit the final argument, and
+lookalike values do not receive this treatment. Recognized policy facets are:
 
 - placement: `client()` or `server()`;
 - invoked concurrency: `parallel()`, `latest()`, or `queue()`, optionally
@@ -41,6 +83,17 @@ and reactive activation. Its argument expressions are observed inputs. A call
 from an event or other active host creates an invoked generation. A call under
 an active task attaches a child frame; after an `await`, compiler output uses
 the retained context and the public task ABI to restore the same relationship.
+Synchronous setup activations through normal priority settle before the first
+render so their state output is available to the component and its children.
+
+`async`, `await`, and readiness are separate concepts. `async` supplies normal
+JavaScript promise syntax and does not select Suspense behavior. An `await`
+inside task work is a compiler-lowered suspension point that retains task
+ownership, cancellation, and stale-continuation fencing. The nearest Suspense
+boundary waits only when the generation is `blocking`; `nonblocking` work may
+remain pending without holding readiness. An async component that awaits a
+value into `this.state` is the shorthand case the compiler infers as blocking
+setup work.
 
 ## Captured task parameters
 
@@ -95,11 +148,33 @@ key. Component instances are owners. Compilerless code can create an explicit
 owner for a session or adapter lifetime. Disposing an owner cancels every
 queued and active generation and awaits structural cleanup.
 
+Concurrency policy applies to invoked generations: `parallel` overlaps,
+`latest` supersedes, and `queue` preserves order. Reactive activation always
+supersedes the previous generation for its activation site. Priority
+(`immediate`, `normal`, or `deferred`) determines when eligible work runs;
+readiness (`blocking` or `nonblocking`) independently determines whether
+Suspense waits.
+
 When source observes task status, the compiler materializes an owner-bound
 callable facade. It exposes `pending`, `pendingCount`, `generation`, `result`,
 `error`, and `cancel()`. Foreground pending is separate from structural
 settlement: nonblocking descendants remain owned and inspectable without
 keeping controls visibly pending.
+
+The callable facade aggregates every concurrency lane for that task definition
+and owner. For keyed concurrency, `task.pending` means at least one foreground
+keyed lane is pending, `pendingCount` is the total across lanes, and `cancel()`
+cancels every represented lane. `generation`, `result`, and `error` describe
+the greatest accepted generation across the aggregate; there is no implicit
+"current key."
+
+Use `taskStatus(task, { key })` during durable setup for a view scoped to one
+lane. Its status and cancellation operations represent only that key. The view
+captures the key when it is created; it is not a reactive key selector. For
+dynamic keyed UI collections, prefer placing the task in the keyed child
+component when per-row ownership and status are the real requirement. Reserve
+one-owner keyed lanes for work that genuinely needs shared coordination across
+several durable keys.
 
 ## Structural settlement and failure
 
@@ -107,6 +182,13 @@ A frame settles only after its body, attached descendants, framework
 contributions, resources, and cleanup settle. Awaiting a returned invocation
 observes both the result and the attached subtree. An unawaited child still
 extends structural lifetime.
+
+Effects and results are independent edges. Effects are the work a generation
+performs or publishes, including state, context, and DOM changes, optimistic
+writes, external I/O, and resource ownership or cleanup. The result is the
+fulfillment value or rejection exposed by its invocation. Ignoring the result
+does not cancel the generation, discard its effects, or detach it from its
+structural parent. Returning a function is result data, not cleanup.
 
 Result observation follows normal JavaScript:
 
@@ -116,8 +198,34 @@ Result observation follows normal JavaScript:
 - `detached()` removes structural parentage but retains durable ownership and
   causal inspection.
 
+Awaiting a result does not determine Suspense readiness. The task's
+`blocking` or `nonblocking` policy does that independently. Compiler-staged
+framework effects from a failed, cancelled, or stale generation do not publish.
+External effects cannot be rolled back automatically and must cooperate with
+`task.signal`, cleanup, or owned disposal as appropriate.
+
 Cancellation travels parent-to-child. Cleanup runs child-first, then LIFO
 within each frame. Owner disposal also cancels detached generations.
+
+Prefer attached child task functions over hand-built Promise callback graphs
+when concurrent branches publish component state. Await each external result
+inside its child so compiler-lowered continuation checks and staged writes
+fence superseded work. Do not add component revision comparisons or
+`task.signal.aborted` checks after compiler-lowered `await` expressions; a
+cancelled or stale generation cannot publish its staged writes.
+
+Keep compiler-known resources such as timers local to their task expression.
+Register opaque subscription callbacks with `task.cleanup()` and disposable
+objects with `task.own()`. Promise adapters that hide a timer or other resource
+must accept the task signal and settle when cancellation releases that
+resource.
+
+Cleanup is generation-scoped. A synchronous task that registers cleanup and
+then returns runs that cleanup immediately when its generation settles; it
+does not turn the callback into component-lifetime storage. Keep the task
+pending for the resource's intended lifetime. When a repeatable effect can be
+expressed from reactive activation inputs, prefer that model over manually
+subscribing to the same source.
 
 ## Versioned library ABI
 

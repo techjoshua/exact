@@ -166,12 +166,6 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>Reactive, instance-owned data.</p>
 					<code>this.reactive()</code>
 					<p>An explicit derived reactive value.</p>
-					<code>function work(..., task?: TaskContext)</code>
-					<p>Ordinary function-defined work with inferred or explicit policy.</p>
-					<code>TaskContext.client()</code>
-					<p>Explicit client placement on a task function.</p>
-					<code>TaskContext.server()</code>
-					<p>Explicit server placement on a task function.</p>
 					<code>this.map()</code>
 					<p>Explicit stable-key collection rendering.</p>
 					<code>this.setContext()</code>

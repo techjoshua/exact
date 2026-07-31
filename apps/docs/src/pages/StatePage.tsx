@@ -71,6 +71,20 @@ subtotal.task((value, { signal }) => {
 // It can also be used directly in JSX.
 return () => <strong>\${subtotal}</strong>;`;
 
+const viewDerivedSource = `function AccountBadge(
+  this: Component<AccountState>
+) {
+  return () => {
+    // This calculation belongs to one visual boundary. The compiler moves it
+    // into that boundary's reactive closure; the whole view does not rerun.
+    const label = this.state.online
+      ? \`\${this.state.name} · online\`
+      : this.state.name;
+
+    return <strong>{label}</strong>;
+  };
+}`;
+
 const derivedAssignmentSource = `function Summary(
   this: Component<SummaryState>,
   props: { taxRate: number; currency: string }
@@ -117,7 +131,7 @@ export function StatePage(this: Component<{}>) {
 			title="State that reads like state"
 			description="Read a field when you need it. Assign to it when something changes. Safe derived constants stay cached and update their consumers precisely."
 			previous={{ path: '/learn/components', label: 'Components' }}
-			next={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
+			next={{ path: '/learn/tasks', label: 'Tasks, dependencies & scheduling' }}
 		>
 			<section>
 				<h2>Reactivity is the connective tissue</h2>
@@ -144,12 +158,51 @@ export function StatePage(this: Component<{}>) {
 				<CodeBlock source={derivedSource} language="tsx" title="Price.tsx" />
 			</section>
 			<section>
-				<h2>What the inferred form means</h2>
+				<h2>Setup-derived values are shared component relationships</h2>
 				<p>
-					For a safe setup constant such as <code>subtotal</code>, the compiler emits an internal
-					lazy derived value. The public <code>this.reactive()</code> API expresses the same
-					relationship when you want to name the boundary yourself, work without the transform, or
-					pass a first-class reactive value through another framework API.
+					A safe derived declaration in setup normally describes a relationship owned by the
+					component instance. The compiler can give it one lazy, cached derived cell, share its
+					result across several DOM expressions, child props, lists, and task inputs, and stop
+					propagation when recomputation produces the same value.
+				</p>
+				<p>
+					Choose setup when several consumers should observe one result, when non-view work needs
+					the value, or when an allocated result must retain one identity for all consumers. The{' '}
+					<code>subtotal</code>, <code>shipping</code>, and <code>total</code> declarations in the
+					demo form a component-owned graph rather than three pieces of render syntax.
+				</p>
+			</section>
+			<section>
+				<h2>View-local values belong to one visual boundary</h2>
+				<p>
+					A pure declaration inside the returned view is presentation-local. eXact does not rerun
+					the whole view function when its inputs change. Instead, the compiler materializes that
+					calculation inside the reactive DOM or prop closure that consumes it, so the closure reads
+					fresh state rather than retaining the first render&apos;s local value.
+				</p>
+				<CodeBlock source={viewDerivedSource} language="tsx" title="AccountBadge.tsx" />
+				<p>
+					Use this form—or put the expression directly in JSX—for a cheap calculation with one
+					visual consumer, especially when it belongs to a branch or keyed item. Separate view
+					boundaries do not implicitly share a view-local calculation; place it in setup when shared
+					caching or identity is part of the relationship.
+				</p>
+				<p>
+					For an ordinary setup declaration whose safe result has only one view consumer, the
+					compiler may elide the standalone derived cell when the result is scalar or merely
+					forwards an existing identity. This is an emitted-code optimization: the authored setup
+					declaration remains its source definition for inspection. Shared values, fresh identity
+					allocations, event or task consumers, and explicit reactive values keep their durable
+					cells.
+				</p>
+			</section>
+			<section>
+				<h2>Use this.reactive() when the value itself is an API</h2>
+				<p>
+					The public <code>this.reactive()</code> API creates the component-owned boundary
+					deliberately. Use it when you want a first-class reactive value, need to pass that value
+					through another framework API, or want the boundary to remain explicit rather than
+					eligible for inferred cell elision.
 				</p>
 				<CodeBlock source={explicitDerivedSource} language="tsx" title="Explicit derived value" />
 				<p>
@@ -158,8 +211,9 @@ export function StatePage(this: Component<{}>) {
 					registration API.
 				</p>
 				<p>
-					The explicit form is not “more reactive” than the inferred form. It is the visible
-					spelling of a boundary the compiler can normally derive from the code.
+					The explicit form is not “more reactive” than the inferred form. It commits to a
+					first-class component-owned value that ordinary source may allow the compiler to represent
+					more narrowly.
 				</p>
 			</section>
 			<section>
@@ -174,7 +228,12 @@ export function StatePage(this: Component<{}>) {
 					An assignment with no reactive inputs remains ordinary one-time initialization. Use{' '}
 					<code>peek()</code> when initialization intentionally snapshots a reactive input. Reading
 					the same state target on the right would create a feedback cycle, so the compiler asks you
-					to choose an explicit snapshot or task instead.
+					to choose a <code>peek()</code> snapshot or a local task function instead.
+				</p>
+				<p>
+					The initial synchronous calculation settles before the component&apos;s first render, so
+					its state output is available when required props are passed to child components. Later
+					dependency changes publish through the same owned calculation.
 				</p>
 				<p>
 					In callbacks, chained, compound, logical, computed-key, array-destructured, and
@@ -197,7 +256,7 @@ export function StatePage(this: Component<{}>) {
 					<code>Lists</code>
 					<p>Reconcile collection membership while preserving keyed item identity.</p>
 					<code>Tasks</code>
-					<p>Abort and rerun owned work when an explicit dependency changes.</p>
+					<p>Abort and rerun owned work when an activation dependency changes.</p>
 					<code>Context</code>
 					<p>Carry reactive configuration or data through descendants without prop plumbing.</p>
 				</div>

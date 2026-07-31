@@ -253,7 +253,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 			`export function Page(this: Component<{}>) { return () => <main />; }`,
 			'/src/Page.tsx'
 		);
-		expect(instrumented?.code).toContain('@exactjs/devtools-runtime');
+		expect(instrumented?.code).toMatch(/^import 'virtual:exact\/devtools-runtime';/);
 
 		const hardened = exact({
 			target: 'client',
@@ -265,7 +265,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 			`export function Page(this: Component<{}>) { return () => <main />; }`,
 			'/src/Page.tsx'
 		);
-		expect(output?.code).not.toContain('@exactjs/devtools');
+		expect(output?.code).not.toContain('virtual:exact/devtools-runtime');
 	});
 
 	it('injects the page-world runtime before application modules only when instrumented', () => {

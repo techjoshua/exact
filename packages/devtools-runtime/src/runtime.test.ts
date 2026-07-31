@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+	createCompiledVNode,
 	createExactRuntimeInspectionOwner,
 	createVNode,
 	markExactInspectionSource,
@@ -33,18 +34,20 @@ describe('page-world eXact DevTools runtime', () => {
 			return () =>
 				createVNode('article', { id: 'card', style: 'outline: 1px solid red' }, this.state.label);
 		}
+		const fetchServer = vi.fn(async () => {
+			throw new Error('server unavailable');
+		});
 		installation = installExactDevtoolsRuntime({
 			buildKey: 'build-client',
 			executionRoot: 'page',
-			fetch: vi.fn(async () => {
-				throw new Error('server unavailable');
-			}) as typeof fetch
+			fetch: fetchServer as typeof fetch
 		});
 		container = document.createElement('main');
 		document.body.append(container);
 		render(createVNode(Card, {}), container);
 
 		await installation.hook.connect();
+		expect(fetchServer).not.toHaveBeenCalled();
 		const card = document.querySelector('#card') as HTMLElement;
 		const identity = installation.hook.ownerOfElement(card);
 		expect(identity).toMatchObject({
@@ -55,6 +58,73 @@ describe('page-world eXact DevTools runtime', () => {
 		installation.hook.highlight(identity!);
 		installation.hook.clearHighlight();
 		expect(card.style.outline).toBe('1px solid red');
+	});
+
+	it('discovers optional server cooperation from compiler-owned hydration metadata', async () => {
+		const hydration = document.createElement('script');
+		hydration.id = '__exact_hydration';
+		hydration.type = 'application/json';
+		hydration.textContent = JSON.stringify({ endpoint: '/custom-exact' });
+		document.head.append(hydration);
+		const remoteSession = {
+			id: 'server-session',
+			protocol: 1 as const,
+			openedAt: 1,
+			expiresAt: Date.now() + 60_000,
+			capabilities: ['snapshot'] as const
+		};
+		const fetchServer = vi.fn(
+			async () =>
+				new Response(JSON.stringify({ session: remoteSession }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' }
+				})
+		);
+		try {
+			installation = installExactDevtoolsRuntime({ fetch: fetchServer as typeof fetch });
+
+			const session = await installation.hook.connect();
+
+			expect(session).toEqual(remoteSession);
+			expect(fetchServer).toHaveBeenNthCalledWith(
+				1,
+				'/custom-exact',
+				expect.objectContaining({ method: 'POST' })
+			);
+		} finally {
+			hydration.remove();
+		}
+	});
+
+	it('projects roots mounted after a client-only inspection session connects', async () => {
+		function LateRoot(this: Component<{ label?: string }>) {
+			this.state.label = 'Mounted after connect';
+			return () => createVNode('p', { id: 'late-root' }, this.state.label);
+		}
+		installation = installExactDevtoolsRuntime({
+			buildKey: 'late-build',
+			executionRoot: 'page'
+		});
+		await installation.hook.connect();
+		container = document.createElement('main');
+		document.body.append(container);
+
+		render(createCompiledVNode(LateRoot, {}), container);
+		const tree = await installation.hook.request({
+			protocol: 1,
+			id: 'late-tree',
+			method: 'components.tree'
+		});
+
+		expect(tree).toMatchObject({
+			ok: true,
+			result: [
+				{
+					name: 'LateRoot',
+					state: { kind: 'object' }
+				}
+			]
+		});
 	});
 
 	it('redacts compiler-qualified state paths before snapshot traversal', async () => {

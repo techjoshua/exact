@@ -207,7 +207,7 @@ func analyzeComponents(
 		}
 
 		// Opaque ordinary calls cannot erase a placement requirement proven by
-		// browser globals, server imports, interactive JSX, or explicit tasks.
+		// browser globals, server imports, interactive JSX, or authored task policy.
 		if indivisible == "unknown" && (clientEffects || serverEffects) {
 			indivisible = ""
 		}

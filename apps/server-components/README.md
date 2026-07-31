@@ -39,3 +39,8 @@ A database client, Apollo Client, TanStack Query, GraphQL parser, or similar
 dependency used through those server contexts stays in the server artifact.
 Only its explicitly shared plain-data result can enter the client protocol and
 browser bundle.
+
+Component source follows the setup-once task model: server work is expressed
+as local functions with explicit server placement, public state remains
+inspectable on the durable instance, and no component handles transport
+clients or generated operation identities.

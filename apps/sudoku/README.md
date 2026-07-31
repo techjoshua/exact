@@ -19,6 +19,11 @@ marks locally conflicting digits, and highlights nine non-conflicting placements
 whether player entries match the solution. Mobile layouts expose new-game controls both during play
 and after a win. Tests cover the puzzle generator, puzzle model, and user-facing game behavior.
 
+The game timer, persistence, keyboard input, and page-lifetime listeners are
+component-owned client tasks. Reactive timer and persistence activations use
+their inherent superseding behavior; compiler-known intervals remain local so
+the generated task generation owns cancellation and cleanup.
+
 Both production formats are installable progressive web apps. Their service worker precaches the
 application shell, manifest, icons, and generated code so saved and newly generated games remain
 playable offline after the first successful installation. The GitHub Pages build keeps its app

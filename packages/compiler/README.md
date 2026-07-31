@@ -52,6 +52,12 @@ npx exactc --help
 
 Compiler diagnostics are part of the programming model: writable bindings, stable list identity,
 task placement, and server/client boundaries are validated before runtime.
+Task diagnostics use the function-defined model: fixes name local task functions and final
+`TaskContext` policy rather than removed `this.task()` registration APIs. Legacy syntax remains
+recognizable for migration, but its errors identify it as legacy.
+On server continuations, that authored final `TaskContext` is also the runtime
+execution context; generated artifacts do not append or require a second
+synthetic context argument.
 
 Synchronous setup assignments can express derived state directly:
 
@@ -72,16 +78,28 @@ assignment result. Chained, compound, logical, and computed-path state assignmen
 ordinary expression semantics. A dynamic computed write cannot be exported as a server
 continuation effect; assign an enclosing statically named state value at that boundary.
 
+Ordinary derived declarations in component setup normally lower to lazy,
+component-owned cells so several DOM, prop, list, or task consumers share one
+result. Pure declarations inside the returned view are materialized in the
+reactive expression that consumes them; the view function does not rerun as an
+update loop. When a safe inferred setup calculation has exactly one eager view
+consumer and produces a scalar or forwards an existing identity, the compiler
+elides its standalone cells and fuses the calculation into that consumer.
+Shared bindings, fresh identity allocations, event or task consumers, and
+explicit `this.reactive()` values retain durable cells.
+
 State-owned `Map` and `Set` mutations are also recognized. The compiler lowers
 `Map.set/delete/clear` and `Set.add/delete/clear` with native return semantics and records them as
 precise continuation effects. Server continuations transport effective mutations as ordered
 deltas; transported Map keys are limited to `null`, booleans, finite numbers, and strings.
 
-The returned render function is synchronous and rerunnable. Deterministic statements and tree
-control are supported, while state writes, lifecycle or task registration, scheduling, and known
-DOM or storage effects are compile errors. A local arrow is the normal form. A shared regular
-function is also supported and receives the component instance as `this`; a shared arrow cannot
-be returned directly.
+The returned render function is synchronous and establishes the compiled view.
+Deterministic statements and tree control are supported, and their safe locals
+are materialized inside the precise reactive regions that consume them. State
+writes, lifecycle or task registration, scheduling, and known DOM or storage
+effects are compile errors. A local arrow is the normal form. A shared regular
+function is also supported and receives the component instance as `this`; a
+shared arrow cannot be returned directly.
 
 Static conditional class tokens can use compiler-owned namespaced props:
 
@@ -110,9 +128,11 @@ The compiler emits a synchronous component setup plus a repeatable blocking cont
 dependencies, cancellation, and staged state publication. Sequential awaits and
 `try`/`catch`/`finally` preserve ordinary TypeScript control flow; writes publish only after the
 whole generation succeeds. Framework cancellation bypasses authored catches while still executing
-finally blocks. Use a final `TaskContext` policy parameter for external
-effects, cleanup, placement, scheduling policy, or deliberately nonblocking
-work.
+finally blocks. Discoverable direct or options-object `AbortSignal` parameters receive the
+generation signal automatically, and local known or typed disposable resources receive
+generation ownership. Existing signals and event options are preserved and combined. Use a final
+`TaskContext` policy parameter when an opaque external effect needs an explicit signal, cleanup,
+or owned resource, or for placement, scheduling policy, and deliberately nonblocking work.
 
 Defaulted non-context task parameters are compiler-captured inputs. Their
 initializers are evaluated once per generation without becoming activation
@@ -189,6 +209,14 @@ Current guides: [task interactions and forms](../../docs/actions-and-forms.md) a
 [finite component registries](../../docs/component-registries.md). Language
 service contracts and editor behavior are documented in
 [compiler-aware language tools](../../docs/language-tools.md).
+
+Source inspection retains symbol-resolved use ranges for compiler-derived
+reactive bindings. Function-defined tasks expose their authored identifier as
+the selection range, and awaits inside that function remain suspension points
+of the owning task rather than separate inferred-task entities. Presentation
+calls source with a recognized final `TaskContext` parameter a “task with
+authored policy”; the retained `explicit` origin discriminator is compatibility
+vocabulary, not a second task mechanism.
 
 ## Runtime inspection artifacts
 

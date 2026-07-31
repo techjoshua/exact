@@ -97,7 +97,7 @@ ProductPage
 ```
 
 The public source-entity vocabulary includes components, initializers, render
-regions and render expressions, inferred and explicit tasks, actions,
+regions and render expressions, inferred tasks and tasks with authored policy, actions,
 interactions, per-write setup assignments, derived values, bindings, context operations, lifecycle
 registrations, and registry selections.
 
@@ -127,7 +127,7 @@ metadata.
 
 Task classifications expose:
 
-- inferred or explicit origin;
+- compiler-inferred or authored-policy origin;
 - normalized and requested placement;
 - blocking or nonblocking readiness;
 - normal or deferred priority;
@@ -159,6 +159,11 @@ facts used by builds. They add:
 - related causal ranges, including cross-file locations; and
 - summaries of fixes the compiler can validate.
 
+Task-related summaries and fixes use current function-defined terminology:
+local task functions, setup or invoked activation, and final `TaskContext`
+policy. Compatibility parsing may recognize legacy registrations, but
+diagnostics do not recommend authoring them.
+
 VS Code's TypeScript extension remains responsible for ordinary TypeScript
 diagnostics. eXact does not publish a duplicate TypeScript error at the same
 range. The language server captures immutable URI, version, and source text
@@ -166,7 +171,7 @@ before asynchronous analysis. A result is published only if that snapshot is
 still the current open document, so a compiler diagnostic cannot appear or
 disappear one edit late.
 
-## Refactoring inferred and explicit tasks
+## Refactoring inferred work and authored task policy
 
 Language-tool refactors are generation-bound compiler plans. The first
 reversible transformation converts simple inferred awaited state work:
@@ -179,7 +184,7 @@ export async function ProductPage(this: Component<ProductState>, props: { produc
 }
 ```
 
-to its explicit normalized form:
+to a named task function with its normalized policy authored on `TaskContext`:
 
 ```tsx
 export function ProductPage(this: Component<ProductState>, props: { productId: string }) {
@@ -284,22 +289,28 @@ meaning is still available through badges, CodeLens, hovers, and the semantics
 tree.
 
 Badges sit beside the operation they classify without splitting a token.
+The link badge appears after a derived reactive assignment and before every
+symbol-resolved use, making compiler-owned dataflow visible without guessing
+from matching identifier text.
 Assignment badges appear before the first authored token on the line; call
 badges appear immediately after the opening parenthesis. `⚙` identifies a
 specific one-time state initialization, while `⚡` on an assignment identifies
 a deferred reactive state calculation. `📋` identifies a task, `▶` an action,
 `🖥` server placement, `📱` client placement, `⇄` isomorphic placement, `⏳`
 deferred priority, and `🚨` immediate publication. Normal priority, staged
-publication, and explicit task origin are left implicit.
+publication, and authored-policy origin are omitted from the compact badge.
 
 Source hover is similarly precise. eXact responds only on the selected
 component, task, action, derived value, or JSX tag span; it does not claim the
 containing setup or callback body. TypeScript hover therefore remains available
 for assignments, variables, parameters, and inner calls. Region markers use
 the same selection spans instead of decorating every line in a function.
+Function-defined task selection is limited to its authored identifier. An
+`await` inside that function is a suspension point of the same task generation,
+not an embedded inferred task, so it receives no second task hover or badge.
 
 Task dependency hover describes activation, not every value read while the
-callback runs. An explicit task lists only its authored arguments, once and in
+body runs. A task with authored `TaskContext` policy lists only its call arguments, once and in
 source order. An inferred task lists the compiler-discovered inputs by their
 authored paths; destructured prop bindings retain their local names instead of
 appearing as a synthetic `props` identifier. Reactive parameter defaults are

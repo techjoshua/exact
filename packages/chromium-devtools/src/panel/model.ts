@@ -1,24 +1,29 @@
-import type {
-	ExactInspectedMicrofrontend,
-	ExactInspectedRuntimeComponent,
-	ExactInspectionRequest,
-	ExactInspectionResponse,
-	ExactInspectionRuntimeId,
-	ExactRuntimeInspectionEvent,
-	ExactRuntimeSourceLocation
+import {
+	isExactRuntimeInspectionEvent,
+	type ExactContextPreview,
+	type ExactInspectedMicrofrontend,
+	type ExactInspectedRuntimeComponent,
+	type ExactInspectionRequest,
+	type ExactInspectionResponse,
+	type ExactInspectionRuntimeId,
+	type ExactRuntimeInspectionEvent,
+	type ExactRuntimeSourceLocation,
+	type ExactTaskRuntimeSnapshot,
+	type ExactValuePreview
 } from '@exactjs/devtools-protocol';
-import type { ExactExtensionQueryClient } from './messages.js';
+import type { ExactExtensionQueryClient } from '../messages.js';
 
-/** Complete data model rendered by the six initial Chromium panel projections. */
+/** Complete data model shared by the component, profiler, and deployment views. */
 export type ExactDevtoolsPanelModel = Readonly<{
 	sessionId: string;
 	components: readonly ExactInspectedRuntimeComponent[];
 	selected?: ExactInspectedRuntimeComponent;
-	state?: unknown;
-	contexts: readonly unknown[];
-	tasks: readonly unknown[];
+	state?: Readonly<{ state: ExactValuePreview; props: ExactValuePreview }>;
+	contexts: readonly ExactContextPreview[];
+	tasks: readonly ExactTaskRuntimeSnapshot[];
 	dependency?: unknown;
 	timeline: readonly ExactRuntimeInspectionEvent[];
+	timelineCursor?: string;
 	microfrontends: readonly ExactInspectedMicrofrontend[];
 }>;
 
@@ -58,13 +63,48 @@ export async function loadExactDevtoolsPanelModel(
 		sessionId: session.id,
 		components: Object.freeze(components),
 		...(selectedComponent ? { selected: selectedComponent } : {}),
-		...(state ? { state: result(state) } : {}),
-		contexts: Object.freeze(contexts ? result<unknown[]>(contexts) : []),
-		tasks: Object.freeze(tasks ? result<unknown[]>(tasks) : []),
+		...(state
+			? { state: result<{ state: ExactValuePreview; props: ExactValuePreview }>(state) }
+			: {}),
+		contexts: Object.freeze(contexts ? result<ExactContextPreview[]>(contexts) : []),
+		tasks: Object.freeze(tasks ? result<ExactTaskRuntimeSnapshot[]>(tasks) : []),
 		...(dependency?.ok ? { dependency: result(dependency) } : {}),
 		timeline: Object.freeze(result<ExactRuntimeInspectionEvent[]>(timeline)),
+		...(timeline.ok && timeline.page?.nextCursor
+			? { timelineCursor: timeline.page.nextCursor }
+			: {}),
 		microfrontends: Object.freeze(result<ExactInspectedMicrofrontend[]>(microfrontends))
 	});
+}
+
+/**
+ * Finalizes a bounded profiler window from retained protocol history after the supplied cursor.
+ *
+ * Pagination closes subscription-delivery races at recording boundaries. Results remain validated
+ * protocol events and never exceed the panel's fixed capture bound.
+ */
+export async function loadExactProfilerCapture(
+	client: ExactExtensionQueryClient,
+	cursor?: string,
+	maximum = 5_000
+): Promise<readonly ExactRuntimeInspectionEvent[]> {
+	const events: ExactRuntimeInspectionEvent[] = [];
+	let nextCursor = cursor;
+	while (events.length < maximum) {
+		const response = await query(client, 'profile', 'timeline.query', undefined, {
+			page: {
+				...(nextCursor ? { cursor: nextCursor } : {}),
+				limit: Math.min(500, maximum - events.length)
+			}
+		});
+		if (!response.ok || !Array.isArray(response.result)) break;
+		const page = response.result.filter(isExactRuntimeInspectionEvent);
+		events.push(...page);
+		if (!page.length || !response.page?.nextCursor || response.page.nextCursor === nextCursor)
+			break;
+		nextCursor = response.page.nextCursor;
+	}
+	return Object.freeze(events);
 }
 
 /** Resolves source only when the selected provider proves an exact hash match. */

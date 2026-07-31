@@ -10,11 +10,39 @@ export type AuthoredTaskRegion = Readonly<{
 	dependencyPaths: readonly string[];
 }>;
 
-/** Finds explicit registrations and inferred awaits without double-counting callback awaits. */
+/** Finds authored-policy task functions, legacy registrations, and inferred awaits. */
 export function findTaskRegions(
 	source: string,
 	tasks: readonly NativeCompilerTask[] = []
 ): AuthoredTaskRegion[] {
+	const functions = tasks
+		.filter(
+			(task) =>
+				task.functionDefined &&
+				task.workStart !== undefined &&
+				task.workLength !== undefined &&
+				task.workLength > 0
+		)
+		.map((task) => {
+			const workRange = clampRange(source, task.workStart!, task.workLength!);
+			const authored = source.slice(workRange.start, workRange.end);
+			const selectionRange = functionSelectionRange(source, workRange);
+			const range = Object.freeze({
+				start: Math.min(workRange.start, selectionRange.start),
+				end: Math.max(workRange.end, selectionRange.end)
+			});
+			return Object.freeze({
+				origin: /\bTaskContext\b\s*=/.test(authored)
+					? ('explicit' as const)
+					: ('inferred' as const),
+				range,
+				selectionRange,
+				awaited: task.readiness === 'blocking',
+				dependencyPaths: Object.freeze(
+					task.dependencies.flatMap((dependency) => (dependency.path ? [dependency.path] : []))
+				)
+			});
+		});
 	const explicit = [
 		...source.matchAll(/\b(?:await\s+)?this\.task(?:\.[A-Za-z_$][\w$]*)*\s*\(/g)
 	].map((match) => {
@@ -38,6 +66,9 @@ export function findTaskRegions(
 			(match) =>
 				!explicit.some(
 					(region) => match.index >= region.range.start && match.index <= region.range.end
+				) &&
+				!functions.some(
+					(region) => match.index >= region.range.start && match.index < region.range.end
 				)
 		)
 		.map((match) => {
@@ -52,29 +83,6 @@ export function findTaskRegions(
 				}),
 				awaited: true,
 				dependencyPaths: Object.freeze([])
-			});
-		});
-	const functions = tasks
-		.filter(
-			(task) =>
-				task.functionDefined &&
-				task.workStart !== undefined &&
-				task.workLength !== undefined &&
-				task.workLength > 0
-		)
-		.map((task) => {
-			const range = clampRange(source, task.workStart!, task.workLength!);
-			const authored = source.slice(range.start, range.end);
-			return Object.freeze({
-				origin: /\bTaskContext\b\s*=/.test(authored)
-					? ('explicit' as const)
-					: ('inferred' as const),
-				range,
-				selectionRange: functionSelectionRange(source, range),
-				awaited: task.readiness === 'blocking',
-				dependencyPaths: Object.freeze(
-					task.dependencies.flatMap((dependency) => (dependency.path ? [dependency.path] : []))
-				)
 			});
 		});
 	const seen = new Set<string>();
@@ -92,10 +100,23 @@ function functionSelectionRange(source: string, range: ExactSourceRange): ExactS
 	const authored = source.slice(range.start, range.end);
 	const match =
 		/\bfunction\s+([A-Za-z_$][\w$]*)/.exec(authored) ??
-		/^\s*(?:async\s*)?([A-Za-z_$][\w$]*)\s*(?==)/.exec(authored);
-	if (!match?.[1]) return range;
-	const start = range.start + match.index + match[0].lastIndexOf(match[1]);
-	return Object.freeze({ start, end: start + match[1].length });
+		/^\s*(?:(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)\s*=\s*(?:async\b\s*)?/.exec(authored);
+	if (match?.[1]) {
+		const start = range.start + match.index + match[0].lastIndexOf(match[1]);
+		return Object.freeze({ start, end: start + match[1].length });
+	}
+	const precedingOffset = Math.max(0, range.start - 1);
+	const prefixStart =
+		Math.max(
+			source.lastIndexOf(';', precedingOffset),
+			source.lastIndexOf('{', precedingOffset),
+			source.lastIndexOf('}', precedingOffset)
+		) + 1;
+	const prefix = source.slice(prefixStart, range.start);
+	const assigned = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(prefix);
+	if (!assigned?.[1]) return range;
+	const start = prefixStart + assigned.index + assigned[0].lastIndexOf(assigned[1]);
+	return Object.freeze({ start, end: start + assigned[1].length });
 }
 
 /** Finds the returned render callback that owns a component's reactive view. */

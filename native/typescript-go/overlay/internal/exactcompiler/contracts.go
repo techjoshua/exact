@@ -456,14 +456,22 @@ type TaskCapturedInput struct {
 
 // ReactiveBinding describes the provenance of one component lexical binding.
 type ReactiveBinding struct {
-	Component        string   `json:"component"`
-	Name             string   `json:"name"`
-	Provenance       string   `json:"provenance"`
-	ContextToken     string   `json:"contextToken,omitempty"`
-	Dependencies     []string `json:"dependencies"`
-	SafeToReevaluate bool     `json:"safeToReevaluate"`
-	Start            int      `json:"start"`
-	Length           int      `json:"length"`
+	Component        string       `json:"component"`
+	Name             string       `json:"name"`
+	Provenance       string       `json:"provenance"`
+	ContextToken     string       `json:"contextToken,omitempty"`
+	Dependencies     []string     `json:"dependencies"`
+	Definition       SourceSpan   `json:"definition"`
+	References       []SourceSpan `json:"references"`
+	SafeToReevaluate bool         `json:"safeToReevaluate"`
+	Start            int          `json:"start"`
+	Length           int          `json:"length"`
+}
+
+// SourceSpan identifies one authored compiler-recognized source occurrence.
+type SourceSpan struct {
+	Start  int `json:"start"`
+	Length int `json:"length"`
 }
 
 // Task identifies one component task registration and its authored facets.

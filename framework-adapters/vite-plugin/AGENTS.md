@@ -17,3 +17,7 @@ Emit one catalog asset only in the server graph; inject the optional browser run
 entries and keep its payload limited to opaque correlation and redaction selectors. Production
 client and server builds must use the same immutable build/root identity. Hardened output must
 contain neither the catalog nor the runtime bootstrap.
+
+Instrumented native client modules must retain a side-effect import of the virtual DevTools
+runtime. This import is the execution-order barrier that installs root ownership before application
+module evaluation; the HTML bootstrap remains coverage for pages without transformed roots.

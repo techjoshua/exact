@@ -1102,7 +1102,7 @@ func validateSynchronousComputationCycles(
 			sourceFile,
 			location,
 			fmt.Sprintf(
-				"error: derived state assignment involving %s creates a reactive dependency cycle; wrap one read in peek(() => ...) for a snapshot or use this.task() for deliberate feedback",
+				"error: derived state assignment involving %s creates a reactive dependency cycle; wrap one read in peek(() => ...) for a snapshot or move deliberate feedback into a local task function with a final TaskContext policy parameter",
 				path,
 			),
 		)
@@ -1666,7 +1666,7 @@ func validateAsyncComponentRegion(
 				sourceFile,
 				write.node,
 				fmt.Sprintf(
-					"error: async derived state assignment to %s reads its own target and would create a reactive cycle; use a local intermediate, peek(() => ...) for a snapshot, or an explicit this.task() feedback policy",
+					"error: async derived state assignment to %s reads its own target and would create a reactive cycle; use a local intermediate, peek(() => ...) for a snapshot, or a local task function with a final TaskContext policy parameter",
 					write.path,
 				),
 			)

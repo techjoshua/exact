@@ -33,8 +33,23 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 			title="Finite component registries"
 			description="Select eager or lazy components dynamically while keeping keys, identity, placement, bundles, SSR, and hydration visible to the compiler."
 			previous={{ path: '/learn/lists', label: 'Keyed lists' }}
-			next={{ path: '/learn/tasks', label: 'Tasks & cleanup' }}
+			next={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
 		>
+			<section>
+				<h2>Dynamic selection needs a finite ownership boundary</h2>
+				<p>
+					When JSX names a component directly, the compiler knows which definition owns the
+					resulting instance. Choosing a component from data makes that relationship dynamic. eXact
+					still needs to know the complete set of possible definitions so it can preserve instance
+					identity, lifecycle, placement, bundle boundaries, SSR markers, and hydration behavior.
+				</p>
+				<p>
+					A component registry is that finite contract: an immutable mapping from authored keys to
+					eager or lazy component definitions. It is not a mutable service locator or an
+					application-owned table of loader callbacks. The key is both the selection value and the
+					identity of the component range it owns.
+				</p>
+			</section>
 			<section>
 				<h2>Declare the whole choice once</h2>
 				<p>

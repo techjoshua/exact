@@ -142,7 +142,12 @@ function taskRegionMatches(
 		task.functionDefined && task.workStart !== undefined && task.workLength !== undefined
 			? clampRange(source, task.workStart, task.workLength)
 			: clampRange(source, task.start, task.length);
-	return taskRange.start === region.range.start && taskRange.end === region.range.end;
+	return (
+		taskRange.end === region.range.end &&
+		(taskRange.start === region.range.start ||
+			(task.functionDefined === true &&
+				region.range.start === Math.min(taskRange.start, region.selectionRange.start)))
+	);
 }
 
 function renderEntity(

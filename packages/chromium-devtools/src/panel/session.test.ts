@@ -4,8 +4,8 @@ import type {
 	ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
 import { describe, expect, it, vi } from 'vitest';
-import type { ExactExtensionQueryClient } from './messages.js';
-import { createExactDevtoolsPanelSession } from './panel-session.js';
+import type { ExactExtensionQueryClient } from '../messages.js';
+import { createExactDevtoolsPanelSession } from './session.js';
 
 describe('Chromium panel session ownership', () => {
 	it('uses the shared protocol and closes subscriptions and the bridge on disposal', async () => {
@@ -13,19 +13,21 @@ describe('Chromium panel session ownership', () => {
 		const close = vi.fn(async () => {});
 		const disconnect = vi.fn(async () => {});
 		const onEvent = vi.fn();
+		const subscribe = vi.fn(async (_sessionId, _cursor, next) => {
+			listener = next;
+			return { close };
+		});
 		const client: ExactExtensionQueryClient = {
 			connect: async () => ({ id: 'session' }),
 			request: async (request) => response(request),
-			async subscribe(_sessionId, _cursor, next) {
-				listener = next;
-				return { close };
-			},
+			subscribe,
 			disconnect,
 			highlight: async () => {}
 		};
 		const session = createExactDevtoolsPanelSession(client, onEvent);
 		const model = await session.load();
 		expect(model.components).toHaveLength(1);
+		expect(subscribe).toHaveBeenCalledWith('session', 'm2:timeline', expect.any(Function));
 		listener?.(event());
 		expect(onEvent).toHaveBeenCalledOnce();
 
@@ -65,7 +67,10 @@ function response(request: ExactInspectionRequest): ExactInspectionResponse {
 		id: request.id,
 		ok: true,
 		identity: { sessionId: 'session' },
-		result
+		result,
+		...(request.method === 'timeline.query'
+			? { page: { count: 0, nextCursor: 'm2:timeline' } }
+			: {})
 	};
 }
 

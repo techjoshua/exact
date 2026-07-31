@@ -25,7 +25,7 @@ export function taskEntity(
 	return Object.freeze({
 		id: task?.id ?? id,
 		kind: region.origin === 'explicit' ? 'explicit-task' : 'inferred-task',
-		name: region.origin === 'explicit' ? 'Explicit task' : 'Inferred task',
+		name: region.origin === 'explicit' ? 'Task with authored policy' : 'Inferred task',
 		range: region.range,
 		selectionRange: region.selectionRange,
 		children: Object.freeze([]),
@@ -161,7 +161,7 @@ function taskClassification(
 	});
 }
 
-/** Projects authored explicit task arguments into their scheduling dependencies. */
+/** Projects authored-policy task arguments into their scheduling dependencies. */
 function sourceDependencies(
 	paths: readonly string[],
 	range: ExactSourceRange,

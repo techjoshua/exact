@@ -70,7 +70,7 @@ func renderDiagnostics(
 		if ast.HasSyntacticModifier(render.callable, ast.ModifierFlagsAsync) {
 			diagnostics = append(diagnostics, renderDiagnostic(
 				render.returned,
-				"render functions must be synchronous; move asynchronous work into component setup or this.task()",
+				"render functions must be synchronous; move asynchronous work into component setup or a local task function",
 			))
 		}
 		walkNode(render.callable, func(node *ast.Node) bool {
@@ -100,7 +100,7 @@ func renderDiagnostics(
 				); action != "" {
 					diagnostics = append(diagnostics, renderDiagnostic(
 						node,
-						"render functions may not "+action+"; move the effect into component setup, this.task(), or an interaction callback",
+						"render functions may not "+action+"; move the effect into component setup, a local task function, or an interaction callback",
 					))
 					return false
 				}

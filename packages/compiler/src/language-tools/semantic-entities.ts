@@ -43,7 +43,15 @@ export function derivedEntities(
 				children: Object.freeze([]),
 				classification: Object.freeze({
 					kind: 'derived' as const,
-					dependencies: Object.freeze(dependencies)
+					dependencies: Object.freeze(dependencies),
+					definition: binding.definition
+						? clampRange(source, binding.definition.start, binding.definition.length)
+						: range,
+					references: Object.freeze(
+						(binding.references ?? []).map((reference) =>
+							clampRange(source, reference.start, reference.length)
+						)
+					)
 				}),
 				reasons: Object.freeze(
 					dependencies.length

@@ -17,8 +17,8 @@ export function CompilerTourPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="What the compiler writes for you"
 			description="Follow one component across browser and server artifacts, from ordinary state and TSX to reactive DOM work and a compiler-generated protocol."
-			previous={{ path: '/learn/state', label: 'State & derived values' }}
-			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
+			previous={{ path: '/learn/tasks', label: 'Tasks, dependencies & scheduling' }}
+			next={{ path: '/learn/lists', label: 'Keyed lists' }}
 		>
 			<section>
 				<h2>What you write</h2>

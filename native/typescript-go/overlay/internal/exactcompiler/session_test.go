@@ -2412,7 +2412,7 @@ func TestSessionLowersFragmentsSpreadsAndNamespacedAttributes(t *testing.T) {
 	}
 }
 
-func TestSessionLowersSafeDerivedBindingsInsideNativeProcess(t *testing.T) {
+func TestSessionElidesSingleConsumerScalarDerivedBindings(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "derived.tsx",
 		Kind: "compile",
@@ -2429,13 +2429,51 @@ func TestSessionLowersSafeDerivedBindingsInsideNativeProcess(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`createDerived as __exactDerived`,
-		`const count = __exactDerived(() => this.state.count)`,
-		"const label = __exactDerived(() => `Count: ${count.get()}`)",
-		`__exactDynamic(() => label.get()`,
+		`const __exact_count_1 = this.state.count`,
+		"const __exact_label_1 = `Count: ${__exact_count_1}`",
+		`return __exact_label_1`,
 	} {
 		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("native derived output is missing %q:\n%s", expected, response.Code)
+			t.Fatalf("elided derived output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, "createDerived") ||
+		strings.Contains(response.Code, "const count =") ||
+		strings.Contains(response.Code, "const label =") {
+		t.Fatalf("single-consumer scalar derived cells were retained:\n%s", response.Code)
+	}
+}
+
+func TestSessionRetainsSharedAndIdentityBearingDerivedBindings(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "shared-derived.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			declare function Details(props: { options: { label: string } }): unknown;
+			function Summary(this: Component<{ count: number }>) {
+				const label = ` + "`Count: ${this.state.count}`" + `;
+				const options = { label: String(this.state.count) };
+				return () => <>
+					<output>{label}</output>
+					<input aria-label={label} />
+					<Details options={options} />
+				</>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`createDerived as __exactDerived`,
+		"const label = __exactDerived(() => `Count: ${this.state.count}`)",
+		`const options = __exactDerived(() => ({ label: String(this.state.count) }))`,
+		`label.get()`,
+		`options.get()`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("retained derived output is missing %q:\n%s", expected, response.Code)
 		}
 	}
 }
@@ -2588,6 +2626,9 @@ func TestSessionBuildsReactiveBindingProvenance(t *testing.T) {
 	if !equalStrings(label.Dependencies, []string{"title", "count"}) {
 		t.Fatalf("unexpected label dependencies: %#v", label.Dependencies)
 	}
+	if len(label.References) != 1 {
+		t.Fatalf("expected one symbol-resolved label use: %#v", label.References)
+	}
 	assertReactiveBinding(t, bindings, "constant", "unknown", true)
 	assertReactiveBinding(t, bindings, "context", "context", false)
 	assertReactiveBinding(t, bindings, "upper", "derived", true)
@@ -2651,7 +2692,7 @@ func TestSessionNormalizesComponentTaskFacets(t *testing.T) {
 		tasks[0].Readiness != "blocking" ||
 		!containsString(
 			tasks[0].Diagnostics,
-			"task placement forced by this.task.server()",
+			"task placement explicitly requested as server",
 		) {
 		t.Fatalf("unexpected normalized task: %#v", tasks[0])
 	}
@@ -2742,7 +2783,7 @@ func TestSessionRejectsUnsafeDerivedTaskDependencies(t *testing.T) {
 	}
 	if !containsString(
 		task.Diagnostics,
-		"error: task reads derived local unsafe, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into this.task()",
+		"error: task reads derived local unsafe, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into the task function body",
 	) ||
 		len(response.Diagnostics) != 1 ||
 		response.Diagnostics[0].Code != "EXACT2001" {
@@ -2988,6 +3029,17 @@ func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
 		len(task.Dependencies) != 1 ||
 		task.Dependencies[0].Path != "this.state.revision" {
 		t.Fatalf("unexpected function-defined task analysis: %#v", task)
+	}
+	if !containsString(
+		task.Diagnostics,
+		"task placement explicitly requested as client",
+	) {
+		t.Fatalf("function-defined task omitted its placement explanation: %#v", task)
+	}
+	for _, diagnostic := range task.Diagnostics {
+		if strings.Contains(diagnostic, "this.task") {
+			t.Fatalf("function-defined task received legacy diagnostic guidance: %q", diagnostic)
+		}
 	}
 	for _, expected := range []string{
 		"activateTaskForHost as __exactActivateTask",
@@ -3246,6 +3298,18 @@ func TestSessionTreatsNestedChildTaskCallsAsPlacementBoundaries(t *testing.T) {
 			(task.ServerEffects || task.EnvironmentEffect == "mixed") {
 			t.Fatalf("server child effects escaped into client parent: %#v", task)
 		}
+	}
+	if strings.Contains(response.Code, "task: TaskContext, { signal:") {
+		t.Fatalf(
+			"server task work received a second synthetic context parameter:\n%s",
+			response.Code,
+		)
+	}
+	if !strings.Contains(response.Code, "(id: string, task: TaskContext) =>") {
+		t.Fatalf("server task work did not retain one runtime task context:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "localStorage") {
+		t.Fatalf("client parent work escaped into the server artifact:\n%s", response.Code)
 	}
 }
 
@@ -4311,6 +4375,15 @@ func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testin
 	if len(response.Analysis.Tasks[0].Diagnostics) == 0 ||
 		len(response.Analysis.Tasks[0].Resources) != 0 {
 		t.Fatalf("escaping resource was not rejected: %#v", response.Analysis.Tasks[0])
+	}
+	if !containsString(
+		response.Analysis.Tasks[0].Diagnostics,
+		"error: task-owned WebSocket escapes its task generation; keep the resource local or move it to a deliberately longer-lived owner",
+	) {
+		t.Fatalf(
+			"escaping resource diagnostic did not describe the current ownership model: %#v",
+			response.Analysis.Tasks[0].Diagnostics,
+		)
 	}
 	if len(response.Analysis.Tasks[1].Resources) != 0 {
 		t.Fatalf("explicit cleanup was not respected: %#v", response.Analysis.Tasks[1])

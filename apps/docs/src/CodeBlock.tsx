@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 import { tokenize, type CodeLanguage } from './code-highlighting.js';
 
 type CodeBlockProps = {
@@ -17,21 +17,17 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 	const language = props.language ?? 'tsx';
 	const lines = tokenize(props.source.trim(), language);
 	const highlighted = new Set(props.highlightLines ?? []);
-	let copiedTimer: number | undefined;
-	let active = true;
-	this.onUnmount(() => {
-		active = false;
-		window.clearTimeout(copiedTimer);
-	});
+
+	const clearCopiedFeedback = (_task: TaskContext = TaskContext.client().latest()) => {
+		setTimeout(() => {
+			this.state.copied = false;
+		}, 1400);
+	};
 
 	const copy = async () => {
 		await navigator.clipboard.writeText(props.source.trim());
-		if (!active) return;
 		this.state.copied = true;
-		window.clearTimeout(copiedTimer);
-		copiedTimer = window.setTimeout(() => {
-			this.state.copied = false;
-		}, 1400);
+		clearCopiedFeedback();
 	};
 
 	return () => (

@@ -605,7 +605,7 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		).toThrow(/derived local tasks cannot be safely reevaluated/);
 	});
 
-	it('keeps filter/reduce locals reactive in JSX while allowing accumulator mutation', () => {
+	it('elides a single-consumer filter/reduce scalar while allowing accumulator mutation', () => {
 		const output = transform(
 			`function Totals(this: Component<{ items: { index: number; val: number }[] }>) {
       const count = this.state.items.filter(i => i.index % 2).reduce((agg, i) => { agg += i.val; return agg; }, 0);
@@ -613,8 +613,10 @@ describe('@exactjs/compiler: JSX reactivity', () => {
     }`,
 			{ filename: 'Totals.tsx' }
 		);
-		expect(output).toContain('const count = __exactDerived(() => this.state.items.filter');
-		expect(output).toMatch(/__exactDynamic\(\(\) => count\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
-		expect(output).toContain('reduce((agg, i) => { agg += i.val; return agg; }, 0))');
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('const count =');
+		expect(output).toContain('const __exact_count_1 = this.state.items.filter');
+		expect(output).toContain('return __exact_count_1');
+		expect(output).toContain('reduce((agg, i) => { agg += i.val; return agg; }, 0)');
 	});
 });

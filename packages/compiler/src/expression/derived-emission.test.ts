@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { transform, transformSource } from '../index.js';
 
 describe('@exactjs/compiler: derived values', () => {
-	it('shares cached derived consts across reactive JSX children', () => {
+	it('elides a safe scalar derived const used by one reactive JSX child', () => {
 		const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {
         const fullName = \`\${this.state.first} \${this.state.last}\`;
@@ -10,13 +10,60 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
+		expect(output).not.toContain('const fullName =');
+		expect(output).not.toContain('createDerived');
+		expect(output).toContain(
+			'const __exact_fullName_1 = `${this.state.first} ${this.state.last}`;'
+		);
+		expect(output).toContain('return __exact_fullName_1;');
+	});
+
+	it('retains a shared scalar derived cell across reactive JSX consumers', () => {
+		const output = transform(`
+      function View(this: Component<{ first: string; last: string }>) {
+        const fullName = \`\${this.state.first} \${this.state.last}\`;
+        return () => (
+          <>
+            <p>{fullName}</p>
+            <input aria-label={fullName} />
+          </>
+        );
+      }
+    `);
+
 		expect(output).toContain(
 			'const fullName = __exactDerived(() => `${this.state.first} ${this.state.last}`);'
 		);
-		expect(output).toMatch(/__exactDynamic\(\(\) => fullName\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
+		expect(output).toContain('fullName.get()');
 	});
 
-	it('inlines safe derived const chains inside reactive JSX props', () => {
+	it('retains an identity-bearing derived value with one view consumer', () => {
+		const output = transform(`
+      function View(this: Component<{ first: string; last: string }>) {
+        const user = { fullName: \`\${this.state.first} \${this.state.last}\` };
+        return () => <div data-user={user} />;
+      }
+    `);
+
+		expect(output).toContain('const user = __exactDerived');
+		expect(output).toContain('user.get()');
+	});
+
+	it('elides a single-consumer binding that only forwards existing identity', () => {
+		const output = transform(`
+      function View(this: Component<{ user: { name: string } }>) {
+        const user = this.state.user;
+        return () => <div data-user={user} />;
+      }
+    `);
+
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('const user =');
+		expect(output).toContain('const __exact_user_1 = this.state.user;');
+		expect(output).toContain('return __exact_user_1;');
+	});
+
+	it('elides safe scalar derived chains inside one reactive JSX prop', () => {
 		const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {
         const first = this.state.first;
@@ -25,11 +72,12 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const first = __exactDerived(() => this.state.first);');
-		expect(output).toContain(
-			'const fullName = __exactDerived(() => `${first.get()} ${this.state.last}`);'
-		);
-		expect(output).toContain('title: __exactExpression(() => fullName.get())');
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('const first =');
+		expect(output).not.toContain('const fullName =');
+		expect(output).toContain('const __exact_first_1 = this.state.first;');
+		expect(output).toContain('const __exact_fullName_1 = `${__exact_first_1} ${this.state.last}`;');
+		expect(output).toContain('return __exact_fullName_1;');
 	});
 
 	it('inlines safe prop-derived consts inside reactive JSX children', () => {
@@ -40,10 +88,11 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
+		expect(output).not.toContain('createDerived');
 		expect(output).toContain(
-			'const fullName = __exactDerived(() => `${props.user.first} ${props.user.last}`);'
+			'const __exact_fullName_1 = `${props.user.first} ${props.user.last}`;'
 		);
-		expect(output).toMatch(/__exactDynamic\(\(\) => fullName\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
+		expect(output).toContain('return __exact_fullName_1;');
 	});
 
 	it('inlines safe destructured prop-derived consts inside reactive JSX props', () => {
@@ -54,10 +103,9 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain(
-			'const fullName = __exactDerived(() => `${user.first} ${user.last}`);'
-		);
-		expect(output).toContain('title: __exactExpression(() => fullName.get())');
+		expect(output).not.toContain('createDerived');
+		expect(output).toContain('const __exact_fullName_1 = `${user.first} ${user.last}`;');
+		expect(output).toContain('return __exact_fullName_1;');
 	});
 
 	it('does not assume an unresolved call in a derived const is environment-neutral', () => {
@@ -79,8 +127,10 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('let label = __exactDerived(() => this.state.first);');
-		expect(output).toMatch(/__exactDynamic\(\(\) => label\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('let label =');
+		expect(output).toContain('const __exact_label_1 = this.state.first;');
+		expect(output).toContain('return __exact_label_1;');
 	});
 
 	it('rejects derived locals whose initializer writes captured storage', () => {
@@ -118,8 +168,10 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('const values = __exactDerived(() => new Set(props.values ?? []));');
-		expect(output).toContain('const count = __exactDerived');
-		expect(output).toContain('const progress = __exactDerived');
+		expect(output).not.toContain('const count =');
+		expect(output).not.toContain('const progress =');
+		expect(output).toContain('const __exact_count_1 =');
+		expect(output).toContain('const __exact_progress_1 = Math.round(props.ratio * 100);');
 	});
 
 	it('accepts declared pure call contracts while retaining unknown-call diagnostics', () => {
@@ -132,7 +184,8 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const label = __exactDerived(() => format(props.name));');
+		expect(output).not.toContain('createDerived');
+		expect(output).toContain('const __exact_label_1 = format(props.name);');
 	});
 
 	it('infers pure local helpers and their reactive captures', () => {
@@ -147,8 +200,9 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const label = __exactDerived(() => suffix(this.state.name));');
-		expect(output).toMatch(/__exactDynamic\(\(\) => label\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
+		expect(output).not.toContain('createDerived');
+		expect(output).toContain('const __exact_label_1 = suffix(this.state.name);');
+		expect(output).toContain('return __exact_label_1;');
 		expect(output).not.toContain('const suffix = __exactDerived');
 	});
 
@@ -198,8 +252,9 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const label = __exactDerived(() => format());');
-		expect(output).toMatch(/__exactDynamic\(\(\) => label\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
+		expect(output).not.toContain('createDerived');
+		expect(output).toContain('const __exact_label_1 = format();');
+		expect(output).toContain('return __exact_label_1;');
 	});
 
 	it('rejects reassigned derived bindings instead of retaining a setup snapshot', () => {
@@ -225,8 +280,10 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('const first = __exactDerived(() => this.state.values.at(0));');
-		expect(output).toContain('const position = __exactDerived');
-		expect(output).toContain('const summary = __exactDerived');
+		expect(output).not.toContain('const position =');
+		expect(output).not.toContain('const summary =');
+		expect(output).toContain('const __exact_position_1 =');
+		expect(output).toContain('const __exact_summary_1 =');
 	});
 
 	it('inlines safe derived consts inside task dependency captures', () => {

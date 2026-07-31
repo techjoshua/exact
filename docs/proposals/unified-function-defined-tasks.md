@@ -2008,14 +2008,16 @@ change when implementation lands include at least:
 The implemented action proposal should then be reduced to retained historical
 rationale or moved under history so it cannot be mistaken for the current API.
 
-## Future `@exactjs/motion` package
+## Future `@exactjs/motion` plugin
 
-The motion package is explicitly deferred, but the task work must leave a
-usable contract for it.
+The motion plugin and package are explicitly deferred, but the task work must
+leave a usable contract for them.
 
 The package-level design, public API, router dependency inversion, delivery
 plan, and acceptance criteria are now maintained in
-[`motion-component-library.md`](motion-component-library.md). This section
+[`motion-plugin.md`](motion-plugin.md). Its required generic plugin-system
+enhancements are maintained in
+[`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md). This section
 retains the task-foundation requirements that proposal builds upon.
 
 ### Presence without another public lifetime primitive
@@ -2079,10 +2081,13 @@ The operation comes from the framework coordination SPI rather than the
 application `TaskContext` surface. Renderer consequences inherit the active
 frame through scheduler context capture. No public DOM-commit token is needed.
 
-### Planned package surface
+### Planned plugin and library surface
 
 A later proposal can define:
 
+- plugin-owned `motion`, `motion:enter`, `motion:change`, `motion:leave`,
+  `motion:appear`, `motion:layout`, and `motion:layout-id` intrinsic
+  attributes;
 - `Motion` for enter, leave, and update animations;
 - `Presence` for one stable conditional range;
 - `MotionList` for keyed collection enter/leave/reorder coordination;
@@ -2093,11 +2098,13 @@ A later proposal can define:
 - SSR/hydration behavior that never flashes a leave state; and
 - inspection events nested under the initiating task.
 
-The first release should require `Presence`/`MotionList` around retained
-content. Supporting arbitrary unwrapped conditionals would require a renderer
-removal lease that delays range disposal after reconciliation. That is a
-separate primitive with identity, hydration, cancellation, portal, and memory
-consequences and is intentionally not smuggled into this task proposal.
+Namespaced motion on ordinary conditional and keyed intrinsic roots requires a
+generic renderer removal lease that delays physical range disposal while
+logical state is already absent. That primitive has identity, hydration,
+cancellation, portal, and memory consequences and therefore belongs to the
+separate plugin-extension proposal rather than being smuggled into the task
+implementation. Explicit `Presence` and `MotionList` remain compilerless
+fallbacks and policy boundaries.
 
 ## Delivery plan
 

@@ -53,6 +53,10 @@ collects target-neutral compiler inspection once per authored module and emits o
 builds, `runtime` emits compact correlation and injects `@exactjs/devtools-runtime` before the
 application entry. Set both controls to `false` for hardened output.
 
+Instrumented native client modules also import the virtual runtime as a side effect. This creates a
+module-graph ordering barrier, ensuring inspection ownership is installed before an application
+entry can render its first root; the HTML bootstrap still covers pages without transformed roots.
+
 Production deployments should provide the same immutable `buildKey` and `executionRoot` to their
 client and server builds, register the emitted catalog with the server runtime, and configure
 `allowDebug` separately. See [Server-cooperative full-stack DevTools](../../docs/devtools.md).

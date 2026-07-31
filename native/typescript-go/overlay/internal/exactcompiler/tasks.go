@@ -174,7 +174,7 @@ func collectTasks(
 			if !functionDefined && taskRegistrationInsideNestedFunction(node, candidate.node) {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"error: this.task() must be registered directly during component setup",
+					"error: legacy task registrations must appear directly during component setup; migrate the work to a local task function",
 				)
 			}
 			task.Async = ast.HasSyntacticModifier(work, ast.ModifierFlagsAsync)
@@ -337,13 +337,13 @@ func collectTasks(
 			if task.RequestedPlacement == "server" && task.BrowserEffects {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"error: this.task.server() cannot reference browser-only globals",
+					"error: task requests server placement but references browser-only globals",
 				)
 			}
 			if task.RequestedPlacement == "client" && task.ServerEffects {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"error: this.task.client() cannot reference server-only imports",
+					"error: task requests client placement but references server-only imports",
 				)
 			}
 			if task.EnvironmentEffect == "mixed" {
@@ -386,8 +386,7 @@ func collectTasks(
 			if task.RequestedPlacement != "" {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"task placement forced by this.task."+
-						task.RequestedPlacement+"()",
+					"task placement explicitly requested as "+task.RequestedPlacement,
 				)
 			}
 			tasks = append(tasks, task)
@@ -834,7 +833,7 @@ func normalizeTaskFacets(component string, facets []string) Task {
 	for _, facet := range facets {
 		if _, duplicate := seen[facet]; duplicate {
 			task.Diagnostics = append(task.Diagnostics, fmt.Sprintf(
-				"error: this.task.%s() repeats the %s facet",
+				"error: task policy %s repeats the %s facet",
 				joinTaskFacets(facets),
 				facet,
 			))
@@ -845,7 +844,7 @@ func normalizeTaskFacets(component string, facets []string) Task {
 		case "client", "server":
 			if task.RequestedPlacement != "" && task.RequestedPlacement != facet {
 				task.Diagnostics = append(task.Diagnostics, fmt.Sprintf(
-					"error: this.task.%s() requests both client and server placement",
+					"error: task policy %s requests both client and server placement",
 					joinTaskFacets(facets),
 				))
 			}
@@ -856,7 +855,7 @@ func normalizeTaskFacets(component string, facets []string) Task {
 			task.Readiness = "blocking"
 		default:
 			task.Diagnostics = append(task.Diagnostics, fmt.Sprintf(
-				"error: unsupported this.task() facet %s",
+				"error: unsupported task policy facet %s",
 				facet,
 			))
 		}
@@ -1090,7 +1089,7 @@ func taskReactiveDependencies(
 			dependencies = append(dependencies, binding.Name)
 			if binding.Provenance == "derived" && !binding.SafeToReevaluate {
 				diagnostics = append(diagnostics, fmt.Sprintf(
-					"error: task reads derived local %s, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into this.task()",
+					"error: task reads derived local %s, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into the task function body",
 					binding.Name,
 				))
 			}

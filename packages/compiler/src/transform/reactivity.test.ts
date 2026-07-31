@@ -450,7 +450,7 @@ describe('@exactjs/compiler: reactivity', () => {
 			readiness: 'blocking'
 		});
 		expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain(
-			'task placement forced by this.task.server()'
+			'task placement explicitly requested as server'
 		);
 		expect(client).toContain('placement: "server"');
 		expect(client).toContain('dispatchComponentContinuation as __exactDispatchContinuation');
@@ -536,7 +536,7 @@ describe('@exactjs/compiler: reactivity', () => {
         return () => <p />;
       }
     `)
-		).toThrow('this.task.server() cannot reference browser-only globals');
+		).toThrow('task requests server placement but references browser-only globals');
 
 		expect(() =>
 			transform(`
@@ -548,6 +548,6 @@ describe('@exactjs/compiler: reactivity', () => {
         return () => <p />;
       }
     `)
-		).toThrow('this.task.client() cannot reference server-only imports');
+		).toThrow('task requests client placement but references server-only imports');
 	});
 });

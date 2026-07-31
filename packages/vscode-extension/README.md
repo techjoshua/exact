@@ -23,6 +23,9 @@ component functions, function-defined tasks, and derived variables.
 Keywords, JSX tags, inferred `await` sites, punctuation, and surrounding
 property-access syntax retain VS Code's normal TypeScript/theme highlighting.
 
+The link badge appears after a derived reactive assignment and before each
+compiler-resolved use.
+
 Assignment metadata appears before the assignment; task metadata
 appears immediately after the call's opening parenthesis. `⚙` marks the
 particular assignment that initializes state, while `⚡` marks a deferred
@@ -33,6 +36,10 @@ publication (`🚨`).
 Region markers and eXact source hovers are limited to selected operation spans.
 They do not decorate the entire containing function, leaving TypeScript type and
 signature hovers available within task callbacks and component setup.
+Function-defined task hovers select only the authored function name; internal
+awaits remain suspension points of that task and do not receive nested task badges.
+Source with a compiler-recognized final `TaskContext` parameter is presented as
+a “task with authored policy,” not as a separate explicit-task mechanism.
 
 Compiler execution is enabled only in trusted workspaces. Source and inspection
 data remain local. Presentation settings never change compiler meaning.

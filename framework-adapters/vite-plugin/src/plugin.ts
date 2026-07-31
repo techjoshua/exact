@@ -447,13 +447,15 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 								sourceMap: false
 							})
 						: { code: result.code };
-					microfrontends.recordModule(rewritten.code, id);
+					const clientCode = prependViteDevtoolsRuntimeImport(
+						rewritten.code,
+						options.target !== 'server' && inspectionRuntimeEnabled(configuredDebug, viteCommand)
+					);
+					microfrontends.recordModule(clientCode, id);
 					return {
-						code: rewritten.code,
+						code: clientCode,
 						map:
-							options.sourceMap === false
-								? null
-								: createLineSourceMap(filename, code, rewritten.code),
+							options.sourceMap === false ? null : createLineSourceMap(filename, code, clientCode),
 						moduleType: 'js'
 					};
 				}
@@ -488,6 +490,14 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			}
 		}
 	};
+}
+
+/**
+ * Establishes an execution dependency on the page-world runtime before an instrumented native
+ * module evaluates. The HTML bootstrap remains the fallback for pages without transformed roots.
+ */
+function prependViteDevtoolsRuntimeImport(code: string, enabled: boolean): string {
+	return enabled ? `import '${exactDevtoolsRuntimeModule}';\n${code}` : code;
 }
 
 function exactDevtoolsRuntimeBootstrap(debug: ExactViteDebugOptions | undefined): string {

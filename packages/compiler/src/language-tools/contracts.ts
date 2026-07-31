@@ -116,7 +116,13 @@ export type ExactRenderClassification = Readonly<{
 	}>;
 }>;
 
-/** Normalized semantics of inferred or explicitly registered task work. */
+/**
+ * Normalized semantics of compiler-inferred task work or a task with authored policy.
+ *
+ * The `explicit` origin is the compatibility discriminator for source with a
+ * compiler-recognized final `TaskContext` policy parameter. It does not denote
+ * a separate task mechanism.
+ */
 export type ExactTaskClassification = Readonly<{
 	kind: 'task';
 	origin: 'inferred' | 'explicit';
@@ -140,6 +146,10 @@ export type ExactTaskClassification = Readonly<{
 export type ExactDerivedClassification = Readonly<{
 	kind: 'derived';
 	dependencies: readonly ExactSourceDependency[];
+	/** Authored initializer whose result defines this derived binding. */
+	definition: ExactSourceRange;
+	/** Symbol-resolved authored reads of this derived binding. */
+	references: readonly ExactSourceRange[];
 }>;
 
 /** Setup assignment classified as one-time initialization or deferred reactive work. */

@@ -188,13 +188,17 @@ describe('framework task frame SPI', () => {
 			{ kind: 'presence-leave' },
 			{
 				async work(task) {
-					task.cleanup(() => cleanup.push('parent'));
+					task.cleanup(() => {
+						cleanup.push('parent');
+					});
 					await runTaskFrame(
 						{ kind: 'motion' },
 						{
 							async work(child) {
 								childSignal = child.signal;
-								child.cleanup(() => cleanup.push('child'));
+								child.cleanup(() => {
+									cleanup.push('child');
+								});
 								reportChildStarted();
 								await rejectWhenAborted(child.signal);
 							}
@@ -238,12 +242,16 @@ describe('framework task frame SPI', () => {
 			{ kind: 'presence-leave' },
 			{
 				work(task) {
-					task.cleanup(() => cleanup.push('parent'));
+					task.cleanup(() => {
+						cleanup.push('parent');
+					});
 					void runTaskFrame(
 						{ kind: 'motion' },
 						{
 							async work(child) {
-								child.cleanup(() => cleanup.push('child'));
+								child.cleanup(() => {
+									cleanup.push('child');
+								});
 								await rejectWhenAborted(child.signal);
 							}
 						}

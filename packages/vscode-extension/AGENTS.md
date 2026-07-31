@@ -21,6 +21,10 @@ first authored token and call metadata after the opening parenthesis. Keep
 region decorations on entity selection ranges, never whole function bodies.
 Preserve independently hoverable badge label parts supplied by the language
 server and keep detailed meaning in the combined hover content.
+Present compiler-provided derived assignment and use badges unchanged, and
+keep function-defined task hovers on the compiler-provided identifier range.
+Describe a task with a compiler-recognized final `TaskContext` parameter as a
+task with authored policy; do not present it as a separate explicit-task model.
 
 Use `npm run dev:vscode-extension` from the repository root for development.
 Keep the launcher responsible for building both process owners and opening the

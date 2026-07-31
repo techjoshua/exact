@@ -1,6 +1,6 @@
 import type { ExactSourceRange } from './contracts.js';
 
-/** Reversible source facts extracted from an authored explicit task and its activation. */
+/** Reversible source facts extracted from a task with authored policy and its activation. */
 export type ParsedExplicitTask = Readonly<{
 	dependencies: readonly string[];
 	parameters: readonly string[];
@@ -10,7 +10,7 @@ export type ParsedExplicitTask = Readonly<{
 	indentation: string;
 }>;
 
-/** Parses either supported authored representation of an explicit task. */
+/** Parses a function with authored task policy or its legacy registration representation. */
 export function parseExplicitTaskSource(
 	source: string,
 	range: ExactSourceRange
@@ -23,12 +23,12 @@ function parseFunctionDefinedTask(
 	range: ExactSourceRange
 ): ParsedExplicitTask | undefined {
 	const lineStart = source.lastIndexOf('\n', range.start - 1) + 1;
-	const declarationPrefix = source.slice(lineStart, range.start);
-	const declaration = /^([ \t]*)const\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(declarationPrefix);
+	const declarationSource = source.slice(lineStart, range.end);
+	const declaration = /^([ \t]*)const\s+([A-Za-z_$][\w$]*)\s*=\s*/.exec(declarationSource);
 	if (!declaration) return undefined;
 	const indentation = declaration[1]!;
 	const name = declaration[2]!;
-	const authored = source.slice(range.start, range.end).trim();
+	const authored = declarationSource.slice(declaration[0].length).trim();
 	const parameterOpen = authored.indexOf('(');
 	const parameterClose = findMatching(authored, parameterOpen, '(', ')');
 	const arrow = parameterClose === undefined ? -1 : authored.indexOf('=>', parameterClose);
@@ -136,7 +136,7 @@ export function findMatching(
 	return undefined;
 }
 
-/** Removes only signal options introduced by the inferred-to-explicit refactor. */
+/** Removes only signal options introduced when compiler-inferred policy was authored. */
 export function removeRecognizedSignalOptions(source: string, contextParameter: string): string {
 	if (contextParameter === 'signal') return source.replace(/,\s*\{\s*signal\s*\}(?=\s*\))/g, '');
 	const escaped = escapeRegExp(contextParameter);

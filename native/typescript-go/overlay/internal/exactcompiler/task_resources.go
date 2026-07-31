@@ -60,7 +60,7 @@ func collectTaskResources(
 			diagnostics = append(
 				diagnostics,
 				"error: task-owned "+description+
-					" escapes its task generation; return an explicit cleanup or keep the resource local",
+					" escapes its task generation; keep the resource local or move it to a deliberately longer-lived owner",
 			)
 		}
 		return true

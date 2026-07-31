@@ -61,6 +61,15 @@ Read and write `this.state` directly. Derived values can remain normal TypeScrip
 compiler preserves the relationships between state and text, attributes, styles, branches,
 component props, and keyed collections.
 
+Setup-derived values can share one lazy result across the component. View-local
+calculations stay with their consuming reactive region, and the compiler elides
+an otherwise unnecessary setup cell for safe single-consumer calculations that
+produce a scalar or forward an existing identity. Explicit `this.reactive()`
+values remain durable first-class boundaries.
+
+Initial synchronous derived-state calculations settle before the first render, so required child
+props never observe an intermediate uninitialized value.
+
 ### Updates stay close to what changed
 
 eXact does not rerun the component to produce another virtual tree. Generated code updates the
@@ -71,7 +80,9 @@ identity.
 
 Ordinary local functions become structured tasks when their effects or activation require
 coordination. Reactive and invoked work share lifecycle, cancellation, cleanup, concurrency,
-optimism, placement, and error ownership without separate task/action wrappers.
+optimism, placement, and error ownership without separate task/action wrappers. The compiler
+supplies generation cancellation to discoverable `AbortSignal` parameters and owns local
+disposable resources when their cleanup contract is visible.
 
 ### Client and server use one model
 
@@ -103,16 +114,22 @@ and architecture.
 - Fine-grained reactive state, derived values, DOM updates, and keyed collections
 - Long-lived component instances with context, refs, lifecycle, tasks, and cleanup
 - Function-defined tasks with typed server results, compiler-owned opaque dispatch, cancellation,
-  concurrency, optimistic state, forms, navigation, and generation-stable captured parameter
-  defaults, plus cancelable, inspectable framework task frames for router and motion coordination
+  keyed concurrency with aggregate or lane-scoped status, optimistic state, forms, navigation,
+  and generation-stable captured parameter defaults, plus cancelable, inspectable framework task
+  frames for router and motion coordination. Tasks share one model whether policy is inferred or
+  authored on a final `TaskContext` parameter.
 - Finite eager/lazy component registries with compiler-checked identity, placement, SSR, and hydration
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations
 - Compiler-aware language tools with a no-emit project service, LSP server, and VS Code client,
-  including syntax-preserving semantic tokens, precise referenced-component hovers, and
-  operation-local badges with authored task dependencies and version-fenced,
-  framework-only diagnostics
-- Optional server-cooperative Chromium DevTools and a read-only CDP agent
+  including syntax-preserving semantic tokens, linked derived assignment/use badges, precise
+  function-task and referenced-component hovers, and operation-local badges with authored task
+  dependencies and version-fenced, framework-only diagnostics using current function-defined task
+  guidance
+- Optional server-cooperative Chromium DevTools with self-contained, lifecycle-safe Manifest V3
+  entries, ordered client-root ownership across compiled reactive cells, client-only local
+  sessions, a live component-instance tree, bounded causal-frame profiling with aggregated
+  component-type waterfall lanes, root-correct panel registration, and a read-only CDP agent
 - Routing, accessible form primitives, and compiler-aware component testing
 - React 18 and 19 compatibility for React-owned code
 - Node, Fetch, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, and serverless runtime adapters
@@ -125,7 +142,7 @@ The package-specific READMEs describe the supported APIs and environment boundar
 - [Play the live Sudoku Atelier sample](https://techjoshua.github.io/exact/sudoku.html)
 - [Browse the documentation source](apps/docs/README.md)
 - [Understand components and state](apps/docs/src/pages/ComponentsPage.tsx)
-- [Coordinate tasks, actions, and optimistic state](apps/docs/src/pages/TasksPage.tsx)
+- [Understand tasks, compiler inference, scheduling, and Suspense readiness](apps/docs/src/pages/TasksPage.tsx)
 - [Select finite dynamic components](apps/docs/src/pages/ComponentRegistriesPage.tsx)
 - [Follow one component through the compiler](apps/docs/src/pages/CompilerTourPage.tsx)
 - [Use compiler-aware editor tooling](docs/language-tools.md)
@@ -142,6 +159,10 @@ The repository also includes complete sample applications:
 - [Project Workbench](apps/workbench)
 - [Microfrontend Portal](apps/microfrontend-portal)
 - [Server Components](apps/server-components)
+
+The native samples follow the setup-once component model: state stays directly inspectable,
+reactive calls define task dependencies, concurrent work attaches as child tasks, and timers,
+subscriptions, and other resources remain generation-owned.
 
 From a repository checkout, try:
 

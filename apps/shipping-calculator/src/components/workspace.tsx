@@ -53,6 +53,51 @@ export function CalculatorWorkspace(
 	};
 	restoreDraft();
 
+	const refreshRoute = async (
+		request: RateRequest,
+		_task: TaskContext = TaskContext.client().parallel()
+	) => {
+		try {
+			this.state.route = await resolveRouteOnServer(request);
+		} catch {
+			this.state.route = { status: 'unavailable' };
+			this.state.error = 'The route could not be refreshed. Change an input to retry.';
+		}
+	};
+
+	const refreshProvider = async (
+		id: ProviderId,
+		request: RateRequest,
+		_task: TaskContext = TaskContext.client().parallel()
+	) => {
+		try {
+			const result = await quoteProviderOnServer(id, request);
+			this.state.providers = [
+				...this.state.providers.filter((item) => item.providerId !== id),
+				result
+			];
+			this.state.loading = this.state.loading.filter((item) => item !== id);
+		} catch {
+			const previous = this.state.providers.find((item) => item.providerId === id);
+			this.state.providers = [
+				...this.state.providers.filter((item) => item.providerId !== id),
+				{
+					version: 1,
+					providerId: id,
+					providerName: previous?.providerName ?? id.toUpperCase(),
+					status: 'error',
+					quotes: [],
+					error: {
+						code: 'unavailable',
+						message: 'The carrier request failed before returning a current result'
+					}
+				}
+			];
+			this.state.loading = this.state.loading.filter((item) => item !== id);
+			this.state.error = 'Some carrier rates could not be refreshed. Change an input to retry.';
+		}
+	};
+
 	const refreshRates = async (
 		_revision: number,
 		draft: ShipmentDraft = this.state.draft,
@@ -70,57 +115,8 @@ export function CalculatorWorkspace(
 			return;
 		}
 		history.replaceState(null, '', draftUrl(draft, new URL(location.href)));
-		const generation = this.state.revision;
 		this.state.loading = [...ids];
-		const routePromise = resolveRouteOnServer(request);
-		const providerPromises = ids.map((id) => ({
-			id,
-			promise: quoteProviderOnServer(id, request)
-		}));
-		routePromise
-			.then((result) => {
-				if (generation === this.state.revision) this.state.route = result;
-			})
-			.catch(() => {
-				if (task.signal.aborted || generation !== this.state.revision) return;
-				this.state.route = { status: 'unavailable' };
-				this.state.error = 'The route could not be refreshed. Change an input to retry.';
-			});
-		await Promise.all(
-			providerPromises.map(({ id, promise }) =>
-				promise
-					.then((result) => {
-						if (generation !== this.state.revision) return;
-						this.state.providers = [
-							...this.state.providers.filter((item) => item.providerId !== id),
-							result
-						];
-						this.state.loading = this.state.loading.filter((item) => item !== id);
-					})
-					.catch(() => {
-						if (task.signal.aborted || generation !== this.state.revision) return;
-						const previous = this.state.providers.find((item) => item.providerId === id);
-						this.state.providers = [
-							...this.state.providers.filter((item) => item.providerId !== id),
-							{
-								version: 1,
-								providerId: id,
-								providerName: previous?.providerName ?? id.toUpperCase(),
-								status: 'error',
-								quotes: [],
-								error: {
-									code: 'unavailable',
-									message: 'The carrier request failed before returning a current result'
-								}
-							}
-						];
-						this.state.loading = this.state.loading.filter((item) => item !== id);
-						this.state.error =
-							'Some carrier rates could not be refreshed. Change an input to retry.';
-					})
-			)
-		);
-		if (generation !== this.state.revision) return;
+		await Promise.all([refreshRoute(request), ...ids.map((id) => refreshProvider(id, request))]);
 		this.state.loading = [];
 		if (this.state.providers.some((provider) => provider.status === 'success')) {
 			localStorage.setItem('parcel-lab:last-shipment', JSON.stringify(draft));

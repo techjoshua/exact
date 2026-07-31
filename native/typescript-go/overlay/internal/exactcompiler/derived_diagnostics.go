@@ -53,7 +53,7 @@ func unsafeDerivedDiagnostics(
 			reported[id] = struct{}{}
 			message := "error: derived local " + binding.Name +
 				" cannot be safely reevaluated; inline the expression, use " +
-				"this.reactive(() => ...), or move effectful work into this.task()"
+				"this.reactive(() => ...), or move effectful work into a local task function"
 			if opaque := componentDiagnostics[candidate.name]; opaque != "" &&
 				bindingInitializerContainsOpaqueCall(
 					candidate.node,

@@ -16,3 +16,9 @@ human-facing name.
 Only import this package in builds whose debug runtime instrumentation is enabled. Hardened builds
 must omit the import and compile with both `emitInspection: false` and
 `instrumentInspection: false`.
+
+Client-only instrumented pages open a local inspection session without issuing a server request.
+Server cooperation activates only when `installExactDevtoolsRuntime()` receives an explicit
+`endpoint` or discovers one in compiler-owned `__exact_hydration` metadata. A missing endpoint is
+not treated as `/__exact`. Native roots emitted as compiler-owned reactive cells retain the same
+inspection domain as directly authored roots.

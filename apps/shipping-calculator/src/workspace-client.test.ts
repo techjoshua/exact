@@ -59,7 +59,49 @@ describe('shipping client workspace', () => {
 		expect(document.body.textContent).toContain('Showing rates from 0 sources');
 		client.dispose();
 	});
+
+	it('discards superseded child-task results without an application revision fence', async () => {
+		const pending: PendingActionResponse[] = [];
+		const fetch = vi.fn((_input: unknown, init: { body: string }) => {
+			return new Promise((resolve) => {
+				pending.push({
+					request: JSON.parse(init.body) as ActionRequest,
+					resolve
+				});
+			});
+		});
+		const request = normalizeDraft(defaultDraft);
+		const initial = emptyInitialModel(defaultDraft, request, false);
+		const { client, root } = mountWorkspace(initial, fetch);
+
+		await vi.waitFor(() => expect(pending).toHaveLength(2), { timeout: 2_000 });
+		const destination = root.querySelector<HTMLInputElement>('input[name="destinationZip"]')!;
+		destination.value = '97209';
+		destination.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await vi.waitFor(() => expect(pending).toHaveLength(4), { timeout: 2_000 });
+
+		for (const response of pending.slice(2))
+			response.resolve(actionResponse(response.request, 'CURRENT'));
+		await vi.waitFor(() => expect(document.body.textContent).toContain('CURRENT'));
+
+		for (const response of pending.slice(0, 2))
+			response.resolve(actionResponse(response.request, 'STALE'));
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(document.body.textContent).not.toContain('STALE');
+		client.dispose();
+	});
 });
+
+type ActionRequest = {
+	id: string;
+	payload: { dependencies: unknown[] };
+};
+
+type PendingActionResponse = {
+	request: ActionRequest;
+	resolve(value: ReturnType<typeof actionResponse>): void;
+};
 
 function mountWorkspace(
 	initial: ReturnType<typeof emptyInitialModel>,
@@ -89,27 +131,46 @@ function mountWorkspace(
 
 function successfulActionFetch() {
 	return vi.fn(async (_input: unknown, init: { body: string }) => {
-		const request = JSON.parse(init.body) as {
-			id: string;
-			payload: { dependencies: unknown[] };
-		};
-		const dependencies = request.payload.dependencies;
-		const value =
-			dependencies.length === 1
-				? { status: 'unavailable' }
-				: {
-						version: 1,
-						providerId: dependencies[0],
-						providerName: String(dependencies[0]).toUpperCase(),
-						status: 'success',
-						quotes: []
-					};
-		return {
-			ok: true,
-			status: 200,
-			async json() {
-				return { ok: true, type: 'action', id: request.id, value };
-			}
-		};
+		const request = JSON.parse(init.body) as ActionRequest;
+		return actionResponse(request, String(request.payload.dependencies[0]).toUpperCase());
 	});
+}
+
+function actionResponse(request: ActionRequest, providerName: string) {
+	const dependencies = request.payload.dependencies;
+	const value =
+		dependencies.length === 1
+			? { status: 'unavailable' }
+			: {
+					version: 1,
+					providerId: dependencies[0],
+					providerName,
+					status: 'success',
+					quotes: [
+						{
+							version: 1,
+							id: `${providerName}-quote`,
+							providerId: dependencies[0],
+							providerName,
+							serviceCode: providerName,
+							serviceName: providerName,
+							currency: 'USD',
+							basePriceCents: 100,
+							totalPriceCents: 100,
+							delivery: { guaranteed: false },
+							charges: [],
+							features: [],
+							compatible: true,
+							warnings: [],
+							source: 'mock'
+						}
+					]
+				};
+	return {
+		ok: true,
+		status: 200,
+		async json() {
+			return { ok: true, type: 'action', id: request.id, value };
+		}
+	};
 }

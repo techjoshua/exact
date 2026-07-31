@@ -7,24 +7,25 @@ export function createTaskStatus<Result>(
 	key: unknown,
 	cancel: (lane: InternalTaskLane<Result>, reason: unknown) => void
 ): TaskStatus<Result> {
+	const aggregate = key === undefined;
+	const lane = () => (aggregate ? undefined : state.lanes.get(key));
 	const lanes = () =>
-		key === undefined ? [...state.lanes.values()] : [state.lanes.get(key)].filter(Boolean);
-	const keyed = () => (key === undefined ? undefined : state.lanes.get(key));
+		aggregate ? [...state.lanes.values()] : [state.lanes.get(key)].filter(Boolean);
 	return {
 		get pending() {
-			return (keyed()?.pendingCount ?? state.pendingCount) > 0;
+			return (aggregate ? state.pendingCount : (lane()?.pendingCount ?? 0)) > 0;
 		},
 		get pendingCount() {
-			return keyed()?.pendingCount ?? state.pendingCount;
+			return aggregate ? state.pendingCount : (lane()?.pendingCount ?? 0);
 		},
 		get generation() {
-			return keyed()?.generation ?? state.generation;
+			return aggregate ? state.generation : (lane()?.generation ?? 0);
 		},
 		get result() {
-			return keyed()?.result ?? state.result;
+			return aggregate ? state.result : lane()?.result;
 		},
 		get error() {
-			return keyed()?.error ?? state.error;
+			return aggregate ? state.error : lane()?.error;
 		},
 		cancel(reason = 'cancelled') {
 			for (const lane of lanes()) if (lane) cancel(lane, reason);

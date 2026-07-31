@@ -16,6 +16,9 @@ Prefer the least ceremonial supported form:
 Call task functions normally. A setup call declares initialization/reactive activation; event,
 form, router, lifecycle, and direct calls create invoked work. Put placement, concurrency,
 priority, readiness, keys, and detachment on the default of the final `TaskContext` parameter.
+Treat synthetic callable status as an owner-wide aggregate across keyed lanes. Use
+`taskStatus(task, { key })` for a stable lane-specific view, and never infer a "current" key from
+the most recent invocation.
 Put a reactive expression in the default of a non-context task parameter when it should be
 captured once per generation without becoming an activation dependency. Prefer this input form
 over a body `task.peek()` when the snapshot is unconditional and naturally names a function input;

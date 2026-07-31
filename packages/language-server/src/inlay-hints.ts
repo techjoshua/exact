@@ -32,6 +32,33 @@ export function projectInlayHints(inspection: ExactSourceInspection, source: str
 					entityFacts(entity)
 				)
 			];
+		if (classification?.kind === 'derived') {
+			const badges = [
+				semanticBadge(
+					positionAt(source, classification.definition.end),
+					entity,
+					[badge('🔗', 'Derived reactive', 'This binding links reactive inputs to its consumers.')],
+					'Derived reactive',
+					entityFacts(entity)
+				),
+				...classification.references.map((reference) =>
+					semanticBadge(
+						positionAt(source, reference.start),
+						entity,
+						[
+							badge(
+								'🔗',
+								'Derived reactive use',
+								'This use reads a compiler-tracked derived value.'
+							)
+						],
+						'Derived reactive use',
+						entityFacts(entity)
+					)
+				)
+			];
+			return badges;
+		}
 		if (classification?.kind === 'task')
 			return [
 				semanticBadge(
@@ -60,7 +87,7 @@ export function projectInlayHints(inspection: ExactSourceInspection, source: str
 								)
 							: undefined
 					],
-					classification.origin === 'explicit' ? 'Explicit task' : 'Inferred task',
+					classification.origin === 'explicit' ? 'Task with authored policy' : 'Inferred task',
 					entityFacts(entity)
 				)
 			];

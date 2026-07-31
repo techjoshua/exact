@@ -111,7 +111,7 @@
 			},
 			{
 				"id": "exact.explicitTask",
-				"description": "Explicit task"
+				"description": "Task with authored policy"
 			},
 			{
 				"id": "exact.action",

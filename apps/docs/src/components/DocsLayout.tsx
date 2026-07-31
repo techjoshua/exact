@@ -15,12 +15,13 @@ export function DocsLayout(this: Component<LayoutState>) {
 	this.state.mobileOpen = false;
 	this.state.searchOpen = false;
 
-	const observeRoute = (task: TaskContext = TaskContext.client()) => {
-		task.cleanup(
-			route.router.subscribe(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
-		);
+	const scrollToRoute = (
+		_locationKey: string,
+		_task: TaskContext = TaskContext.client().immediate()
+	) => {
+		window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 	};
-	observeRoute();
+	scrollToRoute(route.location.key);
 
 	const closeNavigation = () => {
 		this.state.mobileOpen = false;

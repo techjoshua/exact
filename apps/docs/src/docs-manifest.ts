@@ -101,6 +101,15 @@ export const docGroups: DocGroup[] = [
 				component: StatePage
 			},
 			{
+				path: '/learn/tasks',
+				label: 'Tasks, dependencies & scheduling',
+				summary:
+					'Understand task definitions and generations, compiler inference, explicit policy, dependencies, scheduling, and Suspense readiness.',
+				keywords:
+					'task function create captured parameter default snapshot dependency effect result async await Suspense readiness blocking nonblocking priority deferred abort signal cleanup optimistic invocation concurrency latest queue key keyed status pending aggregate owner tree structured',
+				component: TasksPage
+			},
+			{
 				path: '/learn/compiler-tour',
 				label: 'Inside the compiler',
 				summary:
@@ -108,24 +117,6 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'compiler native TypeScript Go generated output lowering transform reactive helpers task binding map JSX',
 				component: CompilerTourPage
-			},
-			{
-				path: '/learn/language-tools',
-				label: 'Compiler-aware language tools',
-				summary:
-					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
-				keywords:
-					'language tools VS Code extension LSP semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred explicit task no emit',
-				component: LanguageToolsPage
-			},
-			{
-				path: '/learn/devtools',
-				label: 'Full-stack DevTools',
-				summary:
-					'Inspect durable browser and server components across authorized microfrontend roots.',
-				keywords:
-					'DevTools Chromium component inspection state contexts tasks actions timeline server cooperation allowDebug catalog redaction secrets microfrontend federation CDP agent',
-				component: DevtoolsPage
 			},
 			{
 				path: '/learn/lists',
@@ -141,14 +132,6 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'component registry dynamic lazy eager key identity preload SSR hydration placement bundle',
 				component: ComponentRegistriesPage
-			},
-			{
-				path: '/learn/tasks',
-				label: 'Tasks, captures & cleanup',
-				summary: 'Coordinate reactive and invoked work through ordinary functions.',
-				keywords:
-					'task function captured parameter default snapshot dependency async abort signal cleanup optimistic invocation concurrency latest queue owner tree structured',
-				component: TasksPage
 			},
 			{
 				path: '/learn/async-interfaces',
@@ -167,6 +150,24 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'server task continuation state machine C# async SSR hydration context Apollo TanStack bundle shared secret',
 				component: ServerExecutionPage
+			},
+			{
+				path: '/learn/language-tools',
+				label: 'Compiler-aware language tools',
+				summary:
+					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
+				keywords:
+					'language tools VS Code extension LSP semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred authored TaskContext policy task no emit',
+				component: LanguageToolsPage
+			},
+			{
+				path: '/learn/devtools',
+				label: 'Full-stack DevTools',
+				summary:
+					'Inspect durable browser and server components across authorized microfrontend roots.',
+				keywords:
+					'DevTools Chromium component inspection state contexts tasks actions timeline server cooperation allowDebug catalog redaction secrets microfrontend federation CDP agent',
+				component: DevtoolsPage
 			}
 		]
 	},

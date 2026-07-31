@@ -73,10 +73,30 @@ export function ServerExecutionPage(this: Component<{}>) {
 			title="One component, two cooperating state machines"
 			description="Server work remains ordinary component code. The compiler separates the client and server transitions, carries only required public values, and keeps server libraries and resources out of the browser."
 			previous={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
-			next={{ path: '/guides/routing', label: 'Routing' }}
+			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
 		>
 			<section>
-				<h2>The useful analogy is C# async lowering</h2>
+				<h2>Server execution is task placement, not a second component model</h2>
+				<p>
+					A component may need a database, request-scoped service, secret, or server-only library
+					that must never enter the browser bundle. eXact keeps the component as one authored unit
+					while placing only the affected task continuation on the server.
+				</p>
+				<p>
+					The browser owns the durable component instance, visible state, DOM, and lifecycle. For
+					each server generation, the compiler sends only approved inputs to an allowlisted
+					operation. The server resolves its own contexts and resources, performs the work, and
+					returns only validated public results or state effects. Server objects, credentials, and
+					task authority never cross the boundary.
+				</p>
+				<p>
+					This is why server execution participates in the same task concepts as local work:
+					activation, cancellation, dependencies, readiness, stale-generation fencing, structural
+					children, and cleanup remain coordinated even though execution crosses runtimes.
+				</p>
+			</section>
+			<section>
+				<h2>Think of the split like async lowering</h2>
 				<p>
 					A C# <code>async</code> method looks linear even though the compiler creates a state
 					machine whose callbacks advance execution. eXact applies the same kind of syntactic sugar

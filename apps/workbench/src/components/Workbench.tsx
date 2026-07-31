@@ -47,28 +47,12 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 	this.state.syncState = 'idle';
 	const errors = this.getContext(ErrorContext);
 
-	const normalizedQuery = this.state.query.trim().toLowerCase();
-	const visibleTasks = normalizedQuery
-		? this.state.tasks.filter(
-				(task) =>
-					task.title.toLowerCase().includes(normalizedQuery) ||
-					task.notes.toLowerCase().includes(normalizedQuery) ||
-					task.owner.toLowerCase().includes(normalizedQuery) ||
-					task.labels.some((label) => label.toLowerCase().includes(normalizedQuery))
-			)
-		: this.state.tasks;
-
-	const selectedTask = this.state.selectedTaskId
-		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
-		: undefined;
-
 	const persistTasks = async (
 		tasksJson: string,
 		task: TaskContext = TaskContext.client().latest()
 	) => {
 		this.state.syncState = 'saving';
 		await delay(160, task.signal);
-		if (task.signal.aborted) return;
 		localStorage.setItem(storageKey, tasksJson);
 		this.state.syncState = 'synced';
 	};
@@ -227,6 +211,20 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 	observeKeyboard();
 
 	return () => {
+		const normalizedQuery = this.state.query.trim().toLowerCase();
+		const visibleTasks = normalizedQuery
+			? this.state.tasks.filter(
+					(task) =>
+						task.title.toLowerCase().includes(normalizedQuery) ||
+						task.notes.toLowerCase().includes(normalizedQuery) ||
+						task.owner.toLowerCase().includes(normalizedQuery) ||
+						task.labels.some((label) => label.toLowerCase().includes(normalizedQuery))
+				)
+			: this.state.tasks;
+		const selectedTask = this.state.selectedTaskId
+			? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
+			: undefined;
+
 		return (
 			<main className="shell">
 				<WorkbenchHeader
@@ -286,6 +284,10 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 	};
 }
 
+/**
+ * Waits for the debounce window and settles early when its owning task is cancelled.
+ * The timer stays inside this adapter because a Promise executor is opaque to compiler ownership.
+ */
 function delay(ms: number, signal: AbortSignal): Promise<void> {
 	return new Promise((resolve) => {
 		const timeout = setTimeout(resolve, ms);

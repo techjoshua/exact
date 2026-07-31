@@ -27,12 +27,7 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
 	this.state.selectedTaskId = undefined;
 	this.state.dragPlacement = undefined;
 
-	const taskTotal = this.state.tasks.length;
-	const selectedTask = this.state.selectedTaskId
-		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
-		: undefined;
-
-	function persistTasks(tasksJson: string, _task: TaskContext = TaskContext.client().latest()) {
+	function persistTasks(tasksJson: string, _task: TaskContext = TaskContext.client()) {
 		localStorage.setItem(storageKey, tasksJson);
 	}
 	persistTasks(JSON.stringify(this.state.tasks));
@@ -123,9 +118,13 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
 	this.setContext(BoardContext, services);
 
 	return () => {
+		const selectedTask = this.state.selectedTaskId
+			? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
+			: undefined;
+
 		return (
 			<main className="shell">
-				<BoardHeader draft={this.state.draft} total={taskTotal} />
+				<BoardHeader draft={this.state.draft} total={this.state.tasks.length} />
 
 				<section className="board" style={{ gap: px(16) }}>
 					{columns.map((column) => (

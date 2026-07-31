@@ -33,6 +33,7 @@ export function installExactDevtoolsRuntime(
 	const runtime = correlationRuntime();
 	const dom = createExactDomInspectionHost();
 	let connected = false;
+	let serverConnected = false;
 	let session: ExactInspectionSessionDescription | undefined;
 	let events: ExactClientEventStore | undefined;
 	const owners = new Map<string, ReturnType<typeof createExactRuntimeInspectionOwner>>();
@@ -59,10 +60,13 @@ export function installExactDevtoolsRuntime(
 	};
 	const inspection = inspectionOwner({});
 	const clearInspectionFactory = setExactDomInspectionOwnerFactory(inspectionOwner);
-	const server = createExactBrowserServerInspectionClient(
-		options.endpoint ?? '/__exact',
-		options.fetch ?? globalThis.fetch.bind(globalThis)
-	);
+	const serverEndpoint = resolveServerEndpoint(options.endpoint);
+	const server = serverEndpoint
+		? createExactBrowserServerInspectionClient(
+				serverEndpoint,
+				options.fetch ?? globalThis.fetch.bind(globalThis)
+			)
+		: undefined;
 	let service: ReturnType<typeof createExactClientInspectionQueryService> | undefined;
 	let highlightTimer: ReturnType<typeof setTimeout> | undefined;
 	const highlighted = new Map<HTMLElement, Readonly<{ outline: string; priority: string }>>();
@@ -74,7 +78,8 @@ export function installExactDevtoolsRuntime(
 		},
 		async connect() {
 			if (session) return session;
-			const remote = await server.open(['catalog', 'snapshot', 'events', 'source']);
+			const remote = await server?.open(['catalog', 'snapshot', 'events', 'source']);
+			serverConnected = !!remote;
 			session = remote ?? localSession();
 			events = createExactClientEventStore(
 				positive(options.maxEvents, 10_000),
@@ -87,7 +92,7 @@ export function installExactDevtoolsRuntime(
 				dom,
 				events,
 				server,
-				serverConnected: !!remote
+				serverConnected
 			});
 			connected = true;
 			return session;
@@ -100,10 +105,11 @@ export function installExactDevtoolsRuntime(
 			for (const owner of owners.values()) owner.detach(session.id);
 			events?.clear();
 			clearHighlight();
-			if (session && service) await server.close(session.id);
+			if (server && serverConnected) await server.close(session.id);
 			session = undefined;
 			events = undefined;
 			service = undefined;
+			serverConnected = false;
 			connected = false;
 		},
 		ownerOfElement(element) {
@@ -251,6 +257,33 @@ function localSession(): ExactInspectionSessionDescription {
 		expiresAt: now + 30 * 60_000,
 		capabilities: Object.freeze(['snapshot', 'events'] as const)
 	});
+}
+
+/**
+ * Resolves optional server cooperation without probing a conventional URL on client-only pages.
+ * Explicit configuration wins; otherwise only compiler-owned hydration metadata may opt the page
+ * into debug transport discovery.
+ */
+function resolveServerEndpoint(explicit: string | undefined): string | undefined {
+	const configured = validEndpoint(explicit);
+	if (configured) return configured;
+	if (typeof document === 'undefined') return undefined;
+	const script = document.getElementById('__exact_hydration');
+	if (!script || script.tagName !== 'SCRIPT' || script.getAttribute('type') !== 'application/json')
+		return undefined;
+	try {
+		const source = script.textContent ?? '';
+		if (source.length > 16 * 1024 * 1024) return undefined;
+		const parsed = JSON.parse(source) as unknown;
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+		return validEndpoint((parsed as { endpoint?: unknown }).endpoint);
+	} catch {
+		return undefined;
+	}
+}
+
+function validEndpoint(value: unknown): string | undefined {
+	return typeof value === 'string' && value.length > 0 && value.length <= 2_048 ? value : undefined;
 }
 
 function positive(value: number | undefined, fallback: number): number {

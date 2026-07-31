@@ -128,7 +128,7 @@ function inferredToExplicit(
 			);
 	}
 	return Object.freeze({
-		title: 'Convert inferred task to explicit task',
+		title: 'Author inferred task policy',
 		semanticChange: 'none',
 		explanation:
 			'Expresses the compiler-normalized task policy and dependency snapshots explicitly. The service reanalyzes the proposed source before returning this plan.',
@@ -194,7 +194,7 @@ function explicitToInferred(
 			);
 	}
 	return Object.freeze({
-		title: 'Convert explicit task to inferred task',
+		title: 'Use inferred task policy',
 		semanticChange: 'none',
 		explanation:
 			'Restores concise awaited component source only for a blocking, resource-free task whose dependencies and signal use are reversible.',

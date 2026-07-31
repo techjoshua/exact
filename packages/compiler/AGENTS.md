@@ -8,6 +8,10 @@ clear assignment forms—including chained, compound, logical, tuple, and destru
 assignments—when they express the intended JavaScript semantics. Use a diagnostic instead of
 rewriting valid source around an unsupported or ambiguous form.
 
+Write diagnostic fixes in current function-defined task terminology. Never recommend authoring
+removed `this.task()` registrations; when compatibility parsing encounters that syntax, identify
+it as legacy and direct the author to a local function with final `TaskContext` policy when needed.
+
 Return a local arrow render function normally. A shared regular function is supported when
 multiple components genuinely share a view and need their component instance as `this`; do not
 return a shared arrow. Keep state writes, registration, scheduling, DOM mutation, and storage
@@ -32,8 +36,20 @@ project assignment entities at their precise state targets.
 Keep task selection ranges on their authored function identifier, not the
 whole property-access expression. Presentation clients must be able to add
 framework meaning without recoloring `this`, punctuation, or adjacent syntax.
-For explicit tasks, project only authored call arguments as activation
-dependencies. Do not promote callback reads or captures into dependencies.
+Treat awaits inside a function-defined task as suspension points of that task,
+not nested inferred-task entities. Retain symbol-resolved derived-binding reads
+in source inspection so presentation clients never reconstruct lexical identity
+from matching text.
+Treat setup-derived declarations as component-owned shared relationships and view-local
+declarations as region-owned presentation calculations. Elide an inferred setup cell only for a
+safe scalar or forwarded-identity calculation with one eager view consumer. Preserve cells for
+shared bindings, fresh identity allocations, deferred handlers, tasks, and explicit
+`this.reactive()` values, while retaining the authored definition and references in source
+inspection.
+For task functions with an authored final `TaskContext` policy parameter, project only authored
+call arguments as activation dependencies. Do not promote body reads or captures into
+dependencies. Treat the internal `explicit` origin discriminator as compatibility vocabulary, not
+as a separate public task model.
 For inferred tasks, preserve native authored dependency paths and deduplicate
 presentation without changing compiler scheduling.
 
@@ -54,7 +70,13 @@ through `activateTask(defineTask(...))`, lower invoked facades through `bindTask
 and lower calls after suspension through `invokeTask()` with the retained context. Preserve
 compiler-generated opaque operation identity, argument slots, generations, placement, optimism,
 and server/client artifact partitioning. Authored function names are labels, never dispatch
-authority. Do not transport `TaskContext`, DOM values, services, resources, or secrets.
+authority. Treat an authored final `TaskContext` as the server continuation's runtime context; do
+not append a second executor context parameter or expose the authored context as a callable task
+argument. Do not transport `TaskContext`, DOM values, services, resources, or secrets.
+Preserve automatic generation-signal injection for discoverable direct and options-object
+`AbortSignal` parameters, combining authored values instead of replacing them. Give only local,
+non-escaping known or typed disposable resources automatic generation ownership; diagnose an
+escape and leave opaque cleanup explicit.
 
 Treat defaults on non-context task parameters as captured argument initializers. Resolve omitted
 defaults once per generation under the runtime's untracked capture scope, preserve left-to-right

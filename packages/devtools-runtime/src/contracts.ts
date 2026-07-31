@@ -45,6 +45,10 @@ export interface ExactDevtoolsPageHook extends ExactInspectionQueryService {
 
 /** Options for one explicit page-world runtime installation. */
 export type ExactDevtoolsRuntimeOptions = Readonly<{
+	/**
+	 * Existing eXact server endpoint used for authorized debug cooperation. When omitted, the
+	 * runtime discovers only compiler-owned hydration metadata and otherwise remains client-only.
+	 */
 	endpoint?: string;
 	fetch?: typeof fetch;
 	buildKey?: string;

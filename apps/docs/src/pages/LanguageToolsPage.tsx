@@ -23,7 +23,7 @@ const inferredTaskSource = `export async function ProductPage(
   );
 }`;
 
-const explicitTaskSource = `export function ProductPage(
+const policyTaskSource = `export function ProductPage(
   this: Component<ProductState>,
   props: { productId: string }
 ) {
@@ -78,17 +78,17 @@ export function LanguageToolsPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="See what the compiler sees"
 			description="eXact Language Tools explains setup, render work, tasks, placement, dependencies, effects, and ownership while you edit—using the same native analysis that builds the application."
-			previous={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
+			previous={{ path: '/learn/server-execution', label: 'Server execution' }}
 			next={{ path: '/learn/devtools', label: 'Full-stack DevTools' }}
 		>
 			<section>
 				<h2>Compiler meaning at the source</h2>
 				<p>
 					The outer component function is setup-once initialization. The returned function is
-					reactive render work. Awaited state production becomes an inferred task, while an ordinary
-					local function with a final <code>TaskContext</code> declares explicit owned work. The
-					language server presents those as compiler regions instead of asking you to inspect
-					generated JavaScript.
+					reactive render work. Awaited state production becomes an inferred task. An ordinary local
+					function with a final <code>TaskContext</code> parameter is the same task model with
+					authored policy and access to its generation context. The language server presents both as
+					compiler regions instead of asking you to inspect generated JavaScript.
 				</p>
 				<CodeBlock source={inferredTaskSource} language="tsx" title="ProductPage.tsx" />
 				<p>
@@ -120,15 +120,18 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Make inference explicit—and reverse it safely</h2>
-				<p>For a simple inferred task, the compiler can plan this explicit form:</p>
-				<CodeBlock source={explicitTaskSource} language="tsx" title="Compiler-planned refactor" />
+				<h2>Author inferred policy—and reverse it safely</h2>
+				<p>
+					For a simple inferred task, the compiler can plan a named task function whose final{' '}
+					<code>TaskContext</code> parameter spells out the normalized policy:
+				</p>
+				<CodeBlock source={policyTaskSource} language="tsx" title="Compiler-planned refactor" />
 				<p>
 					The plan preserves placement, readiness, priority, dependency order, cancellation, state
 					publication, and diagnostics, then analyzes the proposed source in memory. The reverse
-					refactor is offered only when the explicit task has no resource, cleanup, external effect,
-					deliberate nonblocking policy, opaque signal use, or other semantic difference that
-					inference could not reproduce.
+					refactor is offered only when the task has no authored resource ownership, cleanup,
+					external effect, deliberate nonblocking policy, opaque signal use, or other semantic
+					difference that inference could not reproduce.
 				</p>
 			</section>
 			<section>
@@ -154,6 +157,11 @@ export function LanguageToolsPage(this: Component<{}>) {
 					squiggle behind.
 				</p>
 				<p>
+					Task diagnostics describe local task functions, activation sites, and final{' '}
+					<code>TaskContext</code> policy. Compatibility parsing can still recognize legacy task
+					registrations for migration, but fixes never recommend authoring the removed API.
+				</p>
+				<p>
 					Badges sit at token boundaries: before an assignment or immediately after a call's opening
 					parenthesis. <code>⚙</code> marks a specific one-time state initialization;{' '}
 					<code>⚡</code> on an assignment marks a deferred reactive calculation. Composable task
@@ -167,12 +175,18 @@ export function LanguageToolsPage(this: Component<{}>) {
 					inner-call parameter information.
 				</p>
 				<p>
-					Explicit-task hover lists only the arguments that activate the task, once and in source
-					order; values read inside its callback remain captures or effects. Inferred tasks show
-					compiler-discovered inputs using authored state paths and local destructured prop names,
-					never a synthetic identifier absent from the source. A reactive parameter default appears
-					separately as a captured input, making clear that it is sampled for a generation without
-					scheduling one.
+					The link badge follows a derived reactive assignment and precedes every compiler-resolved
+					use. Function-defined tasks select only their authored name; an <code>await</code> inside
+					the function remains a suspension point of that task rather than appearing as an embedded
+					inferred task.
+				</p>
+				<p>
+					Hover for a task with authored policy lists only the call arguments that activate it, once
+					and in source order; values read inside its body remain captures or effects. Inferred
+					tasks show compiler-discovered inputs using authored state paths and local destructured
+					prop names, never a synthetic identifier absent from the source. A reactive parameter
+					default appears separately as a captured input, making clear that it is sampled for a
+					generation without scheduling one.
 				</p>
 				<p>
 					Hovering a component JSX tag describes that referenced component rather than merely the
@@ -186,11 +200,10 @@ export function LanguageToolsPage(this: Component<{}>) {
 					sessions.
 				</p>
 				<p>
-					eXact semantic tokens preserve TypeScript's standard syntax classes: components remain
-					functions, explicit task and action identifiers are methods, and derived names are
-					variables. Keywords such as <code>return</code>, inferred <code>await</code> sites, JSX
-					tags, and surrounding property-access syntax stay entirely under TypeScript and the active
-					theme.
+					eXact semantic tokens preserve TypeScript's standard syntax classes: components and local
+					task functions remain functions, while derived names remain variables. Keywords such as{' '}
+					<code>return</code>, inferred <code>await</code> sites, JSX tags, and surrounding
+					property-access syntax stay entirely under TypeScript and the active theme.
 				</p>
 				<CodeBlock source={settingsSource} language="json" title="VS Code settings" />
 				<p>

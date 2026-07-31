@@ -339,6 +339,37 @@ const total = subtotal + (props.express ? 14 : 0);
 return () => <strong>{total}</strong>;
 ```
 
+Setup location describes a component-owned relationship. A derived cell caches
+one result for all of its DOM, component-prop, list, and task consumers and
+uses result equality to stop unchanged values from propagating farther through
+the graph. Keep a derived declaration in setup when several consumers should
+share one calculation, non-view work needs it, or an allocation must have one
+identity across its consumers.
+
+A safe declaration inside the returned view has a narrower owner:
+
+```tsx
+return () => {
+	const label = this.state.online ? `${this.state.name} · online` : this.state.name;
+	return <strong>{label}</strong>;
+};
+```
+
+The returned view does not rerun as a unit. The compiler materializes `label`
+inside the reactive DOM closure that consumes it so dependency changes cannot
+leave a first-render snapshot behind. This form, or a direct JSX expression,
+is appropriate for a cheap presentation calculation with one visual consumer.
+Separate DOM or prop boundaries do not implicitly share a view-local
+calculation.
+
+The compiler may elide the runtime cell for an ordinary setup-derived value
+when it is safe to reevaluate, has exactly one eager view consumer, and either
+produces a scalar or forwards an existing identity without allocating a new
+one. The calculation is fused into that consumer's reactive closure while its
+authored declaration remains the inspection definition. This optimization
+does not apply to shared bindings, fresh object or collection identities, task
+or event consumers, or values explicitly created with `this.reactive()`.
+
 The same rule applies when the result is assigned to state. The destination is
 an output and reads on the right are dependencies:
 
@@ -350,6 +381,10 @@ this.state.subtotal = this.state.quantity * this.state.price;
 Every target in setup-time reactive destructuring must be a writable state
 location so the results can publish as one derived-state transaction. A read
 of the same output path would form a feedback cycle and is rejected.
+
+The initial synchronous calculation settles before the component's first render
+and before required props are passed to child components. Later dependency
+changes publish through the same owned reactive computation.
 
 Use `peek()` to request a deliberate one-time snapshot:
 
@@ -372,7 +407,10 @@ refactors rather than textual source templates.
 ### Explicit reactive values
 
 `this.reactive()` creates a component-owned reactive value from a calculation,
-a value, or a tagged template:
+a value, or a tagged template. It is the deliberate form when the derived
+value itself is an API: it must be passed through another framework boundary,
+retain a first-class identity, or remain a durable cell rather than being
+eligible for inferred cell elision.
 
 ```tsx
 const fullName = this.reactive(() => `${this.state.first} ${this.state.last}`);

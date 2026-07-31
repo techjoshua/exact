@@ -39,6 +39,11 @@ status exposes `pending`, `pendingCount`, `generation`, `result`, `error`, and `
 owner-bound task function. Cleanup uses `task.cleanup()`, disposable resources use `task.own()`,
 and optimism mutates `this.state` synchronously through `task.optimistic()`.
 
+Callable task status aggregates every concurrency lane for its owner. Use
+`taskStatus(task, { key })` during durable setup for a stable key-scoped view;
+an uncreated or idle keyed lane reports empty status rather than inheriting
+another lane's pending state, result, or error.
+
 A reactive default on a non-context task parameter is an untracked captured
 input. The compiler resolves an omitted default once per generation and passes
 the result as an ordinary value; it does not subscribe the task to that read.

@@ -115,6 +115,42 @@ export function Summary(
 		}
 	});
 
+	it('retains symbol-resolved uses for derived reactive presentation', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		const source = `import type { Component } from '@exactjs/core';
+export function Summary(this: Component<{ price: number }>) {
+	const doubled = this.state.price * 2;
+	const label = String(doubled);
+	return () => (
+		<output>
+			{doubled} / {label}
+		</output>
+	);
+}`;
+		try {
+			await service.synchronize([{ kind: 'upsert', filename: 'Summary.tsx', version: 1, source }]);
+			const inspection = await service.inspect('Summary.tsx');
+			const doubled = inspection.components
+				.flatMap(flatten)
+				.find((entity) => entity.classification?.kind === 'derived' && entity.name === 'doubled');
+
+			expect(doubled?.classification).toMatchObject({
+				kind: 'derived',
+				references: [
+					{ start: source.indexOf('doubled', source.indexOf('const label')) },
+					{ start: source.indexOf('doubled', source.indexOf('return')) }
+				]
+			});
+			expect(
+				doubled?.classification?.kind === 'derived'
+					? doubled.classification.references.map((range) => source.slice(range.start, range.end))
+					: []
+			).toEqual(['doubled', 'doubled']);
+		} finally {
+			await service.dispose();
+		}
+	});
+
 	it('shows only authored activation dependencies for explicit tasks', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		const source = `import type { Component } from '@exactjs/core';
@@ -172,6 +208,41 @@ export function Workspace(this: Component<{ revision: number; draft: string }>) 
 				dependencies: [{ kind: 'state', path: 'this.state.revision' }],
 				capturedInputs: [{ parameter: 0, kind: 'state', path: 'this.state.draft' }]
 			});
+		} finally {
+			await service.dispose();
+		}
+	});
+
+	it('keeps function-defined task hover on its identifier and omits embedded awaits', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		const source = `import { TaskContext, type Component } from '@exactjs/core';
+export function Rates(this: Component<{ providers: unknown[] }>) {
+	const loadInitialRates = async (
+		url: string,
+		task: TaskContext = TaskContext.server().blocking()
+	) => {
+		const providers = await Promise.all(loadProviders(url, task.signal));
+		this.state.providers = providers;
+	};
+	loadInitialRates('/rates');
+	return () => null;
+}`;
+		try {
+			await service.synchronize([{ kind: 'upsert', filename: 'Rates.tsx', version: 1, source }]);
+			const inspection = await service.inspect('Rates.tsx');
+			const tasks = inspection.components
+				.flatMap(flatten)
+				.filter((entity) => entity.classification?.kind === 'task');
+
+			expect(tasks).toHaveLength(1);
+			expect(source.slice(tasks[0]!.selectionRange.start, tasks[0]!.selectionRange.end)).toBe(
+				'loadInitialRates'
+			);
+			expect(tasks[0]!.selectionRange.start).toBeGreaterThanOrEqual(tasks[0]!.range.start);
+			expect(tasks[0]!.selectionRange.end).toBeLessThanOrEqual(tasks[0]!.range.end);
+			expect(
+				tasks.some((task) => task.selectionRange.start === source.indexOf('await Promise.all'))
+			).toBe(false);
 		} finally {
 			await service.dispose();
 		}

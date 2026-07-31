@@ -23,6 +23,11 @@ npm run build:kanban
 - Component logging through `LoggerContext`.
 - Root framework logging through `render(..., { logger })`.
 
+Persistence is a synchronous client task activated by the serialized task
+collection. Reactive activations already supersede older generations, so the
+sample does not add invoked-task concurrency policy or manual lifecycle
+bookkeeping to that operation.
+
 ## User Flows
 
 - Add and remove cards.

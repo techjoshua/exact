@@ -46,6 +46,11 @@ variables. The server deliberately emits no token over keywords,
 inferred `await` sites, JSX tags, or whole property accesses, preventing eXact
 modifiers from replacing normal syntax highlighting.
 
+Derived reactive badges use the link symbol: one appears after the defining
+assignment and one before every compiler-resolved use. The server consumes
+those symbol-resolved ranges from compiler inspection and does not infer uses
+by matching identifier text.
+
 Important assignment and task facts are projected as composable inlay
 badges at token boundaries. Assignment badges precede the assignment; call
 badges follow its opening parenthesis. `⚙` marks a specific initialization and
@@ -56,8 +61,11 @@ vocabulary is `📋` task, `🖥` server, `📱` client, `⇄` isomorphic,
 Hover and optional region projections use entity selection ranges, never the
 whole containing initializer or task body. Component CodeLens is a compact
 count; operation details remain on their badges and focused hovers.
-Explicit-task hover lists only authored activation arguments, while inferred
-tasks use compiler-retained authored paths. Callback captures are not presented
-as extra task dependencies, and destructured props never appear as a synthetic
-`props` identifier. Reactive parameter defaults are reported separately as
-captured inputs with their parameter position.
+Function-defined tasks select only their authored name, and awaits within their
+work remain part of the owning task instead of appearing as child inferred tasks.
+Hover for a task with authored `TaskContext` policy lists only call-site
+activation arguments, while inferred tasks use compiler-retained authored
+paths. Body captures are not presented as extra task dependencies, and
+destructured props never appear as a synthetic `props` identifier. Reactive
+parameter defaults are reported separately as captured inputs with their
+parameter position.

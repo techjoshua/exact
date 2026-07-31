@@ -49,7 +49,8 @@ Active proposals:
 | Proposal                                                                                                | Scope                                                                                                                                                     |
 | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Unified function-defined tasks and structured task trees](proposals/unified-function-defined-tasks.md) | Replaces separate authored task/action APIs with compiler-recognized functions, one structured lifetime, unified tooling, and a future motion foundation. |
-| [Optional motion component library](proposals/motion-component-library.md)                              | Defines task-owned presence, element, list, layout, reduced-motion, and dependency-neutral router transition coordination.                                |
+| [Optional motion plugin](proposals/motion-plugin.md)                                                    | Defines plugin-owned `motion:*` JSX, context-scoped policy, task-owned presence and layout, and dependency-neutral router transition coordination.        |
+| [Plugin-owned JSX and renderer extensions](proposals/plugin-jsx-renderer-extensions.md)                 | Adds constrained JSX namespaces, compact descriptors, renderer lifecycle hooks, removal leases, optional fallback, and cross-host plugin tooling.         |
 
 ## Historical evidence
 

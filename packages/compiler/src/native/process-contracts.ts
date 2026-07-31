@@ -356,6 +356,8 @@ export type NativeCompilerReactiveBinding = Readonly<{
 	provenance: 'state' | 'props' | 'context' | 'derived' | 'cell' | 'snapshot' | 'unknown';
 	contextToken?: string;
 	dependencies: readonly string[];
+	definition: Readonly<{ start: number; length: number }>;
+	references: readonly Readonly<{ start: number; length: number }>[];
 	safeToReevaluate: boolean;
 	start: number;
 	length: number;

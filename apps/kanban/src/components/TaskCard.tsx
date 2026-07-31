@@ -9,8 +9,6 @@ type TaskCardProps = {
 /** Renders one draggable kanban task card. */
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 	const board = this.getContext(BoardContext);
-	const title = props.task.title;
-	const hasNotes = props.task.notes.trim().length > 0;
 	let drag:
 		| {
 				card: HTMLElement;
@@ -103,55 +101,59 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 
 	this.onUnmount(() => cancelPointerDrag('unmount'));
 
-	return () => (
-		<div
-			className="card"
-			data-task-id={props.task.id}
-			onMouseDown={(event) => {
-				this.log.debug('card mousedown', {
-					taskId: props.task.id,
-					target: targetName(event.target)
-				});
-			}}
-			onPointerDown={(event) => startPointerDrag(event)}
-			onPointerMove={(event) => movePointerDrag(event)}
-			onPointerUp={(event) => endPointerDrag(event)}
-			onPointerCancel={(event) => endPointerDrag(event)}
-			onLostPointerCapture={() => cancelPointerDrag('lostpointercapture')}
-		>
-			<span
-				className="drag-handle"
-				onClick={(event) => {
-					event.stopPropagation();
+	return () => {
+		const hasNotes = props.task.notes.trim().length > 0;
+
+		return (
+			<div
+				className="card"
+				data-task-id={props.task.id}
+				onMouseDown={(event) => {
+					this.log.debug('card mousedown', {
+						taskId: props.task.id,
+						target: targetName(event.target)
+					});
 				}}
+				onPointerDown={(event) => startPointerDrag(event)}
+				onPointerMove={(event) => movePointerDrag(event)}
+				onPointerUp={(event) => endPointerDrag(event)}
+				onPointerCancel={(event) => endPointerDrag(event)}
+				onLostPointerCapture={() => cancelPointerDrag('lostpointercapture')}
 			>
-				Drag
-			</span>
-			<p className="card-title">{title}</p>
-			{hasNotes ? <p className="card-notes">Has notes</p> : null}
-			<div className="card-actions">
-				<button
-					type="button"
-					className="secondary-button"
+				<span
+					className="drag-handle"
 					onClick={(event) => {
 						event.stopPropagation();
-						board.openTask(props.task);
 					}}
 				>
-					Notes
-				</button>
-				<button
-					type="button"
-					onClick={(event) => {
-						event.stopPropagation();
-						board.removeTask(props.task);
-					}}
-				>
-					Remove
-				</button>
+					Drag
+				</span>
+				<p className="card-title">{props.task.title}</p>
+				{hasNotes ? <p className="card-notes">Has notes</p> : null}
+				<div className="card-actions">
+					<button
+						type="button"
+						className="secondary-button"
+						onClick={(event) => {
+							event.stopPropagation();
+							board.openTask(props.task);
+						}}
+					>
+						Notes
+					</button>
+					<button
+						type="button"
+						onClick={(event) => {
+							event.stopPropagation();
+							board.removeTask(props.task);
+						}}
+					>
+						Remove
+					</button>
+				</div>
 			</div>
-		</div>
-	);
+		);
+	};
 }
 
 type DropPlacement = {

@@ -1,1 +1,1 @@
-chrome.devtools.panels.create('eXact', '', 'panel.html');
+chrome.devtools.panels.create('eXact', '', 'dist/panel.html');

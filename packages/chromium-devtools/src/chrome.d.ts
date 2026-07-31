@@ -9,6 +9,7 @@ declare namespace chrome {
 			disconnect(): void;
 		}
 		const onConnect: { addListener(listener: (port: Port) => void): void };
+		const lastError: { message?: string } | undefined;
 		function connect(options: { name: string }): Port;
 		function getURL(path: string): string;
 	}

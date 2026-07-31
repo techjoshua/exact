@@ -263,6 +263,54 @@ describe('language-server projections', () => {
 		});
 	});
 
+	it('links a derived declaration to each symbol-resolved use', () => {
+		const source = [
+			'function Page() {',
+			'\tconst doubled = this.state.count * 2;',
+			'\treturn () => <output>{doubled}</output>;',
+			'}'
+		].join('\n');
+		const inspection = fixture(source);
+		const declaration = sourceRange(source, 'doubled');
+		const use = sourceRange(source.slice(declaration.end), 'doubled');
+		const absoluteUse = {
+			start: declaration.end + use.start,
+			end: declaration.end + use.end
+		};
+		const initializer = inspection.components[0]!.children[0]!;
+		const derived: ExactSourceEntity = {
+			id: 'Page:derived:0',
+			kind: 'derived',
+			name: 'doubled',
+			range: declaration,
+			selectionRange: declaration,
+			children: [],
+			classification: {
+				kind: 'derived',
+				dependencies: [],
+				definition: sourceRange(source, 'this.state.count * 2'),
+				references: [absoluteUse]
+			},
+			reasons: []
+		};
+		const precise: ExactSourceInspection = {
+			...inspection,
+			components: [
+				{
+					...inspection.components[0]!,
+					children: [{ ...initializer, children: [derived] }]
+				}
+			]
+		};
+
+		const hints = projectInlayHints(precise, source);
+		expect(hints.map((hint) => hint.position)).toEqual([
+			{ line: 1, character: 37 },
+			{ line: 2, character: 23 }
+		]);
+		expect(hints.map((hint) => badgeValues(hint.label))).toEqual([['🔗'], ['🔗']]);
+	});
+
 	it('does not claim hover ownership across a containing function or task body', () => {
 		const source = 'function Page() { this.task(() => inner(value)); }';
 		const inspection = fixture(source);

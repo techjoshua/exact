@@ -2,7 +2,7 @@ import { connectExactDevtoolsAgent, type ExactCdpTransport } from '@exactjs/devt
 import type { ExactInspectionRequest, ExactInspectionResponse } from '@exactjs/devtools-protocol';
 import { describe, expect, it } from 'vitest';
 import type { ExactExtensionQueryClient } from './messages.js';
-import { loadExactDevtoolsPanelModel } from './panel-model.js';
+import { loadExactDevtoolsPanelModel } from './panel/model.js';
 
 describe('human and agent protocol parity', () => {
 	it('returns the same validated component projection to the panel and CDP agent', async () => {

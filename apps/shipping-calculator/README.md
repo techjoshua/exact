@@ -32,6 +32,12 @@ captured inputs. They are sampled once whenever the tracked revision activates
 a generation, so edits alone do not create an additional trigger and the
 generation uses one stable request snapshot.
 
+Route and carrier branches are attached child tasks. Each child awaits its own
+server operation and publishes independently, while the parent `latest()`
+generation owns cancellation and stale-write fencing. The component does not
+maintain a second revision fence or manually inspect cancellation after an
+await.
+
 The checked-in carrier responses under `src/providers/fixtures` are fabricated, sanitized contract fixtures and contain no account data. ZIP map points are built from the U.S. Census Bureau's 2025 ZCTA Gazetteer file; see `src/data/ATTRIBUTION.md`.
 
 Live smoke tests are intentionally outside normal CI. Set `RUN_LIVE_RATE_TESTS=1` only in a credentialed operator environment.

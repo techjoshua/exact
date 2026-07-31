@@ -22,9 +22,9 @@ the source reasons that selected server/client placement or blocking
 readiness. `broad` and `unknown` dependencies remain explicitly qualified.
 
 CodeLens and inlay hints are presentation preferences; disabling them does not
-change scheduling. Refactors between inferred and explicit task source are
-offered only when compiler reanalysis proves that readiness, priority,
-cancellation, publication, and exception behavior are preserved. See
+change scheduling. Refactors between compiler-inferred work and a named task function with
+authored `TaskContext` policy are offered only when compiler reanalysis proves that readiness,
+priority, cancellation, publication, and exception behavior are preserved. See
 [Compiler-aware language tools](language-tools.md).
 
 ## Scheduling

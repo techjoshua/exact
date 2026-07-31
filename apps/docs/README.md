@@ -9,6 +9,28 @@ server, VS Code presentation, and safe task refactors. Keep route metadata in
 `src/docs-manifest.ts` aligned with
 the engineering references under `docs` and with package-level READMEs.
 
+The tasks guide is the practical entry point for understanding task
+definitions, activations, and generations; seeing what the compiler infers;
+using `TaskContext` policy deliberately; understanding setup dependencies and
+captured inputs; distinguishing effects from results; composing scheduling
+policy; and separating JavaScript `async`/`await` from Suspense readiness.
+
+The Learn sequence introduces each feature from its ownership and compiler/runtime model before
+showing explicit APIs or configuration. Inferred ordinary TypeScript is the starting point;
+factories, task policy, generated machinery, and deployment controls follow the reason they are
+needed.
+The state guide distinguishes component-owned setup derivations from region-owned view
+calculations, including when the compiler can elide a safe single-consumer scalar or forwarded
+identity without changing the authored source definition.
+The DevTools guide presents the live component-instance tree and bounded Profiler capture with
+causal frames aggregated into per-component-type waterfall lanes, including reliable Stop-time
+finalization from retained event history.
+
+Native documentation components use function-defined tasks for transient UI
+work and register opaque subscriptions with `TaskContext.cleanup()`. Examples
+should rely on attached task generations and compiler stale-write fencing
+instead of teaching manual revision or post-await cancellation checks.
+
 ## Develop
 
 From the repository root:
@@ -17,7 +39,8 @@ From the repository root:
 npm run dev -w @exactjs/docs
 ```
 
-Development uses Vite and falls back from an empty document to the normal client render. The production build additionally prerenders the initial documentation route and hydrates that existing markup.
+Development uses Vite and mounts directly into its empty document root. The production build
+additionally prerenders the initial documentation route and hydrates that existing markup.
 
 The Vite integration uses the same native-only compiler path as generated applications. npm
 selects one platform-specific `exactc-native` package; the docs app does not carry a JavaScript

@@ -41,7 +41,8 @@ describe('@exactjs/compiler: transform', () => {
         return () => <section>{tasks.map(task => <p>{task.title}</p>)}</section>;
       }
     `);
-		expect(output).toContain('this.map(tasks');
+		expect(output).toContain('const __exact_tasks_1 = props.tasks;');
+		expect(output).toContain('this.map(__exact_tasks_1');
 		expect(output).toMatch(/\(?__exactItem_?\d*\)? => __exactItem_?\d*\.externalId/);
 	});
 
@@ -97,7 +98,7 @@ describe('@exactjs/compiler: transform', () => {
 		);
 	});
 
-	it('makes tracked callback calculations eligible for compiler-derived caching', () => {
+	it('makes tracked callback calculations eligible for single-consumer elision', () => {
 		const output = transform(`
       declare function select<T>(/** @exact track */ calculate: () => T): T;
       function View(this: Component<{ count: number }>) {
@@ -105,10 +106,9 @@ describe('@exactjs/compiler: transform', () => {
         return () => <p>{label}</p>;
       }
     `);
-		expect(output).toContain('createDerived as __exactDerived');
-		expect(output).toContain(
-			'const label = __exactDerived(() => select(() => `count ${this.state.count}`))'
-		);
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('const label =');
+		expect(output).toContain('const __exact_label_1 = select(() => `count ${this.state.count}`)');
 	});
 
 	it('uses one semantic component identity across analysis and emission', () => {
@@ -135,7 +135,9 @@ describe('@exactjs/compiler: transform', () => {
     }`,
 				{ filename: 'Panel.tsx' }
 			)
-		).toThrow('this.task() must be registered directly during component setup');
+		).toThrow(
+			'legacy task registrations must appear directly during component setup; migrate the work to a local task function'
+		);
 	});
 
 	it('preserves contextual event parameter types when lowering JSX', () => {
