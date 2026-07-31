@@ -26,7 +26,7 @@ describe('@exactjs/ssr streams', () => {
 		});
 		function Deferred(this: Component<{ value: string }>) {
 			this.state.value = 'shell';
-			this.task(async () => {
+			(this as any).task(async () => {
 				await taskReady;
 				this.state.value = 'settled';
 			});
@@ -78,7 +78,7 @@ describe('@exactjs/ssr streams', () => {
 		const abort = new AbortController();
 		let taskSignal: AbortSignal | undefined;
 		function Pending(this: Component<{}>) {
-			this.task(({ signal }) => {
+			(this as any).task(({ signal }: { signal: AbortSignal }) => {
 				taskSignal = signal;
 			});
 			return () => createVNode('p', null, 'pending');
@@ -125,7 +125,7 @@ describe('@exactjs/ssr streams', () => {
 		});
 		function Profile(this: Component<{ name: string }>) {
 			this.state.name = 'Loading';
-			this.task(async () => {
+			(this as any).task(async () => {
 				await taskReady;
 				this.state.name = 'Ada';
 			});
@@ -175,7 +175,7 @@ describe('@exactjs/ssr streams', () => {
 		});
 		function Profile(this: Component<{ name: string }>) {
 			this.state.name = 'Loading';
-			this.task(async () => {
+			(this as any).task(async () => {
 				await taskReady;
 				this.state.name = '</script><strong>Ada</strong>';
 			});
@@ -208,7 +208,7 @@ describe('@exactjs/ssr streams', () => {
 		});
 		function Status(this: Component<{ value: string }>) {
 			this.state.value = 'Loading';
-			this.task(async () => {
+			(this as any).task(async () => {
 				await taskReady;
 				this.state.value = 'Ready';
 			});

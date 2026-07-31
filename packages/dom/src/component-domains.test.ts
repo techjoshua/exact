@@ -2,8 +2,10 @@
  * @vitest-environment jsdom
  */
 import {
+	createCompiledVNode,
 	createComponentDomain,
 	createContext,
+	createExactRuntimeInspectionOwner,
 	createVNode,
 	currentComponentDomain,
 	withComponentDomain,
@@ -133,5 +135,22 @@ describe('component domain rendering', () => {
 
 		expect(unmount(container)).toBe(true);
 		expect(findNodeOwnerInstance(text)).toBeUndefined();
+	});
+
+	it('carries a root inspection domain through a compiled VNode cell', () => {
+		const container = document.createElement('div');
+		const inspection = createExactRuntimeInspectionOwner({
+			buildKey: 'compiled-root',
+			executionRoot: 'page'
+		});
+		function Panel() {
+			return () => createVNode('button', null, 'Inspect');
+		}
+
+		render(createCompiledVNode(Panel, null), container, { inspection });
+
+		const button = container.querySelector('button')!;
+		expect(findNodeOwnerInstance(button)?.domain.inspection).toBe(inspection);
+		unmount(container);
 	});
 });

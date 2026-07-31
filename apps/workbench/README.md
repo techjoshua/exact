@@ -13,6 +13,14 @@ The Kanban app proves drag, keyed lists, dialogs, context, and autosave. The wor
 - Context services: task mutations, logging, error reporting, and app-level actions.
 - Ref-heavy interactions: focus management, command palette, dialogs, and editor controls.
 
+The component owns state directly and exposes cohesive commands through
+`WorkbenchContext`. Autosave is a reactive task, so latest-wins activation is
+inherent, and `localStorage` makes client placement inferable. Its opaque
+Promise-based debounce adapter exposes an optional final `AbortSignal`; the
+compiler supplies the generation signal at the call and lowered awaits fence
+the continuation before storage or state can be updated. Compiler-known window
+listeners likewise receive owned cancellation without authored signal plumbing.
+
 ## Completion Pass
 
 The app now includes the planned v0 workbench behaviors:

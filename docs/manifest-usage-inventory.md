@@ -22,7 +22,7 @@ server component roots:
 const contract = composeExactExecutorContract([App], {
 	endpoint: '/__exact',
 	actions: {
-		save: defineExactActionContract('save', {
+		save: defineExactOperationContract('save', {
 			writes: [
 				/* ... */
 			]

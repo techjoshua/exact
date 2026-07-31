@@ -39,13 +39,19 @@ host it accepts. Without a configured origin, request URLs use the reserved
 ## Placement and residency
 
 Ordinary task placement is inferred from the APIs and values it uses.
-`this.task.server(...)` and `this.task.client(...)` are validated escape
-hatches when intent must be explicit.
+`TaskContext.server()` and `TaskContext.client()` policy defaults are validated
+escape hatches when intent must be explicit.
 
 Server residency is transitive through direct use. Reading a server-only
 context makes the consuming operation server-only. The client sends only
 compiler-selected, transport-safe dependencies; the server resolves its own
 contexts instead of accepting capability objects from the browser.
+
+A defaulted task parameter is resolved on the originating host before
+dispatch. Its captured value must therefore be shared and transport-safe;
+client-kept, server-kept, and secret values cannot cross into a server task
+through a captured default. Keep server-resident capabilities in server
+context and resolve them inside the continuation instead.
 
 ## Shared results
 

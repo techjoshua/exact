@@ -30,7 +30,7 @@ describe('@exactjs/ssr limits', () => {
 
 	it('bounds the wall-clock duration of tasks that never settle', async () => {
 		function Pending(this: Component<{}>) {
-			this.task(() => new Promise<void>(() => undefined));
+			(this as any).task(() => new Promise<void>(() => undefined));
 			return () => createVNode('p', null, 'Loading');
 		}
 

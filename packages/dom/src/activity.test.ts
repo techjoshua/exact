@@ -132,7 +132,7 @@ describe('@exactjs/dom native Activity', () => {
 		});
 		function Panel(this: Component<{ label: string }>) {
 			this.state.label = 'waiting';
-			this.task.blocking(async ({ signal }) => {
+			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
 				await taskAwait(signal, pending);
 				stageTaskMutation(signal, () => {
 					this.state.label = 'ready';

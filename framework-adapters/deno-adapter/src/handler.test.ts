@@ -1,4 +1,4 @@
-import { defineExactActionContract } from '@exactjs/server';
+import { defineExactOperationContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactDenoHandler } from './index.js';
 
@@ -41,7 +41,7 @@ describe('@exactjs/deno-adapter', () => {
 });
 
 function stateAction(id: string) {
-	return defineExactActionContract(id, {
+	return defineExactOperationContract(id, {
 		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 	});
 }

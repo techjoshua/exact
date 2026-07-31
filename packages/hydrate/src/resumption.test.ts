@@ -19,7 +19,7 @@ describe('@exactjs/hydrate component resumption', () => {
 		const implementation = function Search(this: Component<{ query: string; result: string }>) {
 			this.state.query = 'first';
 			this.state.result = 'waiting';
-			this.task(
+			(this as any).task(
 				this.reactive(() => this.state.query),
 				markComponentContinuationTask('task:search', async (query: string) => {
 					runs++;
@@ -119,7 +119,7 @@ describe('@exactjs/hydrate component resumption', () => {
 		}
 		const implementation = function Provider(this: Component<{}>) {
 			registerComponentContinuationContexts(this, [{ name: 'Status', token: Status }]);
-			this.task(
+			(this as any).task(
 				markComponentContinuationTask('task:status', () => {
 					runs++;
 					this.setContext(Status, { message: 'ready' });

@@ -84,3 +84,14 @@ Do not add `@exactjs/expressions`, `@typescript/native`, or a compiler backend o
 applications. Some optional build-time compatibility features may bring their own TypeScript 6
 API for a bounded transform, but that package is not the eXact compiler and should not replace the
 application's TypeScript 7 dependency.
+
+## Compiler-aware editor support
+
+The eXact VS Code extension runs `@exactjs/language-server` beside VS Code's
+ordinary TypeScript support. TypeScript continues to own completion, rename,
+navigation, formatting, and general type errors; the eXact server owns
+framework regions, inference reasons, diagnostics, and task refactors.
+
+Enable semantic compiler execution only in a trusted workspace. The language
+service is local and no-emit: it overlays unsaved text in memory and does not
+write generated project files.

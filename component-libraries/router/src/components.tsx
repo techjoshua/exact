@@ -153,16 +153,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 	this.setContext(RouteContext, routeContext);
 	this.setContext(RouterControllerContext, controller);
 
-	return () => {
-		void this.state.version;
-		const matches = controller.getSnapshot().matches;
-		return matches.length
-			? renderBranch(
-					matches.map((match) => match.route),
-					routeContext
-				)
-			: null;
-	};
+	return () => routerBranch(controller, routeContext, this.state.version);
 }
 
 /** Defines the properties accepted by route. */
@@ -254,6 +245,24 @@ function renderBranch(routes: RouteRecord[], context: RouteContextValue): Child 
 	return outlet;
 }
 
+/**
+ * Projects the current matched branch for one reactive router version.
+ * @exact pure
+ */
+function routerBranch(
+	controller: ExactRouter<RouteRecord>,
+	context: RouteContextValue,
+	_version: number
+): Child {
+	const matches = controller.getSnapshot().matches;
+	return matches.length
+		? renderBranch(
+				matches.map((match) => match.route),
+				context
+			)
+		: null;
+}
+
 function MatchedRoute(
 	this: Component<{}>,
 	props: { context: RouteContextValue; render: () => Child; children?: Child | Child[] }
@@ -318,14 +327,13 @@ export function Link(this: Component<{}>, props: LinkProps) {
 		route.navigate(props.to, { replace: props.replace, state: props.state });
 		return result;
 	};
-	return () => {
-		const { to, replace: _replace, state: _state, children, onClick: _onClick, ...rest } = props;
-		return createVNode(
+	const { to, replace: _replace, state: _state, children, onClick: _onClick, ...rest } = props;
+	return () =>
+		createVNode(
 			'a',
 			{ ...rest, href: route.href(to), onClick: click },
 			...(Array.isArray(children) ? children : children === undefined ? [] : [children])
 		);
-	};
 }
 
 /** Defines the properties accepted by nav link. */
@@ -336,20 +344,29 @@ export type NavLinkProps = LinkProps & {
 /** Performs the nav link domain operation. */
 export function NavLink(this: Component<{}>, props: NavLinkProps) {
 	const route = this.getContext(RouteContext);
-	return () => {
-		const href = route.href(props.to);
-		const publicPath = href.startsWith('#')
-			? (href.slice(1).split(/[?#]/)[0] ?? '/')
-			: new URL(href, 'http://exact.local').pathname;
-		const target = stripBasename(normalizePath(publicPath), route.basename);
-		const current = route.location.pathname;
-		const active = props.end
-			? current === target
-			: current === target || current.startsWith(`${target.replace(/\/$/, '')}/`);
-		const className =
-			typeof props.className === 'function' ? props.className(active) : props.className;
-		return createVNode(Link, { ...props, className, 'aria-current': active ? 'page' : undefined });
-	};
+	return () => createVNode(Link, { ...props, ...navLinkPresentation(route, props) });
+}
+
+/**
+ * Derives active-link presentation from the current route snapshot.
+ * @exact pure
+ */
+function navLinkPresentation(
+	route: RouteContextValue,
+	props: NavLinkProps
+): Pick<NavLinkProps, 'className'> & { 'aria-current': 'page' | undefined } {
+	const href = route.href(props.to);
+	const publicPath = href.startsWith('#')
+		? (href.slice(1).split(/[?#]/)[0] ?? '/')
+		: new URL(href, 'http://exact.local').pathname;
+	const target = stripBasename(normalizePath(publicPath), route.basename);
+	const current = route.location.pathname;
+	const active = props.end
+		? current === target
+		: current === target || current.startsWith(`${target.replace(/\/$/, '')}/`);
+	const className =
+		typeof props.className === 'function' ? props.className(active) : props.className;
+	return { className, 'aria-current': active ? 'page' : undefined };
 }
 
 /** Performs the navigate domain operation. */

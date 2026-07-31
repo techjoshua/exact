@@ -11,7 +11,7 @@ import (
 // collectSetupResourceTasks transfers directly invoked setup resources into
 // synthetic client tasks. Only standalone expression statements are eligible:
 // wrapping a value-producing declaration would change its lexical result, so
-// those cases are rejected and require explicit authored task ownership.
+// those cases are rejected and require a local task function with authored policy.
 func collectSetupResourceTasks(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
@@ -157,7 +157,7 @@ func setupResourceEscapeMessage(candidate resourceCandidate) string {
 		description = candidate.kind
 	}
 	return fmt.Sprintf(
-		"error: setup-created %s cannot be owned without changing its expression result; wrap its creation in this.task.client()",
+		"error: setup-created %s cannot be owned without changing its expression result; keep its creation local to a task function with a final TaskContext.client() policy",
 		description,
 	)
 }

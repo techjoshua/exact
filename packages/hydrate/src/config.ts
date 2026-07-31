@@ -342,17 +342,21 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 	const record = value as Record<string, unknown>;
 	return (
 		hasOnlyKeys(record, [
+			'kind',
 			'id',
 			'componentId',
 			'readiness',
 			'dependencies',
+			'invocation',
 			'stateReads',
 			'stateWrites',
 			'publicContexts',
 			'serverContexts',
 			'contextWrites',
+			'serverContextWrites',
 			'boundaries'
 		]) &&
+		(record.kind === undefined || record.kind === 'task' || record.kind === 'action') &&
 		typeof record.id === 'string' &&
 		typeof record.componentId === 'string' &&
 		(record.readiness === 'blocking' || record.readiness === 'nonblocking') &&
@@ -363,6 +367,8 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		isStringList(record.serverContexts) &&
 		record.serverContexts.length === 0 &&
 		isStringList(record.contextWrites) &&
+		(record.serverContextWrites === undefined || isStringList(record.serverContextWrites)) &&
+		(record.invocation === undefined || isContinuationInvocation(record.invocation)) &&
 		isStringList(record.boundaries)
 	);
 }
@@ -377,8 +383,27 @@ function isContinuationDependencies(value: unknown): boolean {
 				hasOnlyKeys(item as Record<string, unknown>, ['source']) &&
 				((item as Record<string, unknown>).source === 'state' ||
 					(item as Record<string, unknown>).source === 'props' ||
-					(item as Record<string, unknown>).source === 'derived')
+					(item as Record<string, unknown>).source === 'derived' ||
+					(item as Record<string, unknown>).source === 'argument')
 		)
+	);
+}
+
+function isContinuationInvocation(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	return (
+		hasOnlyKeys(record, ['arguments', 'concurrency']) &&
+		Array.isArray(record.arguments) &&
+		record.arguments.every(
+			(argument) =>
+				Boolean(argument && typeof argument === 'object' && !Array.isArray(argument)) &&
+				hasOnlyKeys(argument as Record<string, unknown>, ['source']) &&
+				(argument as Record<string, unknown>).source === 'argument'
+		) &&
+		(record.concurrency === 'parallel' ||
+			record.concurrency === 'latest' ||
+			record.concurrency === 'queue')
 	);
 }
 

@@ -52,6 +52,16 @@ const packageGroups: PackageGroup[] = [
 				purpose:
 					'Native analysis and artifacts for reactivity, actions, registries, placement, and the exactc CLI.'
 			},
+			{
+				name: '@exactjs/language-server',
+				purpose:
+					'No-emit compiler workspace ownership and standard LSP projections for eXact semantics.'
+			},
+			{
+				name: '@exactjs/vscode',
+				purpose:
+					'VS Code startup, trust, semantic presentation, region markers, and component views.'
+			},
 			{ name: '@exactjs/vite-plugin', purpose: 'Vite integration over the shared compiler.' },
 			{
 				name: '@exactjs/webpack-plugin',

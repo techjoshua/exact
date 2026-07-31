@@ -21,6 +21,11 @@ export function createComponentActivation(
 	const deactivate = (reason: string): void => {
 		if (!active) return;
 		active = false;
+		instance.domain.inspection?.publish({
+			kind: 'component.deactivate',
+			component: instance,
+			reason
+		});
 		instance.activationController?.abort(reason);
 		instance.activationController = undefined;
 		for (const handler of instance.deactivateHandlers) {
@@ -47,6 +52,11 @@ export function createComponentActivation(
 			}
 			if (active) return;
 			active = true;
+			instance.domain.inspection?.publish({
+				kind: 'component.activate',
+				component: instance,
+				reason
+			});
 			instance.activationController = new AbortController();
 			for (const handler of instance.activateHandlers) {
 				try {

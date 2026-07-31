@@ -42,7 +42,7 @@ describe('component testing', () => {
 	it('settles retained asynchronous component tasks', async () => {
 		function AsyncPanel(this: Component<{ ready: boolean }>) {
 			this.state.ready = false;
-			this.task(async () => {
+			(this as any).task(async () => {
 				await Promise.resolve();
 				this.state.ready = true;
 			});

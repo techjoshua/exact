@@ -38,15 +38,27 @@ async function collectSources(directory) {
 		if (
 			entry.name === 'node_modules' ||
 			entry.name === 'dist' ||
+			entry.name === '.exact' ||
 			entry.name === '.git' ||
 			entry.name === '.tmp'
 		)
 			continue;
 		const filename = path.join(directory, entry.name);
 		if (entry.isDirectory()) output.push(...(await collectSources(filename)));
-		else if (isExpressionCorpusSource(entry.name)) output.push(filename);
+		else if (
+			isExpressionCorpusSource(entry.name) &&
+			(await usesExpressionCorpusJSXRuntime(filename))
+		)
+			output.push(filename);
 	}
 	return output;
+}
+
+async function usesExpressionCorpusJSXRuntime(filename) {
+	if (!/\.[cm]?tsx$/i.test(filename)) return true;
+	const source = await readFile(filename, 'utf8');
+	const pragma = source.match(/@jsxImportSource\s+([^\s*]+)/)?.[1];
+	return !pragma || pragma.startsWith('@exactjs/');
 }
 
 async function expressionCorpusProject(root, config) {

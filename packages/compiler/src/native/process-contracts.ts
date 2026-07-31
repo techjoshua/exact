@@ -3,6 +3,7 @@ import type { NativeCompilerComponent } from './process-component-contracts.js';
 import type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
 import type { NativeCompilerPolicyManifest } from './process-policy-contracts.js';
 import type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
+import type { NativeCompilerTask } from './process-task-contracts.js';
 
 export type {
 	NativeCompilerModuleExportReplacement,
@@ -21,9 +22,14 @@ export type {
 	NativeCompilerSecretConsumer
 } from './process-policy-contracts.js';
 export type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
+export type {
+	NativeCompilerTask,
+	NativeCompilerTaskResource,
+	NativeCompilerTaskSignalCall
+} from './process-task-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.23.0';
+export const nativeCompilerProtocolVersion = '1.26.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -47,6 +53,8 @@ export type NativeCompilerRequest = Readonly<{
 	extensions?: Readonly<Record<string, unknown>>;
 	compatibilityExtensions?: Readonly<Record<string, readonly string[]>>;
 	moduleRewrite?: NativeCompilerModuleRewrite;
+	/** Adds compact source identity markers without retaining rich inspection metadata. */
+	instrumentInspection?: boolean;
 }>;
 
 /** Host-owned runtime brand adapter used for unproven JSX component values. */
@@ -204,6 +212,7 @@ export type NativeCompilerStateWrite = Readonly<{
 	component: string;
 	path: readonly string[];
 	operation: 'assignment' | 'update' | 'delete' | 'array-mutation';
+	setupExecution?: 'initialization' | 'deferred-reactive';
 	start: number;
 	length: number;
 }>;
@@ -223,36 +232,6 @@ export type NativeCompilerStateRead = Readonly<{
 	component: string;
 	path: readonly string[];
 	confidence: 'exact' | 'broad';
-	start: number;
-	length: number;
-}>;
-
-/** Describes one component task registration and its normalized facets. */
-export type NativeCompilerTask = Readonly<{
-	id: string;
-	component: string;
-	facets: readonly string[];
-	requestedPlacement?: 'client' | 'server';
-	priority: 'normal' | 'deferred';
-	readiness: 'blocking' | 'nonblocking';
-	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	async: boolean;
-	browserEffects: boolean;
-	serverEffects: boolean;
-	environmentEffect: 'neutral' | 'browser' | 'server' | 'mixed' | 'unknown';
-	reactiveDependencies: readonly string[];
-	dependencies: readonly Readonly<{
-		index: number;
-		source: 'state' | 'props' | 'context' | 'derived';
-		contextToken?: string;
-	}>[];
-	reads: readonly NativeCompilerStateEffect[];
-	writes: readonly NativeCompilerStateEffect[];
-	contexts: readonly NativeCompilerContextEffect[];
-	effectSources: readonly NativeCompilerEnvironmentEffectSource[];
-	resources: readonly NativeCompilerTaskResource[];
-	signalCalls: readonly NativeCompilerTaskSignalCall[];
-	diagnostics: readonly string[];
 	start: number;
 	length: number;
 }>;
@@ -309,31 +288,6 @@ export type NativeCompilerComponentResumption = Readonly<{
 		contexts: readonly string[];
 		boundaries: readonly string[];
 	}>;
-}>;
-
-/** Describes a resource owned by one native task generation. */
-export type NativeCompilerTaskResource = Readonly<{
-	kind:
-		| 'timeout'
-		| 'interval'
-		| 'animation-frame'
-		| 'idle-callback'
-		| 'fetch'
-		| 'observer'
-		| 'owned';
-	disposal?: string;
-	description?: string;
-	start: number;
-	length: number;
-}>;
-
-/** Describes a call that receives cancellation from its owning task. */
-export type NativeCompilerTaskSignalCall = Readonly<{
-	parameter: number;
-	mode: 'direct' | 'options';
-	eventOptions?: boolean;
-	start: number;
-	length: number;
 }>;
 
 /** Describes one context-token dependency discovered natively. */
@@ -402,6 +356,8 @@ export type NativeCompilerReactiveBinding = Readonly<{
 	provenance: 'state' | 'props' | 'context' | 'derived' | 'cell' | 'snapshot' | 'unknown';
 	contextToken?: string;
 	dependencies: readonly string[];
+	definition: Readonly<{ start: number; length: number }>;
+	references: readonly Readonly<{ start: number; length: number }>[];
 	safeToReevaluate: boolean;
 	start: number;
 	length: number;
@@ -418,6 +374,7 @@ export type NativeCompilerAnalysis = Readonly<{
 	reactiveBindings: readonly NativeCompilerReactiveBinding[];
 	callables: readonly NativeCompilerCallable[];
 	tasks: readonly NativeCompilerTask[];
+	actions?: readonly NativeCompilerAction[];
 	exports: readonly NativeCompilerExport[];
 	symbols: readonly NativeCompilerSymbol[];
 	boundaries: readonly NativeCompilerBoundary[];
@@ -428,6 +385,18 @@ export type NativeCompilerAnalysis = Readonly<{
 	requiredCapabilities: NativeCompilerCapabilityRequirements;
 	assets: readonly NativeCompilerAssetDependency[];
 	semanticGraph: NativeCompilerSemanticGraph;
+}>;
+
+/** Compiler-owned identity for one component action registration. */
+export type NativeCompilerAction = Readonly<{
+	id: string;
+	label: string;
+	component: string;
+	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
+	priority: 'normal' | 'deferred';
+	concurrency: 'parallel' | 'latest' | 'queue';
+	start: number;
+	length: number;
 }>;
 
 /** Process-safe component registry provenance emitted by the native compiler. */

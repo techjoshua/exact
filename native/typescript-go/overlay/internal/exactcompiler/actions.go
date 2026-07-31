@@ -12,18 +12,56 @@ import (
 // Action is the compiler-owned invocation contract for one explicit
 // component action registration.
 type Action struct {
-	ID          string
-	Label       string
-	Component   string
-	Placement   string
-	Priority    string
-	Concurrency string
-	Arguments   []TaskDependency
-	Reads       []StateEffect
-	Writes      []StateEffect
-	Contexts    []ContextEffect
-	Start       int
-	Length      int
+	ID              string
+	Label           string
+	Component       string
+	Placement       string
+	Priority        string
+	Concurrency     string
+	Arguments       []TaskDependency
+	Reads           []StateEffect
+	Writes          []StateEffect
+	Contexts        []ContextEffect
+	Start           int
+	Length          int
+	FunctionDefined bool
+	WorkStart       int
+	WorkLength      int
+}
+
+// invokedTaskActions adapts server operation generation to the unified task
+// definition model while the wire protocol retains its legacy discriminator.
+func invokedTaskActions(tasks []Task) []Action {
+	actions := []Action{}
+	for _, task := range tasks {
+		if !task.Invoked {
+			continue
+		}
+		action := Action{
+			ID:              task.ID,
+			Label:           "task",
+			Component:       task.Component,
+			Placement:       task.Placement,
+			Priority:        task.Priority,
+			Concurrency:     task.Concurrency,
+			Reads:           append([]StateEffect(nil), task.Reads...),
+			Writes:          append([]StateEffect(nil), task.Writes...),
+			Contexts:        append([]ContextEffect(nil), task.Contexts...),
+			Start:           task.WorkStart,
+			Length:          task.WorkLength,
+			FunctionDefined: true,
+			WorkStart:       task.WorkStart,
+			WorkLength:      task.WorkLength,
+		}
+		for index := 0; index < task.ArgumentCount; index++ {
+			action.Arguments = append(action.Arguments, TaskDependency{
+				Index:  index,
+				Source: "argument",
+			})
+		}
+		actions = append(actions, action)
+	}
+	return actions
 }
 
 // collectActions analyzes explicit action work with the same callable effect

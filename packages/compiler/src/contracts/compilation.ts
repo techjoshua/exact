@@ -1,5 +1,7 @@
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { ExactCompilerSession } from '../expression/project.js';
+import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type {
 	ExactArtifactGraph,
 	ExactArtifactGraphEntry,
@@ -54,9 +56,37 @@ export type CompileArtifactsOptions = {
 	packageType?: TransformOptions['packageType'];
 	packageName?: string;
 	capabilityPolicy?: TransformOptions['capabilityPolicy'];
+	/** Emits one target-neutral inspection result per authored module. */
+	emitInspection?: TransformOptions['emitInspection'];
+	/** Adds compact client-only correlation slots independently from catalog emission. */
+	instrumentInspection?: TransformOptions['instrumentInspection'];
+	/** Controls the server-only build catalog packaged from emitted module inspections. */
+	inspection?: ExactArtifactInspectionOptions;
 	/** Discovers manifests advertised by installed packages. Defaults to true. */
 	discoverPackageManifests?: boolean;
 };
+
+/** Configures packaging for one immutable, server-owned build inspection catalog. */
+export type ExactArtifactInspectionOptions = {
+	/** Immutable deployment identity. A deterministic content hash is used when omitted. */
+	buildKey?: string;
+	/** Runtime execution root represented by the catalog. Defaults to the root component ID. */
+	executionRoot?: string;
+	/** Root component type. Defaults to the first compiler-inspected component. */
+	rootComponentId?: string;
+	/** Project root used to make every retained source path relative. */
+	projectRoot?: string;
+	/** Optional server-private output path. Defaults under `.exact-inspection` in `outDir`. */
+	outputFile?: string;
+	producer?: Readonly<{ packageName?: string; version?: string }>;
+	redactions?: Partial<ExactInspectionRedactionCatalog>;
+};
+
+/** Target-neutral source inspection retained with a compiled artifact result. */
+export type ExactCompiledArtifactInspection = Readonly<{
+	inspectionFile?: string;
+	inspection: ExactSourceInspection;
+}>;
 
 /** Describes the result produced by compile artifacts. */
 export type CompileArtifactsResult = {
@@ -71,6 +101,7 @@ export type CompileArtifactsResult = {
 	server: TransformResult;
 	shared?: TransformResult;
 	manifest: ExactCompilerManifest;
+	inspection?: ExactCompiledArtifactInspection;
 };
 
 /** Defines the exact artifact graph input type contract. */
@@ -99,6 +130,8 @@ export type CompileArtifactPlanEntriesOptions = {
 	packageType?: TransformOptions['packageType'];
 	packageName?: string;
 	capabilityPolicy?: TransformOptions['capabilityPolicy'];
+	emitInspection?: TransformOptions['emitInspection'];
+	instrumentInspection?: TransformOptions['instrumentInspection'];
 	/** Discovers manifests advertised by installed packages. Defaults to true. */
 	discoverPackageManifests?: boolean;
 };

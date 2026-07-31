@@ -1,0 +1,32 @@
+{
+	"name": "@exactjs/devtools-runtime",
+	"version": "0.1.0",
+	"type": "module",
+	"files": [
+		"AGENTS.md",
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": true,
+	"dependencies": {
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/devtools-protocol": "^0.1.0",
+		"@exactjs/dom": "^0.1.0"
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

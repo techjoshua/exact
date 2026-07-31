@@ -62,18 +62,15 @@ export {
 	type ErrorBoundaryFallbackProps,
 	type ErrorBoundaryProps
 } from './component/error-boundary.js';
+export { interactionHandler, type InteractionHandler } from './component/action-contracts.js';
 export {
-	interactionHandler,
-	type ActionConcurrency,
-	type ActionContext,
-	type ActionPlacementRequest,
-	type ComponentAction,
-	type ComponentActionFactory,
-	type ComponentActionInspection,
-	type ComponentActionRegistration,
-	type InteractionHandler
-} from './component/action-contracts.js';
-export { inspectComponentActions } from './component/action-api.js';
+	createExactRuntimeInspectionOwner,
+	inspectExactRuntimeComponent,
+	type ExactRuntimeInspectionEventInput,
+	type ExactRuntimeInspectionOwner,
+	type ExactRuntimeInspectionOwnerOptions
+} from './component/inspection.js';
+export { markExactInspectionSource } from './component/inspection-source.js';
 export {
 	createCompiledComponentRegistry,
 	createComponentRegistry,
@@ -117,9 +114,6 @@ export type {
 	ComponentReactiveValue,
 	BlockingWork,
 	ComponentResumptionActivation,
-	ComponentTask,
-	ComponentTaskCallable,
-	ComponentTaskRegistration,
 	ContextToken,
 	ErrorContextValue,
 	ErrorReport,
@@ -138,7 +132,6 @@ export type {
 	RenderResult,
 	SuspensionContextValue,
 	TaskCleanup,
-	TaskContext,
 	TaskIdleDeadline,
 	TaskIdleOptions,
 	TaskObserver,
@@ -152,6 +145,27 @@ export type {
 	VNodeCell,
 	VNodeType
 } from './component/contracts.js';
+export { bindTask, bindTaskForHost, defineTask, invokeTask, taskStatus } from './tasks/runtime.js';
+export { activateTask, activateTaskForHost } from './tasks/activation.js';
+export { createTaskOwner } from './tasks/owners.js';
+export {
+	bindTaskCallback,
+	reserveTaskCallback,
+	runTaskContinuation,
+	trackTaskReads
+} from './tasks/continuations.js';
+export { TaskContext } from './tasks/public.js';
+export type {
+	BoundTaskFunction,
+	ReservedTaskCallback,
+	RuntimeTaskOptions,
+	TaskActivation,
+	TaskContextPolicy,
+	TaskFunction,
+	TaskInvocation,
+	TaskOwner,
+	TaskStatus
+} from './tasks/contracts.js';
 export {
 	createErrorContext,
 	createErrorReport,
@@ -213,6 +227,7 @@ export {
 } from './symbols.js';
 export { withTaskObserver } from './task/observers.js';
 export {
+	markComponentContinuationAction,
 	markComponentContinuationTask,
 	settledComponentContinuationIds
 } from './task/continuation.js';

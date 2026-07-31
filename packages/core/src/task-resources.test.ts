@@ -42,7 +42,7 @@ describe('@exactjs/core task-resources', () => {
 	it('rejects task registration after component setup', () => {
 		let registerLate!: () => void;
 		createComponentInstance(function Panel(this: Component<{}>) {
-			registerLate = () => this.task(() => undefined);
+			registerLate = () => (this as any).task(() => undefined);
 			return () => null;
 		}, {});
 		expect(registerLate).toThrow('this.task() must be registered during component setup');
@@ -73,7 +73,7 @@ describe('@exactjs/core task-resources', () => {
 		});
 		let continued: string | undefined;
 		const component = createComponentInstance(function Worker(this: Component<{}>) {
-			this.task(async ({ signal }) => {
+			(this as any).task(async ({ signal }: { signal: AbortSignal }) => {
 				continued = await taskAwait(signal, value);
 			});
 			return () => null;
@@ -97,7 +97,7 @@ describe('@exactjs/core task-resources', () => {
 		createComponentInstance(function Worker(this: Component<{ ready: boolean }>) {
 			instance = this;
 			this.state.ready = false;
-			this.task.blocking(async ({ signal }) => {
+			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
 				await Promise.resolve();
 				stageTaskMutation(signal, () => {
 					this.state.ready = true;
@@ -157,7 +157,7 @@ describe('@exactjs/core task-resources', () => {
 			instance = this;
 			this.state.errors = [];
 			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			this.task(({ signal }) => {
+			(this as any).task(({ signal }: { signal: AbortSignal }) => {
 				ownTaskResource(
 					signal,
 					{

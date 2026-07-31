@@ -234,7 +234,7 @@ describe('@exactjs/ssr documents-security', () => {
 	it('streams a settled Suspense range without replacing stable siblings', async () => {
 		function Options(this: Component<{ label: string }>) {
 			this.state.label = '';
-			this.task.blocking(async () => {
+			(this as any).task.blocking(async () => {
 				this.state.label = await Promise.resolve('Ground');
 			});
 			return () => createVNode('p', null, this.state.label);
@@ -287,7 +287,7 @@ describe('@exactjs/ssr documents-security', () => {
 		const abort = new AbortController();
 		const logs: unknown[] = [];
 		function Pending(this: Component<{}>) {
-			this.task(() => new Promise<void>(() => undefined));
+			(this as any).task(() => new Promise<void>(() => undefined));
 			return () => createVNode('p', null, 'Loading');
 		}
 		const reader = renderToDocumentStream(createVNode(Pending, {}), {

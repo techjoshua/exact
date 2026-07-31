@@ -326,6 +326,52 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).not.toContain('"actionBoundaries"');
 	});
 
+	it('registers resumable dual-root components for client hydration', async () => {
+		const root = await createTestWorkspace('exact-resumable-root-registration-');
+		const input = path.join(root, 'src', 'workspace.tsx');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`
+      import { TaskContext } from "@exactjs/core";
+
+      export function Workspace(this: Component<{ count: number }>) {
+        async function load(_task: TaskContext = TaskContext.server()) {
+          return 1;
+        }
+        async function refresh(_task: TaskContext = TaskContext.client()) {
+          localStorage.setItem("refreshing", "true");
+          this.state.count = await load();
+        }
+        void refresh();
+        return () => <output>{this.state.count}</output>;
+      }
+    `
+		);
+
+		const result = await compileFileArtifacts(input, {
+			outDir,
+			rootDir: path.join(root, 'src')
+		});
+		const graph = createExactArtifactGraph([result], {
+			packageRoot: root,
+			sourceRoot: path.join(root, 'src'),
+			rootDir: root
+		});
+		const symbol = result.manifest.symbols.find(
+			(candidate) => candidate.exportName === 'Workspace' && candidate.role === 'root'
+		)!;
+		const module = createExactHydrationRegistrationModule(graph);
+
+		expect(symbol.target).toBe('both');
+		expect(result.manifest.resumptions).toContainEqual(
+			expect.objectContaining({ componentId: symbol.componentId })
+		);
+		expect(module).toContain('import("./dist/workspace.exact.client.js")');
+		expect(module).toContain('.then((module) => module["Workspace"])');
+	});
+
 	it('includes component render edges in artifact graphs', async () => {
 		const root = await createTestWorkspace('exact-artifact-component-graph-');
 		const input = path.join(root, 'src', 'page.tsx');

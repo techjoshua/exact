@@ -1,33 +1,43 @@
 import {
+	bindTask,
+	createTaskOwner,
 	createComponentRegistry,
+	defineTask,
 	hasComponent,
 	renderComponent,
-	type ActionContext,
+	TaskContext,
+	type BoundTaskFunction,
 	type Component,
-	type ComponentAction,
 	type ComponentSelection,
 	type ComponentProps,
 	type KeyOf
 } from '@exactjs/core';
 
-declare const component: Component<Record<string, never>>;
-
-const contextFree = component.action('context free', async (value: string) => value.length);
-const contextFreeContract: ComponentAction<[string], number> = contextFree;
+const owner = createTaskOwner({ label: 'type-compatibility' });
+const contextFree = bindTask(
+	defineTask(
+		{ label: 'context free', owner },
+		async (value: string, _task: TaskContext) => value.length
+	),
+	{ owner }
+);
+const contextFreeContract: BoundTaskFunction<[string], number> = contextFree;
 const contextFreeResult: Promise<number> = contextFreeContract('value');
 
-const contextual = component.action(
-	'contextual',
-	async (value: string, { signal, generation }: ActionContext) => {
-		if (signal.aborted) return generation;
-		return value.length;
-	},
-	'latest'
+const contextual = bindTask(
+	defineTask(
+		{ label: 'contextual', owner, concurrency: 'latest' },
+		async (value: string, task: TaskContext) => {
+			if (task.signal.aborted) return task.generation;
+			return value.length;
+		}
+	),
+	{ owner }
 );
-const contextualContract: ComponentAction<[string], number> = contextual;
+const contextualContract: BoundTaskFunction<[string], number> = contextual;
 const contextualResult: Promise<number> = contextualContract('value');
-// @ts-expect-error ActionContext is runtime-injected and excluded from the public argument tuple.
-contextualContract('value', {} as ActionContext);
+// @ts-expect-error TaskContext is runtime-injected and excluded from authored arguments.
+contextualContract('value', TaskContext);
 
 function Summary(this: Component<Record<string, never>>, props: { summary: string }) {
 	return () => props.summary;

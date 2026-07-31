@@ -5,7 +5,10 @@ import type { FieldValue } from './contracts.js';
 export function childrenArray(children: Child | Child[] | undefined): Child[] {
 	return Array.isArray(children) ? children : children === undefined ? [] : [children];
 }
-/** Performs the merge ids domain operation. */
+/**
+ * Performs the merge ids domain operation.
+ * @exact pure
+ */
 export function mergeIds(...values: unknown[]): string | undefined {
 	const ids = values
 		.flatMap((value) => (typeof value === 'string' ? value.split(/\s+/) : []))

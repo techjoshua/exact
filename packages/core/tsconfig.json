@@ -6,7 +6,7 @@
 		"outDir": "dist",
 		"lib": ["ES2022"]
 	},
-	"references": [{ "path": "../reactive" }],
+	"references": [{ "path": "../devtools-protocol" }, { "path": "../reactive" }],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

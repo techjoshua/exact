@@ -24,7 +24,7 @@ describe('@exactjs/dom native Suspense', () => {
 		function AsyncPanel(this: Component<{ ready: boolean }>) {
 			panel = this;
 			this.state.ready = false;
-			this.task.blocking(async ({ signal }) => {
+			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
 				await pending;
 				stageTaskMutation(signal, () => {
 					this.state.ready = true;
@@ -69,7 +69,7 @@ describe('@exactjs/dom native Suspense', () => {
 		});
 
 		function Panel(this: Component<{}>, props: { label: string; pending: Promise<void> }) {
-			this.task.blocking(async () => {
+			(this as any).task.blocking(async () => {
 				await props.pending;
 			});
 			return () => createVNode('p', null, props.label);
@@ -109,9 +109,9 @@ describe('@exactjs/dom native Suspense', () => {
 			panel = this;
 			this.state.query = 'initial';
 			this.state.result = '';
-			this.task.blocking(
+			(this as any).task.blocking(
 				this.reactive(() => this.state.query),
-				async (query, { signal }) => {
+				async (query: string, { signal }: { signal: AbortSignal }) => {
 					if (query !== 'initial') await pending;
 					stageTaskMutation(signal, () => {
 						this.state.result = query;
@@ -145,7 +145,7 @@ describe('@exactjs/dom native Suspense', () => {
 	it('lets nested boundaries reveal their fallback without blocking the parent', () => {
 		const never = new Promise<void>(() => undefined);
 		function Pending(this: Component<{}>) {
-			this.task.blocking(async () => {
+			(this as any).task.blocking(async () => {
 				await never;
 			});
 			return () => createVNode('strong', null, 'inner ready');

@@ -2,7 +2,7 @@ import { createVNode, readExactComponentContract } from '@exactjs/core';
 import {
 	composeExactExecutorContract,
 	createExactHydrationConfig,
-	defineExactActionContract,
+	defineExactOperationContract,
 	handleExactRequest,
 	type ExactRequestLike
 } from '@exactjs/server';
@@ -22,7 +22,7 @@ if (!profileBoundaryId) throw new Error('ProfilePage is missing its generated cl
 export const exactContract = composeExactExecutorContract([ProfilePage], {
 	endpoint: '/__exact',
 	actions: {
-		'save-profile': defineExactActionContract('save-profile', {
+		'save-profile': defineExactOperationContract('save-profile', {
 			componentId: profileContract.id,
 			writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
 			boundaries: [profileBoundaryId]

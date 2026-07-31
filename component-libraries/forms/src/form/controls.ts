@@ -13,10 +13,8 @@ import { childrenArray, combineAsync, mergeIds } from './values.js';
 /** Performs the label domain operation. */
 export function Label(this: Component<{}>, props: LabelProps) {
 	const field = this.getContext(FieldContext);
-	return () => {
-		const { children, ...rest } = props;
-		return createVNode('label', { ...rest, htmlFor: field.id }, ...childrenArray(children));
-	};
+	const { children, ...rest } = props;
+	return () => createVNode('label', { ...rest, htmlFor: field.id }, ...childrenArray(children));
 }
 
 /** Defines the properties accepted by control. */
@@ -57,9 +55,9 @@ export function Checkbox(this: Component<{}>, props: CheckboxProps) {
 /** Renders the form-owned native submit control and its accessible pending presentation. */
 export function Submit(this: Component<{}>, props: SubmitProps) {
 	const form = this.getContext(FormContext);
-	return () => {
-		const { children, pendingText, ...rest } = props;
-		return createVNode(
+	const { children, pendingText, ...rest } = props;
+	return () =>
+		createVNode(
 			'button',
 			{
 				...rest,
@@ -69,7 +67,6 @@ export function Submit(this: Component<{}>, props: SubmitProps) {
 			},
 			...childrenArray(form.submitting && pendingText !== undefined ? pendingText : children)
 		);
-	};
 }
 
 for (const component of [Label, Input, Textarea, Select, Checkbox, Submit])
@@ -98,28 +95,25 @@ function controlComponent(
 	});
 	const input = (event: InputEvent) => combineAsync(props.onInput?.(event), field.input());
 	const blur = (event: FocusEvent) => combineAsync(props.onBlur?.(event), field.blur());
-	return () => {
-		const { children, ref: _ref, onInput: _input, onBlur: _blur, ...rest } = props;
-		const describedBy = mergeIds(
-			props['aria-describedby'],
-			...field.helpIds,
-			field.touched && field.error ? field.errorId : undefined
-		);
-		const invalid = field.touched && !!field.error ? true : props['aria-invalid'];
-		return createVNode(
+	const { children, ref: _ref, onInput: _input, onBlur: _blur, ...rest } = props;
+	return () =>
+		createVNode(
 			tag,
 			{
 				...rest,
 				id: props.id ?? field.id,
 				name: props.name ?? field.name,
 				required: props.required ?? field.required,
-				'aria-describedby': describedBy,
-				'aria-invalid': invalid,
+				'aria-describedby': mergeIds(
+					props['aria-describedby'],
+					...field.helpIds,
+					field.touched && field.error ? field.errorId : undefined
+				),
+				'aria-invalid': field.touched && !!field.error ? true : props['aria-invalid'],
 				ref: combined,
 				onInput: input,
 				onBlur: blur
 			},
 			...childrenArray(children)
 		);
-	};
 }

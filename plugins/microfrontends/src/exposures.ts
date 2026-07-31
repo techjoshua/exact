@@ -5,7 +5,7 @@ import {
 } from '@exactjs/compiler';
 import {
 	composeExactExecutorContract,
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract,
 	type ExactRemoteBuildRegistration,
 	type ExactServerContext
@@ -71,12 +71,12 @@ export function createExactRemoteBuildRegistration(
 
 /** Composes private executor authority from the selected build-time graph. */
 function exposureExecutorContract(graph: ExactArtifactGraph) {
-	const actions: Record<string, ReturnType<typeof defineExactActionContract>> = {};
+	const actions: Record<string, ReturnType<typeof defineExactOperationContract>> = {};
 	const boundaries: Record<string, ReturnType<typeof defineExactBoundaryContract>> = {};
 	for (const artifact of graph.artifacts) {
 		for (const [id, action] of Object.entries(artifact.manifest.serverActions)) {
 			const continuation = artifact.manifest.continuations.find((entry) => entry.id === id);
-			actions[id] = defineExactActionContract(id, {
+			actions[id] = defineExactOperationContract(id, {
 				componentId: action.componentId,
 				reads: action.stateContract.reads,
 				writes: action.stateContract.writes,

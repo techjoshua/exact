@@ -1,6 +1,5 @@
 import {
 	createTextVNode,
-	getCellVNode,
 	isCellVNode,
 	isVNode,
 	type Child,
@@ -8,6 +7,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { peek } from '@exactjs/reactive';
+import { getOwnedCellVNode } from './cells.js';
 import type { Mounted } from './types.js';
 
 /** Stops mounted children that cannot be reused by an upcoming replacement patch. */
@@ -161,7 +161,7 @@ function canPatchMounted(mounted: Mounted, next: VNode): boolean {
 		return previousChild
 			? canPatchMounted(
 					previousChild,
-					peek(() => getCellVNode(next))
+					peek(() => getOwnedCellVNode(next))
 				)
 			: false;
 	}

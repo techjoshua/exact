@@ -70,6 +70,43 @@ Use Bun's `target: "bun"` with eXact's `target: "server"` for a server bundle. T
 only compiles modules that require an eXact transform; ordinary JavaScript and TypeScript continue
 through Bun's native loaders.
 
+### Optional full-stack DevTools
+
+Vite, Webpack, and Bun derive independent inspection outputs from the top-level eXact config or
+their adapter `debug` option:
+
+```ts
+export default defineConfig({
+	debug: {
+		catalog: 'auto',
+		runtime: 'auto'
+	}
+});
+```
+
+`catalog` is rich server-only metadata; `runtime` is compact browser correlation and the page hook.
+Development uses `'auto'`. A paired production client/server build must deliberately enable both
+and use the same immutable `buildKey` and `executionRoot`. A hardened build sets both to `false`.
+Do not put `allowDebug`, credentials, source contents, or secret values in build config.
+
+Register the emitted catalog with the server context and authorize runtime sessions separately:
+
+```ts
+const server = createExactServerRuntime({
+	contract,
+	inspectionCatalogs: [inspectionCatalog],
+	allowDebug: async ({ platformRequest, capability }) =>
+		await authorizeDebugger(platformRequest, capability),
+	debugSessionIdentity: ({ platformRequest }) => authenticatedOperatorId(platformRequest)
+});
+```
+
+All debug messages use the configured eXact endpoint. Remote microfrontends use the existing
+binding gateway and independently authorize child sessions. Read the installed
+`@exactjs/devtools-protocol`, `@exactjs/devtools-runtime`, Chromium extension, or agent guidance
+before exposing a consumer. Do not add mutation methods, arbitrary evaluation, a second component
+host route, or browser-credential forwarding.
+
 ## Renderers and clients
 
 - Use `@exactjs/dom` to mount a client-rendered tree.

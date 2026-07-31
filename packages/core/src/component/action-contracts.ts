@@ -53,12 +53,14 @@ export type ComponentActionFactory = ComponentActionRegistration & {
 
 /** Immutable diagnostic snapshot of one component-owned action resource. */
 export type ComponentActionInspection = Readonly<{
+	sourceEntityId?: string;
 	name: string;
 	concurrency: ActionConcurrency;
 	placement: ActionPlacementRequest;
 	priority: 'normal' | 'deferred';
 	pending: boolean;
 	pendingCount: number;
+	optimistic: boolean;
 	generation: number;
 	result: unknown;
 	error: unknown;

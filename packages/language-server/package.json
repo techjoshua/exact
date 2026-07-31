@@ -1,0 +1,41 @@
+{
+	"name": "@exactjs/language-server",
+	"version": "0.1.0",
+	"type": "module",
+	"files": [
+		"AGENTS.md",
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"bin": {
+		"exact-language-server": "./dist/server.js"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./server": {
+			"types": "./dist/server.d.ts",
+			"default": "./dist/server.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"@exactjs/compiler": "^0.1.0",
+		"vscode-languageserver": "^9.0.1",
+		"vscode-languageserver-textdocument": "^1.0.12"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.2",
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
+	},
+	"scripts": {
+		"build": "tsc6 -b",
+		"test": "vitest run --maxWorkers=4"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

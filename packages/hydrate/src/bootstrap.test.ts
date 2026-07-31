@@ -94,3 +94,30 @@ it('decodes keyed hydration collection envelopes into ordinary arrays', () => {
 	expect(Array.isArray((config.state as any).records)).toBe(true);
 	expect(Object.keys((config.state as any).records)).toEqual(['0', '1']);
 });
+
+it('retains generated action invocation metadata from serialized hydration config', () => {
+	const continuation = {
+		kind: 'action' as const,
+		id: 'action:quote',
+		componentId: 'component:Workspace',
+		readiness: 'nonblocking' as const,
+		dependencies: [{ source: 'argument' as const }],
+		invocation: {
+			arguments: [{ source: 'argument' as const }],
+			concurrency: 'parallel' as const
+		},
+		stateReads: [],
+		stateWrites: [],
+		publicContexts: [],
+		serverContexts: [],
+		contextWrites: [],
+		serverContextWrites: [],
+		boundaries: []
+	};
+	const root = document.createElement('div');
+	root.innerHTML = renderHydrationScript({
+		continuations: { [continuation.id]: continuation }
+	});
+
+	expect(readExactHydrationConfig(root).continuations?.[continuation.id]).toEqual(continuation);
+});

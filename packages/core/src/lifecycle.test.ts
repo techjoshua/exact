@@ -41,10 +41,12 @@ describe('@exactjs/core lifecycle', () => {
 
 		function Search(this: Component<{ query: string }>) {
 			this.state.query = 'a';
-			this.reactive(() => this.state.query).task((query, { signal }) => {
-				expect(typeof query).toBe('string');
-				signal.addEventListener('abort', () => aborts.push(true));
-			});
+			(this.reactive(() => this.state.query) as any).task(
+				(query: string, { signal }: { signal: AbortSignal }) => {
+					expect(typeof query).toBe('string');
+					signal.addEventListener('abort', () => aborts.push(true));
+				}
+			);
 			return () => null;
 		}
 
@@ -64,7 +66,7 @@ describe('@exactjs/core lifecycle', () => {
 
 		const instance = createComponentInstance(function Search(this: Component<{ query: string }>) {
 			this.state.query = 'a';
-			this.reactive(() => this.state.query).task((query) => {
+			(this.reactive(() => this.state.query) as any).task((query: string) => {
 				starts.push(query);
 				return query === 'a' ? () => cleanupFinished : undefined;
 			});
@@ -89,10 +91,12 @@ describe('@exactjs/core lifecycle', () => {
 
 		const instance = createComponentInstance(function Search(this: Component<{ query: string }>) {
 			this.state.query = 'a';
-			this.reactive(() => this.state.query).task((query, { signal }) => {
-				starts.push(query);
-				if (query === 'a') ownTaskResource(signal, { close: () => closed }, 'close');
-			});
+			(this.reactive(() => this.state.query) as any).task(
+				(query: string, { signal }: { signal: AbortSignal }) => {
+					starts.push(query);
+					if (query === 'a') ownTaskResource(signal, { close: () => closed }, 'close');
+				}
+			);
 			return () => null;
 		}, {});
 
@@ -118,7 +122,7 @@ describe('@exactjs/core lifecycle', () => {
 
 		const instance = createComponentInstance(function Search(this: Component<{ query: string }>) {
 			this.state.query = 'a';
-			this.reactive(() => this.state.query).task((query) => {
+			(this.reactive(() => this.state.query) as any).task((query: string) => {
 				starts.push(query);
 				return query === 'a' ? first : undefined;
 			});
@@ -167,7 +171,7 @@ describe('@exactjs/core lifecycle', () => {
 
 		expect(() =>
 			createComponentInstance(function Broken(this: Component<{}>) {
-				this.task(() => taskCleanup);
+				(this as any).task(() => taskCleanup);
 				this.onUnmount(unmountCleanup);
 				throw new Error('construct failed');
 			}, {})

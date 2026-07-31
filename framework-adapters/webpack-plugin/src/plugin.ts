@@ -1,6 +1,5 @@
 import {
 	exactExportConditions,
-	resolveExactArtifactImport,
 	transformSource,
 	type ExactAssetRule,
 	type ExactCompilerManifest,
@@ -17,24 +16,42 @@ import {
 	type ExactProfileSink
 } from '@exactjs/instrumentation';
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
 	jsxSourceOwnership,
 	resolveReactCompatibility,
-	validateInstalledReactReconciler,
-	type ReactCompatibilityOptions,
-	type ResolvedReactCompatibility
+	type ReactCompatibilityOptions
 } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
 import {
 	createWebpackCompilerSession,
+	clearWebpackInspectionModules,
 	disposeWebpackCompilerSession,
 	replaceWebpackCompilerSession,
-	webpackCompilerSession
+	webpackCompilerSession,
+	recordWebpackInspectionModule,
+	webpackInspectionCatalog
 } from './sessions.js';
 import { webpackCompatibilityEngine } from './react-compatibility.js';
 import { shouldTransformWebpackModule, webpackTransformTarget } from './transform-selection.js';
+import {
+	addWebpackConditions,
+	addWebpackReactAliases,
+	applyExactWebpackResolver
+} from './resolver.js';
+import {
+	appendWebpackDevtoolsBootstrap,
+	resolveWebpackDebug,
+	webpackDebugEnabled
+} from './devtools.js';
+export {
+	addWebpackConditions,
+	addWebpackReactAliases,
+	applyExactWebpackResolver,
+	resolveExactWebpackRequest
+} from './resolver.js';
 
 /** Configures exact webpack plugin. */
 export type ExactWebpackPluginOptions = {
@@ -54,6 +71,21 @@ export type ExactWebpackPluginOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
+	/** Independent server catalog and compact runtime controls. */
+	debug?: ExactWebpackDebugOptions;
+	/** @internal Loader-owned compiler session identity. */
+	__exactSessionId?: string;
+};
+
+/** Higher-level Webpack controls for server-cooperative DevTools output. */
+export type ExactWebpackDebugOptions = {
+	catalog?: boolean | 'auto';
+	runtime?: boolean | 'auto';
+	buildKey?: string;
+	executionRoot?: string;
+	rootComponentId?: string;
+	producer?: Readonly<{ packageName?: string; version?: string }>;
+	redactions?: Partial<ExactInspectionRedactionCatalog>;
 };
 
 /** Reports an observable exact webpack profile event. */
@@ -137,6 +169,19 @@ export type WebpackCompilerLike = {
 		};
 		watchClose?: { tap?(name: string, handler: () => void): void };
 		shutdown?: { tap?(name: string, handler: () => void): void };
+		thisCompilation?: {
+			tap?(
+				name: string,
+				handler: (compilation: {
+					hooks?: {
+						processAssets?: {
+							tap?(options: { name: string }, handler: () => void): void;
+						};
+					};
+					emitAsset?(filename: string, source: { source(): string; size(): number }): void;
+				}) => void
+			): void;
+		};
 	};
 	getInfrastructureLogger?(name: string): { warn(message: string): void };
 };
@@ -180,8 +225,38 @@ export class ExactWebpackPlugin {
 		if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
 		compiler.options.module ??= {};
 		compiler.options.module.rules ??= [];
-		compiler.options.module.rules.push(createExactWebpackRule(this.options, owned.id));
+		const development = Boolean(compiler.watchMode || compiler.options.watch);
+		const buildOptions = {
+			...this.options,
+			debug: resolveWebpackDebug(this.options.debug, development)
+		};
+		if (
+			!development &&
+			(buildOptions.debug.catalog === true || buildOptions.debug.runtime === true) &&
+			!buildOptions.debug.buildKey
+		)
+			throw new Error(
+				'eXact production DevTools output requires one explicit immutable debug.buildKey'
+			);
+		compiler.options.module.rules.push(createExactWebpackRule(buildOptions, owned.id));
+		if (buildOptions.target === 'server') {
+			compiler.hooks?.thisCompilation?.tap?.('ExactWebpackPlugin', (compilation) => {
+				compilation.hooks?.processAssets?.tap?.({ name: 'ExactWebpackPlugin' }, () => {
+					const catalog = webpackInspectionCatalog(owned.id, {
+						applicationRoot: buildOptions.applicationRoot,
+						...buildOptions.debug
+					});
+					if (!catalog || !compilation.emitAsset) return;
+					const contents = `${JSON.stringify(catalog, null, 2)}\n`;
+					compilation.emitAsset(`.exact-inspection/${catalog.buildKey}.json`, {
+						source: () => contents,
+						size: () => Buffer.byteLength(contents)
+					});
+				});
+			});
+		}
 		compiler.hooks?.watchRun?.tap?.('ExactWebpackPlugin', (current) => {
+			clearWebpackInspectionModules(owned.id);
 			if (this.options.diagnostics === undefined) configureDiagnostics(true);
 			const modified = [...(current.modifiedFiles ?? [])];
 			const removed = new Set(current.removedFiles ?? []);
@@ -255,10 +330,22 @@ export function transformExactWebpackSource(
 			assetRules: options.assetRules,
 			preserveClientAssetImports: true,
 			pluginRegistry: options.pluginRegistry,
-			jsxInterop: compatibilityEngine?.jsxInterop
+			jsxInterop: compatibilityEngine?.jsxInterop,
+			emitInspection: options.target === 'server' && webpackDebugEnabled(options.debug?.catalog),
+			instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
 		});
+		if (result.inspectionCatalog)
+			recordWebpackInspectionModule(options.__exactSessionId, filename, source, {
+				inspection: result.inspectionCatalog,
+				manifest: result.manifest,
+				debug: options.debug
+			});
+		const code =
+			options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)
+				? appendWebpackDevtoolsBootstrap(result.code, options.debug)
+				: result.code;
 		return {
-			code: result.code,
+			code,
 			map: result.map
 		};
 	} catch (error) {
@@ -297,7 +384,8 @@ export async function transformExactWebpackSourceAsync(
 		filename,
 		{
 			...options,
-			pluginRegistry: registry.compiler
+			pluginRegistry: registry.compiler,
+			debug: options.debug ?? registry.config?.debug
 		},
 		session
 	);
@@ -315,92 +403,4 @@ function importedManifestsFor(options: {
 	manifestFiles?: readonly string[];
 }): ExactCompilerManifest[] {
 	return loadExactImportedManifests(options);
-}
-
-/** Resolves a webpack import request for a .exact facade to a target artifact. */
-export function resolveExactWebpackRequest(
-	request: string,
-	importer: string | undefined,
-	options: ExactWebpackPluginOptions = {}
-): string | null {
-	return resolveExactArtifactImport(request, importer, webpackTransformTarget(options))?.id ?? null;
-}
-
-/** Installs .exact facade resolution into a webpack resolver. */
-export function applyExactWebpackResolver(
-	resolver: WebpackResolverLike,
-	options: ExactWebpackPluginOptions = {}
-): WebpackResolverLike {
-	const resolveHook = resolver.getHook?.('resolve') ?? resolver.hooks?.resolve;
-	const targetHook = resolver.ensureHook?.('resolved') ?? resolveHook;
-	resolveHook?.tapAsync?.('ExactWebpackPlugin', (request, context, callback) => {
-		if (!request.request) {
-			callback();
-			return;
-		}
-		const importer = request.path ? path.join(request.path, '__exact_importer.ts') : undefined;
-		if (request.request === 'react-reconciler') {
-			const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
-			if (reactCompatibility) {
-				try {
-					validateInstalledReactReconciler(
-						reactCompatibility.target,
-						request.path ?? process.cwd()
-					);
-				} catch (error) {
-					callback(error instanceof Error ? error : new Error(String(error)));
-					return;
-				}
-			}
-		}
-		const resolved = resolveExactWebpackRequest(request.request, importer, options);
-		if (!resolved) {
-			callback();
-			return;
-		}
-		const nextRequest = {
-			...request,
-			request: resolved
-		};
-		if (resolver.doResolve && targetHook) {
-			resolver.doResolve(
-				targetHook,
-				nextRequest,
-				'resolved eXact target artifact',
-				context,
-				callback
-			);
-			return;
-		}
-		callback(null, nextRequest);
-	});
-	return resolver;
-}
-
-/** Prepends eXact export conditions to webpack's conditionNames list. */
-export function addWebpackConditions(
-	compiler: WebpackCompilerLike,
-	conditions: readonly string[]
-): void {
-	compiler.options.resolve ??= {};
-	const current = compiler.options.resolve.conditionNames ?? [];
-	compiler.options.resolve.conditionNames = [
-		...conditions,
-		...current.filter((condition) => !conditions.includes(condition))
-	];
-}
-
-/** Performs the add webpack react aliases domain operation. */
-export function addWebpackReactAliases(
-	compiler: WebpackCompilerLike,
-	resolved: ResolvedReactCompatibility
-): void {
-	compiler.options.resolve ??= {};
-	const current = compiler.options.resolve.alias ?? {};
-	compiler.options.resolve.alias = {
-		...Object.fromEntries(
-			Object.entries(resolved.aliases).map(([request, replacement]) => [`${request}$`, replacement])
-		),
-		...current
-	};
 }

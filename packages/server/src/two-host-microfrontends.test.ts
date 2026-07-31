@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createExactBindingGateway,
-	defineExactActionContract,
+	defineExactOperationContract,
 	handleExactRequest
 } from './index.js';
 import { context } from './test-support/server.js';
@@ -176,7 +176,7 @@ function actionContract(id: string) {
 	return {
 		version: 1 as const,
 		actions: {
-			[id]: defineExactActionContract(id, {
+			[id]: defineExactOperationContract(id, {
 				writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 			})
 		},

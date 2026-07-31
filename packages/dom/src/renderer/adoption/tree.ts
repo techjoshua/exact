@@ -3,7 +3,6 @@ import {
 	createComponentInstance,
 	Dynamic,
 	Fragment,
-	getCellVNode,
 	isCellVNode,
 	normalizeRenderResult,
 	renderInstance,
@@ -18,6 +17,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
+import { getOwnedCellVNode } from '../../cells.js';
 import {
 	getComponentProps,
 	getListBinding,
@@ -178,7 +178,7 @@ export function adoptStaticMountedInner(
 		const end = nodes[endIndex] as Comment;
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
 		const initial = isCellVNode(vnode)
-			? [getCellVNode(vnode)]
+			? [getOwnedCellVNode(vnode)]
 			: normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]);
 		const children = adoptStaticChildren(
 			root,

@@ -19,6 +19,7 @@ export function createSsrOwner(): {
 		observer: {
 			register(promise) {
 				const observed = promise.finally(() => pending.delete(observed));
+				void observed.catch(() => undefined);
 				pending.add(observed);
 			},
 			retain(instance) {

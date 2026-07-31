@@ -35,6 +35,33 @@ describe('@exactjs/server streaming', () => {
 		]);
 	});
 
+	it('retains continuation return values in the terminal operation event', async () => {
+		const result = await handleExactRequest(
+			{
+				method: 'POST',
+				headers: { accept: 'application/x-ndjson' },
+				body: { type: 'action', id: 'allowed-action' }
+			},
+			context({
+				actions: {
+					'allowed-action': () => ({ value: { status: 'ready' } })
+				}
+			})
+		);
+
+		expect(await readStreamEvents(result.stream!)).toContainEqual({
+			event: 'result',
+			version: 1,
+			index: 0,
+			result: {
+				ok: true,
+				type: 'action',
+				id: 'allowed-action',
+				value: { status: 'ready' }
+			}
+		});
+	});
+
 	it('aborts dispatched work when the response stream reader is cancelled', async () => {
 		let started!: () => void;
 		const didStart = new Promise<void>((resolve) => {

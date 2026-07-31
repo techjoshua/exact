@@ -1,4 +1,5 @@
 import type { ContextToken } from './component/contracts.js';
+import type { TaskContext } from './tasks/contracts.js';
 
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
@@ -64,6 +65,7 @@ export type ExactComponentContinuationActivation = Readonly<{
 
 /** Trusted invocation resources available only while a server continuation executes. */
 export type ExactComponentContinuationExecution = Readonly<{
+	task: TaskContext;
 	signal: AbortSignal;
 	getContext<T>(token: ContextToken<T>, authoredName?: string): T;
 	setContext<T>(token: ContextToken<T>, value: T, authoredName?: string): void;

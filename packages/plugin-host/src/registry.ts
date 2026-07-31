@@ -37,6 +37,7 @@ export interface PrepareExactPluginRegistryOptions {
 /** Defines the exact prepared plugin registry interface contract. */
 export interface ExactPreparedPluginRegistry {
 	readonly applicationRoot: string;
+	readonly config?: ExactConfig;
 	readonly configPath?: string;
 	readonly environment: string;
 	readonly hostMode: ExactPluginHostMode;
@@ -146,6 +147,7 @@ async function prepareUncached(
 		}
 		const registry: ExactPreparedPluginRegistry = Object.freeze({
 			applicationRoot: options.applicationRoot,
+			...(config ? { config } : {}),
 			configPath: options.configPath,
 			environment: options.environment,
 			hostMode: options.hostMode,

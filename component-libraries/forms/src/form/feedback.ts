@@ -10,10 +10,8 @@ export function FieldHelp(this: Component<{}>, props: FieldHelpProps) {
 	const helpId = peek(() => (typeof props.id === 'string' ? props.id : field.nextHelpId()));
 	this.onMount(() => field.registerHelp(helpId));
 	this.onUnmount(() => field.unregisterHelp(helpId));
-	return () => {
-		const { children, ...rest } = props;
-		return createVNode('span', { ...rest, id: helpId }, ...childrenArray(children));
-	};
+	const { children, ...rest } = props;
+	return () => createVNode('span', { ...rest, id: helpId }, ...childrenArray(children));
 }
 
 /** Defines the properties accepted by field error. */

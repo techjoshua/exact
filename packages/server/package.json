@@ -22,6 +22,7 @@
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",
+		"@exactjs/devtools-protocol": "^0.1.0",
 		"@exactjs/instrumentation": "^0.1.0",
 		"@exactjs/request": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",

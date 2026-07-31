@@ -34,18 +34,19 @@ const sequentialSource = `async function CustomerOrders(
   return () => <Orders state={this.state} />;
 }`;
 
-const explicitTaskSource = `function ShippingOptions(
+const policyTaskSource = `function ShippingOptions(
   this: Component<ShippingState>
 ) {
-  this.task.blocking(
-    this.reactive(() => this.state.destination),
-    async (destination, { signal }) => {
-      const options = await getOptions(destination, { signal });
+  async function loadOptions(
+    destination: string,
+    task: TaskContext = TaskContext.client().latest().blocking()
+  ) {
+      const options = await getOptions(destination, { signal: task.signal });
 
       // Conceptually staged until this blocking generation commits.
       this.state.options = options;
-    }
-  );
+  }
+  loadOptions(this.state.destination);
 
   return () => <Options options={this.state.options} />;
 }`;
@@ -72,18 +73,28 @@ const activitySource = `function Workspace(this: Component<{ tab: Tab }>) {
 }`;
 
 const schedulingSource = `// Normal owned work.
-this.task(() => refreshStatus());
+function refresh(task: TaskContext = TaskContext.client()) {
+  return refreshStatus(task.signal);
+}
+refresh();
 
 // Lower-priority preparation. Placement remains compiler-inferred.
-this.task.deferred(() => precomputePreview(this.state.document));
+function prepare(document: Document, task: TaskContext = TaskContext.deferred()) {
+  return precomputePreview(document);
+}
+prepare(this.state.document);
 
 // Unawaited work that deliberately blocks the nearest Suspense boundary.
-this.task.blocking(async () => {
+async function loadCatalogTask(task: TaskContext = TaskContext.blocking()) {
   this.state.catalog = await loadCatalog();
-});
+}
+loadCatalogTask();
 
 // Placement, priority, and readiness facets compose.
-this.task.server.deferred.blocking(() => warmRecommendations());`;
+function warm(task: TaskContext = TaskContext.server().deferred().blocking()) {
+  return warmRecommendations();
+}
+warm();`;
 
 /** Documents async component continuations, readiness, retention, and scheduling. */
 export function AsyncInterfacesPage(this: Component<{}>) {
@@ -92,15 +103,44 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="Async components as ordinary value flow"
 			description="Await ordinary operations into state, coordinate readiness with Suspense, retain inactive mounted trees with Activity, and choose lower-priority work without introducing a rerender loop."
-			previous={{ path: '/learn/actions', label: 'Actions & optimistic state' }}
+			previous={{ path: '/learn/component-registries', label: 'Component registries' }}
 			next={{ path: '/learn/server-execution', label: 'Server execution' }}
 		>
 			<section>
+				<h2>Async syntax is shorthand for owned task work</h2>
+				<p>
+					An eXact component does not become a promise-returning rerender function. It remains a
+					durable instance with synchronous setup and a returned render function. When setup awaits
+					a value that flows into <code>this.state</code>, the compiler moves that continuation into
+					an owned task generation and reconnects its successful state publication to the instance.
+				</p>
+				<p>Keep three independent decisions separate:</p>
+				<ul>
+					<li>
+						<strong>Suspension:</strong> <code>await</code> pauses this generation until a result is
+						available while retaining cancellation and stale-work fencing.
+					</li>
+					<li>
+						<strong>Priority:</strong> immediate, normal, or deferred policy determines when
+						eligible work runs.
+					</li>
+					<li>
+						<strong>Readiness:</strong> blocking or nonblocking policy determines whether the
+						nearest Suspense boundary waits.
+					</li>
+				</ul>
+				<p>
+					These often appear together, but none implies the others. An awaited task can be
+					nonblocking; unawaited work can deliberately block readiness; and deferred work can still
+					be blocking.
+				</p>
+			</section>
+			<section>
 				<h2>Await a result into state</h2>
 				<p>
-					An eXact component remains a synchronous, durable instance at runtime. The compiler can
-					accept an <code>async</code> component and turn its setup continuation into owned,
-					restartable work when awaited results flow into component state.
+					The concise form lets the authored component read as ordinary value flow. The assignment
+					names the durable state destination, while the awaited expression supplies the value for
+					the current generation.
 				</p>
 				<CodeBlock source={awaitedTaskSource} language="tsx" title="ShippingOptions.tsx" />
 				<p>
@@ -132,13 +172,14 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>The explicit form is still available</h2>
+				<h2>Name the task when you need authored policy</h2>
 				<p>
 					The compiler lowers ordinary awaited assignments through the same task machinery. Use the
-					explicit form when you want to name a dependency, receive the signal yourself, force
-					placement, or select a scheduling policy.
+					named function form with a final <code>TaskContext</code> parameter when you want to make
+					activation inputs visible, receive the generation signal yourself, constrain placement, or
+					select scheduling policy.
 				</p>
-				<CodeBlock source={explicitTaskSource} language="tsx" title="Explicit readiness task" />
+				<CodeBlock source={policyTaskSource} language="tsx" title="Task with authored readiness" />
 				<Callout title="Why some awaited forms are compiler errors">
 					<p>
 						Values needed by the returned render function must be assigned to{' '}

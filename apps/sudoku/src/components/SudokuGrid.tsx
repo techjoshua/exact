@@ -86,7 +86,6 @@ type CellButtonProps = {
 /** Renders one stable grid cell with value, notes, and accessible state. */
 function CellButton(this: Component<{}>, props: CellButtonProps) {
 	const game = this.getContext(SudokuContext);
-	const label = cellLabel(props.cell, props.conflict);
 
 	return () => (
 		<button
@@ -98,7 +97,7 @@ function CellButton(this: Component<{}>, props: CellButtonProps) {
 			className:is-peer={props.peer}
 			className:is-matching={props.matching}
 			className:is-conflict={props.conflict}
-			aria-label={label}
+			aria-label={cellLabel(props.cell, props.conflict)}
 			aria-selected={props.selected}
 			disabled={props.paused}
 			tabIndex={props.selected ? 0 : -1}

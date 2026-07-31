@@ -1,0 +1,24 @@
+{
+	"name": "@exactjs/chromium-devtools",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"manifest.json",
+		"dist"
+	],
+	"scripts": {
+		"build": "tsc -b && node build.mjs",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@exactjs/devtools-protocol": "^0.1.0"
+	},
+	"devDependencies": {
+		"@exactjs/devtools-agent": "^0.1.0",
+		"@exactjs/devtools-runtime": "^0.1.0",
+		"esbuild": "0.27.2"
+	}
+}

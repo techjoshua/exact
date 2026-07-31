@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"files": [
+		"AGENTS.md",
 		"dist",
 		"!dist/**/*.test.*"
 	],
@@ -16,6 +17,7 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
+		"@exactjs/devtools-protocol": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0"
 	},
 	"scripts": {

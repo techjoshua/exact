@@ -8,52 +8,48 @@ type RateCardProps = {
 };
 
 /** Renders a provider quote, its delivery promise, features, and price breakdown. */
-export function RateCard(this: Component<{}>, props: RateCardProps) {
+export function RateCard(this: Component<{}>, { quote, best, refreshing }: RateCardProps) {
 	return () => (
 		<article
 			className="rate-card"
-			className:incompatible={!props.quote.compatible}
-			className:refreshing={props.refreshing}
+			className:incompatible={!quote.compatible}
+			className:refreshing={refreshing}
 		>
 			<div className="rate-main">
 				<div className="carrier-row">
-					<span className={['carrier-logo', props.quote.providerId]}>
-						{carrierInitials(props.quote.providerId)}
+					<span className={['carrier-logo', quote.providerId]}>
+						{carrierInitials(quote.providerId)}
 					</span>
 					<div>
 						<p>
-							{props.quote.providerName}
-							<span className={['source', props.quote.source]}>
-								{props.quote.source === 'mock'
-									? 'Fictional'
-									: props.quote.accountRate
-										? 'Account'
-										: 'Live'}
+							{quote.providerName}
+							<span className={['source', quote.source]}>
+								{quote.source === 'mock' ? 'Fictional' : quote.accountRate ? 'Account' : 'Live'}
 							</span>
 						</p>
-						<h3>{props.quote.serviceName}</h3>
+						<h3>{quote.serviceName}</h3>
 					</div>
 				</div>
 				<div className="delivery">
 					<small>Estimated delivery</small>
-					<strong>{deliveryLabel(props.quote)}</strong>
-					{props.quote.delivery.guaranteed ? <span>Guaranteed</span> : null}
+					<strong>{deliveryLabel(quote)}</strong>
+					{quote.delivery.guaranteed ? <span>Guaranteed</span> : null}
 				</div>
 				<div className="price">
 					<small>Total estimate</small>
-					<strong>{money(props.quote.totalPriceCents)}</strong>
-					{props.best ? <span className="best">Best value</span> : null}
+					<strong>{money(quote.totalPriceCents)}</strong>
+					{best ? <span className="best">Best value</span> : null}
 				</div>
 			</div>
 			<div className="feature-row">
-				{props.quote.features.map((feature) => (
+				{quote.features.map((feature) => (
 					<Feature feature={feature} />
 				))}
 			</div>
 			<details className="breakdown">
 				<summary>Price details</summary>
 				<dl>
-					{props.quote.charges.map((charge) => (
+					{quote.charges.map((charge) => (
 						<>
 							<dt>{charge.name}</dt>
 							<dd>{money(charge.amountCents)}</dd>
@@ -61,7 +57,7 @@ export function RateCard(this: Component<{}>, props: RateCardProps) {
 					))}
 				</dl>
 			</details>
-			{props.quote.warnings.map((warning) => (
+			{quote.warnings.map((warning) => (
 				<p className="quote-warning">{warning}</p>
 			))}
 		</article>

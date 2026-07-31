@@ -22,7 +22,7 @@ export const CatalogRepositoryContext =
   });`;
 
 /** Authored eXact component used by the compiler tour. */
-export const compilerTourAuthoredSource = `import type { Component } from '@exactjs/core';
+export const compilerTourAuthoredSource = `import { TaskContext, type Component } from '@exactjs/core';
 import {
   CatalogRepositoryContext,
   type Product
@@ -44,22 +44,29 @@ export function CatalogEditor(this: Component<CatalogState>) {
   this.state.subtotal =
     this.state.quantity * (this.state.selected?.price ?? 0);
 
-  this.task.deferred(async () => {
+  async function searchCatalog(
+    query: string,
+    task: TaskContext = TaskContext.server().latest().deferred()
+  ) {
     // This request-scoped context contains the database/API client.
     // Its use makes this continuation server-only.
     const catalog = this.getContext(CatalogRepositoryContext);
-    const query = this.state.query;
     const products = query
-      ? await catalog.search(query)
+      ? await catalog.search(query, { signal: task.signal })
       : [];
 
     this.state.products = products;
-  });
+  }
+  searchCatalog(this.state.query);
 
-  this.task(() => {
+  function updateTitle(
+    selectedName: string | undefined,
+    task: TaskContext = TaskContext.client().latest()
+  ) {
     // Use of document makes this ordinary task client-only.
-    document.title = this.state.selected?.name ?? 'Catalog';
-  });
+    document.title = selectedName ?? 'Catalog';
+  }
+  updateTitle(this.state.selected?.name);
 
   return () => (
     <section>
@@ -109,6 +116,8 @@ export function CatalogEditor(this: Component<CatalogState>) {
  */
 export const compilerTourGeneratedClientSource = `import {
   createExpression as __exactExpression,
+  activateTask as __exactActivateTask,
+  defineTask as __exactDefineTask,
   createDynamicChild as __exactDynamic,
   createCompiledVNode as __exactVNode,
   dispatchComponentContinuation as __exactDispatchContinuation,
@@ -128,9 +137,8 @@ export function CatalogEditor(this: Component<CatalogState>) {
   // A derived assignment becomes an owned computation:
   // - quantity and selected.price are dependencies;
   // - subtotal is the effect written by the computation.
-  this.task(
-    this.reactive(() => this.state.quantity),
-    this.reactive(() => this.state.selected?.price),
+  __exactActivateTask(__exactDefineTask(
+    { label: 'derived subtotal', concurrency: 'latest' },
     __exactContinuationTask(
       '<derived-subtotal>',
       (quantity: number, selectedPrice: number | undefined) => {
@@ -141,11 +149,14 @@ export function CatalogEditor(this: Component<CatalogState>) {
         );
       }
     )
+  ),
+    this.reactive(() => this.state.quantity),
+    this.reactive(() => this.state.selected?.price)
   );
 
   // The server body becomes a small transport stub. Only query is captured.
-  this.task.deferred(
-    this.reactive(() => this.state.query),
+  __exactActivateTask(__exactDefineTask(
+    { label: 'searchCatalog', priority: 'deferred', concurrency: 'latest' },
     __exactContinuationTask(
       '<catalog-search>',
       (query: string, { signal: __exactSignal }) =>
@@ -157,14 +168,18 @@ export function CatalogEditor(this: Component<CatalogState>) {
           []
         )
     )
+  ),
+    this.reactive(() => this.state.query),
   );
 
   // The browser-only task remains local and observes only selected.name.
-  this.task(
-    this.reactive(() => this.state.selected?.name),
+  __exactActivateTask(__exactDefineTask(
+    { label: 'updateTitle', placement: 'client', concurrency: 'latest' },
     (selectedName: string | undefined) => {
       document.title = selectedName ?? 'Catalog';
     }
+  ),
+    this.reactive(() => this.state.selected?.name),
   );
 
   return () => /* generated view below */;

@@ -1,5 +1,5 @@
-import { type VNode } from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive';
+import { readExactComponentContract, type VNode } from '@exactjs/core';
+import { peek, unwrap } from '@exactjs/reactive';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
 import { markerId, markerPair } from '../markup.js';
@@ -30,6 +30,65 @@ export function renderServerBoundary(context: SsrContext, vnode: VNode): string 
 	// represented as server slots so the client bundle does not need server-only code.
 	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"${hydration ? ` data-exact-client-hydration="${hydration}" data-exact-client-generation="1"` : ''}>${children}</div>`;
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
+}
+
+/** Wraps one SSR-rendered resumable component in its eager client activation boundary. */
+export function renderResumableComponentBoundary(
+	context: SsrContext,
+	vnode: VNode,
+	id: string,
+	html: string,
+	props: Record<string, unknown>
+): string {
+	if (typeof vnode.type !== 'function') return markerPair(context, id, () => html);
+	const contract = readExactComponentContract(vnode.type);
+	if (!contract?.resumption) return markerPair(context, id, () => html);
+	const name =
+		contract.implementations.find((implementation) => implementation.role === 'root')?.name ??
+		componentName(vnode.type);
+	const snapshot = peek(() => snapshotResumptionProps(props));
+	const unsafePath = jsonUnsafePath(snapshot);
+	if (unsafePath) throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
+	const payload = serializeHydrationPayload({ props: snapshot });
+	const boundary = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(payload)}" data-exact-client-resumption="true">${html}</div>`;
+	return markerPair(context, markerId(context, 'client-boundary', name, id), () => boundary);
+}
+
+/** Detaches resumable boundary props from reactive proxies without invoking accessors. */
+function snapshotResumptionProps(
+	value: Record<string, unknown>,
+	seen = new WeakMap<object, unknown>()
+): Record<string, unknown> {
+	return snapshotResumptionValue(value, seen) as Record<string, unknown>;
+}
+
+function snapshotResumptionValue(value: unknown, seen: WeakMap<object, unknown>): unknown {
+	const raw = unwrap(value);
+	if (!raw || typeof raw !== 'object') return raw;
+	if (!Array.isArray(raw) && Object.getPrototypeOf(raw) !== Object.prototype) return raw;
+	const previous = seen.get(raw);
+	if (previous) return previous;
+	const output: unknown[] | Record<string, unknown> = Array.isArray(raw) ? [] : {};
+	seen.set(raw, output);
+	for (const key of Object.keys(raw)) {
+		const descriptor = Object.getOwnPropertyDescriptor(raw, key);
+		if (!descriptor) continue;
+		if (!('value' in descriptor)) {
+			Object.defineProperty(output, key, {
+				configurable: true,
+				enumerable: true,
+				get: descriptor.get
+			});
+			continue;
+		}
+		Object.defineProperty(output, key, {
+			configurable: true,
+			enumerable: true,
+			writable: true,
+			value: snapshotResumptionValue(descriptor.value, seen)
+		});
+	}
+	return output;
 }
 
 /** Transforms server boundary async into its required representation. */

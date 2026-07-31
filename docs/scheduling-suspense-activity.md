@@ -6,6 +6,27 @@ runtime.
 These facilities extend eXact's setup-once, fine-grained reactive model. They
 do not introduce a component rerender loop.
 
+## Language-tool presentation
+
+eXact Language Tools displays task origin, placement, readiness, and priority
+at the task's authored source range. A blocking inferred server task may appear
+as:
+
+```text
+Inferred blocking server task · props.productId → state.product
+```
+
+Hover and the Component Semantics tree add dependencies, effects, staged or
+immediate publication, supplied cancellation, resource ownership, cleanup, and
+the source reasons that selected server/client placement or blocking
+readiness. `broad` and `unknown` dependencies remain explicitly qualified.
+
+CodeLens and inlay hints are presentation preferences; disabling them does not
+change scheduling. Refactors between compiler-inferred work and a named task function with
+authored `TaskContext` policy are offered only when compiler reanalysis proves that readiness,
+priority, cancellation, publication, and exception behavior are preserved. See
+[Compiler-aware language tools](language-tools.md).
+
 ## Scheduling
 
 Reactive and task work uses three priorities:
@@ -14,11 +35,15 @@ Reactive and task work uses three priorities:
 - `normal` for ordinary reactive invalidation and tasks; and
 - `deferred` for preparation that may yield to user-visible work.
 
-Use `this.task.deferred(...)` when timing is a deliberate policy. Placement,
-priority, and readiness compose:
+Use an explicit final `TaskContext` default when timing is a deliberate policy.
+Placement, priority, and readiness compose:
 
 ```ts
-this.task.server.deferred.blocking(() => warmRecommendations());
+function warmRecommendations(task: TaskContext = TaskContext.server().deferred().blocking()) {
+	// server preparation
+}
+
+warmRecommendations();
 ```
 
 Deferred work changes when a generation runs. `blocking` changes whether the
@@ -48,9 +73,8 @@ destructuring may publish several state locations atomically. Framework
 cancellation bypasses authored catches so obsolete work cannot commit an
 application fallback, while `finally` still runs for cleanup.
 
-Explicit `this.task()` remains the form for external effects, cleanup,
-nonblocking work, manually named dependencies, placement, or scheduling
-policy.
+Explicit `TaskContext` policy remains the form for external effects, cleanup,
+nonblocking work, manually named dependencies, placement, or scheduling.
 
 ## Suspense
 

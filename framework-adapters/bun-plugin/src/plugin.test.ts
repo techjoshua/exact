@@ -1,4 +1,5 @@
-import { rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -36,6 +37,92 @@ describe('@exactjs/bun-plugin', () => {
 			sources: ['/src/view.tsx'],
 			sourcesContent: ['const view = <span />;']
 		});
+	});
+
+	it('derives compact runtime instrumentation independently from hardened output', () => {
+		const source = `function Page() {
+			this.task(() => Promise.resolve());
+			return () => <main />;
+		}`;
+		const instrumented = transformExactBunSource(source, '/src/Page.tsx', {
+			target: 'client',
+			debug: { runtime: true, buildKey: 'build', executionRoot: 'page' }
+		});
+		const hardened = transformExactBunSource(source, '/src/Page.tsx', {
+			target: 'client',
+			debug: { runtime: false, catalog: false }
+		});
+
+		expect(instrumented?.code).toContain('markExactInspectionSource');
+		expect(instrumented?.code).toContain('@exactjs/devtools-runtime');
+		expect(hardened?.code).not.toContain('@exactjs/devtools');
+	});
+
+	it('writes one server-only catalog asset at the end of a Bun build', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-devtools-'));
+		let load!: (
+			args: BunLoadArgs
+		) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>;
+		let start!: () => void | Promise<void>;
+		let end!: () => void | Promise<void>;
+		try {
+			writeFileSync(
+				path.join(root, 'package.json'),
+				JSON.stringify({ name: 'bun-devtools-fixture', private: true, type: 'module' })
+			);
+			exact({
+				target: 'server',
+				applicationRoot: root,
+				debug: {
+					catalog: true,
+					runtime: true,
+					buildKey: 'bun-build',
+					executionRoot: 'page'
+				}
+			}).setup({
+				config: { outdir: 'dist' },
+				onResolve() {},
+				onLoad(_options, handler) {
+					load = handler;
+				},
+				onStart(handler) {
+					start = handler;
+				},
+				onEnd(handler) {
+					end = handler;
+				}
+			});
+			await start();
+			await load({
+				path: path.join(root, 'src', 'Page.tsx'),
+				text: async () => `export function Page() { return () => <main />; }`
+			});
+			await end();
+
+			const catalog = JSON.parse(
+				readFileSync(path.join(root, 'dist', '.exact-inspection', 'bun-build.json'), 'utf8')
+			);
+			expect(catalog).toMatchObject({
+				buildKey: 'bun-build',
+				roots: { page: { executionRoot: 'page' } }
+			});
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it('requires one immutable build identity for explicit production debug output', async () => {
+		let start!: () => void | Promise<void>;
+		exact({ debug: { catalog: true, runtime: true } }).setup({
+			config: {},
+			onResolve() {},
+			onLoad() {},
+			onStart(handler) {
+				start = handler;
+			}
+		});
+
+		await expect(start()).rejects.toThrow(/explicit immutable debug\.buildKey/);
 	});
 
 	it('resolves exact facade imports through shared artifact resolution', () => {
@@ -133,8 +220,9 @@ describe('@exactjs/bun-plugin', () => {
 
 	it('surfaces and deduplicates diagnostics by default in watch mode', async () => {
 		const root = path.resolve(import.meta.dirname, '../../..');
-		const model = path.join(root, 'apps/kanban/src/__bun_diagnostic_model.ts');
-		const consumer = path.join(root, 'apps/kanban/src/__bun_diagnostic_consumer.ts');
+		const applicationRoot = path.join(root, 'apps/sudoku');
+		const model = path.join(applicationRoot, 'src/__bun_diagnostic_model.ts');
+		const consumer = path.join(applicationRoot, 'src/__bun_diagnostic_consumer.ts');
 		let loadHook!: (
 			args: BunLoadArgs
 		) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>;
@@ -148,7 +236,7 @@ describe('@exactjs/bun-plugin', () => {
 				consumer,
 				'import { model } from "./__bun_diagnostic_model.js"; export const value: number = model.value;'
 			);
-			exact().setup({
+			exact({ applicationRoot }).setup({
 				config: { watch: true },
 				onResolve() {},
 				onLoad(_options, handler) {

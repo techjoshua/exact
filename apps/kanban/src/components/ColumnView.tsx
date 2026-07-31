@@ -12,8 +12,6 @@ type ColumnViewProps = {
 /** Renders one kanban status column and its task cards. */
 export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 	const board = this.getContext(BoardContext);
-	const columnTasks = props.tasks.filter((task) => task.status === props.column.id);
-	const countLabel = columnTasks.length === 1 ? '1 task' : `${columnTasks.length} tasks`;
 
 	const dropTask = (event: DragEvent) => {
 		event.preventDefault();
@@ -34,6 +32,9 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 			hasDataTransfer: Boolean(event.dataTransfer)
 		});
 	};
+
+	const columnTasks = props.tasks.filter((task) => task.status === props.column.id);
+	const countLabel = columnTasks.length === 1 ? '1 task' : `${columnTasks.length} tasks`;
 
 	return () => (
 		<article

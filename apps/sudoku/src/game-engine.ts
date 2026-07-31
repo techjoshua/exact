@@ -59,25 +59,44 @@ export function candidatesFor(cells: readonly SudokuCell[], index: number): Digi
 
 /**
  * Finds every cell participating in a duplicated row, column, or box value.
+ * Builds fixed-width digit indexes in one board pass, so filled cells do not add peer scans.
  * @exact client
  * @exact pure
  */
 export function findConflicts(cells: readonly SudokuCell[]): number[] {
 	const conflicts = new Set<number>();
+	const rows = createUnitDigitIndex();
+	const columns = createUnitDigitIndex();
+	const boxes = createUnitDigitIndex();
 	for (const cell of cells) {
-		if (cell.value === undefined) continue;
-		for (const peer of cells) {
-			if (
-				peer.index > cell.index &&
-				peer.value === cell.value &&
-				arePeers(cell.index, peer.index)
-			) {
-				conflicts.add(cell.index);
-				conflicts.add(peer.index);
-			}
-		}
+		const value = cell.value;
+		if (value === undefined) continue;
+		recordUnitDigit(rows[cell.row]!, value, cell.index, conflicts);
+		recordUnitDigit(columns[cell.column]!, value, cell.index, conflicts);
+		recordUnitDigit(boxes[cell.box]!, value, cell.index, conflicts);
 	}
 	return [...conflicts];
+}
+
+/** Creates one fixed-width digit index for every Sudoku unit. */
+function createUnitDigitIndex(): Array<Array<number | undefined>> {
+	return Array.from({ length: 9 }, () => new Array<number | undefined>(10));
+}
+
+/** Records one placement and marks both sides when the unit already contains that digit. */
+function recordUnitDigit(
+	unit: Array<number | undefined>,
+	digit: Digit,
+	index: number,
+	conflicts: Set<number>
+): void {
+	const previous = unit[digit];
+	if (previous === undefined) {
+		unit[digit] = index;
+		return;
+	}
+	conflicts.add(previous);
+	conflicts.add(index);
 }
 
 /**

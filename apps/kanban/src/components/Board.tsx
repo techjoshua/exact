@@ -21,14 +21,10 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
 	this.state.selectedTaskId = undefined;
 	this.state.dragPlacement = undefined;
 
-	const taskTotal = this.state.tasks.length;
-	const selectedTask = this.state.selectedTaskId
-		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
-		: undefined;
-
-	this.task(JSON.stringify(this.state.tasks), (tasksJson) => {
+	function persistTasks(tasksJson: string) {
 		localStorage.setItem(storageKey, tasksJson);
-	});
+	}
+	persistTasks(JSON.stringify(this.state.tasks));
 
 	const updateTask = (taskId: string, patch: Partial<Pick<Task, 'title' | 'notes' | 'status'>>) => {
 		const task = this.state.tasks.find((task) => task.id === taskId);
@@ -115,27 +111,29 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
 
 	this.setContext(BoardContext, services);
 
-	return () => {
-		return (
-			<main className="shell">
-				<BoardHeader draft={this.state.draft} total={taskTotal} />
+	const selectedTask = this.state.selectedTaskId
+		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
+		: undefined;
 
-				<section className="board" style={{ gap: px(16) }}>
-					{columns.map((column) => (
-						<_ key={column.id}>
-							<ColumnView
-								column={column}
-								tasks={this.state.tasks}
-								dragPlacement={this.state.dragPlacement}
-							/>
-						</_>
-					))}
-				</section>
+	return () => (
+		<main className="shell">
+			<BoardHeader draft={this.state.draft} total={this.state.tasks.length} />
 
-				{selectedTask ? <TaskDetailsDialog key={selectedTask.id} task={selectedTask} /> : null}
-			</main>
-		);
-	};
+			<section className="board" style={{ gap: px(16) }}>
+				{columns.map((column) => (
+					<_ key={column.id}>
+						<ColumnView
+							column={column}
+							tasks={this.state.tasks}
+							dragPlacement={this.state.dragPlacement}
+						/>
+					</_>
+				))}
+			</section>
+
+			{selectedTask ? <TaskDetailsDialog key={selectedTask.id} task={selectedTask} /> : null}
+		</main>
+	);
 }
 
 function findAfterLastColumnTask(tasks: Task[], status: Status): number {

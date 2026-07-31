@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract,
 	handleExactRequest
 } from './index.js';
@@ -423,7 +423,7 @@ function actionStateContract(path: string) {
 	return {
 		version: 1 as const,
 		actions: {
-			'allowed-action': defineExactActionContract('allowed-action', {
+			'allowed-action': defineExactOperationContract('allowed-action', {
 				writes: [{ path, kind: 'write', confidence: 'exact' }]
 			})
 		},

@@ -7,8 +7,10 @@ import {
 	addWebpackConditions,
 	applyExactWebpackResolver,
 	createExactWebpackRule,
+	compilerSessionForWebpackLoader,
 	resolveExactWebpackRequest,
 	transformExactWebpackSource,
+	type ExactWebpackPluginOptions,
 	type WebpackCompilerLike
 } from './index.js';
 import { webpackCompilerSessionCount } from './sessions.js';
@@ -54,6 +56,96 @@ describe('@exactjs/webpack-plugin', () => {
 		);
 
 		expect(result?.code).not.toContain('node:fs/promises');
+	});
+
+	it('derives compact runtime instrumentation independently from hardened output', () => {
+		const source = `function Page() {
+			this.task(() => Promise.resolve());
+			return () => <main />;
+		}`;
+		const instrumented = transformExactWebpackSource(source, '/src/Page.tsx', {
+			target: 'client',
+			debug: { runtime: true, buildKey: 'build', executionRoot: 'page' }
+		});
+		const hardened = transformExactWebpackSource(source, '/src/Page.tsx', {
+			target: 'client',
+			debug: { runtime: false, catalog: false }
+		});
+
+		expect(instrumented?.code).toContain('markExactInspectionSource');
+		expect(instrumented?.code).toContain('@exactjs/devtools-runtime');
+		expect(hardened?.code).not.toContain('@exactjs/devtools');
+	});
+
+	it('emits one server-only catalog asset from loader-owned compiler results', () => {
+		let compile!: (compilation: any) => void;
+		let assets!: () => void;
+		let shutdown!: () => void;
+		const emitted = new Map<string, string>();
+		const compiler: WebpackCompilerLike = {
+			options: {},
+			hooks: {
+				thisCompilation: {
+					tap(_name, handler) {
+						compile = handler;
+					}
+				},
+				shutdown: {
+					tap(_name, handler) {
+						shutdown = handler;
+					}
+				}
+			}
+		};
+		new ExactWebpackPlugin({
+			target: 'server',
+			applicationRoot: process.cwd(),
+			debug: {
+				catalog: true,
+				runtime: true,
+				buildKey: 'webpack-build',
+				executionRoot: 'page'
+			}
+		}).apply(compiler);
+		const loaderOptions = (
+			compiler.options.module!.rules![0] as {
+				use: Array<{ options: ExactWebpackPluginOptions }>;
+			}
+		).use[0]!.options;
+		transformExactWebpackSource(
+			`export function Page() { return () => <main />; }`,
+			`${process.cwd()}/src/Page.tsx`,
+			loaderOptions,
+			compilerSessionForWebpackLoader(loaderOptions.__exactSessionId)
+		);
+		compile({
+			hooks: {
+				processAssets: {
+					tap(_options: unknown, handler: () => void) {
+						assets = handler;
+					}
+				}
+			},
+			emitAsset(filename: string, source: { source(): string }) {
+				emitted.set(filename, source.source());
+			}
+		});
+		assets();
+
+		expect(emitted.has('.exact-inspection/webpack-build.json')).toBe(true);
+		expect(JSON.parse(emitted.values().next().value!)).toMatchObject({
+			buildKey: 'webpack-build',
+			roots: { page: { executionRoot: 'page' } }
+		});
+		shutdown();
+	});
+
+	it('requires one immutable build identity for explicit production debug output', () => {
+		expect(() =>
+			new ExactWebpackPlugin({ debug: { catalog: true, runtime: true } }).apply({
+				options: {}
+			})
+		).toThrow(/explicit immutable debug\.buildKey/);
 	});
 
 	it('resolves exact facade imports through shared artifact resolution', () => {
@@ -183,8 +275,9 @@ describe('@exactjs/webpack-plugin', () => {
 
 	it('owns, deduplicates, and releases diagnostics by default in watch mode', () => {
 		const root = path.resolve(import.meta.dirname, '../../..');
-		const model = path.join(root, 'apps/kanban/src/__webpack_diagnostic_model.ts');
-		const consumer = path.join(root, 'apps/kanban/src/__webpack_diagnostic_consumer.ts');
+		const applicationRoot = path.join(root, 'apps/kanban');
+		const model = path.join(applicationRoot, 'src/__webpack_diagnostic_model.ts');
+		const consumer = path.join(applicationRoot, 'src/__webpack_diagnostic_consumer.ts');
 		const warnings: string[] = [];
 		let watchRun!: (compiler: WebpackCompilerLike & { modifiedFiles?: Iterable<string> }) => void;
 		let shutdown!: () => void;
@@ -214,7 +307,7 @@ describe('@exactjs/webpack-plugin', () => {
 				consumer,
 				'import { model } from "./__webpack_diagnostic_model.js"; export const value: number = model.value;'
 			);
-			new ExactWebpackPlugin().apply(compiler);
+			new ExactWebpackPlugin({ applicationRoot }).apply(compiler);
 			expect(webpackCompilerSessionCount()).toBe(before + 1);
 			watchRun({ options: compiler.options, modifiedFiles: [model] });
 			writeFileSync(

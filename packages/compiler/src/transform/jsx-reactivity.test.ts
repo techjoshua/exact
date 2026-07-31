@@ -461,15 +461,16 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 			'function View() { this.task(this.state.query, this.state.page, async (query, page) => {}); }'
 		);
 
-		expect(output).toContain(
-			'this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });'
-		);
+		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('async (query, page) => { })');
+		expect(output).toContain('this.reactive(() => this.state.query)');
+		expect(output).toContain('this.reactive(() => this.state.page)');
 	});
 
 	it('infers task dependencies from state reads while excluding write-only effects', () => {
 		const output = transform(
 			`function Search(this: Component<{ query: string; results: string[] }>) {
-        this.task(async ({ signal }) => {
+        this.task(async ({ signal }: { signal: AbortSignal }) => {
           const query = this.state.query;
           this.state.results = query ? [query] : [];
           await fetch("/search?q=" + query, { signal });
@@ -479,7 +480,7 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		);
 
 		expect(output).toMatch(
-			/this\.task\(this\.reactive\(\(\) => this\.state\.query\), __exactContinuationTask\("[^"]+", async \(__exactDependency: any, \{ signal \}\) =>/
+			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?__exactContinuationTask\("[^"]+", async \(__exactDependency: any, \{ signal \}:[\s\S]*?\) =>/
 		);
 		expect(output).toContain('const query = __exactDependency;');
 		expect(output).not.toContain('const query = this.state.query;');
@@ -604,7 +605,7 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		).toThrow(/derived local tasks cannot be safely reevaluated/);
 	});
 
-	it('keeps filter/reduce locals reactive in JSX while allowing accumulator mutation', () => {
+	it('elides a single-consumer filter/reduce scalar while allowing accumulator mutation', () => {
 		const output = transform(
 			`function Totals(this: Component<{ items: { index: number; val: number }[] }>) {
       const count = this.state.items.filter(i => i.index % 2).reduce((agg, i) => { agg += i.val; return agg; }, 0);
@@ -612,8 +613,10 @@ describe('@exactjs/compiler: JSX reactivity', () => {
     }`,
 			{ filename: 'Totals.tsx' }
 		);
-		expect(output).toContain('const count = __exactDerived(() => this.state.items.filter');
-		expect(output).toMatch(/__exactDynamic\(\(\) => count\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
-		expect(output).toContain('reduce((agg, i) => { agg += i.val; return agg; }, 0))');
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('const count =');
+		expect(output).toContain('const __exact_count_1 = this.state.items.filter');
+		expect(output).toContain('return __exact_count_1');
+		expect(output).toContain('reduce((agg, i) => { agg += i.val; return agg; }, 0)');
 	});
 });

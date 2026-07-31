@@ -1,4 +1,12 @@
 import type { ExactArtifactGraph } from './contracts/artifacts.js';
+import type { ExactSourceInspection } from './language-tools/contracts.js';
+
+/** Server-owned source catalog scoped to one microfrontend exposure graph. */
+export type ExactExposureInspectionCatalog = Readonly<{
+	version: 1;
+	rootComponentId: string;
+	files: readonly ExactSourceInspection[];
+}>;
 
 /** Returns component ids reachable through authored render edges from one explicit root. */
 export function exactReachableExposureComponents(
@@ -69,4 +77,35 @@ export function selectExactExposureArtifactGraph(
 		),
 		artifacts
 	};
+}
+
+/**
+ * Partitions rich source inspection to components reachable from one exposure.
+ *
+ * The returned catalog remains a server artifact. It retains producer source
+ * provenance and never absorbs unrelated components from the page host or
+ * sibling exposures.
+ */
+export function selectExactExposureInspectionCatalog(
+	graph: ExactArtifactGraph,
+	rootComponentId: string,
+	inspections: readonly ExactSourceInspection[]
+): ExactExposureInspectionCatalog {
+	const reachable = exactReachableExposureComponents(graph, rootComponentId);
+	const files = inspections.flatMap((inspection) => {
+		const components = inspection.components.filter((component) => reachable.has(component.id));
+		return components.length
+			? [
+					Object.freeze({
+						...inspection,
+						components: Object.freeze(components)
+					})
+				]
+			: [];
+	});
+	return Object.freeze({
+		version: 1,
+		rootComponentId,
+		files: Object.freeze(files)
+	});
 }

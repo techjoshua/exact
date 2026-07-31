@@ -1,6 +1,7 @@
 import {
 	batch,
 	effectScopeWorkPriority,
+	peek,
 	ref as reactiveRef,
 	runWithPriority,
 	scheduleWork,
@@ -28,7 +29,9 @@ import { observeTaskPromise } from './observers.js';
 import {
 	discardTaskMutations,
 	drainTaskCleanupPromises,
+	ownTaskResource,
 	publishTaskMutations,
+	registerTaskCleanup,
 	trackTaskOwner
 } from './resources.js';
 
@@ -68,11 +71,26 @@ export function createTask(
 		stopped: false,
 		run() {
 			const generation = ++task.generation;
+			instance.domain.inspection?.publish({
+				kind: 'task.queue',
+				component: instance,
+				...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+				generation
+			});
 			task.readinessRegistration?.cancel();
 			task.readinessRegistration = undefined;
 			task.queuedGeneration = generation;
 			task.stopped = false;
 			const previousSignal = task.controller?.signal;
+			if (task.controller && !task.controller.signal.aborted) {
+				instance.domain.inspection?.publish({
+					kind: 'task.supersede',
+					component: instance,
+					...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+					generation: generation - 1,
+					reason: 'rerun'
+				});
+			}
 			task.controller?.abort('rerun');
 			const cleanupSettlement = runTaskCleanup(task, instance);
 			const resourceSettlement = drainTaskCleanupPromises(previousSignal);
@@ -119,6 +137,13 @@ export function createTask(
 			task.stopped = true;
 			task.queuedGeneration = undefined;
 			task.generation++;
+			instance.domain.inspection?.publish({
+				kind: 'task.cancel',
+				component: instance,
+				...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+				generation: task.generation,
+				reason: 'unmount'
+			});
 			task.readinessRegistration?.cancel();
 			task.readinessRegistration = undefined;
 			const signal = task.controller?.signal;
@@ -154,16 +179,44 @@ function startTaskGeneration(
 	if (task.stopped || task.queuedGeneration !== generation || task.generation !== generation)
 		return;
 	task.queuedGeneration = undefined;
+	instance.domain.inspection?.publish({
+		kind: 'task.start',
+		component: instance,
+		...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+		generation
+	});
 	const controller = new AbortController();
 	task.controller = controller;
 	trackTaskOwner(controller.signal, instance);
 	const values = task.deps.map((dep) => unwrap(dep));
 	let result: TaskResult;
 	try {
+		const context: TaskContext = {
+			signal: controller.signal,
+			generation,
+			activation: generation === 1 ? 'initialization' : 'reactive',
+			peek,
+			optimistic() {
+				throw new Error('Optimistic state is available only to invoked task generations');
+			},
+			cleanup(cleanup) {
+				registerTaskCleanup(controller.signal, () => cleanup());
+			},
+			own(resource) {
+				return ownTaskResource(controller.signal, resource);
+			}
+		};
 		result = runWithPriority(effectScopeWorkPriority(instance.scope, task.policy.priority), () =>
-			batch(() => task.work(...values, { signal: controller.signal }))
+			batch(() => task.work(...values, context))
 		);
 	} catch (error) {
+		instance.domain.inspection?.publish({
+			kind: 'task.fail',
+			component: instance,
+			...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+			generation,
+			reason: 'task-failed'
+		});
 		handleComponentError(instance, createErrorReport(error, 'task', instance, 'run'));
 		return;
 	}
@@ -193,6 +246,13 @@ function startTaskGeneration(
 				if (task.generation !== generation || (controller.signal.aborted && isAbortError(error)))
 					return;
 				task.failedGeneration = generation;
+				instance.domain.inspection?.publish({
+					kind: 'task.fail',
+					component: instance,
+					...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+					generation,
+					reason: 'task-failed'
+				});
 				handleComponentError(instance, createErrorReport(error, 'task', instance, 'promise'));
 			});
 		const settlement = observed.then(() => undefined);
@@ -223,9 +283,22 @@ function startTaskGeneration(
 		observeTaskPromise(settlement, instance);
 		void settlement.then(() => {
 			if (task.settlement === settlement) task.settlement = undefined;
+			if (task.completedGeneration === generation)
+				instance.domain.inspection?.publish({
+					kind: 'task.settle',
+					component: instance,
+					...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+					generation
+				});
 		});
 	} else {
 		task.completedGeneration = generation;
+		instance.domain.inspection?.publish({
+			kind: 'task.settle',
+			component: instance,
+			...(task.sourceEntityId ? { sourceEntityId: task.sourceEntityId } : {}),
+			generation
+		});
 		if (typeof result === 'function') task.cleanup = result;
 	}
 }

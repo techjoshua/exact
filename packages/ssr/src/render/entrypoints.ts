@@ -1,6 +1,6 @@
 import { logFrameworkEvent, withTaskObserver, type VNode } from '@exactjs/core';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
-import { runWithExactRequestScope } from '@exactjs/server';
+import { exactServerDebugRuntime, runWithExactRequestScope } from '@exactjs/server';
 import { augmentDocumentBody } from '../document.js';
 import { escapeAttr } from '../html.js';
 import { renderHydrationScript } from '../hydration.js';
@@ -257,6 +257,7 @@ export async function renderExactRequestToHtmlResponse(
 			const vnode = await render(context);
 			const renderOptions = {
 				...options,
+				...requestInspectionOptions(server, context, options),
 				contexts: context.contexts?.componentValues,
 				signal: options.signal ?? context.signal
 			};
@@ -291,6 +292,7 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 			const vnode = await render(context);
 			const renderOptions = {
 				...options,
+				...requestInspectionOptions(server, context, options),
 				contexts: context.contexts?.componentValues,
 				signal: options.signal ?? context.signal
 			};
@@ -320,6 +322,33 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 		},
 		request.platformRequest ?? request
 	);
+}
+
+function requestInspectionOptions(
+	server: ExactServerContext,
+	context: ExactServerContext,
+	options: RenderExactRequestToHtmlResponseOptions
+): Pick<RenderToStringOptions, 'inspection'> {
+	if (options.inspection) return { inspection: options.inspection };
+	const catalogs = context.inspectionCatalogs;
+	if (!catalogs?.length) return {};
+	const buildKey =
+		options.buildKey ??
+		context.debugBuildKey ??
+		(catalogs.length === 1 ? catalogs[0]!.buildKey : undefined);
+	if (!buildKey) return {};
+	const catalog = catalogs.find((entry) => entry.buildKey === buildKey);
+	if (!catalog) return {};
+	const roots = Object.keys(catalog.roots);
+	const executionRoot = options.executionRoot ?? (roots.length === 1 ? roots[0] : undefined);
+	if (!executionRoot || !catalog.roots[executionRoot]) return {};
+	return {
+		inspection: exactServerDebugRuntime(server).inspectionOwner({
+			buildKey,
+			executionRoot,
+			...(options.binding ? { binding: options.binding } : {})
+		})
+	};
 }
 
 /** Performs the progressive root domain operation. */

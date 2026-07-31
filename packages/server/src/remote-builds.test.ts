@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-	defineExactActionContract,
+	defineExactOperationContract,
 	handleExactRequest,
 	type ExactRemoteBuildRegistration
 } from './index.js';
@@ -101,7 +101,7 @@ function registration(
 					contract: {
 						version: 1,
 						actions: {
-							submit: defineExactActionContract('submit', {
+							submit: defineExactOperationContract('submit', {
 								writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 							})
 						},

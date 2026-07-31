@@ -1,7 +1,15 @@
 /**
  * @vitest-environment jsdom
  */
-import { createCompiledVNode, createRef, createVNode, type Component } from '@exactjs/core';
+import {
+	activateTaskForHost,
+	createCompiledVNode,
+	createRef,
+	createVNode,
+	defineTask,
+	type Component,
+	type TaskContext
+} from '@exactjs/core';
 import { jsx } from '@exactjs/jsx';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
@@ -56,6 +64,30 @@ describe('@exactjs/dom root-lifecycle', () => {
 		flushSync();
 		expect(container.textContent).toBe('2');
 		expect(rendered).toHaveBeenCalledTimes(2);
+	});
+
+	it('settles synchronous setup activations before mounting required child props', () => {
+		function Selection(this: Component<{ cells: string[]; selectedIndex: number }>) {
+			this.state.cells = ['ready'];
+			activateTaskForHost(
+				this,
+				defineTask({}, (cells: string[], _task: TaskContext) => {
+					this.state.selectedIndex = cells.length - 1;
+				}),
+				this.reactive(() => this.state.cells)
+			);
+
+			return () => jsx(SelectedCell, { value: this.state.cells[this.state.selectedIndex]! });
+		}
+
+		function SelectedCell(this: Component<{}>, props: { value: string }) {
+			return () => jsx('output', { children: props.value.toUpperCase() });
+		}
+
+		const container = document.createElement('div');
+		render(jsx(Selection, {}), container);
+
+		expect(container.textContent).toBe('READY');
 	});
 
 	it('uses quiet runtime anchors by default', () => {

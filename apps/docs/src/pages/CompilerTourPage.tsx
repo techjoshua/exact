@@ -17,7 +17,7 @@ export function CompilerTourPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="What the compiler writes for you"
 			description="Follow one component across browser and server artifacts, from ordinary state and TSX to reactive DOM work and a compiler-generated protocol."
-			previous={{ path: '/learn/state', label: 'State & derived values' }}
+			previous={{ path: '/learn/tasks', label: 'Tasks, dependencies & scheduling' }}
 			next={{ path: '/learn/lists', label: 'Keyed lists' }}
 		>
 			<section>
@@ -138,6 +138,11 @@ export function CompilerTourPage(this: Component<{}>) {
 						The server artifact can settle the same continuation for the initial HTML. Its public
 						state is resumed in the browser, so hydration adopts the rendered DOM without shipping
 						or rerunning the repository client.
+					</p>
+					<p>
+						A component may own client tasks and server continuations without turning those task
+						bodies into mixed setup. The compiler emits both roots, marks the SSR component range
+						for eager resumption, and preserves invoked return values in streamed responses.
 					</p>
 				</div>
 			</section>

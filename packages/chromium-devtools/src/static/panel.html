@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<link rel="stylesheet" href="panel.css" />
+	</head>
+	<body>
+		<header>
+			<div class="brand"><span>eX</span><strong>eXact</strong></div>
+			<span data-status>Connecting...</span>
+			<button class="toolbar-button record-button" data-record hidden>Record</button>
+			<button class="toolbar-button" data-clear hidden>Clear</button>
+			<button class="toolbar-button" data-select-element>Inspect $0</button>
+			<button class="toolbar-button" data-open-source hidden>Open source</button>
+			<button class="toolbar-button" data-refresh>Refresh</button>
+		</header>
+		<nav data-navigation role="tablist" aria-label="eXact DevTools views"></nav>
+		<main data-output></main>
+		<script type="module" src="panel.js"></script>
+	</body>
+</html>

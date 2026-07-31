@@ -22,5 +22,5 @@ DOM callbacks as component-owned interactions without changing ordinary function
 members and finite indexed values from `createComponentRegistry()` remain normal JSX component
 expressions with their exact key and props types.
 
-See [Actions and forms](../../docs/actions-and-forms.md) and
+See [Task interactions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).

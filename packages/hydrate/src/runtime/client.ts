@@ -1,5 +1,11 @@
 import { createComponentDomain } from '@exactjs/core';
-import { consumeDomWork, disposeOwnedSubtree, unmount, type DomWorkBudget } from '@exactjs/dom';
+import {
+	consumeDomWork,
+	disposeOwnedSubtree,
+	exactDomInspectionOwner,
+	unmount,
+	type DomWorkBudget
+} from '@exactjs/dom';
 import {
 	cloneEndpointRoutes,
 	mergeClientIslands,
@@ -161,6 +167,13 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 		}
 	};
 	const resumptionResolver = createComponentResumptionResolver(() => runtimeOptions.resumptions);
+	const inspection =
+		runtimeOptions.inspection ??
+		exactDomInspectionOwner({
+			buildKey: runtimeOptions.buildKey,
+			executionRoot: runtimeOptions.executionRoot,
+			binding: runtimeOptions.binding
+		});
 	domain = createComponentDomain(
 		runtimeOptions.executionRoot ?? 'page',
 		(request) =>
@@ -173,7 +186,9 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 					generation: request.generation
 				})
 			).then((result) => result.value),
-		resumptionResolver
+		resumptionResolver,
+		inspection,
+		'hydration'
 	);
 	bindComponentResumptionResolver(domain, resumptionResolver);
 	runtimeOptions.componentDomain = domain;

@@ -1,6 +1,6 @@
 import { createServerBoundary, createTextVNode, createVNode, type Component } from '@exactjs/core';
 import {
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract,
 	handleExactRequest
 } from '@exactjs/server';
@@ -211,7 +211,7 @@ describe('@exactjs/ssr boundaries', () => {
 				contract: {
 					version: 1,
 					actions: {
-						'save-profile': defineExactActionContract('save-profile', {
+						'save-profile': defineExactOperationContract('save-profile', {
 							writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
 							boundaries: ['profile']
 						})

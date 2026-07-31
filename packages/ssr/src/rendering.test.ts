@@ -7,7 +7,7 @@ import {
 	type Component,
 	type ErrorBoundaryFallbackProps
 } from '@exactjs/core';
-import { defineExactActionContract, defineExactBoundaryContract } from '@exactjs/server';
+import { defineExactBoundaryContract, defineExactOperationContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerHandlerRegistry,
@@ -103,7 +103,7 @@ describe('@exactjs/ssr rendering', () => {
 	it('renders native Suspense fallback synchronously and settled content asynchronously', async () => {
 		function AsyncPanel(this: Component<{ label: string }>) {
 			this.state.label = '';
-			this.task.blocking(async ({ signal }) => {
+			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
 				const label = await Promise.resolve('ready');
 				stageTaskMutation(signal, () => {
 					this.state.label = label;
@@ -144,7 +144,7 @@ describe('@exactjs/ssr rendering', () => {
 		let disposals = 0;
 		function Observed(this: Component<{ value: number }>) {
 			this.state.value = 1;
-			this.task(async () => {
+			(this as any).task(async () => {
 				await Promise.resolve();
 				this.state.value++;
 			});
@@ -222,7 +222,7 @@ describe('@exactjs/ssr rendering', () => {
 	it('waits for async tasks before rendering a component in async mode', async () => {
 		function Profile(this: Component<{ name: string }>) {
 			this.state.name = 'Loading';
-			this.task(async () => {
+			(this as any).task(async () => {
 				await Promise.resolve();
 				this.state.name = 'Ada';
 			});
@@ -237,7 +237,7 @@ describe('@exactjs/ssr rendering', () => {
 	it('renders child components after their async tasks settle', async () => {
 		function Child(this: Component<{ label: string }>) {
 			this.state.label = 'Loading';
-			this.task(async () => {
+			(this as any).task(async () => {
 				await Promise.resolve();
 				this.state.label = 'Ready';
 			});
@@ -258,7 +258,7 @@ describe('@exactjs/ssr rendering', () => {
 			contract: {
 				version: 1,
 				actions: {
-					'save-profile': defineExactActionContract('save-profile', {
+					'save-profile': defineExactOperationContract('save-profile', {
 						componentId: 'Profile',
 						writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
 						boundaries: ['profile']
@@ -326,7 +326,7 @@ describe('@exactjs/ssr rendering', () => {
 	});
 
 	it('installs compiler-generated continuation executors and refreshes their boundaries', async () => {
-		const action = defineExactActionContract('load-profile', {
+		const action = defineExactOperationContract('load-profile', {
 			componentId: 'Profile',
 			reads: [{ path: 'id', kind: 'read', confidence: 'exact' }],
 			writes: [{ path: 'name', kind: 'write', confidence: 'exact' }],

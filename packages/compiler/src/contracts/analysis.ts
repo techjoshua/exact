@@ -66,14 +66,28 @@ export type ExactTaskIR = {
 	id: string;
 	placement: ExactPlacement;
 	requestedPlacement?: 'server' | 'client';
-	priority: 'normal' | 'deferred';
+	priority: 'immediate' | 'normal' | 'deferred';
 	readiness: 'blocking' | 'nonblocking';
+	concurrency?: 'parallel' | 'latest' | 'queue';
+	detached?: boolean;
+	functionDefined?: boolean;
+	invoked?: boolean;
+	argumentCount?: number;
+	activationArgumentCount?: number;
+	capturedParameters: number[];
 	async: boolean;
 	browserEffects: boolean;
 	/** Source-ordered values captured as scheduled dependency snapshots. */
 	dependencies: Array<{
 		index: number;
 		source: 'state' | 'props' | 'context' | 'derived';
+		contextToken?: string;
+	}>;
+	/** Reactive reads sampled without becoming activation dependencies. */
+	capturedInputs: Array<{
+		parameter: number;
+		source: 'state' | 'props' | 'context' | 'derived';
+		path: string;
 		contextToken?: string;
 	}>;
 	reads: ExactStateEffect[];

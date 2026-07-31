@@ -209,7 +209,7 @@ describe('@exactjs/compiler: component actions', () => {
 		expect(server).toContain('executors: [');
 		expect(server).toContain('value: __exactActionResult_');
 		expect(server).toContain('persistTitle(');
-		expect(server).toContain('generation: __exactActivation_');
+		expect(server).toContain('__exactExecution_1.task');
 		expect(server).not.toContain('optimistic(() =>');
 	});
 });

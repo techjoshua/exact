@@ -48,6 +48,13 @@ type componentComputation struct {
 	effects   componentComputationEffects
 }
 
+type setupAssignmentExecution struct {
+	component string
+	start     int
+	end       int
+	execution string
+}
+
 type destructuredStateBinding struct {
 	target    *ast.Node
 	temporary string
@@ -837,6 +844,78 @@ func planComponentComputations(
 	return edits, nil
 }
 
+// collectAuthoredSetupAssignmentExecutions retains the semantic distinction
+// that computation normalization would otherwise lower into generated tasks.
+func collectAuthoredSetupAssignmentExecutions(
+	fileName string,
+	source string,
+) []setupAssignmentExecution {
+	sourceFile := parseNormalizationSource(fileName, source)
+	environment := componentComputationEnvironmentBindings(sourceFile)
+	executions := []setupAssignmentExecution{}
+	for _, candidate := range componentCandidates(sourceFile) {
+		body := candidate.node.Body()
+		if body == nil || !ast.IsBlock(body) {
+			continue
+		}
+		statements := append([]*ast.Node(nil), body.AsBlock().Statements.Nodes...)
+		if len(statements) != 0 && ast.IsReturnStatement(statements[len(statements)-1]) {
+			statements = statements[:len(statements)-1]
+		}
+		locals := analyzeComponentComputationLocals(candidate.node, statements, environment)
+		for _, statement := range statements {
+			if isAuthoredTaskStatement(statement) {
+				continue
+			}
+			hasInferredTask := false
+			for _, await := range collectDirectComponentAwaits(statement) {
+				if !isAwaitedComponentTask(await) {
+					hasInferredTask = true
+					break
+				}
+			}
+			if hasInferredTask {
+				continue
+			}
+			effects := inspectComponentComputationStatement(statement, locals)
+			if len(effects.writes) == 0 {
+				continue
+			}
+			execution := "initialization"
+			if effects.reactive && !isComponentStateInitialization(statement) {
+				execution = "deferred-reactive"
+			}
+			executions = append(executions, setupAssignmentExecution{
+				component: candidate.name,
+				start:     statement.Pos(),
+				end:       statement.End(),
+				execution: execution,
+			})
+		}
+	}
+	return executions
+}
+
+func applySetupAssignmentExecutions(
+	writes []StateWrite,
+	executions []setupAssignmentExecution,
+) {
+	for index := range writes {
+		write := &writes[index]
+		if write.Operation != "assignment" {
+			continue
+		}
+		for _, execution := range executions {
+			if write.Component == execution.component &&
+				write.Start < execution.end &&
+				execution.start < write.Start+write.Length {
+				write.SetupExecution = execution.execution
+				break
+			}
+		}
+	}
+}
+
 func planComponentComputationEdits(
 	sourceFile *ast.SourceFile,
 	component *ast.Node,
@@ -1023,7 +1102,7 @@ func validateSynchronousComputationCycles(
 			sourceFile,
 			location,
 			fmt.Sprintf(
-				"error: derived state assignment involving %s creates a reactive dependency cycle; wrap one read in peek(() => ...) for a snapshot or use this.task() for deliberate feedback",
+				"error: derived state assignment involving %s creates a reactive dependency cycle; wrap one read in peek(() => ...) for a snapshot or move deliberate feedback into a local task function with a final TaskContext policy parameter",
 				path,
 			),
 		)
@@ -1050,10 +1129,17 @@ func analyzeComponentComputationLocals(
 	}
 	for _, parameter := range component.Parameters() {
 		name := parameter.Name()
-		if name == nil || !ast.IsIdentifier(name) || name.Text() == "this" {
+		if name == nil || name.Kind == ast.KindThisKeyword ||
+			(ast.IsIdentifier(name) && name.Text() == "this") {
 			continue
 		}
-		locals.props = name.Text()
+		names := componentBindingNames(name)
+		for _, binding := range names {
+			locals.reactive[binding] = struct{}{}
+		}
+		if ast.IsIdentifier(name) {
+			locals.props = name.Text()
+		}
 		break
 	}
 	changed := true
@@ -1580,7 +1666,7 @@ func validateAsyncComponentRegion(
 				sourceFile,
 				write.node,
 				fmt.Sprintf(
-					"error: async derived state assignment to %s reads its own target and would create a reactive cycle; use a local intermediate, peek(() => ...) for a snapshot, or an explicit this.task() feedback policy",
+					"error: async derived state assignment to %s reads its own target and would create a reactive cycle; use a local intermediate, peek(() => ...) for a snapshot, or a local task function with a final TaskContext policy parameter",
 					write.path,
 				),
 			)

@@ -78,13 +78,17 @@ function findJsonUnsafePath(
 ): string | undefined {
 	const maxDepth = positiveLimit(limits.maxDepth, 100);
 	const maxNodes = positiveLimit(limits.maxNodes, 100_000);
-	const pending: Array<{ value: unknown; path: string; depth: number }> = [
-		{ value, path, depth: 0 }
-	];
+	const pending: Array<
+		{ value: unknown; path: string; depth: number } | { exit: object; path: string; depth: number }
+	> = [{ value, path, depth: 0 }];
 	let nodes = 0;
 	try {
 		while (pending.length) {
 			const current = pending.pop()!;
+			if ('exit' in current) {
+				seen.delete(current.exit);
+				continue;
+			}
 			if (++nodes > maxNodes || current.depth > maxDepth) return current.path;
 			const item = current.value;
 			if (item === null || (!strict && item === undefined)) continue;
@@ -98,7 +102,7 @@ function findJsonUnsafePath(
 			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype)
 				return current.path;
 			const keys = Object.keys(item);
-			if (nodes + pending.length + keys.length > maxNodes) return current.path;
+			pending.push({ exit: item, path: current.path, depth: current.depth });
 			for (let index = keys.length - 1; index >= 0; index--) {
 				const key = keys[index]!;
 				const descriptor = Object.getOwnPropertyDescriptor(item, key);

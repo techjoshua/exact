@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createComponentInstance } from '../component/runtime.js';
+import { defineTask } from '../tasks/runtime.js';
 import {
 	InteractionCancellation,
 	currentInteraction,
@@ -50,7 +51,7 @@ describe('component interactions', () => {
 		let settled = false;
 		const interaction = runComponentInteraction(
 			owner,
-			'action',
+			'invoked',
 			1,
 			'normal',
 			controller,
@@ -87,5 +88,34 @@ describe('component interactions', () => {
 
 		owner.unmount();
 		await expect(interaction).rejects.toBeInstanceOf(InteractionCancellation);
+	});
+
+	it('attaches function-defined task descendants to an interaction root', async () => {
+		const owner = createComponentInstance(() => () => null, {});
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const child = defineTask({}, () => gate);
+		let settled = false;
+		const interaction = runComponentInteraction(
+			owner,
+			'event',
+			1,
+			'interactive',
+			new AbortController(),
+			() => {
+				void child();
+			}
+		).then(() => {
+			settled = true;
+		});
+
+		await Promise.resolve();
+		expect(settled).toBe(false);
+		release();
+		await interaction;
+		expect(settled).toBe(true);
+		owner.unmount();
 	});
 });

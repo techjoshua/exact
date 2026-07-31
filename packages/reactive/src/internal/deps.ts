@@ -337,8 +337,21 @@ function addCoveredVersionRanges(
 
 function flushTriggers(triggers: Map<object, Set<PropertyKey>>): void {
 	if (!triggers.size) return;
-	const pending = [...triggers];
-	for (const [target, keys] of pending) for (const key of keys) triggerNow(target, key);
+	const reactions = new Set<Reaction>();
+	for (const [target, keys] of triggers) {
+		const targetDeps = deps.get(target);
+		if (!targetDeps) continue;
+		for (const key of keys) {
+			const dep = targetDeps.get(key);
+			if (!dep) continue;
+			for (const reaction of dep) reactions.add(reaction);
+		}
+	}
+
+	// Custom schedulers may synchronously replace their watcher. Snapshot the complete
+	// subscriber set first so the replacement cannot be rediscovered by a later key in
+	// the same atomic transition.
+	for (const reaction of reactions) reaction.schedule();
 }
 
 function triggerNow(target: object, key: PropertyKey): void {

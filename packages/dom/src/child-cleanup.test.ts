@@ -108,7 +108,7 @@ describe('@exactjs/dom child-cleanup', () => {
 
 		function Row(this: Component<{}>, props: { id: string }) {
 			this.onUnmount(() => unmounted.push(String(props.id)));
-			this.task(({ signal }) => {
+			(this as any).task(({ signal }: { signal: AbortSignal }) => {
 				signal.addEventListener('abort', () => aborted.push(String(props.id)));
 			});
 			return () => jsx('li', { children: props.id });

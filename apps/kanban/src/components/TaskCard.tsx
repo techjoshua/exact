@@ -9,8 +9,6 @@ type TaskCardProps = {
 /** Renders one draggable kanban task card. */
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 	const board = this.getContext(BoardContext);
-	const title = props.task.title;
-	const hasNotes = props.task.notes.trim().length > 0;
 	let drag:
 		| {
 				card: HTMLElement;
@@ -103,6 +101,8 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 
 	this.onUnmount(() => cancelPointerDrag('unmount'));
 
+	const hasNotes = props.task.notes.trim().length > 0;
+
 	return () => (
 		<div
 			className="card"
@@ -127,7 +127,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 			>
 				Drag
 			</span>
-			<p className="card-title">{title}</p>
+			<p className="card-title">{props.task.title}</p>
 			{hasNotes ? <p className="card-notes">Has notes</p> : null}
 			<div className="card-actions">
 				<button

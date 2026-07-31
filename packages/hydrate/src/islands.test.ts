@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exactjs/core';
+import { createVNode, exactComponentContract, type Component } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import {
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract,
 	handleExactRequest
 } from '@exactjs/server';
@@ -149,6 +149,56 @@ describe('@exactjs/hydrate islands', () => {
 		);
 	});
 
+	it('rolls back a resumption consumed by failed adoption before mounting the fallback', () => {
+		const container = document.createElement('main');
+		container.innerHTML =
+			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-resumption="true"><p>server mismatch</p></div>';
+		const implementation = function Counter(this: Component<{ count: number }>) {
+			this.state.count = 0;
+			return () => createVNode('output', null, String(this.state.count));
+		};
+		const Counter = Object.assign(implementation, {
+			[exactComponentContract]: {
+				version: 1 as const,
+				id: 'component:Counter',
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:Counter',
+					statePaths: ['count'],
+					valueCaptures: [],
+					contexts: [],
+					boundaries: []
+				}
+			}
+		});
+
+		const client = createExactClient(container, {
+			islands: { Counter },
+			resumptions: [
+				{
+					componentId: 'component:Counter',
+					values: { count: 7 },
+					contexts: {},
+					settledContinuations: []
+				}
+			],
+			logger: noopLogger
+		});
+
+		expect(container.querySelector('output')?.textContent).toBe('7');
+		expect(
+			container
+				.querySelector('[data-exact-client-boundary="counter"]')
+				?.getAttribute('data-exact-client-hydrated')
+		).toBe('true');
+		client.dispose();
+	});
+
 	it('replays once against a replacement target after an adoption mismatch', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
@@ -205,7 +255,7 @@ describe('@exactjs/hydrate islands', () => {
 						version: 1,
 						endpoint: '/__exact',
 						actions: {
-							save: defineExactActionContract('save', {
+							save: defineExactOperationContract('save', {
 								boundaries: ['panel'],
 								writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 							})

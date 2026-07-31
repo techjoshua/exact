@@ -1,4 +1,4 @@
-import { defineExactActionContract, type ExactServerContext } from '@exactjs/server';
+import { defineExactOperationContract, type ExactServerContext } from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactExpressMiddleware, type ExactExpressResponse } from './index.js';
 
@@ -55,7 +55,7 @@ describe('@exactjs/express-adapter', () => {
 				endpoint: '/__exact',
 				actions: {
 					save: stateAction('save'),
-					fail: defineExactActionContract('fail')
+					fail: defineExactOperationContract('fail')
 				},
 				boundaries: {}
 			},
@@ -134,7 +134,7 @@ describe('@exactjs/express-adapter', () => {
 });
 
 function stateAction(id: string) {
-	return defineExactActionContract(id, {
+	return defineExactOperationContract(id, {
 		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 	});
 }

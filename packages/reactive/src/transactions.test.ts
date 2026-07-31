@@ -26,6 +26,25 @@ describe('@exactjs/reactive transactions', () => {
 		expect(render).toHaveBeenCalledTimes(2);
 	});
 
+	it('does not rediscover a synchronously replaced watcher during the same transaction', () => {
+		const state = reactive({ first: 0, second: 0 });
+		const render = vi.fn(() => void `${state.first}:${state.second}`);
+		let stop = () => undefined;
+		const bind = () => {
+			stop();
+			stop = watch(render, bind);
+		};
+		bind();
+
+		batch(() => {
+			state.first = 1;
+			state.second = 2;
+		});
+
+		expect(render).toHaveBeenCalledTimes(2);
+		stop();
+	});
+
 	it('tracks reads and batches write notifications', () => {
 		const state = reactive({ count: 0 });
 		const render = vi.fn(() => void unwrap(state.count));

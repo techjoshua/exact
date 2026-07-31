@@ -14,7 +14,18 @@ type QueuedComputation = {
 	scope?: EffectScopeImpl;
 };
 
-const queuedReactions = new Map<Reaction, WorkPriority>();
+/** Opaque ownership captured when reactive work is invalidated. */
+export type ScheduledWorkContext = {
+	run(work: () => void): void;
+	cancel(): void;
+};
+
+type QueuedReaction = {
+	priority: WorkPriority;
+	context?: ScheduledWorkContext;
+};
+
+const queuedReactions = new Map<Reaction, QueuedReaction>();
 const queuedComputations = new Map<() => void, QueuedComputation>();
 const priorityStack: WorkPriority[] = [];
 let foregroundFlushScheduled = false;
@@ -27,6 +38,14 @@ const priorityOrder: Record<WorkPriority, number> = {
 	normal: 1,
 	deferred: 2
 };
+let captureScheduledWorkContext: (() => ScheduledWorkContext | undefined) | undefined;
+
+/** Installs framework ownership capture for subsequently scheduled reactive work. */
+export function setScheduledWorkContextCapture(
+	capture: (() => ScheduledWorkContext | undefined) | undefined
+): void {
+	captureScheduledWorkContext = capture;
+}
 
 /** Queues a reaction to run during the next scheduler flush. */
 export function queueReaction(
@@ -35,8 +54,16 @@ export function queueReaction(
 ): void {
 	priority = constrainedPriority(reaction.scope, priority);
 	const previous = queuedReactions.get(reaction);
-	if (!previous || isHigherWorkPriority(priority, previous))
-		queuedReactions.set(reaction, priority);
+	const context = captureScheduledWorkContext?.();
+	if (context) previous?.context?.cancel();
+	if (!previous || isHigherWorkPriority(priority, previous.priority) || context)
+		queuedReactions.set(reaction, {
+			priority:
+				previous && !isHigherWorkPriority(priority, previous.priority)
+					? previous.priority
+					: priority,
+			context: context ?? previous?.context
+		});
 	scheduleFlush(priority);
 }
 
@@ -72,7 +99,10 @@ export function removeQueuedComputation(computation: () => void): void {
  */
 export function discardScheduledScopeWork(scope: EffectScopeImpl): void {
 	for (const reaction of queuedReactions.keys()) {
-		if (reaction.scope === scope) queuedReactions.delete(reaction);
+		if (reaction.scope === scope) {
+			queuedReactions.get(reaction)?.context?.cancel();
+			queuedReactions.delete(reaction);
+		}
 	}
 	for (const [computation, queued] of queuedComputations) {
 		if (queued.scope === scope) queuedComputations.delete(computation);
@@ -93,7 +123,7 @@ export function inspectScheduledWork(): Readonly<{
 	const computations = { interactive: 0, normal: 0, deferred: 0 };
 	const reactions = { interactive: 0, normal: 0, deferred: 0 };
 	for (const queued of queuedComputations.values()) computations[queued.priority]++;
-	for (const priority of queuedReactions.values()) reactions[priority]++;
+	for (const queued of queuedReactions.values()) reactions[queued.priority]++;
 	return Object.freeze({
 		currentPriority: currentWorkPriority(),
 		computations: Object.freeze(computations),
@@ -179,19 +209,23 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 
 			const reactions = takeEligibleReactions(through);
 
-			for (const [reaction, priority] of reactions) {
+			for (const [reaction, queued] of reactions) {
 				if (
 					!reaction.active ||
 					(reaction.scope && (!reaction.scope.active || reaction.scope.paused))
-				)
+				) {
+					queued.context?.cancel();
 					continue;
+				}
 				const profile = reaction.scope?.onProfile;
 				if (profile) {
 					profileStarted ??= profileTimestamp();
 					profiledReactions.set(profile, (profiledReactions.get(profile) ?? 0) + 1);
 				}
 				try {
-					runWithPriority(priority, reaction.run);
+					const run = () => runWithPriority(queued.priority, reaction.run);
+					if (queued.context) queued.context.run(run);
+					else run();
 				} catch (error) {
 					if (!hasError) firstError = error;
 					hasError = true;
@@ -230,9 +264,10 @@ function settleOverflow(error: Error): boolean {
 	const handlers = new Set<(error: unknown) => void>();
 	for (const queued of queuedComputations.values())
 		if (queued.onError) handlers.add(queued.onError);
-	for (const reaction of queuedReactions.keys()) {
+	for (const [reaction, queued] of queuedReactions) {
 		reaction.scheduled = false;
 		reaction.pendingPriority = undefined;
+		queued.context?.cancel();
 		if (reaction.scope?.onError) handlers.add(reaction.scope.onError);
 	}
 	queuedComputations.clear();
@@ -282,9 +317,9 @@ function scheduleRemainingWork(): void {
 
 function highestQueuedPriority(): WorkPriority | undefined {
 	let selected: WorkPriority | undefined;
-	for (const [reaction, priority] of queuedReactions) {
+	for (const [reaction, queued] of queuedReactions) {
 		if (reaction.scope?.paused) continue;
-		if (!selected || isHigherWorkPriority(priority, selected)) selected = priority;
+		if (!selected || isHigherWorkPriority(queued.priority, selected)) selected = queued.priority;
 	}
 	for (const queued of queuedComputations.values()) {
 		if (queued.scope?.paused) continue;
@@ -306,16 +341,16 @@ function hasEligibleComputations(through: WorkPriority): boolean {
 }
 
 function hasEligibleReactions(through: WorkPriority): boolean {
-	for (const [reaction, priority] of queuedReactions) {
+	for (const [reaction, queued] of queuedReactions) {
 		if (reaction.scope?.paused) continue;
-		if (isEligible(priority, through)) return true;
+		if (isEligible(queued.priority, through)) return true;
 	}
 	return false;
 }
 
 function hasQueuedPriority(priority: WorkPriority): boolean {
-	for (const [reaction, queuedPriority] of queuedReactions)
-		if (!reaction.scope?.paused && queuedPriority === priority) return true;
+	for (const [reaction, queued] of queuedReactions)
+		if (!reaction.scope?.paused && queued.priority === priority) return true;
 	for (const queued of queuedComputations.values())
 		if (!queued.scope?.paused && queued.priority === priority) return true;
 	return false;
@@ -335,15 +370,17 @@ function takeEligibleComputations(through: WorkPriority): Array<[() => void, Que
 	return selected;
 }
 
-function takeEligibleReactions(through: WorkPriority): Array<[Reaction, WorkPriority]> {
-	const selected: Array<[Reaction, WorkPriority]> = [];
-	for (const [reaction, priority] of queuedReactions) {
+function takeEligibleReactions(through: WorkPriority): Array<[Reaction, QueuedReaction]> {
+	const selected: Array<[Reaction, QueuedReaction]> = [];
+	for (const [reaction, queued] of queuedReactions) {
 		if (reaction.scope?.paused) continue;
-		if (!isEligible(priority, through)) continue;
+		if (!isEligible(queued.priority, through)) continue;
 		queuedReactions.delete(reaction);
-		selected.push([reaction, priority]);
+		selected.push([reaction, queued]);
 	}
-	selected.sort((left, right) => priorityOrder[left[1]] - priorityOrder[right[1]]);
+	selected.sort(
+		(left, right) => priorityOrder[left[1].priority] - priorityOrder[right[1].priority]
+	);
 	return selected;
 }
 

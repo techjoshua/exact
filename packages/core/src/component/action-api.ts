@@ -22,6 +22,7 @@ import type {
 import type { Component, ComponentInstance } from './contracts.js';
 import { isPromiseLike } from './async-value.js';
 import { trackComponentAsync } from './async.js';
+import { readExactInspectionSource } from './inspection-source.js';
 
 type ActionPolicy = {
 	readonly placement: ActionPlacementRequest;
@@ -133,6 +134,7 @@ function createAction<Result>(
 		result: undefined,
 		error: undefined
 	});
+	const sourceEntityId = readExactInspectionSource(work);
 	const active = new Map<number, ActionGeneration<Awaited<Result>>>();
 	const queued: ActionGeneration<Awaited<Result>>[] = [];
 	let disposed = false;
@@ -142,12 +144,14 @@ function createAction<Result>(
 	ownerInspections.add({
 		snapshot: () =>
 			Object.freeze({
+				...(sourceEntityId ? { sourceEntityId } : {}),
 				name,
 				concurrency,
 				placement: policy.placement,
 				priority: policy.priority,
 				pending: status.pendingCount > 0,
 				pendingCount: status.pendingCount,
+				optimistic: [...active.values()].some((record) => record.journals.length > 0),
 				generation: status.generation,
 				result: status.result,
 				error: status.error,
@@ -162,6 +166,13 @@ function createAction<Result>(
 		if (concurrency === 'latest') cancelAll('superseded');
 		cancellationReason = undefined;
 		const generation = ++status.generation;
+		owner.domain.inspection?.publish({
+			kind: 'task.queue',
+			component: owner,
+			...(sourceEntityId ? { sourceEntityId } : {}),
+			generation,
+			attributes: Object.freeze({ name })
+		});
 		status.error = undefined;
 		status.pendingCount++;
 		let resolve!: (value: Awaited<Result>) => void;
@@ -212,6 +223,13 @@ function createAction<Result>(
 			return;
 		}
 		record.started = true;
+		owner.domain.inspection?.publish({
+			kind: 'task.start',
+			component: owner,
+			...(sourceEntityId ? { sourceEntityId } : {}),
+			generation: record.generation,
+			attributes: Object.freeze({ name })
+		});
 		const context: ActionContext = {
 			signal: record.controller.signal,
 			generation: record.generation,
@@ -229,13 +247,20 @@ function createAction<Result>(
 					throw new TypeError('ActionContext.optimistic() requires a synchronous callback');
 				}
 				record.journals.push(journal);
+				owner.domain.inspection?.publish({
+					kind: 'task.optimistic',
+					component: owner,
+					...(sourceEntityId ? { sourceEntityId } : {}),
+					generation: record.generation,
+					attributes: Object.freeze({ name })
+				});
 			}
 		};
 		let execution: Promise<Awaited<Result>>;
 		try {
 			execution = runComponentInteraction(
 				owner,
-				'action',
+				'invoked',
 				record.generation,
 				policy.priority,
 				record.controller,
@@ -251,6 +276,13 @@ function createAction<Result>(
 				for (const journal of record.journals) journal.discard();
 				status.result = value;
 				finish(record);
+				owner.domain.inspection?.publish({
+					kind: 'task.settle',
+					component: owner,
+					...(sourceEntityId ? { sourceEntityId } : {}),
+					generation: record.generation,
+					attributes: Object.freeze({ name })
+				});
 				record.resolve(value);
 			},
 			(error) => fail(record, error)
@@ -261,6 +293,14 @@ function createAction<Result>(
 		rollbackReactiveMutationJournals(record.journals);
 		record.journals.length = 0;
 		if (!isInteractionCancellation(error)) status.error = error;
+		owner.domain.inspection?.publish({
+			kind: isInteractionCancellation(error) ? 'task.cancel' : 'task.rollback',
+			component: owner,
+			...(sourceEntityId ? { sourceEntityId } : {}),
+			generation: record.generation,
+			reason: 'action-failed',
+			attributes: Object.freeze({ name })
+		});
 		finish(record);
 		record.reject(error);
 	}
@@ -284,6 +324,14 @@ function createAction<Result>(
 			rollbackReactiveMutationJournals(record.journals);
 			record.journals.length = 0;
 			record.controller.abort(reason);
+			owner.domain.inspection?.publish({
+				kind: 'task.cancel',
+				component: owner,
+				...(sourceEntityId ? { sourceEntityId } : {}),
+				generation: record.generation,
+				reason: reason === 'superseded' || reason === 'component-disposed' ? reason : 'cancelled',
+				attributes: Object.freeze({ name })
+			});
 		}
 		for (const record of [...queued]) {
 			const index = queued.indexOf(record);

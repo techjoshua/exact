@@ -22,28 +22,31 @@ bypasses an ordinary catch so obsolete work cannot commit a fallback, but finall
 Assign values needed by the render function to `this.state`; continuation-local variables do not
 become published component state.
 
-Use an explicit task for external effects, cleanup-returning work, deliberately nonblocking work,
-or explicit placement and scheduling.
+Use a function-defined task for external effects, cleanup, deliberately
+nonblocking work, or explicit placement and scheduling.
 
 ## Reactive task generations
 
-Declare tasks directly during component setup. Prefer the compiler-inferred form:
+Define task work as an ordinary local function and call it during component
+setup:
 
 ```tsx
 function Search(this: Component<SearchState>) {
 	this.state.query = '';
 	this.state.results = [];
 
-	this.task(async () => {
-		const query = this.state.query;
+	const search = async (query: string, task: TaskContext = TaskContext.client().latest()) => {
 		if (!query.trim()) {
 			this.state.results = [];
 			return;
 		}
 
-		const response = await fetch('/api/search?q=' + encodeURIComponent(query));
+		const response = await fetch('/api/search?q=' + encodeURIComponent(query), {
+			signal: task.signal
+		});
 		this.state.results = await response.json();
-	});
+	};
+	search(this.state.query);
 
 	return () => <Results items={this.state.results} />;
 }
@@ -54,12 +57,34 @@ for each generation and uses those captured values throughout the callback, incl
 `await`. Computed reads such as `this.state[props.key]` remain executable expressions rather than
 being reduced to wildcard paths.
 
+Use a defaulted non-context parameter for a reactive value that should be
+sampled once per generation without triggering one:
+
+```tsx
+const search = async (
+	query: string,
+	filters: SearchFilters = this.state.filters,
+	task: TaskContext = TaskContext.client().latest()
+) => {
+	await loadResults(query, filters, task.signal);
+};
+search(this.state.query);
+```
+
+Here `query` is tracked and `filters` is a captured input. Changing only
+`filters` does not rerun the task, while the next query generation captures
+the latest filters. An explicit second argument is tracked normally. Prefer
+this form for unconditional inputs and use `task.peek()` for conditional or
+mid-body snapshots. Captured defaults for server tasks are evaluated before
+dispatch and must be serializable.
+
 When a dependency changes, eXact aborts and cleans up the previous generation before owning the
 replacement. Unmounting aborts the active generation. Use explicit
-`this.task(dependency, work)` arguments when a dependency must be supplied indirectly.
+ordinary setup-call arguments when a dependency must be supplied indirectly.
 
-Do not register tasks from the returned render function, event handlers, or later asynchronous
-continuations.
+Do not activate setup work from the returned render function. Calls from event
+handlers or other tasks are ordinary invoked generations and attach to the
+active task frame.
 
 ## Owned resources
 
@@ -67,13 +92,14 @@ Use platform APIs directly inside compiled tasks when possible. The compiler rec
 cancellable calls and disposable resources, including fetches, event listeners, timers, observers,
 sockets, channels, workers, subscriptions, `Symbol.dispose`, and `Symbol.asyncDispose`.
 
-Return a cleanup function for an opaque resource:
+Register an opaque cleanup through `TaskContext`:
 
 ```ts
-this.task.client(() => {
+const observeChannel = (task: TaskContext = TaskContext.client()) => {
 	const channel = openCustomChannel();
-	return () => channel.release();
-});
+	task.cleanup(() => channel.release());
+};
+observeChannel();
 ```
 
 Do not let a generation-owned resource escape into state or an unknown owner unless the API's
@@ -90,14 +116,16 @@ Let the compiler infer placement when code makes it clear:
 Use explicit placement for opaque libraries or architectural intent:
 
 ```ts
-this.task.client(() => browserLibrary.start());
-this.task.server(() => serverLibrary.warmCache());
+const startBrowser = (task: TaskContext = TaskContext.client()) => browserLibrary.start();
+const warmServer = (task: TaskContext = TaskContext.server()) => serverLibrary.warmCache();
+startBrowser();
+warmServer();
 ```
 
 Do not use explicit placement to hide contradictory code. A server task referencing `window`, or a
 client task importing a server-only module, should remain a compile error.
 
-Before changing SSR, hydration, actions, boundary refreshes, or generated client/server artifacts,
+Before changing SSR, hydration, task operations, boundary refreshes, or generated client/server artifacts,
 inspect the installed `@exactjs/compiler`, `@exactjs/ssr`, `@exactjs/hydrate`, and
 `@exactjs/server` APIs. These surfaces are version-sensitive and should not be reconstructed from
 React Server Component assumptions.

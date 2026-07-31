@@ -2,6 +2,7 @@ import { withTaskObserver } from '@exactjs/core';
 import {
 	createExactContextRuntime,
 	createExactContinuationHandler,
+	exactServerDebugRuntime,
 	type ExactPatch
 } from '@exactjs/server';
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from '../diff.js';
@@ -156,9 +157,10 @@ export function createExactServerRuntime(options: ExactServerRuntimeOptions): Ex
 		requestContexts: options.requestContexts,
 		contextOverrides: options.contextOverrides
 	});
-	return {
+	const server: ExactServerContext = {
 		contract: options.contract,
 		...registry,
+		publicOrigin: options.publicOrigin,
 		authorize: options.authorize,
 		validateCsrf: options.validateCsrf,
 		logger: options.logger,
@@ -166,9 +168,22 @@ export function createExactServerRuntime(options: ExactServerRuntimeOptions): Ex
 		applicationContexts: options.applicationContexts,
 		requestContexts: options.requestContexts,
 		contextOverrides: options.contextOverrides,
+		onContextAccess: options.onContextAccess,
+		inspectionCatalogs: options.inspectionCatalogs,
+		allowDebug: options.allowDebug,
+		debugSessionIdentity: options.debugSessionIdentity,
+		debugLimits: options.debugLimits,
+		inspectionQueryService: options.inspectionQueryService,
+		inspectionSources: options.inspectionSources,
+		onDebugAudit: options.onDebugAudit,
 		contextRuntime,
-		dispose: () => contextRuntime.dispose()
+		async dispose() {
+			await contextRuntime.dispose();
+			await server.debugRuntime?.close();
+		}
 	};
+	if (options.inspectionCatalogs?.length) server.debugRuntime = exactServerDebugRuntime(server);
+	return server;
 }
 
 /** Performs the boundary render function domain operation. */

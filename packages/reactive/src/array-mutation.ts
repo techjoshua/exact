@@ -4,6 +4,7 @@ import { markReactiveHashDirty } from './internal/keyed-collections.js';
 
 import { iterateKey } from './internal/symbols.js';
 import { unwrap } from './internal/values.js';
+import type { ReactiveOptions } from './internal/types.js';
 
 /** Applies an array to the owned runtime state. */
 export function mutateArray(
@@ -11,10 +12,11 @@ export function mutateArray(
 	methodName: string,
 	method: (this: unknown[], ...args: unknown[]) => unknown,
 	args: unknown[],
-	receiver: unknown
+	receiver: unknown,
+	options: ReactiveOptions
 ): unknown {
 	if ((methodName === 'push' || methodName === 'pop') && method === Array.prototype[methodName]) {
-		return mutateArrayEnd(target, methodName, method, args, receiver);
+		return mutateArrayEnd(target, methodName, method, args, receiver, options);
 	}
 	const previous = target.slice();
 	let result: unknown;
@@ -40,11 +42,20 @@ export function mutateArray(
 			if (changed) {
 				markReactiveHashDirty(target);
 				trigger(target, iterateKey);
+				notifyMutation(options, methodName);
 			}
 		});
 	}
 
 	return result === target ? receiver : result;
+}
+
+function notifyMutation(options: ReactiveOptions, operation: string): void {
+	try {
+		options.onMutation?.(undefined, operation);
+	} catch {
+		// Inspection cannot change array mutation behavior.
+	}
 }
 
 /**
@@ -135,7 +146,8 @@ function mutateArrayEnd(
 	methodName: 'push' | 'pop',
 	method: (this: unknown[], ...args: unknown[]) => unknown,
 	args: unknown[],
-	receiver: unknown
+	receiver: unknown,
+	options: ReactiveOptions
 ): unknown {
 	const oldLength = target.length;
 	const removed =
@@ -183,6 +195,7 @@ function mutateArrayEnd(
 			trigger(target, 'length');
 			trigger(target, iterateKey);
 		});
+		notifyMutation(options, methodName);
 	}
 	return result === target ? receiver : result;
 }

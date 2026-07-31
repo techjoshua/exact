@@ -6,6 +6,7 @@ import (
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/typescript-go/internal/scanner"
 )
 
 var safeDerivedCollectionMethods = map[string]struct{}{
@@ -119,6 +120,7 @@ func collectReactiveBindings(
 			collectDependencies(state.initializer)
 		}
 		markWrittenReactiveBindingsUnsafe(candidate.node, states, typeChecker)
+		references := reactiveBindingReferences(candidate.node, states, sourceFile, typeChecker)
 		resolved := make(map[*reactiveBindingState]string, len(states))
 		resolving := make(map[*reactiveBindingState]bool, len(states))
 		var classify func(*reactiveBindingState) string
@@ -159,6 +161,8 @@ func collectReactiveBindings(
 				Provenance:       classify(state),
 				ContextToken:     reactiveContextToken(state.initializer),
 				Dependencies:     dependencies,
+				Definition:       reactiveBindingDefinition(state),
+				References:       references[state],
 				SafeToReevaluate: state.safe,
 				Start:            state.node.Pos(),
 				Length:           state.node.End() - state.node.Pos(),
@@ -169,6 +173,55 @@ func collectReactiveBindings(
 		return output[left].Start < output[right].Start
 	})
 	return output
+}
+
+// reactiveBindingDefinition returns the initializer span, falling back to the binding itself for
+// reactive inputs such as parameters that do not have an authored initializer.
+func reactiveBindingDefinition(state *reactiveBindingState) SourceSpan {
+	node := state.initializer
+	if node == nil {
+		node = state.node
+	}
+	return SourceSpan{
+		Start:  node.Pos(),
+		Length: node.End() - node.Pos(),
+	}
+}
+
+// reactiveBindingReferences retains symbol-resolved reads so editor presentation can distinguish
+// a derived declaration from each consumer without reconstructing TypeScript binding in the LSP.
+func reactiveBindingReferences(
+	component *ast.Node,
+	states []*reactiveBindingState,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) map[*reactiveBindingState][]SourceSpan {
+	bySymbol := make(map[ast.SymbolId]*reactiveBindingState, len(states))
+	for _, state := range states {
+		if symbol := typeChecker.GetSymbolAtLocation(state.node); symbol != nil {
+			bySymbol[ast.GetSymbolId(symbol)] = state
+		}
+	}
+	references := make(map[*reactiveBindingState][]SourceSpan, len(states))
+	walkNode(component, func(node *ast.Node) bool {
+		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) {
+			return true
+		}
+		symbol := typeChecker.GetSymbolAtLocation(node)
+		if symbol == nil {
+			return true
+		}
+		state := bySymbol[ast.GetSymbolId(symbol)]
+		if state != nil {
+			start := scanner.SkipTrivia(sourceFile.Text(), node.Pos())
+			references[state] = append(references[state], SourceSpan{
+				Start:  start,
+				Length: node.End() - start,
+			})
+		}
+		return true
+	})
+	return references
 }
 
 func localCallableBody(symbol *ast.Symbol) *ast.Node {

@@ -6,15 +6,27 @@ const root = process.cwd();
 const guidedPackages = [
 	'packages/core',
 	'packages/compiler',
+	'packages/config',
+	'packages/language-server',
+	'packages/vscode-extension',
 	'packages/reactive',
 	'packages/dom',
 	'packages/ssr',
 	'packages/hydrate',
 	'packages/server',
+	'packages/plugin-host',
+	'packages/instrumentation',
+	'packages/devtools-protocol',
+	'packages/devtools-runtime',
+	'packages/devtools-agent',
+	'packages/chromium-devtools',
 	'packages/jsx-runtime',
 	'component-libraries/forms',
 	'component-libraries/router',
-	'framework-adapters/vite-plugin'
+	'framework-adapters/bun-plugin',
+	'framework-adapters/vite-plugin',
+	'framework-adapters/webpack-plugin',
+	'plugins/secrets'
 ];
 const repositoryGuides = ['apps/docs/AGENTS.md'];
 
@@ -45,17 +57,29 @@ for (const guidePath of repositoryGuides) {
 }
 
 const featureGuideRequirements = new Map([
-	['packages/core/AGENTS.md', ['this.action()', 'createComponentRegistry()']],
-	['packages/compiler/AGENTS.md', ['action identifiers', 'registry identity']],
-	['packages/reactive/AGENTS.md', ['Optimistic action rollback']],
-	['packages/dom/AGENTS.md', ['component interaction', 'Registry entry keys']],
+	['packages/core/AGENTS.md', ['TaskContext', 'createComponentRegistry()']],
+	['packages/compiler/AGENTS.md', ['opaque operation identity', 'registry identity']],
+	['packages/config/AGENTS.md', ['debug.catalog', 'allowDebug']],
+	['packages/language-server/AGENTS.md', ['stale-result', 'standard LSP', 'untrusted workspace']],
+	['packages/vscode-extension/AGENTS.md', ['presentation', 'workspace.isTrusted', 'classifier']],
+	['packages/reactive/AGENTS.md', ['Optimistic task rollback']],
+	['packages/dom/AGENTS.md', ['root task frame', 'Registry entry keys']],
 	['packages/hydrate/AGENTS.md', ['invocation generations', 'component registries']],
-	['packages/server/AGENTS.md', ['Action continuations']],
-	['packages/ssr/AGENTS.md', ['registry entries', 'action handlers']],
+	['packages/server/AGENTS.md', ['Task operation continuations']],
+	['packages/plugin-host/AGENTS.md', ['prepared `debug` config', 'client projection']],
+	['packages/instrumentation/AGENTS.md', ['observational', 'raw component instances']],
+	['packages/devtools-protocol/AGENTS.md', ['read-only', 'redaction before traversal']],
+	['packages/devtools-runtime/AGENTS.md', ['read-only', 'dispose']],
+	['packages/devtools-agent/AGENTS.md', ['CDP', 'arbitrary JavaScript']],
+	['packages/chromium-devtools/AGENTS.md', ['read-only', 'page bridge']],
+	['plugins/secrets/AGENTS.md', ['never enter', 'redaction selectors']],
+	['packages/ssr/AGENTS.md', ['registry entries', 'task handlers']],
 	['packages/jsx-runtime/AGENTS.md', ['InteractionHandler', 'registry']],
 	['component-libraries/forms/AGENTS.md', ['interaction host']],
 	['component-libraries/router/AGENTS.md', ['current component interaction']],
-	['framework-adapters/vite-plugin/AGENTS.md', ['action continuations', 'component-registry']],
+	['framework-adapters/bun-plugin/AGENTS.md', ['rich catalogs', 'callback marker']],
+	['framework-adapters/vite-plugin/AGENTS.md', ['task continuations', 'component-registry']],
+	['framework-adapters/webpack-plugin/AGENTS.md', ['rich catalogs', 'canonical ID']],
 	['apps/docs/AGENTS.md', ['proposal', 'README']]
 ]);
 
@@ -74,7 +98,9 @@ for (const required of [
 	'package-local `AGENTS.md`',
 	'<ErrorBoundary>',
 	'className:token',
-	'`Map` and `Set`'
+	'`Map` and `Set`',
+	'createExactLanguageService()',
+	'runtime inspection'
 ]) {
 	if (skill.includes(required)) continue;
 	console.error(`eXact agent skill is missing current guidance: ${required}`);

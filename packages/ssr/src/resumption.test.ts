@@ -17,7 +17,7 @@ describe('@exactjs/ssr component resumption', () => {
 		) {
 			this.state.count = 0;
 			this.state.serverOnly = 'private';
-			this.task(
+			(this as any).task(
 				markComponentContinuationTask('task:load', async () => {
 					await Promise.resolve();
 					this.state.count = 7;
@@ -58,9 +58,14 @@ describe('@exactjs/ssr component resumption', () => {
 			}
 		});
 
-		const rendered = await renderToHydratableStringAsync(createVNode(Counter, {}));
+		function Root() {
+			return () => createVNode(Counter, {});
+		}
+		const rendered = await renderToHydratableStringAsync(createVNode(Root, {}));
 
 		expect(rendered.html).toContain('<output>7</output>');
+		expect(rendered.html).toContain('data-exact-client-name="Counter"');
+		expect(rendered.html).toContain('data-exact-client-resumption="true"');
 		expect(rendered.resumptions).toEqual([
 			{
 				componentId: 'component:Counter',
@@ -77,7 +82,7 @@ describe('@exactjs/ssr component resumption', () => {
 	it('captures the settled render used by a hydratable document stream', async () => {
 		const implementation = function StreamedCounter(this: Component<{ count: number }>) {
 			this.state.count = 0;
-			this.task(
+			(this as any).task(
 				markComponentContinuationTask('task:stream', async () => {
 					await Promise.resolve();
 					this.state.count = 9;
@@ -138,7 +143,7 @@ describe('@exactjs/ssr component resumption', () => {
 		}
 		const implementation = function Provider(this: Component<{}>) {
 			registerComponentContinuationContexts(this, [{ name: 'Status', token: Status }]);
-			this.task(
+			(this as any).task(
 				markComponentContinuationTask('task:status', () => {
 					this.setContext(Status, { message: 'ready' });
 				})

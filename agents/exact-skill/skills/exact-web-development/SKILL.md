@@ -23,8 +23,9 @@ When creating or repairing compiler configuration, read
 ## Preserve the component model
 
 - Define an eXact component as a function whose typed `this` is `Component<State>`.
-- Initialize state, context, refs, lifecycle, and tasks in the outer setup function.
-- Return a render function containing JSX.
+- Initialize state, context, refs, lifecycle, and task activation in the outer setup function.
+- Return a render function whose body is the view expression. Keep declarations and imperative
+  control flow in setup; use conditional JSX and keyed callbacks for view-local branching.
 - Mutate `this.state` directly. Do not use `useState`, reducers, setter wrappers, or immutable
   replacement merely because the file contains JSX.
 - Keep props parent-owned. Store local mutable data in `this.state`.
@@ -48,6 +49,20 @@ expression boundaries and is not an equivalent application runtime.
 
 Use the package scope `@exactjs`, not the former `@exact` scope.
 
+When the installed project provides eXact Language Tools, use its
+compiler-backed diagnostics and Component Semantics view to inspect setup,
+render, inferred and explicit tasks, placement, readiness, dependencies,
+effects, signal injection, and cleanup. Treat those facts as compiler
+authority. Do not infer eXact behavior from generated JavaScript or reproduce a
+classifier in an editor or agent.
+
+For programmatic inspection, first read the installed `@exactjs/compiler`
+package-local `AGENTS.md`, then use `createExactLanguageService()` with
+`noEmit: true`. Synchronize unsaved text with monotonically increasing document
+versions, discard stale generations, and dispose the service. Apply only
+compiler-planned refactors that still match the current generation. Entity IDs
+are local diagnostic correlation values, not runtime or security identities.
+
 ## Choose rendering, build, and runtime deliberately
 
 Decide the rendering mode before adding packages or entrypoints: client-only rendering, server
@@ -69,6 +84,12 @@ SSR, hydration, or server components. Read
 [runtime-configuration.md](references/runtime-configuration.md) before configuring Vite, Webpack,
 Bun, Node, Fetch runtimes, server frameworks, serverless targets, or eXact plugins.
 
+When configuring runtime inspection, first read the installed `@exactjs/config`, build-adapter,
+`@exactjs/server`, `@exactjs/devtools-runtime`, and consumer package `AGENTS.md` files. Keep
+server-owned catalog output, compact client instrumentation, runtime `allowDebug`, and optional
+operator identity binding separate. Never enable production inspection merely to diagnose a build
+that omitted its catalog or runtime hooks.
+
 ## Prefer eXact's source simplifications
 
 - Choose the simplest form that states the intent completely: ordinary TypeScript first,
@@ -89,18 +110,25 @@ Bun, Node, Fetch runtimes, server frameworks, serverless targets, or eXact plugi
 - Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
   product-specific presentation; build directly on `ErrorContext` only for different capture or
   reset semantics.
-- Use `this.task(...)` for component-owned effects, cleanup, nonblocking work, or explicit
-  scheduling and placement. Declare it during setup, let the compiler infer
-  direct state, prop, and context reads, and let each generation own cancellation and cleanup.
+- Define coordinated work as an ordinary local function. Call it during setup
+  for initialization/reactive activation or from an event, form, lifecycle,
+  router, or another task for invoked activation. Use an optional final
+  `TaskContext = TaskContext...` default for placement, concurrency, priority,
+  readiness, detachment, cancellation, cleanup, ownership, or optimism.
+- Use a defaulted non-context task parameter to capture an unconditional reactive
+  input once per generation without making it an activation dependency. Keep
+  explicit setup-call arguments for tracked inputs and reserve `task.peek()` for
+  conditional or mid-body snapshots.
 - Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Use
-  `this.action(name, work, concurrency?)` when code needs reactive status, direct invocation,
+  a function-defined task when code needs reactive status, direct invocation,
   placement, concurrency, deferred priority, or synchronous optimistic state.
 - Use `createComponentRegistry()` for finite runtime component selection. Derive keys with
   `KeyOf<typeof Registry>` or narrow untrusted strings with `hasComponent()`; do not replace it
   with a mutable component dictionary or an untyped `createVNode()` escape.
-  Pass explicit reactive dependencies only when they must be supplied indirectly.
-- Use `this.task.client(...)` or `this.task.server(...)` only when placement is architectural or
-  cannot be inferred from browser/server usage.
+  Pass reactive dependencies as ordinary setup-call arguments; use parameter
+  defaults for generation-stable untracked captures.
+- Use `TaskContext.client()` or `TaskContext.server()` policy only when
+  placement is architectural or cannot be inferred from browser/server usage.
 - Treat a server task as one compiler-generated transition of the same component, not as a second
   application architecture. Resolve database, API, Apollo, TanStack Query, and other resource
   clients from server context; transport only compiler-approved public results.

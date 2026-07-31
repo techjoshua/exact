@@ -1,6 +1,10 @@
 {
 	"files": [],
 	"references": [
+		{ "path": "./packages/devtools-protocol" },
+		{ "path": "./packages/devtools-runtime" },
+		{ "path": "./packages/devtools-agent" },
+		{ "path": "./packages/chromium-devtools" },
 		{ "path": "./packages/instrumentation" },
 		{ "path": "./packages/plugin-api" },
 		{ "path": "./packages/config" },
@@ -31,6 +35,8 @@
 		{ "path": "./packages/jsx-runtime" },
 		{ "path": "./packages/dom" },
 		{ "path": "./packages/compiler" },
+		{ "path": "./packages/language-server" },
+		{ "path": "./packages/vscode-extension" },
 		{ "path": "./packages/server" },
 		{ "path": "./framework-adapters/fetch-adapter" },
 		{ "path": "./framework-adapters/node-adapter" },

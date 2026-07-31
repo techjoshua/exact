@@ -17,6 +17,9 @@ The overlay implements the production compiler host:
 - eXact analysis, placement, policy, artifact partitioning, JSX and task
   lowering, generated validation, and statically linked extensions run against
   the native AST;
+- component setup placement excludes owned task bodies, while client task and
+  server continuation requirements still select dual artifacts and public
+  resumption contracts;
 - the native printer produces TypeScript 6-compatible source; and
 - only source, diagnostics, artifacts, manifests, explanations, source maps,
   and timing summaries cross the process boundary.

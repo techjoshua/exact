@@ -99,6 +99,6 @@ describe('@exactjs/compiler: component values', () => {
 
 		expect(output).toContain('@exactjs/component');
 		expect(output).toContain('Object.assign');
-		expect(output).toContain('export function Badge');
+		expect(output).toContain('export const Badge');
 	});
 });

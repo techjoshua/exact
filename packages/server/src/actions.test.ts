@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract,
 	handleExactRequest
 } from './index.js';
@@ -21,7 +21,7 @@ describe('@exactjs/server actions', () => {
 				contract: {
 					version: 1,
 					actions: {
-						save: defineExactActionContract('save', { boundaries: ['allowed'] })
+						save: defineExactOperationContract('save', { boundaries: ['allowed'] })
 					},
 					boundaries: {
 						allowed: defineExactBoundaryContract('allowed'),
@@ -41,7 +41,7 @@ describe('@exactjs/server actions', () => {
 			contract: {
 				version: 1,
 				actions: {
-					save: defineExactActionContract('save', {
+					save: defineExactOperationContract('save', {
 						reads: [{ path: 'projects.0.id', kind: 'read', confidence: 'exact' }]
 					})
 				},
@@ -74,7 +74,7 @@ describe('@exactjs/server actions', () => {
 			contract: {
 				version: 1,
 				actions: {
-					save: defineExactActionContract('save', {
+					save: defineExactOperationContract('save', {
 						writes: [{ path: 'ready', kind: 'write', confidence: 'exact' }],
 						serverContexts: ['AuthContext']
 					})
@@ -112,7 +112,7 @@ describe('@exactjs/server actions', () => {
 			contract: {
 				version: 1,
 				actions: {
-					save: defineExactActionContract('save', {
+					save: defineExactOperationContract('save', {
 						writes: [{ path: 'domain', kind: 'write', confidence: 'exact' }],
 						publicContexts: ['PublicConfig']
 					})
@@ -156,7 +156,7 @@ describe('@exactjs/server actions', () => {
 				contract: {
 					version: 1,
 					actions: {
-						save: defineExactActionContract('save', {
+						save: defineExactOperationContract('save', {
 							writes: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }]
 						})
 					},

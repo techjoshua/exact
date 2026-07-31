@@ -17,7 +17,9 @@ export {
 	flushSync,
 	inspectScheduledWork,
 	runWithPriority,
-	scheduleWork
+	scheduleWork,
+	setScheduledWorkContextCapture,
+	type ScheduledWorkContext
 } from './internal/scheduler.js';
 export {
 	createEffectScope,
