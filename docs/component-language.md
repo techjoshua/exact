@@ -9,6 +9,13 @@ The reference describes source code, not generated `.exact.client`,
 `.exact.server`, or `.exact.shared` artifacts. Those files are build output and
 are not an application authoring surface.
 
+Compiler-aware editor support exposes the same language model without requiring
+generated-code inspection. eXact Language Tools identifies setup-once
+initializers, reactive render regions, inferred and explicit tasks, actions,
+derived values, bindings, and lifecycle registrations; each classification
+links to the compiler-owned source evidence behind it. See
+[Compiler-aware language tools](language-tools.md).
+
 ## Imports and JSX configuration
 
 Application TSX uses the automatic JSX runtime:
@@ -164,20 +171,24 @@ Code belongs to one of three important execution regions:
 - event, task, lifecycle, timer, and other callbacks run later.
 
 Setup may initialize state, create derived values, register tasks and
-lifecycle work, publish context, and create refs. A render function may use
-ordinary deterministic statements for derivation, branching, loops, and tree
-construction:
+lifecycle work, publish context, and create refs. The returned render function
+contains only its view expression. Put declarations and imperative control flow
+in setup; keep conditional tree logic and keyed iteration in JSX:
 
 ```tsx
 function Summary(this: Component<SummaryState>) {
-	return () => {
-		const visible = this.state.rows.filter((row) => !row.hidden);
-		if (visible.length === 0) return <Empty />;
+	const visible = this.state.rows.filter((row) => !row.hidden);
 
-		const children = [];
-		for (const row of visible) children.push(<Row key={row.id} row={row} />);
-		return <section>{children}</section>;
-	};
+	return () =>
+		visible.length === 0 ? (
+			<Empty />
+		) : (
+			<section>
+				{visible.map((row) => (
+					<Row key={row.id} row={row} />
+				))}
+			</section>
+		);
 }
 ```
 
@@ -332,6 +343,42 @@ const total = subtotal + (props.express ? 14 : 0);
 return () => <strong>{total}</strong>;
 ```
 
+Setup location describes a component-owned relationship. A derived cell caches
+one result for all of its DOM, component-prop, list, and task consumers and
+uses result equality to stop unchanged values from propagating farther through
+the graph. Keep a derived declaration in setup when several consumers should
+share one calculation, non-view work needs it, or an allocation must have one
+identity across its consumers.
+
+Generated reactive callbacks sample a retained derived cell once when an
+authored expression reads it repeatedly. Consequently, ordinary TypeScript
+narrowing remains valid for expressions such as
+`point ? point.x : "unavailable"` even though `point` is backed by a reactive
+cell. The sample belongs only to that eager callback evaluation; deferred
+handlers read the current value when they run.
+
+A returned view is a direct view expression:
+
+```tsx
+const label = this.state.online ? `${this.state.name} · online` : this.state.name;
+return () => <strong>{label}</strong>;
+```
+
+The returned view does not rerun as a unit, so declarations and imperative
+control flow belong in component setup. Conditional expressions in JSX and
+callbacks owned by keyed branches or items remain region-local and update only
+their structural range. This keeps authored ownership unambiguous and prevents
+the same view-local calculation from being duplicated across generated
+reactive boundaries.
+
+The compiler may elide the runtime cell for an ordinary setup-derived value
+when it is safe to reevaluate, has exactly one eager view consumer, and either
+produces a scalar or forwards an existing identity without allocating a new
+one. The calculation is fused into that consumer's reactive closure while its
+authored declaration remains the inspection definition. This optimization
+does not apply to shared bindings, fresh object or collection identities, task
+or event consumers, or values explicitly created with `this.reactive()`.
+
 The same rule applies when the result is assigned to state. The destination is
 an output and reads on the right are dependencies:
 
@@ -344,6 +391,10 @@ Every target in setup-time reactive destructuring must be a writable state
 location so the results can publish as one derived-state transaction. A read
 of the same output path would form a feedback cycle and is rejected.
 
+The initial synchronous calculation settles before the component's first render
+and before required props are passed to child components. Later dependency
+changes publish through the same owned reactive computation.
+
 Use `peek()` to request a deliberate one-time snapshot:
 
 ```tsx
@@ -351,13 +402,24 @@ this.state.initialCurrency = peek(() => props.currency);
 const initialQuery = peek(() => this.state.query);
 ```
 
-Use `this.task()` instead when the relationship is effectful, asynchronous, or
-intentionally feeds back into its own dependencies.
+Use a function-defined task instead when the relationship is effectful,
+asynchronous, or intentionally feeds back into its own dependencies.
+
+The editor can convert a simple inferred awaited assignment to its explicit
+policy form when the compiler proves equivalent placement, readiness,
+dependency ordering, cancellation, publication, and diagnostics. It can
+simplify an explicit blocking task back to inferred source only when cleanup,
+resources, external effects, manual dependency choices, signal use, and control
+flow are all reconstructable. These are compiler-planned, version-bound
+refactors rather than textual source templates.
 
 ### Explicit reactive values
 
 `this.reactive()` creates a component-owned reactive value from a calculation,
-a value, or a tagged template:
+a value, or a tagged template. It is the deliberate form when the derived
+value itself is an API: it must be passed through another framework boundary,
+retain a first-class identity, or remain a durable cell rather than being
+eligible for inferred cell elision.
 
 ```tsx
 const fullName = this.reactive(() => `${this.state.first} ${this.state.last}`);
@@ -367,21 +429,28 @@ const fixed = this.reactive(42);
 return () => <p>{status}</p>;
 ```
 
-A component reactive value also has a task shorthand:
+A setup call passes reactive values as ordinary task inputs:
 
 ```tsx
-fullName.task((name, { signal }) => {
-	reportName(String(name), { signal });
-});
+function reportFullName(name: string, task: TaskContext = TaskContext.client().latest()) {
+	reportName(name, { signal: task.signal });
+}
+
+reportFullName(String(fullName));
 ```
 
-A `ReactiveValue` created outside the component does not have that shorthand;
-pass it to `this.task(value, work)` instead.
+The compiler observes setup-call arguments and reactivates the task when those
+inputs change. The task API is the same for component-owned and externally
+created `ReactiveValue` instances.
 
 `batch(() => { ... })`, exported by `@exactjs/core`, may group multiple
 imperative writes into one reactive publication when an application operation
 needs an explicit transaction. Compiler-lowered derived destructuring already
-publishes transactionally.
+publishes transactionally, and ordinary DOM event callbacks receive the same
+transaction boundary automatically. Publication snapshots the affected
+subscribers before any of them patch: a consumer that reads several changed
+paths still updates once for that synchronous operation, even when its update
+replaces the underlying watcher.
 
 ## JSX
 
@@ -691,96 +760,126 @@ with `allowUnsafeHtml: true`. `dangerouslySetInnerHTML` is not supported.
 
 ## Tasks
 
-`this.task()` declares component-owned work during setup:
+An ordinary local function becomes a task when the compiler finds task policy,
+task capabilities, placement-sensitive effects, or a known activation host.
+Calling it during setup declares component-owned work:
 
 ```tsx
 function Search(this: Component<SearchState>) {
-	this.task(async () => {
-		const query = this.state.query;
+	async function runSearch(query: string, task: TaskContext = TaskContext.client().latest()) {
 		const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
 		this.state.results = await response.json();
-	});
+	}
+
+	runSearch(this.state.query);
 
 	return () => <Results items={this.state.results} />;
 }
 ```
 
-State, prop, and reactive-context reads are inferred as dependencies.
-Assignments are effects, not dependencies. Each dependency change aborts the
-previous generation and starts a new one. The compiler supplies the
-generation's `AbortSignal` to known cancellable APIs and to a final task
-context parameter when authored:
+Setup-call arguments, plus state, prop, and reactive-context reads in task
+work, are inferred as dependencies. Assignments are effects, not dependencies.
+With the default setup concurrency of `latest`, each dependency change aborts
+the previous generation and starts a new one. The compiler supplies the
+generation's `AbortSignal` to known cancellable APIs and through an optional
+final `TaskContext` parameter:
 
 ```tsx
-this.task(
-	this.reactive(() => this.state.query),
-	this.reactive(() => this.state.page),
-	async (query, page, { signal }) => {
-		this.state.results = await search(String(query), Number(page), { signal });
-	}
-);
+async function searchPage(
+	query: string,
+	page: number,
+	task: TaskContext = TaskContext.client().latest()
+) {
+	this.state.results = await search(query, page, { signal: task.signal });
+}
+
+searchPage(this.state.query, this.state.page);
 ```
 
-Explicit dependencies are passed to the callback in order, followed by
-`{ signal }`. The no-dependency form receives `{ signal }` as its only
-parameter.
-
-A task may return a cleanup callback, synchronously or after awaiting:
+When a reactive value should be sampled for each generation but should not
+schedule one, put it in a defaulted non-context parameter:
 
 ```tsx
-this.task.client(({ signal }) => {
-	const channel = openChannel({ signal });
-	return () => channel.close();
-});
+async function searchPage(
+	query: string,
+	filters: SearchFilters = this.state.filters,
+	task: TaskContext = TaskContext.client().latest()
+) {
+	this.state.results = await search(query, filters, { signal: task.signal });
+}
+
+searchPage(this.state.query);
+```
+
+The query argument is tracked. The omitted filters default is captured once
+when that generation begins and then behaves as an ordinary value. Supplying a
+filters argument explicitly restores normal call-site tracking.
+
+Register cleanup explicitly on the generation:
+
+```tsx
+function observeChannel(task: TaskContext = TaskContext.client()) {
+	const channel = openChannel({ signal: task.signal });
+	task.cleanup(() => channel.close());
+}
+
+observeChannel();
 ```
 
 The compiler also recognizes common owned resources, including event
 listeners, fetches, timers, observers, sockets, and subscription results, and
-connects their cancellation or disposal to the task generation. Return an
-explicit cleanup for an opaque resource.
+connects their cancellation or disposal to the task generation. Use
+`task.cleanup()` for an opaque cleanup callback and `task.own()` for a
+`Disposable` or `AsyncDisposable`.
 
 An async component may await a task result directly into state when an explicit
 task boundary is wanted around value-producing work:
 
 ```tsx
 async function ShippingOptions(this: Component<ShippingState>) {
-	this.state.options = await this.task.server(() => getOptions(this.state.destination));
+	this.state.options = await getOptions(this.state.destination);
 
 	return () => <Options options={this.state.options} />;
 }
 ```
 
-This source-level `await this.task(...)` form is compiler-owned. It becomes a
-repeatable blocking task whose result is staged into the assignment target; an
-uncompiled runtime component does not receive a useful promise from ordinary
-task registration. The assignment target must be a statically transportable
-state path when the task runs on the server.
+The compiler lowers this to a repeatable blocking task whose result is staged
+into the assignment target. The assignment target must be a statically
+transportable state path when the task runs on the server.
 
-Task facets are composable:
+Explicit task policy is a chain on the final context default:
 
 ```tsx
-this.task.client(() => installBrowserIntegration());
-this.task.server(() => warmServerCache());
-this.task.deferred(() => preparePreview());
-this.task.blocking(async () => {
+function install(task: TaskContext = TaskContext.client()) {
+	installBrowserIntegration();
+}
+function warm(task: TaskContext = TaskContext.server().deferred()) {
+	warmServerCache();
+}
+async function load(task: TaskContext = TaskContext.server().blocking()) {
 	this.state.catalog = await loadCatalog();
-});
-this.task.server.deferred.blocking(() => warmRecommendations());
+}
+
+install();
+warm();
+load();
 ```
 
-- `client` and `server` request placement;
-- `deferred` selects lower-priority scheduling; and
-- `blocking` makes the generation participate in the nearest `Suspense`
-  readiness boundary.
+- `client()` and `server()` request placement;
+- `immediate()`, `normal()`, and `deferred()` select scheduling priority;
+- `blocking()` and `nonblocking()` select readiness; and
+- `parallel()`, `latest()`, and `queue()` select owner-local concurrency.
 
-Placement, priority, and readiness are independent. A repeated facet,
-contradictory `client.server` placement, or unknown facet is an error. Explicit
-placement may not contradict known browser-only or server-only effects.
+A blocking generation participates in the nearest `Suspense` readiness
+boundary. Placement, concurrency, priority, readiness, and attachment are
+independent. Contradictory or repeated policy is an error. Explicit placement
+may not contradict known browser-only or server-only effects.
 
-Register tasks directly during setup, not inside render functions, callbacks,
-or other tasks. Use a task for external effects, cleanup, nonblocking work,
-manual scheduling/readiness policy, or opaque placement. Pure derived
-assignment does not need a task.
+Call setup-activated tasks directly during setup, not inside render functions.
+Calls inside other task functions are invoked child generations and attach to
+the active task frame automatically. Use task policy for external effects,
+cleanup, nonblocking work, manual scheduling/readiness, concurrency, or opaque
+placement. Pure derived assignment does not need a task.
 
 ## Async components and continuations
 
@@ -840,20 +939,22 @@ dynamic key or value is payload, not a state path, so only the changed entry is
 returned:
 
 ```tsx
-this.task.server(async () => {
-	const product = await loadProduct(this.state.productId);
+async function refreshProduct(task: TaskContext = TaskContext.server()) {
+	const product = await loadProduct(this.state.productId, { signal: task.signal });
 	this.state.products.set(product.id, product);
 	this.state.visibleIds.add(product.id);
-});
+}
+
+refreshProduct();
 ```
 
 Map keys used across this boundary must use the scalar key types listed in the
 State section.
 
-Use explicit `this.task()` for external effects, cleanup, deliberately
+Use explicit `TaskContext` policy for external effects, cleanup, deliberately
 nonblocking work, or manual placement and scheduling.
 
-## Interactions, actions, and optimistic state
+## Interactions, tasks, and optimistic state
 
 DOM events and framework-owned form callbacks run in a component interaction. The interaction
 owns asynchronous settlement, cancellation, error routing, scheduling priority, and work joined
@@ -867,31 +968,28 @@ async function save(_event: SubmitEvent, data: FormData) {
 return () => <Form onValidSubmit={save}>...</Form>;
 ```
 
-Register an explicit action during setup when code needs inspectable status, direct invocation,
+Add task policy when work needs inspectable status, direct invocation,
 placement, concurrency, deferred priority, or optimistic state:
 
 ```tsx
-const save = this.action.server(
-	'save profile',
-	async (profile: Profile, { optimistic, signal }) => {
-		optimistic(() => {
-			this.state.profile = profile;
-		});
-		this.state.profile = await profiles.save(profile, { signal });
-	},
-	'latest'
-);
+async function save(profile: Profile, task: TaskContext = TaskContext.server().latest()) {
+	task.optimistic(() => {
+		this.state.profile = profile;
+	});
+	this.state.profile = await profiles.save(profile, { signal: task.signal });
+}
 ```
 
-Actions are durable callables with reactive `pending`, `pendingCount`, `generation`, `result`, and
-`error` properties plus `cancel()`. Concurrency is `parallel`, `latest`, or `queue`; optimistic
-blocks require `latest` or `queue`, run synchronously, and may use ordinary deep object, array,
-`Map`, and `Set` mutations. Failure, cancellation, supersession, and unmount remove every owned
-overlay while preserving newer authoritative writes.
+Task functions have compiler-synthetic reactive `pending`, `pendingCount`,
+`generation`, `result`, and `error` properties plus `cancel()`. Ordinary
+TypeScript libraries use the equivalent `taskStatus()` or `bindTask()` ABI.
+Optimistic blocks require `latest()` or `queue()`, run synchronously, and may
+use ordinary deep object, array, `Map`, and `Set` mutations. Failure,
+cancellation, supersession, and unmount remove every owned overlay while
+preserving newer authoritative writes.
 
-Placement and priority facets compose as `this.action.client(...)`, `this.action.server(...)`,
-`this.action.deferred(...)`, and `this.action.server.deferred(...)`. Server actions use
-compiler-generated opaque continuation identity; the authored name is diagnostic only.
+Server tasks use compiler-generated opaque operation identity; the authored
+function name is diagnostic only.
 
 ## Error boundaries, Suspense, and Activity
 
@@ -1131,14 +1229,14 @@ The compiler reports an error instead of emitting a partial approximation when
 it cannot preserve both JavaScript behavior and eXact's reactive, ownership, or
 transport contract. Important examples are:
 
-- state writes, task/lifecycle registration, scheduling, and known external
+- state writes, lifecycle registration, scheduling, and known external
   effects inside a rerunnable render body;
 - a module-level shared arrow returned as a render function;
-- task registration outside direct component setup;
+- setup task activation inside a render body or through an unanalyzable call;
 - reassigned component values, mutable component dictionaries, or registry selection not proven
   by `KeyOf` or `hasComponent()`;
-- action registration outside direct component setup, action invocation during render, escaping
-  `ActionContext`, asynchronous optimistic callbacks, or optimistic parallel actions;
+- direct task invocation during render, escaping `TaskContext`, asynchronous
+  optimistic callbacks, or optimistic parallel tasks;
 - reflective state mutation and state targets in `for-in` or `for-of`;
 - a setup derived-state cycle without `peek()` or an explicit task;
 - a derived setup destructuring target that is not component state;

@@ -7,6 +7,7 @@ import {
 	publishTaskMutations,
 	takeTaskCollectionMutations
 } from '@exactjs/core';
+import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext } from './types.js';
 
 /** Application-compatible handler generated from one compiler-owned continuation executor. */
@@ -42,65 +43,80 @@ export function createExactContinuationHandler(
 		const state = activationState(input.state);
 		const generation = continuationGeneration(input.payload);
 		const signal = context.signal ?? new AbortController().signal;
+		let mutationSignal = signal;
 		let result: Awaited<ReturnType<typeof executor.execute>>;
 		try {
-			result = await executor.execute(
+			result = await runTaskFrame(
 				{
-					state,
-					dependencies,
-					publicContext: input.publicContext ?? {},
-					...(generation === undefined ? {} : { generation })
+					kind: 'server-continuation',
+					label: contract.id,
+					generation,
+					readiness: contract.readiness
 				},
 				{
-					signal,
-					getContext: (token, authoredName) => {
-						if (!context.contexts)
-							throw new Error(
-								`No server context scope is active for eXact continuation ${contract.id}`
-							);
-						context.onContextAccess?.(
-							Object.freeze({
-								operationId: contract.id,
-								componentId: contract.componentId,
-								token: authoredName ?? token.description,
-								scope: token.scope
-							})
+					work: (task) => {
+						mutationSignal = task.signal;
+						return executor.execute(
+							{
+								state,
+								dependencies,
+								publicContext: input.publicContext ?? {},
+								...(generation === undefined ? {} : { generation })
+							},
+							{
+								task,
+								signal: task.signal,
+								getContext: (token, authoredName) => {
+									if (!context.contexts)
+										throw new Error(
+											`No server context scope is active for eXact continuation ${contract.id}`
+										);
+									context.onContextAccess?.(
+										Object.freeze({
+											operationId: contract.id,
+											componentId: contract.componentId,
+											token: authoredName ?? token.description,
+											scope: token.scope
+										})
+									);
+									return context.contexts.getSync(token);
+								},
+								setContext: (token, value, authoredName) => {
+									const name = authoredName ?? token.description;
+									if (!(contract.serverContextWrites ?? []).includes(name)) {
+										throw new TypeError(
+											`Continuation ${contract.id} wrote undeclared server context ${name}`
+										);
+									}
+									if (!context.contexts?.setSync) {
+										throw new Error(
+											`No mutable server context scope is active for eXact continuation ${contract.id}`
+										);
+									}
+									context.onContextAccess?.(
+										Object.freeze({
+											operationId: contract.id,
+											componentId: contract.componentId,
+											token: name,
+											scope: token.scope
+										})
+									);
+									context.contexts.setSync(token, value);
+								}
+							}
 						);
-						return context.contexts.getSync(token);
-					},
-					setContext: (token, value, authoredName) => {
-						const name = authoredName ?? token.description;
-						if (!(contract.serverContextWrites ?? []).includes(name)) {
-							throw new TypeError(
-								`Continuation ${contract.id} wrote undeclared server context ${name}`
-							);
-						}
-						if (!context.contexts?.setSync) {
-							throw new Error(
-								`No mutable server context scope is active for eXact continuation ${contract.id}`
-							);
-						}
-						context.onContextAccess?.(
-							Object.freeze({
-								operationId: contract.id,
-								componentId: contract.componentId,
-								token: name,
-								scope: token.scope
-							})
-						);
-						context.contexts.setSync(token, value);
 					}
 				}
 			);
 			// The request-local activation is an unpublished transaction. Compiler-staged
 			// writes become visible only after the executor has completed successfully.
-			publishTaskMutations(signal);
+			publishTaskMutations(mutationSignal);
 		} catch (error) {
-			discardTaskMutations(signal);
+			discardTaskMutations(mutationSignal);
 			throw error;
 		}
 		const projected = projectContinuationState(result.state, contract.stateWrites);
-		const mutations = takeTaskCollectionMutations(signal);
+		const mutations = takeTaskCollectionMutations(mutationSignal);
 		const contexts = projectContinuationContexts(result.contexts, contract.contextWrites);
 		return {
 			...(projected === undefined ? {} : { state: projected }),

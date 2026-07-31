@@ -21,10 +21,12 @@
 		"dist/expression/watch-invalidation.*",
 		"dist/ids.*",
 		"dist/index.*",
+		"dist/language-tools",
 		"dist/manifest",
 		"dist/manifest-parse.*",
 		"dist/names.*",
 		"dist/native/executable.*",
+		"dist/native/async-language-client.*",
 		"dist/native/manifest.*",
 		"dist/native/process.*",
 		"dist/native/process-contracts.*",
@@ -63,6 +65,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
+		"@exactjs/devtools-protocol": "^0.1.0",
 		"@exactjs/instrumentation": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",
 		"@exactjs/plugin-host": "^0.1.0"

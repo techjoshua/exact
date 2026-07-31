@@ -19,9 +19,13 @@ Keep mutable values in component state and use eXact's `value:input`, `value:cha
 `checked:change` bindings where appropriate. Form context owns accessibility and validation
 relationships; application state remains directly inspectable.
 
+The library components follow the native render contract: props, accessibility
+IDs, and validation projections are prepared during setup, while each returned
+render function contains only its JSX view expression.
+
 Submission is an interaction host. Duplicate submissions are dropped while one is active,
 `aria-busy` and submit disabled state follow the full joined settlement, and router work started
 by the callback remains part of that lifetime. The `errors` prop projects application-owned
 server validation state into matching fields; it does not create a hidden form error store.
 
-See [Actions, interactions, optimistic state, and forms](../../docs/actions-and-forms.md).
+See [Task interactions, optimistic state, and forms](../../docs/actions-and-forms.md).

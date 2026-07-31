@@ -12,6 +12,22 @@ describe('@exactjs/compiler: reactivity', () => {
 		expect(output).toContain('"Save"');
 	});
 
+	it('keeps conditional JSX inside one dynamic child boundary', () => {
+		const output = transform(`
+      function Panel(this: Component<{ ready: boolean }>) {
+        return () => (
+          <section>
+            {this.state.ready ? <strong>Ready</strong> : <span>Loading</span>}
+          </section>
+        );
+      }
+    `);
+
+		expect(output.match(/__exactDynamic\(/g)).toHaveLength(1);
+		expect(output).toContain('this.state.ready ? __exactVNode("strong"');
+		expect(output).toContain(': __exactVNode("span"');
+	});
+
 	it('returns transform results for generic adapters', () => {
 		const result = transformSource('const view = <span />;', { filename: 'view.tsx' });
 
@@ -61,13 +77,13 @@ describe('@exactjs/compiler: reactivity', () => {
       import { readFile } from "node:fs/promises";
 
       export function ProjectPage(this: Component<{ project?: string; width?: number }>) {
-        this.task(async ({ signal }) => {
+        this.task(async ({ signal }: { signal: AbortSignal }) => {
           this.state.project = await readFile("project.txt", "utf8");
         });
-        this.task(({ signal }) => {
+        this.task(({ signal }: { signal: AbortSignal }) => {
           this.state.width = window.innerWidth;
         });
-        this.task(({ signal }) => {
+        this.task(({ signal }: { signal: AbortSignal }) => {
           window.addEventListener("resize", () => {});
         });
         return () => <button onClick={() => save()} ref={this.ref(button)}>{this.state.project}</button>;
@@ -96,7 +112,7 @@ describe('@exactjs/compiler: reactivity', () => {
 					debugName: 'ProjectPage',
 					kind: 'component',
 					role: 'root',
-					target: 'server',
+					target: 'both',
 					placement: 'isomorphic'
 				}),
 				expect.objectContaining({
@@ -398,10 +414,10 @@ describe('@exactjs/compiler: reactivity', () => {
       import { readFile } from "node:fs/promises";
 
       export function ProjectPage(this: Component<{ project?: string; width?: number }>) {
-        this.task(async ({ signal }) => {
+        this.task(async ({ signal }: { signal: AbortSignal }) => {
           this.state.project = await readFile("project.txt", "utf8");
         });
-        this.task(({ signal }) => {
+        this.task(({ signal }: { signal: AbortSignal }) => {
           this.state.width = window.innerWidth;
         });
         return () => <button onClick={() => this.state.width++}>{this.state.project}</button>;
@@ -450,16 +466,18 @@ describe('@exactjs/compiler: reactivity', () => {
 			readiness: 'blocking'
 		});
 		expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain(
-			'task placement forced by this.task.server()'
+			'task placement explicitly requested as server'
 		);
-		expect(client).not.toContain('server');
+		expect(client).toContain('placement: "server"');
 		expect(client).toContain('dispatchComponentContinuation as __exactDispatchContinuation');
 		expect(client).toContain(
-			`__exactDispatchContinuation(this, "${manifest.components[0]!.tasks[0]!.id}"`
+			`__exactDispatchContinuation(this as any, "${manifest.components[0]!.tasks[0]!.id}"`
 		);
-		expect(client).toContain('this.task.deferred.blocking(');
+		expect(client).toContain('priority: "deferred"');
+		expect(client).toContain('readiness: "blocking"');
 		expect(client).toContain('__exactWrite(this.state, ["width"], () => 1)');
-		expect(client).toContain('this.task.client(this.reactive(() => this.state.width)');
+		expect(client).toContain('placement: "client"');
+		expect(client).toContain('this.reactive(() => this.state.width)');
 		expect(server).toContain('server');
 		expect(server).not.toContain('width = 1');
 	});
@@ -534,7 +552,7 @@ describe('@exactjs/compiler: reactivity', () => {
         return () => <p />;
       }
     `)
-		).toThrow('this.task.server() cannot reference browser-only globals');
+		).toThrow('task requests server placement but references browser-only globals');
 
 		expect(() =>
 			transform(`
@@ -546,6 +564,6 @@ describe('@exactjs/compiler: reactivity', () => {
         return () => <p />;
       }
     `)
-		).toThrow('this.task.client() cannot reference server-only imports');
+		).toThrow('task requests client placement but references server-only imports');
 	});
 });

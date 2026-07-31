@@ -143,7 +143,7 @@ describe('@exactjs/compiler: artifacts', () => {
 					localName: 'Page',
 					generatedName: 'Page',
 					role: 'root',
-					target: 'server'
+					target: 'both'
 				})
 			],
 			boundaries: []
@@ -336,7 +336,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
 
-		expect(client).toContain('this.task.blocking(');
+		expect(client).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(client).toContain('__exactDispatchContinuation');
 		expect(client).toContain('readiness: "blocking"');
 		expect(server).toContain('executors: [');
@@ -381,7 +381,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
 
-		expect(client).toContain('this.task.blocking(');
+		expect(client).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(client).toContain('__exactDispatchContinuation');
 		expect(client).toContain('readiness: "blocking"');
 		expect(server).toContain('executors: [');
@@ -422,9 +422,12 @@ describe('@exactjs/compiler: artifacts', () => {
 		const server = await readFile(result.serverFile, 'utf8');
 
 		expect(client).not.toContain('this.reactive(() => this.getContext(DatabaseContext))');
-		expect(client).toMatch(
-			/this\.task\(this\.reactive\(\(\) => this\.state\.id\), __exactContinuationTask\("[^"]+", \(__exactDependency/
+		expect(client).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(client).toContain('(...__exactTaskArgs: any[]) => {');
+		expect(client).toContain(
+			'__exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation'
 		);
+		expect(client).toContain('this.reactive(() => this.state.id)');
 		expect(server).toMatch(
 			/__exactExecution_\d+\.getContext\(DatabaseContext, "DatabaseContext"\)\.find\(__exactDependency\)/
 		);

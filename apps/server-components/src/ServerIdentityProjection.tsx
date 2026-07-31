@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 import { IdentityProvider } from './IdentityProvider.js';
 import { ServerAuthorizationContext, ServerBrandContext } from './identity-context.js';
 
@@ -17,7 +17,7 @@ export function ServerIdentityProjection(
 	this.state.brandName ??= '';
 	this.state.brandAccent ??= '';
 
-	this.task.server(async () => {
+	const projectIdentity = async (_task: TaskContext = TaskContext.server()) => {
 		await Promise.resolve();
 		const authorization = this.getContext(ServerAuthorizationContext);
 		const brand = this.getContext(ServerBrandContext);
@@ -25,7 +25,8 @@ export function ServerIdentityProjection(
 		this.state.roleNames = authorization.roles().join(',');
 		this.state.brandName = publicBrand.name;
 		this.state.brandAccent = publicBrand.accent;
-	});
+	};
+	void projectIdentity();
 
 	return () => (
 		<IdentityProvider

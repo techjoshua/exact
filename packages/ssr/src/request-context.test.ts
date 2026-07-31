@@ -1,7 +1,7 @@
 import { createContext, createVNode, type Component } from '@exactjs/core';
 import { RequestContext } from '@exactjs/request';
 import {
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract,
 	handleExactRequest
 } from '@exactjs/server';
@@ -45,7 +45,7 @@ describe('@exactjs/ssr request-context', () => {
 			const request = this.getContext(RequestContext);
 			const name = this.getContext(RequestName);
 			this.state.ready = 'loading';
-			this.task.server(async () => {
+			(this as any).task.server(async () => {
 				await Promise.resolve();
 				this.state.ready = `${name}:${request.method}`;
 				request.setStatus(201);
@@ -110,7 +110,7 @@ describe('@exactjs/ssr request-context', () => {
 				function Settled(this: Component<{ value: string }>) {
 					const request = this.getContext(RequestContext);
 					this.state.value = 'pending';
-					this.task.server(async () => {
+					(this as any).task.server(async () => {
 						await Promise.resolve();
 						this.state.value = 'settled';
 						request.setStatus(206);
@@ -215,7 +215,7 @@ describe('@exactjs/ssr request-context', () => {
 			contract: {
 				version: 1,
 				actions: {
-					'save-profile': defineExactActionContract('save-profile', {
+					'save-profile': defineExactOperationContract('save-profile', {
 						componentId: 'Profile',
 						writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
 						boundaries: ['profile']

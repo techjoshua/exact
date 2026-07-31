@@ -11,11 +11,24 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./tasks": {
+			"types": "./dist/tasks/v1.d.ts",
+			"default": "./dist/tasks/v1.js"
+		},
+		"./tasks/v1": {
+			"types": "./dist/tasks/v1.d.ts",
+			"default": "./dist/tasks/v1.js"
+		},
+		"./framework/task-frames": {
+			"types": "./dist/framework/task-frames.d.ts",
+			"default": "./dist/framework/task-frames.js"
 		}
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
+		"@exactjs/devtools-protocol": "^0.1.0",
 		"@exactjs/reactive": "^0.1.0"
 	},
 	"scripts": {

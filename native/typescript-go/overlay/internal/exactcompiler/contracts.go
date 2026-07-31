@@ -12,7 +12,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.23.0"
+const ProtocolVersion = "1.26.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -51,6 +51,7 @@ type Request struct {
 	Extensions                 map[string]json.RawMessage `json:"extensions,omitempty"`
 	CompatibilityExtensions    map[string][]string        `json:"compatibilityExtensions,omitempty"`
 	ModuleRewrite              *ModuleRewrite             `json:"moduleRewrite,omitempty"`
+	InstrumentInspection       bool                       `json:"instrumentInspection,omitempty"`
 }
 
 // ModuleRewrite contains host-planned aliases applied before native printing.
@@ -325,6 +326,7 @@ type StateWrite struct {
 	Component       string            `json:"component"`
 	Path            []string          `json:"path"`
 	Operation       string            `json:"operation"`
+	SetupExecution  string            `json:"setupExecution,omitempty"`
 	Start           int               `json:"start"`
 	Length          int               `json:"length"`
 	RootAlias       string            `json:"-"`
@@ -439,47 +441,77 @@ type TaskSignalCall struct {
 type TaskDependency struct {
 	Index        int    `json:"index"`
 	Source       string `json:"source"`
+	Path         string `json:"path,omitempty"`
+	ContextToken string `json:"contextToken,omitempty"`
+}
+
+// TaskCapturedInput describes one reactive read used to resolve a defaulted
+// task parameter without adding an activation dependency.
+type TaskCapturedInput struct {
+	Parameter    int    `json:"parameter"`
+	Source       string `json:"source"`
+	Path         string `json:"path"`
 	ContextToken string `json:"contextToken,omitempty"`
 }
 
 // ReactiveBinding describes the provenance of one component lexical binding.
 type ReactiveBinding struct {
-	Component        string   `json:"component"`
-	Name             string   `json:"name"`
-	Provenance       string   `json:"provenance"`
-	ContextToken     string   `json:"contextToken,omitempty"`
-	Dependencies     []string `json:"dependencies"`
-	SafeToReevaluate bool     `json:"safeToReevaluate"`
-	Start            int      `json:"start"`
-	Length           int      `json:"length"`
+	Component        string       `json:"component"`
+	Name             string       `json:"name"`
+	Provenance       string       `json:"provenance"`
+	ContextToken     string       `json:"contextToken,omitempty"`
+	Dependencies     []string     `json:"dependencies"`
+	Definition       SourceSpan   `json:"definition"`
+	References       []SourceSpan `json:"references"`
+	SafeToReevaluate bool         `json:"safeToReevaluate"`
+	Start            int          `json:"start"`
+	Length           int          `json:"length"`
+}
+
+// SourceSpan identifies one authored compiler-recognized source occurrence.
+type SourceSpan struct {
+	Start  int `json:"start"`
+	Length int `json:"length"`
 }
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
-	ID                   string                    `json:"id"`
-	Component            string                    `json:"component"`
-	Facets               []string                  `json:"facets"`
-	RequestedPlacement   string                    `json:"requestedPlacement,omitempty"`
-	Priority             string                    `json:"priority"`
-	Readiness            string                    `json:"readiness"`
-	Placement            string                    `json:"placement"`
-	Async                bool                      `json:"async"`
-	BrowserEffects       bool                      `json:"browserEffects"`
-	ServerEffects        bool                      `json:"serverEffects"`
-	EnvironmentEffect    string                    `json:"environmentEffect"`
-	ReactiveDependencies []string                  `json:"reactiveDependencies"`
-	Dependencies         []TaskDependency          `json:"dependencies"`
-	Reads                []StateEffect             `json:"reads"`
-	Writes               []StateEffect             `json:"writes"`
-	ResultWritePath      []string                  `json:"resultWritePath,omitempty"`
-	Contexts             []ContextEffect           `json:"contexts"`
-	EffectSources        []EnvironmentEffectSource `json:"effectSources"`
-	Resources            []TaskResource            `json:"resources"`
-	SignalCalls          []TaskSignalCall          `json:"signalCalls"`
-	Diagnostics          []string                  `json:"diagnostics"`
-	Start                int                       `json:"start"`
-	Length               int                       `json:"length"`
-	SyntheticSetup       bool                      `json:"-"`
+	ID                      string                    `json:"id"`
+	Component               string                    `json:"component"`
+	Facets                  []string                  `json:"facets"`
+	RequestedPlacement      string                    `json:"requestedPlacement,omitempty"`
+	Priority                string                    `json:"priority"`
+	Readiness               string                    `json:"readiness"`
+	Placement               string                    `json:"placement"`
+	Async                   bool                      `json:"async"`
+	BrowserEffects          bool                      `json:"browserEffects"`
+	ServerEffects           bool                      `json:"serverEffects"`
+	EnvironmentEffect       string                    `json:"environmentEffect"`
+	ReactiveDependencies    []string                  `json:"reactiveDependencies"`
+	Dependencies            []TaskDependency          `json:"dependencies"`
+	CapturedInputs          []TaskCapturedInput       `json:"capturedInputs"`
+	Reads                   []StateEffect             `json:"reads"`
+	Writes                  []StateEffect             `json:"writes"`
+	ResultWritePath         []string                  `json:"resultWritePath,omitempty"`
+	Contexts                []ContextEffect           `json:"contexts"`
+	EffectSources           []EnvironmentEffectSource `json:"effectSources"`
+	Resources               []TaskResource            `json:"resources"`
+	SignalCalls             []TaskSignalCall          `json:"signalCalls"`
+	Diagnostics             []string                  `json:"diagnostics"`
+	Start                   int                       `json:"start"`
+	Length                  int                       `json:"length"`
+	SyntheticSetup          bool                      `json:"-"`
+	FunctionDefined         bool                      `json:"functionDefined,omitempty"`
+	WorkStart               int                       `json:"workStart,omitempty"`
+	WorkLength              int                       `json:"workLength,omitempty"`
+	Invoked                 bool                      `json:"invoked,omitempty"`
+	Concurrency             string                    `json:"concurrency,omitempty"`
+	Detached                bool                      `json:"detached,omitempty"`
+	ArgumentCount           int                       `json:"argumentCount,omitempty"`
+	ActivationArgumentCount int                       `json:"activationArgumentCount,omitempty"`
+	CapturedParameters      []int                     `json:"capturedParameters"`
+	KeyStart                int                       `json:"keyStart,omitempty"`
+	KeyLength               int                       `json:"keyLength,omitempty"`
 }
 
 // ContinuationActivation describes values accepted by one server transition.
@@ -633,6 +665,7 @@ type Analysis struct {
 	ReactiveBindings []ReactiveBinding      `json:"reactiveBindings"`
 	Callables        []CallableSummary      `json:"callables"`
 	Tasks            []Task                 `json:"tasks"`
+	Actions          []Action               `json:"actions"`
 	Exports          []ExportRecord         `json:"exports"`
 	Symbols          []SymbolRecord         `json:"symbols"`
 	Boundaries       []Boundary             `json:"boundaries"`
@@ -657,6 +690,7 @@ func NewAnalysis(
 	reactiveBindings []ReactiveBinding,
 	callables []CallableSummary,
 	tasks []Task,
+	actions []Action,
 	exports []ExportRecord,
 	symbols []SymbolRecord,
 	boundaries []Boundary,
@@ -678,6 +712,7 @@ func NewAnalysis(
 		ReactiveBindings: nonNilSlice(reactiveBindings),
 		Callables:        normalizedCallables(callables),
 		Tasks:            normalizedTasks(tasks),
+		Actions:          normalizedActions(actions),
 		Exports:          nonNilSlice(exports),
 		Symbols:          nonNilSlice(symbols),
 		Boundaries:       nonNilSlice(boundaries),
@@ -691,6 +726,17 @@ func NewAnalysis(
 		Assets:        nonNilSlice(assets),
 		SemanticGraph: normalizedSemanticGraph(semanticGraph),
 	}
+}
+
+func normalizedActions(values []Action) []Action {
+	values = nonNilSlice(values)
+	for index := range values {
+		values[index].Arguments = nonNilSlice(values[index].Arguments)
+		values[index].Reads = nonNilSlice(values[index].Reads)
+		values[index].Writes = nonNilSlice(values[index].Writes)
+		values[index].Contexts = nonNilSlice(values[index].Contexts)
+	}
+	return values
 }
 
 func normalizedComponentRegistries(
@@ -767,6 +813,8 @@ func normalizedTasks(values []Task) []Task {
 			values[index].ReactiveDependencies,
 		)
 		values[index].Dependencies = nonNilSlice(values[index].Dependencies)
+		values[index].CapturedInputs = nonNilSlice(values[index].CapturedInputs)
+		values[index].CapturedParameters = nonNilSlice(values[index].CapturedParameters)
 		values[index].Reads = nonNilSlice(values[index].Reads)
 		values[index].Writes = nonNilSlice(values[index].Writes)
 		values[index].Contexts = nonNilSlice(values[index].Contexts)

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { defineExactActionContract } from '@exactjs/server';
+import { defineExactOperationContract } from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactKoaMiddleware, type ExactKoaContext } from './index.js';
 
@@ -119,7 +119,7 @@ describe('@exactjs/koa-adapter', () => {
 });
 
 function stateAction(id: string) {
-	return defineExactActionContract(id, {
+	return defineExactOperationContract(id, {
 		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 	});
 }

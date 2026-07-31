@@ -10,10 +10,15 @@ import {
 	findConflicts,
 	isDigit,
 	isSolved,
-	moveSelection,
 	planNoteToggle,
 	planValueEntry
 } from './game-engine.js';
+import {
+	difficultyLabel,
+	firstEditableIndex,
+	formatElapsed,
+	keyboardSelection
+} from './presentation.js';
 import { findPuzzle, nextPuzzle } from './puzzles.js';
 import { createSavedGame, loadSavedGame, storageKey } from './storage.js';
 import { themeName } from './themes.js';
@@ -45,17 +50,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 	this.state.lensOpen = false;
 	this.state.themeMenuOpen = false;
 
-	const puzzle = findPuzzle(this.state.puzzleId);
-	const conflicts = findConflicts(this.state.cells);
 	const complete = isSolved(this.state.cells);
-	const entered = enteredCellCount(this.state.cells);
-	const editable = editableCellCount(this.state.cells);
-	const selectedCell = this.state.cells[this.state.selectedIndex]!;
-	const selectedCandidates = candidatesFor(this.state.cells, this.state.selectedIndex);
-	const lastMove = this.state.history[this.state.history.length - 1];
-	const remaining = editable - entered;
-	const progress = editable === 0 ? 100 : Math.round((entered / editable) * 100);
-	const digitProgress = digitPlacementProgress(this.state.cells, conflicts);
 
 	const commit = (label: string, changes: GameMove['changes']) => {
 		if (!changes.length || complete) return;
@@ -175,70 +170,78 @@ export function SudokuApp(this: Component<SudokuState>) {
 		);
 	};
 
-	this.task(this.state.paused, complete, (paused, solved) => {
+	const runTimer = (paused: boolean, solved: boolean) => {
 		if (paused || solved) return;
 		setInterval(() => this.state.elapsedSeconds++, 1000);
-	});
+	};
+	runTimer(this.state.paused, complete);
 
-	this.task(this.state.puzzleId, JSON.stringify(this.state.cells), this.state.theme, () =>
-		persistGame()
-	);
+	const persistChangedGame = (_puzzleId: string, _cells: string, _theme: string) => {
+		persistGame();
+	};
+	persistChangedGame(this.state.puzzleId, JSON.stringify(this.state.cells), this.state.theme);
 
 	// Capture timer-only progress when the session is suspended without making
 	// the one-second display update a persistence dependency.
-	this.task(({ signal }) => {
+	const observePageLifetime = () => {
 		const persistWhenHidden = () => {
 			if (document.visibilityState === 'hidden') persistGame();
 		};
-		document.addEventListener('visibilitychange', persistWhenHidden, { signal });
-		window.addEventListener('pagehide', persistGame, { signal });
-	});
+		document.addEventListener('visibilitychange', persistWhenHidden);
+		window.addEventListener('pagehide', persistGame);
+	};
+	observePageLifetime();
 
-	this.task(({ signal }) => {
-		window.addEventListener(
-			'keydown',
-			(event) => {
-				if (event.target instanceof HTMLSelectElement) return;
-				if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-					event.preventDefault();
-					if (event.shiftKey) redo();
-					else undo();
-					return;
-				}
-				const digit = Number(event.key);
-				if (isDigit(digit)) {
-					event.preventDefault();
-					this.state.selectedDigit = this.state.selectedDigit === digit ? undefined : digit;
-					return;
-				}
-				if (
-					(event.key === 'Enter' || event.key === ' ') &&
-					this.state.selectedDigit !== undefined
-				) {
-					event.preventDefault();
-					enter(this.state.selectedDigit);
-					return;
-				}
-				if (event.key === 'Backspace' || event.key === 'Delete') {
-					event.preventDefault();
-					erase();
-					return;
-				}
-				if (event.key.toLowerCase() === 'n') {
-					event.preventDefault();
-					this.state.noteMode = !this.state.noteMode;
-					return;
-				}
-				const nextIndex = keyboardSelection(this.state.selectedIndex, event.key);
-				if (nextIndex !== this.state.selectedIndex) {
-					event.preventDefault();
-					this.state.selectedIndex = nextIndex;
-				}
-				if (event.key === 'Escape') this.state.themeMenuOpen = false;
-			},
-			{ signal }
-		);
-	});
+	const observeKeyboard = () => {
+		window.addEventListener('keydown', (event) => {
+			if (event.target instanceof HTMLSelectElement) return;
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+				event.preventDefault();
+				if (event.shiftKey) redo();
+				else undo();
+				return;
+			}
+			const digit = Number(event.key);
+			if (isDigit(digit)) {
+				event.preventDefault();
+				this.state.selectedDigit = this.state.selectedDigit === digit ? undefined : digit;
+				return;
+			}
+			if ((event.key === 'Enter' || event.key === ' ') && this.state.selectedDigit !== undefined) {
+				event.preventDefault();
+				enter(this.state.selectedDigit);
+				return;
+			}
+			if (event.key === 'Backspace' || event.key === 'Delete') {
+				event.preventDefault();
+				erase();
+				return;
+			}
+			if (event.key.toLowerCase() === 'n') {
+				event.preventDefault();
+				this.state.noteMode = !this.state.noteMode;
+				return;
+			}
+			const nextIndex = keyboardSelection(this.state.selectedIndex, event.key);
+			if (nextIndex !== this.state.selectedIndex) {
+				event.preventDefault();
+				this.state.selectedIndex = nextIndex;
+			}
+			if (event.key === 'Escape') this.state.themeMenuOpen = false;
+		});
+	};
+	observeKeyboard();
+
+	const puzzle = findPuzzle(this.state.puzzleId);
+	const conflicts = findConflicts(this.state.cells);
+	const entered = enteredCellCount(this.state.cells);
+	const editable = editableCellCount(this.state.cells);
+	const selectedCell = this.state.cells[this.state.selectedIndex]!;
+	const selectedCandidates = candidatesFor(this.state.cells, this.state.selectedIndex);
+	const lastMove = this.state.history[this.state.history.length - 1];
+	const remaining = editable - entered;
+	const progress = editable === 0 ? 100 : Math.round((entered / editable) * 100);
+	const digitProgress = digitPlacementProgress(this.state.cells, conflicts);
 
 	return () => (
 		<div className={['sudoku-app', `theme-${this.state.theme}`]}>
@@ -386,29 +389,4 @@ export function SudokuApp(this: Component<SudokuState>) {
 			/>
 		</div>
 	);
-}
-
-function firstEditableIndex(cells: SudokuState['cells']): number {
-	const index = cells.findIndex((cell) => !cell.given);
-	return index < 0 ? 0 : index;
-}
-
-function keyboardSelection(index: number, key: string): number {
-	if (key === 'ArrowUp') return moveSelection(index, -1, 0);
-	if (key === 'ArrowDown') return moveSelection(index, 1, 0);
-	if (key === 'ArrowLeft') return moveSelection(index, 0, -1);
-	if (key === 'ArrowRight') return moveSelection(index, 0, 1);
-	return index;
-}
-
-function formatElapsed(seconds: number): string {
-	const minutes = Math.floor(seconds / 60);
-	const remainder = seconds % 60;
-	return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
-}
-
-function difficultyLabel(difficulty: Difficulty): string {
-	if (difficulty === 'gentle') return 'gentle';
-	if (difficulty === 'tricky') return 'tricky';
-	return 'fiendish';
 }

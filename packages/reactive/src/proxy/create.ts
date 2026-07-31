@@ -59,7 +59,8 @@ export function createReactive(
 			}
 			const current = Reflect.get(target, key, receiver);
 			if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {
-				return (...args: unknown[]) => mutateArray(target, String(key), current, args, receiver);
+				return (...args: unknown[]) =>
+					mutateArray(target, String(key), current, args, receiver, options);
 			}
 			if (options.passthroughKeys?.includes(key)) {
 				track(target, key);
@@ -139,6 +140,7 @@ export function createReactive(
 				)
 					trigger(target, 'length');
 				if (!hadKey || isArrayStructureKey(target, key)) trigger(target, iterateKey);
+				notifyMutation(options, key, 'set');
 			}
 			return ok;
 		},
@@ -160,6 +162,7 @@ export function createReactive(
 			if (!previous || isArrayStructureKey(target, key)) trigger(target, iterateKey);
 			if (oldLength !== undefined && (target as unknown[]).length !== oldLength && key !== 'length')
 				trigger(target, 'length');
+			notifyMutation(options, key, 'define');
 			return true;
 		},
 		deleteProperty(target, key) {
@@ -186,6 +189,7 @@ export function createReactive(
 				markReactiveHashDirty(target);
 				trigger(target, key);
 				trigger(target, iterateKey);
+				notifyMutation(options, key, 'delete');
 			}
 			return ok;
 		},
@@ -328,9 +332,31 @@ function samePropertyDescriptor(
 }
 
 function reactiveOptionsKey(options: ReactiveOptions): object {
-	if (!options.readonly && !options.onReadonlyWrite && !options.passthroughKeys?.length)
+	if (
+		!options.readonly &&
+		!options.onReadonlyWrite &&
+		!options.onMutation &&
+		!options.passthroughKeys?.length
+	)
 		return defaultReactiveOptions;
-	if (options.readonly && !options.onReadonlyWrite && !options.passthroughKeys?.length)
+	if (
+		options.readonly &&
+		!options.onReadonlyWrite &&
+		!options.onMutation &&
+		!options.passthroughKeys?.length
+	)
 		return readonlyReactiveOptionsKey;
 	return options as object;
+}
+
+function notifyMutation(
+	options: ReactiveOptions,
+	key: PropertyKey | undefined,
+	operation: string
+): void {
+	try {
+		options.onMutation?.(key, operation);
+	} catch {
+		// Observation is deliberately outside application error propagation.
+	}
 }

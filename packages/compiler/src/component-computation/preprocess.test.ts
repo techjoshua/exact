@@ -22,9 +22,9 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Summary.tsx' }
 		);
-		expect(output).toContain(
-			'this.task(this.reactive(() => this.state.quantity), this.reactive(() => this.state.price)'
-		);
+		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('this.reactive(() => this.state.quantity)');
+		expect(output).toContain('this.reactive(() => this.state.price)');
 		expect(output).toContain('__exactWrite(this.state, ["subtotal"]');
 	});
 
@@ -48,7 +48,7 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Width.tsx' }
 		);
-		expect(result.code).toContain('this.task(');
+		expect(result.code).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(result.code).toContain('__exactWrite(this.state, ["value"]');
 		expect(result.manifest.components[0]?.tasks[0]?.placement).toBe('client');
 	});
@@ -154,7 +154,8 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'TrySummary.tsx' }
 		);
-		expect(output).toContain('this.task(this.reactive(() => this.state.input)');
+		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('this.reactive(() => this.state.input)');
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');
 		expect(output).toContain('finally');
@@ -183,7 +184,8 @@ describe('@exactjs/compiler component computations', () => {
 			{ filename: 'Customer.tsx' }
 		);
 		expect(output).not.toContain('async function Customer');
-		expect(output).toContain('this.task.blocking(');
+		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('readiness: "blocking"');
 		expect(output).toContain('if (__exactComponentSignal.aborted)');
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');
@@ -204,7 +206,7 @@ describe('@exactjs/compiler component computations', () => {
 			{ filename: 'InitializedAsync.tsx' }
 		);
 		const initialization = output.indexOf('__exactWrite(this.state, ["id"], () => "initial")');
-		const task = output.indexOf('this.task.blocking(');
+		const task = output.indexOf('__exactActivateTask(this, __exactDefineTask({');
 		expect(initialization).toBeGreaterThanOrEqual(0);
 		expect(task).toBeGreaterThan(initialization);
 		expect(output).toContain('this.reactive(() => this.state.id)');

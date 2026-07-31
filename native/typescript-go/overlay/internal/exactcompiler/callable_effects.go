@@ -1471,6 +1471,9 @@ func opaqueCallExpression(expression *ast.Node, typeChecker *checker.Checker) bo
 }
 
 func exactComponentOperation(text string) bool {
+	if strings.HasPrefix(text, "TaskContext.") {
+		return true
+	}
 	if !strings.HasPrefix(text, "this.") {
 		return false
 	}
@@ -1482,6 +1485,8 @@ func exactComponentOperation(text string) bool {
 	}
 	return member == "task" ||
 		strings.HasPrefix(member, "task.") ||
+		member == "action" ||
+		strings.HasPrefix(member, "action.") ||
 		strings.HasPrefix(member, "log.") ||
 		strings.HasPrefix(member, "refs.")
 }

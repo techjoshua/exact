@@ -44,8 +44,16 @@ func pruneArtifactStatements(
 	changed := false
 	for _, statement := range sourceFile.Statements.Nodes {
 		if _, omit := omittedStarts[statement.Pos()]; omit {
-			changed = true
-			continue
+			// Imports have their own target-aware pruning pass after contract
+			// lowering. Removing one as a module initializer here can orphan a
+			// render-helper binding synthesized into an executor carrier.
+			// Side-effect-only imports have no binding to retain and remain
+			// governed by their module-initializer placement.
+			if !ast.IsImportDeclaration(statement) ||
+				statement.AsImportDeclaration().ImportClause == nil {
+				changed = true
+				continue
+			}
 		}
 		updated, keep := pruneOppositeExportedValues(statement, factory, omittedNames)
 		if !keep {
@@ -162,8 +170,12 @@ func pruneArtifactImports(
 	factory *printer.NodeFactory,
 	request Request,
 	assets assetAnalysis,
+	retainedUses map[string]struct{},
 ) *ast.SourceFile {
 	used := artifactIdentifierUses(sourceFile)
+	for name := range retainedUses {
+		used[name] = struct{}{}
+	}
 	statements := make([]*ast.Node, 0, len(sourceFile.Statements.Nodes))
 	changed := false
 	for _, statement := range sourceFile.Statements.Nodes {

@@ -2,6 +2,7 @@ import type {
 	ComponentDomain,
 	ComponentResumptionActivation,
 	ExactComponentContinuationContract,
+	ExactRuntimeInspectionOwner,
 	ComponentFunction,
 	ErrorReport,
 	Logger,
@@ -33,6 +34,8 @@ export type HydrateOptions = {
 	binding?: string;
 	/** Full Git commit SHA embedded in this client root's generated entry. */
 	buildKey?: string;
+	/** Explicit observation owner; instrumented bootstraps derive one when omitted. */
+	inspection?: ExactRuntimeInspectionOwner;
 	/** Internal explicit ownership used when mounting islands into this client root. */
 	componentDomain?: ComponentDomain;
 	transports?: Record<string, ExactEndpointTransport>;

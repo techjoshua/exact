@@ -7,7 +7,19 @@ Keep renderer ownership in eXact: use compiled events, bindings, keyed collectio
 `Activity`, `Suspense`, and the core `ErrorBoundary` rather than manipulating owned DOM ranges.
 Use `@exactjs/dom/testing` only for renderer-aware test support.
 
-Deliver direct and delegated events through the owning component interaction so batching,
-asynchronous settlement, error ownership, and cancellation stay coordinated. Registry entry keys
+Preserve the construction barrier between component setup and first rendering. Normal-priority
+synchronous setup activations must settle before rendering the component or mounting its children,
+while deferred work must retain its authored scheduling policy.
+
+Deliver direct and delegated events through an interaction-activated root task frame so batching,
+renderer consequences, structural settlement, error ownership, and cancellation stay coordinated.
+Registry entry keys
 are component identities: retain same-key ranges, replace different-key ranges, and discard stale
 lazy candidates without disturbing compatible siblings.
+
+For instrumented builds, use the weak root registry and `createExactDomInspectionHost()` for late
+attachment, logical element ownership, and highlighting. Remove disposed roots immediately and
+restore authored element styles on disconnect. Keep compiler-generated cell wrappers transparent
+to immutable component domains, including inspection ownership attached at the browser root. Do
+not return `Mounted`, `Root`, component instances, handlers, refs, or DOM mutation capabilities
+through the inspection host.

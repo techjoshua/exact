@@ -3,9 +3,12 @@ import { flushSync } from '@exactjs/reactive';
 import {
 	createComponentDomain,
 	createComponentInstance,
+	activateTask,
+	defineTask,
 	markComponentContinuationTask,
 	settledComponentContinuationIds,
-	type Component
+	type Component,
+	type TaskContext
 } from './index.js';
 
 describe('@exactjs/core component resumption', () => {
@@ -14,12 +17,16 @@ describe('@exactjs/core component resumption', () => {
 		function Search(this: Component<{ query: string; result: string }>) {
 			this.state.query = 'setup';
 			this.state.result = 'waiting';
-			this.task(
-				this.reactive(() => this.state.query),
-				markComponentContinuationTask('load', (query: string) => {
+			const load = defineTask(
+				{},
+				markComponentContinuationTask('load', (query: string, _task: TaskContext) => {
 					runs++;
 					this.state.result = query.toUpperCase();
 				})
+			);
+			activateTask(
+				load,
+				this.reactive(() => this.state.query)
 			);
 			return () => this.state.result;
 		}
@@ -44,18 +51,21 @@ describe('@exactjs/core component resumption', () => {
 		instance.unmount();
 	});
 
-	it('reports only successfully completed tagged generations', () => {
+	it('reports only successfully completed tagged generations', async () => {
 		function Worker(this: Component<{ ready: boolean }>) {
 			this.state.ready = false;
-			this.task(
-				markComponentContinuationTask('prepare', () => {
+			const prepare = defineTask(
+				{},
+				markComponentContinuationTask('prepare', (_task: TaskContext) => {
 					this.state.ready = true;
 				})
 			);
+			activateTask(prepare);
 			return () => null;
 		}
 
 		const instance = createComponentInstance(Worker, {});
+		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(instance.state.ready).toBe(true);
 		expect(settledComponentContinuationIds(instance)).toEqual(['prepare']);

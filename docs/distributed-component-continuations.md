@@ -44,14 +44,16 @@ serialized from the browser.
 Use explicit task facets when policy is part of the source:
 
 ```ts
-this.task.server.deferred.blocking(async ({ signal }) => {
-	this.state.product = await products.find(props.productId, { signal });
-});
+async function loadProduct(task: TaskContext = TaskContext.server().deferred().blocking()) {
+	this.state.product = await products.find(props.productId, { signal: task.signal });
+}
+
+loadProduct();
 ```
 
 Ordinary awaited component setup is preferred for direct value flow. Explicit
-`this.task()` remains useful for external effects, cleanup, nonblocking work,
-manual dependencies, forced placement, readiness, or priority.
+`TaskContext` policy remains useful for external effects, cleanup, nonblocking
+work, manual dependencies, forced placement, readiness, or priority.
 
 ## Compiler lowering
 
@@ -89,6 +91,18 @@ SSR is the first transition between the machines. The server:
 Hydration reconstructs the durable client instance, adopts the existing DOM,
 restores public component state/context, and arms future task generations.
 Settled SSR work is not repeated merely to rediscover the same initial data.
+
+Task placement does not contaminate indivisible component setup placement. When
+an otherwise isomorphic component owns client tasks plus server continuations,
+the compiler emits client and server roots, registers the resumable client
+root, and SSR encloses the rendered component range in an eager resumption
+boundary. If static adoption fails, hydration restores the resumption cursor
+before mounting the fallback so the same activation is consumed exactly once.
+
+Invoked continuation return values use the same validated result envelope for
+single, batched, and NDJSON-streamed requests. A streaming transport may split
+state, mutations, patches, and HTML into incremental events, but the terminal
+operation event retains the authored return value.
 
 The resumption record contains plain public data and continuation identity. It
 does not contain functions, task objects, database clients, request objects,

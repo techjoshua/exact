@@ -4,7 +4,6 @@ import {
 	createErrorReport,
 	Dynamic,
 	Fragment,
-	getCellVNode,
 	handleComponentError,
 	isCellVNode,
 	normalizeActivityMode,
@@ -25,10 +24,12 @@ import {
 } from '@exactjs/core';
 import {
 	createEffectScope,
+	flushSync,
 	transferEffectScope,
 	withEffectScope,
 	type EffectScope
 } from '@exactjs/reactive';
+import { getOwnedCellVNode } from '../../cells.js';
 import {
 	getComponentProps,
 	getListBinding,
@@ -118,9 +119,10 @@ export function mountInner(
 	if (isCellVNode(vnode)) {
 		const marker = createMarker(root, 'cell');
 		const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
+		const child = getOwnedCellVNode(vnode);
 		mounted.children = mountDetachedChildren(
 			root,
-			[getCellVNode(vnode)],
+			[child],
 			parentInstance,
 			mounted.scope,
 			parentNode
@@ -295,6 +297,9 @@ export function mountInner(
 				)
 			);
 			ownMountedInstance(mounted, instance);
+			// Compiler-owned setup activations may synchronously initialize state
+			// consumed by the first render or a child component's required props.
+			flushSync('normal');
 			const rendered = withEffectScope(mounted.scope, () => renderInstance(instance, invalidate));
 			mounted.children = mountDetachedChildren(root, rendered, instance, mounted.scope, parentNode);
 			instance.markMounted();

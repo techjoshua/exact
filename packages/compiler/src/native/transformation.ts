@@ -2,6 +2,12 @@ import { capabilityCompilationOptions } from '../compilation/capability-options.
 import { createExactCompilerExplanation } from '../explanation.js';
 import { applyCompilerPlugins, validateImportedPluginRegistries } from '../plugins.js';
 import { createLineSourceMap } from '../source-maps.js';
+import { createExactSourceInspection } from '../language-tools/source-inspection.js';
+import {
+	appendExactRuntimeInspectionRegistration,
+	createExactRuntimeInspectionCorrelation
+} from '../language-tools/runtime-correlation.js';
+import { createExactInspectionRedactions } from '../language-tools/build-catalog.js';
 import type {
 	ExactCompilerManifest,
 	TransformOptions,
@@ -70,18 +76,36 @@ export function transformSourceWithNativeCompiler(
 						replacements: [...(options.moduleRewrite.replacements ?? [])]
 					}
 				}
-			: {})
+			: {}),
+		instrumentInspection: shouldEnableInspection(options.instrumentInspection)
 	});
 	throwNativeCompilerErrors(filename, normalized, response.diagnostics);
 	if (response.code === undefined)
 		throw new Error(`Native compiler returned no generated code for ${filename}`);
-	const output = options.moduleTransform
-		? options.moduleTransform({ id: filename, source: response.code, target }).code
-		: response.code;
 	const manifest = nativeCompilerManifest(filename, response);
 	if (options.packageName) manifest.packageName = options.packageName;
 	applyNativePluginContributions(normalized, filename, target, manifest, options.pluginRegistry);
 	throwNativePluginErrors(manifest);
+	const needsInspection =
+		shouldEnableInspection(options.emitInspection) ||
+		shouldEnableInspection(options.instrumentInspection);
+	const inspection = needsInspection
+		? createExactSourceInspection(filename, normalized, 0, response)
+		: undefined;
+	const correlation =
+		inspection && shouldEnableInspection(options.instrumentInspection)
+			? createExactRuntimeInspectionCorrelation(
+					inspection,
+					createExactInspectionRedactions([manifest])
+				)
+			: undefined;
+	const instrumented =
+		correlation && target !== 'server'
+			? appendExactRuntimeInspectionRegistration(response.code, correlation)
+			: response.code;
+	const output = options.moduleTransform
+		? options.moduleTransform({ id: filename, source: instrumented, target }).code
+		: instrumented;
 	return {
 		code: output,
 		map: options.sourceMap
@@ -91,8 +115,18 @@ export function transformSourceWithNativeCompiler(
 			: null,
 		filename,
 		manifest,
-		...(options.explain ? { explanation: createExactCompilerExplanation(manifest, target) } : {})
+		...(options.explain ? { explanation: createExactCompilerExplanation(manifest, target) } : {}),
+		...(inspection && shouldEnableInspection(options.emitInspection)
+			? { inspectionCatalog: inspection }
+			: {}),
+		...(correlation ? { inspectionCorrelation: correlation } : {})
 	};
+}
+
+function shouldEnableInspection(
+	value: TransformOptions['emitInspection'] | TransformOptions['instrumentInspection']
+): boolean {
+	return value === true || (value === 'auto' && process.env.NODE_ENV !== 'production');
 }
 
 function throwNativePluginErrors(manifest: ExactCompilerManifest): void {

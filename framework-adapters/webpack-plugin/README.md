@@ -16,6 +16,13 @@ source-map support, React compatibility aliases, and compiler-session lifecycle 
 `target: "server"` and `serverComponents: true` for server builds. The `./loader` export is
 available for advanced rule composition.
 
+Configure compiler-cooperative DevTools with `debug: { catalog, runtime, buildKey,
+executionRoot }`. Development watch builds enable both `auto` controls. A client build injects the
+page bridge and compact compiler IDs; a server build emits
+`.exact-inspection/<buildKey>.json` during `processAssets`. Paired production builds must provide
+the same immutable build/root identity. Set both controls to `false` for hardened output. Rich
+catalog data is never emitted into the client compilation.
+
 Set `reactCompatibility: { target: 18 }` or `{ target: 19 }` to render imported or
 runtime-selected components directly from native eXact JSX. The loader emits a cached
 compatibility adapter; compiler-branded eXact components pass through unchanged while unbranded

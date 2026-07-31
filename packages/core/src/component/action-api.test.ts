@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
 	InteractionCancellation,
 	createComponentInstance,
-	inspectComponentActions,
+	createExactRuntimeInspectionOwner,
 	interactionAwait,
-	type ActionContext,
-	type Component,
-	type ComponentAction
+	type Component
 } from '../index.js';
+import { inspectComponentActions } from './action-api.js';
+import type { ActionContext, ComponentAction } from './action-contracts.js';
 
 type HarnessState = {
 	value: string;
@@ -31,7 +31,7 @@ describe('component actions', () => {
 		function Harness(this: Component<HarnessState>) {
 			this.state.value = '';
 			let index = 0;
-			save = this.action('save', async (_value: string) => work[index++]!.promise);
+			save = (this as any).action('save', async (_value: string) => work[index++]!.promise);
 			return () => null;
 		}
 		const instance = createComponentInstance(Harness, {});
@@ -60,7 +60,7 @@ describe('component actions', () => {
 		function Harness(this: Component<HarnessState>) {
 			this.state.value = 'base';
 			let index = 0;
-			save = this.action(
+			save = (this as any).action(
 				'save',
 				async (value: string, { optimistic }: ActionContext) => {
 					optimistic(() => {
@@ -94,7 +94,7 @@ describe('component actions', () => {
 		function Harness(this: Component<HarnessState>) {
 			this.state.value = '';
 			let index = 0;
-			run = this.action(
+			run = (this as any).action(
 				'queued',
 				async (value: string) => {
 					starts.push(value);
@@ -125,7 +125,7 @@ describe('component actions', () => {
 		function Harness(this: Component<HarnessState>) {
 			this.state.value = 'base';
 			let index = 0;
-			save = this.action(
+			save = (this as any).action(
 				'latest write',
 				async (_value: string, { signal }: ActionContext) => {
 					this.state.value = await interactionAwait(signal, gates[index++]!.promise);
@@ -153,7 +153,7 @@ describe('component actions', () => {
 		const gate = deferred<string>();
 		let save!: ComponentAction<readonly [], string>;
 		function Harness(this: Component<HarnessState>) {
-			save = this.action.deferred('inspectable save', () => gate.promise, 'queue');
+			save = (this as any).action.deferred('inspectable save', () => gate.promise, 'queue');
 			return () => null;
 		}
 		const instance = createComponentInstance(Harness, {});
@@ -165,6 +165,7 @@ describe('component actions', () => {
 				priority: 'deferred',
 				pending: false,
 				pendingCount: 0,
+				optimistic: false,
 				generation: 0,
 				result: undefined,
 				error: undefined,
@@ -192,11 +193,39 @@ describe('component actions', () => {
 		});
 	});
 
+	it('never publishes caller-provided cancellation values into inspection events', async () => {
+		const events: unknown[] = [];
+		const inspection = createExactRuntimeInspectionOwner({
+			buildKey: 'a'.repeat(40),
+			executionRoot: 'page'
+		});
+		inspection.attach('session', { publish: (event) => events.push(event) });
+		let action!: ComponentAction<readonly [], void>;
+		function Harness(this: Component<HarnessState>) {
+			action = (this as any).action('Cancel safely', () => new Promise<void>(() => {}));
+			return () => null;
+		}
+		createComponentInstance(Harness, {}, undefined, undefined, {
+			executionRoot: 'page',
+			inspection
+		});
+		const pending = action();
+		action.cancel('must-never-enter-an-event');
+		await expect(pending).rejects.toBeInstanceOf(InteractionCancellation);
+
+		expect(JSON.stringify(events)).not.toContain('must-never-enter-an-event');
+		expect(events).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ kind: 'task.cancel', reason: 'cancelled' })
+			])
+		);
+	});
+
 	it('rolls back every optimistic block when action work throws synchronously', async () => {
 		let save!: ComponentAction<readonly [], void>;
 		function Harness(this: Component<HarnessState>) {
 			this.state.value = 'base';
-			save = this.action(
+			save = (this as any).action(
 				'multiple optimism',
 				({ optimistic }: ActionContext) => {
 					optimistic(() => {

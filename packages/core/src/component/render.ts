@@ -19,8 +19,15 @@ export function renderInstance(
 ): Child[] {
 	let output: RenderResult = null;
 	const start = performanceNow();
+	const observedInvalidate = (): void => {
+		instance.domain.inspection?.publish({
+			kind: 'render.invalidate',
+			component: instance
+		});
+		onInvalidate();
+	};
 
-	instance.invalidate = onInvalidate;
+	instance.invalidate = observedInvalidate;
 	instance.renderStop?.();
 	instance.renderStop = watch(
 		() => {
@@ -47,7 +54,7 @@ export function renderInstance(
 				instance.endRender();
 			}
 		},
-		onInvalidate,
+		observedInvalidate,
 		{ scope: instance.scope }
 	);
 

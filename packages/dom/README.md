@@ -14,6 +14,10 @@ rerender loop. It owns DOM properties, events, refs, namespaces, portals, keyed 
 hydration markers, server slots, and compiled reactive cells. Use `@exactjs/testing` rather than
 depending on renderer internals in tests.
 
+During component construction, normal-priority synchronous setup activations settle before the
+first render and before child mounting. This guarantees that compiler-derived state initialization
+can safely supply required child props without exposing a transient uninitialized value.
+
 Direct and delegated events begin component interactions, preserving synchronous batching while
 coordinating asynchronous settlement and error ownership. Registry entry facades use the registry
 key as subtree identity, so same-key updates retain instances and different keys replace only the
@@ -23,5 +27,12 @@ Native `Suspense` keeps committed content visible while a blocking update prepar
 candidate state and DOM together. Native `Activity` detaches complete logical ranges—including
 portal output—without losing component, node, ref, handler, or form-control identity.
 
-See [Actions and forms](../../docs/actions-and-forms.md) and
+See [Task interactions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
+
+Instrumented builds maintain a weak active-root registry for late DevTools attachment.
+`createExactDomInspectionHost()` projects logical components, execution roots, element ownership,
+Activity/Suspense status, and owned elements without returning renderer internals. Disposed roots
+are removed immediately, compiled root cells transparently carry their inspection domain into the
+authored component tree, and disconnecting inspection does not affect rendering. See
+[Server-cooperative full-stack DevTools](../../docs/devtools.md).

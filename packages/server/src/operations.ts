@@ -6,10 +6,10 @@ import {
 	createExactContinuationHandler
 } from './continuation-execution.js';
 import type {
-	ExactBatchRequest,
 	ExactInvocationRequest,
 	ExactOperationError,
 	ExactOperationResult,
+	ExactProtocolRequest,
 	ExactRequestLike,
 	ExactResponseLike,
 	ExactServerContext
@@ -54,7 +54,7 @@ export async function dispatchSecurityCheckedExactOperation(
 /** Runs authorization and CSRF hooks, converting hook failures into closed security results. */
 export async function checkSecurityHooks(
 	request: ExactRequestLike,
-	input: ExactInvocationRequest | ExactBatchRequest,
+	input: ExactProtocolRequest,
 	context: ExactServerContext
 ): Promise<ExactSecurityResult> {
 	if (context.authorize) {
@@ -180,12 +180,41 @@ async function dispatchExactOperationAfterSecurity(
 	if (!handler)
 		return reject(404, 'not_found', 'rejected exact invocation without registered handler');
 
+	const observation = observationIdentity(context, input, action?.componentId);
+	context.debugRuntime?.observe({
+		kind: executor ? 'continuation.receive' : 'task.start',
+		...observation
+	});
 	try {
 		const requestContext =
 			request.signal && request.signal !== context.signal
 				? { ...context, signal: request.signal }
 				: context;
-		const result = await handler(input, requestContext);
+		const observedRequestContext = context.debugRuntime
+			? {
+					...requestContext,
+					onContextAccess(
+						observed: Parameters<NonNullable<ExactServerContext['onContextAccess']>>[0]
+					) {
+						requestContext.onContextAccess?.(observed);
+						context.debugRuntime!.observe({
+							kind: 'context.access',
+							...observation,
+							componentTypeId: observed.componentId,
+							operationId: observed.operationId,
+							attributes: Object.freeze({
+								token: observed.token,
+								scope: observed.scope
+							})
+						});
+					}
+				}
+			: requestContext;
+		const result = await handler(input, observedRequestContext);
+		context.debugRuntime?.observe({
+			kind: executor ? 'continuation.respond' : 'task.settle',
+			...observation
+		});
 		if (
 			!isInvocationResultSafe(result, {
 				maxJsonDepth: context.limits?.maxJsonDepth,
@@ -210,6 +239,11 @@ async function dispatchExactOperationAfterSecurity(
 		}
 		return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };
 	} catch (error) {
+		context.debugRuntime?.observe({
+			kind: 'error',
+			...observation,
+			reason: 'server-operation-failed'
+		});
 		logFrameworkEvent(
 			'error',
 			'server',
@@ -227,6 +261,35 @@ async function dispatchExactOperationAfterSecurity(
 			error: 'internal_error'
 		};
 	}
+}
+
+function observationIdentity(
+	context: ExactServerContext,
+	input: ExactInvocationRequest,
+	componentTypeId: string | undefined
+): {
+	buildKey: string;
+	executionRoot: string;
+	componentTypeId: string;
+	operationId?: string;
+	generation?: number;
+	requestId?: string;
+} {
+	const executionRoot = input.root ?? 'page';
+	const buildKey =
+		context.debugBuildKey ??
+		context.inspectionCatalogs?.find((catalog) => catalog.roots[executionRoot])?.buildKey ??
+		'unregistered-build';
+	return {
+		buildKey,
+		executionRoot,
+		componentTypeId: componentTypeId ?? 'server-operation',
+		...(input.opId ? { operationId: input.opId } : {}),
+		...(typeof (input.payload as { generation?: unknown } | undefined)?.generation === 'number'
+			? { generation: (input.payload as { generation: number }).generation }
+			: {}),
+		...(context.requestContext?.traceId ? { requestId: context.requestContext.traceId } : {})
+	};
 }
 
 function positiveLimit(value: number | undefined, fallback: number): number {

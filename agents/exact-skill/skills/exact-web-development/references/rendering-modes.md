@@ -76,10 +76,10 @@ the application has a concrete requirement to activate every safe island immedia
 ## Server-component mode
 
 Choose this only when the application needs compiler-separated client/server components, secure
-server actions, refreshable server boundaries, or generated client islands.
+server task operations, refreshable server boundaries, or generated client islands.
 
 1. Enable `serverComponents: true` during artifact-aware client and server compilation.
-2. Import the compiler-generated target artifacts; do not hand-invent component, action, or
+2. Import the compiler-generated target artifacts; do not hand-invent component, operation, or
    boundary IDs.
 3. Compose the allowlisted private component contracts and server runtime using installed eXact
    APIs.
@@ -90,7 +90,7 @@ server actions, refreshable server boundaries, or generated client islands.
 Inspect compiler contracts and nearby source applications before modifying this flow. Generated
 `.exact` directories and `.exact.*` files are disposable build output: inspect them only while
 diagnosing emission, and never edit or commit them. Keep endpoint routes, private component
-contracts, state contracts, and action boundary hints aligned. Do not model this after React
+contracts, state contracts, and task boundary hints aligned. Do not model this after React
 Server Components or dispatch client-provided module names.
 
 Compiler-generated reactive JSX marker ranges also let element-mode server refreshes replace the
@@ -107,7 +107,8 @@ Server-component capabilities are version-sensitive. Inspect the installed `@exa
 
 ## Placement is not rendering mode
 
-`this.task.client()` and `this.task.server()` control where component-owned work remains in a split
-build. They do not create browser/server entrypoints, choose a renderer, enable hydration, produce
-manifests, or expose an endpoint. Let environment usage infer placement when possible and make the
+`TaskContext.client()` and `TaskContext.server()` policy defaults control where
+task work remains in a split build. They do not create browser/server
+entrypoints, choose a renderer, enable hydration, produce manifests, or expose
+an endpoint. Let environment usage infer placement when possible and make the
 application rendering decision separately.

@@ -1,6 +1,6 @@
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { defineExactActionContract, handleExactRequest } from './index.js';
+import { defineExactOperationContract, handleExactRequest } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';
 
 describe('@exactjs/server security-validation', () => {
@@ -17,6 +17,23 @@ describe('@exactjs/server security-validation', () => {
 				elapsedMs: expect.any(Number)
 			})
 		);
+	});
+
+	it('accepts a transport-safe continuation return value', async () => {
+		const response = await handleExactRequest(
+			{
+				method: 'POST',
+				body: { type: 'action', id: 'allowed-action' }
+			},
+			context({
+				actions: {
+					'allowed-action': () => ({ value: { status: 'ready' } })
+				}
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(JSON.parse(response.body).value).toEqual({ status: 'ready' });
 	});
 
 	it('encodes registered keyed collections in response state', async () => {
@@ -159,7 +176,7 @@ describe('@exactjs/server security-validation', () => {
 					version: 1,
 					endpoint: '/__exact',
 					actions: {
-						'allowed-action': defineExactActionContract('allowed-action')
+						'allowed-action': defineExactOperationContract('allowed-action')
 					},
 					boundaries: {}
 				},
@@ -386,7 +403,7 @@ function recordsStateContract() {
 	return {
 		version: 1 as const,
 		actions: {
-			'allowed-action': defineExactActionContract('allowed-action', {
+			'allowed-action': defineExactOperationContract('allowed-action', {
 				writes: [{ path: 'records', kind: 'write', confidence: 'exact' }]
 			})
 		},

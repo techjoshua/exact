@@ -103,8 +103,8 @@ function normalizeEndpointMap(value: Record<string, string> | undefined): Record
 	return output;
 }
 
-/** Builds an application-owned action contract without exposing compiler IDs. */
-export function defineExactActionContract(
+/** Builds an application-owned operation contract without exposing compiler IDs. */
+export function defineExactOperationContract(
 	id: string,
 	options: {
 		componentId?: string;
@@ -117,7 +117,7 @@ export function defineExactActionContract(
 		boundaries?: readonly string[];
 	} = {}
 ): ExactComponentContinuationContract {
-	if (!id) throw new Error('eXact action id must be non-empty');
+	if (!id) throw new Error('eXact operation id must be non-empty');
 	return Object.freeze({
 		id,
 		componentId: options.componentId ?? `application:${id}`,

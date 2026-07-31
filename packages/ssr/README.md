@@ -12,13 +12,19 @@ import { renderToStringAsync } from '@exactjs/ssr';
 const html = await renderToStringAsync(<App />);
 ```
 
-Compose private contracts from compiler-generated server artifacts for actions, boundaries, and
+Compose private contracts from compiler-generated server artifacts for task operations, boundaries, and
 distributed component continuations. Pair hydratable output with `@exactjs/hydrate`; plain SSR can
 remain script-free.
 
 Hydratable results expose the same public component resumption activations serialized into their
 hydration script. Server-only context and resources may influence permitted HTML but never enter
 that client record.
+
+An SSR-rendered component with a compiler resumption contract is enclosed in
+an eager client boundary containing a detached, JSON-safe snapshot of its
+props. Snapshotting must not subscribe the active render to the serialized
+object graph. Repeated plain-object references are allowed; true cycles remain
+rejected.
 
 Eager and lazy registry selections render through the ordinary component/Suspense pipeline.
 Registry binding, key, and opaque compiled identity are retained in the component marker name so
@@ -30,5 +36,11 @@ rendering waits for blocking descendants, and progressive document streams emit 
 outermost settled Suspense range when boundary-local replacement can reproduce the final output;
 otherwise they conservatively replace the root.
 
-See [Actions and forms](../../docs/actions-and-forms.md) and
+See [Task interactions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
+
+Request rendering automatically inherits a server inspection owner when its server runtime retains
+the selected build/root catalog. SSR component, state, readiness, and disposal observations fan out
+only to active authorized sessions and do not retain request-owned instances. Lower-level render
+APIs may receive an explicit `inspection` owner. See
+[Server-cooperative full-stack DevTools](../../docs/devtools.md).

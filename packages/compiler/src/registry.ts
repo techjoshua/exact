@@ -25,8 +25,11 @@ export function createClientIslandRegistryEntries(
 			result.clientFile,
 			options.rootDir ?? path.dirname(result.manifestFile)
 		);
+		const resumableComponents = new Set(
+			result.manifest.resumptions.map((resumption) => resumption.componentId)
+		);
 		for (const symbol of result.manifest.symbols) {
-			if (!clientRegistrySymbol(symbol)) continue;
+			if (!clientRegistrySymbol(symbol, resumableComponents)) continue;
 			entries.push({
 				id: symbol.id,
 				name: symbol.generatedName,
@@ -151,6 +154,7 @@ function continuationDescriptorValues(
 	client: boolean
 ): readonly Record<string, unknown>[] {
 	return continuations.map((continuation) => ({
+		kind: continuation.kind,
 		id: continuation.id,
 		componentId: continuation.componentId,
 		readiness: continuation.readiness,
@@ -165,7 +169,15 @@ function continuationDescriptorValues(
 		serverContextWrites: client
 			? []
 			: continuation.effects.serverContextWrites.map((context) => context.token),
-		boundaries: continuation.effects.boundaries
+		boundaries: continuation.effects.boundaries,
+		...(continuation.invocation
+			? {
+					invocation: {
+						arguments: continuation.invocation.arguments.map(({ source }) => ({ source })),
+						concurrency: continuation.invocation.concurrency
+					}
+				}
+			: {})
 	}));
 }
 
@@ -180,12 +192,21 @@ function statePathDescriptor(
 }
 
 function clientRegistrySymbol(
-	symbol: ExactSymbolIR
+	symbol: ExactSymbolIR,
+	resumableComponents: ReadonlySet<string>
 ): symbol is ExactSymbolIR & { exportName: string } {
-	if (symbol.target !== 'client' || !symbol.exportName) return false;
+	if (!symbol.exportName) return false;
 	return (
-		symbol.role === 'client-island' ||
-		(symbol.role === 'root' && symbol.kind === 'component' && symbol.placement === 'client')
+		(symbol.target === 'client' &&
+			(symbol.role === 'client-island' ||
+				(symbol.role === 'root' &&
+					symbol.kind === 'component' &&
+					symbol.placement === 'client'))) ||
+		(symbol.target === 'both' &&
+			symbol.role === 'root' &&
+			symbol.kind === 'component' &&
+			!!symbol.componentId &&
+			resumableComponents.has(symbol.componentId))
 	);
 }
 

@@ -1,4 +1,4 @@
-import { defineExactActionContract } from '@exactjs/server';
+import { defineExactOperationContract } from '@exactjs/server';
 import { createExactBunHandler } from './index.js';
 
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
@@ -54,7 +54,7 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 });
 
 function stateAction(id: string) {
-	return defineExactActionContract(id, {
+	return defineExactOperationContract(id, {
 		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 	});
 }

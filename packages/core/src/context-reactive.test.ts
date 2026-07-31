@@ -195,7 +195,7 @@ describe('@exactjs/core context-reactive', () => {
 			this.state.last = 'Lovelace';
 			const fullName = this.reactive(() => `${this.state.first} ${this.state.last}`);
 
-			this.task(fullName, (name, { signal }) => {
+			(this as any).task(fullName, (name: string, { signal }: { signal: AbortSignal }) => {
 				values.push(String(name));
 				signal.addEventListener('abort', () => aborts.push(String(name)));
 			});
@@ -221,7 +221,7 @@ describe('@exactjs/core context-reactive', () => {
 			instance = this as ComponentInstance<{ count: number }>;
 			this.state.count = 1;
 			const doubled = createDerived(compute);
-			this.task(doubled, () => undefined);
+			(this as any).task(doubled, () => undefined);
 			return () => null;
 		}, {});
 		instance.markMounted();
@@ -243,10 +243,12 @@ describe('@exactjs/core context-reactive', () => {
 			instance = this;
 			this.state.query = 'ada';
 
-			this.reactive(() => this.state.query).task((query, { signal }) => {
-				values.push(String(query));
-				signal.addEventListener('abort', () => aborts.push(String(query)));
-			});
+			(this.reactive(() => this.state.query) as any).task(
+				(query: string, { signal }: { signal: AbortSignal }) => {
+					values.push(String(query));
+					signal.addEventListener('abort', () => aborts.push(String(query)));
+				}
+			);
 
 			return () => null;
 		}

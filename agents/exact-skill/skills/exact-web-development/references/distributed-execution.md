@@ -29,6 +29,11 @@ The annotation applies to the returned data, not the repository receiver or its 
 Secret-qualified data cannot be released by `@exact shared`. If compilation rejects a transfer,
 fix the ownership or create an explicit safe projection; do not cast around the diagnostic.
 
+Defaulted task parameters are captured on the originating host before a
+server dispatch. Use them only for shared, serializable data. Do not capture a
+client-kept, server-kept, secret, service, DOM, or request value into a server
+task parameter; resolve server resources from server context inside the task.
+
 ## Preserve bundle isolation
 
 Imports reachable only from server continuations must remain absent from client runtime chunks and

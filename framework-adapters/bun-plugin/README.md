@@ -26,6 +26,12 @@ if (!result.success) {
 Use `target: "server"` together with Bun's `target: "bun"` when producing a server bundle. Keep
 `serverComponents` consistent between paired client and server builds.
 
+Configure compiler-cooperative DevTools with `debug: { catalog, runtime, buildKey,
+executionRoot }`. Development/watch builds enable both `auto` controls. Client output installs the
+guarded page bridge and carries only compact compiler correlation; server output writes
+`.exact-inspection/<buildKey>.json` beneath Bun's `outdir`. Paired production builds must use the
+same immutable build/root identity. Set both controls to `false` for hardened output.
+
 The plugin is integration-tested with Bun 1.3.5. Bun's plugin API requires unmatched `onLoad` and
 `onResolve` hooks to return no value; the eXact plugin composes with later Bun loaders instead of
 claiming modules that do not require an eXact transform.

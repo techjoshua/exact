@@ -107,6 +107,7 @@ export function applyActivityMode(root: Root, mounted: Mounted, mode: ActivityMo
 	activity.readinessRegistration?.cancel();
 	activity.readinessRegistration = undefined;
 	activity.mode = mode;
+	publishActivityChange(mounted);
 
 	if (mode === 'parked') {
 		setDescendantActivity(mounted, false);
@@ -159,6 +160,22 @@ function finishActivityActivation(root: Root, mounted: Mounted, generation: numb
 	}
 	setDescendantActivity(mounted, true);
 	activity.readinessRegistration = undefined;
+	publishActivityChange(mounted);
+}
+
+function publishActivityChange(mounted: Mounted): void {
+	const activity = mounted.activity;
+	if (!activity) return;
+	activity.owner.domain.inspection?.publish({
+		kind: 'activity.change',
+		component: activity.owner,
+		attributes: Object.freeze({
+			mode: activity.mode,
+			pending: activity.readiness.pending,
+			generation: activity.activationGeneration,
+			detached: !!activity.retained?.detached
+		})
+	});
 }
 
 function retainWhenPlaced(mounted: Mounted): void {

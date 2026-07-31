@@ -29,9 +29,10 @@ export function createWorkspaceInputs(state: WorkspaceState) {
 }
 
 /** Performs the delay domain operation. */
-export function delay(milliseconds: number, signal: AbortSignal): Promise<void> {
+export function delay(milliseconds: number, signal?: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const timer = setTimeout(resolve, milliseconds);
+		if (!signal) return;
 		const abort = () => {
 			clearTimeout(timer);
 			reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));

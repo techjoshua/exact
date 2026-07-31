@@ -52,10 +52,9 @@ type componentRender struct {
 	returned  *ast.Node
 }
 
-// renderDiagnostics enforces the rerunnable render contract. Ordinary
-// deterministic statements and calls remain legal; mutations and known
-// scheduling, lifecycle, storage, or DOM effects must live in setup, a task,
-// or an interaction callback.
+// renderDiagnostics keeps the returned view declarative. Component-owned
+// declarations and control flow live in setup; the render callable contains
+// only its returned view expression, including JSX branches and list callbacks.
 func renderDiagnostics(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
@@ -67,10 +66,21 @@ func renderDiagnostics(
 		writeStarts[write.Start] = struct{}{}
 	}
 	for _, render := range resolveComponentRenders(sourceFile, typeChecker) {
+		if body := render.callable.Body(); body != nil && ast.IsBlock(body) {
+			for _, statement := range body.AsBlock().Statements.Nodes {
+				if ast.IsReturnStatement(statement) {
+					continue
+				}
+				diagnostics = append(diagnostics, renderDiagnostic(
+					statement,
+					"render functions may only return the view expression; move declarations and control flow into component setup and keep conditional view logic in JSX",
+				))
+			}
+		}
 		if ast.HasSyntacticModifier(render.callable, ast.ModifierFlagsAsync) {
 			diagnostics = append(diagnostics, renderDiagnostic(
 				render.returned,
-				"render functions must be synchronous; move asynchronous work into component setup or this.task()",
+				"render functions must be synchronous; move asynchronous work into component setup or a local task function",
 			))
 		}
 		walkNode(render.callable, func(node *ast.Node) bool {
@@ -100,7 +110,7 @@ func renderDiagnostics(
 				); action != "" {
 					diagnostics = append(diagnostics, renderDiagnostic(
 						node,
-						"render functions may not "+action+"; move the effect into component setup, this.task(), or an interaction callback",
+						"render functions may not "+action+"; move the effect into component setup, a local task function, or an interaction callback",
 					))
 					return false
 				}

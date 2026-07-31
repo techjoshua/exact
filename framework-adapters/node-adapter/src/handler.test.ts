@@ -1,11 +1,11 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { defineExactActionContract } from '@exactjs/server';
+import { defineExactOperationContract } from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
 
 function stateAction(id: string) {
-	return defineExactActionContract(id, {
+	return defineExactOperationContract(id, {
 		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 	});
 }

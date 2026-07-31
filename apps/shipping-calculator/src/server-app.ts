@@ -1,62 +1,20 @@
 import { createVNode } from '@exactjs/core';
 import { createExactNodeHandler } from '@exactjs/node-adapter';
-import {
-	composeExactExecutorContract,
-	createExactHydrationConfig,
-	defineExactActionContract
-} from '@exactjs/server';
+import { composeExactExecutorContract, createExactHydrationConfig } from '@exactjs/server';
 import {
 	createExactServerRuntime,
 	renderExactRequestToProgressiveHtmlResponse
 } from '@exactjs/ssr';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { ShippingCalculatorPage } from '../.exact/App.exact.server.js';
-import { resolveRoute } from './geography.js';
-import { parseRateRequest } from './model.js';
-import { configuredProviderIds, quoteProvider } from './providers/registry.js';
-import type { ProviderId } from './types.js';
+import { CalculatorWorkspace, ShippingCalculatorPage } from '../.exact/App.exact.server.js';
+import { configuredProviderIds } from './providers/registry.js';
 
-const actionIds = [
-	'route.resolve',
-	'quote.doop',
-	'quote.usps',
-	'quote.ups',
-	'quote.fedex',
-	'quote.dhl'
-] as const;
-const exactContract = composeExactExecutorContract([ShippingCalculatorPage], {
-	endpoint: '/__exact',
-	actions: Object.fromEntries(
-		actionIds.map((id) => [
-			id,
-			defineExactActionContract(id, {
-				writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
-			})
-		])
-	)
+const exactContract = composeExactExecutorContract([ShippingCalculatorPage, CalculatorWorkspace], {
+	endpoint: '/__exact'
 });
 
-const actions = Object.fromEntries(
-	actionIds.map((id) => [
-		id,
-		async (input: { payload?: unknown }, context: { signal?: AbortSignal }) => {
-			const request = parseRateRequest(input.payload);
-			if (id === 'route.resolve')
-				return { state: resolveRoute(request.originZip5, request.destinationZip5) };
-			const providerId = id.slice('quote.'.length) as ProviderId;
-			return {
-				state: await quoteProvider(
-					providerId,
-					request,
-					context.signal ?? new AbortController().signal
-				)
-			};
-		}
-	])
-);
-
 const exactRuntime = {
-	...createExactServerRuntime({ contract: exactContract, actions, patchStrategy: 'element' }),
+	...createExactServerRuntime({ contract: exactContract, patchStrategy: 'element' }),
 	limits: {
 		maxBatchOperations: 8,
 		maxBatchConcurrency: 6,

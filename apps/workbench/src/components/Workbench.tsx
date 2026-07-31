@@ -46,28 +46,13 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 	this.state.syncState = 'idle';
 	const errors = this.getContext(ErrorContext);
 
-	const normalizedQuery = this.state.query.trim().toLowerCase();
-	const visibleTasks = normalizedQuery
-		? this.state.tasks.filter(
-				(task) =>
-					task.title.toLowerCase().includes(normalizedQuery) ||
-					task.notes.toLowerCase().includes(normalizedQuery) ||
-					task.owner.toLowerCase().includes(normalizedQuery) ||
-					task.labels.some((label) => label.toLowerCase().includes(normalizedQuery))
-			)
-		: this.state.tasks;
-
-	const selectedTask = this.state.selectedTaskId
-		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
-		: undefined;
-
-	this.task(JSON.stringify(this.state.tasks), async (tasksJson, { signal }) => {
+	const persistTasks = async (tasksJson: string) => {
 		this.state.syncState = 'saving';
-		await delay(160, signal);
-		if (signal.aborted) return;
+		await delay(160);
 		localStorage.setItem(storageKey, tasksJson);
 		this.state.syncState = 'synced';
-	});
+	};
+	void persistTasks(JSON.stringify(this.state.tasks));
 
 	const remember = (message: string) => {
 		this.state.activity = [
@@ -206,7 +191,7 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 
 	this.setContext(WorkbenchContext, services);
 
-	this.task(({ signal }) => {
+	const observeKeyboard = () => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
 				event.preventDefault();
@@ -217,72 +202,90 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 				this.state.importOpen = false;
 			}
 		};
-		window.addEventListener('keydown', onKeyDown, { signal });
-	});
-
-	return () => {
-		return (
-			<main className="shell">
-				<WorkbenchHeader
-					query={this.state.query}
-					draftTitle={this.state.draftTitle}
-					view={this.state.view}
-					total={this.state.tasks.length}
-					visible={visibleTasks.length}
-					syncState={this.state.syncState}
-				/>
-
-				<section className="layout">
-					<div className="primary-pane">
-						{this.state.view === 'board' ? (
-							<BoardView columns={columns} tasks={visibleTasks} />
-						) : (
-							<ListView tasks={visibleTasks} />
-						)}
-					</div>
-
-					<aside className="side-pane">
-						{selectedTask ? (
-							<DetailPanel
-								key={selectedTask.id}
-								task={selectedTask}
-								draftLabel={this.state.draftLabel}
-							/>
-						) : (
-							<EmptyDetailPanel />
-						)}
-						<section className="activity-panel">
-							<h2>Activity</h2>
-							{this.state.activity.length ? (
-								<ol>
-									{this.state.activity.map((item) => (
-										<li>
-											<span>{formatTime(item.at)}</span>
-											{item.message}
-										</li>
-									))}
-								</ol>
-							) : (
-								<p>No activity yet.</p>
-							)}
-						</section>
-					</aside>
-				</section>
-
-				{this.state.paletteOpen ? (
-					<CommandPalette tasks={visibleTasks} selectedTask={selectedTask} />
-				) : null}
-				{this.state.importOpen ? (
-					<ImportDialog value={this.state.importText} error={this.state.importError} />
-				) : null}
-			</main>
-		);
+		window.addEventListener('keydown', onKeyDown);
 	};
+	observeKeyboard();
+
+	const normalizedQuery = this.state.query.trim().toLowerCase();
+	const visibleTasks = normalizedQuery
+		? this.state.tasks.filter(
+				(task) =>
+					task.title.toLowerCase().includes(normalizedQuery) ||
+					task.notes.toLowerCase().includes(normalizedQuery) ||
+					task.owner.toLowerCase().includes(normalizedQuery) ||
+					task.labels.some((label) => label.toLowerCase().includes(normalizedQuery))
+			)
+		: this.state.tasks;
+	const selectedTask = this.state.selectedTaskId
+		? this.state.tasks.find((task) => task.id === this.state.selectedTaskId)
+		: undefined;
+
+	return () => (
+		<main className="shell">
+			<WorkbenchHeader
+				query={this.state.query}
+				draftTitle={this.state.draftTitle}
+				view={this.state.view}
+				total={this.state.tasks.length}
+				visible={visibleTasks.length}
+				syncState={this.state.syncState}
+			/>
+
+			<section className="layout">
+				<div className="primary-pane">
+					{this.state.view === 'board' ? (
+						<BoardView columns={columns} tasks={visibleTasks} />
+					) : (
+						<ListView tasks={visibleTasks} />
+					)}
+				</div>
+
+				<aside className="side-pane">
+					{selectedTask ? (
+						<DetailPanel
+							key={selectedTask.id}
+							task={selectedTask}
+							draftLabel={this.state.draftLabel}
+						/>
+					) : (
+						<EmptyDetailPanel />
+					)}
+					<section className="activity-panel">
+						<h2>Activity</h2>
+						{this.state.activity.length ? (
+							<ol>
+								{this.state.activity.map((item) => (
+									<li>
+										<span>{formatTime(item.at)}</span>
+										{item.message}
+									</li>
+								))}
+							</ol>
+						) : (
+							<p>No activity yet.</p>
+						)}
+					</section>
+				</aside>
+			</section>
+
+			{this.state.paletteOpen ? (
+				<CommandPalette tasks={visibleTasks} selectedTask={selectedTask} />
+			) : null}
+			{this.state.importOpen ? (
+				<ImportDialog value={this.state.importText} error={this.state.importError} />
+			) : null}
+		</main>
+	);
 }
 
-function delay(ms: number, signal: AbortSignal): Promise<void> {
+/**
+ * Waits for the debounce window and settles early when its owning task is cancelled.
+ * The timer stays inside this adapter because a Promise executor is opaque to compiler ownership.
+ */
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
 	return new Promise((resolve) => {
 		const timeout = setTimeout(resolve, ms);
+		if (!signal) return;
 		signal.addEventListener(
 			'abort',
 			() => {

@@ -23,7 +23,7 @@ describe('server component testing', () => {
 		function Page(this: Component<{ ready: boolean }>, props: { label: string }) {
 			this.state.ready = false;
 			this.setContext(Theme, 'dark');
-			this.task(async () => {
+			(this as any).task(async () => {
 				await Promise.resolve();
 				this.state.ready = true;
 			});

@@ -1,6 +1,7 @@
 import type {
 	ComponentFunction,
 	ComponentInstance,
+	ExactRuntimeInspectionOwner,
 	ActivityMode,
 	ErrorContextValue,
 	ErrorReport,
@@ -119,6 +120,8 @@ export type RenderOptions = {
 	workBudget?: DomWorkBudget;
 	/** Internal logical parent used by a late island mounted in a nested DOM root. */
 	logicalParent?: ComponentInstance<any>;
+	/** Explicit instrumented owner installed only when runtime inspection is built in. */
+	inspection?: ExactRuntimeInspectionOwner;
 };
 
 /** Reports an observable dom profile event. */

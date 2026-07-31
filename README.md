@@ -61,22 +61,47 @@ Read and write `this.state` directly. Derived values can remain normal TypeScrip
 compiler preserves the relationships between state and text, attributes, styles, branches,
 component props, and keyed collections.
 
+Setup-derived values can share one lazy result across the component. The returned view stays a
+direct JSX expression: put component-owned declarations and control flow in setup, and keep
+conditional or keyed-item view logic in JSX. The compiler elides an otherwise unnecessary setup
+cell for safe single-consumer calculations that produce a scalar or forward an existing identity.
+Explicit `this.reactive()` values remain durable first-class boundaries.
+Repeated reads of a retained derived value are sampled once per eager reactive
+evaluation, preserving ordinary TypeScript narrowing without capturing stale
+values across deferred callbacks.
+
+Initial synchronous derived-state calculations settle before the first render, so required child
+props never observe an intermediate uninitialized value.
+
 ### Updates stay close to what changed
 
 eXact does not rerun the component to produce another virtual tree. Generated code updates the
 specific expression or structural range affected by a change while preserving component and DOM
-identity.
+identity. Synchronous writes from one DOM interaction publish against one deduplicated subscriber
+snapshot, so a consumer updates once even when a collection replacement changes many paths it
+reads.
 
 ### Async work has an owner
 
-Component tasks carry lifecycle, cancellation, cleanup, and error ownership. Work does not have to
-be spread across render phases and effect dependency arrays simply to remain safe.
+Ordinary local functions become structured tasks when their effects or activation require
+coordination. Reactive and invoked work share lifecycle, cancellation, cleanup, concurrency,
+optimism, placement, and error ownership without separate task/action wrappers. The compiler
+supplies generation cancellation to discoverable `AbortSignal` parameters and owns local
+disposable resources when their cleanup contract is visible. A setup call whose value is consumed
+synchronously remains ordinary initialization unless an authored `TaskContext` explicitly makes
+it task work. Reactive consequences from one invalidation wave share one structural frame rather
+than allocating task ownership independently for every DOM binding.
 
 ### Client and server use one model
 
 The compiler analyzes placement, produces client and server artifacts, and coordinates hydration,
 actions, continuations, cancellation, and secure server dispatch. Application code expresses the
 operation; generated code owns the transport plumbing.
+
+Task bodies are placement boundaries, not component-setup effects. A component that renders on the
+server while owning client tasks and server continuations emits both roots: SSR records its public
+resumption state, hydration eagerly adopts that component range, and invoked continuation values
+remain intact through batched or streamed transport.
 
 eXact deliberately uses familiar TSX without adopting React's runtime architecture. React
 compatibility is available for React-owned libraries and migration boundaries, while native eXact
@@ -101,10 +126,23 @@ and architecture.
 
 - Fine-grained reactive state, derived values, DOM updates, and keyed collections
 - Long-lived component instances with context, refs, lifecycle, tasks, and cleanup
-- Coordinated actions with cancellation, concurrency, optimistic state, forms, and navigation
+- Function-defined tasks with typed server results, compiler-owned opaque dispatch, cancellation,
+  keyed concurrency with aggregate or lane-scoped status, optimistic state, forms, navigation,
+  and generation-stable captured parameter defaults, plus cancelable, inspectable framework task
+  frames for router and motion coordination. Tasks share one model whether policy is inferred or
+  authored on a final `TaskContext` parameter.
 - Finite eager/lazy component registries with compiler-checked identity, placement, SSR, and hydration
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations
+- Compiler-aware language tools with a no-emit project service, LSP server, and VS Code client,
+  including syntax-preserving semantic tokens, linked derived assignment/use badges, precise
+  function-task and referenced-component hovers, and operation-local badges with authored task
+  dependencies and version-fenced, framework-only diagnostics using current function-defined task
+  guidance
+- Optional server-cooperative Chromium DevTools with self-contained, lifecycle-safe Manifest V3
+  entries, ordered client-root ownership across compiled reactive cells, client-only local
+  sessions, a live component-instance tree, bounded causal-frame profiling with aggregated
+  component-type waterfall lanes, root-correct panel registration, and a read-only CDP agent
 - Routing, accessible form primitives, and compiler-aware component testing
 - React 18 and 19 compatibility for React-owned code
 - Node, Fetch, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, and serverless runtime adapters
@@ -117,9 +155,11 @@ The package-specific READMEs describe the supported APIs and environment boundar
 - [Play the live Sudoku Atelier sample](https://techjoshua.github.io/exact/sudoku.html)
 - [Browse the documentation source](apps/docs/README.md)
 - [Understand components and state](apps/docs/src/pages/ComponentsPage.tsx)
-- [Coordinate actions and optimistic state](apps/docs/src/pages/ActionsPage.tsx)
+- [Understand tasks, compiler inference, scheduling, and Suspense readiness](apps/docs/src/pages/TasksPage.tsx)
 - [Select finite dynamic components](apps/docs/src/pages/ComponentRegistriesPage.tsx)
 - [Follow one component through the compiler](apps/docs/src/pages/CompilerTourPage.tsx)
+- [Use compiler-aware editor tooling](docs/language-tools.md)
+- [Inspect running browser, server, and microfrontend components](docs/devtools.md)
 - [Read about server execution](apps/docs/src/pages/ServerExecutionPage.tsx)
 - [Review the native compiler architecture](docs/native-compiler.md)
 - [Browse the current engineering references](docs/README.md)
@@ -133,12 +173,23 @@ The repository also includes complete sample applications:
 - [Microfrontend Portal](apps/microfrontend-portal)
 - [Server Components](apps/server-components)
 
+The native samples follow the setup-once component model: state stays directly inspectable,
+reactive calls define task dependencies and latest-wins activation, concurrent work attaches as
+default-parallel child tasks, and known browser APIs infer placement and generation-owned
+cancellation. They author `TaskContext` only for boundaries or policy the compiler cannot infer.
+
 From a repository checkout, try:
 
 ```sh
 npm install
 npm run build
 npm run dev:sudoku
+```
+
+To build and open the VS Code language-tools Extension Development Host:
+
+```sh
+npm run dev:vscode-extension
 ```
 
 ## Work on eXact

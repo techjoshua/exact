@@ -1,15 +1,16 @@
 import type { ComponentFunction } from '@exactjs/core';
-import { ActionsPage } from './pages/ActionsPage.jsx';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
 import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
+import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
+import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
 import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
@@ -100,6 +101,15 @@ export const docGroups: DocGroup[] = [
 				component: StatePage
 			},
 			{
+				path: '/learn/tasks',
+				label: 'Tasks, dependencies & scheduling',
+				summary:
+					'Understand task definitions and generations, compiler inference, explicit policy, dependencies, scheduling, and Suspense readiness.',
+				keywords:
+					'task function create captured parameter default snapshot dependency effect result async await Suspense readiness blocking nonblocking priority deferred abort signal cleanup optimistic invocation concurrency latest queue key keyed status pending aggregate owner tree structured',
+				component: TasksPage
+			},
+			{
 				path: '/learn/compiler-tour',
 				label: 'Inside the compiler',
 				summary:
@@ -124,21 +134,6 @@ export const docGroups: DocGroup[] = [
 				component: ComponentRegistriesPage
 			},
 			{
-				path: '/learn/tasks',
-				label: 'Tasks & cleanup',
-				summary: 'Own asynchronous work with the component.',
-				keywords: 'task async abort signal cleanup effects',
-				component: TasksPage
-			},
-			{
-				path: '/learn/actions',
-				label: 'Actions & optimistic state',
-				summary: 'Coordinate events, forms, server work, optimism, and navigation.',
-				keywords:
-					'action interaction optimistic pending concurrency latest queue form server navigation rollback',
-				component: ActionsPage
-			},
-			{
 				path: '/learn/async-interfaces',
 				label: 'Suspense, Activity & scheduling',
 				summary:
@@ -155,6 +150,24 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'server task continuation state machine C# async SSR hydration context Apollo TanStack bundle shared secret',
 				component: ServerExecutionPage
+			},
+			{
+				path: '/learn/language-tools',
+				label: 'Compiler-aware language tools',
+				summary:
+					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
+				keywords:
+					'language tools VS Code extension LSP semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred authored TaskContext policy task no emit',
+				component: LanguageToolsPage
+			},
+			{
+				path: '/learn/devtools',
+				label: 'Full-stack DevTools',
+				summary:
+					'Inspect durable browser and server components across authorized microfrontend roots.',
+				keywords:
+					'DevTools Chromium component inspection state contexts tasks actions timeline server cooperation allowDebug catalog redaction secrets microfrontend federation CDP agent',
+				component: DevtoolsPage
 			}
 		]
 	},

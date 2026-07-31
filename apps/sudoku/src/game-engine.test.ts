@@ -52,6 +52,23 @@ describe('Sudoku rules', () => {
 		expect(isSolved(cells)).toBe(false);
 	});
 
+	it('indexes conflicts with one value read per cell as the board fills', () => {
+		const cells = createCells(puzzles[0]!);
+		let valueReads = 0;
+		for (const cell of cells) {
+			Object.defineProperty(cell, 'value', {
+				configurable: true,
+				get() {
+					valueReads++;
+					return 1;
+				}
+			});
+		}
+
+		expect(findConflicts(cells)).toHaveLength(81);
+		expect(valueReads).toBe(81);
+	});
+
 	it('tracks board-valid progress without checking the stored solution', () => {
 		const cells = createCells(puzzles[0]!);
 		const before = digitPlacementProgress(cells, findConflicts(cells));

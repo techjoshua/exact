@@ -9,6 +9,7 @@
 	"references": [
 		{ "path": "../instrumentation" },
 		{ "path": "../core" },
+		{ "path": "../devtools-protocol" },
 		{ "path": "../reactive" }
 	],
 	"include": ["src"],

@@ -2,17 +2,17 @@ import {
 	createCompilerSession,
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
-	resolveExactArtifactImport,
 	transformSource,
 	type ExactAssetRule,
 	type ExactCompilerManifest,
 	type ExactCompilerSession,
+	type ExactSourceInspection,
 	type TransformTarget
 } from '@exactjs/compiler';
+import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import {
 	createExactDiagnosticReporter,
-	loadExactImportedManifests,
-	matchesExactBuildFilter
+	loadExactImportedManifests
 } from '@exactjs/compiler/adapter-support';
 import {
 	profileTimestamp,
@@ -33,6 +33,21 @@ import {
 } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import {
+	appendBunDevtoolsBootstrap,
+	bunDebugEnabled,
+	createBunInspectionCatalog,
+	resolveBunDebug,
+	type ExactBunInspectionModule
+} from './devtools.js';
+import {
+	mergeConditions,
+	resolveExactBunRequest,
+	shouldTransform,
+	targetFor
+} from './selection.js';
+export { mergeConditions, resolveExactBunRequest } from './selection.js';
 
 /** Configures exact bun plugin. */
 export type ExactBunPluginOptions = {
@@ -53,6 +68,19 @@ export type ExactBunPluginOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
+	/** Independent server catalog and compact runtime controls. */
+	debug?: ExactBunDebugOptions;
+};
+
+/** Higher-level Bun controls for server-cooperative DevTools output. */
+export type ExactBunDebugOptions = {
+	catalog?: boolean | 'auto';
+	runtime?: boolean | 'auto';
+	buildKey?: string;
+	executionRoot?: string;
+	rootComponentId?: string;
+	producer?: Readonly<{ packageName?: string; version?: string }>;
+	redactions?: Partial<ExactInspectionRedactionCatalog>;
 };
 
 /** Reports an observable exact bun profile event. */
@@ -69,6 +97,7 @@ export type BunBuildLike = {
 	config?: {
 		conditions?: string | string[];
 		watch?: boolean;
+		outdir?: string;
 	};
 	onResolve(
 		options: { filter: RegExp },
@@ -81,6 +110,7 @@ export type BunBuildLike = {
 		handler: (args: BunLoadArgs) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>
 	): void;
 	onStart?(handler: () => void | Promise<void>): void;
+	onEnd?(handler: () => void | Promise<void>): void;
 };
 
 /** Defines the bun resolve args type contract. */
@@ -121,6 +151,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 		onProfile: options.onProfile
 	});
 	const reportDiagnostics = createExactDiagnosticReporter();
+	const inspectionModules = new Map<string, ExactBunInspectionModule>();
 	return {
 		name: 'exact',
 		setup(build) {
@@ -141,25 +172,49 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			}
 			const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
 			let pluginRegistry = options.pluginRegistry;
+			let configuredDebug = options.debug;
 			build.config ??= {};
 			build.config.conditions = mergeConditions(
 				normalizeConditions(build.config.conditions),
 				exactExportConditions(targetFor(options), options)
 			);
 			build.onStart?.(async () => {
+				inspectionModules.clear();
 				if (!pluginRegistry) {
-					pluginRegistry = (
-						await prepareExactPluginRegistry({
-							applicationRoot: options.applicationRoot,
-							configPath: options.configPath,
-							hostMode: 'compiler'
-						})
-					).compiler;
+					const prepared = await prepareExactPluginRegistry({
+						applicationRoot: options.applicationRoot,
+						configPath: options.configPath,
+						hostMode: 'compiler'
+					});
+					pluginRegistry = prepared.compiler;
+					configuredDebug ??= prepared.config?.debug;
 				}
+				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
+				if (
+					!automaticDevelopment &&
+					(debug.catalog === true || debug.runtime === true) &&
+					!debug.buildKey
+				)
+					throw new Error(
+						'eXact production DevTools output requires one explicit immutable debug.buildKey'
+					);
+			});
+			build.onEnd?.(async () => {
+				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
+				if (options.target !== 'server' || debug.catalog !== true) return;
+				const catalog = createBunInspectionCatalog(options, debug, inspectionModules);
+				if (!catalog) return;
+				const outputRoot = path.resolve(
+					options.applicationRoot ?? process.cwd(),
+					build.config?.outdir ?? 'dist'
+				);
+				const filename = path.join(outputRoot, '.exact-inspection', `${catalog.buildKey}.json`);
+				await mkdir(path.dirname(filename), { recursive: true });
+				await writeFile(filename, `${JSON.stringify(catalog, null, 2)}\n`);
 			});
 			build.onResolve({ filter: /\.exact$/ }, (args) => {
-				const resolved = resolveExactArtifactImport(args.path, args.importer, targetFor(options));
-				return resolved ? { path: resolved.id } : undefined;
+				const resolved = resolveExactBunRequest(args.path, args.importer, options);
+				return resolved ? { path: resolved } : undefined;
 			});
 			if (reactCompatibility) {
 				build.onResolve({ filter: /^react-reconciler$/ }, (args) => {
@@ -189,10 +244,19 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				const result = transformExactBunSource(
 					source,
 					args.path,
-					{ ...options, pluginRegistry },
+					{
+						...options,
+						pluginRegistry,
+						debug: resolveBunDebug(configuredDebug, automaticDevelopment)
+					},
 					compilerSession
 				);
 				if (!result) return undefined;
+				if (result.inspection)
+					inspectionModules.set(path.resolve(args.path), {
+						...result.inspection,
+						source
+					});
 				return {
 					contents: bunSourceWithMap(result.code, result.map),
 					loader: bunLoader(args.path)
@@ -248,7 +312,14 @@ export function transformExactBunSource(
 	filename: string,
 	options: ExactBunPluginOptions = {},
 	session?: ExactCompilerSession
-): { code: string; map: unknown } | null {
+): {
+	code: string;
+	map: unknown;
+	inspection?: Readonly<{
+		inspection: ExactSourceInspection;
+		manifest: ExactCompilerManifest;
+	}>;
+} | null {
 	if (!shouldTransform(filename, source, options)) return null;
 	const profileStarted = options.onProfile ? profileTimestamp() : undefined;
 	try {
@@ -279,11 +350,25 @@ export function transformExactBunSource(
 			assetRules: options.assetRules,
 			preserveClientAssetImports: true,
 			pluginRegistry: options.pluginRegistry,
-			jsxInterop: compatibilityEngine?.jsxInterop
+			jsxInterop: compatibilityEngine?.jsxInterop,
+			emitInspection: options.target === 'server' && bunDebugEnabled(options.debug?.catalog),
+			instrumentInspection: bunDebugEnabled(options.debug?.runtime)
 		});
+		const code =
+			options.target !== 'server' && bunDebugEnabled(options.debug?.runtime)
+				? appendBunDevtoolsBootstrap(result.code, options.debug)
+				: result.code;
 		return {
-			code: result.code,
-			map: result.map
+			code,
+			map: result.map,
+			...(result.inspectionCatalog
+				? {
+						inspection: {
+							inspection: result.inspectionCatalog,
+							manifest: result.manifest
+						}
+					}
+				: {})
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -337,44 +422,4 @@ function importedManifestsFor(options: {
 	manifestFiles?: readonly string[];
 }): ExactCompilerManifest[] {
 	return loadExactImportedManifests(options);
-}
-
-/** Resolves a Bun import request for a .exact facade to a target artifact. */
-export function resolveExactBunRequest(
-	request: string,
-	importer: string | undefined,
-	options: ExactBunPluginOptions = {}
-): string | null {
-	return resolveExactArtifactImport(request, importer, targetFor(options))?.id ?? null;
-}
-
-/** Prepends eXact export conditions without duplicating existing conditions. */
-export function mergeConditions(current: readonly string[], next: readonly string[]): string[] {
-	return [...next, ...current.filter((condition) => !next.includes(condition))];
-}
-
-function targetFor(options: ExactBunPluginOptions): 'client' | 'server' {
-	return options.target === 'server' ? 'server' : 'client';
-}
-
-function shouldTransform(id: string, code: string, options: ExactBunPluginOptions): boolean {
-	if (!/\.[cm]?[jt]sx?(?:$|\?)/.test(id)) return false;
-	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
-	if (
-		options.compileTestModules !== true &&
-		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
-	)
-		return false;
-	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
-	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
-	return (
-		(/\.[jt]sx(?:$|\?)/i.test(id) && code.includes('<')) ||
-		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code) ||
-		Object.values(options.pluginRegistry?.plugins ?? {}).some((plugin) => {
-			const include = plugin.extension?.include;
-			if (!include) return false;
-			include.lastIndex = 0;
-			return include.test(id);
-		})
-	);
 }

@@ -46,7 +46,7 @@ describe('@exactjs/core readiness coordination', () => {
 		}, {});
 		const child = createComponentInstance(
 			function Worker(this: Component<{}>) {
-				this.task.blocking(async () => {
+				(this as any).task.blocking(async () => {
 					await settlement;
 				});
 				return () => null;

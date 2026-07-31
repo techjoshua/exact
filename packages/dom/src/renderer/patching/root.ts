@@ -2,7 +2,6 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
-	getCellVNode,
 	isCellVNode,
 	normalizeDocumentVNode,
 	normalizeRenderResult,
@@ -18,6 +17,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { type EffectScope } from '@exactjs/reactive';
+import { getOwnedCellVNode } from '../../cells.js';
 import {
 	getComponentProps,
 	getListBinding,
@@ -150,7 +150,7 @@ export function patchInner(
 
 	if (isCellVNode(next)) {
 		mounted.vnode = next;
-		const nextChild = getCellVNode(next);
+		const nextChild = getOwnedCellVNode(next);
 		const previousChild = mounted.children[0];
 		if (previousChild) {
 			mounted.children = [

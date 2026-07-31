@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	composeExactExecutorContract,
 	createExactHydrationConfig,
-	defineExactActionContract,
+	defineExactOperationContract,
 	defineExactBoundaryContract
 } from './executor-contract.js';
 
@@ -18,7 +18,7 @@ describe('@exactjs/server executor contracts', () => {
 				role: 'executor' as const,
 				implementations: [],
 				continuations: [
-					defineExactActionContract('save', {
+					defineExactOperationContract('save', {
 						componentId: 'Page',
 						reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
 						writes: [{ path: 'project.title', kind: 'write', confidence: 'exact' }],
@@ -75,8 +75,8 @@ describe('@exactjs/server executor contracts', () => {
 	});
 
 	it('rejects conflicting application authority and malformed routes', () => {
-		const first = defineExactActionContract('save', { componentId: 'Page' });
-		const second = defineExactActionContract('save', { componentId: 'OtherPage' });
+		const first = defineExactOperationContract('save', { componentId: 'Page' });
+		const second = defineExactOperationContract('save', { componentId: 'OtherPage' });
 		const component = Object.assign(() => undefined, {
 			[exactComponentContract]: {
 				version: 1 as const,

@@ -26,7 +26,7 @@ describe('component-domain transport', () => {
 		});
 		function Options(this: Component<{ result: string }>) {
 			this.state.result = 'waiting';
-			this.task.blocking(({ signal }) =>
+			(this as any).task.blocking(({ signal }: { signal: AbortSignal }) =>
 				dispatchComponentContinuation(
 					this as unknown as ComponentInstance<{ result: string }>,
 					'load-options',
@@ -85,7 +85,7 @@ describe('component-domain transport', () => {
 		}
 		function Provider(this: Component<{}>) {
 			this.setContext(StatusContext, { message: 'initial' });
-			this.task(({ signal }) =>
+			(this as any).task(({ signal }: { signal: AbortSignal }) =>
 				dispatchComponentContinuation(
 					this as unknown as ComponentInstance<{}>,
 					'publish-status',
@@ -137,9 +137,9 @@ describe('component-domain transport', () => {
 		function Search(this: Component<{ query: string; result: string }>) {
 			this.state.query = 'first';
 			this.state.result = 'waiting';
-			this.task(
+			(this as any).task(
 				this.reactive(() => this.state.query),
-				(query, { signal }) =>
+				(query: string, { signal }: { signal: AbortSignal }) =>
 					dispatchComponentContinuation(
 						this as unknown as ComponentInstance<{ query: string; result: string }>,
 						'load',
