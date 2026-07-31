@@ -86,7 +86,7 @@ React compatibility tooling. It does not contain the retired eXact compiler.
 Compiler and bundler-assembly changes trigger a dedicated acceptance workflow. It builds and runs:
 
 - Sudoku for native client state and interaction;
-- the docs application for compiled components, routing, code blocks, SSR, and hydration; and
+- the client-only docs application for compiled components, routing, and code blocks; and
 - Shipping Calculator for generated client/server continuations and `__exact` endpoint traffic.
 
 The native package matrix separately builds, installs, and executes each supported platform

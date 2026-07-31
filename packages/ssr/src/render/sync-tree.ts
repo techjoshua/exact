@@ -43,6 +43,7 @@ import { renderComponent } from './async-tree.js';
 import {
 	clientBoundaryProps,
 	clientBoundarySerializationMessage,
+	componentMarkerId,
 	componentName,
 	getComponentProps,
 	renderResumableComponentBoundary,
@@ -171,7 +172,7 @@ export function* renderVNodeChunks(
 	}
 	if (vnode.type === ServerSlot) return;
 	if (typeof vnode.type === 'function') {
-		const componentId = markerId(context, 'component', componentName(vnode.type), vnode.key);
+		const componentId = componentMarkerId(context, vnode);
 		let childParent = parent;
 		let children: Child[];
 		let componentProps: Record<string, unknown> = {};

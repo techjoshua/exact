@@ -51,6 +51,10 @@ Declare finite dynamic component choices with a named module-level
 `hasComponent()`, and use `preloadComponent()` rather than calling or caching lazy loaders
 yourself. Registry keys are component identities, not interchangeable aliases.
 
+Treat `ComponentDomain.resumeComponent` as a dormant capability. Renderer adoption must wrap only
+compiler-identity-matched component construction with `withComponentResumption()`; ordinary
+mounts, mismatch replacements, routing, and conditional updates must remain fresh construction.
+
 Wrap ordinary application recovery points with the exported `<ErrorBoundary>`. Its default
 fallback reports captured errors and offers a retry; pass a `fallback` function when the product
 needs custom presentation. Build a custom boundary with `ErrorContext` and `createErrorContext`

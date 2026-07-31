@@ -1,0 +1,25 @@
+import {
+	ReadinessContext,
+	SuspensionContext,
+	type Component,
+	type ComponentInstance,
+	type ReadinessCoordinator
+} from '@exactjs/core';
+
+/** Bridges one asynchronous SSR Suspense pass to the component readiness contexts. */
+export function SsrReadinessOwner(
+	this: Component<Record<string, never>>,
+	props: { context: ReadinessCoordinator['context'] }
+) {
+	this.setContext(ReadinessContext, props.context);
+	this.setContext(SuspensionContext, {
+		suspend: (settlement) =>
+			props.context.register({
+				owner: this as unknown as ComponentInstance<any>,
+				taskGeneration: 0,
+				settlement,
+				retry: true
+			})
+	});
+	return () => null;
+}

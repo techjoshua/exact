@@ -2,11 +2,9 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
-	ReadinessContext,
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
-	SuspensionContext,
 	Text,
 	UnsafeHtml,
 	createComponentInstance,
@@ -18,7 +16,6 @@ import {
 	normalizeActivityMode,
 	renderInstance,
 	withTaskObserver,
-	type Component,
 	type VNode
 } from '@exactjs/core';
 import { flushSync, unwrap } from '@exactjs/reactive';
@@ -47,6 +44,7 @@ import type {
 	TaskObserver
 } from '../types.js';
 import {
+	componentMarkerId,
 	componentName,
 	getComponentProps,
 	renderResumableComponentBoundary,
@@ -55,6 +53,7 @@ import {
 import { handleSsrConstructionError } from './construction-errors.js';
 import { awaitWithAbort, drainTasks } from './context.js';
 import { type SsrRenderOptions } from './entrypoints.js';
+import { SsrReadinessOwner } from './readiness-owner.js';
 import {
 	claimRootText,
 	enterHost,
@@ -275,30 +274,13 @@ async function renderNativeSuspenseAsync(
 	}
 }
 
-function SsrReadinessOwner(
-	this: Component<Record<string, never>>,
-	props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
-) {
-	this.setContext(ReadinessContext, props.context);
-	this.setContext(SuspensionContext, {
-		suspend: (settlement) =>
-			props.context.register({
-				owner: this as unknown as ComponentInstance<any>,
-				taskGeneration: 0,
-				settlement,
-				retry: true
-			})
-	});
-	return () => null;
-}
-
 /** Transforms component into its required representation. */
 export function renderComponent(
 	context: SsrContext,
 	vnode: VNode,
 	parent?: ComponentInstance<any>
 ): string {
-	const componentId = markerId(context, 'component', componentName(vnode.type), vnode.key);
+	const componentId = componentMarkerId(context, vnode);
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	let instance: ComponentInstance<any> | undefined;
 	let output!: string;
@@ -355,7 +337,7 @@ export async function renderComponentAsync(
 	parent: ComponentInstance<any> | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
-	const componentId = markerId(context, 'component', componentName(vnode.type), vnode.key);
+	const componentId = componentMarkerId(context, vnode);
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	let instance: ComponentInstance<any> | undefined;
 	let primary: unknown = noPrimaryFailure;

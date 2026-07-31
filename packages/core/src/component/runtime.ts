@@ -38,7 +38,7 @@ import { ErrorContext } from './contexts.js';
 import { getComponentContext, hasComponentContext, setComponentContext } from './context-api.js';
 import { prepareComponentContextResumption } from './context-resumption.js';
 import { cleanupFailedComponentConstruction, isTemplateStringsArray } from './construction.js';
-import { pageComponentDomain, withComponentDomain } from './domain.js';
+import { pageComponentDomain, resolveComponentResumption, withComponentDomain } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { reactiveValue } from './reactive-value.js';
 import {
@@ -71,7 +71,7 @@ export function createComponentInstance<
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
-	const resumption = domain.resumeComponent?.(type);
+	const resumption = resolveComponentResumption(domain, type);
 	const refs = new Map<symbol, unknown>();
 	const lists = createComponentListController();
 	// Assignment follows scope creation because the scope error callback closes over the final instance.

@@ -7,6 +7,7 @@ import {
 	defineTask,
 	markComponentContinuationTask,
 	settledComponentContinuationIds,
+	withComponentResumption,
 	type Component,
 	type TaskContext
 } from './index.js';
@@ -37,7 +38,14 @@ describe('@exactjs/core component resumption', () => {
 			settledContinuations: ['load']
 		}));
 
-		const instance = createComponentInstance(Search, {}, undefined, undefined, domain);
+		const fresh = createComponentInstance(Search, {}, undefined, undefined, domain);
+		expect(fresh.state.query).toBe('setup');
+		expect(fresh.state.result).toBe('waiting');
+		fresh.unmount();
+
+		const instance = withComponentResumption(domain, () =>
+			createComponentInstance(Search, {}, undefined, undefined, domain)
+		);
 
 		expect(instance.state.query).toBe('server');
 		expect(instance.state.result).toBe('SERVER');

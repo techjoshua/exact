@@ -122,7 +122,9 @@ function adoptOrMountRoot(
 ): 'adopted' | 'mounted' {
 	if (documentNode) {
 		const checkpoint = checkpointComponentResumptions(domain);
-		if (adoptDocumentRoot(vnode, documentNode, rendererOptions(options, work))) return 'adopted';
+		if (adoptDocumentRoot(vnode, documentNode, rendererOptions(options, work))) {
+			return 'adopted';
+		}
 		rollbackComponentResumptions(domain, checkpoint);
 		reportMismatch(
 			options,
@@ -139,7 +141,9 @@ function adoptOrMountRoot(
 			options.allowMarkerless && typeof vnode.type === 'function'
 				? adoptMarkerlessComponentRoot(vnode, container, rendererOptions(options, work))
 				: false;
-		if (adopted) return 'adopted';
+		if (adopted) {
+			return 'adopted';
+		}
 		rollbackComponentResumptions(domain, checkpoint);
 		reportMismatch(
 			options,
@@ -157,7 +161,9 @@ function adoptOrMountRoot(
 			? adoptComponentRoot(vnode, container, rendererOptions(options, work))
 			: adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work)) &&
 				adoptStatic(vnode, container, rendererOptions(options, work));
-	if (adopted) return 'adopted';
+	if (adopted) {
+		return 'adopted';
+	}
 	rollbackComponentResumptions(domain, checkpoint);
 	// Clear the SSR range before mounting so a failed adoption cannot leave a
 	// duplicate interactive tree beside stale server markup.

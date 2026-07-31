@@ -45,7 +45,8 @@ export {
 	currentComponentDomain,
 	dispatchComponentContinuation,
 	pageComponentDomain,
-	withComponentDomain
+	withComponentDomain,
+	withComponentResumption
 } from './component/domain.js';
 export {
 	componentContinuationContextValues,
@@ -178,6 +179,7 @@ export { renderInstance } from './component/render.js';
 export { createComponentInstance, reparentComponentInstance } from './component/runtime.js';
 export {
 	composeExactComponentContracts,
+	exactComponentIdentity,
 	exactComponentContract,
 	exactComponentType,
 	isExactComponent,

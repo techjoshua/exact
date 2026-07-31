@@ -73,6 +73,11 @@ Compiled registries carry opaque identity into SSR/hydration markers; a mismatch
 is recovered inside its own range. `inspectComponentRegistry()` reports entry mode, status, and
 load generation without exposing loaders.
 
+Compiled component contract IDs are also the protocol identity for ordinary SSR component
+markers and resumption records. A hydration renderer must use `withComponentResumption()` only
+around construction already authorized by a matching marker; a durable component domain alone
+does not authorize state restoration.
+
 `ErrorBoundary` supplies an application-level recovery point without requiring every project to
 rebuild `ErrorContext` plumbing:
 

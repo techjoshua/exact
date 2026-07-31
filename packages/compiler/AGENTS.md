@@ -22,6 +22,12 @@ non-task setup call graph, then apply each task's placement as a split boundary.
 When server work and client task activation require both roots, retain the
 exported component's resumption contract and client registry entry.
 
+Respect explicit per-file JSX ownership. A module with a foreign
+`@jsxImportSource` remains part of the TypeScript project but must bypass eXact
+component diagnostics and lowering so its owning React, Preact, or other JSX
+pipeline can compile it. Do not hide such modules by removing them from corpus
+discovery.
+
 Treat generated `.exact` directories and `.exact.*` files as disposable build output. Never edit
 or commit them.
 

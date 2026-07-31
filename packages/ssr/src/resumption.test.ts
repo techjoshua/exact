@@ -6,8 +6,11 @@ import {
 	registerComponentContinuationContexts,
 	type Component
 } from '@exactjs/core';
+import { computed } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { renderToHydratableDocumentStream, renderToHydratableStringAsync } from './index.js';
+import { renderResumableComponentBoundary } from './render/boundaries.js';
+import { createSsrContext } from './render/context.js';
 import { readRemainingStreamEvents } from './test-support/streams.js';
 
 describe('@exactjs/ssr component resumption', () => {
@@ -77,6 +80,135 @@ describe('@exactjs/ssr component resumption', () => {
 		expect(rendered.hydrationScript).toContain('"resumptions"');
 		expect(rendered.hydrationScript).not.toContain('serverOnly');
 		expect(rendered.hydrationScript).not.toContain('private');
+	});
+
+	it('does not promote state-only resumptions into islands or evaluate ignored reactive children', async () => {
+		let childEvaluations = 0;
+		const ignoredChild = computed(() => {
+			childEvaluations++;
+			return createVNode('strong', null, 'ignored');
+		});
+		const implementation = function StateOnly(
+			this: Component<{ count: number }>,
+			_props: { children?: unknown }
+		) {
+			this.state.count = 1;
+			return () => createVNode('output', null, String(this.state.count));
+		};
+		const StateOnly = Object.assign(implementation, {
+			[exactComponentContract]: {
+				version: 1 as const,
+				id: 'component:StateOnly',
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [
+					{
+						id: 'implementation:StateOnly',
+						name: 'StateOnly',
+						role: 'root' as const,
+						implementation
+					}
+				],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:StateOnly',
+					statePaths: ['count'],
+					valueCaptures: [],
+					contexts: [],
+					boundaries: []
+				}
+			}
+		});
+		function Root() {
+			return () => createVNode(StateOnly, {}, ignoredChild);
+		}
+
+		const rendered = await renderToHydratableStringAsync(createVNode(Root, {}));
+
+		expect(rendered.html).toContain('<output>1</output>');
+		expect(rendered.html).not.toContain('data-exact-client-name="StateOnly"');
+		expect(childEvaluations).toBe(0);
+	});
+
+	it('rejects reactive continuation props without evaluating them during SSR', async () => {
+		let childEvaluations = 0;
+		const reactiveChild = computed(() => {
+			childEvaluations++;
+			return createVNode('strong', null, 'deferred');
+		});
+		const implementation = function ContinuationOwner(
+			this: Component<{}>,
+			_props: { children?: unknown }
+		) {
+			return () => createVNode('output', null, 'ready');
+		};
+		const ContinuationOwner = Object.assign(implementation, {
+			[exactComponentContract]: {
+				version: 1 as const,
+				id: 'component:ContinuationOwner',
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [
+					{
+						id: 'implementation:ContinuationOwner',
+						name: 'ContinuationOwner',
+						role: 'root' as const,
+						implementation
+					}
+				],
+				continuations: [
+					{
+						id: 'task:continuation-owner',
+						componentId: 'component:ContinuationOwner',
+						readiness: 'nonblocking' as const,
+						dependencies: [],
+						stateReads: [],
+						stateWrites: [],
+						publicContexts: [],
+						serverContexts: [],
+						contextWrites: [],
+						boundaries: []
+					}
+				],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:ContinuationOwner',
+					statePaths: [],
+					valueCaptures: [],
+					contexts: [],
+					boundaries: []
+				}
+			}
+		});
+		const vnode = createVNode(ContinuationOwner, {});
+		expect(() =>
+			renderResumableComponentBoundary(
+				createSsrContext({}),
+				vnode,
+				'component-boundary',
+				'<output>ready</output>',
+				{ children: reactiveChild }
+			)
+		).toThrow('must be JSON-serializable');
+		expect(childEvaluations).toBe(0);
+
+		let sourceEvaluations = 0;
+		const reactiveSource = computed(() => {
+			sourceEvaluations++;
+			return 'compiled';
+		});
+		const boundary = renderResumableComponentBoundary(
+			createSsrContext({}),
+			vnode,
+			'component-boundary',
+			'<output>ready</output>',
+			{ source: reactiveSource }
+		);
+		expect(boundary).toContain('compiled');
+		expect(sourceEvaluations).toBe(1);
 	});
 
 	it('captures the settled render used by a hydratable document stream', async () => {

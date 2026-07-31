@@ -23,6 +23,10 @@ coordinating asynchronous settlement and error ownership. Registry entry facades
 key as subtree identity, so same-key updates retain instances and different keys replace only the
 selected component range; stale lazy candidates are disposed before they can commit.
 
+Hydration adoption compares compiler contract identity in component markers before authorizing
+SSR state resumption. A mismatched nested component is mounted fresh inside its owned range while
+compatible ancestors and siblings retain their adopted DOM.
+
 Native `Suspense` keeps committed content visible while a blocking update prepares and publishes
 candidate state and DOM together. Native `Activity` detaches complete logical ranges—including
 portal output—without losing component, node, ref, handler, or form-control identity.
