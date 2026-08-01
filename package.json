@@ -99,6 +99,7 @@
 		"react-router-dom-v6": "npm:react-router-dom@6.30.4",
 		"react-router-dom-v63": "npm:react-router-dom@6.3.0",
 		"react-router-dom-v7": "npm:react-router-dom@7.18.1",
+		"@typescript/native": "npm:typescript@^7.0.2",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"typescript-eslint": "8.65.0",
 		"vitest": "^4.1.10"

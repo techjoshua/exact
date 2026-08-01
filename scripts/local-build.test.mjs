@@ -15,4 +15,5 @@ test('the root build prepares package-export prerequisites before testing the na
 		'npm run build -w @exactjs/core -w @exactjs/jsx'
 	);
 	assert.equal(manifest.scripts['build:workspaces'], 'npm run generate:app-artifacts && tsc6 -b');
+	assert.equal(manifest.devDependencies['@typescript/native'], 'npm:typescript@^7.0.2');
 });
