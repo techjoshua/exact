@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 import { testContinuation } from './test-support/responses.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/hydrate remote-registry', () => {
 	it('registers remote hydration metadata after client creation', async () => {
@@ -19,7 +20,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 				async json() {
 					return {
 						ok: true,
-						type: 'action',
+						type: 'invoke',
 						id: 'remote-save',
 						patches: [
 							{ type: 'replace', id: 'remote-panel', html: '<section>Saved remote</section>' }
@@ -37,7 +38,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 		});
 		client.registerComponents({
 			endpoints: {
-				actions: {
+				invocations: {
 					'remote-save': 'https://remote.test/__exact'
 				}
 			},
@@ -49,13 +50,13 @@ describe('@exactjs/hydrate remote-registry', () => {
 			}
 		});
 
-		await client.invokeAction('remote-save', { title: 'Saved' });
+		await client.invokeTask('remote-save', { title: 'Saved' });
 
 		expect(requests).toEqual([
 			{
 				input: 'https://remote.test/__exact',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					root: 'page',
 					id: 'remote-save',
 					payload: { title: 'Saved' },
@@ -82,7 +83,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			endpoints: {
-				actions: {
+				invocations: {
 					save: '/__exact'
 				}
 			},
@@ -105,12 +106,12 @@ describe('@exactjs/hydrate remote-registry', () => {
 		expect(() =>
 			client.registerComponents({
 				endpoints: {
-					actions: {
+					invocations: {
 						save: 'https://remote.test/__exact'
 					}
 				}
 			})
-		).toThrow('Conflicting eXact hydration action endpoint route registration: save');
+		).toThrow('Conflicting eXact hydration invocation endpoint route registration: save');
 		expect(() =>
 			client.registerComponents({
 				continuations: {
@@ -149,7 +150,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 			ok: true,
 			status: 200,
 			async json() {
-				return { ok: true, type: 'action', id: 'save' };
+				return { ok: true, type: 'invoke', id: 'save' };
 			}
 		});
 
@@ -242,7 +243,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 		});
 		client.registerComponents({
 			endpoints: {
-				actions: {
+				invocations: {
 					'remote-a': 'https://remote.test/__exact',
 					'remote-b': 'https://remote.test/__exact'
 				}
@@ -262,7 +263,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 			}
 		});
 
-		await Promise.all([client.invokeAction('remote-a'), client.invokeAction('remote-b')]);
+		await Promise.all([client.invokeTask('remote-a'), client.invokeTask('remote-b')]);
 
 		expect(remoteRequests).toEqual([
 			{
@@ -277,8 +278,8 @@ describe('@exactjs/hydrate remote-registry', () => {
 					type: 'batch',
 					version: 1,
 					operations: [
-						{ type: 'action', root: 'page', id: 'remote-a' },
-						{ type: 'action', root: 'page', id: 'remote-b' }
+						{ type: 'invoke', root: 'page', id: 'remote-a' },
+						{ type: 'invoke', root: 'page', id: 'remote-b' }
 					]
 				}
 			}

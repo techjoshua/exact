@@ -1,4 +1,4 @@
-import { createVNode, readExactComponentContract } from '@exactjs/core';
+import { createVNode, exactComponentIdentity, readExactComponentContract } from '@exactjs/core';
 import {
 	composeExactExecutorContract,
 	createExactHydrationConfig,
@@ -21,9 +21,9 @@ if (!profileBoundaryId) throw new Error('ProfilePage is missing its generated cl
 /** Provides the executor authority reachable from this application root. */
 export const exactContract = composeExactExecutorContract([ProfilePage], {
 	endpoint: '/__exact',
-	actions: {
+	invocations: {
 		'save-profile': defineExactOperationContract('save-profile', {
-			componentId: profileContract.id,
+			componentId: exactComponentIdentity(ProfilePage),
 			writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
 			boundaries: [profileBoundaryId]
 		})
@@ -35,7 +35,7 @@ export const exactRuntime = createExactServerRuntime({
 	contract: exactContract,
 	markers: false,
 	patchStrategy: 'element',
-	actions: {
+	invocations: {
 		'save-profile': () => ({ state: { saved: true } })
 	},
 	boundaries: {

@@ -107,13 +107,13 @@ artifact contracts:
 - A single Node process serving HTML and eXact endpoints.
 - Serverless or edge-style Fetch handlers with per-isolate application scope
   and per-invocation request scope.
-- Separate HTML and action/refresh services using the same manifest IDs,
+- Separate HTML and invocation/refresh services using the same protocol IDs,
   artifact version, authorization rules, and hydration endpoint configuration.
 - A reverse proxy or CDN in front of any of the above, subject to the cache
   rules in this guide.
 
-Deploy client assets, server artifacts, and portable manifests from one build.
-Do not mix manifest IDs or client chunks from different releases. Use
+Deploy client assets and server artifacts from one build. Do not mix protocol
+IDs or client chunks from different releases. Use
 content-addressed client assets or an atomic release directory, and keep an old
 server release available while clients from that release can still invoke its
 action or refresh IDs.
@@ -146,15 +146,15 @@ Install an eXact `Logger` in production and carry a trace identifier from
 `traceparent` or `x-request-id`. Record:
 
 - Request method, normalized route, status, duration, and cancellation.
-- Render mode, component or boundary ID, manifest/package identity, and release.
+- Render mode, component or boundary ID, package/build identity, and release.
 - Action/refresh ID, authorization outcome, patch count, response bytes, and
   fallback replacement.
 - Stream start, completion, cancellation, and post-commit failure.
 - Policy and capability diagnostics without logging secret values.
 
-Compiler diagnostics and portable manifests provide component, boundary,
-package, and policy identities. Keep those IDs in source maps and release
-metadata so runtime events can be mapped to authored code.
+Compiler diagnostics and executable component contracts provide component,
+boundary, package, and policy identities. Keep those IDs in source maps and
+release metadata so runtime events can be mapped to authored code.
 
 ## CSP and rendering safety
 
@@ -170,11 +170,11 @@ application concern.
 
 ## Package publication
 
-A component package publishes transpiled shared/client/server artifacts,
-declarations, portable manifests, ordered conditional exports, and
-`exact.manifests` metadata. The repository owns transpilation and package
-assembly. Validate the packed tarball rather than the source tree, and verify
-client, SSR, and server-component conditions in clean consumers.
+A component package publishes declarations and target-specific executable
+artifacts selected by ordered conditional exports. The repository owns
+transpilation and package assembly. Validate the packed tarball rather than the
+source tree, and verify client, SSR, and server-component conditions in clean
+consumers. Consuming compilers treat installed artifacts as opaque.
 
 Generated shared and target-specific dual modules export the declarations
 needed by generated client/server imports. Those internal exports need not be
@@ -191,5 +191,5 @@ Before production release:
 5. Exercise cancellation, pre-commit failure, post-commit stream failure,
    redirects, cache headers, authorization, CSRF, and configured resource
    ceilings.
-6. Confirm manifests and client/server assets come from one release.
+6. Confirm executable contracts and client/server assets come from one release.
 7. Verify logger redaction and trace correlation in the deployment environment.

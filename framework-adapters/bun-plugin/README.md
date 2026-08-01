@@ -1,8 +1,8 @@
 # @exactjs/bun-plugin
 
-Compiler integration for Bun's native bundler and runtime plugin pipeline. It transforms eXact
-JSX, resolves `.exact` artifact facades, and adds the appropriate `exact-client` or `exact-server`
-package export condition.
+Bun build integration for eXact TypeScript and TSX.
+
+## Configuration
 
 ```ts
 import { exact } from '@exactjs/bun-plugin';
@@ -13,35 +13,18 @@ const result = await Bun.build({
 	target: 'browser',
 	format: 'esm',
 	splitting: true,
-	sourcemap: 'external',
 	plugins: [exact({ target: 'client' })]
 });
-
-if (!result.success) {
-	for (const log of result.logs) console.error(log);
-	process.exitCode = 1;
-}
 ```
 
-Use `target: "server"` together with Bun's `target: "bun"` when producing a server bundle. Keep
-`serverComponents` consistent between paired client and server builds.
+Use `target: 'server'` with Bun's server target for the matching server build. Keep
+`serverComponents`, React compatibility, and build identity consistent across paired outputs.
 
-Configure compiler-cooperative DevTools with `debug: { catalog, runtime, buildKey,
-executionRoot }`. Development/watch builds enable both `auto` controls. Client output installs the
-guarded page bridge and carries only compact compiler correlation; server output writes
-`.exact-inspection/<buildKey>.json` beneath Bun's `outdir`. Paired production builds must use the
-same immutable build/root identity. Set both controls to `false` for hardened output.
+## What the plugin handles
 
-The plugin is integration-tested with Bun 1.3.5. Bun's plugin API requires unmatched `onLoad` and
-`onResolve` hooks to return no value; the eXact plugin composes with later Bun loaders instead of
-claiming modules that do not require an eXact transform.
+The plugin compiles eXact source, resolves generated `.exact` facades, selects client or server
+exports, and participates in Bun watch builds. Use `@exactjs/bun-adapter` separately to connect
+the generated server runtime to `Bun.serve()`.
 
-HTTP request handling is separate. Use `@exactjs/bun-adapter` with `Bun.serve()` for eXact server
-endpoints.
-
-Set `reactCompatibility: { target: 18 }` or `{ target: 19 }` to render imported or
-runtime-selected components directly from native eXact JSX. The compiler inserts a cached
-compatibility adapter; compiler-branded eXact components pass through unchanged while unbranded
-values use the active React layer. Bun redirects React runtime imports without eXact-compiling
-dependency implementations. Reference the matching `@exactjs/react-compat/types18` or `types19`
-facade for TypeScript.
+Optional `debug` settings control private server catalogs and compact browser instrumentation.
+Disable both for hardened output. See [eXact DevTools](../../docs/devtools.md).

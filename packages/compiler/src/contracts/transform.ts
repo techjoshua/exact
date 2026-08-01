@@ -6,7 +6,6 @@ import type {
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerExplanation } from './explanation.js';
-import type { ExactCompilerManifest } from './manifest.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type { ExactSourceEntityKind } from '../language-tools/contracts.js';
 
@@ -34,7 +33,6 @@ export type TransformOptions = {
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */
 	session?: ExactCompilerSession;
 	target?: TransformTarget;
-	importedManifests?: readonly ExactCompilerManifest[];
 	serverComponents?: boolean;
 	/**
 	 * Preserves function-declaration hoisting while attaching component descriptors.
@@ -178,10 +176,11 @@ export type TransformResult = {
 	code: string;
 	map: ExactSourceMap | null;
 	filename: string;
-	manifest: ExactCompilerManifest;
 	explanation?: ExactCompilerExplanation;
 	/** Optional host-side inspection catalog; never embedded in generated code. */
 	inspectionCatalog?: ExactSourceInspection;
+	/** Value-free redaction identities paired with the optional inspection catalog. */
+	inspectionRedactions?: ExactInspectionRedactionCatalog;
 	/** Compact IDs lowered for runtime correlation; contains no paths, reasons, or source text. */
 	inspectionCorrelation?: ExactRuntimeInspectionCorrelation;
 };

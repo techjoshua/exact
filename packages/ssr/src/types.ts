@@ -169,18 +169,18 @@ export type BoundaryRefreshOptions = RenderToStringOptions & {
 	): string | Promise<string | undefined> | undefined;
 };
 
-/** Configures action refresh boundary. */
-export type ActionRefreshBoundaryOptions = BoundaryRefreshOptions & {
+/** Configures an invocation refresh boundary. */
+export type InvocationRefreshBoundaryOptions = BoundaryRefreshOptions & {
 	render: BoundaryRenderFunction;
 };
 
-/** Configures action refresh. */
-export type ActionRefreshOptions = {
-	action(
+/** Configures an invocation refresh. */
+export type InvocationRefreshOptions = {
+	invoke(
 		input: ExactInvocationRequest,
 		context: ExactServerContext
 	): Promise<ExactInvocationResult | void> | ExactInvocationResult | void;
-	boundaries: readonly ActionRefreshBoundaryOptions[];
+	boundaries: readonly InvocationRefreshBoundaryOptions[];
 };
 
 /** Defines the exact boundary renderer type contract. */
@@ -191,7 +191,7 @@ export type ExactBoundaryRenderer =
 /** Configures exact server handler registry. */
 export type ExactServerHandlerRegistryOptions = RenderToStringOptions & {
 	contract: ExactServerContext['contract'];
-	actions?: Record<
+	invocations?: Record<
 		string,
 		(
 			input: ExactInvocationRequest,
@@ -204,7 +204,7 @@ export type ExactServerHandlerRegistryOptions = RenderToStringOptions & {
 
 /** Defines the exact server handler registry type contract. */
 export type ExactServerHandlerRegistry = {
-	actions: NonNullable<ExactServerContext['actions']>;
+	invocations: NonNullable<ExactServerContext['invocations']>;
 	refreshBoundaries: NonNullable<ExactServerContext['refreshBoundaries']>;
 };
 

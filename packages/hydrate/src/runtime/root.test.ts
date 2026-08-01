@@ -4,7 +4,6 @@
 import {
 	createComponentDomain,
 	createContext,
-	createVNode,
 	type Component,
 	type ComponentInstance
 } from '@exactjs/core';
@@ -12,6 +11,7 @@ import { render, unmount } from '@exactjs/dom';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, requestClientForComponentDomain } from './client.js';
 import { createExactRoot } from './root.js';
+import { createVNode, markTestComponent } from '../test-support/native-vnode.js';
 
 describe('hidden exact roots', () => {
 	it('selects request clients by instantiating root while preserving authored child ownership', () => {
@@ -46,11 +46,16 @@ describe('hidden exact roots', () => {
 			this.state.theme = { name: 'violet' };
 			this.setContext(Theme, this.state.theme);
 			const child = createVNode(PageChild, null);
-			const remote = createExactRoot(remoteClient, RemoteShell, undefined, child);
+			const remote = createExactRoot(
+				remoteClient,
+				markTestComponent(RemoteShell),
+				undefined,
+				child
+			);
 			return () => remote;
 		}
 
-		render(createExactRoot(pageClient, Page), container);
+		render(createExactRoot(pageClient, markTestComponent(Page)), container);
 
 		expect(container.textContent).toBe('violetviolet');
 		expect(pageChild.domain).toBe(pageClient.domain);

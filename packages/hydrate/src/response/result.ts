@@ -41,7 +41,7 @@ export function parseExactOperationResult(
 			])
 		)
 			throw new Error('eXact batch invocation returned malformed results');
-		if (record.type !== 'action' && record.type !== 'refresh')
+		if (record.type !== 'invoke' && record.type !== 'refresh')
 			throw new Error('eXact batch invocation returned malformed results');
 		if (typeof record.id !== 'string' || !record.id)
 			throw new Error('eXact batch invocation returned malformed results');
@@ -74,7 +74,7 @@ export function parseExactOperationResult(
 	if (record.ok === false) {
 		if (!hasOnlyKeys(record, ['ok', 'type', 'id', 'opId', 'status', 'error']))
 			throw new Error('eXact batch invocation returned malformed results');
-		if (record.type !== 'action' && record.type !== 'refresh')
+		if (record.type !== 'invoke' && record.type !== 'refresh')
 			throw new Error('eXact batch invocation returned malformed results');
 		if (typeof record.id !== 'string' || !record.id)
 			throw new Error('eXact batch invocation returned malformed results');

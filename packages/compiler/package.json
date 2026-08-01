@@ -22,12 +22,10 @@
 		"dist/ids.*",
 		"dist/index.*",
 		"dist/language-tools",
-		"dist/manifest",
-		"dist/manifest-parse.*",
 		"dist/names.*",
 		"dist/native/executable.*",
 		"dist/native/async-language-client.*",
-		"dist/native/manifest.*",
+		"dist/native/module-analysis.*",
 		"dist/native/process.*",
 		"dist/native/process-contracts.*",
 		"dist/native/process-diagnostic-contracts.*",
@@ -42,7 +40,6 @@
 		"dist/registry.*",
 		"dist/source-maps.*",
 		"dist/types.*",
-		"dist/versions.*",
 		"!dist/**/*.test.*"
 	],
 	"exports": {
@@ -80,6 +77,7 @@
 	},
 	"devDependencies": {
 		"@exactjs/core": "^0.1.0",
+		"@exactjs/testing": "^0.1.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"vite": "^8.1.5"
 	},

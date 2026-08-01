@@ -2,16 +2,20 @@
  * @vitest-environment jsdom
  */
 import {
+	activateTaskForHost,
 	createContext,
-	createVNode,
+	defineTask,
 	exactComponentContract,
+	exactComponentType,
 	markComponentContinuationTask,
 	registerComponentContinuationContexts,
-	type Component
+	type Component,
+	type TaskContext
 } from '@exactjs/core';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 function resumablePage(id: string, label: string) {
 	const implementation = function Page(this: Component<{ label: string }>) {
@@ -19,9 +23,9 @@ function resumablePage(id: string, label: string) {
 		return () => createVNode('p', null, this.state.label);
 	};
 	return Object.assign(implementation, {
+		[exactComponentType]: id,
 		[exactComponentContract]: {
 			version: 1 as const,
-			id,
 			placement: 'isomorphic' as const,
 			role: 'client' as const,
 			implementations: [],
@@ -65,9 +69,9 @@ describe('@exactjs/hydrate component resumption', () => {
 			return () => createVNode(props.page, {});
 		};
 		const Shell = Object.assign(implementation, {
+			[exactComponentType]: 'component:PreHydrationShell',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:PreHydrationShell',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -100,13 +104,20 @@ describe('@exactjs/hydrate component resumption', () => {
 		const implementation = function Search(this: Component<{ query: string; result: string }>) {
 			this.state.query = 'first';
 			this.state.result = 'waiting';
-			(this as any).task(
-				this.reactive(() => this.state.query),
-				markComponentContinuationTask('task:search', async (query: string) => {
-					runs++;
-					await Promise.resolve();
-					this.state.result = query.toUpperCase();
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask(
+						'task:search',
+						async (query: string, _task: TaskContext) => {
+							runs++;
+							await Promise.resolve();
+							this.state.result = query.toUpperCase();
+						}
+					)
+				),
+				this.reactive(() => this.state.query)
 			);
 			return () =>
 				createVNode(
@@ -125,9 +136,9 @@ describe('@exactjs/hydrate component resumption', () => {
 				);
 		};
 		const Search = Object.assign(implementation, {
+			[exactComponentType]: 'component:Search',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:Search',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -135,6 +146,7 @@ describe('@exactjs/hydrate component resumption', () => {
 					{
 						id: 'task:search',
 						componentId: 'component:Search',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [{ source: 'state' as const }],
 						stateReads: [{ path: 'query', kind: 'read' as const, confidence: 'exact' as const }],
@@ -200,18 +212,22 @@ describe('@exactjs/hydrate component resumption', () => {
 		}
 		const implementation = function Provider(this: Component<{}>) {
 			registerComponentContinuationContexts(this, [{ name: 'Status', token: Status }]);
-			(this as any).task(
-				markComponentContinuationTask('task:status', () => {
-					runs++;
-					this.setContext(Status, { message: 'ready' });
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask('task:status', () => {
+						runs++;
+						this.setContext(Status, { message: 'ready' });
+					})
+				)
 			);
 			return () => createVNode(Consumer, {});
 		};
 		const Provider = Object.assign(implementation, {
+			[exactComponentType]: 'component:Provider',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:Provider',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -219,6 +235,7 @@ describe('@exactjs/hydrate component resumption', () => {
 					{
 						id: 'task:status',
 						componentId: 'component:Provider',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],

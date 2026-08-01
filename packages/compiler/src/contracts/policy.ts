@@ -91,8 +91,8 @@ export type ExactPolicyAuditReport = {
 	errors: string[];
 };
 
-/** Defines the exact policy manifest ir type contract. */
-export type ExactPolicyManifestIR = {
+/** Defines the exact policy analysis ir type contract. */
+export type ExactPolicyAnalysisIR = {
 	version: 1;
 	subjects: ExactPolicySubjectIR[];
 	flows: ExactPolicyFlowIR[];

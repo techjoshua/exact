@@ -114,9 +114,9 @@ Build integrations select `client` or `server` targets and preserve matching
 package export conditions. Do not import a server artifact into browser code or
 make runtime adapters reproduce compiler placement logic.
 
-Generated artifacts currently include planning metadata used by compilation,
-but application runtime wiring should use the private contracts attached to
-the generated modules. The planning manifest is not the long-term runtime API.
+Compilation retains project analysis only in its owning session. Application
+runtime wiring uses the target-local contracts attached to generated component
+exports; installed dependencies are executable inputs, not analysis inputs.
 
 ## Runtime composition
 

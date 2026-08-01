@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exactjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('failure-complete DOM teardown', () => {
 	it('removes the complete owned DOM after a ref teardown failure', () => {

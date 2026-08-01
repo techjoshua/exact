@@ -3,6 +3,7 @@ import {
 	createComponentInstance,
 	createErrorReport,
 	Dynamic,
+	exactComponentIdentity,
 	Fragment,
 	handleComponentError,
 	isCellVNode,
@@ -275,6 +276,9 @@ export function mountInner(
 	}
 
 	if (typeof vnode.type === 'function') {
+		// The compiler or a framework library must claim native ownership. Foreign
+		// function components cross an explicit compatibility adapter instead.
+		exactComponentIdentity(vnode.type);
 		const wrapper = createMarker(root, 'component');
 		const mounted: Mounted = { vnode, dom: wrapper, scope, children: [] };
 		let constructing = true;

@@ -126,4 +126,4 @@ export function Field(this: Component<FieldState>, props: FieldProps) {
 	return () => (registered ? props.children : null);
 }
 
-markExactComponent(Field);
+markExactComponent(Field, '@exactjs/forms:Field');

@@ -57,7 +57,8 @@ The extension must make these distinctions apparent without requiring generated
 code inspection:
 
 - component initialization, which normally runs once per durable instance;
-- the returned render function and its fine-grained reactive expressions;
+- the returned one-expression view, its lexical micro-components, and their
+  fine-grained reactive expressions;
 - ordinary setup statements;
 - compiler-inferred task regions created from async component source;
 - explicit `this.task()` registrations;

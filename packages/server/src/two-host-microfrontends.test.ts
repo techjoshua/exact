@@ -30,11 +30,11 @@ describe('page host to component host integration', () => {
 					roots: {
 						'@company/billing#./Area': {
 							contract: actionContract('same-local-id'),
-							actions: { 'same-local-id': areaAction }
+							invocations: { 'same-local-id': areaAction }
 						},
 						'@company/billing#./Other': {
 							contract: actionContract('same-local-id'),
-							actions: { 'same-local-id': otherAction }
+							invocations: { 'same-local-id': otherAction }
 						}
 					}
 				}
@@ -48,7 +48,7 @@ describe('page host to component host integration', () => {
 					roots: {
 						'@company/branding#./Shell': {
 							contract: actionContract('same-local-id'),
-							actions: { 'same-local-id': shellAction }
+							invocations: { 'same-local-id': shellAction }
 						}
 					}
 				}
@@ -109,12 +109,12 @@ describe('page host to component host integration', () => {
 					version: 1,
 					operations: [
 						{
-							type: 'action',
+							type: 'invoke',
 							root: '@company/billing#./Area',
 							id: 'same-local-id'
 						},
 						{
-							type: 'action',
+							type: 'invoke',
 							root: '@company/billing#./Other',
 							id: 'same-local-id'
 						}
@@ -134,7 +134,7 @@ describe('page host to component host integration', () => {
 					authorization: 'Bearer browser'
 				},
 				body: {
-					type: 'action',
+					type: 'invoke',
 					root: '@company/branding#./Shell',
 					id: 'same-local-id'
 				}
@@ -175,7 +175,7 @@ describe('page host to component host integration', () => {
 function actionContract(id: string) {
 	return {
 		version: 1 as const,
-		actions: {
+		invocations: {
 			[id]: defineExactOperationContract(id, {
 				writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 			})

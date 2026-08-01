@@ -4,110 +4,84 @@ import process from 'node:process';
 
 const root = process.cwd();
 const guidedPackages = [
-	'packages/core',
-	'packages/compiler',
-	'packages/config',
-	'packages/language-server',
-	'packages/vscode-extension',
-	'packages/reactive',
-	'packages/dom',
-	'packages/ssr',
-	'packages/hydrate',
-	'packages/server',
-	'packages/plugin-host',
-	'packages/instrumentation',
-	'packages/devtools-protocol',
-	'packages/devtools-runtime',
-	'packages/devtools-agent',
-	'packages/chromium-devtools',
-	'packages/jsx-runtime',
 	'component-libraries/forms',
 	'component-libraries/router',
 	'framework-adapters/bun-plugin',
 	'framework-adapters/vite-plugin',
 	'framework-adapters/webpack-plugin',
-	'plugins/secrets'
+	'packages/chromium-devtools',
+	'packages/compiler',
+	'packages/config',
+	'packages/core',
+	'packages/devtools-agent',
+	'packages/devtools-protocol',
+	'packages/devtools-runtime',
+	'packages/dom',
+	'packages/hydrate',
+	'packages/instrumentation',
+	'packages/jsx-runtime',
+	'packages/language-server',
+	'packages/plugin-host',
+	'packages/react-compat',
+	'packages/react-dom-compat',
+	'packages/reactive',
+	'packages/request',
+	'packages/server',
+	'packages/ssr',
+	'packages/testing',
+	'packages/vscode-extension',
+	'plugins/microfrontends',
+	'plugins/secrets',
+	'react-adapters/convex',
+	'react-adapters/jotai',
+	'react-adapters/redux',
+	'react-adapters/tanstack-query'
 ];
-const repositoryGuides = ['apps/docs/AGENTS.md'];
 
 let failed = false;
 for (const relativeRoot of guidedPackages) {
 	const packageRoot = path.join(root, relativeRoot);
 	const guidePath = path.join(packageRoot, 'AGENTS.md');
 	const manifestPath = path.join(packageRoot, 'package.json');
-	const label = JSON.parse(readFileSync(manifestPath, 'utf8')).name;
+	const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+	const label = manifest.name;
 
 	if (!existsSync(guidePath)) {
 		console.error(`${label} is missing its package-local AGENTS.md`);
 		failed = true;
 		continue;
 	}
-
-	const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-	if (!manifest.files?.includes('AGENTS.md')) {
+	if (!manifest.private && !manifest.files?.includes('AGENTS.md')) {
 		console.error(`${label} does not publish its package-local AGENTS.md`);
 		failed = true;
 	}
-}
 
-for (const guidePath of repositoryGuides) {
-	if (existsSync(path.join(root, guidePath))) continue;
-	console.error(`repository project is missing its local guide: ${guidePath}`);
-	failed = true;
-}
-
-const featureGuideRequirements = new Map([
-	['packages/core/AGENTS.md', ['TaskContext', 'createComponentRegistry()']],
-	['packages/compiler/AGENTS.md', ['opaque operation identity', 'registry identity']],
-	['packages/config/AGENTS.md', ['debug.catalog', 'allowDebug']],
-	['packages/language-server/AGENTS.md', ['stale-result', 'standard LSP', 'untrusted workspace']],
-	['packages/vscode-extension/AGENTS.md', ['presentation', 'workspace.isTrusted', 'classifier']],
-	['packages/reactive/AGENTS.md', ['Optimistic task rollback']],
-	['packages/dom/AGENTS.md', ['root task frame', 'Registry entry keys']],
-	['packages/hydrate/AGENTS.md', ['invocation generations', 'component registries']],
-	['packages/server/AGENTS.md', ['Task operation continuations']],
-	['packages/plugin-host/AGENTS.md', ['prepared `debug` config', 'client projection']],
-	['packages/instrumentation/AGENTS.md', ['observational', 'raw component instances']],
-	['packages/devtools-protocol/AGENTS.md', ['read-only', 'redaction before traversal']],
-	['packages/devtools-runtime/AGENTS.md', ['read-only', 'dispose']],
-	['packages/devtools-agent/AGENTS.md', ['CDP', 'arbitrary JavaScript']],
-	['packages/chromium-devtools/AGENTS.md', ['read-only', 'page bridge']],
-	['plugins/secrets/AGENTS.md', ['never enter', 'redaction selectors']],
-	['packages/ssr/AGENTS.md', ['registry entries', 'task handlers']],
-	['packages/jsx-runtime/AGENTS.md', ['InteractionHandler', 'registry']],
-	['component-libraries/forms/AGENTS.md', ['interaction host']],
-	['component-libraries/router/AGENTS.md', ['current component interaction']],
-	['framework-adapters/bun-plugin/AGENTS.md', ['rich catalogs', 'callback marker']],
-	['framework-adapters/vite-plugin/AGENTS.md', ['task continuations', 'component-registry']],
-	['framework-adapters/webpack-plugin/AGENTS.md', ['rich catalogs', 'canonical ID']],
-	['apps/docs/AGENTS.md', ['proposal', 'README']]
-]);
-
-for (const [relativePath, requirements] of featureGuideRequirements) {
-	const guide = readFileSync(path.join(root, relativePath), 'utf8');
-	for (const requirement of requirements) {
-		if (guide.includes(requirement)) continue;
-		console.error(`${relativePath} is missing current guidance: ${requirement}`);
+	const guide = readFileSync(guidePath, 'utf8');
+	const lineCount = guide.trimEnd().split(/\r?\n/).length;
+	if (!guide.startsWith('# Using ')) {
+		console.error(`${relativeRoot}/AGENTS.md must begin with a usage-oriented heading`);
+		failed = true;
+	}
+	if (!guide.includes('[README](./README.md)')) {
+		console.error(`${relativeRoot}/AGENTS.md must link to its human-readable README`);
+		failed = true;
+	}
+	if (lineCount > 20) {
+		console.error(`${relativeRoot}/AGENTS.md is too long (${lineCount} lines; maximum 20)`);
+		failed = true;
+	}
+	if (/(^|\n)# Maintaining|Run \`npm|before (changing|editing)|after .* changes/i.test(guide)) {
+		console.error(`${relativeRoot}/AGENTS.md contains package-maintenance instructions`);
 		failed = true;
 	}
 }
 
 const skillPath = path.join(root, 'agents/exact-skill/skills/exact-web-development/SKILL.md');
 const skill = readFileSync(skillPath, 'utf8');
-for (const required of [
-	'package-local `AGENTS.md`',
-	'<ErrorBoundary>',
-	'className:token',
-	'`Map` and `Set`',
-	'createExactLanguageService()',
-	'runtime inspection'
-]) {
-	if (skill.includes(required)) continue;
-	console.error(`eXact agent skill is missing current guidance: ${required}`);
+if (!skill.includes('package-local `AGENTS.md`')) {
+	console.error('eXact agent skill does not direct agents to package-local usage guidance');
 	failed = true;
 }
 
 if (failed) process.exit(1);
-console.log(
-	`project-local agent guides ok (${guidedPackages.length} published packages, ${repositoryGuides.length} repository project)`
-);
+console.log(`package usage guides ok (${guidedPackages.length} packages)`);

@@ -38,7 +38,7 @@
 		"src/contracts/compilation.ts",
 		"src/contracts/continuations.ts",
 		"src/contracts/explanation.ts",
-		"src/contracts/manifest.ts",
+		"src/contracts/module-analysis.ts",
 		"src/contracts/policy.ts",
 		"src/contracts/registries.ts",
 		"src/contracts/transform.ts",
@@ -50,18 +50,10 @@
 		"src/expression/watch-invalidation.ts",
 		"src/ids.ts",
 		"src/index.ts",
-		"src/manifest-parse.ts",
-		"src/manifest/artifact-validation.ts",
-		"src/manifest/callable-validation.ts",
-		"src/manifest/continuation-validation.ts",
-		"src/manifest/plugin-validation.ts",
-		"src/manifest/policy-validation.ts",
-		"src/manifest/registry-validation.ts",
-		"src/manifest/semantic-validation.ts",
 		"src/names.ts",
 		"src/native/executable.ts",
 		"src/native/async-language-client.ts",
-		"src/native/manifest.ts",
+		"src/native/module-analysis.ts",
 		"src/native/process-contracts.ts",
 		"src/native/process-component-contracts.ts",
 		"src/native/process-diagnostic-contracts.ts",
@@ -89,7 +81,6 @@
 		"src/policy-report.ts",
 		"src/registry.ts",
 		"src/source-maps.ts",
-		"src/types.ts",
-		"src/versions.ts"
+		"src/types.ts"
 	]
 }

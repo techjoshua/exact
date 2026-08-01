@@ -1,11 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { createExactRuntimeInspectionOwner, createVNode, type Component } from '@exactjs/core';
+import { createExactRuntimeInspectionOwner, type Component } from '@exactjs/core';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { hydrate } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/hydrate inspection ownership', () => {
 	it('emits root hydration activation through the inherited component domain', () => {

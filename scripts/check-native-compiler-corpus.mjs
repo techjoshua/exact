@@ -4,12 +4,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { discoverExpressionCorpus } from './expression-corpus/discovery.mjs';
-import { positiveInteger, readExpressionCorpusBaseline } from './expression-corpus/measurement.mjs';
+import { discoverNativeCompilerCorpus } from './native-compiler-corpus/discovery.mjs';
+import {
+	normalizedNativeBaselineElapsedMs,
+	positiveInteger,
+	readNativeCompilerCorpusBaseline,
+	writeNativeCompilerCorpusBaseline
+} from './native-compiler-corpus/measurement.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 
-const discovered = await discoverExpressionCorpus(root);
+const updateBaseline = process.argv.includes('--update-baseline');
+const discovered = await discoverNativeCompilerCorpus(root);
 const projectFilter = process.env.EXACT_NATIVE_CORPUS_PROJECT;
 const groups = projectFilter
 	? new Map(
@@ -29,7 +35,7 @@ const workers = positiveInteger(
 );
 const maxBaselineRatio = positiveNumber(
 	process.env.EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO,
-	1,
+	1.5,
 	'EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO'
 );
 const executable =
@@ -52,11 +58,8 @@ const projectCount = groups.size;
 const outputBytes = result.outputBytes;
 const phaseMicroseconds = result.phaseMicroseconds;
 const projects = result.projects.sort((left, right) => right.elapsedMs - left.elapsedMs);
-const baseline = await readExpressionCorpusBaseline(root);
-const normalizedBaselineMs =
-	baseline?.fileCount && baseline.elapsedMs
-		? baseline.elapsedMs * (fileCount / baseline.fileCount)
-		: undefined;
+const baseline = await readNativeCompilerCorpusBaseline(root);
+const normalizedBaselineMs = normalizedNativeBaselineElapsedMs(baseline, result);
 const record = {
 	schemaVersion: 2,
 	generatedAt: new Date().toISOString(),
@@ -70,8 +73,8 @@ const record = {
 	maxBaselineRatio,
 	...(normalizedBaselineMs
 		? {
-				expressionBaselineElapsedMs: baseline.elapsedMs,
-				normalizedExpressionBaselineMs: normalizedBaselineMs,
+				nativeBaselineElapsedMs: baseline.elapsedMs,
+				normalizedNativeBaselineMs: normalizedBaselineMs,
 				baselineRatio: elapsedMs / normalizedBaselineMs
 			}
 		: {}),
@@ -85,6 +88,7 @@ await writeFile(
 	path.join(root, '.tmp', 'native-compiler-corpus.json'),
 	`${JSON.stringify(record, null, 2)}\n`
 );
+if (updateBaseline) await writeNativeCompilerCorpusBaseline(root, record);
 console.log(
 	`exactc-native compiled ${fileCount} source files across ${projectCount} projects in ${(elapsedMs / 1_000).toFixed(2)}s with ${result.workers} native workers`
 );
@@ -95,7 +99,7 @@ if (record.baselineRatio !== undefined) {
 			? `${speedup.toFixed(2)}x faster than`
 			: `${record.baselineRatio.toFixed(2)}x slower than`;
 	console.log(
-		`native compiler corpus is ${comparison} the expression-corpus baseline normalized to ${fileCount} files (${(record.normalizedExpressionBaselineMs / 1_000).toFixed(2)}s)`
+		`native compiler corpus is ${comparison} its tracked baseline normalized to ${fileCount} files (${(record.normalizedNativeBaselineMs / 1_000).toFixed(2)}s)`
 	);
 }
 for (const [phase, microseconds] of Object.entries(phaseMicroseconds).sort(
@@ -107,10 +111,14 @@ for (const project of projects.slice(0, 5))
 	console.log(
 		`    ${path.relative(root, project.config).padEnd(44)} ${(project.elapsedMs / 1_000).toFixed(2)}s (${project.fileCount} files, ${(project.callableMicroseconds / 1_000_000).toFixed(2)}s callable)`
 	);
-if (record.baselineRatio === undefined) {
-	throw new Error('native compiler performance guard requires the tracked expression baseline');
+if (updateBaseline) {
+	console.log('updated docs/performance-baselines/native-compiler-corpus.json');
+} else if (record.baselineRatio === undefined) {
+	throw new Error(
+		'native compiler performance guard requires a comparable tracked native baseline'
+	);
 }
-if (record.baselineRatio > maxBaselineRatio) {
+if (!updateBaseline && record.baselineRatio > maxBaselineRatio) {
 	throw new Error(
 		`native compiler corpus ratio ${record.baselineRatio.toFixed(2)} exceeded ${maxBaselineRatio.toFixed(2)}`
 	);

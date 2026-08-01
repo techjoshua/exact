@@ -160,11 +160,10 @@ may remain complete; separately published maps can be submitted to disclosure
 audit.
 
 Component functions carry target-local private contracts used by hydration,
-rendering, and server registration. The current compiler still uses planning
-manifest sidecars in parts of project analysis. Runtime application code must
-not depend on their schema, file names, or generated operation IDs. Their
-remaining uses are inventoried in
-[manifest-usage-inventory.md](manifest-usage-inventory.md).
+rendering, and server registration. Project analysis stays inside the owning
+compiler session, and installed dependencies remain opaque. Runtime application
+code depends on executable contracts rather than compiler analysis or generated
+operation names.
 
 ## Protocol and concurrency
 
@@ -206,7 +205,6 @@ fallback.
 - Additional structural cases can fall back to boundary replacement.
 - Progressive SSR resumes within the active request; it does not serialize
   postponed renderer state for a later request.
-- Compiler planning manifest files have not yet been fully removed.
 - Deployment pinning and heterogeneous remote execution beyond the documented
   microfrontend path remain host/platform responsibilities.
 

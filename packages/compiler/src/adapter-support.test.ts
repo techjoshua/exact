@@ -1,14 +1,10 @@
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactDiagnosticReporter,
 	exactDiagnosticKey,
 	formatExactDiagnostic,
-	loadExactImportedManifests,
 	matchesExactBuildFilter
 } from './adapter-support.js';
-import { createTestWorkspace, writeTestFiles } from './test-support/workspace.js';
-import type { ExactCompilerManifest } from './types.js';
 
 describe('build adapter support', () => {
 	it('matches string, regular expression, and mixed path filters', () => {
@@ -77,55 +73,4 @@ describe('build adapter support', () => {
 		report({ affectedFiles: [], diagnostics: [diagnostic] }, (warning) => warnings.push(warning));
 		expect(warnings).toHaveLength(2);
 	});
-
-	it('combines in-memory manifests with freshly read file manifests', async () => {
-		const root = await createTestWorkspace('exact-adapter-support-');
-		const manifestFile = path.join(root, 'widget.exact.manifest.json');
-		const inMemory = emptyManifest('/src/app.tsx');
-		await writeTestFiles(root, {
-			'widget.exact.manifest.json': JSON.stringify(emptyManifest('/src/widget.tsx'))
-		});
-
-		expect(
-			loadExactImportedManifests({
-				importedManifests: [inMemory],
-				manifestFiles: [manifestFile]
-			}).map((manifest) => manifest.filename)
-		).toEqual(['/src/app.tsx', '/src/widget.tsx']);
-
-		await writeTestFiles(root, {
-			'widget.exact.manifest.json': JSON.stringify(emptyManifest('/src/updated-widget.tsx'))
-		});
-		expect(loadExactImportedManifests({ manifestFiles: [manifestFile] })[0]?.filename).toBe(
-			'/src/updated-widget.tsx'
-		);
-	});
-
-	it('rejects malformed file-backed manifests at the shared adapter boundary', async () => {
-		const root = await createTestWorkspace('exact-adapter-support-invalid-');
-		const manifestFile = path.join(root, 'invalid.exact.manifest.json');
-		await writeTestFiles(root, {
-			'invalid.exact.manifest.json': JSON.stringify({ version: 99, components: [] })
-		});
-		expect(() => loadExactImportedManifests({ manifestFiles: [manifestFile] })).toThrow(/version/i);
-	});
 });
-
-function emptyManifest(filename: string): ExactCompilerManifest {
-	return {
-		version: 1,
-		filename,
-		dependencies: [],
-		assets: [],
-		components: [],
-		exports: [],
-		symbols: [],
-		boundaries: [],
-		callables: [],
-		continuations: [],
-		resumptions: [],
-		policy: { version: 1, subjects: [], flows: [], secretConsumers: [] },
-		serverActions: {},
-		diagnostics: []
-	};
-}

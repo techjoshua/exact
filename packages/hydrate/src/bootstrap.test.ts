@@ -1,11 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { flushSync, registerReactiveListKey } from '@exactjs/reactive';
 import { renderHydrationScript, renderToHydratableString } from '@exactjs/ssr';
 import { expect, it } from 'vitest';
 import { hydrate, readExactHydrationConfig } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 it('reports opt-in hydration timings', () => {
 	function Profiled() {
@@ -97,7 +98,7 @@ it('decodes keyed hydration collection envelopes into ordinary arrays', () => {
 
 it('retains generated action invocation metadata from serialized hydration config', () => {
 	const continuation = {
-		kind: 'action' as const,
+		kind: 'task' as const,
 		id: 'action:quote',
 		componentId: 'component:Workspace',
 		readiness: 'nonblocking' as const,

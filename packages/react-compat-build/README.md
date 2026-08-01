@@ -1,18 +1,20 @@
 # @exactjs/react-compat-build
 
-CLI and Node build tools for eXact React compatibility.
+Command-line and Node build tools for eXact React compatibility.
 
-- `exact-reactc` compiles eXact source and applies the same compatibility
-  registry used by Vite and Node. Use `--reactTarget auto|18|19` and
-  `--compatibilityRoot <app>` when the command is launched outside the app.
-- `exact-react-compat validate <adapter-root>` validates adapter metadata,
-  marker ownership, source ranges, conflicts, and public target subpaths.
-- `exact-react-compat report <build-root>` prints active/ignored adapters,
-  substitutions, source and adapter versions, watched metadata, and registry
-  hash.
+## Commands
 
-For Node ESM, preload the shared loader with
-`node --import @exactjs/react-compat/register app.js`. CommonJS entry modules do
-not pass through Node's ESM load hook reliably; precompile them with
-`exact-reactc` for production. Static CommonJS encountered by a cooperating
-host is supported by the shared transformer.
+- `exact-reactc` compiles source using the selected React 18 or React 19 compatibility target.
+- `exact-react-compat validate <adapter-root>` validates adapter metadata and public exports.
+- `exact-react-compat report <build-root>` prints the effective adapter registry.
+
+## Node ESM
+
+```sh
+node --import @exactjs/react-compat/register app.js
+```
+
+Use precompiled output for production CommonJS entry points, which do not reliably pass through
+Node's ESM loader hook.
+
+See [React compatibility](../../docs/react-compatibility.md).

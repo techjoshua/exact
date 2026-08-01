@@ -40,8 +40,10 @@ describe('@exactjs/bun-plugin', () => {
 	});
 
 	it('derives compact runtime instrumentation independently from hardened output', () => {
-		const source = `function Page() {
-			this.task(() => Promise.resolve());
+		const source = `import { TaskContext } from '@exactjs/core';
+		function Page() {
+			function load(_task: TaskContext = TaskContext.client()) { return Promise.resolve(); }
+			load();
 			return () => <main />;
 		}`;
 		const instrumented = transformExactBunSource(source, '/src/Page.tsx', {

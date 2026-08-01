@@ -81,6 +81,13 @@ The outer function is setup. It normally executes once for each mounted
 instance. Props are parent-owned reactive inputs. State, tasks, contexts,
 refs, lifecycle registrations, and logging belong to the durable instance.
 
+Every component accepted by the native renderer is compiler-branded. The key
+`Symbol.for('@exactjs/component')` stores the component's opaque stable ID; a
+function name or setup/render shape is never sufficient runtime ownership.
+Compilerless framework libraries may call `markExactComponent()` with an
+explicit stable package-qualified identity. React, Preact, and other foreign
+functions remain unbranded and cross their compatibility adapter.
+
 The compiler discovers function declarations and function-valued variable
 declarations. An uppercase function that contains JSX is a component by
 convention. A typed `this: Component<...>` receiver or use of the component
@@ -105,9 +112,10 @@ function Rule() {
 }
 ```
 
-The direct form constructs its result during setup. Use the returned-function
-form for reactive component views and whenever setup establishes owned state
-or work.
+The direct form is source convenience. The compiler immediately normalizes it
+to the same setup-plus-view representation; renderers do not carry a second
+component contract. Use the returned-function form whenever setup establishes
+owned state or work.
 
 A render result may be a vnode, a string, a number, a boolean, `null`,
 `undefined`, an object understood by the renderer such as a reactive value, or
@@ -123,16 +131,14 @@ conditional choices may be used as JSX tags:
 const Compact = ResultList;
 
 function Results(this: Component<{ layout: 'grid' | 'list' }>) {
-	return () => {
-		const View = this.state.layout === 'grid' ? ResultGrid : Compact;
-		return <View />;
-	};
+	const View = this.state.layout === 'grid' ? ResultGrid : Compact;
+	return () => <View />;
 }
 ```
 
 A reactive choice owns a dynamic slot and replaces only that subtree. Keep a
-choice used by one render inside the render function; use a setup-derived
-component value when several consumers share the same selection.
+choice in setup as an ordinary compiler-observed derived value. The returned
+view remains one expression regardless of how many consumers share it.
 
 ```tsx
 const Widget = createComponentRegistry(({ lazy }) => ({
@@ -143,10 +149,8 @@ const Widget = createComponentRegistry(({ lazy }) => ({
 type WidgetKey = KeyOf<typeof Widget>;
 
 function Dashboard(this: Component<{ widget: WidgetKey }>) {
-	return () => {
-		const Current = Widget[this.state.widget];
-		return <Current />;
-	};
+	const Current = Widget[this.state.widget];
+	return () => <Current />;
 }
 ```
 
@@ -167,7 +171,7 @@ diagnostics because they do not provide a finite component, placement, or artifa
 Code belongs to one of three important execution regions:
 
 - setup runs when the durable instance is constructed;
-- the render function may run again to describe the current tree; and
+- the returned view expression establishes compiler-owned reactive regions;
 - event, task, lifecycle, timer, and other callbacks run later.
 
 Setup may initialize state, create derived values, register tasks and
@@ -192,38 +196,44 @@ function Summary(this: Component<SummaryState>) {
 }
 ```
 
-A render function may not write component state, register task or lifecycle
-work, schedule asynchronous work, or perform known DOM, storage, timer, or
-other external effects. Those operations would repeat whenever render runs.
-Interaction callbacks nested in JSX are deferred work and may mutate state
-normally.
+A render function contains one synchronous expression. It may not declare
+locals, introduce statement control flow, write component state, register task
+or lifecycle work, schedule asynchronous work, or perform known DOM, storage,
+timer, or other external effects. Interaction callbacks nested in JSX are
+deferred work and may mutate state normally.
 
-### Shared render functions
+### Lexical micro-components
 
-A component-local arrow is the usual render form. A library may share a regular
-function:
+Setup may name small view-only arrows and compose them as JSX tags:
 
 ```tsx
-function renderStatus(this: Component<StatusState>) {
-	const label = formatStatus(this.state.status);
-	return <output>{label}</output>;
-}
+function Article(this: Component<ArticleState>) {
+	const Footer = (props: { prefix?: string } = {}) => (
+		<footer>
+			{props.prefix}
+			{this.state.copyrightText}
+		</footer>
+	);
+	const Page = () => (
+		<article>
+			<ArticleBody />
+			<Footer />
+		</article>
+	);
 
-function Status(this: Component<StatusState>) {
-	return renderStatus;
+	return () => <Page />;
 }
 ```
 
-The runtime invokes a returned regular function with the component instance as
-`this`. Lexical arrows retain their authored receiver, so a module-level shared
-arrow cannot be returned directly. An explicitly bound regular function or a
-local wrapper is valid:
-
-```tsx
-return renderStatus.bind(this);
-// or
-return () => renderStatus.call(this);
-```
+`Footer` and `Page` are micro-components, not durable component instances.
+They capture `Article`'s lexical `this`, receive ordinary props, and may compose
+other micro-components in scope. The compiler lowers their JSX tags to
+owner-local view calls, attributes their reactive expressions to `Article`,
+and gives them no component identity, state, lifecycle, tasks, refs, or
+registry entry. A micro-component is an immutable, PascalCase, synchronous
+arrow declared in component setup and contains one view expression. It cannot
+escape its owner. Component setup itself returns a component-local view arrow;
+module-level shared or bound render callables are not supported.
 
 ## State
 
@@ -777,6 +787,11 @@ function Search(this: Component<SearchState>) {
 }
 ```
 
+The local definition may equivalently be a function expression or arrow and
+may use the full ordinary TypeScript parameter surface. Defaults are evaluated
+at generation invocation time; a default reading `this.state` observes the
+current value rather than a construction-time snapshot.
+
 Setup-call arguments, plus state, prop, and reactive-context reads in task
 work, are inferred as dependencies. Assignments are effects, not dependencies.
 With the default setup concurrency of `latest`, each dependency change aborts
@@ -1229,9 +1244,9 @@ The compiler reports an error instead of emitting a partial approximation when
 it cannot preserve both JavaScript behavior and eXact's reactive, ownership, or
 transport contract. Important examples are:
 
-- state writes, lifecycle registration, scheduling, and known external
-  effects inside a rerunnable render body;
-- a module-level shared arrow returned as a render function;
+- declarations, statement control flow, state writes, lifecycle registration,
+  scheduling, and known external effects inside a returned view;
+- a module-level shared or bound callable returned as a component view;
 - setup task activation inside a render body or through an unanalyzable call;
 - reassigned component values, mutable component dictionaries, or registry selection not proven
   by `KeyOf` or `hasComponent()`;

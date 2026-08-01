@@ -35,7 +35,7 @@ type statePolicy struct {
 }
 
 type policyAnalysis struct {
-	manifest         PolicyManifest
+	graph            PolicyAnalysis
 	statePolicies    []statePolicy
 	contextPolicies  map[string]PolicySubject
 	subjectsBySymbol map[ast.SymbolId]PolicySubject
@@ -45,8 +45,8 @@ type policyAnalysis struct {
 	diagnostics      []Diagnostic
 }
 
-func newPolicyManifest() PolicyManifest {
-	return PolicyManifest{
+func newPolicyAnalysis() PolicyAnalysis {
+	return PolicyAnalysis{
 		Version:         1,
 		Subjects:        []PolicySubject{},
 		Flows:           []PolicyFlow{},
@@ -65,7 +65,7 @@ func collectPolicyAnalysis(
 	request Request,
 ) policyAnalysis {
 	analysis := policyAnalysis{
-		manifest:         newPolicyManifest(),
+		graph:            newPolicyAnalysis(),
 		contextPolicies:  make(map[string]PolicySubject),
 		subjectsBySymbol: make(map[ast.SymbolId]PolicySubject),
 		callPolicies:     make(map[string]PolicySubject),
@@ -77,7 +77,7 @@ func collectPolicyAnalysis(
 			return
 		}
 		seen[subject.ID] = struct{}{}
-		analysis.manifest.Subjects = append(analysis.manifest.Subjects, subject)
+		analysis.graph.Subjects = append(analysis.graph.Subjects, subject)
 	}
 
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
@@ -187,16 +187,14 @@ func collectPolicyAnalysis(
 		}
 		return true
 	})
-	mergeExternalContextPolicies(&analysis, request.Manifests, addSubject)
-
 	collectCallPolicySubjects(sourceFile, typeChecker, &analysis, addSubject)
 	collectSecretControlWrites(sourceFile, typeChecker, &analysis, addSubject)
 	collectPolicyPropagation(sourceFile, typeChecker, &analysis, addSubject)
 	collectSecretQualifications(sourceFile, typeChecker, &analysis)
 	collectPolicySinks(sourceFile, typeChecker, &analysis)
 	collectSecretConsumptions(sourceFile, typeChecker, request, &analysis)
-	sort.Slice(analysis.manifest.Subjects, func(left int, right int) bool {
-		return analysis.manifest.Subjects[left].ID < analysis.manifest.Subjects[right].ID
+	sort.Slice(analysis.graph.Subjects, func(left int, right int) bool {
+		return analysis.graph.Subjects[left].ID < analysis.graph.Subjects[right].ID
 	})
 	_ = components
 	return analysis
@@ -209,7 +207,7 @@ func collectCallPolicySubjects(
 	addSubject func(PolicySubject),
 ) {
 	returnPoliciesByName := make(map[string]PolicySubject)
-	for _, subject := range analysis.manifest.Subjects {
+	for _, subject := range analysis.graph.Subjects {
 		if subject.Kind == "return" {
 			returnPoliciesByName[subject.Name] = subject
 		}
@@ -335,7 +333,7 @@ func collectPolicySinks(
 		sort.Strings(from)
 		combined, _ := combineSubjectPolicies(inputs)
 		sinkID := policyLocationID(sourceFile, "policy:sink", node.Pos(), boundary)
-		analysis.manifest.Flows = append(analysis.manifest.Flows, PolicyFlow{
+		analysis.graph.Flows = append(analysis.graph.Flows, PolicyFlow{
 			ID:         sinkID,
 			Kind:       "transfer",
 			From:       from,
@@ -460,8 +458,8 @@ func collectPolicySinks(
 		}
 		return true
 	})
-	sort.Slice(analysis.manifest.Flows, func(left int, right int) bool {
-		return analysis.manifest.Flows[left].ID < analysis.manifest.Flows[right].ID
+	sort.Slice(analysis.graph.Flows, func(left int, right int) bool {
+		return analysis.graph.Flows[left].ID < analysis.graph.Flows[right].ID
 	})
 }
 
@@ -695,7 +693,7 @@ func collectSharedStateTransfers(
 			subject:   subject,
 		})
 		if projected {
-			analysis.manifest.Flows = append(analysis.manifest.Flows, PolicyFlow{
+			analysis.graph.Flows = append(analysis.graph.Flows, PolicyFlow{
 				ID:         policyLocationID(sourceFile, "policy:projection", read.Start, path),
 				Kind:       "projection",
 				From:       []string{subject.ID},
@@ -705,7 +703,7 @@ func collectSharedStateTransfers(
 				Authorized: true,
 			})
 		}
-		analysis.manifest.Flows = append(analysis.manifest.Flows, PolicyFlow{
+		analysis.graph.Flows = append(analysis.graph.Flows, PolicyFlow{
 			ID:         policyLocationID(sourceFile, "policy:transfer", read.Start, path),
 			Kind:       "transfer",
 			From:       []string{subject.ID},
@@ -736,38 +734,6 @@ func stateReadJSXBoundary(node *ast.Node) (withinJSX bool, projected bool) {
 		}
 	}
 	return false, false
-}
-
-func mergeExternalContextPolicies(
-	analysis *policyAnalysis,
-	manifests []ExternalManifest,
-	addSubject func(PolicySubject),
-) {
-	for _, manifest := range manifests {
-		identity := manifest.PackageName
-		if identity == "" {
-			identity = manifest.Filename
-		}
-		for _, candidate := range manifest.Policy.Subjects {
-			if candidate.Kind != "context" {
-				continue
-			}
-			candidate.ID = "external-policy:" + identity + ":" + candidate.ID
-			candidate.Source = "import"
-			if existing, exists := analysis.contextPolicies[candidate.Name]; exists &&
-				existing.Policy != candidate.Policy {
-				analysis.diagnostics = append(analysis.diagnostics, Diagnostic{
-					Severity: "error",
-					Code:     "EXACT3010",
-					Message: "error: imported manifests declare conflicting policies for context " +
-						candidate.Name,
-				})
-				continue
-			}
-			addSubject(candidate)
-			analysis.contextPolicies[candidate.Name] = candidate
-		}
-	}
 }
 
 func collectSecretQualifications(
@@ -925,7 +891,7 @@ func collectSecretQualifications(
 
 // collectSecretConsumptions audits the only operation which removes secret
 // qualification and rejects unqualified call boundaries. It records source
-// identity and policy metadata only; secret values never enter the manifest.
+// identity and policy metadata only; secret values never enter the analysis graph.
 func collectSecretConsumptions(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
@@ -977,8 +943,8 @@ func collectSecretConsumptions(
 				node.Pos(),
 				strconv.Itoa(parameter),
 			)
-			analysis.manifest.Flows = append(
-				analysis.manifest.Flows,
+			analysis.graph.Flows = append(
+				analysis.graph.Flows,
 				secretReceiptFlow(consumerID, inputs, authorized, reason),
 			)
 			if !authorized {
@@ -993,12 +959,12 @@ func collectSecretConsumptions(
 		}
 		return true
 	})
-	sort.Slice(analysis.manifest.SecretConsumers, func(left int, right int) bool {
-		return analysis.manifest.SecretConsumers[left].ID <
-			analysis.manifest.SecretConsumers[right].ID
+	sort.Slice(analysis.graph.SecretConsumers, func(left int, right int) bool {
+		return analysis.graph.SecretConsumers[left].ID <
+			analysis.graph.SecretConsumers[right].ID
 	})
-	sort.Slice(analysis.manifest.Flows, func(left int, right int) bool {
-		return analysis.manifest.Flows[left].ID < analysis.manifest.Flows[right].ID
+	sort.Slice(analysis.graph.Flows, func(left int, right int) bool {
+		return analysis.graph.Flows[left].ID < analysis.graph.Flows[right].ID
 	})
 }
 
@@ -1038,8 +1004,8 @@ func collectSecretConsumeCall(
 	line, column := sourceLocation(sourceFile, node.Pos())
 	id := policyLocationID(sourceFile, "secret-consumer", node.Pos(), "consume")
 	selector := commonSecretSelector(inputs, analysis.selectorsByID)
-	analysis.manifest.SecretConsumers = append(
-		analysis.manifest.SecretConsumers,
+	analysis.graph.SecretConsumers = append(
+		analysis.graph.SecretConsumers,
 		SecretConsumer{
 			ID:       id,
 			Selector: selector,
@@ -1058,8 +1024,8 @@ func collectSecretConsumeCall(
 			Reason:        reason,
 		},
 	)
-	analysis.manifest.Flows = append(
-		analysis.manifest.Flows,
+	analysis.graph.Flows = append(
+		analysis.graph.Flows,
 		secretReceiptFlow(id, inputs, authorization != "denied", reason),
 	)
 	if reason != "" {
@@ -1773,8 +1739,8 @@ func collectPolicyPropagation(
 			return true
 		})
 	}
-	sort.Slice(analysis.manifest.Flows, func(left int, right int) bool {
-		return analysis.manifest.Flows[left].ID < analysis.manifest.Flows[right].ID
+	sort.Slice(analysis.graph.Flows, func(left int, right int) bool {
+		return analysis.graph.Flows[left].ID < analysis.graph.Flows[right].ID
 	})
 }
 
@@ -1881,7 +1847,7 @@ func addPolicyPropagationFlow(
 		Authorized: authorized,
 		Reason:     reason,
 	}
-	analysis.manifest.Flows = append(analysis.manifest.Flows, flow)
+	analysis.graph.Flows = append(analysis.graph.Flows, flow)
 	if !authorized {
 		analysis.diagnostics = append(analysis.diagnostics, Diagnostic{
 			Severity: "error",

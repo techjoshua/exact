@@ -1,6 +1,6 @@
 import { capabilityCompilationOptions } from '../compilation/capability-options.js';
 import { createExactCompilerExplanation } from '../explanation.js';
-import { applyCompilerPlugins, validateImportedPluginRegistries } from '../plugins.js';
+import { applyCompilerPlugins } from '../plugins.js';
 import { createLineSourceMap } from '../source-maps.js';
 import { createExactSourceInspection } from '../language-tools/source-inspection.js';
 import {
@@ -9,16 +9,14 @@ import {
 } from '../language-tools/runtime-correlation.js';
 import { createExactInspectionRedactions } from '../language-tools/build-catalog.js';
 import type {
-	ExactCompilerManifest,
+	ExactModuleAnalysis,
 	TransformOptions,
 	TransformResult,
 	TransformTarget
 } from '../types.js';
-import { nativeCompilerManifest } from './manifest.js';
+import { nativeModuleAnalysis } from './module-analysis.js';
 import type {
-	NativeCompilerCallable,
 	NativeCompilerCapabilityPolicy,
-	NativeCompilerExternalManifest,
 	NativeCompilerSourceMap
 } from './process-contracts.js';
 
@@ -37,7 +35,6 @@ export function transformSourceWithNativeCompiler(
 	const session = options.session;
 	if (!session?.hasNativeCompiler())
 		throw new Error('Native compilation requires a session with a configured Go compiler host');
-	validateImportedPluginRegistries(options.importedManifests ?? [], options.pluginRegistry);
 	const policyOptions = capabilityCompilationOptions(options);
 	const target = options.target ?? 'default';
 	const response = session.compileNative({
@@ -67,7 +64,6 @@ export function transformSourceWithNativeCompiler(
 					}
 				}
 			: {}),
-		manifests: nativeExternalManifests(options.importedManifests),
 		compatibilityExtensions: nativeCompatibilityExtensions(options.pluginRegistry),
 		...(options.moduleRewrite
 			? {
@@ -82,22 +78,20 @@ export function transformSourceWithNativeCompiler(
 	throwNativeCompilerErrors(filename, normalized, response.diagnostics);
 	if (response.code === undefined)
 		throw new Error(`Native compiler returned no generated code for ${filename}`);
-	const manifest = nativeCompilerManifest(filename, response);
-	if (options.packageName) manifest.packageName = options.packageName;
-	applyNativePluginContributions(normalized, filename, target, manifest, options.pluginRegistry);
-	throwNativePluginErrors(manifest);
+	const analysis = nativeModuleAnalysis(filename, response);
+	if (options.packageName) analysis.packageName = options.packageName;
+	applyNativePluginContributions(normalized, filename, target, analysis, options.pluginRegistry);
+	throwNativePluginErrors(analysis);
 	const needsInspection =
 		shouldEnableInspection(options.emitInspection) ||
 		shouldEnableInspection(options.instrumentInspection);
 	const inspection = needsInspection
 		? createExactSourceInspection(filename, normalized, 0, response)
 		: undefined;
+	const inspectionRedactions = inspection ? createExactInspectionRedactions([analysis]) : undefined;
 	const correlation =
 		inspection && shouldEnableInspection(options.instrumentInspection)
-			? createExactRuntimeInspectionCorrelation(
-					inspection,
-					createExactInspectionRedactions([manifest])
-				)
+			? createExactRuntimeInspectionCorrelation(inspection, inspectionRedactions)
 			: undefined;
 	const instrumented =
 		correlation && target !== 'server'
@@ -114,11 +108,11 @@ export function transformSourceWithNativeCompiler(
 				: nativeSourceMap(response.sourceMap, filename, normalized)
 			: null,
 		filename,
-		manifest,
-		...(options.explain ? { explanation: createExactCompilerExplanation(manifest, target) } : {}),
+		...(options.explain ? { explanation: createExactCompilerExplanation(analysis, target) } : {}),
 		...(inspection && shouldEnableInspection(options.emitInspection)
 			? { inspectionCatalog: inspection }
 			: {}),
+		...(inspectionRedactions ? { inspectionRedactions } : {}),
 		...(correlation ? { inspectionCorrelation: correlation } : {})
 	};
 }
@@ -129,8 +123,8 @@ function shouldEnableInspection(
 	return value === true || (value === 'auto' && process.env.NODE_ENV !== 'production');
 }
 
-function throwNativePluginErrors(manifest: ExactCompilerManifest): void {
-	const errors = manifest.diagnostics.filter((diagnostic) => /^error: \[@/.test(diagnostic));
+function throwNativePluginErrors(analysis: ExactModuleAnalysis): void {
+	const errors = analysis.diagnostics.filter((diagnostic) => /^error: \[@/.test(diagnostic));
 	if (errors.length) throw new Error(errors.join('\n'));
 }
 
@@ -139,11 +133,10 @@ export function analyzeSourceWithNativeCompiler(
 	normalized: string,
 	filename: string,
 	options: TransformOptions
-): ExactCompilerManifest {
+): ExactModuleAnalysis {
 	const session = options.session;
 	if (!session?.hasNativeCompiler())
 		throw new Error('Native analysis requires a session with a configured Go compiler host');
-	validateImportedPluginRegistries(options.importedManifests ?? [], options.pluginRegistry);
 	const policyOptions = capabilityCompilationOptions(options);
 	const response = session.compileNative({
 		id: filename,
@@ -171,19 +164,18 @@ export function analyzeSourceWithNativeCompiler(
 					}
 				}
 			: {}),
-		manifests: nativeExternalManifests(options.importedManifests),
 		compatibilityExtensions: nativeCompatibilityExtensions(options.pluginRegistry)
 	});
-	const manifest = nativeCompilerManifest(filename, response);
-	if (options.packageName) manifest.packageName = options.packageName;
+	const analysis = nativeModuleAnalysis(filename, response);
+	if (options.packageName) analysis.packageName = options.packageName;
 	applyNativePluginContributions(
 		normalized,
 		filename,
 		options.target ?? 'default',
-		manifest,
+		analysis,
 		options.pluginRegistry
 	);
-	return manifest;
+	return analysis;
 }
 
 function throwNativeCompilerErrors(
@@ -240,58 +232,6 @@ function nativeSourceMap(
 	};
 }
 
-function nativeExternalManifests(
-	manifests: readonly ExactCompilerManifest[] | undefined
-): readonly NativeCompilerExternalManifest[] | undefined {
-	if (!manifests?.length) return undefined;
-	return manifests.map((manifest) => ({
-		filename: manifest.filename,
-		...(manifest.packageName ? { packageName: manifest.packageName } : {}),
-		components: manifest.exports
-			.filter((exported) => exported.kind === 'component')
-			.map((exported) => {
-				const symbol = manifest.symbols.find(
-					(candidate) =>
-						candidate.exportName === exported.name &&
-						candidate.kind === 'component' &&
-						candidate.componentId
-				);
-				const component =
-					manifest.components.find((candidate) => candidate.id === symbol?.componentId) ??
-					manifest.components.find((candidate) => candidate.name === exported.name);
-				return {
-					exportName: exported.name,
-					name: component?.name ?? exported.name,
-					...(component?.id ? { componentId: component.id } : {}),
-					placement: exported.placement
-				};
-			}),
-		callables: manifest.callables.map(nativeExternalCallable),
-		policy: {
-			version: 1,
-			subjects: manifest.policy.subjects.map((subject) => ({
-				...subject,
-				policy: { ...subject.policy }
-			})),
-			flows: manifest.policy.flows.map((flow) => ({
-				...flow,
-				from: [...flow.from],
-				policy: { ...flow.policy }
-			})),
-			secretConsumers: manifest.policy.secretConsumers.map((consumer) => ({
-				...consumer,
-				consumer: { ...consumer.consumer }
-			}))
-		},
-		capabilities: {
-			rawHtml: (manifest.requiredCapabilities?.rawHtml ?? []).map((requirement) => ({
-				...requirement,
-				targets: [...requirement.targets]
-			}))
-		}
-	}));
-}
-
 function nativeCompatibilityExtensions(
 	registry: TransformOptions['pluginRegistry']
 ): Readonly<Record<string, readonly string[]>> | undefined {
@@ -328,64 +268,11 @@ function applyNativePluginContributions(
 	source: string,
 	filename: string,
 	target: TransformTarget,
-	manifest: ExactCompilerManifest,
+	analysis: ExactModuleAnalysis,
 	registry: TransformOptions['pluginRegistry']
 ): void {
 	const contribution = applyCompilerPlugins(source, filename, target, registry);
-	if (contribution.pluginRegistry) manifest.pluginRegistry = contribution.pluginRegistry;
-	if (contribution.pluginData) manifest.pluginData = contribution.pluginData;
-	manifest.diagnostics.push(...contribution.diagnostics);
-}
-
-function nativeExternalCallable(
-	callable: ExactCompilerManifest['callables'][number]
-): NativeCompilerCallable {
-	return {
-		id: callable.id,
-		name: callable.name,
-		kind: callable.kind,
-		exportNames: [...callable.exportNames],
-		directEffect: callable.directEffect,
-		effect: callable.effect,
-		directEffectSources: callable.directEffectSources.map((source) => ({
-			environment: source.environment,
-			description: source.description,
-			path: [...source.path]
-		})),
-		effectSources: callable.effectSources.map((source) => ({
-			environment: source.environment,
-			description: source.description,
-			path: [...source.path]
-		})),
-		calls: callable.calls.map((call) => ({
-			id: call.id,
-			name: call.name,
-			...(call.targetId ? { targetId: call.targetId } : {}),
-			...(call.moduleSpecifier ? { moduleSpecifier: call.moduleSpecifier } : {}),
-			...(call.exportName ? { exportName: call.exportName } : {}),
-			...(call.receiverBindings
-				? {
-						receiverBindings: call.receiverBindings.map((binding) => ({ ...binding }))
-					}
-				: {}),
-			resolved: call.resolved
-		})),
-		artifactTargets: [...callable.artifactTargets],
-		stateReads: callable.stateReads.map((effect) => ({
-			path: effect.path,
-			kind: effect.kind,
-			confidence: effect.confidence,
-			...(effect.operation ? { operation: effect.operation } : {}),
-			...(effect.receiver ? { receiver: { ...effect.receiver } } : {})
-		})),
-		stateWrites: callable.stateWrites.map((effect) => ({
-			path: effect.path,
-			kind: effect.kind,
-			confidence: effect.confidence,
-			...(effect.operation ? { operation: effect.operation } : {}),
-			...(effect.receiver ? { receiver: { ...effect.receiver } } : {})
-		})),
-		contexts: callable.contexts.map((effect) => ({ ...effect })),
-		reevaluationSafe: callable.reevaluationSafe === true
-	};
+	if (contribution.pluginRegistry) analysis.pluginRegistry = contribution.pluginRegistry;
+	if (contribution.pluginData) analysis.pluginData = contribution.pluginData;
+	analysis.diagnostics.push(...contribution.diagnostics);
 }

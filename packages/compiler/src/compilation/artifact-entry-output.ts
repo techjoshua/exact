@@ -1,11 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { withArtifactMetadata } from '../paths.js';
 import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
 import type {
 	CompileArtifactsResult,
 	ExactArtifactPlanEntry,
-	ExactCompilerManifest,
+	ExactModuleAnalysis,
 	TransformResult
 } from '../types.js';
 import {
@@ -14,19 +13,15 @@ import {
 	sharedArtifactResult
 } from './shared-artifact.js';
 
-/** Writes one planned client/server artifact pair and its portable manifest. */
+/** Writes one planned client/server artifact pair. */
 export async function writeArtifactPlanEntry(
 	entry: ExactArtifactPlanEntry,
-	base: ExactCompilerManifest,
+	base: ExactModuleAnalysis,
 	client: TransformResult,
 	server: TransformResult,
 	sourceMap: boolean
 ): Promise<CompileArtifactsResult> {
 	const shared = !sourceMap && sharedArtifactResult(base, client, server);
-	const manifest = withArtifactMetadata(base, entry.inputFile, {
-		...entry,
-		...(!shared ? { sharedFile: undefined } : {})
-	});
 	const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
 	const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;
 
@@ -59,8 +54,6 @@ export async function writeArtifactPlanEntry(
 			serverMapFile,
 			`${JSON.stringify(withSourceMapFile(server.map, path.basename(entry.serverFile)), null, 2)}\n`
 		);
-	await writeFile(entry.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
-
 	return {
 		inputFile: entry.inputFile,
 		clientFile: entry.clientFile,
@@ -68,10 +61,9 @@ export async function writeArtifactPlanEntry(
 		...(shared ? { sharedFile: entry.sharedFile } : {}),
 		clientMapFile,
 		serverMapFile,
-		manifestFile: entry.manifestFile,
 		client,
 		server,
 		...(shared ? { shared } : {}),
-		manifest
+		analysis: base
 	};
 }

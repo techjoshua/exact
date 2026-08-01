@@ -2,9 +2,7 @@ import {
 	createExactBuildInspectionCatalog,
 	createCompilerSession,
 	createExactInspectionBuildKey,
-	createExactInspectionRedactions,
 	resolveNativeCompilerExecutable,
-	type ExactCompilerManifest,
 	type ExactCompilerSession,
 	type ExactCompilerSessionOptions,
 	type ExactSourceInspection
@@ -21,7 +19,7 @@ let nextSessionId = 0;
 
 type ExactWebpackInspectionModule = Readonly<{
 	inspection: ExactSourceInspection;
-	manifest: ExactCompilerManifest;
+	redactions?: ExactInspectionRedactionCatalog;
 	source: string;
 	debug?: Readonly<{
 		buildKey?: string;
@@ -90,7 +88,7 @@ export function recordWebpackInspectionModule(
 	source: string,
 	entry: Readonly<{
 		inspection: ExactSourceInspection;
-		manifest: ExactCompilerManifest;
+		redactions?: ExactInspectionRedactionCatalog;
 		debug?: ExactWebpackInspectionModule['debug'];
 	}>
 ): void {
@@ -145,11 +143,35 @@ export function webpackInspectionCatalog(
 				sources: Object.fromEntries(
 					[...modules.entries()].map(([filename, entry]) => [filename, entry.source])
 				),
-				redactions: createExactInspectionRedactions(
-					[...modules.values()].map((entry) => entry.manifest),
+				redactions: mergeInspectionRedactions(
+					[...modules.values()].flatMap((entry) => entry.redactions ?? []),
 					options.redactions ?? configured?.redactions
 				)
 			}
 		]
 	});
+}
+
+function mergeInspectionRedactions(
+	generated: readonly ExactInspectionRedactionCatalog[],
+	configured: Partial<ExactInspectionRedactionCatalog> = {}
+): ExactInspectionRedactionCatalog {
+	return {
+		statePaths: [
+			...new Set([
+				...generated.flatMap((value) => value.statePaths),
+				...(configured.statePaths ?? [])
+			])
+		].sort(),
+		contextTokens: [
+			...generated.flatMap((value) => value.contextTokens),
+			...(configured.contextTokens ?? [])
+		],
+		secretNames: [
+			...new Set([
+				...generated.flatMap((value) => value.secretNames),
+				...(configured.secretNames ?? [])
+			])
+		].sort()
+	};
 }

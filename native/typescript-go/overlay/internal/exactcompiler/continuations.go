@@ -14,7 +14,7 @@ import (
 func createContinuationContracts(
 	components []Component,
 	tasks []Task,
-	actions []Action,
+	operations []InvokedTaskOperation,
 	stateReads []StateRead,
 	policies policyAnalysis,
 	boundaries []Boundary,
@@ -141,11 +141,11 @@ func createContinuationContracts(
 			Cancellation: "abort-signal",
 		})
 	}
-	for _, action := range actions {
-		if action.Placement != "server" && action.Placement != "isomorphic" {
+	for _, operation := range operations {
+		if operation.Placement != "server" && operation.Placement != "isomorphic" {
 			continue
 		}
-		component, exists := componentByName[action.Component]
+		component, exists := componentByName[operation.Component]
 		if !exists {
 			continue
 		}
@@ -156,7 +156,7 @@ func createContinuationContracts(
 		publicContexts := []ContextEffect{}
 		contextWrites := []ContextEffect{}
 		serverContextWrites := []ContextEffect{}
-		for _, effect := range action.Contexts {
+		for _, effect := range operation.Contexts {
 			switch {
 			case effect.Kind == "read" &&
 				contextResidency(effect.Token, policies) == "shared":
@@ -171,22 +171,21 @@ func createContinuationContracts(
 			}
 		}
 		continuations = append(continuations, Continuation{
-			ID:          action.ID,
-			Kind:        "action",
-			Label:       action.Label,
+			ID:          operation.ID,
+			Kind:        "task",
 			ComponentID: component.ID,
-			TaskID:      action.ID,
-			Placement:   action.Placement,
+			TaskID:      operation.ID,
+			Placement:   operation.Placement,
 			Readiness:   "nonblocking",
 			Async:       true,
 			Activation: ContinuationActivation{
-				StateReads:     append([]StateEffect(nil), action.Reads...),
-				Dependencies:   append([]TaskDependency(nil), action.Arguments...),
+				StateReads:     append([]StateEffect(nil), operation.Reads...),
+				Dependencies:   append([]TaskDependency(nil), operation.Arguments...),
 				ServerContexts: uniqueContextEffects(serverContexts),
 				PublicContexts: uniqueContextEffects(publicContexts),
 			},
 			Effects: ContinuationEffects{
-				StateWrites:         append([]StateEffect(nil), action.Writes...),
+				StateWrites:         append([]StateEffect(nil), operation.Writes...),
 				ContextWrites:       uniqueContextEffects(contextWrites),
 				ServerContextWrites: uniqueContextEffects(serverContextWrites),
 				Boundaries: boundaryIDsForComponent(
@@ -200,8 +199,8 @@ func createContinuationContracts(
 			},
 			Cancellation: "abort-signal",
 			Invocation: &ContinuationInvocation{
-				Arguments:   append([]TaskDependency{}, action.Arguments...),
-				Concurrency: action.Concurrency,
+				Arguments:   append([]TaskDependency{}, operation.Arguments...),
+				Concurrency: operation.Concurrency,
 			},
 		})
 	}
@@ -258,19 +257,19 @@ func createContinuationContracts(
 				}
 			}
 		}
-		for _, action := range actions {
-			if action.Component != component.Name ||
-				(action.Placement != "server" &&
-					action.Placement != "isomorphic") {
+		for _, operation := range operations {
+			if operation.Component != component.Name ||
+				(operation.Placement != "server" &&
+					operation.Placement != "isomorphic") {
 				continue
 			}
-			for _, read := range action.Reads {
+			for _, read := range operation.Reads {
 				serverStateReads = append(serverStateReads, read.Path)
 				if read.Confidence == "exact" && read.Path != "*" {
 					statePaths = append(statePaths, read.Path)
 				}
 			}
-			for _, write := range action.Writes {
+			for _, write := range operation.Writes {
 				if write.Confidence == "exact" && write.Path != "*" {
 					statePaths = append(statePaths, write.Path)
 				}

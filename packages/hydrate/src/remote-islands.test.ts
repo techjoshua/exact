@@ -1,9 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
+import { createVNode, markTestComponents } from './test-support/native-vnode.js';
 
 describe('@exactjs/hydrate remote islands', () => {
 	it('hydrates client islands registered by a remote component contract', async () => {
@@ -34,7 +35,7 @@ describe('@exactjs/hydrate remote islands', () => {
 		const client = createExactClient(container, { endpoint: '/__exact', fetch });
 		client.registerComponents({
 			endpoints: { boundaries: { 'remote-panel': 'https://remote.test/__exact' } },
-			islands: { RemoteIsland }
+			islands: markTestComponents({ RemoteIsland })
 		});
 
 		await client.refreshBoundary('remote-panel');
@@ -58,8 +59,8 @@ describe('@exactjs/hydrate remote islands', () => {
 		}
 
 		const client = createExactClient(container, { endpoint: '/__exact' });
-		client.registerComponents({ islands: { RemoteIsland } });
-		client.registerComponents({ islands: { RemoteIsland } });
+		client.registerComponents({ islands: markTestComponents({ RemoteIsland }) });
+		client.registerComponents({ islands: markTestComponents({ RemoteIsland }) });
 
 		expect(
 			container

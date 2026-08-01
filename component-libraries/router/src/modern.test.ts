@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
-import type { Component } from '@exactjs/core';
 import { act, createElement, Suspense } from '@exactjs/react-compat';
 import { exposeExactComponent } from '@exactjs/react-compat/interop';
 import { createRoot } from '@exactjs/react-dom-compat/client19';
 import { renderToString } from '@exactjs/react-dom-compat/server19';
 import { describe, expect, it } from 'vitest';
-import { RouterControllerContext } from './context.js';
+import { NativeLocation } from './modern.fixtures.js';
 import {
 	Await,
 	createBrowserRouter,
@@ -91,21 +90,6 @@ describe('React Router modern facade', () => {
 	});
 
 	it('shares the controller token with native eXact component boundaries', async () => {
-		function NativeLocation(this: Component<{ version: number }>) {
-			this.state.version = 0;
-			const router = this.getContext(RouterControllerContext);
-			let unsubscribe: (() => void) | undefined;
-			this.onMount(() => {
-				unsubscribe = router.subscribe(() => {
-					this.state.version++;
-				});
-			});
-			this.onUnmount(() => unsubscribe?.());
-			return () => {
-				void this.state.version;
-				return router.getSnapshot().location.pathname;
-			};
-		}
 		const ExactLocation = exposeExactComponent(NativeLocation, 'NativeLocation');
 		const container = document.createElement('div');
 		createRoot(container).render(

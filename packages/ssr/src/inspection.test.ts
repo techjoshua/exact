@@ -1,4 +1,4 @@
-import { createExactRuntimeInspectionOwner, createVNode, type Component } from '@exactjs/core';
+import { createExactRuntimeInspectionOwner, type Component } from '@exactjs/core';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 import { handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import {
 	renderExactRequestToHtmlResponse,
 	renderToString
 } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr inspection ownership', () => {
 	it('inherits a request-owned sink without retaining component instances', () => {
@@ -34,7 +35,7 @@ describe('@exactjs/ssr inspection ownership', () => {
 			side: 'server',
 			buildKey: 'server-build',
 			executionRoot: 'page',
-			componentTypeId: 'Page'
+			componentTypeId: '@exactjs/testing:fixture:Page:1'
 		});
 		expect(JSON.stringify(events)).not.toContain('<h1');
 	});
@@ -46,7 +47,7 @@ describe('@exactjs/ssr inspection ownership', () => {
 		const buildKey = 'a'.repeat(40);
 		const sourceHash = 'b'.repeat(64);
 		const server = createExactServerRuntime({
-			contract: { version: 1, actions: {}, executors: {}, boundaries: {} },
+			contract: { version: 1, invocations: {}, executors: {}, boundaries: {} },
 			allowDebug: true,
 			inspectionCatalogs: [
 				{

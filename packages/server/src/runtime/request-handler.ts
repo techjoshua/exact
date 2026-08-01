@@ -235,13 +235,13 @@ function contextForRemoteOperation(
 ): ExactServerContext {
 	const root = input.root ? build.roots[input.root] : undefined;
 	if (!root) {
-		return { ...context, contract: emptyContract(context), actions: {}, refreshBoundaries: {} };
+		return { ...context, contract: emptyContract(context), invocations: {}, refreshBoundaries: {} };
 	}
 	return {
 		...context,
 		debugBuildKey: build.buildKey,
 		contract: root.contract,
-		actions: root.actions,
+		invocations: root.invocations,
 		refreshBoundaries: root.refreshBoundaries
 	};
 }
@@ -250,7 +250,7 @@ function emptyContract(context: ExactServerContext): ExactServerContext['contrac
 	return {
 		version: 1,
 		endpoint: context.contract.endpoint,
-		actions: {},
+		invocations: {},
 		executors: {},
 		boundaries: {}
 	};

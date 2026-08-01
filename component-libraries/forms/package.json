@@ -21,11 +21,12 @@
 	"devDependencies": {
 		"@exactjs/jsx": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",
-		"@exactjs/testing": "^0.1.0"
+		"@exactjs/testing": "^0.1.0",
+		"@exactjs/vitest": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
-		"test": "vitest run --config ../../vitest.config.ts",
+		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

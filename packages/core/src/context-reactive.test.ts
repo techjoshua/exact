@@ -1,17 +1,15 @@
 import { flushSync, unwrap } from '@exactjs/reactive';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
 	ErrorContext,
 	LoggerContext,
 	createComponentInstance,
 	createContext,
-	createDerived,
 	createRef,
 	createVNode,
 	isVNode,
 	renderInstance,
-	type Component,
-	type ComponentInstance
+	type Component
 } from './index.js';
 
 describe('@exactjs/core context-reactive', () => {
@@ -182,82 +180,5 @@ describe('@exactjs/core context-reactive', () => {
 		expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe(
 			'Countess Ada Lovelace'
 		);
-	});
-
-	it('reruns tasks when reactive value dependencies change', () => {
-		let instance!: Component<{ first: string; last: string }>;
-		const values: string[] = [];
-		const aborts: string[] = [];
-
-		function Person(this: Component<{ first: string; last: string }>) {
-			instance = this;
-			this.state.first = 'Ada';
-			this.state.last = 'Lovelace';
-			const fullName = this.reactive(() => `${this.state.first} ${this.state.last}`);
-
-			(this as any).task(fullName, (name: string, { signal }: { signal: AbortSignal }) => {
-				values.push(String(name));
-				signal.addEventListener('abort', () => aborts.push(String(name)));
-			});
-
-			return () => null;
-		}
-
-		createComponentInstance(Person, {});
-		instance.state.first = 'Ada';
-		flushSync();
-		instance.state.last = 'Byron';
-		flushSync();
-
-		expect(values).toEqual(['Ada Lovelace', 'Ada Byron']);
-		expect(aborts).toEqual(['Ada Lovelace']);
-	});
-
-	it('stops compiler-owned derived subscriptions when a component unmounts', () => {
-		let instance!: ComponentInstance<{ count: number }>;
-		const compute = vi.fn(() => instance.state.count * 2);
-
-		instance = createComponentInstance(function Counter(this: Component<{ count: number }>) {
-			instance = this as ComponentInstance<{ count: number }>;
-			this.state.count = 1;
-			const doubled = createDerived(compute);
-			(this as any).task(doubled, () => undefined);
-			return () => null;
-		}, {});
-		instance.markMounted();
-		expect(compute).toHaveBeenCalledTimes(1);
-
-		instance.unmount();
-		instance.state.count = 2;
-		flushSync();
-
-		expect(compute).toHaveBeenCalledTimes(1);
-	});
-
-	it('runs fluent tasks on component reactive values', () => {
-		let instance!: Component<{ query: string }>;
-		const values: string[] = [];
-		const aborts: string[] = [];
-
-		function Search(this: Component<{ query: string }>) {
-			instance = this;
-			this.state.query = 'ada';
-
-			(this.reactive(() => this.state.query) as any).task(
-				(query: string, { signal }: { signal: AbortSignal }) => {
-					values.push(String(query));
-					signal.addEventListener('abort', () => aborts.push(String(query)));
-				}
-			);
-
-			return () => null;
-		}
-
-		createComponentInstance(Search, {});
-		instance.state.query = 'grace';
-		flushSync();
-
-		expect(values).toEqual(['ada', 'grace']);
-		expect(aborts).toEqual(['ada']);
 	});
 });

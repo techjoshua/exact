@@ -32,7 +32,7 @@ describe('exact binding gateway', () => {
 					type: 'batch',
 					version: 1,
 					operations: [
-						{ type: 'action', root: '@company/billing#./Area', id: 'save' },
+						{ type: 'invoke', root: '@company/billing#./Area', id: 'save' },
 						{ type: 'refresh', root: '@company/billing#./Other', id: 'panel' }
 					]
 				}
@@ -72,7 +72,7 @@ describe('exact binding gateway', () => {
 			{
 				method: 'POST',
 				headers: { 'x-exact-binding': 'billing', 'x-exact-build': buildKey },
-				body: { type: 'action', root: '@company/billing#./Area', id: 'save' }
+				body: { type: 'invoke', root: '@company/billing#./Area', id: 'save' }
 			},
 			context({
 				authorize: () => false,
@@ -103,7 +103,7 @@ describe('exact binding gateway', () => {
 			{
 				method: 'POST',
 				headers: { 'x-exact-binding': 'billing', 'x-exact-build': buildKey },
-				body: { type: 'action', root: '@company/billing#./Area', id: 'save' }
+				body: { type: 'invoke', root: '@company/billing#./Area', id: 'save' }
 			},
 			context({
 				gateway: createExactBindingGateway({
@@ -125,7 +125,7 @@ describe('exact binding gateway', () => {
 			{
 				method: 'POST',
 				headers: { 'x-exact-binding': 'unknown', 'x-exact-build': buildKey },
-				body: { type: 'action', root: '@company/unknown#./Area', id: 'save' }
+				body: { type: 'invoke', root: '@company/unknown#./Area', id: 'save' }
 			},
 			context({
 				gateway: createExactBindingGateway({
@@ -158,7 +158,7 @@ describe('exact binding gateway', () => {
 					'x-exact-build': buildKey,
 					accept: 'application/x-ndjson'
 				},
-				body: { type: 'action', root: '@company/billing#./Area', id: 'save' }
+				body: { type: 'invoke', root: '@company/billing#./Area', id: 'save' }
 			},
 			context({
 				gateway: createExactBindingGateway({
@@ -203,7 +203,7 @@ describe('exact binding gateway', () => {
 				{
 					method: 'POST',
 					headers,
-					body: { type: 'action', root: '@company/billing#./Area', id: 'save' }
+					body: { type: 'invoke', root: '@company/billing#./Area', id: 'save' }
 				},
 				context({
 					gateway: createExactBindingGateway({
@@ -316,7 +316,7 @@ async function invokeGateway(
 		{
 			method: 'POST',
 			headers: { 'x-exact-binding': 'billing', 'x-exact-build': buildKey },
-			body: { type: 'action', root: '@company/billing#./Area', id: 'save' },
+			body: { type: 'invoke', root: '@company/billing#./Area', id: 'save' },
 			signal
 		},
 		context({

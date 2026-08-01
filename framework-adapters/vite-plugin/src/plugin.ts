@@ -5,9 +5,9 @@ import {
 	resolveNativeCompilerExecutable,
 	resolveExactArtifactImport,
 	transformSource,
-	type ExactCompilerManifest,
 	type ExactSourceInspection
 } from '@exactjs/compiler';
+import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import { profileTimestamp } from '@exactjs/instrumentation';
 import {
@@ -27,11 +27,11 @@ import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js'
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 import {
 	containsExactJsx,
-	exactImportedManifests,
 	exactModuleFilename,
 	exactTransformTarget,
 	isExactTransformableModule,
-	shouldCompileExactModule
+	shouldCompileExactModule,
+	shouldTransformExactModule
 } from './module-selection.js';
 import { rewriteWithCompatibility, viteReactAliases } from './react-compatibility-emission.js';
 import {
@@ -93,7 +93,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		string,
 		Readonly<{
 			inspection: ExactSourceInspection;
-			manifest: ExactCompilerManifest;
+			redactions?: ExactInspectionRedactionCatalog;
 			source: string;
 		}>
 	>();
@@ -263,8 +263,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		transform(code, id) {
 			if (!isExactTransformableModule(id)) return null;
-			microfrontends.recordModule(code, id);
 			const filename = exactModuleFilename(id);
+			if (!shouldTransformExactModule(filename, options)) return null;
+			microfrontends.recordModule(code, id);
 			const profileStarted = options.onProfile ? profileTimestamp() : undefined;
 			try {
 				const ownership = jsxSourceOwnership(filename, code, reactCompatibility);
@@ -301,7 +302,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						filename,
 						session: compilerSession,
 						target: exactTransformTarget(options),
-						importedManifests: exactImportedManifests(options),
 						serverComponents: options.serverComponents,
 						sourceMap: false,
 						assetRules: options.assetRules,
@@ -315,7 +315,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					if (result.inspectionCatalog && options.target === 'server') {
 						inspectionModules.set(path.resolve(filename), {
 							inspection: result.inspectionCatalog,
-							manifest: result.manifest,
+							redactions: result.inspectionRedactions,
 							source: code
 						});
 					}

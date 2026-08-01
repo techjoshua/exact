@@ -212,7 +212,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 		])
 	)
 		throw new Error('unknown invocation field');
-	if (record.type !== 'action' && record.type !== 'refresh')
+	if (record.type !== 'invoke' && record.type !== 'refresh')
 		throw new Error('invalid invocation type');
 	if (record.root !== undefined && (typeof record.root !== 'string' || !record.root))
 		throw new Error('invalid execution root');

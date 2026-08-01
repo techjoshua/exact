@@ -238,7 +238,7 @@ export function RemoteComponent(
 	};
 }
 
-markExactComponent(RemoteComponent);
+markExactComponent(RemoteComponent, '@exactjs/microfrontends:RemoteComponent');
 
 async function importExactRemoteModule(url: string): Promise<{ default: unknown }> {
 	return import(/* @vite-ignore */ url) as Promise<{ default: unknown }>;

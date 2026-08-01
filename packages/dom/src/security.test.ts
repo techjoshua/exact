@@ -1,9 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { BLOCKED_JAVASCRIPT_URL, createVNode, unsafeHtml } from '@exactjs/core';
+import { BLOCKED_JAVASCRIPT_URL, unsafeHtml } from '@exactjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/dom security', () => {
 	it('mounts and replaces opted-in opaque unsafe HTML ranges', () => {

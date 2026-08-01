@@ -20,7 +20,6 @@ These documents describe behavior that exists in the repository today:
 | [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                         |
 | [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                        |
 | [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.   |
-| [manifest-usage-inventory.md](manifest-usage-inventory.md)                       | Remaining compiler-manifest producers and consumers.                       |
 | [microfrontends.md](microfrontends.md)                                           | Implemented trusted microfrontend scope and remaining adapter work.        |
 | [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.  |
 | [native-ssr-production-guide.md](native-ssr-production-guide.md)                 | Production SSR, request, response, security, and deployment contracts.     |

@@ -1,11 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { describe, expect, it } from 'vitest';
 import { applyPatches } from './index.js';
 import { noopLogger } from './test-support/responses.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/hydrate patch-validation', () => {
 	it('rejects duplicate element protocol ids before mutating live DOM', () => {

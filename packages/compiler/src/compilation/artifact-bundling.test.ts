@@ -8,7 +8,6 @@ import {
 	compileProjectArtifacts,
 	createExactArtifactGraph,
 	exactExportConditions,
-	readExactArtifactManifestEntries,
 	resolveExactArtifactImport,
 	transform
 } from '../index.js';
@@ -22,17 +21,7 @@ describe('@exactjs/compiler: artifact bundling', () => {
 		await mkdir(path.join(srcDir, 'data'), { recursive: true });
 		await writeFile(
 			path.join(srcDir, 'page.tsx'),
-			`
-      import { queryProducts } from "./data/index.js";
-
-      export function Page(this: Component<{ count: number; name: string }>) {
-        this.task.server(async () => {
-          const product = await queryProducts();
-          this.state.name = product.name;
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.name}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { queryProducts } from "./data/index.js";\n\n      export function Page(this: Component<{ count: number; name: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          const product = await queryProducts();\n          this.state.name = product.name;\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.name}</button>;\n      }\n    '
 		);
 		await writeFile(
 			path.join(srcDir, 'data', 'index.js'),
@@ -168,11 +157,11 @@ describe('@exactjs/compiler: artifact bundling', () => {
     `
 		);
 		const result = await compileFileArtifacts(input, { outDir, rootDir: srcDir });
-		const usedId = result.manifest.symbols.find(
+		const usedId = result.analysis.symbols.find(
 			(symbol) =>
 				symbol.target === 'client' && symbol.role === 'root' && symbol.debugName === 'Used'
 		)!.id;
-		const unusedId = result.manifest.symbols.find(
+		const unusedId = result.analysis.symbols.find(
 			(symbol) =>
 				symbol.target === 'client' && symbol.role === 'root' && symbol.debugName === 'Unused'
 		)!.id;
@@ -347,13 +336,13 @@ describe('@exactjs/compiler: artifact bundling', () => {
 		expect(client).toContain('export { AliasedWidget as RenamedWidget };');
 		expect(client.match(/@exactjs\/component-contract/g)).toHaveLength(1);
 		expect(client.match(/Object\.assign/g)).toHaveLength(2);
-		expect(result.manifest.exports).toContainEqual(
+		expect(result.analysis.exports).toContainEqual(
 			expect.objectContaining({
 				name: 'default',
 				kind: 'component'
 			})
 		);
-		expect(result.manifest.exports).toContainEqual(
+		expect(result.analysis.exports).toContainEqual(
 			expect.objectContaining({
 				name: 'RenamedWidget',
 				kind: 'component'
@@ -397,16 +386,7 @@ describe('@exactjs/compiler: artifact bundling', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -445,63 +425,7 @@ describe('@exactjs/compiler: artifact bundling', () => {
 			expect.objectContaining({
 				inputFile: input,
 				clientFile: result.clientFile,
-				serverFile: result.serverFile,
-				manifestFile: result.manifestFile
-			})
-		]);
-	});
-
-	it('reads generated artifact manifests into graph entries', async () => {
-		const root = await createTestWorkspace('exact-artifact-manifest-entries-');
-		const input = path.join(root, 'src', 'panel.tsx');
-		const outDir = path.join(root, 'dist');
-		await mkdir(path.dirname(input), { recursive: true });
-		await writeFile(
-			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
-		);
-
-		const compiled = await compileFileArtifacts(input, {
-			outDir,
-			rootDir: path.join(root, 'src')
-		});
-		const entries = await readExactArtifactManifestEntries([compiled.manifestFile]);
-		const graph = createExactArtifactGraph(entries, {
-			packageRoot: root,
-			sourceRoot: path.join(root, 'src'),
-			rootDir: root
-		});
-
-		expect(entries).toEqual([
-			{
-				inputFile: compiled.inputFile,
-				clientFile: compiled.clientFile,
-				serverFile: compiled.serverFile,
-				manifestFile: compiled.manifestFile,
-				manifest: expect.objectContaining({
-					filename: compiled.manifest.filename
-				})
-			}
-		]);
-		expect(graph.clientIslands).toEqual([
-			expect.objectContaining({
-				name: 'Panel_ExactClient_1',
-				module: './dist/panel.exact.client.ts'
-			})
-		]);
-		expect(graph.serverParts).toEqual([
-			expect.objectContaining({
-				name: 'Panel_ExactServer_1',
-				module: './dist/panel.exact.server.ts'
+				serverFile: result.serverFile
 			})
 		]);
 	});

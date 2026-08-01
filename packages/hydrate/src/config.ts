@@ -192,17 +192,17 @@ function mergeEndpointRoutes(
 	base: ExactEndpointRoutes | undefined,
 	override: ExactEndpointRoutes | undefined
 ): ExactEndpointRoutes | undefined {
-	const actions = {
-		...(base?.actions ?? {}),
-		...(override?.actions ?? {})
+	const invocations = {
+		...(base?.invocations ?? {}),
+		...(override?.invocations ?? {})
 	};
 	const boundaries = {
 		...(base?.boundaries ?? {}),
 		...(override?.boundaries ?? {})
 	};
-	return Object.keys(actions).length || Object.keys(boundaries).length
+	return Object.keys(invocations).length || Object.keys(boundaries).length
 		? {
-				...(Object.keys(actions).length ? { actions } : {}),
+				...(Object.keys(invocations).length ? { invocations } : {}),
 				...(Object.keys(boundaries).length ? { boundaries } : {})
 			}
 		: undefined;
@@ -221,10 +221,10 @@ function mergeHydrationEndpointRoutes(
 ): ExactEndpointRoutes | undefined {
 	if (!registration) return cloneEndpointRoutes(base);
 	return mergeEndpointRoutes(base, {
-		actions: mergeUniqueRecord(
-			base?.actions,
-			registration.actions,
-			'action endpoint route',
+		invocations: mergeUniqueRecord(
+			base?.invocations,
+			registration.invocations,
+			'invocation endpoint route',
 			(left, right) => left === right
 		),
 		boundaries: mergeUniqueRecord(

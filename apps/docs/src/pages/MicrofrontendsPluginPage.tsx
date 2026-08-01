@@ -58,10 +58,9 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<h2>Why this plugin exists</h2>
 				<p>
 					Independent teams need deployment boundaries, but the page still needs coherent component
-					ownership, props, context, server actions, package identity, failure handling, and
-					upgrades. Those require cooperation from the compiler, bundler, hydration client, and
-					server gateway—exactly the kind of cross-cutting concern the plugin system is designed to
-					own.
+					ownership, props, context, server tasks, package identity, failure handling, and upgrades.
+					Those require cooperation from the compiler, bundler, hydration client, and server
+					gateway—exactly the kind of cross-cutting concern the plugin system is designed to own.
 				</p>
 			</section>
 			<section>
@@ -113,7 +112,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			<Callout title="Trust boundary" tone="warning">
 				<p>
 					Remote endpoints are application-configured trusted systems. The plugin validates module
-					shape and manifest contracts; it is not a sandbox for hostile code.
+					shape and versioned executable contracts; it is not a sandbox for hostile code.
 				</p>
 			</Callout>
 		</Article>

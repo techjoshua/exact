@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { Fragment, createVNode } from '@exactjs/core';
+import { Fragment } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { defineExactBoundaryContract, handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
@@ -13,6 +13,7 @@ import {
 	invokeExactBatch,
 	readExactHydrationConfig
 } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 import { noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate request-operations', () => {
@@ -20,7 +21,7 @@ describe('@exactjs/hydrate request-operations', () => {
 		let requestBody: any;
 		const result = await invokeExact({
 			endpoint: '/__exact',
-			type: 'action',
+			type: 'invoke',
 			id: 'collections',
 			payload: {
 				lookup: new Map([['answer', 42]]),
@@ -34,7 +35,7 @@ describe('@exactjs/hydrate request-operations', () => {
 					async json() {
 						return {
 							ok: true,
-							type: 'action',
+							type: 'invoke',
 							id: 'collections',
 							state: {
 								lookup: { $exact: 'map', version: 1, entries: [['answer', 42]] },
@@ -127,7 +128,7 @@ describe('@exactjs/hydrate request-operations', () => {
 				return await new Promise<never>(() => undefined);
 			}
 		});
-		const operation = client.invokeAction('save');
+		const operation = client.invokeTask('save');
 		await Promise.resolve();
 		client.dispose();
 
@@ -147,12 +148,12 @@ describe('@exactjs/hydrate request-operations', () => {
 	it('reads endpoint and state from the hydration bootstrap script', () => {
 		const root = document.createElement('main');
 		root.innerHTML =
-			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","endpoints":{"actions":{"save-remote":"https://remote.test/__exact"},"boundaries":{"remote-panel":"https://remote.test/__exact"}},"state":{"ready":true},"continuations":{"save":{"id":"save","componentId":"test:save","readiness":"nonblocking","dependencies":[],"stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"contextWrites":[],"boundaries":["profile","slot:children"]}}}</script>';
+			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","endpoints":{"invocations":{"save-remote":"https://remote.test/__exact"},"boundaries":{"remote-panel":"https://remote.test/__exact"}},"state":{"ready":true},"continuations":{"save":{"id":"save","componentId":"test:save","kind":"task","readiness":"nonblocking","dependencies":[],"stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"contextWrites":[],"boundaries":["profile","slot:children"]}}}</script>';
 
 		expect(readExactHydrationConfig(root)).toEqual({
 			endpoint: '/__exact',
 			endpoints: {
-				actions: {
+				invocations: {
 					'save-remote': 'https://remote.test/__exact'
 				},
 				boundaries: {
@@ -164,6 +165,7 @@ describe('@exactjs/hydrate request-operations', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					kind: 'task',
 					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
@@ -179,7 +181,7 @@ describe('@exactjs/hydrate request-operations', () => {
 
 	it('creates clients from hydration bootstrap data by default', async () => {
 		document.body.innerHTML =
-			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","state":{"project":{"id":"p1","secret":"hidden"}},"continuations":{"save":{"id":"save","componentId":"test:save","readiness":"nonblocking","dependencies":[],"stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"contextWrites":[],"boundaries":[]}}}</script>';
+			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","state":{"project":{"id":"p1","secret":"hidden"}},"continuations":{"save":{"id":"save","componentId":"test:save","kind":"task","readiness":"nonblocking","dependencies":[],"stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"contextWrites":[],"boundaries":[]}}}</script>';
 		const container = document.createElement('main');
 		document.body.appendChild(container);
 		let requestBody: any;
@@ -191,13 +193,13 @@ describe('@exactjs/hydrate request-operations', () => {
 					ok: true,
 					status: 200,
 					async json() {
-						return { ok: true, type: 'action', id: 'save' };
+						return { ok: true, type: 'invoke', id: 'save' };
 					}
 				};
 			}
 		});
 
-		await client.invokeAction('save');
+		await client.invokeTask('save');
 
 		expect(client.state).toEqual({ project: { id: 'p1', secret: 'hidden' } });
 		expect(requestBody.state).toEqual({ project: { id: 'p1' } });
@@ -216,7 +218,7 @@ describe('@exactjs/hydrate request-operations', () => {
 				{
 					contract: {
 						version: 1,
-						actions: {},
+						invocations: {},
 						boundaries: {
 							panel: defineExactBoundaryContract('panel')
 						}
@@ -264,7 +266,7 @@ describe('@exactjs/hydrate request-operations', () => {
 		const results = await invokeExactBatch({
 			endpoint: '/__exact',
 			operations: [
-				{ type: 'action', id: 'save', payload: { title: 'Ready' } },
+				{ type: 'invoke', id: 'save', payload: { title: 'Ready' } },
 				{ type: 'refresh', id: 'panel', boundaryHtml: '<p>Old</p>' }
 			],
 			fetch: async (_input, init) => {
@@ -279,7 +281,7 @@ describe('@exactjs/hydrate request-operations', () => {
 							results: [
 								{
 									ok: true,
-									type: 'action',
+									type: 'invoke',
 									id: 'save',
 									patches: [{ type: 'text', id: 'title', value: 'Ready' }]
 								},
@@ -295,7 +297,7 @@ describe('@exactjs/hydrate request-operations', () => {
 			type: 'batch',
 			version: 1,
 			operations: [
-				{ type: 'action', id: 'save', payload: { title: 'Ready' } },
+				{ type: 'invoke', id: 'save', payload: { title: 'Ready' } },
 				{ type: 'refresh', id: 'panel', boundaryHtml: '<p>Old</p>' }
 			]
 		});
@@ -308,7 +310,7 @@ describe('@exactjs/hydrate request-operations', () => {
 		let requestBody: unknown;
 		const result = await invokeExact({
 			endpoint: '/__exact',
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			publicContext: {
 				AuthContext: { id: 'u1' }
@@ -321,7 +323,7 @@ describe('@exactjs/hydrate request-operations', () => {
 					async json() {
 						return {
 							ok: true,
-							type: 'action',
+							type: 'invoke',
 							id: 'save',
 							state: { saved: true }
 						};
@@ -331,7 +333,7 @@ describe('@exactjs/hydrate request-operations', () => {
 		});
 
 		expect(requestBody).toEqual({
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			publicContext: {
 				AuthContext: { id: 'u1' }
@@ -343,7 +345,7 @@ describe('@exactjs/hydrate request-operations', () => {
 	it('normalizes successful exact invocation responses', async () => {
 		const result = await invokeExact({
 			endpoint: '/__exact',
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			fetch: async () => ({
 				ok: true,
@@ -351,7 +353,7 @@ describe('@exactjs/hydrate request-operations', () => {
 				async json() {
 					return {
 						ok: true,
-						type: 'action',
+						type: 'invoke',
 						id: 'save',
 						state: { saved: true },
 						patches: [{ type: 'text', id: 'title', value: 'Saved' }]

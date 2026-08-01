@@ -1,4 +1,4 @@
-import type { ExactCompilerManifest, ExactPolicyAuditReport } from './types.js';
+import type { ExactModuleAnalysis, ExactPolicyAuditReport } from './types.js';
 
 /** Configures exact policy audit report. */
 export type ExactPolicyAuditReportOptions = {
@@ -8,14 +8,14 @@ export type ExactPolicyAuditReportOptions = {
 
 /** Aggregates package requirements and application flows without ever reading secret values. */
 export function createExactPolicyAuditReport(
-	manifests: readonly ExactCompilerManifest[],
+	analyses: readonly ExactModuleAnalysis[],
 	options: ExactPolicyAuditReportOptions = {}
 ): ExactPolicyAuditReport {
 	const allowPackages = options.allowPackages ?? [];
 	const usedPackages = new Set<string>();
-	const secretUsage = manifests
-		.flatMap((manifest) =>
-			manifest.policy.secretConsumers.map((use) => {
+	const secretUsage = analyses
+		.flatMap((analysis) =>
+			analysis.policy.secretConsumers.map((use) => {
 				if (allowPackages.includes(use.consumer.package)) usedPackages.add(use.consumer.package);
 				const status =
 					use.authorization === 'implicit-application-owner'

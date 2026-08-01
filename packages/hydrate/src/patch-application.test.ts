@@ -233,7 +233,7 @@ describe('@exactjs/hydrate patch-application', () => {
 				async json() {
 					return {
 						ok: true,
-						type: 'action',
+						type: 'invoke',
 						id: 'save-title',
 						state: { saved: true },
 						patches: [{ type: 'text', id: 'title', value: 'New' }]
@@ -250,11 +250,11 @@ describe('@exactjs/hydrate patch-application', () => {
 			},
 			fetch
 		});
-		await client.invokeAction('save-title', { title: 'New' });
+		await client.invokeTask('save-title', { title: 'New' });
 
 		expect(requests).toEqual([
 			{
-				type: 'action',
+				type: 'invoke',
 				root: 'page',
 				id: 'save-title',
 				payload: { title: 'New' },
@@ -289,7 +289,7 @@ describe('@exactjs/hydrate patch-application', () => {
 							event: 'patch',
 							version: 1,
 							index: 0,
-							type: 'action',
+							type: 'invoke',
 							id: 'save-title',
 							patch: { type: 'text', id: 'title', value: 'Streamed' }
 						},
@@ -297,7 +297,7 @@ describe('@exactjs/hydrate patch-application', () => {
 							event: 'state',
 							version: 1,
 							index: 0,
-							type: 'action',
+							type: 'invoke',
 							id: 'save-title',
 							value: { saved: true }
 						},
@@ -305,7 +305,7 @@ describe('@exactjs/hydrate patch-application', () => {
 							event: 'result',
 							version: 1,
 							index: 0,
-							result: { ok: true, type: 'action', id: 'save-title' }
+							result: { ok: true, type: 'invoke', id: 'save-title' }
 						},
 						{ event: 'complete', version: 1 }
 					]),
@@ -316,7 +316,7 @@ describe('@exactjs/hydrate patch-application', () => {
 			}
 		});
 
-		await client.invokeAction('save-title', { title: 'Streamed' });
+		await client.invokeTask('save-title', { title: 'Streamed' });
 
 		expect(requestHeaders?.accept).toBe('application/x-ndjson');
 		expect(container.textContent).toBe('Streamed');

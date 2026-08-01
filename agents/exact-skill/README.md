@@ -1,13 +1,15 @@
 # @exactjs/agent-skill
 
-Portable instructions that teach Agent Skills-compatible coding agents how to build idiomatic
-eXact applications.
+Portable guidance for coding agents that build eXact applications.
 
-The package contains the `exact-web-development` skill under `skills/`. Installing this npm
-package makes the versioned skill files available, but coding agents do not universally discover
-skills inside `node_modules`. Expose or copy the skill directory into the location recognized by
-the developer's agent harness.
+## Installation model
 
-`@exactjs/create-exact-app` offers this as a recommended project-creation option and copies the skill into
-`.agents/skills/exact-web-development`, keeping the instructions versioned with the generated
-application.
+The package contains the `exact-web-development` skill under `skills/`. Agent harnesses do not
+universally discover skills inside `node_modules`, so expose or copy that directory into the
+harness's recognized skill location.
+
+`@exactjs/create-exact-app` can install the skill into
+`.agents/skills/exact-web-development`, keeping it versioned with a generated application.
+
+The skill reads concise package-local `AGENTS.md` files for package-specific usage and package
+READMEs for human-readable setup and examples.

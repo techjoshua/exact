@@ -35,7 +35,7 @@ describe('compiler-planned task refactors', () => {
 		expect(explicitPlan?.semanticChange).toBe('none');
 		source = apply(source, explicitPlan!);
 		expect(source).toContain(
-			'const runTask = async (id: typeof props.id, task: TaskContext = TaskContext.blocking())'
+			'const runTask = async (id: typeof props.id, task: TaskContext = TaskContext.server().blocking())'
 		);
 		expect(source).toContain('runTask(props.id);');
 		expect(source).not.toContain('export async function');
@@ -57,10 +57,8 @@ describe('compiler-planned task refactors', () => {
 
 	it('withholds explicit-to-inferred conversion for nonblocking work', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
-		const source = `export function Page(this: Component<{}>) {
-	this.task.client(async () => report(await load()));
-	return () => <main />;
-}`;
+		const source =
+			'import { TaskContext } from "@exactjs/core";\nexport function Page(this: Component<{}>) {\n\tconst runFixtureTask = async (_task: TaskContext = TaskContext.client()) => report(await load());\nrunFixtureTask();\n\treturn () => <main />;\n}';
 		await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 1, source }]);
 		const inspection = await service.inspect('Page.tsx');
 		const explicit = tasks(inspection.components[0]!)[0]!;

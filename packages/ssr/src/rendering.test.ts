@@ -2,7 +2,8 @@ import {
 	Activity,
 	ErrorBoundary,
 	Suspense,
-	createVNode,
+	activateTaskForHost,
+	defineTask,
 	stageTaskMutation,
 	type Component,
 	type ErrorBoundaryFallbackProps
@@ -15,6 +16,7 @@ import {
 	renderToString,
 	renderToStringAsync
 } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr rendering', () => {
 	it('normalizes native class arrays and truthy maps', () => {
@@ -103,12 +105,15 @@ describe('@exactjs/ssr rendering', () => {
 	it('renders native Suspense fallback synchronously and settled content asynchronously', async () => {
 		function AsyncPanel(this: Component<{ label: string }>) {
 			this.state.label = '';
-			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
-				const label = await Promise.resolve('ready');
-				stageTaskMutation(signal, () => {
-					this.state.label = label;
-				});
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async ({ signal }) => {
+					const label = await Promise.resolve('ready');
+					stageTaskMutation(signal, () => {
+						this.state.label = label;
+					});
+				})
+			);
 			return () => createVNode('p', null, this.state.label);
 		}
 		const vnode = createVNode(
@@ -144,10 +149,13 @@ describe('@exactjs/ssr rendering', () => {
 		let disposals = 0;
 		function Observed(this: Component<{ value: number }>) {
 			this.state.value = 1;
-			(this as any).task(async () => {
-				await Promise.resolve();
-				this.state.value++;
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await Promise.resolve();
+					this.state.value++;
+				})
+			);
 			this.onUnmount(() => {
 				disposals++;
 			});
@@ -222,10 +230,13 @@ describe('@exactjs/ssr rendering', () => {
 	it('waits for async tasks before rendering a component in async mode', async () => {
 		function Profile(this: Component<{ name: string }>) {
 			this.state.name = 'Loading';
-			(this as any).task(async () => {
-				await Promise.resolve();
-				this.state.name = 'Ada';
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await Promise.resolve();
+					this.state.name = 'Ada';
+				})
+			);
 			return () => createVNode('p', null, this.state.name);
 		}
 
@@ -237,10 +248,13 @@ describe('@exactjs/ssr rendering', () => {
 	it('renders child components after their async tasks settle', async () => {
 		function Child(this: Component<{ label: string }>) {
 			this.state.label = 'Loading';
-			(this as any).task(async () => {
-				await Promise.resolve();
-				this.state.label = 'Ready';
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await Promise.resolve();
+					this.state.label = 'Ready';
+				})
+			);
 			return () => createVNode('strong', null, this.state.label);
 		}
 
@@ -257,7 +271,7 @@ describe('@exactjs/ssr rendering', () => {
 		const registry = createExactServerHandlerRegistry({
 			contract: {
 				version: 1,
-				actions: {
+				invocations: {
 					'save-profile': defineExactOperationContract('save-profile', {
 						componentId: 'Profile',
 						writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
@@ -278,7 +292,7 @@ describe('@exactjs/ssr rendering', () => {
 			},
 			markers: false,
 			patchStrategy: 'element',
-			actions: {
+			invocations: {
 				'save-profile': () => ({ state: { saved: true } }),
 				'private-action': () => ({
 					patches: [{ type: 'replace', id: 'private', html: '<p>nope</p>' }]
@@ -296,21 +310,21 @@ describe('@exactjs/ssr rendering', () => {
 				id: 'profile',
 				boundaryHtml: '<p class="old">Loading</p>'
 			},
-			{ contract: { version: 1, actions: {}, executors: {}, boundaries: {} } }
+			{ contract: { version: 1, invocations: {}, executors: {}, boundaries: {} } }
 		);
-		const action = await registry.actions['save-profile'](
+		const action = await registry.invocations['save-profile'](
 			{
-				type: 'action',
+				type: 'invoke',
 				id: 'save-profile',
 				boundaryHtmls: {
 					profile: '<p class="old">Loading</p>',
 					private: '<p>Private</p>'
 				}
 			},
-			{ contract: { version: 1, actions: {}, executors: {}, boundaries: {} } }
+			{ contract: { version: 1, invocations: {}, executors: {}, boundaries: {} } }
 		);
 
-		expect(Object.keys(registry.actions)).toEqual(['save-profile']);
+		expect(Object.keys(registry.invocations)).toEqual(['save-profile']);
 		expect(Object.keys(registry.refreshBoundaries)).toEqual(['private', 'profile']);
 		expect(refresh.patches).toEqual([
 			{ type: 'prop', id: 'profile', name: 'class', value: 'saved' },
@@ -335,7 +349,7 @@ describe('@exactjs/ssr rendering', () => {
 		const registry = createExactServerHandlerRegistry({
 			contract: {
 				version: 1,
-				actions: { [action.id]: action },
+				invocations: { [action.id]: action },
 				executors: {
 					[action.id]: {
 						id: action.id,
@@ -359,15 +373,15 @@ describe('@exactjs/ssr rendering', () => {
 			}
 		});
 
-		const result = await registry.actions[action.id](
+		const result = await registry.invocations[action.id](
 			{
-				type: 'action',
+				type: 'invoke',
 				id: action.id,
 				payload: { dependencies: [] },
 				state: { id: 'p1' },
 				boundaryHtmls: { profile: '<p>Loading</p>' }
 			},
-			{ contract: { version: 1, actions: {}, executors: {}, boundaries: {} } }
+			{ contract: { version: 1, invocations: {}, executors: {}, boundaries: {} } }
 		);
 
 		expect(result).toMatchObject({

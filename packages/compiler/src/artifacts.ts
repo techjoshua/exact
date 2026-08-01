@@ -1,14 +1,7 @@
 import { existsSync } from 'node:fs';
-import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { isExactArtifactManifest, parseExactCompilerManifest } from './manifest-parse.js';
 import { packageExportSpecifier, packageExportTarget, sortPlanEntries } from './paths.js';
-import {
-	createClientIslandRegistryEntries,
-	createClientIslandRegistryModule,
-	createServerPartRegistryEntries,
-	createServerPartRegistryModule
-} from './registry.js';
+import { clientIslandRegistryEntries, serverPartRegistryEntries } from './registry.js';
 import type {
 	CompileArtifactsResult,
 	ExactArtifactComponentEdge,
@@ -21,21 +14,11 @@ import type {
 	ExactArtifactPlanDiff,
 	ExactArtifactPlanDiffOptions,
 	ExactArtifactPlanEntry,
-	ExactArtifactRegistryModules,
-	ExactArtifactRegistryModulesOptions,
 	ExactArtifactTarget,
-	ExactDiscoveredPackageManifest,
 	ExactExportConditionOptions,
 	PackageExportEntry,
 	PackageExportMapOptions
 } from './types.js';
-
-type ExactPackageJson = {
-	name?: string;
-	exact?: {
-		manifests?: unknown;
-	};
-};
 
 /** Converts a compile result into the graph entry shape used by artifact tooling. */
 export function artifactGraphEntryFromCompileResult(
@@ -46,95 +29,8 @@ export function artifactGraphEntryFromCompileResult(
 		clientFile: result.clientFile,
 		serverFile: result.serverFile,
 		...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
-		manifestFile: result.manifestFile,
-		manifest: result.manifest
+		analysis: result.analysis
 	};
-}
-
-/** Discovers portable eXact manifests explicitly advertised by installed packages. */
-export async function discoverExactPackageManifests(
-	startDirectory: string
-): Promise<ExactDiscoveredPackageManifest[]> {
-	const nodeModules = await nearestNodeModules(startDirectory);
-	if (!nodeModules) return [];
-	const packageRoots: string[] = [];
-	for (const entry of await readdir(nodeModules, { withFileTypes: true })) {
-		if (entry.name.startsWith('.')) continue;
-		const root = path.join(nodeModules, entry.name);
-		if (!entry.isDirectory() && !(entry.isSymbolicLink() && (await isDirectory(root)))) continue;
-		if (!entry.name.startsWith('@')) {
-			packageRoots.push(root);
-			continue;
-		}
-		for (const scoped of await readdir(root, { withFileTypes: true })) {
-			const scopedRoot = path.join(root, scoped.name);
-			if (scoped.isDirectory() || (scoped.isSymbolicLink() && (await isDirectory(scopedRoot)))) {
-				packageRoots.push(scopedRoot);
-			}
-		}
-	}
-	const discovered: ExactDiscoveredPackageManifest[] = [];
-	for (const packageRoot of packageRoots.sort()) {
-		let packageJson: ExactPackageJson;
-		try {
-			packageJson = JSON.parse(
-				await readFile(path.join(packageRoot, 'package.json'), 'utf8')
-			) as ExactPackageJson;
-		} catch {
-			continue;
-		}
-		const manifests = packageJson.exact?.manifests;
-		if (!Array.isArray(manifests) || !manifests.every((value) => typeof value === 'string'))
-			continue;
-		const packageName = packageJson.name ?? path.basename(packageRoot);
-		for (const relative of manifests) {
-			const manifestFile = path.resolve(packageRoot, relative);
-			const relativeToPackage = path.relative(packageRoot, manifestFile);
-			if (relativeToPackage.startsWith('..') || path.isAbsolute(relativeToPackage)) {
-				throw new Error(
-					`${packageJson.name ?? packageRoot}: eXact manifest escapes its package root`
-				);
-			}
-			const parsed = parseExactCompilerManifest(
-				JSON.parse(await readFile(manifestFile, 'utf8')),
-				manifestFile
-			);
-			const manifest = {
-				...parsed,
-				packageName
-			};
-			discovered.push({
-				packageName,
-				packageRoot,
-				manifestFile,
-				manifest
-			});
-		}
-	}
-	return discovered;
-}
-
-async function isDirectory(candidate: string): Promise<boolean> {
-	try {
-		return (await stat(candidate)).isDirectory();
-	} catch {
-		return false;
-	}
-}
-
-async function nearestNodeModules(startDirectory: string): Promise<string | undefined> {
-	let current = path.resolve(startDirectory);
-	while (true) {
-		const candidate = path.join(current, 'node_modules');
-		try {
-			if ((await readdir(candidate, { withFileTypes: true })).length >= 0) return candidate;
-		} catch {
-			// Continue toward the filesystem root.
-		}
-		const parent = path.dirname(current);
-		if (parent === current) return undefined;
-		current = parent;
-	}
 }
 
 /** Diffs two artifact plans into added, removed, changed, and retained entries. */
@@ -286,10 +182,10 @@ export function createExactArtifactGraph(
 		},
 		packageExports: createPackageExportMap(results, options),
 		componentEdges: createExactArtifactComponentEdges(results),
-		clientIslands: createClientIslandRegistryEntries(results, {
+		clientIslands: clientIslandRegistryEntries(results, {
 			rootDir: options.rootDir ?? options.packageRoot
 		}),
-		serverParts: createServerPartRegistryEntries(results, {
+		serverParts: serverPartRegistryEntries(results, {
 			rootDir: options.rootDir ?? options.packageRoot
 		}),
 		artifacts: results.map((result) => ({
@@ -297,19 +193,18 @@ export function createExactArtifactGraph(
 			clientFile: result.clientFile,
 			serverFile: result.serverFile,
 			...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
-			manifestFile: result.manifestFile,
-			manifest: result.manifest
+			analysis: result.analysis
 		}))
 	};
 }
 
-/** Extracts render edges across compiled artifact manifests. */
+/** Extracts render edges across compiled artifact analyses. */
 export function createExactArtifactComponentEdges(
 	results: readonly ExactArtifactGraphInput[]
 ): ExactArtifactComponentEdge[] {
 	const edges: ExactArtifactComponentEdge[] = [];
 	for (const result of results) {
-		for (const component of result.manifest.components) {
+		for (const component of result.analysis.components) {
 			for (const edge of component.renderEdges) {
 				edges.push({
 					id: edge.id,
@@ -346,53 +241,4 @@ export function createExactArtifactComponentEdges(
 				].join(':')
 			)
 	);
-}
-
-/** Creates generated registry module source for client islands and server parts. */
-export function createExactArtifactRegistryModules(
-	graph: ExactArtifactGraph,
-	options: ExactArtifactRegistryModulesOptions = {}
-): ExactArtifactRegistryModules {
-	return {
-		client: createClientIslandRegistryModule(graph.clientIslands, {
-			exportName: options.clientExportName
-		}),
-		server: createServerPartRegistryModule(graph.serverParts, {
-			exportName: options.serverExportName
-		})
-	};
-}
-
-/** Reads artifact manifest files back into artifact graph entries. */
-export async function readExactArtifactManifestEntries(
-	manifestFiles: readonly string[]
-): Promise<ExactArtifactGraphEntry[]> {
-	const entries: ExactArtifactGraphEntry[] = [];
-	for (const manifestFile of manifestFiles) {
-		const manifest = parseExactCompilerManifest(
-			JSON.parse(await readFile(manifestFile, 'utf8')),
-			manifestFile,
-			'artifact'
-		);
-		if (!manifest.artifacts) {
-			throw new Error(`eXact artifact manifest ${manifestFile} is missing artifact metadata`);
-		}
-		if (!isExactArtifactManifest(manifest.artifacts)) {
-			throw new Error(`eXact artifact manifest ${manifestFile} has malformed artifact metadata`);
-		}
-		const root = path.dirname(manifestFile);
-		entries.push({
-			inputFile: path.resolve(root, manifest.artifacts.source),
-			clientFile: path.resolve(root, manifest.artifacts.client),
-			serverFile: path.resolve(root, manifest.artifacts.server),
-			...(manifest.artifacts.shared
-				? {
-						sharedFile: path.resolve(root, manifest.artifacts.shared)
-					}
-				: {}),
-			manifestFile,
-			manifest
-		});
-	}
-	return entries.sort((left, right) => left.manifestFile.localeCompare(right.manifestFile));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { transform, transformSource } from '../index.js';
+import { analyzeSource, transform, transformSource } from '../index.js';
 
 describe('@exactjs/compiler component computations', () => {
 	it('keeps nullish component-state initialization in setup', () => {
@@ -11,7 +11,6 @@ describe('@exactjs/compiler component computations', () => {
 		);
 
 		expect(output).toContain('__exactUpdate(this.state, ["name"]');
-		expect(output).not.toContain('this.task(');
 	});
 
 	it('lowers synchronous derived state assignments into owned reactive computations', () => {
@@ -36,7 +35,6 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Counter.tsx' }
 		);
-		expect(output).not.toContain('this.task(');
 		expect(output).toContain('__exactWrite(this.state, ["count"], () => 0)');
 	});
 
@@ -50,7 +48,15 @@ describe('@exactjs/compiler component computations', () => {
 		);
 		expect(result.code).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(result.code).toContain('__exactWrite(this.state, ["value"]');
-		expect(result.manifest.components[0]?.tasks[0]?.placement).toBe('client');
+		expect(
+			analyzeSource(
+				`function Width(this: Component<{ value: number }>) {
+					this.state.value = window.innerWidth;
+					return () => <output>{this.state.value}</output>;
+				}`,
+				{ filename: 'Width.tsx' }
+			).components[0]?.tasks[0]?.placement
+		).toBe('client');
 	});
 
 	it('keeps peeked setup assignments as one-time snapshots', () => {
@@ -61,7 +67,6 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Editor.tsx' }
 		);
-		expect(output).not.toContain('this.task(');
 		expect(output).toContain('peek(() => props.value)');
 	});
 
@@ -168,6 +173,7 @@ describe('@exactjs/compiler component computations', () => {
 		const output = transform(
 			`declare function load(id: string): Promise<string>;
 			declare function loadOrders(customer: string): Promise<string[]>;
+			declare function recordAttempt(): Promise<void>;
 			function describe(error: unknown): string { return String(error); }
 			async function Customer(this: Component<{ id: string; value?: string; orders: string[]; error?: string; loading: boolean }>) {
 				try {
@@ -177,6 +183,7 @@ describe('@exactjs/compiler component computations', () => {
 				} catch (error) {
 					this.state.error = describe(error);
 				} finally {
+					await recordAttempt();
 					this.state.loading = false;
 				}
 				return () => <output>{this.state.value}</output>;
@@ -186,13 +193,13 @@ describe('@exactjs/compiler component computations', () => {
 		expect(output).not.toContain('async function Customer');
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(output).toContain('readiness: "blocking"');
-		expect(output).toContain('if (__exactComponentSignal.aborted)');
+		expect(output).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');
 		expect(output).toContain('finally');
 		expect(output).toContain('__exactTaskAwait');
 		expect(output).toContain('__exactStageTaskMutation');
-		expect(output.match(/__exactTaskAwait/g)?.length).toBeGreaterThanOrEqual(2);
+		expect(output.match(/__exactTaskAwait/g)?.length).toBeGreaterThanOrEqual(3);
 	});
 
 	it('keeps synchronous initialization ahead of an async generation', () => {

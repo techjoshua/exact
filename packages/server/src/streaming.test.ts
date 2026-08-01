@@ -40,10 +40,10 @@ describe('@exactjs/server streaming', () => {
 			{
 				method: 'POST',
 				headers: { accept: 'application/x-ndjson' },
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': () => ({ value: { status: 'ready' } })
 				}
 			})
@@ -55,7 +55,7 @@ describe('@exactjs/server streaming', () => {
 			index: 0,
 			result: {
 				ok: true,
-				type: 'action',
+				type: 'invoke',
 				id: 'allowed-action',
 				value: { status: 'ready' }
 			}
@@ -72,10 +72,10 @@ describe('@exactjs/server streaming', () => {
 			{
 				method: 'POST',
 				headers: { accept: 'application/x-ndjson' },
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
-				actions: {
+				invocations: {
 					'allowed-action': (_input, requestContext) =>
 						new Promise((resolve) => {
 							started();
@@ -105,7 +105,7 @@ describe('@exactjs/server streaming', () => {
 		const rejectedRequest = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action', payload: deep }
+				body: { type: 'invoke', id: 'allowed-action', payload: deep }
 			},
 			context()
 		);
@@ -114,11 +114,11 @@ describe('@exactjs/server streaming', () => {
 		const rejectedResponse = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
 				limits: { maxResponseBytes: 64 },
-				actions: { 'allowed-action': () => ({ html: 'x'.repeat(1_000) }) }
+				invocations: { 'allowed-action': () => ({ html: 'x'.repeat(1_000) }) }
 			})
 		);
 		expect(rejectedResponse.status).toBe(500);
@@ -136,9 +136,9 @@ describe('@exactjs/server streaming', () => {
 			{
 				method: 'POST',
 				headers: { accept: 'application/x-ndjson' },
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
-			context({ actions: { 'allowed-action': action } })
+			context({ invocations: { 'allowed-action': action } })
 		);
 		await Promise.resolve();
 		expect(action).not.toHaveBeenCalled();
@@ -154,11 +154,11 @@ describe('@exactjs/server streaming', () => {
 			{
 				method: 'POST',
 				headers: { accept: 'application/x-ndjson' },
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			context({
 				limits: { maxStreamBytes: 80 },
-				actions: { 'allowed-action': () => ({ html: 'x'.repeat(1_000) }) }
+				invocations: { 'allowed-action': () => ({ html: 'x'.repeat(1_000) }) }
 			})
 		);
 		const reader = oversized.stream!.getReader();
@@ -177,7 +177,7 @@ describe('@exactjs/server streaming', () => {
 		const rejected = await handleExactRequest(
 			{
 				method: 'POST',
-				body: { type: 'action', id: 'allowed-action', payload }
+				body: { type: 'invoke', id: 'allowed-action', payload }
 			},
 			context()
 		);
@@ -187,11 +187,11 @@ describe('@exactjs/server streaming', () => {
 
 	it('preserves zero-prefetch demand through fetch stream wrappers', async () => {
 		const action = vi.fn(() => ({}));
-		const handler = createFetchHandler(context({ actions: { 'allowed-action': action } }));
+		const handler = createFetchHandler(context({ invocations: { 'allowed-action': action } }));
 		const response = await handler(
 			new Request('https://app.test/__exact', {
 				method: 'POST',
-				body: JSON.stringify({ type: 'action', id: 'allowed-action' }),
+				body: JSON.stringify({ type: 'invoke', id: 'allowed-action' }),
 				headers: { 'content-type': 'application/json', accept: 'application/x-ndjson' }
 			})
 		);
@@ -218,7 +218,7 @@ describe('@exactjs/server streaming', () => {
 				method: 'POST',
 				url: '/__exact',
 				headers: { accept: 'application/x-ndjson' },
-				body: { type: 'action', id: 'allowed-action' }
+				body: { type: 'invoke', id: 'allowed-action' }
 			},
 			{
 				status() {

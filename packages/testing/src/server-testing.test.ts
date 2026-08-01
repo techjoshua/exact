@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createVNode, type Component } from '@exactjs/core';
+import { activateTaskForHost, createContext, defineTask, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 
 import { ExactProtocolRecorder, mountClientServerTest, testServerComponent } from './index.js';
+import { createTestVNode as createVNode, markTestComponent } from './internal/fixtures.js';
 
 describe('server component testing', () => {
 	it('captures settled state and inherited, provided, application, and request contexts', async () => {
@@ -23,15 +24,18 @@ describe('server component testing', () => {
 		function Page(this: Component<{ ready: boolean }>, props: { label: string }) {
 			this.state.ready = false;
 			this.setContext(Theme, 'dark');
-			(this as any).task(async () => {
-				await Promise.resolve();
-				this.state.ready = true;
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await Promise.resolve();
+					this.state.ready = true;
+				})
+			);
 			return () =>
 				createVNode('main', null, props.label, this.state.ready ? createVNode(Child, {}) : null);
 		}
 
-		const view = await testServerComponent(Page)
+		const view = await testServerComponent(markTestComponent(Page))
 			.props({ label: 'Profile' })
 			.applicationContext(ApplicationName, 'Northwind')
 			.requestContext(RequestName, 'Ada')
@@ -66,7 +70,8 @@ describe('server component testing', () => {
 			this.setContext(ClientTheme, 'ocean');
 			return () => createVNode(ClientChild, {});
 		}
-		const server = await testServerComponent(ServerPage).render({
+		markTestComponent(ClientIsland);
+		const server = await testServerComponent(markTestComponent(ServerPage)).render({
 			hydration: { endpoint: '/__exact' }
 		});
 		const view = await mountClientServerTest({
@@ -79,6 +84,7 @@ describe('server component testing', () => {
 					'generated-action-7f3a': {
 						id: 'generated-action-7f3a',
 						componentId: 'component:ClientIsland',
+						kind: 'task',
 						readiness: 'nonblocking',
 						dependencies: [],
 						stateReads: [],
@@ -92,7 +98,7 @@ describe('server component testing', () => {
 			},
 			handle: async (request) => {
 				expect(request.body).toMatchObject({
-					type: 'action',
+					type: 'invoke',
 					id: 'generated-action-7f3a'
 				});
 				return {
@@ -100,7 +106,7 @@ describe('server component testing', () => {
 					headers: { 'content-type': 'application/json' },
 					body: JSON.stringify({
 						ok: true,
-						type: 'action',
+						type: 'invoke',
 						id: 'generated-action-7f3a',
 						state: { saved: true },
 						patches: []
@@ -118,11 +124,11 @@ describe('server component testing', () => {
 				markers: 'none'
 			}
 		]);
-		await view.client.invokeAction('generated-action-7f3a');
+		await view.client.invokeTask('generated-action-7f3a');
 		await view.settle();
 
 		expect(view.protocol.operations()).toEqual([
-			expect.objectContaining({ type: 'action', id: 'generated-action-7f3a' })
+			expect.objectContaining({ type: 'invoke', id: 'generated-action-7f3a' })
 		]);
 		expect(view.protocol.exchanges[0]?.response?.body).toMatchObject({
 			state: { saved: true }
@@ -148,7 +154,7 @@ describe('server component testing', () => {
 			settledContinuations: ['task:load']
 		} as const;
 
-		const view = await testServerComponent(Page).render({
+		const view = await testServerComponent(markTestComponent(Page)).render({
 			hydration: { resumptions: [activation] }
 		});
 
@@ -175,7 +181,7 @@ describe('server component testing', () => {
 		await fetch('/__exact', {
 			method: 'POST',
 			headers: {},
-			body: JSON.stringify({ type: 'action', id: 'opaque' })
+			body: JSON.stringify({ type: 'invoke', id: 'opaque' })
 		});
 		await recorder.settle();
 
@@ -204,7 +210,7 @@ describe('server component testing', () => {
 		await fetch('/__exact', {
 			method: 'POST',
 			headers: {},
-			body: JSON.stringify({ type: 'action', id: 'generated-action-7f3a' })
+			body: JSON.stringify({ type: 'invoke', id: 'generated-action-7f3a' })
 		});
 
 		expect(recorder.serverContextAccesses()).toEqual([

@@ -250,46 +250,34 @@ func collectProjectCallableEffects(
 	components []Component,
 	stateReads []StateRead,
 	stateWrites []StateWrite,
-	externalManifests []ExternalManifest,
 ) callableAnalysis {
-	if len(externalManifests) == 0 {
-		if project.callableCache == nil {
-			project.callableCache = buildProjectCallableCache(
-				project.program,
-				typeChecker,
-			)
-		}
-		cache := project.callableCache
-		if !cache.owned[sourceFile] {
-			refreshed := collectCallableEffects(
-				sourceFile,
-				typeChecker,
-				components,
-				stateReads,
-				stateWrites,
-			)
-			fingerprint := callableAnalysisFingerprint(refreshed)
-			if fingerprint != cache.fingerprints[sourceFile] {
-				cache.bySource[sourceFile] = refreshed
-				cache.fingerprints[sourceFile] = fingerprint
-				rebuildProjectCallableCache(project.program, cache)
-			}
-			cache.owned[sourceFile] = true
-		}
-		return callableAnalysisFromFacts(
-			sourceFile,
-			cache.merged.facts,
-			cache.analyses,
+	if project.callableCache == nil {
+		project.callableCache = buildProjectCallableCache(
+			project.program,
+			typeChecker,
 		)
 	}
-	return collectUncachedProjectCallableEffects(
-		project.program,
+	cache := project.callableCache
+	if !cache.owned[sourceFile] {
+		refreshed := collectCallableEffects(
+			sourceFile,
+			typeChecker,
+			components,
+			stateReads,
+			stateWrites,
+		)
+		fingerprint := callableAnalysisFingerprint(refreshed)
+		if fingerprint != cache.fingerprints[sourceFile] {
+			cache.bySource[sourceFile] = refreshed
+			cache.fingerprints[sourceFile] = fingerprint
+			rebuildProjectCallableCache(project.program, cache)
+		}
+		cache.owned[sourceFile] = true
+	}
+	return callableAnalysisFromFacts(
 		sourceFile,
-		typeChecker,
-		components,
-		stateReads,
-		stateWrites,
-		externalManifests,
+		cache.merged.facts,
+		cache.analyses,
 	)
 }
 
@@ -386,52 +374,6 @@ func rebuildProjectCallableCache(
 	} else if len(cache.analyses) > 1 {
 		cache.merged = mergeProjectCallableEffects(requested, cache.analyses)
 	}
-}
-
-func collectUncachedProjectCallableEffects(
-	program *compiler.Program,
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-	components []Component,
-	stateReads []StateRead,
-	stateWrites []StateWrite,
-	externalManifests []ExternalManifest,
-) callableAnalysis {
-	analyses := []callableAnalysis{
-		collectCallableEffects(
-			sourceFile,
-			typeChecker,
-			components,
-			stateReads,
-			stateWrites,
-		),
-	}
-	for _, dependency := range program.GetSourceFiles() {
-		if dependency == sourceFile || dependency.IsDeclarationFile ||
-			strings.Contains(strings.ReplaceAll(dependency.FileName(), `\`, `/`), "/node_modules/") {
-			continue
-		}
-		dependencyComponents := collectComponents(dependency)
-		_, dependencyReads, dependencyWrites :=
-			collectStateAnalysis(dependency, typeChecker)
-		analyses = append(
-			analyses,
-			collectCallableEffects(
-				dependency,
-				typeChecker,
-				dependencyComponents,
-				dependencyReads,
-				dependencyWrites,
-			),
-		)
-	}
-	var result callableAnalysis
-	if len(analyses) == 1 {
-		result = analyses[0]
-	} else {
-		result = mergeProjectCallableEffects(sourceFile, analyses)
-	}
-	return linkExternalCallableEffects(sourceFile, result, externalManifests)
 }
 
 func mergeProjectCallableEffects(
@@ -1819,7 +1761,7 @@ func moduleInitializerDiagnostics(
 	callables callableAnalysis,
 	target Target,
 	sourceFile *ast.SourceFile,
-	policy PolicyManifest,
+	policy PolicyAnalysis,
 ) []Diagnostic {
 	diagnostics := []Diagnostic{}
 	if target == TargetDefault {
@@ -1863,7 +1805,7 @@ func moduleInitializerDiagnostics(
 func policyConstrainsModuleInitializer(
 	node *ast.Node,
 	sourceFile *ast.SourceFile,
-	policy PolicyManifest,
+	policy PolicyAnalysis,
 ) bool {
 	startLine, _ := sourceLocation(sourceFile, node.Pos())
 	endLine, _ := sourceLocation(sourceFile, node.End())

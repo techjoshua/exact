@@ -1,52 +1,27 @@
 # @exactjs/ssr
 
-Server rendering and server-runtime composition for eXact.
+Server rendering and server-runtime composition for eXact applications.
 
-The package renders synchronous, asynchronous, hydratable, streaming, and progressive HTML;
-creates hydration configuration; diffs refresh boundaries; and builds the runtime consumed by
-platform adapters.
+## Usage
 
-```ts
+```tsx
 import { renderToStringAsync } from '@exactjs/ssr';
 
 const html = await renderToStringAsync(<App />);
 ```
 
-Compose private contracts from compiler-generated server artifacts for task operations, boundaries, and
-distributed component continuations. Pair hydratable output with `@exactjs/hydrate`; plain SSR can
-remain script-free.
+## Rendering modes
 
-Hydratable results expose the same public component resumption activations serialized into their
-hydration script. Server-only context and resources may influence permitted HTML but never enter
-that client record.
+The package supports synchronous and asynchronous strings, streaming and progressive documents,
+hydratable output, refresh-boundary diffing, and server-runtime creation. Choose the smallest mode
+that fits the response.
 
-Compiled component markers carry the same contract ID used by resumption records. This lets the
-DOM renderer authorize state restoration only after it has identified the exact component range;
-uncompiled components retain their function name as the fallback identity.
+Plain SSR can remain script-free. Pair hydratable output with `@exactjs/hydrate` and the matching
+compiler-generated client artifacts. Component inputs included in hydration must be deterministic
+and serializable.
 
-An SSR-rendered nested component with a distributed continuation is enclosed
-in an eager client boundary containing a detached, JSON-safe snapshot of its
-authored activation props. An ordinary state-only resumption remains part of
-normal parent/root adoption and does not become a standalone island.
-Snapshotting must not evaluate reactive child cells, invoke accessors, or
-subscribe the active render to the serialized object graph. Repeated
-plain-object references are allowed; true cycles remain rejected.
+Generated task handlers, component identities, resumption records, and registry selections are
+opaque contracts shared with the client runtime.
 
-Eager and lazy registry selections render through the ordinary component/Suspense pipeline.
-Registry binding, key, and opaque compiled identity are retained in the component marker name so
-the hydration client can reject a stale or different selection without accepting ambiguous
-component ownership.
-
-Synchronous rendering emits native Suspense fallbacks with explicit status markers. Async
-rendering waits for blocking descendants, and progressive document streams emit the smallest
-outermost settled Suspense range when boundary-local replacement can reproduce the final output;
-otherwise they conservatively replace the root.
-
-See [Task interactions and forms](../../docs/actions-and-forms.md) and
-[finite component registries](../../docs/component-registries.md).
-
-Request rendering automatically inherits a server inspection owner when its server runtime retains
-the selected build/root catalog. SSR component, state, readiness, and disposal observations fan out
-only to active authorized sessions and do not retain request-owned instances. Lower-level render
-APIs may receive an explicit `inspection` owner. See
-[Server-cooperative full-stack DevTools](../../docs/devtools.md).
+See [SSR and hydration](../../docs/ssr-hydration.md), [tasks](../../docs/tasks.md), and
+[component registries](../../docs/component-registries.md).

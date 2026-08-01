@@ -12,7 +12,7 @@ if (failures.length) {
 	for (const failure of failures) console.error(failure);
 	process.exitCode = 1;
 } else {
-	console.log(`${packages} package README files are present and current-scope clean.`);
+	console.log(`${packages} package README files are present and human-oriented.`);
 }
 
 async function visit(directory, isRoot = false) {
@@ -42,5 +42,17 @@ async function validatePackage(directory) {
 	}
 	if (!manifest.private && !contents.startsWith(`# ${manifest.name}\n`)) {
 		failures.push(`${relative}/${readmeName}: first heading must be "# ${manifest.name}"`);
+	}
+	if (!manifest.private && !/^## /m.test(contents)) {
+		failures.push(`${relative}/${readmeName}: public README needs a scannable section layout`);
+	}
+	const lineCount = contents.trimEnd().split(/\r?\n/).length;
+	if (!manifest.private && lineCount > 80) {
+		failures.push(
+			`${relative}/${readmeName}: public README is too long (${lineCount} lines; maximum 80)`
+		);
+	}
+	if (/^# Maintaining\b/m.test(contents)) {
+		failures.push(`${relative}/${readmeName}: README is addressed to package maintainers`);
 	}
 }

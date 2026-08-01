@@ -18,6 +18,7 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
+import { createTestVNode } from '@exactjs/testing/internal/fixtures';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -35,47 +36,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		await mkdir(sourceRoot, { recursive: true });
 		await writeFile(
 			source,
-			`
-				import { createContext, type Component } from "@exactjs/core";
-
-				const StatusContext = createContext<{ message: string }>("status", {
-					keep: "shared"
-				});
-
-				function Status(this: Component<{}>) {
-					const status = this.getContext(StatusContext);
-					return () => <output data-status>{status.message}</output>;
-				}
-
-				export function Search(this: Component<{ query: string; result: string }>) {
-					this.state.query = "first";
-					this.state.result = "waiting";
-
-					this.task.server(async () => {
-						const query = this.state.query;
-						await Promise.resolve();
-						const result = query.toUpperCase();
-						this.state.result = result;
-						this.setContext(StatusContext, { message: result });
-					});
-
-					return () => (
-						<label>
-							Query
-							<button
-								type="button"
-								onClick={() => {
-									this.state.query = "second";
-								}}
-							>
-								Change
-							</button>
-							<output>{this.state.result}</output>
-							<Status />
-						</label>
-					);
-				}
-			`
+			'import { TaskContext } from "@exactjs/core";\n\n\t\t\t\timport { createContext, type Component } from "@exactjs/core";\n\n\t\t\t\tconst StatusContext = createContext<{ message: string }>("status", {\n\t\t\t\t\tkeep: "shared"\n\t\t\t\t});\n\n\t\t\t\tfunction Status(this: Component<{}>) {\n\t\t\t\t\tconst status = this.getContext(StatusContext);\n\t\t\t\t\treturn () => <output data-status>{status.message}</output>;\n\t\t\t\t}\n\n\t\t\t\texport function Search(this: Component<{ query: string; result: string }>) {\n\t\t\t\t\tthis.state.query = "first";\n\t\t\t\t\tthis.state.result = "waiting";\n\n\t\t\t\t\tconst runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\t\tconst query = this.state.query;\n\t\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\t\tconst result = query.toUpperCase();\n\t\t\t\t\t\tthis.state.result = result;\n\t\t\t\t\t\tthis.setContext(StatusContext, { message: result });\n\t\t\t\t\t};\nrunFixtureTask();\n\n\t\t\t\t\treturn () => (\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\tQuery\n\t\t\t\t\t\t\t<button\n\t\t\t\t\t\t\t\ttype="button"\n\t\t\t\t\t\t\t\tonClick={() => {\n\t\t\t\t\t\t\t\t\tthis.state.query = "second";\n\t\t\t\t\t\t\t\t}}\n\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\tChange\n\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t\t<output>{this.state.result}</output>\n\t\t\t\t\t\t\t<Status />\n\t\t\t\t\t\t</label>\n\t\t\t\t\t);\n\t\t\t\t}\n\t\t\t'
 		);
 		const compiled = await compileFileArtifacts(source, {
 			outDir: generatedRoot,
@@ -92,7 +53,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		const requests: ExactInvocationRequest[] = [];
 		const server: ExactServerContext = {
 			contract: serverContract,
-			actions: {}
+			invocations: {}
 		};
 		const rendered = await renderToHydratableStringAsync(createVNode(ServerSearch, {}), {
 			endpoint: '/__exact',
@@ -132,7 +93,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		expect(container.querySelector('output')?.textContent).toBe('SECOND');
 		expect(container.querySelector('[data-status]')?.textContent).toBe('SECOND');
 		expect(requests[0]).toMatchObject({
-			type: 'action',
+			type: 'invoke',
 			root: 'page',
 			payload: { dependencies: ['second'] },
 			state: { query: 'second' }
@@ -205,7 +166,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		const container = document.createElement('main');
 		document.body.append(container);
 		try {
-			render(createVNode(HiddenRootTasks, null), container);
+			render(createTestVNode(HiddenRootTasks, null), container);
 			await vi.waitFor(() => {
 				expect(container.querySelector('[data-result="billing"]')?.textContent).toBe(
 					'BILLING-READY'
@@ -268,32 +229,7 @@ async function compileRemoteTask(root: string, name: string) {
 	await mkdir(sourceRoot, { recursive: true });
 	await writeFile(
 		source,
-		`
-			import type { Component } from "@exactjs/core";
-			export function RemoteTask(
-				this: Component<{ query: string; result: string }>,
-				props: { name: string }
-			) {
-				this.state.query = props.name + "-ready";
-				this.state.result = "waiting";
-				this.task.server(async () => {
-					const query = this.state.query;
-					await Promise.resolve();
-					this.state.result = query.toUpperCase();
-				});
-				return () => (
-					<section>
-						<button
-							data-task={props.name}
-							onClick={() => this.state.query = props.name + "-next"}
-						>
-							Run
-						</button>
-						<output data-result={props.name}>{this.state.result}</output>
-					</section>
-				);
-			}
-		`
+		'import { TaskContext } from "@exactjs/core";\n\n\t\t\timport type { Component } from "@exactjs/core";\n\t\t\texport function RemoteTask(\n\t\t\t\tthis: Component<{ query: string; result: string }>,\n\t\t\t\tprops: { name: string }\n\t\t\t) {\n\t\t\t\tthis.state.query = props.name + "-ready";\n\t\t\t\tthis.state.result = "waiting";\n\t\t\t\tconst runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\tconst query = this.state.query;\n\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\tthis.state.result = query.toUpperCase();\n\t\t\t\t};\nrunFixtureTask();\n\t\t\t\treturn () => (\n\t\t\t\t\t<section>\n\t\t\t\t\t\t<button\n\t\t\t\t\t\t\tdata-task={props.name}\n\t\t\t\t\t\t\tonClick={() => this.state.query = props.name + "-next"}\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\tRun\n\t\t\t\t\t\t</button>\n\t\t\t\t\t\t<output data-result={props.name}>{this.state.result}</output>\n\t\t\t\t\t</section>\n\t\t\t\t);\n\t\t\t}\n\t\t'
 	);
 	const compiled = await compileFileArtifacts(source, {
 		outDir: generatedRoot,
@@ -325,14 +261,14 @@ function remoteServer(
 	buildKey: string
 ): ExactServerContext {
 	return {
-		contract: { version: 1, actions: {}, boundaries: {} },
+		contract: { version: 1, invocations: {}, boundaries: {} },
 		remoteBuilds: {
 			[buildKey]: {
 				buildKey,
 				roots: {
 					[fixture.root]: {
 						contract: fixture.serverContract,
-						actions: {}
+						invocations: {}
 					}
 				}
 			}

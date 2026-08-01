@@ -15,7 +15,7 @@ var registrySelectedExportPattern = regexp.MustCompile(
 	`\{\s*(?:default\s*:\s*)?([A-Za-z_$][\w$]*)[^}]*\}\s*\)\s*=>`,
 )
 
-// collectComponentRegistries records finite registry provenance for manifests,
+// collectComponentRegistries records finite registry provenance for module analysis,
 // explain tools, artifact planning, and target-local authority checks.
 func collectComponentRegistries(
 	sourceFile *ast.SourceFile,

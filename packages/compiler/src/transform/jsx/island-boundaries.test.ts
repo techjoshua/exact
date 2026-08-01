@@ -49,17 +49,16 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain('title: this.state.title');
 		expect(server).not.toContain('window.innerWidth');
 		expect(server).not.toContain('onClick');
-		expect(result.manifest.boundaries).toContainEqual(
+		expect(result.analysis.boundaries).toContainEqual(
 			expect.objectContaining({
 				id: expect.any(String),
 				name: 'ClientWidget',
 				componentId: expect.any(String),
-				ownerComponentId: result.manifest.components.find((component) => component.name === 'Page')!
+				ownerComponentId: result.analysis.components.find((component) => component.name === 'Page')!
 					.id,
 				kind: 'client-island'
 			})
 		);
-		expect(result.manifest.artifacts?.boundaries).toEqual(result.manifest.boundaries);
 	});
 
 	it('emits server-safe boundary stubs for client components', () => {
@@ -102,8 +101,8 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).not.toContain('window.innerWidth');
 	});
 
-	it('emits manifest boundaries for refreshable server child slots', () => {
-		const manifest = analyzeSource(
+	it('emits analysis boundaries for refreshable server child slots', () => {
+		const analysis = analyzeSource(
 			`
       export function ClientShell(this: Component<{ width: number }>, props: { children?: unknown }) {
         this.state.width = window.innerWidth;
@@ -120,11 +119,11 @@ describe('@exactjs/compiler: island boundaries', () => {
 			{ filename: 'Page.tsx' }
 		);
 
-		const slotBoundary = manifest.boundaries.find(
+		const slotBoundary = analysis.boundaries.find(
 			(boundary) => boundary.name === 'ClientShell:children' && boundary.kind === 'server-slot'
 		);
 		expect(slotBoundary).toBeDefined();
-		expect(manifest.boundaries).toContainEqual(
+		expect(analysis.boundaries).toContainEqual(
 			expect.objectContaining({
 				id: slotBoundary!.id.slice(0, -':children'.length),
 				name: 'ClientShell',
@@ -134,7 +133,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 			})
 		);
 		expect(
-			manifest.boundaries.filter(
+			analysis.boundaries.filter(
 				(boundary) => boundary.name === 'ClientShell:children' && boundary.kind === 'server-slot'
 			)
 		).toHaveLength(1);
@@ -154,23 +153,23 @@ describe('@exactjs/compiler: island boundaries', () => {
         </>;
       }
     `;
-		const manifest = analyzeSource(source, { filename: 'Page.tsx' });
+		const analysis = analyzeSource(source, { filename: 'Page.tsx' });
 		const server = transform(source, { filename: 'Page.tsx', target: 'server' });
 
-		const slotBoundaries = manifest.boundaries.filter(
+		const slotBoundaries = analysis.boundaries.filter(
 			(boundary) => boundary.name === 'ClientShell:children' && boundary.kind === 'server-slot'
 		);
 		const slottedClientBoundaryIds = slotBoundaries.map((boundary) =>
 			boundary.id.slice(0, -':children'.length)
 		);
-		const slottedClientBoundaries = manifest.boundaries.filter((boundary) =>
+		const slottedClientBoundaries = analysis.boundaries.filter((boundary) =>
 			slottedClientBoundaryIds.includes(boundary.id)
 		);
 		const emittedBoundaryIds = Array.from(
 			server.matchAll(/__exactBoundary\("([^"]+)", "ClientShell"/g),
 			(match) => match[1]
 		);
-		const page = manifest.components.find((component) => component.name === 'Page')!;
+		const page = analysis.components.find((component) => component.name === 'Page')!;
 
 		expect(slotBoundaries).toHaveLength(2);
 		expect(slottedClientBoundaries).toHaveLength(2);
@@ -236,16 +235,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 	it('fails clearly when a generated client island references server-only imports', () => {
 		expect(() =>
 			transform(
-				`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          this.state.count = 1;
-        });
-        return () => <button onClick={() => readFile("secret.txt", "utf8")}>Read</button>;
-      }
-    `,
+				'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.count = 1;\n        };\nrunFixtureTask();\n        return () => <button onClick={() => readFile("secret.txt", "utf8")}>Read</button>;\n      }\n    ',
 				{ filename: 'Panel.tsx', target: 'server' }
 			)
 		).toThrow('client island cannot reference server-only imports');
@@ -254,16 +244,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 	it('fails clearly when isomorphic server-rendered code references browser globals outside a client island', () => {
 		expect(() =>
 			transform(
-				`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ title: string }>) {
-        this.task.server(async () => {
-          this.state.title = await readFile("title.txt", "utf8");
-        });
-        return () => <p>{window.innerWidth}</p>;
-      }
-    `,
+				'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ title: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("title.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <p>{window.innerWidth}</p>;\n      }\n    ',
 				{ filename: 'Panel.tsx', target: 'server' }
 			)
 		).toThrow('browser-only global window cannot be used in server-rendered component code');
@@ -317,7 +298,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain('"ClientChart"');
 	});
 
-	it('splits imported client components using project manifests', async () => {
+	it('splits imported client components using project-session analysis', async () => {
 		const root = await createTestWorkspace('exact-imported-component-split-');
 		const srcDir = path.join(root, 'src');
 		const outDir = path.join(root, 'out');
@@ -360,17 +341,17 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain('"Server child"');
 		expect(server).not.toContain('from "./ClientWidget"');
 		expect(server).not.toContain('window.innerWidth');
-		expect(page.manifest.boundaries).toContainEqual(
+		expect(page.analysis.boundaries).toContainEqual(
 			expect.objectContaining({
 				name: 'ClientWidget',
-				componentId: widget.manifest.components[0]!.id,
+				componentId: widget.analysis.components[0]!.id,
 				kind: 'client-island'
 			})
 		);
-		expect(page.manifest.boundaries).toContainEqual(
+		expect(page.analysis.boundaries).toContainEqual(
 			expect.objectContaining({
 				name: 'ClientWidget:children',
-				componentId: widget.manifest.components[0]!.id,
+				componentId: widget.analysis.components[0]!.id,
 				kind: 'server-slot'
 			})
 		);

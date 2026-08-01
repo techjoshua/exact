@@ -80,7 +80,9 @@ selecting a component highlights only its currently owned DOM elements.
 
 The Chromium **Components** view shows every durable instance in its live parent/child hierarchy.
 Selecting a node exposes that instance's bounded state, props, contexts, tasks, and dependency
-explanation. The tree and selected-instance details scroll independently.
+explanation. The tree and selected-instance details scroll independently. Live updates preserve
+both scroll positions and expanded or collapsed detail sections. Selecting another component keeps
+the tree position while starting that component's details at the top.
 
 The **Profiler** is an explicit bounded capture rather than an always-running trace. Start
 recording, interact with the application, and stop recording to inspect causal frames. Explicit

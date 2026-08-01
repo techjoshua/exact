@@ -71,11 +71,14 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 		reactCompatibility,
 		r3fBrowser,
 		compilerAcceptance,
-		expressions:
-			selected.some(
-				(workspace) =>
-					workspace.name === '@exactjs/expressions' || workspace.name === '@exactjs/compiler'
-			) || changedScripts.some((filename) => filename.includes('expression'))
+		nativeCompilerCorpus:
+			selected.some((workspace) => workspace.name === '@exactjs/compiler') ||
+			changedFiles.some(
+				(filename) =>
+					filename.startsWith('native/typescript-go/') ||
+					filename.startsWith('fixtures/native-compiler-corpus/')
+			) ||
+			changedScripts.some((filename) => filename.includes('native-compiler-corpus'))
 	});
 }
 
@@ -88,7 +91,8 @@ export function compilerAcceptanceAffected(changedFiles) {
 	return changedFiles.some(
 		(filename) =>
 			filename.startsWith('native/typescript-go/') ||
-			/^packages\/(?:compiler|expressions|plugin-api|plugin-host)\//.test(filename) ||
+			filename.startsWith('fixtures/native-compiler-corpus/') ||
+			/^packages\/(?:compiler|plugin-api|plugin-host)\//.test(filename) ||
 			/^framework-adapters\/(?:bun|vite|webpack)-plugin\//.test(filename) ||
 			[
 				'scripts/check-compiler-acceptance.mjs',

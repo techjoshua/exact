@@ -83,7 +83,7 @@ server task operations, refreshable server boundaries, or generated client islan
    boundary IDs.
 3. Compose the allowlisted private component contracts and server runtime using installed eXact
    APIs.
-4. Render hydratable server output with the corresponding manifest configuration.
+4. Render hydratable server output with the corresponding hydration configuration.
 5. Expose the eXact endpoint through the deployment runtime's adapter.
 6. Configure the hydration client with the same endpoint and register generated client islands.
 
@@ -109,6 +109,6 @@ Server-component capabilities are version-sensitive. Inspect the installed `@exa
 
 `TaskContext.client()` and `TaskContext.server()` policy defaults control where
 task work remains in a split build. They do not create browser/server
-entrypoints, choose a renderer, enable hydration, produce manifests, or expose
+entrypoints, choose a renderer, enable hydration, produce build artifacts, or expose
 an endpoint. Let environment usage infer placement when possible and make the
 application rendering decision separately.

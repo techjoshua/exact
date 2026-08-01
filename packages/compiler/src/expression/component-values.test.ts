@@ -84,6 +84,9 @@ describe('@exactjs/compiler: component values', () => {
 
 		expect(output).toContain('@exactjs/component-contract');
 		expect(output).toContain('@exactjs/component');
+		expect(output).toMatch(/\[Symbol\.for\("@exactjs\/component"\)\]: "[^"]+"/);
+		expect(output).not.toContain('[Symbol.for("@exactjs/component")]: true');
+		expect(output).toMatch(/\[__exactComponentContract_\d+\]: \{\s*version: 1,\s*placement:/);
 		expect(output).toContain('__exactComponentImplementation');
 		expect(output).toContain('Object.assign');
 	});

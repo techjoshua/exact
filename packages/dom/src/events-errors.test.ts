@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 import {
-	createCompiledVNode,
 	createErrorContext,
 	createExpression,
 	ErrorBoundary,
@@ -13,7 +12,7 @@ import {
 	type LogEvent,
 	type Logger
 } from '@exactjs/core';
-import { jsx } from '@exactjs/jsx';
+import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';

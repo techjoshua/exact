@@ -35,7 +35,7 @@ export type ExactCollectionMutation =
 /** Private operation contract attached to the component artifact that owns it. */
 export type ExactComponentContinuationContract = Readonly<{
 	id: string;
-	kind?: 'task' | 'action';
+	kind: 'task';
 	componentId: string;
 	readiness: 'blocking' | 'nonblocking';
 	dependencies: readonly Readonly<{
@@ -108,7 +108,6 @@ export type ExactComponentResumptionContract = Readonly<{
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{
 	version: 1;
-	id: string;
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
 	role: 'client' | 'executor';
 	implementations: readonly ExactComponentImplementationContract[];
@@ -130,25 +129,29 @@ export type ExactComposedComponentContracts = Readonly<{
 
 type ContractComponent = ((...args: any[]) => any) & {
 	[exactComponentContract]?: ExactComponentContract;
-	[exactComponentType]?: true;
+	[exactComponentType]?: string;
 };
 
-/** Marks a framework or library component that does not pass through the eXact compiler. */
-export function markExactComponent<T extends (...args: any[]) => any>(component: T): T {
+/** Brands a compilerless framework component with an explicit stable native identity. */
+export function markExactComponent<T extends (...args: any[]) => any>(
+	component: T,
+	identity: string
+): T {
+	if (!identity) throw new Error('eXact component identity must be a non-empty string');
 	Object.defineProperty(component, exactComponentType, {
 		configurable: false,
 		enumerable: false,
-		value: true,
+		value: identity,
 		writable: false
 	});
 	return component;
 }
 
-/** Returns whether a callable carries the native eXact component marker or compiled contract. */
+/** Returns whether a callable carries a valid native eXact component identity. */
 export function isExactComponent(component: unknown): component is (...args: any[]) => unknown {
 	if (typeof component !== 'function') return false;
-	const candidate = component as ContractComponent;
-	return candidate[exactComponentType] === true || candidate[exactComponentContract] !== undefined;
+	const identity = (component as ContractComponent)[exactComponentType];
+	return typeof identity === 'string' && identity.length > 0;
 }
 
 /** Reads and validates compiler-attached metadata from one target-local component export. */
@@ -157,13 +160,17 @@ export function readExactComponentContract(
 ): ExactComponentContract | undefined {
 	const contract = (component as ContractComponent)[exactComponentContract];
 	if (!contract) return undefined;
-	if (!isComponentContract(contract)) throw new Error('Unsupported eXact component contract');
+	const componentId = exactComponentIdentity(component);
+	if (!isComponentContract(contract, componentId))
+		throw new Error('Unsupported eXact component contract');
 	return contract;
 }
 
 /** Returns the stable compiler identity used to pair SSR and client component boundaries. */
 export function exactComponentIdentity(component: (...args: any[]) => unknown): string {
-	return readExactComponentContract(component)?.id ?? (component.name || 'anonymous');
+	const identity = (component as ContractComponent)[exactComponentType];
+	if (typeof identity === 'string' && identity) return identity;
+	throw new Error('Native eXact components require compiler-owned identity');
 }
 
 /**
@@ -186,9 +193,10 @@ export function composeExactComponentContracts(
 	for (const component of components) {
 		const contract = readExactComponentContract(component);
 		if (!contract) continue;
+		const componentId = exactComponentIdentity(component);
 		if (contract.role !== role)
 			throw new Error(
-				`Expected eXact ${role} component contract for ${contract.id}, received ${contract.role}`
+				`Expected eXact ${role} component contract for ${componentId}, received ${contract.role}`
 			);
 		for (const implementation of contract.implementations) {
 			addUniqueImplementation(
@@ -257,12 +265,11 @@ function addUniqueJson<T>(target: Record<string, T>, key: string, value: T, kind
 }
 
 /** Validates all required metadata before a generated artifact gains runtime authority. */
-function isComponentContract(value: unknown): value is ExactComponentContract {
+function isComponentContract(value: unknown, componentId: string): value is ExactComponentContract {
 	if (!isRecord(value)) return false;
 	return (
 		hasOnlyKeys(value, [
 			'version',
-			'id',
 			'placement',
 			'role',
 			'implementations',
@@ -272,7 +279,6 @@ function isComponentContract(value: unknown): value is ExactComponentContract {
 			'resumption'
 		]) &&
 		value.version === 1 &&
-		isString(value.id) &&
 		(value.placement === 'client' ||
 			value.placement === 'server' ||
 			value.placement === 'isomorphic' ||
@@ -281,12 +287,19 @@ function isComponentContract(value: unknown): value is ExactComponentContract {
 		Array.isArray(value.implementations) &&
 		value.implementations.every(isImplementation) &&
 		Array.isArray(value.continuations) &&
-		value.continuations.every(isContinuation) &&
+		value.continuations.every(
+			(continuation) => isContinuation(continuation) && continuation.componentId === componentId
+		) &&
 		Array.isArray(value.executors) &&
-		value.executors.every(isExecutor) &&
+		value.executors.every(
+			(executor) => isExecutor(executor) && executor.componentId === componentId
+		) &&
 		Array.isArray(value.boundaries) &&
-		value.boundaries.every(isBoundary) &&
-		(value.resumption === undefined || isResumption(value.resumption))
+		value.boundaries.every(
+			(boundary) => isBoundary(boundary) && boundary.componentId === componentId
+		) &&
+		(value.resumption === undefined ||
+			(isResumption(value.resumption) && value.resumption.componentId === componentId))
 	);
 }
 
@@ -322,7 +335,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 			'invocation'
 		]) &&
 		isString(value.id) &&
-		(value.kind === undefined || value.kind === 'task' || value.kind === 'action') &&
+		value.kind === 'task' &&
 		isString(value.componentId) &&
 		(value.readiness === 'blocking' || value.readiness === 'nonblocking') &&
 		Array.isArray(value.dependencies) &&
@@ -340,7 +353,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 	);
 }
 
-/** Validates action-only invocation metadata attached to a continuation. */
+/** Validates direct-invocation metadata attached to a task continuation. */
 function isInvocation(value: unknown): boolean {
 	if (!isRecord(value)) return false;
 	return (

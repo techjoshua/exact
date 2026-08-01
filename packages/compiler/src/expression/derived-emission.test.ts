@@ -287,30 +287,24 @@ describe('@exactjs/compiler: derived values', () => {
 	});
 
 	it('inlines safe derived consts inside task dependency captures', () => {
-		const output = transform(`
-      function View(this: Component<{ query: string }>) {
-        const label = \`\${this.state.query}!\`;
-        this.task(label, async value => {});
-      }
-    `);
+		const output = transform(
+			'import { TaskContext } from "@exactjs/core";\n\n      function View(this: Component<{ query: string }>) {\n        const label = `${this.state.query}!`;\n        const runFixtureTask = async (value, _task: TaskContext = TaskContext.latest()) => {};\n        runFixtureTask(label);\n        return () => <p />;\n      }\n    '
+		);
 
 		expect(output).toContain('const label = __exactDerived(() => `${this.state.query}!`);');
 		expect(output).toMatch(
-			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?async \(value\) => \{\s*\}\), label\);/
+			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?async \(value, _task: TaskContext\) => \{\s*\}\), label\);/
 		);
 	});
 
 	it('inlines safe prop-derived consts inside task dependency captures', () => {
-		const output = transform(`
-      function View(props: { query: string }) {
-        const label = \`\${props.query}!\`;
-        this.task(label, async value => {});
-      }
-    `);
+		const output = transform(
+			'import { TaskContext } from "@exactjs/core";\n\n      function View(props: { query: string }) {\n        const label = `${props.query}!`;\n        const runFixtureTask = async (value, _task: TaskContext = TaskContext.latest()) => {};\n        runFixtureTask(label);\n        return () => <p />;\n      }\n    '
+		);
 
 		expect(output).toContain('const label = __exactDerived(() => `${props.query}!`);');
 		expect(output).toMatch(
-			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?async \(value\) => \{\s*\}\), label\);/
+			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?async \(value, _task: TaskContext\) => \{\s*\}\), label\);/
 		);
 	});
 
@@ -324,7 +318,7 @@ describe('@exactjs/compiler: derived values', () => {
         };
       }
     `)
-		).toThrow(/render functions may only return the view expression/);
+		).toThrow(/render functions must contain one view expression/);
 	});
 
 	it('rejects declarations captured by returned-view handlers', () => {
@@ -337,7 +331,7 @@ describe('@exactjs/compiler: derived values', () => {
         };
       }
     `)
-		).toThrow(/render functions may only return the view expression/);
+		).toThrow(/render functions must contain one view expression/);
 	});
 
 	it('materializes safe derived consts declared inside map render callbacks', () => {
@@ -403,12 +397,12 @@ describe('@exactjs/compiler: derived values', () => {
 
 	it('does not recapture existing reactive lambdas or run-once tasks', () => {
 		const output = transform(
-			'function View() { this.reactive(() => this.state.query); this.task(({ signal }: { signal: AbortSignal }) => {}); }'
+			'import { TaskContext } from "@exactjs/core";\nfunction View() { this.reactive(() => this.state.query); const runFixtureTask = ({ signal }: TaskContext = TaskContext.latest()) => {};\nrunFixtureTask(); }'
 		);
 
 		expect(output).toContain('this.reactive(() => this.state.query)');
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
-		expect(output).toContain('({ signal }:');
+		expect(output).toContain('({ signal }: TaskContext)');
 		expect(output).not.toContain('this.reactive(() => () => this.state.query)');
 	});
 

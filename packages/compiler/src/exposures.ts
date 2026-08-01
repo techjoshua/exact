@@ -15,7 +15,7 @@ export function exactReachableExposureComponents(
 ): ReadonlySet<string> {
 	const known = new Set(
 		graph.artifacts.flatMap((artifact) =>
-			artifact.manifest.components.map((component) => component.id)
+			artifact.analysis.components.map((component) => component.id)
 		)
 	);
 	if (!known.has(rootComponentId))
@@ -46,7 +46,7 @@ export function selectExactExposureArtifactGraph(
 ): ExactArtifactGraph {
 	const reachable = exactReachableExposureComponents(graph, rootComponentId);
 	const artifacts = graph.artifacts.filter((artifact) =>
-		artifact.manifest.components.some((component) => reachable.has(component.id))
+		artifact.analysis.components.some((component) => reachable.has(component.id))
 	);
 	const selectedInputs = new Set(artifacts.map((artifact) => artifact.inputFile));
 	return {

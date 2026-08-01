@@ -11,7 +11,7 @@ import (
 
 // collectSemanticGraph projects checker-owned binder identities into a
 // process-safe graph. IDs deliberately use the declared request filename so
-// manifests never expose a compiler-host working directory.
+// analysis results never expose a compiler-host working directory.
 func collectSemanticGraph(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,

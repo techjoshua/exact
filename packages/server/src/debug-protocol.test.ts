@@ -203,7 +203,7 @@ describe('server-cooperative debug protocol', () => {
 		let invoked = 0;
 		const context = server({
 			allowDebug: true,
-			actions: {
+			invocations: {
 				'component:Page:task:load': () => {
 					invoked++;
 					return {};
@@ -309,7 +309,7 @@ function server(overrides: Partial<ExactServerContext> = {}): ExactServerContext
 		contract: {
 			version: 1,
 			endpoint: '/__exact',
-			actions: {},
+			invocations: {},
 			executors: {},
 			boundaries: {}
 		},

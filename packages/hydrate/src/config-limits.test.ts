@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('bounded hydration bootstrap and adoption', () => {
 	it('merges serialized server continuations with client component continuations', () => {
@@ -11,6 +11,7 @@ describe('bounded hydration bootstrap and adoption', () => {
 		const continuation = (id: string) => ({
 			id,
 			componentId: `component:${id}`,
+			kind: 'task' as const,
 			readiness: 'nonblocking' as const,
 			dependencies: [],
 			stateReads: [],

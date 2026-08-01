@@ -23,7 +23,7 @@ editor state. Disposal releases overlays, dependency indexes, pending work, and
 the native process.
 
 Language sessions are permanently `noEmit: true`: they never write JavaScript,
-target artifacts, manifests, source maps, or inspection catalogs. Source
+target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
 Native protocol 1.25 retains `setupExecution` on authored state assignments
@@ -62,24 +62,28 @@ provide an explicit executable.
 
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
-`createCompilerSession`, `transformSource`, `analyzeSource`, and the artifact-planning APIs from
+`createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
 diagnostics, and dispose it when the build closes.
 
-Generated operation identifiers, compiler manifests, helper imports, and lowered source are
-coordination details. Applications should depend on authored TypeScript behavior and documented
-runtime contracts rather than generated representation.
+Generated operation identifiers, ephemeral module analysis, helper imports, and lowered source
+are compiler-session details. Applications should depend on authored TypeScript behavior and
+documented executable runtime contracts rather than generated representation.
 
-## Repository-only migration code
+## Repository-only compiler corpus
 
-`@exactjs/expressions` is a private workspace retained for compiler experiments and corpus
-measurements. It is not publishable and no public framework package depends on it.
+[`../fixtures/native-compiler-corpus`](../fixtures/native-compiler-corpus) retains focused
+TypeScript and TSX semantic stress cases alongside representative framework applications. The
+release check sends those sources directly through `exactc-native`; there is no executable
+JavaScript expression engine or alternate semantic backend. Its tracked wall-time guard normalizes
+the baseline for both the discovered source count and the available native worker count, so CI and
+local runs remain comparable without oversubscribing smaller machines.
 
 The small public `@exactjs/module-rewrite` package owns module-reference rewriting still needed by
-React compatibility tooling. It does not contain the retired eXact compiler.
+React compatibility tooling. It is a bounded source-text utility, not an eXact compiler.
 
 ## Change verification
 
@@ -90,5 +94,5 @@ Compiler and bundler-assembly changes trigger a dedicated acceptance workflow. I
 - Shipping Calculator for generated client/server continuations and `__exact` endpoint traffic.
 
 The native package matrix separately builds, installs, and executes each supported platform
-package. Publish checks inspect the compiler dependency graph and tarball so the retired compiler
-cannot re-enter generated applications unnoticed.
+package. Publish checks inspect the compiler dependency graph and tarball so retired compiler
+packages cannot re-enter generated applications unnoticed.

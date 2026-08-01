@@ -25,4 +25,5 @@ export function FieldError(this: Component<{}>, props: FieldErrorProps) {
 			: null;
 }
 
-for (const component of [FieldHelp, FieldError]) markExactComponent(component);
+markExactComponent(FieldHelp, '@exactjs/forms:FieldHelp');
+markExactComponent(FieldError, '@exactjs/forms:FieldError');

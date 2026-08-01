@@ -1,13 +1,8 @@
-# Using @exactjs/router
+# Using `@exactjs/router`
 
-Read this package's `README.md` and choose the native entrypoint unless a React Router
-compatibility facade is intentionally required.
+See the [README](./README.md) for setup and examples. Use the native entry point for eXact
+applications; choose a compatibility entry point only when integrating React Router code.
 
-Navigation, fetch, submit, and revalidation started synchronously inside an event, form, or task
-must join the current component interaction task frame. Preserve latest-wins navigation, cancellation,
-redirects, blockers, stale-result fencing, and durable error ownership while doing so. Do not
-invent a second transition or pending-state model around the router.
-
-Keep prop destructuring, route matching, and link presentation in setup. Return
-only a view expression from render functions; use a named pure helper for a
-setup-derived projection rather than imperative render-body control flow.
+- Start navigation normally from links, forms, events, or tasks so it joins the current interaction.
+- Let the router own cancellation, redirects, blockers, revalidation, and pending navigation state.
+- Use route components and registries rather than building a parallel transition model.

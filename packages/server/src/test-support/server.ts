@@ -13,7 +13,7 @@ export function context(overrides: Partial<ExactServerContext> = {}): ExactServe
 	return {
 		contract: {
 			version: 1,
-			actions: {
+			invocations: {
 				'allowed-action': defineExactOperationContract('allowed-action')
 			},
 			executors: {},
@@ -21,7 +21,7 @@ export function context(overrides: Partial<ExactServerContext> = {}): ExactServe
 				'allowed-boundary': defineExactBoundaryContract('allowed-boundary')
 			}
 		},
-		actions: {
+		invocations: {
 			'allowed-action': async (input) => ({
 				patches: [
 					{

@@ -1,10 +1,13 @@
 # @exactjs/convex
 
-eXact adapter for Convex React integrations.
+eXact integration for Convex clients and React compatibility.
 
-The package bridges supported Convex provider and client behavior into component-owned eXact
-context and reactive sources. It also publishes compatibility metadata so the build engine can
-substitute supported React exports when their installed versions match.
+## When to use it
 
-Use the native entrypoint in eXact components. Keep network subscriptions owned by component
-lifecycle and allow unmounting to dispose external observations.
+Use the native provider and query sources to share a Convex client through eXact context and expose
+query results as component-owned reactive values. Subscriptions are released with their component.
+
+The package also publishes compatibility metadata for supported Convex React exports, allowing an
+eXact build to substitute the adapter when package versions match.
+
+See [React ecosystem adapters](../../docs/react-ecosystem-adapters.md).

@@ -115,9 +115,9 @@ export function ComparisonPage(this: Component<{}>) {
 					eXact covers precise client updates, keyed identity, portals, typed bindings, owned async
 					work, Suspense, retained inactive trees, scheduling, SSR, progressive boundary reveals,
 					DOM adoption, lazy interaction hydration, server execution, and fine-grained server
-					patches. It also has coordinated component actions, optimistic state, enhanced forms, and
-					compiler-checked finite eager/lazy component registries. Those are current capabilities
-					rather than roadmap labels.
+					patches. It also has coordinated function-defined tasks, optimistic state, enhanced forms,
+					and compiler-checked finite eager/lazy component registries. Those are current
+					capabilities rather than roadmap labels.
 				</p>
 				<p>
 					React remains more permissive when a component type comes from an opaque runtime registry.

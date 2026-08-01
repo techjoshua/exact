@@ -34,7 +34,7 @@ const request = (
 		'content-type': 'application/json',
 		'x-request-id': `trace-${path}`
 	},
-	body: { type: 'action', id: 'read' },
+	body: { type: 'invoke', id: 'read' },
 	signal,
 	platformRequest
 });
@@ -42,7 +42,7 @@ const request = (
 const server = (overrides: Partial<ExactServerContext> = {}): ExactServerContext => ({
 	contract: {
 		version: 1,
-		actions: { read: defineExactOperationContract('read') },
+		invocations: { read: defineExactOperationContract('read') },
 		boundaries: {}
 	},
 	...overrides
@@ -79,7 +79,7 @@ describe('server context scopes', () => {
 				securityScope = scoped.contexts;
 				return true;
 			},
-			actions: {
+			invocations: {
 				async read(_input, scoped) {
 					actionScope = scoped.contexts;
 					observed.push(

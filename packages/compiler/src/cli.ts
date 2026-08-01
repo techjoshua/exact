@@ -12,7 +12,6 @@ type CliOptions = {
 	outDir?: string;
 	rootDir?: string;
 	target?: TransformTarget;
-	emitManifest?: boolean;
 	artifacts?: boolean;
 	serverComponents?: boolean;
 	sourceMap?: boolean;
@@ -48,7 +47,6 @@ async function main(argv: string[]): Promise<void> {
 				if (result.clientMapFile) console.log(`${result.inputFile} -> ${result.clientMapFile}`);
 				console.log(`${result.inputFile} -> ${result.serverFile}`);
 				if (result.serverMapFile) console.log(`${result.inputFile} -> ${result.serverMapFile}`);
-				console.log(`${result.inputFile} -> ${result.manifestFile}`);
 			}
 			return;
 		}
@@ -57,7 +55,6 @@ async function main(argv: string[]): Promise<void> {
 			outDir: options.outDir,
 			rootDir: options.rootDir,
 			target: options.target,
-			emitManifest: options.emitManifest,
 			serverComponents: options.serverComponents,
 			sourceMap: options.sourceMap,
 			...(hasCompilerRegistry ? { pluginRegistry } : {}),
@@ -73,9 +70,6 @@ async function main(argv: string[]): Promise<void> {
 				console.log(`${result.inputFile} -> ${result.outputFile}`);
 				if (result.sourceMapFile) {
 					console.log(`${result.inputFile} -> ${result.sourceMapFile}`);
-				}
-				if (result.manifestFile) {
-					console.log(`${result.inputFile} -> ${result.manifestFile}`);
 				}
 			} else {
 				process.stdout.write(result.code);
@@ -106,7 +100,6 @@ function parseArgs(argv: string[]): CliOptions {
 	let outDir: string | undefined;
 	let rootDir: string | undefined;
 	let target: TransformTarget | undefined;
-	let emitManifest = false;
 	let artifacts = false;
 	let serverComponents = false;
 	let sourceMap = false;
@@ -118,8 +111,6 @@ function parseArgs(argv: string[]): CliOptions {
 			rootDir = argv[++index];
 		} else if (arg === '--target') {
 			target = parseTarget(argv[++index]);
-		} else if (arg === '--manifest') {
-			emitManifest = true;
 		} else if (arg === '--artifacts') {
 			artifacts = true;
 		} else if (arg === '--serverComponents') {
@@ -139,7 +130,6 @@ function parseArgs(argv: string[]): CliOptions {
 		outDir,
 		rootDir,
 		target,
-		emitManifest,
 		artifacts,
 		serverComponents,
 		sourceMap
@@ -148,7 +138,7 @@ function parseArgs(argv: string[]): CliOptions {
 
 function printUsage(): void {
 	console.log(
-		'Usage: exactc [--outDir dir] [--rootDir dir] [--target default|client|server] [--manifest] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
+		'Usage: exactc [--outDir dir] [--rootDir dir] [--target default|client|server] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
 	);
 }
 

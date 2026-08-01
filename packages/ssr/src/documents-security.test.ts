@@ -1,7 +1,8 @@
 import {
 	BLOCKED_JAVASCRIPT_URL,
 	Suspense,
-	createVNode,
+	activateTaskForHost,
+	defineTask,
 	unsafeHtml,
 	type Component
 } from '@exactjs/core';
@@ -17,6 +18,7 @@ import {
 	renderToStream,
 	renderToString
 } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 import {
 	readRemainingStreamEvents,
 	readStreamEvent,
@@ -26,7 +28,7 @@ import {
 describe('@exactjs/ssr documents-security', () => {
 	it('preserves authored documents instead of adding a progressive root wrapper', async () => {
 		const runtime = createExactServerRuntime({
-			contract: { version: 1, actions: {}, boundaries: {} }
+			contract: { version: 1, invocations: {}, boundaries: {} }
 		});
 		const response = await renderExactRequestToProgressiveHtmlResponse(
 			{
@@ -234,9 +236,12 @@ describe('@exactjs/ssr documents-security', () => {
 	it('streams a settled Suspense range without replacing stable siblings', async () => {
 		function Options(this: Component<{ label: string }>) {
 			this.state.label = '';
-			(this as any).task.blocking(async () => {
-				this.state.label = await Promise.resolve('Ground');
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async () => {
+					this.state.label = await Promise.resolve('Ground');
+				})
+			);
 			return () => createVNode('p', null, this.state.label);
 		}
 		const events = await readRemainingStreamEvents(
@@ -287,7 +292,10 @@ describe('@exactjs/ssr documents-security', () => {
 		const abort = new AbortController();
 		const logs: unknown[] = [];
 		function Pending(this: Component<{}>) {
-			(this as any).task(() => new Promise<void>(() => undefined));
+			activateTaskForHost(
+				this,
+				defineTask({}, () => new Promise<void>(() => undefined))
+			);
 			return () => createVNode('p', null, 'Loading');
 		}
 		const reader = renderToDocumentStream(createVNode(Pending, {}), {

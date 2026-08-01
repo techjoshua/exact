@@ -6,23 +6,13 @@ const fixture = (name: string) => path.join(process.cwd(), `${name}.policy-fixtu
 
 describe('generic data policy IR', () => {
 	it('records explicit fields and inferred shared island transfers', () => {
-		const manifest = analyzeSource(
-			`
-      import type { Component } from "@exactjs/core";
-      interface State {
-        /** @exact keep=server */ internal: string;
-        title: string;
-      }
-      export function Panel(this: Component<State>) {
-        this.task.server(() => { this.state.title = "ready"; });
-        return () => <button title={this.state.title} onClick={() => this.state.title = "next"} />;
-      }
-    `,
-			{ filename: fixture('manifest') }
+		const analysis = analyzeSource(
+			'import { TaskContext } from "@exactjs/core";\n\n      import type { Component } from "@exactjs/core";\n      interface State {\n        /** @exact keep=server */ internal: string;\n        title: string;\n      }\n      export function Panel(this: Component<State>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.server()) => { this.state.title = "ready"; };\nrunFixtureTask();\n        return () => <button title={this.state.title} onClick={() => this.state.title = "next"} />;\n      }\n    ',
+			{ filename: fixture('analysis') }
 		);
 
-		expect(manifest.version).toBe(1);
-		expect(manifest.policy.subjects).toEqual(
+		expect(analysis.version).toBe(1);
+		expect(analysis.policy.subjects).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					kind: 'state',
@@ -38,7 +28,7 @@ describe('generic data policy IR', () => {
 				})
 			])
 		);
-		expect(manifest.policy.flows).toEqual(
+		expect(analysis.policy.flows).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					kind: 'transfer',
@@ -56,7 +46,7 @@ describe('generic data policy IR', () => {
 	});
 
 	it('defaults server-provisioned contexts to server residency', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { createContext } from "@exactjs/core";
       export const ComponentContext = createContext<string>("component");
@@ -72,7 +62,7 @@ describe('generic data policy IR', () => {
 			{ filename: fixture('context-default-residency') }
 		);
 
-		expect(manifest.policy.subjects).toEqual(
+		expect(analysis.policy.subjects).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					name: 'ComponentContext',
@@ -126,7 +116,7 @@ describe('generic data policy IR', () => {
 	});
 
 	it('applies shared callable contracts to resolved values without moving execution', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { createContext } from "@exactjs/core";
       interface Product { id: string; name: string }
@@ -147,7 +137,7 @@ describe('generic data policy IR', () => {
 			{ filename: fixture('shared-return') }
 		);
 
-		expect(manifest.policy.subjects).toEqual(
+		expect(analysis.policy.subjects).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					kind: 'return',
@@ -183,7 +173,7 @@ describe('generic data policy IR', () => {
 	});
 
 	it('treats route loader and action results as hydration transfer sinks', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume, type Secret } from "@exactjs/secrets";
       /** @exact keep=server */ const internal = { tenant: "private" };
@@ -205,17 +195,17 @@ describe('generic data policy IR', () => {
 		);
 
 		expect(
-			manifest.diagnostics.filter((diagnostic) =>
+			analysis.diagnostics.filter((diagnostic) =>
 				diagnostic.includes('route loader hydration data')
 			)
 		).toHaveLength(2);
-		expect(manifest.diagnostics).toEqual(
+		expect(analysis.diagnostics).toEqual(
 			expect.arrayContaining([
 				expect.stringContaining('server-kept value cannot enter route loader hydration data'),
 				expect.stringContaining('secret value cannot enter route action hydration data')
 			])
 		);
-		expect(manifest.policy.flows).toEqual(
+		expect(analysis.policy.flows).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ boundary: 'hydration', authorized: false })
 			])
@@ -223,44 +213,25 @@ describe('generic data policy IR', () => {
 	});
 
 	it('uses protected state reads as task placement effects', () => {
-		const manifest = analyzeSource(
-			`
-      import type { Component } from "@exactjs/core";
-      interface State {
-        /** @exact keep=server */ internal: string;
-      }
-      export function Panel(this: Component<State>) {
-        this.task(() => { void this.state.internal; });
-        return () => <p>Ready</p>;
-      }
-    `,
+		const analysis = analyzeSource(
+			'import { TaskContext } from "@exactjs/core";\n\n      import type { Component } from "@exactjs/core";\n      interface State {\n        /** @exact keep=server */ internal: string;\n      }\n      export function Panel(this: Component<State>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => { void this.state.internal; };\nrunFixtureTask();\n        return () => <p>Ready</p>;\n      }\n    ',
 			{ filename: fixture('task-placement') }
 		);
 
-		expect(manifest.components[0]?.tasks[0]?.placement).toBe('server');
+		expect(analysis.components[0]?.tasks[0]?.placement).toBe('server');
 	});
 
 	it('rejects explicit client tasks that access server-kept contexts', () => {
 		expect(() =>
 			transform(
-				`
-      import { createContext, type Component } from "@exactjs/core";
-      export const AuthorizationContext = createContext<{ hasRole(role: string): boolean }>(
-        "authorization",
-        { global: true, keep: "server", scope: "request" }
-      );
-      export function Panel(this: Component<{}>) {
-        this.task.client(() => { this.getContext(AuthorizationContext); });
-        return () => <p>Ready</p>;
-      }
-    `,
+				'import { TaskContext } from "@exactjs/core";\n\n      import { createContext, type Component } from "@exactjs/core";\n      export const AuthorizationContext = createContext<{ hasRole(role: string): boolean }>(\n        "authorization",\n        { global: true, keep: "server", scope: "request" }\n      );\n      export function Panel(this: Component<{}>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.client()) => { this.getContext(AuthorizationContext); };\nrunFixtureTask();\n        return () => <p>Ready</p>;\n      }\n    ',
 				{ filename: fixture('context-placement'), target: 'client' }
 			)
 		).toThrow('client task reads or writes server-kept data');
 	});
 
 	it('keeps inferred public context calls neutral and protected context calls server-only', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { createContext, type Component } from "@exactjs/core";
       const PublicContext = createContext<{ value(): string }>("public");
@@ -281,15 +252,15 @@ describe('generic data policy IR', () => {
 		);
 
 		expect(
-			manifest.components.find((component) => component.name === 'PublicPanel')?.placement
+			analysis.components.find((component) => component.name === 'PublicPanel')?.placement
 		).toBe('isomorphic');
 		expect(
-			manifest.components.find((component) => component.name === 'ServerPanel')?.placement
+			analysis.components.find((component) => component.name === 'ServerPanel')?.placement
 		).toBe('server');
 	});
 
 	it('propagates secret qualification through declaration aliases', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       /** @exact keep=secret */ const apiKey = "configured";
       const authorization = \`Bearer \${apiKey}\`;
@@ -298,7 +269,7 @@ describe('generic data policy IR', () => {
 			{ filename: fixture('propagation') }
 		);
 
-		expect(manifest.policy.subjects).toEqual(
+		expect(analysis.policy.subjects).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					name: 'apiKey',
@@ -312,7 +283,7 @@ describe('generic data policy IR', () => {
 				})
 			])
 		);
-		expect(manifest.policy.flows).toEqual(
+		expect(analysis.policy.flows).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					kind: 'propagation',
@@ -324,7 +295,7 @@ describe('generic data policy IR', () => {
 	});
 
 	it('carries inferred return policy through local calls', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       /** @exact keep=secret */ const apiKey = "configured";
       function authorizationHeader() {
@@ -336,7 +307,7 @@ describe('generic data policy IR', () => {
 			{ filename: fixture('return-propagation') }
 		);
 
-		expect(manifest.policy.subjects).toEqual(
+		expect(analysis.policy.subjects).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					kind: 'return',
@@ -355,7 +326,7 @@ describe('generic data policy IR', () => {
 	});
 
 	it('recognizes transparent secret API values through their type policy', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { secret } from "@exactjs/secrets";
       const apiKey = secret("API_KEY", "configured");
@@ -365,7 +336,7 @@ describe('generic data policy IR', () => {
 			{ filename: fixture('secret-type') }
 		);
 
-		expect(manifest.policy.subjects).toEqual(
+		expect(analysis.policy.subjects).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					name: 'apiKey',
@@ -377,16 +348,16 @@ describe('generic data policy IR', () => {
 				})
 			])
 		);
-		const subjectIds = new Set(manifest.policy.subjects.map((subject) => subject.id));
+		const subjectIds = new Set(analysis.policy.subjects.map((subject) => subject.id));
 		expect(
-			manifest.policy.flows.every(
+			analysis.policy.flows.every(
 				(flow) => subjectIds.has(flow.to) && flow.from.every((id) => subjectIds.has(id))
 			)
 		).toBe(true);
 	});
 
 	it('audits consume() itself and rejects a secret passed to an ordinary parameter', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume } from "@exactjs/secrets";
       /** @exact keep=secret */ const apiKey = "configured";
@@ -403,13 +374,13 @@ describe('generic data policy IR', () => {
 			}
 		);
 
-		expect(manifest.policy.secretConsumers).toEqual([
+		expect(analysis.policy.secretConsumers).toEqual([
 			expect.objectContaining({
 				authorization: 'implicit-application-owner',
 				consumer: expect.objectContaining({ symbol: 'consume' })
 			})
 		]);
-		expect(manifest.diagnostics).toEqual(
+		expect(analysis.diagnostics).toEqual(
 			expect.arrayContaining([
 				expect.stringContaining(
 					'secret argument requires an explicit Secret<T> parameter or consume()'
@@ -419,7 +390,7 @@ describe('generic data policy IR', () => {
 	});
 
 	it('stops tracking the result of a standalone consume() call', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume } from "@exactjs/secrets";
       /** @exact keep=secret */ const configuredApiKey = "configured";
@@ -437,17 +408,17 @@ describe('generic data policy IR', () => {
 			}
 		);
 
-		expect(manifest.policy.secretConsumers).toEqual([
+		expect(analysis.policy.secretConsumers).toEqual([
 			expect.objectContaining({
 				authorization: 'implicit-application-owner',
 				consumer: expect.objectContaining({ symbol: 'consume' })
 			})
 		]);
-		expect(manifest.policy.subjects.some((subject) => subject.name === 'apiKey')).toBe(false);
+		expect(analysis.policy.subjects.some((subject) => subject.name === 'apiKey')).toBe(false);
 	});
 
 	it('rejects consume() on a non-secret argument', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume } from "@exactjs/secrets";
       const publicValue = "public";
@@ -457,11 +428,11 @@ describe('generic data policy IR', () => {
 			{ filename: fixture('invalid-call-site-consumption') }
 		);
 
-		expect(manifest.diagnostics).toContain('error: consume() argument is not secret-qualified');
+		expect(analysis.diagnostics).toContain('error: consume() argument is not secret-qualified');
 	});
 
 	it('propagates secret qualification through method calls and destructuring until consume()', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume, type Secret } from "@exactjs/secrets";
       declare const secrets: { require(name: string): Secret<string> };
@@ -478,7 +449,7 @@ describe('generic data policy IR', () => {
 			}
 		);
 
-		expect(manifest.policy.subjects).toEqual(
+		expect(analysis.policy.subjects).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ name: 'combo', policy: { residency: 'server', secret: true } }),
 				expect.objectContaining({ name: 'key', policy: { residency: 'server', secret: true } }),
@@ -492,7 +463,7 @@ describe('generic data policy IR', () => {
 				})
 			])
 		);
-		expect(manifest.policy.subjects.some((subject) => subject.name === 'rawAuthorization')).toBe(
+		expect(analysis.policy.subjects.some((subject) => subject.name === 'rawAuthorization')).toBe(
 			false
 		);
 	});

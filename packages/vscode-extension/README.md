@@ -1,60 +1,23 @@
 # eXact Language Tools for VS Code
 
-This extension presents the semantic model produced by the pinned eXact
-compiler. It starts `@exactjs/language-server` beside VS Code's TypeScript
-extension and adds eXact-specific diagnostics, semantic tokens, hovers,
-CodeLens, inlay hints, document symbols, refactors, region markers, a component
-semantics tree, and a read-only compiler-separation view.
+Compiler-backed editing support for eXact components and TypeScript.
 
-The extension does not parse or classify eXact source. All semantic labels,
-reasons, edits, and diagnostics come from `@exactjs/compiler`.
-Only `EXACT`-namespaced framework diagnostics are presented by this extension;
-ordinary TypeScript squiggles remain owned by VS Code. Asynchronous eXact
-results are version-fenced so adding or removing an error is reflected by that
-edit rather than the following one.
+## Features
 
-Hovering an authored JSX component tag presents the referenced component's
-compiler-resolved placement and boundary. This distinguishes, for example, a
-client child element from the server component that contains it while leaving
-VS Code's TypeScript symbol information intact.
+The extension adds eXact diagnostics, component and task hovers, navigation, semantic tokens,
+inlay hints, CodeLens, refactors, region markers, a component semantics tree, and a read-only
+client/server separation view. It runs beside VS Code's TypeScript extension and leaves ordinary
+TypeScript diagnostics and syntax presentation intact.
 
-Semantic modifiers are applied only to compatible identifier tokens:
-component functions, function-defined tasks, and derived variables.
-Keywords, JSX tags, inferred `await` sites, punctuation, and surrounding
-property-access syntax retain VS Code's normal TypeScript/theme highlighting.
-
-The link badge appears after a derived reactive assignment and before each
-compiler-resolved use.
-
-Assignment metadata appears before the assignment; task metadata
-appears immediately after the call's opening parenthesis. `⚙` marks the
-particular assignment that initializes state, while `⚡` marks a deferred
-reactive assignment or inferred work. Composable call badges add kind (`📋`,
-`▶`), placement (`🖥`, `📱`, `⇄`), deferred priority (`⏳`), and immediate
-publication (`🚨`).
-
-Region markers and eXact source hovers are limited to selected operation spans.
-They do not decorate the entire containing function, leaving TypeScript type and
-signature hovers available within task callbacks and component setup.
-Function-defined task hovers select only the authored function name; internal
-awaits remain suspension points of that task and do not receive nested task badges.
-Source with a compiler-recognized final `TaskContext` parameter is presented as
-a “task with authored policy,” not as a separate explicit-task mechanism.
-
-Compiler execution is enabled only in trusted workspaces. Source and inspection
-data remain local. Presentation settings never change compiler meaning.
+Compiler analysis starts only for trusted workspaces. Source and inspection data remain local.
 
 ## Run from this repository
-
-From the repository root, build the language server and extension and open a
-fresh Extension Development Host with:
 
 ```sh
 npm run dev:vscode-extension
 ```
 
-The launcher supports `--code code-insiders`, `--workspace <path>`,
-`--skip-build`, and `--dry-run`. `EXACT_VSCODE_COMMAND` may also select another
-VS Code CLI. A development host prefers the freshly built sibling
-`packages/language-server`; packaged extensions fall back to their installed
-dependency. No local `node_modules` junction or copy synchronization is needed.
+The command builds the language server and extension, then opens an Extension Development Host.
+Use `--code code-insiders`, `--workspace <path>`, `--skip-build`, or `--dry-run` when needed.
+
+See [compiler-aware language tools](../../docs/language-tools.md) for the semantic model.

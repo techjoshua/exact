@@ -1,5 +1,6 @@
 import {
 	componentContinuationContextValues,
+	exactComponentIdentity,
 	readExactComponentContract,
 	settledComponentContinuationIds,
 	type ComponentInstance,
@@ -28,7 +29,7 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 				const contract = readExactComponentContract(instance.type);
 				if (contract?.resumption) {
 					const record: MutableResumption = {
-						componentId: contract.id,
+						componentId: exactComponentIdentity(instance.type),
 						values: {},
 						contexts: {},
 						settledContinuations: []

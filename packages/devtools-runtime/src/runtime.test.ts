@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 import {
-	createCompiledVNode,
+	activateTaskForHost,
 	createExactRuntimeInspectionOwner,
 	createVNode,
+	defineTask,
+	exactComponentIdentity,
 	markExactInspectionSource,
 	type Component
 } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
+import { createCompiledTestVNode, createTestVNode } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	exactDevtoolsHookSymbol,
@@ -44,7 +47,7 @@ describe('page-world eXact DevTools runtime', () => {
 		});
 		container = document.createElement('main');
 		document.body.append(container);
-		render(createVNode(Card, {}), container);
+		render(createTestVNode(Card, {}), container);
 
 		await installation.hook.connect();
 		expect(fetchServer).not.toHaveBeenCalled();
@@ -53,7 +56,7 @@ describe('page-world eXact DevTools runtime', () => {
 		expect(identity).toMatchObject({
 			buildKey: 'build-client',
 			executionRoot: 'page',
-			componentTypeId: 'Card'
+			componentTypeId: exactComponentIdentity(Card)
 		});
 		installation.hook.highlight(identity!);
 		installation.hook.clearHighlight();
@@ -109,7 +112,7 @@ describe('page-world eXact DevTools runtime', () => {
 		container = document.createElement('main');
 		document.body.append(container);
 
-		render(createCompiledVNode(LateRoot, {}), container);
+		render(createCompiledTestVNode(LateRoot, {}), container);
 		const tree = await installation.hook.request({
 			protocol: 1,
 			id: 'late-tree',
@@ -140,7 +143,7 @@ describe('page-world eXact DevTools runtime', () => {
 		});
 		container = document.createElement('main');
 		document.body.append(container);
-		render(createVNode(Account, {}), container);
+		render(createTestVNode(Account, {}), container);
 		await installation.hook.connect();
 
 		const tree = await installation.hook.request({
@@ -181,7 +184,7 @@ describe('page-world eXact DevTools runtime', () => {
 		});
 		container = document.createElement('main');
 		document.body.append(container);
-		render(createVNode(Account, {}), container);
+		render(createTestVNode(Account, {}), container);
 		await installation.hook.connect();
 
 		const tree = await installation.hook.request({
@@ -197,15 +200,20 @@ describe('page-world eXact DevTools runtime', () => {
 	it('late-attaches to active roots and exposes only bounded read-only projections', async () => {
 		function Counter(this: Component<{ count?: number }>) {
 			this.state.count = 1;
-			(this as any).task(
-				markExactInspectionSource('Counter:task:load', async () => Promise.resolve())
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markExactInspectionSource('Counter:task:load', async () => Promise.resolve())
+				)
 			);
-			(this as any).action(
-				'Increment',
-				markExactInspectionSource('Counter:action:increment', () => {
+			const increment = defineTask(
+				{ label: 'Increment' },
+				markExactInspectionSource('Counter:task:increment', () => {
 					this.state.count = (this.state.count ?? 0) + 1;
 				})
 			);
+			increment();
 			return () => createVNode('button', { id: 'counter' }, this.state.count);
 		}
 		const owner = createExactRuntimeInspectionOwner({
@@ -214,7 +222,7 @@ describe('page-world eXact DevTools runtime', () => {
 		});
 		container = document.createElement('main');
 		document.body.append(container);
-		render(createVNode(Counter, {}), container, { inspection: owner });
+		render(createTestVNode(Counter, {}), container, { inspection: owner });
 
 		(globalThis as any)[exactDevtoolsRuntimeSymbol] = {
 			sources: [
@@ -247,7 +255,7 @@ describe('page-world eXact DevTools runtime', () => {
 					tasks: [
 						{ id: { sourceEntityId: 'Counter:task:load' } },
 						{
-							id: { sourceEntityId: 'Counter:action:increment' },
+							id: { sourceEntityId: 'Counter:task:increment' },
 							activation: 'invoked'
 						}
 					]

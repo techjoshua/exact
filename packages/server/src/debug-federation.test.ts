@@ -170,7 +170,7 @@ function host(
 		contract: {
 			version: 1,
 			endpoint: '/__exact',
-			actions: {},
+			invocations: {},
 			executors: {},
 			boundaries: {}
 		},

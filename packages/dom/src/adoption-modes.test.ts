@@ -3,14 +3,17 @@
  */
 import {
 	Activity,
+	activateTaskForHost,
 	createDynamicChild,
 	createServerSlot,
-	createVNode,
+	defineTask,
 	Fragment,
 	Suspense,
 	type Component,
+	type TaskContext,
 	unsafeHtml
 } from '@exactjs/core';
+import { createVNode } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -127,9 +130,12 @@ describe('DOM adoption modes', () => {
 			resolve = settle;
 		});
 		function Pending(this: Component<{}>) {
-			(this as any).task.blocking(async () => {
-				await pending;
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async (_task: TaskContext) => {
+					await pending;
+				})
+			);
 			return () => createVNode('p', null, 'ready');
 		}
 		const fallback = document.createElement('div');
@@ -148,7 +154,12 @@ describe('DOM adoption modes', () => {
 		).toBe(true);
 		expect(fallback.querySelector('i')).toBe(indicator);
 		resolve();
-		for (let index = 0; index < 6; index++) await Promise.resolve();
+		for (let index = 0; index < 12; index++) {
+			flushSync();
+			await Promise.resolve();
+			await Promise.resolve();
+		}
+		flushSync();
 		expect(fallback.textContent).toBe('ready');
 		unmount(fallback);
 	});

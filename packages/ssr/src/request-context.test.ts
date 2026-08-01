@@ -1,4 +1,4 @@
-import { createContext, createVNode, type Component } from '@exactjs/core';
+import { activateTaskForHost, createContext, defineTask, type Component } from '@exactjs/core';
 import { RequestContext } from '@exactjs/request';
 import {
 	defineExactOperationContract,
@@ -12,6 +12,7 @@ import {
 	renderExactRequestToProgressiveHtmlResponse
 } from './index.js';
 import { readStreamText } from './test-support/streams.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr request-context', () => {
 	const ApplicationName = createContext<string>('ssr.application', {
@@ -26,7 +27,7 @@ describe('@exactjs/ssr request-context', () => {
 
 	it('constructs the root only after contexts initialize and stabilizes task-written output', async () => {
 		const runtime = createExactServerRuntime({
-			contract: { version: 1, actions: {}, boundaries: {} },
+			contract: { version: 1, invocations: {}, boundaries: {} },
 			applicationContexts: [[ApplicationName, { value: 'app' }]],
 			requestContexts: [
 				[
@@ -45,12 +46,15 @@ describe('@exactjs/ssr request-context', () => {
 			const request = this.getContext(RequestContext);
 			const name = this.getContext(RequestName);
 			this.state.ready = 'loading';
-			(this as any).task.server(async () => {
-				await Promise.resolve();
-				this.state.ready = `${name}:${request.method}`;
-				request.setStatus(201);
-				request.setHeader('x-rendered', 'yes');
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ placement: 'server' }, async () => {
+					await Promise.resolve();
+					this.state.ready = `${name}:${request.method}`;
+					request.setStatus(201);
+					request.setHeader('x-rendered', 'yes');
+				})
+			);
 			return () => createVNode('p', null, this.state.ready);
 		}
 
@@ -81,7 +85,7 @@ describe('@exactjs/ssr request-context', () => {
 		const disposed: string[] = [];
 		let rendered = false;
 		const runtime = createExactServerRuntime({
-			contract: { version: 1, actions: {}, boundaries: {} },
+			contract: { version: 1, invocations: {}, boundaries: {} },
 			requestContexts: [
 				[
 					RequestName,
@@ -110,12 +114,15 @@ describe('@exactjs/ssr request-context', () => {
 				function Settled(this: Component<{ value: string }>) {
 					const request = this.getContext(RequestContext);
 					this.state.value = 'pending';
-					(this as any).task.server(async () => {
-						await Promise.resolve();
-						this.state.value = 'settled';
-						request.setStatus(206);
-						request.setHeader('x-precommit', 'settled');
-					});
+					activateTaskForHost(
+						this,
+						defineTask({ placement: 'server' }, async () => {
+							await Promise.resolve();
+							this.state.value = 'settled';
+							request.setStatus(206);
+							request.setHeader('x-precommit', 'settled');
+						})
+					);
 					return () => createVNode('p', null, this.state.value);
 				}
 				return createVNode(Settled, {});
@@ -140,7 +147,7 @@ describe('@exactjs/ssr request-context', () => {
 
 	it('commits redirects and rejects response mutations after SSR returns', async () => {
 		const runtime = createExactServerRuntime({
-			contract: { version: 1, actions: {}, boundaries: {} }
+			contract: { version: 1, invocations: {}, boundaries: {} }
 		});
 		let activeRequest: import('@exactjs/request').RequestContextValue | undefined;
 		function RedirectPage(this: Component<{}>) {
@@ -174,7 +181,7 @@ describe('@exactjs/ssr request-context', () => {
 		const runtime = createExactServerRuntime({
 			contract: {
 				version: 1,
-				actions: {},
+				invocations: {},
 				boundaries: { profile: defineExactBoundaryContract('profile') }
 			},
 			requestContexts: [
@@ -214,7 +221,7 @@ describe('@exactjs/ssr request-context', () => {
 		const runtime = createExactServerRuntime({
 			contract: {
 				version: 1,
-				actions: {
+				invocations: {
 					'save-profile': defineExactOperationContract('save-profile', {
 						componentId: 'Profile',
 						writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
@@ -232,7 +239,7 @@ describe('@exactjs/ssr request-context', () => {
 			markers: false,
 			patchStrategy: 'element',
 			authorize: () => true,
-			actions: {
+			invocations: {
 				'save-profile': () => ({ state: { saved: true } })
 			},
 			boundaries: {
@@ -244,7 +251,7 @@ describe('@exactjs/ssr request-context', () => {
 			{
 				method: 'POST',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'save-profile',
 					boundaryHtmls: {
 						profile: '<p class="old">Loading</p>'

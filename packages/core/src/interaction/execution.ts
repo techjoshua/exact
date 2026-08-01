@@ -35,7 +35,7 @@ let resumptionScheduled = false;
 export class InteractionCancellation extends Error {
 	readonly reason: unknown;
 
-	/** Creates a cancellation result that is excluded from application action error state. */
+	/** Creates a cancellation result that is excluded from application interaction error state. */
 	constructor(reason?: unknown) {
 		super('Component interaction was cancelled');
 		this.name = 'AbortError';
@@ -54,9 +54,9 @@ export function joinCurrentInteraction(settlement: PromiseLike<unknown>): void {
 }
 
 /**
- * Awaits action-owned work with generation cancellation fencing.
+ * Awaits interaction-owned work with generation cancellation fencing.
  *
- * The compiler supplies the active action signal. Cancellation rejects before an authored
+ * The compiler supplies the active interaction signal. Cancellation rejects before an authored
  * continuation can publish stale state; the underlying external promise is not itself cancelled.
  */
 export function interactionAwait<Result>(
@@ -93,7 +93,7 @@ export function interactionAwait<Result>(
 }
 
 /**
- * Publishes an action-owned mutation only while its generation still owns the interaction.
+ * Publishes an interaction-owned mutation only while its generation still owns the interaction.
  *
  * Await cancellation can be observed by application `catch` blocks. Compiler-lowered writes
  * therefore use this second fence at the actual commit boundary so a caught cancellation cannot

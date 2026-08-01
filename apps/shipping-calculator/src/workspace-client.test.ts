@@ -170,7 +170,7 @@ function actionResponse(request: ActionRequest, providerName: string) {
 		ok: true,
 		status: 200,
 		async json() {
-			return { ok: true, type: 'action', id: request.id, value };
+			return { ok: true, type: 'invoke', id: request.id, value };
 		}
 	};
 }
