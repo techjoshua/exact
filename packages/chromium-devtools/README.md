@@ -24,6 +24,9 @@ After reloading the target page, open DevTools and select the **eXact** panel.
   aggregates waterfall lanes by authored component type.
 - **Microfrontends** shows independently deployed roots and their inspection availability.
 
+Live inspection updates preserve each view's scroll position and disclosure state. Selecting a
+different component keeps the tree position while starting the new instance's details at the top.
+
 ## Requirements
 
 The application must be built with eXact inspection instrumentation enabled. Server-backed

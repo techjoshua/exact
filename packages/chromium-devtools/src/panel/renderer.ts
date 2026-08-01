@@ -33,6 +33,7 @@ export function renderExactComponentsView(
 	const forest = buildExactComponentForest(model.components);
 	sidebar.append(sectionHeading('Component tree', `${model.components.length} instances`));
 	const tree = node('div', 'component-tree');
+	tree.setAttribute('data-panel-scroll-key', 'component-tree');
 	const selectedKey = model.selected ? exactPanelIdentityKey(model.selected.id) : undefined;
 	for (const root of forest) tree.append(renderTreeNode(root, selectedKey, actions));
 	if (!model.components.length)
@@ -41,7 +42,7 @@ export function renderExactComponentsView(
 		);
 	sidebar.append(tree);
 	layout.append(sidebar, renderComponentDetails(model));
-	container.replaceChildren(layout);
+	replacePanelView(container, layout, 'components');
 }
 
 /** Renders a bounded profiler capture as causal frames and component waterfall lanes. */
@@ -54,24 +55,24 @@ export function renderExactProfilerView(
 	captureComplete = false
 ): void {
 	if (!events.length) {
-		container.replaceChildren(
-			emptyState(
-				recording
-					? 'Recording…'
-					: captureComplete
-						? 'No framework activity captured'
-						: 'Record an interaction',
-				recording
-					? 'Use the application; frames and reactive changes will appear here.'
-					: captureComplete
-						? 'Try recording again and trigger state changes, actions, navigation, or task work.'
-						: 'Press Record, interact with the page, then press Stop to inspect the captured work.'
-			)
+		const empty = emptyState(
+			recording
+				? 'Recording…'
+				: captureComplete
+					? 'No framework activity captured'
+					: 'Record an interaction',
+			recording
+				? 'Use the application; frames and reactive changes will appear here.'
+				: captureComplete
+					? 'Try recording again and trigger state changes, actions, navigation, or task work.'
+					: 'Press Record, interact with the page, then press Stop to inspect the captured work.'
 		);
+		replacePanelView(container, empty, 'profiler');
 		return;
 	}
 	const frames = buildExactProfilerFrames(events);
 	const view = node('div', 'profiler');
+	view.setAttribute('data-panel-scroll-key', 'profiler');
 	const captureStart = Math.min(...events.map((event) => event.timestamp));
 	const captureEnd = Math.max(...events.map((event) => event.timestamp));
 	const captureDuration = Math.max(0, captureEnd - captureStart);
@@ -87,7 +88,7 @@ export function renderExactProfilerView(
 		view.append(
 			renderProfilerFrame(frame, captureStart, Math.max(captureDuration, 0.1), model, actions)
 		);
-	container.replaceChildren(view);
+	replacePanelView(container, view, 'profiler');
 }
 
 /** Renders independently deployed roots as compact availability cards. */
@@ -96,12 +97,15 @@ export function renderExactMicrofrontendsView(
 	microfrontends: readonly ExactInspectedMicrofrontend[]
 ): void {
 	if (!microfrontends.length) {
-		container.replaceChildren(
-			emptyState('No microfrontends', 'This page currently exposes only its local execution root.')
+		const empty = emptyState(
+			'No microfrontends',
+			'This page currently exposes only its local execution root.'
 		);
+		replacePanelView(container, empty, 'microfrontends');
 		return;
 	}
 	const grid = node('div', 'microfrontend-grid');
+	grid.setAttribute('data-panel-scroll-key', 'microfrontends');
 	for (const item of microfrontends) {
 		const card = node('article', 'microfrontend-card');
 		const title = document.createElement('h2');
@@ -116,7 +120,7 @@ export function renderExactMicrofrontendsView(
 		);
 		grid.append(card);
 	}
-	container.replaceChildren(grid);
+	replacePanelView(container, grid, 'microfrontends');
 }
 
 function renderTreeNode(
@@ -153,6 +157,10 @@ function renderTreeNode(
 
 function renderComponentDetails(model: ExactDevtoolsPanelModel): HTMLElement {
 	const details = node('section', 'component-details');
+	details.setAttribute(
+		'data-panel-scroll-key',
+		`component-details:${model.selected ? exactPanelIdentityKey(model.selected.id) : 'none'}`
+	);
 	const component = model.selected;
 	if (!component) {
 		details.append(emptyState('Select a component', 'Choose a node to inspect its live state.'));
@@ -182,9 +190,11 @@ function renderComponentDetails(model: ExactDevtoolsPanelModel): HTMLElement {
 	if (model.dependency !== undefined) {
 		const dependency = document.createElement('details');
 		dependency.className = 'detail-section';
+		dependency.setAttribute('data-panel-disclosure-key', 'dependency');
 		const summary = document.createElement('summary');
 		summary.textContent = 'Reactive dependency';
 		const content = node('pre', 'protocol-preview');
+		content.setAttribute('data-panel-scroll-key', 'dependency-preview');
 		content.textContent = JSON.stringify(model.dependency, null, 2);
 		dependency.append(summary, content);
 		details.append(dependency);
@@ -199,6 +209,7 @@ function previewSection(
 ): HTMLElement {
 	const section = document.createElement('details');
 	section.className = 'detail-section';
+	section.setAttribute('data-panel-disclosure-key', `preview:${title}`);
 	section.open = title === 'State';
 	const summary = document.createElement('summary');
 	summary.textContent = title;
@@ -240,6 +251,7 @@ function renderPreview(preview: ExactValuePreview): HTMLElement {
 function contextSection(contexts: readonly ExactContextPreview[]): HTMLElement {
 	const section = document.createElement('details');
 	section.className = 'detail-section';
+	section.setAttribute('data-panel-disclosure-key', 'contexts');
 	const summary = document.createElement('summary');
 	summary.textContent = `Contexts (${contexts.length})`;
 	section.append(summary);
@@ -258,6 +270,7 @@ function contextSection(contexts: readonly ExactContextPreview[]): HTMLElement {
 function taskSection(tasks: readonly ExactTaskRuntimeSnapshot[]): HTMLElement {
 	const section = document.createElement('details');
 	section.className = 'detail-section';
+	section.setAttribute('data-panel-disclosure-key', 'tasks');
 	const summary = document.createElement('summary');
 	summary.textContent = `Tasks & actions (${tasks.length})`;
 	section.append(summary);
@@ -286,6 +299,10 @@ function renderProfilerFrame(
 ): HTMLElement {
 	const card = document.createElement('details');
 	card.className = 'profile-frame';
+	card.setAttribute(
+		'data-panel-disclosure-key',
+		`profile-frame:${frame.events[0]?.cursor ?? frame.label}`
+	);
 	card.open = true;
 	const summary = document.createElement('summary');
 	const title = node('strong');
@@ -367,6 +384,40 @@ function emptyState(titleText: string, description?: string): HTMLElement {
 	empty.append(title);
 	if (description) empty.append(nodeText('p', description));
 	return empty;
+}
+
+function replacePanelView(container: Element, view: HTMLElement, viewKey: string): void {
+	const preserve = container.firstElementChild?.getAttribute('data-panel-view-key') === viewKey;
+	const scrollPositions = new Map<string, Readonly<{ top: number; left: number }>>();
+	const disclosureStates = new Map<string, boolean>();
+	if (preserve) {
+		for (const element of container.querySelectorAll<HTMLElement>('[data-panel-scroll-key]')) {
+			const key = element.getAttribute('data-panel-scroll-key');
+			if (key) scrollPositions.set(key, { top: element.scrollTop, left: element.scrollLeft });
+		}
+		for (const element of container.querySelectorAll<HTMLDetailsElement>(
+			'details[data-panel-disclosure-key]'
+		)) {
+			const key = element.getAttribute('data-panel-disclosure-key');
+			if (key) disclosureStates.set(key, element.open);
+		}
+	}
+	view.setAttribute('data-panel-view-key', viewKey);
+	container.replaceChildren(view);
+	if (!preserve) return;
+	for (const element of container.querySelectorAll<HTMLDetailsElement>(
+		'details[data-panel-disclosure-key]'
+	)) {
+		const key = element.getAttribute('data-panel-disclosure-key');
+		if (key && disclosureStates.has(key)) element.open = disclosureStates.get(key)!;
+	}
+	for (const element of container.querySelectorAll<HTMLElement>('[data-panel-scroll-key]')) {
+		const key = element.getAttribute('data-panel-scroll-key');
+		const position = key ? scrollPositions.get(key) : undefined;
+		if (!position) continue;
+		element.scrollTop = position.top;
+		element.scrollLeft = position.left;
+	}
 }
 
 function shortIdentity(value: string): string {

@@ -103,7 +103,9 @@ export function DevtoolsPage(this: Component<{}>) {
 				<p>
 					The Chromium extension's Components tree shows every durable instance in its live
 					parent/child hierarchy. Selecting an instance opens its state, props, context, task, and
-					dependency details. The tree and details panes scroll independently.
+					dependency details. The tree and details panes scroll independently, and live updates
+					preserve their positions and expanded sections. Selecting another component keeps the tree
+					position while opening its details from the top.
 				</p>
 				<p>
 					The Profiler records an explicit interaction window, groups events into causal framework,

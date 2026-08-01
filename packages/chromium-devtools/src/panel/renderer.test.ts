@@ -24,6 +24,78 @@ describe('Chromium panel presentation', () => {
 		expect(selectComponent).toHaveBeenCalledWith(second.id);
 	});
 
+	it('preserves component view position and disclosures across live updates', () => {
+		const first = component('first');
+		const container = document.createElement('main');
+		const actions = { selectComponent: vi.fn() };
+		renderExactComponentsView(container, panelModel([first], first), actions);
+
+		const tree = container.querySelector<HTMLElement>('[data-panel-scroll-key="component-tree"]')!;
+		const details = container.querySelector<HTMLElement>(
+			'[data-panel-scroll-key^="component-details:"]'
+		)!;
+		const state = container.querySelector<HTMLDetailsElement>(
+			'[data-panel-disclosure-key="preview:State"]'
+		)!;
+		const contexts = container.querySelector<HTMLDetailsElement>(
+			'[data-panel-disclosure-key="contexts"]'
+		)!;
+		tree.scrollTop = 73;
+		details.scrollTop = 141;
+		state.open = false;
+		contexts.open = true;
+
+		const updated = {
+			...first,
+			state: {
+				kind: 'object' as const,
+				type: 'Object',
+				entries: [{ key: 'count', value: { kind: 'scalar' as const, value: 2 } }],
+				truncated: false
+			}
+		};
+		renderExactComponentsView(container, panelModel([updated], updated), actions);
+
+		expect(
+			container.querySelector<HTMLElement>('[data-panel-scroll-key="component-tree"]')?.scrollTop
+		).toBe(73);
+		expect(
+			container.querySelector<HTMLElement>('[data-panel-scroll-key^="component-details:"]')
+				?.scrollTop
+		).toBe(141);
+		expect(
+			container.querySelector<HTMLDetailsElement>('[data-panel-disclosure-key="preview:State"]')
+				?.open
+		).toBe(false);
+		expect(
+			container.querySelector<HTMLDetailsElement>('[data-panel-disclosure-key="contexts"]')?.open
+		).toBe(true);
+		expect(container.textContent).toContain('2');
+	});
+
+	it('starts at the top when selecting a different component', () => {
+		const first = component('first');
+		const second = component('second');
+		const container = document.createElement('main');
+		const actions = { selectComponent: vi.fn() };
+		renderExactComponentsView(container, panelModel([first, second], first), actions);
+		container.querySelector<HTMLElement>('[data-panel-scroll-key="component-tree"]')!.scrollTop =
+			77;
+		container.querySelector<HTMLElement>(
+			'[data-panel-scroll-key^="component-details:"]'
+		)!.scrollTop = 120;
+
+		renderExactComponentsView(container, panelModel([first, second], second), actions);
+
+		expect(
+			container.querySelector<HTMLElement>('[data-panel-scroll-key^="component-details:"]')
+				?.scrollTop
+		).toBe(0);
+		expect(
+			container.querySelector<HTMLElement>('[data-panel-scroll-key="component-tree"]')?.scrollTop
+		).toBe(77);
+	});
+
 	it('renders one profiler lane per component type with every captured event marker', () => {
 		const first = component('first');
 		const second = component('second');
