@@ -3,7 +3,10 @@ import {
 	createExactDiagnosticReporter,
 	exactDiagnosticKey,
 	formatExactDiagnostic,
-	matchesExactBuildFilter
+	shouldCompileExactBuildModule,
+	shouldTransformExactBuildModulePath,
+	matchesExactBuildFilter,
+	transformExactAdapterModule
 } from './adapter-support.js';
 
 describe('build adapter support', () => {
@@ -18,6 +21,26 @@ describe('build adapter support', () => {
 		const filter = /view/g;
 		expect(matchesExactBuildFilter('/src/view.tsx', filter)).toBe(true);
 		expect(matchesExactBuildFilter('/src/view.tsx', filter)).toBe(true);
+	});
+
+	it('applies common source, test, dependency, and authored filters', () => {
+		expect(shouldTransformExactBuildModulePath('/src/view.test.tsx', {})).toBe(false);
+		expect(
+			shouldTransformExactBuildModulePath('/src/view.test.tsx', { compileTestModules: true })
+		).toBe(true);
+		expect(shouldCompileExactBuildModule('/src/view.tsx', 'const view = <span />;', {})).toBe(true);
+		expect(
+			shouldCompileExactBuildModule(
+				'/app/node_modules/library/view.tsx',
+				'const view = <span />;',
+				{}
+			)
+		).toBe(false);
+		expect(
+			shouldCompileExactBuildModule('/vendor/view.tsx', 'const view = <span />;', {
+				include: '/vendor/'
+			})
+		).toBe(true);
 	});
 
 	it('formats and keys diagnostics consistently', () => {
@@ -72,5 +95,82 @@ describe('build adapter support', () => {
 		);
 		report({ affectedFiles: [], diagnostics: [diagnostic] }, (warning) => warnings.push(warning));
 		expect(warnings).toHaveLength(2);
+	});
+
+	it('runs native compilation through one normalized adapter result', () => {
+		const result = transformExactAdapterModule({
+			source: 'const view = <span />;',
+			filename: '/src/view.tsx',
+			jsxOwnership: 'exact',
+			usesReactRuntimeImports: false,
+			transformReact: true,
+			shouldCompile: true,
+			compiler: { options: { sourceMap: true } }
+		});
+
+		expect(result).toMatchObject({ map: { sources: ['/src/view.tsx'] } });
+		expect(result?.code).toContain('__exactVNode("span"');
+	});
+
+	it('selects React work before native compilation and skips it without compatibility', () => {
+		const transformed = transformExactAdapterModule({
+			source: 'const view = <Foreign />;',
+			filename: '/src/react.tsx',
+			jsxOwnership: 'react',
+			usesReactRuntimeImports: false,
+			transformReact: true,
+			shouldCompile: true,
+			react: () => ({ code: 'react output' }),
+			compiler: { options: {} }
+		});
+		const skipped = transformExactAdapterModule({
+			source: 'const view = <Foreign />;',
+			filename: '/src/react.tsx',
+			jsxOwnership: 'react',
+			usesReactRuntimeImports: false,
+			transformReact: true,
+			shouldCompile: true,
+			compiler: { options: {} }
+		});
+
+		expect(transformed).toMatchObject({ code: 'react output' });
+		expect(skipped).toBeNull();
+	});
+
+	it('reports compatibility warnings and normalizes contextual failures', () => {
+		const warnings: string[] = [];
+		const result = transformExactAdapterModule({
+			source: 'export const value = legacy;',
+			filename: '/src/legacy.ts',
+			jsxOwnership: 'unknown',
+			usesReactRuntimeImports: false,
+			transformReact: false,
+			shouldCompile: false,
+			compiler: { options: {} },
+			compatibility: () => ({
+				changed: true,
+				code: 'rewritten',
+				diagnostics: [{ severity: 'warning', message: 'legacy import' }]
+			}),
+			warn: (warning) => warnings.push(warning)
+		});
+
+		expect(result).toMatchObject({ code: 'rewritten' });
+		expect(warnings).toEqual(['legacy import']);
+		expect(() =>
+			transformExactAdapterModule({
+				source: 'broken',
+				filename: '/src/broken.tsx',
+				errorId: '/src/broken.tsx?tool',
+				jsxOwnership: 'react',
+				usesReactRuntimeImports: false,
+				transformReact: true,
+				shouldCompile: false,
+				react: () => {
+					throw new Error('bad syntax');
+				},
+				compiler: { options: {} }
+			})
+		).toThrow('eXact JSX transform failed for /src/broken.tsx?tool\nbad syntax');
 	});
 });

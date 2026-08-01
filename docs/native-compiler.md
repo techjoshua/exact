@@ -67,7 +67,10 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
-diagnostics, and dispose it when the build closes.
+diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share one tool-neutral
+transformation kernel for JSX ownership, React compatibility selection, native compilation,
+inspection controls, instrumentation, source results, and contextual failures. Resolution, HMR,
+asset emission, and build-tool lifecycle behavior remain adapter-owned.
 
 Generated operation identifiers, ephemeral module analysis, helper imports, and lowered source
 are compiler-session details. Applications should depend on authored TypeScript behavior and

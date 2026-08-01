@@ -26,7 +26,7 @@ const advancedCards: AdvancedCard[] = [
 	},
 	{
 		title: 'Build adapters',
-		text: 'Use the compiler through Vite, Webpack, Bun, or the exactc precompile workflow.',
+		text: 'Use the shared compiler transformation pipeline through Vite, Webpack, Bun, or the exactc precompile workflow.',
 		packages: '@exactjs/vite-plugin · @exactjs/webpack-plugin · @exactjs/bun-plugin'
 	},
 	{
