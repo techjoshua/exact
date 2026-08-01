@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, transform } from '../../index.js';
+import { transform } from '../../index.js';
+import { analyzeSource } from '../../compilation/source-analysis.js';
 
 describe('@exactjs/compiler: islands', () => {
 	it('generates child-bearing client island components with state bridge props', () => {

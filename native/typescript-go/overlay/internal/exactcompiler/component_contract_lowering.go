@@ -1293,7 +1293,7 @@ func continuationInvocationMetadata(
 	continuation Continuation,
 ) *ast.Node {
 	if continuation.Invocation == nil {
-		panic("continuation invocation metadata requires action invocation analysis")
+		panic("continuation invocation metadata requires task invocation analysis")
 	}
 	arguments := make([]*ast.Node, 0, len(continuation.Invocation.Arguments))
 	for _, argument := range continuation.Invocation.Arguments {

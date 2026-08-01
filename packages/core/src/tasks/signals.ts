@@ -72,11 +72,3 @@ export function withTaskSignal<T extends object | undefined>(
 		signal: combineTaskSignal(owner, existing)
 	} as T & { signal: AbortSignal };
 }
-
-/** Converts an abort reason into the error used to reject task continuations. */
-export function createTaskAbortError(reason: unknown): Error {
-	if (reason instanceof Error) return reason;
-	const error = new Error(reason === undefined ? 'Task aborted' : String(reason));
-	error.name = 'AbortError';
-	return error;
-}

@@ -16,8 +16,8 @@ export function affectedArtifactInputs(
 	const affected = new Set(changed);
 	for (const entry of entries) {
 		if (
-			entry.analysis.dependencies.some((dependency) =>
-				changed.has(path.resolve(path.dirname(entry.analysis.filename), dependency))
+			entry.build.source.dependencies.some((dependency) =>
+				changed.has(path.resolve(path.dirname(entry.build.source.filename), dependency))
 			)
 		) {
 			affected.add(path.resolve(entry.inputFile));

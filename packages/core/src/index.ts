@@ -28,14 +28,8 @@ export {
 export { normalizeActivityMode } from './activity.js';
 export { observeComponentAsync, trackComponentAsync } from './component/async.js';
 export {
-	cancelComponentInteractions,
 	currentInteraction,
-	interactionAwait,
-	interactionMutation,
-	isInteractionCancellation,
-	joinCurrentInteraction,
 	runComponentInteraction,
-	InteractionCancellation,
 	type InteractionPriority,
 	type InteractionScope,
 	type InteractionSource
@@ -151,6 +145,8 @@ export {
 	runTaskContinuation,
 	trackTaskReads
 } from './tasks/continuations.js';
+export { TaskCancellation, isTaskCancellation } from './tasks/cancellation.js';
+export { joinTask, taskMutation } from './tasks/frame-runtime.js';
 export { TaskContext } from './tasks/public.js';
 export type {
 	BoundTaskFunction,
@@ -223,11 +219,11 @@ export {
 	Text,
 	UnsafeHtml
 } from './symbols.js';
-export { withTaskObserver } from './task/observers.js';
+export { withTaskObserver } from './tasks/observers.js';
 export {
 	markComponentContinuationTask,
 	settledComponentContinuationIds
-} from './task/continuation.js';
+} from './tasks/component-continuation.js';
 export {
 	createDerived,
 	discardTaskMutations,
@@ -244,13 +240,13 @@ export {
 	taskInterval,
 	taskObserver,
 	taskTimeout
-} from './task/resources.js';
+} from './tasks/resources.js';
 export {
 	combineTaskSignal,
 	withAbortSignal,
 	withTaskSignal,
 	type ManagedEventListenerOptions
-} from './task/signals.js';
+} from './tasks/signals.js';
 export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './url.js';
 export {
 	createCellVNode,

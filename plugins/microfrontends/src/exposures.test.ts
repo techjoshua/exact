@@ -80,14 +80,12 @@ export default function Unused(this: Component<{}>) {
 		expect(registration).not.toContain('stateContracts');
 		expect(registration).not.toContain('actionBoundaries');
 
-		const areaInvocation = Object.keys(
-			results.find((result) => path.resolve(result.inputFile) === path.resolve(area))!.analysis
-				.serverActions
-		)[0]!;
-		const unusedInvocation = Object.keys(
-			results.find((result) => path.resolve(result.inputFile) === path.resolve(unused))!.analysis
-				.serverActions
-		)[0]!;
+		const areaInvocation = results.find(
+			(result) => path.resolve(result.inputFile) === path.resolve(area)
+		)!.build.execution.operations[0]!.id;
+		const unusedInvocation = results.find(
+			(result) => path.resolve(result.inputFile) === path.resolve(unused)
+		)!.build.execution.operations[0]!.id;
 		const areaHandler = () => ({ state: { area: true } });
 		const build = createExactRemoteBuildRegistration(plan, graph, {
 			applicationRoot: root,
@@ -141,7 +139,7 @@ export default function Area(this: Component<{ count: number }>) {
 			},
 			{ packageName: '@company/remote', buildKey }
 		);
-		const invocation = Object.keys(results[0]!.analysis.serverActions)[0]!;
+		const invocation = results[0]!.build.execution.operations[0]!.id;
 		const left = () => ({ state: { source: 'left' } });
 		const right = () => ({ state: { source: 'right' } });
 		const build = createExactRemoteBuildRegistration(plan, graph, {

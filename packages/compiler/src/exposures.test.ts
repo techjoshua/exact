@@ -55,41 +55,15 @@ function fixtureGraph(): ExactArtifactGraph {
 		inputFile,
 		clientFile: `${inputFile}.client.js`,
 		serverFile: `${inputFile}.server.js`,
-		analysis: {
-			version: 1 as const,
-			filename: inputFile,
-			dependencies: [],
-			assets: [],
-			components: [
-				{
-					id,
-					name: id,
-					exported: true,
-					placement: 'isomorphic' as const,
-					subgraphPlacement: 'isomorphic' as const,
-					renderEdges: [],
-					clientIslandCount: 0,
-					tasks: [],
-					contexts: [],
-					splitBoundaries: [],
-					diagnostics: []
-				}
-			],
-			exports: [],
-			symbols: [],
-			boundaries: [],
-			callables: [],
+		build: {
+			source: { filename: inputFile, dependencies: [] },
+			componentIds: [id],
+			exposureRoots: [{ componentId: id, exportName: 'default' }],
+			componentEdges: [],
+			clientRegistrations: [],
+			serverRegistrations: [],
 			continuations: [],
-			resumptions: [],
-			policy: {
-				version: 1 as const,
-				capabilities: [],
-				subjects: [],
-				flows: [],
-				secretConsumers: []
-			},
-			serverActions: {},
-			diagnostics: []
+			execution: { operations: [], boundaries: [] }
 		}
 	});
 	const billing = artifact('/src/billing.tsx', 'billing');
@@ -145,6 +119,8 @@ function fixtureGraph(): ExactArtifactGraph {
 				componentId: 'admin'
 			}
 		],
+		continuations: [],
+		execution: { operations: [], boundaries: [] },
 		artifacts: [billing, button, admin]
 	};
 }

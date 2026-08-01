@@ -1,4 +1,4 @@
-import { joinCurrentInteraction } from '@exactjs/core';
+import { joinTask } from '@exactjs/core';
 
 import type {
 	CreateExactRouterOptions,
@@ -411,6 +411,6 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
  * The same promise remains the public router result; joining adds settlement ownership only.
  */
 function joinRouterOperation<Result>(operation: Promise<Result>): Promise<Result> {
-	joinCurrentInteraction(operation);
+	joinTask(operation);
 	return operation;
 }

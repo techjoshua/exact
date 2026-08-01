@@ -1,6 +1,6 @@
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import { describe, expect, it } from 'vitest';
-import { analyzeSource } from './index.js';
+import { analyzeSource } from './compilation/source-analysis.js';
 
 describe('compiler plugins', () => {
 	it('rejects unknown namespaced directives without a prepared registry', () => {

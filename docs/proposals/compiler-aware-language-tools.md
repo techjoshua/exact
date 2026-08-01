@@ -15,6 +15,11 @@ language-tools delivery and are implemented separately by
 The implemented source identities and vocabulary are their static foundation;
 they are not dispatch identities or authorization capabilities.
 
+Sections below that show `this.task(...)`, separate actions, or `exact.action` record the
+pre-unification design only. The maintained implementation uses function-defined tasks and the
+current vocabulary in [`../language-tools.md`](../language-tools.md); removed registration forms
+receive no compatibility classification.
+
 ## Decision summary
 
 Build eXact Language Tools around one rule:

@@ -40,8 +40,7 @@ type jsxRuntimeNames struct {
 	taskFetch              string
 	taskResource           string
 	taskAwait              string
-	interactionAwait       string
-	interactionMutation    string
+	taskMutation           string
 	stageTaskMutation      string
 	taskCollectionMutation string
 	taskContinuation       string
@@ -2473,8 +2472,8 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 				)
 				if mutation != nil {
 					return lowering.taskHelperCall(
-						"interactionMutation",
-						lowering.names.interactionMutation,
+						"taskMutation",
+						lowering.names.taskMutation,
 						[]*ast.Node{signal, lowering.arrow(mutation)},
 					)
 				}
@@ -2483,8 +2482,8 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 				value := visitor.VisitNode(current.AsAwaitExpression().Expression)
 				return lowering.factory.NewAwaitExpression(
 					lowering.taskHelperCall(
-						"interactionAwait",
-						lowering.names.interactionAwait,
+						"taskAwait",
+						lowering.names.taskAwait,
 						[]*ast.Node{signal, value},
 					),
 				)
@@ -5585,8 +5584,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		"withTaskSignal",
 		"combineTaskSignal",
 		"taskAwait",
-		"interactionAwait",
-		"interactionMutation",
+		"taskMutation",
 		"stageTaskMutation",
 		"mutateTaskCollection",
 		"markComponentContinuationTask",
@@ -5742,8 +5740,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		taskOptions:            allocate("__exactTaskOptionsSignal"),
 		taskCombined:           allocate("__exactTaskCombinedSignal"),
 		taskAwait:              allocate("__exactTaskAwait"),
-		interactionAwait:       allocate("__exactInteractionAwait"),
-		interactionMutation:    allocate("__exactInteractionMutation"),
+		taskMutation:           allocate("__exactTaskMutation"),
 		stageTaskMutation:      allocate("__exactStageTaskMutation"),
 		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),
 		taskContinuation:       allocate("__exactContinuationTask"),

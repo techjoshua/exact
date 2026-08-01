@@ -614,9 +614,6 @@ func callableIdentity(
 		}
 		return component.Name, "component", exports
 	}
-	if isTaskWork(node) {
-		return fmt.Sprintf("task@%d", node.Pos()), "task", nil
-	}
 	name := ""
 	if declarationName := node.Name(); declarationName != nil {
 		name = callableNameText(declarationName)
@@ -653,20 +650,6 @@ func callableNameText(name *ast.Node) string {
 		return name.Text()
 	}
 	return ""
-}
-
-func isTaskWork(node *ast.Node) bool {
-	parent := node.Parent
-	if parent == nil || !ast.IsCallExpression(parent) {
-		return false
-	}
-	call := parent.AsCallExpression()
-	if call.Arguments == nil || len(call.Arguments.Nodes) == 0 ||
-		call.Arguments.Nodes[len(call.Arguments.Nodes)-1] != node {
-		return false
-	}
-	_, ok := taskFacets(call.Expression)
-	return ok
 }
 
 func callableDeclarationSymbol(
@@ -1425,11 +1408,7 @@ func exactComponentOperation(text string) bool {
 		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender":
 		return true
 	}
-	return member == "task" ||
-		strings.HasPrefix(member, "task.") ||
-		member == "action" ||
-		strings.HasPrefix(member, "action.") ||
-		strings.HasPrefix(member, "log.") ||
+	return strings.HasPrefix(member, "log.") ||
 		strings.HasPrefix(member, "refs.")
 }
 

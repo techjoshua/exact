@@ -1,4 +1,4 @@
-import type { ExactModuleAnalysis } from './module-analysis.js';
+import type { ExactStateEffect } from './analysis.js';
 import type { ExactPlacement } from './policy.js';
 
 /** Configures package export map. */
@@ -44,8 +44,82 @@ export type ExactArtifactGraph = {
 	componentEdges: ExactArtifactComponentEdge[];
 	clientIslands: ClientIslandRegistryEntry[];
 	serverParts: ServerPartRegistryEntry[];
+	continuations: ExactHydrationContinuationPlan[];
+	execution: ExactExecutionContractPlan;
 	artifacts: ExactArtifactGraphEntry[];
 };
+
+/** Stable state path used by generated hydration registrations. */
+export type ExactHydrationStatePathPlan = Readonly<{
+	path: string;
+	kind: 'read' | 'write';
+	confidence: 'exact' | 'broad' | 'unknown';
+}>;
+
+/** Compiler-owned hydration description for one distributed task continuation. */
+export type ExactHydrationContinuationPlan = Readonly<{
+	kind: 'task';
+	id: string;
+	componentId: string;
+	readiness: 'blocking' | 'nonblocking';
+	dependencies: readonly Readonly<{ source: 'state' | 'props' | 'derived' | 'argument' }>[];
+	stateReads: readonly ExactHydrationStatePathPlan[];
+	stateWrites: readonly ExactHydrationStatePathPlan[];
+	publicContexts: readonly string[];
+	serverContexts: readonly string[];
+	contextWrites: readonly string[];
+	serverContextWrites: readonly string[];
+	boundaries: readonly string[];
+	invocation?: Readonly<{
+		arguments: readonly Readonly<{ source: 'argument' }>[];
+		concurrency: 'parallel' | 'latest' | 'queue';
+	}>;
+}>;
+
+/** Runtime operation authority produced directly by the compiler. */
+export type ExactExecutableOperationPlan = Readonly<{
+	id: string;
+	componentId: string;
+	reads: readonly ExactStateEffect[];
+	writes: readonly ExactStateEffect[];
+	publicContexts: readonly string[];
+	serverContexts: readonly string[];
+	boundaries: readonly string[];
+}>;
+
+/** Runtime boundary authority produced directly by the compiler. */
+export type ExactExecutableBoundaryPlan = Readonly<{
+	id: string;
+	componentId?: string;
+	ownerComponentId?: string;
+	kind: 'client-island' | 'server-slot';
+}>;
+
+/** Narrow executable authority for compiled artifacts. */
+export type ExactExecutionContractPlan = Readonly<{
+	operations: readonly ExactExecutableOperationPlan[];
+	boundaries: readonly ExactExecutableBoundaryPlan[];
+}>;
+
+/** Registry symbol retained solely to create target-specific module registrations. */
+export type ExactArtifactRegistryPlan = Readonly<{
+	id: string;
+	name: string;
+	exportName: string;
+	componentId?: string;
+}>;
+
+/** Supported compiler products consumed by build adapters and artifact graph creation. */
+export type ExactArtifactBuildProducts = Readonly<{
+	source: Readonly<{ filename: string; dependencies: readonly string[] }>;
+	componentIds: readonly string[];
+	exposureRoots: readonly Readonly<{ componentId: string; exportName: string }>[];
+	componentEdges: readonly ExactArtifactComponentEdge[];
+	clientRegistrations: readonly ExactArtifactRegistryPlan[];
+	serverRegistrations: readonly ExactArtifactRegistryPlan[];
+	continuations: readonly ExactHydrationContinuationPlan[];
+	execution: ExactExecutionContractPlan;
+}>;
 
 /** Defines the exact artifact component edge type contract. */
 export type ExactArtifactComponentEdge = {
@@ -68,7 +142,7 @@ export type ExactArtifactGraphEntry = {
 	clientFile: string;
 	serverFile: string;
 	sharedFile?: string;
-	analysis: ExactModuleAnalysis;
+	build: ExactArtifactBuildProducts;
 };
 
 /** Configures client island registry. */

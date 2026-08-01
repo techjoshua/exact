@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, transform } from '../index.js';
+import { transform } from '../index.js';
+import { analyzeSource } from '../compilation/source-analysis.js';
 
 describe('@exactjs/compiler: component values', () => {
 	it('supports immutable local function-valued components', () => {

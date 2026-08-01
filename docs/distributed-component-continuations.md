@@ -176,12 +176,11 @@ Every client generation carries cancellation and stale-response identity.
 Newer dependencies can abort unnecessary work, but correctness does not depend
 on cooperative cancellation: a stale response cannot commit.
 
-Explicit component actions use the same continuation boundary with
-`kind: "action"`. Their compiler contract adds declared invocation argument
-slots, concurrency, and a diagnostic label while keeping the operation ID
-opaque. The executor receives cancellation and invocation generation through
-trusted runtime context and returns the authored value inside the validated
-result envelope. Action contexts and optimistic preludes stay client-side.
+Invoked function-defined tasks use the same `kind: "task"` continuation boundary as setup
+activations. Their compiler contract adds invocation argument slots and concurrency while keeping
+the operation ID opaque. The executor receives cancellation and invocation generation through
+trusted runtime context and returns the authored value inside the validated result envelope.
+Optimistic preludes stay client-side.
 
 Same-tick operations may be batched. Independent operations can settle
 concurrently; an explicit `dependsOn` edge orders dependent work. Tests inspect
@@ -209,7 +208,7 @@ fallback.
   microfrontend path remain host/platform responsibilities.
 
 For authoring and build wiring, see [server-components.md](server-components.md).
-For action authoring and coordinated forms, see
-[actions-and-forms.md](actions-and-forms.md).
+For task authoring and coordinated forms, see [tasks.md](tasks.md) and
+[forms.md](forms.md).
 For production operation, see
 [native-ssr-production-guide.md](native-ssr-production-guide.md).

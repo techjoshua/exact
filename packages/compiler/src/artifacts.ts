@@ -29,7 +29,7 @@ export function artifactGraphEntryFromCompileResult(
 		clientFile: result.clientFile,
 		serverFile: result.serverFile,
 		...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
-		analysis: result.analysis
+		build: artifactGraphBuildProduct(result.build)
 	};
 }
 
@@ -188,12 +188,19 @@ export function createExactArtifactGraph(
 		serverParts: serverPartRegistryEntries(results, {
 			rootDir: options.rootDir ?? options.packageRoot
 		}),
+		continuations: uniqueBuildRecords(results.flatMap((result) => result.build.continuations)),
+		execution: {
+			operations: uniqueBuildRecords(
+				results.flatMap((result) => result.build.execution.operations)
+			),
+			boundaries: uniqueBuildRecords(results.flatMap((result) => result.build.execution.boundaries))
+		},
 		artifacts: results.map((result) => ({
 			inputFile: result.inputFile,
 			clientFile: result.clientFile,
 			serverFile: result.serverFile,
 			...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
-			analysis: result.analysis
+			build: artifactGraphBuildProduct(result.build)
 		}))
 	};
 }
@@ -204,23 +211,7 @@ export function createExactArtifactComponentEdges(
 ): ExactArtifactComponentEdge[] {
 	const edges: ExactArtifactComponentEdge[] = [];
 	for (const result of results) {
-		for (const component of result.analysis.components) {
-			for (const edge of component.renderEdges) {
-				edges.push({
-					id: edge.id,
-					sourceFile: result.inputFile,
-					sourceComponentId: component.id,
-					sourceName: component.name,
-					targetComponentId: edge.componentId,
-					targetName: edge.name,
-					tag: edge.tag,
-					placement: edge.placement,
-					boundary: edge.boundary,
-					index: edge.index,
-					path: edge.path
-				});
-			}
-		}
+		edges.push(...result.build.componentEdges);
 	}
 	return edges.sort((left, right) =>
 		[
@@ -241,4 +232,21 @@ export function createExactArtifactComponentEdges(
 				].join(':')
 			)
 	);
+}
+
+function artifactGraphBuildProduct(
+	build: ExactArtifactGraphInput['build']
+): ExactArtifactGraphEntry['build'] {
+	return build;
+}
+
+function uniqueBuildRecords<T extends { readonly id: string }>(records: readonly T[]): T[] {
+	const byId = new Map<string, T>();
+	for (const record of records) {
+		const previous = byId.get(record.id);
+		if (previous && JSON.stringify(previous) !== JSON.stringify(record))
+			throw new Error(`Conflicting eXact build product ${record.id}`);
+		byId.set(record.id, record);
+	}
+	return [...byId.values()].sort((left, right) => left.id.localeCompare(right.id));
 }

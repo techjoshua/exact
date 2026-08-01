@@ -2,7 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it } from 'vitest';
-import { invokeExact, invokeExactBatch, readExactHydrationConfig } from './index.js';
+import { readExactHydrationConfig } from './config.js';
+import { invokeExact, invokeExactBatch } from './invocations.js';
 import { ndjsonResponse } from './test-support/responses.js';
 
 describe('@exactjs/hydrate response-validation', () => {

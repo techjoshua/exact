@@ -1926,7 +1926,7 @@ prepareProfile(props.name);
 
 Because the call occurs during setup and is blocking, SSR waits for its
 generation. The compiler emits the same placement and hydration guarantees as
-the current `this.task.server(...)`.
+the former server-task registration API.
 
 ### Form save with optimism
 
@@ -2106,6 +2106,10 @@ implementation. Explicit `Presence` and `MotionList` remain compilerless
 fallbacks and policy boundaries.
 
 ## Delivery plan
+
+This section records the migration sequence considered during implementation. Compatibility steps
+were transitional only; the completed framework removed the former registration APIs and their
+compiler recognition instead of retaining those intermediate layers.
 
 ### Phase 0: freeze semantics with executable fixtures
 

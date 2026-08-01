@@ -7,7 +7,7 @@ import {
 	type ReactiveValue
 } from '@exactjs/reactive';
 
-import { combineAbortSignals, createTaskAbortError, isAbortSignal } from './signals.js';
+import { combineAbortSignals, isAbortSignal } from './signals.js';
 
 import type {
 	ComponentInstance,
@@ -19,6 +19,8 @@ import type {
 import type { ExactCollectionMutation } from '../component-contracts.js';
 
 import { createErrorReport, handleComponentError } from '../component/errors.js';
+import { TaskCancellation } from './cancellation.js';
+import { resumeTaskFrame } from './frame-runtime.js';
 
 import { logFrameworkEvent } from '../component/log.js';
 
@@ -359,13 +361,13 @@ export function taskFetch<T>(
  * remains parked until the scope resumes, and cancellation can still reject during that wait.
  */
 export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T> {
-	if (signal.aborted) return Promise.reject(createTaskAbortError(signal.reason));
+	if (signal.aborted) return Promise.reject(new TaskCancellation(signal.reason));
 	return new Promise<T>((resolve, reject) => {
 		let settled = false;
 		const abort = () => {
 			if (settled) return;
 			settled = true;
-			reject(createTaskAbortError(signal.reason));
+			resumeTaskFrame(signal, () => reject(new TaskCancellation(signal.reason)));
 		};
 		signal.addEventListener('abort', abort, { once: true });
 		Promise.resolve(value).then(
@@ -375,14 +377,16 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 				if (settled) return;
 				settled = true;
 				signal.removeEventListener('abort', abort);
-				if (signal.aborted) reject(createTaskAbortError(signal.reason));
-				else resolve(result);
+				resumeTaskFrame(signal, () => {
+					if (signal.aborted) reject(new TaskCancellation(signal.reason));
+					else resolve(result);
+				});
 			},
 			(error) => {
 				if (settled) return;
 				settled = true;
 				signal.removeEventListener('abort', abort);
-				reject(error);
+				resumeTaskFrame(signal, () => reject(error));
 			}
 		);
 	});

@@ -158,16 +158,15 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Task diagnostics describe local task functions, activation sites, and final{' '}
-					<code>TaskContext</code> policy. Compatibility parsing can still recognize legacy task
-					registrations for migration, but fixes never recommend authoring the removed API.
+					<code>TaskContext</code> policy. Removed component registration APIs receive no special
+					parsing, classification, diagnostics, or migration behavior.
 				</p>
 				<p>
 					Badges sit at token boundaries: before an assignment or immediately after a call's opening
 					parenthesis. <code>⚙</code> marks a specific one-time state initialization;{' '}
-					<code>⚡</code> on an assignment marks a deferred reactive calculation. Composable task
-					and action badges use <code>📋</code>, <code>▶</code>, <code>🖥</code> or <code>📱</code>{' '}
-					for placement, <code>⏳</code> for deferred priority, and <code>🚨</code> for immediate
-					publication.
+					<code>⚡</code> on an assignment marks a deferred reactive calculation. Task badges use{' '}
+					<code>📋</code>, <code>🖥</code> or <code>📱</code> for placement, <code>⏳</code> for
+					deferred priority, and <code>🚨</code> for immediate publication.
 				</p>
 				<p>
 					eXact hover and region markers are limited to the selected operation or identifier. They

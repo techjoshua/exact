@@ -1,5 +1,5 @@
 import type { ComponentInstance } from '../component/contracts.js';
-import { taskOwnerForHost } from '../tasks/owner-hosts.js';
+import { taskOwnerForHost } from './owner-hosts.js';
 
 const exactContinuationTask = Symbol.for('@exactjs/continuation-task');
 

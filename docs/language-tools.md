@@ -97,8 +97,8 @@ ProductPage
 ```
 
 The public source-entity vocabulary includes components, initializers, render
-regions and render expressions, inferred tasks and tasks with authored policy, actions,
-interactions, per-write setup assignments, derived values, bindings, context operations, lifecycle
+regions and render expressions, inferred tasks and tasks with authored policy, interactions,
+per-write setup assignments, derived values, bindings, context operations, lifecycle
 registrations, and registry selections.
 
 Each entity has a complete `range`, a small `selectionRange`, compiler-local
@@ -107,7 +107,7 @@ Native UTF-8 byte positions are normalized to the UTF-16 offsets used by
 TypeScript and LSP before any range is published, so preceding Unicode text
 cannot shift a hover or diagnostic.
 Entity IDs are valid only within the owning project generation. They are not
-action IDs, continuation dispatch IDs, hydration identities, cross-build
+task invocation IDs, continuation dispatch IDs, hydration identities, cross-build
 identifiers, package ABI, or authorization capabilities.
 
 Direct setup state writes retain their authored execution classification even
@@ -161,8 +161,8 @@ facts used by builds. They add:
 
 Task-related summaries and fixes use current function-defined terminology:
 local task functions, setup or invoked activation, and final `TaskContext`
-policy. Compatibility parsing may recognize legacy registrations, but
-diagnostics do not recommend authoring them.
+policy. Removed component registration APIs receive no special parsing,
+classification, diagnostics, or refactors.
 
 VS Code's TypeScript extension remains responsible for ordinary TypeScript
 diagnostics. eXact does not publish a duplicate TypeScript error at the same
@@ -280,8 +280,8 @@ Presentation settings are independent:
 These settings never change compiler meaning.
 
 Semantic tokens are emitted only where eXact can preserve TypeScript's standard
-base classification: component declarations remain `function`, explicit
-`task` and `action` identifiers are `method`, and derived names remain
+base classification: component declarations remain `function`, explicit task
+identifiers retain their ordinary TypeScript classification, and derived names remain
 `variable`. eXact does not publish semantic tokens over TypeScript keywords,
 inferred `await` sites, JSX tags, or whole property-access expressions. Those
 ranges remain entirely owned by TypeScript and the active color theme; eXact
@@ -295,13 +295,13 @@ from matching identifier text.
 Assignment badges appear before the first authored token on the line; call
 badges appear immediately after the opening parenthesis. `⚙` identifies a
 specific one-time state initialization, while `⚡` on an assignment identifies
-a deferred reactive state calculation. `📋` identifies a task, `▶` an action,
-`🖥` server placement, `📱` client placement, `⇄` isomorphic placement, `⏳`
+a deferred reactive state calculation. `📋` identifies a task, `🖥` server placement,
+`📱` client placement, `⇄` isomorphic placement, `⏳`
 deferred priority, and `🚨` immediate publication. Normal priority, staged
 publication, and authored-policy origin are omitted from the compact badge.
 
 Source hover is similarly precise. eXact responds only on the selected
-component, task, action, derived value, or JSX tag span; it does not claim the
+component, task, interaction, derived value, or JSX tag span; it does not claim the
 containing setup or callback body. TypeScript hover therefore remains available
 for assignments, variables, parameters, and inner calls. Region markers use
 the same selection spans instead of decorating every line in a function.

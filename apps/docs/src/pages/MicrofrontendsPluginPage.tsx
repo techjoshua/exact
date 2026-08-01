@@ -21,7 +21,7 @@ const remoteConsumerSource = `export default {
     microfrontends(config) {
       config.providedPackages.push('@acme/design-system');
 
-      // The public client entry and private action endpoint are separate.
+      // The public client entry and private operation endpoint are separate.
       config.remotes.billing = {
         clientEntry: 'https://cdn.acme.test/billing/remote.js',
         endpoint: 'https://billing.internal/__exact'
@@ -77,8 +77,8 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<CodeBlock source={remoteConsumerSource} language="ts" title="page/exact.config.ts" />
 				<p>
 					The browser receives only the client entry binding it needs. The private endpoint remains
-					a server concern, where the eXact binding gateway validates and forwards action and
-					refresh traffic.
+					a server concern, where the eXact binding gateway validates and forwards task invocation
+					and refresh traffic.
 				</p>
 			</section>
 			<section>

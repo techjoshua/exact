@@ -1,6 +1,12 @@
-import { InteractionCancellation } from '../interaction/execution.js';
-import { peek, setScheduledWorkContextCapture, type ScheduledWorkContext } from '@exactjs/reactive';
+import { setScheduledWorkContextCapture, type ScheduledWorkContext } from '@exactjs/reactive';
 import type { TaskContext, TaskOwner } from './contracts.js';
+import { raceTaskCancellation, TaskCancellation } from './cancellation.js';
+import {
+	registerTaskFrameSignal,
+	releaseTaskFrameSignal,
+	resumeTaskFrameContinuation
+} from './frame-continuation.js';
+import { createTaskFrameContext, frameForTaskContext } from './frame-context.js';
 import { publishTaskFrameEvent } from './frame-inspection.js';
 import { runTaskFrameCleanups, settleTaskFrameChildren } from './frame-settlement.js';
 
@@ -161,7 +167,8 @@ export function executeTaskFrame<T>(
 		startedAt: monotonicTimestamp(),
 		context: undefined as unknown as TaskContext
 	};
-	(frame as { context: TaskContext }).context = createFrameContext(frame, options);
+	(frame as { context: TaskContext }).context = createTaskFrameContext(frame, options);
+	registerTaskFrameSignal(controller.signal, frame);
 	frameWaiters.set(frame, settlement);
 	owner.frames.add(frame);
 	publishTaskFrameEvent(frame, 'task.frame.enter');
@@ -180,13 +187,13 @@ export function executeTaskFrame<T>(
 	let directResult: T | PromiseLike<T>;
 	let synchronousError: unknown;
 	try {
-		if (controller.signal.aborted) throw new InteractionCancellation(controller.signal.reason);
+		if (controller.signal.aborted) throw new TaskCancellation(controller.signal.reason);
 		directResult = withTaskFrameRecord(frame, () => work(frame.context));
 	} catch (error) {
 		synchronousError = error;
 		directResult = Promise.reject(error);
 	}
-	const execution = Promise.resolve(directResult);
+	const execution = raceTaskCancellation(controller.signal, directResult);
 
 	const result = execution.then(
 		async (value) => {
@@ -210,14 +217,14 @@ export function executeTaskFrame<T>(
 						value: [cleanupError]
 					});
 			}
-			if (controller.signal.aborted) throw new InteractionCancellation(controller.signal.reason);
+			if (controller.signal.aborted) throw new TaskCancellation(controller.signal.reason);
 			if (structuralFailed) throw structuralError;
 			return value;
 		},
 		async (error) => {
 			const outcomeError =
-				controller.signal.aborted && !(error instanceof InteractionCancellation)
-					? new InteractionCancellation(controller.signal.reason)
+				controller.signal.aborted && !(error instanceof TaskCancellation)
+					? new TaskCancellation(controller.signal.reason)
 					: error;
 			frame.producerOpen = false;
 			publishTaskFrameEvent(frame, 'task.foreground-settle');
@@ -246,6 +253,7 @@ export function executeTaskFrame<T>(
 	const output = result.then(
 		(value) => {
 			frame.settled = true;
+			releaseTaskFrameSignal(controller.signal);
 			owner.frames.delete(frame);
 			resolveSettlement();
 			publishTaskFrameEvent(frame, 'task.frame.exit');
@@ -255,13 +263,14 @@ export function executeTaskFrame<T>(
 		},
 		(error) => {
 			frame.settled = true;
+			releaseTaskFrameSignal(controller.signal);
 			owner.frames.delete(frame);
 			if (options.propagateFailure?.() === false) resolveSettlement();
 			else rejectSettlement(error);
 			publishTaskFrameEvent(frame, 'task.frame.exit');
 			publishTaskFrameEvent(
 				frame,
-				error instanceof InteractionCancellation ? 'task.cancel' : 'task.fail',
+				error instanceof TaskCancellation ? 'task.cancel' : 'task.fail',
 				error
 			);
 			throw error;
@@ -295,15 +304,32 @@ export function attachTaskFrameSettlement(
 	void normalized.finally(() => frame.children.delete(normalized)).catch(() => undefined);
 }
 
-/** Resolves the opaque frame retained by a task context. */
-export function frameForTaskContext(context: TaskContext): TaskFrameRecord {
-	const frame = contextFrames.get(context);
-	if (!frame || frame.settled)
-		throw new Error('Task context belongs to a settled or unknown frame');
-	return frame;
+/** Adds structural work to the synchronously active task frame, when present. */
+export function joinTask(settlement: PromiseLike<unknown>): void {
+	const frame = currentTaskFrameRecord();
+	if (frame) attachTaskFrameSettlement(frame, settlement);
 }
 
-const contextFrames = new WeakMap<TaskContext, TaskFrameRecord>();
+/** Publishes a task-owned mutation only while its generation remains current. */
+export function taskMutation<Result>(signal: AbortSignal, mutation: () => Result): Result {
+	if (signal.aborted) throw new TaskCancellation(signal.reason);
+	return mutation();
+}
+
+/** Restores the owning task frame around one compiler-lowered async continuation. */
+export function resumeTaskFrame(signal: AbortSignal, resume: () => void): void {
+	resumeTaskFrameContinuation(signal, resume, (frame) => {
+		if (frame.settled) throw new Error('Cannot resume a settled task frame');
+		const previous = currentFrame;
+		currentFrame = frame;
+		return () => {
+			currentFrame = previous;
+		};
+	});
+}
+
+export { frameForTaskContext };
+
 const frameWaiters = new WeakMap<TaskFrameRecord, Promise<void>>();
 type ScheduledReactionBatch = {
 	readonly frame: TaskFrameRecord;
@@ -315,37 +341,6 @@ type ScheduledReactionBatch = {
 	closed: boolean;
 };
 const scheduledReactionBatches = new WeakMap<TaskFrameRecord, ScheduledReactionBatch>();
-
-function createFrameContext(
-	frame: TaskFrameRecord,
-	options: InternalTaskFrameOptions
-): TaskContext {
-	const context: TaskContext = {
-		signal: frame.controller.signal,
-		generation: options.generation ?? 1,
-		activation: options.activation ?? 'invoked',
-		peek,
-		optimistic:
-			options.optimistic ??
-			(() => {
-				throw new Error('Optimistic state is not available for this task activation');
-			}),
-		cleanup(cleanup) {
-			if (frame.settled || !frame.producerOpen)
-				throw new Error('Cannot register cleanup after the task producer has closed');
-			frame.cleanups.push(cleanup);
-		},
-		own(resource) {
-			context.cleanup(async () => {
-				if (Symbol.asyncDispose in resource) await resource[Symbol.asyncDispose]();
-				else resource[Symbol.dispose]();
-			});
-			return resource;
-		}
-	};
-	contextFrames.set(context, frame);
-	return context;
-}
 
 function linkAbort(signal: AbortSignal, target: AbortController): void {
 	if (signal.aborted) {
@@ -402,7 +397,7 @@ function acquireScheduledReactionBatch(parent: TaskFrameRecord): ScheduledWorkCo
 			if (released) return;
 			try {
 				if (batch!.frame.controller.signal.aborted)
-					throw new InteractionCancellation(batch!.frame.controller.signal.reason);
+					throw new TaskCancellation(batch!.frame.controller.signal.reason);
 				withTaskFrameRecord(batch!.frame, work);
 			} catch (error) {
 				release(error, true);

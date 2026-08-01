@@ -9,6 +9,7 @@ import {
 	createPackageExportMap
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
+import { artifactAnalysis } from './analysis-results.js';
 
 describe('@exactjs/compiler: artifacts', () => {
 	it('compiles a single TSX file to an output directory', async () => {
@@ -63,7 +64,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		});
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
-		const analysis = result.analysis;
+		const analysis = artifactAnalysis(result);
+		expect(result).not.toHaveProperty('analysis');
 
 		expect(result.clientFile).toBe(path.join(outDir, 'components', 'page.exact.client.ts'));
 		expect(result.serverFile).toBe(path.join(outDir, 'components', 'page.exact.server.ts'));
@@ -73,7 +75,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('node:fs/promises');
 		expect(server).not.toContain('window.innerWidth');
 		expect(server).toContain('export const Page');
-		expect(Object.keys(analysis.serverActions)).toHaveLength(1);
+		expect(result.build.execution.operations).toHaveLength(1);
+		expect(analysis).not.toHaveProperty('serverActions');
 		expect(analysis.exports).toEqual([
 			{ name: 'Page', kind: 'component', placement: 'isomorphic' }
 		]);
@@ -183,8 +186,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		});
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
-		const rootSymbol = result.analysis.symbols.find((symbol) => symbol.role === 'root')!;
-		const serverPartSymbol = result.analysis.symbols.find(
+		const rootSymbol = artifactAnalysis(result).symbols.find((symbol) => symbol.role === 'root')!;
+		const serverPartSymbol = artifactAnalysis(result).symbols.find(
 			(symbol) => symbol.role === 'server-part'
 		)!;
 
@@ -464,10 +467,10 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(workspaceViewClient).toContain("(['one', 'two'] as const).map(");
 		expect(workspaceViewClient).not.toContain('this.map(');
 		expect(workspaceViewClient).not.toContain('Anonymous_ExactClient');
-		expect(workspaceView.analysis.components).toEqual([]);
+		expect(artifactAnalysis(workspaceView).components).toEqual([]);
 		expect(pageClient).not.toContain('../provider.js');
-		expect(page.analysis.components[0]?.tasks[0]?.placement).toBe('server');
-		expect(workspace.analysis.components[0]).toMatchObject({
+		expect(artifactAnalysis(page).components[0]?.tasks[0]?.placement).toBe('server');
+		expect(artifactAnalysis(workspace).components[0]).toMatchObject({
 			placement: 'client',
 			artifactTargets: ['client']
 		});

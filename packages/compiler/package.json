@@ -12,6 +12,7 @@
 		"!dist/compilation/analysis-results.*",
 		"!dist/compilation/generated-diagnostics.*",
 		"dist/contracts",
+		"!dist/contracts/module-analysis.*",
 		"!dist/contracts/emission.*",
 		"dist/explanation.*",
 		"dist/exposures.*",

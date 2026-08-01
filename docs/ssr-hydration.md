@@ -8,7 +8,7 @@ Status: implemented foundation with the explicit limits listed below.
   hydratable output, and adapter-neutral response objects.
 - `@exactjs/hydrate` adopts server DOM, activates client islands, invokes the
   server endpoint, validates results, and applies patches.
-- `@exactjs/server` owns allowlisted action/refresh dispatch, request
+- `@exactjs/server` owns allowlisted invocation/refresh dispatch, request
   validation, authorization hooks, limits, and runtime-neutral adapters.
 - `@exactjs/compiler` owns placement, artifact generation, operation
   contracts, hydration registration, and final client-bundle isolation.
@@ -49,7 +49,7 @@ contains the real intrinsic markup and binding values but no active handlers.
 The generated hydration registration uses dynamic imports, so the island code
 loads on first supported interaction. While it loads:
 
-- action-like events retain their order;
+- activation events retain their order;
 - repeated input/change events coalesce to the latest value per target;
 - replay is generation-fenced and discarded if the boundary was replaced; and
 - load failure restores the native browser fallback where possible.
@@ -59,7 +59,7 @@ server-only child graphs remain eager.
 
 ## Server exchanges and patches
 
-The endpoint supports individual action/refresh operations and same-tick
+The endpoint supports individual invocation/refresh operations and same-tick
 batches. Independent operations may run concurrently; `dependsOn` expresses an
 explicit prerequisite. NDJSON responses can publish independently settled
 operation chunks.
@@ -99,6 +99,6 @@ server contexts, and secret-qualified values are rejected.
 See [server-components.md](server-components.md) for authoring and
 [component-registries.md](component-registries.md) for finite dynamic
 component selection,
-[actions-and-forms.md](actions-and-forms.md) for coordinated actions, and
+[actions-and-forms.md](actions-and-forms.md) for task interactions and forms, and
 [native-ssr-production-guide.md](native-ssr-production-guide.md) for production
 operation.

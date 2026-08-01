@@ -1,13 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-	analyzeSource,
-	compileFileArtifacts,
-	compileProjectArtifacts,
-	transform
-} from '../../index.js';
+import { compileFileArtifacts, compileProjectArtifacts, transform } from '../../index.js';
+import { analyzeSource } from '../../compilation/source-analysis.js';
 import { createTestWorkspace } from '../../test-support/workspace.js';
+import { artifactAnalysis } from '../../compilation/analysis-results.js';
 
 describe('@exactjs/compiler: island boundaries', () => {
 	it('splits self-closing client components out of server artifacts', async () => {
@@ -49,13 +46,14 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain('title: this.state.title');
 		expect(server).not.toContain('window.innerWidth');
 		expect(server).not.toContain('onClick');
-		expect(result.analysis.boundaries).toContainEqual(
+		expect(artifactAnalysis(result).boundaries).toContainEqual(
 			expect.objectContaining({
 				id: expect.any(String),
 				name: 'ClientWidget',
 				componentId: expect.any(String),
-				ownerComponentId: result.analysis.components.find((component) => component.name === 'Page')!
-					.id,
+				ownerComponentId: artifactAnalysis(result).components.find(
+					(component) => component.name === 'Page'
+				)!.id,
 				kind: 'client-island'
 			})
 		);
@@ -341,17 +339,17 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain('"Server child"');
 		expect(server).not.toContain('from "./ClientWidget"');
 		expect(server).not.toContain('window.innerWidth');
-		expect(page.analysis.boundaries).toContainEqual(
+		expect(artifactAnalysis(page).boundaries).toContainEqual(
 			expect.objectContaining({
 				name: 'ClientWidget',
-				componentId: widget.analysis.components[0]!.id,
+				componentId: artifactAnalysis(widget).components[0]!.id,
 				kind: 'client-island'
 			})
 		);
-		expect(page.analysis.boundaries).toContainEqual(
+		expect(artifactAnalysis(page).boundaries).toContainEqual(
 			expect.objectContaining({
 				name: 'ClientWidget:children',
-				componentId: widget.analysis.components[0]!.id,
+				componentId: artifactAnalysis(widget).components[0]!.id,
 				kind: 'server-slot'
 			})
 		);

@@ -4,10 +4,10 @@ import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type {
 	ExactArtifactGraph,
+	ExactArtifactBuildProducts,
 	ExactArtifactGraphEntry,
 	ExactArtifactGraphOptions
 } from './artifacts.js';
-import type { ExactModuleAnalysis } from './module-analysis.js';
 import type {
 	ExactAssetRule,
 	ModuleRewriteOptions,
@@ -93,7 +93,7 @@ export type CompileArtifactsResult = {
 	client: TransformResult;
 	server: TransformResult;
 	shared?: TransformResult;
-	analysis: ExactModuleAnalysis;
+	build: ExactArtifactBuildProducts;
 	inspection?: ExactCompiledArtifactInspection;
 };
 
@@ -103,7 +103,7 @@ export type ExactArtifactGraphInput = {
 	clientFile: string;
 	serverFile: string;
 	sharedFile?: string;
-	analysis: ExactModuleAnalysis;
+	build: ExactArtifactBuildProducts;
 };
 
 /** Configures compile artifact plan entries. */

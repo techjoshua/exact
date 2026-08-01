@@ -32,6 +32,8 @@ import { transformSource } from './transformation.js';
 import { createOwnedNativeCompilationSession } from './native-session.js';
 import { writeArtifactPlanEntry } from './artifact-entry-output.js';
 import { finalizeArtifactInspection } from './artifact-inspection.js';
+import { artifactAnalysis, retainArtifactAnalysis } from './analysis-results.js';
+import { createArtifactBuildProducts } from './build-products.js';
 
 /** Compiles one source file into paired client/server artifacts. */
 export async function compileFileArtifacts(
@@ -124,21 +126,24 @@ export async function compileFileArtifacts(
 			serverMapFile,
 			`${JSON.stringify(withSourceMapFile(server.map, path.basename(paths.serverFile)), null, 2)}\n`
 		);
-	const result: CompileArtifactsResult = {
-		inputFile,
-		clientFile: paths.clientFile,
-		serverFile: paths.serverFile,
-		...(shared ? { sharedFile: paths.sharedFile } : {}),
-		clientMapFile,
-		serverMapFile,
-		client,
-		server,
-		...(shared ? { shared } : {}),
-		analysis,
-		...(client.inspectionCatalog
-			? { inspection: Object.freeze({ inspection: client.inspectionCatalog }) }
-			: {})
-	};
+	const result: CompileArtifactsResult = retainArtifactAnalysis(
+		{
+			inputFile,
+			clientFile: paths.clientFile,
+			serverFile: paths.serverFile,
+			...(shared ? { sharedFile: paths.sharedFile } : {}),
+			clientMapFile,
+			serverMapFile,
+			client,
+			server,
+			...(shared ? { shared } : {}),
+			build: createArtifactBuildProducts(inputFile, analysis),
+			...(client.inspectionCatalog
+				? { inspection: Object.freeze({ inspection: client.inspectionCatalog }) }
+				: {})
+		},
+		analysis
+	);
 	const finalized = await finalizeArtifactInspection(
 		[result],
 		options,
@@ -329,9 +334,12 @@ async function compileArtifactPlanEntry(
 	});
 	const result = await writeArtifactPlanEntry(entry, base, client, server, sourceMap);
 	return client.inspectionCatalog
-		? {
-				...result,
-				inspection: Object.freeze({ inspection: client.inspectionCatalog })
-			}
+		? retainArtifactAnalysis(
+				{
+					...result,
+					inspection: Object.freeze({ inspection: client.inspectionCatalog })
+				},
+				artifactAnalysis(result)
+			)
 		: result;
 }

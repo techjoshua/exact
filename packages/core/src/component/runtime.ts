@@ -26,7 +26,7 @@ import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins } from './plugins.js';
 import { createComponentActivation, type ComponentActivation } from './activation.js';
 
-import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../task/observers.js';
+import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../tasks/observers.js';
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
 import { ErrorContext } from './contexts.js';
@@ -38,11 +38,10 @@ import { createErrorContext, createErrorReport, handleComponentError } from './e
 import { reactiveValue } from './reactive-value.js';
 import { componentReadinessContext } from './readiness.js';
 import { applyComponentResumption } from './resumption.js';
-import { cancelComponentInteractions } from '../interaction/execution.js';
 import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
 import { registerTaskOwnerHost } from '../tasks/owner-hosts.js';
 import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks/activation.js';
-import { componentContinuationTaskId } from '../task/continuation.js';
+import { componentContinuationTaskId } from '../tasks/component-continuation.js';
 import { createComponentProps, createComponentState } from './state.js';
 import { publishContextAccess } from './context-inspection.js';
 import { createComponentListController } from './list-controller.js';
@@ -248,7 +247,6 @@ export function createComponentInstance<
 			teardown(() => instance.scope.stop());
 			teardown(() => lists.dispose());
 			if (instance.mountController) teardown(() => instance.mountController!.abort(reason));
-			teardown(() => cancelComponentInteractions(instance, reason));
 			teardown(() => {
 				void taskOwner[Symbol.asyncDispose]();
 			});

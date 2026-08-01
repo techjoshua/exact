@@ -3,7 +3,8 @@ import type {
 	ExactJsonValue,
 	ExactPreparedCompilerRegistry
 } from '@exactjs/plugin-api';
-import type { ExactModuleAnalysis, TransformTarget } from './types.js';
+import type { TransformTarget } from './types.js';
+import type { ExactModuleAnalysis } from './contracts/module-analysis.js';
 
 const maxPluginDataBytes = 256 * 1024;
 const maxPluginDataDepth = 32;

@@ -1,9 +1,5 @@
-import type {
-	ExactModuleAnalysis,
-	ExactComponentIR,
-	ExactContinuationIR,
-	ExactTaskIR
-} from '../types.js';
+import type { ExactComponentIR, ExactContinuationIR, ExactTaskIR } from '../types.js';
+import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import type {
 	NativeCompilerComponent,
 	NativeCompilerContinuation,
@@ -28,25 +24,6 @@ export function nativeModuleAnalysis(
 	const continuations = response.analysis.continuations.map(nativeContinuation);
 	const symbols = response.analysis.symbols.map((symbol) => ({ ...symbol }));
 	const exports = response.analysis.exports.map((record) => ({ ...record }));
-	const serverActions: ExactModuleAnalysis['serverActions'] = {};
-	for (const continuation of continuations) {
-		serverActions[continuation.id] = {
-			id: continuation.id,
-			componentId: continuation.componentId,
-			taskId: continuation.taskId,
-			placement: continuation.placement,
-			stateContract: {
-				reads: continuation.activation.stateReads.map((effect) => ({ ...effect })),
-				writes: continuation.effects.stateWrites.map((effect) => ({ ...effect }))
-			},
-			serverContextContract: continuation.activation.serverContexts.map((effect) => ({
-				...effect
-			})),
-			publicContextContract: continuation.activation.publicContexts.map((effect) => ({
-				...effect
-			}))
-		};
-	}
 	return {
 		version: 1,
 		filename,
@@ -141,7 +118,6 @@ export function nativeModuleAnalysis(
 					}
 				}
 			: {}),
-		serverActions,
 		diagnostics: [
 			...response.diagnostics.map((diagnostic) =>
 				diagnostic.message.startsWith(`${diagnostic.severity}:`)

@@ -1,5 +1,20 @@
-import type { ExactArtifactGraph } from './contracts/artifacts.js';
+import type {
+	ExactArtifactGraph,
+	ExactExecutableBoundaryPlan,
+	ExactExecutableOperationPlan,
+	ExactExecutionContractPlan
+} from './contracts/artifacts.js';
 import type { ExactSourceInspection } from './language-tools/contracts.js';
+import path from 'node:path';
+
+/** Compiler-produced operation authority required by a selected exposure. */
+export type ExactExposureOperationPlan = ExactExecutableOperationPlan;
+
+/** Compiler-produced boundary authority required by a selected exposure. */
+export type ExactExposureBoundaryPlan = ExactExecutableBoundaryPlan;
+
+/** Narrow executable contract plan for one selected exposure graph. */
+export type ExactExposureExecutionPlan = ExactExecutionContractPlan;
 
 /** Server-owned source catalog scoped to one microfrontend exposure graph. */
 export type ExactExposureInspectionCatalog = Readonly<{
@@ -13,11 +28,7 @@ export function exactReachableExposureComponents(
 	graph: ExactArtifactGraph,
 	rootComponentId: string
 ): ReadonlySet<string> {
-	const known = new Set(
-		graph.artifacts.flatMap((artifact) =>
-			artifact.analysis.components.map((component) => component.id)
-		)
-	);
+	const known = new Set(graph.artifacts.flatMap((artifact) => artifact.build.componentIds));
 	if (!known.has(rootComponentId))
 		throw new Error(`Unknown eXact exposure root component ${rootComponentId}`);
 	const reachable = new Set([rootComponentId]);
@@ -46,7 +57,7 @@ export function selectExactExposureArtifactGraph(
 ): ExactArtifactGraph {
 	const reachable = exactReachableExposureComponents(graph, rootComponentId);
 	const artifacts = graph.artifacts.filter((artifact) =>
-		artifact.analysis.components.some((component) => reachable.has(component.id))
+		artifact.build.componentIds.some((componentId) => reachable.has(componentId))
 	);
 	const selectedInputs = new Set(artifacts.map((artifact) => artifact.inputFile));
 	return {
@@ -75,8 +86,66 @@ export function selectExactExposureArtifactGraph(
 		serverParts: graph.serverParts.filter(
 			(entry) => !entry.componentId || reachable.has(entry.componentId)
 		),
+		continuations: graph.continuations.filter((entry) => reachable.has(entry.componentId)),
+		execution: {
+			operations: graph.execution.operations.filter((entry) => reachable.has(entry.componentId)),
+			boundaries: graph.execution.boundaries.filter(
+				(entry) =>
+					(!entry.componentId || reachable.has(entry.componentId)) &&
+					(!entry.ownerComponentId || reachable.has(entry.ownerComponentId))
+			)
+		},
 		artifacts
 	};
+}
+
+/** Resolves one default-exported component root without exposing symbol analysis. */
+export function exactExposureRootComponentId(
+	graph: ExactArtifactGraph,
+	inputFile: string
+): string | undefined {
+	const target = path.resolve(inputFile);
+	const artifact = graph.artifacts.find(
+		(candidate) => path.resolve(candidate.inputFile) === target
+	);
+	return artifact?.build.exposureRoots.find((root) => root.exportName === 'default')?.componentId;
+}
+
+/** Projects selected continuation and boundary analysis into executable runtime authority. */
+export function createExactExposureExecutionPlan(
+	graph: ExactArtifactGraph
+): ExactExposureExecutionPlan {
+	return Object.freeze({
+		operations: graph.execution.operations,
+		boundaries: graph.execution.boundaries
+	});
+}
+
+/** Remaps selected client-island imports to authored modules for bundler composition. */
+export function withExactAuthoredClientModules(graph: ExactArtifactGraph): ExactArtifactGraph {
+	const moduleByComponent = new Map<string, string>();
+	for (const artifact of graph.artifacts) {
+		const authoredModule = slashPath(path.resolve(artifact.inputFile));
+		for (const componentId of artifact.build.componentIds)
+			moduleByComponent.set(componentId, authoredModule);
+	}
+	return {
+		...graph,
+		clientIslands: graph.clientIslands.map((entry) => ({
+			...entry,
+			module: entry.componentId
+				? (moduleByComponent.get(entry.componentId) ?? entry.module)
+				: entry.module
+		})),
+		artifacts: graph.artifacts.map((artifact) => ({
+			...artifact,
+			clientFile: slashPath(path.resolve(artifact.inputFile))
+		}))
+	};
+}
+
+function slashPath(value: string): string {
+	return value.replaceAll(path.sep, '/');
 }
 
 /**

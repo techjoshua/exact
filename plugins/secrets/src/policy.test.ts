@@ -1,4 +1,4 @@
-import { analyzeSource } from '@exactjs/compiler';
+import { analyzeSource } from '../../../packages/compiler/src/compilation/source-analysis.js';
 import { describe, expect, it } from 'vitest';
 import { consume, secret } from './index.js';
 import { parseEnvironmentFile } from './providers.js';

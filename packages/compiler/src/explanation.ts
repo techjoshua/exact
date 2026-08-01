@@ -1,10 +1,10 @@
 import type {
 	ExactCompilerExplanation,
-	ExactModuleAnalysis,
 	ExactContinuationIR,
 	ExactResumptionFieldExplanation,
 	TransformTarget
 } from './types.js';
+import type { ExactModuleAnalysis } from './contracts/module-analysis.js';
 
 /** Creates a stable explanation without exposing the compiler's planning analysis. */
 export function createExactCompilerExplanation(

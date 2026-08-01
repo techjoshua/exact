@@ -89,10 +89,10 @@ export function AdvancedPage(this: Component<{}>) {
 					prop spreads, or server-only child graphs remain eager automatically.
 				</p>
 				<p>
-					Actions are queued in order while code loads, repeated input/change events coalesce to the
-					latest value per target, and generated identity prevents replay into a stale replacement.
-					A dirty input keeps its live browser value during adoption and flows through the same
-					compiled binding used after hydration.
+					Activation events are queued in order while code loads, repeated input/change events
+					coalesce to the latest value per target, and generated identity prevents replay into a
+					stale replacement. A dirty input keeps its live browser value during adoption and flows
+					through the same compiled binding used after hydration.
 				</p>
 				<Callout title="Framework-owned, not cooperative">
 					<p>

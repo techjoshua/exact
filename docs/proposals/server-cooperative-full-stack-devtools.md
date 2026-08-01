@@ -7,6 +7,10 @@ microfrontend federation, Chromium extension, and CDP agent bridge described her
 framework behavior. The maintained public contract and operational guidance live in
 [`../devtools.md`](../devtools.md).
 
+Task/action wording retained later in this document is historical terminology from before
+[`unified-function-defined-tasks.md`](unified-function-defined-tasks.md). Current inspection has one
+task tree; invocation and interaction are metadata rather than separate owned resources.
+
 The following prerequisites are already implemented and are treated as the starting point rather
 than future work:
 
@@ -19,7 +23,7 @@ than future work:
   exposure;
 - compiler-owned component, continuation, boundary, and execution-root identities;
 - client component domains carrying an `executionRoot`;
-- immutable action inspection snapshots;
+- immutable invoked-task inspection snapshots;
 - renderer-owned component-tree inspection used by framework testing; and
 - explicit instrumentation sinks for reactive, DOM, SSR, hydration, and server profiling.
 

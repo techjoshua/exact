@@ -4,7 +4,7 @@
 import { type Component } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { describe, expect, it } from 'vitest';
-import { applyPatches } from './index.js';
+import { applyPatches } from './patches.js';
 import { noopLogger } from './test-support/responses.js';
 import { createVNode } from './test-support/native-vnode.js';
 

@@ -1,7 +1,8 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, compileProject, generatedComponentName, transform } from '../index.js';
+import { compileProject, generatedComponentName, transform } from '../index.js';
+import { analyzeSource } from './source-analysis.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler: diagnostics', () => {

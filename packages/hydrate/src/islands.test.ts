@@ -10,7 +10,8 @@ import {
 	handleExactRequest
 } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
-import { applyPatches, createExactClient, hydrateClientIslands } from './index.js';
+import { createExactClient, hydrateClientIslands } from './index.js';
+import { applyPatches } from './patches.js';
 import { noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate islands', () => {

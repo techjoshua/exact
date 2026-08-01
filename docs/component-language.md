@@ -11,7 +11,7 @@ are not an application authoring surface.
 
 Compiler-aware editor support exposes the same language model without requiring
 generated-code inspection. eXact Language Tools identifies setup-once
-initializers, reactive render regions, inferred and explicit tasks, actions,
+initializers, reactive render regions, inferred and explicit tasks, interactions,
 derived values, bindings, and lifecycle registrations; each classification
 links to the compiler-owned source evidence behind it. See
 [Compiler-aware language tools](language-tools.md).
@@ -325,7 +325,7 @@ whether an entry existed, and `clear()` returns `undefined`, matching native
 JavaScript. Adding an existing Set value or setting a Map key to the same value
 does not notify consumers.
 
-Maps and Sets cross SSR, hydration, action, and continuation boundaries through
+Maps and Sets cross SSR, hydration, invocation, and continuation boundaries through
 tagged JSON envelopes and are reconstructed as real collections. Transported
 Map keys must be `null`, booleans, finite numbers, or strings; values and Set
 members may use any otherwise transport-safe eXact value. Local-only

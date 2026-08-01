@@ -8,12 +8,8 @@ import {
 	createExactRuntimeInspectionCorrelation
 } from '../language-tools/runtime-correlation.js';
 import { createExactInspectionRedactions } from '../language-tools/build-catalog.js';
-import type {
-	ExactModuleAnalysis,
-	TransformOptions,
-	TransformResult,
-	TransformTarget
-} from '../types.js';
+import type { TransformOptions, TransformResult, TransformTarget } from '../types.js';
+import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import { nativeModuleAnalysis } from './module-analysis.js';
 import type {
 	NativeCompilerCapabilityPolicy,

@@ -152,6 +152,9 @@ try {
 const publicCompiler = await import(
 	pathToFileURL(path.join(repositoryRoot, 'packages/compiler/dist/index.js')).href
 );
+const internalCompiler = await import(
+	pathToFileURL(path.join(repositoryRoot, 'packages/compiler/dist/internal.js')).href
+);
 const session = publicCompiler.createCompilerSession({
 	nativeCompiler: { executable: path.resolve(executable) }
 });
@@ -166,7 +169,7 @@ try {
 			session
 		}
 	);
-	const resultAnalysis = publicCompiler.analyzeSource(
+	const resultAnalysis = internalCompiler.analyzeSource(
 		'export function NativePanel() { return () => <button onClick={() => alert(1)}>Go</button>; }',
 		{ filename: 'native-panel.tsx', serverComponents: true, session }
 	);
@@ -196,7 +199,7 @@ try {
 			}
 		}
 	};
-	const configured = publicCompiler.analyzeSource('export const configured = true;', {
+	const configured = internalCompiler.analyzeSource('export const configured = true;', {
 		filename: 'configured.ts',
 		pluginRegistry: configurationRegistry,
 		session
@@ -213,7 +216,7 @@ try {
 		}
 	});
 
-	const htmlLibrary = publicCompiler.analyzeSource(
+	const htmlLibrary = internalCompiler.analyzeSource(
 		'import { unsafeHtml } from "@exactjs/core"; export function article(value: string) { return unsafeHtml(value); }',
 		{
 			filename: 'article.ts',
@@ -233,7 +236,7 @@ try {
 			session
 		}
 	);
-	const assetAnalysis = publicCompiler.analyzeSource(
+	const assetAnalysis = internalCompiler.analyzeSource(
 		'import "./app.scss"; import poster from "./poster.avif?url"; export const asset = poster;',
 		{
 			filename: 'assets.ts',

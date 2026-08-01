@@ -46,7 +46,7 @@ selects the private host from trusted binding and build metadata, removes
 framework routing headers before forwarding application traffic, and preserves
 one request authorization, CSRF, limit, response, and cleanup lifecycle.
 
-Different roots can share a batch without sharing their action or boundary ID
+Different roots can share a batch without sharing their invocation or boundary ID
 namespace. Work across roots is not atomic; failure is contained to the
 affected remote boundary.
 

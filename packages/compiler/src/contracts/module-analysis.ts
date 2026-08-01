@@ -3,15 +3,13 @@ import type {
 	ExactBoundaryIR,
 	ExactCallableSummaryIR,
 	ExactComponentIR,
-	ExactContextEffect,
 	ExactExportIR,
 	ExactSemanticGraphIR,
-	ExactStateEffect,
 	ExactSymbolIR
 } from './analysis.js';
 import type { ExactComponentResumptionIR, ExactContinuationIR } from './continuations.js';
 import type { ExactComponentRegistryIR } from './registries.js';
-import type { ExactPlacement, ExactPolicyAnalysisIR } from './policy.js';
+import type { ExactPolicyAnalysisIR } from './policy.js';
 import type { ExactAssetDependencyIR, ExactRawHtmlCapabilityIR } from './transform.js';
 
 /** Ephemeral analysis retained only by an owned compiler session. */
@@ -34,21 +32,6 @@ export type ExactModuleAnalysis = {
 	requiredCapabilities?: {
 		rawHtml: ExactRawHtmlCapabilityIR[];
 	};
-	serverActions: Record<
-		string,
-		{
-			id: string;
-			componentId: string;
-			taskId: string;
-			placement: ExactPlacement;
-			stateContract: {
-				reads: ExactStateEffect[];
-				writes: ExactStateEffect[];
-			};
-			serverContextContract: ExactContextEffect[];
-			publicContextContract: ExactContextEffect[];
-		}
-	>;
 	pluginRegistry?: {
 		fingerprint: string;
 		plugins: Record<

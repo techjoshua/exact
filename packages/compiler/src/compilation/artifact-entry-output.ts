@@ -1,17 +1,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
-import type {
-	CompileArtifactsResult,
-	ExactArtifactPlanEntry,
-	ExactModuleAnalysis,
-	TransformResult
-} from '../types.js';
+import type { CompileArtifactsResult, ExactArtifactPlanEntry, TransformResult } from '../types.js';
+import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import {
 	removeGeneratedArtifact,
 	sharedArtifactFacade,
 	sharedArtifactResult
 } from './shared-artifact.js';
+import { retainArtifactAnalysis } from './analysis-results.js';
+import { createArtifactBuildProducts } from './build-products.js';
 
 /** Writes one planned client/server artifact pair. */
 export async function writeArtifactPlanEntry(
@@ -54,16 +52,19 @@ export async function writeArtifactPlanEntry(
 			serverMapFile,
 			`${JSON.stringify(withSourceMapFile(server.map, path.basename(entry.serverFile)), null, 2)}\n`
 		);
-	return {
-		inputFile: entry.inputFile,
-		clientFile: entry.clientFile,
-		serverFile: entry.serverFile,
-		...(shared ? { sharedFile: entry.sharedFile } : {}),
-		clientMapFile,
-		serverMapFile,
-		client,
-		server,
-		...(shared ? { shared } : {}),
-		analysis: base
-	};
+	return retainArtifactAnalysis(
+		{
+			inputFile: entry.inputFile,
+			clientFile: entry.clientFile,
+			serverFile: entry.serverFile,
+			...(shared ? { sharedFile: entry.sharedFile } : {}),
+			clientMapFile,
+			serverMapFile,
+			client,
+			server,
+			...(shared ? { shared } : {}),
+			build: createArtifactBuildProducts(entry.inputFile, base)
+		},
+		base
+	);
 }

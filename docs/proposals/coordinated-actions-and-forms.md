@@ -9,18 +9,21 @@ optimistic state, router joining, and distributed execution. Current source
 uses ordinary function-defined tasks, `TaskContext`, and neutral invocation
 contracts; none of the component action APIs below remain available.
 
-| Delivery area                                                          | Current status |
-| ---------------------------------------------------------------------- | -------------- |
-| Client interaction runtime and DOM ownership                           | Implemented    |
-| Named component actions and `parallel` / `latest` / `queue`            | Implemented    |
-| Compiler-recognized interaction handlers                               | Implemented    |
-| Distributed action continuations and opaque dispatch                   | Implemented    |
-| Enhanced forms, external errors, pending UI, and duplicate suppression | Implemented    |
-| Path- and collection-aware optimistic journals                         | Implemented    |
-| Router navigation, fetch, submit, and revalidation joining             | Implemented    |
-| Immutable action inspection and TypeScript 6/7 contracts               | Implemented    |
-| Native no-JavaScript endpoints and file-upload transport               | Deferred       |
-| Partial-prerender resumption and browser View Transition policy        | Deferred       |
+The table below records the historical delivery state before supersession; it is not a current API
+inventory.
+
+| Delivery area                                                          | Historical status |
+| ---------------------------------------------------------------------- | ----------------- |
+| Client interaction runtime and DOM ownership                           | Implemented       |
+| Named component actions and `parallel` / `latest` / `queue`            | Implemented       |
+| Compiler-recognized interaction handlers                               | Implemented       |
+| Distributed action continuations and opaque dispatch                   | Implemented       |
+| Enhanced forms, external errors, pending UI, and duplicate suppression | Implemented       |
+| Path- and collection-aware optimistic journals                         | Implemented       |
+| Router navigation, fetch, submit, and revalidation joining             | Implemented       |
+| Immutable action inspection and TypeScript 6/7 contracts               | Implemented       |
+| Native no-JavaScript endpoints and file-upload transport               | Deferred          |
+| Partial-prerender resumption and browser View Transition policy        | Deferred          |
 
 The first delivery intentionally diagnoses parallel optimistic overlays and
 defers native no-JavaScript action endpoints, file-upload transport,
