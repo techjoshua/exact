@@ -18,7 +18,7 @@ describe('@exactjs/hapi-adapter', () => {
 		const response = await server.inject({
 			method: 'POST',
 			url: '/__exact?source=hapi',
-			payload: { type: 'action', id: 'save' }
+			payload: { type: 'invoke', id: 'save' }
 		});
 
 		expect(response.statusCode).toBe(200);
@@ -31,7 +31,7 @@ describe('@exactjs/hapi-adapter', () => {
 		};
 		expect(result).toMatchObject({
 			ok: true,
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			state: {
 				runtime: 'hapi',
@@ -52,7 +52,7 @@ describe('@exactjs/hapi-adapter', () => {
 		const response = await server.inject({
 			method: 'POST',
 			url: '/__exact',
-			payload: { type: 'action', id: 'save' }
+			payload: { type: 'invoke', id: 'save' }
 		});
 
 		expect(response.statusCode).toBe(200);
@@ -73,7 +73,7 @@ describe('@exactjs/hapi-adapter', () => {
 		const response = await server.inject({
 			method: 'POST',
 			url: '/__exact',
-			payload: { type: 'action', id: 'save', state: { oversized: 'x'.repeat(128) } }
+			payload: { type: 'invoke', id: 'save', state: { oversized: 'x'.repeat(128) } }
 		});
 		expect(response.statusCode).toBe(413);
 	});
@@ -86,7 +86,7 @@ describe('@exactjs/hapi-adapter', () => {
 			method: 'POST',
 			url: '/__exact',
 			headers: { accept: 'application/x-ndjson' },
-			payload: { type: 'action', id: 'save' }
+			payload: { type: 'invoke', id: 'save' }
 		});
 
 		expect(response.statusCode).toBe(200);
@@ -109,7 +109,7 @@ describe('@exactjs/hapi-adapter', () => {
 		const response = await server.inject({
 			method: 'POST',
 			url: '/__exact',
-			payload: { type: 'action', id: 'save' }
+			payload: { type: 'invoke', id: 'save' }
 		});
 
 		expect(response.statusCode).toBe(200);
@@ -136,8 +136,8 @@ describe('@exactjs/hapi-adapter', () => {
 			observedAbort = resolve;
 		});
 		const context = runtime();
-		context.contract.actions.wait = stateAction('wait');
-		context.actions!.wait = async (_input, requestContext) => {
+		context.contract.invocations.wait = stateAction('wait');
+		context.invocations!.wait = async (_input, requestContext) => {
 			const signal = requestContext.signal!;
 			started();
 			await new Promise<void>((resolve) => {
@@ -160,7 +160,7 @@ describe('@exactjs/hapi-adapter', () => {
 		await registerExact(server, context);
 		await server.start();
 
-		const body = JSON.stringify({ type: 'action', id: 'wait' });
+		const body = JSON.stringify({ type: 'invoke', id: 'wait' });
 		const request = createHttpRequest(`${server.info.uri}/__exact`, {
 			method: 'POST',
 			headers: {
@@ -215,10 +215,10 @@ function runtime(): ExactServerContext {
 		contract: {
 			version: 1,
 			endpoint: '/__exact',
-			actions: { save: stateAction('save') },
+			invocations: { save: stateAction('save') },
 			boundaries: {}
 		},
-		actions: {
+		invocations: {
 			save: (_input, context) => ({
 				state: {
 					runtime: 'hapi',

@@ -1,5 +1,6 @@
 import {
 	createComponentInstance,
+	exactComponentIdentity,
 	pageComponentDomain,
 	withComponentResumption,
 	type ComponentFunction,
@@ -14,6 +15,7 @@ export function constructAdoptedComponent(
 	vnode: VNode,
 	parent?: ComponentInstance<any>
 ): ComponentInstance<any> {
+	exactComponentIdentity(vnode.type as ComponentFunction<any, Record<string, unknown>>);
 	const domain = vnode.domain ?? parent?.domain ?? pageComponentDomain;
 	return withComponentResumption(domain, () =>
 		createComponentInstance(

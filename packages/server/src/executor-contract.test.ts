@@ -1,4 +1,4 @@
-import { exactComponentContract } from '@exactjs/core';
+import { exactComponentContract, exactComponentType } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	composeExactExecutorContract,
@@ -10,10 +10,10 @@ import {
 describe('@exactjs/server executor contracts', () => {
 	it('composes explicitly imported executable component contracts', () => {
 		const execute = () => ({ state: {} });
-		const component = Object.assign(() => undefined, {
+		const component = Object.assign(() => () => undefined, {
+			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'Page',
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -44,13 +44,13 @@ describe('@exactjs/server executor contracts', () => {
 
 		const contract = composeExactExecutorContract([component], {
 			endpoint: '/__exact',
-			endpoints: { actions: { save: 'https://executor.test/__exact' } }
+			endpoints: { invocations: { save: 'https://executor.test/__exact' } }
 		});
 
 		expect(contract).toMatchObject({
 			version: 1,
 			endpoint: '/__exact',
-			actions: {
+			invocations: {
 				save: {
 					componentId: 'Page',
 					stateReads: [{ path: 'project.id' }],
@@ -63,11 +63,11 @@ describe('@exactjs/server executor contracts', () => {
 		});
 		expect(createExactHydrationConfig(contract, { project: { id: 'p1' } })).toEqual({
 			endpoint: '/__exact',
-			endpoints: { actions: { save: 'https://executor.test/__exact' } },
+			endpoints: { invocations: { save: 'https://executor.test/__exact' } },
 			state: { project: { id: 'p1' } },
 			continuations: {
 				save: {
-					...contract.actions.save,
+					...contract.invocations.save,
 					serverContexts: []
 				}
 			}
@@ -77,10 +77,10 @@ describe('@exactjs/server executor contracts', () => {
 	it('rejects conflicting application authority and malformed routes', () => {
 		const first = defineExactOperationContract('save', { componentId: 'Page' });
 		const second = defineExactOperationContract('save', { componentId: 'OtherPage' });
-		const component = Object.assign(() => undefined, {
+		const component = Object.assign(() => () => undefined, {
+			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'Page',
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -90,12 +90,12 @@ describe('@exactjs/server executor contracts', () => {
 			}
 		});
 
-		expect(() => composeExactExecutorContract([component], { actions: { save: second } })).toThrow(
-			'Conflicting eXact executor action save'
-		);
+		expect(() =>
+			composeExactExecutorContract([component], { invocations: { save: second } })
+		).toThrow('Conflicting eXact executor invocation save');
 		expect(() =>
 			composeExactExecutorContract([], {
-				endpoints: { actions: { save: '' } }
+				endpoints: { invocations: { save: '' } }
 			})
 		).toThrow('Malformed eXact endpoint routes');
 	});

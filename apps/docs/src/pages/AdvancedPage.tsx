@@ -11,7 +11,7 @@ const advancedCards: AdvancedCard[] = [
 	},
 	{
 		title: 'Server components',
-		text: 'Compile cooperating client/server state machines with allowlisted actions and refresh boundaries.',
+		text: 'Compile cooperating client/server state machines with allowlisted task invocations and refresh boundaries.',
 		packages: '@exactjs/compiler · @exactjs/server'
 	},
 	{

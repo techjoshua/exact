@@ -66,7 +66,8 @@ describe('language-server projections', () => {
 	});
 
 	it('composes independently explained badges for explicit task policy', () => {
-		const source = 'function Page() { this.task(); }';
+		const source =
+			'function Page() { const load = (_task: TaskContext = TaskContext.client().deferred()) => {}; load(); }';
 		const inspection = fixture(source);
 		const initializer = inspection.components[0]?.children[0];
 		const inferredTask = initializer?.children[0];
@@ -75,7 +76,7 @@ describe('language-server projections', () => {
 			...inferredTask,
 			id: 'Page:explicit-task',
 			kind: 'explicit-task',
-			selectionRange: sourceRange(source, 'task'),
+			selectionRange: sourceRange(source, 'load'),
 			classification: {
 				...(inferredTask.classification as ExactTaskClassification),
 				kind: 'task',
@@ -104,7 +105,7 @@ describe('language-server projections', () => {
 			semanticTokenFacts(source, projectSemanticTokens(compositeInspection, source).data)
 		).toEqual([
 			{ text: 'Page', type: 0 },
-			{ text: 'task', type: 3 }
+			{ text: 'load', type: 3 }
 		]);
 	});
 
@@ -165,13 +166,14 @@ describe('language-server projections', () => {
 	it('places call badges after the opening parenthesis', () => {
 		const source = [
 			'function Page() {',
-			'\tthis.task(async () => {});',
+			'\tconst load = async (_task: TaskContext = TaskContext.client()) => {};',
+			'\tload();',
 			'\treturn () => <main />;',
 			'}'
 		].join('\r\n');
 		const inspection = fixture(source);
 		const pageOffset = source.indexOf('Page');
-		const taskOffset = source.indexOf('task');
+		const taskOffset = source.indexOf('load();');
 		const initializer = inspection.components[0]?.children[0];
 		const task = initializer?.children[0];
 		if (!initializer || !task) throw new Error('Expected language-tools fixture entities.');
@@ -190,8 +192,8 @@ describe('language-server projections', () => {
 									...task,
 									kind: 'explicit-task',
 									range: {
-										start: source.indexOf('this.task'),
-										end: source.indexOf(';', source.indexOf('this.task')) + 1
+										start: taskOffset,
+										end: source.indexOf(';', taskOffset) + 1
 									},
 									selectionRange: { start: taskOffset, end: taskOffset + 4 },
 									classification: {
@@ -208,7 +210,7 @@ describe('language-server projections', () => {
 		};
 
 		const hints = projectInlayHints(rangedInspection, source);
-		expect(hints.map((hint) => hint.position)).toEqual([{ line: 1, character: 11 }]);
+		expect(hints.map((hint) => hint.position)).toEqual([{ line: 2, character: 6 }]);
 	});
 
 	it('places assignment badges before the assignment and explains the specific write', () => {
@@ -312,7 +314,8 @@ describe('language-server projections', () => {
 	});
 
 	it('does not claim hover ownership across a containing function or task body', () => {
-		const source = 'function Page() { this.task(() => inner(value)); }';
+		const source =
+			'function Page() { const load = (_task: TaskContext = TaskContext.client()) => inner(value); load(); }';
 		const inspection = fixture(source);
 		const inner = source.indexOf('inner');
 

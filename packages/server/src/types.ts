@@ -35,22 +35,22 @@ import type {
 } from './debug-types.js';
 
 /** Defines the exact invocation kind type contract. */
-export type ExactInvocationKind = 'action' | 'refresh';
+export type ExactInvocationKind = 'invoke' | 'refresh';
 
 /** Immutable allowlist composed from explicitly imported executor artifacts. */
 export type ExactExecutorContract = {
 	version: 1;
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
-	actions: Record<string, ExactComponentContinuationContract>;
-	/** Compiler-generated handlers; absent when a contract contains only application actions. */
+	invocations: Record<string, ExactComponentContinuationContract>;
+	/** Compiler-generated handlers; absent when a contract contains only application invocations. */
 	executors?: Record<string, ExactComponentContinuationExecutorContract>;
 	boundaries: Record<string, ExactComponentBoundaryContract>;
 };
 
 /** Defines the exact endpoint routes type contract. */
 export type ExactEndpointRoutes = {
-	actions?: Record<string, string>;
+	invocations?: Record<string, string>;
 	boundaries?: Record<string, string>;
 };
 
@@ -79,7 +79,7 @@ export type ExactStatePath = {
 export type ComposeExactExecutorContractOptions = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
-	actions?: Record<string, ExactComponentContinuationContract>;
+	invocations?: Record<string, ExactComponentContinuationContract>;
 	boundaries?: Record<string, ExactComponentBoundaryContract>;
 };
 
@@ -248,7 +248,7 @@ export type ExactProtocolRequest = ExactInvocationRequest | ExactBatchRequest | 
 /** Selects the manifest and handlers for one execution root in a retained build. */
 export type ExactRemoteRootDispatch = {
 	contract: ExactExecutorContract;
-	actions?: ExactServerContext['actions'];
+	invocations?: ExactServerContext['invocations'];
 	refreshBoundaries?: ExactServerContext['refreshBoundaries'];
 };
 
@@ -321,7 +321,7 @@ export type ExactInvocationResult = {
 	mutations?: ExactCollectionMutation[];
 	/** Compiler-approved component-context projections returned to the owning client instance. */
 	contexts?: Record<string, unknown>;
-	/** Serializable return value of an explicit distributed component action. */
+	/** Serializable return value of an explicitly invoked distributed task. */
 	value?: unknown;
 	html?: string;
 };
@@ -415,7 +415,7 @@ export type ExactPatch =
 /** Carries the context required by exact server. */
 export type ExactServerContext = ExactServerContextConfiguration & {
 	contract: ExactExecutorContract;
-	actions?: Record<
+	invocations?: Record<
 		string,
 		(
 			input: ExactInvocationRequest,

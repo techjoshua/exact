@@ -1,5 +1,6 @@
 import {
 	createVNode,
+	markExactComponent,
 	withTaskObserver,
 	type Child,
 	type Component,
@@ -168,3 +169,5 @@ export function TestMountHost(
 	for (const entry of props.entries) this.setContext(entry.token, entry.value);
 	return () => props.children;
 }
+
+markExactComponent(TestMountHost, '@exactjs/testing:TestMountHost');

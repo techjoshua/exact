@@ -1,7 +1,7 @@
 import type { NativeCompilerModuleRewrite } from './process-module-contracts.js';
 import type { NativeCompilerComponent } from './process-component-contracts.js';
 import type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
-import type { NativeCompilerPolicyManifest } from './process-policy-contracts.js';
+import type { NativeCompilerPolicyAnalysis } from './process-policy-contracts.js';
 import type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 import type { NativeCompilerTask } from './process-task-contracts.js';
 
@@ -17,7 +17,7 @@ export type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js
 export type {
 	NativeCompilerDataPolicy,
 	NativeCompilerPolicyFlow,
-	NativeCompilerPolicyManifest,
+	NativeCompilerPolicyAnalysis,
 	NativeCompilerPolicySubject,
 	NativeCompilerSecretConsumer
 } from './process-policy-contracts.js';
@@ -49,7 +49,6 @@ export type NativeCompilerRequest = Readonly<{
 	assetRules?: readonly NativeCompilerAssetRule[];
 	preserveClientAssetImports?: boolean;
 	jsxInterop?: NativeCompilerJSXInterop;
-	manifests?: readonly NativeCompilerExternalManifest[];
 	extensions?: Readonly<Record<string, unknown>>;
 	compatibilityExtensions?: Readonly<Record<string, readonly string[]>>;
 	moduleRewrite?: NativeCompilerModuleRewrite;
@@ -80,21 +79,6 @@ export type NativeCompilerAssetDependency = Readonly<{
 	importMode: NonNullable<NativeCompilerAssetRule['importMode']>;
 	evaluationTarget: 'client' | 'server' | 'both';
 	deliveryTarget: 'client' | 'server' | 'both' | 'embedded';
-}>;
-
-/** Compact imported package contract consumed directly by the Go host. */
-export type NativeCompilerExternalManifest = Readonly<{
-	filename: string;
-	packageName?: string;
-	components: readonly Readonly<{
-		exportName: string;
-		name: string;
-		componentId?: string;
-		placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	}>[];
-	callables: readonly NativeCompilerCallable[];
-	policy: NativeCompilerPolicyManifest;
-	capabilities: NativeCompilerCapabilityRequirements;
 }>;
 
 /** Application-owned privileged-feature grants consumed by the Go host. */
@@ -239,7 +223,7 @@ export type NativeCompilerStateRead = Readonly<{
 /** Describes one compiler-owned cross-runtime task transition. */
 export type NativeCompilerContinuation = Readonly<{
 	id: string;
-	kind: 'task' | 'action';
+	kind: 'task';
 	label?: string;
 	componentId: string;
 	taskId: string;
@@ -374,29 +358,16 @@ export type NativeCompilerAnalysis = Readonly<{
 	reactiveBindings: readonly NativeCompilerReactiveBinding[];
 	callables: readonly NativeCompilerCallable[];
 	tasks: readonly NativeCompilerTask[];
-	actions?: readonly NativeCompilerAction[];
 	exports: readonly NativeCompilerExport[];
 	symbols: readonly NativeCompilerSymbol[];
 	boundaries: readonly NativeCompilerBoundary[];
 	continuations: readonly NativeCompilerContinuation[];
 	registries?: readonly NativeCompilerComponentRegistry[];
 	resumptions: readonly NativeCompilerComponentResumption[];
-	policy: NativeCompilerPolicyManifest;
+	policy: NativeCompilerPolicyAnalysis;
 	requiredCapabilities: NativeCompilerCapabilityRequirements;
 	assets: readonly NativeCompilerAssetDependency[];
 	semanticGraph: NativeCompilerSemanticGraph;
-}>;
-
-/** Compiler-owned identity for one component action registration. */
-export type NativeCompilerAction = Readonly<{
-	id: string;
-	label: string;
-	component: string;
-	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	priority: 'normal' | 'deferred';
-	concurrency: 'parallel' | 'latest' | 'queue';
-	start: number;
-	length: number;
 }>;
 
 /** Process-safe component registry provenance emitted by the native compiler. */
@@ -425,7 +396,7 @@ export type NativeCompilerResponse = Readonly<{
 	code?: string;
 	sourceMap?: NativeCompilerSourceMap;
 	diagnostics: readonly NativeCompilerDiagnostic[];
-	manifestData?: Readonly<Record<string, unknown>>;
+	analysisData?: Readonly<Record<string, unknown>>;
 	analysis: NativeCompilerAnalysis;
 	timings: NativeCompilerTimings;
 	cacheHit?: boolean;

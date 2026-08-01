@@ -1,12 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { hydrateClientIslands, lazyClientIsland } from './index.js';
+import { createVNode, markTestComponent } from './test-support/native-vnode.js';
 
 describe('@exactjs/hydrate lazy islands', () => {
-	it('loads an interaction island once and replays ordered actions after adoption', async () => {
+	it('loads an interaction island once and replays ordered invocations after adoption', async () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="counter-button">Count</button></div>';
@@ -24,6 +24,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 					'Count'
 				);
 		}
+		markTestComponent(Counter);
 
 		hydrateClientIslands(container, {
 			Counter: lazyClientIsland(() => {
@@ -60,6 +61,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 					onInput: (event: Event) => values.push((event.currentTarget as HTMLInputElement).value)
 				});
 		}
+		markTestComponent(Form);
 
 		hydrateClientIslands(container, {
 			Form: lazyClientIsland(() => loaded)

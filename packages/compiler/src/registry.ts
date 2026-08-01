@@ -7,14 +7,13 @@ import type {
 	ExactArtifactGraphInput,
 	ExactContinuationIR,
 	ExactHydrationRegistrationModuleOptions,
-	ExactRegistryModuleOptions,
 	ExactSymbolIR,
 	ServerPartRegistryEntry,
 	ServerPartRegistryOptions
 } from './types.js';
 
 /** Creates registry entries for client island components from compiled artifacts. */
-export function createClientIslandRegistryEntries(
+export function clientIslandRegistryEntries(
 	results: readonly ExactArtifactGraphInput[],
 	options: ClientIslandRegistryOptions = {}
 ): ClientIslandRegistryEntry[] {
@@ -23,12 +22,12 @@ export function createClientIslandRegistryEntries(
 	for (const result of results) {
 		const modulePath = clientRegistryModulePath(
 			result.clientFile,
-			options.rootDir ?? path.dirname(result.manifestFile)
+			options.rootDir ?? path.dirname(result.clientFile)
 		);
 		const continuationComponents = new Set(
-			result.manifest.continuations.map((continuation) => continuation.componentId)
+			result.analysis.continuations.map((continuation) => continuation.componentId)
 		);
-		for (const symbol of result.manifest.symbols) {
+		for (const symbol of result.analysis.symbols) {
 			if (!clientRegistrySymbol(symbol, continuationComponents)) continue;
 			entries.push({
 				id: symbol.id,
@@ -43,16 +42,8 @@ export function createClientIslandRegistryEntries(
 	return entries.sort((left, right) => left.id.localeCompare(right.id));
 }
 
-/** Creates a JavaScript module exporting a client island registry object. */
-export function createClientIslandRegistryModule(
-	entries: readonly ClientIslandRegistryEntry[],
-	options: ExactRegistryModuleOptions = {}
-): string {
-	return createNamedRegistryModule(entries, options.exportName ?? 'exactClientIslands');
-}
-
 /** Creates registry entries for generated server component parts from compiled artifacts. */
-export function createServerPartRegistryEntries(
+export function serverPartRegistryEntries(
 	results: readonly ExactArtifactGraphInput[],
 	options: ServerPartRegistryOptions = {}
 ): ServerPartRegistryEntry[] {
@@ -61,9 +52,9 @@ export function createServerPartRegistryEntries(
 	for (const result of results) {
 		const modulePath = clientRegistryModulePath(
 			result.serverFile,
-			options.rootDir ?? path.dirname(result.manifestFile)
+			options.rootDir ?? path.dirname(result.serverFile)
 		);
-		for (const symbol of result.manifest.symbols) {
+		for (const symbol of result.analysis.symbols) {
 			if (symbol.role !== 'server-part' || symbol.target !== 'server' || !symbol.exportName)
 				continue;
 			entries.push({
@@ -77,14 +68,6 @@ export function createServerPartRegistryEntries(
 	}
 
 	return entries.sort((left, right) => left.id.localeCompare(right.id));
-}
-
-/** Creates a JavaScript module exporting a server part registry object. */
-export function createServerPartRegistryModule(
-	entries: readonly ServerPartRegistryEntry[],
-	options: ExactRegistryModuleOptions = {}
-): string {
-	return createNamedRegistryModule(entries, options.exportName ?? 'exactServerParts');
 }
 
 /** Creates a hydration registration module for client islands, contracts, and action boundaries. */
@@ -124,7 +107,7 @@ function createClientDescriptorCompositionModule(
 		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(runtimeModuleSpecifier(entry.module))}).then((module) => module[${JSON.stringify(entry.exportName)}]))`;
 	});
 	const continuationValues = continuationDescriptorValues(
-		graph.artifacts.flatMap((artifact) => artifact.manifest.continuations),
+		graph.artifacts.flatMap((artifact) => artifact.analysis.continuations),
 		true
 	);
 	const continuations: Record<string, Record<string, unknown>> = {};
@@ -208,23 +191,6 @@ function clientRegistrySymbol(
 			!!symbol.componentId &&
 			continuationComponents.has(symbol.componentId))
 	);
-}
-
-function createNamedRegistryModule(
-	entries: readonly (ClientIslandRegistryEntry | ServerPartRegistryEntry)[],
-	exportName: string
-): string {
-	const sorted = uniqueRegistryEntries(entries);
-	const imports: string[] = [];
-	const properties: string[] = [];
-	sorted.forEach((entry, index) => {
-		const local = `__exactRegistry${index}`;
-		imports.push(
-			`import { ${entry.exportName} as ${local} } from ${JSON.stringify(entry.module)};`
-		);
-		properties.push(`  ${JSON.stringify(entry.name)}: ${local}`);
-	});
-	return `${imports.join('\n')}\n\nexport const ${exportName} = {\n${properties.join(',\n')}\n};\n`;
 }
 
 function uniqueRegistryEntries<T extends ClientIslandRegistryEntry | ServerPartRegistryEntry>(

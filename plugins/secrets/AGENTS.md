@@ -1,9 +1,8 @@
-# Using @exactjs/secrets
+# Using `@exactjs/secrets`
 
-Read this package's README and exported declarations before configuring providers. Secret values
-remain server-owned resources and must never enter compiler catalogs, hydration, client bundles,
-DevTools previews, events, source excerpts, errors, audits, or exports.
+See the [README](./README.md) for provider setup. Use this package to resolve named secrets in
+server-owned eXact work.
 
-When inspection is enabled, project only compiler-qualified secret names or presence and convert
-them to redaction selectors before any value traversal. Do not reveal value length, shape, provider
-metadata, or error text that could contain the value.
+- Never place secret values in client state, hydration, catalogs, logs, errors, or DevTools data.
+- Expose only names or presence when inspection policy permits it.
+- Configure redaction selectors before inspecting values that may contain secrets.

@@ -591,24 +591,38 @@ export const userContext = createContext&lt;UserContextValue&gt;("user");</code>
 			<section id="tasks">
 				<h2>5. Tasks</h2>
 				<p>
-					<code>this.task()</code> is the lifecycle-managed work primitive. It handles async work,
-					cleanup, cancellation, and dependency-triggered reruns.
+					A task begins as an ordinary TypeScript function. The compiler promotes functions that
+					need coordinated effects, placement, policy, or ownership into lifecycle-managed work.
 				</p>
 
 				<h3>Final task direction</h3>
 				<p>
-					Render dependencies are automatic. Task dependencies are explicit by passing dependency
-					values before the task callback. The task callback receives unwrapped dependency values as
-					positional parameters, followed by the task context.
+					Call a task function normally. Calls during component setup declare initial and reactive
+					activation, with the call's argument expressions as observed inputs. Calls from events or
+					other active work create invoked generations. Add a final defaulted
+					<code>TaskContext</code> parameter only when policy or generation capabilities must be
+					explicit.
 				</p>
 
-				<pre><code class="language-ts">this.task(work);</code></pre>
+				<pre><code class="language-ts">function persistDraft(serialized: string) {
+  localStorage.setItem("draft", serialized);
+}
 
-				<p>Runs once and cleans up on unmount.</p>
 
-				<pre><code class="language-ts">this.task(dep1, dep2, dep3, async (value1, value2, value3, { signal }) =&gt; {
-  // reruns when dep1, dep2, or dep3 changes
-});</code></pre>
+persistDraft(JSON.stringify(this.state.draft));</code></pre>
+
+				<pre><code class="language-ts">async function saveDocument(
+  documentId: string,
+  document: Document,
+  task: TaskContext = TaskContext.server().latest().key(documentId)
+) {
+  task.optimistic(() =&gt; {
+    this.state.documents.set(documentId, document);
+  });
+  await documents.save(documentId, document, task.signal);
+}
+
+saveDocument(documentId, document);</code></pre>
 
 				<h3>Why explicit task dependencies?</h3>
 				<p>
@@ -628,37 +642,29 @@ export const userContext = createContext&lt;UserContextValue&gt;("user");</code>
 
 				<h3>Task rules</h3>
 				<ul>
-					<li><code>this.task(work)</code> runs once and is aborted/cleaned up on unmount.</li>
-					<li><code>this.task(dep1, dep2, ..., work)</code> reruns when any dependency changes.</li>
-					<li>All previous task executions are aborted before rerun.</li>
-					<li>Cleanup functions are called before rerun and on unmount.</li>
-					<li>Task dependency values are unwrapped before being passed to the callback.</li>
-					<li>Task work is not dependency-tracked by default.</li>
+					<li>A setup call activates initially and reruns when an argument expression changes.</li>
+					<li>Reactive generations supersede and cancel the previous generation.</li>
+					<li>Invoked generations use the declared parallel, latest, or queue policy.</li>
+					<li>Each generation has an abort signal and structurally owned cleanup.</li>
+					<li>The compiler owns typed resources and diagnoses unsupported escapes.</li>
+					<li>Task bodies are not implicitly dependency-tracked.</li>
 					<li>
-						State writes inside task work schedule renders but do not themselves become task
-						dependencies.
+						Compiler-staged state writes from failed, cancelled, or stale generations do not
+						publish.
 					</li>
 				</ul>
 
 				<h3>TypeScript shape</h3>
-				<pre><code class="language-ts">type TaskContext = {
-  signal: AbortSignal;
-};
+				<pre><code class="language-ts">interface TaskContext {
+  readonly signal: AbortSignal;
+  readonly generation: number;
+  optimistic(work: () =&gt; void): void;
+  cleanup(callback: () =&gt; void | Promise&lt;void&gt;): void;
+  own&lt;T extends Disposable | AsyncDisposable&gt;(resource: T): T;
+}
 
-type Cleanup = void | (() =&gt; void | Promise&lt;void&gt;);
-
-type TaskResult = Cleanup | Promise&lt;Cleanup&gt;;
-
-interface Component&lt;State&gt; {
-  task(work: (ctx: TaskContext) =&gt; TaskResult): void;
-
-  task&lt;Deps extends readonly unknown[]&gt;(
-    ...args: [
-      ...deps: Deps,
-      work: (...args: [...values: Unwrapped&lt;Deps&gt;, ctx: TaskContext]) =&gt; TaskResult
-    ]
-  ): void;
-}</code></pre>
+// The default expression is declarative compiler syntax.
+task: TaskContext = TaskContext.client().latest().nonblocking()</code></pre>
 
 				<h3>Autocomplete task example</h3>
 				<pre><code class="language-tsx">function Autocomplete&lt;T&gt;(
@@ -670,10 +676,11 @@ interface Component&lt;State&gt; {
   this.state.options = [];
   this.state.error = undefined;
 
-  this.task(
-    this.state.query,
-    props.search,
-    async (query, search, { signal }) =&gt; {
+				  async function refreshOptions(
+				    query: string,
+				    search: AutocompleteProps&lt;T&gt;["search"],
+				    task: TaskContext = TaskContext.client().latest()
+				  ) {
       const trimmed = query.trim();
 
       if (!trimmed) {
@@ -686,21 +693,23 @@ interface Component&lt;State&gt; {
       this.state.loading = true;
       this.state.error = undefined;
 
-      await delay(200, signal); // debounce
+				      await delay(200, task.signal); // debounce
 
       try {
-        this.state.options = await search(trimmed, signal);
-      } catch (err) {
-        if (!signal.aborted) {
+				        this.state.options = await search(trimmed, task.signal);
+				      } catch (err) {
+				        if (!task.signal.aborted) {
           this.state.error = "Could not load options";
         }
       } finally {
-        if (!signal.aborted) {
+				        if (!task.signal.aborted) {
           this.state.loading = false;
         }
       }
-    }
-  );
+				    }
+				  }
+
+				  refreshOptions(this.state.query, props.search);
 
   return () =&gt; (
     &lt;div class="autocomplete"&gt;
@@ -734,12 +743,14 @@ interface Component&lt;State&gt; {
 				<pre><code class="language-tsx">function Clock(this: Component&lt;{ now: Date }&gt;) {
   this.state.now = new Date();
 
-  this.task(async ({ signal }) =&gt; {
-    while (!signal.aborted) {
-      await delay(1000, signal);
-      this.state.now = new Date();
-    }
-  });
+				  async function runClock(task: TaskContext = TaskContext.client()) {
+				    while (!task.signal.aborted) {
+				      await delay(1000, task.signal);
+				      this.state.now = new Date();
+				    }
+				  }
+
+				  runClock();
 
   return () =&gt; &lt;time&gt;{this.state.now.toLocaleTimeString()}&lt;/time&gt;;
 }</code></pre>
@@ -1151,10 +1162,11 @@ function Autocomplete&lt;T&gt;(
   this.state.loading = false;
   this.state.options = [];
 
-  this.task(
-    this.state.query,
-    props.search,
-    async (query, search, { signal }) =&gt; {
+				  async function refreshOptions(
+				    query: string,
+				    search: AutocompleteProps&lt;T&gt;["search"],
+				    task: TaskContext = TaskContext.client().latest()
+				  ) {
       const q = query.trim();
 
       if (!q) {
@@ -1167,17 +1179,19 @@ function Autocomplete&lt;T&gt;(
       this.state.loading = true;
       this.state.error = undefined;
 
-      await delay(200, signal);
+				      await delay(200, task.signal);
 
       try {
-        this.state.options = await search(q, signal);
-      } catch (err) {
-        if (!signal.aborted) this.state.error = "Could not load options";
-      } finally {
-        if (!signal.aborted) this.state.loading = false;
-      }
-    }
-  );
+				        this.state.options = await search(q, task.signal);
+				      } catch (err) {
+				        if (!task.signal.aborted) this.state.error = "Could not load options";
+				      } finally {
+				        if (!task.signal.aborted) this.state.loading = false;
+				      }
+				    }
+				  }
+
+				  refreshOptions(this.state.query, props.search);
 
   return () =&gt; (
     &lt;div class="autocomplete"&gt;
@@ -1242,8 +1256,8 @@ function Autocomplete&lt;T&gt;(
 						</tr>
 						<tr>
 							<td><code>useEffect</code></td>
-							<td><code>this.task(...)</code></td>
-							<td>Lifecycle-managed, abortable, explicit dependencies.</td>
+							<td>Function-defined task</td>
+							<td>Compiler-owned, abortable generations with call-site dependencies.</td>
 						</tr>
 						<tr>
 							<td><code>useContext</code></td>

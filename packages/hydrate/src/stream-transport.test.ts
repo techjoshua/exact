@@ -51,7 +51,7 @@ describe('@exactjs/hydrate stream-transport', () => {
 			endpoint: '/__exact',
 			stream: true,
 			operations: [
-				{ type: 'action', id: 'save', opId: 'slow' },
+				{ type: 'invoke', id: 'save', opId: 'slow' },
 				{ type: 'refresh', id: 'panel', opId: 'fast' }
 			],
 			fetch: async () => ({
@@ -78,7 +78,7 @@ describe('@exactjs/hydrate stream-transport', () => {
 						event: 'state',
 						version: 1,
 						index: 0,
-						type: 'action',
+						type: 'invoke',
 						id: 'save',
 						opId: 'slow',
 						value: { slow: true }
@@ -87,7 +87,7 @@ describe('@exactjs/hydrate stream-transport', () => {
 						event: 'result',
 						version: 1,
 						index: 0,
-						result: { ok: true, type: 'action', id: 'save', opId: 'slow' }
+						result: { ok: true, type: 'invoke', id: 'save', opId: 'slow' }
 					},
 					{ event: 'complete', version: 1 }
 				]),
@@ -98,7 +98,7 @@ describe('@exactjs/hydrate stream-transport', () => {
 		});
 
 		expect(results).toEqual([
-			{ ok: true, type: 'action', id: 'save', opId: 'slow', state: { slow: true } },
+			{ ok: true, type: 'invoke', id: 'save', opId: 'slow', state: { slow: true } },
 			{ ok: true, type: 'refresh', id: 'panel', opId: 'fast', state: { fast: true } }
 		]);
 	});

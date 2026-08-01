@@ -3,25 +3,27 @@ import { describe, expect, it } from 'vitest';
 import { analyzeSource } from './index.js';
 
 describe('placement inference performance guard', () => {
-	it('keeps a deep fixed-point fixture within investigated time and manifest bounds', () => {
+	it('keeps a deep fixed-point fixture within investigated time and analysis bounds', () => {
 		const depth = 120;
 		const helpers = Array.from({ length: depth }, (_, index) =>
 			index === depth - 1
 				? `function helper${index}() { return process.env.VALUE; }`
 				: `function helper${index}() { return helper${index + 1}(); }`
 		).join('\n');
-		const source = `${helpers}
+		const source = `import { TaskContext } from "@exactjs/core";
+${helpers}
       export function Page(this: Component<{ value?: string }>) {
-        this.task(() => { this.state.value = helper0(); });
+        function load(_task: TaskContext = TaskContext.latest()) { this.state.value = helper0(); }
+        load();
         return () => <p />;
       }`;
 		const started = performance.now();
-		const manifest = analyzeSource(source, { filename: 'C:/fixtures/deep-placement.tsx' });
+		const analysis = analyzeSource(source, { filename: 'C:/fixtures/deep-placement.tsx' });
 		const elapsed = performance.now() - started;
 
-		expect(manifest.components[0]!.tasks[0]!.placement).toBe('server');
-		expect(manifest.callables).toHaveLength(depth + 3);
-		expect(JSON.stringify(manifest).length).toBeLessThan(750_000);
+		expect(analysis.components[0]!.tasks[0]!.placement).toBe('server');
+		expect(analysis.callables).toHaveLength(depth + 3);
+		expect(JSON.stringify(analysis).length).toBeLessThan(750_000);
 		expect(elapsed).toBeLessThan(10_000);
 	});
 });

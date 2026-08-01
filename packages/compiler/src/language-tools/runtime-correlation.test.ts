@@ -7,10 +7,8 @@ afterEach(() => clearExpressionProjectCache());
 
 describe('runtime inspection correlation', () => {
 	it('uses canonical source IDs without source descriptions', () => {
-		const source = `function Panel() {
-			this.task(async () => Promise.resolve('data'));
-			return () => <p>{this.state.value}</p>;
-		}`;
+		const source =
+			'import { TaskContext } from "@exactjs/core";\nfunction Panel() {\n\t\t\tconst runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => Promise.resolve(\'data\');\nrunFixtureTask();\n\t\t\treturn () => <p>{this.state.value}</p>;\n\t\t}';
 		const inspection = transformSource(source, {
 			filename: '/src/Panel.tsx',
 			emitInspection: true
@@ -40,11 +38,7 @@ describe('runtime inspection correlation', () => {
 
 	it('marks task callbacks with their canonical compiler ID', () => {
 		const result = transformSource(
-			`function Panel() {
-				this.task(async () => Promise.resolve('data'));
-				this.action('Save', async () => Promise.resolve());
-				return () => <p>{this.state.value}</p>;
-			}`,
+			'import { TaskContext } from "@exactjs/core";\nfunction Panel() {\n\t\t\t\tconst runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => Promise.resolve(\'data\');\nrunFixtureTask();\n\t\t\t\treturn () => <p>{this.state.value}</p>;\n\t\t\t}',
 			{
 				filename: '/src/Panel.tsx',
 				emitInspection: true,

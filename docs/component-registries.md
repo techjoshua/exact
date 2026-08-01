@@ -21,11 +21,9 @@ type WidgetKey = KeyOf<typeof Widget>;
 
 function Dashboard(this: Component<{ selected: WidgetKey }>, props: { selected: WidgetKey }) {
 	this.state.selected = props.selected;
+	const CurrentWidget = Widget[this.state.selected];
 
-	return () => {
-		const CurrentWidget = Widget[this.state.selected];
-		return <CurrentWidget />;
-	};
+	return () => <CurrentWidget />;
 }
 ```
 

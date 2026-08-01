@@ -141,7 +141,7 @@ export type ExactHydrationRegistration = ExactHydrationConfig & {
 
 /** Defines the exact endpoint routes type contract. */
 export type ExactEndpointRoutes = {
-	actions?: Record<string, string>;
+	invocations?: Record<string, string>;
 	boundaries?: Record<string, string>;
 };
 
@@ -207,10 +207,10 @@ export type ExactClient = {
 	readonly endpoints?: ExactEndpointRoutes;
 	state?: unknown;
 	readonly continuations?: Record<string, ExactComponentContinuationContract>;
-	/** Number of action, refresh, or stream promises still owned by this client generation. */
+	/** Number of task invocation, refresh, or stream promises owned by this client generation. */
 	readonly pendingRequests: number;
 	applyPatches(patches: readonly ExactPatch[]): boolean;
-	invokeAction(id: string, payload?: unknown): Promise<ExactInvocationResult>;
+	invokeTask(id: string, payload?: unknown): Promise<ExactInvocationResult>;
 	refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
 	refreshIsland(
 		id: string,

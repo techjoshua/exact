@@ -23,8 +23,8 @@ describe('build-keyed execution-root dispatch', () => {
 					type: 'batch',
 					version: 1,
 					operations: [
-						{ type: 'action', root: '@company/billing#./Area', id: 'submit' },
-						{ type: 'action', root: '@company/branding#./Shell', id: 'submit' }
+						{ type: 'invoke', root: '@company/billing#./Area', id: 'submit' },
+						{ type: 'invoke', root: '@company/branding#./Shell', id: 'submit' }
 					]
 				}
 			},
@@ -55,7 +55,7 @@ describe('build-keyed execution-root dispatch', () => {
 				method: 'POST',
 				headers: { 'X-Exact-Build': 'ffffffffffffffffffffffffffffffffffffffff' },
 				body: {
-					type: 'action',
+					type: 'invoke',
 					root: '@company/billing#./Area',
 					id: 'submit'
 				}
@@ -78,7 +78,7 @@ describe('build-keyed execution-root dispatch', () => {
 			{
 				method: 'POST',
 				headers: { 'x-exact-build': buildKey },
-				body: { type: 'action', root: '@company/other#./Area', id: 'submit' }
+				body: { type: 'invoke', root: '@company/other#./Area', id: 'submit' }
 			},
 			context({ remoteBuilds: { [buildKey]: build } })
 		);
@@ -100,14 +100,14 @@ function registration(
 				{
 					contract: {
 						version: 1,
-						actions: {
+						invocations: {
 							submit: defineExactOperationContract('submit', {
 								writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 							})
 						},
 						boundaries: {}
 					},
-					actions: {
+					invocations: {
 						submit: () => {
 							onDispatch?.();
 							return { state: value };

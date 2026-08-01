@@ -29,7 +29,7 @@ export function PluginsPage(this: Component<{}>) {
 				<h2>Why plugins exist</h2>
 				<p>
 					Concerns such as secrets, remote deployment, policy, tracing, or localization do not live
-					cleanly inside one component. They may affect source analysis, generated manifests, server
+					cleanly inside one component. They may affect source analysis, generated artifacts, server
 					startup, request lifetime, rendered output, browser boot, and tests. A plugin lets one
 					package describe those parts without teaching each bundler or application a private
 					integration protocol.
@@ -42,8 +42,8 @@ export function PluginsPage(this: Component<{}>) {
 					<p>Defines defaults, validation, typed transforms, and host-specific projections.</p>
 					<code>compiler</code>
 					<p>
-						Analyzes declared directives, emits diagnostics, and contributes bounded JSON manifest
-						data.
+						Analyzes declared directives, emits diagnostics, and contributes bounded session-local
+						analysis data.
 					</p>
 					<code>server</code>
 					<p>Initializes application- or request-owned resources and server projections.</p>
@@ -64,8 +64,8 @@ export function PluginsPage(this: Component<{}>) {
 				<p>
 					The host discovers plugin declarations from package metadata, resolves configuration
 					contributors in deterministic dependency order, validates the final value, and
-					fingerprints compiler-safe configuration for manifests and caches. Required plugin
-					protocol mismatches fail before application code runs.
+					fingerprints compiler-safe configuration for analysis and caches. Required plugin protocol
+					mismatches fail before application code runs.
 				</p>
 				<CodeBlock source={pluginConfigSource} language="ts" title="exact.config.ts" />
 				<p>

@@ -9,7 +9,7 @@ type StateWriteContract = {
 	readonly writes?: readonly ExactContinuationStatePathContract[];
 };
 
-/** Returns only the client state paths required by an exact server action contract. */
+/** Returns only the client state paths required by an eXact server invocation contract. */
 export function stateForContract(state: unknown, contract: StateReadContract | undefined): unknown {
 	if (!contract) return state;
 	const reads =

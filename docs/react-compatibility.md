@@ -65,8 +65,9 @@ function BookingForm(this: Component<{ date: Date | null }>) {
 }
 ```
 
-Compiled eXact component functions carry the
-`Symbol.for('@exactjs/component-contract')` brand. For a component imported into
+Compiled eXact component functions carry an opaque identity string under
+`Symbol.for('@exactjs/component')`. Optional executable metadata lives separately under
+`Symbol.for('@exactjs/component-contract')` and does not duplicate the top-level component ID. For a component imported into
 native JSX, the compiler emits the active compatibility adapter. At runtime the
 adapter returns a branded eXact component unchanged; an unbranded component is
 handled by the one enabled compatibility layer. This avoids guessing ownership
@@ -89,7 +90,7 @@ selection. `ReactHost` and `adaptReactComponent()` remain explicit tools for
 imperative hosts and code outside compiler-owned native JSX.
 When the matching React type facade is active, React-owned source compiled by
 an eXact integration can also render a compiled native component directly. The
-compatible React element pipeline recognizes its component-contract brand and
+compatible React element pipeline recognizes its native identity brand and
 mounts it natively:
 
 ```tsx

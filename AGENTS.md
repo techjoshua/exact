@@ -16,16 +16,31 @@ best reflects the resulting framework. Keep proposal status, current references,
 metadata, navigation, search terms, examples, and stated limitations consistent with the
 implemented behavior.
 
-A feature change must also update both `README.md` and package-local `AGENTS.md` guidance for every
-affected core package, component library, plugin, or adapter. Document the public contract and
-environment boundary in the README; document the safest and most idiomatic agent usage in
-`AGENTS.md`. Ensure published-package manifests include package-local guidance and extend
-repository documentation checks when a new affected project should remain covered.
+Repository maintenance guidance belongs in this root `AGENTS.md`. Package-local `AGENTS.md` files
+are installed-package usage guides for the reusable eXact agent skill, not instructions for
+maintaining the package. Keep them brief enough to load without unnecessary context. They should:
 
-Every new package must begin with an appropriate `README.md` and `AGENTS.md`, including package
-purpose, supported contracts, ownership boundaries, and usage guidance. When the package adds or
-changes an application-authoring surface, also update the reusable eXact agent skill so it directs
-agents to read the installed package's `AGENTS.md` and knows when that package should be used.
+- state when an application author should use the package;
+- point to the package README for human-readable setup and API orientation;
+- name only the safest, most idiomatic usage patterns and important application-facing limits;
+- avoid implementation invariants, source-layout notes, test commands, release procedures, and
+  instructions addressed to package maintainers.
+
+Package `README.md` files are for human readers. Give them a consistent, professional progression:
+identify the package and its purpose, explain when it is useful, show the shortest representative
+setup or usage, summarize the important public surface, and link to deeper framework documentation
+when needed. Keep them concise and scannable rather than turning them into exhaustive API or design
+references. Adapt the sections to the package type: component libraries should show composition,
+build adapters should show configuration, runtime libraries should show their main entry point,
+and DevTools packages should explain how to install or operate the tools. Internal or
+platform-binary packages may use a shorter purpose-and-ownership layout.
+
+Update a package README or local agent guide when its public purpose, setup, recommended usage, or
+application-facing limits change. Do not churn either file for an internal implementation change.
+Every new package must begin with an appropriate README. Add a concise `AGENTS.md` when the
+package exposes an application-authoring surface or the reusable skill otherwise needs
+package-specific direction. Ensure published-package manifests include any local guide, and update
+the reusable skill whenever a new application-authoring package should be discoverable.
 
 ## Preserve what makes eXact different
 
@@ -85,18 +100,19 @@ Props remain parent-owned inputs. Local mutable data belongs in `this.state`; de
 usually remain an ordinary compiler-observed expression or an explicit reactive value when a
 first-class value is useful.
 
-### Actions, interactions, and optimistic state
+### Tasks, interactions, and optimistic state
 
-Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Use
-`this.action()` when work needs a name, inspectable status, direct invocation, an explicit
-placement or priority, a concurrency policy, or synchronous optimistic state. Actions are
-setup-owned component resources; do not register them from render or recreate them per update.
+Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Define a
+function task with a `TaskContext` policy parameter when work needs a name, inspectable status,
+direct invocation, an explicit placement or priority, a concurrency policy, or synchronous
+optimistic state. Function-defined tasks are setup-owned component resources; define them during
+setup and invoke them normally.
 
-Optimistic work mutates `this.state` normally inside the action context's synchronous
+Optimistic work mutates `this.state` normally inside the task context's synchronous
 `optimistic()` callback. Do not introduce reducers, authored patches, shadow stores, or manual
-rollback to imitate another framework. Router work begun synchronously by an event, form, or action
+rollback to imitate another framework. Router work begun synchronously by an event, form, or task
 joins that interaction. Preserve opaque compiler operation identities and generation fencing
-across distributed actions.
+across distributed tasks.
 
 ### Finite component registries
 

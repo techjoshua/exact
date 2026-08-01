@@ -8,7 +8,6 @@ type CliOptions = {
 	outDir?: string;
 	rootDir?: string;
 	target?: TransformTarget;
-	emitManifest?: boolean;
 	artifacts?: boolean;
 	serverComponents?: boolean;
 	sourceMap?: boolean;
@@ -55,7 +54,6 @@ async function main(argv: string[]): Promise<void> {
 		for (const result of results) {
 			console.log(`${result.inputFile} -> ${result.clientFile}`);
 			console.log(`${result.inputFile} -> ${result.serverFile}`);
-			console.log(`${result.inputFile} -> ${result.manifestFile}`);
 		}
 		return;
 	}
@@ -63,7 +61,6 @@ async function main(argv: string[]): Promise<void> {
 		outDir: options.outDir,
 		rootDir: options.rootDir,
 		target: options.target,
-		emitManifest: options.emitManifest,
 		serverComponents: options.serverComponents,
 		sourceMap: options.sourceMap,
 		jsxInterop: engine.jsxInterop,
@@ -88,7 +85,6 @@ function parseArgs(argv: string[]): CliOptions {
 			options.compatibilityRoot = requiredValue(argv, ++index, arg);
 		else if (arg === '--reactTarget')
 			options.reactTarget = parseReactTarget(requiredValue(argv, ++index, arg));
-		else if (arg === '--manifest') options.emitManifest = true;
 		else if (arg === '--artifacts') options.artifacts = true;
 		else if (arg === '--serverComponents') options.serverComponents = true;
 		else if (arg === '--sourceMap') options.sourceMap = true;

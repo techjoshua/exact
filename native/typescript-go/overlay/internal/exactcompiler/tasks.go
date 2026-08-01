@@ -108,92 +108,61 @@ func collectTasks(
 				return true
 			}
 			call := node.AsCallExpression()
-			facets, ok := taskFacets(call.Expression)
-			functionDefined := false
-			var work *ast.Node
-			if ok {
-				if call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
-					return true
-				}
-				work = call.Arguments.Nodes[len(call.Arguments.Nodes)-1]
-				if !ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work) {
-					return true
-				}
-			} else {
-				work, facets, ok = functionTaskActivation(
-					node,
-					call,
-					candidate,
-					sourceFile,
-					typeChecker,
-					callables,
-					taskPolicyBindings,
-				)
-				if !ok {
-					return true
-				}
-				functionDefined = true
+			work, facets, ok := functionTaskActivation(
+				node,
+				call,
+				candidate,
+				sourceFile,
+				typeChecker,
+				callables,
+				taskPolicyBindings,
+			)
+			if !ok {
+				return true
 			}
 			task := normalizeTaskFacets(candidate.name, facets)
 			task.Start = node.Pos()
 			task.Length = node.End() - node.Pos()
-			task.FunctionDefined = functionDefined
+			task.FunctionDefined = true
 			task.WorkStart = work.Pos()
 			task.WorkLength = work.End() - work.Pos()
-			if functionDefined {
-				task.Invoked = taskRegistrationInsideNestedFunction(node, candidate.node)
-				applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
-				task.ArgumentCount = len(work.Parameters())
-				if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
-					task.ArgumentCount--
-				}
-				if call.Arguments != nil {
-					task.ActivationArgumentCount = min(
-						len(call.Arguments.Nodes),
-						task.ArgumentCount,
-					)
-				}
-				for _, capture := range taskCaptureRanges(work, task.ArgumentCount) {
-					task.CapturedParameters = append(
-						task.CapturedParameters,
-						capture.parameter,
-					)
-				}
-				if call.Arguments != nil &&
-					len(call.Arguments.Nodes) > task.ArgumentCount {
-					task.Diagnostics = append(task.Diagnostics,
-						"error: application calls must omit the compiler-supplied TaskContext argument")
-				}
-				if task.Invoked {
-					if _, duplicate := invokedDefinitions[task.WorkStart]; duplicate {
-						return true
-					}
-					invokedDefinitions[task.WorkStart] = struct{}{}
-				}
+			task.Invoked = taskRegistrationInsideNestedFunction(node, candidate.node)
+			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
+			task.ArgumentCount = len(work.Parameters())
+			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
+				task.ArgumentCount--
 			}
-			if !functionDefined && taskRegistrationInsideNestedFunction(node, candidate.node) {
-				task.Diagnostics = append(
-					task.Diagnostics,
-					"error: legacy task registrations must appear directly during component setup; migrate the work to a local task function",
-				)
+			if call.Arguments != nil {
+				task.ActivationArgumentCount = min(len(call.Arguments.Nodes), task.ArgumentCount)
+			}
+			for _, capture := range taskCaptureRanges(work, task.ArgumentCount) {
+				task.CapturedParameters = append(task.CapturedParameters, capture.parameter)
+			}
+			if call.Arguments != nil && len(call.Arguments.Nodes) > task.ArgumentCount {
+				task.Diagnostics = append(task.Diagnostics,
+					"error: application calls must omit the compiler-supplied TaskContext argument")
+			}
+			if task.Invoked {
+				if _, duplicate := invokedDefinitions[task.WorkStart]; duplicate {
+					return true
+				}
+				invokedDefinitions[task.WorkStart] = struct{}{}
 			}
 			task.Async = ast.HasSyntacticModifier(work, ast.ModifierFlagsAsync)
 			if node.Parent != nil && ast.IsAwaitExpression(node.Parent) {
 				task.Readiness = "blocking"
 			}
 			captureRanges := []taskCaptureRange{}
-			if task.FunctionDefined {
-				captureRanges = taskCaptureRanges(work, task.ArgumentCount)
-				task.CapturedInputs = collectTaskCapturedInputs(
-					work,
-					task.ArgumentCount,
-					candidate.name,
-					sourceFile,
-					stateReads,
-					reactiveBindings,
-					typeChecker,
-				)
-			}
+			captureRanges = taskCaptureRanges(work, task.ArgumentCount)
+			task.CapturedInputs = collectTaskCapturedInputs(
+				work,
+				task.ArgumentCount,
+				candidate.name,
+				sourceFile,
+				stateReads,
+				reactiveBindings,
+				typeChecker,
+			)
 			task.Reads = taskReadEffectsExcluding(
 				stateReads,
 				candidate.name,
@@ -250,8 +219,7 @@ func collectTasks(
 				typeChecker,
 				captureRanges,
 			)
-			if task.FunctionDefined && !task.Invoked &&
-				call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
+			if !task.Invoked && call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
 				task.Dependencies = functionTaskActivationDependencies(
 					call,
 					task.ArgumentCount,
@@ -761,9 +729,9 @@ func taskRegistrationInsideNestedFunction(
 	return false
 }
 
-// taskResultWritePath recognizes `state.path = await this.task(...)`. The
-// assignment is part of the distributed continuation contract rather than a
-// client-side Promise write, so its path must travel with the task.
+// taskResultWritePath recognizes assignment from an awaited task invocation.
+// The assignment is part of the distributed continuation contract rather than
+// a client-side Promise write, so its path must travel with the task.
 func taskResultWritePath(
 	call *ast.Node,
 	component string,
@@ -1397,6 +1365,10 @@ func taskDiagnostics(
 	var diagnostics []Diagnostic
 	for _, task := range tasks {
 		if task.Placement == "server" || task.Placement == "isomorphic" {
+			workStart, workLength := task.Start, task.Length
+			if task.FunctionDefined {
+				workStart, workLength = task.WorkStart, task.WorkLength
+			}
 			for _, write := range task.Writes {
 				if !strings.Contains(write.Path, "*") {
 					continue
@@ -1412,8 +1384,8 @@ func taskDiagnostics(
 			}
 			for _, write := range stateWrites {
 				if write.Operation != "map-mutation" ||
-					write.Start < task.Start ||
-					write.Start+write.Length > task.Start+task.Length {
+					write.Start < workStart ||
+					write.Start+write.Length > workStart+workLength {
 					continue
 				}
 				if key := collectionMutationKeyAt(

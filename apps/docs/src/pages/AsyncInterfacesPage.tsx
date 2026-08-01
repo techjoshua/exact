@@ -26,8 +26,9 @@ const sequentialSource = `async function CustomerOrders(
     // Application failures can recover normally.
     this.state.error = describeError(error);
   } finally {
-    // Finally runs for success, failure, and cancellation. State from a
-    // cancelled generation is discarded rather than published.
+    // Awaited cleanup remains part of this initializer generation.
+    await recordInitializationAttempt();
+    // State from a cancelled generation is discarded rather than published.
     this.state.loading = false;
   }
 
@@ -159,8 +160,8 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				<h2>Sequential control flow stays TypeScript</h2>
 				<p>
 					Awaited operations run in source order, but their state writes remain private to the
-					current generation. eXact publishes them together only after every operation and the
-					enclosing <code>finally</code> block complete successfully.
+					current generation. eXact publishes them together only after every operation—including
+					awaited work in the enclosing <code>finally</code> block—completes successfully.
 				</p>
 				<CodeBlock source={sequentialSource} language="tsx" title="CustomerOrders.tsx" />
 				<p>

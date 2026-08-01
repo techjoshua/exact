@@ -26,6 +26,19 @@ function persistDraft(serialized: string) {
 persistDraft(JSON.stringify(this.state.draft));
 ```
 
+Function syntax does not determine task semantics. A task may be a function
+declaration, function expression, or arrow; it may be synchronous or `async`
+and may use ordinary TypeScript parameters, including destructuring, optional,
+rest, and defaulted parameters:
+
+```ts
+const refresh = async (force = false, task: TaskContext = TaskContext.server().latest()) => {
+	this.state.result = await load({ force, signal: task.signal });
+};
+
+refresh();
+```
+
 The compiler sees the client storage effect and classifies `persistDraft` as a
 task. Its setup call declares initial and reactive activation, with
 `this.state.draft` as an input dependency. A new draft creates a superseding

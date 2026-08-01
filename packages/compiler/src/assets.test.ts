@@ -4,9 +4,9 @@ import { analyzeSource, transform } from './index.js';
 describe('asset imports and explicit import placement', () => {
 	it('defaults side-effect stylesheet imports to client evaluation and delivery', () => {
 		const source = `import "./app.scss"; export const ready = true;`;
-		const manifest = analyzeSource(source, { filename: 'C:/src/app.ts' });
+		const analysis = analyzeSource(source, { filename: 'C:/src/app.ts' });
 
-		expect(manifest.assets).toEqual([
+		expect(analysis.assets).toEqual([
 			{
 				specifier: './app.scss',
 				kind: 'style',
@@ -32,9 +32,9 @@ describe('asset imports and explicit import placement', () => {
 
 	it('keeps value-bearing style modules isomorphic while delivering them to the client', () => {
 		const source = `import styles from "./app.css"; export const className = styles.root;`;
-		const manifest = analyzeSource(source, { filename: 'C:/src/app.ts' });
+		const analysis = analyzeSource(source, { filename: 'C:/src/app.ts' });
 
-		expect(manifest.assets[0]).toMatchObject({
+		expect(analysis.assets[0]).toMatchObject({
 			importMode: 'module',
 			evaluationTarget: 'both',
 			deliveryTarget: 'client'
@@ -46,9 +46,9 @@ describe('asset imports and explicit import placement', () => {
 
 	it('consumes exact import attributes and lets them override placement', () => {
 		const source = `import "./print.css" with { exact: "server" }; export const ready = true;`;
-		const manifest = analyzeSource(source, { filename: 'C:/src/app.ts' });
+		const analysis = analyzeSource(source, { filename: 'C:/src/app.ts' });
 
-		expect(manifest.assets[0]?.evaluationTarget).toBe('server');
+		expect(analysis.assets[0]?.evaluationTarget).toBe('server');
 		expect(transform(source, { filename: 'C:/src/app.ts', target: 'client' })).not.toContain(
 			'print.css'
 		);
@@ -68,13 +68,13 @@ describe('asset imports and explicit import placement', () => {
 		expect(server).not.toContain('exact:');
 	});
 
-	it('records adapter-defined asset types in the generic asset manifest', () => {
-		const manifest = analyzeSource(`import poster from "./poster.avif?url"; export { poster };`, {
+	it('records adapter-defined asset types in the generic asset analysis', () => {
+		const analysis = analyzeSource(`import poster from "./poster.avif?url"; export { poster };`, {
 			filename: 'C:/src/media.ts',
 			assetRules: [{ extensions: ['.avif'], queries: ['url'], kind: 'image', importMode: 'url' }]
 		});
 
-		expect(manifest.assets[0]).toMatchObject({
+		expect(analysis.assets[0]).toMatchObject({
 			specifier: './poster.avif?url',
 			kind: 'image',
 			importMode: 'url',

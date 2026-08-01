@@ -88,4 +88,4 @@ export function Form(this: Component<FormState>, props: FormProps) {
 		);
 }
 
-markExactComponent(Form);
+markExactComponent(Form, '@exactjs/forms:Form');

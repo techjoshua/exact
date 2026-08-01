@@ -1,8 +1,6 @@
 import {
 	createExactBuildInspectionCatalog,
 	createExactInspectionBuildKey,
-	createExactInspectionRedactions,
-	type ExactCompilerManifest,
 	type ExactSourceInspection
 } from '@exactjs/compiler';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
@@ -26,7 +24,7 @@ export type ViteDebugOptions = {
 
 type InspectionModule = Readonly<{
 	inspection: ExactSourceInspection;
-	manifest: ExactCompilerManifest;
+	redactions?: ExactInspectionRedactionCatalog;
 	source: string;
 }>;
 
@@ -108,13 +106,37 @@ export function createViteInspectionCatalog(
 				rootComponentId,
 				inspections,
 				sources,
-				redactions: createExactInspectionRedactions(
-					[...modules.values()].map((entry) => entry.manifest),
+				redactions: mergeInspectionRedactions(
+					[...modules.values()].flatMap((entry) => entry.redactions ?? []),
 					debug?.redactions
 				)
 			}
 		]
 	});
+}
+
+function mergeInspectionRedactions(
+	generated: readonly ExactInspectionRedactionCatalog[],
+	configured: Partial<ExactInspectionRedactionCatalog> = {}
+): ExactInspectionRedactionCatalog {
+	return {
+		statePaths: [
+			...new Set([
+				...generated.flatMap((value) => value.statePaths),
+				...(configured.statePaths ?? [])
+			])
+		].sort(),
+		contextTokens: [
+			...generated.flatMap((value) => value.contextTokens),
+			...(configured.contextTokens ?? [])
+		],
+		secretNames: [
+			...new Set([
+				...generated.flatMap((value) => value.secretNames),
+				...(configured.secretNames ?? [])
+			])
+		].sort()
+	};
 }
 
 /** Rejects mutable production debug identities. */

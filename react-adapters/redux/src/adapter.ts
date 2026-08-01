@@ -1,4 +1,4 @@
-import { createContext, type Child, type Component } from '@exactjs/core';
+import { createContext, markExactComponent, type Child, type Component } from '@exactjs/core';
 import { createSelectedExternalSource, unwrap, type ExternalSource } from '@exactjs/reactive';
 
 /** Defines the redux store interface contract. */
@@ -39,6 +39,7 @@ export function ExactReduxProvider(
 	if (props.serverState !== undefined) this.setContext(ReduxServerStateContext, props.serverState);
 	return () => props.children ?? null;
 }
+markExactComponent(ExactReduxProvider, '@exactjs/redux:ExactReduxProvider');
 
 /** Defines the redux compatibility subscription interface contract. */
 export interface ReduxCompatibilitySubscription {

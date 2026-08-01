@@ -3,6 +3,7 @@ import {
 	createContext,
 	createVNode,
 	exactComponentContract,
+	exactComponentType,
 	renderInstance,
 	type Component
 } from '@exactjs/core';
@@ -143,9 +144,9 @@ describe('eXact and React context interop', () => {
 			return () => 'native';
 		}
 		Object.assign(Native, {
+			[exactComponentType]: 'fixture.native',
 			[exactComponentContract]: {
 				version: 1,
-				id: 'fixture.native',
 				placement: 'client',
 				role: 'client',
 				implementations: [],

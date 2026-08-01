@@ -43,11 +43,13 @@ describe('@exactjs/webpack-plugin', () => {
 	it('passes target options through to transforms', () => {
 		const result = transformExactWebpackSource(
 			`
+			import { TaskContext } from "@exactjs/core";
       import { readFile } from "node:fs/promises";
       function Page(this: Component<{ title?: string }>) {
-        this.task.server(async () => {
+				const loadTitle = async (_task: TaskContext = TaskContext.server()) => {
           this.state.title = await readFile("title.txt", "utf8");
-        });
+				};
+				loadTitle();
         return () => <p>{this.state.title}</p>;
       }
     `,
@@ -59,8 +61,10 @@ describe('@exactjs/webpack-plugin', () => {
 	});
 
 	it('derives compact runtime instrumentation independently from hardened output', () => {
-		const source = `function Page() {
-			this.task(() => Promise.resolve());
+		const source = `import { TaskContext } from '@exactjs/core';
+		function Page() {
+			function load(_task: TaskContext = TaskContext.client()) { return Promise.resolve(); }
+			load();
 			return () => <main />;
 		}`;
 		const instrumented = transformExactWebpackSource(source, '/src/Page.tsx', {
@@ -231,7 +235,7 @@ describe('@exactjs/webpack-plugin', () => {
 	it('ignores broad watch sets that contain files outside the compiler program', () => {
 		const directory = mkdtempSync(path.join(tmpdir(), 'exact-webpack-watch-'));
 		const style = path.join(directory, 'styles.css');
-		const manifest = path.join(directory, 'manifest.webmanifest');
+		const analysis = path.join(directory, 'analysis.webmanifest');
 		const buildInfo = path.join(directory, 'tsconfig.tsbuildinfo');
 		let watchRun!: (
 			compiler: WebpackCompilerLike & {
@@ -257,14 +261,14 @@ describe('@exactjs/webpack-plugin', () => {
 		};
 		try {
 			writeFileSync(style, '.view { display: grid; }');
-			writeFileSync(manifest, '{"name":"fixture"}');
+			writeFileSync(analysis, '{"name":"fixture"}');
 			writeFileSync(buildInfo, '{}');
 			new ExactWebpackPlugin().apply(compiler);
 
 			expect(() =>
 				watchRun({
 					options: compiler.options,
-					modifiedFiles: [style, manifest, buildInfo]
+					modifiedFiles: [style, analysis, buildInfo]
 				})
 			).not.toThrow();
 		} finally {

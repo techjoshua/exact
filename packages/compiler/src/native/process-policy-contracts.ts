@@ -56,8 +56,8 @@ export type NativeCompilerSecretConsumer = Readonly<{
 	reason?: string;
 }>;
 
-/** Portable policy graph emitted by the native compiler. */
-export type NativeCompilerPolicyManifest = Readonly<{
+/** Session-local policy graph emitted by the native compiler. */
+export type NativeCompilerPolicyAnalysis = Readonly<{
 	version: 1;
 	subjects: readonly NativeCompilerPolicySubject[];
 	flows: readonly NativeCompilerPolicyFlow[];

@@ -3,15 +3,17 @@
  */
 import {
 	Suspense,
-	createCompiledVNode,
+	activateTaskForHost,
 	createExpression,
-	createVNode,
+	defineTask,
 	stageTaskMutation,
-	type Component
+	type Component,
+	type TaskContext
 } from '@exactjs/core';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render, unmount } from './index.js';
+import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/dom native Suspense', () => {
 	it('shows fallback until blocking descendant work settles', async () => {
@@ -24,12 +26,15 @@ describe('@exactjs/dom native Suspense', () => {
 		function AsyncPanel(this: Component<{ ready: boolean }>) {
 			panel = this;
 			this.state.ready = false;
-			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
-				await pending;
-				stageTaskMutation(signal, () => {
-					this.state.ready = true;
-				});
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async ({ signal }) => {
+					await pending;
+					stageTaskMutation(signal, () => {
+						this.state.ready = true;
+					});
+				})
+			);
 			return () =>
 				createCompiledVNode(
 					'p',
@@ -69,9 +74,12 @@ describe('@exactjs/dom native Suspense', () => {
 		});
 
 		function Panel(this: Component<{}>, props: { label: string; pending: Promise<void> }) {
-			(this as any).task.blocking(async () => {
-				await props.pending;
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async (_task: TaskContext) => {
+					await props.pending;
+				})
+			);
 			return () => createVNode('p', null, props.label);
 		}
 
@@ -109,14 +117,18 @@ describe('@exactjs/dom native Suspense', () => {
 			panel = this;
 			this.state.query = 'initial';
 			this.state.result = '';
-			(this as any).task.blocking(
-				this.reactive(() => this.state.query),
-				async (query: string, { signal }: { signal: AbortSignal }) => {
-					if (query !== 'initial') await pending;
-					stageTaskMutation(signal, () => {
-						this.state.result = query;
-					});
-				}
+			activateTaskForHost(
+				this,
+				defineTask(
+					{ readiness: 'blocking', concurrency: 'latest' },
+					async (query: string, { signal }) => {
+						if (query !== 'initial') await pending;
+						stageTaskMutation(signal, () => {
+							this.state.result = query;
+						});
+					}
+				),
+				this.reactive(() => this.state.query)
 			);
 			return () =>
 				createCompiledVNode(
@@ -145,9 +157,12 @@ describe('@exactjs/dom native Suspense', () => {
 	it('lets nested boundaries reveal their fallback without blocking the parent', () => {
 		const never = new Promise<void>(() => undefined);
 		function Pending(this: Component<{}>) {
-			(this as any).task.blocking(async () => {
-				await never;
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async (_task: TaskContext) => {
+					await never;
+				})
+			);
 			return () => createVNode('strong', null, 'inner ready');
 		}
 		const container = document.createElement('div');
@@ -171,6 +186,10 @@ describe('@exactjs/dom native Suspense', () => {
 });
 
 async function settleMicrotasks(): Promise<void> {
-	for (let index = 0; index < 6; index++) await Promise.resolve();
+	for (let index = 0; index < 12; index++) {
+		flushSync();
+		await Promise.resolve();
+		await Promise.resolve();
+	}
 	flushSync();
 }

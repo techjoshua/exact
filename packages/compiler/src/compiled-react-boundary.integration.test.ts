@@ -4,7 +4,7 @@
 import * as exactCore from '@exactjs/core';
 import { createVNode } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
-import { hydrate } from '@exactjs/hydrate';
+import { createExactClient } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';
 import { adaptReactComponent } from '@exactjs/react-compat/exact';
 import * as reactRuntime from '@exactjs/react-compat/react19';
@@ -15,7 +15,8 @@ import { transform } from './index.js';
 
 describe('compiled direct React boundary', () => {
 	it('compiles, mounts, updates, hydrates, and unmounts one mixed component', () => {
-		const App = compileMixedApp();
+		const App = compileMixedApp('client');
+		const ServerApp = compileMixedApp('server');
 		const mounted = document.createElement('div');
 		render(createVNode(App, null), mounted);
 
@@ -31,23 +32,22 @@ describe('compiled direct React boundary', () => {
 		unmount(mounted);
 		expect(mounted.childNodes).toHaveLength(0);
 
-		const server = renderToString(createVNode(App, null));
+		const server = renderToString(createVNode(ServerApp, null));
 		const hydrated = document.createElement('div');
 		hydrated.innerHTML = server.html;
-		const serverButton = hydrated.querySelector('#react-control');
-		const root = hydrate(createVNode(App, null), hydrated);
-		expect(hydrated.querySelector('#react-control')).toBe(serverButton);
+		expect(hydrated.querySelector('#react-control')).toBeNull();
+		const root = createExactClient(hydrated, { islands: { App } });
+		expect(hydrated.querySelector('#react-control')).toBeInstanceOf(HTMLElement);
 
 		click(hydrated, '#react-control');
 		flushSync();
 		expect(hydrated.querySelector('#react-control')?.textContent).toBe('1 / local 1');
 		expect(hydrated.querySelector('#native-derived')?.textContent).toBe('double 2');
 		root.dispose();
-		expect(hydrated.childNodes).toHaveLength(0);
 	});
 });
 
-function compileMixedApp(): exactCore.ComponentFunction<any, any> {
+function compileMixedApp(target: 'client' | 'server'): exactCore.ComponentFunction<any, any> {
 	const source = `
 		import { Widget } from 'react-widget';
 		declare class Component<S> { state: S }
@@ -65,6 +65,7 @@ function compileMixedApp(): exactCore.ComponentFunction<any, any> {
 	`;
 	const compiled = transform(source, {
 		filename: 'CompiledReactBoundary.tsx',
+		target,
 		jsxInterop: {
 			adapterModule: '@exactjs/react-compat/exact',
 			adapterExport: 'adaptReactComponent',

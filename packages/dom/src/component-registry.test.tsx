@@ -1,11 +1,17 @@
 /**
  * @vitest-environment jsdom
  */
-import { Suspense, createComponentRegistry, createVNode, type Component } from '@exactjs/core';
+import {
+	Suspense,
+	createCompiledComponentRegistry,
+	markExactComponent,
+	type Component
+} from '@exactjs/core';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 
 import { render, unmount } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 const registrySetups: string[] = [];
 const registryUnmounts: string[] = [];
@@ -25,7 +31,13 @@ function ComfortableRegistryIdentityEntry(
 	return () => <p>comfortable:{props.label}</p>;
 }
 
-const IdentityView = createComponentRegistry(() => ({
+markExactComponent(RegistryIdentityEntry, '@exactjs/dom:test:RegistryIdentityEntry');
+markExactComponent(
+	ComfortableRegistryIdentityEntry,
+	'@exactjs/dom:test:ComfortableRegistryIdentityEntry'
+);
+
+const IdentityView = createCompiledComponentRegistry('test:identity', 'IdentityView', () => ({
 	compact: RegistryIdentityEntry,
 	comfortable: ComfortableRegistryIdentityEntry
 }));
@@ -59,7 +71,7 @@ describe('@exactjs/dom component registries', () => {
 		registrySetups.length = 0;
 		registryUnmounts.length = 0;
 		const container = document.createElement('div');
-		render(<RegistryIdentityApp />, container);
+		render(createVNode(RegistryIdentityApp, null), container);
 
 		identityApp.state.label = 'updated';
 		flushSync();
@@ -81,11 +93,17 @@ describe('@exactjs/dom component registries', () => {
 		});
 		const load = vi.fn(async () => {
 			await gate;
-			return function Lazy(this: Component<Record<string, never>>) {
+			return markExactComponent(function Lazy(this: Component<Record<string, never>>) {
 				return () => <p>loaded</p>;
-			};
+			}, '@exactjs/dom:test:ConcurrentLazy');
 		});
-		const View = createComponentRegistry(({ lazy }) => ({ lazy: lazy(load) }));
+		const View = createCompiledComponentRegistry(
+			'test:concurrent',
+			'ConcurrentView',
+			({ lazy }) => ({
+				lazy: lazy(load)
+			})
+		);
 		const container = document.createElement('div');
 		render(
 			createVNode(Suspense, { fallback: <p>loading</p> }, <View.lazy />, <View.lazy />),
@@ -107,7 +125,11 @@ describe('@exactjs/dom component registries', () => {
 			this.onUnmount(() => disposals.push(props.registryKey));
 			return () => <p>{props.registryKey}</p>;
 		}
-		const View = createComponentRegistry(() => ({ first: Shared, second: Shared }));
+		markExactComponent(Shared, '@exactjs/dom:test:SharedRegistryEntry');
+		const View = createCompiledComponentRegistry('test:shared', 'SharedView', () => ({
+			first: Shared,
+			second: Shared
+		}));
 		let app!: Component<{ selected: 'first' | 'second' }>;
 		function App(this: Component<{ selected: 'first' | 'second' }>) {
 			app = this;
@@ -118,7 +140,7 @@ describe('@exactjs/dom component registries', () => {
 			};
 		}
 		const container = document.createElement('div');
-		render(<App />, container);
+		render(createVNode(App, null), container);
 		app.state.selected = 'second';
 		flushSync();
 
@@ -136,15 +158,16 @@ describe('@exactjs/dom component registries', () => {
 		const lazySetups = vi.fn();
 		const load = vi.fn(async () => {
 			await gate;
-			return function Lazy() {
+			return markExactComponent(function Lazy() {
 				lazySetups();
 				return () => <p>lazy</p>;
-			};
+			}, '@exactjs/dom:test:StaleLazy');
 		});
 		function Ready() {
 			return () => <p>ready</p>;
 		}
-		const View = createComponentRegistry(({ lazy }) => ({
+		markExactComponent(Ready, '@exactjs/dom:test:ReadyRegistryEntry');
+		const View = createCompiledComponentRegistry('test:stale', 'StaleView', ({ lazy }) => ({
 			lazy: lazy(load),
 			ready: Ready
 		}));
@@ -158,7 +181,7 @@ describe('@exactjs/dom component registries', () => {
 			};
 		}
 		const container = document.createElement('div');
-		render(<App />, container);
+		render(createVNode(App, null), container);
 		expect(container.textContent).toBe('loading');
 
 		app.state.selected = 'ready';

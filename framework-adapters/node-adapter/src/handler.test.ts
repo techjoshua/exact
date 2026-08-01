@@ -17,10 +17,10 @@ describe('@exactjs/node-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: (_input, context) => ({
 					state: {
 						method: context.requestContext?.method,
@@ -68,14 +68,14 @@ describe('@exactjs/node-adapter', () => {
 		}) as unknown as TestNodeResponse;
 
 		handler(request, response);
-		request.emit('data', JSON.stringify({ type: 'action', id: 'save' }));
+		request.emit('data', JSON.stringify({ type: 'invoke', id: 'save' }));
 		request.emit('end');
 
 		await done;
 		expect(response.statusCode).toBe(200);
 		expect(JSON.parse(response.body)).toEqual({
 			ok: true,
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			state: {
 				method: 'POST',

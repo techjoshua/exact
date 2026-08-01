@@ -4,16 +4,12 @@ import {
 	resolveNativeCompilerExecutable,
 	transformSource,
 	type ExactAssetRule,
-	type ExactCompilerManifest,
 	type ExactCompilerSession,
 	type ExactSourceInspection,
 	type TransformTarget
 } from '@exactjs/compiler';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
-import {
-	createExactDiagnosticReporter,
-	loadExactImportedManifests
-} from '@exactjs/compiler/adapter-support';
+import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import {
 	profileTimestamp,
 	type ExactProfileEvent,
@@ -52,8 +48,6 @@ export { mergeConditions, resolveExactBunRequest } from './selection.js';
 /** Configures exact bun plugin. */
 export type ExactBunPluginOptions = {
 	target?: TransformTarget;
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
 	clientCondition?: string;
 	serverCondition?: string;
 	include?: FilterPattern;
@@ -317,7 +311,7 @@ export function transformExactBunSource(
 	map: unknown;
 	inspection?: Readonly<{
 		inspection: ExactSourceInspection;
-		manifest: ExactCompilerManifest;
+		redactions?: ExactInspectionRedactionCatalog;
 	}>;
 } | null {
 	if (!shouldTransform(filename, source, options)) return null;
@@ -344,7 +338,6 @@ export function transformExactBunSource(
 			filename,
 			session,
 			target: targetFor(options),
-			importedManifests: importedManifestsFor(options),
 			serverComponents: options.serverComponents,
 			sourceMap: options.sourceMap ?? true,
 			assetRules: options.assetRules,
@@ -365,7 +358,7 @@ export function transformExactBunSource(
 				? {
 						inspection: {
 							inspection: result.inspectionCatalog,
-							manifest: result.manifest
+							redactions: result.inspectionRedactions
 						}
 					}
 				: {})
@@ -415,11 +408,4 @@ function bunCompatibilityEngine(
 		engines.set(key, engine);
 	}
 	return engine;
-}
-
-function importedManifestsFor(options: {
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
-}): ExactCompilerManifest[] {
-	return loadExactImportedManifests(options);
 }

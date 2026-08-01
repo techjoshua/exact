@@ -2,11 +2,9 @@
  * @vitest-environment jsdom
  */
 import {
-	createCompiledVNode,
 	createComponentDomain,
 	createContext,
 	createExactRuntimeInspectionOwner,
-	createVNode,
 	currentComponentDomain,
 	withComponentDomain,
 	type Component
@@ -14,6 +12,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { findNodeOwnerInstance, render, unmount } from './index.js';
 import { inspectDomRoot } from './testing.js';
+import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 
 describe('component domain rendering', () => {
 	it('instantiates the same component function under the VNode owner domain', () => {

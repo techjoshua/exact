@@ -1,7 +1,9 @@
 import {
+	activateTaskForHost,
 	createContext,
-	createVNode,
+	defineTask,
 	exactComponentContract,
+	exactComponentType,
 	markComponentContinuationTask,
 	registerComponentContinuationContexts,
 	type Component
@@ -12,6 +14,7 @@ import { renderToHydratableDocumentStream, renderToHydratableStringAsync } from 
 import { renderResumableComponentBoundary } from './render/boundaries.js';
 import { createSsrContext } from './render/context.js';
 import { readRemainingStreamEvents } from './test-support/streams.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr component resumption', () => {
 	it('emits only compiler-selected state and successfully settled continuation ids', async () => {
@@ -20,18 +23,22 @@ describe('@exactjs/ssr component resumption', () => {
 		) {
 			this.state.count = 0;
 			this.state.serverOnly = 'private';
-			(this as any).task(
-				markComponentContinuationTask('task:load', async () => {
-					await Promise.resolve();
-					this.state.count = 7;
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask('task:load', async () => {
+						await Promise.resolve();
+						this.state.count = 7;
+					})
+				)
 			);
 			return () => createVNode('output', null, String(this.state.count));
 		};
 		const Counter = Object.assign(implementation, {
+			[exactComponentType]: 'component:Counter',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:Counter',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -39,6 +46,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:load',
 						componentId: 'component:Counter',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
@@ -96,9 +104,9 @@ describe('@exactjs/ssr component resumption', () => {
 			return () => createVNode('output', null, String(this.state.count));
 		};
 		const StateOnly = Object.assign(implementation, {
+			[exactComponentType]: 'component:StateOnly',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:StateOnly',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [
@@ -145,9 +153,9 @@ describe('@exactjs/ssr component resumption', () => {
 			return () => createVNode('output', null, 'ready');
 		};
 		const ContinuationOwner = Object.assign(implementation, {
+			[exactComponentType]: 'component:ContinuationOwner',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:ContinuationOwner',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [
@@ -162,6 +170,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:continuation-owner',
 						componentId: 'component:ContinuationOwner',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
@@ -214,18 +223,22 @@ describe('@exactjs/ssr component resumption', () => {
 	it('captures the settled render used by a hydratable document stream', async () => {
 		const implementation = function StreamedCounter(this: Component<{ count: number }>) {
 			this.state.count = 0;
-			(this as any).task(
-				markComponentContinuationTask('task:stream', async () => {
-					await Promise.resolve();
-					this.state.count = 9;
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask('task:stream', async () => {
+						await Promise.resolve();
+						this.state.count = 9;
+					})
+				)
 			);
 			return () => createVNode('output', null, String(this.state.count));
 		};
 		const StreamedCounter = Object.assign(implementation, {
+			[exactComponentType]: 'component:StreamedCounter',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:StreamedCounter',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -233,6 +246,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:stream',
 						componentId: 'component:StreamedCounter',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
@@ -275,17 +289,21 @@ describe('@exactjs/ssr component resumption', () => {
 		}
 		const implementation = function Provider(this: Component<{}>) {
 			registerComponentContinuationContexts(this, [{ name: 'Status', token: Status }]);
-			(this as any).task(
-				markComponentContinuationTask('task:status', () => {
-					this.setContext(Status, { message: 'ready' });
-				})
+			activateTaskForHost(
+				this,
+				defineTask(
+					{},
+					markComponentContinuationTask('task:status', () => {
+						this.setContext(Status, { message: 'ready' });
+					})
+				)
 			);
 			return () => createVNode(Consumer, {});
 		};
 		const Provider = Object.assign(implementation, {
+			[exactComponentType]: 'component:Provider',
 			[exactComponentContract]: {
 				version: 1 as const,
-				id: 'component:Provider',
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -293,6 +311,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:status',
 						componentId: 'component:Provider',
+						kind: 'task' as const,
 						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],

@@ -1,12 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createComponentDomain,
-	createVNode,
-	withComponentDomain,
-	type Component
-} from '@exactjs/core';
+import { createComponentDomain, withComponentDomain, type Component } from '@exactjs/core';
+import { createVNode } from './test-support/native-vnode.js';
 import { render, unmount } from '@exactjs/dom';
 import { describe, expect, it, vi } from 'vitest';
 import { applyPatches } from './patches.js';

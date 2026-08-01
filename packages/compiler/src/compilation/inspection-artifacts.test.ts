@@ -4,14 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { compileProjectArtifacts } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
-const source = `
-function Page(this: Component<{ count: number }>) {
-	this.task(async () => {
-		this.state.count = await Promise.resolve(1);
-	});
-	return () => <button>{this.state.count}</button>;
-}
-`;
+const source =
+	'import { TaskContext } from "@exactjs/core";\n\nfunction Page(this: Component<{ count: number }>) {\n\tconst runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => {\n\t\tthis.state.count = await Promise.resolve(1);\n\t};\nrunFixtureTask();\n\treturn () => <button>{this.state.count}</button>;\n}\n';
 
 describe('@exactjs/compiler: inspection artifact packaging', () => {
 	it('collects source inspection once and writes one server-only immutable catalog', async () => {

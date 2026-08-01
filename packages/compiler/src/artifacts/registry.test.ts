@@ -3,275 +3,13 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
 	compileFileArtifacts,
-	createClientIslandRegistryEntries,
-	createClientIslandRegistryModule,
 	createExactArtifactGraph,
-	createExactArtifactRegistryModules,
 	createExactHydrationRegistrationModule,
-	createServerPartRegistryEntries,
-	createServerPartRegistryModule,
 	transform
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler: registries', () => {
-	it('creates client island registry entries for generated client artifacts', async () => {
-		const root = await createTestWorkspace('exact-island-registry-');
-		const input = path.join(root, 'src', 'panel.tsx');
-		const outDir = path.join(root, 'dist');
-		await mkdir(path.dirname(input), { recursive: true });
-		await writeFile(
-			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
-		);
-
-		const result = await compileFileArtifacts(input, {
-			outDir,
-			rootDir: path.join(root, 'src')
-		});
-
-		expect(
-			createClientIslandRegistryEntries([result], {
-				rootDir: root
-			})
-		).toEqual([
-			expect.objectContaining({
-				id: expect.any(String),
-				name: 'Panel_ExactClient_1',
-				exportName: 'Panel_ExactClient_1',
-				module: './dist/panel.exact.client.ts',
-				componentId: result.manifest.components[0]!.id
-			})
-		]);
-	});
-
-	it('creates client registry entries for exported pure client components', async () => {
-		const root = await createTestWorkspace('exact-client-root-registry-');
-		const input = path.join(root, 'src', 'ClientWidget.tsx');
-		const outDir = path.join(root, 'dist');
-		await mkdir(path.dirname(input), { recursive: true });
-		await writeFile(
-			input,
-			`
-      export function ClientWidget(this: Component<{ width: number }>) {
-        this.state.width = window.innerWidth;
-        return () => <button onClick={() => this.state.width++} />;
-      }
-    `
-		);
-
-		const result = await compileFileArtifacts(input, {
-			outDir,
-			rootDir: path.join(root, 'src')
-		});
-
-		expect(
-			createClientIslandRegistryEntries([result], {
-				rootDir: root
-			})
-		).toContainEqual({
-			id: expect.any(String),
-			name: 'ClientWidget',
-			exportName: 'ClientWidget',
-			module: './dist/ClientWidget.exact.client.ts',
-			componentId: result.manifest.components[0]!.id
-		});
-	});
-
-	it('creates client registry modules for default-exported client roots', async () => {
-		const root = await createTestWorkspace('exact-default-client-root-registry-');
-		const input = path.join(root, 'src', 'ClientWidget.tsx');
-		const outDir = path.join(root, 'dist');
-		await mkdir(path.dirname(input), { recursive: true });
-		await writeFile(
-			input,
-			`
-      export default function ClientWidget(this: Component<{ width: number }>) {
-        this.state.width = window.innerWidth;
-        return () => <button onClick={() => this.state.width++} />;
-      }
-    `
-		);
-
-		const result = await compileFileArtifacts(input, {
-			outDir,
-			rootDir: path.join(root, 'src')
-		});
-		const module = createClientIslandRegistryModule(
-			createClientIslandRegistryEntries([result], {
-				rootDir: root
-			})
-		);
-
-		expect(module).toContain(
-			'import { default as __exactRegistry0 } from "./dist/ClientWidget.exact.client.ts";'
-		);
-		expect(module).toContain('"ClientWidget": __exactRegistry0');
-	});
-
-	it('creates server part registry entries for generated server artifacts', async () => {
-		const root = await createTestWorkspace('exact-server-part-registry-');
-		const input = path.join(root, 'src', 'panel.tsx');
-		const outDir = path.join(root, 'dist');
-		await mkdir(path.dirname(input), { recursive: true });
-		await writeFile(
-			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
-		);
-
-		const result = await compileFileArtifacts(input, {
-			outDir,
-			rootDir: path.join(root, 'src')
-		});
-
-		expect(
-			createServerPartRegistryEntries([result], {
-				rootDir: root
-			})
-		).toEqual([
-			{
-				id: expect.any(String),
-				name: 'Panel_ExactServer_1',
-				exportName: 'Panel_ExactServer_1',
-				module: './dist/panel.exact.server.ts',
-				componentId: result.manifest.components[0]!.id
-			}
-		]);
-	});
-
-	it('creates ESM modules for client and server registries', () => {
-		expect(
-			createClientIslandRegistryModule([
-				{
-					id: 'client-1',
-					name: 'Panel_ExactClient_1',
-					exportName: 'Panel_ExactClient_1',
-					module: './panel.exact.client.ts'
-				}
-			])
-		).toBe(
-			[
-				'import { Panel_ExactClient_1 as __exactRegistry0 } from "./panel.exact.client.ts";',
-				'',
-				'export const exactClientIslands = {',
-				'  "Panel_ExactClient_1": __exactRegistry0',
-				'};',
-				''
-			].join('\n')
-		);
-
-		expect(
-			createServerPartRegistryModule(
-				[
-					{
-						id: 'server-1',
-						name: 'Panel_ExactServer_1',
-						exportName: 'Panel_ExactServer_1',
-						module: './panel.exact.server.ts'
-					}
-				],
-				{ exportName: 'parts' }
-			)
-		).toContain('export const parts');
-	});
-
-	it('rejects duplicate registry module names', () => {
-		expect(() =>
-			createClientIslandRegistryModule([
-				{
-					id: 'one',
-					name: 'Panel',
-					exportName: 'Panel',
-					module: './one.ts'
-				},
-				{
-					id: 'two',
-					name: 'Panel',
-					exportName: 'Panel',
-					module: './two.ts'
-				}
-			])
-		).toThrow('Duplicate eXact registry entry Panel');
-	});
-
-	it('deduplicates re-exported registry entries by component identity', () => {
-		const module = createClientIslandRegistryModule([
-			{
-				id: 'barrel',
-				name: 'Panel',
-				exportName: 'Panel',
-				module: './index.exact.client.ts'
-			},
-			{
-				id: 'source',
-				name: 'Panel',
-				exportName: 'Panel',
-				module: './components/Panel.exact.client.ts',
-				componentId: 'component:panel'
-			}
-		]);
-
-		expect(module).toContain('./components/Panel.exact.client.ts');
-		expect(module).not.toContain('./index.exact.client.ts');
-	});
-
-	it('creates registry modules from artifact graphs', async () => {
-		const root = await createTestWorkspace('exact-artifact-registry-modules-');
-		const input = path.join(root, 'src', 'panel.tsx');
-		const outDir = path.join(root, 'dist');
-		await mkdir(path.dirname(input), { recursive: true });
-		await writeFile(
-			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
-		);
-
-		const result = await compileFileArtifacts(input, {
-			outDir,
-			rootDir: path.join(root, 'src')
-		});
-		const graph = createExactArtifactGraph([result], {
-			packageRoot: root,
-			sourceRoot: path.join(root, 'src'),
-			rootDir: root
-		});
-		const modules = createExactArtifactRegistryModules(graph, {
-			clientExportName: 'clientRegistry',
-			serverExportName: 'serverRegistry'
-		});
-
-		expect(modules.client).toContain('export const clientRegistry');
-		expect(modules.client).toContain('Panel_ExactClient_1');
-		expect(modules.server).toContain('export const serverRegistry');
-		expect(modules.server).toContain('Panel_ExactServer_1');
-	});
-
 	it('creates hydration registration modules from artifact graphs', async () => {
 		const root = await createTestWorkspace('exact-hydration-registration-module-');
 		const input = path.join(root, 'src', 'panel.tsx');
@@ -279,16 +17,7 @@ describe('@exactjs/compiler: registries', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number; title: string }>) {
-        this.task.server(async () => {
-          this.state.title = await readFile("panel.txt", "utf8");
-        });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number; title: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -300,11 +29,11 @@ describe('@exactjs/compiler: registries', () => {
 			sourceRoot: path.join(root, 'src'),
 			rootDir: root
 		});
-		const actionId = Object.keys(result.manifest.serverActions)[0]!;
+		const actionId = Object.keys(result.analysis.serverActions)[0]!;
 		const module = createExactHydrationRegistrationModule(graph, {
 			endpoint: '/__exact',
 			endpoints: {
-				actions: { [actionId]: '/remote-exact' }
+				invocations: { [actionId]: '/remote-exact' }
 			},
 			islandsExportName: 'islands',
 			registrationExportName: 'registration'
@@ -338,13 +67,13 @@ describe('@exactjs/compiler: registries', () => {
 
       export function Workspace(this: Component<{ count: number }>) {
         async function load(_task: TaskContext = TaskContext.server()) {
-          return 1;
+		  this.state.count = 1;
         }
-        async function refresh(_task: TaskContext = TaskContext.client()) {
+		function refresh(_task: TaskContext = TaskContext.client()) {
           localStorage.setItem("refreshing", "true");
-          this.state.count = await load();
         }
-        void refresh();
+		load();
+		refresh();
         return () => <output>{this.state.count}</output>;
       }
     `
@@ -359,13 +88,13 @@ describe('@exactjs/compiler: registries', () => {
 			sourceRoot: path.join(root, 'src'),
 			rootDir: root
 		});
-		const symbol = result.manifest.symbols.find(
+		const symbol = result.analysis.symbols.find(
 			(candidate) => candidate.exportName === 'Workspace' && candidate.role === 'root'
 		)!;
 		const module = createExactHydrationRegistrationModule(graph);
 
 		expect(symbol.target).toBe('both');
-		expect(result.manifest.resumptions).toContainEqual(
+		expect(result.analysis.resumptions).toContainEqual(
 			expect.objectContaining({ componentId: symbol.componentId })
 		);
 		expect(module).toContain('import("./dist/workspace.exact.client.js")');
@@ -392,9 +121,15 @@ describe('@exactjs/compiler: registries', () => {
 			rootDir: path.join(root, 'src')
 		});
 
-		expect(result.manifest.resumptions).toHaveLength(1);
-		expect(result.manifest.continuations).toHaveLength(0);
-		expect(createClientIslandRegistryEntries([result], { rootDir: root })).toEqual([]);
+		expect(result.analysis.resumptions).toHaveLength(1);
+		expect(result.analysis.continuations).toHaveLength(0);
+		expect(
+			createExactArtifactGraph([result], {
+				packageRoot: root,
+				sourceRoot: path.join(root, 'src'),
+				rootDir: root
+			}).clientIslands
+		).toEqual([]);
 	});
 
 	it('includes component render edges in artifact graphs', async () => {
@@ -424,8 +159,8 @@ describe('@exactjs/compiler: registries', () => {
 			sourceRoot: path.join(root, 'src'),
 			rootDir: root
 		});
-		const page = result.manifest.components.find((component) => component.name === 'Page')!;
-		const widget = result.manifest.components.find(
+		const page = result.analysis.components.find((component) => component.name === 'Page')!;
+		const widget = result.analysis.components.find(
 			(component) => component.name === 'ClientWidget'
 		)!;
 
@@ -470,9 +205,9 @@ describe('@exactjs/compiler: registries', () => {
 		});
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
-		const islands = result.manifest.symbols.filter((symbol) => symbol.role === 'client-island');
+		const islands = result.analysis.symbols.filter((symbol) => symbol.role === 'client-island');
 
-		expect(result.manifest.components[0]!.clientIslandCount).toBe(2);
+		expect(result.analysis.components[0]!.clientIslandCount).toBe(2);
 		expect(islands.map((symbol) => symbol.generatedName)).toEqual([
 			'Panel_ExactClient_1',
 			'Panel_ExactClient_2'
@@ -497,29 +232,18 @@ describe('@exactjs/compiler: registries', () => {
 		expect(server).not.toContain('className: "primary"');
 		expect(server).not.toContain('title: this.state.count');
 		expect(server).not.toContain('onClick');
-		expect(result.manifest.boundaries).toContainEqual({
+		expect(result.analysis.boundaries).toContainEqual({
 			id: expect.any(String),
 			name: 'Panel',
-			componentId: result.manifest.components[0]!.id,
-			ownerComponentId: result.manifest.components[0]!.id,
+			componentId: result.analysis.components[0]!.id,
+			ownerComponentId: result.analysis.components[0]!.id,
 			kind: 'client-island'
 		});
-		expect(result.manifest.artifacts?.symbols).toEqual(result.manifest.symbols);
 	});
 
 	it('infers arbitrary dynamic client island props in isomorphic server artifacts', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        const label = String(this.state.count);
-        return () => <button title={label} onClick={() => this.state.count++} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        const label = String(this.state.count);\n        return () => <button title={label} onClick={() => this.state.count++} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
@@ -531,17 +255,7 @@ describe('@exactjs/compiler: registries', () => {
 
 	it('infers aliased state reads for client island snapshots', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ project: { title: string } }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        const project = this.state.project;
-        return () => <button title={project.title} onClick={() => project.title = "Updated"} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ project: { title: string } }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        const project = this.state.project;\n        return () => <button title={project.title} onClick={() => project.title = "Updated"} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
@@ -552,17 +266,7 @@ describe('@exactjs/compiler: registries', () => {
 
 	it('retains whole-object snapshots when a state alias is consumed as a value', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ project: { title: string } }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        const project = this.state.project;
-        return () => <button title={String(project)} onClick={() => save(project)} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ project: { title: string } }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        const project = this.state.project;\n        return () => <button title={String(project)} onClick={() => save(project)} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
@@ -572,18 +276,7 @@ describe('@exactjs/compiler: registries', () => {
 
 	it('infers derived state reads for client island snapshots', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ project: { title: string; owner: string } }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        const title = this.state.project.title;
-        const label = \`\${title} by \${this.state.project.owner}\`;
-        return () => <button title={label} onClick={() => this.state.project.title = "Updated"}>{label}</button>;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ project: { title: string; owner: string } }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        const title = this.state.project.title;\n        const label = `${title} by ${this.state.project.owner}`;\n        return () => <button title={label} onClick={() => this.state.project.title = "Updated"}>{label}</button>;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 

@@ -1,4 +1,4 @@
-import { createVNode, type ComponentFunction } from '@exactjs/core';
+import { createVNode, markExactComponent, type ComponentFunction } from '@exactjs/core';
 import type { ReactNode } from '@exactjs/react-compat';
 import {
 	ReactCacheContext,
@@ -46,6 +46,7 @@ const ServerRoot = function ExactReactServerRoot(
 	);
 	return () => toExactNode(props.node);
 } as ComponentFunction<Record<string, never>, ServerRootProps>;
+markExactComponent(ServerRoot, '@exactjs/react-dom-compat:ServerRoot');
 
 function serverVNode(
 	node: ReactNode,

@@ -1,13 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { collectInputFiles, commonRoot, manifestPathFor, outputPathFor } from '../paths.js';
+import { collectInputFiles, commonRoot, outputPathFor } from '../paths.js';
 import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
 import type { CompileFileOptions, CompileFileResult, CompileProjectOptions } from '../types.js';
 import { capabilityCompilationOptions } from './capability-options.js';
 import { transformSource } from './transformation.js';
 import { createOwnedNativeCompilationSession } from './native-session.js';
 
-/** Compiles one input file and optionally writes code, source map, and manifest artifacts. */
+/** Compiles one input file and optionally writes code and its source map. */
 export async function compileFile(
 	inputFile: string,
 	options: CompileFileOptions = {}
@@ -40,7 +40,6 @@ export async function compileFile(
 		? outputPathFor(inputFile, options.outDir, options.rootDir)
 		: undefined;
 	const sourceMapFile = outputFile && result.map ? sourceMapPathFor(outputFile) : undefined;
-	const manifestFile = outputFile && options.emitManifest ? manifestPathFor(outputFile) : undefined;
 
 	if (outputFile) {
 		await mkdir(path.dirname(outputFile), { recursive: true });
@@ -56,17 +55,11 @@ export async function compileFile(
 			`${JSON.stringify(withSourceMapFile(result.map, path.basename(outputFile!)), null, 2)}\n`
 		);
 	}
-	if (manifestFile) {
-		await mkdir(path.dirname(manifestFile), { recursive: true });
-		await writeFile(manifestFile, `${JSON.stringify(result.manifest, null, 2)}\n`);
-	}
-
 	return {
 		...result,
 		inputFile,
 		outputFile,
-		sourceMapFile,
-		manifestFile
+		sourceMapFile
 	};
 }
 
@@ -93,7 +86,6 @@ export async function compileProject(
 				outDir: options.outDir,
 				rootDir,
 				target: options.target,
-				emitManifest: options.emitManifest,
 				serverComponents: options.serverComponents,
 				sourceMap: options.sourceMap,
 				session: options.session,

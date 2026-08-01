@@ -215,8 +215,8 @@ export function IntroductionPage(this: Component<{}>) {
 					eXact applies the same compiler-visible ownership to asynchronous and distributed work. A
 					component can mix browser interaction with server operations without making transport code
 					the organizing idea of the component. The compiler analyzes placement and produces the
-					client and server artifacts, manifests, state transfer, and lifecycle boundaries needed to
-					connect them.
+					client and server artifacts, executable contracts, state transfer, and lifecycle
+					boundaries needed to connect them.
 				</p>
 				<p>
 					This is deliberate syntactic sugar: a small amount of familiar TypeScript expands into

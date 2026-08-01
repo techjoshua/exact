@@ -14,9 +14,9 @@ export function positiveLimit(value: number | undefined, fallback: number): numb
 }
 
 /** Runs all stream cleanup callbacks while retaining the first failure as the primary error. */
-export function cleanupAll(...actions: Array<() => void>): void {
+export function cleanupAll(...callbacks: Array<() => void>): void {
 	const failure = createCleanupFailure();
-	for (const action of actions) attemptCleanup(failure, action);
+	for (const callback of callbacks) attemptCleanup(failure, callback);
 	throwCleanupFailure(failure);
 }
 

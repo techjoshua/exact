@@ -39,7 +39,7 @@ export function createExactRemoteBuildRegistration(
 			Record<
 				string,
 				{
-					actions?: ExactServerContext['actions'];
+					invocations?: ExactServerContext['invocations'];
 					refreshBoundaries?: ExactServerContext['refreshBoundaries'];
 				}
 			>
@@ -55,7 +55,7 @@ export function createExactRemoteBuildRegistration(
 			exposure.root,
 			Object.freeze({
 				contract,
-				actions: selectHandlers(handlers?.actions, Object.keys(contract.actions)),
+				invocations: selectHandlers(handlers?.invocations, Object.keys(contract.invocations)),
 				refreshBoundaries: selectHandlers(
 					handlers?.refreshBoundaries,
 					Object.keys(contract.boundaries)
@@ -71,28 +71,28 @@ export function createExactRemoteBuildRegistration(
 
 /** Composes private executor authority from the selected build-time graph. */
 function exposureExecutorContract(graph: ExactArtifactGraph) {
-	const actions: Record<string, ReturnType<typeof defineExactOperationContract>> = {};
+	const invocations: Record<string, ReturnType<typeof defineExactOperationContract>> = {};
 	const boundaries: Record<string, ReturnType<typeof defineExactBoundaryContract>> = {};
 	for (const artifact of graph.artifacts) {
-		for (const [id, action] of Object.entries(artifact.manifest.serverActions)) {
-			const continuation = artifact.manifest.continuations.find((entry) => entry.id === id);
-			actions[id] = defineExactOperationContract(id, {
-				componentId: action.componentId,
-				reads: action.stateContract.reads,
-				writes: action.stateContract.writes,
-				publicContexts: action.publicContextContract.map((entry) => entry.token),
-				serverContexts: action.serverContextContract.map((entry) => entry.token),
+		for (const [id, invocation] of Object.entries(artifact.analysis.serverActions)) {
+			const continuation = artifact.analysis.continuations.find((entry) => entry.id === id);
+			invocations[id] = defineExactOperationContract(id, {
+				componentId: invocation.componentId,
+				reads: invocation.stateContract.reads,
+				writes: invocation.stateContract.writes,
+				publicContexts: invocation.publicContextContract.map((entry) => entry.token),
+				serverContexts: invocation.serverContextContract.map((entry) => entry.token),
 				boundaries: continuation?.effects.boundaries ?? []
 			});
 		}
-		for (const boundary of artifact.manifest.boundaries)
+		for (const boundary of artifact.analysis.boundaries)
 			boundaries[boundary.id] = defineExactBoundaryContract(boundary.id, {
 				componentId: boundary.componentId,
 				ownerComponentId: boundary.ownerComponentId,
 				kind: boundary.kind
 			});
 	}
-	return composeExactExecutorContract([], { actions, boundaries });
+	return composeExactExecutorContract([], { invocations, boundaries });
 }
 
 function selectedExposureGraph(
@@ -109,7 +109,7 @@ function selectedExposureGraph(
 		throw new Error(
 			`Remote exposure ${JSON.stringify(exposure)} does not resolve to a compiled eXact component module: ${componentFile}`
 		);
-	const root = artifact.manifest.symbols.find(
+	const root = artifact.analysis.symbols.find(
 		(symbol) =>
 			symbol.role === 'root' &&
 			symbol.kind === 'component' &&
@@ -143,7 +143,7 @@ function withAuthoredClientModules(graph: ExactArtifactGraph): ExactArtifactGrap
 	const moduleByComponent = new Map<string, string>();
 	for (const artifact of graph.artifacts) {
 		const authoredModule = slashPath(path.resolve(artifact.inputFile));
-		for (const symbol of artifact.manifest.symbols)
+		for (const symbol of artifact.analysis.symbols)
 			if (symbol.componentId) moduleByComponent.set(symbol.componentId, authoredModule);
 	}
 	return {

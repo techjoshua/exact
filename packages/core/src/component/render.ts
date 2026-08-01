@@ -34,7 +34,7 @@ export function renderInstance(
 			try {
 				instance.beginRender();
 				const render = instance.errorFallback ?? instance.renderFunction;
-				output = withComponentDomain(instance.domain, () => render.call(instance));
+				output = withComponentDomain(instance.domain, render);
 			} catch (error) {
 				if (isPromiseLike(error) && handleComponentSuspension(instance, error)) {
 					output = null;
@@ -49,7 +49,7 @@ export function renderInstance(
 					return;
 				}
 				instance.errorFallback = fallback;
-				output = withComponentDomain(instance.domain, () => fallback.call(instance));
+				output = withComponentDomain(instance.domain, fallback);
 			} finally {
 				instance.endRender();
 			}

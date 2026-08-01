@@ -42,7 +42,7 @@ describe('policy audit reports', () => {
 	});
 
 	it('reports unresolved library requirements', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume } from "@exactjs/secrets";
       import { connect } from "@acme/database";
@@ -57,7 +57,7 @@ describe('policy audit reports', () => {
 				target: 'server'
 			}
 		);
-		const report = createExactPolicyAuditReport([manifest], {
+		const report = createExactPolicyAuditReport([analysis], {
 			generatedAt: new Date('2026-01-01T00:00:00.000Z')
 		});
 		expect(report.secretUsage[0]?.status).toBe('required');

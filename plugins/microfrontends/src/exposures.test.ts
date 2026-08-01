@@ -33,18 +33,22 @@ describe('remote exposure registrations', () => {
 		);
 		await writeFile(
 			area,
-			`import ClientButton from './ClientButton';
+			`import { TaskContext } from '@exactjs/core';
+import ClientButton from './ClientButton';
 
 export default function Area(this: Component<{ count: number }>) {
-	this.task.server(async () => { this.state.count++; });
+	const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.count++; };
+	increment();
 	return () => <main>{this.state.count}<ClientButton /></main>;
 }
 `
 		);
 		await writeFile(
 			unused,
-			`export default function Unused(this: Component<{}>) {
-	this.task.server(async () => undefined);
+			`import { TaskContext } from '@exactjs/core';
+export default function Unused(this: Component<{}>) {
+	async function load(_task: TaskContext = TaskContext.server()) {}
+	load();
 	return () => <aside>unused</aside>;
 }
 `
@@ -76,12 +80,12 @@ export default function Area(this: Component<{ count: number }>) {
 		expect(registration).not.toContain('stateContracts');
 		expect(registration).not.toContain('actionBoundaries');
 
-		const areaAction = Object.keys(
-			results.find((result) => path.resolve(result.inputFile) === path.resolve(area))!.manifest
+		const areaInvocation = Object.keys(
+			results.find((result) => path.resolve(result.inputFile) === path.resolve(area))!.analysis
 				.serverActions
 		)[0]!;
-		const unusedAction = Object.keys(
-			results.find((result) => path.resolve(result.inputFile) === path.resolve(unused))!.manifest
+		const unusedInvocation = Object.keys(
+			results.find((result) => path.resolve(result.inputFile) === path.resolve(unused))!.analysis
 				.serverActions
 		)[0]!;
 		const areaHandler = () => ({ state: { area: true } });
@@ -89,18 +93,18 @@ export default function Area(this: Component<{ count: number }>) {
 			applicationRoot: root,
 			handlers: {
 				'@company/remote#./Area': {
-					actions: {
-						[areaAction]: areaHandler,
-						[unusedAction]: () => ({ state: { unused: true } })
+					invocations: {
+						[areaInvocation]: areaHandler,
+						[unusedInvocation]: () => ({ state: { unused: true } })
 					}
 				}
 			}
 		});
 		const dispatch = build.roots['@company/remote#./Area']!;
 		expect(build.buildKey).toBe(buildKey);
-		expect(Object.keys(dispatch.contract.actions)).toEqual([areaAction]);
-		expect(dispatch.actions).toEqual({ [areaAction]: areaHandler });
-		expect(dispatch.actions).not.toHaveProperty(unusedAction);
+		expect(Object.keys(dispatch.contract.invocations)).toEqual([areaInvocation]);
+		expect(dispatch.invocations).toEqual({ [areaInvocation]: areaHandler });
+		expect(dispatch.invocations).not.toHaveProperty(unusedInvocation);
 	});
 
 	it('keeps colliding local handler ids separate for each exposure root', async () => {
@@ -109,8 +113,10 @@ export default function Area(this: Component<{ count: number }>) {
 		const area = path.join(sourceRoot, 'Area.tsx');
 		await writeFile(
 			area,
-			`export default function Area(this: Component<{ count: number }>) {
-	this.task.server(async () => { this.state.count++; });
+			`import { TaskContext } from '@exactjs/core';
+export default function Area(this: Component<{ count: number }>) {
+	const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.count++; };
+	increment();
 	return () => <main>{this.state.count}</main>;
 }
 `
@@ -135,19 +141,19 @@ export default function Area(this: Component<{ count: number }>) {
 			},
 			{ packageName: '@company/remote', buildKey }
 		);
-		const action = Object.keys(results[0]!.manifest.serverActions)[0]!;
+		const invocation = Object.keys(results[0]!.analysis.serverActions)[0]!;
 		const left = () => ({ state: { source: 'left' } });
 		const right = () => ({ state: { source: 'right' } });
 		const build = createExactRemoteBuildRegistration(plan, graph, {
 			applicationRoot: root,
 			handlers: {
-				'@company/remote#./Left': { actions: { [action]: left } },
-				'@company/remote#./Right': { actions: { [action]: right } }
+				'@company/remote#./Left': { invocations: { [invocation]: left } },
+				'@company/remote#./Right': { invocations: { [invocation]: right } }
 			}
 		});
 
-		expect(build.roots['@company/remote#./Left']?.actions?.[action]).toBe(left);
-		expect(build.roots['@company/remote#./Right']?.actions?.[action]).toBe(right);
+		expect(build.roots['@company/remote#./Left']?.invocations?.[invocation]).toBe(left);
+		expect(build.roots['@company/remote#./Right']?.invocations?.[invocation]).toBe(right);
 	});
 
 	it('rejects a module without a default-exported component root', async () => {

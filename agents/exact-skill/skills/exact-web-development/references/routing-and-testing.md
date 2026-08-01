@@ -72,8 +72,8 @@ server output, the generated client-island registry, and the application's real 
 handler. Trigger behavior through accessible DOM interactions, then inspect
 `view.protocol.exchanges` for the request, response, and client patch disposition.
 
-Treat generated action and boundary IDs as opaque. Do not derive them from or couple tests to the
-compiler manifest. A test should normally cause the generated client code to issue an operation
+Treat generated action and boundary IDs as opaque. Do not derive them from or couple tests to
+compiler analysis. A test should normally cause the generated client code to issue an operation
 and then assert against the recorded exchange. Paired views also expose hydrated component state,
 inherited contexts, and contexts provided to descendants through `view.component(...)`.
 

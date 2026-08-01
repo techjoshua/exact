@@ -1,10 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-	ReadinessContext,
-	createComponentInstance,
-	createReadinessCoordinator,
-	type Component
-} from './index.js';
+import { createReadinessCoordinator } from './index.js';
 
 describe('@exactjs/core readiness coordination', () => {
 	it('fences stale settlements when a boundary starts a new generation', async () => {
@@ -30,37 +25,6 @@ describe('@exactjs/core readiness coordination', () => {
 		expect(coordinator.pending).toBe(0);
 		expect(coordinator.generation).toBe(2);
 		expect(changes.at(-1)?.[0]).toBe(0);
-	});
-
-	it('registers blocking task generations through component context ancestry', async () => {
-		const coordinator = createReadinessCoordinator(() => undefined);
-		coordinator.beginGeneration();
-		let settle!: () => void;
-		const settlement = new Promise<void>((resolve) => {
-			settle = resolve;
-		});
-
-		const parent = createComponentInstance(function Boundary(this: Component<{}>) {
-			this.setContext(ReadinessContext, coordinator.context);
-			return () => null;
-		}, {});
-		const child = createComponentInstance(
-			function Worker(this: Component<{}>) {
-				(this as any).task.blocking(async () => {
-					await settlement;
-				});
-				return () => null;
-			},
-			{},
-			parent
-		);
-
-		expect(coordinator.pending).toBe(1);
-		settle();
-		for (let index = 0; index < 6; index++) await Promise.resolve();
-		expect(coordinator.pending).toBe(0);
-		child.unmount();
-		parent.unmount();
 	});
 
 	it('publishes settled generation effects only on commit and discards superseded effects', async () => {

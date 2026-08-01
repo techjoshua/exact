@@ -2,6 +2,7 @@ import {
 	createErrorContext,
 	createVNode,
 	ErrorContext,
+	markExactComponent,
 	type Component,
 	type ComponentFunction,
 	type ErrorContextValue,
@@ -14,14 +15,14 @@ import type { RenderOptions, Root } from '../types.js';
 
 /** Creates a root boundary. */
 export function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
-	return function RootBoundary(this: Component<{}>, props: { version: number }) {
+	return markExactComponent(function RootBoundary(this: Component<{}>, props: { version: number }) {
 		this.setContext(ErrorContext, root.errors);
 
 		return () => {
 			void props.version;
 			return root.errors.errors.length ? createRootErrorView(root.errors.errors) : root.current;
 		};
-	};
+	}, '@exactjs/dom:RootBoundary');
 }
 
 /** Creates a dom error context. */

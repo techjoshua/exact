@@ -1,4 +1,4 @@
-import type { ComponentInstance, TaskResult } from '../component/contracts.js';
+import type { ComponentInstance } from '../component/contracts.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 
 const exactContinuationTask = Symbol.for('@exactjs/continuation-task');
@@ -8,15 +8,7 @@ type TaggedContinuationTask = ((...args: any[]) => unknown) & {
 };
 
 /** Tags compiler-generated task work with its opaque cross-runtime continuation identity. */
-export function markComponentContinuationTask<T extends (...args: any[]) => TaskResult>(
-	id: string,
-	work: T
-): T {
-	return markContinuationWork(id, work);
-}
-
-/** Tags compiler-generated action work while preserving its authored result type. */
-export function markComponentContinuationAction<T extends (...args: any[]) => unknown>(
+export function markComponentContinuationTask<T extends (...args: any[]) => unknown>(
 	id: string,
 	work: T
 ): T {
@@ -53,18 +45,11 @@ export function inheritComponentContinuationIdentity(
 export function settledComponentContinuationIds(
 	instance: ComponentInstance<any>
 ): readonly string[] {
-	const legacyIds = instance.tasks
-		.filter(
-			(task) =>
-				task.completedGeneration === task.generation && task.failedGeneration !== task.generation
-		)
-		.map((task) => componentContinuationTaskId(task.work))
-		.filter((id): id is string => id !== undefined);
 	const owner = taskOwnerForHost(instance);
-	if (!owner) return legacyIds;
+	if (!owner) return [];
 	const taskIds = [...owner.activationRegistrations]
 		.filter((registration) => registration.settled)
 		.map((registration) => componentContinuationTaskId(registration.task))
 		.filter((id): id is string => id !== undefined);
-	return [...new Set([...legacyIds, ...taskIds])];
+	return [...new Set(taskIds)];
 }

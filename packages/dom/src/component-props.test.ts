@@ -1,14 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createCompiledVNode,
-	createDynamicChild,
-	createExpression,
-	type Child,
-	type Component
-} from '@exactjs/core';
-import { jsx, jsxs } from '@exactjs/jsx';
+import { createDynamicChild, createExpression, type Child, type Component } from '@exactjs/core';
+import { createCompiledVNode, jsx, jsxs } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';

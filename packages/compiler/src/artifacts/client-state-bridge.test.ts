@@ -4,16 +4,7 @@ import { transform } from '../index.js';
 describe('@exactjs/compiler: client state bridges', () => {
 	it('emits valid state snapshots for non-identifier path segments', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ items: Record<string, { title: string }> }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button title={this.state.items["first-item"].title} onClick={() => save()} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ items: Record<string, { title: string }> }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button title={this.state.items["first-item"].title} onClick={() => save()} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
@@ -23,16 +14,7 @@ describe('@exactjs/compiler: client state bridges', () => {
 
 	it('generates client island components with state bridge initialization', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button title={this.state.count} onClick={() => this.state.count++} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button title={this.state.count} onClick={() => this.state.count++} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'client', serverComponents: true }
 		);
 
@@ -47,16 +29,7 @@ describe('@exactjs/compiler: client state bridges', () => {
 
 	it('omits server-owned roots from client artifacts in server component mode', () => {
 		const output = transform(
-			`
-      import { readFile } from "node:fs/promises";
-
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(async () => {
-          await readFile("panel.txt", "utf8");
-        });
-        return () => <button title={this.state.count} onClick={() => this.state.count++} />;
-      }
-    `,
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button title={this.state.count} onClick={() => this.state.count++} />;\n      }\n    ',
 			{ filename: 'Panel.tsx', target: 'client', serverComponents: true }
 		);
 

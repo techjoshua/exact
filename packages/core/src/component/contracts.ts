@@ -8,9 +8,6 @@ import type {
 
 import type { ComponentLog } from '../logging.js';
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
-import type { TaskContext } from '../tasks/contracts.js';
-export type { TaskContext } from '../tasks/contracts.js';
-
 import type {
 	Activity,
 	Cell,
@@ -127,7 +124,13 @@ export type UnsafeHtmlAuditEvent = {
 export type ComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
 	this: Component<State>,
 	props: Props
-) => RenderFunction | RenderResult;
+) => RenderFunction;
+
+/** Authored direct-view component or lexical micro-component shape normalized by the compiler. */
+export type DirectComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
+	this: Component<State>,
+	props: Props
+) => RenderResult;
 
 /**
  * Authored async component shape accepted by the eXact compiler.
@@ -139,6 +142,15 @@ export type AsyncComponentFunction<State extends object = Record<string, unknown
 	this: Component<State>,
 	props: Props
 ) => Promise<RenderFunction | RenderResult>;
+
+/** Component source forms accepted by JSX and normalized before entering a renderer. */
+export type AuthoredComponentFunction<
+	State extends object = Record<string, unknown>,
+	Props = any
+> =
+	| ComponentFunction<State, Props>
+	| DirectComponentFunction<State, Props>
+	| AsyncComponentFunction<State, Props>;
 
 /** Defines the error source type contract. */
 export type ErrorSource =
@@ -264,64 +276,10 @@ export type TaskObserver = {
 	retain?(instance: ComponentInstance<any>): void;
 };
 
-/** Defines the cleanup type contract. */
-export type Cleanup = void | (() => void | Promise<void>);
-/** Describes the result produced by task. */
-export type TaskResult = Cleanup | Promise<Cleanup>;
-/** Selects where authored task work is required to execute. */
-export type TaskPlacementRequest = 'inferred' | 'client' | 'server';
-/** Controls when a task generation runs and whether it participates in boundary readiness. */
-export type TaskPolicy = {
-	readonly placement: TaskPlacementRequest;
-	readonly priority: 'normal' | 'deferred';
-	readonly readiness: 'blocking' | 'nonblocking';
-};
-/** Defines the unwrapped type contract. */
-export type Unwrapped<Deps extends readonly unknown[]> = {
-	[K in keyof Deps]: Deps[K] extends ReactiveValue<infer T>
-		? T
-		: Deps[K] extends Reactive<infer T>
-			? T
-			: Deps[K];
-};
 /** Defines the component reactive value type contract. */
 export type ComponentReactiveValue<T> = ReactiveValue<T>;
 /** Defines the iterable item type contract. */
 export type IterableItem<T> = T extends Iterable<infer Item> ? Item : never;
-
-/** Defines the callable task registration overloads shared by every task facet. */
-export type ComponentTaskCallable = {
-	/**
-	 * Represents compiler-owned value flow from an awaited task into component state.
-	 *
-	 * The compiler lowers this form into a synchronous registration whose result is published by
-	 * its blocking generation. The returned promise is source-level syntax and is not available
-	 * when the component is executed without compilation.
-	 */
-	<Result>(work: (ctx: TaskContext) => PromiseLike<Result>): Promise<Awaited<Result>>;
-	<Result, Deps extends readonly unknown[]>(
-		...args: [
-			...deps: Deps,
-			work: (...args: [...Unwrapped<Deps>, TaskContext]) => PromiseLike<Result>
-		]
-	): Promise<Awaited<Result>>;
-	(work: (ctx: TaskContext) => TaskResult): void;
-	<Deps extends readonly unknown[]>(
-		...args: [...deps: Deps, work: (...args: [...Unwrapped<Deps>, TaskContext]) => TaskResult]
-	): void;
-};
-
-/** Defines a task registration with composable scheduling and readiness facets. */
-export type ComponentTaskRegistration = ComponentTaskCallable & {
-	readonly deferred: ComponentTaskRegistration;
-	readonly blocking: ComponentTaskRegistration;
-};
-
-/** Defines the component task type contract. */
-export type ComponentTask = ComponentTaskRegistration & {
-	server: ComponentTaskRegistration;
-	client: ComponentTaskRegistration;
-};
 
 // Callback return values are intentionally permissive: concise callbacks often
 // return values such as Array#push's number. Promise-like values are observed at
@@ -385,7 +343,6 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	renderStop?: StopHandle;
 	mountController?: AbortController;
 	activationController?: AbortController;
-	tasks: TaskRegistration[];
 	mountHandlers: LifecycleHandler[];
 	activateHandlers: LifecycleHandler[];
 	deactivateHandlers: LifecycleHandler[];
@@ -399,28 +356,4 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	setActivity(token: symbol, active: boolean, reason?: string): void;
 	updateProps(props: Record<string, unknown>): void;
 	unmount(reason?: string): void;
-};
-
-/** Defines the task registration type contract. */
-export type TaskRegistration = {
-	/** Compiler-owned identity present only in inspection-instrumented output. */
-	sourceEntityId?: string;
-	deps: unknown[];
-	sources: ReactiveRef[];
-	work: (...args: any[]) => TaskResult;
-	policy: TaskPolicy;
-	stops: StopHandle[];
-	controller?: AbortController;
-	cleanup?: () => void | Promise<void>;
-	settlement?: Promise<void>;
-	queuedGeneration?: number;
-	completedGeneration?: number;
-	failedGeneration?: number;
-	readinessRegistration?: ReadinessRegistration;
-	stopped: boolean;
-	generation: number;
-	run(): void;
-	/** Subscribes to future dependency changes without executing an initial generation. */
-	resume(): void;
-	stop(): void;
 };

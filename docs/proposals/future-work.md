@@ -7,27 +7,6 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A candidate should move into its own decision-complete proposal before
 implementation.
 
-## Remove compiler manifest files
-
-The current compiler still produces `*.exact.manifest.json` planning sidecars,
-although hydration implementations and several runtime contracts have already
-moved to descriptors attached to executable component artifacts.
-
-The goal is to remove user-visible coordination around generating, locating,
-watching, merging, and versioning sidecars without weakening:
-
-- cross-file placement and artifact selection;
-- package publication contracts;
-- server action and refresh allowlists;
-- client/server state, context, and capture contracts;
-- secret and residency analysis; or
-- diagnostics and optional audit output.
-
-See [`../manifest-usage-inventory.md`](../manifest-usage-inventory.md) for the
-current consumers and
-[`remove-compiler-manifests.md`](remove-compiler-manifests.md) for the proposed
-clean break.
-
 ## JavaScript runtime object layout
 
 Investigate whether the client renderer and server runtime can reduce polymorphic

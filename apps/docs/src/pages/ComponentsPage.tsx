@@ -23,14 +23,13 @@ function ProfileCard(this: Component<CardState>, props: CardProps) {
   );
 }`;
 
-const sharedRenderSource = `function renderStatus(this: Component<StatusState>) {
-  const label = formatStatus(this.state.status);
-  return <output>{label}</output>;
-}
+const microComponentSource = `function Article(this: Component<ArticleState>) {
+  const Footer = (props: { prefix?: string } = {}) => (
+    <footer>{props.prefix}{this.state.copyrightText}</footer>
+  );
+  const Page = () => <article><ArticleBody /><Footer /></article>;
 
-function Status(this: Component<StatusState>) {
-  // Regular shared render functions receive this component instance as \`this\`.
-  return renderStatus;
+  return () => <Page />;
 }`;
 
 const contextSource = `const ThemeContext = createContext<Theme>('theme');
@@ -91,10 +90,16 @@ export function ComponentsPage(this: Component<{}>) {
 					because the compiler has already connected consumers of that field.
 				</p>
 				<p>
-					The returned function is synchronous and may run again. Use ordinary statements for pure,
-					deterministic derivation and tree control. State writes, task or lifecycle registration,
-					scheduling, and known DOM or storage effects belong in setup, a task, or an interaction
-					callback and are compiler errors in the render body.
+					The compiler also stores an opaque stable ID under{' '}
+					<code>Symbol.for('@exactjs/component')</code>. Native renderers use that brand instead of
+					guessing from a function name or shape; unbranded React, Preact, and other foreign
+					components stay owned by their explicit compatibility layer.
+				</p>
+				<p>
+					The returned function is synchronous and contains one view expression. Put declarations
+					and control flow in setup; compiled reactive regions update independently instead of
+					rerunning arbitrary view code. State writes, task or lifecycle registration, scheduling,
+					and known DOM or storage effects belong in setup, a task, or an interaction callback.
 				</p>
 				<p>
 					For a static conditional token on an intrinsic element, <code>className:name</code>{' '}
@@ -102,12 +107,12 @@ export function ComponentsPage(this: Component<{}>) {
 					DOM <code>class</code> value; arrays and maps remain useful when the token name itself is
 					dynamic.
 				</p>
-				<CodeBlock source={sharedRenderSource} language="tsx" title="Shared render function" />
+				<CodeBlock source={microComponentSource} language="tsx" title="Lexical micro-components" />
 				<p>
-					A component-local arrow is the usual render form. A shared render must be a regular
-					function so eXact can invoke it with the component instance as <code>this</code>. A
-					module-level shared arrow is rejected unless a local wrapper establishes the intended
-					receiver.
+					A setup-local, PascalCase view arrow is a micro-component. It captures the owning
+					component&apos;s <code>this</code>, may compose other micro-components in scope, and
+					receives no separate component identity, state, lifecycle, or task scope. Module-level
+					shared or bound render callables are not component views.
 				</p>
 			</section>
 			<section>
@@ -128,11 +133,11 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					An immutable local function, an alias to a known component, or a finite conditional choice
 					can be used as a JSX tag. A reactive choice is mounted through a slot, so changing the
-					selected component replaces only that subtree. Keep a choice used by one view inside the
-					render function; a setup-derived component value is useful when several consumers share
-					it. When the choice comes from a reusable named collection, declare its complete key set
-					with <code>createComponentRegistry()</code>. Open-ended object lookup remains a compiler
-					error because the compiler cannot determine its complete client/server placement graph.{' '}
+					selected component replaces only that subtree. Keep the choice as a setup-derived value;
+					the compiler observes its dependencies while the returned view stays one expression. When
+					the choice comes from a reusable named collection, declare its complete key set with{' '}
+					<code>createComponentRegistry()</code>. Open-ended object lookup remains a compiler error
+					because the compiler cannot determine its complete client/server placement graph.{' '}
 					<Link to="/learn/component-registries">Read the component registry guide.</Link>
 				</p>
 				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />

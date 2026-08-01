@@ -1,15 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { discoverExactPackageManifests } from '../artifacts.js';
 import type { ExactCompilerSession } from '../expression/project.js';
-import { artifactPathsFor, withArtifactMetadata } from '../paths.js';
+import { artifactPathsFor } from '../paths.js';
 import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
 import type {
 	CompileArtifactPlanEntriesOptions,
 	CompileArtifactsOptions,
 	CompileArtifactsResult,
 	ExactArtifactPlanEntry,
-	ExactCompilerManifest,
 	ModuleRewriteOptions,
 	TransformOptions
 } from '../types.js';
@@ -35,7 +33,7 @@ import { createOwnedNativeCompilationSession } from './native-session.js';
 import { writeArtifactPlanEntry } from './artifact-entry-output.js';
 import { finalizeArtifactInspection } from './artifact-inspection.js';
 
-/** Compiles one source file into paired client/server artifacts plus an artifact manifest. */
+/** Compiles one source file into paired client/server artifacts. */
 export async function compileFileArtifacts(
 	inputFile: string,
 	options: CompileArtifactsOptions
@@ -51,17 +49,9 @@ export async function compileFileArtifacts(
 	const source = await readFile(inputFile, 'utf8');
 	const filename = options.filename ?? inputFile;
 	const capabilityOptions = capabilityCompilationOptions(options);
-	const discoveredManifests =
-		options.discoverPackageManifests === false
-			? []
-			: (await discoverExactPackageManifests(path.dirname(inputFile))).map(
-					(entry) => entry.manifest
-				);
-	const importedManifests = [...(options.importedManifests ?? []), ...discoveredManifests];
-	const manifestBase = analyzeSource(source, {
+	const analysis = analyzeSource(source, {
 		filename,
 		session: options.session,
-		importedManifests,
 		assetRules: options.assetRules,
 		jsxInterop: options.jsxInterop,
 		pluginRegistry: options.pluginRegistry,
@@ -72,7 +62,6 @@ export async function compileFileArtifacts(
 		filename,
 		session: options.session,
 		target: 'client',
-		importedManifests,
 		serverComponents: options.serverComponents,
 		sourceMap: options.sourceMap,
 		moduleRewrite: options.moduleRewrite,
@@ -89,7 +78,6 @@ export async function compileFileArtifacts(
 		filename,
 		session: options.session,
 		target: 'server',
-		importedManifests,
 		serverComponents: options.serverComponents,
 		sourceMap: options.sourceMap,
 		moduleRewrite: options.moduleRewrite,
@@ -103,11 +91,7 @@ export async function compileFileArtifacts(
 		...capabilityOptions
 	});
 	const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
-	const shared = !options.sourceMap && sharedArtifactResult(manifestBase, client, server);
-	const manifest = withArtifactMetadata(manifestBase, inputFile, {
-		...paths,
-		...(!shared ? { sharedFile: undefined } : {})
-	});
+	const shared = !options.sourceMap && sharedArtifactResult(analysis, client, server);
 	const clientMapFile = client.map ? sourceMapPathFor(paths.clientFile) : undefined;
 	const serverMapFile = server.map ? sourceMapPathFor(paths.serverFile) : undefined;
 
@@ -115,7 +99,7 @@ export async function compileFileArtifacts(
 	await writeFile(
 		paths.clientFile,
 		shared
-			? sharedArtifactFacade(manifestBase, paths.sharedFile, paths.clientFile)
+			? sharedArtifactFacade(analysis, paths.sharedFile, paths.clientFile)
 			: clientMapFile
 				? withSourceMappingUrl(client.code, path.basename(clientMapFile))
 				: client.code
@@ -123,7 +107,7 @@ export async function compileFileArtifacts(
 	await writeFile(
 		paths.serverFile,
 		shared
-			? sharedArtifactFacade(manifestBase, paths.sharedFile, paths.serverFile)
+			? sharedArtifactFacade(analysis, paths.sharedFile, paths.serverFile)
 			: serverMapFile
 				? withSourceMappingUrl(server.code, path.basename(serverMapFile))
 				: server.code
@@ -140,20 +124,17 @@ export async function compileFileArtifacts(
 			serverMapFile,
 			`${JSON.stringify(withSourceMapFile(server.map, path.basename(paths.serverFile)), null, 2)}\n`
 		);
-	await writeFile(paths.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
-
 	const result: CompileArtifactsResult = {
 		inputFile,
 		clientFile: paths.clientFile,
 		serverFile: paths.serverFile,
 		...(shared ? { sharedFile: paths.sharedFile } : {}),
-		manifestFile: paths.manifestFile,
 		clientMapFile,
 		serverMapFile,
 		client,
 		server,
 		...(shared ? { shared } : {}),
-		manifest,
+		analysis,
 		...(client.inspectionCatalog
 			? { inspection: Object.freeze({ inspection: client.inspectionCatalog }) }
 			: {})
@@ -184,7 +165,6 @@ export async function compileProjectArtifacts(
 	const results = await compileArtifactPlanEntries(entries, {
 		filename: (entry) =>
 			entries.length === 1 ? (options.filename ?? entry.inputFile) : entry.inputFile,
-		importedManifests: options.importedManifests,
 		serverComponents: options.serverComponents,
 		sourceMap: options.sourceMap,
 		session: options.session,
@@ -193,7 +173,6 @@ export async function compileProjectArtifacts(
 		jsxInterop: options.jsxInterop,
 		assetRules: options.assetRules,
 		pluginRegistry: options.pluginRegistry,
-		discoverPackageManifests: options.discoverPackageManifests,
 		emitInspection: options.emitInspection,
 		instrumentInspection: options.instrumentInspection,
 		...capabilityCompilationOptions(options)
@@ -204,7 +183,7 @@ export async function compileProjectArtifacts(
 	return finalizeArtifactInspection(results, options, sources);
 }
 
-/** Compiles precomputed artifact plan entries, sharing manifests so cross-file analysis can see siblings. */
+/** Compiles precomputed artifact plan entries through one owned project session. */
 export async function compileArtifactPlanEntries(
 	entries: readonly ExactArtifactPlanEntry[],
 	options: CompileArtifactPlanEntriesOptions = {}
@@ -221,7 +200,6 @@ export async function compileArtifactPlanEntries(
 		}
 	}
 	const results: CompileArtifactsResult[] = [];
-	const manifestBases = new Map<string, ExactCompilerManifest>();
 	const sources = new Map<string, string>();
 
 	for (const entry of entries) {
@@ -231,31 +209,7 @@ export async function compileArtifactPlanEntries(
 	const dependencyAnalysis = await collectPlacementAnalysisDependencies(sources, options.session);
 	const dependencyGraph = dependencyAnalysis.graph;
 	const localDependencies = dependencyAnalysis.localDependencies;
-	const packageManifests =
-		options.discoverPackageManifests === false || !entries.length
-			? []
-			: (await discoverExactPackageManifests(path.dirname(entries[0]!.inputFile))).map(
-					(entry) => entry.manifest
-				);
-	const externalManifests = [...(options.importedManifests ?? []), ...packageManifests];
 	const capabilityOptions = capabilityCompilationOptions(options);
-	for (const [inputFile, source] of sources) {
-		const entry = entries.find((candidate) => path.resolve(candidate.inputFile) === inputFile);
-		const filename = entry ? (options.filename?.(entry) ?? entry.inputFile) : inputFile;
-		manifestBases.set(
-			inputFile,
-			analyzeSource(source, {
-				filename,
-				session: options.session,
-				importedManifests: externalManifests,
-				assetRules: options.assetRules,
-				pluginRegistry: options.pluginRegistry,
-				generatedValidation: options.generatedValidation,
-				...capabilityOptions
-			})
-		);
-	}
-	const importedManifests = externalManifests;
 
 	for (const entry of entries) {
 		const filename = options.filename?.(entry) ?? entry.inputFile;
@@ -265,7 +219,6 @@ export async function compileArtifactPlanEntries(
 			await compileArtifactPlanEntry(
 				entry,
 				filename,
-				importedManifests,
 				options.serverComponents ?? false,
 				options.sourceMap ?? false,
 				dependencies,
@@ -292,7 +245,6 @@ export async function compileArtifactPlanEntries(
 async function compileArtifactPlanEntry(
 	entry: ExactArtifactPlanEntry,
 	filename: string,
-	importedManifests: readonly ExactCompilerManifest[] = [],
 	serverComponents = false,
 	sourceMap = false,
 	dependencies: readonly string[] = [],
@@ -314,7 +266,6 @@ async function compileArtifactPlanEntry(
 	const base = analyzeSource(source, {
 		filename,
 		session,
-		importedManifests,
 		assetRules,
 		jsxInterop,
 		pluginRegistry,
@@ -334,7 +285,6 @@ async function compileArtifactPlanEntry(
 		filename,
 		session,
 		target: 'client',
-		importedManifests,
 		serverComponents,
 		sourceMap,
 		preserveComponentHoisting,
@@ -358,7 +308,6 @@ async function compileArtifactPlanEntry(
 		filename,
 		session,
 		target: 'server',
-		importedManifests,
 		serverComponents,
 		sourceMap,
 		preserveComponentHoisting,

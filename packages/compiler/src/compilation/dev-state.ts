@@ -1,9 +1,9 @@
 import { access } from 'node:fs/promises';
+import path from 'node:path';
 import {
 	artifactGraphEntryFromCompileResult,
 	createExactArtifactGraph,
-	diffExactArtifactPlans,
-	readExactArtifactManifestEntries
+	diffExactArtifactPlans
 } from '../artifacts.js';
 import { invalidateExpressionModule } from '../expression/session.js';
 import type {
@@ -24,7 +24,6 @@ export async function createExactArtifactDevState(
 	const plan = await createExactArtifactPlan(inputs, options);
 	const compiled = await compileArtifactPlanEntries(plan.entries, {
 		filename: (entry) => options.filename ?? entry.inputFile,
-		importedManifests: options.importedManifests,
 		serverComponents: options.serverComponents,
 		session: options.session,
 		pluginRegistry: options.pluginRegistry
@@ -58,16 +57,12 @@ export async function updateExactArtifactDevState(
 	const diff = diffExactArtifactPlans(state.plan, nextPlan, {
 		changedInputs: affectedArtifactInputs(state.entries, changedInputs)
 	});
-	const retainedManifestFiles = diff.retained.map((entry) => entry.manifestFile);
-	const retainedEntries = retainedManifestFiles.length
-		? await readExactArtifactManifestEntries(retainedManifestFiles)
-		: [];
+	const retainedInputs = new Set(diff.retained.map((entry) => path.resolve(entry.inputFile)));
+	const retainedEntries = state.entries.filter((entry) =>
+		retainedInputs.has(path.resolve(entry.inputFile))
+	);
 	const compiled = await compileArtifactPlanEntries([...diff.added, ...diff.changed], {
 		filename: (entry) => options.filename ?? entry.inputFile,
-		importedManifests: [
-			...(options.importedManifests ?? []),
-			...retainedEntries.map((entry) => entry.manifest)
-		],
 		serverComponents: options.serverComponents,
 		session: options.session,
 		pluginRegistry: options.pluginRegistry

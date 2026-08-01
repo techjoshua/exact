@@ -1,25 +1,25 @@
 import type {
 	ExactCompilerExplanation,
-	ExactCompilerManifest,
+	ExactModuleAnalysis,
 	ExactContinuationIR,
 	ExactResumptionFieldExplanation,
 	TransformTarget
 } from './types.js';
 
-/** Creates a stable explanation without exposing the compiler's planning manifest. */
+/** Creates a stable explanation without exposing the compiler's planning analysis. */
 export function createExactCompilerExplanation(
-	manifest: ExactCompilerManifest,
+	analysis: ExactModuleAnalysis,
 	target: TransformTarget
 ): ExactCompilerExplanation {
-	const continuations = groupContinuations(manifest.continuations);
+	const continuations = groupContinuations(analysis.continuations);
 	const resumptions = new Map(
-		manifest.resumptions.map((resumption) => [resumption.componentId, resumption])
+		analysis.resumptions.map((resumption) => [resumption.componentId, resumption])
 	);
 	return Object.freeze({
-		filename: manifest.filename,
+		filename: analysis.filename,
 		target,
 		registries: Object.freeze(
-			(manifest.registries ?? []).map((registry) =>
+			(analysis.registries ?? []).map((registry) =>
 				Object.freeze({
 					id: registry.id,
 					name: registry.name,
@@ -35,7 +35,7 @@ export function createExactCompilerExplanation(
 			)
 		),
 		components: Object.freeze(
-			manifest.components.map((component) => {
+			analysis.components.map((component) => {
 				const componentContinuations = continuations.get(component.id) ?? [];
 				const resumption = resumptions.get(component.id);
 				const returnedState = new Set(
@@ -103,7 +103,7 @@ function explainContinuation(
 }
 
 function explainResumption(
-	resumption: ExactCompilerManifest['resumptions'][number]['client'] | undefined,
+	resumption: ExactModuleAnalysis['resumptions'][number]['client'] | undefined,
 	returnedState: ReadonlySet<string>
 ): ExactResumptionFieldExplanation[] {
 	if (!resumption) return [];

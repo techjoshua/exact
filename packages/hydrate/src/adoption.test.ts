@@ -3,14 +3,14 @@
  */
 import {
 	Fragment,
-	createCompiledVNode,
-	createComponentRegistry,
+	createCompiledComponentRegistry,
 	createDynamicChild,
 	createRef,
-	createVNode,
+	markExactComponent,
 	unsafeHtml,
 	type Component
 } from '@exactjs/core';
+import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 import { render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import { renderToString } from '@exactjs/ssr';
@@ -371,7 +371,12 @@ describe('@exactjs/hydrate adoption', () => {
 		function Second() {
 			return () => createVNode('p', null, 'second');
 		}
-		const View = createComponentRegistry(() => ({ first: First, second: Second }));
+		markExactComponent(First, '@exactjs/hydrate:test:FirstRegistryEntry');
+		markExactComponent(Second, '@exactjs/hydrate:test:SecondRegistryEntry');
+		const View = createCompiledComponentRegistry('test:adoption', 'AdoptionView', () => ({
+			first: First,
+			second: Second
+		}));
 		let selected: 'first' | 'second' = 'first';
 		function Parent() {
 			const Current = View[selected];

@@ -1,18 +1,13 @@
 # @exactjs/fetch-adapter
 
-Fetch-compatible adapter for the eXact server runtime. Use this anywhere the platform receives a standard `Request` and returns a standard `Response`.
+Fetch-compatible adapter for the eXact server runtime.
+
+## Usage
 
 ```ts
 import { createExactFetchHandler } from '@exactjs/fetch-adapter';
-import { createExactServerRuntime } from '@exactjs/ssr';
 
-const exact = createExactFetchHandler(
-	createExactServerRuntime({
-		manifest,
-		actions,
-		boundaries
-	})
-);
+const exact = createExactFetchHandler(exactRuntime);
 
 export default {
 	fetch(request: Request) {
@@ -21,4 +16,6 @@ export default {
 };
 ```
 
-Configure the endpoint path in the eXact manifest/runtime. The core `@exactjs/server` handler still performs manifest allowlisting, payload validation, authorization, CSRF validation, and patch dispatch.
+Use this adapter on any host that receives a standard `Request` and returns a standard
+`Response`. Endpoint matching, validation, authorization, and dispatch remain in
+`@exactjs/server`.

@@ -51,9 +51,10 @@ exact({
 Keep `serverComponents` consistent across paired builds. Target selection also controls the
 `exact-client` or `exact-server` package export condition and `.exact` facade resolution.
 
-Inspect installed option types before using advanced settings such as `include`, `exclude`,
-`importedManifests`, `manifestFiles`, asset rules, React compatibility, application roots,
-configuration paths, diagnostics, profiling, or prepared plugin registries.
+Inspect installed option types before using advanced settings such as `include`, `exclude`, asset
+rules, React compatibility, application roots, configuration paths, diagnostics, profiling, or
+prepared plugin registries. Official adapters retain one in-memory compiler session for their
+lifecycle; they do not accept dependency-analysis files.
 
 For Bun 1.3 applications, pass the eXact plugin directly to `Bun.build()`:
 
@@ -112,7 +113,8 @@ host route, or browser-credential forwarding.
 - Use `@exactjs/dom` to mount a client-rendered tree.
 - Use `@exactjs/ssr` to create server HTML or progressive responses.
 - Use `@exactjs/hydrate` to hydrate authored trees or generated client islands.
-- Use `@exactjs/server` for manifest allowlisting and adapter-neutral request protocol handling.
+- Use `@exactjs/server` for executable-contract allowlisting and adapter-neutral request protocol
+  handling.
 
 Do not import a server runtime adapter into browser code. Do not make a build plugin responsible for
 HTTP request handling.
@@ -134,7 +136,7 @@ Create the eXact server runtime once, then adapt it to the deployment host:
 | Cloudflare Workers | `@exactjs/cloudflare-adapter` | `createExactCloudflareHandler` |
 | Generic serverless | `@exactjs/serverless-adapter` | `createExactServerlessHandler` |
 
-Mount the handler at the endpoint declared by the eXact manifest and hydration client. Preserve
+Mount the handler at the endpoint declared by the eXact executor contract and hydration client. Preserve
 framework-specific requirements: install JSON body parsing before Express middleware, pass parsed
 bodies through Fastify integrations, and account for serverless adapters that collect streams when
 the gateway cannot expose a web stream.
@@ -154,7 +156,7 @@ await server.register({
 });
 ```
 
-The plugin registers `POST` at `exactRuntime.manifest.endpoint` (defaulting to `/__exact`), aligns
+The plugin registers `POST` at `exactRuntime.contract.endpoint` (defaulting to `/__exact`), aligns
 Hapi's payload limit with `runtime.limits.maxRequestBytes`, converts eXact Web streams to Node
 streams, and cancels request work on disconnect. Use `createExactHapiHandler` only when the
 application deliberately owns the complete Hapi route configuration.

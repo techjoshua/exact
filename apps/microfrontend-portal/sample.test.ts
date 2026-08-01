@@ -51,7 +51,7 @@ describe('trusted microfrontend portal sample', () => {
 				method: 'POST',
 				url: 'https://portal.test/__exact',
 				body: {
-					type: 'action',
+					type: 'invoke',
 					id: 'page.audit',
 					payload: { tenant: 'Northwind', accountId: 'ACCT-1042' }
 				}
@@ -72,8 +72,8 @@ describe('trusted microfrontend portal sample', () => {
 					type: 'batch',
 					version: 1,
 					operations: [
-						{ type: 'action', root: brandingRoot, id: 'branding.ping' },
-						{ type: 'action', root: compactBrandingRoot, id: 'branding.ping' }
+						{ type: 'invoke', root: brandingRoot, id: 'branding.ping' },
+						{ type: 'invoke', root: compactBrandingRoot, id: 'branding.ping' }
 					]
 				}
 			},
@@ -93,8 +93,8 @@ describe('trusted microfrontend portal sample', () => {
 					type: 'batch',
 					version: 1,
 					operations: [
-						{ type: 'action', root: billingRoot, id: 'billing.balance' },
-						{ type: 'action', root: billingRoot, id: 'billing.history' }
+						{ type: 'invoke', root: billingRoot, id: 'billing.balance' },
+						{ type: 'invoke', root: billingRoot, id: 'billing.history' }
 					]
 				}
 			},
@@ -138,7 +138,7 @@ describe('trusted microfrontend portal sample', () => {
 				method: 'POST',
 				url: 'http://localhost:4401/__exact',
 				headers: { 'x-exact-build': buildKey },
-				body: { type: 'action', root: billingRoot, id: 'billing.balance' }
+				body: { type: 'invoke', root: billingRoot, id: 'billing.balance' }
 			},
 			runtimes.billing
 		);

@@ -2,14 +2,10 @@ import {
 	exactExportConditions,
 	transformSource,
 	type ExactAssetRule,
-	type ExactCompilerManifest,
 	type ExactCompilerSession,
 	type TransformTarget
 } from '@exactjs/compiler';
-import {
-	createExactDiagnosticReporter,
-	loadExactImportedManifests
-} from '@exactjs/compiler/adapter-support';
+import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import {
 	profileTimestamp,
 	type ExactProfileEvent,
@@ -56,8 +52,6 @@ export {
 /** Configures exact webpack plugin. */
 export type ExactWebpackPluginOptions = {
 	target?: TransformTarget;
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
 	clientCondition?: string;
 	serverCondition?: string;
 	include?: FilterPattern;
@@ -324,7 +318,6 @@ export function transformExactWebpackSource(
 			filename,
 			session,
 			target: webpackTransformTarget(options),
-			importedManifests: importedManifestsFor(options),
 			serverComponents: options.serverComponents,
 			sourceMap: options.sourceMap ?? true,
 			assetRules: options.assetRules,
@@ -337,7 +330,7 @@ export function transformExactWebpackSource(
 		if (result.inspectionCatalog)
 			recordWebpackInspectionModule(options.__exactSessionId, filename, source, {
 				inspection: result.inspectionCatalog,
-				manifest: result.manifest,
+				redactions: result.inspectionRedactions,
 				debug: options.debug
 			});
 		const code =
@@ -396,11 +389,4 @@ export function compilerSessionForWebpackLoader(
 	sessionId: string | undefined
 ): ExactCompilerSession | undefined {
 	return webpackCompilerSession(sessionId);
-}
-
-function importedManifestsFor(options: {
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
-}): ExactCompilerManifest[] {
-	return loadExactImportedManifests(options);
 }

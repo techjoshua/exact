@@ -61,21 +61,24 @@ func renderDiagnostics(
 	stateWrites []StateWrite,
 ) []Diagnostic {
 	var diagnostics []Diagnostic
+	microTargets := lexicalMicroComponentTargets(rawComponentCandidates(sourceFile), sourceFile)
 	writeStarts := make(map[int]struct{}, len(stateWrites))
 	for _, write := range stateWrites {
 		writeStarts[write.Start] = struct{}{}
 	}
-	for _, render := range resolveComponentRenders(sourceFile, typeChecker) {
+	for _, render := range resolveComponentRenders(sourceFile) {
+		if _, micro := microTargets[render.callable]; micro &&
+			!immutableMicroComponent(render.callable) {
+			diagnostics = append(diagnostics, renderDiagnostic(
+				render.callable,
+				"micro-components must use an immutable const declaration",
+			))
+		}
 		if body := render.callable.Body(); body != nil && ast.IsBlock(body) {
-			for _, statement := range body.AsBlock().Statements.Nodes {
-				if ast.IsReturnStatement(statement) {
-					continue
-				}
-				diagnostics = append(diagnostics, renderDiagnostic(
-					statement,
-					"render functions may only return the view expression; move declarations and control flow into component setup and keep conditional view logic in JSX",
-				))
-			}
+			diagnostics = append(diagnostics, renderDiagnostic(
+				body,
+				"render functions must contain one view expression; move declarations and control flow into component setup and keep conditional view logic in JSX",
+			))
 		}
 		if ast.HasSyntacticModifier(render.callable, ast.ModifierFlagsAsync) {
 			diagnostics = append(diagnostics, renderDiagnostic(
@@ -122,11 +125,20 @@ func renderDiagnostics(
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
+		if ast.IsArrowFunction(candidate.node) {
+			body := unwrapRenderExpression(candidate.node.Body())
+			if body != nil && !ast.IsBlock(body) && !ast.IsArrowFunction(body) {
+				diagnostics = append(diagnostics, renderDiagnostic(
+					body,
+					"component setup must return a component-local render arrow; compose reusable view structure with lexical micro-components declared in setup",
+				))
+			}
+		}
 		for _, returned := range directCallableReturns(candidate.node) {
-			if invalidReturnedRenderArrow(returned, candidate.node, typeChecker) {
+			if !ast.IsArrowFunction(unwrapRenderExpression(returned)) {
 				diagnostics = append(diagnostics, renderDiagnostic(
 					returned,
-					"a shared arrow cannot be used directly as a render function because its component receiver cannot be established; use a component-local arrow, a shared regular function, or an explicit wrapper",
+					"component setup must return a component-local render arrow; compose reusable view structure with lexical micro-components declared in setup",
 				))
 			}
 		}
@@ -134,44 +146,27 @@ func renderDiagnostics(
 	return diagnostics
 }
 
-func invalidReturnedRenderArrow(
-	returned *ast.Node,
-	component *ast.Node,
-	typeChecker *checker.Checker,
-) bool {
-	expression := unwrapRenderExpression(returned)
-	if !ast.IsIdentifier(expression) {
-		return false
-	}
-	callable := resolveRenderReference(expression, typeChecker)
-	return callable != nil &&
-		ast.IsArrowFunction(callable) &&
-		!nodeInside(callable, component)
-}
-
-func resolveComponentRenders(
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-) []componentRender {
+func resolveComponentRenders(sourceFile *ast.SourceFile) []componentRender {
 	var result []componentRender
+	candidates := rawComponentCandidates(sourceFile)
+	microTargets := lexicalMicroComponentTargets(candidates, sourceFile)
 	for _, candidate := range componentCandidates(sourceFile) {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
-		if directlyReturnsRenderedValue(candidate.node) {
-			returned := candidate.node
-			if returns := directCallableReturns(candidate.node); len(returns) != 0 {
-				returned = returns[0]
+		if ast.IsArrowFunction(candidate.node) {
+			body := unwrapRenderExpression(candidate.node.Body())
+			if ast.IsArrowFunction(body) {
+				result = append(result, componentRender{
+					component: candidate,
+					callable:  body,
+					returned:  body,
+				})
 			}
-			result = append(result, componentRender{
-				component: candidate,
-				callable:  candidate.node,
-				returned:  returned,
-			})
 		}
 		for _, returned := range directCallableReturns(candidate.node) {
-			callable := resolveReturnedRender(returned, candidate.node, typeChecker)
-			if callable == nil {
+			callable := unwrapRenderExpression(returned)
+			if !ast.IsArrowFunction(callable) {
 				continue
 			}
 			result = append(result, componentRender{
@@ -181,85 +176,18 @@ func resolveComponentRenders(
 			})
 		}
 	}
+	for _, candidate := range candidates {
+		owner, micro := microTargets[candidate.node]
+		if !micro {
+			continue
+		}
+		result = append(result, componentRender{
+			component: owner,
+			callable:  candidate.node,
+			returned:  candidate.node,
+		})
+	}
 	return result
-}
-
-func resolveReturnedRender(
-	returned *ast.Node,
-	component *ast.Node,
-	typeChecker *checker.Checker,
-) *ast.Node {
-	expression := unwrapRenderExpression(returned)
-	if ast.IsArrowFunction(expression) || ast.IsFunctionExpression(expression) {
-		return expression
-	}
-	if ast.IsCallExpression(expression) {
-		call := expression.AsCallExpression()
-		if ast.IsPropertyAccessExpression(call.Expression) {
-			member := call.Expression.AsPropertyAccessExpression()
-			if member.Name() != nil && member.Name().Text() == "bind" &&
-				call.Arguments != nil && len(call.Arguments.Nodes) != 0 &&
-				call.Arguments.Nodes[0].Kind == ast.KindThisKeyword {
-				return resolveRenderReference(member.Expression, typeChecker)
-			}
-		}
-		return nil
-	}
-	if ast.IsIdentifier(expression) {
-		callable := resolveRenderReference(expression, typeChecker)
-		if callable == nil {
-			return nil
-		}
-		if ast.IsArrowFunction(callable) && !nodeInside(callable, component) {
-			return nil
-		}
-		return callable
-	}
-	return nil
-}
-
-func resolveRenderReference(
-	expression *ast.Node,
-	typeChecker *checker.Checker,
-) *ast.Node {
-	expression = unwrapRenderExpression(expression)
-	if expression == nil {
-		return nil
-	}
-	if ast.IsArrowFunction(expression) || ast.IsFunctionExpression(expression) ||
-		ast.IsFunctionDeclaration(expression) {
-		return expression
-	}
-	if !ast.IsIdentifier(expression) || typeChecker == nil {
-		return nil
-	}
-	symbol := typeChecker.GetSymbolAtLocation(expression)
-	if symbol == nil {
-		return nil
-	}
-	symbol = typeChecker.SkipAlias(symbol)
-	if symbol == nil {
-		return nil
-	}
-	for _, declaration := range symbol.Declarations {
-		if ast.IsFunctionDeclaration(declaration) {
-			return declaration
-		}
-		if ast.IsVariableDeclaration(declaration) {
-			initializer := declaration.AsVariableDeclaration().Initializer
-			if initializer != nil &&
-				(ast.IsArrowFunction(initializer) ||
-					ast.IsFunctionExpression(initializer)) {
-				return initializer
-			}
-		}
-	}
-	return nil
-}
-
-func nodeInside(node *ast.Node, ancestor *ast.Node) bool {
-	return node != nil && ancestor != nil &&
-		node.Pos() >= ancestor.Pos() && node.End() <= ancestor.End()
 }
 
 func eagerRenderCallback(node *ast.Node) bool {

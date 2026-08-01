@@ -15,7 +15,7 @@ describe('compiler plugins', () => {
 		).toThrow("unknown @exact directive namespace 'secrets'");
 	});
 
-	it('analyzes plain TypeScript and emits namespaced manifest data', () => {
+	it('analyzes plain TypeScript and emits namespaced analysis data', () => {
 		const registry: ExactPreparedCompilerRegistry = {
 			fingerprint: 'registry-one',
 			plugins: {
@@ -35,7 +35,7 @@ describe('compiler plugins', () => {
 									code: 'source',
 									message: 'secret source registered'
 								})),
-								manifestData: {
+								analysisData: {
 									sources: view.directives.filter((value) => value.name === 'source').length
 								}
 							};
@@ -44,48 +44,17 @@ describe('compiler plugins', () => {
 				}
 			}
 		};
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       /** @exact secrets.source */
       export const apiKey = "hidden";
     `,
 			{ filename: 'config.ts', pluginRegistry: registry }
 		);
-		expect(manifest.pluginRegistry?.fingerprint).toBe('registry-one');
-		expect(manifest.pluginData?.['@exactjs/secrets']).toEqual({ sources: 1 });
-		expect(manifest.diagnostics).toContain(
+		expect(analysis.pluginRegistry?.fingerprint).toBe('registry-one');
+		expect(analysis.pluginData?.['@exactjs/secrets']).toEqual({ sources: 1 });
+		expect(analysis.diagnostics).toContain(
 			'info: [@exactjs/secrets/source] secret source registered'
 		);
 	});
-
-	it('rejects imported manifests prepared by another registry', () => {
-		const first = registry('one');
-		const second = registry('two');
-		const imported = analyzeSource('export const value = 1;', {
-			filename: 'dependency.ts',
-			pluginRegistry: first
-		});
-		expect(() =>
-			analyzeSource('export const next = 2;', {
-				filename: 'consumer.ts',
-				importedManifests: [imported],
-				pluginRegistry: second
-			})
-		).toThrow('requires plugin registry');
-	});
 });
-
-function registry(fingerprint: string): ExactPreparedCompilerRegistry {
-	return {
-		fingerprint,
-		plugins: {
-			'@exactjs/test': {
-				packageName: '@exactjs/test',
-				version: '1.0.0',
-				protocolVersion: '1.0.0',
-				required: true,
-				cacheKey: fingerprint
-			}
-		}
-	};
-}

@@ -1,4 +1,4 @@
-import { createVNode, type Component } from '@exactjs/core';
+import { activateTaskForHost, defineTask, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	renderToDocumentStream,
@@ -17,6 +17,7 @@ import {
 	readStreamEvent,
 	readStreamText
 } from './test-support/streams.js';
+import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr streams', () => {
 	it('supports inert progressive replacement payloads without inline execution', async () => {
@@ -26,10 +27,13 @@ describe('@exactjs/ssr streams', () => {
 		});
 		function Deferred(this: Component<{ value: string }>) {
 			this.state.value = 'shell';
-			(this as any).task(async () => {
-				await taskReady;
-				this.state.value = 'settled';
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await taskReady;
+					this.state.value = 'settled';
+				})
+			);
 			return () => createVNode('p', null, this.state.value);
 		}
 
@@ -78,9 +82,12 @@ describe('@exactjs/ssr streams', () => {
 		const abort = new AbortController();
 		let taskSignal: AbortSignal | undefined;
 		function Pending(this: Component<{}>) {
-			(this as any).task(({ signal }: { signal: AbortSignal }) => {
-				taskSignal = signal;
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, ({ signal }) => {
+					taskSignal = signal;
+				})
+			);
 			return () => createVNode('p', null, 'pending');
 		}
 		const reader = renderToStream(createVNode(Pending, {}), {
@@ -125,10 +132,13 @@ describe('@exactjs/ssr streams', () => {
 		});
 		function Profile(this: Component<{ name: string }>) {
 			this.state.name = 'Loading';
-			(this as any).task(async () => {
-				await taskReady;
-				this.state.name = 'Ada';
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await taskReady;
+					this.state.name = 'Ada';
+				})
+			);
 			return () => createVNode('p', null, this.state.name);
 		}
 
@@ -175,10 +185,13 @@ describe('@exactjs/ssr streams', () => {
 		});
 		function Profile(this: Component<{ name: string }>) {
 			this.state.name = 'Loading';
-			(this as any).task(async () => {
-				await taskReady;
-				this.state.name = '</script><strong>Ada</strong>';
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await taskReady;
+					this.state.name = '</script><strong>Ada</strong>';
+				})
+			);
 			return () => createVNode('p', null, this.state.name);
 		}
 
@@ -208,10 +221,13 @@ describe('@exactjs/ssr streams', () => {
 		});
 		function Status(this: Component<{ value: string }>) {
 			this.state.value = 'Loading';
-			(this as any).task(async () => {
-				await taskReady;
-				this.state.value = 'Ready';
-			});
+			activateTaskForHost(
+				this,
+				defineTask({}, async () => {
+					await taskReady;
+					this.state.value = 'Ready';
+				})
+			);
 			return () => createVNode('p', null, this.state.value);
 		}
 

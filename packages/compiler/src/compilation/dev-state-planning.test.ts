@@ -10,7 +10,7 @@ describe('artifact dev-state planning', () => {
 		const consumer = path.join(root, 'consumer.ts');
 		const entry = {
 			inputFile: consumer,
-			manifest: {
+			analysis: {
 				filename: consumer,
 				dependencies: ['./dependency.ts']
 			}
@@ -25,7 +25,7 @@ describe('artifact dev-state planning', () => {
 		const changed = path.resolve('project/changed.ts');
 		const entry = {
 			inputFile: path.resolve('project/consumer.ts'),
-			manifest: {
+			analysis: {
 				filename: path.resolve('project/consumer.ts'),
 				dependencies: ['./other.ts']
 			}

@@ -1,8 +1,5 @@
-import {
-	loadExactImportedManifests,
-	matchesExactBuildFilter
-} from '@exactjs/compiler/adapter-support';
-import type { ExactCompilerManifest, TransformTarget } from '@exactjs/compiler';
+import { matchesExactBuildFilter } from '@exactjs/compiler/adapter-support';
+import type { TransformTarget } from '@exactjs/compiler';
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -12,8 +9,6 @@ export type ExactModuleSelectionOptions = {
 	include?: FilterPattern;
 	exclude?: FilterPattern;
 	target?: TransformTarget;
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
 	compileTestModules?: boolean;
 };
 
@@ -27,13 +22,6 @@ export function exactTransformTarget(options: ExactModuleSelectionOptions): 'cli
 	return options.target === 'server' ? 'server' : 'client';
 }
 
-/** Loads imported analysis manifests from the supported inline and file options. */
-export function exactImportedManifests(
-	options: ExactModuleSelectionOptions
-): ExactCompilerManifest[] {
-	return loadExactImportedManifests(options);
-}
-
 /** Determines whether compiler analysis is required for one authored module. */
 export function shouldCompileExactModule(
 	id: string,
@@ -42,13 +30,7 @@ export function shouldCompileExactModule(
 	registry: ExactPreparedCompilerRegistry | undefined
 ): boolean {
 	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
-	if (
-		options.compileTestModules !== true &&
-		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
-	)
-		return false;
-	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
-	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
+	if (!shouldTransformExactModule(id, options)) return false;
 	return (
 		containsExactJsx(id, code) ||
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code) ||
@@ -59,6 +41,21 @@ export function shouldCompileExactModule(
 			return include.test(id);
 		})
 	);
+}
+
+/** Applies module ownership filters before either native or compatibility lowering runs. */
+export function shouldTransformExactModule(
+	id: string,
+	options: ExactModuleSelectionOptions
+): boolean {
+	if (
+		options.compileTestModules !== true &&
+		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
+	)
+		return false;
+	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
+	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
+	return true;
 }
 
 /** Reports whether Vite supplied a JavaScript or TypeScript source module. */

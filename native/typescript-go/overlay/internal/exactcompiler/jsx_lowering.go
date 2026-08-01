@@ -45,7 +45,6 @@ type jsxRuntimeNames struct {
 	stageTaskMutation      string
 	taskCollectionMutation string
 	taskContinuation       string
-	actionContinuation     string
 	dispatchContinuation   string
 	registerContexts       string
 	inspectionSource       string
@@ -74,7 +73,7 @@ type jsxLowering struct {
 	functionTasks        map[int]Task
 	taskDefinitions      map[ast.SymbolId]Task
 	taskDefinitionNames  map[string]Task
-	actions              map[string]Action
+	operations           map[string]InvokedTaskOperation
 	stateReads           []StateRead
 	bindings             []ReactiveBinding
 	formBindings         map[int]formBinding
@@ -86,6 +85,7 @@ type jsxLowering struct {
 	serverComponents     bool
 	instrumentInspection bool
 	components           map[string]Component
+	microComponents      map[ast.SymbolId]struct{}
 	renderEdges          map[string]RenderEdge
 	clientIslands        map[*ast.Node]clientElementIsland
 	clientDefinitions    []*ast.Node
@@ -117,7 +117,7 @@ func lowerExactJSX(
 	formBindings map[int]formBinding,
 	components []Component,
 	tasks []Task,
-	actions []Action,
+	operations []InvokedTaskOperation,
 	continuations []Continuation,
 	clientIslands map[*ast.Node]clientElementIsland,
 	target Target,
@@ -148,7 +148,7 @@ func lowerExactJSX(
 		functionTasks:        indexFunctionTasks(tasks),
 		taskDefinitions:      indexFunctionTaskSymbols(tasks, sourceFile, typeChecker),
 		taskDefinitionNames:  indexFunctionTaskNames(tasks, sourceFile),
-		actions:              indexActions(actions),
+		operations:           indexInvokedTaskOperations(operations),
 		stateReads:           stateReads,
 		bindings:             reactiveBindings,
 		formBindings:         formBindings,
@@ -163,6 +163,7 @@ func lowerExactJSX(
 		instrumentInspection: instrumentInspection,
 		interop:              interop,
 		components:           componentIndexByName(components),
+		microComponents:      lexicalMicroComponentSymbols(sourceFile, typeChecker),
 		renderEdges:          indexRenderEdges(components),
 		contextWrites:        indexContinuationContextWrites(continuations),
 		collectionMaps:       make(map[string]collectionMapPlan),
@@ -321,13 +322,6 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		return lowering.lowerSetupResourceTask(node, task)
 	}
 	if ast.IsCallExpression(node) {
-		if _, action := actionFacets(node.AsCallExpression().Expression); action {
-			analyzed, exists := lowering.actions[nodeSpanKey(node)]
-			if exists {
-				return lowering.lowerAction(node, &analyzed)
-			}
-			return lowering.lowerAction(node, nil)
-		}
 		if mapped := lowering.lowerAnnotatedMap(node); mapped != nil {
 			return mapped
 		}
@@ -341,12 +335,12 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	}
 	if ast.IsFunctionDeclaration(node) {
 		if task, exists := lowering.invokedTasks[node.Pos()]; exists {
-			action, hasAction := lowering.actions[nodeSpanKey(node)]
-			if hasAction {
+			operation, hasOperation := lowering.operations[nodeSpanKey(node)]
+			if hasOperation {
 				return lowering.lowerInvokedTaskDeclaration(
 					node.AsFunctionDeclaration(),
 					task,
-					&action,
+					&operation,
 				)
 			}
 			return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
@@ -457,9 +451,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		name := declaration.Name()
 		if declaration.Initializer != nil {
 			if task, exists := lowering.invokedTasks[declaration.Initializer.Pos()]; exists {
-				action, hasAction := lowering.actions[nodeSpanKey(declaration.Initializer)]
-				if hasAction {
-					return lowering.lowerInvokedTaskValue(declaration, task, &action)
+				operation, hasOperation := lowering.operations[nodeSpanKey(declaration.Initializer)]
+				if hasOperation {
+					return lowering.lowerInvokedTaskValue(declaration, task, &operation)
 				}
 				return lowering.lowerInvokedTaskValue(declaration, task, nil)
 			}
@@ -918,6 +912,9 @@ func (lowering *jsxLowering) lowerOpeningLike(
 			),
 		)
 	}
+	if lowering.microComponentTag(tag) {
+		return lowering.lowerMicroComponent(tag, opening, children)
+	}
 	intrinsic := jsxIntrinsic(tagText)
 	if intrinsic && lowering.target == TargetServer &&
 		lowering.serverComponents {
@@ -968,6 +965,50 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		}
 	}
 	return element
+}
+
+func (lowering *jsxLowering) microComponentTag(tag *ast.Node) bool {
+	if lowering.checker == nil || !ast.IsIdentifier(tag) {
+		return false
+	}
+	symbol := lowering.checker.GetSymbolAtLocation(tag)
+	if symbol == nil {
+		return false
+	}
+	symbol = lowering.checker.SkipAlias(symbol)
+	if symbol == nil {
+		return false
+	}
+	_, exists := lowering.microComponents[ast.GetSymbolId(symbol)]
+	return exists
+}
+
+func (lowering *jsxLowering) lowerMicroComponent(
+	tag *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+) *ast.Node {
+	props := lowering.props(opening.Attributes(), "", false, tag.Text())
+	values := lowering.children(children)
+	if len(values) != 0 {
+		var value *ast.Node
+		if len(values) == 1 {
+			value = values[0]
+		} else {
+			value = lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(values),
+				false,
+			)
+		}
+		props = lowering.appendObjectProperty(props, "children", value)
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.visitor.VisitNode(tag),
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{props}),
+		ast.NodeFlagsNone,
+	)
 }
 
 func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
@@ -2395,28 +2436,17 @@ func (lowering *jsxLowering) derivedGet(expression *ast.Node) *ast.Node {
 	)
 }
 
-func (lowering *jsxLowering) lowerAction(
-	node *ast.Node,
-	action *Action,
+func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
+	work *ast.Node,
+	operation InvokedTaskOperation,
 ) *ast.Node {
-	call := node.AsCallExpression()
-	if call.Arguments == nil || len(call.Arguments.Nodes) < 2 {
-		return lowering.visitor.VisitEachChild(node)
-	}
-	arguments := append([]*ast.Node(nil), call.Arguments.Nodes...)
-	work := arguments[1]
-	if !ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work) {
-		return lowering.visitor.VisitEachChild(node)
-	}
 	dependencyCount := len(work.Parameters())
-	hasAuthoredContext := actionWorkHasContextParameter(work, lowering.sourceFile)
+	hasAuthoredContext := taskWorkHasContextParameter(work, lowering.sourceFile)
 	if hasAuthoredContext {
 		dependencyCount--
 	}
 	signal, work := lowering.taskSignalExpression(work, dependencyCount)
-	if !hasAuthoredContext && action != nil &&
-		lowering.target == TargetServer &&
-		action.Placement == "server" {
+	if !hasAuthoredContext && lowering.target == TargetServer && operation.Placement == "server" {
 		parameters := append([]*ast.Node(nil), work.Parameters()...)
 		context := parameters[len(parameters)-1].AsParameterDeclaration()
 		parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
@@ -2465,60 +2495,45 @@ func (lowering *jsxLowering) lowerAction(
 		ast.NodeVisitorHooks{},
 	)
 	rewrittenWork := lowering.visitor.VisitEachChild(visitor.VisitNode(work))
-	if action != nil && lowering.target == TargetClient &&
-		action.Placement == "server" {
-		arguments[1] = lowering.clientActionContinuationWork(
-			action.ID,
+	if lowering.target == TargetClient && operation.Placement == "server" {
+		rewrittenWork = lowering.clientInvokedTaskContinuationWork(
+			operation.ID,
 			rewrittenWork,
 		)
 		if lowering.instrumentInspection {
-			arguments[1] = lowering.inspectionSource(action.ID, arguments[1])
+			rewrittenWork = lowering.inspectionSource(operation.ID, rewrittenWork)
 		}
-		return lowering.factory.NewCallExpression(
-			lowering.visitor.VisitNode(call.Expression),
-			call.QuestionDotToken,
-			call.TypeArguments,
-			lowering.factory.NewNodeList(arguments),
-			call.Flags,
-		)
+		return rewrittenWork
 	}
-	if action != nil &&
-		(lowering.target == TargetServer ||
-			lowering.target == TargetDefault) &&
-		(action.Placement == "server" || action.Placement == "isomorphic") {
-		if lowering.target == TargetServer && action.Placement == "server" {
-			rewrittenWork = lowering.withoutActionOptimisticStatements(
+	if (lowering.target == TargetServer ||
+		lowering.target == TargetDefault) &&
+		(operation.Placement == "server" || operation.Placement == "isomorphic") {
+		if lowering.target == TargetServer && operation.Placement == "server" {
+			rewrittenWork = lowering.withoutTaskOptimisticStatements(
 				rewrittenWork,
 			)
 		}
 		rewrittenWork = lowering.taskHelperCall(
-			"markComponentContinuationAction",
-			lowering.names.actionContinuation,
+			"markComponentContinuationTask",
+			lowering.names.taskContinuation,
 			[]*ast.Node{
-				lowering.factory.NewStringLiteral(action.ID, ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral(operation.ID, ast.TokenFlagsNone),
 				rewrittenWork,
 			},
 		)
 	}
-	if action != nil && lowering.instrumentInspection {
-		rewrittenWork = lowering.inspectionSource(action.ID, rewrittenWork)
+	if lowering.instrumentInspection {
+		rewrittenWork = lowering.inspectionSource(operation.ID, rewrittenWork)
 	}
-	arguments[1] = rewrittenWork
-	return lowering.factory.NewCallExpression(
-		lowering.visitor.VisitNode(call.Expression),
-		call.QuestionDotToken,
-		call.TypeArguments,
-		lowering.factory.NewNodeList(arguments),
-		call.Flags,
-	)
+	return rewrittenWork
 }
 
-func (lowering *jsxLowering) clientActionContinuationWork(
+func (lowering *jsxLowering) clientInvokedTaskContinuationWork(
 	id string,
 	work *ast.Node,
 ) *ast.Node {
-	args := lowering.factory.NewIdentifier("__exactActionArgs")
-	context := lowering.factory.NewIdentifier("__exactActionContext")
+	args := lowering.factory.NewIdentifier("__exactTaskArgs")
+	context := lowering.factory.NewIdentifier("__exactTaskContext")
 	contextValue := lowering.factory.NewCallExpression(
 		lowering.factory.NewPropertyAccessExpression(
 			args,
@@ -2577,7 +2592,7 @@ func (lowering *jsxLowering) clientActionContinuationWork(
 			),
 		),
 	}
-	if prelude := lowering.actionOptimisticPrelude(work, args, context); prelude != nil {
+	if prelude := lowering.taskOptimisticPrelude(work, args, context); prelude != nil {
 		statements = append(statements, prelude)
 	}
 	statements = append(
@@ -2610,7 +2625,7 @@ func (lowering *jsxLowering) clientActionContinuationWork(
 	)
 }
 
-func (lowering *jsxLowering) actionOptimisticPrelude(
+func (lowering *jsxLowering) taskOptimisticPrelude(
 	work *ast.Node,
 	args *ast.Node,
 	context *ast.Node,
@@ -2621,7 +2636,7 @@ func (lowering *jsxLowering) actionOptimisticPrelude(
 	}
 	statements := []*ast.Node{}
 	for _, statement := range body.AsBlock().Statements.Nodes {
-		if actionOptimisticStatement(statement) {
+		if taskOptimisticStatement(statement) {
 			statements = append(statements, statement)
 		}
 	}
@@ -2649,7 +2664,7 @@ func (lowering *jsxLowering) actionOptimisticPrelude(
 	)
 }
 
-func (lowering *jsxLowering) withoutActionOptimisticStatements(
+func (lowering *jsxLowering) withoutTaskOptimisticStatements(
 	work *ast.Node,
 ) *ast.Node {
 	body := work.Body()
@@ -2658,7 +2673,7 @@ func (lowering *jsxLowering) withoutActionOptimisticStatements(
 	}
 	statements := []*ast.Node{}
 	for _, statement := range body.AsBlock().Statements.Nodes {
-		if !actionOptimisticStatement(statement) {
+		if !taskOptimisticStatement(statement) {
 			statements = append(statements, statement)
 		}
 	}
@@ -2671,7 +2686,7 @@ func (lowering *jsxLowering) withoutActionOptimisticStatements(
 	)
 }
 
-func actionOptimisticStatement(statement *ast.Node) bool {
+func taskOptimisticStatement(statement *ast.Node) bool {
 	if !ast.IsExpressionStatement(statement) {
 		return false
 	}
@@ -2687,7 +2702,7 @@ func actionOptimisticStatement(statement *ast.Node) bool {
 		callee.AsPropertyAccessExpression().Name().Text() == "optimistic"
 }
 
-func actionWorkHasContextParameter(
+func taskWorkHasContextParameter(
 	work *ast.Node,
 	sourceFile *ast.SourceFile,
 ) bool {
@@ -2697,8 +2712,7 @@ func actionWorkHasContextParameter(
 	}
 	last := parameters[len(parameters)-1]
 	contextSource := sourceText(sourceFile, last)
-	if strings.Contains(contextSource, "ActionContext") ||
-		strings.Contains(contextSource, "TaskContext") {
+	if strings.Contains(contextSource, "TaskContext") {
 		return true
 	}
 	name := last.Name()
@@ -3281,7 +3295,7 @@ func (lowering *jsxLowering) eraseFunctionTaskPolicy(
 func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
 	declaration *ast.FunctionDeclaration,
 	task Task,
-	action *Action,
+	operation *InvokedTaskOperation,
 ) *ast.Node {
 	work := lowering.functionTaskWork(task)
 	if work == nil || declaration.Name() == nil {
@@ -3302,7 +3316,7 @@ func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
 		declaration.Name().Text(),
 		work,
 		task,
-		action,
+		operation,
 		dependencyCount,
 	)
 	return lowering.factory.NewVariableStatement(
@@ -3324,7 +3338,7 @@ func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
 func (lowering *jsxLowering) lowerInvokedTaskValue(
 	declaration *ast.VariableDeclaration,
 	task Task,
-	action *Action,
+	operation *InvokedTaskOperation,
 ) *ast.Node {
 	name := declaration.Name()
 	work := lowering.functionTaskWork(task)
@@ -3347,7 +3361,7 @@ func (lowering *jsxLowering) lowerInvokedTaskValue(
 		name,
 		declaration.ExclamationToken,
 		declaration.Type,
-		lowering.boundTaskDefinition(name.Text(), work, task, action, dependencyCount),
+		lowering.boundTaskDefinition(name.Text(), work, task, operation, dependencyCount),
 	)
 }
 
@@ -3355,7 +3369,7 @@ func (lowering *jsxLowering) boundTaskDefinition(
 	name string,
 	work *ast.Node,
 	task Task,
-	action *Action,
+	operation *InvokedTaskOperation,
 	dependencyCount int,
 ) *ast.Node {
 	captureArguments := lowering.taskCaptureArgumentResolver(
@@ -3369,9 +3383,9 @@ func (lowering *jsxLowering) boundTaskDefinition(
 			dependencyCount,
 		)
 	}
-	if action != nil &&
-		(action.Placement == "server" || action.Placement == "isomorphic") {
-		work = lowering.lowerInvokedServerTaskWork(name, work, *action)
+	if operation != nil &&
+		(operation.Placement == "server" || operation.Placement == "isomorphic") {
+		work = lowering.lowerInvokedTaskOperationWork(work, *operation)
 	} else {
 		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount)
 	}
@@ -3494,37 +3508,6 @@ func (lowering *jsxLowering) taskConcurrencyKey(
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		lowering.visitor.VisitNode(expression),
 	)
-}
-
-func (lowering *jsxLowering) lowerInvokedServerTaskWork(
-	name string,
-	work *ast.Node,
-	action Action,
-) *ast.Node {
-	callee := lowering.factory.NewPropertyAccessExpression(
-		lowering.factory.NewThisExpression(),
-		nil,
-		lowering.factory.NewIdentifier("action"),
-		ast.NodeFlagsNone,
-	)
-	synthetic := lowering.factory.NewCallExpression(
-		callee,
-		nil,
-		nil,
-		lowering.factory.NewNodeList([]*ast.Node{
-			lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
-			work,
-			lowering.factory.NewStringLiteral(action.Concurrency, ast.TokenFlagsNone),
-		}),
-		ast.NodeFlagsNone,
-	)
-	rewritten := lowering.lowerAction(synthetic, &action)
-	if !ast.IsCallExpression(rewritten) ||
-		rewritten.AsCallExpression().Arguments == nil ||
-		len(rewritten.AsCallExpression().Arguments.Nodes) < 2 {
-		return work
-	}
-	return rewritten.AsCallExpression().Arguments.Nodes[1]
 }
 
 func (lowering *jsxLowering) eraseFunctionTaskValuePolicy(
@@ -5606,7 +5589,6 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		"interactionMutation",
 		"stageTaskMutation",
 		"mutateTaskCollection",
-		"markComponentContinuationAction",
 		"markComponentContinuationTask",
 		"dispatchComponentContinuation",
 		"registerComponentContinuationContexts",
@@ -5765,7 +5747,6 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		stageTaskMutation:      allocate("__exactStageTaskMutation"),
 		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),
 		taskContinuation:       allocate("__exactContinuationTask"),
-		actionContinuation:     allocate("__exactContinuationAction"),
 		dispatchContinuation:   allocate("__exactDispatchContinuation"),
 		registerContexts:       allocate("__exactRegisterContinuationContexts"),
 		inspectionSource:       allocate("__exactInspectionSource"),

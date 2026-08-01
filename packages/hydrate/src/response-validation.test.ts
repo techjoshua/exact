@@ -9,7 +9,7 @@ describe('@exactjs/hydrate response-validation', () => {
 	it('ignores malformed endpoint routes in the hydration bootstrap script', () => {
 		const root = document.createElement('main');
 		root.innerHTML =
-			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","endpoints":{"actions":{"save":1}},"state":{"ready":true}}</script>';
+			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","endpoints":{"invocations":{"save":1}},"state":{"ready":true}}</script>';
 
 		expect(readExactHydrationConfig(root)).toEqual({
 			endpoint: '/__exact',
@@ -33,7 +33,7 @@ describe('@exactjs/hydrate response-validation', () => {
 				endpoint: '/__exact',
 				stream: true,
 				operations: [
-					{ type: 'action', id: 'save' },
+					{ type: 'invoke', id: 'save' },
 					{ type: 'refresh', id: 'panel' }
 				],
 				fetch: async () => ({
@@ -45,7 +45,7 @@ describe('@exactjs/hydrate response-validation', () => {
 							event: 'result',
 							version: 1,
 							index: 0,
-							result: { ok: true, type: 'action', id: 'save', state: { saved: true } }
+							result: { ok: true, type: 'invoke', id: 'save', state: { saved: true } }
 						},
 						{ event: 'complete', version: 1 }
 					]),
@@ -63,7 +63,7 @@ describe('@exactjs/hydrate response-validation', () => {
 			status: 200,
 			body: ndjsonResponse([
 				{ event: 'start', version: 1, operations: 1 },
-				{ event: 'result', version: 1, index: 0, result: { ok: true, type: 'action', id: 'save' } },
+				{ event: 'result', version: 1, index: 0, result: { ok: true, type: 'invoke', id: 'save' } },
 				{ event: 'complete', version: 1 }
 			]),
 			async json() {
@@ -73,7 +73,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				stream: true,
 				streamLimits: { maxBytes: 16 },
@@ -83,7 +83,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				stream: true,
 				streamLimits: { maxEvents: 2 },
@@ -96,7 +96,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				stream: true,
 				fetch: async () => ({
@@ -108,13 +108,13 @@ describe('@exactjs/hydrate response-validation', () => {
 							event: 'result',
 							version: 1,
 							index: 0,
-							result: { ok: true, type: 'action', id: 'save' }
+							result: { ok: true, type: 'invoke', id: 'save' }
 						},
 						{
 							event: 'state',
 							version: 1,
 							index: 0,
-							type: 'action',
+							type: 'invoke',
 							id: 'save',
 							value: { late: true }
 						},
@@ -132,13 +132,13 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				fetch: async () => ({
 					ok: true,
 					status: 200,
 					async json() {
-						return { ok: true, type: 'action', id: 'other' };
+						return { ok: true, type: 'invoke', id: 'other' };
 					}
 				})
 			})
@@ -148,7 +148,7 @@ describe('@exactjs/hydrate response-validation', () => {
 			invokeExactBatch({
 				endpoint: '/__exact',
 				stream: true,
-				operations: [{ type: 'action', id: 'save', opId: 'save-op' }],
+				operations: [{ type: 'invoke', id: 'save', opId: 'save-op' }],
 				fetch: async () => ({
 					ok: true,
 					status: 200,
@@ -158,7 +158,7 @@ describe('@exactjs/hydrate response-validation', () => {
 							event: 'result',
 							version: 1,
 							index: 0,
-							result: { ok: true, type: 'action', id: 'other', opId: 'save-op' }
+							result: { ok: true, type: 'invoke', id: 'other', opId: 'save-op' }
 						},
 						{ event: 'complete', version: 1 }
 					]),
@@ -174,7 +174,7 @@ describe('@exactjs/hydrate response-validation', () => {
 				endpoint: '/__exact',
 				stream: true,
 				operations: [
-					{ type: 'action', id: 'save' },
+					{ type: 'invoke', id: 'save' },
 					{ type: 'refresh', id: 'panel' }
 				],
 				fetch: async () => ({
@@ -203,7 +203,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				stream: true,
 				fetch: async () => ({
@@ -225,14 +225,14 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				streamLimits: { maxBytes: 32 },
 				fetch: async () => ({
 					ok: true,
 					status: 200,
 					async text() {
-						return JSON.stringify({ ok: true, type: 'action', id: 'save', html: 'x'.repeat(100) });
+						return JSON.stringify({ ok: true, type: 'invoke', id: 'save', html: 'x'.repeat(100) });
 					},
 					async json() {
 						throw new Error('json should not be read');
@@ -244,14 +244,14 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				streamLimits: { maxBytes: 32 },
 				fetch: async () => ({
 					ok: true,
 					status: 200,
 					async json() {
-						return { ok: true, type: 'action', id: 'save', html: 'x'.repeat(100) };
+						return { ok: true, type: 'invoke', id: 'save', html: 'x'.repeat(100) };
 					}
 				})
 			})
@@ -270,7 +270,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				stream: true,
 				streamLimits: { maxPatches: 1 },
@@ -280,7 +280,7 @@ describe('@exactjs/hydrate response-validation', () => {
 						event: 'patch',
 						version: 1,
 						index: 0,
-						type: 'action',
+						type: 'invoke',
 						id: 'save',
 						patch: { type: 'text', id: 'a', value: 'A' }
 					},
@@ -288,7 +288,7 @@ describe('@exactjs/hydrate response-validation', () => {
 						event: 'patch',
 						version: 1,
 						index: 0,
-						type: 'action',
+						type: 'invoke',
 						id: 'save',
 						patch: { type: 'text', id: 'b', value: 'B' }
 					}
@@ -299,13 +299,13 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				stream: true,
 				fetch: response([
 					{ event: 'start', version: 1, operations: 1 },
-					{ event: 'state', version: 1, index: 0, type: 'action', id: 'save', value: { count: 1 } },
-					{ event: 'state', version: 1, index: 0, type: 'action', id: 'save', value: { count: 2 } }
+					{ event: 'state', version: 1, index: 0, type: 'invoke', id: 'save', value: { count: 1 } },
+					{ event: 'state', version: 1, index: 0, type: 'invoke', id: 'save', value: { count: 2 } }
 				])
 			})
 		).rejects.toThrow('malformed events');
@@ -315,7 +315,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				fetch: async () => ({
 					ok: true,
@@ -327,12 +327,12 @@ describe('@exactjs/hydrate response-validation', () => {
 					}
 				})
 			})
-		).rejects.toThrow('eXact action invocation returned malformed result');
+		).rejects.toThrow('eXact invoke invocation returned malformed result');
 
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				fetch: async () => ({
 					ok: true,
@@ -345,12 +345,12 @@ describe('@exactjs/hydrate response-validation', () => {
 					}
 				})
 			})
-		).rejects.toThrow('eXact action invocation returned malformed result');
+		).rejects.toThrow('eXact invoke invocation returned malformed result');
 
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				fetch: async () => ({
 					ok: true,
@@ -363,14 +363,14 @@ describe('@exactjs/hydrate response-validation', () => {
 					}
 				})
 			})
-		).rejects.toThrow('eXact action invocation returned malformed result');
+		).rejects.toThrow('eXact invoke invocation returned malformed result');
 
 		const cyclicPatchValue: Record<string, unknown> = {};
 		cyclicPatchValue.self = cyclicPatchValue;
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				fetch: async () => ({
 					ok: true,
@@ -383,12 +383,12 @@ describe('@exactjs/hydrate response-validation', () => {
 					}
 				})
 			})
-		).rejects.toThrow('eXact action invocation returned malformed result');
+		).rejects.toThrow('eXact invoke invocation returned malformed result');
 
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				fetch: async () => ({
 					ok: true,
@@ -401,12 +401,12 @@ describe('@exactjs/hydrate response-validation', () => {
 					}
 				})
 			})
-		).rejects.toThrow('eXact action invocation returned malformed result');
+		).rejects.toThrow('eXact invoke invocation returned malformed result');
 
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				id: 'save',
 				fetch: async () => ({
 					ok: true,
@@ -419,14 +419,14 @@ describe('@exactjs/hydrate response-validation', () => {
 					}
 				})
 			})
-		).rejects.toThrow('eXact action invocation returned malformed result');
+		).rejects.toThrow('eXact invoke invocation returned malformed result');
 	});
 
 	it('rejects malformed exact batch response envelopes', async () => {
 		await expect(
 			invokeExactBatch({
 				endpoint: '/__exact',
-				operations: [{ type: 'action', id: 'save' }],
+				operations: [{ type: 'invoke', id: 'save' }],
 				fetch: async () => ({
 					ok: true,
 					status: 200,
@@ -443,7 +443,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExactBatch({
 				endpoint: '/__exact',
-				operations: [{ type: 'action', id: 'save' }],
+				operations: [{ type: 'invoke', id: 'save' }],
 				fetch: async () => ({
 					ok: true,
 					status: 200,
@@ -451,7 +451,7 @@ describe('@exactjs/hydrate response-validation', () => {
 						return {
 							ok: true,
 							version: 1,
-							results: [{ ok: true, type: 'action', id: 'save', opId: undefined, patches: [] }]
+							results: [{ ok: true, type: 'invoke', id: 'save', opId: undefined, patches: [] }]
 						};
 					}
 				})
@@ -461,7 +461,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExactBatch({
 				endpoint: '/__exact',
-				operations: [{ type: 'action', id: 'save' }],
+				operations: [{ type: 'invoke', id: 'save' }],
 				fetch: async () => ({
 					ok: true,
 					status: 200,
@@ -479,7 +479,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExactBatch({
 				endpoint: '/__exact',
-				operations: [{ type: 'action', id: 'save' }],
+				operations: [{ type: 'invoke', id: 'save' }],
 				fetch: async () => ({
 					ok: true,
 					status: 200,
@@ -500,7 +500,7 @@ describe('@exactjs/hydrate response-validation', () => {
 		await expect(
 			invokeExactBatch({
 				endpoint: '/__exact',
-				operations: [{ type: 'action', id: 'save' }],
+				operations: [{ type: 'invoke', id: 'save' }],
 				fetch: async () => ({
 					ok: true,
 					status: 200,
@@ -511,7 +511,7 @@ describe('@exactjs/hydrate response-validation', () => {
 							results: [
 								{
 									ok: true,
-									type: 'action',
+									type: 'invoke',
 									id: 'save',
 									patches: [{ type: 'replace', id: 1, html: '<p />' }]
 								}

@@ -127,7 +127,7 @@ export function createSampleRuntimes(options: SampleRuntimeOptions): SampleRunti
 	const pageContract = actionContract(['page.audit'], ['page.summary']);
 	const page: ExactServerContext = {
 		contract: pageContract,
-		actions: {
+		invocations: {
 			'page.audit': (input) => {
 				observations.pageExecutions++;
 				const payload = payloadRecord(input);
@@ -190,12 +190,12 @@ function componentRuntime(
 
 function rootRegistration(
 	ids: readonly string[],
-	actions: NonNullable<ExactServerContext['actions']>,
+	invocations: NonNullable<ExactServerContext['invocations']>,
 	refreshBoundaries: NonNullable<ExactServerContext['refreshBoundaries']> = {}
 ): ExactRemoteBuildRegistration['roots'][string] {
 	return {
 		contract: actionContract(ids, Object.keys(refreshBoundaries)),
-		actions,
+		invocations,
 		refreshBoundaries
 	};
 }
@@ -207,7 +207,7 @@ function actionContract(
 	return {
 		version: 1,
 		endpoint: '/__exact',
-		actions: Object.fromEntries(
+		invocations: Object.fromEntries(
 			ids.map((id) => [
 				id,
 				defineExactOperationContract(id, {

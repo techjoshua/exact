@@ -2,9 +2,13 @@
 
 Native eXact integration for TanStack Query.
 
-`ExactQueryClientProvider` shares a `QueryClient` through eXact context, while component query
-helpers bridge `QueryObserver` results into reactive values with component-owned disposal. The
-`./react` entrypoint supplies supported React Query compatibility substitutions.
+## When to use it
 
-The native entry depends on `@tanstack/query-core`, not React. Use it for new eXact components and
-reserve the compatibility entrypoint for packages authored against `@tanstack/react-query`.
+`ExactQueryClientProvider` shares a `QueryClient` through eXact context, while query helpers
+adapt `QueryObserver` results into component-owned reactive values. The native entry point depends
+on `@tanstack/query-core`, not React.
+
+Use the `./react` compatibility entry point only for packages authored against
+`@tanstack/react-query`.
+
+See [React ecosystem adapters](../../docs/react-ecosystem-adapters.md).

@@ -1,0 +1,12 @@
+{
+	"schemaVersion": 1,
+	"recordedAt": "2026-08-01T00:57:10.329Z",
+	"elapsedMs": 6384.1107999999995,
+	"workers": 4,
+	"fileCount": 213,
+	"projectCount": 17,
+	"node": "v24.11.1",
+	"platform": "win32",
+	"arch": "x64",
+	"cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics     "
+}

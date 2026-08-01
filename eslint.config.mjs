@@ -101,19 +101,7 @@ export default tseslint.config(
 					prefer: 'type-imports'
 				}
 			],
-			'@typescript-eslint/no-floating-promises': [
-				'error',
-				{
-					// Async task callbacks are registered and observed by the component runtime.
-					// The compiler-only value-bearing overload makes the same call appear thenable
-					// to TypeScript when it is explicitly awaited in authored async components.
-					allowForKnownSafeCalls: [
-						'ComponentTask',
-						'ComponentTaskCallable',
-						'ComponentTaskRegistration'
-					]
-				}
-			],
+			'@typescript-eslint/no-floating-promises': 'error',
 			'@typescript-eslint/no-misused-promises': 'error',
 			'@typescript-eslint/no-unused-vars': [
 				'error',

@@ -47,56 +47,14 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(map.sourcesContent).toEqual(['const view = <span />;']);
 	});
 
-	it('can emit compiler manifests beside compiled files', async () => {
-		const root = await createTestWorkspace('exact-manifest-');
-		const input = path.join(root, 'src', 'page.tsx');
-		const outDir = path.join(root, 'out');
-		await mkdir(path.dirname(input), { recursive: true });
-		await writeFile(
-			input,
-			`
-      import { readFile } from "node:fs/promises";
-      function Page(this: Component<{ title?: string }>) {
-        this.task(async () => {
-          this.state.title = await readFile("title.txt", "utf8");
-        });
-        return () => <h1>{this.state.title}</h1>;
-      }
-    `
-		);
-
-		const result = await compileFile(input, {
-			outDir,
-			rootDir: path.join(root, 'src'),
-			target: 'server',
-			emitManifest: true
-		});
-		const manifest = JSON.parse(await readFile(result.manifestFile!, 'utf8'));
-
-		expect(result.manifestFile).toBe(path.join(outDir, 'page.exact.json'));
-		expect(Object.keys(manifest.serverActions)).toHaveLength(1);
-		expect(manifest.components[0].name).toBe('Page');
-	});
-
-	it('emits paired client/server artifacts and a manifest', async () => {
+	it('emits paired client/server artifacts with in-memory analysis', async () => {
 		const root = await createTestWorkspace('exact-artifacts-');
 		const input = path.join(root, 'src', 'components', 'page.tsx');
 		const outDir = path.join(root, 'out');
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import { readFile } from "node:fs/promises";
-      export function Page(this: Component<{ title?: string; width?: number }>) {
-        this.task.server(async () => {
-          this.state.title = await readFile("title.txt", "utf8");
-        });
-        this.task.client(() => {
-          this.state.width = window.innerWidth;
-        });
-        return () => <h1>{this.state.title}</h1>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      export function Page(this: Component<{ title?: string; width?: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.title = await readFile("title.txt", "utf8");\n        };\nrunFixtureTask();\n        const runFixtureTask2 = (_task: TaskContext = TaskContext.client()) => {\n          this.state.width = window.innerWidth;\n        };\nrunFixtureTask2();\n        return () => <h1>{this.state.title}</h1>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -105,49 +63,20 @@ describe('@exactjs/compiler: artifacts', () => {
 		});
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
-		const manifest = JSON.parse(await readFile(result.manifestFile, 'utf8'));
+		const analysis = result.analysis;
 
 		expect(result.clientFile).toBe(path.join(outDir, 'components', 'page.exact.client.ts'));
 		expect(result.serverFile).toBe(path.join(outDir, 'components', 'page.exact.server.ts'));
-		expect(result.manifestFile).toBe(path.join(outDir, 'components', 'page.exact.manifest.json'));
 		expect(client).not.toContain('node:fs/promises');
 		expect(client).toContain('window.innerWidth');
 		expect(client).toContain('export const Page');
 		expect(server).toContain('node:fs/promises');
 		expect(server).not.toContain('window.innerWidth');
 		expect(server).toContain('export const Page');
-		expect(Object.keys(manifest.serverActions)).toHaveLength(1);
-		expect(manifest.exports).toEqual([
+		expect(Object.keys(analysis.serverActions)).toHaveLength(1);
+		expect(analysis.exports).toEqual([
 			{ name: 'Page', kind: 'component', placement: 'isomorphic' }
 		]);
-		expect(manifest.artifacts).toEqual({
-			source: '../../src/components/page.tsx',
-			client: 'page.exact.client.ts',
-			server: 'page.exact.server.ts',
-			manifest: 'page.exact.manifest.json',
-			targets: {
-				client: 'client',
-				server: 'server'
-			},
-			exports: [
-				{
-					name: 'Page',
-					kind: 'component',
-					placement: 'isomorphic',
-					artifactClass: 'dual'
-				}
-			],
-			symbols: [
-				expect.objectContaining({
-					exportName: 'Page',
-					localName: 'Page',
-					generatedName: 'Page',
-					role: 'root',
-					target: 'both'
-				})
-			],
-			boundaries: []
-		});
 	});
 
 	it('writes source maps beside paired artifacts', async () => {
@@ -236,11 +165,6 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(await readFile(result.serverFile, 'utf8')).toBe(
 			'export * from "./format.exact.shared.ts";\n'
 		);
-		expect(result.manifest.artifacts).toMatchObject({
-			shared: 'format.exact.shared.ts',
-			targets: { client: 'client', server: 'server', shared: 'shared' },
-			exports: [expect.objectContaining({ artifactClass: 'shared' })]
-		});
 	});
 
 	it('attaches named target-local contracts to the public component function', async () => {
@@ -250,12 +174,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      export function Panel(this: Component<{ count: number }>) {
-        this.task.server(() => { this.state.count = 1; });
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.server()) => { this.state.count = 1; };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -264,8 +183,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		});
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
-		const rootSymbol = result.manifest.symbols.find((symbol) => symbol.role === 'root')!;
-		const serverPartSymbol = result.manifest.symbols.find(
+		const rootSymbol = result.analysis.symbols.find((symbol) => symbol.role === 'root')!;
+		const serverPartSymbol = result.analysis.symbols.find(
 			(symbol) => symbol.role === 'server-part'
 		)!;
 
@@ -295,12 +214,6 @@ describe('@exactjs/compiler: artifacts', () => {
 			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/
 		);
 		expect(server).toMatch(/__exactWrite\(__exactComponent_\d+\.state, \["count"\]/);
-		expect(result.manifest.artifacts?.exports).toContainEqual(
-			expect.objectContaining({
-				name: 'Panel',
-				artifactClass: 'dual'
-			})
-		);
 	});
 
 	it('preserves awaited server task value flow in both client and executor artifacts', async () => {
@@ -311,17 +224,21 @@ describe('@exactjs/compiler: artifacts', () => {
 		await writeFile(
 			input,
 			`
-			import type { Component } from "@exactjs/core";
+			import { TaskContext, type Component } from "@exactjs/core";
 			declare function getOptions(
 				destination: string,
 				options?: { signal?: AbortSignal }
 			): Promise<string[]>;
-			export async function ShippingOptions(
+			export function ShippingOptions(
 				this: Component<{ destination: string; options: string[] }>
 			) {
-				this.state.options = await this.task.server(
-					() => getOptions(this.state.destination)
-				);
+				async function loadOptions(
+					destination: string,
+					task: TaskContext = TaskContext.server().blocking()
+				) {
+					return getOptions(destination, { signal: task.signal });
+				}
+				this.state.options = await loadOptions(this.state.destination);
 				return () => <button onClick={() => this.state.destination = "next"}>
 					{this.state.options.join(",")}
 				</button>;
@@ -386,7 +303,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).toContain('readiness: "blocking"');
 		expect(server).toContain('executors: [');
 		expect(server).toContain('getOptions(');
-		expect(server).toContain('if (__exactComponentSignal.aborted)');
+		expect(server).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(server).not.toContain('__exactStageTaskMutation');
 		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
 		expect(server).toMatch(/__exactComponent_\d+\.state, \["settled"\]/);
@@ -399,19 +316,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      import type { Component, ContextToken } from "@exactjs/core";
-      declare const DatabaseContext: ContextToken<{
-        find(id: string): Promise<{ title: string }>;
-      }>;
-      export function Panel(this: Component<{ id: string; title?: string }>) {
-        this.task.server(async () => {
-          const row = await this.getContext(DatabaseContext).find(this.state.id);
-          this.state.title = row.title;
-        });
-        return () => <button onClick={() => this.state.id = "next"}>{this.state.title}</button>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      import type { Component, ContextToken } from "@exactjs/core";\n      declare const DatabaseContext: ContextToken<{\n        find(id: string): Promise<{ title: string }>;\n      }>;\n      export function Panel(this: Component<{ id: string; title?: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          const row = await this.getContext(DatabaseContext).find(this.state.id);\n          this.state.title = row.title;\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.id = "next"}>{this.state.title}</button>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -441,18 +346,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			`
-      export function Page(this: Component<{ ready: boolean }>) {
-        this.task.server(async () => {
-          await Promise.resolve();
-          this.state.ready = true;
-        });
-        return () => <section>
-          <p>{this.state.ready ? "Ready" : "Loading"}</p>
-          <button onClick={() => console.log("client")}>Open</button>
-        </section>;
-      }
-    `
+			'import { TaskContext } from "@exactjs/core";\n\n      export function Page(this: Component<{ ready: boolean }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await Promise.resolve();\n          this.state.ready = true;\n        };\nrunFixtureTask();\n        return () => <section>\n          <p>{this.state.ready ? "Ready" : "Loading"}</p>\n          <button onClick={() => console.log("client")}>Open</button>\n        </section>;\n      }\n    '
 		);
 
 		const result = await compileFileArtifacts(input, {
@@ -512,15 +406,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		await writeFile(path.join(srcDir, 'App.tsx'), `export { Page } from './components/page.js';`);
 		await writeFile(
 			path.join(components, 'page.tsx'),
-			`
-      import type { Component } from '@exactjs/core';
-      import { quote } from '../provider.js';
-      import { Workspace } from './workspace.js';
-      export function Page(this: Component<{ value: string }>) {
-        this.task(async () => { this.state.value = await quote(); });
-        return () => <main>{this.state.value}<Workspace /></main>;
-      }
-    `
+			"import { TaskContext } from \"@exactjs/core\";\n\n      import type { Component } from '@exactjs/core';\n      import { quote } from '../provider.js';\n      import { Workspace } from './workspace.js';\n      export function Page(this: Component<{ value: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => { this.state.value = await quote(); };\nrunFixtureTask();\n        return () => <main>{this.state.value}<Workspace /></main>;\n      }\n    "
 		);
 		await writeFile(
 			path.join(srcDir, 'provider.ts'),
@@ -578,10 +464,10 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(workspaceViewClient).toContain("(['one', 'two'] as const).map(");
 		expect(workspaceViewClient).not.toContain('this.map(');
 		expect(workspaceViewClient).not.toContain('Anonymous_ExactClient');
-		expect(workspaceView.manifest.components).toEqual([]);
+		expect(workspaceView.analysis.components).toEqual([]);
 		expect(pageClient).not.toContain('../provider.js');
-		expect(page.manifest.components[0]?.tasks[0]?.placement).toBe('server');
-		expect(workspace.manifest.components[0]).toMatchObject({
+		expect(page.analysis.components[0]?.tasks[0]?.placement).toBe('server');
+		expect(workspace.analysis.components[0]).toMatchObject({
 			placement: 'client',
 			artifactTargets: ['client']
 		});

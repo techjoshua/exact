@@ -53,7 +53,7 @@ const runtimeIntegrations: IntegrationStatus[] = [
 		package: '@exactjs/dom',
 		coverage:
 			'Client rendering, routing, forms, tasks, and component testing need no server adapter.',
-		boundary: 'Server rendering, server tasks, actions, and refreshes are unavailable.'
+		boundary: 'Server rendering, server task invocations, and refreshes are unavailable.'
 	},
 	{
 		name: 'Fetch API',
@@ -182,8 +182,9 @@ export function RuntimesPage(this: Component<{}>) {
 			<Callout title="Two choices, not one" tone="tip">
 				<p>
 					A compiler integration handles TSX and client/server artifacts. A runtime adapter connects
-					eXact actions and refreshes to an HTTP host. For example, an application can build with
-					Vite and serve through Hapi, or use Bun for both jobs with two separate packages.
+					eXact task invocations and refreshes to an HTTP host. For example, an application can
+					build with Vite and serve through Hapi, or use Bun for both jobs with two separate
+					packages.
 				</p>
 			</Callout>
 

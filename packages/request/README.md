@@ -1,16 +1,18 @@
 # @exactjs/request
 
-Request and response context propagation shared by eXact SSR, server actions, routers, and runtime
-adapters.
+Request and response context shared by eXact SSR, server operations, routers, and runtime adapters.
 
-The package defines explicit context values plus ambient helpers. On Node, install the
-`@exactjs/request/node` storage once before relying on ambient request access across asynchronous
-work.
+## Usage
 
-Prefer explicit propagation at framework boundaries. Ambient context is a convenience for code
-already executing inside a correctly installed request scope, not a replacement for runtime
-adapter wiring.
+Create request context at the platform boundary and pass it through the server runtime. On Node,
+install `@exactjs/request/node` once when application code needs ambient request access across
+asynchronous work.
 
-`createRequestContextValue()` accepts a trusted `publicOrigin`. It never infers public authority
-from `Host` or forwarded headers. Without an explicit origin, normalized URLs use
-`http://exact.invalid`, and relative redirects remain relative in the response `Location` header.
+Prefer explicit propagation for framework integration. Ambient access is a convenience inside an
+already established request scope.
+
+## Public URLs
+
+Supply a trusted `publicOrigin` when application code needs absolute public URLs. The package does
+not treat `Host` or forwarded headers as authority automatically; proxy and host validation belong
+to the surrounding server.

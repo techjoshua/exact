@@ -52,11 +52,11 @@ describe('@exactjs/compiler: component registries', () => {
 				}
 			`;
 		const output = transform(source, { filename: 'Dashboard.tsx' });
-		const manifest = analyzeSource(source, { filename: 'Dashboard.tsx' });
+		const analysis = analyzeSource(source, { filename: 'Dashboard.tsx' });
 
 		expect(output).toContain('__exactVNode(Widget.table, {})');
 		expect(output).toContain('import("./Table.js")');
-		expect(manifest.registries).toEqual([
+		expect(analysis.registries).toEqual([
 			expect.objectContaining({
 				name: 'Widget',
 				entries: [

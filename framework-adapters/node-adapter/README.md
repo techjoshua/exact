@@ -1,16 +1,16 @@
 # @exactjs/node-adapter
 
-Node `http` adapter for eXact. Use it when you are wiring eXact directly into `http.createServer()` or need a low-level Node fallback beneath a custom server.
+Low-level Node `http` adapter for eXact server endpoints.
+
+## Usage
 
 ```ts
 import { createServer } from 'node:http';
 import { createExactNodeHandler } from '@exactjs/node-adapter';
 
 const exact = createExactNodeHandler(exactRuntime);
-
-createServer((request, response) => {
-	exact(request, response);
-}).listen(3000);
+createServer(exact).listen(3000);
 ```
 
-The adapter only normalizes Node's request/response objects. All eXact protocol validation and server action dispatch remains centralized in `@exactjs/server`.
+Use this package with `http.createServer()` or beneath a custom Node server. It normalizes Node
+request and response objects; protocol validation and dispatch remain in `@exactjs/server`.

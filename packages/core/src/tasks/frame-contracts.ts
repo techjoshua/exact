@@ -26,6 +26,12 @@ export type TaskOwnerRecord = TaskOwner & {
 	readonly controller: AbortController;
 	host?: object;
 	observeSettlement?: (settlement: Promise<unknown>) => void;
+	registerReadiness?: (
+		taskGeneration: number,
+		settlement: PromiseLike<unknown>,
+		commit: () => void,
+		discard: () => void
+	) => { cancel(): void };
 	activationsDeferred: boolean;
 	disposed: boolean;
 };
@@ -42,6 +48,7 @@ export type TaskFrameRecord = {
 	readonly context: TaskContext;
 	readonly kind: string;
 	readonly label?: string;
+	readonly sourceEntityId?: string;
 	readonly activation: TaskActivation;
 	readonly generation: number;
 	readonly placement: 'current' | 'client' | 'server';
@@ -66,6 +73,7 @@ export type InternalTaskFrameOptions = {
 	readonly optimistic?: (work: () => void) => void;
 	readonly kind?: string;
 	readonly label?: string;
+	readonly sourceEntityId?: string;
 	readonly placement?: 'current' | 'client' | 'server';
 	readonly concurrency?: 'parallel' | 'latest' | 'queue';
 	/** Whether a failed child contributes structural failure to its parent. */

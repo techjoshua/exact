@@ -110,8 +110,10 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				<p>
 					The generated boundary is conceptually equivalent to the code below. Reactive props are
 					ordinary eXact expression cells, so only affected values are sampled again. The adapter is
-					cached by component identity. A compiled eXact component carries its component-contract
-					brand and passes through unchanged; an unbranded value belongs to the enabled React layer.
+					cached by component identity. A compiled eXact component carries an opaque identity string
+					under <code>Symbol.for('@exactjs/component')</code> and passes through unchanged; an
+					unbranded value belongs to the enabled React layer. The compatibility runtime identifies
+					its internal native adapter separately without branding the original React function.
 				</p>
 				<CodeBlock
 					source={conceptualOutputSource}
@@ -136,10 +138,11 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				<h2>Published packages are not recompiled</h2>
 				<p>
 					The eXact compiler does not run compilation over a package's implementation in
-					<code>node_modules</code>. Instead, compiled eXact component exports carry
-					<code>Symbol.for('@exactjs/component-contract')</code>. The generated compatibility
-					boundary checks that brand at runtime. Build aliases redirect React, the JSX runtimes,
-					React DOM, and supported package adapters to the selected compatibility runtime.
+					<code>node_modules</code>. Instead, compiled eXact component exports carry their opaque ID
+					under <code>Symbol.for('@exactjs/component')</code>. Optional executable metadata lives
+					under <code>Symbol.for('@exactjs/component-contract')</code>. The generated compatibility
+					boundary checks the identity brand at runtime. Build aliases redirect React, the JSX
+					runtimes, React DOM, and supported package adapters to the selected compatibility runtime.
 				</p>
 				<p>
 					Use the <code>source</code> option only for React-owned source that your application

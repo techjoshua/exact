@@ -4,15 +4,8 @@ import { createExactLanguageService, type ExactSourceEntity } from '../index.js'
 describe('compiler source inspection', () => {
 	it('distinguishes the complete first-release component region vocabulary', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
-		const source = `export function Editor(this: Component<{ name: string }>) {
-	this.onMount(() => focus());
-	const save = this.action('Save', async () => submit(this.state.name));
-	this.task(() => save());
-	const upper = this.state.name.toUpperCase();
-	return () => (
-		<input value:input={this.state.name} onInput={() => save()} aria-label={upper} />
-	);
-}`;
+		const source =
+			'import { TaskContext } from "@exactjs/core";\nexport function Editor(this: Component<{ name: string }>) {\n\tthis.onMount(() => focus());\n\tasync function save(_task: TaskContext = TaskContext.latest()) {\n\t\tawait submit(this.state.name);\n\t}\n\tsave();\n\tconst upper = this.state.name.toUpperCase();\n\treturn () => (\n\t\t<input value:input={this.state.name} onInput={() => save()} aria-label={upper} />\n\t);\n}';
 		await service.synchronize([{ kind: 'upsert', filename: 'Editor.tsx', version: 1, source }]);
 		const inspection = await service.inspect('Editor.tsx');
 		const kinds = inspection.components.flatMap(flatten).map((entity) => entity.kind);
@@ -31,7 +24,7 @@ describe('compiler source inspection', () => {
 		const task = inspection.components
 			.flatMap(flatten)
 			.find((entity) => entity.kind === 'explicit-task');
-		expect(source.slice(task!.selectionRange.start, task!.selectionRange.end)).toBe('task');
+		expect(source.slice(task!.selectionRange.start, task!.selectionRange.end)).toBe('save');
 		await service.dispose();
 	});
 
@@ -153,16 +146,8 @@ export function Summary(this: Component<{ price: number }>) {
 
 	it('shows only authored activation dependencies for explicit tasks', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
-		const source = `import type { Component } from '@exactjs/core';
-export function Workspace(
-	this: Component<{ revision: number; draft: string; loading: boolean }>,
-	{ initial }: { initial: { provider: string } }
-) {
-	this.task(this.state.revision, async (_revision) => {
-		consume(this.state.draft, this.state.revision, this.state.loading, initial.provider);
-	});
-	return () => null;
-}`;
+		const source =
+			'import { TaskContext } from "@exactjs/core";\nimport type { Component } from \'@exactjs/core\';\nexport function Workspace(\n\tthis: Component<{ revision: number; draft: string; loading: boolean }>,\n\t{ initial }: { initial: { provider: string } }\n) {\n\tconst runFixtureTask = async (_revision, _task: TaskContext = TaskContext.latest()) => {\n\t\tconsume(this.state.draft, this.state.revision, this.state.loading, initial.provider);\n\t};\nrunFixtureTask(this.state.revision);\n\treturn () => null;\n}';
 		try {
 			await service.synchronize([
 				{ kind: 'upsert', filename: 'Workspace.tsx', version: 1, source }
@@ -276,14 +261,11 @@ export async function Product(
 
 	it('publishes only current framework diagnostics across consecutive edits', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
-		const clean = `import type { Component } from '@exactjs/core';
-export function Page(this: Component<{}>) {
-	this.task.server(() => {});
-	return () => null;
-}`;
+		const clean =
+			'import { TaskContext } from "@exactjs/core";\nimport type { Component } from \'@exactjs/core\';\nexport function Page(this: Component<{}>) {\n\tconst runFixtureTask = (_task: TaskContext = TaskContext.server()) => {};\nrunFixtureTask();\n\treturn () => null;\n}';
 		const conflicting = clean.replace(
-			'this.task.server(() => {});',
-			"this.task.server(() => { document.title = 'foobar'; });"
+			'(_task: TaskContext = TaskContext.server()) => {};',
+			"(_task: TaskContext = TaskContext.server()) => { document.title = 'foobar'; };"
 		);
 		try {
 			for (const [index, source] of [clean, conflicting, clean].entries()) {

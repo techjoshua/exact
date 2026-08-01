@@ -1,5 +1,6 @@
 /** @jsxImportSource @exactjs/jsx */
 import {
+	createComponentRegistry,
 	createRef,
 	getCellVNode,
 	isCellVNode,
@@ -29,6 +30,13 @@ async function AsyncLabel(this: Component<{ text?: string }>, props: { text: str
 	return () => <span>{this.state.text}</span>;
 }
 
+const DirectLabel = (props: { text: string }) => <span>{props.text}</span>;
+
+const Labels = createComponentRegistry(({ lazy }) => ({
+	direct: DirectLabel,
+	async: lazy(async () => AsyncLabel)
+}));
+
 describe('@exactjs/jsx types', () => {
 	it('compiles TSX through the automatic runtime', () => {
 		const button = createRef<HTMLButtonElement>('button');
@@ -55,6 +63,9 @@ describe('@exactjs/jsx types', () => {
 					</button>
 				</Label>
 				<AsyncLabel text="Loaded" />
+				<DirectLabel text="Direct" />
+				<Labels.direct text="Registry direct" />
+				<Labels.async text="Registry async" />
 				<input
 					value={query.value}
 					onInput={(inputEvent) => {
@@ -82,6 +93,6 @@ describe('@exactjs/jsx types', () => {
 		if (!isCellVNode(vnode)) throw new Error('Expected cell vnode');
 		const inner = getCellVNode(vnode);
 		expect(inner.type).toBe('section');
-		expect(inner.children).toHaveLength(5);
+		expect(inner.children).toHaveLength(8);
 	});
 });

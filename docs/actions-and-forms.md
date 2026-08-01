@@ -89,6 +89,6 @@ while deferred descendants can continue after foreground readiness settles.
 
 `TaskContext.server()` lets the compiler generate an allowlisted opaque
 operation. Application code calls the task function directly and never
-constructs protocol payloads. The current wire version may retain the legacy
-`type: "action"` discriminator, but server dispatch normalizes it to neutral
-operation semantics and DevTools reports one task tree.
+constructs protocol payloads. Distributed calls use the neutral
+`type: "invoke"` discriminator, and DevTools reports the client and server
+generations in one task tree.

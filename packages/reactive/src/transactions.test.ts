@@ -29,7 +29,7 @@ describe('@exactjs/reactive transactions', () => {
 	it('does not rediscover a synchronously replaced watcher during the same transaction', () => {
 		const state = reactive({ first: 0, second: 0 });
 		const render = vi.fn(() => void `${state.first}:${state.second}`);
-		let stop = () => undefined;
+		let stop: () => void = () => undefined;
 		const bind = () => {
 			stop();
 			stop = watch(render, bind);

@@ -26,9 +26,8 @@ func linkProjectComponents(
 	typeChecker *checker.Checker,
 	current []Component,
 	callables callableAnalysis,
-	externalManifests []ExternalManifest,
 ) []Component {
-	if len(externalManifests) == 0 && project.componentCache != nil {
+	if project.componentCache != nil {
 		if cached, exists := project.componentCache[requested]; exists {
 			return append([]Component(nil), cached...)
 		}
@@ -39,13 +38,11 @@ func linkProjectComponents(
 		typeChecker,
 		current,
 		callables,
-		externalManifests,
 	)
 	componentBySymbol := make(map[ast.SymbolId]int, len(records))
 	componentByIdentity := make(map[string]int, len(records))
 	componentByImport := make(map[string]int, len(records))
 	importBindingsBySource := make(map[*ast.SourceFile]externalImportBindings)
-	externalIndexes := make(map[*ast.SourceFile]externalManifestIndex)
 	for index := range records {
 		symbol := callableDeclarationSymbol(records[index].candidate.node, typeChecker)
 		symbol = resolvedCallableSymbol(symbol, typeChecker)
@@ -209,48 +206,15 @@ func linkProjectComponents(
 					// Continue below so local imports use the same render-edge
 					// representation as checker-resolved component symbols.
 				} else {
-					index, indexed := externalIndexes[record.sourceFile]
-					if !indexed {
-						index = newExternalManifestIndex(record.sourceFile, externalManifests)
-						externalIndexes[record.sourceFile] = index
+					// Compiled dependencies are opaque. Target-specific exports
+					// carry runtime ownership without imported compiler analysis.
+					if diagnostic := jsxComponentResolutionDiagnostic(
+						tag,
+						record.sourceFile,
+						typeChecker,
+					); strings.Contains(diagnostic, "type-only import") {
+						appendComponentDiagnostic(&record.component, diagnostic)
 					}
-					target, resolved := index.component(record.sourceFile, reference)
-					if !resolved {
-						// Runtime imports are valid component values even when the
-						// caller has not supplied a component manifest. In that
-						// case placement is opaque, so there is no render edge to
-						// add. A type-only import still has no runtime value and
-						// must remain an error.
-						if diagnostic := jsxComponentResolutionDiagnostic(
-							tag,
-							record.sourceFile,
-							typeChecker,
-						); strings.Contains(diagnostic, "type-only import") {
-							appendComponentDiagnostic(
-								&record.component,
-								diagnostic,
-							)
-						}
-						return true
-					}
-					edgeIndex := len(edges) + 1
-					tagText := strings.TrimSpace(sourceText(record.sourceFile, tag))
-					edges = append(edges, RenderEdge{
-						ID: fmt.Sprintf(
-							"%s:render:%d:%s",
-							record.component.ID,
-							node.Pos(),
-							tagText,
-						),
-						NodeID:      nodeIDs[node],
-						Tag:         tagText,
-						Name:        target.Name,
-						ComponentID: target.ComponentID,
-						Placement:   target.Placement,
-						Boundary:    target.Placement,
-						Index:       edgeIndex,
-						Path:        fmt.Sprintf("%d", node.Pos()),
-					})
 					return true
 				}
 			}
@@ -287,9 +251,7 @@ func linkProjectComponents(
 	sort.Slice(result, func(left int, right int) bool {
 		return result[left].Start < result[right].Start
 	})
-	if len(externalManifests) == 0 {
-		cacheRequestedComponents(project, requested, result)
-	}
+	cacheRequestedComponents(project, requested, result)
 	return result
 }
 
@@ -836,7 +798,6 @@ func projectComponentRecords(
 	typeChecker *checker.Checker,
 	current []Component,
 	callables callableAnalysis,
-	externalManifests []ExternalManifest,
 ) []projectComponent {
 	records := []projectComponent{}
 	currentCandidates := activeComponentCandidates(requested)
@@ -869,7 +830,7 @@ func projectComponentRecords(
 			typeChecker,
 			components,
 			reads,
-			Request{Target: TargetDefault, Manifests: externalManifests},
+			Request{Target: TargetDefault},
 		)
 		tasks := collectTasks(
 			dependency,

@@ -9,10 +9,10 @@ describe('@exactjs/serverless-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: (_input, context) => ({
 					state: {
 						runtime: 'serverless',
@@ -27,13 +27,13 @@ describe('@exactjs/serverless-adapter', () => {
 			httpMethod: 'POST',
 			rawPath: '/__exact',
 			headers: { host: 'lambda.example.test', 'x-forwarded-proto': 'https' },
-			body: JSON.stringify({ type: 'action', id: 'save' })
+			body: JSON.stringify({ type: 'invoke', id: 'save' })
 		});
 
 		expect(response.statusCode).toBe(200);
 		expect(JSON.parse(response.body)).toEqual({
 			ok: true,
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			state: {
 				runtime: 'serverless',
@@ -49,10 +49,10 @@ describe('@exactjs/serverless-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: (input, context) => ({
 					state: {
 						payload: input.payload,
@@ -63,7 +63,7 @@ describe('@exactjs/serverless-adapter', () => {
 			}
 		});
 		const body = Buffer.from(
-			JSON.stringify({ type: 'action', id: 'save', payload: 'decoded' })
+			JSON.stringify({ type: 'invoke', id: 'save', payload: 'decoded' })
 		).toString('base64');
 
 		const response = await handler({

@@ -15,8 +15,8 @@ import {
 	normalizePositiveLimit
 } from '../render/limits.js';
 import type {
-	ActionRefreshBoundaryOptions,
-	ActionRefreshOptions,
+	InvocationRefreshBoundaryOptions,
+	InvocationRefreshOptions,
 	BoundaryRefreshOptions,
 	BoundaryRenderFunction,
 	ExactBoundaryRenderer,
@@ -62,14 +62,14 @@ export function createBoundaryRefreshHandler(
 	};
 }
 
-/** Creates an action refresh handler. */
-export function createActionRefreshHandler(
-	options: ActionRefreshOptions
+/** Creates an invocation refresh handler. */
+export function createInvocationRefreshHandler(
+	options: InvocationRefreshOptions
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
 	return async (input, context) => {
-		const actionResult: ExactInvocationResult = (await options.action(input, context)) ?? {};
-		const patches: ExactPatch[] = [...(actionResult.patches ?? [])];
-		let state = actionResult.state;
+		const invocationResult: ExactInvocationResult = (await options.invoke(input, context)) ?? {};
+		const patches: ExactPatch[] = [...(invocationResult.patches ?? [])];
+		let state = invocationResult.state;
 
 		for (const boundary of options.boundaries) {
 			const vnode = await boundary.render(input, context);
@@ -95,7 +95,7 @@ export function createActionRefreshHandler(
 		}
 
 		return {
-			...actionResult,
+			...invocationResult,
 			patches,
 			...(state === undefined ? {} : { state })
 		};
@@ -107,7 +107,7 @@ export function createExactServerHandlerRegistry(
 	options: ExactServerHandlerRegistryOptions
 ): ExactServerHandlerRegistry {
 	const refreshBoundaries: NonNullable<ExactServerContext['refreshBoundaries']> = {};
-	const actionHandlers: NonNullable<ExactServerContext['actions']> = {};
+	const actionHandlers: NonNullable<ExactServerContext['invocations']> = {};
 
 	for (const id of Object.keys(options.contract.boundaries).sort()) {
 		const renderer = options.boundaries?.[id];
@@ -118,18 +118,18 @@ export function createExactServerHandlerRegistry(
 		);
 	}
 
-	for (const id of Object.keys(options.contract.actions).sort()) {
-		const explicitAction = options.actions?.[id];
+	for (const id of Object.keys(options.contract.invocations).sort()) {
+		const explicitAction = options.invocations?.[id];
 		const executor = options.contract.executors?.[id];
 		if (explicitAction && executor)
-			throw new Error(`Conflicting application and generated eXact action handler ${id}`);
-		const action =
+			throw new Error(`Conflicting application and generated eXact invocation handler ${id}`);
+		const invocation =
 			explicitAction ??
 			(executor
-				? createExactContinuationHandler(options.contract.actions[id]!, executor)
+				? createExactContinuationHandler(options.contract.invocations[id]!, executor)
 				: undefined);
-		if (!action) continue;
-		const boundaries = options.contract.actions[id]!.boundaries.map((boundaryId) => {
+		if (!invocation) continue;
+		const boundaries = options.contract.invocations[id]!.boundaries.map((boundaryId) => {
 			const renderer = options.boundaries?.[boundaryId];
 			return renderer
 				? {
@@ -137,14 +137,14 @@ export function createExactServerHandlerRegistry(
 						render: boundaryRenderFunction(renderer)
 					}
 				: undefined;
-		}).filter((boundary): boundary is ActionRefreshBoundaryOptions => boundary !== undefined);
+		}).filter((boundary): boundary is InvocationRefreshBoundaryOptions => boundary !== undefined);
 		actionHandlers[id] = boundaries.length
-			? createActionRefreshHandler({ action, boundaries })
-			: async (input, context) => (await action(input, context)) ?? {};
+			? createInvocationRefreshHandler({ invoke: invocation, boundaries })
+			: async (input, context) => (await invocation(input, context)) ?? {};
 	}
 
 	return {
-		actions: actionHandlers,
+		invocations: actionHandlers,
 		refreshBoundaries
 	};
 }

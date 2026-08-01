@@ -47,7 +47,7 @@ export function isExactStreamPatchEvent(
 		record.event === 'patch' &&
 		record.version === 1 &&
 		typeof record.index === 'number' &&
-		(record.type === 'action' || record.type === 'refresh') &&
+		(record.type === 'invoke' || record.type === 'refresh') &&
 		typeof record.id === 'string' &&
 		!!record.id &&
 		(record.opId === undefined || typeof record.opId === 'string') &&
@@ -67,7 +67,7 @@ export function isExactStreamStateEvent(
 		record.event === 'state' &&
 		record.version === 1 &&
 		typeof record.index === 'number' &&
-		(record.type === 'action' || record.type === 'refresh') &&
+		(record.type === 'invoke' || record.type === 'refresh') &&
 		typeof record.id === 'string' &&
 		!!record.id &&
 		(record.opId === undefined || typeof record.opId === 'string') &&
@@ -88,7 +88,7 @@ export function isExactStreamMutationsEvent(
 		record.event === 'mutations' &&
 		record.version === 1 &&
 		typeof record.index === 'number' &&
-		(record.type === 'action' || record.type === 'refresh') &&
+		(record.type === 'invoke' || record.type === 'refresh') &&
 		typeof record.id === 'string' &&
 		!!record.id &&
 		(record.opId === undefined || typeof record.opId === 'string') &&
@@ -109,7 +109,7 @@ export function isExactStreamHtmlEvent(
 		record.event === 'html' &&
 		record.version === 1 &&
 		typeof record.index === 'number' &&
-		(record.type === 'action' || record.type === 'refresh') &&
+		(record.type === 'invoke' || record.type === 'refresh') &&
 		typeof record.id === 'string' &&
 		!!record.id &&
 		(record.opId === undefined || typeof record.opId === 'string') &&

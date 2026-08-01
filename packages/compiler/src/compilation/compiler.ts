@@ -10,12 +10,9 @@ export {
 	assertExactArtifactTarget,
 	createExactArtifactComponentEdges,
 	createExactArtifactGraph,
-	createExactArtifactRegistryModules,
 	createPackageExportMap,
 	diffExactArtifactPlans,
-	discoverExactPackageManifests,
 	exactExportConditions,
-	readExactArtifactManifestEntries,
 	resolveExactArtifactImport
 } from '../artifacts.js';
 export { ExactCompilerSession } from '../expression/project.js';
@@ -30,7 +27,6 @@ export {
 	createCompilerSession,
 	invalidateExpressionModule
 } from '../expression/session.js';
-export { parseExactCompilerManifest } from '../manifest-parse.js';
 export {
 	exactReachableExposureComponents,
 	selectExactExposureInspectionCatalog,
@@ -52,18 +48,12 @@ export {
 	formatExactPolicyAuditReport,
 	type ExactPolicyAuditReportOptions
 } from '../policy-report.js';
-export {
-	createClientIslandRegistryEntries,
-	createClientIslandRegistryModule,
-	createExactHydrationRegistrationModule,
-	createServerPartRegistryEntries,
-	createServerPartRegistryModule
-} from '../registry.js';
+export { createExactHydrationRegistrationModule } from '../registry.js';
 export { createLineSourceMap } from '../source-maps.js';
 export type * from '../types.js';
-export { exactCompilerManifestVersion } from '../versions.js';
 
 export { compileFile, compileProject } from './file-compilation.js';
+/** @internal Prefer compiler sessions and supported inspection reports in application tooling. */
 export { analyzeSource } from './source-analysis.js';
 export { transform, transformSource } from './transformation.js';
 

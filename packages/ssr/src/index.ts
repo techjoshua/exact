@@ -15,7 +15,7 @@ export {
 	renderToString
 } from './render/entrypoints.js';
 export {
-	createActionRefreshHandler,
+	createInvocationRefreshHandler,
 	createBoundaryRefreshHandler,
 	createExactServerHandlerRegistry,
 	createExactServerRuntime,

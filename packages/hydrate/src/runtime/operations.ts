@@ -43,8 +43,8 @@ export async function invokeAndApply(
 	}
 ): Promise<ExactInvocationResult> {
 	const work = createDomWorkBudget(options.maxTreeNodes);
-	const continuation = type === 'action' ? options.continuations?.[id] : undefined;
-	if (type === 'action' && !continuation)
+	const continuation = type === 'invoke' ? options.continuations?.[id] : undefined;
+	if (type === 'invoke' && !continuation)
 		throw new Error(`No eXact client continuation contract is registered for ${id}`);
 	let versions = requestVersions.get(container);
 	if (!versions) {
@@ -59,7 +59,7 @@ export async function invokeAndApply(
 				? [`boundary:${id}`]
 				: configuredBoundaries?.length
 					? configuredBoundaries.map((boundary) => `boundary:${boundary}`)
-					: [`action:${id}`]
+					: [`invocation:${id}`]
 		)
 	].map((key) => (componentKey ? `${componentKey}:${key}` : key));
 	const requestVersion = Math.max(0, ...requestKeys.map((key) => versions!.get(key) ?? 0)) + 1;
@@ -79,13 +79,13 @@ export async function invokeAndApply(
 				}
 			: payload,
 		state:
-			type === 'action'
+			type === 'invoke'
 				? stateForContract(component?.instance.state ?? client.state, {
 						reads: continuation!.stateReads
 					})
 				: client.state,
 		publicContext:
-			type === 'action'
+			type === 'invoke'
 				? publicContextFor(options.publicContexts, continuation?.publicContexts)
 				: undefined,
 		boundaryHtml:
@@ -93,7 +93,7 @@ export async function invokeAndApply(
 				? boundaryInnerHtml(container, id, work, options.executionRoot ?? 'page')
 				: undefined,
 		boundaryHtmls:
-			type === 'action'
+			type === 'invoke'
 				? boundaryHtmlsFor(container, configuredBoundaries, work, options.executionRoot ?? 'page')
 				: undefined
 	};
@@ -105,7 +105,7 @@ export async function invokeAndApply(
 	});
 	const endpoint = requireEndpoint(endpointForOperation(client, type, id));
 	const transport = transportForEndpoint(options, endpoint);
-	// Operations can route to per-action or per-boundary endpoints, which keeps
+	// Operations can route to per-invocation or per-boundary endpoints, which keeps
 	// server components usable inside independently deployed micro-frontend bundles.
 	let result: ExactInvocationResult;
 	try {
@@ -171,7 +171,7 @@ export async function invokeAndApply(
 		if (invalidPatch || mergedState?.ok === false || invalidContexts) {
 			options.onDiagnostic?.({
 				code: 'invalid-response',
-				message: `rejected exact action response outside the continuation contract for ${id}`,
+				message: `rejected exact invocation response outside the continuation contract for ${id}`,
 				patch: invalidPatch
 			});
 			options.onOperation?.({
@@ -368,7 +368,7 @@ export function endpointForOperation(
 	type: ExactInvocationKind,
 	id: string
 ): string | undefined {
-	if (type === 'action') return client.endpoints?.actions?.[id] ?? client.endpoint;
+	if (type === 'invoke') return client.endpoints?.invocations?.[id] ?? client.endpoint;
 	return client.endpoints?.boundaries?.[id] ?? client.endpoint;
 }
 

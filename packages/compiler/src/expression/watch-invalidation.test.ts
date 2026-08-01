@@ -27,7 +27,7 @@ describe('compiler watch invalidation classification', () => {
 
 	it.each([
 		'/app/src/styles.css',
-		'/app/public/manifest.webmanifest',
+		'/app/public/analysis.webmanifest',
 		'/app/tsconfig.tsbuildinfo',
 		'/app/dist/icon.svg',
 		'/app/dist/image.png',

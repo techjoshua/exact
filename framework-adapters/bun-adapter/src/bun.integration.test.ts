@@ -16,10 +16,10 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { ping: stateAction('ping') },
+				invocations: { ping: stateAction('ping') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				ping: () => ({ state: { runtime: 'bun' } })
 			}
 		});
@@ -37,13 +37,13 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 		try {
 			const response = await fetch(new URL('/__exact', server.url), {
 				method: 'POST',
-				body: JSON.stringify({ type: 'action', id: 'ping' })
+				body: JSON.stringify({ type: 'invoke', id: 'ping' })
 			});
 
 			testApi.expect(response.status).toBe(200);
 			testApi.expect(await response.json()).toEqual({
 				ok: true,
-				type: 'action',
+				type: 'invoke',
 				id: 'ping',
 				state: { runtime: 'bun' }
 			});

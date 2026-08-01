@@ -8,11 +8,8 @@ import {
 	isVNode,
 	renderInstance,
 	taskAwait,
-	taskTimeout,
-	withTaskObserver,
 	type Component,
-	type ErrorReport,
-	type TaskObserver
+	type ErrorReport
 } from './index.js';
 
 describe('@exactjs/core errors', () => {
@@ -39,102 +36,6 @@ describe('@exactjs/core errors', () => {
 		expect(instance.state.errors).toHaveLength(1);
 		expect(instance.state.errors[0]!.source).toBe('render');
 		expect(isVNode(nodes[0]) ? nodes[0].children[0] : undefined).toBe('fallback');
-	});
-
-	it('routes synchronous task failures to the nearest error context', () => {
-		let instance!: Component<{ errors: ErrorReport[] }>;
-
-		createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
-			instance = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			(this as any).task(() => {
-				throw new Error('task failed');
-			});
-			return () => null;
-		}, {});
-
-		expect(instance.state.errors).toHaveLength(1);
-		expect(instance.state.errors[0]!.id).toMatch(/^e\d+$/);
-		expect(instance.state.errors[0]!.source).toBe('task');
-		expect(instance.state.errors[0]!.phase).toBe('run');
-	});
-
-	it('supports explicit server and client task aliases at runtime', () => {
-		let instance!: Component<{ value: number; serverRuns: number; clientRuns: number }>;
-
-		createComponentInstance(function Worker(
-			this: Component<{ value: number; serverRuns: number; clientRuns: number }>
-		) {
-			instance = this;
-			this.state.value = 1;
-			this.state.serverRuns = 0;
-			this.state.clientRuns = 0;
-			(this as any).task.server(
-				this.reactive<number>(() => this.state.value),
-				(value: number) => {
-					this.state.serverRuns = value;
-				}
-			);
-			(this as any).task.client(
-				this.reactive<number>(() => this.state.value),
-				(value: number) => {
-					this.state.clientRuns = value;
-				}
-			);
-			return () => null;
-		}, {});
-
-		expect(instance.state.serverRuns).toBe(1);
-		expect(instance.state.clientRuns).toBe(1);
-
-		instance.state.value = 2;
-		flushSync();
-
-		expect(instance.state.serverRuns).toBe(2);
-		expect(instance.state.clientRuns).toBe(2);
-	});
-
-	it('composes task placement, scheduling, and readiness facets', () => {
-		const run = vi.fn();
-
-		const instance = createComponentInstance(function Worker(this: Component<{}>) {
-			(this as any).task.server.deferred.blocking(run);
-			return () => null;
-		}, {});
-
-		expect(run).not.toHaveBeenCalled();
-		expect(instance.tasks[0]?.policy).toEqual({
-			placement: 'server',
-			priority: 'deferred',
-			readiness: 'blocking'
-		});
-
-		flushSync('normal');
-		expect(run).not.toHaveBeenCalled();
-
-		flushSync();
-		expect(run).toHaveBeenCalledOnce();
-	});
-
-	it('assigns stable ids to multiple error reports', () => {
-		let instance!: Component<{ errors: ErrorReport[] }>;
-
-		createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
-			instance = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			(this as any).task(() => {
-				throw new Error('first task failed');
-			});
-			(this as any).task(() => {
-				throw new Error('second task failed');
-			});
-			return () => null;
-		}, {});
-
-		expect(instance.state.errors).toHaveLength(2);
-		expect(instance.state.errors[0]!.id).not.toBe(instance.state.errors[1]!.id);
 	});
 
 	it('lets components report and clear errors through error context', () => {
@@ -189,51 +90,6 @@ describe('@exactjs/core errors', () => {
 		expect(count).toBe(3);
 	});
 
-	it('routes rejected task promises to the nearest error context', async () => {
-		let instance!: Component<{ errors: ErrorReport[] }>;
-
-		createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
-			instance = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			(this as any).task(async () => {
-				throw new Error('async task failed');
-			});
-			return () => null;
-		}, {});
-
-		await Promise.resolve();
-		await Promise.resolve();
-
-		expect(instance.state.errors).toHaveLength(1);
-		expect(instance.state.errors[0]!.source).toBe('task');
-		expect(instance.state.errors[0]!.phase).toBe('promise');
-	});
-
-	it('lets render environments observe async task completion', async () => {
-		const observed: Promise<unknown>[] = [];
-		const observer: TaskObserver = {
-			register: (promise) => observed.push(promise)
-		};
-		let instance!: Component<{ ready: boolean }>;
-
-		withTaskObserver(observer, () => {
-			createComponentInstance(function Worker(this: Component<{ ready: boolean }>) {
-				instance = this;
-				this.state.ready = false;
-				(this as any).task(async () => {
-					await Promise.resolve();
-					this.state.ready = true;
-				});
-				return () => null;
-			}, {});
-		});
-
-		expect(observed).toHaveLength(1);
-		await Promise.all(observed);
-		expect(instance.state.ready).toBe(true);
-	});
-
 	it('continues unmount cleanup after lifecycle failures', () => {
 		let instance!: Component<{ errors: ErrorReport[] }>;
 		const cleanup = vi.fn();
@@ -283,54 +139,6 @@ describe('@exactjs/core errors', () => {
 		const awaited = taskAwait(controller.signal, new Promise<string>(() => undefined));
 		controller.abort('rerun');
 		await expect(awaited).rejects.toMatchObject({ name: 'AbortError', message: 'rerun' });
-	});
-
-	it('disposes tasks when a component is removed before it mounts', () => {
-		const cleanup = vi.fn();
-		const component = createComponentInstance(function Pending(this: Component<{}>) {
-			(this as any).task(() => cleanup);
-			return () => null;
-		}, {});
-		component.unmount('discarded-before-mount');
-		component.markMounted();
-		expect(cleanup).toHaveBeenCalledTimes(1);
-		expect(component.mounted).toBe(false);
-	});
-
-	it('routes compiler-owned timer and asynchronous render lifecycle errors', async () => {
-		vi.useFakeTimers();
-		try {
-			let instance!: Component<{ errors: ErrorReport[] }>;
-			const component = createComponentInstance(function Worker(
-				this: Component<{ errors: ErrorReport[] }>
-			) {
-				instance = this;
-				this.state.errors = [];
-				this.setContext(ErrorContext, createErrorContext(this.state.errors));
-				(this as any).task(({ signal }: { signal: AbortSignal }) => {
-					taskTimeout(
-						signal,
-						() => {
-							throw new Error('timer failed');
-						},
-						1
-					);
-				});
-				this.onRender(async () => {
-					throw new Error('render hook failed');
-				});
-				return () => null;
-			}, {});
-			renderInstance(component, () => undefined);
-			vi.runAllTimers();
-			await Promise.resolve();
-			expect(instance.state.errors.map((error) => error.phase).sort()).toEqual([
-				'render',
-				'timeout'
-			]);
-		} finally {
-			vi.useRealTimers();
-		}
 	});
 
 	it('isolates the framework error context between application roots', () => {

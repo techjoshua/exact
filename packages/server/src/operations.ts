@@ -98,7 +98,7 @@ export function limitedJsonResponse(
 ): ExactResponseLike {
 	const validated = processExactOutputSync(
 		body,
-		{ kind: 'action-response', signal: context.signal },
+		{ kind: 'invocation-response', signal: context.signal },
 		context.outputExtensions ?? []
 	);
 	const response = jsonResponse(status, validated);
@@ -152,15 +152,15 @@ async function dispatchExactOperationAfterSecurity(
 		return reject(400, 'bad_request', 'rejected exact invocation with unknown boundary hints');
 	}
 
-	const action = input.type === 'action' ? context.contract.actions[input.id] : undefined;
-	const executor = input.type === 'action' ? context.contract.executors?.[input.id] : undefined;
-	if (action && !stateMatchesContract(input.state, action.stateReads)) {
+	const invocation = input.type === 'invoke' ? context.contract.invocations[input.id] : undefined;
+	const executor = input.type === 'invoke' ? context.contract.executors?.[input.id] : undefined;
+	if (invocation && !stateMatchesContract(input.state, invocation.stateReads)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with mismatched state contract');
 	}
-	if (executor && !continuationDependencies(input.payload, action?.dependencies.length ?? 0)) {
+	if (executor && !continuationDependencies(input.payload, invocation?.dependencies.length ?? 0)) {
 		return reject(400, 'bad_request', 'rejected malformed exact continuation activation');
 	}
-	if (!publicContextMatchesContract(input.publicContext, action?.publicContexts ?? [])) {
+	if (!publicContextMatchesContract(input.publicContext, invocation?.publicContexts ?? [])) {
 		return reject(400, 'bad_request', 'rejected mismatched public context projection');
 	}
 
@@ -173,14 +173,14 @@ async function dispatchExactOperationAfterSecurity(
 	}
 
 	const handler =
-		input.type === 'action'
-			? (context.actions?.[input.id] ??
-				(action && executor ? createExactContinuationHandler(action, executor) : undefined))
+		input.type === 'invoke'
+			? (context.invocations?.[input.id] ??
+				(invocation && executor ? createExactContinuationHandler(invocation, executor) : undefined))
 			: context.refreshBoundaries?.[input.id];
 	if (!handler)
 		return reject(404, 'not_found', 'rejected exact invocation without registered handler');
 
-	const observation = observationIdentity(context, input, action?.componentId);
+	const observation = observationIdentity(context, input, invocation?.componentId);
 	context.debugRuntime?.observe({
 		kind: executor ? 'continuation.receive' : 'task.start',
 		...observation
@@ -226,10 +226,10 @@ async function dispatchExactOperationAfterSecurity(
 			return reject(500, 'internal_error', 'rejected non-serializable exact invocation result');
 		}
 		if (
-			input.type === 'action' &&
-			(!stateResponseMatchesContract(result.state, action?.stateWrites ?? []) ||
-				!collectionMutationsMatchContract(result.mutations, action?.stateWrites ?? []) ||
-				!contextResponseMatchesContract(result.contexts, action?.contextWrites ?? []))
+			input.type === 'invoke' &&
+			(!stateResponseMatchesContract(result.state, invocation?.stateWrites ?? []) ||
+				!collectionMutationsMatchContract(result.mutations, invocation?.stateWrites ?? []) ||
+				!contextResponseMatchesContract(result.contexts, invocation?.contextWrites ?? []))
 		) {
 			return reject(
 				500,

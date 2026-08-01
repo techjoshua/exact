@@ -18,4 +18,4 @@ export function RequestProvider(this: Component<{}>, props: RequestProviderProps
 	return () => props.children;
 }
 
-markExactComponent(RequestProvider);
+markExactComponent(RequestProvider, '@exactjs/request:RequestProvider');

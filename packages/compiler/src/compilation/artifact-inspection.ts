@@ -56,7 +56,7 @@ export async function finalizeArtifactInspection(
 				inspections,
 				sources: sourceRecord,
 				redactions: createExactInspectionRedactions(
-					results.map((result) => result.manifest),
+					results.map((result) => result.analysis),
 					options.inspection?.redactions
 				)
 			}

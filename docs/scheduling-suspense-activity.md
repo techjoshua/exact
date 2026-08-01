@@ -68,10 +68,12 @@ APIs receive the task abort signal, and state writes are staged. A successful
 generation publishes all staged writes together; failed, cancelled, or stale
 generations discard them.
 
-Sequential awaits and `try`/`catch`/`finally` preserve source order. Native
-destructuring may publish several state locations atomically. Framework
-cancellation bypasses authored catches so obsolete work cannot commit an
-application fallback, while `finally` still runs for cleanup.
+Sequential or concurrent awaits, branching, loops, early returns, and
+`try`/`catch`/`finally` preserve ordinary TypeScript control flow and source
+order, including awaited work inside `catch` or `finally`. Native destructuring
+may publish several state locations atomically. Framework cancellation bypasses
+authored catches so obsolete work cannot commit an application fallback, while
+`finally` still runs for cleanup.
 
 Explicit `TaskContext` policy remains the form for external effects, cleanup,
 nonblocking work, manually named dependencies, placement, or scheduling.

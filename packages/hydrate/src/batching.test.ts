@@ -45,14 +45,14 @@ describe('@exactjs/hydrate batching', () => {
 			executionRoot: '@company/billing#./Summary'
 		});
 
-		await Promise.all([leftClient.invokeAction('save'), rightClient.invokeAction('save')]);
+		await Promise.all([leftClient.invokeTask('save'), rightClient.invokeTask('save')]);
 		expect(requests).toEqual([
 			{
 				type: 'batch',
 				version: 1,
 				operations: [
-					{ type: 'action', root: '@company/billing#./Area', id: 'save' },
-					{ type: 'action', root: '@company/billing#./Summary', id: 'save' }
+					{ type: 'invoke', root: '@company/billing#./Area', id: 'save' },
+					{ type: 'invoke', root: '@company/billing#./Summary', id: 'save' }
 				]
 			}
 		]);
@@ -77,7 +77,7 @@ describe('@exactjs/hydrate batching', () => {
 						results: [
 							{
 								ok: true,
-								type: 'action',
+								type: 'invoke',
 								id: 'save-title',
 								state: { saved: true },
 								patches: [{ type: 'text', id: 'title', value: 'New' }]
@@ -102,7 +102,7 @@ describe('@exactjs/hydrate batching', () => {
 			},
 			fetch
 		});
-		const action = client.invokeAction('save-title', { title: 'New' });
+		const action = client.invokeTask('save-title', { title: 'New' });
 		const refresh = client.refreshBoundary('panel');
 
 		await Promise.all([action, refresh]);
@@ -113,7 +113,7 @@ describe('@exactjs/hydrate batching', () => {
 				version: 1,
 				operations: [
 					{
-						type: 'action',
+						type: 'invoke',
 						root: 'page',
 						id: 'save-title',
 						payload: { title: 'New' },
@@ -176,7 +176,7 @@ describe('@exactjs/hydrate batching', () => {
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			endpoints: {
-				actions: {
+				invocations: {
 					'save-remote': 'https://remote.test/__exact'
 				},
 				boundaries: {
@@ -191,9 +191,9 @@ describe('@exactjs/hydrate batching', () => {
 		});
 
 		await Promise.all([
-			client.invokeAction('save-title'),
+			client.invokeTask('save-title'),
 			client.refreshBoundary('remote-panel'),
-			client.invokeAction('save-remote')
+			client.invokeTask('save-remote')
 		]);
 
 		expect(requests).toHaveLength(2);
@@ -202,7 +202,7 @@ describe('@exactjs/hydrate batching', () => {
 			'https://remote.test/__exact'
 		]);
 		expect(requests.find((request) => request.input === '/__exact')?.body).toMatchObject({
-			type: 'action',
+			type: 'invoke',
 			id: 'save-title'
 		});
 		expect(
@@ -217,7 +217,7 @@ describe('@exactjs/hydrate batching', () => {
 					boundaryHtml: '<p>Remote</p>'
 				},
 				{
-					type: 'action',
+					type: 'invoke',
 					id: 'save-remote'
 				}
 			]
@@ -238,7 +238,7 @@ describe('@exactjs/hydrate batching', () => {
 					results: [
 						{
 							ok: true,
-							type: 'action',
+							type: 'invoke',
 							id: 'save-title',
 							patches: [{ type: 'text', id: 'title', value: 'Saved' }]
 						},
@@ -261,7 +261,7 @@ describe('@exactjs/hydrate batching', () => {
 			},
 			fetch
 		});
-		const action = client.invokeAction('save-title');
+		const action = client.invokeTask('save-title');
 		const refresh = client.refreshBoundary('missing-panel');
 
 		await expect(action).resolves.toMatchObject({

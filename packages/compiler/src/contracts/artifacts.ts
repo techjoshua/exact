@@ -1,4 +1,4 @@
-import type { ExactCompilerManifest } from './manifest.js';
+import type { ExactModuleAnalysis } from './module-analysis.js';
 import type { ExactPlacement } from './policy.js';
 
 /** Configures package export map. */
@@ -68,8 +68,7 @@ export type ExactArtifactGraphEntry = {
 	clientFile: string;
 	serverFile: string;
 	sharedFile?: string;
-	manifestFile: string;
-	manifest: ExactCompilerManifest;
+	analysis: ExactModuleAnalysis;
 };
 
 /** Configures client island registry. */
@@ -100,11 +99,6 @@ export type ServerPartRegistryEntry = {
 	componentId?: string;
 };
 
-/** Configures exact registry module. */
-export type ExactRegistryModuleOptions = {
-	exportName?: string;
-};
-
 /** Configures exact hydration registration module. */
 export type ExactHydrationRegistrationModuleOptions = {
 	endpoint?: string;
@@ -115,18 +109,6 @@ export type ExactHydrationRegistrationModuleOptions = {
 
 /** Defines the exact hydration endpoint routes type contract. */
 export type ExactHydrationEndpointRoutes = {
-	actions?: Record<string, string>;
+	invocations?: Record<string, string>;
 	boundaries?: Record<string, string>;
-};
-
-/** Configures exact artifact registry modules. */
-export type ExactArtifactRegistryModulesOptions = {
-	clientExportName?: string;
-	serverExportName?: string;
-};
-
-/** Defines the exact artifact registry modules type contract. */
-export type ExactArtifactRegistryModules = {
-	client: string;
-	server: string;
 };

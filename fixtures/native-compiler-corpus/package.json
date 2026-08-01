@@ -1,0 +1,5 @@
+{
+	"name": "@exactjs/native-compiler-corpus",
+	"private": true,
+	"type": "module"
+}

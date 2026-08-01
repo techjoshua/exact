@@ -1,12 +1,8 @@
-import {
-	createCompiledVNode,
-	createDynamicChild,
-	createVNode,
-	type Component
-} from '@exactjs/core';
+import { createDynamicChild, type Component } from '@exactjs/core';
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { renderHydrationScript, renderToHydratableString, renderToString } from './index.js';
+import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr hydration', () => {
 	it('places framework hydration data inside the normalized body region', () => {
@@ -74,7 +70,7 @@ describe('@exactjs/ssr hydration', () => {
 		const script = renderHydrationScript({
 			endpoint: '/__exact',
 			endpoints: {
-				actions: {
+				invocations: {
 					'remote-save': 'https://remote.example/__exact'
 				},
 				boundaries: {
@@ -86,6 +82,7 @@ describe('@exactjs/ssr hydration', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					kind: 'task',
 					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
@@ -122,7 +119,7 @@ describe('@exactjs/ssr hydration', () => {
 		expect(() =>
 			renderHydrationScript({
 				endpoints: {
-					actions: {
+					invocations: {
 						save: (() => '/__exact') as unknown as string
 					}
 				}
@@ -144,6 +141,7 @@ describe('@exactjs/ssr hydration', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					kind: 'task',
 					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'ready', kind: 'read', confidence: 'exact' }],

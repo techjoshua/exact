@@ -1,9 +1,8 @@
-# Using @exactjs/instrumentation
+# Using `@exactjs/instrumentation`
 
-Use the shared immutable profiling envelopes for bounded timings and counts. Profiling sinks are
-observational: isolate sink failures and do not let them change scheduling, cancellation,
-rendering, ownership, or server dispatch.
+See the [README](./README.md) for the profiling envelope API. Use this package when a framework
+integration needs to publish bounded timing and count observations.
 
-DevTools may project these envelopes as `profile` events, but must not add raw component instances,
-callbacks, requests, response bodies, state values, context resources, or secrets. Keep hot-path
-publication shallow and defer bounded presentation work to an attached consumer.
+- Treat sinks as observational; they must not affect application scheduling or behavior.
+- Keep hot-path payloads small.
+- Never include raw component instances, callbacks, state values, requests, or secrets.

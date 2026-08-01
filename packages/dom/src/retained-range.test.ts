@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { createPortal, createRef, type Component } from '@exactjs/core';
-import { jsx } from '@exactjs/jsx';
+import { jsx } from './test-support/native-vnode.js';
 import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
 import { roots } from './state.js';

@@ -7,7 +7,7 @@ describe('build compatibility responses', () => {
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				root: 'catalog#card',
 				id: 'save',
 				onResponse,
@@ -18,7 +18,7 @@ describe('build compatibility responses', () => {
 						'X-Exact-Preferred-Build': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 					}),
 					async json() {
-						return { ok: true, type: 'action', id: 'save' };
+						return { ok: true, type: 'invoke', id: 'save' };
 					}
 				})
 			})
@@ -34,7 +34,7 @@ describe('build compatibility responses', () => {
 		const request = (body: unknown) =>
 			invokeExact({
 				endpoint: '/__exact',
-				type: 'action',
+				type: 'invoke',
 				root: 'catalog#card',
 				id: 'save',
 				fetch: async () => ({
@@ -49,6 +49,6 @@ describe('build compatibility responses', () => {
 		await expect(request({ error: 'exact_build_unsupported' })).rejects.toBeInstanceOf(
 			ExactBuildUnsupportedError
 		);
-		await expect(request({ error: 'gone' })).rejects.toThrow('eXact action invocation failed');
+		await expect(request({ error: 'gone' })).rejects.toThrow('eXact invoke invocation failed');
 	});
 });

@@ -1,6 +1,9 @@
 # @exactjs/module-rewrite
 
-Small TypeScript module-reference rewriting utility shared by compatibility tooling.
+Focused TypeScript module-reference rewriting for build and compatibility tooling.
 
-It rewrites module aliases and selected imports, exports, namespace references, and CommonJS
-references without loading the retired eXact expression compiler.
+## What it provides
+
+The package rewrites selected imports, exports, namespace references, CommonJS references, and
+module aliases while preserving unrelated source. It is intended for framework tooling rather than
+application runtime code.

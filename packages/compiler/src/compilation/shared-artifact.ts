@@ -1,27 +1,27 @@
 import { unlink } from 'node:fs/promises';
 import path from 'node:path';
-import type { ExactCompilerManifest, TransformResult } from '../types.js';
+import type { ExactModuleAnalysis, TransformResult } from '../types.js';
 
 /** Performs the shared artifact result domain operation. */
 export function sharedArtifactResult(
-	manifest: ExactCompilerManifest,
+	analysis: ExactModuleAnalysis,
 	client: TransformResult,
 	server: TransformResult
 ): TransformResult | undefined {
 	if (
 		client.code !== server.code ||
-		manifest.assets.length ||
-		manifest.boundaries.length ||
-		Object.keys(manifest.serverActions).length ||
-		manifest.components.some(
+		analysis.assets.length ||
+		analysis.boundaries.length ||
+		Object.keys(analysis.serverActions).length ||
+		analysis.components.some(
 			(component) =>
 				component.tasks.length || component.contexts.length || component.clientIslandCount
 		) ||
-		manifest.callables.some((callable) => callable.effect !== 'neutral') ||
-		manifest.policy.subjects.some(
+		analysis.callables.some((callable) => callable.effect !== 'neutral') ||
+		analysis.policy.subjects.some(
 			(subject) => subject.policy.secret || subject.policy.residency !== 'shared'
 		) ||
-		manifest.semanticGraph?.declarations.some(
+		analysis.semanticGraph?.declarations.some(
 			(declaration) => declaration.kind === 'import' && !declaration.typeOnly
 		)
 	)
@@ -40,14 +40,14 @@ export async function removeGeneratedArtifact(filename: string): Promise<void> {
 
 /** Performs the shared artifact facade domain operation. */
 export function sharedArtifactFacade(
-	manifest: ExactCompilerManifest,
+	analysis: ExactModuleAnalysis,
 	sharedFile: string,
 	targetFile: string
 ): string {
 	let specifier = path.relative(path.dirname(targetFile), sharedFile).replaceAll(path.sep, '/');
 	if (!specifier.startsWith('.')) specifier = `./${specifier}`;
 	const lines = [`export * from ${JSON.stringify(specifier)};`];
-	if (manifest.exports.some((exported) => exported.name === 'default')) {
+	if (analysis.exports.some((exported) => exported.name === 'default')) {
 		lines.push(`export { default } from ${JSON.stringify(specifier)};`);
 	}
 	return `${lines.join('\n')}\n`;

@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
+import { createVNode } from './test-support/native-vnode.js';
 import {
 	createDomWorkBudget,
 	DomTraversalLimitError,

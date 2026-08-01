@@ -13,11 +13,8 @@ describe('ExactCompilerLanguageService', () => {
 			{ root: process.cwd(), noEmit: true },
 			{ nativeClient: client }
 		);
-		const source = `export async function ProductPage(this: Component<any>, props: { id: string }) {
-	this.state.product = await loadProduct(props.id);
-	this.task.client(() => document.title = 'Product');
-	return () => <h1>{this.state.product.name}</h1>;
-}`;
+		const source =
+			'import { TaskContext } from "@exactjs/core";\nexport async function ProductPage(this: Component<any>, props: { id: string }) {\n\tthis.state.product = await loadProduct(props.id);\n\tconst runFixtureTask = (_task: TaskContext = TaskContext.client()) => document.title = \'Product\';\nrunFixtureTask();\n\treturn () => <h1>{this.state.product.name}</h1>;\n}';
 		const update = await service.synchronize([
 			{ kind: 'upsert', filename: 'ProductPage.tsx', version: 1, source }
 		]);
@@ -50,10 +47,8 @@ describe('ExactCompilerLanguageService', () => {
 			{ root: process.cwd() },
 			{ nativeClient: new FakeNativeClient() }
 		);
-		const source = `export function Page(this: Component<any>) {
-	this.task.client(() => document.title = 'Page');
-	return () => <main />;
-}`;
+		const source =
+			'import { TaskContext } from "@exactjs/core";\nexport function Page(this: Component<any>) {\n\tconst runFixtureTask = (_task: TaskContext = TaskContext.client()) => document.title = \'Page\';\nrunFixtureTask();\n\treturn () => <main />;\n}';
 		await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 2, source }]);
 		const ignored = await service.synchronize([
 			{ kind: 'upsert', filename: 'Page.tsx', version: 1, source: 'invalid' }
@@ -88,34 +83,35 @@ class FakeNativeClient implements ExactNativeLanguageClient {
 function responseFor(filename: string, source: string): NativeCompilerResponse {
 	const name = source.includes('ProductPage') ? 'ProductPage' : 'Page';
 	const taskMatches = [
-		...source.matchAll(/\bawait\s+(?!this\.task\b)|\bthis\.task(?:\.\w+)*\s*\(/g)
+		...[...source.matchAll(/\bawait\s+/g)].map((match) => ({ match, client: false })),
+		...[
+			...source.matchAll(/\([^)]*TaskContext\s*=\s*TaskContext\.client\(\)[^)]*\)\s*=>[^;]*;/g)
+		].map((match) => ({ match, client: true }))
 	];
-	const tasks = taskMatches.map((match, index) => ({
+	const tasks = taskMatches.map(({ match, client }, index) => ({
 		id: `${name}:task:${index}`,
 		component: name,
-		facets: match[0].includes('this.task') ? ['client'] : [],
+		facets: client ? ['client'] : [],
 		priority: 'normal' as const,
-		readiness: match[0].startsWith('await') ? ('blocking' as const) : ('nonblocking' as const),
-		placement: match[0].includes('this.task') ? ('client' as const) : ('server' as const),
+		readiness: client ? ('nonblocking' as const) : ('blocking' as const),
+		placement: client ? ('client' as const) : ('server' as const),
 		async: true,
-		browserEffects: match[0].includes('this.task'),
-		serverEffects: !match[0].includes('this.task'),
-		environmentEffect: match[0].includes('this.task') ? ('browser' as const) : ('server' as const),
+		browserEffects: client,
+		serverEffects: !client,
+		environmentEffect: client ? ('browser' as const) : ('server' as const),
 		reactiveDependencies: [],
-		dependencies: match[0].startsWith('await') ? [{ index: 0, source: 'props' as const }] : [],
+		dependencies: client ? [] : [{ index: 0, source: 'props' as const }],
 		capturedParameters: [],
 		capturedInputs: [],
 		reads: [],
-		writes: match[0].startsWith('await')
+		writes: !client
 			? [{ path: 'state.product', kind: 'write' as const, confidence: 'exact' as const }]
 			: [],
 		contexts: [],
 		effectSources: [
 			{
-				environment: match[0].includes('this.task') ? ('browser' as const) : ('server' as const),
-				description: match[0].includes('this.task')
-					? 'document is a browser API'
-					: 'loadProduct is server-resident',
+				environment: client ? ('browser' as const) : ('server' as const),
+				description: client ? 'document is a browser API' : 'loadProduct is server-resident',
 				path: []
 			}
 		],
@@ -123,7 +119,10 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 		signalCalls: [],
 		diagnostics: [],
 		start: match.index,
-		length: match[0].length
+		length: match[0].length,
+		...(client
+			? { functionDefined: true, workStart: match.index, workLength: match[0].length }
+			: {})
 	}));
 	return {
 		id: filename,

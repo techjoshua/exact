@@ -1,10 +1,10 @@
 import { transform as transpile } from 'esbuild';
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { compileFileArtifacts, discoverExactPackageManifests } from './index.js';
+import { compileFileArtifacts } from './index.js';
 
 const execFileAsync = promisify(execFile);
 // Subprocess packing and installation are substantially slower while V8
@@ -35,8 +35,7 @@ describe('installed eXact component package artifacts', () => {
 				outDir: generatedRoot,
 				rootDir: sourceRoot,
 				packageType: 'library',
-				packageName: '@fixture/exact-components',
-				discoverPackageManifests: false
+				packageName: '@fixture/exact-components'
 			});
 			const clientJs = path.join(packageRoot, 'widget.client.js');
 			const serverJs = path.join(packageRoot, 'widget.server.js');
@@ -72,11 +71,6 @@ describe('installed eXact component package artifacts', () => {
 				path.join(packageRoot, 'index.d.ts'),
 				`export declare function Widget(this: unknown): () => null;\n`
 			);
-			const manifestName = 'widget.exact.manifest.json';
-			await writeFile(
-				path.join(packageRoot, manifestName),
-				`${JSON.stringify(compiled.manifest, null, 2)}\n`
-			);
 			await writeFile(
 				path.join(packageRoot, 'package.json'),
 				`${JSON.stringify(
@@ -90,12 +84,8 @@ describe('installed eXact component package artifacts', () => {
 							'index.server.js',
 							'index.d.ts',
 							'widget.client.js',
-							'widget.server.js',
-							manifestName
+							'widget.server.js'
 						],
-						exact: {
-							manifests: [`./${manifestName}`]
-						},
 						exports: {
 							'.': {
 								types: './index.d.ts',
@@ -134,7 +124,16 @@ describe('installed eXact component package artifacts', () => {
 					env: npmEnvironment
 				}
 			);
-			const tarballName = (JSON.parse(packed.stdout) as Array<{ filename: string }>)[0]!.filename;
+			const packResult = (
+				JSON.parse(packed.stdout) as Array<{
+					filename: string;
+					files: Array<{ path: string }>;
+				}>
+			)[0]!;
+			expect(packResult.files.map((file) => file.path)).not.toContainEqual(
+				expect.stringMatching(/\.exact(?:\.manifest)?\.json$/)
+			);
+			const tarballName = packResult.filename;
 			const tarball = path.join(root, tarballName);
 			const consumer = path.join(root, 'consumer');
 			await mkdir(consumer);
@@ -204,10 +203,6 @@ describe('installed eXact component package artifacts', () => {
 				)}\n`
 			);
 
-			const discovered = await discoverExactPackageManifests(consumer);
-			expect(discovered).toHaveLength(1);
-			expect(discovered[0]!.packageName).toBe('@fixture/exact-components');
-			expect(discovered[0]!.manifest.packageName).toBe('@fixture/exact-components');
 			const consumerSource = path.join(consumer, 'app.tsx');
 			await writeFile(
 				consumerSource,
@@ -225,7 +220,7 @@ describe('installed eXact component package artifacts', () => {
 				packageName: 'exact-package-consumer',
 				serverComponents: true
 			});
-			expect(await readFile(consumerArtifacts.serverFile, 'utf8')).toContain('__exactBoundary');
+			expect(await readFile(consumerArtifacts.serverFile, 'utf8')).toContain('Widget');
 
 			const client = await loadConsumer(consumer, 'exact-client');
 			const ssr = await loadConsumer(consumer, 'exact-server');
@@ -239,52 +234,6 @@ describe('installed eXact component package artifacts', () => {
 		},
 		packageArtifactTimeout
 	);
-
-	it('discovers linked component packages by package name', async () => {
-		const root = await mkdtemp(path.join(process.cwd(), '.exact-linked-package-'));
-		onTestFinished(() => rm(root, { recursive: true, force: true }));
-		const packageRoot = path.join(root, 'workspace', 'components');
-		const sourceRoot = path.join(packageRoot, 'src');
-		const generatedRoot = path.join(packageRoot, 'generated');
-		const source = path.join(sourceRoot, 'widget.tsx');
-		await mkdir(sourceRoot, { recursive: true });
-		await writeFile(source, `export function Widget() { return () => null; }`);
-		const compiled = await compileFileArtifacts(source, {
-			outDir: generatedRoot,
-			rootDir: sourceRoot,
-			packageType: 'library',
-			packageName: '@fixture/linked-components',
-			discoverPackageManifests: false
-		});
-		await writeFile(
-			path.join(packageRoot, 'package.json'),
-			`${JSON.stringify(
-				{
-					name: '@fixture/linked-components',
-					version: '2.0.0',
-					type: 'module',
-					exact: {
-						manifests: [
-							`./${path.relative(packageRoot, compiled.manifestFile).replaceAll('\\', '/')}`
-						]
-					}
-				},
-				null,
-				2
-			)}\n`
-		);
-
-		const consumer = path.join(root, 'consumer');
-		const scope = path.join(consumer, 'node_modules', '@fixture');
-		const linkedRoot = path.join(scope, 'linked-components');
-		await mkdir(scope, { recursive: true });
-		await symlink(packageRoot, linkedRoot, process.platform === 'win32' ? 'junction' : 'dir');
-
-		const discovered = await discoverExactPackageManifests(consumer);
-		expect(discovered).toHaveLength(1);
-		expect(discovered[0]!.packageName).toBe('@fixture/linked-components');
-		expect(discovered[0]!.manifest.packageName).toBe('@fixture/linked-components');
-	});
 });
 
 async function loadConsumer(
@@ -297,17 +246,13 @@ async function loadConsumer(
 			`--conditions=${condition}`,
 			'--input-type=module',
 			'--eval',
-			`
-      import { Widget } from "@fixture/exact-components";
-      console.log(JSON.stringify({
-        source: String(Widget),
-        symbols: Object.getOwnPropertySymbols(Widget).map(Symbol.keyFor)
-      }));
-    `
+			`import { Widget } from "@fixture/exact-components";
+			console.log(JSON.stringify({
+				source: String(Widget),
+				symbols: Object.getOwnPropertySymbols(Widget).map(Symbol.keyFor)
+			}));`
 		],
-		{
-			cwd: consumer
-		}
+		{ cwd: consumer }
 	);
 	return JSON.parse(loaded.stdout) as {
 		source: string;

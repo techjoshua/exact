@@ -10,6 +10,7 @@ import {
 	unwrap,
 	type Child,
 	type Component,
+	type AuthoredComponentFunction,
 	type ComponentFunction,
 	type ComponentInstance,
 	type InteractionHandler,
@@ -161,7 +162,7 @@ export type RouteProps = {
 	path?: string;
 	index?: boolean;
 	caseSensitive?: boolean;
-	component?: ComponentFunction<any, any>;
+	component?: AuthoredComponentFunction<any, any>;
 	componentProps?: Record<string, unknown>;
 	children?: Child | Child[];
 };
@@ -170,6 +171,10 @@ export type RouteProps = {
 export function Route(_props: RouteProps): null {
 	return null;
 }
+
+// The compiler preserves function identity while normalizing Route's direct result to a render
+// closure. VNodes therefore carry this same value under the canonical runtime component type.
+const RouteComponent = Route as unknown as ComponentFunction<Record<string, never>, RouteProps>;
 
 type RouteRecord = RouteProps & ExactRouteDefinition & { children: RouteRecord[] };
 
@@ -193,7 +198,7 @@ function routeChildren(children: Child | Child[] | undefined, parentId = 'root')
 			for (const child of vnode.children) collect(child);
 			return;
 		}
-		if (vnode.type !== Route) return;
+		if (vnode.type !== RouteComponent) return;
 		const rawProps = vnode.props as RouteProps;
 		const props: RouteProps = {
 			...rawProps,
@@ -203,7 +208,7 @@ function routeChildren(children: Child | Child[] | undefined, parentId = 'root')
 				? { caseSensitive: unwrap(rawProps.caseSensitive) as boolean }
 				: {}),
 			...(rawProps.component !== undefined
-				? { component: unwrap(rawProps.component) as ComponentFunction<any, any> }
+				? { component: unwrap(rawProps.component) as AuthoredComponentFunction<any, any> }
 				: {}),
 			...(rawProps.componentProps !== undefined
 				? {
@@ -231,13 +236,20 @@ function renderBranch(routes: RouteRecord[], context: RouteContextValue): Child 
 	for (let index = routes.length - 1; index >= 0; index--) {
 		const route = routes[index]!;
 		const child = outlet;
+		// Route definitions retain authored types; compiled router code receives the
+		// same function identities after canonical component normalization.
 		outlet = createVNode(
 			MatchedRoute,
 			{
 				context,
 				key: route.id,
 				render: () =>
-					route.component ? createVNode(route.component, route.componentProps ?? {}) : child
+					route.component
+						? createVNode(
+								route.component as ComponentFunction<any, any>,
+								route.componentProps ?? {}
+							)
+						: child
 			},
 			child
 		);
@@ -379,8 +391,16 @@ export function Navigate(
 	return null;
 }
 
-for (const component of [Router, Route, Outlet, Link, NavLink, Navigate])
-	markExactComponent(component);
+for (const [component, identity] of [
+	[Router, '@exactjs/router:Router'],
+	[Route, '@exactjs/router:Route'],
+	[Outlet, '@exactjs/router:Outlet'],
+	[Link, '@exactjs/router:Link'],
+	[NavLink, '@exactjs/router:NavLink'],
+	[Navigate, '@exactjs/router:Navigate'],
+	[MatchedRoute, '@exactjs/router:MatchedRoute']
+] as const)
+	markExactComponent(component, identity);
 
 function requestSource(request: RequestContextValue | undefined): LocationSource | undefined {
 	if (!request) return undefined;

@@ -702,7 +702,7 @@ POST /__exact
 
 This shares endpoint matching, platform-request adaptation, request cancellation, payload limits,
 logging, origin/CSRF enforcement, and microfrontend routing without treating debug IDs as executable
-manifest IDs. `ExactDebugRequest` never enters `dispatchExactOperation()` and cannot be included in
+allowlist IDs. `ExactDebugRequest` never enters `dispatchExactOperation()` and cannot be included in
 an invocation batch. A future protocol batch may define read-only debug query batching explicitly,
 but ordinary `ExactBatchRequest.operations` remains invocation-only.
 

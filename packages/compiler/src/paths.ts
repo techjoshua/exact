@@ -1,6 +1,6 @@
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import type { ExactArtifactPlanEntry, ExactCompilerManifest } from './types.js';
+import type { ExactArtifactPlanEntry } from './types.js';
 
 /** Recursively collects transformable source files from files or directories. */
 export async function collectInputFiles(inputs: readonly string[]): Promise<string[]> {
@@ -27,12 +27,7 @@ export function outputPathFor(inputFile: string, outDir: string, rootDir?: strin
 		);
 }
 
-/** Returns the compiler manifest path associated with an emitted output file. */
-export function manifestPathFor(outputFile: string): string {
-	return outputFile.replace(/\.[^.\\/]+$/i, '.exact.json');
-}
-
-/** Returns paired client/server artifact paths plus the artifact manifest path. */
+/** Returns paired client/server artifact paths. */
 export function artifactPathsFor(
 	inputFile: string,
 	outDir: string,
@@ -41,7 +36,6 @@ export function artifactPathsFor(
 	clientFile: string;
 	serverFile: string;
 	sharedFile: string;
-	manifestFile: string;
 } {
 	const root = rootDir ?? path.dirname(inputFile);
 	const relative = path.relative(root, inputFile);
@@ -51,42 +45,7 @@ export function artifactPathsFor(
 	return {
 		clientFile: `${base}.exact.client${extension}`,
 		serverFile: `${base}.exact.server${extension}`,
-		sharedFile: `${base}.exact.shared${extension}`,
-		manifestFile: `${base}.exact.manifest.json`
-	};
-}
-
-/** Adds relative artifact metadata to a compiler manifest. */
-export function withArtifactMetadata(
-	manifest: ExactCompilerManifest,
-	inputFile: string,
-	paths: { clientFile: string; serverFile: string; sharedFile?: string; manifestFile: string }
-): ExactCompilerManifest {
-	const root = path.dirname(paths.manifestFile);
-	return {
-		...manifest,
-		artifacts: {
-			source: slashPath(path.relative(root, inputFile)),
-			client: slashPath(path.relative(root, paths.clientFile)),
-			server: slashPath(path.relative(root, paths.serverFile)),
-			...(paths.sharedFile ? { shared: slashPath(path.relative(root, paths.sharedFile)) } : {}),
-			manifest: slashPath(path.relative(root, paths.manifestFile)),
-			targets: {
-				client: 'client',
-				server: 'server',
-				...(paths.sharedFile ? { shared: 'shared' as const } : {})
-			},
-			exports: manifest.exports.map((exported) => ({
-				...exported,
-				artifactClass: paths.sharedFile
-					? ('shared' as const)
-					: exported.placement === 'client' || exported.placement === 'server'
-						? exported.placement
-						: ('dual' as const)
-			})),
-			symbols: manifest.symbols,
-			boundaries: manifest.boundaries
-		}
+		sharedFile: `${base}.exact.shared${extension}`
 	};
 }
 
@@ -108,7 +67,7 @@ export function clientRegistryModulePath(file: string, rootDir: string): string 
 	return `./${relative}`;
 }
 
-/** Converts platform-specific separators to slash separators for manifests/imports. */
+/** Converts platform-specific separators to slash separators for generated imports. */
 export function slashPath(value: string): string {
 	return value.split(path.sep).join('/');
 }

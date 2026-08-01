@@ -2,7 +2,7 @@
 
 Automatic JSX runtime and TypeScript JSX declarations for eXact.
 
-Configure TypeScript with:
+## Configuration
 
 ```json
 {
@@ -13,14 +13,14 @@ Configure TypeScript with:
 }
 ```
 
-The package exports `jsx`, `jsxs`, `jsxDEV`, `Fragment`, and the keyed-fragment `_` marker.
-Application TSX should still pass through the eXact compiler; the runtime entrypoints provide the
-standard automatic-JSX contract and support tooling and uncompiled structural cases.
+Applications normally receive this configuration from an eXact build integration. TSX must still
+pass through the eXact compiler; this package supplies the automatic JSX entry points and
+application-facing intrinsic element types.
 
-Intrinsic event props use the core `InteractionHandler` contract. This lets the compiler recognize
-DOM callbacks as component-owned interactions without changing ordinary function syntax. Static
-members and finite indexed values from `createComponentRegistry()` remain normal JSX component
-expressions with their exact key and props types.
+JSX accepts regular, direct-view, and async authored component functions. The compiler normalizes
+durable components to the synchronous setup-plus-view runtime contract and lowers setup-local
+micro-component tags to lexical view calls.
 
-See [Task interactions and forms](../../docs/actions-and-forms.md) and
-[finite component registries](../../docs/component-registries.md).
+The runtime exports `jsx`, `jsxs`, `jsxDEV`, `Fragment`, and the keyed-fragment marker. DOM
+event props preserve eXact interaction typing, and finite registry members remain ordinary JSX
+component values.

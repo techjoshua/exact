@@ -32,13 +32,10 @@ export function planExactTaskRefactor(
 	) {
 		const placement = entity.classification.placement;
 		const contextToken = source.indexOf('TaskContext', entity.range.start);
-		const taskToken = source.indexOf('this.task', entity.range.start);
 		const token =
 			contextToken >= entity.range.start && contextToken < entity.range.end
 				? { start: contextToken + 'TaskContext'.length, text: `.${placement}()` }
-				: taskToken >= entity.range.start && taskToken < entity.range.end
-					? { start: taskToken + 'this.task'.length, text: `.${placement}` }
-					: undefined;
+				: undefined;
 		if (!token) return undefined;
 		return Object.freeze({
 			title: `Make ${placement} placement explicit`,
@@ -340,7 +337,7 @@ function asyncModifierRange(
 }
 
 function countInferredAwaits(source: string): number {
-	return [...source.matchAll(/\bawait\s+(?!this\.task\b)/g)].length;
+	return [...source.matchAll(/\bawait\s+/g)].length;
 }
 
 function taskSummary(classification: ExactTaskClassification): string {

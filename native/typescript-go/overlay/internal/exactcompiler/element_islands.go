@@ -489,6 +489,13 @@ func (lowering *jsxLowering) recordClientIslandDefinitions(
 		lowering.clientDefinitions = append(
 			lowering.clientDefinitions,
 			lowering.clientIslandDefinition(island),
+			lowering.factory.NewExpressionStatement(
+				componentBrandAttachment(
+					lowering.factory,
+					lowering.factory.NewIdentifier(island.name),
+					island.id,
+				),
+			),
 		)
 	}
 }

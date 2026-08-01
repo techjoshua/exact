@@ -1,10 +1,5 @@
 import type { Reactive } from '@exactjs/reactive';
-import { componentContinuationTaskId } from '../task/continuation.js';
-import type {
-	ComponentInstance,
-	ComponentResumptionActivation,
-	TaskRegistration
-} from './contracts.js';
+import type { ComponentResumptionActivation } from './contracts.js';
 
 /** Applies compiler-selected SSR state paths without replacing client-local setup state. */
 export function applyComponentResumption(
@@ -12,27 +7,6 @@ export function applyComponentResumption(
 	resumption: ComponentResumptionActivation
 ): void {
 	for (const [path, value] of Object.entries(resumption.values)) writePath(state, path, value);
-}
-
-/** Starts deferred tasks, arming successfully settled SSR continuations for future changes. */
-export function startResumedComponentTasks(
-	instance: ComponentInstance<any>,
-	resumption: ComponentResumptionActivation
-): void {
-	const settled = new Set(resumption.settledContinuations);
-	for (const task of instance.tasks) {
-		const continuationId = componentContinuationTaskId(task.work);
-		if (continuationId && settled.has(continuationId)) task.resume();
-		else task.run();
-	}
-}
-
-/** Starts a task immediately unless component construction is restoring an SSR activation. */
-export function startRegisteredTask(
-	task: TaskRegistration,
-	resumption: ComponentResumptionActivation | undefined
-): void {
-	if (!resumption) task.run();
 }
 
 /** Materializes one validated dotted state path into the live reactive state object. */

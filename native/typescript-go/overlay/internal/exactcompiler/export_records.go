@@ -15,7 +15,7 @@ func collectExportRecords(
 	typeChecker *checker.Checker,
 	components []Component,
 	callables []CallableSummary,
-	policy PolicyManifest,
+	policy PolicyAnalysis,
 ) []ExportRecord {
 	if sourceFile.Symbol == nil {
 		return []ExportRecord{}

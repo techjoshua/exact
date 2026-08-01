@@ -15,7 +15,7 @@ describe('@exactjs/server adapters', () => {
 		const response = await handler(
 			new Request('https://app.test/__exact', {
 				method: 'POST',
-				body: JSON.stringify({ type: 'action', id: 'allowed-action', payload: { title: 'Fetch' } }),
+				body: JSON.stringify({ type: 'invoke', id: 'allowed-action', payload: { title: 'Fetch' } }),
 				headers: { 'content-type': 'application/json' }
 			})
 		);
@@ -50,7 +50,7 @@ describe('@exactjs/server adapters', () => {
 					{
 						method: 'POST',
 						url: '/__exact',
-						body: { type: 'action', id: 'allowed-action', payload: { title: 'Express' } },
+						body: { type: 'invoke', id: 'allowed-action', payload: { title: 'Express' } },
 						headers: {}
 					},
 					expressResponse
@@ -77,7 +77,7 @@ describe('@exactjs/server adapters', () => {
 		const finished = new Promise<void>((resolve) => {
 			createExpressHandler(
 				context({
-					actions: {
+					invocations: {
 						'allowed-action': (_input, requestContext) =>
 							new Promise((actionResolve) => {
 								started();
@@ -97,7 +97,7 @@ describe('@exactjs/server adapters', () => {
 					method: 'POST',
 					url: '/__exact',
 					headers: { accept: 'application/x-ndjson' },
-					body: { type: 'action', id: 'allowed-action' },
+					body: { type: 'invoke', id: 'allowed-action' },
 					signal: upstream.signal,
 					once(event, listener) {
 						if (event === 'aborted') disconnect = listener;
@@ -157,7 +157,7 @@ describe('@exactjs/server adapters', () => {
 				method: 'POST',
 				url: { path: '/__exact' },
 				headers: {},
-				payload: { type: 'action', id: 'allowed-action', payload: { title: 'Hapi' } }
+				payload: { type: 'invoke', id: 'allowed-action', payload: { title: 'Hapi' } }
 			},
 			toolkit
 		);

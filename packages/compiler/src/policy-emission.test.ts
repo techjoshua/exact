@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, parseExactCompilerManifest, transform } from './index.js';
+import { analyzeSource, transform } from './index.js';
 
 const fixture = (name: string) => path.join(process.cwd(), `${name}.policy-fixture.tsx`);
 
@@ -35,7 +35,7 @@ describe('policy emission and sinks', () => {
 	});
 
 	it('allows an unconsumed secret only through an explicit Secret<T> parameter', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { secret, type Secret } from "@exactjs/secrets";
       const apiKey = secret("API_KEY", "configured");
@@ -52,7 +52,7 @@ describe('policy emission and sinks', () => {
 			}
 		);
 
-		expect(manifest.policy.flows).toEqual(
+		expect(analysis.policy.flows).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ boundary: 'call', authorized: true }),
 				expect.objectContaining({
@@ -62,11 +62,11 @@ describe('policy emission and sinks', () => {
 				})
 			])
 		);
-		expect(manifest.policy.secretConsumers).toEqual([]);
+		expect(analysis.policy.secretConsumers).toEqual([]);
 	});
 
 	it('rejects unconsumed secrets in VNode children, attributes, and spreads', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import type { Component } from "@exactjs/core";
       /** @exact keep=secret */ const credential = "configured";
@@ -82,20 +82,20 @@ describe('policy emission and sinks', () => {
 			}
 		);
 
-		expect(manifest.diagnostics).toEqual(
+		expect(analysis.diagnostics).toEqual(
 			expect.arrayContaining([
 				expect.stringContaining('secret-qualified value cannot influence VNode output'),
 				expect.stringContaining('secret-qualified value cannot influence a VNode attribute'),
 				expect.stringContaining('secret-qualified value cannot influence a VNode spread attribute')
 			])
 		);
-		expect(manifest.policy.flows).toEqual(
+		expect(analysis.policy.flows).toEqual(
 			expect.arrayContaining([expect.objectContaining({ boundary: 'vnode', authorized: false })])
 		);
 	});
 
 	it('allows consume() to end tracking before deliberate server VNode output', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import { consume } from "@exactjs/secrets";
       import type { Component } from "@exactjs/core";
@@ -111,8 +111,8 @@ describe('policy emission and sinks', () => {
 			}
 		);
 
-		expect(manifest.diagnostics.some((diagnostic) => diagnostic.includes('VNode'))).toBe(false);
-		expect(manifest.policy.secretConsumers).toEqual([
+		expect(analysis.diagnostics.some((diagnostic) => diagnostic.includes('VNode'))).toBe(false);
+		expect(analysis.policy.secretConsumers).toEqual([
 			expect.objectContaining({
 				authorization: 'implicit-application-owner',
 				consumer: expect.objectContaining({ symbol: 'consume' })
@@ -121,7 +121,7 @@ describe('policy emission and sinks', () => {
 	});
 
 	it('rejects direct and implicit secret influence on errors and console output', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       /** @exact keep=secret */ const credential = "configured";
       export function validate(candidate: string) {
@@ -139,7 +139,7 @@ describe('policy emission and sinks', () => {
 			}
 		);
 
-		expect(manifest.diagnostics).toEqual(
+		expect(analysis.diagnostics).toEqual(
 			expect.arrayContaining([
 				expect.stringContaining(
 					'secret-qualified value cannot influence secret-controlled console output'
@@ -150,7 +150,7 @@ describe('policy emission and sinks', () => {
 				expect.stringContaining('secret-qualified value cannot influence a thrown error')
 			])
 		);
-		expect(manifest.policy.flows).toEqual(
+		expect(analysis.policy.flows).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ boundary: 'log', authorized: false }),
 				expect.objectContaining({ boundary: 'error', authorized: false })
@@ -159,7 +159,7 @@ describe('policy emission and sinks', () => {
 	});
 
 	it('propagates secret control dependencies through branch writes into VNode sinks', () => {
-		const manifest = analyzeSource(
+		const analysis = analyzeSource(
 			`
       import type { Component } from "@exactjs/core";
       /** @exact keep=secret */ const credential = "configured";
@@ -178,7 +178,7 @@ describe('policy emission and sinks', () => {
 			}
 		);
 
-		expect(manifest.policy.subjects).toEqual(
+		expect(analysis.policy.subjects).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					name: 'label',
@@ -187,7 +187,7 @@ describe('policy emission and sinks', () => {
 				})
 			])
 		);
-		expect(manifest.diagnostics).toEqual(
+		expect(analysis.diagnostics).toEqual(
 			expect.arrayContaining([
 				expect.stringContaining('secret-qualified value cannot influence VNode output')
 			])
@@ -204,54 +204,14 @@ describe('policy emission and sinks', () => {
 			target: 'client',
 			serverComponents: true
 		});
-		const manifest = analyzeSource(source, { filename: fixture('export-placement-manifest') });
+		const analysis = analyzeSource(source, { filename: fixture('export-placement-analysis') });
 
 		expect(client).not.toContain('internalConfiguration');
 		expect(client).toContain('publicConfiguration');
-		expect(manifest.exports).toContainEqual({
+		expect(analysis.exports).toContainEqual({
 			name: 'internalConfiguration',
 			kind: 'value',
 			placement: 'server'
 		});
-	});
-
-	it('validates the policy envelope when loading manifests', () => {
-		const manifest = analyzeSource(`export const value = 1;`, { filename: fixture('validation') });
-		expect(parseExactCompilerManifest(JSON.parse(JSON.stringify(manifest)))).toEqual(manifest);
-		expect(() =>
-			parseExactCompilerManifest({
-				...manifest,
-				policy: {
-					...manifest.policy,
-					subjects: [
-						{
-							id: 'broken',
-							kind: 'state',
-							name: 'broken',
-							policy: { residency: 'client', secret: true },
-							source: 'annotation'
-						}
-					]
-				}
-			})
-		).toThrow('Malformed eXact compiler manifest');
-		expect(() =>
-			parseExactCompilerManifest({
-				...manifest,
-				policy: {
-					...manifest.policy,
-					flows: [
-						{
-							id: 'dangling',
-							kind: 'propagation',
-							from: ['missing'],
-							to: 'missing',
-							policy: { residency: 'shared', secret: false },
-							authorized: true
-						}
-					]
-				}
-			})
-		).toThrow('policy graph');
 	});
 });

@@ -1,34 +1,8 @@
-# Using the VS Code eXact extension
+# Using the eXact VS Code extension
 
-Keep this package a presentation and process-startup boundary. Request
-structured compiler facts from `@exactjs/language-server`; never add an
-extension-local eXact parser or classifier.
+See the [README](./README.md) for installation and development-host instructions. Use this
+extension for compiler-backed eXact diagnostics, navigation, hovers, and semantic presentation.
 
-Respect `vscode.workspace.isTrusted` when starting semantic analysis. Apply
-only generation/version-bound workspace edits returned by the language server.
-Keep ordinary TypeScript diagnostics owned by VS Code and rely on the language
-server's immutable document snapshot fence for eXact diagnostic publication.
-Keep region decorations optional and restrained, and use the structured custom
-requests for the semantics tree rather than parsing hover Markdown.
-Keep referenced-component hover presentation scoped to the compiler-provided JSX
-tag range and render-edge classification. Do not derive child placement from
-imports or TypeScript hover text in the extension.
-Do not compensate for broad or incompatible server semantic tokens in the
-extension. The language server must preserve TypeScript base token types and
-omit framework tokens where no compatible identifier projection exists.
-Preserve TypeScript token presentation: assignment metadata belongs before the
-first authored token and call metadata after the opening parenthesis. Keep
-region decorations on entity selection ranges, never whole function bodies.
-Preserve independently hoverable badge label parts supplied by the language
-server and keep detailed meaning in the combined hover content.
-Present compiler-provided derived assignment and use badges unchanged, and
-keep function-defined task hovers on the compiler-provided identifier range.
-Describe a task with a compiler-recognized final `TaskContext` parameter as a
-task with authored policy; do not present it as a separate explicit-task model.
-
-Use `npm run dev:vscode-extension` from the repository root for development.
-Keep the launcher responsible for building both process owners and opening the
-Extension Development Host; keep dependency-layout resolution inside the
-extension. Prefer the freshly built sibling workspace language server in
-development and the installed dependency in packaged extensions; never require
-hand-authored links or synchronization of copied dependency output.
+- Trust the workspace before starting project analysis.
+- Keep TypeScript's own diagnostics and syntax presentation intact.
+- Use the language server's structured results rather than source-text heuristics.

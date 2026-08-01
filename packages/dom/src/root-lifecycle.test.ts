@@ -3,14 +3,12 @@
  */
 import {
 	activateTaskForHost,
-	createCompiledVNode,
 	createRef,
-	createVNode,
 	defineTask,
 	type Component,
 	type TaskContext
 } from '@exactjs/core';
-import { jsx } from '@exactjs/jsx';
+import { createCompiledVNode, createVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';

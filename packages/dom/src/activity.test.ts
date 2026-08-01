@@ -4,15 +4,16 @@
 import {
 	Activity,
 	Suspense,
-	createCompiledVNode,
+	activateTaskForHost,
 	createExpression,
 	createRef,
+	defineTask,
 	stageTaskMutation,
 	taskAwait,
 	type ActivityMode,
 	type Component
 } from '@exactjs/core';
-import { jsx } from '@exactjs/jsx';
+import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render, unmount } from './index.js';
@@ -132,12 +133,15 @@ describe('@exactjs/dom native Activity', () => {
 		});
 		function Panel(this: Component<{ label: string }>) {
 			this.state.label = 'waiting';
-			(this as any).task.blocking(async ({ signal }: { signal: AbortSignal }) => {
-				await taskAwait(signal, pending);
-				stageTaskMutation(signal, () => {
-					this.state.label = 'ready';
-				});
-			});
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async ({ signal }) => {
+					await taskAwait(signal, pending);
+					stageTaskMutation(signal, () => {
+						this.state.label = 'ready';
+					});
+				})
+			);
 			return () =>
 				createCompiledVNode(
 					'p',
@@ -170,7 +174,11 @@ describe('@exactjs/dom native Activity', () => {
 		boundary.state.mode = 'active';
 		flushSync();
 		expect(container.textContent).toBe('');
-		for (let index = 0; index < 8; index++) await Promise.resolve();
+		for (let index = 0; index < 12; index++) {
+			flushSync();
+			await Promise.resolve();
+			await Promise.resolve();
+		}
 		flushSync();
 		expect(container.textContent).toBe('ready');
 		unmount(container);

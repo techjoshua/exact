@@ -1,9 +1,14 @@
 # @exactjs/redux
 
-eXact adapter for Redux stores.
+eXact integration for Redux stores and React Redux compatibility.
 
-The package connects store selection and dispatch to component lifecycle and fine-grained
-reactivity, and declares supported React Redux substitutions for compatibility builds.
+## When to use it
 
-Selectors should be stable and side-effect free. The adapter unsubscribes component-owned
-observers on unmount; the Redux store itself remains owned by the application.
+Use the native provider and selector sources when eXact components need an existing Redux store.
+Selectors participate in fine-grained updates, dispatch remains ordinary Redux dispatch, and
+component subscriptions are released on unmount.
+
+The Redux store remains application-owned. The package also declares substitutions for supported
+React Redux exports.
+
+See [React ecosystem adapters](../../docs/react-ecosystem-adapters.md).

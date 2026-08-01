@@ -80,10 +80,10 @@ Use TypeScript 7 for a new application's editor and command-line type-checking. 
 compilation runs in the npm-selected native `exactc-native` host and does not use the
 application's TypeScript package as a compiler API.
 
-Do not add `@exactjs/expressions`, `@typescript/native`, or a compiler backend option to generated
-applications. Some optional build-time compatibility features may bring their own TypeScript 6
-API for a bounded transform, but that package is not the eXact compiler and should not replace the
-application's TypeScript 7 dependency.
+Do not add compiler implementation packages or a backend option to generated applications. Some
+optional build-time compatibility features may bring their own TypeScript 6 API for a bounded
+transform, but that package is not the eXact compiler and should not replace the application's
+TypeScript 7 dependency.
 
 ## Compiler-aware editor support
 

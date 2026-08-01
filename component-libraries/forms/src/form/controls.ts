@@ -69,8 +69,15 @@ export function Submit(this: Component<{}>, props: SubmitProps) {
 		);
 }
 
-for (const component of [Label, Input, Textarea, Select, Checkbox, Submit])
-	markExactComponent(component);
+for (const [component, identity] of [
+	[Label, '@exactjs/forms:Label'],
+	[Input, '@exactjs/forms:Input'],
+	[Textarea, '@exactjs/forms:Textarea'],
+	[Select, '@exactjs/forms:Select'],
+	[Checkbox, '@exactjs/forms:Checkbox'],
+	[Submit, '@exactjs/forms:Submit']
+] as const)
+	markExactComponent(component, identity);
 
 function controlComponent(
 	this: Component<{}>,

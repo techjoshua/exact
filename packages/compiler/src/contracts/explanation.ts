@@ -15,7 +15,7 @@ export type ExactResumptionFieldExplanation = Readonly<{
 /** Explains one compiler-generated transition between component runtimes. */
 export type ExactContinuationExplanation = Readonly<{
 	id: string;
-	kind: 'task' | 'action';
+	kind: 'task';
 	label?: string;
 	placement: Extract<ExactPlacement, 'server' | 'isomorphic'>;
 	clientToServer: Readonly<{

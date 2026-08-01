@@ -14,7 +14,7 @@ import type {
 	InvokeExactOptions
 } from './types.js';
 
-/** Invokes a single eXact server action or boundary refresh endpoint operation. */
+/** Invokes a single eXact server task or boundary refresh endpoint operation. */
 export async function invokeExact(options: InvokeExactOptions): Promise<ExactInvocationResult> {
 	const fetchImpl = options.fetch ?? globalThis.fetch;
 	if (!fetchImpl) throw new Error('eXact endpoint invocation requires fetch');

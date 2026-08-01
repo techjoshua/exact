@@ -2,6 +2,8 @@
 
 Express middleware for eXact server endpoints.
 
+## Usage
+
 ```ts
 import express from 'express';
 import { createExactExpressMiddleware } from '@exactjs/express-adapter';
@@ -11,4 +13,5 @@ app.use(express.json());
 app.post('/__exact', createExactExpressMiddleware(exactRuntime));
 ```
 
-Mount the middleware at the same endpoint configured in your eXact server manifest. The adapter accepts `request.body` when body parsing has already run, or `request.text()` when provided by a compatible wrapper.
+Mount the middleware at the endpoint configured by the eXact runtime. Parse JSON before the
+middleware runs; protocol validation and dispatch remain centralized in `@exactjs/server`.

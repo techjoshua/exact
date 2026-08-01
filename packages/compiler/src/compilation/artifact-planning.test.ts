@@ -2,184 +2,16 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-	analyzeSource,
 	compileArtifactPlanEntries,
 	compileProjectArtifacts,
 	createExactArtifactDevState,
 	createExactArtifactPlan,
 	diffExactArtifactPlans,
-	exactCompilerManifestVersion,
-	parseExactCompilerManifest,
-	readExactArtifactManifestEntries,
 	updateExactArtifactDevState
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler: artifact planning', () => {
-	it('rejects unsupported generated artifact manifest versions', async () => {
-		const root = await createTestWorkspace('exact-artifact-manifest-version-');
-		const manifestFile = path.join(root, 'panel.exact.manifest.json');
-		await writeFile(
-			manifestFile,
-			JSON.stringify({
-				version: exactCompilerManifestVersion + 1,
-				artifacts: {
-					source: 'panel.tsx',
-					client: 'panel.exact.client.ts',
-					server: 'panel.exact.server.ts',
-					manifest: 'panel.exact.manifest.json',
-					exports: [],
-					symbols: [],
-					boundaries: []
-				}
-			})
-		);
-
-		await expect(readExactArtifactManifestEntries([manifestFile])).rejects.toThrow(
-			'Unsupported eXact artifact manifest version'
-		);
-	});
-
-	it('rejects malformed compiler manifests before use', () => {
-		expect(() =>
-			parseExactCompilerManifest(
-				{
-					version: exactCompilerManifestVersion,
-					filename: 'Panel.tsx',
-					components: []
-				},
-				'Panel.exact.manifest.json'
-			)
-		).toThrow('Malformed eXact compiler manifest');
-	});
-
-	it('rejects unsupported versions and malformed v1 callable graphs', () => {
-		const manifest = analyzeSource(`export function value() { return 1; }`, {
-			filename: 'value.ts'
-		});
-		expect(() =>
-			parseExactCompilerManifest({ ...manifest, version: -1 } as never, 'unsupported.json')
-		).toThrow('Unsupported eXact compiler manifest version in unsupported.json: -1');
-		expect(() =>
-			parseExactCompilerManifest(
-				{ ...manifest, dependencies: ['C:\\private\\value.ts'] },
-				'absolute.json'
-			)
-		).toThrow('Malformed eXact compiler dependencies');
-		expect(() =>
-			parseExactCompilerManifest(
-				{
-					...manifest,
-					callables: manifest.callables.map((callable, index) =>
-						index
-							? callable
-							: {
-									...callable,
-									calls: [{ id: 'dangling', name: 'missing', targetId: 'missing', resolved: true }]
-								}
-					)
-				},
-				'dangling.json'
-			)
-		).toThrow('Malformed eXact compiler callable graph');
-		expect(() =>
-			parseExactCompilerManifest(
-				{
-					...manifest,
-					callables: manifest.callables.map((callable, index) =>
-						index
-							? callable
-							: {
-									...callable,
-									stateWrites: [
-										{
-											path: 'x',
-											kind: 'write',
-											confidence: 'exact',
-											receiver: { kind: 'parameter' }
-										}
-									]
-								}
-					)
-				} as never,
-				'nested.json'
-			)
-		).toThrow('Malformed eXact compiler callable summaries');
-	});
-
-	it('projects binder identities onto the declared portable manifest filename', () => {
-		const manifest = analyzeSource('export function View() { return () => <p />; }', {
-			filename: 'src/View.tsx'
-		});
-		const serialized = JSON.stringify(manifest.semanticGraph);
-		expect(serialized).toContain('src/view.tsx:');
-		expect(serialized).not.toMatch(/[a-z]:\/(?:users|home)\//i);
-	});
-
-	it('validates semantic graph metadata in parsed compiler manifests', () => {
-		const manifest = analyzeSource(
-			`
-      export function Panel() {
-        return () => <p>Ready</p>;
-      }
-    `,
-			{ filename: 'Panel.tsx' }
-		);
-
-		expect(
-			parseExactCompilerManifest(manifest, 'Panel.exact.manifest.json').semanticGraph?.exports
-		).toHaveLength(1);
-		expect(() =>
-			parseExactCompilerManifest(
-				{
-					...manifest,
-					semanticGraph: {
-						...manifest.semanticGraph,
-						references: [{ name: 'Panel' }]
-					}
-				},
-				'Panel.exact.manifest.json'
-			)
-		).toThrow('Malformed eXact compiler semantic graph');
-	});
-
-	it('rejects malformed generated artifact metadata', async () => {
-		const root = await createTestWorkspace('exact-artifact-manifest-malformed-');
-		const manifestFile = path.join(root, 'panel.exact.manifest.json');
-		await writeFile(
-			manifestFile,
-			JSON.stringify({
-				version: exactCompilerManifestVersion,
-				filename: 'panel.tsx',
-				dependencies: [],
-				assets: [],
-				components: [],
-				exports: [],
-				symbols: [],
-				boundaries: [],
-				callables: [],
-				continuations: [],
-				resumptions: [],
-				policy: { version: 1, subjects: [], flows: [], secretConsumers: [] },
-				artifacts: {
-					source: 1,
-					client: 'panel.exact.client.ts',
-					server: 'panel.exact.server.ts',
-					manifest: 'panel.exact.manifest.json',
-					exports: [],
-					symbols: [],
-					boundaries: []
-				},
-				serverActions: {},
-				diagnostics: []
-			})
-		);
-
-		await expect(readExactArtifactManifestEntries([manifestFile])).rejects.toThrow(
-			'malformed artifact metadata'
-		);
-	});
-
 	it('plans generated artifact paths without compiling', async () => {
 		const root = await createTestWorkspace('exact-artifact-plan-');
 		const src = path.join(root, 'src');
@@ -203,8 +35,7 @@ describe('@exactjs/compiler: artifact planning', () => {
 					inputFile: path.join(src, 'components', 'panel.tsx'),
 					clientFile: path.join(outDir, 'components', 'panel.exact.client.ts'),
 					serverFile: path.join(outDir, 'components', 'panel.exact.server.ts'),
-					sharedFile: path.join(outDir, 'components', 'panel.exact.shared.ts'),
-					manifestFile: path.join(outDir, 'components', 'panel.exact.manifest.json')
+					sharedFile: path.join(outDir, 'components', 'panel.exact.shared.ts')
 				}
 			]
 		});
@@ -269,57 +100,6 @@ describe('@exactjs/compiler: artifact planning', () => {
 		await expect(readFile(path.join(outDir, 'retained.exact.client.ts'), 'utf8')).rejects.toThrow();
 	});
 
-	it('uses retained manifests when compiling selected artifact plan entries', async () => {
-		const root = await createTestWorkspace('exact-artifact-retained-manifests-');
-		const src = path.join(root, 'src');
-		const outDir = path.join(root, '.exact');
-		const widgetInput = path.join(src, 'ClientWidget.tsx');
-		const pageInput = path.join(src, 'Page.tsx');
-		await mkdir(src, { recursive: true });
-		await writeFile(
-			widgetInput,
-			`
-      export function ClientWidget(this: Component<{ width: number }>) {
-        this.state.width = window.innerWidth;
-        return () => <button onClick={() => this.state.width++} />;
-      }
-    `
-		);
-		await writeFile(
-			pageInput,
-			`
-      import { ClientWidget } from "./ClientWidget";
-
-      export function Page() {
-        return () => <ClientWidget />;
-      }
-    `
-		);
-
-		const initial = await compileProjectArtifacts([src], {
-			outDir,
-			rootDir: src
-		});
-		const retained = await readExactArtifactManifestEntries(
-			initial
-				.filter((result) => result.inputFile === widgetInput)
-				.map((result) => result.manifestFile)
-		);
-		const plan = await createExactArtifactPlan([src], {
-			outDir,
-			rootDir: src
-		});
-		const changedPage = plan.entries.filter((entry) => entry.inputFile === pageInput);
-		const updated = await compileArtifactPlanEntries(changedPage, {
-			importedManifests: retained.map((entry) => entry.manifest)
-		});
-		const server = await readFile(updated[0]!.serverFile, 'utf8');
-
-		expect(server).toContain('__exactBoundary');
-		expect(server).toContain('"ClientWidget"');
-		expect(server).not.toContain('from "./ClientWidget"');
-	});
-
 	it('carries inferred reevaluation safety across local module boundaries', async () => {
 		const root = await createTestWorkspace('exact-artifact-derived-import-');
 		const src = path.join(root, 'src');
@@ -377,7 +157,7 @@ describe('@exactjs/compiler: artifact planning', () => {
 		);
 	});
 
-	it('updates dev-server artifact state with retained manifest context', async () => {
+	it('updates dev-server artifact state with retained analysis context', async () => {
 		const root = await createTestWorkspace('exact-artifact-dev-state-');
 		const src = path.join(root, 'src');
 		const outDir = path.join(root, '.exact');
@@ -449,7 +229,6 @@ function planEntry(inputFile: string) {
 		inputFile,
 		clientFile: `${base}.exact.client.ts`,
 		serverFile: `${base}.exact.server.ts`,
-		sharedFile: `${base}.exact.shared.ts`,
-		manifestFile: `${base}.exact.manifest.json`
+		sharedFile: `${base}.exact.shared.ts`
 	};
 }

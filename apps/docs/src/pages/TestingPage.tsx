@@ -118,7 +118,7 @@ export function TestingPage(this: Component<{}>) {
 					hydration target adopted existing DOM or mounted new DOM.
 				</p>
 				<p>
-					Tests do not need an action registry or a compiler manifest to discover generated names.
+					Tests do not need a handwritten registry or compiler analysis to discover generated names.
 					Trigger the behavior through the component, then inspect the recorded operation. Generated
 					identifiers remain available as opaque protocol evidence without becoming part of the test
 					contract. A shared recorder can also receive server-context access observations. Those

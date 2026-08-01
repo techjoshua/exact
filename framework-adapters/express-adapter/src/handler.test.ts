@@ -9,10 +9,10 @@ describe('@exactjs/express-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: stateAction('save') },
+				invocations: { save: stateAction('save') },
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: (_input, context) => ({
 					state: {
 						runtime: 'express',
@@ -29,7 +29,7 @@ describe('@exactjs/express-adapter', () => {
 				method: 'POST',
 				originalUrl: '/__exact',
 				headers: { host: 'express.example.test' },
-				body: { type: 'action', id: 'save' }
+				body: { type: 'invoke', id: 'save' }
 			},
 			response
 		);
@@ -38,7 +38,7 @@ describe('@exactjs/express-adapter', () => {
 		expect(response.statusCode).toBe(200);
 		expect(JSON.parse(String(response.body))).toEqual({
 			ok: true,
-			type: 'action',
+			type: 'invoke',
 			id: 'save',
 			state: {
 				runtime: 'express',
@@ -53,13 +53,13 @@ describe('@exactjs/express-adapter', () => {
 			contract: {
 				version: 1 as const,
 				endpoint: '/__exact',
-				actions: {
+				invocations: {
 					save: stateAction('save'),
 					fail: defineExactOperationContract('fail')
 				},
 				boundaries: {}
 			},
-			actions: {
+			invocations: {
 				save: () => ({ state: { saved: true } }),
 				fail: () => {
 					throw new Error('action failed');
@@ -78,7 +78,7 @@ describe('@exactjs/express-adapter', () => {
 					accept: 'application/x-ndjson'
 				},
 				async text() {
-					return JSON.stringify({ type: 'action', id: 'save' });
+					return JSON.stringify({ type: 'invoke', id: 'save' });
 				}
 			},
 			streamed
@@ -94,7 +94,7 @@ describe('@exactjs/express-adapter', () => {
 				method: 'POST',
 				url: '/__exact',
 				headers: { host: 'express.example.test' },
-				body: { type: 'action', id: 'fail' }
+				body: { type: 'invoke', id: 'fail' }
 			},
 			failed
 		);
@@ -108,7 +108,7 @@ describe('@exactjs/express-adapter', () => {
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: {},
+				invocations: {},
 				boundaries: {}
 			},
 			requestContexts() {
@@ -122,7 +122,7 @@ describe('@exactjs/express-adapter', () => {
 				method: 'POST',
 				url: '/__exact',
 				headers: { host: 'express.example.test' },
-				body: { type: 'action', id: 'missing' }
+				body: { type: 'invoke', id: 'missing' }
 			},
 			createExpressResponse(),
 			next

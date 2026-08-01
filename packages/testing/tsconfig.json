@@ -13,7 +13,8 @@
 		{ "path": "../reactive" },
 		{ "path": "../server" },
 		{ "path": "../ssr" },
-		{ "path": "../hydrate" }
+		{ "path": "../hydrate" },
+		{ "path": "../jsx-runtime" }
 	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
