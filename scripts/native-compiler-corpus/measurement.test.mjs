@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
 	isNativeCompilerCorpusProject,
 	isNativeCompilerCorpusSource,
+	normalizedNativeBaselineElapsedMs,
 	positiveInteger
 } from './measurement.mjs';
 
@@ -23,4 +24,11 @@ test('validates worker overrides', () => {
 	assert.equal(positiveInteger(undefined, 4, 'workers'), 4);
 	assert.equal(positiveInteger('2', 4, 'workers'), 2);
 	assert.throws(() => positiveInteger('0', 4, 'workers'), /must be a positive integer/);
+});
+
+test('normalizes native baselines across corpus sizes and worker counts', () => {
+	const baseline = { elapsedMs: 100, fileCount: 10, workers: 4 };
+	assert.equal(normalizedNativeBaselineElapsedMs(baseline, { fileCount: 12, workers: 4 }), 120);
+	assert.equal(normalizedNativeBaselineElapsedMs(baseline, { fileCount: 12, workers: 2 }), 240);
+	assert.equal(normalizedNativeBaselineElapsedMs({}, { fileCount: 12, workers: 2 }), undefined);
 });

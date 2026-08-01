@@ -26,6 +26,26 @@ export function positiveInteger(value, fallback, label) {
 	return parsed;
 }
 
+/**
+ * Predicts tracked wall time for the current corpus by scaling linearly with source count and
+ * inversely with worker count. Incomplete or non-positive measurements are not comparable.
+ */
+export function normalizedNativeBaselineElapsedMs(baseline, current) {
+	const measurements = [
+		baseline?.elapsedMs,
+		baseline?.fileCount,
+		baseline?.workers,
+		current?.fileCount,
+		current?.workers
+	];
+	if (!measurements.every((value) => Number.isFinite(value) && value > 0)) return undefined;
+	return (
+		baseline.elapsedMs *
+		(current.fileCount / baseline.fileCount) *
+		(baseline.workers / current.workers)
+	);
+}
+
 /** Reads the tracked native compiler throughput baseline. */
 export async function readNativeCompilerCorpusBaseline(root) {
 	try {

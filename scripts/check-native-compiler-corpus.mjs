@@ -6,6 +6,7 @@ import { performance } from 'node:perf_hooks';
 
 import { discoverNativeCompilerCorpus } from './native-compiler-corpus/discovery.mjs';
 import {
+	normalizedNativeBaselineElapsedMs,
 	positiveInteger,
 	readNativeCompilerCorpusBaseline,
 	writeNativeCompilerCorpusBaseline
@@ -58,10 +59,7 @@ const outputBytes = result.outputBytes;
 const phaseMicroseconds = result.phaseMicroseconds;
 const projects = result.projects.sort((left, right) => right.elapsedMs - left.elapsedMs);
 const baseline = await readNativeCompilerCorpusBaseline(root);
-const normalizedBaselineMs =
-	baseline?.fileCount && baseline.elapsedMs && baseline.workers === result.workers
-		? baseline.elapsedMs * (fileCount / baseline.fileCount)
-		: undefined;
+const normalizedBaselineMs = normalizedNativeBaselineElapsedMs(baseline, result);
 const record = {
 	schemaVersion: 2,
 	generatedAt: new Date().toISOString(),

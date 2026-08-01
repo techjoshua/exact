@@ -78,7 +78,9 @@ documented executable runtime contracts rather than generated representation.
 [`../fixtures/native-compiler-corpus`](../fixtures/native-compiler-corpus) retains focused
 TypeScript and TSX semantic stress cases alongside representative framework applications. The
 release check sends those sources directly through `exactc-native`; there is no executable
-JavaScript expression engine or alternate semantic backend.
+JavaScript expression engine or alternate semantic backend. Its tracked wall-time guard normalizes
+the baseline for both the discovered source count and the available native worker count, so CI and
+local runs remain comparable without oversubscribing smaller machines.
 
 The small public `@exactjs/module-rewrite` package owns module-reference rewriting still needed by
 React compatibility tooling. It is a bounded source-text utility, not an eXact compiler.
