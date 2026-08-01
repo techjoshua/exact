@@ -26,8 +26,10 @@ architecture. Application developers do not need Go installed.
 The package exposes source transforms, long-lived compiler sessions, diagnostics, artifact
 planning, client-isolation checks, and `createExactLanguageService()` for no-emit editor analysis.
 Artifact compilation returns emitted paths and narrow build products for package exports,
-registrations, exposure selection, executable contracts, inspection, and diagnostics. Ephemeral
-semantic analysis is compiler-owned and is not part of compilation results or artifact graphs.
+registrations, exposure selection, executable contracts, inspection, and diagnostics. An artifact
+graph consolidates distributed task operations and boundaries once while retaining only
+module-local dependencies and component identity on each artifact entry. Ephemeral semantic
+analysis is compiler-owned and is not part of compilation results or artifact graphs.
 Generated component, operation, continuation, and registry identities are opaque build output.
 
 ```ts

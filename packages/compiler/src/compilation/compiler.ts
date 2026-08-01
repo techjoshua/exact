@@ -27,19 +27,13 @@ export {
 	invalidateExpressionModule
 } from '../expression/session.js';
 export {
-	createExactExposureExecutionPlan,
 	exactReachableExposureComponents,
 	exactExposureRootComponentId,
 	selectExactExposureInspectionCatalog,
 	selectExactExposureArtifactGraph,
 	withExactAuthoredClientModules
 } from '../exposures.js';
-export type {
-	ExactExposureBoundaryPlan,
-	ExactExposureExecutionPlan,
-	ExactExposureInspectionCatalog,
-	ExactExposureOperationPlan
-} from '../exposures.js';
+export type { ExactExposureInspectionCatalog } from '../exposures.js';
 export {
 	createExactBuildInspectionCatalog,
 	createExactInspectionBuildKey,

@@ -1,10 +1,9 @@
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import type {
 	ExactArtifactBuildProducts,
+	ExactArtifactBoundaryPlan,
 	ExactArtifactRegistryPlan,
-	ExactExecutableBoundaryPlan,
-	ExactExecutableOperationPlan,
-	ExactHydrationContinuationPlan
+	ExactTaskOperationPlan
 } from '../contracts/artifacts.js';
 
 /** Projects ephemeral semantic analysis into the narrow products supported by build adapters. */
@@ -16,10 +15,7 @@ export function createArtifactBuildProducts(
 		analysis.continuations.map((continuation) => continuation.componentId)
 	);
 	return Object.freeze({
-		source: Object.freeze({
-			filename: analysis.filename,
-			dependencies: Object.freeze([...analysis.dependencies])
-		}),
+		dependencies: Object.freeze([...analysis.dependencies]),
 		componentIds: Object.freeze(analysis.components.map((component) => component.id)),
 		exposureRoots: Object.freeze(
 			analysis.symbols.flatMap((symbol) =>
@@ -62,15 +58,12 @@ export function createArtifactBuildProducts(
 				return [registryPlan(symbol as typeof symbol & { exportName: string })];
 			})
 		),
-		continuations: Object.freeze(analysis.continuations.map(hydrationContinuationPlan)),
-		execution: Object.freeze({
-			operations: Object.freeze(analysis.continuations.map(operationPlan)),
-			boundaries: Object.freeze(
-				analysis.boundaries.map(
-					(boundary): ExactExecutableBoundaryPlan => Object.freeze({ ...boundary })
-				)
+		operations: Object.freeze(analysis.continuations.map(taskOperationPlan)),
+		boundaries: Object.freeze(
+			analysis.boundaries.map(
+				(boundary): ExactArtifactBoundaryPlan => Object.freeze({ ...boundary })
 			)
-		})
+		)
 	});
 }
 
@@ -104,9 +97,9 @@ function clientRegistrySymbol(
 	);
 }
 
-function hydrationContinuationPlan(
+function taskOperationPlan(
 	continuation: ExactModuleAnalysis['continuations'][number]
-): ExactHydrationContinuationPlan {
+): ExactTaskOperationPlan {
 	return Object.freeze({
 		kind: 'task',
 		id: continuation.id,
@@ -150,23 +143,5 @@ function hydrationContinuationPlan(
 					})
 				}
 			: {})
-	});
-}
-
-function operationPlan(
-	continuation: ExactModuleAnalysis['continuations'][number]
-): ExactExecutableOperationPlan {
-	return Object.freeze({
-		id: continuation.id,
-		componentId: continuation.componentId,
-		reads: Object.freeze(continuation.activation.stateReads.map((effect) => ({ ...effect }))),
-		writes: Object.freeze(continuation.effects.stateWrites.map((effect) => ({ ...effect }))),
-		publicContexts: Object.freeze(
-			continuation.activation.publicContexts.map((context) => context.token)
-		),
-		serverContexts: Object.freeze(
-			continuation.activation.serverContexts.map((context) => context.token)
-		),
-		boundaries: Object.freeze([...continuation.effects.boundaries])
 	});
 }

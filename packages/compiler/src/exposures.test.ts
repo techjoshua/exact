@@ -55,16 +55,9 @@ function fixtureGraph(): ExactArtifactGraph {
 		inputFile,
 		clientFile: `${inputFile}.client.js`,
 		serverFile: `${inputFile}.server.js`,
-		build: {
-			source: { filename: inputFile, dependencies: [] },
-			componentIds: [id],
-			exposureRoots: [{ componentId: id, exportName: 'default' }],
-			componentEdges: [],
-			clientRegistrations: [],
-			serverRegistrations: [],
-			continuations: [],
-			execution: { operations: [], boundaries: [] }
-		}
+		dependencies: [],
+		componentIds: [id],
+		exposureRoots: [{ componentId: id, exportName: 'default' }]
 	});
 	const billing = artifact('/src/billing.tsx', 'billing');
 	const button = artifact('/src/button.tsx', 'button');
@@ -119,8 +112,8 @@ function fixtureGraph(): ExactArtifactGraph {
 				componentId: 'admin'
 			}
 		],
-		continuations: [],
-		execution: { operations: [], boundaries: [] },
+		operations: [],
+		boundaries: [],
 		artifacts: [billing, button, admin]
 	};
 }

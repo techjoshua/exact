@@ -1,7 +1,7 @@
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 import {
-	artifactGraphEntryFromCompileResult,
+	artifactGraphInputFromCompileResult,
 	createExactArtifactGraph,
 	diffExactArtifactPlans
 } from '../artifacts.js';
@@ -28,7 +28,7 @@ export async function createExactArtifactDevState(
 		session: options.session,
 		pluginRegistry: options.pluginRegistry
 	});
-	const entries = compiled.map(artifactGraphEntryFromCompileResult);
+	const entries = compiled.map(artifactGraphInputFromCompileResult);
 	return {
 		plan,
 		entries,
@@ -67,7 +67,7 @@ export async function updateExactArtifactDevState(
 		session: options.session,
 		pluginRegistry: options.pluginRegistry
 	});
-	const entries = [...retainedEntries, ...compiled.map(artifactGraphEntryFromCompileResult)].sort(
+	const entries = [...retainedEntries, ...compiled.map(artifactGraphInputFromCompileResult)].sort(
 		(left, right) => left.inputFile.localeCompare(right.inputFile)
 	);
 	return {

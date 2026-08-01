@@ -75,7 +75,9 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('node:fs/promises');
 		expect(server).not.toContain('window.innerWidth');
 		expect(server).toContain('export const Page');
-		expect(result.build.execution.operations).toHaveLength(1);
+		expect(result.build.operations).toHaveLength(1);
+		expect(result.build).not.toHaveProperty('continuations');
+		expect(result.build).not.toHaveProperty('execution');
 		expect(analysis).not.toHaveProperty('serverActions');
 		expect(analysis.exports).toEqual([
 			{ name: 'Page', kind: 'component', placement: 'isomorphic' }

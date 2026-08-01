@@ -20,16 +20,16 @@ import type {
 	PackageExportMapOptions
 } from './types.js';
 
-/** Converts a compile result into the graph entry shape used by artifact tooling. */
-export function artifactGraphEntryFromCompileResult(
+/** Retains the narrow compile products required to rebuild an artifact graph incrementally. */
+export function artifactGraphInputFromCompileResult(
 	result: CompileArtifactsResult
-): ExactArtifactGraphEntry {
+): ExactArtifactGraphInput {
 	return {
 		inputFile: result.inputFile,
 		clientFile: result.clientFile,
 		serverFile: result.serverFile,
 		...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
-		build: artifactGraphBuildProduct(result.build)
+		build: result.build
 	};
 }
 
@@ -188,20 +188,21 @@ export function createExactArtifactGraph(
 		serverParts: serverPartRegistryEntries(results, {
 			rootDir: options.rootDir ?? options.packageRoot
 		}),
-		continuations: uniqueBuildRecords(results.flatMap((result) => result.build.continuations)),
-		execution: {
-			operations: uniqueBuildRecords(
-				results.flatMap((result) => result.build.execution.operations)
-			),
-			boundaries: uniqueBuildRecords(results.flatMap((result) => result.build.execution.boundaries))
-		},
-		artifacts: results.map((result) => ({
-			inputFile: result.inputFile,
-			clientFile: result.clientFile,
-			serverFile: result.serverFile,
-			...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
-			build: artifactGraphBuildProduct(result.build)
-		}))
+		operations: uniqueBuildRecords(results.flatMap((result) => result.build.operations)),
+		boundaries: uniqueBuildRecords(results.flatMap((result) => result.build.boundaries)),
+		artifacts: results.map(artifactGraphEntryFromInput)
+	};
+}
+
+function artifactGraphEntryFromInput(result: ExactArtifactGraphInput): ExactArtifactGraphEntry {
+	return {
+		inputFile: result.inputFile,
+		clientFile: result.clientFile,
+		serverFile: result.serverFile,
+		...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
+		dependencies: result.build.dependencies,
+		componentIds: result.build.componentIds,
+		exposureRoots: result.build.exposureRoots
 	};
 }
 
@@ -232,12 +233,6 @@ export function createExactArtifactComponentEdges(
 				].join(':')
 			)
 	);
-}
-
-function artifactGraphBuildProduct(
-	build: ExactArtifactGraphInput['build']
-): ExactArtifactGraphEntry['build'] {
-	return build;
 }
 
 function uniqueBuildRecords<T extends { readonly id: string }>(records: readonly T[]): T[] {

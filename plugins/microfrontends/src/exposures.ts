@@ -1,5 +1,4 @@
 import {
-	createExactExposureExecutionPlan,
 	createExactHydrationRegistrationModule,
 	exactExposureRootComponentId,
 	selectExactExposureArtifactGraph,
@@ -8,9 +7,9 @@ import {
 } from '@exactjs/compiler';
 import {
 	composeExactExecutorContract,
-	defineExactOperationContract,
 	defineExactBoundaryContract,
 	type ExactRemoteBuildRegistration,
+	type ExactExecutorContract,
 	type ExactServerContext
 } from '@exactjs/server';
 import path from 'node:path';
@@ -74,19 +73,10 @@ export function createExactRemoteBuildRegistration(
 
 /** Composes private executor authority from the selected build-time graph. */
 function exposureExecutorContract(graph: ExactArtifactGraph) {
-	const invocations: Record<string, ReturnType<typeof defineExactOperationContract>> = {};
+	const invocations: ExactExecutorContract['invocations'] = {};
 	const boundaries: Record<string, ReturnType<typeof defineExactBoundaryContract>> = {};
-	const plan = createExactExposureExecutionPlan(graph);
-	for (const operation of plan.operations)
-		invocations[operation.id] = defineExactOperationContract(operation.id, {
-			componentId: operation.componentId,
-			reads: operation.reads,
-			writes: operation.writes,
-			publicContexts: operation.publicContexts,
-			serverContexts: operation.serverContexts,
-			boundaries: operation.boundaries
-		});
-	for (const boundary of plan.boundaries)
+	for (const operation of graph.operations) invocations[operation.id] = operation;
+	for (const boundary of graph.boundaries)
 		boundaries[boundary.id] = defineExactBoundaryContract(boundary.id, {
 			componentId: boundary.componentId,
 			ownerComponentId: boundary.ownerComponentId,

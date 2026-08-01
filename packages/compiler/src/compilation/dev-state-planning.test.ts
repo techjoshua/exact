@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ExactArtifactGraphEntry } from '../types.js';
+import type { ExactArtifactGraphInput } from '../types.js';
 import { affectedArtifactInputs } from './dev-state-planning.js';
 
 describe('artifact dev-state planning', () => {
@@ -23,20 +23,20 @@ describe('artifact dev-state planning', () => {
 	});
 });
 
-function artifactEntry(inputFile: string, dependencies: string[]): ExactArtifactGraphEntry {
+function artifactEntry(inputFile: string, dependencies: string[]): ExactArtifactGraphInput {
 	return {
 		inputFile,
 		clientFile: `${inputFile}.client.js`,
 		serverFile: `${inputFile}.server.js`,
 		build: {
-			source: { filename: inputFile, dependencies },
+			dependencies,
 			componentIds: [],
 			exposureRoots: [],
 			componentEdges: [],
 			clientRegistrations: [],
 			serverRegistrations: [],
-			continuations: [],
-			execution: { operations: [], boundaries: [] }
+			operations: [],
+			boundaries: []
 		}
 	};
 }

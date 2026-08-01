@@ -5,7 +5,6 @@ import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type {
 	ExactArtifactGraph,
 	ExactArtifactBuildProducts,
-	ExactArtifactGraphEntry,
 	ExactArtifactGraphOptions
 } from './artifacts.js';
 import type {
@@ -164,7 +163,7 @@ export type ExactArtifactDevStateOptions = CompileArtifactsOptions & ExactArtifa
 /** Tracks the state owned by exact artifact dev. */
 export type ExactArtifactDevState = {
 	plan: ExactArtifactPlan;
-	entries: ExactArtifactGraphEntry[];
+	entries: ExactArtifactGraphInput[];
 	graph: ExactArtifactGraph;
 };
 

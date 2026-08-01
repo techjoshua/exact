@@ -50,7 +50,7 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/compiler',
 				purpose:
-					'Native compilation and narrow build products for tasks, registrations, placement, and the exactc CLI.'
+					'Native compilation and consolidated build products for task operations, registrations, placement, and the exactc CLI.'
 			},
 			{
 				name: '@exactjs/language-server',

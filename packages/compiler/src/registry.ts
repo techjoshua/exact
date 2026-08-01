@@ -3,6 +3,7 @@ import { clientRegistryModulePath } from './paths.js';
 import type {
 	ClientIslandRegistryEntry,
 	ClientIslandRegistryOptions,
+	ExactComponentRegistryEntry,
 	ExactArtifactGraph,
 	ExactArtifactGraphInput,
 	ExactHydrationRegistrationModuleOptions,
@@ -15,25 +16,7 @@ export function clientIslandRegistryEntries(
 	results: readonly ExactArtifactGraphInput[],
 	options: ClientIslandRegistryOptions = {}
 ): ClientIslandRegistryEntry[] {
-	const entries: ClientIslandRegistryEntry[] = [];
-
-	for (const result of results) {
-		const modulePath = clientRegistryModulePath(
-			result.clientFile,
-			options.rootDir ?? path.dirname(result.clientFile)
-		);
-		for (const symbol of result.build.clientRegistrations) {
-			entries.push({
-				id: symbol.id,
-				name: symbol.name,
-				exportName: symbol.exportName,
-				module: modulePath,
-				componentId: symbol.componentId
-			});
-		}
-	}
-
-	return entries.sort((left, right) => left.id.localeCompare(right.id));
+	return componentRegistryEntries(results, 'client', options.rootDir);
 }
 
 /** Creates registry entries for generated server component parts from compiled artifacts. */
@@ -41,24 +24,22 @@ export function serverPartRegistryEntries(
 	results: readonly ExactArtifactGraphInput[],
 	options: ServerPartRegistryOptions = {}
 ): ServerPartRegistryEntry[] {
-	const entries: ServerPartRegistryEntry[] = [];
+	return componentRegistryEntries(results, 'server', options.rootDir);
+}
 
+function componentRegistryEntries(
+	results: readonly ExactArtifactGraphInput[],
+	target: 'client' | 'server',
+	rootDir: string | undefined
+): ExactComponentRegistryEntry[] {
+	const entries: ExactComponentRegistryEntry[] = [];
 	for (const result of results) {
-		const modulePath = clientRegistryModulePath(
-			result.serverFile,
-			options.rootDir ?? path.dirname(result.serverFile)
-		);
-		for (const symbol of result.build.serverRegistrations) {
-			entries.push({
-				id: symbol.id,
-				name: symbol.name,
-				exportName: symbol.exportName,
-				module: modulePath,
-				componentId: symbol.componentId
-			});
-		}
+		const targetFile = target === 'client' ? result.clientFile : result.serverFile;
+		const module = clientRegistryModulePath(targetFile, rootDir ?? path.dirname(targetFile));
+		const registrations =
+			target === 'client' ? result.build.clientRegistrations : result.build.serverRegistrations;
+		for (const registration of registrations) entries.push({ ...registration, module });
 	}
-
 	return entries.sort((left, right) => left.id.localeCompare(right.id));
 }
 
@@ -98,7 +79,7 @@ function createClientDescriptorCompositionModule(
 	const islands = entries.map((entry) => {
 		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(runtimeModuleSpecifier(entry.module))}).then((module) => module[${JSON.stringify(entry.exportName)}]))`;
 	});
-	const continuationValues = graph.continuations.map((continuation) => ({
+	const continuationValues = graph.operations.map((continuation) => ({
 		...continuation,
 		serverContexts: [],
 		serverContextWrites: []

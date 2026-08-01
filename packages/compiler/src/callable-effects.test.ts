@@ -303,7 +303,7 @@ describe('symbol-level placement inference', () => {
 			serverComponents: true
 		};
 		const state = await createExactArtifactDevState([page], artifactOptions);
-		expect(state.entries[0]!.build.source.dependencies).toContain('provider.ts');
+		expect(state.entries[0]!.build.dependencies).toContain('provider.ts');
 		expect(await readFile(state.entries[0]!.serverFile, 'utf8')).toContain('value()');
 
 		await writeFile(provider, `export function value() { return window.location.href; }`);

@@ -1,4 +1,3 @@
-import type { ExactStateEffect } from './analysis.js';
 import type { ExactPlacement } from './policy.js';
 
 /** Configures package export map. */
@@ -44,27 +43,27 @@ export type ExactArtifactGraph = {
 	componentEdges: ExactArtifactComponentEdge[];
 	clientIslands: ClientIslandRegistryEntry[];
 	serverParts: ServerPartRegistryEntry[];
-	continuations: ExactHydrationContinuationPlan[];
-	execution: ExactExecutionContractPlan;
+	operations: ExactTaskOperationPlan[];
+	boundaries: ExactArtifactBoundaryPlan[];
 	artifacts: ExactArtifactGraphEntry[];
 };
 
-/** Stable state path used by generated hydration registrations. */
-export type ExactHydrationStatePathPlan = Readonly<{
+/** Stable state path used by one generated task operation. */
+export type ExactTaskStatePathPlan = Readonly<{
 	path: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
 }>;
 
-/** Compiler-owned hydration description for one distributed task continuation. */
-export type ExactHydrationContinuationPlan = Readonly<{
+/** Compiler-owned build description for one distributed task operation. */
+export type ExactTaskOperationPlan = Readonly<{
 	kind: 'task';
 	id: string;
 	componentId: string;
 	readiness: 'blocking' | 'nonblocking';
 	dependencies: readonly Readonly<{ source: 'state' | 'props' | 'derived' | 'argument' }>[];
-	stateReads: readonly ExactHydrationStatePathPlan[];
-	stateWrites: readonly ExactHydrationStatePathPlan[];
+	stateReads: readonly ExactTaskStatePathPlan[];
+	stateWrites: readonly ExactTaskStatePathPlan[];
 	publicContexts: readonly string[];
 	serverContexts: readonly string[];
 	contextWrites: readonly string[];
@@ -76,29 +75,12 @@ export type ExactHydrationContinuationPlan = Readonly<{
 	}>;
 }>;
 
-/** Runtime operation authority produced directly by the compiler. */
-export type ExactExecutableOperationPlan = Readonly<{
-	id: string;
-	componentId: string;
-	reads: readonly ExactStateEffect[];
-	writes: readonly ExactStateEffect[];
-	publicContexts: readonly string[];
-	serverContexts: readonly string[];
-	boundaries: readonly string[];
-}>;
-
-/** Runtime boundary authority produced directly by the compiler. */
-export type ExactExecutableBoundaryPlan = Readonly<{
+/** Compiler-owned build description for one client island or server slot boundary. */
+export type ExactArtifactBoundaryPlan = Readonly<{
 	id: string;
 	componentId?: string;
 	ownerComponentId?: string;
 	kind: 'client-island' | 'server-slot';
-}>;
-
-/** Narrow executable authority for compiled artifacts. */
-export type ExactExecutionContractPlan = Readonly<{
-	operations: readonly ExactExecutableOperationPlan[];
-	boundaries: readonly ExactExecutableBoundaryPlan[];
 }>;
 
 /** Registry symbol retained solely to create target-specific module registrations. */
@@ -111,14 +93,14 @@ export type ExactArtifactRegistryPlan = Readonly<{
 
 /** Supported compiler products consumed by build adapters and artifact graph creation. */
 export type ExactArtifactBuildProducts = Readonly<{
-	source: Readonly<{ filename: string; dependencies: readonly string[] }>;
+	dependencies: readonly string[];
 	componentIds: readonly string[];
 	exposureRoots: readonly Readonly<{ componentId: string; exportName: string }>[];
 	componentEdges: readonly ExactArtifactComponentEdge[];
 	clientRegistrations: readonly ExactArtifactRegistryPlan[];
 	serverRegistrations: readonly ExactArtifactRegistryPlan[];
-	continuations: readonly ExactHydrationContinuationPlan[];
-	execution: ExactExecutionContractPlan;
+	operations: readonly ExactTaskOperationPlan[];
+	boundaries: readonly ExactArtifactBoundaryPlan[];
 }>;
 
 /** Defines the exact artifact component edge type contract. */
@@ -142,7 +124,9 @@ export type ExactArtifactGraphEntry = {
 	clientFile: string;
 	serverFile: string;
 	sharedFile?: string;
-	build: ExactArtifactBuildProducts;
+	dependencies: readonly string[];
+	componentIds: readonly string[];
+	exposureRoots: readonly Readonly<{ componentId: string; exportName: string }>[];
 };
 
 /** Configures client island registry. */
@@ -150,14 +134,17 @@ export type ClientIslandRegistryOptions = {
 	rootDir?: string;
 };
 
-/** Defines the client island registry entry type contract. */
-export type ClientIslandRegistryEntry = {
+/** Identifies one generated component implementation in a target module. */
+export type ExactComponentRegistryEntry = {
 	id: string;
 	name: string;
 	exportName: string;
 	module: string;
 	componentId?: string;
 };
+
+/** Defines the client island registry entry type contract. */
+export type ClientIslandRegistryEntry = ExactComponentRegistryEntry;
 
 /** Configures server part registry. */
 export type ServerPartRegistryOptions = {
@@ -165,13 +152,7 @@ export type ServerPartRegistryOptions = {
 };
 
 /** Defines the server part registry entry type contract. */
-export type ServerPartRegistryEntry = {
-	id: string;
-	name: string;
-	exportName: string;
-	module: string;
-	componentId?: string;
-};
+export type ServerPartRegistryEntry = ExactComponentRegistryEntry;
 
 /** Configures exact hydration registration module. */
 export type ExactHydrationRegistrationModuleOptions = {

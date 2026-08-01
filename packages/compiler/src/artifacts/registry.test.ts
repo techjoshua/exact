@@ -30,7 +30,7 @@ describe('@exactjs/compiler: registries', () => {
 			sourceRoot: path.join(root, 'src'),
 			rootDir: root
 		});
-		const actionId = result.build.execution.operations[0]!.id;
+		const actionId = result.build.operations[0]!.id;
 		const module = createExactHydrationRegistrationModule(graph, {
 			endpoint: '/__exact',
 			endpoints: {
@@ -39,6 +39,9 @@ describe('@exactjs/compiler: registries', () => {
 			islandsExportName: 'islands',
 			registrationExportName: 'registration'
 		});
+		expect(graph.operations).toEqual(result.build.operations);
+		expect(graph.artifacts[0]).not.toHaveProperty('build');
+		expect(graph.artifacts[0]?.componentIds).toEqual(result.build.componentIds);
 
 		expect(module).toContain('export const islands');
 		expect(module).toContain('defineExactHydrationRegistration as __exactDefineRegistration');
@@ -123,7 +126,7 @@ describe('@exactjs/compiler: registries', () => {
 		});
 
 		expect(artifactAnalysis(result).resumptions).toHaveLength(1);
-		expect(result.build.continuations).toHaveLength(0);
+		expect(result.build.operations).toHaveLength(0);
 		expect(
 			createExactArtifactGraph([result], {
 				packageRoot: root,
