@@ -63,7 +63,7 @@ const compilerAcceptance = task('compiler browser acceptance', [
 ]);
 const performanceChecks = [
 	task('reactive benchmarks', ['run', 'benchmark:reactive']),
-	task('expression benchmarks', ['run', 'benchmark:expressions']),
+	task('compiler benchmarks', ['run', 'benchmark:compiler']),
 	task('DevTools inspection benchmarks', ['run', 'benchmark:devtools']),
 	task('React compatibility benchmark', ['run', 'benchmark:react-compat'])
 ];
@@ -174,7 +174,7 @@ async function runAffected() {
 		task('test typecheck', ['run', 'typecheck:tests']),
 		task('package contents', ['run', 'check:publish'])
 	];
-	if (plan.expressions)
+	if (plan.nativeCompilerCorpus)
 		checks.push(task('native compiler corpus', ['run', 'check:native-compiler-corpus']));
 	await runPool(checks, 3);
 

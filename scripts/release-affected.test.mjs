@@ -7,7 +7,7 @@ test('compiler acceptance follows compiler and bundler-assembly changes', () => 
 	for (const filename of [
 		'native/typescript-go/overlay/internal/exactcompiler/compiler.go',
 		'packages/compiler/src/index.ts',
-		'packages/expressions/src/index.ts',
+		'fixtures/native-compiler-corpus/src/control-flow.ts',
 		'packages/plugin-api/src/index.ts',
 		'packages/plugin-host/src/index.ts',
 		'framework-adapters/vite-plugin/src/index.ts',

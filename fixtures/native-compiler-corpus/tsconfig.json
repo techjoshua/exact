@@ -1,0 +1,12 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"noEmit": true,
+		"tsBuildInfoFile": "../../.tmp/native-compiler-corpus.tsbuildinfo",
+		"jsx": "preserve",
+		"jsxImportSource": "@exactjs/jsx"
+	},
+	"references": [{ "path": "../../packages/core" }, { "path": "../../packages/jsx-runtime" }],
+	"include": ["src"]
+}

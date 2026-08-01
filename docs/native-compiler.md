@@ -73,13 +73,15 @@ Generated operation identifiers, ephemeral module analysis, helper imports, and 
 are compiler-session details. Applications should depend on authored TypeScript behavior and
 documented executable runtime contracts rather than generated representation.
 
-## Repository-only migration code
+## Repository-only compiler corpus
 
-`@exactjs/expressions` is a private workspace retained for compiler experiments and corpus
-measurements. It is not publishable and no public framework package depends on it.
+[`../fixtures/native-compiler-corpus`](../fixtures/native-compiler-corpus) retains focused
+TypeScript and TSX semantic stress cases alongside representative framework applications. The
+release check sends those sources directly through `exactc-native`; there is no executable
+JavaScript expression engine or alternate semantic backend.
 
 The small public `@exactjs/module-rewrite` package owns module-reference rewriting still needed by
-React compatibility tooling. It does not contain the retired eXact compiler.
+React compatibility tooling. It is a bounded source-text utility, not an eXact compiler.
 
 ## Change verification
 
@@ -90,5 +92,5 @@ Compiler and bundler-assembly changes trigger a dedicated acceptance workflow. I
 - Shipping Calculator for generated client/server continuations and `__exact` endpoint traffic.
 
 The native package matrix separately builds, installs, and executes each supported platform
-package. Publish checks inspect the compiler dependency graph and tarball so the retired compiler
-cannot re-enter generated applications unnoticed.
+package. Publish checks inspect the compiler dependency graph and tarball so retired compiler
+packages cannot re-enter generated applications unnoticed.
