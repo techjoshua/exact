@@ -318,7 +318,7 @@ describe('@exactjs/compiler: derived values', () => {
         };
       }
     `)
-		).toThrow(/render functions may only return the view expression/);
+		).toThrow(/render functions must contain one view expression/);
 	});
 
 	it('rejects declarations captured by returned-view handlers', () => {
@@ -331,7 +331,7 @@ describe('@exactjs/compiler: derived values', () => {
         };
       }
     `)
-		).toThrow(/render functions may only return the view expression/);
+		).toThrow(/render functions must contain one view expression/);
 	});
 
 	it('materializes safe derived consts declared inside map render callbacks', () => {

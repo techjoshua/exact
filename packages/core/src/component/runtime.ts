@@ -18,7 +18,6 @@ import type {
 	RefKey,
 	RenderEventHandler,
 	RenderFunction,
-	RenderResult,
 	VNode
 } from './contracts.js';
 
@@ -298,7 +297,7 @@ export function createComponentInstance<
 	applyInternalPlugins(instance);
 	if (resumption) prepareComponentContextResumption(instance, resumption);
 
-	let result: RenderFunction | RenderResult;
+	let result: RenderFunction;
 	try {
 		result = withEffectScope(scope, () =>
 			withComponentDomain(domain, () =>
@@ -318,7 +317,14 @@ export function createComponentInstance<
 			return continuationId !== undefined && settledContinuations.has(continuationId);
 		});
 	}
-	renderFunction = typeof result === 'function' ? (result as RenderFunction) : () => result;
+	if (typeof result !== 'function') {
+		const error = new TypeError(
+			'eXact runtime components must synchronously return their compiled render function'
+		);
+		cleanupFailedComponentConstruction(instance, error);
+		throw error;
+	}
+	renderFunction = result;
 
 	taskObserver?.retain?.(instance);
 	if (taskObserver?.retain) retainTaskObserver(instance, taskObserver);

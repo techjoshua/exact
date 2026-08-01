@@ -1,4 +1,9 @@
-import type { ComponentFunction, ComponentInstance, RenderResult } from '../component/contracts.js';
+import type {
+	AuthoredComponentFunction,
+	ComponentFunction,
+	ComponentInstance,
+	RenderResult
+} from '../component/contracts.js';
 
 /** Private type-level identity carried by a component registry. */
 export declare const componentRegistryBrand: unique symbol;
@@ -6,14 +11,14 @@ export declare const componentRegistryBrand: unique symbol;
 export declare const lazyRegistryEntryBrand: unique symbol;
 
 /** Declarative lazy component entry accepted only inside a registry definition callback. */
-export type LazyRegistryEntry<Component extends ComponentFunction<any, any>> = Readonly<{
+export type LazyRegistryEntry<Component extends AuthoredComponentFunction<any, any>> = Readonly<{
 	readonly [lazyRegistryEntryBrand]: Component;
 }>;
 
 /** One eager or scoped-lazy entry in a declarative component registry definition. */
 export type ComponentRegistryDefinitionEntry =
-	| ComponentFunction<any, any>
-	| LazyRegistryEntry<ComponentFunction<any, any>>;
+	| AuthoredComponentFunction<any, any>
+	| LazyRegistryEntry<AuthoredComponentFunction<any, any>>;
 
 /** Finite immutable definition accepted by {@link createComponentRegistry}. */
 export type ComponentRegistryDefinition = Readonly<
@@ -24,7 +29,7 @@ export type ComponentRegistryDefinition = Readonly<
 export type ResolveRegistryEntry<Entry> =
 	Entry extends LazyRegistryEntry<infer Component>
 		? Component
-		: Entry extends ComponentFunction<any, any>
+		: Entry extends AuthoredComponentFunction<any, any>
 			? Entry
 			: never;
 
@@ -45,7 +50,7 @@ export type KeyOf<Registry> =
 
 /** Props accepted by an eXact component function. */
 export type ComponentProps<Component> =
-	Component extends ComponentFunction<any, infer Props> ? Props : never;
+	Component extends AuthoredComponentFunction<any, infer Props> ? Props : never;
 
 /** Builder available only while a registry definition callback executes. */
 export type ComponentRegistryBuilder = {
@@ -54,7 +59,7 @@ export type ComponentRegistryBuilder = {
 	 *
 	 * Reading the resulting registry entry does not load it; rendering or explicit preloading does.
 	 */
-	lazy<Component extends ComponentFunction<any, any>>(
+	lazy<Component extends AuthoredComponentFunction<any, any>>(
 		load: () => Promise<Component>
 	): LazyRegistryEntry<Component>;
 };

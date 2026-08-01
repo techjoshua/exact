@@ -85,6 +85,7 @@ type jsxLowering struct {
 	serverComponents     bool
 	instrumentInspection bool
 	components           map[string]Component
+	microComponents      map[ast.SymbolId]struct{}
 	renderEdges          map[string]RenderEdge
 	clientIslands        map[*ast.Node]clientElementIsland
 	clientDefinitions    []*ast.Node
@@ -162,6 +163,7 @@ func lowerExactJSX(
 		instrumentInspection: instrumentInspection,
 		interop:              interop,
 		components:           componentIndexByName(components),
+		microComponents:      lexicalMicroComponentSymbols(sourceFile, typeChecker),
 		renderEdges:          indexRenderEdges(components),
 		contextWrites:        indexContinuationContextWrites(continuations),
 		collectionMaps:       make(map[string]collectionMapPlan),
@@ -910,6 +912,9 @@ func (lowering *jsxLowering) lowerOpeningLike(
 			),
 		)
 	}
+	if lowering.microComponentTag(tag) {
+		return lowering.lowerMicroComponent(tag, opening, children)
+	}
 	intrinsic := jsxIntrinsic(tagText)
 	if intrinsic && lowering.target == TargetServer &&
 		lowering.serverComponents {
@@ -960,6 +965,50 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		}
 	}
 	return element
+}
+
+func (lowering *jsxLowering) microComponentTag(tag *ast.Node) bool {
+	if lowering.checker == nil || !ast.IsIdentifier(tag) {
+		return false
+	}
+	symbol := lowering.checker.GetSymbolAtLocation(tag)
+	if symbol == nil {
+		return false
+	}
+	symbol = lowering.checker.SkipAlias(symbol)
+	if symbol == nil {
+		return false
+	}
+	_, exists := lowering.microComponents[ast.GetSymbolId(symbol)]
+	return exists
+}
+
+func (lowering *jsxLowering) lowerMicroComponent(
+	tag *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+) *ast.Node {
+	props := lowering.props(opening.Attributes(), "", false, tag.Text())
+	values := lowering.children(children)
+	if len(values) != 0 {
+		var value *ast.Node
+		if len(values) == 1 {
+			value = values[0]
+		} else {
+			value = lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(values),
+				false,
+			)
+		}
+		props = lowering.appendObjectProperty(props, "children", value)
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.visitor.VisitNode(tag),
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{props}),
+		ast.NodeFlagsNone,
+	)
 }
 
 func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {

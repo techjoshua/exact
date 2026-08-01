@@ -143,18 +143,102 @@ func markExportedComponents(
 
 func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 	candidates := rawComponentCandidates(sourceFile)
-	renderTargets := returnedLocalRenderTargets(candidates, sourceFile)
+	microTargets := lexicalMicroComponentTargets(candidates, sourceFile)
 	filtered := make([]componentCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
-		_, isRender := renderTargets[candidate.node]
+		_, isMicro := microTargets[candidate.node]
 		isTask := looksLikeTaskPolicy(candidate.node, sourceFile) ||
 			strings.HasPrefix(candidate.name, "__exactComponentComputation_") ||
 			strings.HasPrefix(candidate.name, "__exactComponentSetupTask_")
-		if !isRender && !isTask {
+		if !isMicro && !isTask {
 			filtered = append(filtered, candidate)
 		}
 	}
 	return filtered
+}
+
+// lexicalMicroComponentTargets identifies PascalCase, synchronous view arrows
+// declared inside a durable component. They are compiler-owned view helpers:
+// their lexical receiver and reactive work belong to the enclosing component,
+// and they never establish a second component instance or stable identity.
+func lexicalMicroComponentTargets(
+	candidates []componentCandidate,
+	sourceFile *ast.SourceFile,
+) map[*ast.Node]componentCandidate {
+	result := make(map[*ast.Node]componentCandidate)
+	for _, candidate := range candidates {
+		if !microComponentShape(candidate) ||
+			looksLikeTaskPolicy(candidate.node, sourceFile) {
+			continue
+		}
+		var owner *componentCandidate
+		for index := range candidates {
+			possible := &candidates[index]
+			if possible.node == candidate.node ||
+				candidate.node.Pos() < possible.node.Pos() ||
+				candidate.node.End() > possible.node.End() ||
+				microComponentShape(*possible) {
+				continue
+			}
+			if len(componentSignals(*possible, sourceFile)) == 0 {
+				continue
+			}
+			if owner == nil ||
+				possible.node.End()-possible.node.Pos() < owner.node.End()-owner.node.Pos() {
+				owner = possible
+			}
+		}
+		if owner != nil && directlyDeclaredInSetup(candidate.node, owner.node) {
+			result[candidate.node] = *owner
+		}
+	}
+	return result
+}
+
+func microComponentShape(candidate componentCandidate) bool {
+	return ast.IsArrowFunction(candidate.node) &&
+		componentName(candidate.name) &&
+		directlyReturnsRenderedValue(candidate.node)
+}
+
+func directlyDeclaredInSetup(node *ast.Node, owner *ast.Node) bool {
+	for current := node.Parent; current != nil && current != owner; current = current.Parent {
+		if ast.IsFunctionLike(current) {
+			return false
+		}
+	}
+	return owner != nil && node.Pos() >= owner.Pos() && node.End() <= owner.End()
+}
+
+func immutableMicroComponent(node *ast.Node) bool {
+	return node != nil && node.Parent != nil &&
+		ast.IsVariableDeclaration(node.Parent) &&
+		node.Parent.Parent != nil &&
+		node.Parent.Parent.Flags&ast.NodeFlagsConst != 0
+}
+
+func lexicalMicroComponentSymbols(
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) map[ast.SymbolId]struct{} {
+	result := make(map[ast.SymbolId]struct{})
+	if typeChecker == nil {
+		return result
+	}
+	for node := range lexicalMicroComponentTargets(rawComponentCandidates(sourceFile), sourceFile) {
+		parent := node.Parent
+		if parent == nil || !ast.IsVariableDeclaration(parent) {
+			continue
+		}
+		name := parent.AsVariableDeclaration().Name()
+		if name == nil || !ast.IsIdentifier(name) {
+			continue
+		}
+		if symbol := typeChecker.GetSymbolAtLocation(name); symbol != nil {
+			result[ast.GetSymbolId(symbol)] = struct{}{}
+		}
+	}
+	return result
 }
 
 func rawComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
@@ -188,36 +272,6 @@ func rawComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 		return true
 	})
 	return candidates
-}
-
-// returnedLocalRenderTargets keeps same-module shared render declarations out
-// of component ownership. A render function describes one component's current
-// tree; it does not establish a second durable component instance.
-func returnedLocalRenderTargets(
-	candidates []componentCandidate,
-	sourceFile *ast.SourceFile,
-) map[*ast.Node]struct{} {
-	declarations := make(map[string]*ast.Node)
-	for _, candidate := range candidates {
-		declarations[candidate.name] = candidate.node
-	}
-	result := make(map[*ast.Node]struct{})
-	for _, candidate := range candidates {
-		if len(componentSignals(candidate, sourceFile)) == 0 {
-			continue
-		}
-		for _, expression := range directCallableReturns(candidate.node) {
-			expression = unwrapRenderExpression(expression)
-			if !ast.IsIdentifier(expression) {
-				continue
-			}
-			if target := declarations[expression.Text()]; target != nil &&
-				target != candidate.node && directlyReturnsRenderedValue(target) {
-				result[target] = struct{}{}
-			}
-		}
-	}
-	return result
 }
 
 func directlyReturnsRenderedValue(callable *ast.Node) bool {

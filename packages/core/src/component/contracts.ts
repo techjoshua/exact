@@ -124,7 +124,13 @@ export type UnsafeHtmlAuditEvent = {
 export type ComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
 	this: Component<State>,
 	props: Props
-) => RenderFunction | RenderResult;
+) => RenderFunction;
+
+/** Authored direct-view component or lexical micro-component shape normalized by the compiler. */
+export type DirectComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
+	this: Component<State>,
+	props: Props
+) => RenderResult;
 
 /**
  * Authored async component shape accepted by the eXact compiler.
@@ -136,6 +142,15 @@ export type AsyncComponentFunction<State extends object = Record<string, unknown
 	this: Component<State>,
 	props: Props
 ) => Promise<RenderFunction | RenderResult>;
+
+/** Component source forms accepted by JSX and normalized before entering a renderer. */
+export type AuthoredComponentFunction<
+	State extends object = Record<string, unknown>,
+	Props = any
+> =
+	| ComponentFunction<State, Props>
+	| DirectComponentFunction<State, Props>
+	| AsyncComponentFunction<State, Props>;
 
 /** Defines the error source type contract. */
 export type ErrorSource =

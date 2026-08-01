@@ -59,6 +59,34 @@ func TestNormalizeAuthoredSourceOwnsDerivedComponentWork(t *testing.T) {
 	}
 }
 
+func TestNormalizeAuthoredSourceCanonicalizesDirectComponentsButNotMicroComponents(t *testing.T) {
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "direct-components.tsx"),
+		`
+			export function Rule() {
+				return <hr />;
+			}
+			export const Badge = (props: { label: string }) => <strong>{props.label}</strong>;
+			export function Article(this: Component<{ text: string }>) {
+				const Footer = () => <footer>{this.state.text}</footer>;
+				return () => <main><Footer /></main>;
+			}
+		`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		`return () => (<hr />);`,
+		`const Badge = (props: { label: string }) => () => (<strong>{props.label}</strong>);`,
+		`const Footer = () => <footer>{this.state.text}</footer>;`,
+	} {
+		if !strings.Contains(normalized.text, expected) {
+			t.Fatalf("canonical component normalization is missing %q:\n%s", expected, normalized.text)
+		}
+	}
+}
+
 func TestNormalizeAuthoredSourceOwnsAsyncComponentContinuation(t *testing.T) {
 	normalized, err := normalizeAuthoredSource(
 		normalizationTestFile(t, "customer.tsx"),
@@ -160,22 +188,13 @@ func TestNormalizeAuthoredSourceRejectsDestructuringWritesInRender(t *testing.T)
 				};
 			}
 		`,
-		"local": `
+		"micro-component": `
 			function Selection(this: Component<{ selected: number }>) {
-				const render = () => {
+				const Output = () => {
 					[this.state.selected] = load();
 					return <output />;
 				};
-				return render;
-			}
-		`,
-		"shared": `
-			function renderSelection(this: Component<{ selected: number }>) {
-				[this.state.selected] = load();
-				return <output />;
-			}
-			function Selection(this: Component<{ selected: number }>) {
-				return renderSelection;
+				return () => <Output />;
 			}
 		`,
 	} {

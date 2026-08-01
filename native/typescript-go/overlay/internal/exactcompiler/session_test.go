@@ -2231,11 +2231,10 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 		Kind: "compile",
 		Source: `
 			declare class Component<State> { state: State }
-			function renderPanel(this: Component<{ count: number }>) {
-				return <button onClick={() => this.state.count++}>{String(this.state.count)}</button>;
-			}
 			function Panel(this: Component<{ count: number }>) {
-				return renderPanel;
+				const Controls = () =>
+					<button onClick={() => this.state.count++}>{String(this.state.count)}</button>;
+				return () => <Controls />;
 			}
 		`,
 	})
@@ -2245,10 +2244,9 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 	if len(accepted.Diagnostics) != 0 {
 		t.Fatalf("valid shared render produced diagnostics: %#v", accepted.Diagnostics)
 	}
-	for _, component := range accepted.Analysis.Components {
-		if component.Name == "renderPanel" {
-			t.Fatalf("shared render was classified as a component: %#v", component)
-		}
+	if len(accepted.Analysis.Components) != 1 ||
+		accepted.Analysis.Components[0].Name != "Panel" {
+		t.Fatalf("micro-component acquired component identity: %#v", accepted.Analysis.Components)
 	}
 
 	rejected := NewSession(nil).Execute(Request{
@@ -2276,7 +2274,7 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 		}
 	}
 	for _, expected := range []string{
-		"may only return the view expression",
+		"must contain one view expression",
 		"may not write component state",
 		"may not register lifecycle work",
 		"may not schedule asynchronous work",
@@ -2294,27 +2292,119 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 	}
 }
 
-func TestSessionRejectsSharedArrowRender(t *testing.T) {
+func TestSessionLowersLexicalMicroComponentsWithoutDurableIdentity(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
-		ID:   "shared-arrow.tsx",
+		ID:   "micro-components.tsx",
 		Kind: "compile",
 		Source: `
 			declare class Component<State> { state: State }
-			const renderPanel = () => <p />;
-			function Panel(this: Component<{}>) {
-				return renderPanel;
+			function Article(this: Component<{ copyrightText: string }>) {
+				const Footer = (props: { prefix?: string } = {}) => (
+					<footer>{props.prefix}{this.state.copyrightText}</footer>
+				);
+				const Page = () => <article><Footer prefix="Copyright: " /></article>;
+				return () => <Page />;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("micro-component compilation failed: %#v", response)
+	}
+	if len(response.Analysis.Components) != 1 ||
+		response.Analysis.Components[0].Name != "Article" {
+		t.Fatalf("micro-components acquired durable identity: %#v", response.Analysis.Components)
+	}
+	for _, expected := range []string{
+		`const Footer = (props: {`,
+		`__exactVNode("footer"`,
+		`const Page = () => __exactVNode("article",`,
+		`Footer({ prefix: "Copyright: " })`,
+		`return () => Page({});`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("micro-component output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionAppliesRenderPurityToLexicalMicroComponents(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "impure-micro-component.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function Article(this: Component<{ count: number }>) {
+				const Footer = () => {
+					this.state.count++;
+					return <footer>{this.state.count}</footer>;
+				};
+				return () => <Footer />;
 			}
 		`,
 	})
 	found := false
 	for _, diagnostic := range response.Diagnostics {
 		if diagnostic.Code == "EXACT_RENDER" &&
-			strings.Contains(diagnostic.Message, "shared arrow") {
+			strings.Contains(diagnostic.Message, "may not write component state") {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("missing shared-arrow diagnostic: %#v", response.Diagnostics)
+		t.Fatalf("missing micro-component render diagnostic: %#v", response.Diagnostics)
+	}
+
+	mutable := NewSession(nil).Execute(Request{
+		ID:   "mutable-micro-component.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function Article(this: Component<{ text: string }>) {
+				let Footer = () => <footer>{this.state.text}</footer>;
+				return () => <Footer />;
+			}
+		`,
+	})
+	found = false
+	for _, diagnostic := range mutable.Diagnostics {
+		if diagnostic.Code == "EXACT_RENDER" &&
+			strings.Contains(diagnostic.Message, "immutable const") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing mutable micro-component diagnostic: %#v", mutable.Diagnostics)
+	}
+}
+
+func TestSessionRejectsSharedRenderCallables(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "shared-arrow.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			const renderPanel = () => <p />;
+			function renderStatus() { return <output />; }
+			function Panel(this: Component<{}>) {
+				return renderPanel;
+			}
+			function Status(this: Component<{}>) {
+				return renderStatus;
+			}
+			function renderBound(this: Component<{}>) { return <aside />; }
+			function Bound(this: Component<{}>) {
+				return renderBound.bind(this);
+			}
+		`,
+	})
+	found := 0
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Code == "EXACT_RENDER" &&
+			strings.Contains(diagnostic.Message, "component-local render arrow") {
+			found++
+		}
+	}
+	if found != 3 {
+		t.Fatalf("missing shared-render diagnostics: %#v", response.Diagnostics)
 	}
 }
 
@@ -2337,32 +2427,6 @@ func TestSessionPassesThroughExplicitForeignJSXModules(t *testing.T) {
 	}
 	if len(response.Analysis.Components) != 0 || response.Code != source {
 		t.Fatalf("foreign JSX module was not passed through: %#v", response)
-	}
-}
-
-func TestSessionValidatesStandaloneRegularRenderBody(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
-		ID:   "shared-render.tsx",
-		Kind: "compile",
-		Source: `
-			declare class Component<State> { state: State }
-			export function renderStatus(
-				this: Component<{ message: string }>
-			) {
-				this.state.message = "rendered";
-				return <output>{this.state.message}</output>;
-			}
-		`,
-	})
-	found := false
-	for _, diagnostic := range response.Diagnostics {
-		if diagnostic.Code == "EXACT_RENDER" &&
-			strings.Contains(diagnostic.Message, "may not write component state") {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("missing standalone render diagnostic: %#v", response.Diagnostics)
 	}
 }
 
@@ -3172,12 +3236,12 @@ func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testi
 			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
 			function Workspace(this: Component<{ revision: number; draft: string }>) {
-				async function persist(
+				const persist = async (
 					draft: string = this.state.draft,
 					task: TaskContext = TaskContext.client().latest()
-				) {
+				) => {
 					await save(this.state.revision, draft, task.signal);
-				}
+				};
 				persist();
 				return () => <output />;
 			}
@@ -3208,7 +3272,7 @@ func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testi
 		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft : __exactTaskArgs[1];`,
 		`return [__exactTaskArgs[0], draft];`,
 		`this.reactive(() => this.state.revision)`,
-		`async (__exactDependency: any, draft: string, task: TaskContext)`,
+		`async (__exactDependency: number, draft: string, task: TaskContext)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("captured task output is missing %q:\n%s", expected, response.Code)

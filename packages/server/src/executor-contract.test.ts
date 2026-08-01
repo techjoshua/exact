@@ -10,7 +10,7 @@ import {
 describe('@exactjs/server executor contracts', () => {
 	it('composes explicitly imported executable component contracts', () => {
 		const execute = () => ({ state: {} });
-		const component = Object.assign(() => undefined, {
+		const component = Object.assign(() => () => undefined, {
 			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
 				version: 1 as const,
@@ -77,7 +77,7 @@ describe('@exactjs/server executor contracts', () => {
 	it('rejects conflicting application authority and malformed routes', () => {
 		const first = defineExactOperationContract('save', { componentId: 'Page' });
 		const second = defineExactOperationContract('save', { componentId: 'OtherPage' });
-		const component = Object.assign(() => undefined, {
+		const component = Object.assign(() => () => undefined, {
 			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
 				version: 1 as const,

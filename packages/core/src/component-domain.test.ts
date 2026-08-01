@@ -38,7 +38,7 @@ describe('component domains', () => {
 	});
 
 	it('defaults ordinary roots to the page domain', () => {
-		const instance = createComponentInstance(() => null, {});
+		const instance = createComponentInstance(() => () => null, {});
 		expect(instance.domain).toBe(pageComponentDomain);
 		instance.unmount();
 	});

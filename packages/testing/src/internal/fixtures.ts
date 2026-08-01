@@ -4,9 +4,8 @@ import {
 	isExactComponent,
 	markExactComponent,
 	type Activity,
-	type AsyncComponentFunction,
+	type AuthoredComponentFunction,
 	type Child,
-	type ComponentFunction,
 	type Fragment,
 	type Suspense,
 	type VNode,
@@ -21,8 +20,10 @@ type TestJsxProps = Record<string, unknown> & {
 	key?: string;
 };
 
+type TestJsxType = VNodeType | AuthoredComponentFunction<any, any>;
+
 /** Gives a raw renderer-test function the identity application components receive from the compiler. */
-function testType(type: VNodeType): VNodeType {
+function testType<T extends TestJsxType>(type: T): T {
 	const authoredName = typeof type === 'function' ? type.name : '';
 	if (typeof type === 'function' && !isExactComponent(type))
 		markExactComponent(
@@ -65,7 +66,7 @@ export function createCompiledTestVNode(
 
 /** Creates an automatic-JSX-shaped renderer fixture with an explicit test component identity. */
 export function createTestJsx<P extends TestJsxProps>(
-	type: ComponentFunction<any, P> | AsyncComponentFunction<any, P>,
+	type: AuthoredComponentFunction<any, P>,
 	props: P | null,
 	key?: string
 ): VNode<P>;
@@ -75,11 +76,11 @@ export function createTestJsx(
 	key?: string
 ): VNode;
 export function createTestJsx(
-	type: VNodeType,
+	type: TestJsxType,
 	props: Record<string, unknown> | null,
 	key?: string
 ): VNode {
-	return (jsx as (type: VNodeType, props: Record<string, unknown> | null, key?: string) => VNode)(
+	return (jsx as (type: TestJsxType, props: Record<string, unknown> | null, key?: string) => VNode)(
 		testType(type),
 		props,
 		key
@@ -88,7 +89,7 @@ export function createTestJsx(
 
 /** Multi-child counterpart to {@link createTestJsx}. */
 export function createTestJsxs<P extends TestJsxProps>(
-	type: ComponentFunction<any, P> | AsyncComponentFunction<any, P>,
+	type: AuthoredComponentFunction<any, P>,
 	props: P | null,
 	key?: string
 ): VNode<P>;
@@ -98,13 +99,11 @@ export function createTestJsxs(
 	key?: string
 ): VNode;
 export function createTestJsxs(
-	type: VNodeType,
+	type: TestJsxType,
 	props: Record<string, unknown> | null,
 	key?: string
 ): VNode {
-	return (jsxs as (type: VNodeType, props: Record<string, unknown> | null, key?: string) => VNode)(
-		testType(type),
-		props,
-		key
-	);
+	return (
+		jsxs as (type: TestJsxType, props: Record<string, unknown> | null, key?: string) => VNode
+	)(testType(type), props, key);
 }

@@ -10,7 +10,10 @@ Suspense, function-defined tasks, interactions, and finite component registries.
 `@exactjs/ssr`.
 
 An eXact component is a durable instance. Its outer function performs setup once, local mutable
-data lives in `this.state`, and the returned function contains the JSX view.
+data lives in `this.state`, and the returned function contains one JSX view expression. Async
+outer functions are compiler shorthand for an owned blocking initializer task. Setup-local
+PascalCase view arrows are lexical micro-components and share their owner rather than creating
+another instance.
 
 ## Component example
 
@@ -30,7 +33,8 @@ re-executing the component.
 ## Main capabilities
 
 - Context, refs, lifecycle cleanup, Suspense, Activity, and error boundaries
-- Function-defined tasks with optional `TaskContext` placement and concurrency policy
+- Function-defined tasks—declarations, expressions, or arrows—with optional `TaskContext`
+  placement and concurrency policy
 - Function-defined tasks with status, direct invocation, and synchronous optimistic state
 - `createComponentRegistry()` for finite eager or lazy component selection
 - Shared component, VNode, task, and inspection types used by framework integrations

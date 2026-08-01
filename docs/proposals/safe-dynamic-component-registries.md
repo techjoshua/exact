@@ -544,42 +544,39 @@ export function Dashboard(this: Component<DashboardState>, props: { project: Pro
 	function select(itemId: string) {
 		this.state.selectedId = itemId;
 	}
+	const CurrentWidget = Widget[this.state.widget];
 
-	return () => {
-		const CurrentWidget = Widget[this.state.widget];
+	return () => (
+		<main>
+			<header>
+				<h1>{props.project.name}</h1>
 
-		return (
-			<main>
-				<header>
-					<h1>{props.project.name}</h1>
+				<label>
+					View
+					<select value:change={this.state.widget}>
+						<option value="grid">Grid</option>
+						<option value="table">Table</option>
+						<option value="metric">Metrics</option>
+					</select>
+				</label>
+			</header>
 
-					<label>
-						View
-						<select value:change={this.state.widget}>
-							<option value="grid">Grid</option>
-							<option value="table">Table</option>
-							<option value="metric">Metrics</option>
-						</select>
-					</label>
-				</header>
+			<ErrorBoundary
+				fallback={({ error, reset }) => (
+					<section role="alert">
+						<p>Could not load this view: {String(error.error)}</p>
+						<button onClick={reset}>Retry</button>
+					</section>
+				)}
+			>
+				<Suspense fallback={<p>Loading view…</p>}>
+					<CurrentWidget project={props.project} onSelect={select} />
+				</Suspense>
+			</ErrorBoundary>
 
-				<ErrorBoundary
-					fallback={({ error, reset }) => (
-						<section role="alert">
-							<p>Could not load this view: {String(error.error)}</p>
-							<button onClick={reset}>Retry</button>
-						</section>
-					)}
-				>
-					<Suspense fallback={<p>Loading view…</p>}>
-						<CurrentWidget project={props.project} onSelect={select} />
-					</Suspense>
-				</ErrorBoundary>
-
-				{this.state.selectedId && <p>Selected: {this.state.selectedId}</p>}
-			</main>
-		);
-	};
+			{this.state.selectedId && <p>Selected: {this.state.selectedId}</p>}
+		</main>
+	);
 }
 ```
 
@@ -656,17 +653,15 @@ export function AccountReports(
 	props: { accountId: string; requestedReport: string }
 ) {
 	this.state.requestedReport = props.requestedReport;
+	const requested = this.state.requestedReport;
+	const CurrentReport = hasComponent(Report, requested) ? Report[requested] : undefined;
 
-	return () => {
-		const requested = this.state.requestedReport;
-
-		if (!hasComponent(Report, requested)) {
-			return <UnknownReport requested={requested} />;
-		}
-
-		const CurrentReport = Report[requested];
-		return <CurrentReport accountId={props.accountId} />;
-	};
+	return () =>
+		CurrentReport ? (
+			<CurrentReport accountId={props.accountId} />
+		) : (
+			<UnknownReport requested={requested} />
+		);
 }
 ```
 
@@ -708,38 +703,35 @@ const SettingsPanel = createComponentRegistry(({ lazy }) => ({
 
 export function Settings(this: Component<SettingsState>, props: SettingsProps) {
 	this.state.panel = 'profile';
+	const CurrentPanel = SettingsPanel[this.state.panel];
 
-	return () => {
-		const CurrentPanel = SettingsPanel[this.state.panel];
+	return () => (
+		<main>
+			<nav aria-label="Settings">
+				<button onClick={() => (this.state.panel = 'profile')}>Profile</button>
 
-		return (
-			<main>
-				<nav aria-label="Settings">
-					<button onClick={() => (this.state.panel = 'profile')}>Profile</button>
+				<button
+					onPointerEnter={() => preloadComponent(SettingsPanel.security)}
+					onFocus={() => preloadComponent(SettingsPanel.security)}
+					onClick={() => (this.state.panel = 'security')}
+				>
+					Security
+				</button>
 
-					<button
-						onPointerEnter={() => preloadComponent(SettingsPanel.security)}
-						onFocus={() => preloadComponent(SettingsPanel.security)}
-						onClick={() => (this.state.panel = 'security')}
-					>
-						Security
-					</button>
+				<button
+					onPointerEnter={() => preloadComponent(SettingsPanel.billing)}
+					onFocus={() => preloadComponent(SettingsPanel.billing)}
+					onClick={() => (this.state.panel = 'billing')}
+				>
+					Billing
+				</button>
+			</nav>
 
-					<button
-						onPointerEnter={() => preloadComponent(SettingsPanel.billing)}
-						onFocus={() => preloadComponent(SettingsPanel.billing)}
-						onClick={() => (this.state.panel = 'billing')}
-					>
-						Billing
-					</button>
-				</nav>
-
-				<Suspense fallback={<p>Loading settings…</p>}>
-					<CurrentPanel userId={props.userId} />
-				</Suspense>
-			</main>
-		);
-	};
+			<Suspense fallback={<p>Loading settings…</p>}>
+				<CurrentPanel userId={props.userId} />
+			</Suspense>
+		</main>
+	);
 }
 ```
 

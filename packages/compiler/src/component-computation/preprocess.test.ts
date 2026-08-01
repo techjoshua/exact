@@ -173,6 +173,7 @@ describe('@exactjs/compiler component computations', () => {
 		const output = transform(
 			`declare function load(id: string): Promise<string>;
 			declare function loadOrders(customer: string): Promise<string[]>;
+			declare function recordAttempt(): Promise<void>;
 			function describe(error: unknown): string { return String(error); }
 			async function Customer(this: Component<{ id: string; value?: string; orders: string[]; error?: string; loading: boolean }>) {
 				try {
@@ -182,6 +183,7 @@ describe('@exactjs/compiler component computations', () => {
 				} catch (error) {
 					this.state.error = describe(error);
 				} finally {
+					await recordAttempt();
 					this.state.loading = false;
 				}
 				return () => <output>{this.state.value}</output>;
@@ -197,7 +199,7 @@ describe('@exactjs/compiler component computations', () => {
 		expect(output).toContain('finally');
 		expect(output).toContain('__exactTaskAwait');
 		expect(output).toContain('__exactStageTaskMutation');
-		expect(output.match(/__exactTaskAwait/g)?.length).toBeGreaterThanOrEqual(2);
+		expect(output.match(/__exactTaskAwait/g)?.length).toBeGreaterThanOrEqual(3);
 	});
 
 	it('keeps synchronous initialization ahead of an async generation', () => {

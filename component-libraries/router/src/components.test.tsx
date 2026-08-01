@@ -1,7 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { createErrorContext, createExpression, createVNode, isExactComponent } from '@exactjs/core';
+import {
+	createErrorContext,
+	createExpression,
+	createVNode,
+	isExactComponent,
+	type ComponentFunction
+} from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import {
 	createRequestContextValue,
@@ -81,12 +87,13 @@ describe('router', () => {
 	});
 
 	it('collects routes generated inside compiled fragments', () => {
+		const routeType = Route as unknown as ComponentFunction<any, any>;
 		const generated = [
-			createVNode(Route, {
+			createVNode(routeType, {
 				path: createExpression(() => 'guides/routing'),
 				component: createExpression(() => GeneratedPage)
 			}),
-			createVNode(Route, {
+			createVNode(routeType, {
 				path: createExpression(() => 'learn/state'),
 				component: createExpression(() => StatePage)
 			})

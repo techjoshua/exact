@@ -23,7 +23,7 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 		const anchor = document.createElement('i');
 		container.append(start, child, end, anchor);
 		function Boundary() {
-			return null;
+			return () => null;
 		}
 		const mounted = {
 			vnode: createVNode(Boundary, null),

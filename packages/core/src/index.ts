@@ -102,6 +102,7 @@ export {
 export type {
 	ActivityMode,
 	AsyncComponentFunction,
+	AuthoredComponentFunction,
 	Child,
 	Component,
 	ComponentContinuationContextBinding,
@@ -109,6 +110,7 @@ export type {
 	ComponentContinuationDispatcher,
 	ComponentContextValues,
 	ComponentDomain,
+	DirectComponentFunction,
 	ComponentFunction,
 	ComponentInstance,
 	BlockingWork,

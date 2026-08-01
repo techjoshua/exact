@@ -1,4 +1,4 @@
-import type { ComponentFunction } from '../component/contracts.js';
+import type { AuthoredComponentFunction, ComponentFunction } from '../component/contracts.js';
 import { markExactComponent } from '../component-contracts.js';
 import { createVNode } from '../vnode.js';
 import type {
@@ -24,7 +24,7 @@ const registryValues = new WeakMap<object, ComponentRegistryRuntime>();
 
 type RuntimeLazyEntry = {
 	readonly [lazyDescriptor]: true;
-	readonly load: () => Promise<ComponentFunction<any, any>>;
+	readonly load: () => Promise<AuthoredComponentFunction<any, any>>;
 };
 
 /**
@@ -66,7 +66,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 		throw new TypeError('createComponentRegistry() requires a definition callback');
 	let defining = true;
 	const builder: ComponentRegistryBuilder = {
-		lazy<Component extends ComponentFunction<any, any>>(
+		lazy<Component extends AuthoredComponentFunction<any, any>>(
 			load: () => Promise<Component>
 		): LazyRegistryEntry<Component> {
 			if (!defining)
@@ -127,7 +127,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			key,
 			facade,
 			eager: lazy ? undefined : (authored as ComponentFunction<any, any>),
-			load: lazy?.load,
+			load: lazy?.load as (() => Promise<ComponentFunction<any, any>>) | undefined,
 			loadGeneration: 0
 		};
 		if (entry.eager) entry.resolved = entry.eager;
@@ -188,10 +188,12 @@ export function hasComponent<Registry extends ComponentRegistry<any>>(
  *
  * Eager components and ordinary component functions resolve immediately.
  */
-export async function preloadComponent(component: ComponentFunction<any, any>): Promise<void> {
+export async function preloadComponent(
+	component: AuthoredComponentFunction<any, any>
+): Promise<void> {
 	if (typeof component !== 'function')
 		throw new TypeError('preloadComponent() requires a component');
-	const entry = registryEntryFor(component);
+	const entry = registryEntryFor(component as ComponentFunction<any, any>);
 	if (!entry) return;
 	await loadRegistryEntry(entry);
 }
