@@ -73,7 +73,7 @@ describe('hidden exact roots', () => {
 	it('releases every rotated domain and refuses to revive a disposed client', () => {
 		const container = document.createElement('div');
 		const client = createExactClient(container, { executionRoot: '@company/area#./Root' });
-		const rotated = createComponentDomain('@company/area#./Root');
+		const rotated = createComponentDomain({ executionRoot: '@company/area#./Root' });
 		function Area() {
 			return () => createVNode('p', null, 'area');
 		}

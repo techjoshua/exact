@@ -10,8 +10,8 @@ import { applyPatches } from './patches.js';
 describe('execution-root patch confinement', () => {
 	it('selects only targets owned by the issuing root when local ids collide', () => {
 		const container = document.createElement('div');
-		const page = createComponentDomain('page');
-		const remote = createComponentDomain('@company/billing#./Area');
+		const page = createComponentDomain({ executionRoot: 'page' });
+		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
 		function Label(this: Component<{}>, props: { value: string }) {
 			return () => createVNode('span', { 'data-exact-id': 'title' }, props.value);
 		}
@@ -40,8 +40,8 @@ describe('execution-root patch confinement', () => {
 
 	it('reports a structural patch that replaces an ancestor of a foreign-root child', () => {
 		const container = document.createElement('div');
-		const page = createComponentDomain('page');
-		const remote = createComponentDomain('@company/brand#./Shell');
+		const page = createComponentDomain({ executionRoot: 'page' });
+		const remote = createComponentDomain({ executionRoot: '@company/brand#./Shell' });
 		function PageChild() {
 			return () => createVNode('strong', { 'data-page-child': '' }, 'Page');
 		}

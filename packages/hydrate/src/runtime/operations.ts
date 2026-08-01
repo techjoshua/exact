@@ -1,5 +1,6 @@
 import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom';
 import { stageTaskMutation, type ComponentInstance, type ContextToken } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { enqueueExactOperation } from '../batching.js';
 import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
 import { hydrateClientIslands } from '../islands.js';
@@ -97,12 +98,13 @@ export async function invokeAndApply(
 				? boundaryHtmlsFor(container, configuredBoundaries, work, options.executionRoot ?? 'page')
 				: undefined
 	};
-	component?.instance.domain.inspection?.publish({
-		kind: 'continuation.dispatch',
-		component: component.instance,
-		operationId: id,
-		generation: component.generation
-	});
+	if (component)
+		componentDomainInspection(component.instance.domain)?.publish({
+			kind: 'continuation.dispatch',
+			component: component.instance,
+			operationId: id,
+			generation: component.generation
+		});
 	const endpoint = requireEndpoint(endpointForOperation(client, type, id));
 	const transport = transportForEndpoint(options, endpoint);
 	// Operations can route to per-invocation or per-boundary endpoints, which keeps
@@ -273,14 +275,14 @@ export async function invokeAndApply(
 		}
 		if (component) {
 			if (appliedPatches.length)
-				component.instance.domain.inspection?.publish({
+				componentDomainInspection(component.instance.domain)?.publish({
 					kind: 'patch.apply',
 					component: component.instance,
 					operationId: id,
 					generation: component.generation,
 					attributes: Object.freeze({ count: appliedPatches.length })
 				});
-			component.instance.domain.inspection?.publish({
+			componentDomainInspection(component.instance.domain)?.publish({
 				kind: 'continuation.apply',
 				component: component.instance,
 				operationId: id,

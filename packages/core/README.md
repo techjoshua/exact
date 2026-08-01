@@ -37,6 +37,8 @@ re-executing the component.
   placement and concurrency policy
 - Function-defined tasks with status, direct invocation, and synchronous optimistic state
 - `createComponentRegistry()` for finite eager or lazy component selection
+- `createComponentDomain({ executionRoot })` for integrations that establish explicit ownership
+  roots without exposing framework transport or activation capabilities
 - Shared component, VNode, task, and inspection types used by framework integrations
 
 Use ordinary callbacks and inferred tasks when they are sufficient. Reach for explicit policy when

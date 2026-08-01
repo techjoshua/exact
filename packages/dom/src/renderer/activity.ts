@@ -11,6 +11,7 @@ import {
 	type ComponentInstance,
 	type ReadinessContextValue
 } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import {
 	flushSync,
 	setEffectScopeWorkPriority,
@@ -166,7 +167,7 @@ function finishActivityActivation(root: Root, mounted: Mounted, generation: numb
 function publishActivityChange(mounted: Mounted): void {
 	const activity = mounted.activity;
 	if (!activity) return;
-	activity.owner.domain.inspection?.publish({
+	componentDomainInspection(activity.owner.domain)?.publish({
 		kind: 'activity.change',
 		component: activity.owner,
 		attributes: Object.freeze({

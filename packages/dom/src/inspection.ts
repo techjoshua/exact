@@ -1,4 +1,5 @@
 import { inspectExactRuntimeComponent, type ExactRuntimeInspectionOwner } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import type {
 	ExactInspectedRuntimeComponent,
 	ExactInspectionExecutionRoot,
@@ -29,7 +30,9 @@ export function createExactDomInspectionHost(): ExactDomInspectionHost {
 	const host: ExactDomInspectionHost = {
 		attach(sessionId, sink) {
 			for (const root of activeInspectableRoots()) {
-				const owner = root.current.domain?.inspection;
+				const owner = root.current.domain
+					? componentDomainInspection(root.current.domain)
+					: undefined;
 				if (!owner) continue;
 				owner.attach(sessionId, sink);
 				attachedOwners.add(owner);
@@ -44,7 +47,7 @@ export function createExactDomInspectionHost(): ExactDomInspectionHost {
 		},
 		ownerOfElement(element) {
 			const instance = elementOwners.get(element);
-			return instance?.domain.inspection?.identity(instance);
+			return instance ? componentDomainInspection(instance.domain)?.identity(instance) : undefined;
 		},
 		ownedElements(identity) {
 			for (const root of activeInspectableRoots()) {
@@ -63,7 +66,7 @@ function snapshotRoots(roots: readonly Root[]): ExactDomInspectionSnapshot {
 	const executionRoots: ExactInspectionExecutionRoot[] = [];
 	const components: ExactInspectedRuntimeComponent[] = [];
 	for (const root of roots) {
-		const owner = root.current.domain?.inspection;
+		const owner = root.current.domain ? componentDomainInspection(root.current.domain) : undefined;
 		if (!owner || !root.mounted) continue;
 		const before = components.length;
 		appendMounted(root.mounted, undefined, components);
@@ -90,7 +93,9 @@ function appendMounted(
 	output: ExactInspectedRuntimeComponent[]
 ): void {
 	const instance = mounted.instance;
-	const identity = instance?.domain.inspection?.identity(instance);
+	const identity = instance
+		? componentDomainInspection(instance.domain)?.identity(instance)
+		: undefined;
 	const nextParent = identity ?? parent;
 	if (instance && identity) {
 		const snapshot = inspectExactRuntimeComponent(instance, {

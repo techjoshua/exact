@@ -38,6 +38,9 @@ without treating arbitrary semver similarity as runtime compatibility.
 `RemoteComponent` loads the generated registration, establishes an immutable
 component domain, and mounts page-authored children beneath that domain.
 Contexts and portals continue to follow logical component ownership.
+The domain's application-visible shape is only its `executionRoot` identity;
+transport, resumption, inspection, and activation capabilities remain private
+to framework render and hydration boundaries.
 
 ## Protocol and recovery
 

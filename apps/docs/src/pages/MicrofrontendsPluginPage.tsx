@@ -89,6 +89,11 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					an isolated execution root, passes props and children, and owns disposal. A binding change
 					replaces the remote generation. Failed loads render the supplied fallback.
 				</p>
+				<p>
+					The component domain exposes only its immutable <code>executionRoot</code> identity.
+					Framework transport, resumption, inspection, and activation capabilities stay behind the
+					rendering and hydration boundary.
+				</p>
 			</section>
 			<section>
 				<h2>Deployment recovery is part of the contract</h2>

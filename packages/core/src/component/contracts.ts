@@ -7,7 +7,6 @@ import type {
 } from '@exactjs/reactive';
 
 import type { ComponentLog } from '../logging.js';
-import type { ExactRuntimeInspectionOwner } from './inspection.js';
 import type {
 	Activity,
 	Cell,
@@ -39,20 +38,13 @@ export type VNodeType =
 /** Controls whether a native Activity subtree is connected, parked, or prepared in background. */
 export type ActivityMode = 'active' | 'parked' | 'background';
 
-/** Immutable execution-root ownership for one component instance. */
-export type ComponentDomain = {
+/** Public identity of the execution root that owns a component instance. */
+export type ComponentDomainIdentity = {
 	readonly executionRoot: string;
-	/** Optional explicit runtime inspection owner; absent from hardened builds. */
-	readonly inspection?: ExactRuntimeInspectionOwner;
-	/** Framework-private activation phase inherited by the root component. */
-	readonly inspectionActivation?: 'hydration';
-	/** Framework-private bridge used by compiler-generated distributed continuations. */
-	readonly dispatchContinuation?: ComponentContinuationDispatcher;
-	/** Framework-private source of one serialized SSR component activation. */
-	readonly resumeComponent?: (
-		type: ComponentFunction<any, any>
-	) => ComponentResumptionActivation | undefined;
 };
+
+/** Immutable execution-root ownership for one component instance. */
+export type ComponentDomain = ComponentDomainIdentity;
 
 /** Client-visible state and settled work used to reconstruct one SSR component instance. */
 export type ComponentResumptionActivation = Readonly<{

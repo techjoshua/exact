@@ -1,10 +1,8 @@
+import { createVNode, Text, type ComponentInstance, type VNode } from '@exactjs/core';
 import {
-	createComponentDomain,
-	createVNode,
-	Text,
-	type ComponentInstance,
-	type VNode
-} from '@exactjs/core';
+	componentDomainInspection,
+	createFrameworkComponentDomain
+} from '@exactjs/core/framework/component-domains';
 import { flushSync } from '@exactjs/reactive';
 import { clearDelegated } from '../events.js';
 import {
@@ -62,7 +60,10 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (inspection && !vnode.domain) {
 		vnode = {
 			...vnode,
-			domain: createComponentDomain(inspection.executionRoot, undefined, undefined, inspection)
+			domain: createFrameworkComponentDomain({
+				executionRoot: inspection.executionRoot,
+				inspection
+			})
 		};
 	}
 	let root = roots.get(container);
@@ -94,10 +95,10 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 		};
 		root.boundary = createRootBoundary(root);
 		roots.set(container, root);
-		if (vnode.domain?.inspection) registerInspectableRoot(root);
+		if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	}
 	root.current = vnode;
-	if (vnode.domain?.inspection) registerInspectableRoot(root);
+	if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	root.version++;
 	root.logger = options.logger;
 	root.debugMarkers = options.debugMarkers ?? false;

@@ -33,7 +33,13 @@ import { ErrorContext } from './contexts.js';
 import { getComponentContext, hasComponentContext, setComponentContext } from './context-api.js';
 import { prepareComponentContextResumption } from './context-resumption.js';
 import { cleanupFailedComponentConstruction, isTemplateStringsArray } from './construction.js';
-import { pageComponentDomain, resolveComponentResumption, withComponentDomain } from './domain.js';
+import {
+	componentDomainInspection,
+	isHydrationComponentDomain,
+	pageComponentDomain,
+	resolveComponentResumption,
+	withComponentDomain
+} from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { reactiveValue } from './reactive-value.js';
 import { componentReadinessContext } from './readiness.js';
@@ -61,6 +67,7 @@ export function createComponentInstance<
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
 	const resumption = resolveComponentResumption(domain, type);
+	const inspection = componentDomainInspection(domain);
 	const refs = new Map<symbol, unknown>();
 	const lists = createComponentListController();
 	// Assignment follows scope creation because the scope error callback closes over the final instance.
@@ -191,7 +198,7 @@ export function createComponentInstance<
 		markMounted(): void {
 			if (mounted || disposed) return;
 			mounted = true;
-			domain.inspection?.publish({ kind: 'component.mount', component: instance });
+			inspection?.publish({ kind: 'component.mount', component: instance });
 			instance.mountController = new AbortController();
 			for (const handler of instance.mountHandlers) {
 				if (disposed || !mounted) break;
@@ -208,7 +215,7 @@ export function createComponentInstance<
 		setActivity(token: symbol, active: boolean, reason = 'activity'): void {
 			if (active) activityBlockers.delete(token);
 			else activityBlockers.add(token);
-			domain.inspection?.publish({
+			inspection?.publish({
 				kind: 'activity.change',
 				component: instance,
 				reason,
@@ -221,11 +228,15 @@ export function createComponentInstance<
 		},
 		updateProps(nextProps): void {
 			updateReactive(props, nextProps);
-			domain.inspection?.publish({ kind: 'props.change', component: instance, path: 'props' });
+			inspection?.publish({
+				kind: 'props.change',
+				component: instance,
+				path: 'props'
+			});
 		},
 		unmount(reason = 'unmount'): void {
 			if (disposed) return;
-			domain.inspection?.publish({
+			inspection?.publish({
 				kind: 'component.unmount',
 				component: instance,
 				reason
@@ -278,9 +289,12 @@ export function createComponentInstance<
 	if (taskObserver) {
 		taskOwner.observeSettlement = (settlement) => taskObserver.register(settlement, instance);
 	}
-	domain.inspection?.publish({ kind: 'component.construct', component: instance });
-	if (!parent && domain.inspectionActivation === 'hydration')
-		domain.inspection?.publish({ kind: 'hydration.activate', component: instance });
+	inspection?.publish({ kind: 'component.construct', component: instance });
+	if (!parent && isHydrationComponentDomain(domain))
+		inspection?.publish({
+			kind: 'hydration.activate',
+			component: instance
+		});
 
 	// Framework fallback errors belong to one application root. A user-provided
 	// ErrorContext installed during construction replaces this seed for its tree.
@@ -308,7 +322,10 @@ export function createComponentInstance<
 	}
 	if (resumption) {
 		applyComponentResumption(state as Reactive<Record<string, unknown>>, resumption);
-		domain.inspection?.publish({ kind: 'resumption.activate', component: instance });
+		inspection?.publish({
+			kind: 'resumption.activate',
+			component: instance
+		});
 		const settledContinuations = new Set(resumption.settledContinuations);
 		releaseTaskOwnerActivations(taskOwner, (task) => {
 			const continuationId = componentContinuationTaskId(task);

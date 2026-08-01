@@ -5,7 +5,7 @@ import {
 	normalizePositiveLimit,
 	normalizeSsrTreeDepth
 } from '../render/limits.js';
-import { createComponentDomain } from '@exactjs/core';
+import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 
 /** Performs the drain tasks domain operation. */
@@ -77,12 +77,10 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		componentContexts: options.contexts,
 		...(options.inspection
 			? {
-					componentDomain: createComponentDomain(
-						options.inspection.executionRoot,
-						undefined,
-						undefined,
-						options.inspection
-					)
+					componentDomain: createFrameworkComponentDomain({
+						executionRoot: options.inspection.executionRoot,
+						inspection: options.inspection
+					})
 				}
 			: {}),
 		onComponentCreated: options.onComponentCreated,

@@ -44,7 +44,7 @@ export function hydrateClientIslands(
 	const domain =
 		options.componentDomain ??
 		(rootContainer instanceof Element ? roots.get(rootContainer)?.domain : undefined) ??
-		createComponentDomain(options.executionRoot ?? 'page');
+		createComponentDomain({ executionRoot: options.executionRoot ?? 'page' });
 	const enqueue = (root: Node) =>
 		walkDomSubtree(
 			root,

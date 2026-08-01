@@ -173,7 +173,7 @@ export function RemoteComponent(
 			onBuildUnsupported: () => nextRecovery?.unsupported(),
 			onCrossRootReplacement: () => {
 				if (signal.aborted || client !== nextClient) return;
-				renderDomain = createComponentDomain(loaded.root);
+				renderDomain = createComponentDomain({ executionRoot: loaded.root });
 				this.state.reconcile++;
 			}
 		});

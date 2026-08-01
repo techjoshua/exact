@@ -39,6 +39,7 @@ export {
 	currentComponentDomain,
 	dispatchComponentContinuation,
 	pageComponentDomain,
+	type ComponentDomainOptions,
 	withComponentDomain,
 	withComponentResumption
 } from './component/domain.js';
@@ -104,6 +105,7 @@ export type {
 	ComponentContinuationDispatcher,
 	ComponentContextValues,
 	ComponentDomain,
+	ComponentDomainIdentity,
 	DirectComponentFunction,
 	ComponentFunction,
 	ComponentInstance,

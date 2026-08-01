@@ -23,6 +23,10 @@
 		"./framework/task-frames": {
 			"types": "./dist/framework/task-frames.d.ts",
 			"default": "./dist/framework/task-frames.js"
+		},
+		"./framework/component-domains": {
+			"types": "./dist/framework/component-domains.d.ts",
+			"default": "./dist/framework/component-domains.js"
 		}
 	},
 	"main": "./dist/index.js",
