@@ -1,0 +1,20 @@
+{
+	"name": "@exactjs/physics",
+	"version": "0.1.0",
+	"type": "module",
+	"files": ["AGENTS.md", "dist", "!dist/**/*.test.*"],
+	"exports": {
+		".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+		"./testing": { "types": "./dist/testing.d.ts", "default": "./dist/testing.js" }
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"dependencies": { "@exactjs/reactive": "^0.1.0" },
+	"scripts": {
+		"build": "tsc6 -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": { "access": "public" }
+}
