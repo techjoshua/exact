@@ -1,7 +1,5 @@
 import type { Component } from '@exactjs/core';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
-import { defineMotion } from '@exactjs/motion';
+import { defineMotion, LayoutGroup, Motion, Presence } from '@exactjs/motion';
 
 const panelMotion = defineMotion({
 	enter: {
@@ -94,34 +92,56 @@ export function MotionControls(this: Component<MotionControlsState>) {
 				<span className="package-label">@exactjs/motion</span>
 			</div>
 
-			<div className="tab-list" role="tablist" aria-label="Account information">
-				<button
-					role="tab"
-					aria-selected={this.state.activeTab === 'profile'}
-					onClick={() => (this.state.activeTab = 'profile')}
-				>
-					Profile
-				</button>
-				<button
-					role="tab"
-					aria-selected={this.state.activeTab === 'activity'}
-					onClick={() => (this.state.activeTab = 'activity')}
-				>
-					Activity
-				</button>
-			</div>
+			<LayoutGroup id="account-tabs">
+				<div className="tab-list" role="tablist" aria-label="Account information">
+					<button
+						role="tab"
+						aria-selected={this.state.activeTab === 'profile'}
+						onClick={() => (this.state.activeTab = 'profile')}
+					>
+						{this.state.activeTab === 'profile' ? (
+							<Motion
+								key="active-tab-indicator"
+								as="span"
+								className="tab-indicator"
+								layout="position"
+								layoutId="active-tab-indicator"
+							/>
+						) : null}
+						<span className="tab-label">Profile</span>
+					</button>
+					<button
+						role="tab"
+						aria-selected={this.state.activeTab === 'activity'}
+						onClick={() => (this.state.activeTab = 'activity')}
+					>
+						{this.state.activeTab === 'activity' ? (
+							<Motion
+								key="active-tab-indicator"
+								as="span"
+								className="tab-indicator"
+								layout="position"
+								layoutId="active-tab-indicator"
+							/>
+						) : null}
+						<span className="tab-label">Activity</span>
+					</button>
+				</div>
+			</LayoutGroup>
 			<div className="tab-panel">
-				{this.state.activeTab === 'profile' ? (
-					<div key="profile" motion:apply={panelMotion} motion:appear role="tabpanel">
-						<strong>Jordan Lee</strong>
-						<p>Design systems · Pacific time · Available for review</p>
-					</div>
-				) : (
-					<div key="activity" motion:apply={panelMotion} motion:appear role="tabpanel">
-						<strong>Three updates today</strong>
-						<p>Published tokens, reviewed navigation, and resolved two comments.</p>
-					</div>
-				)}
+				<Presence when mode="out-in">
+					{this.state.activeTab === 'profile' ? (
+						<Motion key="profile" as="div" motion={panelMotion} role="tabpanel">
+							<strong>Jordan Lee</strong>
+							<p>Design systems · Pacific time · Available for review</p>
+						</Motion>
+					) : (
+						<Motion key="activity" as="div" motion={panelMotion} role="tabpanel">
+							<strong>Three updates today</strong>
+							<p>Published tokens, reviewed navigation, and resolved two comments.</p>
+						</Motion>
+					)}
+				</Presence>
 			</div>
 
 			<div className="control-row">
@@ -140,20 +160,20 @@ export function MotionControls(this: Component<MotionControlsState>) {
 				</button>
 			</div>
 
-			{this.state.expanded ? (
-				<div className="disclosure" motion:apply={disclosureMotion} motion:appear>
+			<Presence when={this.state.expanded}>
+				<Motion key="details" as="div" className="disclosure" motion={disclosureMotion}>
 					Motion follows committed state; it does not own whether this disclosure is open.
-				</div>
-			) : null}
-			{this.state.toastVisible ? (
-				<div className="toast" key="saved" role="status" motion:apply={toastMotion} motion:appear>
+				</Motion>
+			</Presence>
+			<Presence when={this.state.toastVisible}>
+				<Motion className="toast" key="saved" as="div" role="status" motion={toastMotion}>
 					<span className="toast-icon">✓</span>
 					<div>
 						<strong>Changes saved</strong>
 						<small>Your account settings are up to date.</small>
 					</div>
-				</div>
-			) : null}
+				</Motion>
+			</Presence>
 		</section>
 	);
 }

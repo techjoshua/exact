@@ -184,6 +184,8 @@ h2 {
 }
 
 .tab-list button {
+	position: relative;
+	overflow: hidden;
 	border-color: transparent;
 	padding: 8px 15px;
 	background: transparent;
@@ -191,8 +193,20 @@ h2 {
 
 .tab-list button[aria-selected='true'] {
 	color: #061521;
-	background: #7dd3fc;
 	font-weight: 800;
+}
+
+.tab-indicator {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	background: #7dd3fc;
+	box-shadow: 0 6px 16px #38bdf844;
+}
+
+.tab-label {
+	position: relative;
+	z-index: 1;
 }
 
 .tab-panel {
@@ -289,6 +303,28 @@ h2 {
 	margin-right: 5px;
 }
 
+.applause-icon {
+	display: inline-block;
+}
+
+.applause-icon.is-active {
+	animation: applause-pop 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes applause-pop {
+	0% {
+		opacity: 0.35;
+		transform: translateY(8px) rotate(-24deg) scale(0.6);
+	}
+	55% {
+		transform: translateY(-5px) rotate(14deg) scale(1.35);
+	}
+	100% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
 .applause-button strong {
 	margin-left: 6px;
 	color: #7dd3fc;
@@ -307,10 +343,26 @@ h2 {
 		background 150ms;
 }
 
-.preview-card:hover,
-.preview-card:focus {
+.preview-card[data-active='true'] {
 	border-color: #35648e;
 	background: #102740;
+	box-shadow: 0 10px 28px #0004;
+}
+
+.preview-actions {
+	display: flex;
+	gap: 6px;
+	margin-left: auto;
+}
+
+.preview-actions button,
+.media-controls button {
+	border: 1px solid #35648e;
+	border-radius: 999px;
+	padding: 5px 9px;
+	color: #bcecff;
+	background: #0b1b2e;
+	cursor: pointer;
 }
 
 .avatar {
@@ -377,7 +429,37 @@ h2 {
 }
 
 .hold-button {
+	position: relative;
+	overflow: hidden;
 	min-width: 150px;
+}
+
+.hold-progress {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, #0ea5e9, #5eead4);
+	transform: scaleX(0);
+	transform-origin: left;
+}
+
+.hold-button:active .hold-progress {
+	animation: hold-progress 650ms linear forwards;
+}
+
+.hold-button[data-confirmed='true'] .hold-progress {
+	animation: none;
+	transform: scaleX(1);
+}
+
+.hold-label {
+	position: relative;
+	z-index: 1;
+}
+
+@keyframes hold-progress {
+	to {
+		transform: scaleX(1);
+	}
 }
 
 .text-button {
@@ -412,6 +494,22 @@ h2 {
 	will-change: transform;
 }
 
+.media-controls {
+	display: grid;
+	grid-template-columns: auto minmax(42px, auto) auto auto minmax(42px, auto) auto;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	margin-top: 10px;
+}
+
+.media-controls span {
+	color: #bcecff;
+	font-size: 0.76rem;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
 .map-route {
 	position: absolute;
 	top: 42%;
@@ -440,8 +538,11 @@ h2 {
 	margin-top: 18px;
 }
 
-.stage-scroll {
-	overflow-x: auto;
+.stage-viewport {
+	position: relative;
+	overflow: hidden;
+	width: 100%;
+	max-width: 520px;
 	border-radius: 24px;
 }
 
@@ -457,6 +558,7 @@ h2 {
 		linear-gradient(90deg, #10223a 1px, transparent 1px), #091625;
 	background-size: 28px 28px;
 	box-shadow: inset 0 0 40px #0005;
+	transform-origin: top left;
 }
 
 .orb {
@@ -552,7 +654,17 @@ h2 {
 		grid-template-columns: 1fr;
 	}
 
-	.stage-scroll {
+	.stage-viewport {
 		border: 1px solid #284463;
+	}
+
+	.preview-card {
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.preview-actions {
+		width: 100%;
+		margin-left: 52px;
 	}
 }

@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { createRef, type Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by gesture:* attributes.
 import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
 import { defineGesture } from '@exactjs/gestures';
@@ -31,10 +31,19 @@ const orbMotion = defineMotion({
 });
 
 const initialOrbPosition = { x: 260, y: 62 };
+const stageSize = { width: 520, height: 330 };
+
+type PhysicsDemoState = {
+	shown: boolean;
+	stageScale: number;
+};
 
 /** Aggregate demo where gesture intent drives a gravity-enabled projected physics body. */
-export function PhysicsDemo(this: Component<{ shown: boolean }>) {
+export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 	this.state.shown = true;
+	this.state.stageScale = 1;
+	let stageScale = 1;
+	const stageViewport = createRef<HTMLElement>('plugin-playground-stage');
 	const world = createPhysicsWorld({ fixedStep: 1 / 120, maxCatchUpSteps: 8 });
 	const orb = world.createBody({
 		id: 'orb',
@@ -71,10 +80,11 @@ export function PhysicsDemo(this: Component<{ shown: boolean }>) {
 				orb.setKinematic(true);
 			},
 			onMove(sample) {
+				const scale = Math.max(0.01, stageScale);
 				orb.setPose({
 					position: {
-						x: dragOrigin.x + sample.delta.x,
-						y: dragOrigin.y + sample.delta.y
+						x: dragOrigin.x + sample.delta.x / scale,
+						y: dragOrigin.y + sample.delta.y / scale
 					}
 				});
 			},
@@ -99,6 +109,18 @@ export function PhysicsDemo(this: Component<{ shown: boolean }>) {
 		touchAction: 'none'
 	});
 	const resetOrb = () => orb.setPose({ position: initialOrbPosition, angle: 0 });
+	this.onMount(({ signal }) => {
+		const viewport = this.refs.get(stageViewport);
+		if (!viewport || typeof ResizeObserver === 'undefined') return;
+		const updateScale = () => {
+			stageScale = Math.min(1, viewport.clientWidth / stageSize.width);
+			this.state.stageScale = stageScale;
+		};
+		const observer = new ResizeObserver(updateScale);
+		observer.observe(viewport);
+		updateScale();
+		signal.addEventListener('abort', () => observer.disconnect(), { once: true });
+	});
 
 	this.onUnmount(() => world[Symbol.dispose]());
 	return () => (
@@ -126,9 +148,17 @@ export function PhysicsDemo(this: Component<{ shown: boolean }>) {
 				</button>
 			</div>
 			<div className="physics-layout">
-				<div className="stage-scroll">
+				<div
+					className="stage-viewport"
+					ref={this.ref(stageViewport)}
+					style={{ height: `${stageSize.height * this.state.stageScale}px` }}
+				>
 					<PhysicsWorld world={world}>
-						<section className="stage" aria-label="Bounded plugin simulation stage">
+						<section
+							className="stage"
+							style={{ transform: `scale(${this.state.stageScale})` }}
+							aria-label="Bounded plugin simulation stage"
+						>
 							{this.state.shown ? (
 								<button
 									key="orb"
