@@ -38,7 +38,7 @@ export function GesturesPluginPage(this: Component<{}>) {
 			title="Recognize intent without owning application state"
 			description="Prepared recognizers normalize pointer, hover, focus, keyboard, and pinch input while one durable component session owns capture, cancellation, coalescing, and cleanup."
 			previous={{ path: '/plugins/motion', label: 'Motion' }}
-			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
+			next={{ path: '/plugins/physics', label: 'Physics' }}
 		>
 			<section>
 				<h2>Prepare policy once</h2>

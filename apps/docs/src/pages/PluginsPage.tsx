@@ -87,6 +87,11 @@ export function PluginsPage(this: Component<{}>) {
 						<strong>Gestures</strong>
 						<p>Recognize pointer and keyboard intent with bounded component-owned sessions.</p>
 					</Link>
+					<Link className="topic-card" to="/plugins/physics">
+						<span className="topic-index">Deterministic simulation</span>
+						<strong>Physics</strong>
+						<p>Advance owned 2D worlds and project coalesced body poses without coupling input or motion.</p>
+					</Link>
 					<Link className="topic-card" to="/plugins/microfrontends">
 						<span className="topic-index">Build + runtime</span>
 						<strong>Microfrontends</strong>

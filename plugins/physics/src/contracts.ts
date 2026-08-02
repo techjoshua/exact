@@ -98,8 +98,35 @@ export interface PhysicsCollisionEvent {
 	readonly step: number;
 }
 
+declare const preparedPhysicsCollisionListener: unique symbol;
+declare const preparedPhysicsProjection: unique symbol;
+
 /** Receives a coalesced, deterministically ordered collision batch. */
-export type PhysicsCollisionListener = (events: readonly PhysicsCollisionEvent[]) => void;
+export type PhysicsCollisionListener = ((events: readonly PhysicsCollisionEvent[]) => void) &
+	Readonly<{
+		physicsName?: string;
+		[preparedPhysicsCollisionListener]?: true;
+	}>;
+
+/** DOM channels a prepared body projection may claim. */
+export type PhysicsProjectionChannel = 'translate' | 'rotate';
+
+/** Inputs available to a custom body projection. */
+export interface PhysicsProjectionContext {
+	readonly body: PhysicsBody;
+	readonly element: HTMLElement | SVGElement;
+}
+
+/** Author input accepted by {@link definePhysicsProjection}. */
+export interface PhysicsProjectionInput {
+	readonly name: string;
+	readonly channels?: readonly PhysicsProjectionChannel[];
+	apply(context: PhysicsProjectionContext): void;
+}
+
+/** Validated, immutable DOM projection policy. */
+export type PhysicsProjection = Readonly<PhysicsProjectionInput> &
+	Readonly<{ [preparedPhysicsProjection]: true }>;
 
 /** Fixed-step world policy. */
 export interface PhysicsWorldOptions {
@@ -152,4 +179,28 @@ export interface PhysicsWorld extends Disposable {
 	start(): void;
 	pause(): void;
 	inspect(): PhysicsWorldInspection;
+}
+
+/** Configuration supplied to the ordinary world-owning component. */
+export interface PhysicsWorldProps {
+	readonly world?: PhysicsWorld;
+	readonly options?: PhysicsWorldOptions;
+	readonly running?: boolean;
+	readonly children?: import('@exactjs/core').Child;
+}
+
+/** Canonical props accepted by the plugin-owned JSX namespace. */
+export interface PhysicsElementProps {
+	readonly body: PhysicsBody;
+	readonly project?: PhysicsProjection;
+	readonly disabled?: boolean;
+	readonly collisions?: PhysicsCollisionListener;
+	readonly children?: import('@exactjs/core').Child;
+}
+
+/** Application configuration accepted by the physics plugin. */
+export interface PhysicsPluginConfig {
+	readonly enabled: boolean;
+	readonly fixedStep: number;
+	readonly maxCatchUpSteps: number;
 }

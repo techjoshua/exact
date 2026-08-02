@@ -2,7 +2,11 @@
 
 ## Status
 
-Proposed. `@exactjs/physics` does not exist yet.
+Implementation in progress. The DOM-independent fixed-step engine, bodies, ordered forces,
+distance constraints, circle and box collisions, sleeping, bounded inspection, manual testing
+clock, ordinary `PhysicsWorld` ownership component, transparent `PhysicsElement`, body/world
+contexts, and safe CSS projection policies now exist. Attributed-import catalog generation and the
+optional cross-plugin adapters remain part of the shared plugin-foundation work.
 
 The DOM projection described here depends on
 [`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md). The

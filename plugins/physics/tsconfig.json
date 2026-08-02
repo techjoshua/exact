@@ -6,7 +6,11 @@
 		"outDir": "dist",
 		"lib": ["ES2022", "DOM"]
 	},
-	"references": [{ "path": "../../packages/reactive" }],
+	"references": [
+		{ "path": "../../packages/core" },
+		{ "path": "../../packages/plugin-api" },
+		{ "path": "../../packages/reactive" }
+	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts"]
 }

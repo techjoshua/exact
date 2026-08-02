@@ -27,6 +27,6 @@ Worlds own fixed-step accumulation, bodies, forces, distance constraints, circle
 box collisions, sleeping, and bounded inspection. Body commands become visible at the next fixed
 step boundary. Collision listeners receive one deterministic batch after an outer `step()` call.
 
-The engine does not require the DOM, gestures, gravity, or motion. See the
-[physics proposal](../../docs/proposals/physics-plugin.md) while the optional component and DOM
-projection surfaces are being completed.
+The engine does not require the DOM, gestures, gravity, or motion. The optional `PhysicsWorld` and
+transparent `PhysicsElement` components own the browser frame chain and DOM projection. See the
+[physics reference](../../docs/physics.md) for component usage and projection channel rules.

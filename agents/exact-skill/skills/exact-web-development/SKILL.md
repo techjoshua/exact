@@ -142,6 +142,8 @@ Read [motion.md](references/motion.md) before adding prepared motion definitions
 components, imperative playback, or optional plugin-owned motion attributes.
 Read [gestures.md](references/gestures.md) before adding prepared gesture definitions, semantic
 input callbacks, explicit gesture components, or optional plugin-owned gesture attributes.
+Read [physics.md](references/physics.md) before adding fixed-step simulation, body commands,
+force contributors, constraints, collision handling, or body DOM projection.
 
 ## Follow existing application structure
 

@@ -15,6 +15,7 @@ import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
 import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
 import { MotionPluginPage } from './pages/MotionPluginPage.jsx';
+import { PhysicsPluginPage } from './pages/PhysicsPluginPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
 import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
@@ -231,6 +232,13 @@ export const docGroups: DocGroup[] = [
 				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
 				keywords: 'plugin gestures drag pan press hover pinch pointer keyboard accessibility',
 				component: GesturesPluginPage
+			},
+			{
+				path: '/plugins/physics',
+				label: 'Physics',
+				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
+				keywords: 'plugin physics simulation body force constraint collision fixed step projection',
+				component: PhysicsPluginPage
 			},
 			{
 				path: '/plugins/microfrontends',
