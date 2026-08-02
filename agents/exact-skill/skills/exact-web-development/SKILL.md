@@ -144,6 +144,8 @@ Read [gestures.md](references/gestures.md) before adding prepared gesture defini
 input callbacks, explicit gesture components, or optional plugin-owned gesture attributes.
 Read [physics.md](references/physics.md) before adding fixed-step simulation, body commands,
 force contributors, constraints, collision handling, or body DOM projection.
+Read [gravity.md](references/gravity.md) before adding uniform, radial, point, bounded, or composite
+fields and before registering acceleration policy with a physics world or body.
 
 ## Follow existing application structure
 

@@ -53,6 +53,8 @@ class BodyResource implements PhysicsBody {
 	readonly damping: number;
 	readonly angularDamping: number;
 	readonly inertia: number;
+	readonly groups: readonly string[];
+	readonly collisionLayer?: string;
 	readonly state: BodyState;
 	type: 'dynamic' | 'static' | 'kinematic';
 	force: Vector2 = { x: 0, y: 0 };
@@ -77,6 +79,13 @@ class BodyResource implements PhysicsBody {
 		this.friction = unit(definition.friction ?? 0.2, 'friction');
 		this.damping = nonnegative(definition.damping ?? 0, 'damping');
 		this.angularDamping = nonnegative(definition.angularDamping ?? this.damping, 'angularDamping');
+		this.groups = Object.freeze([...(definition.groups ?? [])]);
+		if (this.groups.some((group) => !group))
+			throw new TypeError('Physics body groups must be non-empty');
+		this.collisionLayer = definition.collisionLayer;
+		if (this.collisionLayer !== undefined && !this.collisionLayer) {
+			throw new TypeError('Physics body collisionLayer must be non-empty');
+		}
 		const position = finiteVector(definition.position ?? { x: 0, y: 0 }, 'position');
 		const velocity = finiteVector(definition.velocity ?? { x: 0, y: 0 }, 'velocity');
 		const angle = finite(definition.angle ?? 0, 'angle');
@@ -111,7 +120,8 @@ class BodyResource implements PhysicsBody {
 		this.world.command(this, () => {
 			if (this.type !== 'dynamic') return;
 			this.force = add(this.force, next);
-			if (applicationPoint) this.torque += cross(subtract(applicationPoint, this.pose.position), next);
+			if (applicationPoint)
+				this.torque += cross(subtract(applicationPoint, this.pose.position), next);
 			this.wakeNow();
 		});
 	}
@@ -202,8 +212,14 @@ class WorldResource implements PhysicsWorld {
 			options.maxCatchUpSteps ?? DEFAULT_MAX_CATCH_UP_STEPS,
 			'maxCatchUpSteps'
 		);
-		this.velocityIterations = positiveInteger(options.velocityIterations ?? 4, 'velocityIterations');
-		this.positionIterations = positiveInteger(options.positionIterations ?? 3, 'positionIterations');
+		this.velocityIterations = positiveInteger(
+			options.velocityIterations ?? 4,
+			'velocityIterations'
+		);
+		this.positionIterations = positiveInteger(
+			options.positionIterations ?? 3,
+			'positionIterations'
+		);
 		this.sleepEnabled = options.sleep ?? true;
 	}
 
@@ -218,7 +234,8 @@ class WorldResource implements PhysicsWorld {
 	createBody(definition: PhysicsBodyDefinition): PhysicsBody {
 		this.assertAvailable();
 		const id = definition.id ?? `body-${++this.bodySequence}`;
-		if (this.bodies.some((body) => body.id === id)) throw new Error(`Duplicate physics body id "${id}"`);
+		if (this.bodies.some((body) => body.id === id))
+			throw new Error(`Duplicate physics body id "${id}"`);
 		const body = new BodyResource(this, definition, id);
 		this.bodies.push(body);
 		return body;
@@ -228,8 +245,11 @@ class WorldResource implements PhysicsWorld {
 		this.assertAvailable();
 		const bodyA = this.requireBody(definition.bodyA);
 		const bodyB = definition.bodyB ? this.requireBody(definition.bodyB) : undefined;
-		if (!bodyB && !definition.anchor) throw new TypeError('A distance constraint needs bodyB or anchor');
-		const anchor = definition.anchor ? finiteVector(definition.anchor, 'constraint anchor') : undefined;
+		if (!bodyB && !definition.anchor)
+			throw new TypeError('A distance constraint needs bodyB or anchor');
+		const anchor = definition.anchor
+			? finiteVector(definition.anchor, 'constraint anchor')
+			: undefined;
 		const target = bodyB?.pose.position ?? anchor!;
 		const lengthValue = nonnegative(
 			definition.length ?? length(subtract(target, bodyA.pose.position)),
@@ -260,8 +280,7 @@ class WorldResource implements PhysicsWorld {
 		const entry = { contributor, sequence: ++this.forceSequence };
 		this.forces.push(entry);
 		this.forces.sort(
-			(a, b) =>
-				(a.contributor.order ?? 0) - (b.contributor.order ?? 0) || a.sequence - b.sequence
+			(a, b) => (a.contributor.order ?? 0) - (b.contributor.order ?? 0) || a.sequence - b.sequence
 		);
 		return disposable(() => {
 			this.forces = this.forces.filter((candidate) => candidate !== entry);
@@ -284,7 +303,10 @@ class WorldResource implements PhysicsWorld {
 		let steps = 0;
 		try {
 			batch(() => {
-				while (this.accumulator + Number.EPSILON >= this.fixedStep && steps < this.maxCatchUpSteps) {
+				while (
+					this.accumulator + Number.EPSILON >= this.fixedStep &&
+					steps < this.maxCatchUpSteps
+				) {
 					this.fixedStepOnce(events);
 					this.accumulator -= this.fixedStep;
 					steps++;
@@ -455,7 +477,9 @@ class WorldResource implements PhysicsWorld {
 		for (const contact of contacts) {
 			const key = contactKey(contact.bodyA, contact.bodyB);
 			current.set(key, contact);
-			events.push(toEvent(this.activeContacts.has(key) ? 'persist' : 'begin', contact, this.stepIndex));
+			events.push(
+				toEvent(this.activeContacts.has(key) ? 'persist' : 'begin', contact, this.stepIndex)
+			);
 		}
 		for (const [key, contact] of this.activeContacts) {
 			if (!current.has(key)) events.push(toEvent('end', contact, this.stepIndex));
@@ -508,9 +532,7 @@ function collide(bodyA: BodyResource, bodyB: BodyResource): Contact | undefined 
 	if (bodyA.shape.kind === 'box' && bodyB.shape.kind === 'box') return boxBox(bodyA, bodyB);
 	if (bodyA.shape.kind === 'circle') return circleBox(bodyA, bodyB);
 	const reversed = circleBox(bodyB, bodyA);
-	return reversed
-		? { ...reversed, bodyA, bodyB, normal: scale(reversed.normal, -1) }
-		: undefined;
+	return reversed ? { ...reversed, bodyA, bodyB, normal: scale(reversed.normal, -1) } : undefined;
 }
 
 function circleCircle(bodyA: BodyResource, bodyB: BodyResource): Contact | undefined {
@@ -536,9 +558,7 @@ function boxBox(bodyA: BodyResource, bodyB: BodyResource): Contact | undefined {
 	const overlapY = (bodyA.shape.height + bodyB.shape.height) / 2 - Math.abs(delta.y);
 	if (overlapX <= 0 || overlapY <= 0) return undefined;
 	const alongX = overlapX < overlapY;
-	const normal = alongX
-		? { x: delta.x < 0 ? -1 : 1, y: 0 }
-		: { x: 0, y: delta.y < 0 ? -1 : 1 };
+	const normal = alongX ? { x: delta.x < 0 ? -1 : 1, y: 0 } : { x: 0, y: delta.y < 0 ? -1 : 1 };
 	return {
 		bodyA,
 		bodyB,
@@ -566,9 +586,8 @@ function circleBox(circle: BodyResource, box: BodyResource): Contact | undefined
 	if (distance < 1e-12) {
 		const gapX = halfWidth - Math.abs(relative.x);
 		const gapY = halfHeight - Math.abs(relative.y);
-		normal = gapX < gapY
-			? { x: relative.x < 0 ? 1 : -1, y: 0 }
-			: { x: 0, y: relative.y < 0 ? 1 : -1 };
+		normal =
+			gapX < gapY ? { x: relative.x < 0 ? 1 : -1, y: 0 } : { x: 0, y: relative.y < 0 ? 1 : -1 };
 		penetration = circle.shape.radius + Math.min(gapX, gapY);
 	}
 	return { bodyA: circle, bodyB: box, normal, penetration, point };
@@ -636,7 +655,8 @@ function contactKey(a: BodyResource, b: BodyResource): string {
 }
 
 function validateShape(shape: PhysicsShape): PhysicsShape {
-	if (shape.kind === 'circle') return Object.freeze({ kind: 'circle', radius: positive(shape.radius, 'radius') });
+	if (shape.kind === 'circle')
+		return Object.freeze({ kind: 'circle', radius: positive(shape.radius, 'radius') });
 	return Object.freeze({
 		kind: 'box',
 		width: positive(shape.width, 'width'),
@@ -674,7 +694,8 @@ function unit(value: number, name: string): number {
 }
 
 function positiveInteger(value: number, name: string): number {
-	if (!Number.isInteger(value) || value <= 0) throw new RangeError(`${name} must be a positive integer`);
+	if (!Number.isInteger(value) || value <= 0)
+		throw new RangeError(`${name} must be a positive integer`);
 	return value;
 }
 

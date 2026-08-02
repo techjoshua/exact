@@ -25,8 +25,9 @@ whole steps remain visible through `PhysicsStepResult` and `world.inspect()`. Bo
 pose changes, and kinematic changes are queued and become visible together at the next fixed-step
 boundary. One outer step batches reactive pose publication and collision callbacks.
 
-Worlds support dynamic, static, and kinematic circle or axis-aligned box bodies, ordered named force
-contributors, distance constraints, impulses, restitution, damping, sleeping, and deterministic
+Worlds support dynamic, static, and kinematic circle or axis-aligned box bodies, stable selection
+groups and collision layers, ordered named force contributors, distance constraints, impulses,
+restitution, damping, sleeping, and deterministic
 `begin`/`persist`/`end` collision batches. `@exactjs/physics/testing` supplies a manual clock.
 
 ## Component ownership

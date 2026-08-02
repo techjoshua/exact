@@ -29,7 +29,7 @@ export function PhysicsPluginPage(this: Component<{}>) {
 			title="Simulate first, project second"
 			description="A deterministic DOM-independent 2D engine owns bodies, forces, constraints, collisions, and fixed-step time; an ordinary eXact component optionally projects coalesced poses."
 			previous={{ path: '/plugins/gestures', label: 'Gestures' }}
-			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
+			next={{ path: '/plugins/gravity', label: 'Gravity' }}
 		>
 			<section>
 				<h2>Keep simulation deterministic</h2>

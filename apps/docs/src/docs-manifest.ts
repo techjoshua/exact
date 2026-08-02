@@ -9,6 +9,7 @@ import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
 import { GesturesPluginPage } from './pages/GesturesPluginPage.jsx';
+import { GravityPluginPage } from './pages/GravityPluginPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
 import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
@@ -239,6 +240,13 @@ export const docGroups: DocGroup[] = [
 				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
 				keywords: 'plugin physics simulation body force constraint collision fixed step projection',
 				component: PhysicsPluginPage
+			},
+			{
+				path: '/plugins/gravity',
+				label: 'Gravity',
+				summary: 'Compose pure bounded acceleration fields through the physics force seam.',
+				keywords: 'plugin gravity field force uniform radial point orbit physics acceleration',
+				component: GravityPluginPage
 			},
 			{
 				path: '/plugins/microfrontends',

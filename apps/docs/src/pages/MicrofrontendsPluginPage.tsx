@@ -51,7 +51,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			eyebrow="Plugin / @exactjs/microfrontends"
 			title="Independent deployment with component-shaped integration"
 			description="The microfrontends plugin compiles named eXact component roots as remote entries and lets a host mount them through trusted bindings, without reducing the remote to an iframe or an untyped module factory."
-			previous={{ path: '/plugins/physics', label: 'Physics' }}
+			previous={{ path: '/plugins/gravity', label: 'Gravity' }}
 			next={{ path: '/plugins/secrets', label: 'Secrets' }}
 		>
 			<section>

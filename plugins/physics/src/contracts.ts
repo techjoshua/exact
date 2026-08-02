@@ -31,6 +31,8 @@ export interface PhysicsBodyDefinition {
 	readonly damping?: number;
 	readonly angularDamping?: number;
 	readonly sleeping?: boolean;
+	readonly groups?: readonly string[];
+	readonly collisionLayer?: string;
 }
 
 /** Options controlling an explicit pose command. */
@@ -50,6 +52,8 @@ export interface PhysicsBody extends Disposable {
 	readonly shape: PhysicsShape;
 	readonly mass: number;
 	readonly restitution: number;
+	readonly groups: readonly string[];
+	readonly collisionLayer?: string;
 	applyForce(force: Vector2, point?: Vector2): void;
 	applyImpulse(impulse: Vector2, point?: Vector2): void;
 	setPose(pose: Partial<PhysicsPose>, options?: SetPoseOptions): void;

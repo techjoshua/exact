@@ -2,7 +2,11 @@
 
 ## Status
 
-Proposed. `@exactjs/gravity` does not exist yet.
+Implementation in progress. Pure prepared uniform, directional, softened point, radial, bounded,
+and composite fields; selected physics registrations; moving body attractors; bounded inspection;
+ordinary Activity-owned `GravityField`; transparent `GravityElement`; host entries; tests; and
+current documentation now exist. Attributed-import catalog generation remains part of the shared
+plugin-foundation work.
 
 Gravity composes with the force-contributor contract proposed by
 [`physics`](physics-plugin.md) and uses the ordinary plugin-component

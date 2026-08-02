@@ -90,7 +90,15 @@ export function PluginsPage(this: Component<{}>) {
 					<Link className="topic-card" to="/plugins/physics">
 						<span className="topic-index">Deterministic simulation</span>
 						<strong>Physics</strong>
-						<p>Advance owned 2D worlds and project coalesced body poses without coupling input or motion.</p>
+						<p>
+							Advance owned 2D worlds and project coalesced body poses without coupling input or
+							motion.
+						</p>
+					</Link>
+					<Link className="topic-card" to="/plugins/gravity">
+						<span className="topic-index">Force policy</span>
+						<strong>Gravity</strong>
+						<p>Compose pure finite acceleration fields through the physics force seam.</p>
 					</Link>
 					<Link className="topic-card" to="/plugins/microfrontends">
 						<span className="topic-index">Build + runtime</span>
