@@ -2,11 +2,16 @@
  * @vitest-environment jsdom
  */
 import { render, unmount } from '@exactjs/dom';
-import { createEnhancementMarker } from '@exactjs/core';
+import { Activity, createEnhancementMarker, type Component } from '@exactjs/core';
 import { PhysicsElement, PhysicsWorld, createPhysicsWorld } from '@exactjs/physics';
-import { createTestVNode as createVNode } from '@exactjs/testing/internal/fixtures';
+import { flushSync } from '@exactjs/reactive';
+import {
+	createTestVNode as createVNode,
+	markTestComponent
+} from '@exactjs/testing/internal/fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GravityElement } from './components.js';
+import { GravityElement, GravityFieldComponent } from './components.js';
+import type { GravityField } from './contracts.js';
 import { uniformGravity } from './fields.js';
 
 const containers: Element[] = [];
@@ -91,6 +96,77 @@ describe('GravityElement', () => {
 				])
 			}
 		);
+		world.step(1);
+		expect(body.velocity.y).toBe(6);
+	});
+
+	it('keeps element force work disabled while Activity is parked', () => {
+		const world = createPhysicsWorld({ fixedStep: 1, sleep: false });
+		const body = world.createBody({ shape: { kind: 'circle', radius: 1 } });
+		const weak = uniformGravity({ x: 0, y: 2 });
+		let owner!: Component<{ field: GravityField; mode: 'active' | 'parked' }>;
+		const Scene = markTestComponent(function Scene(
+			this: Component<{ field: GravityField; mode: 'active' | 'parked' }>
+		) {
+			owner = this;
+			this.state.field = weak;
+			this.state.mode = 'active';
+			return () =>
+				createVNode(
+					Activity,
+					{ mode: this.state.mode },
+					createVNode(
+						PhysicsWorld,
+						{ world, running: false },
+						createVNode(
+							PhysicsElement,
+							{ body },
+							createVNode(GravityElement, { apply: this.state.field }, createVNode('div', null))
+						)
+					)
+				);
+		});
+		const container = document.createElement('div');
+		containers.push(container);
+		render(createVNode(Scene, null), container);
+		world.step(1);
+		expect(body.velocity.y).toBe(2);
+
+		owner.state.mode = 'parked';
+		flushSync();
+		world.step(1);
+		expect(body.velocity.y).toBe(2);
+
+		owner.state.mode = 'active';
+		flushSync();
+		world.step(1);
+		expect(body.velocity.y).toBe(4);
+	});
+
+	it('keeps subtree force work disabled while Activity is parked', () => {
+		const world = createPhysicsWorld({ fixedStep: 1, sleep: false });
+		const body = world.createBody({ shape: { kind: 'circle', radius: 1 } });
+		const field = uniformGravity({ x: 0, y: 3 });
+		const container = document.createElement('div');
+		containers.push(container);
+		const tree = (mode: 'active' | 'parked') =>
+			createVNode(
+				PhysicsWorld,
+				{ world, running: false },
+				createVNode(
+					Activity,
+					{ mode },
+					createVNode(GravityFieldComponent, { field }, createVNode('div', null))
+				)
+			);
+
+		render(tree('active'), container);
+		world.step(1);
+		expect(body.velocity.y).toBe(3);
+		render(tree('parked'), container);
+		world.step(1);
+		expect(body.velocity.y).toBe(3);
+		render(tree('active'), container);
 		world.step(1);
 		expect(body.velocity.y).toBe(6);
 	});

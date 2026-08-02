@@ -50,6 +50,10 @@ export function GravityPluginPage(this: Component<{}>) {
 					field to that body or use the simulated body pose as a moving attractor without measuring
 					the DOM.
 				</p>
+				<p>
+					Component-owned registrations exist only while active. A parked Activity subtree keeps its
+					configuration but contributes no force until it resumes.
+				</p>
 			</section>
 		</Article>
 	);

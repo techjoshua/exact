@@ -170,9 +170,10 @@ An explicit component applies a field to a subtree:
 ```
 
 `GravityField` is an ordinary transparent context/resource component. It reads
-the nearest `PhysicsWorldContext`, registers `applyGravity()` during setup, and
-reactively updates its enabled/selection policy. Disposal unregisters the
-contributor through existing component ownership.
+the nearest `PhysicsWorldContext`, snapshots its reactive enabled/selection
+policy during setup, and registers `applyGravity()` only while active. Activity
+deactivation unregisters the contributor; reactivation installs the latest
+snapshot through existing component ownership.
 
 Nested fields compose:
 

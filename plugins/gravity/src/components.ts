@@ -7,7 +7,14 @@ import {
 } from '@exactjs/core';
 import { PhysicsBodyContext, PhysicsWorldContext, type PhysicsWorld } from '@exactjs/physics';
 import { applyGravity } from './application.js';
-import type { GravityApplication, GravityElementProps, GravityFieldProps } from './contracts.js';
+import type {
+	BodyGravityConfiguration,
+	GravityApplication,
+	GravityApplicationOptions,
+	GravityElementProps,
+	GravityField,
+	GravityFieldProps
+} from './contracts.js';
 import { BodyGravityRegistration } from './registration.js';
 
 /** Transparent subtree component that owns one world field registration. */
@@ -20,9 +27,16 @@ export const GravityFieldComponent = markExactComponent(function GravityField(
 	}
 	const world = this.getContext(PhysicsWorldContext) as PhysicsWorld;
 	let application: GravityApplication | undefined;
-	const configure = () => {
+	let active = false;
+	let field!: GravityField;
+	let options: GravityApplicationOptions = {};
+	const install = () => {
 		application?.[Symbol.dispose]();
-		application = applyGravity(world, unwrap(props.field), {
+		application = applyGravity(world, field, options);
+	};
+	watch(() => {
+		field = unwrap(props.field);
+		options = {
 			name: props.name,
 			order: props.order,
 			scale: props.scale,
@@ -31,11 +45,15 @@ export const GravityFieldComponent = markExactComponent(function GravityField(
 			collisionLayers: props.collisionLayers,
 			bodies: props.bodies,
 			predicate: props.predicate
-		});
-	};
-	watch(configure);
-	this.onActivate(configure);
+		};
+		if (active) install();
+	});
+	this.onActivate(() => {
+		active = true;
+		install();
+	});
 	this.onDeactivate(() => {
+		active = false;
 		application?.[Symbol.dispose]();
 		application = undefined;
 	});
@@ -57,25 +75,27 @@ export const GravityElement = markExactComponent(function GravityElement(
 	}
 	const physics = this.getContext(PhysicsBodyContext);
 	const registration = new BodyGravityRegistration();
-	const configure = () =>
-		registration.configure({
+	let active = false;
+	let configuration!: BodyGravityConfiguration;
+	watch(() => {
+		configuration = {
 			world: physics.world,
 			body: physics.body,
 			field: unwrap(props.apply),
 			scale: props.scale ?? 1,
 			disabled: props.disabled ?? false,
 			attractor: unwrap(props.attractor)
-		});
-	watch(configure);
-	this.onActivate(configure);
-	this.onDeactivate(() =>
-		registration.configure({
-			world: physics.world,
-			body: physics.body,
-			scale: 1,
-			disabled: true
-		})
-	);
+		};
+		if (active) registration.configure(configuration);
+	});
+	this.onActivate(() => {
+		active = true;
+		registration.configure(configuration);
+	});
+	this.onDeactivate(() => {
+		active = false;
+		registration.configure({ ...configuration, disabled: true });
+	});
 	this.onUnmount(() => registration[Symbol.dispose]());
 	return () => props.children;
 }, '@exactjs/gravity:GravityElement');

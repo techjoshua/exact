@@ -54,9 +54,11 @@ retaining force history or predicates.
 ```
 
 `GravityField` transparently owns a subtree-wide registration and follows Activity lifecycle.
-`GravityElement` consumes `PhysicsBodyContext` to apply a field to one current body or to expose that
-body as a moving prepared attractor. Missing physics context produces a structured component error
-while the child remains unchanged.
+`GravityField` and `GravityElement` retain their latest reactive configuration while parked, but
+remove their force contributors until the component becomes active again. `GravityElement`
+consumes `PhysicsBodyContext` to apply a field to one current body or to expose that body as a
+moving prepared attractor. Missing physics context produces a structured component error while the
+child remains unchanged.
 
 The optional `gravity:*` namespace accepts `apply`, `scale`, `disabled`, and `attractor`. Use the
 explicit components when gravity is required behavior; an inactive optional enhancement is allowed

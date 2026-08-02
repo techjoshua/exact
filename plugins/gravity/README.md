@@ -25,4 +25,6 @@ loop or integrates state. Uniform, directional, softened point, radial, bounded,
 fields reject invalid numerical configuration before simulation.
 
 Use `GravityElement` for one current `PhysicsBodyContext`, or `applyGravity()` for imperative world
-selection. See [gravity](../../docs/gravity.md) for selection and composition details.
+selection. Component-owned registrations are installed only while their component is active, so
+parked Activity subtrees contribute no force. See [gravity](../../docs/gravity.md) for selection and
+composition details.
