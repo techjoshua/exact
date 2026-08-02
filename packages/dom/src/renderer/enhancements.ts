@@ -159,27 +159,19 @@ function collectTargetEnhancements(
 	boundary: Mounted,
 	parentInstance: ComponentInstance<any> | undefined
 ): Map<Mounted, TargetEnhancements> {
-	const declarations: Array<{
+	type Declaration = {
 		entry: EnhancementEntry;
 		boundary: Mounted;
-		parentInstance?: ComponentInstance<any>;
-		depth: number;
-	}> = [];
-	walkMounted(boundary, undefined, parentInstance, 0, (current, _owner, instance, depth) => {
-		for (const entry of current.vnode.enhancements?.entries ?? []) {
-			if (routingOnlyEntry(entry)) continue;
-			declarations.push({ entry, boundary: current, parentInstance: instance, depth });
-		}
-	});
-
+		order: number;
+		fallback?: Target;
+		explicit?: Target;
+	};
 	const grouped = new Map<Mounted, TargetEnhancements>();
-	for (const declaration of declarations) {
-		const target = resolveTarget(
-			declaration.boundary,
-			declaration.entry.identity,
-			declaration.parentInstance
-		);
-		if (!target) continue;
+	const groupedOrders = new Map<Mounted, Map<string, number>>();
+	let nextOrder = 0;
+	const finalize = (declaration: Declaration) => {
+		const target = declaration.explicit ?? declaration.fallback;
+		if (!target) return;
 		let group = grouped.get(target.mounted);
 		if (!group) {
 			group = { target, entries: [], inheritedIdentities: new Set(), boundaries: new Map() };
@@ -193,16 +185,87 @@ function collectTargetEnhancements(
 		const existing = group.entries.find((entry) => entry.identity === declaration.entry.identity);
 		if (existing) {
 			const index = group.entries.indexOf(existing);
+			const orders = groupedOrders.get(target.mounted)!;
+			const existingOrder = orders.get(existing.identity)!;
+			const declarationIsNearer = declaration.order > existingOrder;
 			group.entries[index] = Object.freeze({
 				identity: existing.identity,
-				props: Object.freeze({ ...existing.props, ...declaration.entry.props }),
-				...(declaration.entry.root === undefined ? {} : { root: declaration.entry.root })
+				props: Object.freeze(
+					declarationIsNearer
+						? { ...existing.props, ...declaration.entry.props }
+						: { ...declaration.entry.props, ...existing.props }
+				),
+				...(declarationIsNearer
+					? declaration.entry.root === undefined
+						? {}
+						: { root: declaration.entry.root }
+					: existing.root === undefined
+						? {}
+						: { root: existing.root })
 			});
+			orders.set(existing.identity, Math.max(existingOrder, declaration.order));
 		} else {
 			group.entries.push(declaration.entry);
+			let orders = groupedOrders.get(target.mounted);
+			if (!orders) groupedOrders.set(target.mounted, (orders = new Map()));
+			orders.set(declaration.entry.identity, declaration.order);
 		}
-	}
+	};
+	const visit = (
+		current: Mounted,
+		owner: Mounted | undefined,
+		instance: ComponentInstance<any> | undefined,
+		depth: number,
+		inherited: readonly Declaration[]
+	): void => {
+		if (current.enhancement) {
+			visit(current.enhancement.target, owner, instance, depth, inherited);
+			return;
+		}
+		const local: Declaration[] = (current.vnode.enhancements?.entries ?? [])
+			.filter((entry) => !routingOnlyEntry(entry))
+			.map((entry) => ({ entry, boundary: current, order: nextOrder++ }));
+		const active = local.length ? [...inherited, ...local] : inherited;
+		if (typeof current.vnode.type === 'string') {
+			const candidate = { mounted: current, owner, parentInstance: instance, depth };
+			for (const declaration of active) {
+				declaration.fallback ??= candidate;
+				if (declaration.explicit) continue;
+				const selector = current.vnode.enhancements?.entries.find(
+					(entry) => entry.identity === declaration.entry.identity
+				);
+				if (selector?.root !== undefined && unwrap(selector.root)) {
+					declaration.explicit = candidate;
+				}
+			}
+		}
+		const childInstance = current.instance ?? instance;
+		for (const child of current.children) {
+			visit(child, current, childInstance, depth + 1, active);
+		}
+		for (const declaration of local) finalize(declaration);
+	};
+	visit(boundary, undefined, parentInstance, 0, []);
 	return grouped;
+}
+
+function walkMounted(
+	mounted: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number,
+	visit: (
+		mounted: Mounted,
+		owner: Mounted | undefined,
+		parentInstance: ComponentInstance<any> | undefined,
+		depth: number
+	) => void
+): void {
+	visit(mounted, owner, parentInstance, depth);
+	const childInstance = mounted.instance ?? parentInstance;
+	for (const child of mounted.children) {
+		walkMounted(child, mounted, childInstance, depth + 1, visit);
+	}
 }
 
 function routingOnlyEntry(entry: EnhancementEntry): boolean {
@@ -224,24 +287,6 @@ function resolveTarget(
 		if (entry && unwrap(entry.root)) explicit = candidate;
 	});
 	return explicit ?? first;
-}
-
-function walkMounted(
-	mounted: Mounted,
-	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
-	depth: number,
-	visit: (
-		mounted: Mounted,
-		owner: Mounted | undefined,
-		parentInstance: ComponentInstance<any> | undefined,
-		depth: number
-	) => void
-): void {
-	visit(mounted, owner, parentInstance, depth);
-	const childInstance = mounted.instance ?? parentInstance;
-	for (const child of mounted.children)
-		walkMounted(child, mounted, childInstance, depth + 1, visit);
 }
 
 function walkLogicalMounted(
