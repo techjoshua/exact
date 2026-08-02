@@ -1,2 +1,2 @@
-export * from './dist/index.js';
-export { default } from './dist/index.js' with { type: 'exact-plugin' };
+export * from './dist/public.js';
+export { MotionElement as default } from './dist/motion-element.js' with { type: 'exact-plugin' };
