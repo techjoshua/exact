@@ -36,6 +36,8 @@ export type CompileProjectOptions = TransformOptions & {
 /** Configures compile artifacts. */
 export type CompileArtifactsOptions = {
 	outDir: string;
+	/** Immutable deployment namespace; deterministically derived from all inputs when omitted. */
+	buildKey?: string;
 	rootDir?: string;
 	filename?: string;
 	serverComponents?: boolean;
@@ -106,6 +108,8 @@ export type ExactArtifactGraphInput = {
 /** Configures compile artifact plan entries. */
 export type CompileArtifactPlanEntriesOptions = {
 	filename?(entry: ExactArtifactPlanEntry): string;
+	/** Immutable deployment namespace shared by all entries. */
+	buildKey?: string;
 	serverComponents?: boolean;
 	sourceMap?: boolean;
 	moduleRewrite?: ModuleRewriteOptions;

@@ -28,7 +28,7 @@ try {
 		diagnostics: 'syntax'
 	};
 	const first = compiler.request(request);
-	assert.equal(first.protocolVersion, '1.26.0');
+	assert.equal(first.protocolVersion, '1.27.0');
 	assert.match(first.typescriptVersion, /^7\./);
 	assert.equal(first.backendVersion, first.protocolVersion);
 	assert.equal(first.cacheHit, undefined);
@@ -114,6 +114,13 @@ try {
 		continuations: [],
 		registries: [],
 		rendererEnhancements: [],
+		partitionPlan: {
+			version: 1,
+			buildKey: 'xnJFRGpvxTmVuQ_9xmOcuF_',
+			roots: [],
+			nodes: [],
+			edges: []
+		},
 		resumptions: [],
 		policy: { version: 1, subjects: [], flows: [], secretConsumers: [] },
 		requiredCapabilities: { rawHtml: [] },
@@ -145,7 +152,7 @@ try {
 	assert.equal(invalid.diagnostics[0]?.code, 'TS2322');
 	assert.throws(
 		() => compiler.request({ kind: 'unsupported' }),
-		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.26\.0/
+		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.27\.0/
 	);
 } finally {
 	compiler.dispose();

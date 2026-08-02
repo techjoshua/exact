@@ -17,8 +17,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
-import { escapeAttr, escapeText, voidElements } from '../html.js';
-import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
+import { escapeText, voidElements } from '../html.js';
 import {
 	exactMarkerId,
 	markerId,
@@ -44,13 +43,13 @@ import {
 } from './logical-children.js';
 import { dynamicMarkerId } from './marker-identity.js';
 import {
-	clientBoundaryProps,
-	clientBoundarySerializationMessage,
 	componentMarkerId,
 	renderResumableComponentBoundary,
 	renderServerBoundary,
-	serverSlotId
+	serverSlotOpening,
+	serverSlotVNodeReference
 } from './boundaries.js';
+import { renderClientBoundaryChunks } from './client-boundary-chunks.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import {
 	claimRootText,
@@ -169,25 +168,23 @@ export function* renderVNodeChunks(
 		return;
 	}
 	if (vnode.type === ServerBoundary) {
-		const id = String(unwrap(vnode.props.id) ?? '');
-		const name = String(unwrap(vnode.props.name) ?? '');
-		const props = clientBoundaryProps(vnode);
-		const unsafePath = jsonUnsafePath(props);
-		if (unsafePath) throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
-		const marker = markerId(context, 'client-boundary', name, id);
-		yield* marked(marker, function* () {
-			yield `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">`;
-			if (vnode.children.length) {
-				yield `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">`;
-				for (const child of vnode.children)
-					yield* renderChildChunks(context, child, parent, depth + 1);
-				yield '</span>';
-			}
-			yield '</div>';
-		});
+		yield* renderClientBoundaryChunks(
+			context,
+			vnode,
+			parent,
+			depth,
+			(child, owner, childDepth) => renderChildChunks(context, child, owner, childDepth),
+			marked
+		);
 		return;
 	}
-	if (vnode.type === ServerSlot) return;
+	if (vnode.type === ServerSlot) {
+		if (!vnode.children.length) return;
+		yield serverSlotOpening(serverSlotVNodeReference(vnode), context);
+		for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1);
+		yield '</span>';
+		return;
+	}
 	if (typeof vnode.type === 'function') {
 		const componentId = componentMarkerId(context, vnode);
 		const enhancement = context.enhancementVNodes.has(vnode);
@@ -413,7 +410,8 @@ export function renderVNodeInner(
 	}
 
 	if (vnode.type === ServerSlot) {
-		return '';
+		if (!vnode.children.length) return '';
+		return `${serverSlotOpening(serverSlotVNodeReference(vnode), context)}${renderChildren(context, vnode.children, parent)}</span>`;
 	}
 
 	if (typeof vnode.type === 'function') {

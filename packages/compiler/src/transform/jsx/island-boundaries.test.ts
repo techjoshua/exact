@@ -137,6 +137,45 @@ describe('@exactjs/compiler: island boundaries', () => {
 		).toHaveLength(1);
 	});
 
+	it('projects independent recursive server ranges through native module analysis', () => {
+		const analysis = analyzeSource(
+			`
+      import { TaskContext } from "@exactjs/core";
+      function ServerSummary() {
+        const load = async (_task: TaskContext = TaskContext.server()) => fetchSummary();
+        load();
+        return () => <p>Summary</p>;
+      }
+      function ServerPermissions() {
+        const load = async (_task: TaskContext = TaskContext.server()) => fetchPermissions();
+        load();
+        return () => <p>Permissions</p>;
+      }
+      export function Workspace(this: Component<{ editing: boolean }>) {
+        return () => (
+          <section onClick={() => this.state.editing = true}>
+            <ServerSummary />
+            <button>Edit</button>
+            <ServerPermissions />
+          </section>
+        );
+      }
+    `,
+			{ filename: 'PartitionSiblings.tsx' }
+		);
+		const serverRanges = analysis.partitionPlan.edges.filter(
+			(edge) => edge.kind === 'server-range'
+		);
+
+		expect(analysis.partitionPlan.version).toBe(1);
+		expect(serverRanges).toHaveLength(2);
+		expect(serverRanges[0]!.parent).toBe(serverRanges[1]!.parent);
+		expect(serverRanges[0]!.child).not.toBe(serverRanges[1]!.child);
+		expect(
+			analysis.partitionPlan.nodes.find((node) => node.id === serverRanges[0]!.parent)
+		).toMatchObject({ kind: 'region', placement: 'client', activation: 'eager' });
+	});
+
 	it('uses distinct boundaries for repeated client component tag instances', () => {
 		const source = `
       export function ClientShell(this: Component<{ width: number }>, props: { children?: unknown }) {

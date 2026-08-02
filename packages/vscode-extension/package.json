@@ -165,10 +165,11 @@
 	"devDependencies": {
 		"@types/node": "^22.10.2",
 		"@types/vscode": "^1.96.0",
+		"esbuild": "0.27.2",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"scripts": {
-		"build": "tsc6 -b",
+		"build": "tsc6 -b && node scripts/bundle.mjs",
 		"test": "vitest run --maxWorkers=4"
 	}
 }

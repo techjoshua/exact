@@ -42,7 +42,7 @@ export function createExactBuildInspectionCatalog(
 	for (const input of options.roots) {
 		if (roots[input.executionRoot])
 			throw new Error(`Duplicate eXact inspection root ${input.executionRoot}`);
-		roots[input.executionRoot] = createRootCatalog(options.root, input);
+		roots[input.executionRoot] = createRootCatalog(options.root, options.buildKey, input);
 	}
 	return Object.freeze({
 		protocol: 1,
@@ -120,6 +120,7 @@ export function createExactInspectionRedactions(
 
 function createRootCatalog(
 	projectRoot: string,
+	buildKey: string,
 	input: ExactBuildInspectionRootInput
 ): ExactInspectionRootCatalog {
 	const files = input.inspections.map((inspection) =>
@@ -129,6 +130,14 @@ function createRootCatalog(
 		executionRoot: input.executionRoot,
 		rootComponentId: input.rootComponentId,
 		files: Object.freeze(files),
+		partitionPlans: Object.freeze(
+			input.inspections.map((inspection) =>
+				Object.freeze({
+					...structuredClone(inspection.partitionPlan),
+					buildKey
+				})
+			)
+		),
 		redactions: Object.freeze({
 			statePaths: Object.freeze([...(input.redactions?.statePaths ?? [])]),
 			contextTokens: Object.freeze([...(input.redactions?.contextTokens ?? [])]),

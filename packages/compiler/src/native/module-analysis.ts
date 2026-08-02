@@ -32,7 +32,30 @@ export function nativeModuleAnalysis(
 		components,
 		exports,
 		symbols,
-		boundaries: response.analysis.boundaries.map((boundary) => ({ ...boundary })),
+		boundaries: response.analysis.boundaries.map((boundary) => {
+			const { patchTargets, discriminatorValues, ...record } = boundary;
+			return {
+				...record,
+				...(patchTargets ? { patchTargets: [...patchTargets] } : {}),
+				...(discriminatorValues ? { discriminatorValues: [...discriminatorValues] } : {})
+			};
+		}),
+		partitionPlan: {
+			version: 1,
+			buildKey: response.analysis.partitionPlan.buildKey,
+			roots: [...response.analysis.partitionPlan.roots],
+			nodes: response.analysis.partitionPlan.nodes.map((node) => ({
+				...node,
+				artifactTargets: [...node.artifactTargets],
+				renderPath: [...node.renderPath],
+				childEdges: [...node.childEdges]
+			})),
+			edges: response.analysis.partitionPlan.edges.map((edge) => ({
+				...edge,
+				data: edge.data.map((slot) => ({ ...slot })),
+				renderPath: [...edge.renderPath]
+			}))
+		},
 		callables: response.analysis.callables.map((callable) => ({
 			...callable,
 			exportNames: [...callable.exportNames],

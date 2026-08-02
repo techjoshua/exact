@@ -151,6 +151,37 @@ async function dispatchExactOperationAfterSecurity(
 	if (!boundaryHintsAllowed(input, context.contract)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with unknown boundary hints');
 	}
+	if (input.type === 'refresh') {
+		const boundary = context.contract.boundaries[input.id];
+		if (boundary?.kind === 'partition-range') {
+			const authority = input.partition;
+			const resolveCurrentAuthority = context.resolvePartitionAuthority;
+			const currentAuthority = resolveCurrentAuthority
+				? await resolveCurrentAuthority(input, context)
+				: undefined;
+			if (
+				!authority ||
+				!input.root ||
+				authority.executionRoot !== input.root ||
+				authority.version !== boundary.planVersion ||
+				authority.buildKey !== boundary.buildKey ||
+				authority.planEdgeId !== boundary.planEdgeId ||
+				authority.planEdgeId !== input.id ||
+				authority.ownerComponentId !== boundary.ownerComponentId ||
+				authority.discriminator.kind !== boundary.discriminatorKind ||
+				!partitionDiscriminatorMatchesBoundary(authority, boundary) ||
+				(resolveCurrentAuthority
+					? !currentAuthority || !samePartitionAuthority(authority, currentAuthority)
+					: authority.generation !== boundary.generation)
+			) {
+				return reject(
+					400,
+					'bad_request',
+					'rejected partition refresh with mismatched runtime authority'
+				);
+			}
+		}
+	}
 
 	const invocation = input.type === 'invoke' ? context.contract.invocations[input.id] : undefined;
 	const executor = input.type === 'invoke' ? context.contract.executors?.[input.id] : undefined;
@@ -237,6 +268,19 @@ async function dispatchExactOperationAfterSecurity(
 				'rejected exact invocation result outside its continuation write contract'
 			);
 		}
+		if (input.type === 'refresh') {
+			const boundary = context.contract.boundaries[input.id];
+			if (boundary?.kind === 'partition-range') {
+				const allowed = new Set(boundary.patchTargets ?? [boundary.id]);
+				if (result.patches?.some((patch) => !allowed.has(patch.id))) {
+					return reject(
+						500,
+						'internal_error',
+						'rejected partition refresh outside its declared range containment'
+					);
+				}
+			}
+		}
 		return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };
 	} catch (error) {
 		context.debugRuntime?.observe({
@@ -261,6 +305,44 @@ async function dispatchExactOperationAfterSecurity(
 			error: 'internal_error'
 		};
 	}
+}
+
+function partitionDiscriminatorMatchesBoundary(
+	authority: NonNullable<ExactInvocationRequest['partition']>,
+	boundary: ExactServerContext['contract']['boundaries'][string]
+): boolean {
+	const discriminator = authority.discriminator;
+	if (discriminator.kind === 'single') return true;
+	if (discriminator.kind === 'branch')
+		return boundary.discriminatorValues?.includes(discriminator.branch) === true;
+	return discriminator.list === boundary.parentPlanId;
+}
+
+function samePartitionAuthority(
+	left: NonNullable<ExactInvocationRequest['partition']>,
+	right: NonNullable<ExactInvocationRequest['partition']>
+): boolean {
+	const leftDiscriminator = left.discriminator;
+	const rightDiscriminator = right.discriminator;
+	const sameDiscriminator =
+		leftDiscriminator.kind === rightDiscriminator.kind &&
+		(leftDiscriminator.kind === 'single' ||
+			(leftDiscriminator.kind === 'branch' &&
+				rightDiscriminator.kind === 'branch' &&
+				leftDiscriminator.branch === rightDiscriminator.branch) ||
+			(leftDiscriminator.kind === 'keyed' &&
+				rightDiscriminator.kind === 'keyed' &&
+				leftDiscriminator.list === rightDiscriminator.list &&
+				leftDiscriminator.keyToken === rightDiscriminator.keyToken));
+	return (
+		left.version === right.version &&
+		left.buildKey === right.buildKey &&
+		left.executionRoot === right.executionRoot &&
+		left.planEdgeId === right.planEdgeId &&
+		left.ownerComponentId === right.ownerComponentId &&
+		left.generation === right.generation &&
+		sameDiscriminator
+	);
 }
 
 function observationIdentity(

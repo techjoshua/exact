@@ -63,11 +63,21 @@ export type ExactRuntimeSourceFile = Readonly<{
 	components: readonly ExactRuntimeSourceEntity[];
 }>;
 
+/** Value-free compiler partition plan retained for build and live-instance correlation. */
+export type ExactRuntimePartitionPlan = Readonly<{
+	version: 1;
+	buildKey: string;
+	roots: readonly string[];
+	nodes: readonly Readonly<Record<string, unknown>>[];
+	edges: readonly Readonly<Record<string, unknown>>[];
+}>;
+
 /** Catalog partition for one execution root. */
 export type ExactInspectionRootCatalog = Readonly<{
 	executionRoot: string;
 	rootComponentId: string;
 	files: readonly ExactRuntimeSourceFile[];
+	partitionPlans?: readonly ExactRuntimePartitionPlan[];
 	redactions: ExactInspectionRedactionCatalog;
 }>;
 
@@ -140,6 +150,10 @@ function validRootCatalog(value: unknown, key: string): value is ExactInspection
 		!boundedString(value.rootComponentId, 512) ||
 		!Array.isArray(value.files) ||
 		value.files.length > 10_000 ||
+		(value.partitionPlans !== undefined &&
+			(!Array.isArray(value.partitionPlans) ||
+				value.partitionPlans.length > 10_000 ||
+				!value.partitionPlans.every(validPartitionPlan))) ||
 		!validRedactions(value.redactions)
 	)
 		return false;
@@ -158,6 +172,43 @@ function validRootCatalog(value: unknown, key: string): value is ExactInspection
 		);
 	});
 	return valid && entityIds.has(value.rootComponentId);
+}
+
+function validPartitionPlan(value: unknown): value is ExactRuntimePartitionPlan {
+	if (
+		!record(value) ||
+		value.version !== 1 ||
+		!boundedString(value.buildKey, 256) ||
+		!Array.isArray(value.roots) ||
+		!Array.isArray(value.nodes) ||
+		!Array.isArray(value.edges) ||
+		value.roots.length > 10_000 ||
+		value.nodes.length > 100_000 ||
+		value.edges.length > 200_000 ||
+		!value.roots.every((id) => boundedString(id, 1024)) ||
+		!boundedJson(value, 0)
+	)
+		return false;
+	const nodeIds = new Set<string>();
+	for (const node of value.nodes) {
+		if (!record(node) || !boundedString(node.id, 1024) || nodeIds.has(node.id)) return false;
+		nodeIds.add(node.id);
+	}
+	const edgeIds = new Set<string>();
+	for (const edge of value.edges) {
+		if (
+			!record(edge) ||
+			!boundedString(edge.id, 1024) ||
+			edgeIds.has(edge.id) ||
+			!boundedString(edge.parent, 1024) ||
+			!boundedString(edge.child, 1024) ||
+			!nodeIds.has(edge.parent) ||
+			!nodeIds.has(edge.child)
+		)
+			return false;
+		edgeIds.add(edge.id);
+	}
+	return value.roots.every((id) => nodeIds.has(id));
 }
 
 function validProducer(value: unknown): boolean {

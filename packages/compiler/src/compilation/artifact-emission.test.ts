@@ -402,6 +402,43 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).not.toContain('const __exactImplementation_A');
 	});
 
+	it('uses one build-scoped partition identity across project artifacts', async () => {
+		const root = await createTestWorkspace('exact-partition-build-');
+		const srcDir = path.join(root, 'src');
+		const outDir = path.join(root, 'dist');
+		await mkdir(srcDir, { recursive: true });
+		await writeFile(
+			path.join(srcDir, 'App.tsx'),
+			`import { Panel } from './Panel.js'; export function App() { return () => <Panel />; }`
+		);
+		await writeFile(
+			path.join(srcDir, 'Panel.tsx'),
+			`export function Panel() { return () => <button onClick={() => undefined}>Open</button>; }`
+		);
+
+		const results = await compileProjectArtifacts([srcDir], {
+			outDir,
+			rootDir: srcDir,
+			serverComponents: true
+		});
+		const buildKeys = new Set(
+			results.map((result) => artifactAnalysis(result).partitionPlan.buildKey)
+		);
+		expect(buildKeys.size).toBe(1);
+		expect([...buildKeys][0]).toMatch(/^[0-9a-f]{40}$/);
+		const app = results.find((result) => path.basename(result.inputFile) === 'App.tsx')!;
+		const panel = results.find((result) => path.basename(result.inputFile) === 'Panel.tsx')!;
+		const panelContract = artifactAnalysis(panel).partitionPlan.nodes.find(
+			(node) => node.kind === 'component'
+		)?.componentContract;
+		expect(panelContract).toBeTruthy();
+		expect(
+			artifactAnalysis(app).partitionPlan.nodes.some(
+				(node) => node.componentContract === panelContract && node.placement === 'client'
+			)
+		).toBe(true);
+	});
+
 	it('routes barrel exports through target artifacts and infers transitive task placement', async () => {
 		const root = await createTestWorkspace('exact-artifact-barrel-');
 		const srcDir = path.join(root, 'src');

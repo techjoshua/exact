@@ -25,7 +25,9 @@ No editor package contains a second eXact parser or classifier.
 ## Run the VS Code extension from a checkout
 
 The repository launcher builds `@exactjs/language-server` and `@exactjs/vscode`
-before opening a fresh Extension Development Host:
+before opening a fresh Extension Development Host. The extension client bundles
+its runtime dependencies beneath the registered extension path and leaves only
+VS Code's host API external:
 
 ```sh
 npm run dev:vscode-extension
@@ -37,8 +39,10 @@ iterating on already-built output. `--dry-run` prints the exact build and launch
 plan. The extension resolves both packaged and npm-workspace-hoisted language
 server layouts without creating a package-local dependency link. Development
 prefers the freshly built sibling workspace package over any stale installed
-copy. The opened workspace must be trusted, and opening a TypeScript or TSX
-file triggers activation.
+copy. Bundling keeps hoisted client dependencies under the extension's runtime
+identity, so their VS Code API imports are attributed to eXact Language Tools.
+The opened workspace must be trusted, and opening a TypeScript or TSX file
+triggers activation.
 
 ## Source inspection
 

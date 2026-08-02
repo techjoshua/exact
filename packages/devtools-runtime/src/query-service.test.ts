@@ -18,7 +18,7 @@ describe('shared client/server inspection query service', () => {
 			dom: {
 				attach() {},
 				detach() {},
-				snapshot: () => ({ roots: [], components: [] }),
+				snapshot: () => ({ roots: [], components: [], partitions: [] }),
 				ownerOfElement: () => undefined,
 				ownedElements: () => []
 			},
@@ -95,7 +95,7 @@ describe('shared client/server inspection query service', () => {
 			dom: {
 				attach() {},
 				detach() {},
-				snapshot: () => ({ roots, components: [] }),
+				snapshot: () => ({ roots, components: [], partitions: [] }),
 				ownerOfElement: () => undefined,
 				ownedElements: () => []
 			},
@@ -164,6 +164,40 @@ describe('shared client/server inspection query service', () => {
 		expect(subscriptions).toEqual(['page', 'branding', 'billing']);
 		subscription.close();
 		expect(closed).toBe(3);
+	});
+
+	it('exposes the bounded live partition instance tree', async () => {
+		const partitions = [
+			{
+				executionRoot: 'page',
+				buildKey: 'build',
+				plan: 'summary-edge',
+				ownerComponentId: 'Workspace',
+				discriminator: { kind: 'single' as const },
+				generation: 1,
+				host: 'server' as const,
+				children: []
+			}
+		];
+		const service = createExactClientInspectionQueryService({
+			sessionId: 'session',
+			dom: {
+				attach() {},
+				detach() {},
+				snapshot: () => ({ roots: [], components: [], partitions }),
+				ownerOfElement: () => undefined,
+				ownedElements: () => []
+			},
+			events: createExactClientEventStore(10, 10_000),
+			serverConnected: false
+		});
+
+		const response = await service.request({
+			protocol: 1,
+			id: 'partitions',
+			method: 'partitions.tree'
+		});
+		expect(response.ok && response.result).toEqual(partitions);
 	});
 });
 

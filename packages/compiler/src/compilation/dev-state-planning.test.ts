@@ -36,7 +36,8 @@ function artifactEntry(inputFile: string, dependencies: string[]): ExactArtifact
 			clientRegistrations: [],
 			serverRegistrations: [],
 			operations: [],
-			boundaries: []
+			boundaries: [],
+			partitionPlan: { version: 1, buildKey: 'fixture', roots: [], nodes: [], edges: [] }
 		}
 	};
 }

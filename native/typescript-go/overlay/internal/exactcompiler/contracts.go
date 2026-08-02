@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.26.0"
+const ProtocolVersion = "1.27.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -30,6 +30,7 @@ type Request struct {
 	Kind                       string           `json:"kind"`
 	Source                     string           `json:"source,omitempty"`
 	Root                       string           `json:"root,omitempty"`
+	BuildKey                   string           `json:"buildKey,omitempty"`
 	ConfigFile                 string           `json:"configFile,omitempty"`
 	Target                     Target           `json:"target,omitempty"`
 	ServerComponents           bool             `json:"serverComponents,omitempty"`
@@ -213,14 +214,23 @@ type ExportRecord struct {
 
 // Boundary identifies one runtime split owned by a durable component.
 type Boundary struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	ComponentID      string `json:"componentId,omitempty"`
-	OwnerComponentID string `json:"ownerComponentId,omitempty"`
-	RenderEdgeID     string `json:"renderEdgeId,omitempty"`
-	RenderEdgeIndex  int    `json:"renderEdgeIndex,omitempty"`
-	RenderPath       string `json:"renderPath,omitempty"`
-	Kind             string `json:"kind"`
+	ID                  string   `json:"id"`
+	Name                string   `json:"name"`
+	ComponentID         string   `json:"componentId,omitempty"`
+	OwnerComponentID    string   `json:"ownerComponentId,omitempty"`
+	RenderEdgeID        string   `json:"renderEdgeId,omitempty"`
+	RenderEdgeIndex     int      `json:"renderEdgeIndex,omitempty"`
+	RenderPath          string   `json:"renderPath,omitempty"`
+	Kind                string   `json:"kind"`
+	PlanVersion         int      `json:"planVersion,omitempty"`
+	BuildKey            string   `json:"buildKey,omitempty"`
+	PlanEdgeID          string   `json:"planEdgeId,omitempty"`
+	ParentPlanID        string   `json:"parentPlanId,omitempty"`
+	FallbackPlanID      string   `json:"fallbackPlanId,omitempty"`
+	PatchTargets        []string `json:"patchTargets,omitempty"`
+	DiscriminatorKind   string   `json:"discriminatorKind,omitempty"`
+	DiscriminatorValues []string `json:"discriminatorValues,omitempty"`
+	Generation          int      `json:"generation,omitempty"`
 }
 
 // DataPolicy is the normalized residency and secrecy contract for one value.
@@ -642,6 +652,64 @@ type RendererEnhancement struct {
 	ExportName      string `json:"exportName"`
 }
 
+// PartitionPlan is the normalized, build-local component and execution-region
+// graph used to derive recursive client/server ownership. The first delivery is
+// analysis-only; existing artifacts remain projected through Boundary records.
+type PartitionPlan struct {
+	Version  int                 `json:"version"`
+	BuildKey string              `json:"buildKey"`
+	Roots    []string            `json:"roots"`
+	Nodes    []PartitionPlanNode `json:"nodes"`
+	Edges    []PartitionPlanEdge `json:"edges"`
+}
+
+// PartitionPlanNode describes one reusable component or structural region
+// template. Component nodes retain durable ownership while region nodes carry
+// only execution, hydration, and refresh authority.
+type PartitionPlanNode struct {
+	ID                string   `json:"id"`
+	Kind              string   `json:"kind"`
+	ComponentContract string   `json:"componentContract,omitempty"`
+	OwnerComponent    string   `json:"ownerComponent"`
+	Placement         string   `json:"placement"`
+	ArtifactTargets   []string `json:"artifactTargets"`
+	Activation        string   `json:"activation"`
+	RefreshAuthority  string   `json:"refreshAuthority"`
+	Start             int      `json:"start"`
+	Length            int      `json:"length"`
+	RenderPath        []string `json:"renderPath"`
+	ChildEdges        []string `json:"childEdges"`
+	Optional          bool     `json:"optional,omitempty"`
+	Conservative      bool     `json:"conservative,omitempty"`
+	Reason            string   `json:"reason,omitempty"`
+}
+
+// PartitionPlanEdge connects reusable plan templates. Runtime branches and
+// keyed items instantiate these finite edges without expanding the static plan.
+type PartitionPlanEdge struct {
+	ID          string                  `json:"id"`
+	Parent      string                  `json:"parent"`
+	Child       string                  `json:"child"`
+	Kind        string                  `json:"kind"`
+	Cardinality string                  `json:"cardinality"`
+	Data        []PartitionPlanDataSlot `json:"data"`
+	Fallback    string                  `json:"fallback"`
+	Start       int                     `json:"start"`
+	Length      int                     `json:"length"`
+	RenderPath  []string                `json:"renderPath"`
+}
+
+// PartitionPlanDataSlot is one compiler-authorized value crossing a concrete
+// client/server edge. Empty edge slots are encoded as arrays, never null.
+type PartitionPlanDataSlot struct {
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	Direction string `json:"direction"`
+	Transfer  string `json:"transfer"`
+	Residency string `json:"residency"`
+	Secret    bool   `json:"secret"`
+}
+
 // Analysis contains eXact-owned semantic facts returned by the native host.
 type Analysis struct {
 	Imports          []Import               `json:"imports"`
@@ -659,6 +727,7 @@ type Analysis struct {
 	Continuations    []Continuation         `json:"continuations"`
 	Registries       []ComponentRegistry    `json:"registries"`
 	Enhancements     []RendererEnhancement  `json:"rendererEnhancements"`
+	PartitionPlan    PartitionPlan          `json:"partitionPlan"`
 	Resumptions      []ComponentResumption  `json:"resumptions"`
 	Policy           PolicyAnalysis         `json:"policy"`
 	Capabilities     CapabilityRequirements `json:"requiredCapabilities"`
@@ -684,6 +753,7 @@ func NewAnalysis(
 	continuations []Continuation,
 	registries []ComponentRegistry,
 	enhancements []RendererEnhancement,
+	partitionPlan PartitionPlan,
 	resumptions []ComponentResumption,
 	policy PolicyAnalysis,
 	capabilities CapabilityRequirements,
@@ -706,6 +776,7 @@ func NewAnalysis(
 		Continuations:    normalizedContinuations(continuations),
 		Registries:       normalizedComponentRegistries(registries),
 		Enhancements:     nonNilSlice(enhancements),
+		PartitionPlan:    normalizedPartitionPlan(partitionPlan),
 		Resumptions:      normalizedResumptions(resumptions),
 		Policy:           normalizedPolicy(policy),
 		Capabilities: CapabilityRequirements{
@@ -714,6 +785,22 @@ func NewAnalysis(
 		Assets:        nonNilSlice(assets),
 		SemanticGraph: normalizedSemanticGraph(semanticGraph),
 	}
+}
+
+func normalizedPartitionPlan(plan PartitionPlan) PartitionPlan {
+	plan.Roots = nonNilSlice(plan.Roots)
+	plan.Nodes = nonNilSlice(plan.Nodes)
+	plan.Edges = nonNilSlice(plan.Edges)
+	for index := range plan.Nodes {
+		plan.Nodes[index].ArtifactTargets = nonNilSlice(plan.Nodes[index].ArtifactTargets)
+		plan.Nodes[index].RenderPath = nonNilSlice(plan.Nodes[index].RenderPath)
+		plan.Nodes[index].ChildEdges = nonNilSlice(plan.Nodes[index].ChildEdges)
+	}
+	for index := range plan.Edges {
+		plan.Edges[index].Data = nonNilSlice(plan.Edges[index].Data)
+		plan.Edges[index].RenderPath = nonNilSlice(plan.Edges[index].RenderPath)
+	}
+	return plan
 }
 
 func normalizedComponentRegistries(

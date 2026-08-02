@@ -55,6 +55,8 @@ export async function awaitWithAbort<T>(
 /** Creates a ssr context. */
 export function createSsrContext(options: RenderToStringOptions): SsrContext {
 	return {
+		executionRoot: options.executionRoot ?? 'page',
+		buildKey: options.buildKey,
 		markers: options.markers ?? true,
 		textSeparators: options.textSeparators ?? false,
 		reactMarkup: options.reactMarkup ?? false,

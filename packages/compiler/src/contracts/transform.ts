@@ -29,6 +29,8 @@ export type TransformOptions = {
 	filename?: string;
 	/** Root used to resolve relative filenames; defaults to the nearest package.json from cwd. */
 	root?: string;
+	/** Immutable deployment namespace shared by coordinated client/server artifacts. */
+	buildKey?: string;
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */
 	session?: ExactCompilerSession;
 	target?: TransformTarget;

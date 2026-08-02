@@ -924,8 +924,22 @@ func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
 			slot,
 		)
 	}
+	var partitionRange Boundary
+	for _, boundary := range response.Analysis.Boundaries {
+		if boundary.Kind == "partition-range" {
+			partitionRange = boundary
+			break
+		}
+	}
+	if partitionRange.ID == "" {
+		t.Fatalf("JSX server child did not receive an independent partition range: %#v", response.Analysis.Boundaries)
+	}
 	for _, expected := range []string{
-		`__exactBoundary("` + island.ID + `", "ClientShell", {}`,
+		`__exactBoundary("` + island.ID + `", "ClientShell", { __exactServerSlots: [{ __exactServerSlot: "` + partitionRange.ID + `"`,
+		`planVersion: 1`,
+		`planEdgeId: "` + partitionRange.ID + `"`,
+		`discriminator: { kind: "single" }`,
+		`generation: 1`,
 		`__exactVNode("p"`,
 		`"Server child"`,
 	} {
@@ -6193,7 +6207,13 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	motionFile := filepath.Join(root, "motion.ts")
 	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	entrySource := `
-			import { motion as animate } from "./motion.js" with { type: "exact-plugin" };
+			import { TaskContext } from "@exactjs/core";
+			import { gravity, motion as animate } from "./motion.js" with { type: "exact-plugin" };
+			function ServerSummary() {
+				const load = async (_task: TaskContext = TaskContext.server()) => summary();
+				load();
+				return () => <span>Summary</span>;
+			}
 			export function View(this: Component<{ duration: number }>) {
 				this.state.duration = 120;
 				return () => (
@@ -6201,8 +6221,9 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 						animate:preset="fade"
 						animate:exit-duration={this.state.duration}
 						animate:root
+						gravity:apply="field"
 					>
-						Save
+						<ServerSummary />
 					</button>
 				);
 			}
@@ -6210,18 +6231,19 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	for filename, source := range map[string]string{
 		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
 		entryFile:          entrySource,
-		motionFile:         `export { motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
-		implementationFile: `export function motion(props: { preset?: string; exitDuration?: number; children?: unknown }) { return props.children; }`,
+		motionFile:         `export { gravity, motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		implementationFile: `export function motion(props: { preset?: string; exitDuration?: number; children?: unknown }) { return props.children; } export function gravity(props: { apply?: string; children?: unknown }) { return props.children; }`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	response := NewSession().Execute(Request{
-		ID:         entryFile,
-		Kind:       "compile",
-		Source:     entrySource,
-		ConfigFile: configFile,
+		ID:               entryFile,
+		Kind:             "compile",
+		Source:           entrySource,
+		ConfigFile:       configFile,
+		ServerComponents: true,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
@@ -6248,11 +6270,37 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	if strings.Count(response.Code, "__exactEnhancements:") != 1 {
 		t.Fatalf("plugin props were not emitted as one grouped marker:\n%s", response.Code)
 	}
-	if len(response.Analysis.Enhancements) != 1 ||
-		response.Analysis.Enhancements[0].Identity != "./motion.js#motion" ||
-		response.Analysis.Enhancements[0].ModuleSpecifier != "./motion.js" ||
-		response.Analysis.Enhancements[0].ExportName != "motion" {
+	if len(response.Analysis.Enhancements) != 2 ||
+		response.Analysis.Enhancements[1].Identity != "./motion.js#motion" ||
+		response.Analysis.Enhancements[1].ModuleSpecifier != "./motion.js" ||
+		response.Analysis.Enhancements[1].ExportName != "motion" {
 		t.Fatalf("compiler omitted renderer enhancement bundle metadata: %#v", response.Analysis.Enhancements)
+	}
+	var enhancementNode PartitionPlanNode
+	var gravityNode PartitionPlanNode
+	for _, node := range response.Analysis.PartitionPlan.Nodes {
+		if node.Kind == "enhancement-component" &&
+			node.ComponentContract == "./motion.js#motion" {
+			enhancementNode = node
+		}
+		if node.Kind == "enhancement-component" &&
+			node.ComponentContract == "./motion.js#gravity" {
+			gravityNode = node
+		}
+	}
+	if enhancementNode.ID == "" || gravityNode.ID == "" || !enhancementNode.Optional ||
+		enhancementNode.OwnerComponent != enhancementNode.ID {
+		t.Fatalf(
+			"active enhancement was not planned as an ordinary optional component owner: %#v",
+			response.Analysis.PartitionPlan,
+		)
+	}
+	if len(partitionEdgesFrom(response.Analysis.PartitionPlan, enhancementNode.ID, "enhancement")) != 1 {
+		t.Fatalf("co-targeted enhancement owners were not chained deterministically: %#v", response.Analysis.PartitionPlan)
+	}
+	serverRanges := partitionEdgesFrom(response.Analysis.PartitionPlan, gravityNode.ID, "server-range")
+	if len(serverRanges) != 1 {
+		t.Fatalf("enhancement output did not retain its nested server range: %#v", response.Analysis.PartitionPlan)
 	}
 }
 

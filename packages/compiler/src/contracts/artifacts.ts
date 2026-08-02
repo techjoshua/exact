@@ -1,4 +1,5 @@
 import type { ExactPlacement } from './policy.js';
+import type { ExactPartitionPlanIR } from './analysis.js';
 
 /** Configures package export map. */
 export type PackageExportMapOptions = {
@@ -35,6 +36,8 @@ export type ExactArtifactGraphOptions = PackageExportMapOptions & ClientIslandRe
 
 /** Defines the exact artifact graph type contract. */
 export type ExactArtifactGraph = {
+	/** Immutable namespace shared by every retained partition plan and boundary. */
+	buildKey: string;
 	conditions: {
 		client: string[];
 		server: string[];
@@ -45,8 +48,15 @@ export type ExactArtifactGraph = {
 	serverParts: ServerPartRegistryEntry[];
 	operations: ExactTaskOperationPlan[];
 	boundaries: ExactArtifactBoundaryPlan[];
+	partitionPlans: ExactArtifactPartitionPlan[];
 	artifacts: ExactArtifactGraphEntry[];
 };
+
+/** One module's normalized partition plan retained by the aggregate artifact graph. */
+export type ExactArtifactPartitionPlan = Readonly<{
+	inputFile: string;
+	plan: ExactPartitionPlanIR;
+}>;
 
 /** Stable state path used by one generated task operation. */
 export type ExactTaskStatePathPlan = Readonly<{
@@ -80,7 +90,16 @@ export type ExactArtifactBoundaryPlan = Readonly<{
 	id: string;
 	componentId?: string;
 	ownerComponentId?: string;
-	kind: 'client-island' | 'server-slot';
+	kind: 'client-island' | 'server-slot' | 'partition-range';
+	planVersion?: number;
+	buildKey?: string;
+	planEdgeId?: string;
+	parentPlanId?: string;
+	fallbackPlanId?: string;
+	patchTargets?: readonly string[];
+	discriminatorKind?: 'single' | 'branch' | 'keyed';
+	discriminatorValues?: readonly string[];
+	generation?: number;
 }>;
 
 /** Registry symbol retained solely to create target-specific module registrations. */
@@ -101,6 +120,7 @@ export type ExactArtifactBuildProducts = Readonly<{
 	serverRegistrations: readonly ExactArtifactRegistryPlan[];
 	operations: readonly ExactTaskOperationPlan[];
 	boundaries: readonly ExactArtifactBoundaryPlan[];
+	partitionPlan: ExactPartitionPlanIR;
 }>;
 
 /** Defines the exact artifact component edge type contract. */

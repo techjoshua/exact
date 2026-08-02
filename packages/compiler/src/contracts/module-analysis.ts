@@ -3,6 +3,7 @@ import type {
 	ExactCallableSummaryIR,
 	ExactComponentIR,
 	ExactExportIR,
+	ExactPartitionPlanIR,
 	ExactSemanticGraphIR,
 	ExactSymbolIR
 } from './analysis.js';
@@ -26,6 +27,7 @@ export type ExactModuleAnalysis = {
 	exports: ExactExportIR[];
 	symbols: ExactSymbolIR[];
 	boundaries: ExactBoundaryIR[];
+	partitionPlan: ExactPartitionPlanIR;
 	callables: ExactCallableSummaryIR[];
 	continuations: ExactContinuationIR[];
 	registries?: ExactComponentRegistryIR[];

@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/printer"
@@ -535,7 +536,7 @@ func rootComponentContractAttachment(
 		contractProperty(
 			factory,
 			"version",
-			factory.NewNumericLiteral("1", ast.TokenFlagsNone),
+			factory.NewNumericLiteral("2", ast.TokenFlagsNone),
 		),
 		contractProperty(
 			factory,
@@ -1374,7 +1375,7 @@ func componentBoundaryMetadata(
 				boundary.ComponentID == boundary.OwnerComponentID) {
 			continue
 		}
-		values = append(values, contractObject(factory, true,
+		properties := []*ast.Node{
 			contractProperty(
 				factory,
 				"id",
@@ -1395,7 +1396,21 @@ func componentBoundaryMetadata(
 				"kind",
 				contractString(factory, boundary.Kind),
 			),
-		))
+		}
+		if boundary.PlanEdgeID != "" {
+			properties = append(properties,
+				contractProperty(factory, "planVersion", factory.NewNumericLiteral(strconv.Itoa(boundary.PlanVersion), ast.TokenFlagsNone)),
+				contractProperty(factory, "buildKey", contractString(factory, boundary.BuildKey)),
+				contractProperty(factory, "planEdgeId", contractString(factory, boundary.PlanEdgeID)),
+				contractProperty(factory, "parentPlanId", contractString(factory, boundary.ParentPlanID)),
+				contractProperty(factory, "fallbackPlanId", contractString(factory, boundary.FallbackPlanID)),
+				contractProperty(factory, "patchTargets", stringMetadata(factory, boundary.PatchTargets)),
+				contractProperty(factory, "discriminatorKind", contractString(factory, boundary.DiscriminatorKind)),
+				contractProperty(factory, "discriminatorValues", stringMetadata(factory, boundary.DiscriminatorValues)),
+				contractProperty(factory, "generation", factory.NewNumericLiteral(strconv.Itoa(boundary.Generation), ast.TokenFlagsNone)),
+			)
+		}
+		values = append(values, contractObject(factory, true, properties...))
 	}
 	return contractArray(factory, values...)
 }

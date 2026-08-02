@@ -58,6 +58,7 @@
 		"src/native/process-component-contracts.ts",
 		"src/native/process-diagnostic-contracts.ts",
 		"src/native/process-module-contracts.ts",
+		"src/native/process-partition-contracts.ts",
 		"src/native/process-policy-contracts.ts",
 		"src/native/process-semantic-contracts.ts",
 		"src/native/process-task-contracts.ts",

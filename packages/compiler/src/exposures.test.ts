@@ -25,6 +25,55 @@ describe('exposure artifact graph selection', () => {
 		);
 	});
 
+	it('derives exposure reachability from partition component ownership', () => {
+		const graph = fixtureGraph();
+		graph.componentEdges = [];
+		const node = (id: string, componentContract: string, childEdges: string[]) => ({
+			id,
+			kind: 'component' as const,
+			componentContract,
+			ownerComponent: id,
+			placement: 'either' as const,
+			artifactTargets: ['client', 'server'] as const,
+			activation: 'eager' as const,
+			refreshAuthority: 'none' as const,
+			start: 0,
+			length: 1,
+			renderPath: [],
+			childEdges
+		});
+		graph.partitionPlans = [
+			{
+				inputFile: '/src/billing.tsx',
+				plan: {
+					version: 1,
+					buildKey: 'build',
+					roots: ['billing-node'],
+					nodes: [
+						node('billing-node', 'billing', ['billing-button']),
+						node('button-node', 'button', [])
+					],
+					edges: [
+						{
+							id: 'billing-button',
+							parent: 'billing-node',
+							child: 'button-node',
+							kind: 'component',
+							cardinality: 'one',
+							data: [],
+							fallback: 'billing-node',
+							start: 0,
+							length: 1,
+							renderPath: []
+						}
+					]
+				}
+			}
+		];
+
+		expect([...exactReachableExposureComponents(graph, 'billing')]).toEqual(['billing', 'button']);
+	});
+
 	it('partitions server-owned inspection data to the reachable exposure', () => {
 		const inspection = {
 			generation: 1,
@@ -63,6 +112,7 @@ function fixtureGraph(): ExactArtifactGraph {
 	const button = artifact('/src/button.tsx', 'button');
 	const admin = artifact('/src/admin.tsx', 'admin');
 	return {
+		buildKey: 'build',
 		conditions: { client: ['exact-client'], server: ['exact-server'] },
 		packageExports: {},
 		componentEdges: [
@@ -114,6 +164,7 @@ function fixtureGraph(): ExactArtifactGraph {
 		],
 		operations: [],
 		boundaries: [],
+		partitionPlans: [],
 		artifacts: [billing, button, admin]
 	};
 }

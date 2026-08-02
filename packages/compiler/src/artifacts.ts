@@ -175,7 +175,11 @@ export function createExactArtifactGraph(
 	results: readonly ExactArtifactGraphInput[],
 	options: ExactArtifactGraphOptions
 ): ExactArtifactGraph {
+	const buildKeys = new Set(results.map((result) => result.build.partitionPlan.buildKey));
+	if (buildKeys.size > 1)
+		throw new Error('eXact artifact graphs require one coordinated partition build key');
 	return {
+		buildKey: [...buildKeys][0] ?? '',
 		conditions: {
 			client: exactExportConditions('client', options),
 			server: exactExportConditions('server', options)
@@ -190,6 +194,10 @@ export function createExactArtifactGraph(
 		}),
 		operations: uniqueBuildRecords(results.flatMap((result) => result.build.operations)),
 		boundaries: uniqueBuildRecords(results.flatMap((result) => result.build.boundaries)),
+		partitionPlans: results.map((result) => ({
+			inputFile: result.inputFile,
+			plan: result.build.partitionPlan
+		})),
 		artifacts: results.map(artifactGraphEntryFromInput)
 	};
 }

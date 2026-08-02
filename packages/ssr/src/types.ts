@@ -27,6 +27,10 @@ import type {
 
 /** Configures render to string. */
 export type RenderToStringOptions = {
+	/** Immutable runtime namespace used by partition markers. */
+	executionRoot?: string;
+	/** Immutable deployment namespace used by partition markers. */
+	buildKey?: string;
 	markers?: boolean;
 	/** Inserts React-compatible separators between adjacent primitive text children. */
 	textSeparators?: boolean;
@@ -270,6 +274,8 @@ export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
 
 /** Carries the context required by ssr. */
 export type SsrContext = {
+	executionRoot: string;
+	buildKey?: string;
 	markers: boolean;
 	textSeparators: boolean;
 	reactMarkup: boolean | 18 | 19;

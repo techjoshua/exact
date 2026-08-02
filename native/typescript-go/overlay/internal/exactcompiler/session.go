@@ -40,7 +40,7 @@ func (s *Session) Execute(request Request) Response {
 		Diagnostics: []Diagnostic{},
 		Analysis: NewAnalysis(
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-			nil, nil, nil, nil,
+			nil, nil, nil, PartitionPlan{}, nil,
 			newPolicyAnalysis(),
 			CapabilityRequirements{},
 			nil,
@@ -314,6 +314,18 @@ func (s *Session) Execute(request Request) Response {
 		request.ID,
 	)
 	enhancementImports := collectEnhancementImports(sourceFile, generation.checker)
+	partitionPlan := createPartitionPlan(
+		sourceFile,
+		request.BuildKey,
+		components,
+		clientIslands,
+		enhancementImports,
+		continuations,
+		registries,
+	)
+	partitionBoundaries := partitionBoundaryRecords(partitionPlan)
+	boundaries = append(boundaries, partitionBoundaries...)
+	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()
@@ -333,6 +345,7 @@ func (s *Session) Execute(request Request) Response {
 		continuations,
 		registries,
 		enhancementImports.catalog,
+		partitionPlan,
 		resumptions,
 		policy.graph,
 		capabilities,
@@ -388,6 +401,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, partitionPlanDiagnostics(partitionPlan)...)
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
@@ -467,6 +481,7 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		request.JSXInterop,
 		enhancementImports,
+		partitionPlan,
 	)
 	// Contract wrapping synthesizes nested component implementations. Retain
 	// target-local import uses observed after task lowering so wrapping

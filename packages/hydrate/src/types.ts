@@ -14,6 +14,8 @@ import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult,
+	ExactPartitionAuthority,
+	ExactPartitionDiscriminator,
 	ExactPatch
 } from '@exactjs/server';
 
@@ -57,6 +59,8 @@ export type HydrateOptions = {
 	onOperation?: (observation: ExactClientOperationObservation) => void;
 	/** Observes whether a hydration target adopted existing DOM or mounted new DOM. */
 	onHydration?: (observation: ExactHydrationObservation) => void;
+	/** Receives the live partition-instance tree after an island adopts or mounts. */
+	onPartitionInstances?: (instances: readonly ExactPartitionInstance[]) => void;
 	/** Controls compiler-approved eager and interaction-triggered client-island activation. */
 	hydration?: Readonly<{
 		strategy?: 'automatic' | 'eager' | 'interaction';
@@ -82,11 +86,21 @@ export type HydrateOptions = {
 	/** Receives hydration and nested renderer profiling observations. */
 	onProfile?: ExactProfileSink;
 	/** Bundle-local compiler-generated enhancement components used by the hydrated renderer. */
-	enhancementCatalog?: ReadonlyMap<
-		string,
-		ComponentFunction<any, Record<string, unknown>>
-	>;
+	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
 };
+
+/** One concrete acyclic runtime projection of a compiler partition edge. */
+export type ExactPartitionInstance = Readonly<{
+	executionRoot: string;
+	buildKey: string;
+	plan: string;
+	ownerComponentId: string;
+	ownerComponentInstance: string;
+	discriminator: ExactPartitionDiscriminator;
+	generation: number;
+	host: 'client' | 'server';
+	children: readonly ExactPartitionInstance[];
+}>;
 
 /** Reports an observable hydrate profile event. */
 export type HydrateProfileEvent = ExactProfileEvent<'hydrate', 'hydrate'>;
@@ -240,6 +254,7 @@ export type InvokeExactOptions = {
 	type: ExactInvocationKind;
 	root?: string;
 	id: string;
+	partition?: ExactPartitionAuthority;
 	payload?: unknown;
 	state?: unknown;
 	/** Compiler-approved shared context projections required by this operation. */

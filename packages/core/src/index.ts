@@ -274,6 +274,7 @@ export {
 	createPortal,
 	createServerBoundary,
 	createServerSlot,
+	createKeyedServerSlot,
 	createTextVNode,
 	createVNode,
 	getCellVNode,

@@ -2,23 +2,25 @@
 
 ## Status
 
-Accepted design; implementation has not started. This document is decision-complete for the first
-delivery. Changes to its ownership, identity, data-boundary, or fallback rules require an explicit
-proposal amendment rather than an implementation-local approximation.
+Implemented for the first delivery in native protocol 1.27 and generated component-contract
+version 2. The native compiler emits the build-scoped normalized plan, paired artifacts consume its
+reachability and range contracts, and SSR, hydration, refresh dispatch, language tools, and DevTools
+share its partition identities. Conditional branches and keyed items carry instance-local
+discriminators and generations. Boundary replacement remains the range-local correctness fallback;
+it is no longer the ordinary representation for independently provable server descendants.
 
-The compiler currently emits flat client-island and server-slot boundary records. A server-owned
-descendant can require one broader children slot, and conditional or keyed structure cannot yet own
-independent recursive placement instances.
+Changes to the ownership, identity, data-boundary, or fallback rules in this document require an
+explicit proposal amendment rather than an implementation-local approximation.
 
-| Delivery area                          | Current state                                      | Accepted state                                         |
-| -------------------------------------- | -------------------------------------------------- | ------------------------------------------------------ |
-| Semantic representation                | Flat components, render edges, islands, and slots  | Build-scoped partition plan graph                      |
-| Runtime representation                 | Boundary IDs and renderer-owned ranges             | Acyclic partition-instance tree                        |
-| Server children inside a client island | One broader children slot when required            | Independent nested server ranges                       |
-| Conditional and keyed placement        | Conservative enclosing ownership                   | Branch- and item-local instances                       |
-| Artifact reachability                  | Existing component, island, and continuation graph | Partition-derived target reachability                  |
-| Component ownership                    | Durable component instances                        | Preserved independently from partition authority       |
-| Enhancements                           | Ordinary activated components in the renderer      | Ordinary component nodes in every partition projection |
+| Delivery area                          | Implemented contract                                      |
+| -------------------------------------- | --------------------------------------------------------- |
+| Semantic representation                | Build-scoped partition plan graph                         |
+| Runtime representation                 | Nested, acyclic range instances with exact authority      |
+| Server children inside a client island | Independent nested server ranges                          |
+| Conditional and keyed placement        | Branch- and item-local discriminators and generations     |
+| Artifact reachability                  | Partition-derived target reachability                     |
+| Component ownership                    | Durable component ownership separate from range authority |
+| Enhancements                           | Ordinary component nodes in every partition projection    |
 
 This proposal is the prerequisite for
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
@@ -542,7 +544,7 @@ A response for permissions generation 4 arrives after generation 5 committed.
 Expected: the entire response is rejected before DOM or state mutation. Summary and controls are
 untouched, and generation 5 remains authoritative.
 
-## Delivery order
+## Completed delivery order
 
 1. Add normalized plan nodes, edges, data slots, reasons, and versioning to native semantic analysis
    without changing emitted artifacts.

@@ -25,6 +25,7 @@ export async function createExactArtifactDevState(
 	const compiled = await compileArtifactPlanEntries(plan.entries, {
 		filename: (entry) => options.filename ?? entry.inputFile,
 		serverComponents: options.serverComponents,
+		buildKey: options.buildKey ?? options.inspection?.buildKey,
 		session: options.session
 	});
 	const entries = compiled.map(artifactGraphInputFromCompileResult);
@@ -42,6 +43,9 @@ export async function updateExactArtifactDevState(
 	changedInputs: readonly string[],
 	options: ExactArtifactDevStateOptions
 ): Promise<ExactArtifactDevStateUpdate> {
+	const requestedBuildKey = options.buildKey ?? options.inspection?.buildKey;
+	if (requestedBuildKey && requestedBuildKey !== state.graph.buildKey)
+		throw new Error('eXact artifact dev state cannot change its coordinated partition build key');
 	for (const changed of changedInputs) {
 		let removed = false;
 		try {
@@ -63,6 +67,7 @@ export async function updateExactArtifactDevState(
 	const compiled = await compileArtifactPlanEntries([...diff.added, ...diff.changed], {
 		filename: (entry) => options.filename ?? entry.inputFile,
 		serverComponents: options.serverComponents,
+		buildKey: state.graph.buildKey,
 		session: options.session
 	});
 	const entries = [...retainedEntries, ...compiled.map(artifactGraphInputFromCompileResult)].sort(

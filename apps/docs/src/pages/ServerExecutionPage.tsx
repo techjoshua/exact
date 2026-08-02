@@ -170,6 +170,15 @@ export function ServerExecutionPage(this: Component<{}>) {
 					available, and an authoritative boundary replacement is retained as the safe fallback when
 					a finer patch cannot be proven.
 				</p>
+				<p>
+					Alternating client and server descendants retain independent partition-edge ranges.
+					Hydration can therefore adopt matching siblings while a nested range is refreshed or
+					recovered. Refresh responses are confined to the requested range and its declared
+					descendants. Dynamic branch and keyed generations are checked against the host's current
+					partition authority before refresh dispatch. Attributed enhancements participate as
+					ordinary component owners, with the same lifecycle and cleanup model as authored
+					components.
+				</p>
 			</section>
 			<Callout title="Compiler errors protect the boundary">
 				<p>

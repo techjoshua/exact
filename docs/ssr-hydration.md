@@ -17,7 +17,11 @@ Status: implemented foundation with the explicit limits listed below.
 
 Native SSR emits deterministic markers for components, cells, dynamic
 children, fragments, keyed lists, Suspense, Activity, client islands, and
-server slots. Async string rendering drains observed blocking work. Progressive
+compiler-planned server ranges. Multiple server descendants beneath one client
+boundary retain independent plan-edge identities and adoptable DOM slots rather
+than sharing one broad children slot. Active attributed enhancements remain
+ordinary component owners in the same partition graph. Async string rendering drains observed
+blocking work. Progressive
 rendering emits a shell and can reveal settled Suspense ranges independently;
 it falls back to an authoritative root replacement if work outside those
 ranges changed.
@@ -76,8 +80,19 @@ application. Available patches include:
 - authoritative boundary replacement.
 
 Stable dynamic markers let a server refresh replace one structural expression
-without recreating unaffected siblings or component instances. Boundary
-replacement remains the correctness fallback.
+without recreating unaffected siblings or component instances. Partition refresh
+contracts authorize only their declared range and descendant ranges; a response
+targeting an ancestor or independent sibling is rejected before publication.
+Hosts that retain dynamic branch or keyed instances provide `resolvePartitionAuthority`
+to the server runtime. The resolver returns the current build, edge, owner,
+discriminator, and generation tuple; stale or released instances are rejected before
+the refresh handler runs.
+Boundary replacement remains the correctness fallback.
+
+Runtime inspection exposes the same retained ranges through `partitions.tree`.
+The Chromium DevTools component view shows their host, opaque plan identity,
+component owner, discriminator kind, generation, and nested range ancestry without
+turning inspection identities into dispatch authority.
 
 ## Data boundary
 
@@ -89,8 +104,6 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
-- [Recursive compiler partitioning](proposals/recursive-server-client-graph-partitioning.md) for
-  complicated alternating server/client subgraphs.
 - [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md) for
   additional proven patch forms.
 - [Broader lazy-island classification](proposals/lazy-interaction-islands.md) where source remains

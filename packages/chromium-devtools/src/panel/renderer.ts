@@ -6,6 +6,7 @@ import type {
 	ExactValuePreview
 } from '@exactjs/devtools-protocol';
 import type { ExactDevtoolsPanelModel } from './model.js';
+import { renderPartitionTree } from './partition-tree.js';
 import { renderTaskSection } from './task-section.js';
 import {
 	buildExactComponentForest,
@@ -41,6 +42,7 @@ export function renderExactComponentsView(
 			emptyState('No inspectable components', 'Reload the page with runtime inspection enabled.')
 		);
 	sidebar.append(tree);
+	sidebar.append(...renderPartitionTree(model.partitions));
 	layout.append(sidebar, renderComponentDetails(model));
 	replacePanelView(container, layout, 'components');
 }

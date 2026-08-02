@@ -77,6 +77,22 @@ export type ExactInspectionExecutionRoot = Readonly<{
 	components: number;
 }>;
 
+/** Redaction-safe live projection of one compiler-planned partition instance. */
+export type ExactInspectedPartitionInstance = Readonly<{
+	executionRoot: string;
+	buildKey: string;
+	plan: string;
+	ownerComponentId: string;
+	ownerComponentInstance?: ExactInspectionRuntimeId;
+	discriminator:
+		| Readonly<{ kind: 'single' }>
+		| Readonly<{ kind: 'branch'; branch: string }>
+		| Readonly<{ kind: 'keyed'; list: string; keyToken: string }>;
+	generation: number;
+	host: 'client' | 'server';
+	children: readonly ExactInspectedPartitionInstance[];
+}>;
+
 /** Authorized inspection session metadata returned to consumers. */
 export type ExactInspectionSessionDescription = Readonly<{
 	id: string;

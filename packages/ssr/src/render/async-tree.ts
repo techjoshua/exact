@@ -44,7 +44,9 @@ import type {
 import {
 	componentMarkerId,
 	renderResumableComponentBoundary,
-	renderServerBoundaryAsync
+	renderServerBoundaryAsync,
+	serverSlotOpening,
+	serverSlotVNodeReference
 } from './boundaries.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import { handleSsrConstructionError } from './construction-errors.js';
@@ -201,7 +203,10 @@ export async function renderVNodeAsyncInner(
 		return renderServerBoundaryAsync(context, vnode, parent, options);
 	}
 
-	if (vnode.type === ServerSlot) return '';
+	if (vnode.type === ServerSlot) {
+		if (!vnode.children.length) return '';
+		return `${serverSlotOpening(serverSlotVNodeReference(vnode), context)}${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`;
+	}
 
 	if (typeof vnode.type === 'function') {
 		return renderComponentAsync(context, vnode, parent, options);

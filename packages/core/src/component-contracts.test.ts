@@ -23,7 +23,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'server' as const,
 				role: 'client' as const,
 				implementations: [
@@ -85,7 +85,7 @@ describe('@exactjs/core component contracts', () => {
 			Object.assign(() => undefined, {
 				[exactComponentType]: 'component:Page',
 				[exactComponentContract]: {
-					version: 1 as const,
+					version: 2 as const,
 					placement: 'client' as const,
 					role: 'client' as const,
 					implementations: [
@@ -114,7 +114,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 1,
+				version: 2,
 				placement: 'client',
 				role: 'client',
 				implementations: [],
@@ -140,11 +140,66 @@ describe('@exactjs/core component contracts', () => {
 		);
 	});
 
+	it('rejects pre-partition component contract versions before adoption', () => {
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:Legacy',
+			[exactComponentContract]: {
+				version: 1,
+				placement: 'client',
+				role: 'client',
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: []
+			}
+		});
+
+		expect(() => readExactComponentContract(component)).toThrow(
+			'Unsupported eXact component contract'
+		);
+	});
+
+	it('validates the complete partition boundary discriminator contract', () => {
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:Reports',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'server' as const,
+				role: 'executor' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [
+					{
+						id: 'conditional-range',
+						componentId: 'component:Reports',
+						ownerComponentId: 'component:Reports',
+						kind: 'partition-range',
+						planVersion: 1,
+						buildKey: 'build',
+						planEdgeId: 'conditional-range',
+						parentPlanId: 'reports',
+						fallbackPlanId: 'reports',
+						patchTargets: ['conditional-range', 'remote-branch'],
+						discriminatorKind: 'branch' as const,
+						discriminatorValues: ['local-branch', 'remote-branch'],
+						generation: 1
+					}
+				]
+			}
+		});
+
+		expect(readExactComponentContract(component)?.boundaries[0]).toMatchObject({
+			discriminatorKind: 'branch',
+			discriminatorValues: ['local-branch', 'remote-branch']
+		});
+	});
+
 	it('rejects contract records owned by a different branded component', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],

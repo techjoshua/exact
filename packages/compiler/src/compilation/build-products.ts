@@ -61,9 +61,41 @@ export function createArtifactBuildProducts(
 		operations: Object.freeze(analysis.continuations.map(taskOperationPlan)),
 		boundaries: Object.freeze(
 			analysis.boundaries.map(
-				(boundary): ExactArtifactBoundaryPlan => Object.freeze({ ...boundary })
+				(boundary): ExactArtifactBoundaryPlan =>
+					Object.freeze({
+						...boundary,
+						...(boundary.patchTargets
+							? { patchTargets: Object.freeze([...boundary.patchTargets]) }
+							: {}),
+						...(boundary.discriminatorValues
+							? { discriminatorValues: Object.freeze([...boundary.discriminatorValues]) }
+							: {})
+					})
 			)
-		)
+		),
+		partitionPlan: Object.freeze({
+			...analysis.partitionPlan,
+			roots: Object.freeze([...analysis.partitionPlan.roots]),
+			nodes: Object.freeze(
+				analysis.partitionPlan.nodes.map((node) =>
+					Object.freeze({
+						...node,
+						artifactTargets: Object.freeze([...node.artifactTargets]),
+						renderPath: Object.freeze([...node.renderPath]),
+						childEdges: Object.freeze([...node.childEdges])
+					})
+				)
+			),
+			edges: Object.freeze(
+				analysis.partitionPlan.edges.map((edge) =>
+					Object.freeze({
+						...edge,
+						data: Object.freeze(edge.data.map((slot) => Object.freeze({ ...slot }))),
+						renderPath: Object.freeze([...edge.renderPath])
+					})
+				)
+			)
+		}) as ExactModuleAnalysis['partitionPlan']
 	});
 }
 

@@ -25,6 +25,8 @@ type jsxRuntimeNames struct {
 	expression             string
 	dynamic                string
 	boundary               string
+	serverSlot             string
+	keyedServerSlot        string
 	clientProps            string
 	derived                string
 	write                  string
@@ -97,6 +99,7 @@ type jsxLowering struct {
 	contextWrites        map[string][]string
 	collectionMaps       map[string]collectionMapPlan
 	enhancementImports   enhancementImports
+	partitionPlan        PartitionPlan
 }
 
 type collectionMapPlan struct {
@@ -128,6 +131,7 @@ func lowerExactJSX(
 	typeChecker *checker.Checker,
 	interop *JSXInterop,
 	enhancementImports enhancementImports,
+	partitionPlan PartitionPlan,
 ) *ast.SourceFile {
 	hasJSX := sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0
 	hasReactiveCapture := strings.Contains(sourceFile.Text(), ".reactive")
@@ -171,6 +175,7 @@ func lowerExactJSX(
 		contextWrites:        indexContinuationContextWrites(continuations),
 		collectionMaps:       make(map[string]collectionMapPlan),
 		enhancementImports:   enhancementImports,
+		partitionPlan:        partitionPlan,
 		clientIslands:        clientIslands,
 	}
 	lowering.indexCollectionMaps()
@@ -925,6 +930,10 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		return lowering.lowerMicroComponent(tag, opening, children)
 	}
 	intrinsic := jsxIntrinsic(tagText)
+	partitionEdge, partitionedServerComponent := lowering.serverPartitionRangeEdge(identityNode.Pos())
+	if !intrinsic && partitionedServerComponent && lowering.target == TargetClient {
+		return lowering.clientPartitionSlot(opening, partitionEdge)
+	}
 	if intrinsic && lowering.target == TargetServer &&
 		lowering.serverComponents {
 		if island, exists := lowering.clientIslands[identityNode]; exists {
@@ -965,6 +974,9 @@ func (lowering *jsxLowering) lowerOpeningLike(
 	}
 	arguments = append(arguments, lowering.children(children)...)
 	element := lowering.call(lowering.names.element, arguments)
+	if !intrinsic && partitionedServerComponent && lowering.target == TargetServer {
+		element = lowering.serverPartitionSlot(opening, partitionEdge, element)
+	}
 	if !intrinsic && ast.IsIdentifier(tag) {
 		if _, derived := lowering.derivedBindingAtReference(tag); derived {
 			return lowering.call(
@@ -974,6 +986,91 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		}
 	}
 	return element
+}
+
+func (lowering *jsxLowering) serverPartitionRangeEdge(start int) (PartitionPlanEdge, bool) {
+	placements := make(map[string]string, len(lowering.partitionPlan.Nodes))
+	for _, node := range lowering.partitionPlan.Nodes {
+		placements[node.ID] = node.Placement
+	}
+	best := PartitionPlanEdge{}
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.Start != start || placements[edge.Parent] == "server" || placements[edge.Child] != "server" {
+			continue
+		}
+		if best.ID == "" || edge.Length < best.Length {
+			best = edge
+		}
+	}
+	return best, best.ID != ""
+}
+
+func (lowering *jsxLowering) clientPartitionSlot(
+	opening *ast.Node,
+	edge PartitionPlanEdge,
+) *ast.Node {
+	if edge.Kind == "keyed-item" {
+		key := lowering.partitionKey(opening)
+		if key != nil {
+			return lowering.call(lowering.names.keyedServerSlot, []*ast.Node{
+				lowering.factory.NewStringLiteral(edge.ID, ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral(edge.Parent, ast.TokenFlagsNone),
+				key,
+			})
+		}
+	}
+	return lowering.call(lowering.names.serverSlot, []*ast.Node{
+		lowering.factory.NewStringLiteral(edge.ID, ast.TokenFlagsNone),
+	})
+}
+
+func (lowering *jsxLowering) serverPartitionSlot(
+	opening *ast.Node,
+	edge PartitionPlanEdge,
+	child *ast.Node,
+) *ast.Node {
+	authority := lowering.partitionSlotReference(edge.ID)
+	if edge.Kind == "keyed-item" {
+		key := lowering.partitionKey(opening)
+		if key != nil {
+			return lowering.call(lowering.names.keyedServerSlot, []*ast.Node{
+				lowering.factory.NewStringLiteral(edge.ID, ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral(edge.Parent, ast.TokenFlagsNone),
+				key,
+				authority,
+				child,
+			})
+		}
+	}
+	return lowering.call(lowering.names.serverSlot, []*ast.Node{
+		lowering.factory.NewStringLiteral(edge.ID, ast.TokenFlagsNone),
+		authority,
+		child,
+	})
+}
+
+func (lowering *jsxLowering) partitionKey(opening *ast.Node) *ast.Node {
+	attributes := opening.Attributes()
+	if attributes == nil {
+		return nil
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if !ast.IsJsxAttribute(property) {
+			continue
+		}
+		attribute := property.AsJsxAttribute()
+		if attribute.Name().Text() != "key" || attribute.Initializer == nil {
+			continue
+		}
+		initializer := attribute.Initializer
+		if ast.IsStringLiteral(initializer) {
+			return lowering.factory.NewStringLiteral(initializer.AsStringLiteral().Text, ast.TokenFlagsNone)
+		}
+		if ast.IsJsxExpression(initializer) && initializer.AsJsxExpression().Expression != nil {
+			return lowering.visitor.VisitNode(initializer.AsJsxExpression().Expression)
+		}
+	}
+	return nil
 }
 
 func (lowering *jsxLowering) microComponentTag(tag *ast.Node) bool {
@@ -1079,6 +1176,19 @@ func (lowering *jsxLowering) clientComponentBoundary(
 	if childrenValue != nil {
 		props = lowering.appendObjectProperty(props, "children", childrenValue)
 	}
+	if serverSlot {
+		if slots := lowering.partitionSlotIDs(children); len(slots) != 0 {
+			values := make([]*ast.Node, len(slots))
+			for index, slot := range slots {
+				values[index] = lowering.partitionSlotReference(slot)
+			}
+			props = lowering.appendObjectProperty(
+				props,
+				"__exactServerSlots",
+				lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false),
+			)
+		}
+	}
 	arguments := []*ast.Node{
 		lowering.factory.NewStringLiteral(
 			exactStableID(
@@ -1096,6 +1206,166 @@ func (lowering *jsxLowering) clientComponentBoundary(
 		arguments = append(arguments, lowering.children(children)...)
 	}
 	return lowering.call(lowering.names.boundary, arguments)
+}
+
+func (lowering *jsxLowering) partitionSlotReference(edgeID string) *ast.Node {
+	ownerComponentID := ""
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.ID != edgeID {
+			continue
+		}
+		for _, node := range lowering.partitionPlan.Nodes {
+			if node.ID != edge.Child {
+				continue
+			}
+			for _, owner := range lowering.partitionPlan.Nodes {
+				if owner.ID == node.OwnerComponent {
+					ownerComponentID = owner.ComponentContract
+					break
+				}
+			}
+			break
+		}
+		break
+	}
+	property := func(name string, value *ast.Node) *ast.Node {
+		return lowering.property(lowering.factory.NewIdentifier(name), value)
+	}
+	return lowering.factory.NewObjectLiteralExpression(
+		lowering.factory.NewNodeList([]*ast.Node{
+			property("__exactServerSlot", lowering.factory.NewStringLiteral(edgeID, ast.TokenFlagsNone)),
+			property("planVersion", lowering.factory.NewNumericLiteral(strconv.Itoa(lowering.partitionPlan.Version), ast.TokenFlagsNone)),
+			property("buildKey", lowering.factory.NewStringLiteral(lowering.partitionPlan.BuildKey, ast.TokenFlagsNone)),
+			property("planEdgeId", lowering.factory.NewStringLiteral(edgeID, ast.TokenFlagsNone)),
+			property("ownerComponentId", lowering.factory.NewStringLiteral(ownerComponentID, ast.TokenFlagsNone)),
+			property("discriminator", lowering.partitionSlotDiscriminator(edgeID)),
+			property("generation", lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone)),
+		}),
+		false,
+	)
+}
+
+func (lowering *jsxLowering) partitionSlotDiscriminator(edgeID string) *ast.Node {
+	property := func(name string, value *ast.Node) *ast.Node {
+		return lowering.property(lowering.factory.NewIdentifier(name), value)
+	}
+	single := func() *ast.Node {
+		return lowering.factory.NewObjectLiteralExpression(
+			lowering.factory.NewNodeList([]*ast.Node{
+				property("kind", lowering.factory.NewStringLiteral("single", ast.TokenFlagsNone)),
+			}),
+			false,
+		)
+	}
+	var template PartitionPlanNode
+	edgeKind := ""
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.ID != edgeID {
+			continue
+		}
+		edgeKind = edge.Kind
+		for _, node := range lowering.partitionPlan.Nodes {
+			if node.ID == edge.Child {
+				template = node
+				break
+			}
+		}
+		break
+	}
+	if edgeKind == "branch" {
+		return lowering.factory.NewObjectLiteralExpression(
+			lowering.factory.NewNodeList([]*ast.Node{
+				property("kind", lowering.factory.NewStringLiteral("branch", ast.TokenFlagsNone)),
+				property("branch", lowering.factory.NewStringLiteral(edgeID, ast.TokenFlagsNone)),
+			}),
+			false,
+		)
+	}
+	if template.Kind != "conditional-template" {
+		return single()
+	}
+	var conditional *ast.Node
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if ast.IsConditionalExpression(node) && node.Pos() == template.Start {
+			conditional = node
+			return false
+		}
+		return conditional == nil
+	})
+	if conditional == nil {
+		return single()
+	}
+	value := conditional.AsConditionalExpression()
+	trueBranch := lowering.partitionBranchEdgeID(template.ID, value.WhenTrue.Pos())
+	falseBranch := lowering.partitionBranchEdgeID(template.ID, value.WhenFalse.Pos())
+	if trueBranch == "" || falseBranch == "" {
+		return single()
+	}
+	branch := lowering.conditional(
+		lowering.visitor.VisitNode(value.Condition),
+		lowering.factory.NewStringLiteral(trueBranch, ast.TokenFlagsNone),
+		lowering.factory.NewStringLiteral(falseBranch, ast.TokenFlagsNone),
+	)
+	return lowering.factory.NewObjectLiteralExpression(
+		lowering.factory.NewNodeList([]*ast.Node{
+			property("kind", lowering.factory.NewStringLiteral("branch", ast.TokenFlagsNone)),
+			property("branch", branch),
+		}),
+		false,
+	)
+}
+
+func (lowering *jsxLowering) partitionBranchEdgeID(parent string, start int) string {
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.Parent == parent && edge.Kind == "branch" && edge.Start == start {
+			return edge.ID
+		}
+	}
+	return ""
+}
+
+func (lowering *jsxLowering) partitionSlotIDs(children *ast.NodeList) []string {
+	if children == nil {
+		return nil
+	}
+	result := []string{}
+	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+		start, end := child.Pos(), child.End()
+		switch {
+		case ast.IsJsxText(child):
+			if normalizeJSXText(child.AsJsxText().Text) == "" {
+				continue
+			}
+		case ast.IsJsxExpression(child):
+			expression := child.AsJsxExpression().Expression
+			if expression == nil {
+				continue
+			}
+			start, end = expression.Pos(), expression.End()
+		}
+		id := lowering.partitionRangeEdgeID(start, end)
+		if id == "" {
+			return nil
+		}
+		result = append(result, id)
+	}
+	return result
+}
+
+func (lowering *jsxLowering) partitionRangeEdgeID(start int, end int) string {
+	best := ""
+	bestWidth := int(^uint(0) >> 1)
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.Kind == "component" || edge.Kind == "enhancement" || edge.Length <= 0 ||
+			edge.Start < start || edge.Start+edge.Length > end {
+			continue
+		}
+		width := edge.Length
+		if edge.Start == start && width < bestWidth {
+			best, bestWidth = edge.ID, width
+		}
+	}
+	return best
 }
 
 func (lowering *jsxLowering) clientBoundaryChildren(
@@ -5705,6 +5975,8 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		{"createExpression", lowering.names.expression},
 		{"createDynamicChild", lowering.names.dynamic},
 		{"createServerBoundary", lowering.names.boundary},
+		{"createServerSlot", lowering.names.serverSlot},
+		{"createKeyedServerSlot", lowering.names.keyedServerSlot},
 		{"createDerived", lowering.names.derived},
 		{"writeReactiveLazy", lowering.names.write},
 		{"updateReactiveValue", lowering.names.update},
@@ -5880,6 +6152,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		expression:             allocate("__exactExpression"),
 		dynamic:                allocate("__exactDynamic"),
 		boundary:               allocate("__exactBoundary"),
+		serverSlot:             allocate("__exactServerSlot"),
+		keyedServerSlot:        allocate("__exactKeyedServerSlot"),
 		clientProps:            allocate("__exactElementProps"),
 		derived:                allocate("__exactDerived"),
 		write:                  allocate("__exactWrite"),

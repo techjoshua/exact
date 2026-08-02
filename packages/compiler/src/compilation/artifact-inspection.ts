@@ -36,6 +36,7 @@ export async function finalizeArtifactInspection(
 	for (const [filename, source] of sources) sourceRecord[filename] = source;
 	const inspections = inspected.map((result) => result.inspection.inspection);
 	const buildKey =
+		options.buildKey ??
 		options.inspection?.buildKey ??
 		createExactInspectionBuildKey(
 			projectRoot,

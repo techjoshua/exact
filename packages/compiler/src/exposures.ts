@@ -9,26 +9,57 @@ export type ExactExposureInspectionCatalog = Readonly<{
 	files: readonly ExactSourceInspection[];
 }>;
 
-/** Returns component ids reachable through authored render edges from one explicit root. */
+/** Returns component ids reachable through the normalized partition plan from one explicit root. */
 export function exactReachableExposureComponents(
 	graph: ExactArtifactGraph,
 	rootComponentId: string
 ): ReadonlySet<string> {
-	const known = new Set(graph.artifacts.flatMap((artifact) => artifact.componentIds));
+	const known = new Set([
+		...graph.artifacts.flatMap((artifact) => artifact.componentIds),
+		...graph.partitionPlans.flatMap((entry) =>
+			entry.plan.nodes.flatMap((node) => (node.componentContract ? [node.componentContract] : []))
+		)
+	]);
 	if (!known.has(rootComponentId))
 		throw new Error(`Unknown eXact exposure root component ${rootComponentId}`);
+	const adjacency = partitionComponentAdjacency(graph);
+	// Keep compiler-branded cross-module render edges until every package plan is
+	// linked into one native project projection.
+	for (const edge of graph.componentEdges) {
+		if (!edge.targetComponentId) continue;
+		const targets = adjacency.get(edge.sourceComponentId) ?? new Set<string>();
+		targets.add(edge.targetComponentId);
+		adjacency.set(edge.sourceComponentId, targets);
+	}
 	const reachable = new Set([rootComponentId]);
-	let changed = true;
-	while (changed) {
-		changed = false;
-		for (const edge of graph.componentEdges) {
-			if (!reachable.has(edge.sourceComponentId) || !edge.targetComponentId) continue;
-			if (reachable.has(edge.targetComponentId)) continue;
-			reachable.add(edge.targetComponentId);
-			changed = true;
+	const pending = [rootComponentId];
+	while (pending.length) {
+		for (const target of adjacency.get(pending.shift()!) ?? []) {
+			if (reachable.has(target)) continue;
+			reachable.add(target);
+			pending.push(target);
 		}
 	}
 	return reachable;
+}
+
+function partitionComponentAdjacency(graph: ExactArtifactGraph): Map<string, Set<string>> {
+	const adjacency = new Map<string, Set<string>>();
+	for (const entry of graph.partitionPlans) {
+		const nodes = new Map(entry.plan.nodes.map((node) => [node.id, node]));
+		for (const edge of entry.plan.edges) {
+			const parent = nodes.get(edge.parent);
+			const child = nodes.get(edge.child);
+			const owner = parent && nodes.get(parent.ownerComponent);
+			const source = parent?.componentContract ?? owner?.componentContract;
+			const target = child?.componentContract;
+			if (!source || !target || source === target) continue;
+			const targets = adjacency.get(source) ?? new Set<string>();
+			targets.add(target);
+			adjacency.set(source, targets);
+		}
+	}
+	return adjacency;
 }
 
 /**
@@ -47,6 +78,7 @@ export function selectExactExposureArtifactGraph(
 	);
 	const selectedInputs = new Set(artifacts.map((artifact) => artifact.inputFile));
 	return {
+		buildKey: graph.buildKey,
 		conditions: graph.conditions,
 		packageExports: Object.fromEntries(
 			Object.entries(graph.packageExports).filter(([_key, value]) =>
@@ -78,6 +110,7 @@ export function selectExactExposureArtifactGraph(
 				(!entry.componentId || reachable.has(entry.componentId)) &&
 				(!entry.ownerComponentId || reachable.has(entry.ownerComponentId))
 		),
+		partitionPlans: graph.partitionPlans.filter((entry) => selectedInputs.has(entry.inputFile)),
 		artifacts
 	};
 }

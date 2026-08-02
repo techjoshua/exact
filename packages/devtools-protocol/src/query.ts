@@ -11,6 +11,7 @@ export const EXACT_INSPECTION_METHODS = Object.freeze([
 	'roots.list',
 	'microfrontends.list',
 	'components.tree',
+	'partitions.tree',
 	'components.get',
 	'components.ownerOfElement',
 	'state.get',

@@ -146,7 +146,7 @@ describe('eXact and React context interop', () => {
 		Object.assign(Native, {
 			[exactComponentType]: 'fixture.native',
 			[exactComponentContract]: {
-				version: 1,
+				version: 2,
 				placement: 'client',
 				role: 'client',
 				implementations: [],
