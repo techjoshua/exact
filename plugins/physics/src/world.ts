@@ -1,4 +1,4 @@
-import { batch, reactive } from '@exactjs/reactive';
+import { batch } from '@exactjs/reactive';
 import type {
 	ForceContributor,
 	PhysicsBody,
@@ -7,16 +7,25 @@ import type {
 	PhysicsCollisionListener,
 	PhysicsConstraint,
 	PhysicsConstraintDefinition,
-	PhysicsPose,
-	PhysicsShape,
 	PhysicsStepResult,
 	PhysicsWorld,
 	PhysicsWorldInspection,
 	PhysicsWorldOptions,
-	SetPoseOptions,
 	Vector2
 } from './contracts.js';
-import { add, cross, dot, finiteVector, length, normalize, scale, subtract } from './math.js';
+import { add, finiteVector, length, scale, subtract } from './math.js';
+import { BodyResource } from './body-resource.js';
+import {
+	collideBodies,
+	inverseMass,
+	moveBody,
+	physicsContactEvent,
+	physicsContactKey,
+	resolveContactPosition,
+	resolveContactVelocity,
+	type PhysicsContact
+} from './collision-solver.js';
+import { nonnegative, positive, positiveInteger, unit } from './world-validation.js';
 
 const DEFAULT_FIXED_STEP = 1 / 120;
 const DEFAULT_MAX_CATCH_UP_STEPS = 8;
@@ -24,163 +33,9 @@ const SLEEP_LINEAR_THRESHOLD = 0.01;
 const SLEEP_ANGULAR_THRESHOLD = 0.01;
 const SLEEP_AFTER_SECONDS = 0.5;
 
-interface BodyState {
-	pose: { position: { x: number; y: number }; angle: number };
-	velocity: { x: number; y: number };
-	angularVelocity: number;
-	sleeping: boolean;
-}
-
-interface Contact {
-	bodyA: BodyResource;
-	bodyB: BodyResource;
-	normal: Vector2;
-	penetration: number;
-	point: Vector2;
-}
-
 interface DistanceConstraintResource extends PhysicsConstraint {
 	readonly anchor?: Vector2;
 	readonly stiffness: number;
-}
-
-class BodyResource implements PhysicsBody {
-	readonly id: string;
-	readonly shape: PhysicsShape;
-	readonly mass: number;
-	readonly restitution: number;
-	readonly friction: number;
-	readonly damping: number;
-	readonly angularDamping: number;
-	readonly inertia: number;
-	readonly groups: readonly string[];
-	readonly collisionLayer?: string;
-	readonly state: BodyState;
-	type: 'dynamic' | 'static' | 'kinematic';
-	force: Vector2 = { x: 0, y: 0 };
-	torque = 0;
-	sleepTime = 0;
-	disposed = false;
-
-	constructor(
-		private readonly world: WorldResource,
-		definition: PhysicsBodyDefinition,
-		id: string
-	) {
-		this.id = id;
-		this.type = definition.type ?? 'dynamic';
-		this.shape = validateShape(definition.shape);
-		this.mass = this.type === 'dynamic' ? positive(definition.mass ?? 1, 'mass') : Infinity;
-		this.inertia =
-			this.type === 'dynamic'
-				? positive(definition.inertia ?? shapeInertia(this.shape, this.mass), 'inertia')
-				: Infinity;
-		this.restitution = unit(definition.restitution ?? 0, 'restitution');
-		this.friction = unit(definition.friction ?? 0.2, 'friction');
-		this.damping = nonnegative(definition.damping ?? 0, 'damping');
-		this.angularDamping = nonnegative(definition.angularDamping ?? this.damping, 'angularDamping');
-		this.groups = Object.freeze([...(definition.groups ?? [])]);
-		if (this.groups.some((group) => !group))
-			throw new TypeError('Physics body groups must be non-empty');
-		this.collisionLayer = definition.collisionLayer;
-		if (this.collisionLayer !== undefined && !this.collisionLayer) {
-			throw new TypeError('Physics body collisionLayer must be non-empty');
-		}
-		const position = finiteVector(definition.position ?? { x: 0, y: 0 }, 'position');
-		const velocity = finiteVector(definition.velocity ?? { x: 0, y: 0 }, 'velocity');
-		const angle = finite(definition.angle ?? 0, 'angle');
-		const angularVelocity = finite(definition.angularVelocity ?? 0, 'angularVelocity');
-		this.state = reactive({
-			pose: { position: { ...position }, angle },
-			velocity: { ...velocity },
-			angularVelocity,
-			sleeping: definition.sleeping ?? false
-		});
-	}
-
-	get pose(): PhysicsPose {
-		return this.state.pose;
-	}
-
-	get velocity(): Vector2 {
-		return this.state.velocity;
-	}
-
-	get angularVelocity(): number {
-		return this.state.angularVelocity;
-	}
-
-	get sleeping(): boolean {
-		return this.state.sleeping;
-	}
-
-	applyForce(force: Vector2, point?: Vector2): void {
-		const next = finiteVector(force, 'force');
-		const applicationPoint = point ? finiteVector(point, 'force point') : undefined;
-		this.world.command(this, () => {
-			if (this.type !== 'dynamic') return;
-			this.force = add(this.force, next);
-			if (applicationPoint)
-				this.torque += cross(subtract(applicationPoint, this.pose.position), next);
-			this.wakeNow();
-		});
-	}
-
-	applyImpulse(impulse: Vector2, point?: Vector2): void {
-		const next = finiteVector(impulse, 'impulse');
-		const applicationPoint = point ? finiteVector(point, 'impulse point') : undefined;
-		this.world.command(this, () => {
-			if (this.type !== 'dynamic') return;
-			this.state.velocity.x += next.x / this.mass;
-			this.state.velocity.y += next.y / this.mass;
-			if (applicationPoint) {
-				this.state.angularVelocity +=
-					cross(subtract(applicationPoint, this.pose.position), next) / this.inertia;
-			}
-			this.wakeNow();
-		});
-	}
-
-	setPose(pose: Partial<PhysicsPose>, options: SetPoseOptions = {}): void {
-		const position = pose.position ? finiteVector(pose.position, 'pose.position') : undefined;
-		const angle = pose.angle === undefined ? undefined : finite(pose.angle, 'pose.angle');
-		this.world.command(this, () => {
-			if (position) {
-				this.state.pose.position.x = position.x;
-				this.state.pose.position.y = position.y;
-			}
-			if (angle !== undefined) this.state.pose.angle = angle;
-			if (!options.preserveVelocity) {
-				this.state.velocity.x = 0;
-				this.state.velocity.y = 0;
-				this.state.angularVelocity = 0;
-			}
-			if (options.wake ?? true) this.wakeNow();
-		});
-	}
-
-	setKinematic(active: boolean): void {
-		this.world.command(this, () => {
-			if (this.type === 'static') return;
-			this.type = active ? 'kinematic' : 'dynamic';
-			this.wakeNow();
-		});
-	}
-
-	wake(): void {
-		this.world.command(this, () => this.wakeNow());
-	}
-
-	wakeNow(): void {
-		this.sleepTime = 0;
-		this.state.sleeping = false;
-	}
-
-	[Symbol.dispose](): void {
-		if (this.disposed) return;
-		this.disposed = true;
-		this.world.removeBody(this);
-	}
 }
 
 class WorldResource implements PhysicsWorld {
@@ -194,7 +49,7 @@ class WorldResource implements PhysicsWorld {
 	private forces: { contributor: ForceContributor; sequence: number }[] = [];
 	private listeners = new Set<PhysicsCollisionListener>();
 	private commands: { body: BodyResource; run: () => void }[] = [];
-	private activeContacts = new Map<string, Contact>();
+	private activeContacts = new Map<string, PhysicsContact>();
 	private accumulator = 0;
 	private dropped = 0;
 	private stepIndex = 0;
@@ -426,11 +281,11 @@ class WorldResource implements PhysicsWorld {
 		for (let index = 0; index < this.positionIterations; index++) this.solveConstraints();
 		let contacts = this.findContacts();
 		for (let index = 0; index < this.velocityIterations; index++) {
-			for (const contact of contacts) resolveVelocity(contact);
+			for (const contact of contacts) resolveContactVelocity(contact);
 		}
 		for (let index = 0; index < this.positionIterations; index++) {
 			contacts = this.findContacts();
-			for (const contact of contacts) resolvePosition(contact);
+			for (const contact of contacts) resolveContactPosition(contact);
 		}
 		this.updateSleep();
 		this.stepIndex++;
@@ -453,36 +308,40 @@ class WorldResource implements PhysicsWorld {
 			const total = inverseA + inverseB;
 			if (total === 0) continue;
 			const correction = scale(normal, (error * constraint.stiffness) / total);
-			if (inverseA) move(a, scale(correction, inverseA));
-			if (b && inverseB) move(b, scale(correction, -inverseB));
+			if (inverseA) moveBody(a, scale(correction, inverseA));
+			if (b && inverseB) moveBody(b, scale(correction, -inverseB));
 		}
 	}
 
-	private findContacts(): Contact[] {
-		const contacts: Contact[] = [];
+	private findContacts(): PhysicsContact[] {
+		const contacts: PhysicsContact[] = [];
 		for (let left = 0; left < this.bodies.length; left++) {
 			for (let right = left + 1; right < this.bodies.length; right++) {
 				const bodyA = this.bodies[left]!;
 				const bodyB = this.bodies[right]!;
 				if (bodyA.type === 'static' && bodyB.type === 'static') continue;
-				const contact = collide(bodyA, bodyB);
+				const contact = collideBodies(bodyA, bodyB);
 				if (contact) contacts.push(contact);
 			}
 		}
 		return contacts;
 	}
 
-	private publishContacts(contacts: Contact[], events: PhysicsCollisionEvent[]): void {
-		const current = new Map<string, Contact>();
+	private publishContacts(contacts: PhysicsContact[], events: PhysicsCollisionEvent[]): void {
+		const current = new Map<string, PhysicsContact>();
 		for (const contact of contacts) {
-			const key = contactKey(contact.bodyA, contact.bodyB);
+			const key = physicsContactKey(contact.bodyA, contact.bodyB);
 			current.set(key, contact);
 			events.push(
-				toEvent(this.activeContacts.has(key) ? 'persist' : 'begin', contact, this.stepIndex)
+				physicsContactEvent(
+					this.activeContacts.has(key) ? 'persist' : 'begin',
+					contact,
+					this.stepIndex
+				)
 			);
 		}
 		for (const [key, contact] of this.activeContacts) {
-			if (!current.has(key)) events.push(toEvent('end', contact, this.stepIndex));
+			if (!current.has(key)) events.push(physicsContactEvent('end', contact, this.stepIndex));
 		}
 		this.activeContacts = current;
 	}
@@ -523,180 +382,6 @@ class WorldResource implements PhysicsWorld {
 /** Creates a deterministic, DOM-independent 2D physics world. */
 export function createPhysicsWorld(options: PhysicsWorldOptions = {}): PhysicsWorld {
 	return new WorldResource(options);
-}
-
-function collide(bodyA: BodyResource, bodyB: BodyResource): Contact | undefined {
-	if (bodyA.shape.kind === 'circle' && bodyB.shape.kind === 'circle') {
-		return circleCircle(bodyA, bodyB);
-	}
-	if (bodyA.shape.kind === 'box' && bodyB.shape.kind === 'box') return boxBox(bodyA, bodyB);
-	if (bodyA.shape.kind === 'circle') return circleBox(bodyA, bodyB);
-	const reversed = circleBox(bodyB, bodyA);
-	return reversed ? { ...reversed, bodyA, bodyB, normal: scale(reversed.normal, -1) } : undefined;
-}
-
-function circleCircle(bodyA: BodyResource, bodyB: BodyResource): Contact | undefined {
-	if (bodyA.shape.kind !== 'circle' || bodyB.shape.kind !== 'circle') return undefined;
-	const delta = subtract(bodyB.pose.position, bodyA.pose.position);
-	const distance = length(delta);
-	const radius = bodyA.shape.radius + bodyB.shape.radius;
-	if (distance >= radius) return undefined;
-	const normal = normalize(delta);
-	return {
-		bodyA,
-		bodyB,
-		normal,
-		penetration: radius - distance,
-		point: add(bodyA.pose.position, scale(normal, bodyA.shape.radius))
-	};
-}
-
-function boxBox(bodyA: BodyResource, bodyB: BodyResource): Contact | undefined {
-	if (bodyA.shape.kind !== 'box' || bodyB.shape.kind !== 'box') return undefined;
-	const delta = subtract(bodyB.pose.position, bodyA.pose.position);
-	const overlapX = (bodyA.shape.width + bodyB.shape.width) / 2 - Math.abs(delta.x);
-	const overlapY = (bodyA.shape.height + bodyB.shape.height) / 2 - Math.abs(delta.y);
-	if (overlapX <= 0 || overlapY <= 0) return undefined;
-	const alongX = overlapX < overlapY;
-	const normal = alongX ? { x: delta.x < 0 ? -1 : 1, y: 0 } : { x: 0, y: delta.y < 0 ? -1 : 1 };
-	return {
-		bodyA,
-		bodyB,
-		normal,
-		penetration: alongX ? overlapX : overlapY,
-		point: scale(add(bodyA.pose.position, bodyB.pose.position), 0.5)
-	};
-}
-
-function circleBox(circle: BodyResource, box: BodyResource): Contact | undefined {
-	if (circle.shape.kind !== 'circle' || box.shape.kind !== 'box') return undefined;
-	const halfWidth = box.shape.width / 2;
-	const halfHeight = box.shape.height / 2;
-	const relative = subtract(circle.pose.position, box.pose.position);
-	const closest = {
-		x: Math.max(-halfWidth, Math.min(halfWidth, relative.x)),
-		y: Math.max(-halfHeight, Math.min(halfHeight, relative.y))
-	};
-	const point = add(box.pose.position, closest);
-	const fromCircle = subtract(point, circle.pose.position);
-	const distance = length(fromCircle);
-	if (distance >= circle.shape.radius) return undefined;
-	let normal = normalize(fromCircle, { x: 1, y: 0 });
-	let penetration = circle.shape.radius - distance;
-	if (distance < 1e-12) {
-		const gapX = halfWidth - Math.abs(relative.x);
-		const gapY = halfHeight - Math.abs(relative.y);
-		normal =
-			gapX < gapY ? { x: relative.x < 0 ? 1 : -1, y: 0 } : { x: 0, y: relative.y < 0 ? 1 : -1 };
-		penetration = circle.shape.radius + Math.min(gapX, gapY);
-	}
-	return { bodyA: circle, bodyB: box, normal, penetration, point };
-}
-
-function resolveVelocity(contact: Contact): void {
-	const inverseA = inverseMass(contact.bodyA);
-	const inverseB = inverseMass(contact.bodyB);
-	const total = inverseA + inverseB;
-	if (total === 0) return;
-	const relative = subtract(contact.bodyB.velocity, contact.bodyA.velocity);
-	const normalVelocity = dot(relative, contact.normal);
-	if (normalVelocity >= 0) return;
-	const restitution = Math.min(contact.bodyA.restitution, contact.bodyB.restitution);
-	const impulseMagnitude = (-(1 + restitution) * normalVelocity) / total;
-	const impulse = scale(contact.normal, impulseMagnitude);
-	if (inverseA) velocity(contact.bodyA, scale(impulse, -inverseA));
-	if (inverseB) velocity(contact.bodyB, scale(impulse, inverseB));
-	contact.bodyA.wakeNow();
-	contact.bodyB.wakeNow();
-}
-
-function resolvePosition(contact: Contact): void {
-	const inverseA = inverseMass(contact.bodyA);
-	const inverseB = inverseMass(contact.bodyB);
-	const total = inverseA + inverseB;
-	if (total === 0) return;
-	const correction = scale(contact.normal, Math.max(contact.penetration - 1e-5, 0) / total);
-	if (inverseA) move(contact.bodyA, scale(correction, -inverseA));
-	if (inverseB) move(contact.bodyB, scale(correction, inverseB));
-}
-
-function inverseMass(body: BodyResource): number {
-	return body.type === 'dynamic' ? 1 / body.mass : 0;
-}
-
-function move(body: BodyResource, delta: Vector2): void {
-	body.state.pose.position.x += delta.x;
-	body.state.pose.position.y += delta.y;
-}
-
-function velocity(body: BodyResource, delta: Vector2): void {
-	body.state.velocity.x += delta.x;
-	body.state.velocity.y += delta.y;
-}
-
-function toEvent(
-	phase: 'begin' | 'persist' | 'end',
-	contact: Contact,
-	step: number
-): PhysicsCollisionEvent {
-	return Object.freeze({
-		phase,
-		bodyA: contact.bodyA,
-		bodyB: contact.bodyB,
-		normal: Object.freeze({ ...contact.normal }),
-		penetration: contact.penetration,
-		point: Object.freeze({ ...contact.point }),
-		step
-	});
-}
-
-function contactKey(a: BodyResource, b: BodyResource): string {
-	return `${a.id}\u0000${b.id}`;
-}
-
-function validateShape(shape: PhysicsShape): PhysicsShape {
-	if (shape.kind === 'circle')
-		return Object.freeze({ kind: 'circle', radius: positive(shape.radius, 'radius') });
-	return Object.freeze({
-		kind: 'box',
-		width: positive(shape.width, 'width'),
-		height: positive(shape.height, 'height')
-	});
-}
-
-function shapeInertia(shape: PhysicsShape, mass: number): number {
-	return shape.kind === 'circle'
-		? (mass * shape.radius * shape.radius) / 2
-		: (mass * (shape.width * shape.width + shape.height * shape.height)) / 12;
-}
-
-function finite(value: number, name: string): number {
-	if (!Number.isFinite(value)) throw new TypeError(`${name} must be finite`);
-	return value;
-}
-
-function nonnegative(value: number, name: string): number {
-	finite(value, name);
-	if (value < 0) throw new RangeError(`${name} must be non-negative`);
-	return value;
-}
-
-function positive(value: number, name: string): number {
-	finite(value, name);
-	if (value <= 0) throw new RangeError(`${name} must be positive`);
-	return value;
-}
-
-function unit(value: number, name: string): number {
-	finite(value, name);
-	if (value < 0 || value > 1) throw new RangeError(`${name} must be between 0 and 1`);
-	return value;
-}
-
-function positiveInteger(value: number, name: string): number {
-	if (!Number.isInteger(value) || value <= 0)
-		throw new RangeError(`${name} must be a positive integer`);
-	return value;
 }
 
 function disposable(dispose: () => void): Disposable {
