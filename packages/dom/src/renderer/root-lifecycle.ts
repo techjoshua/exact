@@ -26,6 +26,7 @@ import {
 	unmountMounted
 } from './teardown.js';
 import { disposeRetainedReleases } from './retained-release.js';
+import { reconcileEnhancementRoutes } from './enhancements.js';
 
 /** Resolves a component dom node. */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
@@ -95,6 +96,17 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 			onProfile: options.onProfile
 		};
 		root.boundary = createRootBoundary(root);
+		root.reconcileEnhancements = () => {
+			if (!root!.mounted) return;
+			root!.mounted = reconcileEnhancementRoutes(
+				root!,
+				root!.mounted,
+				undefined,
+				undefined,
+				(vnode, instance, scope, node) =>
+					patch(root!, node ?? root!.container, undefined, vnode, instance, scope)
+			);
+		};
 		roots.set(container, root);
 		if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	}

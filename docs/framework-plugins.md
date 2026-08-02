@@ -113,6 +113,11 @@ Statically finite setup-derived spreads may contain namespaced keys. The compile
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
 their reads reactive. Open dictionaries and effectful inline enhancement spreads are diagnostics.
 
+The reserved `namespace:root` member is a routing selector, not an enhancement prop. The first
+active matching selector in the declaration's logical subtree receives that enhancement; otherwise
+the first intrinsic target is used. Selector changes reroute only the affected declaration subtree,
+release the previous enhancement instance, and preserve the authored DOM identity.
+
 Before setup, co-targeted enhancement components are ordered from their ordinary context effects:
 providers wrap required and optional consumers, unrelated components use canonical identity, and a
 cycle fails through the normal component error boundary before any member of the cycle runs.

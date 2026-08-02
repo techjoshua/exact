@@ -48,6 +48,7 @@ export type Mounted = {
 		readonly entries: readonly EnhancementEntry[];
 		readonly inheritedIdentities: ReadonlySet<string>;
 		readonly target: Mounted;
+		readonly boundaries: ReadonlyMap<string, readonly Mounted[]>;
 	};
 	/** Retained native Activity state owned by this boundary mount. */
 	activity?: {
@@ -103,6 +104,10 @@ export type Root = {
 	unavailableEnhancements?: Set<string>;
 	/** Nested authored marker depth used to activate one complete logical declaration subtree. */
 	enhancementNesting?: number;
+	/** Guards patch-time route reconciliation while a changed declaration subtree is rebuilt. */
+	enhancementReconciliationDepth?: number;
+	/** Re-evaluates compiler-owned reactive root selectors for the current mounted tree. */
+	reconcileEnhancements?: () => void;
 	/** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
 	mode?: 'client' | 'hydrated' | 'document';
 	/** Component ranges are inferred when the public server format omits eXact markers. */

@@ -100,6 +100,12 @@ export function PluginsPage(this: Component<{}>) {
 					Low-level callers can still provide an explicit catalog when constructing a host directly.
 				</p>
 				<p>
+					The reserved <code>namespace:root</code> member reactively selects the first matching
+					logical descendant as the enhancement target. When that selection changes, the renderer
+					reroutes only the affected declaration subtree and releases the previous enhancement
+					instance while preserving the authored DOM.
+				</p>
+				<p>
 					Ordinary context production and consumption orders components before setup. Unrelated
 					capabilities use canonical identity, while a context cycle fails through normal component
 					error handling before any component in the cycle runs.

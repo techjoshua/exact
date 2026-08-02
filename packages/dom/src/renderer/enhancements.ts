@@ -7,11 +7,12 @@ import {
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
-import { createEffectScope, transferEffectScope, type EffectScope } from '@exactjs/reactive';
+import { createEffectScope, transferEffectScope, watch, type EffectScope } from '@exactjs/reactive';
 import { lastMountedNode, placeMountedBefore } from '../placement.js';
 import type { Mounted, Root } from '../types.js';
 import { createMarker } from './root-support.js';
 import { disposeMounted } from './teardown.js';
+import { releaseMountedRange } from './retained-release.js';
 
 type MountOperation = (
 	vnode: VNode,
@@ -38,6 +39,7 @@ type TargetEnhancements = {
 	readonly target: Target;
 	readonly entries: EnhancementEntry[];
 	readonly inheritedIdentities: Set<string>;
+	readonly boundaries: Map<string, Mounted[]>;
 };
 
 /** Activates all declarations rooted in one newly mounted logical subtree. */
@@ -70,6 +72,7 @@ export function activateEnhancementSubtree(
 			group.target,
 			active,
 			group.inheritedIdentities,
+			group.boundaries,
 			parentScope,
 			mount
 		);
@@ -123,10 +126,12 @@ export function patchEnhancementBoundary(
 	const chain = createPluginChain(root, active, withoutEnhancements(next));
 	mounted.children = [patch(mounted.children[0], chain, parentInstance, mounted.scope)];
 	mounted.vnode = next;
+	state.target.vnode = next;
 	mounted.enhancement = {
 		entries: active,
 		inheritedIdentities: state.inheritedIdentities,
-		target: state.target
+		target: state.target,
+		boundaries: state.boundaries
 	};
 	return mounted;
 }
@@ -143,8 +148,10 @@ function collectTargetEnhancements(
 		depth: number;
 	}> = [];
 	walkMounted(boundary, undefined, parentInstance, 0, (current, _owner, instance, depth) => {
-		for (const entry of current.vnode.enhancements?.entries ?? [])
+		for (const entry of current.vnode.enhancements?.entries ?? []) {
+			if (routingOnlyEntry(entry)) continue;
 			declarations.push({ entry, boundary: current, parentInstance: instance, depth });
+		}
 	});
 
 	const grouped = new Map<Mounted, TargetEnhancements>();
@@ -157,9 +164,12 @@ function collectTargetEnhancements(
 		if (!target) continue;
 		let group = grouped.get(target.mounted);
 		if (!group) {
-			group = { target, entries: [], inheritedIdentities: new Set() };
+			group = { target, entries: [], inheritedIdentities: new Set(), boundaries: new Map() };
 			grouped.set(target.mounted, group);
 		}
+		const boundaries = group.boundaries.get(declaration.entry.identity) ?? [];
+		if (!boundaries.includes(declaration.boundary)) boundaries.push(declaration.boundary);
+		group.boundaries.set(declaration.entry.identity, boundaries);
 		if (declaration.boundary !== target.mounted)
 			group.inheritedIdentities.add(declaration.entry.identity);
 		const existing = group.entries.find((entry) => entry.identity === declaration.entry.identity);
@@ -177,6 +187,10 @@ function collectTargetEnhancements(
 	return grouped;
 }
 
+function routingOnlyEntry(entry: EnhancementEntry): boolean {
+	return entry.root !== undefined && Object.keys(entry.props).length === 0;
+}
+
 function resolveTarget(
 	boundary: Mounted,
 	identity: string,
@@ -184,7 +198,7 @@ function resolveTarget(
 ): Target | undefined {
 	let first: Target | undefined;
 	let explicit: Target | undefined;
-	walkMounted(boundary, undefined, parentInstance, 0, (current, owner, instance, depth) => {
+	walkLogicalMounted(boundary, undefined, parentInstance, 0, (current, owner, instance, depth) => {
 		if (explicit || typeof current.vnode.type !== 'string') return;
 		const candidate = { mounted: current, owner, parentInstance: instance, depth };
 		first ??= candidate;
@@ -212,11 +226,163 @@ function walkMounted(
 		walkMounted(child, mounted, childInstance, depth + 1, visit);
 }
 
+function walkLogicalMounted(
+	mounted: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number,
+	visit: (
+		mounted: Mounted,
+		owner: Mounted | undefined,
+		parentInstance: ComponentInstance<any> | undefined,
+		depth: number
+	) => void
+): void {
+	if (mounted.enhancement) {
+		walkLogicalMounted(mounted.enhancement.target, owner, parentInstance, depth, visit);
+		return;
+	}
+	visit(mounted, owner, parentInstance, depth);
+	const childInstance = mounted.instance ?? parentInstance;
+	for (const child of mounted.children)
+		walkLogicalMounted(child, mounted, childInstance, depth + 1, visit);
+}
+
+/** Rebuilds only a declaration subtree whose reactive root selector changed target identity. */
+export function reconcileEnhancementRoutes(
+	root: Root,
+	mounted: Mounted,
+	parentInstance: ComponentInstance<any> | undefined,
+	parentScope: EffectScope | undefined,
+	mount: MountOperation
+): Mounted {
+	if (!root.enhancementCatalog?.size || root.enhancementReconciliationDepth) return mounted;
+	root.enhancementReconciliationDepth = 1;
+	let result = mounted;
+	try {
+		for (let attempts = 0; attempts < 32; attempts++) {
+			const boundary = findReroutedBoundary(result);
+			if (!boundary) return result;
+			const enclosing = findEnhancementWrapperForTarget(result, boundary) ?? boundary;
+			const location = findMountedLocation(
+				result,
+				enclosing,
+				undefined,
+				parentInstance,
+				parentScope,
+				enclosing.dom.parentNode ?? root.container
+			);
+			if (!location) return result;
+			const clean = unwrapEnhancementSubtree(root, enclosing, location.parentScope);
+			const activated = activateEnhancementSubtree(
+				root,
+				clean,
+				location.parentInstance,
+				location.parentScope,
+				mount
+			);
+			if (location.owner) {
+				const index = location.owner.children.indexOf(enclosing);
+				if (index >= 0) location.owner.children[index] = activated;
+			} else {
+				result = activated;
+			}
+		}
+		throw new Error('Enhancement target routing did not stabilize after 32 rebuilds');
+	} finally {
+		root.enhancementReconciliationDepth = 0;
+	}
+}
+
+function findReroutedBoundary(mounted: Mounted): Mounted | undefined {
+	if (mounted.enhancement) {
+		for (const [identity, boundaries] of mounted.enhancement.boundaries) {
+			for (const boundary of boundaries) {
+				if (!boundary.scope.active) continue;
+				if (resolveTarget(boundary, identity, undefined)?.mounted !== mounted.enhancement.target)
+					return boundary;
+			}
+		}
+	}
+	for (const child of mounted.children) {
+		const boundary = findReroutedBoundary(child);
+		if (boundary) return boundary;
+	}
+	return undefined;
+}
+
+function findEnhancementWrapperForTarget(
+	mounted: Mounted,
+	target: Mounted
+): Mounted | undefined {
+	if (mounted.enhancement?.target === target) return mounted;
+	for (const child of mounted.children) {
+		const wrapper = findEnhancementWrapperForTarget(child, target);
+		if (wrapper) return wrapper;
+	}
+	return undefined;
+}
+
+type MountedLocation = {
+	readonly owner?: Mounted;
+	readonly parentInstance?: ComponentInstance<any>;
+	readonly parentScope?: EffectScope;
+};
+
+function findMountedLocation(
+	mounted: Mounted,
+	target: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	parentScope: EffectScope | undefined,
+	parentNode: Node
+): MountedLocation | undefined {
+	if (mounted === target) return { owner, parentInstance, parentScope };
+	const childInstance = mounted.instance ?? parentInstance;
+	const childParent =
+		mounted.portalTarget ??
+		(typeof mounted.vnode.type === 'string' ? mounted.dom : mounted.dom.parentNode ?? parentNode);
+	for (const child of mounted.children) {
+		const location = findMountedLocation(
+			child,
+			target,
+			mounted,
+			childInstance,
+			mounted.scope,
+			childParent
+		);
+		if (location) return location;
+	}
+	return undefined;
+}
+
+function unwrapEnhancementSubtree(
+	root: Root,
+	mounted: Mounted,
+	parentScope: EffectScope | undefined
+): Mounted {
+	if (mounted.enhancement) {
+		const target = mounted.enhancement.target;
+		if (!target.scope.active || !detachMounted(mounted.children[0], target)) return mounted;
+		const parent = mounted.dom.parentNode ?? root.container;
+		transferEffectScope(target.scope, parentScope);
+		placeMountedBefore(root, parent, target, mounted.dom);
+		if (!releaseMountedRange(root, parent, mounted, 'enhancement-target-rerouted'))
+			disposeMounted(parent, mounted);
+		return unwrapEnhancementSubtree(root, target, parentScope);
+	}
+	for (let index = 0; index < mounted.children.length; index++) {
+		mounted.children[index] = unwrapEnhancementSubtree(root, mounted.children[index]!, mounted.scope);
+	}
+	return mounted;
+}
+
 function wrapTarget(
 	root: Root,
 	target: Target,
 	entries: readonly EnhancementEntry[],
 	inheritedIdentities: ReadonlySet<string>,
+	boundaries: ReadonlyMap<string, readonly Mounted[]>,
 	parentScope: EffectScope | undefined,
 	mount: MountOperation
 ): Mounted {
@@ -229,8 +395,9 @@ function wrapTarget(
 		end,
 		scope,
 		children: [],
-		enhancement: { entries, inheritedIdentities, target: target.mounted }
+		enhancement: { entries, inheritedIdentities, target: target.mounted, boundaries }
 	};
+	installEnhancementRouteWatch(root, boundaries, scope);
 	const leaf = withoutEnhancements(target.mounted.vnode);
 	const chain = createPluginChain(root, entries, leaf);
 
@@ -255,11 +422,41 @@ function wrapTarget(
 		root.replacementParking = previousParking;
 	}
 	for (const commit of parking.commits) commit();
+	// Parking patches the authored target with the marker-free plugin child.
+	// Retain the authored vnode on the logical target so reactive root routing
+	// remains discoverable without exposing the marker to component props or DOM.
+	target.mounted.vnode = wrapper.vnode;
 	placeMountedBefore(root, physicalParent, plugin, end);
 	for (const remaining of parking.mounts.values())
 		for (const parked of remaining) disposeMounted(parked.parent, parked.mounted);
 	wrapper.children = [plugin];
 	return wrapper;
+}
+
+/** Tracks selector slots without treating routing-only entries as component declarations. */
+function installEnhancementRouteWatch(
+	root: Root,
+	boundaries: ReadonlyMap<string, readonly Mounted[]>,
+	scope: EffectScope
+): void {
+	let initialized = false;
+	watch(
+		() => {
+			for (const [identity, values] of boundaries) {
+				for (const boundary of values) {
+					walkLogicalMounted(boundary, undefined, undefined, 0, (current) => {
+						for (const entry of current.vnode.enhancements?.entries ?? []) {
+							if (entry.identity === identity && entry.root !== undefined) unwrap(entry.root);
+						}
+					});
+				}
+			}
+			if (initialized) root.reconcileEnhancements?.();
+			initialized = true;
+		},
+		undefined,
+		{ scope }
+	);
 }
 
 function createPluginChain(root: Root, entries: readonly EnhancementEntry[], leaf: VNode): VNode {

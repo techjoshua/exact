@@ -12,6 +12,7 @@ import {
 	type RootLifecycle
 } from '@exactjs/core';
 import { markTestComponent } from '@exactjs/testing/internal/fixtures';
+import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
@@ -121,6 +122,89 @@ describe('renderer enhancements', () => {
 		);
 		expect(setup).toHaveBeenCalledOnce();
 		expect(setup).toHaveBeenCalledWith('near');
+	});
+
+	it('reroutes a reactive explicit target without activating root-only selector entries', async () => {
+		const roots: RootLifecycle<HTMLElement>[] = [];
+		const released = vi.fn();
+		const Motion = markTestComponent(function Motion(
+			this: Component<{}>,
+			props: { children?: Child; preset?: string }
+		) {
+			roots.push(this.refs.root<HTMLElement>());
+			this.onUnmount(released);
+			return () => props.children;
+		});
+		const marker = (root: boolean) =>
+			createEnhancementMarker([{ identity, props: {}, root }]);
+		const tree = (left: boolean) =>
+			createVNode(
+				'section',
+				{
+					__exactEnhancements: createEnhancementMarker([
+						{ identity, props: { preset: 'fade' } }
+					])
+				},
+				createVNode('button', { id: 'left', __exactEnhancements: marker(left) }, 'Left'),
+				createVNode('button', { id: 'right', __exactEnhancements: marker(!left) }, 'Right')
+			);
+		const container = document.createElement('div');
+		const options = { enhancementCatalog: new Map([[identity, Motion]]) };
+
+		render(tree(true), container, options);
+		expect(roots).toHaveLength(1);
+		expect(roots[0]?.current?.id).toBe('left');
+
+		render(tree(false), container, options);
+		expect(container.innerHTML).toBe(
+			'<section><button id="left">Left</button><button id="right">Right</button></section>'
+		);
+		expect(roots.map((root) => root.current?.id)).toEqual([undefined, 'right']);
+		expect(roots[0]?.release?.reason).toBe('enhancement-target-rerouted');
+		await vi.waitFor(() => expect(released).toHaveBeenCalledOnce());
+	});
+
+	it('observes root selector slots without requiring a component rerender', () => {
+		const roots: RootLifecycle<HTMLElement>[] = [];
+		const Motion = markTestComponent(function Motion(
+			this: Component<{}>,
+			props: { children?: Child; preset?: string }
+		) {
+			roots.push(this.refs.root<HTMLElement>());
+			return () => props.children;
+		});
+		const state = reactive({ left: true });
+		const left = computed(() => state.left);
+		const right = computed(() => !state.left);
+		const container = document.createElement('div');
+
+		render(
+			createVNode(
+				'section',
+				{
+					__exactEnhancements: createEnhancementMarker([
+						{ identity, props: { preset: 'fade' } }
+					])
+				},
+				createVNode('button', {
+					id: 'left',
+					__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: left }])
+				}),
+				createVNode('button', {
+					id: 'right',
+					__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: right }])
+				})
+			),
+			container,
+			{ enhancementCatalog: new Map([[identity, Motion]]) }
+		);
+		expect(roots[0]?.current?.id).toBe('left');
+
+		state.left = false;
+		flushSync();
+
+		expect(roots).toHaveLength(2);
+		expect(roots[1]?.current?.id).toBe('right');
 	});
 
 	it('leaves unavailable enhancements inert and warns once per root identity', () => {
