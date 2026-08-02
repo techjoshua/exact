@@ -6,21 +6,27 @@ const noMotionDriver: MotionDriver = Object.freeze({
 	}
 });
 
-let activeDriver: MotionDriver = noMotionDriver;
+const driverInstallations: Array<{ driver: MotionDriver; active: boolean }> = [];
 
 /** Returns the environment driver currently installed for motion playback. */
 export function motionDriver(): MotionDriver {
-	return activeDriver;
+	for (let index = driverInstallations.length - 1; index >= 0; index--) {
+		const installation = driverInstallations[index]!;
+		if (installation.active) return installation.driver;
+	}
+	return noMotionDriver;
 }
 
 /** Installs an environment driver and returns a function that restores the previous driver. */
 export function installMotionDriver(driver: MotionDriver): () => void {
 	if (!driver || typeof driver.play !== 'function')
 		throw new TypeError('A motion driver must implement play()');
-	const previous = activeDriver;
-	activeDriver = driver;
+	const installation = { driver, active: true };
+	driverInstallations.push(installation);
 	return () => {
-		if (activeDriver === driver) activeDriver = previous;
+		if (!installation.active) return;
+		installation.active = false;
+		while (driverInstallations.at(-1)?.active === false) driverInstallations.pop();
 	};
 }
 

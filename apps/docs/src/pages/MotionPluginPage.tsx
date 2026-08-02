@@ -92,7 +92,8 @@ export function MotionPluginPage(this: Component<{}>) {
 					Finite playback opens an immediate, nonblocking task frame and remains structurally
 					attached to its cause. Root-release leave motion therefore delays physical removal without
 					giving application code a retention token. Cancellation propagates through the same task
-					tree.
+					tree. Leave cancels active enter/change work first, and Activity parking cancels visual
+					work without inventing a leave transition.
 				</p>
 			</section>
 			<section>

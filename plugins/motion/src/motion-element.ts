@@ -43,7 +43,7 @@ export const MotionElement = markExactComponent(function MotionElement(
 		unregisterLayout?.();
 		unregisterLayout = undefined;
 		const element = root.current;
-		if (!element || !props.layout || !this.hasContext(LayoutContext)) return;
+		if (!element || !root.presented || !props.layout || !this.hasContext(LayoutContext)) return;
 		unregisterLayout = this.getContext(LayoutContext).register(
 			props.layoutId ?? layoutIdentity,
 			element,
@@ -75,6 +75,8 @@ export const MotionElement = markExactComponent(function MotionElement(
 			semanticTarget = undefined;
 			return;
 		}
+		changePlayback?.cancel('motion-root-released');
+		changePlayback = undefined;
 		semanticTarget = release.target;
 		const exitLayout = this.hasContext(ExitLayoutContext)
 			? this.getContext(ExitLayoutContext).mode
@@ -84,6 +86,15 @@ export const MotionElement = markExactComponent(function MotionElement(
 		leavePlayback = playRelease(release, resolvePhase(props, 'leave'), props.apply, settings);
 		if (leavePlayback) observePlayback(leavePlayback, this.log.error);
 	}, undefined);
+
+	this.onDeactivate(() => {
+		changePlayback?.cancel('motion-owner-deactivated');
+		changePlayback = undefined;
+		if (!root.release) {
+			leavePlayback?.cancel('motion-owner-deactivated');
+			leavePlayback = undefined;
+		}
+	});
 
 	this.onUnmount(() => {
 		releaseSemanticAbsence(semanticTarget, semanticOwner);

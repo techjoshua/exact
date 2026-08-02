@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementMarker, type Component } from '@exactjs/core';
+import { Activity, createEnhancementMarker, type Component } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import {
@@ -103,6 +103,55 @@ describe('MotionElement', () => {
 			expect(driver.playbacks[0]?.effect.keyframes).toEqual(
 				(fade.enter as { keyframes: Keyframe[] }).keyframes
 			);
+		} finally {
+			restore();
+		}
+	});
+
+	it('cancels active visual work before starting leave', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		const container = document.createElement('div');
+		containers.push(container);
+		try {
+			render(
+				createVNode(Motion, { as: 'button', motion: fade, appear: true, children: 'Leaving' }),
+				container
+			);
+			await settle();
+			expect(driver.playbacks).toHaveLength(1);
+			expect(driver.playbacks[0]?.signal.aborted).toBe(false);
+
+			render(createVNode('span', null, 'Next'), container);
+			await settle();
+			expect(driver.playbacks).toHaveLength(2);
+			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
+			expect(driver.playbacks[1]?.element.textContent).toBe('Leaving');
+		} finally {
+			restore();
+		}
+	});
+
+	it('cancels active visual work when Activity parks the owner', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		const container = document.createElement('div');
+		containers.push(container);
+		const tree = (mode: 'active' | 'parked') =>
+			createVNode(
+				Activity,
+				{ mode },
+				createVNode(Motion, { as: 'button', motion: fade, appear: true, children: 'Parked' })
+			);
+		try {
+			render(tree('active'), container);
+			await settle();
+			expect(driver.playbacks).toHaveLength(1);
+
+			render(tree('parked'), container);
+			await settle();
+			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
+			expect(driver.playbacks).toHaveLength(1);
 		} finally {
 			restore();
 		}

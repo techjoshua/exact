@@ -57,6 +57,8 @@ Release reversal retains the original generation and does not replay enter.
 The client plugin entry installs a Web Animations driver. Importing the main package, definitions,
 or presets on a server does not read browser globals. `@exactjs/motion/testing` provides a
 deterministic injected driver whose playbacks settle only when the test advances them.
+Application driver installations are leases: nested or overlapping application lifetimes restore
+the latest still-active driver even when they dispose out of order.
 
 ## Presence and keyed collections
 
@@ -74,7 +76,8 @@ the same connected DOM generation when presence reverses before leave completion
 
 The renderer publishes release while observers can attach leave tasks, then deactivates the
 retained functional subtree. Reversal cancels those stale descendants and reactivates the same
-component and DOM generation.
+component and DOM generation. Any active enter or change playback is canceled before leave starts;
+ordinary Activity parking also cancels visual work without manufacturing a leave phase.
 
 The default `mode="sync"` reconciles keyed replacements together. `mode="out-in"` waits for old
 keyed ranges and their leave work to settle before mounting replacements. `mode="in-out"` commits

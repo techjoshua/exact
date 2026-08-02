@@ -373,6 +373,12 @@ parking preserves one whose target survives. Changing only structural output
 inside `MotionElement` preserves its ordinary component instance and advances
 its component-root lifecycle generation.
 
+Before starting leave, `MotionElement` cancels any active enter or change
+playback owned by that target generation. Activity deactivation without a root
+release cancels active visual work and layout participation without creating a
+synthetic leave phase. A structural release keeps its already-attached leave
+playback alive while the renderer deactivates the retained functional subtree.
+
 The target is never found by querying DOM. Motion chooses transparent output,
 but the generic architecture permits structural plugin components. Explicit
 `Motion`, `Presence`, `MotionList`, and `LayoutGroup` remain the preferred
