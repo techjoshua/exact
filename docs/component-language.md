@@ -693,6 +693,15 @@ replacement and retained `Activity` ranges. Pass an element-valued binding to
 `this.refs.root(binding)` when that ref, rather than the first intrinsic output,
 defines the component root. The binding must belong to the same component.
 
+Before a renderer-owned root generation is structurally removed or replaced,
+`release` publishes its retained target, generation, presentation state, and a
+namespaced structural reason. Tasks activated synchronously from that release
+join one renderer release frame; physical removal waits for their descendants
+and cleanup. Reconciliation can reverse an in-flight release only for the exact
+retained identity and generation. Root shutdown cancels outstanding release
+work and completes removal immediately. Direct `fulfill()` calls remain ordinary
+ref assignment and never acquire structural retention.
+
 ### Keyed collections
 
 An ordinary reactive `Array.map()` is compiled as a keyed collection when

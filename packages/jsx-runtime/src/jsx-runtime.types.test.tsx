@@ -41,6 +41,7 @@ describe('@exactjs/jsx types', () => {
 	it('compiles TSX through the automatic runtime', () => {
 		const button = createRef<HTMLButtonElement>('button');
 		const ref = {
+			current: undefined,
 			key: button,
 			owner: undefined as never,
 			fulfill() {}

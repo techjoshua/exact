@@ -25,6 +25,7 @@ import {
 	throwTeardownFailure,
 	unmountMounted
 } from './teardown.js';
+import { disposeRetainedReleases } from './retained-release.js';
 
 /** Resolves a component dom node. */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
@@ -158,6 +159,7 @@ export function dispose(container: Element, removeDom = false): boolean {
 	unregisterInspectableRoot(root);
 	const failure = teardownFailure();
 	attemptTeardown(failure, () => clearDelegated(root));
+	attemptTeardown(failure, () => disposeRetainedReleases(root));
 
 	const mounted = root.mounted;
 	root.mounted = undefined;

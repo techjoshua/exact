@@ -19,6 +19,7 @@ type ComponentRootRecord = {
 	readonly lifecycle: RootLifecycle<object>;
 	readonly state: RootState;
 	explicit?: RefBinding<object>;
+	observed: boolean;
 };
 
 const componentRoots = new WeakMap<ComponentInstance<any>, ComponentRootRecord>();
@@ -28,7 +29,9 @@ const augmentedBindings = new WeakMap<RefBinding<object>, RootBinding<object>>()
 export function componentRootLifecycle<T extends object>(
 	instance: ComponentInstance<any>
 ): RootLifecycle<T> {
-	return rootRecord(instance).lifecycle as RootLifecycle<T>;
+	const record = rootRecord(instance);
+	record.observed = true;
+	return record.lifecycle as RootLifecycle<T>;
 }
 
 /** Selects one stable element ref as the component's explicit intrinsic root. */
@@ -39,6 +42,7 @@ export function bindComponentRoot<T extends object>(
 	if (binding.owner !== instance)
 		throw new Error('A component root binding must be owned by the component selecting it');
 	const record = rootRecord(instance);
+	record.observed = true;
 	if (record.explicit && record.explicit !== binding)
 		throw new Error('A component may select only one explicit root binding');
 	record.explicit = binding as RefBinding<object>;
@@ -79,6 +83,11 @@ export function publishComponentRootPresentation(
 	if (record) record.state.presented = record.state.current !== undefined && presented;
 }
 
+/** Reports whether authored component work observes this root lifecycle. */
+export function componentRootReleaseObserved(instance: ComponentInstance<any>): boolean {
+	return componentRoots.get(instance)?.observed === true;
+}
+
 /** Publishes structural loss of the current root generation without discarding its target. */
 export function publishComponentRootRelease(
 	instance: ComponentInstance<any>,
@@ -86,7 +95,7 @@ export function publishComponentRootRelease(
 ): RootRelease<object> | undefined {
 	const record = componentRoots.get(instance);
 	const target = record?.state.current;
-	if (!record || !target) return undefined;
+	if (!record?.observed || !target) return undefined;
 	const release = Object.freeze({
 		target,
 		generation: record.state.generation,
@@ -97,6 +106,20 @@ export function publishComponentRootRelease(
 	record.state.current = undefined;
 	record.state.presented = false;
 	return release;
+}
+
+/** Restores an exactly retained root generation after its structural release is reversed. */
+export function reverseComponentRootRelease(
+	instance: ComponentInstance<any>,
+	generation: number
+): boolean {
+	const record = componentRoots.get(instance);
+	const release = record?.state.release;
+	if (!record || !release || release.generation !== generation) return false;
+	record.state.current = release.target;
+	record.state.presented = release.presented;
+	record.state.release = undefined;
+	return true;
 }
 
 /** Clears a settled release when it still belongs to the specified root generation. */
@@ -146,7 +169,7 @@ function rootRecord(instance: ComponentInstance<any>): ComponentRootRecord {
 			return state.release;
 		}
 	});
-	const record = { lifecycle, state };
+	const record = { lifecycle, state, observed: false };
 	componentRoots.set(instance, record);
 	return record;
 }

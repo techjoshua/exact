@@ -43,6 +43,7 @@ import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import { installActivity } from '../activity.js';
 import { updateSuspense } from '../suspense.js';
 import { bindText, patchChildren } from './children.js';
+import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
 
 /** Performs the patch domain operation. */
 export function patch(
@@ -76,6 +77,8 @@ export function patchInner(
 		next = normalizeDocumentVNode(next);
 	}
 	if (!mounted) {
+		const reversed = takeReversedRelease(root, parent, next);
+		if (reversed) return patchInner(root, parent, reversed, next, parentInstance, parentScope);
 		const created = mount(root, next, parentInstance, parentScope, parent, false);
 		placeMountedBefore(root, parent, created, null);
 		return created;
@@ -88,7 +91,8 @@ export function patchInner(
 	if (!mounted.scope.active) {
 		const replacement = mount(root, next, parentInstance, parentScope, parent, false);
 		placeMountedBefore(root, parent, replacement, mounted.dom);
-		disposeMounted(parent, mounted);
+		if (!releaseMountedRange(root, parent, mounted, 'reconcile-replaced'))
+			disposeMounted(parent, mounted);
 		return replacement;
 	}
 
@@ -128,7 +132,8 @@ export function patchInner(
 		for (const entries of parking.mounts.values()) {
 			for (const entry of entries) disposeMounted(entry.parent, entry.mounted);
 		}
-		disposeMounted(parent, mounted);
+		if (!releaseMountedRange(root, parent, mounted, 'reconcile-replaced'))
+			disposeMounted(parent, mounted);
 		return replacement;
 	}
 

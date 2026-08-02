@@ -11,7 +11,8 @@ import {
 	stageTaskMutation,
 	taskAwait,
 	type ActivityMode,
-	type Component
+	type Component,
+	type RootLifecycle
 } from '@exactjs/core';
 import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
@@ -33,7 +34,7 @@ describe('@exactjs/dom native Activity', () => {
 		const buttonRef = createRef<HTMLButtonElement>('counter');
 		let boundary!: Component<{ mode: ActivityMode }>;
 		let counter!: Component<{ count: number }>;
-		let counterRoot!: ReturnType<Component<{}>['refs']['root']>;
+		let counterRoot!: RootLifecycle<Element>;
 
 		function Counter(this: Component<{ count: number }>) {
 			counter = this;

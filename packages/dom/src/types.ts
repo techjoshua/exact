@@ -17,6 +17,7 @@ import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentati
 import type { EffectScope } from '@exactjs/reactive';
 import type { DomWorkBudget } from './work.js';
 import type { RetainedMountedRanges } from './renderer/retained-range.js';
+import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';
 
 /** Defines the mounted type contract. */
 export type Mounted = {
@@ -98,6 +99,14 @@ export type Root = {
 		mounts: Map<VNode, Array<{ mounted: Mounted; parent: Node }>>;
 		commits: Array<() => void>;
 	};
+	/** Structurally absent ranges retained while component-root release work settles. */
+	releasing?: Set<{
+		readonly parent: Node;
+		readonly mounted: Mounted;
+		readonly execution: TaskFrameExecution<void>;
+		readonly generations: ReadonlyMap<ComponentInstance<any>, number>;
+		finalized: boolean;
+	}>;
 };
 
 /** Configures render. */

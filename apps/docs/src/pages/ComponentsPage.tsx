@@ -170,6 +170,12 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.refs.get(key)</code>, so tasks and derived work can observe fulfillment and
 					removal without polling.
 				</p>
+				<p>
+					<code>this.refs.root()</code> observes the component&apos;s intrinsic root, generation,
+					presentation, and structural release. Work activated by a release is owned by the
+					renderer&apos;s release frame, allowing the old range to remain until attached tasks and
+					cleanup settle while still supporting exact-generation reversal.
+				</p>
 				<div className="definition-grid">
 					<code>this.state</code>
 					<p>Reactive, instance-owned data.</p>

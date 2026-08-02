@@ -6,10 +6,13 @@ import {
 	createRef,
 	defineTask,
 	type Component,
+	type RootBinding,
+	type RootLifecycle,
 	type TaskContext
 } from '@exactjs/core';
 import { createCompiledVNode, createVNode, jsx } from './test-support/native-vnode.js';
-import { flushSync } from '@exactjs/reactive';
+import { flushSync, watch } from '@exactjs/reactive';
+import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
@@ -139,7 +142,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 
 	it('publishes the first intrinsic component root and advances its generation on replacement', () => {
 		let instance!: Component<{ link: boolean }>;
-		let root!: ReturnType<Component<{}>['refs']['root']>;
+		let root!: RootLifecycle<Element>;
 
 		function Control(this: Component<{ link: boolean }>) {
 			instance = this;
@@ -167,7 +170,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 
 	it('lets an element ref explicitly select a component root', () => {
 		const actionRef = createRef<HTMLButtonElement>('action');
-		let root!: ReturnType<Component<{}>['refs']['root']>;
+		let root!: RootBinding<HTMLButtonElement>;
 
 		function Card(this: Component<{}>) {
 			root = this.refs.root(this.ref(actionRef));
@@ -182,6 +185,92 @@ describe('@exactjs/dom root-lifecycle', () => {
 
 		expect(root.current).toBe(container.querySelector('button'));
 		expect(root.current).not.toBe(container.querySelector('section'));
+	});
+
+	it('retains a released root until structurally attached work settles', async () => {
+		let owner!: Component<{ show: boolean }>;
+		let childRoot!: RootLifecycle<Element>;
+		let finish!: () => void;
+		const settlement = new Promise<void>((resolve) => {
+			finish = resolve;
+		});
+
+		function Child(this: Component<{}>) {
+			childRoot = this.refs.root();
+			watch(() => {
+				const release = childRoot.release;
+				if (!release) return;
+				void runTaskFrame(
+					{ kind: 'test-release', readiness: 'nonblocking' },
+					{ work: () => settlement }
+				).catch(() => undefined);
+			});
+			return () => jsx('button', { children: 'Retained' });
+		}
+
+		function Owner(this: Component<{ show: boolean }>) {
+			owner = this;
+			this.state.show = true;
+			return () => (this.state.show ? jsx(Child, {}) : null);
+		}
+
+		const container = document.createElement('div');
+		render(jsx(Owner, {}), container);
+		const button = container.querySelector('button');
+
+		owner.state.show = false;
+		flushSync();
+
+		expect(container.querySelector('button')).toBe(button);
+		expect(childRoot.current).toBeUndefined();
+		expect(childRoot.release).toMatchObject({
+			target: button,
+			generation: 1,
+			reason: 'reconcile-removed',
+			presented: true
+		});
+
+		finish();
+		await vi.waitFor(() => expect(container.querySelector('button')).toBeNull());
+	});
+
+	it('reverses an exact retained root generation without replacing its DOM', () => {
+		let owner!: Component<{ show: boolean }>;
+		let childRoot!: RootLifecycle<Element>;
+
+		function Child(this: Component<{}>) {
+			childRoot = this.refs.root();
+			watch(() => {
+				if (!childRoot.release) return;
+				void runTaskFrame(
+					{ kind: 'test-release', readiness: 'nonblocking' },
+					{ work: () => new Promise<void>(() => undefined) }
+				).catch(() => undefined);
+			});
+			return () => jsx('button', { children: 'Reversible' });
+		}
+
+		function Owner(this: Component<{ show: boolean }>) {
+			owner = this;
+			this.state.show = true;
+			return () => (this.state.show ? jsx(Child, {}) : null);
+		}
+
+		const container = document.createElement('div');
+		render(jsx(Owner, {}), container);
+		const button = container.querySelector('button');
+
+		owner.state.show = false;
+		flushSync();
+		expect(childRoot.release).toBeDefined();
+
+		owner.state.show = true;
+		flushSync();
+
+		expect(container.querySelector('button')).toBe(button);
+		expect(childRoot.current).toBe(button);
+		expect(childRoot.generation).toBe(1);
+		expect(childRoot.release).toBeUndefined();
 	});
 
 	it('clears the previous ref when a DOM node receives a new ref', () => {
