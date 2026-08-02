@@ -49,6 +49,7 @@ func analyzeComponents(
 			index,
 			candidates,
 			sourceFile,
+			typeChecker,
 		)
 		diagnostics := []string{}
 		taskActivations := make(map[string]struct{})
@@ -420,6 +421,7 @@ func componentContextEffects(
 	owner int,
 	candidates []componentCandidate,
 	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
 ) []ContextEffect {
 	result := []ContextEffect{}
 	walkNode(candidate.node, func(node *ast.Node) bool {
@@ -428,7 +430,11 @@ func componentContextEffects(
 			return currentOwner < 0
 		}
 		if ast.IsCallExpression(node) {
-			if effect, ok := contextEffect(node.AsCallExpression(), sourceFile); ok {
+			if effect, ok := contextEffect(
+				node.AsCallExpression(),
+				sourceFile,
+				typeChecker,
+			); ok {
 				result = append(result, effect)
 			}
 		}

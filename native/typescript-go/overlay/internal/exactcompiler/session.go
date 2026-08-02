@@ -487,7 +487,7 @@ func (s *Session) Execute(request Request) Response {
 	transformed = lowerEnhancementContextContracts(
 		transformed,
 		emitContext.Factory,
-		components,
+		callables,
 	)
 	transformed = lowerSecretQualifications(
 		transformed,

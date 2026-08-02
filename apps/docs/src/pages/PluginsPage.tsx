@@ -26,7 +26,7 @@ export function PluginsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Extend eXact"
 			title="Plugins carry cross-cutting concerns through the whole system"
-			description="An eXact plugin is a package contract, not a bag of component hooks. It can contribute typed configuration and validated behavior to compiler, server, render, client, or testing hosts."
+			description="An eXact plugin is a package contract, not a bag of component hooks. It can contribute typed configuration and validated behavior to build, server, render, client, or testing hosts."
 			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
 			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
 		>
@@ -37,7 +37,8 @@ export function PluginsPage(this: Component<{}>) {
 					cleanly inside one component. They may affect source analysis, generated artifacts, server
 					startup, request lifetime, rendered output, browser boot, and tests. A plugin lets one
 					package describe those parts without teaching each bundler or application a private
-					integration protocol.
+					integration protocol. The compiler independently records the language and
+					renderer facts needed by those packages.
 				</p>
 			</section>
 			<section>
@@ -45,10 +46,10 @@ export function PluginsPage(this: Component<{}>) {
 				<div className="definition-grid">
 					<code>config</code>
 					<p>Defines defaults, validation, typed transforms, and host-specific projections.</p>
-					<code>compiler</code>
+					<code>build</code>
 					<p>
-						Analyzes declared directives, emits diagnostics, and contributes bounded session-local
-						analysis data.
+						Contributes bundler-owned configuration and package capabilities without installing
+						compiler callbacks.
 					</p>
 					<code>server</code>
 					<p>Initializes application- or request-owned resources and server projections.</p>
@@ -118,8 +119,9 @@ export function PluginsPage(this: Component<{}>) {
 					Ordinary context production and consumption orders components before setup. Unrelated
 					capabilities use canonical identity, while a context cycle fails through normal component
 					error handling before any component in the cycle runs. The compiler projects statically
-					known context token identities into that pre-setup contract; compilerless packages can
-					attach the same generic contract explicitly.
+					known context token identities into that pre-setup contract. Exported helpers carry the
+					same frozen contract, so callers compose helper-private tokens without importing them;
+					compilerless packages can attach the generic contract explicitly.
 				</p>
 			</section>
 			<section>

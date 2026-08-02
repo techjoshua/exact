@@ -1,30 +1,27 @@
 package exactcompiler
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/printer"
 )
 
+type enhancementCallableContextContract struct {
+	effects      EnhancementContextEffects
+	dependencies []*ast.Node
+}
+
 // lowerEnhancementContextContracts attaches compiler-derived token identities to exported
-// components. The runtime reads this narrow contract before any co-targeted component setup runs.
+// components and callable helpers. Imported helpers carry their own token identities, allowing a
+// component to compose transitive context effects without importing or registering those tokens.
 func lowerEnhancementContextContracts(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
-	components []Component,
+	callables callableAnalysis,
 ) *ast.SourceFile {
-	contracts := make(map[string]EnhancementContextEffects)
-	for _, component := range components {
-		contract := component.EnhancementContexts
-		if !component.Exported ||
-			(len(contract.Provides) == 0 &&
-				len(contract.Requires) == 0 &&
-				len(contract.OptionallyConsumes) == 0) {
-			continue
-		}
-		contracts[component.Name] = contract
-	}
+	contracts := enhancementCallableContextContracts(sourceFile, callables)
 	if len(contracts) == 0 {
 		return sourceFile
 	}
@@ -33,26 +30,25 @@ func lowerEnhancementContextContracts(
 	attached := make(map[string]struct{})
 	for _, statement := range sourceFile.Statements.Nodes {
 		statements = append(statements, statement)
-		for _, name := range declaredComponentNames(statement, contracts) {
-			if _, exists := attached[name]; exists {
-				continue
-			}
+		for _, name := range declaredContractNames(statement, contracts) {
 			attached[name] = struct{}{}
 		}
 	}
-	// Attach after module initialization so a component may reference a context
-	// token declared later in the same source file without crossing its TDZ.
-	for _, component := range components {
-		if _, exists := attached[component.Name]; !exists {
-			continue
-		}
+	// Attach after module initialization so local tokens declared later in the
+	// source cannot cross their TDZ. Imported dependencies have completed their
+	// own module initialization before this module evaluates.
+	names := make([]string, 0, len(attached))
+	for name := range attached {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
 		statements = append(
 			statements,
 			factory.NewExpressionStatement(
-				enhancementContextAttachment(factory, component.Name, contracts[component.Name]),
+				enhancementContextAttachment(factory, name, contracts[name]),
 			),
 		)
-		delete(attached, component.Name)
 	}
 	result := factory.UpdateSourceFile(
 		sourceFile,
@@ -63,9 +59,132 @@ func lowerEnhancementContextContracts(
 	return result
 }
 
-func declaredComponentNames(
+func enhancementCallableContextContracts(
+	sourceFile *ast.SourceFile,
+	callables callableAnalysis,
+) map[string]enhancementCallableContextContract {
+	result := make(map[string]enhancementCallableContextContract)
+	factByID := make(map[string]int, len(callables.facts))
+	for index := range callables.facts {
+		factByID[callables.facts[index].summary.ID] = index
+	}
+	memo := make(map[int]enhancementCallableContextContract)
+	visiting := make(map[int]bool)
+	for index := range callables.facts {
+		fact := &callables.facts[index]
+		if fact.sourceFile.FileName() != sourceFile.FileName() ||
+			len(fact.summary.ExportNames) == 0 ||
+			!exactContextToken.MatchString(fact.summary.Name) ||
+			strings.Contains(fact.summary.Name, ".") {
+			continue
+		}
+		contract := enhancementCallableContextForFact(
+			index,
+			callables.facts,
+			factByID,
+			memo,
+			visiting,
+		)
+		if enhancementCallableContextEmpty(contract) {
+			continue
+		}
+		result[fact.summary.Name] = contract
+	}
+	return result
+}
+
+func enhancementCallableContextForFact(
+	index int,
+	facts []callableFacts,
+	factByID map[string]int,
+	memo map[int]enhancementCallableContextContract,
+	visiting map[int]bool,
+) enhancementCallableContextContract {
+	if contract, exists := memo[index]; exists {
+		return contract
+	}
+	if visiting[index] {
+		return enhancementCallableContextContract{}
+	}
+	visiting[index] = true
+	owner := facts[index].sourceFile
+	effects := []ContextEffect{}
+	dependencies := []*ast.Node{}
+	dependencyKeys := make(map[string]struct{})
+	localVisited := make(map[int]bool)
+	var visitLocal func(int)
+	visitLocal = func(localIndex int) {
+		if localVisited[localIndex] {
+			return
+		}
+		localVisited[localIndex] = true
+		fact := &facts[localIndex]
+		effects = append(effects, fact.directContext...)
+		for _, edge := range fact.summary.Calls {
+			targetIndex, exists := factByID[edge.TargetID]
+			if !edge.Resolved || !exists {
+				continue
+			}
+			if facts[targetIndex].sourceFile == owner {
+				visitLocal(targetIndex)
+				continue
+			}
+			targetContract := enhancementCallableContextForFact(
+				targetIndex,
+				facts,
+				factByID,
+				memo,
+				visiting,
+			)
+			if enhancementCallableContextEmpty(targetContract) {
+				continue
+			}
+			reference := enhancementCallableReference(fact.callExpressions[edge.ID])
+			if reference == nil {
+				continue
+			}
+			key := strings.TrimSpace(sourceText(fact.sourceFile, reference))
+			if _, exists := dependencyKeys[key]; exists {
+				continue
+			}
+			dependencyKeys[key] = struct{}{}
+			dependencies = append(dependencies, reference)
+		}
+	}
+	visitLocal(index)
+	contract := enhancementCallableContextContract{
+		effects:      enhancementContextEffects(effects, moduleContextTokenRoots(owner)),
+		dependencies: dependencies,
+	}
+	delete(visiting, index)
+	memo[index] = contract
+	return contract
+}
+
+func enhancementCallableReference(expression *ast.Node) *ast.Node {
+	for expression != nil && ast.IsParenthesizedExpression(expression) {
+		expression = expression.AsParenthesizedExpression().Expression
+	}
+	if expression != nil && ast.IsPropertyAccessExpression(expression) {
+		member := expression.AsPropertyAccessExpression()
+		if member.Name() != nil &&
+			(member.Name().Text() == "call" || member.Name().Text() == "apply") {
+			return member.Expression
+		}
+	}
+	return expression
+}
+
+func enhancementCallableContextEmpty(contract enhancementCallableContextContract) bool {
+	return len(contract.effects.Provides) == 0 &&
+		len(contract.effects.Requires) == 0 &&
+		len(contract.effects.OptionallyConsumes) == 0 &&
+		len(contract.dependencies) == 0
+}
+
+func declaredContractNames(
 	statement *ast.Node,
-	contracts map[string]EnhancementContextEffects,
+	contracts map[string]enhancementCallableContextContract,
 ) []string {
 	result := []string{}
 	if ast.IsFunctionDeclaration(statement) && statement.Name() != nil {
@@ -92,45 +211,24 @@ func declaredComponentNames(
 func enhancementContextAttachment(
 	factory *printer.NodeFactory,
 	component string,
-	contract EnhancementContextEffects,
+	contract enhancementCallableContextContract,
 ) *ast.Node {
-	valueProperties := []*ast.Node{}
-	if len(contract.Provides) != 0 {
-		valueProperties = append(valueProperties, contractProperty(
+	valueProperties := []*ast.Node{
+		contractProperty(factory, "provides", frozenContextTokenArray(
+			factory, contract.effects.Provides, contract.dependencies, "provides",
+		)),
+		contractProperty(factory, "requires", frozenContextTokenArray(
+			factory, contract.effects.Requires, contract.dependencies, "requires",
+		)),
+		contractProperty(factory, "optionallyConsumes", frozenContextTokenArray(
 			factory,
-			"provides",
-			frozenContextTokenArray(factory, contract.Provides),
-		))
-	}
-	if len(contract.Requires) != 0 {
-		valueProperties = append(valueProperties, contractProperty(
-			factory,
-			"requires",
-			frozenContextTokenArray(factory, contract.Requires),
-		))
-	}
-	if len(contract.OptionallyConsumes) != 0 {
-		valueProperties = append(valueProperties, contractProperty(
-			factory,
+			contract.effects.OptionallyConsumes,
+			contract.dependencies,
 			"optionallyConsumes",
-			frozenContextTokenArray(factory, contract.OptionallyConsumes),
-		))
+		)),
 	}
 	value := frozenExpression(factory, contractObject(factory, true, valueProperties...))
-	symbol := factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Symbol"),
-			nil,
-			factory.NewIdentifier("for"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{
-			contractString(factory, "@exactjs/enhancement-contexts"),
-		}),
-		ast.NodeFlagsNone,
-	)
+	symbol := enhancementContextSymbol(factory)
 	descriptor := contractObject(
 		factory,
 		true,
@@ -160,12 +258,82 @@ func enhancementContextAttachment(
 func frozenContextTokenArray(
 	factory *printer.NodeFactory,
 	tokens []string,
+	dependencies []*ast.Node,
+	property string,
 ) *ast.Node {
 	values := make([]*ast.Node, 0, len(tokens))
 	for _, token := range tokens {
 		values = append(values, contextTokenIDExpression(factory, token))
 	}
-	return frozenExpression(factory, contractArray(factory, values...))
+	value := contractArray(factory, values...)
+	if len(dependencies) != 0 {
+		arguments := make([]*ast.Node, 0, len(dependencies))
+		for _, dependency := range dependencies {
+			arguments = append(arguments, enhancementDependencyContextProperty(
+				factory,
+				dependency,
+				property,
+			))
+		}
+		value = factory.NewCallExpression(
+			factory.NewPropertyAccessExpression(
+				value,
+				nil,
+				factory.NewIdentifier("concat"),
+				ast.NodeFlagsNone,
+			),
+			nil,
+			nil,
+			factory.NewNodeList(arguments),
+			ast.NodeFlagsNone,
+		)
+	}
+	return frozenExpression(factory, value)
+}
+
+func enhancementDependencyContextProperty(
+	factory *printer.NodeFactory,
+	dependency *ast.Node,
+	property string,
+) *ast.Node {
+	contract := factory.NewCallExpression(
+		factory.NewPropertyAccessExpression(
+			factory.NewIdentifier("Reflect"),
+			nil,
+			factory.NewIdentifier("get"),
+			ast.NodeFlagsNone,
+		),
+		nil,
+		nil,
+		factory.NewNodeList([]*ast.Node{
+			dependency.Clone(factory),
+			enhancementContextSymbol(factory),
+		}),
+		ast.NodeFlagsNone,
+	)
+	return factory.NewPropertyAccessExpression(
+		contract,
+		nil,
+		factory.NewIdentifier(property),
+		ast.NodeFlagsNone,
+	)
+}
+
+func enhancementContextSymbol(factory *printer.NodeFactory) *ast.Node {
+	return factory.NewCallExpression(
+		factory.NewPropertyAccessExpression(
+			factory.NewIdentifier("Symbol"),
+			nil,
+			factory.NewIdentifier("for"),
+			ast.NodeFlagsNone,
+		),
+		nil,
+		nil,
+		factory.NewNodeList([]*ast.Node{
+			contractString(factory, "@exactjs/enhancement-contexts"),
+		}),
+		ast.NodeFlagsNone,
+	)
 }
 
 func contextTokenIDExpression(factory *printer.NodeFactory, token string) *ast.Node {

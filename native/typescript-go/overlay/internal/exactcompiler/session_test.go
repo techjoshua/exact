@@ -4626,6 +4626,100 @@ func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
 	}
 }
 
+func TestSessionComposesImportedCallableEnhancementContexts(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	if err := os.WriteFile(
+		configFile,
+		[]byte(`{
+			"compilerOptions": {
+				"module": "ESNext",
+				"moduleResolution": "Bundler",
+				"target": "ES2022",
+				"jsx": "preserve"
+			},
+			"include": ["*.ts", "*.tsx"]
+		}`),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	contextsFile := filepath.Join(root, "contexts.ts")
+	if err := os.WriteFile(
+		contextsFile,
+		[]byte(`export const HiddenContext = { id: Symbol("hidden") };`),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	helperFile := filepath.Join(root, "helper.ts")
+	helperSource := `
+		import { HiddenContext } from "./contexts.js";
+		export function readHidden(owner: Component<{}>) {
+			if (!owner.hasContext(HiddenContext)) return;
+			owner.getContext(HiddenContext);
+		}
+		export function publishHidden(owner: Component<{}>) {
+			owner.setContext(HiddenContext, "ready");
+		}
+	`
+	if err := os.WriteFile(helperFile, []byte(helperSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entryFile := filepath.Join(root, "entry.tsx")
+	entrySource := `
+		import { publishHidden, readHidden } from "./helper.js";
+		export function Consumer(this: Component<{}>) {
+			readHidden(this);
+			publishHidden(this);
+			return () => <button />;
+		}
+	`
+	if err := os.WriteFile(entryFile, []byte(entrySource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	session := NewSession()
+	helper := session.Execute(Request{
+		ID: helperFile, Root: root, ConfigFile: configFile,
+		Kind: "compile", Source: helperSource, Target: TargetClient,
+	})
+	if helper.Error != "" {
+		t.Fatal(helper.Error)
+	}
+	entry := session.Execute(Request{
+		ID: entryFile, Root: root, ConfigFile: configFile,
+		Kind: "compile", Source: entrySource, Target: TargetClient,
+	})
+	if entry.Error != "" {
+		t.Fatal(entry.Error)
+	}
+	helperCode := strings.Join(strings.Fields(helper.Code), "")
+	for _, expected := range []string{
+		`Object.defineProperty(readHidden,Symbol.for("@exactjs/enhancement-contexts")`,
+		`optionallyConsumes:Object.freeze([HiddenContext.id])`,
+		`Object.defineProperty(publishHidden,Symbol.for("@exactjs/enhancement-contexts")`,
+		`provides:Object.freeze([HiddenContext.id])`,
+	} {
+		if !strings.Contains(helperCode, expected) {
+			t.Fatalf("helper output is missing %q:\n%s", expected, helper.Code)
+		}
+	}
+	entryCode := strings.Join(strings.Fields(entry.Code), "")
+	for _, expected := range []string{
+		`Reflect.get(readHidden,Symbol.for("@exactjs/enhancement-contexts")).optionallyConsumes`,
+		`Reflect.get(publishHidden,Symbol.for("@exactjs/enhancement-contexts")).provides`,
+	} {
+		if !strings.Contains(entryCode, expected) {
+			t.Fatalf(
+				"component output is missing %q:\ncode=%q\nanalysis=%#v",
+				expected,
+				entry.Code,
+				entry.Analysis,
+			)
+		}
+	}
+}
+
 func TestSessionSeparatesTaskEffectsFromComponentSetupPlacement(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "workspace.tsx",

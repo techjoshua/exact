@@ -400,11 +400,14 @@ Ordinary component context behavior supplies ordering:
   tie-break.
 
 The compiler follows statically resolvable local helpers and imported callable-
-effect summaries using its existing transitive context analysis. A context read
-reached unconditionally is required; `hasContext()` and conditionally reached
-reads are optional. Opaque or dynamically dispatched reads are reported as
-unknown by language tools and do not invent an ordering edge. Existing compiler
-annotations may resolve an otherwise opaque boundary.
+effect summaries using its existing transitive context analysis. Exported
+helpers carry the same frozen token-identity contract as exported components,
+so a consumer composes private token identities from the imported function
+without importing the token itself. A context read reached unconditionally is
+required; `hasContext()` and conditionally reached reads are optional. Opaque
+or dynamically dispatched reads are reported as unknown by language tools and
+do not invent an ordering edge. Existing compiler annotations may resolve an
+otherwise opaque boundary.
 
 The compiler reuses its existing context-read and context-write analysis to
 emit the minimal semantic component contract required before instantiation:
