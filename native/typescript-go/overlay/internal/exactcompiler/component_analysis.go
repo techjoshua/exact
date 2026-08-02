@@ -34,6 +34,7 @@ func analyzeComponents(
 		return components
 	}
 	elements := collectComponentElements(sourceFile)
+	contextRoots := moduleContextTokenRoots(sourceFile)
 
 	for index := range components {
 		component := &components[index]
@@ -62,8 +63,9 @@ func analyzeComponents(
 		// A task-owning component is classified from its non-task setup walk and
 		// the task placements below. The callable summary intentionally includes
 		// task bodies, whose distributed effects must not become indivisible setup.
-		if len(taskActivations) == 0 {
-			if setup, exists := callables.byNode[candidate.node]; exists {
+		if setup, exists := callables.byNode[candidate.node]; exists {
+			contexts = append(contexts, setup.Contexts...)
+			if len(taskActivations) == 0 {
 				switch setup.Effect {
 				case "browser":
 					clientEffects = true
@@ -238,6 +240,10 @@ func analyzeComponents(
 			)
 		}
 		component.Contexts = uniqueContextEffects(contexts)
+		component.EnhancementContexts = enhancementContextEffects(
+			component.Contexts,
+			contextRoots,
+		)
 		component.SplitBoundaries = sortedSet(splitBoundaries)
 		component.Diagnostics = uniqueStrings(diagnostics)
 		component.EnvironmentEffect = "neutral"
@@ -309,6 +315,91 @@ func analyzeComponents(
 	}
 	resolveComponentSubgraphs(sourceFile, components)
 	return components
+}
+
+func enhancementContextEffects(
+	effects []ContextEffect,
+	moduleRoots map[string]struct{},
+) EnhancementContextEffects {
+	optionalSet := make(map[string]struct{})
+	provides := []string{}
+	requires := []string{}
+	for _, effect := range effects {
+		if effect.Confidence != "exact" || effect.Token == "unknown" {
+			continue
+		}
+		if !enhancementContextTokenIsModuleScoped(effect.Token, moduleRoots) {
+			continue
+		}
+		switch effect.Kind {
+		case "write":
+			provides = append(provides, effect.Token)
+		case "probe":
+			optionalSet[effect.Token] = struct{}{}
+		case "read":
+			requires = append(requires, effect.Token)
+		}
+	}
+	filteredRequires := make([]string, 0, len(requires))
+	for _, token := range requires {
+		if _, optional := optionalSet[token]; !optional {
+			filteredRequires = append(filteredRequires, token)
+		}
+	}
+	return EnhancementContextEffects{
+		Provides:           uniqueStrings(provides),
+		Requires:           uniqueStrings(filteredRequires),
+		OptionallyConsumes: sortedSet(optionalSet),
+	}
+}
+
+func enhancementContextTokenIsModuleScoped(
+	token string,
+	moduleRoots map[string]struct{},
+) bool {
+	root := strings.SplitN(token, ".", 2)[0]
+	_, exists := moduleRoots[root]
+	return exists
+}
+
+func moduleContextTokenRoots(sourceFile *ast.SourceFile) map[string]struct{} {
+	result := make(map[string]struct{})
+	for _, statement := range sourceFile.Statements.Nodes {
+		switch {
+		case ast.IsImportDeclaration(statement):
+			declaration := statement.AsImportDeclaration()
+			clause := declaration.ImportClause
+			if clause == nil {
+				continue
+			}
+			if clause.Name() != nil {
+				result[clause.Name().Text()] = struct{}{}
+			}
+			bindings := clause.AsImportClause().NamedBindings
+			if bindings == nil {
+				continue
+			}
+			if ast.IsNamespaceImport(bindings) {
+				result[bindings.Name().Text()] = struct{}{}
+			} else if ast.IsNamedImports(bindings) {
+				for _, element := range bindings.AsNamedImports().Elements.Nodes {
+					result[element.Name().Text()] = struct{}{}
+				}
+			}
+		case ast.IsVariableStatement(statement):
+			for _, declaration := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
+				name := declaration.Name()
+				if name != nil && ast.IsIdentifier(name) {
+					result[name.Text()] = struct{}{}
+				}
+			}
+		case ast.IsFunctionDeclaration(statement), ast.IsClassDeclaration(statement):
+			if statement.Name() != nil {
+				result[statement.Name().Text()] = struct{}{}
+			}
+		}
+	}
+	return result
 }
 
 // knownEffectEnvironments preserves proven placement when a callable also

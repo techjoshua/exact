@@ -156,21 +156,29 @@ type Import struct {
 
 // Component identifies a native eXact component declaration.
 type Component struct {
-	ID                string          `json:"id"`
-	Name              string          `json:"name"`
-	Start             int             `json:"start"`
-	Length            int             `json:"length"`
-	Exported          bool            `json:"exported"`
-	Signals           []string        `json:"signals"`
-	Placement         string          `json:"placement"`
-	SubgraphPlacement string          `json:"subgraphPlacement"`
-	EnvironmentEffect string          `json:"environmentEffect"`
-	ArtifactTargets   []string        `json:"artifactTargets"`
-	RenderEdges       []RenderEdge    `json:"renderEdges"`
-	ClientIslandCount int             `json:"clientIslandCount"`
-	Contexts          []ContextEffect `json:"contexts"`
-	SplitBoundaries   []string        `json:"splitBoundaries"`
-	Diagnostics       []string        `json:"diagnostics"`
+	ID                  string                    `json:"id"`
+	Name                string                    `json:"name"`
+	Start               int                       `json:"start"`
+	Length              int                       `json:"length"`
+	Exported            bool                      `json:"exported"`
+	Signals             []string                  `json:"signals"`
+	Placement           string                    `json:"placement"`
+	SubgraphPlacement   string                    `json:"subgraphPlacement"`
+	EnvironmentEffect   string                    `json:"environmentEffect"`
+	ArtifactTargets     []string                  `json:"artifactTargets"`
+	RenderEdges         []RenderEdge              `json:"renderEdges"`
+	ClientIslandCount   int                       `json:"clientIslandCount"`
+	Contexts            []ContextEffect           `json:"contexts"`
+	EnhancementContexts EnhancementContextEffects `json:"enhancementContexts"`
+	SplitBoundaries     []string                  `json:"splitBoundaries"`
+	Diagnostics         []string                  `json:"diagnostics"`
+}
+
+// EnhancementContextEffects is the token-identity contract needed before plugin instantiation.
+type EnhancementContextEffects struct {
+	Provides           []string `json:"provides"`
+	Requires           []string `json:"requires"`
+	OptionallyConsumes []string `json:"optionallyConsumes"`
 }
 
 // RenderEdge describes one local component dependency authored as a JSX tag.
@@ -348,7 +356,7 @@ type StateReceiver struct {
 	Index int    `json:"index,omitempty"`
 }
 
-// ContextEffect describes one callable read or write against a component context token.
+// ContextEffect describes one callable read, existence probe, or write against a context token.
 type ContextEffect struct {
 	Token      string `json:"token"`
 	Kind       string `json:"kind"`

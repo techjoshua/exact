@@ -1179,7 +1179,8 @@ func contextEffect(
 	member := call.Expression.AsPropertyAccessExpression()
 	if member.Expression == nil || member.Expression.Kind != ast.KindThisKeyword ||
 		member.Name() == nil ||
-		(member.Name().Text() != "getContext" && member.Name().Text() != "setContext") {
+		(member.Name().Text() != "getContext" && member.Name().Text() != "hasContext" &&
+			member.Name().Text() != "setContext") {
 		return ContextEffect{}, false
 	}
 	token := "unknown"
@@ -1192,7 +1193,10 @@ func contextEffect(
 		}
 	}
 	kind := "read"
-	if member.Name().Text() == "setContext" {
+	switch member.Name().Text() {
+	case "hasContext":
+		kind = "probe"
+	case "setContext":
 		kind = "write"
 	}
 	return ContextEffect{Token: token, Kind: kind, Confidence: confidence}, true

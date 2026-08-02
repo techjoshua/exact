@@ -124,7 +124,10 @@ release the previous enhancement instance, and preserve the authored DOM identit
 
 Before setup, co-targeted enhancement components are ordered from their ordinary context effects:
 providers wrap required and optional consumers, unrelated components use canonical identity, and a
-cycle fails through the normal component error boundary before any member of the cycle runs.
+cycle fails through the normal component error boundary before any member of the cycle runs. The
+compiler projects statically known `setContext()`, `getContext()`, and `hasContext()` token
+identities into this pre-setup contract; compilerless component packages may attach the same
+generic contract explicitly.
 
 ## Current limitations
 

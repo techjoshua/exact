@@ -111,7 +111,9 @@ export function PluginsPage(this: Component<{}>) {
 				<p>
 					Ordinary context production and consumption orders components before setup. Unrelated
 					capabilities use canonical identity, while a context cycle fails through normal component
-					error handling before any component in the cycle runs.
+					error handling before any component in the cycle runs. The compiler projects statically
+					known context token identities into that pre-setup contract; compilerless packages can
+					attach the same generic contract explicitly.
 				</p>
 			</section>
 			<section>

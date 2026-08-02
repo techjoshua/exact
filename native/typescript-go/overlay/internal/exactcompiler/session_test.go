@@ -4659,6 +4659,79 @@ __fixtureTask38();
 	}
 }
 
+func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:     "enhancement-contexts.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { PhysicsContext, WorldContext } from "./contexts.js";
+			function readOptionalPhysics(this: Component<{}>) {
+				if (!this.hasContext(PhysicsContext)) return;
+				this.getContext(PhysicsContext);
+			}
+			export function Provider(this: Component<{}>) {
+				this.setContext(PhysicsContext, { ready: true });
+				return () => <section />;
+			}
+			export function Consumer(this: Component<{}>) {
+				readOptionalPhysics.call(this);
+				this.getContext(WorldContext);
+				return () => <button />;
+			}
+				export function DynamicToken(this: Component<{ token: unknown }>) {
+				this.setContext(this.state.token, "value");
+				return () => <output />;
+			}
+			export function LateProvider(this: Component<{}>) {
+				this.setContext(LateContext, "value");
+				return () => <aside />;
+			}
+			const LateContext = { id: Symbol("late") };
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	provider := findComponent(t, response.Analysis.Components, "Provider")
+	if !containsString(provider.EnhancementContexts.Provides, "PhysicsContext") ||
+		len(provider.EnhancementContexts.Requires) != 0 ||
+		len(provider.EnhancementContexts.OptionallyConsumes) != 0 {
+		t.Fatalf("unexpected provider enhancement contexts: %#v", provider.EnhancementContexts)
+	}
+	consumer := findComponent(t, response.Analysis.Components, "Consumer")
+	if !containsString(consumer.EnhancementContexts.Requires, "WorldContext") ||
+		!containsString(consumer.EnhancementContexts.OptionallyConsumes, "PhysicsContext") ||
+		containsString(consumer.EnhancementContexts.Requires, "PhysicsContext") ||
+		!containsContextEffect(consumer.Contexts, "PhysicsContext", "probe") {
+		t.Fatalf("unexpected consumer enhancement contexts: %#v", consumer.EnhancementContexts)
+	}
+	dynamic := findComponent(t, response.Analysis.Components, "DynamicToken")
+	if len(dynamic.EnhancementContexts.Provides) != 0 {
+		t.Fatalf("instance-dependent token escaped into pre-activation metadata: %#v", dynamic.EnhancementContexts)
+	}
+	compactCode := strings.Join(strings.Fields(response.Code), "")
+	for _, expected := range []string{
+		`Symbol.for("@exactjs/enhancement-contexts")`,
+		`provides: Object.freeze([PhysicsContext.id])`,
+		`requires: Object.freeze([WorldContext.id])`,
+		`optionallyConsumes: Object.freeze([PhysicsContext.id])`,
+	} {
+		expected = strings.Join(strings.Fields(expected), "")
+		if !strings.Contains(compactCode, expected) {
+			t.Fatalf("native output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, "this.state.token.id") {
+		t.Fatalf("instance-dependent context token escaped into module metadata:\n%s", response.Code)
+	}
+	lateDeclaration := strings.Index(response.Code, `const LateContext = { id: Symbol("late") };`)
+	lateAttachment := strings.LastIndex(response.Code, `Object.defineProperty(LateProvider`)
+	if lateDeclaration < 0 || lateAttachment < lateDeclaration {
+		t.Fatalf("late context metadata ran before token initialization:\n%s", response.Code)
+	}
+}
+
 func TestSessionSeparatesTaskEffectsFromComponentSetupPlacement(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "workspace.tsx",

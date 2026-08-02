@@ -497,6 +497,11 @@ func (s *Session) Execute(request Request) Response {
 		sourceFile.FileName(),
 		request.PreserveComponentHoisting,
 	)
+	transformed = lowerEnhancementContextContracts(
+		transformed,
+		emitContext.Factory,
+		components,
+	)
 	transformed = lowerSecretQualifications(
 		transformed,
 		emitContext.Factory,
