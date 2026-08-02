@@ -3,12 +3,15 @@
  */
 import {
 	Fragment,
+	createEnhancementMarker,
 	createCompiledComponentRegistry,
 	createDynamicChild,
 	createRef,
 	markExactComponent,
 	unsafeHtml,
-	type Component
+	type Child,
+	type Component,
+	type RootLifecycle
 } from '@exactjs/core';
 import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 import { render } from '@exactjs/dom';
@@ -19,6 +22,40 @@ import { hydrate } from './index.js';
 import { noopLogger } from './test-support/responses.js';
 
 describe('@exactjs/hydrate adoption', () => {
+	it('activates bundle-local enhancements after adopting their authored target', () => {
+		const identity = '@exactjs/hydrate:test-enhancement#default';
+		const roots: RootLifecycle<HTMLElement>[] = [];
+		const Enhancement = markExactComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			roots.push(this.refs.root<HTMLElement>());
+			return () => props.children;
+		}, '@exactjs/hydrate:test-enhancement');
+		function Page(this: Component<{}>) {
+			return () =>
+				createVNode(
+					'button',
+					{
+						__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+					},
+					'Save'
+				);
+		}
+		const root = document.createElement('div');
+		root.innerHTML = renderToString(createVNode(Page, null)).html;
+		const serverNode = root.querySelector('button')!;
+
+		hydrate(createVNode(Page, null), root, {
+			logger: noopLogger,
+			enhancementCatalog: new Map([[identity, Enhancement]])
+		});
+
+		expect(root.querySelector('button')).toBe(serverNode);
+		expect(roots).toHaveLength(1);
+		expect(roots[0]?.current).toBe(serverNode);
+	});
+
 	it('preserves dirty form state entered before hydration', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<!--exact:fragment:0--><input value=server><!--/exact:fragment:0-->';

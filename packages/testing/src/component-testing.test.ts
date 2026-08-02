@@ -3,10 +3,12 @@
  */
 import {
 	activateTaskForHost,
+	createEnhancementMarker,
 	createContext,
 	createErrorContext,
 	defineTask,
 	ErrorContext,
+	type Child,
 	type Component
 } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
@@ -15,6 +17,35 @@ import { installVitestMatchers } from './vitest.js';
 import { createTestVNode as createVNode, markTestComponent } from './internal/fixtures.js';
 
 describe('component testing', () => {
+	it('installs bundle-local enhancement components for a mounted test', async () => {
+		const identity = '@exactjs/testing:enhancement#default';
+		let setups = 0;
+		const Enhancement = markTestComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child; tone?: string }
+		) {
+			setups++;
+			return () => props.children;
+		});
+		const target = createVNode(
+			'button',
+			{
+				__exactEnhancements: createEnhancementMarker([
+					{ identity, props: { tone: 'quiet' } }
+				])
+			},
+			'Save'
+		);
+
+		const view = await mountTest(target, {
+			enhancementCatalog: new Map([[identity, Enhancement]])
+		});
+
+		expect(setups).toBe(1);
+		expect(view.getByRole('button', { name: 'Save' })).toBeDefined();
+		view.unmount();
+	});
+
 	it('reads and writes state, contexts, components, and events', async () => {
 		const Name = createContext<string>('test.name');
 		function Child(this: Component<{}>) {

@@ -26,6 +26,10 @@ immediately.
 Hydrate the same compiled application that produced the server output. Server endpoints remain
 responsible for authorization, CSRF policy, payload limits, and operation allowlists.
 
+Generated application entries pass their bundle-local plugin enhancement catalog through
+`HydrateOptions.enhancementCatalog`. Hydration adopts compatible authored DOM first, then activates
+those ordinary enhancement components against the adopted targets.
+
 Use `ExactClient.applyPatches()` only for framework integrations that deliberately apply validated
 patches within that client's root. Direct transport invocation and unscoped patch application are
 package-private implementation details.

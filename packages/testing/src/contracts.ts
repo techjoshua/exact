@@ -9,6 +9,11 @@ export type TestConfiguration = {
 	timeout?: number;
 	settleTasks?: boolean;
 	attachToDocument?: boolean;
+	/** Bundle-local enhancement components installed for this test renderer. */
+	enhancementCatalog?: ReadonlyMap<
+		string,
+		ComponentFunction<any, Record<string, unknown>>
+	>;
 };
 /** Configures action. */
 export type ActionOptions = { settleTasks?: boolean };

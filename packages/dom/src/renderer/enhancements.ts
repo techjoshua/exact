@@ -21,6 +21,14 @@ type MountOperation = (
 	parentNode: Node | undefined
 ) => Mounted;
 
+/** Installs reactive selector reconciliation for one renderer root. */
+export function installEnhancementReconciliation(root: Root, mount: MountOperation): void {
+	root.reconcileEnhancements = () => {
+		if (!root.mounted) return;
+		root.mounted = reconcileEnhancementRoutes(root, root.mounted, undefined, undefined, mount);
+	};
+}
+
 type PatchOperation = (
 	mounted: Mounted | undefined,
 	vnode: VNode,

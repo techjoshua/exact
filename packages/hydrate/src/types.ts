@@ -81,6 +81,11 @@ export type HydrateOptions = {
 	configLimits?: ExactHydrationConfigLimits;
 	/** Receives hydration and nested renderer profiling observations. */
 	onProfile?: ExactProfileSink;
+	/** Bundle-local compiler-generated enhancement components used by the hydrated renderer. */
+	enhancementCatalog?: ReadonlyMap<
+		string,
+		ComponentFunction<any, Record<string, unknown>>
+	>;
 };
 
 /** Reports an observable hydrate profile event. */

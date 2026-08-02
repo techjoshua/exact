@@ -15,6 +15,11 @@ import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { createDomErrorContext, createRootBoundary } from '../root-support.js';
 import { unmountMounted } from '../teardown.js';
+import {
+	activateEnhancementSubtree,
+	installEnhancementReconciliation
+} from '../enhancements.js';
+import { mount } from '../mounting/root.js';
 import { adoptStaticChildren, boundaryMarkers, contentNodesBetween } from './boundaries.js';
 import { componentMarkerMatchesType } from './identity.js';
 import { constructAdoptedComponent } from './construction.js';
@@ -46,12 +51,13 @@ export function adoptStatic(
 		workBudget: options.workBudget,
 		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
 		onUnsafeHtml: options.onUnsafeHtml,
-		logger: options.logger
+		logger: options.logger,
+		enhancementCatalog: options.enhancementCatalog
 	};
 	root.boundary = createRootBoundary(root);
 	const scope = createEffectScope();
 	const boundaryVNode = createVNode(root.boundary, { version: root.version });
-	const mounted: Mounted = {
+	let mounted: Mounted = {
 		vnode: boundaryVNode,
 		dom: markers.start,
 		end: markers.end,
@@ -76,6 +82,7 @@ export function adoptStatic(
 				return false;
 			}
 			mounted.children = children;
+			mounted = activateAdoptedEnhancements(root, mounted);
 			refreshComponentRoot(instance);
 			instance.markMounted();
 			root.mounted = mounted;
@@ -124,11 +131,12 @@ export function adoptComponentRoot(
 		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
 		onUnsafeHtml: options.onUnsafeHtml,
 		logger: options.logger,
+		enhancementCatalog: options.enhancementCatalog,
 		mode: 'hydrated'
 	};
 	root.boundary = createRootBoundary(root);
 	const scope = createEffectScope();
-	const mounted: Mounted = { vnode, dom: markers.start, end: markers.end, scope, children: [] };
+	let mounted: Mounted = { vnode, dom: markers.start, end: markers.end, scope, children: [] };
 	try {
 		return withDomWork(root, () => {
 			countDomWork(root);
@@ -152,6 +160,7 @@ export function adoptComponentRoot(
 				return false;
 			}
 			mounted.children = children;
+			mounted = activateAdoptedEnhancements(root, mounted);
 			refreshComponentRoot(instance);
 			instance.markMounted();
 			root.mounted = mounted;
@@ -197,12 +206,13 @@ export function adoptMarkerlessComponentRoot(
 		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
 		onUnsafeHtml: options.onUnsafeHtml,
 		logger: options.logger,
+		enhancementCatalog: options.enhancementCatalog,
 		mode: 'hydrated',
 		markerlessHydration: true
 	};
 	root.boundary = createRootBoundary(root);
 	const scope = createEffectScope();
-	const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
+	let mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
 	try {
 		return withDomWork(root, () => {
 			countDomWork(root);
@@ -226,6 +236,7 @@ export function adoptMarkerlessComponentRoot(
 				throw new Error('markerless root children did not adopt');
 			}
 			mounted.children = children;
+			mounted = activateAdoptedEnhancements(root, mounted);
 			refreshComponentRoot(instance);
 			instance.markMounted();
 			root.mounted = mounted;
@@ -276,13 +287,14 @@ export function adoptDocumentRoot(
 		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
 		onUnsafeHtml: options.onUnsafeHtml,
 		logger: options.logger,
+		enhancementCatalog: options.enhancementCatalog,
 		mode: 'document',
 		markerlessHydration: true
 	};
 	root.boundary = createRootBoundary(root);
 	const scope = createEffectScope();
 	const boundaryVNode = createVNode(root.boundary, { version: root.version });
-	const mounted: Mounted = { vnode: boundaryVNode, dom: start, end, scope, children: [] };
+	let mounted: Mounted = { vnode: boundaryVNode, dom: start, end, scope, children: [] };
 	try {
 		return withDomWork(root, () => {
 			countDomWork(root);
@@ -300,6 +312,7 @@ export function adoptDocumentRoot(
 				return false;
 			}
 			mounted.children = children;
+			mounted = activateAdoptedEnhancements(root, mounted);
 			refreshComponentRoot(instance);
 			instance.markMounted();
 			root.mounted = mounted;
@@ -318,4 +331,18 @@ export function adoptDocumentRoot(
 			end.remove();
 		}
 	}
+}
+
+/** Activates compiler-carried declarations after their authored DOM has been adopted. */
+function activateAdoptedEnhancements(root: Root, mounted: Mounted): Mounted {
+	installEnhancementReconciliation(root, (vnode, instance, scope, node) =>
+		mount(root, vnode, instance, scope, node, false)
+	);
+	return activateEnhancementSubtree(
+		root,
+		mounted,
+		undefined,
+		undefined,
+		(vnode, instance, scope, node) => mount(root, vnode, instance, scope, node, false)
+	);
 }

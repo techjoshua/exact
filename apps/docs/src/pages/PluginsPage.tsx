@@ -96,8 +96,9 @@ export function PluginsPage(this: Component<{}>) {
 				</p>
 				<p>
 					The Vite adapter links compiler-emitted module fragments into a bundle-local DOM catalog and
-					passes it into each renderer root.
-					Low-level callers can still provide an explicit catalog when constructing a host directly.
+					passes it into each renderer root. Hydration adopts authored DOM before activating that same
+					catalog. Low-level renderer and component-test callers can provide the bundle-local catalog
+					explicitly.
 				</p>
 				<p>
 					The reserved <code>namespace:root</code> member reactively selects the first matching

@@ -107,7 +107,9 @@ import without consulting a plugin registry because a library cannot know the fi
 bundle policy. The application build either includes that package capability or does not; bundling
 the package is the activation trust decision. Vite links compiler-emitted module fragments into a
 bundle-local generated catalog and supplies it to each renderer root through ordinary render
-options. Callers that provide an explicit catalog retain control.
+options. Hydration adopts the authored DOM before activating the same catalog, so transparent
+enhancements preserve server node identity. Low-level renderer and component-test callers can
+provide the bundle-local catalog explicitly.
 
 Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
