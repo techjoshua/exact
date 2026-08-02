@@ -2,7 +2,11 @@
 
 ## Status
 
-Proposed. `@exactjs/gestures` does not exist yet.
+Implemented. `@exactjs/gestures` provides immutable prepared press, hover, drag, pan, pinch, and
+keyboard definitions; deterministic priority arbitration; bounded move delivery; component-owned
+cancelable sessions; transparent attributed enhancement activation; inherited policy; presets;
+and a deterministic testing clock. Optional cross-package convenience adapters remain deferred and
+the base package has no dependency on motion, physics, or gravity.
 
 This proposal depends on the ordinary plugin-component enhancement ABI in
 [`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md). It

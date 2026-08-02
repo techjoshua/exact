@@ -59,9 +59,10 @@ responsible for a focusable target, an accurate accessible name, and any control
 ## Plugin-owned JSX
 
 The canonical namespace accepts `apply`, `press`, `hover`, `drag`, `pan`, `pinch`, and `disabled`.
-The shared compiler and renderer already carry grouped markers and ordinary transparent plugin
-components. Generated plugin-host capability catalogs are still being connected, so use explicit
-`GestureElement` when the behavior is required by the current application build.
+The shared compiler and renderer carry grouped markers and ordinary transparent plugin components.
+Vite includes reached attributed capabilities in its bundle-local catalog and supplies them to
+DOM, hydration, and SSR. Continue to use explicit `GestureElement` when gesture behavior is required
+rather than optional enhancement.
 
 `@exactjs/gestures/testing` provides an injectable monotonic clock for deterministic thresholds,
 velocity, long press, and cancellation tests.

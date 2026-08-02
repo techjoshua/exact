@@ -52,9 +52,9 @@ export function GesturesPluginPage(this: Component<{}>) {
 				<h2>Make required behavior explicit</h2>
 				<CodeBlock source={usageSource} language="tsx" title="MovableCard.tsx" />
 				<p>
-					Use the transparent explicit component when gesture behavior is functional. Optional
-					namespaced attributes remain safe enhancement when the generated capability host is
-					active.
+					Use the transparent explicit component when gesture behavior is functional. Vite bundles
+					reached attributed capabilities for optional namespaced enhancement across DOM, hydration,
+					and SSR.
 				</p>
 			</section>
 			<section>

@@ -43,17 +43,19 @@ describe('@exactjs/hydrate adoption', () => {
 				);
 		}
 		const root = document.createElement('div');
-		root.innerHTML = renderToString(createVNode(Page, null)).html;
+		const enhancementCatalog = new Map([[identity, Enhancement]]);
+		root.innerHTML = renderToString(createVNode(Page, null), { enhancementCatalog }).html;
 		const serverNode = root.querySelector('button')!;
 
 		hydrate(createVNode(Page, null), root, {
 			logger: noopLogger,
-			enhancementCatalog: new Map([[identity, Enhancement]])
+			enhancementCatalog
 		});
 
 		expect(root.querySelector('button')).toBe(serverNode);
-		expect(roots).toHaveLength(1);
-		expect(roots[0]?.current).toBe(serverNode);
+		expect(roots).toHaveLength(2);
+		expect(roots[0]?.current).toBeUndefined();
+		expect(roots[1]?.current).toBe(serverNode);
 	});
 
 	it('preserves dirty form state entered before hydration', () => {

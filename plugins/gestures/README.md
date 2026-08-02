@@ -31,6 +31,6 @@ The package normalizes pointer, hover, focus, keyboard, and pinch input into imm
 samples. Sessions own pointer capture, temporary policy, cancellation, coalesced move delivery, and
 cleanup. They do not own animation, simulation, or application data.
 
-Use the explicit transparent `GestureElement` when recognition is functionally required and the
-normal plugin host is unavailable. See [gestures](../../docs/gestures.md) for the complete current
-surface.
+Use the explicit transparent `GestureElement` when recognition is functionally required. Vite
+activates reached attributed imports through the application bundle's local enhancement catalog.
+See [gestures](../../docs/gestures.md) for the complete current surface.

@@ -2,14 +2,15 @@
 
 ## Status
 
-Implementation in progress. Stable generic refs and root releases, grouped reactive markers,
+Implemented for the current Vite, DOM, SSR, hydration, and component-test hosts. Stable generic
+refs and root releases, grouped reactive markers,
 compile-only attributed value imports, checker-derived finite prop schemas and diagnostics,
 single-pass logical target discovery, reactive root rerouting, prop merging, transparent or
 structural ordinary component activation, target-bound lifetime, inert unavailable behavior,
 warning deduplication, bundle-local Vite catalog carriage, SSR activation, hydration adoption, and
-component-test host propagation exist. Native compiler emission of context-effect metadata and
-remaining coordinated non-DOM hosts remain. Compilerless package components can
-already attach the same generic context-token contract explicitly.
+component-test host propagation exist. Compilerless package components attach the same generic
+context-token ordering contract explicitly. Non-Vite adapters still require equivalent catalog
+facades before they provide the same automatic bundle integration.
 
 ## Decision summary
 

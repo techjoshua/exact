@@ -298,6 +298,8 @@ export type SsrContext = {
 		ComponentFunction<any, Record<string, unknown>>
 	>;
 	unavailableEnhancements: Set<string>;
+	/** Generated ordinary component vnodes whose internal SSR boundary is not authored hydration data. */
+	enhancementVNodes: WeakSet<VNode>;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;

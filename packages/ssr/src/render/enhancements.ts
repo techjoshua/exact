@@ -25,7 +25,7 @@ export function activateSsrEnhancements(context: SsrContext, vnode: VNode): VNod
 	for (let index = ordered.length - 1; index >= 0; index--) {
 		const entry = ordered[index]!;
 		const component = context.enhancementCatalog!.get(entry.identity)!;
-		chain = pluginVNode(component, entry, chain, leaf.domain);
+		chain = pluginVNode(context, component, entry, chain, leaf.domain);
 	}
 	return chain;
 }
@@ -35,13 +35,16 @@ function routingOnlyEntry(entry: EnhancementEntry): boolean {
 }
 
 function pluginVNode(
+	context: SsrContext,
 	component: ComponentFunction<any, Record<string, unknown>>,
 	entry: EnhancementEntry,
 	child: VNode,
 	domain: VNode['domain']
 ): VNode {
 	const vnode = createVNode(component, { ...entry.props }, child);
-	return domain ? { ...vnode, domain } : vnode;
+	const owned = domain ? { ...vnode, domain } : vnode;
+	context.enhancementVNodes.add(owned);
+	return owned;
 }
 
 function withoutEnhancements(vnode: VNode): VNode {

@@ -46,7 +46,8 @@ unmounting. It disposes a world it creates from `options`, but only pauses a sup
 target, and replacing configuration reuses the durable component-owned controller.
 
 Use the explicit component when DOM attachment is required. The optional `physics:*` namespace is
-safe enhancement and can remain inactive when a host does not advertise the capability.
+activated when the final application bundle includes the attributed capability and remains inert
+when it does not.
 
 ## Projection channels
 

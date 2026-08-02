@@ -142,13 +142,60 @@ describe('GestureElement', () => {
 		});
 		target.dispatchEvent(pointer('pointerup', 1, 9, 0));
 	});
+
+	it('normalizes focus hover intent and completes one two-pointer pinch', async () => {
+		const hover: string[] = [];
+		const pinch: Array<{ phase: string; scale: number }> = [];
+		const container = document.createElement('div');
+		containers.push(container);
+		render(
+			createVNode(
+				GestureElement,
+				{
+					apply: defineGesture({
+						hover: {
+							onStart: (sample) => hover.push(`start:${sample.pointerType}`),
+							onEnd: (sample) => hover.push(`end:${sample.pointerType}`)
+						},
+						pinch: {
+							threshold: 0,
+							onStart: (sample) => pinch.push({ phase: sample.phase, scale: sample.scale }),
+							onMove: (sample) => pinch.push({ phase: sample.phase, scale: sample.scale }),
+							onEnd: (sample) => pinch.push({ phase: sample.phase, scale: sample.scale })
+						}
+					})
+				},
+				createVNode('div', { tabIndex: 0 }, 'Surface')
+			),
+			container
+		);
+		const target = container.querySelector('div')!;
+		target.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+		target.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+		target.dispatchEvent(pointer('pointerdown', 1, 0, 0, 'touch'));
+		target.dispatchEvent(pointer('pointerdown', 2, 10, 0, 'touch'));
+		target.dispatchEvent(pointer('pointermove', 2, 20, 0, 'touch'));
+		target.dispatchEvent(pointer('pointerup', 2, 20, 0, 'touch'));
+		target.dispatchEvent(pointer('pointerup', 1, 0, 0, 'touch'));
+		await settle();
+
+		expect(hover).toEqual(['start:keyboard', 'end:keyboard']);
+		expect(pinch.map((sample) => sample.phase)).toEqual(['start', 'move', 'end']);
+		expect(pinch[1]?.scale).toBe(2);
+	});
 });
 
-function pointer(type: string, pointerId: number, clientX: number, clientY: number): Event {
+function pointer(
+	type: string,
+	pointerId: number,
+	clientX: number,
+	clientY: number,
+	pointerType = 'mouse'
+): Event {
 	const event = new Event(type, { bubbles: true, cancelable: true });
 	Object.defineProperties(event, {
 		pointerId: { value: pointerId },
-		pointerType: { value: 'mouse' },
+		pointerType: { value: pointerType },
 		clientX: { value: clientX },
 		clientY: { value: clientY }
 	});

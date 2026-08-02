@@ -179,6 +179,7 @@ export function* renderVNodeChunks(
 	if (vnode.type === ServerSlot) return;
 	if (typeof vnode.type === 'function') {
 		const componentId = componentMarkerId(context, vnode);
+		const enhancement = context.enhancementVNodes.has(vnode);
 		let childParent = parent;
 		let children: Child[];
 		let componentProps: Record<string, unknown> = {};
@@ -206,7 +207,9 @@ export function* renderVNodeChunks(
 			for (const child of children)
 				yield* renderChildChunks(context, child, childParent, depth + 1);
 		};
-		if (context.documentProbe && context.hostStack.length === 0) {
+		if (enhancement) {
+			yield* rendered();
+		} else if (context.documentProbe && context.hostStack.length === 0) {
 			yield* renderRootComponentChunks(context, componentId, rendered());
 		} else if (
 			parent &&

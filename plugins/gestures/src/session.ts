@@ -62,6 +62,7 @@ export class GestureSession implements Disposable {
 		center: Point;
 		started: boolean;
 	};
+	#pinchCompleted = false;
 	#startedAt = 0;
 	#abort = new AbortController();
 	#sessionExecution?: TaskFrameExecution<void>;
@@ -222,6 +223,8 @@ export class GestureSession implements Disposable {
 		pointer.last = this.#point(event);
 		if (this.#pinch) {
 			this.#invoke('pinch', this.#pinch.recognizer.onEnd, this.#pinchSample('end', event));
+			this.#pinch = undefined;
+			this.#pinchCompleted = true;
 		} else if (this.#active.length) {
 			for (const active of this.#active) {
 				this.#invoke(
@@ -230,7 +233,7 @@ export class GestureSession implements Disposable {
 					this.#sample('end', pointer.last, pointer, event, pointer, active.axis)
 				);
 			}
-		} else {
+		} else if (!this.#pinchCompleted) {
 			const press = this.#recognizers().press;
 			const threshold = press?.threshold ?? this.#configuration?.settings.pressThreshold ?? 6;
 			const delay = press?.delay ?? 0;
@@ -347,6 +350,7 @@ export class GestureSession implements Disposable {
 		this.#pointers.clear();
 		this.#active = [];
 		this.#pinch = undefined;
+		this.#pinchCompleted = false;
 		this.#sessionFrame = undefined;
 		this.#settleSession = undefined;
 		this.#pendingMoves.clear();

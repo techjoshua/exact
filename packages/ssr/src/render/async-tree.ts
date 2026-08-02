@@ -284,6 +284,7 @@ export function renderComponent(
 	parent?: ComponentInstance<any>
 ): string {
 	const componentId = componentMarkerId(context, vnode);
+	const enhancement = context.enhancementVNodes.has(vnode);
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	let instance: ComponentInstance<any> | undefined;
 	let output!: string;
@@ -309,7 +310,9 @@ export function renderComponent(
 			flushSync();
 			if (!invalidated) {
 				output =
-					documentProbe && context.documentRootSeen
+					enhancement
+						? html
+						: documentProbe && context.documentRootSeen
 						? html
 						: parent
 							? renderResumableComponentBoundary(context, vnode, componentId, html, componentProps)
@@ -325,7 +328,9 @@ export function renderComponent(
 		const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
 		const html = fallback ? renderChildren(context, normalizeRenderResult(fallback()), parent) : '';
 		output =
-			documentProbe && context.documentRootSeen
+			enhancement
+				? html
+				: documentProbe && context.documentRootSeen
 				? html
 				: markerPair(context, componentId, () => html);
 	}
@@ -341,6 +346,7 @@ export async function renderComponentAsync(
 	options: SsrRenderOptions
 ): Promise<string> {
 	const componentId = componentMarkerId(context, vnode);
+	const enhancement = context.enhancementVNodes.has(vnode);
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	let instance: ComponentInstance<any> | undefined;
 	let primary: unknown = noPrimaryFailure;
@@ -379,7 +385,9 @@ export async function renderComponentAsync(
 				await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
 				flushSync();
 				if (!invalidated)
-					return documentProbe && context.documentRootSeen
+					return enhancement
+						? html
+						: documentProbe && context.documentRootSeen
 						? html
 						: parent
 							? renderResumableComponentBoundary(context, vnode, componentId, html, componentProps)
@@ -394,7 +402,9 @@ export async function renderComponentAsync(
 			const html = fallback
 				? await renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options)
 				: '';
-			return documentProbe && context.documentRootSeen
+			return enhancement
+				? html
+				: documentProbe && context.documentRootSeen
 				? html
 				: markerPair(context, componentId, () => html);
 		}
