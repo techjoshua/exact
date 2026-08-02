@@ -42,6 +42,7 @@ function PluginPlayground(this: Component<{ shown: boolean }>) {
 	let dragOrigin = { x: 0, y: 0 };
 	const directManipulation = defineGesture({
 		name: 'orb-direct-manipulation',
+		semantics: 'control',
 		drag: {
 			threshold: 2,
 			onStart() {
