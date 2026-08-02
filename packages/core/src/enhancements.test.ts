@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEnhancementMarker } from './enhancements.js';
+import { createEnhancementMarker, omitKnownProps } from './enhancements.js';
 import { createVNode } from './vnode.js';
 
 describe('renderer enhancement markers', () => {
@@ -28,5 +28,11 @@ describe('renderer enhancement markers', () => {
 				{ identity: 'plugin#value', props: {} }
 			])
 		).toThrow('Duplicate enhancement identity');
+	});
+
+	it('omits only compiler-proven keys without changing the source object', () => {
+		const source = { id: 'card', 'motion:apply': 'fade', title: 'Card' };
+		expect(omitKnownProps(source, ['motion:apply'])).toEqual({ id: 'card', title: 'Card' });
+		expect(source['motion:apply']).toBe('fade');
 	});
 });

@@ -16,7 +16,19 @@ type enhancementBinding struct {
 type enhancementImports struct {
 	bindings     map[string]enhancementBinding
 	declarations map[int]struct{}
+	spreads      map[int]enhancementSpread
 	diagnostics  []Diagnostic
+}
+
+type enhancementSpreadMember struct {
+	identity string
+	prop     string
+	source   string
+}
+
+type enhancementSpread struct {
+	members []enhancementSpreadMember
+	keys    []string
 }
 
 func collectEnhancementImports(
@@ -26,6 +38,7 @@ func collectEnhancementImports(
 	result := enhancementImports{
 		bindings:     make(map[string]enhancementBinding),
 		declarations: make(map[int]struct{}),
+		spreads:      make(map[int]enhancementSpread),
 	}
 	ordinaryBindings := make(map[string]struct{})
 	for _, statement := range sourceFile.Statements.Nodes {
@@ -108,7 +121,107 @@ func collectEnhancementImports(
 		}
 	}
 	collectEnhancementAttributeDiagnostics(sourceFile, &result, ordinaryBindings)
+	collectEnhancementSpreadDiagnostics(sourceFile, typeChecker, &result, ordinaryBindings)
 	return result
+}
+
+func collectEnhancementSpreadDiagnostics(
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	imports *enhancementImports,
+	ordinaryBindings map[string]struct{},
+) {
+	if typeChecker == nil || len(imports.bindings) == 0 {
+		return
+	}
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsJsxSpreadAttribute(node) {
+			return true
+		}
+		expression := node.AsJsxSpreadAttribute().Expression
+		spreadType := typeChecker.GetTypeAtLocation(expression)
+		plan := enhancementSpread{}
+		seen := make(map[string]struct{})
+		open := false
+		for _, memberType := range spreadType.Distributed() {
+			open = open || len(typeChecker.GetIndexInfosOfType(memberType)) != 0
+			for _, property := range typeChecker.GetPropertiesOfType(memberType) {
+				source := ast.SymbolName(property)
+				prefix, member, namespaced := strings.Cut(source, ":")
+				if !namespaced {
+					continue
+				}
+				binding, attributed := imports.bindings[prefix]
+				if !attributed {
+					if _, imported := ordinaryBindings[prefix]; imported {
+						imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
+							sourceFile,
+							node,
+							"EXACT6005",
+							fmt.Sprintf("JSX plugin prefix %q requires an import with { type: 'exact-plugin' }", prefix),
+						))
+					}
+					continue
+				}
+				if member == "root" {
+					if _, exists := seen[source]; !exists {
+						plan.members = append(plan.members, enhancementSpreadMember{
+							identity: binding.identity,
+							prop:     "__exactRoot",
+							source:   source,
+						})
+						plan.keys = append(plan.keys, source)
+						seen[source] = struct{}{}
+					}
+					continue
+				}
+				prop, exists := binding.members[member]
+				if !exists {
+					code := "EXACT6007"
+					message := fmt.Sprintf("unknown %s prop %q", binding.identity, member)
+					if member == "children" || member == "key" || member == "ref" {
+						code = "EXACT6006"
+						message = fmt.Sprintf("%s is reserved and cannot be a plugin prop", source)
+					}
+					imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
+						sourceFile, node, code, message,
+					))
+					continue
+				}
+				if _, exists := seen[source]; exists {
+					continue
+				}
+				plan.members = append(plan.members, enhancementSpreadMember{
+					identity: binding.identity,
+					prop:     prop,
+					source:   source,
+				})
+				plan.keys = append(plan.keys, source)
+				seen[source] = struct{}{}
+			}
+		}
+		if open {
+			imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
+				sourceFile,
+				node,
+				"EXACT6008",
+				"JSX spreads in a plugin-enabled module require a statically finite key space",
+			))
+		}
+		if len(plan.members) != 0 {
+			if !ast.IsIdentifier(expression) && !ast.IsPropertyAccessExpression(expression) {
+				imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
+					sourceFile,
+					node,
+					"EXACT6009",
+					"enhancement-bearing JSX spreads require a stable setup-derived binding",
+				))
+			} else {
+				imports.spreads[node.Pos()] = plan
+			}
+		}
+		return true
+	})
 }
 
 func resolveEnhancementBinding(

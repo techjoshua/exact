@@ -6370,4 +6370,54 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 	if !containsDiagnosticCode(nonComponent.Diagnostics, "EXACT6004") {
 		t.Fatalf("non-component plugin capability was accepted: %#v", nonComponent.Diagnostics)
 	}
+	openSpread := compile(`import { motion } from "./enhancements.js" with { type: "exact-plugin" }; const props: Record<string, unknown> = {}; export const view = <div {...props} />;`)
+	if !containsDiagnosticCode(openSpread.Diagnostics, "EXACT6008") {
+		t.Fatalf("open plugin spread key space was accepted: %#v", openSpread.Diagnostics)
+	}
+}
+
+func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	componentFile := filepath.Join(root, "motion.ts")
+	entrySource := `
+		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		const effects = { "motion:layout-id": "card", "motion:disabled": false, title: "Card" };
+		export const view = <article {...effects} />;
+	`
+	for filename, source := range map[string]string{
+		configFile:    `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:     entrySource,
+		componentFile: `export function motion(props: { layoutId?: string; disabled?: boolean; children?: unknown }) { return props.children; }`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession(nil).Execute(Request{
+		ID:         entryFile,
+		Kind:       "compile",
+		Source:     entrySource,
+		ConfigFile: configFile,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("finite plugin spread produced an error: %#v", response.Diagnostics)
+		}
+	}
+	for _, expected := range []string{
+		"omitKnownProps",
+		"createEnhancementMarker",
+		"layoutId:",
+		"disabled:",
+		`title: "Card"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("finite plugin spread omitted %q:\n%s", expected, response.Code)
+		}
+	}
 }

@@ -58,6 +58,7 @@ type jsxRuntimeNames struct {
 	collectionMutation     string
 	componentRegistry      string
 	enhancements           string
+	omitEnhancementProps   string
 	interop                string
 }
 
@@ -1321,6 +1322,37 @@ func (lowering *jsxLowering) propsWithReactivity(
 			}
 			if ast.IsJsxSpreadAttribute(property) {
 				expression := property.AsJsxSpreadAttribute().Expression
+				if plan, exists := lowering.enhancementImports.spreads[property.Pos()]; exists {
+					visited := lowering.visitor.VisitNode(expression)
+					keys := make([]*ast.Node, 0, len(plan.keys))
+					for _, key := range plan.keys {
+						keys = append(keys, lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone))
+					}
+					properties = append(properties, lowering.factory.NewSpreadAssignment(
+						lowering.call(lowering.names.omitEnhancementProps, []*ast.Node{
+							visited,
+							lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(keys), false),
+						}),
+					))
+					for _, member := range plan.members {
+						if _, grouped := enhancementEntries[member.identity]; !grouped {
+							enhancementOrder = append(enhancementOrder, member.identity)
+							enhancementEntries[member.identity] = []*ast.Node{}
+						}
+						value := lowering.factory.NewElementAccessExpression(
+							lowering.visitor.VisitNode(expression),
+							nil,
+							lowering.factory.NewStringLiteral(member.source, ast.TokenFlagsNone),
+							ast.NodeFlagsNone,
+						)
+						value = lowering.reactiveExpression(expression, value)
+						enhancementEntries[member.identity] = append(
+							enhancementEntries[member.identity],
+							lowering.property(lowering.factory.NewIdentifier(member.prop), value),
+						)
+					}
+					continue
+				}
 				properties = append(
 					properties,
 					lowering.factory.NewSpreadAssignment(
@@ -5678,6 +5710,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		{"mutateReactiveCollection", lowering.names.collectionMutation},
 		{"createCompiledComponentRegistry", lowering.names.componentRegistry},
 		{"createEnhancementMarker", lowering.names.enhancements},
+		{"omitKnownProps", lowering.names.omitEnhancementProps},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -5876,6 +5909,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		collectionMutation:     allocate("__exactCollectionMutation"),
 		componentRegistry:      allocate("__exactComponentRegistry"),
 		enhancements:           allocate("__exactEnhancements"),
+		omitEnhancementProps:   allocate("__exactOmitEnhancementProps"),
 		interop:                allocate("__exactInteropComponent"),
 	}
 }

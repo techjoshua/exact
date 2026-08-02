@@ -16,3 +16,13 @@ export function createEnhancementMarker(entries: readonly EnhancementEntry[]): E
 	});
 	return Object.freeze({ entries: Object.freeze(normalized) });
 }
+
+/** Copies an object while omitting a compiler-proven finite set of namespaced enhancement keys. */
+export function omitKnownProps(
+	value: Readonly<Record<PropertyKey, unknown>>,
+	keys: readonly PropertyKey[]
+): Record<PropertyKey, unknown> {
+	const result = { ...value };
+	for (const key of keys) delete result[key];
+	return result;
+}

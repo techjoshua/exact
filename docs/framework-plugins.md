@@ -102,6 +102,10 @@ non-component values, open prop dictionaries, unknown members, and reserved memb
 diagnostics. Active renderer roots instantiate the mapped value as an ordinary inspectable
 component; unavailable capabilities leave the intrinsic target unchanged and warn once.
 
+Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
+the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
+their reads reactive. Open dictionaries and effectful inline enhancement spreads are diagnostics.
+
 ## Current limitations
 
 - Vite has the most complete automatic integration.

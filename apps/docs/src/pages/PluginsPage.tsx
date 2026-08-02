@@ -85,7 +85,8 @@ export function PluginsPage(this: Component<{}>) {
 				<p>
 					An attributed value import establishes only the local prefix. The compiler derives a
 					finite canonical prop schema, rejects unknown and reserved members, and emits one grouped
-					reactive marker. An active trusted host mounts an ordinary inspectable component; an
+					reactive marker. Statically finite setup-derived spreads are partitioned without runtime
+					prefix scanning. An active trusted host mounts an ordinary inspectable component; an
 					unavailable optional enhancement leaves the target unchanged.
 				</p>
 			</section>
