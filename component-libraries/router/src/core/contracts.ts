@@ -16,6 +16,13 @@ export type NavigationOptions = {
 	state?: unknown;
 	status?: number;
 };
+/** Metadata supplied around one accepted navigation publication. */
+export type NavigationPublicationMetadata = Readonly<{
+	historyAction: HistoryAction;
+	from: RouteLocation;
+	to: RouteLocation;
+	transitionId: number;
+}>;
 /** Defines the route match type contract. */
 export type RouteMatch<Route = ExactRouteDefinition> = {
 	id: string;
@@ -156,6 +163,8 @@ export type CreateExactRouterOptions<Route extends ExactRouteDefinition> = {
 	mode?: RouterMode;
 	context?: unknown;
 	hydrationData?: ExactHydrationData;
+	publication?: FrameworkPublicationCoordinator<NavigationPublicationMetadata>;
 };
 
 /** Creates the framework-neutral router state machine for a route tree. */
+import type { FrameworkPublicationCoordinator } from '@exactjs/core/framework/publication';

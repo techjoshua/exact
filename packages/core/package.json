@@ -31,6 +31,10 @@
 		"./framework/component-roots": {
 			"types": "./dist/framework/component-roots.d.ts",
 			"default": "./dist/framework/component-roots.js"
+		},
+		"./framework/publication": {
+			"types": "./dist/framework/publication.d.ts",
+			"default": "./dist/framework/publication.js"
 		}
 	},
 	"main": "./dist/index.js",
