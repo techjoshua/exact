@@ -159,6 +159,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 
 		expect(root.current).toBe(container.querySelector('button'));
 		expect(root.generation).toBe(1);
+		expect(root.introduction).toBe('initial');
 		expect(root.presented).toBe(true);
 
 		instance.state.link = true;
@@ -166,6 +167,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 
 		expect(root.current).toBe(container.querySelector('a'));
 		expect(root.generation).toBe(2);
+		expect(root.introduction).toBe('update');
 	});
 
 	it('lets an element ref explicitly select a component root', () => {
@@ -309,6 +311,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 		expect(container.querySelector('button')).toBe(button);
 		expect(childRoot.current).toBe(button);
 		expect(childRoot.generation).toBe(1);
+		expect(childRoot.introduction).toBe('initial');
 		expect(childRoot.release).toBeUndefined();
 	});
 

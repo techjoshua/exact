@@ -130,6 +130,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 			);
 			flushSync();
 		});
+		root.initialCommitComplete = true;
 	} finally {
 		if (profileStarted !== undefined) {
 			root.onProfile?.(

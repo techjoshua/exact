@@ -125,6 +125,7 @@ export type {
 	RefKey,
 	RefRegistry,
 	RootBinding,
+	RootIntroduction,
 	RootLifecycle,
 	RootRelease,
 	StructuralReleaseReason,

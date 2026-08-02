@@ -440,6 +440,7 @@ interface RefBinding<T> extends RefValue<T> {
 
 interface RootLifecycle<T extends Element> extends RefValue<T> {
 	readonly generation: number;
+	readonly introduction: 'initial' | 'hydration' | 'update' | undefined;
 	readonly presented: boolean;
 	readonly release: RootRelease<T> | undefined;
 }
@@ -473,6 +474,11 @@ lifecycle.
 logical range, not CSS visibility. Suspense candidates and precommit hydration
 may be fulfilled but unpresented. Activity parking changes presentation without
 clearing or releasing the ref.
+
+`introduction` classifies the commit that first published the current root
+generation. Initial client rendering and hydration adoption are distinct from
+a root introduced by a later update. Exact release reversal restores the same
+generation and introduction rather than pretending that retained DOM is new.
 
 ### Release and reasons
 
@@ -549,12 +555,12 @@ is not an authored registry or a process-global component map.
 
 The outcomes are:
 
-| Resolution                                                    | Behavior                                                                  |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Component included in the application bundle             | Instantiate the ordinary plugin component.                                |
-| Capability absent from the server bundle                  | Render unchanged and warn once per canonical identity and server host.    |
-| Capability absent from the client bundle                  | Render unchanged and warn once per canonical identity and client runtime. |
-| Bundled export is missing or not a component              | Fail the build or generated catalog initialization.                       |
+| Resolution                                   | Behavior                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| Component included in the application bundle | Instantiate the ordinary plugin component.                                |
+| Capability absent from the server bundle     | Render unchanged and warn once per canonical identity and server host.    |
+| Capability absent from the client bundle     | Render unchanged and warn once per canonical identity and client runtime. |
+| Bundled export is missing or not a component | Fail the build or generated catalog initialization.                       |
 
 Server warnings use the existing logger and never include prop values. No
 server trust list or ignored-package policy is serialized to the client. No

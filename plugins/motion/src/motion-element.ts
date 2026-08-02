@@ -33,7 +33,7 @@ export const MotionElement = markExactComponent(function MotionElement(
 		: undefined;
 	let changePlayback: MotionPlayback | undefined;
 	let leavePlayback: MotionPlayback | undefined;
-	let appeared = false;
+	let observedGeneration = 0;
 	const semanticOwner = Symbol('motion.element-presence');
 	let semanticTarget: Element | undefined;
 	const layoutIdentity = Symbol('motion.layout-participant');
@@ -54,10 +54,13 @@ export const MotionElement = markExactComponent(function MotionElement(
 	watch(() => {
 		const element = root.current;
 		if (!element || !root.presented) return;
-		const entering = !appeared;
+		const entering = root.generation !== observedGeneration;
 		const phase = entering ? resolvePhase(props, 'enter') : resolvePhase(props, 'change');
-		const shouldAppear = presenceEnter?.entering || (props.appear ?? settings.appear);
-		appeared = true;
+		const shouldAppear =
+			root.introduction === 'update' ||
+			presenceEnter?.entering === true ||
+			(props.appear ?? settings.appear);
+		observedGeneration = root.generation;
 		if (entering && !shouldAppear) return;
 		changePlayback?.cancel('motion-superseded');
 		changePlayback = play(element, phase, entering ? 'enter' : 'change', props.apply, settings);

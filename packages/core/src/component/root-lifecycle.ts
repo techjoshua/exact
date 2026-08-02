@@ -4,6 +4,7 @@ import type {
 	RefBinding,
 	RootBinding,
 	RootLifecycle,
+	RootIntroduction,
 	RootRelease,
 	StructuralReleaseReason
 } from './contracts.js';
@@ -11,6 +12,7 @@ import type {
 type RootState = {
 	current: object | undefined;
 	generation: number;
+	introduction: RootIntroduction | undefined;
 	presented: boolean;
 	release: RootRelease<object> | undefined;
 };
@@ -51,6 +53,7 @@ export function bindComponentRoot<T extends object>(
 	const lifecycle = record.lifecycle;
 	const augmented = Object.defineProperties(binding, {
 		generation: { enumerable: true, get: () => lifecycle.generation },
+		introduction: { enumerable: true, get: () => lifecycle.introduction },
 		presented: { enumerable: true, get: () => lifecycle.presented },
 		release: { enumerable: true, get: () => lifecycle.release }
 	}) as RootBinding<T>;
@@ -62,13 +65,15 @@ export function bindComponentRoot<T extends object>(
 export function publishComponentRoot(
 	instance: ComponentInstance<any>,
 	discovered: object | undefined,
-	presented = true
+	presented = true,
+	introduction: RootIntroduction = 'update'
 ): void {
 	const record = rootRecord(instance);
 	const selected = record.explicit?.current ?? discovered;
 	if (record.state.current !== selected) {
 		record.state.current = selected;
 		record.state.generation++;
+		record.state.introduction = selected ? introduction : undefined;
 		record.state.release = undefined;
 	}
 	record.state.presented = selected !== undefined && presented;
@@ -136,6 +141,7 @@ export function disposeComponentRoot(instance: ComponentInstance<any>): void {
 	const record = componentRoots.get(instance);
 	if (record) {
 		record.state.current = undefined;
+		record.state.introduction = undefined;
 		record.state.presented = false;
 		record.state.release = undefined;
 	}
@@ -150,6 +156,7 @@ function rootRecord(instance: ComponentInstance<any>): ComponentRootRecord {
 		{
 			current: undefined,
 			generation: 0,
+			introduction: undefined,
 			presented: false,
 			release: undefined
 		} satisfies RootState,
@@ -161,6 +168,9 @@ function rootRecord(instance: ComponentInstance<any>): ComponentRootRecord {
 		},
 		get generation() {
 			return state.generation;
+		},
+		get introduction() {
+			return state.introduction;
 		},
 		get presented() {
 			return state.presented;

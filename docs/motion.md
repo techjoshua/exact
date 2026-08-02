@@ -50,6 +50,10 @@ frame. Infinite effects are rejected by this finite helper. When reduced motion 
 explicit `reduced` phase runs; without one, the visual work completes immediately while the same
 logical state transition and structural settlement continue.
 
+An enter phase runs automatically when a root is introduced by a later reactive update. Initial
+client rendering and hydration adoption skip enter by default; `appear` opts those generations in.
+Release reversal retains the original generation and does not replay enter.
+
 The client plugin entry installs a Web Animations driver. Importing the main package, definitions,
 or presets on a server does not read browser globals. `@exactjs/motion/testing` provides a
 deterministic injected driver whose playbacks settle only when the test advances them.

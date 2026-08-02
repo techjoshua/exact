@@ -285,10 +285,14 @@ export type RootRelease<T extends object> = {
 	readonly presented: boolean;
 };
 
+/** Renderer phase that first published the current intrinsic-root generation. */
+export type RootIntroduction = 'initial' | 'update' | 'hydration';
+
 /** Exposes the reactive intrinsic-root lifecycle for one component instance. */
 export type RootLifecycle<T extends object> = {
 	readonly current: T | undefined;
 	readonly generation: number;
+	readonly introduction: RootIntroduction | undefined;
 	readonly presented: boolean;
 	readonly release: RootRelease<T> | undefined;
 };

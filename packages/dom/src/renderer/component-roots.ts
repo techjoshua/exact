@@ -1,16 +1,31 @@
-import { Text, type ComponentInstance } from '@exactjs/core';
+import { Text, type ComponentInstance, type RootIntroduction } from '@exactjs/core';
 import {
 	disposeComponentRoot,
 	publishComponentRoot,
 	publishComponentRootPresentation
 } from '@exactjs/core/framework/component-roots';
 import { componentMounts } from '../state.js';
-import type { Mounted } from '../types.js';
+import type { Mounted, Root } from '../types.js';
 
 /** Publishes the first intrinsic element in the component's current logical output. */
-export function refreshComponentRoot(instance: ComponentInstance<any>, presented = true): void {
+export function refreshComponentRoot(
+	instance: ComponentInstance<any>,
+	presented = true,
+	introduction: RootIntroduction = 'update'
+): void {
 	const mounted = componentMounts.get(instance);
-	publishComponentRoot(instance, mounted ? firstHostElement(mounted) : undefined, presented);
+	publishComponentRoot(
+		instance,
+		mounted ? firstHostElement(mounted) : undefined,
+		presented,
+		introduction
+	);
+}
+
+/** Classifies a newly mounted component root without exposing renderer internals to components. */
+export function rootIntroduction(root: Root): RootIntroduction {
+	if (root.initialCommitComplete) return 'update';
+	return root.mode === 'hydrated' || root.mode === 'document' ? 'hydration' : 'initial';
 }
 
 /** Publishes retained-range presentation for a component and all of its descendants. */

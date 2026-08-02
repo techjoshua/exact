@@ -172,9 +172,9 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 				<p>
 					<code>this.refs.root()</code> observes the component&apos;s intrinsic root, generation,
-					presentation, and structural release. Work activated by a release is owned by the
-					renderer&apos;s release frame, allowing the old range to remain until attached tasks and
-					cleanup settle while still supporting exact-generation reversal.
+					introduction phase, presentation, and structural release. Work activated by a release is
+					owned by the renderer&apos;s release frame, allowing the old range to remain until
+					attached tasks and cleanup settle while still supporting exact-generation reversal.
 				</p>
 				<div className="definition-grid">
 					<code>this.state</code>
@@ -192,7 +192,7 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.refs</code>
 					<p>
 						Reads ref values and observes the component&apos;s intrinsic-root identity, generation,
-						and presentation.
+						introduction, and presentation.
 					</p>
 					<code>this.onMount()</code>
 					<p>Registers mounted work with an abort signal.</p>

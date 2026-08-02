@@ -1,12 +1,17 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementMarker } from '@exactjs/core';
+import { createEnhancementMarker, type Component } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
-import { createTestVNode as createVNode } from '@exactjs/testing/internal/fixtures';
+import { flushSync } from '@exactjs/reactive';
+import {
+	createTestVNode as createVNode,
+	markTestComponent
+} from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installMotionDriver } from './driver.js';
 import { MotionElement } from './motion-element.js';
+import { Motion } from './motion.js';
 import { fade } from './presets.js';
 import { createMotionTestDriver } from './testing.js';
 
@@ -62,6 +67,39 @@ describe('MotionElement', () => {
 			);
 			await settle();
 			expect(driver.playbacks).toHaveLength(1);
+			expect(driver.playbacks[0]?.effect.keyframes).toEqual(
+				(fade.enter as { keyframes: Keyframe[] }).keyframes
+			);
+		} finally {
+			restore();
+		}
+	});
+
+	it('plays enter for a root introduced by a later reactive update', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		let owner!: Component<{ shown: boolean }>;
+		const Scene = markTestComponent(function Scene(this: Component<{ shown: boolean }>) {
+			owner = this;
+			this.state.shown = false;
+			return () =>
+				this.state.shown
+					? createVNode(Motion, { as: 'button', motion: fade, children: 'Later' })
+					: null;
+		});
+		const container = document.createElement('div');
+		containers.push(container);
+		try {
+			render(createVNode(Scene, null), container);
+			expect(driver.playbacks).toHaveLength(0);
+
+			owner.state.shown = true;
+			flushSync();
+			await settle();
+
+			expect(container.textContent).toBe('Later');
+			expect(driver.playbacks).toHaveLength(1);
+			expect(driver.playbacks[0]?.element).toBe(container.querySelector('button'));
 			expect(driver.playbacks[0]?.effect.keyframes).toEqual(
 				(fade.enter as { keyframes: Keyframe[] }).keyframes
 			);

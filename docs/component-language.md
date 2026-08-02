@@ -688,8 +688,10 @@ element ownership through updates, hydration, and `Activity` parking. Calling
 claim DOM ownership or structural lifecycle behavior.
 
 `this.refs.root()` returns a stable reactive view of the component's first
-intrinsic root. Its `current`, `generation`, and `presented` fields follow root
-replacement and retained `Activity` ranges. Pass an element-valued binding to
+intrinsic root. Its `current`, `generation`, `introduction`, and `presented`
+fields follow root replacement and retained `Activity` ranges. `introduction`
+is `initial`, `hydration`, or `update` for the current generation and survives
+an exact release reversal. Pass an element-valued binding to
 `this.refs.root(binding)` when that ref, rather than the first intrinsic output,
 defines the component root. The binding must belong to the same component.
 

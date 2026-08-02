@@ -110,6 +110,8 @@ export type Root = {
 	reconcileEnhancements?: () => void;
 	/** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
 	mode?: 'client' | 'hydrated' | 'document';
+	/** Becomes true after the root's first client mount or hydration adoption finishes. */
+	initialCommitComplete?: boolean;
 	/** Component ranges are inferred when the public server format omits eXact markers. */
 	markerlessHydration?: boolean;
 	/** Renderer-internal mounts parked during one cross-domain replacement transaction. */

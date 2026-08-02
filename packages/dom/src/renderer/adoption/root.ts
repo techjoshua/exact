@@ -12,13 +12,10 @@ import {
 } from '../limits.js';
 import { rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
-import { refreshComponentRoot } from '../component-roots.js';
+import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
 import { createDomErrorContext, createRootBoundary } from '../root-support.js';
 import { unmountMounted } from '../teardown.js';
-import {
-	activateEnhancementSubtree,
-	installEnhancementReconciliation
-} from '../enhancements.js';
+import { activateEnhancementSubtree, installEnhancementReconciliation } from '../enhancements.js';
 import { mount } from '../mounting/root.js';
 import { adoptStaticChildren, boundaryMarkers, contentNodesBetween } from './boundaries.js';
 import { componentMarkerMatchesType } from './identity.js';
@@ -83,9 +80,10 @@ export function adoptStatic(
 			}
 			mounted.children = children;
 			mounted = activateAdoptedEnhancements(root, mounted);
-			refreshComponentRoot(instance);
+			refreshComponentRoot(instance, true, rootIntroduction(root));
 			instance.markMounted();
 			root.mounted = mounted;
+			root.initialCommitComplete = true;
 			roots.set(container, root);
 			return true;
 		});
@@ -161,9 +159,10 @@ export function adoptComponentRoot(
 			}
 			mounted.children = children;
 			mounted = activateAdoptedEnhancements(root, mounted);
-			refreshComponentRoot(instance);
+			refreshComponentRoot(instance, true, rootIntroduction(root));
 			instance.markMounted();
 			root.mounted = mounted;
+			root.initialCommitComplete = true;
 			roots.set(container, root);
 			return true;
 		});
@@ -237,9 +236,10 @@ export function adoptMarkerlessComponentRoot(
 			}
 			mounted.children = children;
 			mounted = activateAdoptedEnhancements(root, mounted);
-			refreshComponentRoot(instance);
+			refreshComponentRoot(instance, true, rootIntroduction(root));
 			instance.markMounted();
 			root.mounted = mounted;
+			root.initialCommitComplete = true;
 			roots.set(container, root);
 			return true;
 		});
@@ -313,9 +313,10 @@ export function adoptDocumentRoot(
 			}
 			mounted.children = children;
 			mounted = activateAdoptedEnhancements(root, mounted);
-			refreshComponentRoot(instance);
+			refreshComponentRoot(instance, true, rootIntroduction(root));
 			instance.markMounted();
 			root.mounted = mounted;
+			root.initialCommitComplete = true;
 			roots.set(container, root);
 			return true;
 		});

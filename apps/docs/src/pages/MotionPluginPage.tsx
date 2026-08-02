@@ -57,6 +57,10 @@ export function MotionPluginPage(this: Component<{}>) {
 					updates do not accidentally recreate visual policy. Reduced-motion policy uses an explicit
 					reduced phase or completes visual work immediately.
 				</p>
+				<p>
+					Later reactive insertions run enter automatically. Initial rendering and hydration skip it
+					unless <code>appear</code> opts in, and release reversal does not replay enter.
+				</p>
 			</section>
 			<section>
 				<h2>Coordinate conditional presence</h2>

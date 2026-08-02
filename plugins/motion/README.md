@@ -28,6 +28,9 @@ server does not access browser globals. Prepared and dynamically resolved effect
 non-finite timing. Reduced-motion policy uses an explicit reduced phase when supplied and otherwise
 completes visual work immediately.
 
+Later reactive insertions run their enter phase automatically. Initial client rendering and
+hydration adoption require `appear`, and exact release reversal does not replay enter.
+
 `createViewTransitionCoordinator()` can wrap a router or another framework publisher without
 introducing a dependency between motion and that publisher.
 

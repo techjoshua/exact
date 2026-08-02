@@ -954,6 +954,10 @@ different presence lifetime or ownership model.
 - Hydration adopts the existing element before installing observers.
 - Enter motion does not replay after hydration by default.
 - `appear` opts into one post-hydration entrance.
+- A root whose generic lifecycle reports `introduction: 'update'` runs enter
+  without requiring `appear`; initial and hydration introductions do not.
+- Exact release reversal preserves the prior generation and does not replay
+  enter.
 - Reduced-motion policy is resolved before `appear`.
 - A hydration mismatch is recovered by the renderer's existing range recovery,
   not by motion-specific DOM replacement.
