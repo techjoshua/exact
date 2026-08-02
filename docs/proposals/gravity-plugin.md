@@ -8,7 +8,7 @@ Activity-owned `GravityField`; transparent attributed `GravityElement`; determin
 physics ordering; host entries; tests; and documentation are available. Application-bundle catalog
 activation is shared across the Vite, Bun, and Webpack adapters.
 
-Gravity composes with the force-contributor contract proposed by
+Gravity composes with the force-contributor contract defined by
 [`physics`](physics-plugin.md) and uses the ordinary plugin-component
 enhancement ABI in
 [`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md). Its

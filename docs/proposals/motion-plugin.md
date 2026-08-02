@@ -17,7 +17,7 @@ This proposal depends on the current contracts in:
 - [`../ssr-hydration.md`](../ssr-hydration.md); and
 - [`unified-function-defined-tasks.md`](unified-function-defined-tasks.md).
 
-It also depends on the proposed generic extension contracts in
+It also depends on the implemented generic extension contracts in
 [`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md).
 It may compose with the independent [`gestures`](gestures-plugin.md),
 [`physics`](physics-plugin.md), and [`gravity`](gravity-plugin.md) proposals,

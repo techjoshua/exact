@@ -7,7 +7,7 @@ refs and root releases, grouped reactive markers,
 compile-only attributed value imports, checker-derived finite prop schemas and diagnostics,
 single-pass logical target discovery, reactive root rerouting, prop merging, transparent or
 structural ordinary component activation, target-bound lifetime, inert unavailable behavior,
-warning deduplication, bundle-local Vite catalog carriage, SSR activation, hydration adoption, and
+warning deduplication, application-bundle catalog carriage, SSR activation, hydration adoption, and
 component-test host propagation exist. SSR resolves the logical intrinsic target before activation
 and reuses materialized setup-once component work across sync, async, streaming, keyed-list,
 dynamic, and Suspense paths. Compilerless package components attach the same generic context-token
