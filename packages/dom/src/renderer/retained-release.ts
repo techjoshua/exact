@@ -26,6 +26,10 @@ export function releaseMountedRange(
 	mounted: Mounted,
 	reason: StructuralReleaseReason
 ): boolean {
+	for (const retained of root.releasing ?? []) {
+		if (retained.parent === parent && retained.mounted === mounted && !retained.finalized)
+			return true;
+	}
 	const instances = observedRootInstances(mounted);
 	if (!instances.length) return false;
 	const parentFrame = captureTaskFrame();

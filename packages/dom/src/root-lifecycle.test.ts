@@ -234,6 +234,45 @@ describe('@exactjs/dom root-lifecycle', () => {
 		await vi.waitFor(() => expect(container.querySelector('button')).toBeNull());
 	});
 
+	it('retains a type-replaced range across child-plan cleanup', async () => {
+		let owner!: Component<{ replace: boolean }>;
+		let childRoot!: RootLifecycle<Element>;
+		let finish!: () => void;
+		const settlement = new Promise<void>((resolve) => {
+			finish = resolve;
+		});
+
+		function Child(this: Component<{}>) {
+			childRoot = this.refs.root();
+			watch(() => {
+				if (!childRoot.release) return;
+				void runTaskFrame(
+					{ kind: 'test-replacement-release', readiness: 'nonblocking' },
+					{ work: () => settlement }
+				).catch(() => undefined);
+			});
+			return () => jsx('button', { children: 'Retained' });
+		}
+
+		function Owner(this: Component<{ replace: boolean }>) {
+			owner = this;
+			this.state.replace = false;
+			return () => (this.state.replace ? jsx('span', { children: 'Replacement' }) : jsx(Child, {}));
+		}
+
+		const container = document.createElement('div');
+		render(jsx(Owner, {}), container);
+		const button = container.querySelector('button');
+
+		owner.state.replace = true;
+		flushSync();
+
+		expect(container.querySelector('button')).toBe(button);
+		expect(container.querySelector('span')?.textContent).toBe('Replacement');
+		finish();
+		await vi.waitFor(() => expect(container.querySelector('button')).toBeNull());
+	});
+
 	it('reverses an exact retained root generation without replacing its DOM', () => {
 		let owner!: Component<{ show: boolean }>;
 		let childRoot!: RootLifecycle<Element>;

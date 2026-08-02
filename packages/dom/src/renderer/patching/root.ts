@@ -84,7 +84,12 @@ export function patchInner(
 		placeMountedBefore(root, parent, created, null);
 		return created;
 	}
-	if (mounted.enhancement) {
+	if (
+		mounted.enhancement &&
+		mounted.vnode.type === next.type &&
+		mounted.vnode.key === next.key &&
+		mounted.vnode.domain === next.domain
+	) {
 		return patchEnhancementBoundary(
 			root,
 			mounted,
