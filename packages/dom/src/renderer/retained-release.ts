@@ -19,6 +19,7 @@ import {
 } from '@exactjs/core/framework/task-frames';
 import { flushSync } from '@exactjs/reactive';
 import type { Mounted, Root } from '../types.js';
+import { setMountedSubtreeActivity } from './component-roots.js';
 import { removeMountedNodes, unmountMounted } from './teardown.js';
 
 type RetainedRelease = NonNullable<Root['releasing']> extends Set<infer Entry> ? Entry : never;
@@ -43,6 +44,7 @@ export function releaseMountedRange(
 	pending.add(mounted);
 	const parentFrame = captureTaskFrame();
 	const generations = new Map<ComponentInstance<any>, number>();
+	const activityToken = Symbol('structural-release');
 	let execution: TaskFrameExecution<void>;
 	try {
 		execution = runTaskFrame<void>(
@@ -62,6 +64,8 @@ export function releaseMountedRange(
 					// Release-dependent tasks are ordinary reactive consumers. Flush while
 					// this frame is active so their consequence work attaches structurally.
 					flushSync();
+					setMountedSubtreeActivity(mounted, activityToken, false, reason);
+					flushSync();
 				}
 			}
 		);
@@ -79,6 +83,7 @@ export function releaseMountedRange(
 		mounted,
 		execution,
 		generations,
+		activityToken,
 		finalized: false
 	};
 	(root.releasing ??= new Set()).add(retained);
@@ -107,6 +112,7 @@ export function takeReversedRelease(root: Root, parent: Node, next: VNode): Moun
 		retained.finalized = true;
 		for (const [instance, generation] of retained.generations)
 			reverseComponentRootRelease(instance, generation);
+		setMountedSubtreeActivity(retained.mounted, retained.activityToken, true, 'release-reversed');
 		return retained.mounted;
 	}
 	return undefined;

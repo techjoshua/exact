@@ -72,6 +72,10 @@ the same connected DOM generation when presence reverses before leave completion
 </Presence>
 ```
 
+The renderer publishes release while observers can attach leave tasks, then deactivates the
+retained functional subtree. Reversal cancels those stale descendants and reactivates the same
+component and DOM generation.
+
 The default `mode="sync"` reconciles keyed replacements together. `mode="out-in"` waits for old
 keyed ranges and their leave work to settle before mounting replacements. `mode="in-out"` commits
 new keyed ranges first, waits for their descendant enter playbacks to settle, then releases the

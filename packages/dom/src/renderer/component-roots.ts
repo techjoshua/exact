@@ -39,6 +39,22 @@ export function setMountedRootPresentation(mounted: Mounted, presented: boolean)
 	}
 }
 
+/** Applies one renderer-owned activation blocker across a retained logical subtree. */
+export function setMountedSubtreeActivity(
+	mounted: Mounted,
+	token: symbol,
+	active: boolean,
+	reason: string
+): void {
+	const pending = [mounted];
+	while (pending.length) {
+		const current = pending.pop()!;
+		current.instance?.setActivity(token, active, reason);
+		for (const child of current.children) pending.push(child);
+		for (const child of current.suspense?.candidate?.children ?? []) pending.push(child);
+	}
+}
+
 /** Releases the private lifecycle record after its owning component has unmounted. */
 export function disposeMountedComponentRoot(instance: ComponentInstance<any>): void {
 	disposeComponentRoot(instance);

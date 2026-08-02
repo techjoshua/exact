@@ -174,7 +174,8 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.refs.root()</code> observes the component&apos;s intrinsic root, generation,
 					introduction phase, presentation, and structural release. Work activated by a release is
 					owned by the renderer&apos;s release frame, allowing the old range to remain until
-					attached tasks and cleanup settle while still supporting exact-generation reversal.
+					attached tasks and cleanup settle. The retained subtree deactivates after release
+					observers attach and reactivates only when exact-generation reversal restores it.
 				</p>
 				<div className="definition-grid">
 					<code>this.state</code>

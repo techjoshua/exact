@@ -125,6 +125,7 @@ export type Root = {
 		readonly mounted: Mounted;
 		readonly execution: TaskFrameExecution<void>;
 		readonly generations: ReadonlyMap<ComponentInstance<any>, number>;
+		readonly activityToken: symbol;
 		finalized: boolean;
 	}>;
 };

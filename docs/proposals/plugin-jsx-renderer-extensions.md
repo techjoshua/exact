@@ -485,8 +485,11 @@ generation and introduction rather than pretending that retained DOM is new.
 `release` represents structural loss of one intrinsic component root generation.
 Public `fulfill()` remains ordinary ref assignment and never creates structural
 release or DOM retention. Renderer-owned root replacement or removal publishes
-the release and retains the old root until joined task descendants settle or
-are cancelled.
+the release, flushes its reactive observers inside the release frame, then
+deactivates the retained logical subtree. The old root remains connected until
+joined task descendants settle or are cancelled. Exact reversal cancels that
+frame, restores each released root generation, and removes the release-specific
+activity blocker from the same component instances.
 
 The framework uses one namespaced reason vocabulary across root release,
 component deactivation/unmount, and task cancellation, including:

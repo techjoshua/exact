@@ -278,9 +278,13 @@ describe('@exactjs/dom root-lifecycle', () => {
 	it('reverses an exact retained root generation without replacing its DOM', () => {
 		let owner!: Component<{ show: boolean }>;
 		let childRoot!: RootLifecycle<Element>;
+		let activations = 0;
+		let deactivations = 0;
 
 		function Child(this: Component<{}>) {
 			childRoot = this.refs.root();
+			this.onActivate(() => activations++);
+			this.onDeactivate(() => deactivations++);
 			watch(() => {
 				if (!childRoot.release) return;
 				void runTaskFrame(
@@ -300,10 +304,12 @@ describe('@exactjs/dom root-lifecycle', () => {
 		const container = document.createElement('div');
 		render(jsx(Owner, {}), container);
 		const button = container.querySelector('button');
+		expect(activations).toBe(1);
 
 		owner.state.show = false;
 		flushSync();
 		expect(childRoot.release).toBeDefined();
+		expect(deactivations).toBe(1);
 
 		owner.state.show = true;
 		flushSync();
@@ -313,6 +319,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 		expect(childRoot.generation).toBe(1);
 		expect(childRoot.introduction).toBe('initial');
 		expect(childRoot.release).toBeUndefined();
+		expect(activations).toBe(2);
 	});
 
 	it('publishes release before stopping a removed keyed-list child', async () => {
