@@ -85,9 +85,10 @@ export function PluginsPage(this: Component<{}>) {
 				<p>
 					An attributed value import establishes only the local prefix. The compiler derives a
 					finite canonical prop schema, rejects unknown and reserved members, and emits one grouped
-					reactive marker. Statically finite setup-derived spreads are partitioned without runtime
-					prefix scanning. A bundled capability mounts an ordinary inspectable component; an
-					unavailable optional enhancement leaves the target unchanged.
+					reactive marker. Direct values and finite setup-derived spreads retain the component prop
+					type&apos;s discriminated-union constraints without runtime prefix scanning. A bundled
+					capability mounts an ordinary inspectable component; an unavailable optional enhancement
+					leaves the target unchanged.
 				</p>
 				<p>
 					Compilation records attributed capabilities without a plugin registry because a library
@@ -98,7 +99,8 @@ export function PluginsPage(this: Component<{}>) {
 					The Vite adapter links compiler-emitted module fragments into a bundle-local catalog and
 					passes it to DOM, hydration, and SSR entry points. SSR runs available declarations as
 					ordinary components; hydration adopts authored DOM before activating the client catalog.
-					Low-level renderer and component-test callers can provide the bundle-local catalog explicitly.
+					Low-level renderer and component-test callers can provide the bundle-local catalog
+					explicitly.
 				</p>
 				<p>
 					The reserved <code>namespace:root</code> member reactively selects the first matching

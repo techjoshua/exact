@@ -10,7 +10,13 @@ import (
 
 type enhancementBinding struct {
 	identity string
-	members  map[string]string
+	members  map[string]enhancementMember
+	variants []map[string]enhancementMember
+}
+
+type enhancementMember struct {
+	prop      string
+	valueType *checker.Type
 }
 
 type enhancementImports struct {
@@ -145,6 +151,7 @@ func collectEnhancementImports(
 	}
 	collectEnhancementAttributeDiagnostics(sourceFile, &result, ordinaryBindings)
 	collectEnhancementSpreadDiagnostics(sourceFile, typeChecker, &result, ordinaryBindings)
+	collectEnhancementTypeDiagnostics(sourceFile, typeChecker, &result)
 	return result
 }
 
@@ -347,7 +354,7 @@ func collectEnhancementSpreadDiagnostics(
 					}
 					continue
 				}
-				prop, exists := binding.members[member]
+				canonical, exists := binding.members[member]
 				if !exists {
 					code := "EXACT6007"
 					message := fmt.Sprintf("unknown %s prop %q", binding.identity, member)
@@ -365,7 +372,7 @@ func collectEnhancementSpreadDiagnostics(
 				}
 				plan.members = append(plan.members, enhancementSpreadMember{
 					identity: binding.identity,
-					prop:     prop,
+					prop:     canonical.prop,
 					source:   source,
 				})
 				plan.keys = append(plan.keys, source)
@@ -421,17 +428,25 @@ func resolveEnhancementBinding(
 			)
 		}
 	}
-	members := make(map[string]string)
+	members := make(map[string]enhancementMember)
+	variants := make([]map[string]enhancementMember, 0, len(propsType.Distributed()))
 	for _, memberType := range propsType.Distributed() {
+		variant := make(map[string]enhancementMember)
 		for _, property := range typeChecker.GetPropertiesOfType(memberType) {
 			name := ast.SymbolName(property)
 			if name == "children" || name == "key" || name == "ref" {
 				continue
 			}
-			members[camelToKebab(name)] = name
+			canonical := camelToKebab(name)
+			valueType := typeChecker.GetTypeOfSymbolAtLocation(property, localName)
+			variant[name] = enhancementMember{prop: name, valueType: valueType}
+			if _, exists := members[canonical]; !exists {
+				members[canonical] = enhancementMember{prop: name, valueType: valueType}
+			}
 		}
+		variants = append(variants, variant)
 	}
-	return enhancementBinding{identity: identity, members: members}, ""
+	return enhancementBinding{identity: identity, members: members, variants: variants}, ""
 }
 
 func collectEnhancementAttributeDiagnostics(

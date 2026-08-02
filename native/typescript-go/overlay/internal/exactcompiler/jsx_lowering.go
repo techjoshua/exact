@@ -1382,7 +1382,7 @@ func (lowering *jsxLowering) propsWithReactivity(
 							lowering.property(lowering.factory.NewIdentifier("__exactRoot"), value),
 						)
 					} else {
-						member = binding.members[member]
+						member = binding.members[member].prop
 						enhancementEntries[binding.identity] = append(
 							enhancementEntries[binding.identity],
 							lowering.property(jsxPropertyName(lowering.factory, member), value),

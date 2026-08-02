@@ -6433,3 +6433,143 @@ func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
 		}
 	}
 }
+
+func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	componentFile := filepath.Join(root, "motion.ts")
+	implementationFile := filepath.Join(root, "motion-implementation.ts")
+	for filename, source := range map[string]string{
+		configFile:    `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		componentFile: `export { motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		implementationFile: `
+			type MotionProps =
+				| { kind: "spring"; stiffness?: number; children?: unknown }
+				| { kind: "tween"; duration?: "fast" | "slow"; delay?: ` + "`${number}ms`" + `; children?: unknown };
+			export function motion(props: MotionProps) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	compile := func(source string) Response {
+		if err := os.WriteFile(entryFile, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return NewSession(nil).Execute(Request{
+			ID: entryFile, Kind: "compile", Source: source, ConfigFile: configFile,
+		})
+	}
+	valid := compile(`
+		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		const options:
+			| { "motion:kind": "spring"; "motion:stiffness": number }
+			| { "motion:kind": "tween"; "motion:duration": "fast" | "slow" } =
+				{ "motion:kind": "spring", "motion:stiffness": 12 };
+		export const direct = <div motion:kind="spring" motion:stiffness={20} />;
+		export const template = <div motion:kind="tween" motion:delay="120ms" />;
+		export const spread = <div {...options} />;
+	`)
+	if containsDiagnosticCode(valid.Diagnostics, "EXACT6011") {
+		t.Fatalf("valid discriminated plugin props were rejected: %#v", valid.Diagnostics)
+	}
+	wrongValue := compile(`
+		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		export const view = <div motion:kind="spring" motion:stiffness="strong" />;
+	`)
+	if !containsDiagnosticCode(wrongValue.Diagnostics, "EXACT6011") {
+		t.Fatalf("invalid plugin prop value was accepted: %#v", wrongValue.Diagnostics)
+	}
+	wrongTemplate := compile(`
+		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		export const view = <div motion:kind="tween" motion:delay="soon" />;
+	`)
+	if !containsDiagnosticCode(wrongTemplate.Diagnostics, "EXACT6011") {
+		t.Fatalf("invalid plugin template-literal prop was accepted: %#v", wrongTemplate.Diagnostics)
+	}
+	wrongCombination := compile(`
+		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		export const view = <div motion:kind="spring" motion:duration="fast" />;
+	`)
+	if !containsDiagnosticCode(wrongCombination.Diagnostics, "EXACT6011") {
+		t.Fatalf("invalid plugin prop union combination was accepted: %#v", wrongCombination.Diagnostics)
+	}
+	wrongSpread := compile(`
+		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		const options:
+			| { "motion:kind": "spring"; "motion:duration": "fast" }
+			| { "motion:kind": "tween"; "motion:duration": "fast" } =
+				{ "motion:kind": "spring", "motion:duration": "fast" };
+		export const view = <div {...options} />;
+	`)
+	if !containsDiagnosticCode(wrongSpread.Diagnostics, "EXACT6011") {
+		t.Fatalf("invalid finite plugin union spread was accepted: %#v", wrongSpread.Diagnostics)
+	}
+}
+
+func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		filepath.Join(root, "default-implementation.ts"): `export default function motion(props: { preset?: "fade" | "slide"; children?: unknown }) { return props.children; }`,
+		filepath.Join(root, "default-capability.ts"):     `export { default } from "./default-implementation.js" with { type: "exact-plugin" };`,
+		filepath.Join(root, "named-implementation.ts"):   `export function motion(props: { preset?: "fade" | "slide"; children?: unknown }) { return props.children; }`,
+		filepath.Join(root, "star-capability.ts"):        `export * from "./named-implementation.js" with { type: "exact-plugin" };`,
+		filepath.Join(root, "left-capability.ts"):        `export { motion } from "./named-implementation.js" with { type: "exact-plugin" };`,
+		filepath.Join(root, "right-capability.ts"):       `export { motion } from "./named-implementation.js" with { type: "exact-plugin" };`,
+		filepath.Join(root, "ambiguous.ts"): `
+			export { motion } from "./left-capability.js";
+			export { motion } from "./right-capability.js";
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	validSource := `
+		import defaultMotion from "./default-capability.js" with { type: "exact-plugin" };
+		import { motion as starMotion } from "./star-capability.js" with { type: "exact-plugin" };
+		export const view = <button defaultMotion:preset="fade" starMotion:preset="slide" />;
+	`
+	if err := os.WriteFile(entryFile, []byte(validSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	valid := NewSession(nil).Execute(Request{
+		ID: entryFile, Kind: "compile", Source: validSource, ConfigFile: configFile,
+	})
+	for _, diagnostic := range valid.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("default or star plugin export produced an error: %#v", valid.Diagnostics)
+		}
+	}
+	identities := make(map[string]struct{}, len(valid.Analysis.Enhancements))
+	for _, enhancement := range valid.Analysis.Enhancements {
+		identities[enhancement.Identity] = struct{}{}
+	}
+	for _, identity := range []string{
+		"./default-capability.js#default",
+		"./star-capability.js#motion",
+	} {
+		if _, exists := identities[identity]; !exists {
+			t.Fatalf("compiler omitted resolved plugin identity %q: %#v", identity, valid.Analysis.Enhancements)
+		}
+	}
+
+	ambiguousSource := `
+		import { motion } from "./ambiguous.js" with { type: "exact-plugin" };
+		export const view = <button motion:preset="fade" />;
+	`
+	if err := os.WriteFile(entryFile, []byte(ambiguousSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ambiguous := NewSession(nil).Execute(Request{
+		ID: entryFile, Kind: "compile", Source: ambiguousSource, ConfigFile: configFile,
+	})
+	if !containsDiagnosticCode(ambiguous.Diagnostics, "EXACT6010") {
+		t.Fatalf("ambiguous plugin export path was accepted: %#v", ambiguous.Diagnostics)
+	}
+}
