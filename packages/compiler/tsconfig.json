@@ -7,10 +7,7 @@
 		"lib": ["ES2022"],
 		"types": ["node"]
 	},
-	"references": [
-		{ "path": "../devtools-protocol" },
-		{ "path": "../instrumentation" }
-	],
+	"references": [{ "path": "../devtools-protocol" }, { "path": "../instrumentation" }],
 	"files": [
 		"src/adapter-support.ts",
 		"src/artifact-isolation.ts",
@@ -29,6 +26,7 @@
 		"src/compilation/dependency-discovery.ts",
 		"src/compilation/dev-state-planning.ts",
 		"src/compilation/dev-state.ts",
+		"src/compilation/enhancement-registrations.ts",
 		"src/compilation/file-compilation.ts",
 		"src/compilation/native-session.ts",
 		"src/compilation/shared-artifact.ts",

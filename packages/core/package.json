@@ -35,6 +35,10 @@
 		"./framework/publication": {
 			"types": "./dist/framework/publication.d.ts",
 			"default": "./dist/framework/publication.js"
+		},
+		"./framework/enhancement-catalog": {
+			"types": "./dist/framework/enhancement-catalog.d.ts",
+			"default": "./dist/framework/enhancement-catalog.js"
 		}
 	},
 	"main": "./dist/index.js",

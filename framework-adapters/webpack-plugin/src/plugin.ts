@@ -1,4 +1,5 @@
 import {
+	createLineSourceMap,
 	exactExportConditions,
 	type ExactAssetRule,
 	type ExactCompilerSession,
@@ -6,6 +7,7 @@ import {
 } from '@exactjs/compiler';
 import {
 	createExactDiagnosticReporter,
+	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
@@ -31,6 +33,7 @@ import { webpackCompatibilityEngine } from './react-compatibility.js';
 import { shouldTransformWebpackModule, webpackTransformTarget } from './transform-selection.js';
 import {
 	addWebpackConditions,
+	addWebpackEnhancementAliases,
 	addWebpackReactAliases,
 	applyExactWebpackResolver
 } from './resolver.js';
@@ -41,6 +44,7 @@ import {
 } from './devtools.js';
 export {
 	addWebpackConditions,
+	addWebpackEnhancementAliases,
 	addWebpackReactAliases,
 	applyExactWebpackResolver,
 	resolveExactWebpackRequest
@@ -211,6 +215,7 @@ export class ExactWebpackPlugin {
 			compiler,
 			exactExportConditions(webpackTransformTarget(this.options), this.options)
 		);
+		addWebpackEnhancementAliases(compiler);
 		const reactCompatibility = resolveReactCompatibility(this.options.reactCompatibility);
 		if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
 		compiler.options.module ??= {};
@@ -326,13 +331,20 @@ export function transformExactWebpackSource(
 				emitInspection: options.target === 'server' && webpackDebugEnabled(options.debug?.catalog),
 				instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
 			},
-			finish: (result) => ({
-				code:
+			finish: (result) => {
+				const enhanced = prependExactEnhancementRegistrations(
+					result.code,
+					result.rendererEnhancements
+				);
+				const code =
 					options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)
-						? appendWebpackDevtoolsBootstrap(result.code, options.debug)
-						: result.code,
-				map: result.map
-			}),
+						? appendWebpackDevtoolsBootstrap(enhanced, options.debug)
+						: enhanced;
+				return {
+					code,
+					map: options.sourceMap === false ? null : createLineSourceMap(filename, source, code)
+				};
+			},
 			inspection: (result) =>
 				result.inspectionCatalog
 					? {

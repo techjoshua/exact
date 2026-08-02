@@ -37,8 +37,8 @@ export function PluginsPage(this: Component<{}>) {
 					cleanly inside one component. They may affect source analysis, generated artifacts, server
 					startup, request lifetime, rendered output, browser boot, and tests. A plugin lets one
 					package describe those parts without teaching each bundler or application a private
-					integration protocol. The compiler independently records the language and
-					renderer facts needed by those packages.
+					integration protocol. The compiler independently records the language and renderer facts
+					needed by those packages.
 				</p>
 			</section>
 			<section>
@@ -102,12 +102,13 @@ export function PluginsPage(this: Component<{}>) {
 					directives, analysis payloads, or transforms.
 				</p>
 				<p>
-					The Vite adapter links compiler-emitted module fragments into a bundle-local catalog and
-					passes it to DOM, hydration, and SSR entry points. SSR runs available declarations as
-					ordinary components at the resolved logical intrinsic target, including targets behind
-					components, keyed lists, dynamic output, and the selected Suspense candidate. Hydration
-					adopts authored DOM before activating the client catalog. Low-level renderer and
-					component-test callers can provide the bundle-local catalog explicitly.
+					The Vite, Bun, and Webpack adapters link compiler-emitted module fragments into an
+					application-bundle catalog and pass it to DOM, hydration, and SSR entry points. SSR runs
+					available declarations as ordinary components at the resolved logical intrinsic target,
+					including targets behind components, keyed lists, dynamic output, and the selected
+					Suspense candidate. Hydration adopts authored DOM before activating the client catalog.
+					Low-level renderer and component-test callers can provide the bundle-local catalog
+					explicitly.
 				</p>
 				<p>
 					The reserved <code>namespace:root</code> member reactively selects the first matching

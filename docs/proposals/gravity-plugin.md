@@ -5,8 +5,8 @@
 Implemented. Pure prepared uniform, directional, softened point, radial, bounded, and composite
 fields; selected physics registrations; moving body attractors; bounded inspection; ordinary
 Activity-owned `GravityField`; transparent attributed `GravityElement`; deterministic same-target
-physics ordering; host entries; tests; and documentation are available. Vite bundle-local catalog
-activation is shared with the other renderer enhancements.
+physics ordering; host entries; tests; and documentation are available. Application-bundle catalog
+activation is shared across the Vite, Bun, and Webpack adapters.
 
 Gravity composes with the force-contributor contract proposed by
 [`physics`](physics-plugin.md) and uses the ordinary plugin-component

@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented for the current Vite, DOM, SSR, hydration, and component-test hosts. Stable generic
+Implemented for the current Vite, Bun, Webpack, DOM, SSR, hydration, and component-test hosts. Stable generic
 refs and root releases, grouped reactive markers,
 compile-only attributed value imports, checker-derived finite prop schemas and diagnostics,
 single-pass logical target discovery, reactive root rerouting, prop merging, transparent or
@@ -11,8 +11,8 @@ warning deduplication, bundle-local Vite catalog carriage, SSR activation, hydra
 component-test host propagation exist. SSR resolves the logical intrinsic target before activation
 and reuses materialized setup-once component work across sync, async, streaming, keyed-list,
 dynamic, and Suspense paths. Compilerless package components attach the same generic context-token
-ordering contract explicitly. Non-Vite adapters still require equivalent catalog
-facades before they provide the same automatic bundle integration.
+ordering contract explicitly. Vite, Bun, and Webpack all connect compiler-emitted fragments to the
+same application-bundle catalog and renderer facades.
 
 ## Decision summary
 

@@ -1,4 +1,8 @@
 export { transformExactAdapterModule } from './compilation/adapter-transformation.js';
+export {
+	exactEnhancementFacadeImports,
+	prependExactEnhancementRegistrations
+} from './compilation/enhancement-registrations.js';
 
 /** A compiler diagnostic shape that build-tool integrations can report. */
 export type ExactBuildDiagnostic = Readonly<{

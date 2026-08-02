@@ -3,10 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-	createViteDomEnhancementFacade,
-	createViteEnhancementCatalogRuntime,
-	createViteHydrateEnhancementFacade,
-	createViteSsrEnhancementFacade,
+	exactEnhancementFacades,
 	prependViteEnhancementRegistrations
 } from './enhancement-catalog.js';
 import { exact } from './plugin.js';
@@ -29,35 +26,19 @@ describe('Vite enhancement catalog emission', () => {
 		expect(code).toContain(`from "@exactjs/motion"`);
 		expect(code).toContain(`from "@acme/input/enhancements"`);
 		expect(code).toContain(`__exactRegisterEnhancement("@exactjs/motion#default"`);
+		expect(code).toContain('@exactjs/core/framework/enhancement-catalog');
 		expect(code).not.toContain('pluginRegistry');
 	});
 
-	it('shares one bundle-local catalog with the DOM facade without exposing registration', () => {
-		const runtime = createViteEnhancementCatalogRuntime();
-		const facade = createViteDomEnhancementFacade();
+	it('redirects every renderer root to the shared bundle-catalog facade', () => {
+		const plugin = exact({ reactCompatibility: false });
 
-		expect(runtime).toContain('export const exactEnhancementCatalog = new Map()');
-		expect(runtime).toContain('Conflicting renderer enhancement implementation');
-		expect(facade).toContain(`options?.enhancementCatalog`);
-		expect(facade).toContain(`enhancementCatalog: exactEnhancementCatalog`);
-		expect(facade).not.toContain('registerExactEnhancement');
+		for (const [request, facade] of Object.entries(exactEnhancementFacades)) {
+			expect(plugin.resolveId(request)).toBe(facade);
+		}
 	});
 
-	it('supplies the same bundle-local catalog to hydration and server renderers', () => {
-		const hydrate = createViteHydrateEnhancementFacade();
-		const ssr = createViteSsrEnhancementFacade();
-
-		expect(hydrate).toContain(`from '@exactjs/hydrate'`);
-		expect(hydrate).toContain('enhancementCatalog: exactEnhancementCatalog');
-		expect(ssr).toContain(`from '@exactjs/ssr'`);
-		expect(ssr).toContain('renderToStringAsync(vnode, options)');
-		expect(ssr).toContain('renderExactRequestToHtmlResponse(request, server, render, options)');
-		expect(ssr).toContain('enhancementCatalog: exactEnhancementCatalog');
-		expect(hydrate).not.toContain('registerExactEnhancement');
-		expect(ssr).not.toContain('registerExactEnhancement');
-	});
-
-	it('links compiler-emitted capability metadata without preparing a plugin registry', () => {
+	it('links compiler-emitted capability metadata without preparing a compiler registry', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-capability-'));
 		const entry = path.join(root, 'entry.tsx');
 		const source = `
@@ -91,7 +72,7 @@ describe('Vite enhancement catalog emission', () => {
 			const result = plugin.transform(source, entry);
 			expect(result?.code).toContain(`from "./motion.js"`);
 			expect(result?.code).toContain(`__exactRegisterEnhancement("./motion.js#default"`);
-			expect(result?.code).toContain(`virtual:exact/enhancement-catalog`);
+			expect(result?.code).toContain('@exactjs/core/framework/enhancement-catalog');
 		} finally {
 			plugin.closeBundle?.();
 		}

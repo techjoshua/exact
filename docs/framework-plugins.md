@@ -110,9 +110,10 @@ component; unavailable capabilities leave the intrinsic target unchanged and war
 Capability declaration and activation are separate stages. Compilation records every attributed
 import without consulting a plugin registry because a library cannot know the final application's
 bundle policy. The application build either includes that package capability or does not; bundling
-the package is the activation trust decision. Vite links compiler-emitted module fragments into a
-bundle-local generated catalog and supplies it to DOM, hydration, and SSR entry points through
-ordinary render options. SSR activates available declarations as ordinary server component chains;
+the package is the activation trust decision. Vite, Bun, and Webpack link compiler-emitted module
+fragments into an application-bundle-local catalog and redirect DOM, hydration, and SSR entry
+points through shared facades that supply ordinary render options. SSR activates available
+declarations as ordinary server component chains;
 it resolves the same logical intrinsic target through components, keyed lists, dynamic output, and
 the Suspense candidate selected by that render mode before constructing the chain. Target discovery
 reuses the materialized setup-once component instances. Absent server capabilities remain inert and
@@ -138,8 +139,7 @@ generic contract explicitly.
 
 ## Current limitations
 
-- Vite has the most complete automatic integration.
 - Webpack and Bun use the shared contracts but individual plugins may expose a
   narrower host-specific feature set. Check the plugin and runtime docs.
-- Compiler-emitted enhancement catalogs are still being connected into non-Vite build and render
-  hosts; current low-level renderer callers can supply an explicit catalog.
+- Low-level renderer callers outside Vite, Bun, Webpack, and component tests must supply an
+  explicit application-bundle catalog.

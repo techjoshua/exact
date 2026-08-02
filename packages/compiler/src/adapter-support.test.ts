@@ -1,15 +1,41 @@
 import { describe, expect, it } from 'vitest';
 import {
 	createExactDiagnosticReporter,
+	exactEnhancementFacadeImports,
 	exactDiagnosticKey,
 	formatExactDiagnostic,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath,
 	matchesExactBuildFilter,
+	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
 } from './adapter-support.js';
 
 describe('build adapter support', () => {
+	it('emits deterministic application-bundle enhancement registrations', () => {
+		const code = prependExactEnhancementRegistrations('export const view = 1;', [
+			{
+				identity: '@exactjs/motion#default',
+				moduleSpecifier: '@exactjs/motion',
+				exportName: 'default'
+			},
+			{
+				identity: '@exactjs/motion#default',
+				moduleSpecifier: '@exactjs/motion',
+				exportName: 'default'
+			}
+		]);
+
+		expect(code.match(/import \* as __exactEnhancement/g)).toHaveLength(1);
+		expect(code).toContain('@exactjs/core/framework/enhancement-catalog');
+		expect(code).toContain('__exactRegisterEnhancement("@exactjs/motion#default"');
+		expect(exactEnhancementFacadeImports).toEqual({
+			'@exactjs/dom': '@exactjs/dom/enhanced',
+			'@exactjs/hydrate': '@exactjs/hydrate/enhanced',
+			'@exactjs/ssr': '@exactjs/ssr/enhanced'
+		});
+	});
+
 	it('matches string, regular expression, and mixed path filters', () => {
 		expect(matchesExactBuildFilter('/src/view.tsx', '/src/')).toBe(true);
 		expect(matchesExactBuildFilter('/src/view.tsx', /\.tsx$/)).toBe(true);

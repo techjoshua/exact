@@ -5,8 +5,8 @@
 Implemented. The DOM-independent fixed-step engine, bodies, ordered forces, distance constraints,
 circle and box collisions, sleeping, bounded inspection, manual testing clock, ordinary
 `PhysicsWorld` ownership component, transparent attributed `PhysicsElement`, body/world contexts,
-and safe CSS projection policies are available. Vite bundle-local catalog activation is shared
-with the other renderer enhancements. Optional gesture, motion, and worker convenience adapters
+and safe CSS projection policies are available. Application-bundle catalog activation is shared
+across Vite, Bun, and Webpack. Optional gesture, motion, and worker convenience adapters
 remain deferred and do not couple the base engine to those packages.
 
 The DOM projection described here depends on

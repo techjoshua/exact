@@ -1,5 +1,6 @@
 import {
 	createCompilerSession,
+	createLineSourceMap,
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
 	type ExactAssetRule,
@@ -10,6 +11,8 @@ import {
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import {
 	createExactDiagnosticReporter,
+	exactEnhancementFacadeImports,
+	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
@@ -206,6 +209,9 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				const resolved = resolveExactBunRequest(args.path, args.importer, options);
 				return resolved ? { path: resolved } : undefined;
 			});
+			build.onResolve({ filter: /^@exactjs\/(?:dom|hydrate|ssr)$/ }, (args) => ({
+				path: exactEnhancementFacadeImports[args.path as keyof typeof exactEnhancementFacadeImports]
+			}));
 			if (reactCompatibility) {
 				build.onResolve({ filter: /^react-reconciler$/ }, (args) => {
 					validateInstalledReactReconciler(
@@ -345,13 +351,20 @@ export function transformExactBunSource(
 				emitInspection: options.target === 'server' && bunDebugEnabled(options.debug?.catalog),
 				instrumentInspection: bunDebugEnabled(options.debug?.runtime)
 			},
-			finish: (result) => ({
-				code:
+			finish: (result) => {
+				const enhanced = prependExactEnhancementRegistrations(
+					result.code,
+					result.rendererEnhancements
+				);
+				const code =
 					options.target !== 'server' && bunDebugEnabled(options.debug?.runtime)
-						? appendBunDevtoolsBootstrap(result.code, options.debug)
-						: result.code,
-				map: result.map
-			}),
+						? appendBunDevtoolsBootstrap(enhanced, options.debug)
+						: enhanced;
+				return {
+					code,
+					map: options.sourceMap === false ? null : createLineSourceMap(filename, source, code)
+				};
+			},
 			inspection: (result) =>
 				result.inspectionCatalog
 					? {

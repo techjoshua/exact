@@ -45,19 +45,8 @@ import {
 } from './debug-output.js';
 import type { ExactPlugin, ExactPluginOptions } from './plugin-contracts.js';
 import {
-	createViteDomEnhancementFacade,
-	createViteEnhancementCatalogRuntime,
-	createViteHydrateEnhancementFacade,
-	createViteSsrEnhancementFacade,
-	exactEnhancementCatalogModule,
-	exactEnhancementDomModule,
-	exactEnhancementHydrateModule,
-	exactEnhancementSsrModule,
-	prependViteEnhancementRegistrations,
-	resolvedExactEnhancementCatalogModule,
-	resolvedExactEnhancementDomModule,
-	resolvedExactEnhancementHydrateModule,
-	resolvedExactEnhancementSsrModule
+	exactEnhancementFacades,
+	prependViteEnhancementRegistrations
 } from './enhancement-catalog.js';
 
 export type {
@@ -175,10 +164,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			server.watcher?.once('close', () => compilerSession.dispose());
 		},
 		resolveId(source, importer) {
-			if (source === exactEnhancementDomModule) return resolvedExactEnhancementDomModule;
-			if (source === exactEnhancementHydrateModule) return resolvedExactEnhancementHydrateModule;
-			if (source === exactEnhancementSsrModule) return resolvedExactEnhancementSsrModule;
-			if (source === exactEnhancementCatalogModule) return resolvedExactEnhancementCatalogModule;
+			if (source in exactEnhancementFacades) {
+				const facade = exactEnhancementFacades[source as keyof typeof exactEnhancementFacades];
+				return this.resolve ? this.resolve(facade, importer, { skipSelf: true }) : facade;
+			}
 			if (
 				source === exactDevtoolsRuntimeModule &&
 				options.target !== 'server' &&
@@ -186,15 +175,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			)
 				return resolvedExactDevtoolsRuntimeModule;
 			const resolveFrameworkImport = () => {
-				if (source === '@exactjs/dom' && importer === resolvedExactEnhancementDomModule) {
-					return resolveExactArtifactImport(source, importer, 'client')?.id ?? null;
-				}
-				if (source === '@exactjs/hydrate' && importer === resolvedExactEnhancementHydrateModule) {
-					return resolveExactArtifactImport(source, importer, 'client')?.id ?? null;
-				}
-				if (source === '@exactjs/ssr' && importer === resolvedExactEnhancementSsrModule) {
-					return resolveExactArtifactImport(source, importer, 'server')?.id ?? null;
-				}
 				if (source === 'react-reconciler' && reactCompatibility) {
 					validateInstalledReactReconciler(
 						reactCompatibility.target,
@@ -209,12 +189,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					)?.id ?? null
 				);
 			};
-			if (source === '@exactjs/dom' && importer !== resolvedExactEnhancementDomModule)
-				return resolvedExactEnhancementDomModule;
-			if (source === '@exactjs/hydrate' && importer !== resolvedExactEnhancementHydrateModule)
-				return resolvedExactEnhancementHydrateModule;
-			if (source === '@exactjs/ssr' && importer !== resolvedExactEnhancementSsrModule)
-				return resolvedExactEnhancementSsrModule;
 			return microfrontends.resolveId(
 				source,
 				importer,
@@ -225,21 +199,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		load(id) {
-			if (id === resolvedExactEnhancementDomModule) {
-				return {
-					code: createViteDomEnhancementFacade(),
-					moduleType: 'js'
-				};
-			}
-			if (id === resolvedExactEnhancementHydrateModule) {
-				return { code: createViteHydrateEnhancementFacade(), moduleType: 'js' };
-			}
-			if (id === resolvedExactEnhancementSsrModule) {
-				return { code: createViteSsrEnhancementFacade(), moduleType: 'js' };
-			}
-			if (id === resolvedExactEnhancementCatalogModule) {
-				return { code: createViteEnhancementCatalogRuntime(), moduleType: 'js' };
-			}
 			if (id === resolvedExactDevtoolsRuntimeModule)
 				return {
 					code: exactDevtoolsRuntimeBootstrap(configuredDebug),

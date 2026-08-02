@@ -22,8 +22,9 @@ The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves ge
 facades, applies client or server export conditions, supports HMR, and verifies that server-only
 code does not enter the final browser graph.
 
-Attributed plugin imports reached by an application bundle populate one generated bundle-local
-enhancement catalog. The adapter supplies that catalog to DOM, hydration, and SSR entry points;
+Attributed plugin imports reached by an application bundle populate the shared bundle-local
+enhancement catalog. The adapter redirects DOM, hydration, and SSR entry points through the common
+renderer facades that supply that catalog;
 the compiler does not consult or maintain a plugin registry for this decision.
 
 `include` and `exclude` define the complete set of modules owned by the transform. Test modules

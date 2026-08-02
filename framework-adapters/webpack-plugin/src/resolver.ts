@@ -1,4 +1,5 @@
 import { resolveExactArtifactImport } from '@exactjs/compiler';
+import { exactEnhancementFacadeImports } from '@exactjs/compiler/adapter-support';
 import {
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
@@ -70,6 +71,21 @@ export function addWebpackConditions(
 		...conditions,
 		...current.filter((condition) => !conditions.includes(condition))
 	];
+}
+
+/** Redirects renderer roots to facades backed by the current application bundle's catalog. */
+export function addWebpackEnhancementAliases(compiler: WebpackCompilerLike): void {
+	compiler.options.resolve ??= {};
+	const current = compiler.options.resolve.alias ?? {};
+	compiler.options.resolve.alias = {
+		...Object.fromEntries(
+			Object.entries(exactEnhancementFacadeImports).map(([request, replacement]) => [
+				`${request}$`,
+				replacement
+			])
+		),
+		...current
+	};
 }
 
 /** Adds exact React compatibility aliases without replacing user aliases. */
