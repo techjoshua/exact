@@ -2,7 +2,7 @@
 
 A practical eXact gallery showing how optional renderer enhancements improve familiar controls:
 
-- motion adds a shared tab indicator plus retained enter/leave continuity for replacement panels,
+- motion adds a sliding tab indicator plus retained enter/leave continuity for replacement panels,
   disclosures, and toast presence;
 - gestures recognizes press, hover/focus intent, long press, drag and keyboard sliders, and
   pan/pinch media navigation with explicit desktop zoom and rotation equivalents;

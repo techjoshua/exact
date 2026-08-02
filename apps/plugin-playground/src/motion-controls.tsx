@@ -1,5 +1,12 @@
-import type { Component } from '@exactjs/core';
-import { defineMotion, LayoutGroup, Motion, Presence } from '@exactjs/motion';
+import { createRef, type Component } from '@exactjs/core';
+import {
+	animate,
+	defineMotion,
+	Motion,
+	Presence,
+	type MotionEffect,
+	type MotionPlayback
+} from '@exactjs/motion';
 
 const panelMotion = defineMotion({
 	enter: {
@@ -76,11 +83,41 @@ type MotionControlsState = {
 	toastVisible: boolean;
 };
 
+const indicatorTransforms = {
+	profile: 'translateX(0)',
+	activity: 'translateX(calc(100% + 4px))'
+} as const;
+
+function indicatorChange(
+	from: MotionControlsState['activeTab'],
+	to: MotionControlsState['activeTab']
+): MotionEffect {
+	return {
+		keyframes: [
+			{ transform: indicatorTransforms[from] },
+			{ transform: indicatorTransforms[to] }
+		],
+		options: { duration: 320, easing: 'cubic-bezier(.2,.8,.2,1)' }
+	};
+}
+
 /** Common state-driven controls enhanced with optional motion. */
 export function MotionControls(this: Component<MotionControlsState>) {
 	this.state.activeTab = 'profile';
 	this.state.expanded = false;
 	this.state.toastVisible = false;
+	const tabIndicator = createRef<HTMLElement>('plugin-playground-tab-indicator');
+	let indicatorPlayback: MotionPlayback | undefined;
+	const selectTab = (tab: MotionControlsState['activeTab']) => {
+		if (tab === this.state.activeTab) return;
+		const previousTab = this.state.activeTab;
+		this.state.activeTab = tab;
+		const indicator = this.refs.get(tabIndicator);
+		if (!indicator) return;
+		indicatorPlayback?.cancel('tab-selection-changed');
+		indicatorPlayback = animate(indicator, indicatorChange(previousTab, tab));
+	};
+	this.onUnmount(() => indicatorPlayback?.cancel('tab-control-unmounted'));
 
 	return () => (
 		<section className="demo-card motion-demo" aria-labelledby="motion-title">
@@ -92,42 +129,28 @@ export function MotionControls(this: Component<MotionControlsState>) {
 				<span className="package-label">@exactjs/motion</span>
 			</div>
 
-			<LayoutGroup id="account-tabs">
-				<div className="tab-list" role="tablist" aria-label="Account information">
+			<div className="tab-list" role="tablist" aria-label="Account information">
+				<span
+					className="tab-indicator"
+					aria-hidden="true"
+					ref={this.ref(tabIndicator)}
+					style={{ transform: indicatorTransforms[this.state.activeTab] }}
+				/>
 					<button
 						role="tab"
 						aria-selected={this.state.activeTab === 'profile'}
-						onClick={() => (this.state.activeTab = 'profile')}
+						onClick={() => selectTab('profile')}
 					>
-						{this.state.activeTab === 'profile' ? (
-							<Motion
-								key="active-tab-indicator"
-								as="span"
-								className="tab-indicator"
-								layout="position"
-								layoutId="active-tab-indicator"
-							/>
-						) : null}
 						<span className="tab-label">Profile</span>
 					</button>
 					<button
 						role="tab"
 						aria-selected={this.state.activeTab === 'activity'}
-						onClick={() => (this.state.activeTab = 'activity')}
+						onClick={() => selectTab('activity')}
 					>
-						{this.state.activeTab === 'activity' ? (
-							<Motion
-								key="active-tab-indicator"
-								as="span"
-								className="tab-indicator"
-								layout="position"
-								layoutId="active-tab-indicator"
-							/>
-						) : null}
 						<span className="tab-label">Activity</span>
 					</button>
 				</div>
-			</LayoutGroup>
 			<div className="tab-panel">
 				<Presence when mode="out-in">
 					{this.state.activeTab === 'profile' ? (

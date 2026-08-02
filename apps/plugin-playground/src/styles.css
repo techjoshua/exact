@@ -175,6 +175,9 @@ h2 {
 }
 
 .tab-list {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
 	width: fit-content;
 	gap: 4px;
 	border: 1px solid #263e5c;
@@ -185,7 +188,6 @@ h2 {
 
 .tab-list button {
 	position: relative;
-	overflow: hidden;
 	border-color: transparent;
 	padding: 8px 15px;
 	background: transparent;
@@ -198,7 +200,10 @@ h2 {
 
 .tab-indicator {
 	position: absolute;
-	inset: 0;
+	top: 4px;
+	bottom: 4px;
+	left: 4px;
+	width: calc(50% - 6px);
 	border-radius: inherit;
 	background: #7dd3fc;
 	box-shadow: 0 6px 16px #38bdf844;
