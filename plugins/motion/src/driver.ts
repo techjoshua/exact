@@ -1,10 +1,6 @@
 import type { MotionDriver, MotionEffect } from './contracts.js';
 
-const noMotionDriver: MotionDriver = Object.freeze({
-	async play(_element: Element, _effect: MotionEffect, signal: AbortSignal) {
-		if (signal.aborted) throw signal.reason;
-	}
-});
+const defaultMotionDriver = createWebAnimationDriver();
 
 const driverInstallations: Array<{ driver: MotionDriver; active: boolean }> = [];
 
@@ -14,7 +10,7 @@ export function motionDriver(): MotionDriver {
 		const installation = driverInstallations[index]!;
 		if (installation.active) return installation.driver;
 	}
-	return noMotionDriver;
+	return defaultMotionDriver;
 }
 
 /** Installs an environment driver and returns a function that restores the previous driver. */

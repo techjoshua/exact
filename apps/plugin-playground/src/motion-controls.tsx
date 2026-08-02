@@ -9,7 +9,7 @@ const panelMotion = defineMotion({
 			{ opacity: 0, transform: 'translateY(8px)' },
 			{ opacity: 1, transform: 'none' }
 		],
-		options: { duration: 180, easing: 'ease-out' }
+		options: { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' }
 	},
 	leave: {
 		keyframes: [
@@ -21,13 +21,46 @@ const panelMotion = defineMotion({
 	reduced: 'skip'
 });
 
+const disclosureMotion = defineMotion({
+	enter: {
+		keyframes: [
+			{
+				opacity: 0,
+				clipPath: 'inset(0 0 100% 0)',
+				transform: 'scaleY(.82)',
+				transformOrigin: 'top'
+			},
+			{
+				opacity: 1,
+				clipPath: 'inset(0)',
+				transform: 'scaleY(1)',
+				transformOrigin: 'top'
+			}
+		],
+		options: { duration: 340, easing: 'cubic-bezier(.16,1,.3,1)' }
+	},
+	leave: {
+		keyframes: [
+			{ opacity: 1, clipPath: 'inset(0)', transform: 'scaleY(1)', transformOrigin: 'top' },
+			{
+				opacity: 0,
+				clipPath: 'inset(0 0 100% 0)',
+				transform: 'scaleY(.88)',
+				transformOrigin: 'top'
+			}
+		],
+		options: { duration: 220, easing: 'ease-in' }
+	},
+	reduced: 'skip'
+});
+
 const toastMotion = defineMotion({
 	enter: {
 		keyframes: [
 			{ opacity: 0, transform: 'translateX(20px) scale(.96)' },
 			{ opacity: 1, transform: 'none' }
 		],
-		options: { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' }
+		options: { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' }
 	},
 	leave: {
 		keyframes: [
@@ -108,7 +141,7 @@ export function MotionControls(this: Component<MotionControlsState>) {
 			</div>
 
 			{this.state.expanded ? (
-				<div className="disclosure" motion:apply={panelMotion} motion:appear>
+				<div className="disclosure" motion:apply={disclosureMotion} motion:appear>
 					Motion follows committed state; it does not own whether this disclosure is open.
 				</div>
 			) : null}

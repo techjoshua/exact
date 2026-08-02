@@ -9,6 +9,34 @@ const driver = (_name: string): MotionDriver => ({
 afterEach(() => vi.unstubAllGlobals());
 
 describe('motion driver installation', () => {
+	it('uses Web Animations by default without requiring a plugin host', async () => {
+		const animation = { finished: Promise.resolve(), cancel: vi.fn() };
+		const animate = vi.fn(() => animation);
+		const element = { animate } as unknown as Element;
+
+		await motionDriver().play(
+			element,
+			{ keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 120 } },
+			new AbortController().signal
+		);
+
+		expect(animate).toHaveBeenCalledWith([{ opacity: 0 }, { opacity: 1 }], {
+			fill: 'both',
+			duration: 120
+		});
+		expect(animation.cancel).toHaveBeenCalledOnce();
+	});
+
+	it('keeps the default driver inert in environments without Web Animations', async () => {
+		await expect(
+			motionDriver().play(
+				{} as Element,
+				{ keyframes: [{ opacity: 0 }, { opacity: 1 }] },
+				new AbortController().signal
+			)
+		).resolves.toBeUndefined();
+	});
+
 	it('restores active leases correctly after out-of-order application disposal', () => {
 		const first = driver('first');
 		const second = driver('second');

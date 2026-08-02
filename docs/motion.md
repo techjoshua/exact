@@ -61,11 +61,14 @@ client rendering and hydration adoption skip enter by default; `appear` opts tho
 Release reversal retains the original generation but runs enter as a continuation from the
 interrupted computed frame rather than resetting to its authored first keyframe.
 
-The client plugin entry installs a Web Animations driver. Importing the main package, definitions,
-or presets on a server does not read browser globals. `@exactjs/motion/testing` provides a
-deterministic injected driver whose playbacks settle only when the test advances them.
-Application driver installations are leases: nested or overlapping application lifetimes restore
-the latest still-active driver even when they dispose out of order.
+The main runtime uses a browser-safe Web Animations driver by default, so bundled attributed and
+explicit motion works without requiring a separate plugin host. Creating that driver does not read
+browser globals, and playback completes immediately when an element has no `animate()` capability,
+so importing the main package, definitions, or presets remains server-safe. The client plugin entry
+installs the same driver through an application-owned lease. `@exactjs/motion/testing` provides a
+deterministic injected driver whose playbacks settle only when the test advances them. Application
+driver installations are leases: nested or overlapping application lifetimes restore the latest
+still-active driver even when they dispose out of order.
 
 ## Presence and keyed collections
 

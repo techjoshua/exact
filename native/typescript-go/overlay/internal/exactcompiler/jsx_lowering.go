@@ -5360,9 +5360,13 @@ func (lowering *jsxLowering) stateWriteRoot(write StateWrite) *ast.Node {
 	if write.RootAlias == "" {
 		return lowering.stateRoot()
 	}
-	return lowering.derivedGet(
-		lowering.factory.NewIdentifier(write.RootAlias),
-	)
+	alias := lowering.factory.NewIdentifier(write.RootAlias)
+	for _, binding := range lowering.derived {
+		if binding.Component == write.Component && binding.Name == write.RootAlias {
+			return lowering.derivedGet(alias)
+		}
+	}
+	return alias
 }
 
 func (lowering *jsxLowering) stateWritePath(write StateWrite) []string {

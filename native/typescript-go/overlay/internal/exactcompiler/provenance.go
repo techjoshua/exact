@@ -365,18 +365,27 @@ func collectComponentReactiveStates(
 		for _, name := range bindingIdentifiers(declaration.Name()) {
 			hint := ""
 			stateAlias := aliasAt(stateAliases, candidate.name, name.Pos())
+			directStateAlias := directStateAliasAt(
+				stateAliases,
+				candidate.name,
+				name.Pos(),
+			)
 			functionInitializer := declaration.Initializer != nil &&
 				(ast.IsArrowFunction(declaration.Initializer) ||
 					ast.IsFunctionExpression(declaration.Initializer))
 			if !functionInitializer {
 				if containsNamedCall(declaration.Initializer, "peek") {
 					hint = "snapshot"
-				} else if stateAlias ||
-					reactiveReadWithinInitializer(
-						stateReads,
-						candidate.name,
-						declaration.Initializer,
-					) {
+				} else if directStateAlias {
+					// A direct state alias retains the component's observable proxy.
+					// It is not a computed value: wrapping it in createDerived()
+					// would unwrap the proxy and make writes through the alias silent.
+					hint = "state"
+				} else if reactiveReadWithinInitializer(
+					stateReads,
+					candidate.name,
+					declaration.Initializer,
+				) {
 					hint = "derived"
 				} else if containsThisMember(declaration.Initializer, "props") {
 					hint = "derived"
@@ -470,6 +479,15 @@ func aliasAt(aliases []StateAlias, component string, start int) bool {
 	for _, alias := range aliases {
 		if alias.Component == component && alias.Start == start {
 			return true
+		}
+	}
+	return false
+}
+
+func directStateAliasAt(aliases []StateAlias, component string, start int) bool {
+	for _, alias := range aliases {
+		if alias.Component == component && alias.Start == start {
+			return len(alias.Path) == 0
 		}
 	}
 	return false

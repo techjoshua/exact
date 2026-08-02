@@ -101,6 +101,12 @@ export function MotionPluginPage(this: Component<{}>) {
 					tree. Leave cancels active enter/change work first, and Activity parking cancels visual
 					work without inventing a leave transition.
 				</p>
+				<p>
+					The bundled runtime uses a browser-safe Web Animations driver by default, so explicit
+					components and attributed motion work without a separate plugin host. Server imports do
+					not read browser globals, and application or test drivers can still override playback with
+					owned leases.
+				</p>
 			</section>
 			<section>
 				<h2>Use attributes or explicit components</h2>
