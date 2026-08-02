@@ -3,7 +3,9 @@
  */
 import {
 	createContext,
+	createDynamicChild,
 	createEnhancementMarker,
+	createPortal,
 	markExactEnhancementContexts,
 	type Child,
 	type Component,
@@ -135,15 +137,12 @@ describe('renderer enhancements', () => {
 			this.onUnmount(released);
 			return () => props.children;
 		});
-		const marker = (root: boolean) =>
-			createEnhancementMarker([{ identity, props: {}, root }]);
+		const marker = (root: boolean) => createEnhancementMarker([{ identity, props: {}, root }]);
 		const tree = (left: boolean) =>
 			createVNode(
 				'section',
 				{
-					__exactEnhancements: createEnhancementMarker([
-						{ identity, props: { preset: 'fade' } }
-					])
+					__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
 				},
 				createVNode('button', { id: 'left', __exactEnhancements: marker(left) }, 'Left'),
 				createVNode('button', { id: 'right', __exactEnhancements: marker(!left) }, 'Right')
@@ -182,9 +181,7 @@ describe('renderer enhancements', () => {
 			createVNode(
 				'section',
 				{
-					__exactEnhancements: createEnhancementMarker([
-						{ identity, props: { preset: 'fade' } }
-					])
+					__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
 				},
 				createVNode('button', {
 					id: 'left',
@@ -299,5 +296,135 @@ describe('renderer enhancements', () => {
 		} finally {
 			reported.mockRestore();
 		}
+	});
+
+	it('lets different plugins select and structurally wrap different logical targets', () => {
+		const leftIdentity = '@test/left-target#default';
+		const rightIdentity = '@test/right-target#default';
+		const wrapper = (className: string) =>
+			markTestComponent(function Wrapper(this: Component<{}>, props: { children?: Child }) {
+				return () => createVNode('div', { className }, props.children);
+			});
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				'section',
+				{
+					__exactEnhancements: createEnhancementMarker([
+						{ identity: leftIdentity, props: {} },
+						{ identity: rightIdentity, props: {} }
+					])
+				},
+				createVNode('button', {
+					id: 'left',
+					__exactEnhancements: createEnhancementMarker([
+						{ identity: leftIdentity, props: {}, root: true }
+					])
+				}),
+				createVNode('button', {
+					id: 'right',
+					__exactEnhancements: createEnhancementMarker([
+						{ identity: rightIdentity, props: {}, root: true }
+					])
+				})
+			),
+			container,
+			{
+				enhancementCatalog: new Map([
+					[leftIdentity, wrapper('left-shell')],
+					[rightIdentity, wrapper('right-shell')]
+				])
+			}
+		);
+
+		expect(container.innerHTML).toBe(
+			'<section><div class="left-shell"><button id="left"></button></div><div class="right-shell"><button id="right"></button></div></section>'
+		);
+	});
+
+	it('reroutes an ancestor declaration when a dynamic branch introduces an explicit target', () => {
+		const roots: RootLifecycle<HTMLElement>[] = [];
+		let owner!: Component<{ explicit: boolean }>;
+		const Motion = markTestComponent(function Motion(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			roots.push(this.refs.root<HTMLElement>());
+			return () => props.children;
+		});
+		const Card = markTestComponent(function Card(this: Component<{ explicit: boolean }>) {
+			owner = this;
+			this.state.explicit = false;
+			return () =>
+				createVNode(
+					'section',
+					null,
+					createDynamicChild(() =>
+						createVNode('button', {
+							id: 'dynamic',
+							...(this.state.explicit
+								? {
+										__exactEnhancements: createEnhancementMarker([
+											{ identity, props: {}, root: true }
+										])
+									}
+								: {})
+						})
+					)
+				);
+		});
+		const container = document.createElement('div');
+		render(
+			createVNode(Card, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+			}),
+			container,
+			{ enhancementCatalog: new Map([[identity, Motion]]) }
+		);
+		expect(roots[0]?.current).toBe(container.querySelector('section'));
+
+		owner.state.explicit = true;
+		flushSync();
+
+		expect(roots).toHaveLength(2);
+		expect(roots[0]?.current).toBeUndefined();
+		expect(roots[1]?.current).toBe(container.querySelector('#dynamic'));
+	});
+
+	it('resolves explicit targets through logical portal children', () => {
+		const portal = document.createElement('div');
+		let target!: RootLifecycle<HTMLElement>;
+		const Motion = markTestComponent(function Motion(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			target = this.refs.root<HTMLElement>();
+			return () => props.children;
+		});
+		const Card = markTestComponent(function Card(this: Component<{}>) {
+			return () =>
+				createVNode(
+					'section',
+					null,
+					createPortal(
+						portal,
+						createVNode('button', {
+							id: 'portal-target',
+							__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+						})
+					)
+				);
+		});
+		const container = document.createElement('div');
+		render(
+			createVNode(Card, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+			}),
+			container,
+			{ enhancementCatalog: new Map([[identity, Motion]]) }
+		);
+
+		expect(target.current).toBe(portal.querySelector('#portal-target'));
+		expect(container.querySelector('section')).not.toBeNull();
 	});
 });

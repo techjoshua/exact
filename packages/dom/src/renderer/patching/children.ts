@@ -27,7 +27,6 @@ import {
 import { patch } from './root.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { releaseMountedRange } from '../retained-release.js';
-import { reconcileEnhancementRoutes } from '../enhancements.js';
 
 /** Performs the patch children domain operation. */
 export function patchChildren(
@@ -126,19 +125,10 @@ export function patchChildrenInner(
 		}
 	}
 	throwTeardownFailure(teardown);
-	if (!root.enhancementReconciliationDepth) {
-		for (let index = 0; index < nextMounted.length; index++) {
-			nextMounted[index] = reconcileEnhancementRoutes(
-				root,
-				nextMounted[index]!,
-				parentInstance,
-				parentScope,
-				(vnode, instance, scope, node) =>
-					patch(root, node ?? parent, undefined, vnode, instance, scope)
-			);
-		}
-	}
 	if (parentInstance) refreshComponentRoot(parentInstance);
+	if (!root.enhancementReconciliationDepth) {
+		root.reconcileEnhancements?.();
+	}
 
 	return nextMounted;
 }

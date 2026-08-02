@@ -7,7 +7,13 @@ import {
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
-import { createEffectScope, transferEffectScope, watch, type EffectScope } from '@exactjs/reactive';
+import {
+	createEffectScope,
+	scheduleWork,
+	transferEffectScope,
+	watch,
+	type EffectScope
+} from '@exactjs/reactive';
 import { lastMountedNode, placeMountedBefore } from '../placement.js';
 import type { Mounted, Root } from '../types.js';
 import { createMarker } from './root-support.js';
@@ -23,9 +29,13 @@ type MountOperation = (
 
 /** Installs reactive selector reconciliation for one renderer root. */
 export function installEnhancementReconciliation(root: Root, mount: MountOperation): void {
-	root.reconcileEnhancements = () => {
+	const reconcile = () => {
 		if (!root.mounted) return;
 		root.mounted = reconcileEnhancementRoutes(root, root.mounted, undefined, undefined, mount);
+	};
+	root.reconcileEnhancements = () => {
+		if (!root.mounted) return;
+		scheduleWork(reconcile, 'normal', undefined, root.mounted.scope);
 	};
 }
 
@@ -319,10 +329,7 @@ function findReroutedBoundary(mounted: Mounted): Mounted | undefined {
 	return undefined;
 }
 
-function findEnhancementWrapperForTarget(
-	mounted: Mounted,
-	target: Mounted
-): Mounted | undefined {
+function findEnhancementWrapperForTarget(mounted: Mounted, target: Mounted): Mounted | undefined {
 	if (mounted.enhancement?.target === target) return mounted;
 	for (const child of mounted.children) {
 		const wrapper = findEnhancementWrapperForTarget(child, target);
@@ -349,7 +356,7 @@ function findMountedLocation(
 	const childInstance = mounted.instance ?? parentInstance;
 	const childParent =
 		mounted.portalTarget ??
-		(typeof mounted.vnode.type === 'string' ? mounted.dom : mounted.dom.parentNode ?? parentNode);
+		(typeof mounted.vnode.type === 'string' ? mounted.dom : (mounted.dom.parentNode ?? parentNode));
 	for (const child of mounted.children) {
 		const location = findMountedLocation(
 			child,
@@ -380,7 +387,11 @@ function unwrapEnhancementSubtree(
 		return unwrapEnhancementSubtree(root, target, parentScope);
 	}
 	for (let index = 0; index < mounted.children.length; index++) {
-		mounted.children[index] = unwrapEnhancementSubtree(root, mounted.children[index]!, mounted.scope);
+		mounted.children[index] = unwrapEnhancementSubtree(
+			root,
+			mounted.children[index]!,
+			mounted.scope
+		);
 	}
 	return mounted;
 }

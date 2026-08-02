@@ -26,6 +26,7 @@ import {
 import {
 	createEffectScope,
 	flushSync,
+	peek,
 	transferEffectScope,
 	withEffectScope,
 	type EffectScope
@@ -252,14 +253,16 @@ export function mountInner(
 				const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
 				const parent = marker.parentNode;
 				if (!parent) return;
-				mounted.children = patchChildren(
-					root,
-					parent,
-					mounted.children,
-					nextChildren,
-					parentInstance,
-					mounted.scope,
-					afterMountedChildren(mounted)
+				mounted.children = peek(() =>
+					patchChildren(
+						root,
+						parent,
+						mounted.children,
+						nextChildren,
+						parentInstance,
+						mounted.scope,
+						afterMountedChildren(mounted)
+					)
 				);
 			},
 			undefined,
