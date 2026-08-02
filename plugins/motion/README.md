@@ -31,7 +31,8 @@ remain finite. Reduced-motion policy uses an explicit reduced phase when supplie
 completes visual work immediately.
 
 Later reactive insertions run their enter phase automatically. Initial client rendering and
-hydration adoption require `appear`, and exact release reversal does not replay enter.
+hydration adoption require `appear`. Exact release reversal runs enter from the interrupted
+computed frame while retaining the same component and DOM generation.
 Leave cancels active enter/change playback first, while Activity parking cancels visual work
 without starting leave. Runtime driver installations restore active application leases correctly
 even when application roots dispose out of order.

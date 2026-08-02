@@ -217,6 +217,11 @@ describe('Presence and MotionList', () => {
 			expect(target.inert).toBe(false);
 			expect(target.style.pointerEvents).toBe('');
 			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
+			expect(driver.playbacks).toHaveLength(2);
+			expect(driver.playbacks[1]?.element).toBe(target);
+			expect(driver.playbacks[1]?.effect.keyframes).toEqual(
+				(fade.enter as { keyframes: Keyframe[] }).keyframes
+			);
 		} finally {
 			restore();
 		}

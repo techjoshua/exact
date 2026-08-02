@@ -64,7 +64,8 @@ export function MotionPluginPage(this: Component<{}>) {
 				</p>
 				<p>
 					Later reactive insertions run enter automatically. Initial rendering and hydration skip it
-					unless <code>appear</code> opts in, and release reversal does not replay enter.
+					unless <code>appear</code> opts in. Release reversal retains the same generation and runs
+					enter from the interrupted computed frame instead of jumping to its first keyframe.
 				</p>
 			</section>
 			<section>

@@ -965,8 +965,9 @@ different presence lifetime or ownership model.
 - `appear` opts into one post-hydration entrance.
 - A root whose generic lifecycle reports `introduction: 'update'` runs enter
   without requiring `appear`; initial and hydration introductions do not.
-- Exact release reversal preserves the prior generation and does not replay
-  enter.
+- Exact release reversal preserves the prior generation and runs enter from
+  the interrupted computed frame rather than treating the target as a new
+  initial/hydration introduction.
 - Reduced-motion policy is resolved before `appear`.
 - A hydration mismatch is recovered by the renderer's existing range recovery,
   not by motion-specific DOM replacement.

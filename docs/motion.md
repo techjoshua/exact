@@ -58,7 +58,8 @@ cancel them. A looping enter does not block `Presence` in-out sequencing.
 
 An enter phase runs automatically when a root is introduced by a later reactive update. Initial
 client rendering and hydration adoption skip enter by default; `appear` opts those generations in.
-Release reversal retains the original generation and does not replay enter.
+Release reversal retains the original generation but runs enter as a continuation from the
+interrupted computed frame rather than resetting to its authored first keyframe.
 
 The client plugin entry installs a Web Animations driver. Importing the main package, definitions,
 or presets on a server does not read browser globals. `@exactjs/motion/testing` provides a
@@ -84,6 +85,9 @@ The renderer publishes release while observers can attach leave tasks, then deac
 retained functional subtree. Reversal cancels those stale descendants and reactivates the same
 component and DOM generation. Any active enter or change playback is canceled before leave starts;
 ordinary Activity parking also cancels visual work without manufacturing a leave phase.
+The browser driver snapshots properties controlled by interrupted playback before cancellation and
+uses that transient frame as the start of the reversal; authored destination styles remain
+authoritative and no animation fill is retained.
 
 The default `mode="sync"` reconciles keyed replacements together. `mode="out-in"` waits for old
 keyed ranges and their leave work to settle before mounting replacements. `mode="in-out"` commits

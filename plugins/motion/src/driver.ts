@@ -32,15 +32,25 @@ export function installMotionDriver(driver: MotionDriver): () => void {
 
 /** Creates the browser Web Animations driver without reading browser globals during import. */
 export function createWebAnimationDriver(): MotionDriver {
+	const interruptedFrames = new WeakMap<Element, Readonly<Record<string, string>>>();
 	return Object.freeze({
 		async play(element: Element, effect: MotionEffect, signal: AbortSignal): Promise<void> {
 			if (signal.aborted) throw signal.reason;
 			if (typeof element.animate !== 'function') return;
-			const animation = element.animate(effect.keyframes, {
+			const interrupted = interruptedFrames.get(element);
+			if (interrupted) interruptedFrames.delete(element);
+			const keyframes = interrupted
+				? continueFromInterruptedFrame(effect.keyframes, interrupted)
+				: effect.keyframes;
+			const animation = element.animate(keyframes, {
 				fill: 'both',
 				...effect.options
 			});
-			const cancel = () => animation.cancel();
+			const cancel = () => {
+				const frame = captureAnimatedFrame(element, effect.keyframes);
+				if (frame) interruptedFrames.set(element, frame);
+				animation.cancel();
+			};
 			signal.addEventListener('abort', cancel, { once: true });
 			try {
 				await animation.finished;
@@ -54,4 +64,56 @@ export function createWebAnimationDriver(): MotionDriver {
 			}
 		}
 	});
+}
+
+function captureAnimatedFrame(
+	element: Element,
+	keyframes: MotionEffect['keyframes']
+): Readonly<Record<string, string>> | undefined {
+	if (typeof globalThis.getComputedStyle !== 'function') return undefined;
+	const properties = animatedProperties(keyframes);
+	if (!properties.size) return undefined;
+	const computed = globalThis.getComputedStyle(element);
+	const frame: Record<string, string> = {};
+	for (const property of properties) {
+		const value = computed.getPropertyValue(cssPropertyName(property));
+		if (value) frame[property] = value;
+	}
+	return Object.keys(frame).length ? Object.freeze(frame) : undefined;
+}
+
+function animatedProperties(keyframes: MotionEffect['keyframes']): Set<string> {
+	const properties = new Set<string>();
+	const records = Array.isArray(keyframes) ? keyframes : [keyframes];
+	for (const frame of records) {
+		for (const property of Object.keys(frame)) {
+			if (property !== 'offset' && property !== 'easing' && property !== 'composite') {
+				properties.add(property);
+			}
+		}
+	}
+	return properties;
+}
+
+function continueFromInterruptedFrame(
+	keyframes: MotionEffect['keyframes'],
+	interrupted: Readonly<Record<string, string>>
+): MotionEffect['keyframes'] {
+	if (Array.isArray(keyframes)) {
+		if (keyframes.length <= 1) return [interrupted, ...keyframes];
+		return [{ ...keyframes[0], ...interrupted }, ...keyframes.slice(1)];
+	}
+	const continued: PropertyIndexedKeyframes = { ...keyframes };
+	for (const [property, value] of Object.entries(interrupted)) {
+		const authored = keyframes[property as keyof PropertyIndexedKeyframes];
+		continued[property as keyof PropertyIndexedKeyframes] = Array.isArray(authored)
+			? ([value, ...authored.slice(1)] as never)
+			: ([value, authored] as never);
+	}
+	return continued;
+}
+
+function cssPropertyName(property: string): string {
+	if (property.startsWith('--')) return property;
+	return property.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
 }
