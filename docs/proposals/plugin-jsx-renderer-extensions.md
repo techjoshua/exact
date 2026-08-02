@@ -8,8 +8,10 @@ compile-only attributed value imports, checker-derived finite prop schemas and d
 single-pass logical target discovery, reactive root rerouting, prop merging, transparent or
 structural ordinary component activation, target-bound lifetime, inert unavailable behavior,
 warning deduplication, bundle-local Vite catalog carriage, SSR activation, hydration adoption, and
-component-test host propagation exist. Compilerless package components attach the same generic
-context-token ordering contract explicitly. Non-Vite adapters still require equivalent catalog
+component-test host propagation exist. SSR resolves the logical intrinsic target before activation
+and reuses materialized setup-once component work across sync, async, streaming, keyed-list,
+dynamic, and Suspense paths. Compilerless package components attach the same generic context-token
+ordering contract explicitly. Non-Vite adapters still require equivalent catalog
 facades before they provide the same automatic bundle integration.
 
 ## Decision summary

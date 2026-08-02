@@ -5,13 +5,59 @@ import {
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
-import type { SsrContext } from '../types.js';
+import type { ComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
+import {
+	planSsrEnhancementBoundary,
+	planSsrEnhancementBoundaryAsync
+} from './enhancement-planning.js';
 
 /** Activates declarations carried by one SSR vnode boundary. */
-export function activateSsrEnhancements(context: SsrContext, vnode: VNode): VNode {
-	const declarations = (vnode.enhancements?.entries ?? []).filter(
-		(entry) => !routingOnlyEntry(entry)
-	);
+export function activateSsrEnhancements(
+	context: SsrContext,
+	vnode: VNode,
+	parent: ComponentInstance<any> | undefined
+): VNode {
+	planBoundaryIfNeeded(context, vnode, parent);
+	return activatePlannedTarget(context, vnode);
+}
+
+/** Activates a planned target after asynchronous logical materialization. */
+export async function activateSsrEnhancementsAsync(
+	context: SsrContext,
+	vnode: VNode,
+	parent: ComponentInstance<any> | undefined,
+	options: RenderToStringOptions & { taskDeadline?: number }
+): Promise<VNode> {
+	const declarations = localDeclarations(vnode);
+	if (declarations.length) reportUnavailableEntries(context, declarations);
+	if (declarations.length && !context.plannedEnhancementBoundaries.has(vnode)) {
+		if (declarations.some((entry) => context.enhancementCatalog?.has(entry.identity))) {
+			await planSsrEnhancementBoundaryAsync(context, vnode, parent, options);
+		} else {
+			context.plannedEnhancementBoundaries.add(vnode);
+		}
+	}
+	return activatePlannedTarget(context, vnode);
+}
+
+function planBoundaryIfNeeded(
+	context: SsrContext,
+	vnode: VNode,
+	parent: ComponentInstance<any> | undefined
+): void {
+	const declarations = localDeclarations(vnode);
+	if (!declarations.length) return;
+	reportUnavailableEntries(context, declarations);
+	if (context.plannedEnhancementBoundaries.has(vnode)) return;
+	if (declarations.some((entry) => context.enhancementCatalog?.has(entry.identity))) {
+		planSsrEnhancementBoundary(context, vnode, parent);
+	} else {
+		context.plannedEnhancementBoundaries.add(vnode);
+	}
+}
+
+function activatePlannedTarget(context: SsrContext, vnode: VNode): VNode {
+	const declarations = context.enhancementTargets.get(vnode) ?? [];
 	if (!declarations.length) return vnode;
 	const active = declarations.filter((entry) => {
 		if (context.enhancementCatalog?.has(entry.identity)) return true;
@@ -28,6 +74,17 @@ export function activateSsrEnhancements(context: SsrContext, vnode: VNode): VNod
 		chain = pluginVNode(context, component, entry, chain, leaf.domain);
 	}
 	return chain;
+}
+
+function localDeclarations(vnode: VNode): EnhancementEntry[] {
+	return (vnode.enhancements?.entries ?? []).filter((entry) => !routingOnlyEntry(entry));
+}
+
+function reportUnavailableEntries(context: SsrContext, entries: readonly EnhancementEntry[]): void {
+	for (const entry of entries) {
+		if (!context.enhancementCatalog?.has(entry.identity))
+			reportUnavailable(context, entry.identity);
+	}
 }
 
 function routingOnlyEntry(entry: EnhancementEntry): boolean {
@@ -48,7 +105,6 @@ function pluginVNode(
 }
 
 function withoutEnhancements(vnode: VNode): VNode {
-	if (!vnode.enhancements) return vnode;
 	const { enhancements: _enhancements, ...plain } = vnode;
 	return plain;
 }

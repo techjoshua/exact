@@ -108,10 +108,12 @@ bundle policy. The application build either includes that package capability or 
 the package is the activation trust decision. Vite links compiler-emitted module fragments into a
 bundle-local generated catalog and supplies it to DOM, hydration, and SSR entry points through
 ordinary render options. SSR activates available declarations as ordinary server component chains;
-absent server capabilities remain inert and warn once per identity. Hydration adopts the authored
-DOM before activating the client catalog, so transparent enhancements preserve server node
-identity. Low-level renderer and component-test callers can provide the bundle-local catalog
-explicitly.
+it resolves the same logical intrinsic target through components, keyed lists, dynamic output, and
+the Suspense candidate selected by that render mode before constructing the chain. Target discovery
+reuses the materialized setup-once component instances. Absent server capabilities remain inert and
+warn once per identity. Hydration adopts the authored DOM before activating the client catalog, so
+transparent enhancements preserve server node identity. Low-level renderer and component-test
+callers can provide the bundle-local catalog explicitly.
 
 Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps

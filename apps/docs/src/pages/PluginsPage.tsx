@@ -98,9 +98,10 @@ export function PluginsPage(this: Component<{}>) {
 				<p>
 					The Vite adapter links compiler-emitted module fragments into a bundle-local catalog and
 					passes it to DOM, hydration, and SSR entry points. SSR runs available declarations as
-					ordinary components; hydration adopts authored DOM before activating the client catalog.
-					Low-level renderer and component-test callers can provide the bundle-local catalog
-					explicitly.
+					ordinary components at the resolved logical intrinsic target, including targets behind
+					components, keyed lists, dynamic output, and the selected Suspense candidate. Hydration
+					adopts authored DOM before activating the client catalog. Low-level renderer and
+					component-test callers can provide the bundle-local catalog explicitly.
 				</p>
 				<p>
 					The reserved <code>namespace:root</code> member reactively selects the first matching

@@ -1,4 +1,11 @@
-import { activateTaskForHost, defineTask, type Component } from '@exactjs/core';
+import {
+	activateTaskForHost,
+	createEnhancementMarker,
+	defineTask,
+	markExactComponent,
+	type Child,
+	type Component
+} from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	renderToDocumentStream,
@@ -62,6 +69,41 @@ describe('@exactjs/ssr streams', () => {
 		}
 
 		expect(chunks.join('')).toBe('<p>streamed</p>');
+	});
+
+	it('streams a routed enhancement without reconstructing its logical target', async () => {
+		const identity = '@exactjs/ssr:stream-enhancement#default';
+		let targetSetups = 0;
+		const Enhancement = markExactComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () => createVNode('aside', null, props.children);
+		}, '@exactjs/ssr:stream-enhancement');
+		const Target = markExactComponent(function Target(this: Component<{}>) {
+			targetSetups++;
+			return () =>
+				createVNode('main', {
+					__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+				});
+		}, '@exactjs/ssr:stream-target');
+		const Boundary = markExactComponent(function Boundary(this: Component<{}>) {
+			return () => [createVNode('header', null), createVNode(Target, null)];
+		}, '@exactjs/ssr:stream-boundary');
+		const reader = renderToStream(
+			createVNode(Boundary, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+			}),
+			{
+				markers: false,
+				enhancementCatalog: new Map([[identity, Enhancement]])
+			}
+		).getReader();
+
+		expect(await readRemainingStreamText(reader)).toBe(
+			'<header></header><aside><main></main></aside>'
+		);
+		expect(targetSetups).toBe(1);
 	});
 
 	it('does not construct streamed components until the consumer requests bytes', async () => {

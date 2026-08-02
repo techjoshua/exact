@@ -12,7 +12,6 @@ import {
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
-	normalizeActivityMode,
 	readExactComponentContract,
 	renderInstance,
 	type VNode
@@ -38,18 +37,21 @@ import {
 } from '../render/limits.js';
 import type { Child, ComponentFunction, ComponentInstance, SsrContext } from '../types.js';
 import { handleSsrConstructionError } from './construction-errors.js';
+import {
+	resolveSsrActivityChildren,
+	resolveSsrDynamicChildren,
+	resolveSsrFragmentChildren
+} from './logical-children.js';
 import { dynamicMarkerId } from './marker-identity.js';
-import { renderComponent } from './async-tree.js';
 import {
 	clientBoundaryProps,
 	clientBoundarySerializationMessage,
 	componentMarkerId,
-	componentName,
-	getComponentProps,
 	renderResumableComponentBoundary,
 	renderServerBoundary,
 	serverSlotId
 } from './boundaries.js';
+import { componentName, getComponentProps } from './component-vnode.js';
 import {
 	claimRootText,
 	enterHost,
@@ -62,6 +64,13 @@ import {
 } from './host.js';
 import { renderNativeSuspenseSync } from './native-boundaries.js';
 import { activateSsrEnhancements } from './enhancements.js';
+import * as syncComponents from './sync-component.js';
+
+const syncComponentOperations = {
+	renderChildren,
+	componentMarkerId,
+	renderResumable: renderResumableComponentBoundary
+};
 
 /** Transforms vnode chunks into its required representation. */
 export function* renderVNodeChunks(
@@ -72,7 +81,7 @@ export function* renderVNodeChunks(
 ): Generator<string> {
 	if (depth > context.maxTreeDepth) throw new SsrTreeDepthError(context.maxTreeDepth);
 	countSsrNode(context);
-	const enhanced = activateSsrEnhancements(context, vnode);
+	const enhanced = activateSsrEnhancements(context, vnode, parent);
 	if (enhanced !== vnode) {
 		yield* renderVNodeChunks(context, enhanced, parent, depth);
 		return;
@@ -101,16 +110,27 @@ export function* renderVNodeChunks(
 	}
 	if (vnode.type === Activity) {
 		const id = markerId(context, 'activity', undefined, vnode.key);
-		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
 		yield* marked(id, function* () {
-			if (mode !== 'active') return;
-			for (const child of vnode.children)
+			for (const child of resolveSsrActivityChildren(context, vnode))
 				yield* renderChildChunks(context, child, parent, depth + 1);
 		});
 		return;
 	}
 	if (vnode.type === Suspense) {
 		const identity = markerId(context, 'suspense', undefined, vnode.key);
+		const prepared = context.preparedEnhancementSuspense.get(vnode);
+		if (prepared) {
+			const id = suspenseStatusMarkerId(identity, prepared.status);
+			try {
+				yield* marked(id, function* () {
+					for (const child of prepared.children)
+						yield* renderChildChunks(context, child, prepared.parent, depth + 1);
+				});
+			} finally {
+				prepared.dispose();
+			}
+			return;
+		}
 		const rendered = renderNativeSuspenseSync(context, vnode, parent, renderChildren);
 		const id = suspenseStatusMarkerId(identity, rendered.status);
 		yield* marked(id, function* () {
@@ -119,30 +139,21 @@ export function* renderVNodeChunks(
 		return;
 	}
 	if (vnode.type === Fragment) {
-		const list = vnode.props.list as
-			| {
-					collection: Iterable<unknown>;
-					source?: { get(): Iterable<unknown> };
-					key(item: unknown): string;
-					render(item: unknown): VNode;
-			  }
-			| undefined;
+		const fragment = resolveSsrFragmentChildren(context, vnode);
 		const id =
-			list && vnode.key
+			fragment.list && vnode.key
 				? exactMarkerId(vnode.key)
 				: markerId(context, 'fragment', undefined, vnode.key);
 		yield* marked(id, function* () {
-			if (!list) {
-				for (const child of vnode.children)
+			if (!fragment.list) {
+				for (const child of fragment.children)
 					yield* renderChildChunks(context, child, parent, depth + 1);
 				return;
 			}
-			const collection = list.source ? list.source.get() : list.collection;
-			for (const item of collection) {
-				const key = String(list.key(item));
-				const child = list.render(item);
-				yield* marked(markerId(context, 'item', undefined, key), () =>
-					renderVNodeChunks(context, { ...child, key }, parent, depth + 1)
+			for (const child of fragment.children) {
+				if (!isVNode(child)) continue;
+				yield* marked(markerId(context, 'item', undefined, child.key), () =>
+					renderVNodeChunks(context, child, parent, depth + 1)
 				);
 			}
 		});
@@ -151,7 +162,7 @@ export function* renderVNodeChunks(
 	if (vnode.type === Dynamic) {
 		const id = dynamicMarkerId(context, vnode);
 		yield* marked(id, function* () {
-			for (const child of normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[])) {
+			for (const child of resolveSsrDynamicChildren(context, vnode)) {
 				yield* renderChildChunks(context, child, parent, depth + 1);
 			}
 		});
@@ -183,26 +194,31 @@ export function* renderVNodeChunks(
 		let childParent = parent;
 		let children: Child[];
 		let componentProps: Record<string, unknown> = {};
-		try {
-			componentProps = getComponentProps(vnode);
-			const instance = createComponentInstance(
-				vnode.type as ComponentFunction<any, Record<string, unknown>>,
-				componentProps,
-				parent,
-				context.componentContexts,
-				context.componentDomain
-			);
-			context.onComponentCreated?.(instance);
-			childParent = instance;
-			children = renderInstance(instance, () => undefined);
-		} catch (error) {
-			if (isSsrRenderLimitError(error)) throw error;
-			const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
-			children = fallback ? normalizeRenderResult(fallback()) : [];
-		}
-		// Construction is recoverable before bytes are emitted. Once a component
-		// starts streaming, descendant failures fail the stream rather than
-		// appending fallback HTML after an already-emitted partial boundary.
+		const prepared = context.preparedEnhancementComponents.get(vnode);
+		if (prepared) {
+			componentProps = prepared.props;
+			childParent = prepared.failed ? parent : (prepared.instance ?? parent);
+			children = [...prepared.children];
+		} else
+			try {
+				componentProps = getComponentProps(vnode);
+				const instance = createComponentInstance(
+					vnode.type as ComponentFunction<any, Record<string, unknown>>,
+					componentProps,
+					parent,
+					context.componentContexts,
+					context.componentDomain
+				);
+				context.onComponentCreated?.(instance);
+				childParent = instance;
+				children = renderInstance(instance, () => undefined);
+			} catch (error) {
+				if (isSsrRenderLimitError(error)) throw error;
+				const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
+				children = fallback ? normalizeRenderResult(fallback()) : [];
+			}
+		// Construction is recoverable before bytes are emitted; descendant stream failures cannot
+		// append fallback HTML after an already-emitted partial boundary.
 		const rendered = function* () {
 			for (const child of children)
 				yield* renderChildChunks(context, child, childParent, depth + 1);
@@ -210,7 +226,7 @@ export function* renderVNodeChunks(
 		if (enhancement) {
 			yield* rendered();
 		} else if (context.documentProbe && context.hostStack.length === 0) {
-			yield* renderRootComponentChunks(context, componentId, rendered());
+			yield* syncComponents.renderRootComponentChunks(context, componentId, rendered());
 		} else if (
 			parent &&
 			typeof vnode.type === 'function' &&
@@ -256,20 +272,6 @@ export function* renderVNodeChunks(
 	}
 }
 
-/** Transforms root component chunks into its required representation. */
-export function* renderRootComponentChunks(
-	context: SsrContext,
-	componentId: string,
-	rendered: Generator<string>
-): Generator<string> {
-	const first = rendered.next();
-	const document = context.documentRootSeen;
-	if (!document && context.markers) yield `<!--exact:${componentId}-->`;
-	if (!first.done) yield first.value;
-	yield* rendered;
-	if (!document && context.markers) yield `<!--/exact:${componentId}-->`;
-}
-
 /** Transforms child chunks into its required representation. */
 export function* renderChildChunks(
 	context: SsrContext,
@@ -295,7 +297,16 @@ export function renderChildren(
 	const html: string[] = [];
 	let previousWasText = false;
 	for (const child of children) {
-		const rendered = renderChild(context, child, parent);
+		let rendered: string;
+		if (isVNode(child)) rendered = renderVNode(context, child, parent);
+		else {
+			countSsrNode(context);
+			if (child === null || child === undefined || child === false || child === true) rendered = '';
+			else {
+				claimRootText(context);
+				rendered = escapeText(String(unwrap(child)));
+			}
+		}
 		const isText = !isVNode(child) && rendered !== '';
 		if (context.textSeparators && isText && previousWasText) html.push('<!-- -->');
 		if (rendered !== '') html.push(rendered);
@@ -303,19 +314,6 @@ export function renderChildren(
 		else if (isText) previousWasText = true;
 	}
 	return boundedJoin(context, html);
-}
-
-/** Transforms child into its required representation. */
-export function renderChild(
-	context: SsrContext,
-	child: Child,
-	parent?: ComponentInstance<any>
-): string {
-	if (isVNode(child)) return renderVNode(context, child, parent);
-	countSsrNode(context);
-	if (child === null || child === undefined || child === false || child === true) return '';
-	claimRootText(context);
-	return escapeText(String(unwrap(child)));
 }
 
 /** Transforms vnode into its required representation. */
@@ -338,7 +336,7 @@ export function renderVNodeInner(
 	vnode: VNode,
 	parent?: ComponentInstance<any>
 ): string {
-	const enhanced = activateSsrEnhancements(context, vnode);
+	const enhanced = activateSsrEnhancements(context, vnode, parent);
 	if (enhanced !== vnode) return renderVNode(context, enhanced, parent);
 	if (isCellVNode(vnode)) {
 		return withMarker(context, 'cell', vnode.key, () =>
@@ -357,14 +355,23 @@ export function renderVNodeInner(
 	}
 
 	if (vnode.type === Activity) {
-		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
 		return markerPair(context, markerId(context, 'activity', undefined, vnode.key), () =>
-			mode === 'active' ? renderChildren(context, vnode.children, parent) : ''
+			renderChildren(context, resolveSsrActivityChildren(context, vnode), parent)
 		);
 	}
 
 	if (vnode.type === Suspense) {
 		const identity = markerId(context, 'suspense', undefined, vnode.key);
+		const prepared = context.preparedEnhancementSuspense.get(vnode);
+		if (prepared) {
+			try {
+				return markerPair(context, suspenseStatusMarkerId(identity, prepared.status), () =>
+					renderChildren(context, prepared.children, prepared.parent)
+				);
+			} finally {
+				prepared.dispose();
+			}
+		}
 		const rendered = renderNativeSuspenseSync(context, vnode, parent, renderChildren);
 		return markerPair(
 			context,
@@ -374,28 +381,18 @@ export function renderVNodeInner(
 	}
 
 	if (vnode.type === Fragment) {
-		const list = vnode.props.list as
-			| {
-					collection: Iterable<unknown>;
-					source?: { get(): Iterable<unknown> };
-					key(item: unknown): string;
-					render(item: unknown): VNode;
-			  }
-			| undefined;
+		const fragment = resolveSsrFragmentChildren(context, vnode);
 		const marker =
-			list && vnode.key
+			fragment.list && vnode.key
 				? exactMarkerId(vnode.key)
 				: markerId(context, 'fragment', undefined, vnode.key);
 		return markerPair(context, marker, () => {
-			if (!list) return renderChildren(context, vnode.children, parent);
-			const collection = list.source ? list.source.get() : list.collection;
+			if (!fragment.list) return renderChildren(context, fragment.children, parent);
 			const html: string[] = [];
-			for (const item of collection) {
-				const child = list.render(item);
+			for (const child of fragment.children) {
+				if (!isVNode(child)) continue;
 				html.push(
-					withMarker(context, 'item', String(list.key(item)), () =>
-						renderVNode(context, { ...child, key: String(list.key(item)) }, parent)
-					)
+					withMarker(context, 'item', child.key, () => renderVNode(context, child, parent))
 				);
 			}
 			return boundedJoin(context, html);
@@ -404,11 +401,7 @@ export function renderVNodeInner(
 
 	if (vnode.type === Dynamic) {
 		const render = () => {
-			return renderChildren(
-				context,
-				normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]),
-				parent
-			);
+			return renderChildren(context, resolveSsrDynamicChildren(context, vnode), parent);
 		};
 		return vnode.props.__exactMarkerId
 			? markerPair(context, dynamicMarkerId(context, vnode), render)
@@ -424,7 +417,7 @@ export function renderVNodeInner(
 	}
 
 	if (typeof vnode.type === 'function') {
-		return renderComponent(context, vnode, parent);
+		return syncComponents.renderSyncComponent(context, vnode, parent, syncComponentOperations);
 	}
 
 	return renderElement(context, vnode, parent);

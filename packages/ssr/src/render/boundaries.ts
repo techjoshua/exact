@@ -10,6 +10,7 @@ import type {
 	SsrContext
 } from '../types.js';
 import { renderChildrenAsync } from './async-tree.js';
+import { componentName } from './component-vnode.js';
 import { renderChildren } from './sync-tree.js';
 
 /** Transforms server boundary into its required representation. */
@@ -236,19 +237,6 @@ export function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptio
 		options.scriptId !== undefined ||
 		options.nonce !== undefined
 	);
-}
-
-/** Resolves a component props. */
-export function getComponentProps(vnode: VNode): Record<string, unknown> {
-	const props = { ...vnode.props };
-	if (vnode.children.length === 1) props.children = vnode.children[0];
-	else if (vnode.children.length > 1) props.children = vnode.children;
-	return props;
-}
-
-/** Performs the component name domain operation. */
-export function componentName(type: VNode['type']): string {
-	return typeof type === 'function' ? type.name || 'anonymous' : String(type);
 }
 
 /** Returns the stable protocol identity embedded in a hydratable component marker. */

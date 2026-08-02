@@ -77,6 +77,11 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		enhancementCatalog: options.enhancementCatalog,
 		unavailableEnhancements: new Set(),
 		enhancementVNodes: new WeakSet(),
+		plannedEnhancementBoundaries: new WeakSet(),
+		enhancementTargets: new WeakMap(),
+		preparedEnhancementComponents: new WeakMap(),
+		preparedEnhancementChildren: new WeakMap(),
+		preparedEnhancementSuspense: new WeakMap(),
 		componentContexts: options.contexts,
 		...(options.inspection
 			? {
