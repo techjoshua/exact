@@ -687,6 +687,12 @@ element ownership through updates, hydration, and `Activity` parking. Calling
 `fulfill()` directly remains ordinary imperative ref assignment; it does not
 claim DOM ownership or structural lifecycle behavior.
 
+`this.refs.root()` returns a stable reactive view of the component's first
+intrinsic root. Its `current`, `generation`, and `presented` fields follow root
+replacement and retained `Activity` ranges. Pass an element-valued binding to
+`this.refs.root(binding)` when that ref, rather than the first intrinsic output,
+defines the component root. The binding must belong to the same component.
+
 ### Keyed collections
 
 An ordinary reactive `Array.map()` is compiled as a keyed collection when

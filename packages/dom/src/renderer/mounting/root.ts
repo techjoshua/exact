@@ -47,6 +47,7 @@ import type { Mounted, Root } from '../../types.js';
 import { countDomWork, isDomRenderLimitError, withTreeDepth } from '../limits.js';
 import { bindText, patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
+import { refreshComponentRoot } from '../component-roots.js';
 import { installActivity, prepareActivity } from '../activity.js';
 import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
@@ -306,6 +307,7 @@ export function mountInner(
 			flushSync('normal');
 			const rendered = withEffectScope(mounted.scope, () => renderInstance(instance, invalidate));
 			mounted.children = mountDetachedChildren(root, rendered, instance, mounted.scope, parentNode);
+			refreshComponentRoot(instance);
 			instance.markMounted();
 		} catch (error) {
 			if (isDomRenderLimitError(error)) throw error;

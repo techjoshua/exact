@@ -12,6 +12,7 @@ import {
 } from '../limits.js';
 import { rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
+import { refreshComponentRoot } from '../component-roots.js';
 import { createDomErrorContext, createRootBoundary } from '../root-support.js';
 import { unmountMounted } from '../teardown.js';
 import { adoptStaticChildren, boundaryMarkers, contentNodesBetween } from './boundaries.js';
@@ -75,6 +76,7 @@ export function adoptStatic(
 				return false;
 			}
 			mounted.children = children;
+			refreshComponentRoot(instance);
 			instance.markMounted();
 			root.mounted = mounted;
 			roots.set(container, root);
@@ -150,6 +152,7 @@ export function adoptComponentRoot(
 				return false;
 			}
 			mounted.children = children;
+			refreshComponentRoot(instance);
 			instance.markMounted();
 			root.mounted = mounted;
 			roots.set(container, root);
@@ -223,6 +226,7 @@ export function adoptMarkerlessComponentRoot(
 				throw new Error('markerless root children did not adopt');
 			}
 			mounted.children = children;
+			refreshComponentRoot(instance);
 			instance.markMounted();
 			root.mounted = mounted;
 			roots.set(container, root);
@@ -296,6 +300,7 @@ export function adoptDocumentRoot(
 				return false;
 			}
 			mounted.children = children;
+			refreshComponentRoot(instance);
 			instance.markMounted();
 			root.mounted = mounted;
 			roots.set(container, root);

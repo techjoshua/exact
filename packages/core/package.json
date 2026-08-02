@@ -27,6 +27,10 @@
 		"./framework/component-domains": {
 			"types": "./dist/framework/component-domains.d.ts",
 			"default": "./dist/framework/component-domains.js"
+		},
+		"./framework/component-roots": {
+			"types": "./dist/framework/component-roots.d.ts",
+			"default": "./dist/framework/component-roots.js"
 		}
 	},
 	"main": "./dist/index.js",

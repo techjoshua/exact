@@ -17,6 +17,7 @@ import type {
 	LifecycleHandler,
 	RefBinding,
 	RefKey,
+	RefRegistry,
 	RenderEventHandler,
 	RenderFunction,
 	VNode
@@ -52,6 +53,7 @@ import { componentContinuationTaskId } from '../tasks/component-continuation.js'
 import { createComponentProps, createComponentState } from './state.js';
 import { publishContextAccess } from './context-inspection.js';
 import { createComponentListController } from './list-controller.js';
+import { bindComponentRoot, componentRootLifecycle } from './root-lifecycle.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
@@ -120,7 +122,11 @@ export function createComponentInstance<
 		refs: {
 			get<T>(key: RefKey<T>) {
 				return refs.get(key.id)?.current as T | undefined;
-			}
+			},
+			root: ((binding?: RefBinding<object>) =>
+				binding
+					? bindComponentRoot(instance, binding)
+					: componentRootLifecycle(instance)) as RefRegistry['root']
 		},
 		hasContext(token: ContextToken<unknown>): boolean {
 			instance.contextTokens.set(token.id, token);

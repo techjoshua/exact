@@ -25,6 +25,7 @@ import {
 	unmountMounted
 } from '../teardown.js';
 import { patch } from './root.js';
+import { refreshComponentRoot } from '../component-roots.js';
 
 /** Performs the patch children domain operation. */
 export function patchChildren(
@@ -121,6 +122,7 @@ export function patchChildrenInner(
 		}
 	}
 	throwTeardownFailure(teardown);
+	if (parentInstance) refreshComponentRoot(parentInstance);
 
 	return nextMounted;
 }

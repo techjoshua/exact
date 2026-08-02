@@ -137,6 +137,53 @@ describe('@exactjs/dom root-lifecycle', () => {
 		expect(instance.refs.get(buttonRef)).toBe(container.querySelector('button'));
 	});
 
+	it('publishes the first intrinsic component root and advances its generation on replacement', () => {
+		let instance!: Component<{ link: boolean }>;
+		let root!: ReturnType<Component<{}>['refs']['root']>;
+
+		function Control(this: Component<{ link: boolean }>) {
+			instance = this;
+			this.state.link = false;
+			root = this.refs.root();
+			return () =>
+				this.state.link
+					? jsx('a', { href: '#next', children: 'Next' })
+					: jsx('button', { children: 'Next' });
+		}
+
+		const container = document.createElement('div');
+		render(jsx(Control, {}), container);
+
+		expect(root.current).toBe(container.querySelector('button'));
+		expect(root.generation).toBe(1);
+		expect(root.presented).toBe(true);
+
+		instance.state.link = true;
+		flushSync();
+
+		expect(root.current).toBe(container.querySelector('a'));
+		expect(root.generation).toBe(2);
+	});
+
+	it('lets an element ref explicitly select a component root', () => {
+		const actionRef = createRef<HTMLButtonElement>('action');
+		let root!: ReturnType<Component<{}>['refs']['root']>;
+
+		function Card(this: Component<{}>) {
+			root = this.refs.root(this.ref(actionRef));
+			return () =>
+				jsx('section', {
+					children: jsx('button', { ref: this.ref(actionRef), children: 'Save' })
+				});
+		}
+
+		const container = document.createElement('div');
+		render(jsx(Card, {}), container);
+
+		expect(root.current).toBe(container.querySelector('button'));
+		expect(root.current).not.toBe(container.querySelector('section'));
+	});
+
 	it('clears the previous ref when a DOM node receives a new ref', () => {
 		const firstRef = createRef<HTMLButtonElement>('first');
 		const secondRef = createRef<HTMLButtonElement>('second');

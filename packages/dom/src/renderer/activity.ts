@@ -21,6 +21,7 @@ import {
 import type { Mounted, Root } from '../types.js';
 import { detachMountedRanges, restoreMountedRanges } from './retained-range.js';
 import { ownMountedInstance } from './root-lifecycle.js';
+import { setMountedRootPresentation } from './component-roots.js';
 
 /** Installs the private readiness gate and logical owner inherited by Activity descendants. */
 export function prepareActivity(
@@ -191,6 +192,7 @@ function retainWhenPlaced(mounted: Mounted): void {
 
 function setDescendantActivity(mounted: Mounted, active: boolean): void {
 	const token = mounted.activity!.token;
+	for (const child of mounted.children) setMountedRootPresentation(child, active);
 	const pending = [...mounted.children];
 	while (pending.length) {
 		const child = pending.pop()!;

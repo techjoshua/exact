@@ -250,9 +250,45 @@ export type RefBinding<T> = {
 	fulfill(value: T | undefined): void;
 };
 
+/** Identifies why a renderer-owned component root is leaving its structural generation. */
+export type StructuralReleaseReason =
+	| 'reconcile-removed'
+	| 'reconcile-replaced'
+	| 'suspense-content-replaced'
+	| 'suspense-candidate-discarded'
+	| 'enhancement-target-rerouted'
+	| 'root-unmounted'
+	| 'owner-disposed'
+	| 'activity-parked'
+	| 'activity-background'
+	| 'release-reversed';
+
+/** Describes one renderer-owned intrinsic root generation being structurally released. */
+export type RootRelease<T extends object> = {
+	readonly target: T;
+	readonly generation: number;
+	readonly reason: StructuralReleaseReason;
+	readonly presented: boolean;
+};
+
+/** Exposes the reactive intrinsic-root lifecycle for one component instance. */
+export type RootLifecycle<T extends object> = {
+	readonly current: T | undefined;
+	readonly generation: number;
+	readonly presented: boolean;
+	readonly release: RootRelease<T> | undefined;
+};
+
+/** Augments an element ref with the component-root lifecycle it explicitly selects. */
+export type RootBinding<T extends object> = RefBinding<T> & RootLifecycle<T>;
+
 /** Defines the ref registry type contract. */
 export type RefRegistry = {
 	get<T>(key: RefKey<T>): T | undefined;
+	/** Observes the component's first intrinsic root. */
+	root<T extends object = object>(): RootLifecycle<T>;
+	/** Selects an element ref as the component root and observes its lifecycle. */
+	root<T extends object>(binding: RefBinding<T>): RootBinding<T>;
 };
 
 /** Defines the task resource disposal type contract. */

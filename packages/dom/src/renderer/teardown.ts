@@ -9,6 +9,7 @@ import { clearElementOwner, clearNodeOwner } from '../ownership.js';
 import { clearElementProps } from '../props.js';
 import { componentMounts } from '../state.js';
 import type { Mounted } from '../types.js';
+import { disposeMountedComponentRoot } from './component-roots.js';
 
 /** Provides the canonical teardown failure value. */
 export const teardownFailure = createCleanupFailure;
@@ -64,6 +65,7 @@ export function unmountMounted(mounted: Mounted): void {
 		if (current.mounted.instance) {
 			componentMounts.delete(current.mounted.instance);
 			attemptTeardown(failure, () => current.mounted.instance!.unmount());
+			attemptTeardown(failure, () => disposeMountedComponentRoot(current.mounted.instance!));
 		}
 		if (current.mounted.stop) attemptTeardown(failure, current.mounted.stop);
 		if (current.mounted.dom instanceof Element) {

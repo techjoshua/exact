@@ -184,7 +184,10 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.ref()</code>
 					<p>A DOM reference owned by this component.</p>
 					<code>this.refs</code>
-					<p>Reads values published through the instance's ref bindings.</p>
+					<p>
+						Reads ref values and observes the component&apos;s intrinsic-root identity, generation,
+						and presentation.
+					</p>
 					<code>this.onMount()</code>
 					<p>Registers mounted work with an abort signal.</p>
 					<code>this.onUnmount()</code>

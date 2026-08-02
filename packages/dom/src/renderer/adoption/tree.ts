@@ -29,6 +29,7 @@ import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
 import { patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
+import { refreshComponentRoot } from '../component-roots.js';
 import { unmountMany, unmountMounted } from '../teardown.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import { adoptActivityBoundary, adoptSuspenseBoundary } from './mode-boundaries.js';
@@ -102,6 +103,7 @@ export function adoptStaticMountedInner(
 				mounted.dom = start;
 				mounted.end = end;
 				mounted.children = adopted.mounts;
+				refreshComponentRoot(instance);
 				instance.markMounted();
 				return { mounted, next: cursor + adopted.next };
 			} catch (error) {
@@ -145,6 +147,7 @@ export function adoptStaticMountedInner(
 				return undefined;
 			}
 			mounted.children = children;
+			refreshComponentRoot(instance);
 			instance.markMounted();
 			return { mounted, next: endIndex + 1 };
 		} catch {
