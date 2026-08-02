@@ -242,8 +242,11 @@ export type RefKey<T> = {
 
 /** Defines the ref binding type contract. */
 export type RefBinding<T> = {
+	/** Current value published for this component-owned binding. */
+	readonly current: T | undefined;
 	readonly key: RefKey<T>;
 	readonly owner: ComponentInstance<any>;
+	/** Publishes an imperative value without assigning it component-root lifecycle semantics. */
 	fulfill(value: T | undefined): void;
 };
 

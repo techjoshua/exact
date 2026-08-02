@@ -1,6 +1,7 @@
 import {
 	computed,
 	createEffectScope,
+	reactive,
 	unwrap,
 	updateReactive,
 	withEffectScope,
@@ -68,7 +69,7 @@ export function createComponentInstance<
 ): ComponentInstance<State> {
 	const resumption = resolveComponentResumption(domain, type);
 	const inspection = componentDomainInspection(domain);
-	const refs = new Map<symbol, unknown>();
+	const refs = new Map<symbol, RefBinding<unknown>>();
 	const lists = createComponentListController();
 	// Assignment follows scope creation because the scope error callback closes over the final instance.
 	// eslint-disable-next-line prefer-const
@@ -118,7 +119,7 @@ export function createComponentInstance<
 		},
 		refs: {
 			get<T>(key: RefKey<T>) {
-				return refs.get(key.id) as T | undefined;
+				return refs.get(key.id)?.current as T | undefined;
 			}
 		},
 		hasContext(token: ContextToken<unknown>): boolean {
@@ -158,17 +159,24 @@ export function createComponentInstance<
 			});
 		},
 		ref<T>(key: RefKey<T>): RefBinding<T> {
-			return {
+			const existing = refs.get(key.id) as RefBinding<T> | undefined;
+			if (existing) return existing;
+			const slot = reactive(
+				{ current: undefined as T | undefined },
+				{ passthroughKeys: ['current'] }
+			);
+			const binding: RefBinding<T> = {
+				get current() {
+					return slot.current;
+				},
 				key,
 				owner: instance,
 				fulfill(value) {
-					if (value === undefined) {
-						refs.delete(key.id);
-					} else {
-						refs.set(key.id, value);
-					}
+					slot.current = value;
 				}
 			};
+			refs.set(key.id, binding as RefBinding<unknown>);
+			return binding;
 		},
 		map<T>(
 			collection: Iterable<T> | ReactiveValue<Iterable<T>>,

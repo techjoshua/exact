@@ -680,9 +680,12 @@ function Search(this: Component<{}>) {
 }
 ```
 
-The registry returns `undefined` before fulfillment and after removal. Refs
-follow element ownership through updates, hydration, and `Activity`
-parking.
+`this.ref(key)` returns one stable component-owned binding for that key.
+`binding.current` and the registry's `this.refs.get(key)` read the same reactive
+slot, returning `undefined` before fulfillment and after removal. Refs follow
+element ownership through updates, hydration, and `Activity` parking. Calling
+`fulfill()` directly remains ordinary imperative ref assignment; it does not
+claim DOM ownership or structural lifecycle behavior.
 
 ### Keyed collections
 

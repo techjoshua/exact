@@ -164,6 +164,12 @@ export function ComponentsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>The instance surface, after the model</h2>
+				<p>
+					Calling <code>this.ref(key)</code> returns the same component-owned binding for that key.
+					Its reactive <code>current</code> value is also available through{' '}
+					<code>this.refs.get(key)</code>, so tasks and derived work can observe fulfillment and
+					removal without polling.
+				</p>
 				<div className="definition-grid">
 					<code>this.state</code>
 					<p>Reactive, instance-owned data.</p>
