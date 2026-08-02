@@ -29,7 +29,7 @@ export type {
 } from './process-task-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.26.0';
+export const nativeCompilerProtocolVersion = '1.27.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -363,6 +363,11 @@ export type NativeCompilerAnalysis = Readonly<{
 	boundaries: readonly NativeCompilerBoundary[];
 	continuations: readonly NativeCompilerContinuation[];
 	registries?: readonly NativeCompilerComponentRegistry[];
+	rendererEnhancements: readonly Readonly<{
+		identity: string;
+		moduleSpecifier: string;
+		exportName: string;
+	}>[];
 	resumptions: readonly NativeCompilerComponentResumption[];
 	policy: NativeCompilerPolicyAnalysis;
 	requiredCapabilities: NativeCompilerCapabilityRequirements;

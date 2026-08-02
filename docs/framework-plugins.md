@@ -102,13 +102,12 @@ non-component values, open prop dictionaries, unknown members, and reserved memb
 diagnostics. Active renderer roots instantiate the mapped value as an ordinary inspectable
 component; unavailable capabilities leave the intrinsic target unchanged and warn once.
 
-Capability declaration and activation trust are separate stages. Compilation records attributed
-component exports for every participating package without consulting the eventual application's
-trust policy. The final application's prepared registry then selects activation entries by trusted
-package identity. Trusting a package trusts its attributed capabilities; an untrusted package may
-still be compiled and described, but its markers remain inert in that application.
-Vite turns the final trusted selection into a generated DOM facade and supplies it to each renderer
-root through ordinary render options; callers that provide an explicit catalog retain control.
+Capability declaration and activation are separate stages. Compilation records every attributed
+import without consulting a plugin registry because a library cannot know the final application's
+bundle policy. The application build either includes that package capability or does not; bundling
+the package is the activation trust decision. Vite links compiler-emitted module fragments into a
+bundle-local generated catalog and supplies it to each renderer root through ordinary render
+options. Callers that provide an explicit catalog retain control.
 
 Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
@@ -125,5 +124,5 @@ cycle fails through the normal component error boundary before any member of the
   narrower host-specific feature set. Check the plugin and runtime docs.
 - Compiler extensions may contribute bounded, validated analysis data retained
   only for the active compiler session.
-- Generated enhancement catalogs are still being connected from prepared registries into every
-  build and render host; current low-level renderer callers can supply an explicit catalog.
+- Compiler-emitted enhancement catalogs are still being connected into non-Vite build and render
+  hosts; current low-level renderer callers can supply an explicit catalog.

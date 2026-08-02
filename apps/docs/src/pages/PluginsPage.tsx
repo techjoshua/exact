@@ -90,13 +90,13 @@ export function PluginsPage(this: Component<{}>) {
 					unavailable optional enhancement leaves the target unchanged.
 				</p>
 				<p>
-					Compilation records attributed capabilities independently of trust because a library cannot
-					know the final application's policy. At application preparation, package trust selects which
-					declared capabilities may activate. Trust belongs to the package: trusting it trusts its
-					attributed component capabilities.
+					Compilation records attributed capabilities without a plugin registry because a library
+					cannot know the final application's bundle policy. The application either bundles that
+					package capability or does not; package inclusion is the activation trust decision.
 				</p>
 				<p>
-					The Vite adapter generates the final DOM catalog and passes it into each renderer root.
+					The Vite adapter links compiler-emitted module fragments into a bundle-local DOM catalog and
+					passes it into each renderer root.
 					Low-level callers can still provide an explicit catalog when constructing a host directly.
 				</p>
 				<p>

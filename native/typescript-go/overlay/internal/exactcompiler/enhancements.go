@@ -17,6 +17,7 @@ type enhancementImports struct {
 	bindings     map[string]enhancementBinding
 	declarations map[int]struct{}
 	spreads      map[int]enhancementSpread
+	catalog      []RendererEnhancement
 	diagnostics  []Diagnostic
 }
 
@@ -95,6 +96,7 @@ func collectEnhancementImports(
 				addDiagnostic("EXACT6004", diagnostic)
 			} else {
 				result.bindings[name.Text()] = binding
+				appendEnhancementCatalog(&result, identity, moduleSpecifier, "default")
 			}
 		}
 		bindings := clause.NamedBindings
@@ -138,11 +140,28 @@ func collectEnhancementImports(
 				continue
 			}
 			result.bindings[specifier.Name().Text()] = binding
+			appendEnhancementCatalog(&result, identity, moduleSpecifier, exportName)
 		}
 	}
 	collectEnhancementAttributeDiagnostics(sourceFile, &result, ordinaryBindings)
 	collectEnhancementSpreadDiagnostics(sourceFile, typeChecker, &result, ordinaryBindings)
 	return result
+}
+
+func appendEnhancementCatalog(
+	imports *enhancementImports,
+	identity string,
+	moduleSpecifier string,
+	exportName string,
+) {
+	for _, existing := range imports.catalog {
+		if existing.Identity == identity {
+			return
+		}
+	}
+	imports.catalog = append(imports.catalog, RendererEnhancement{
+		Identity: identity, ModuleSpecifier: moduleSpecifier, ExportName: exportName,
+	})
 }
 
 func resolveEnhancementIdentity(

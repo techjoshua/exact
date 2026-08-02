@@ -6311,6 +6311,12 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	if strings.Count(response.Code, "__exactEnhancements:") != 1 {
 		t.Fatalf("plugin props were not emitted as one grouped marker:\n%s", response.Code)
 	}
+	if len(response.Analysis.Enhancements) != 1 ||
+		response.Analysis.Enhancements[0].Identity != "./motion.js#motion" ||
+		response.Analysis.Enhancements[0].ModuleSpecifier != "./motion.js" ||
+		response.Analysis.Enhancements[0].ExportName != "motion" {
+		t.Fatalf("compiler omitted renderer enhancement bundle metadata: %#v", response.Analysis.Enhancements)
+	}
 }
 
 func TestSessionRejectsPluginNamespaceImports(t *testing.T) {

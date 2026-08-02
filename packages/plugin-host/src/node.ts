@@ -25,7 +25,6 @@ export {
 	invalidateExactPluginRegistry,
 	prepareExactPluginRegistry,
 	syncExactPluginTypes,
-	type ExactPreparedEnhancement,
 	type ExactPreparedPluginRegistry,
 	type PrepareExactPluginRegistryOptions
 } from './registry.js';

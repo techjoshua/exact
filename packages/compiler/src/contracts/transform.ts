@@ -171,11 +171,20 @@ export type ExactRawHtmlCapabilityIR = {
 	targets: ExactArtifactTarget[];
 };
 
+/** Identifies one compiler-resolved renderer capability imported by a module. */
+export type ExactRendererEnhancementIR = {
+	identity: string;
+	moduleSpecifier: string;
+	exportName: string;
+};
+
 /** Describes the result produced by transform. */
 export type TransformResult = {
 	code: string;
 	map: ExactSourceMap | null;
 	filename: string;
+	/** Build-facing capability imports; emitted independently of application plugin registries. */
+	rendererEnhancements?: readonly ExactRendererEnhancementIR[];
 	explanation?: ExactCompilerExplanation;
 	/** Optional host-side inspection catalog; never embedded in generated code. */
 	inspectionCatalog?: ExactSourceInspection;

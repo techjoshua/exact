@@ -45,7 +45,7 @@ func (s *Session) Execute(request Request) Response {
 		Diagnostics: []Diagnostic{},
 		Analysis: NewAnalysis(
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-			nil, nil, nil,
+			nil, nil, nil, nil,
 			newPolicyAnalysis(),
 			CapabilityRequirements{},
 			nil,
@@ -337,6 +337,7 @@ func (s *Session) Execute(request Request) Response {
 		boundaries,
 		continuations,
 		registries,
+		enhancementImports.catalog,
 		resumptions,
 		policy.graph,
 		capabilities,

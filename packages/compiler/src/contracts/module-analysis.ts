@@ -10,7 +10,11 @@ import type {
 import type { ExactComponentResumptionIR, ExactContinuationIR } from './continuations.js';
 import type { ExactComponentRegistryIR } from './registries.js';
 import type { ExactPolicyAnalysisIR } from './policy.js';
-import type { ExactAssetDependencyIR, ExactRawHtmlCapabilityIR } from './transform.js';
+import type {
+	ExactAssetDependencyIR,
+	ExactRawHtmlCapabilityIR,
+	ExactRendererEnhancementIR
+} from './transform.js';
 
 /** Ephemeral analysis retained only by an owned compiler session. */
 export type ExactModuleAnalysis = {
@@ -26,6 +30,7 @@ export type ExactModuleAnalysis = {
 	callables: ExactCallableSummaryIR[];
 	continuations: ExactContinuationIR[];
 	registries?: ExactComponentRegistryIR[];
+	rendererEnhancements: ExactRendererEnhancementIR[];
 	resumptions: ExactComponentResumptionIR[];
 	policy: ExactPolicyAnalysisIR;
 	packageName?: string;

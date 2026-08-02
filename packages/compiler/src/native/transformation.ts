@@ -104,6 +104,9 @@ export function transformSourceWithNativeCompiler(
 				: nativeSourceMap(response.sourceMap, filename, normalized)
 			: null,
 		filename,
+		...(analysis.rendererEnhancements.length
+			? { rendererEnhancements: analysis.rendererEnhancements.map((entry) => ({ ...entry })) }
+			: {}),
 		...(options.explain ? { explanation: createExactCompilerExplanation(analysis, target) } : {}),
 		...(inspection && shouldEnableInspection(options.emitInspection)
 			? { inspectionCatalog: inspection }

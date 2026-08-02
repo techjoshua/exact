@@ -46,7 +46,11 @@ import {
 import type { ExactPlugin, ExactPluginOptions } from './plugin-contracts.js';
 import {
 	createViteDomEnhancementFacade,
+	createViteEnhancementCatalogRuntime,
+	exactEnhancementCatalogModule,
 	exactEnhancementDomModule,
+	prependViteEnhancementRegistrations,
+	resolvedExactEnhancementCatalogModule,
 	resolvedExactEnhancementDomModule
 } from './enhancement-catalog.js';
 
@@ -166,6 +170,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		resolveId(source, importer) {
 			if (source === exactEnhancementDomModule) return resolvedExactEnhancementDomModule;
+			if (source === exactEnhancementCatalogModule) return resolvedExactEnhancementCatalogModule;
 			if (
 				source === exactDevtoolsRuntimeModule &&
 				options.target !== 'server' &&
@@ -190,11 +195,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					)?.id ?? null
 				);
 			};
-			if (source === '@exactjs/dom' && importer !== resolvedExactEnhancementDomModule) {
-				const resolvePrepared = (registry: ExactPreparedPluginRegistry) =>
-					registry.enhancements.size ? resolvedExactEnhancementDomModule : resolveFrameworkImport();
-				return preparedRegistry ? resolvePrepared(preparedRegistry) : prepareRegistry().then(resolvePrepared);
-			}
+			if (source === '@exactjs/dom' && importer !== resolvedExactEnhancementDomModule)
+				return resolvedExactEnhancementDomModule;
 			return microfrontends.resolveId(
 				source,
 				importer,
@@ -207,9 +209,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		load(id) {
 			if (id === resolvedExactEnhancementDomModule) {
 				return {
-					code: createViteDomEnhancementFacade(preparedRegistry?.enhancements ?? new Map()),
+					code: createViteDomEnhancementFacade(),
 					moduleType: 'js'
 				};
+			}
+			if (id === resolvedExactEnhancementCatalogModule) {
+				return { code: createViteEnhancementCatalogRuntime(), moduleType: 'js' };
 			}
 			if (id === resolvedExactDevtoolsRuntimeModule)
 				return {
@@ -339,8 +344,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 									sourceMap: false
 								})
 							: { code: result.code };
-						const clientCode = prependViteDevtoolsRuntimeImport(
+						const enhancementCode = prependViteEnhancementRegistrations(
 							rewritten.code,
+							result.rendererEnhancements
+						);
+						const clientCode = prependViteDevtoolsRuntimeImport(
+							enhancementCode,
 							options.target !== 'server' && inspectionRuntimeEnabled(configuredDebug, viteCommand)
 						);
 						return {

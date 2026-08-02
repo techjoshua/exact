@@ -12,7 +12,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.26.0"
+const ProtocolVersion = "1.27.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -634,6 +634,13 @@ type ComponentRegistry struct {
 	Entries []ComponentRegistryEntry `json:"entries"`
 }
 
+// RendererEnhancement identifies one compiler-resolved component capability needed by a module.
+type RendererEnhancement struct {
+	Identity        string `json:"identity"`
+	ModuleSpecifier string `json:"moduleSpecifier"`
+	ExportName      string `json:"exportName"`
+}
+
 // Analysis contains eXact-owned semantic facts returned by the native host.
 type Analysis struct {
 	Imports          []Import               `json:"imports"`
@@ -650,6 +657,7 @@ type Analysis struct {
 	Boundaries       []Boundary             `json:"boundaries"`
 	Continuations    []Continuation         `json:"continuations"`
 	Registries       []ComponentRegistry    `json:"registries"`
+	Enhancements     []RendererEnhancement  `json:"rendererEnhancements"`
 	Resumptions      []ComponentResumption  `json:"resumptions"`
 	Policy           PolicyAnalysis         `json:"policy"`
 	Capabilities     CapabilityRequirements `json:"requiredCapabilities"`
@@ -674,6 +682,7 @@ func NewAnalysis(
 	boundaries []Boundary,
 	continuations []Continuation,
 	registries []ComponentRegistry,
+	enhancements []RendererEnhancement,
 	resumptions []ComponentResumption,
 	policy PolicyAnalysis,
 	capabilities CapabilityRequirements,
@@ -695,6 +704,7 @@ func NewAnalysis(
 		Boundaries:       nonNilSlice(boundaries),
 		Continuations:    normalizedContinuations(continuations),
 		Registries:       normalizedComponentRegistries(registries),
+		Enhancements:     nonNilSlice(enhancements),
 		Resumptions:      normalizedResumptions(resumptions),
 		Policy:           normalizedPolicy(policy),
 		Capabilities: CapabilityRequirements{

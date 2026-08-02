@@ -40,9 +40,9 @@ already attach the same generic context-token contract explicitly.
   plugin metadata.
 - All enhancements are optional. An inactive plugin never prevents the
   underlying target from rendering.
-- Existing plugin discovery and trust configuration remains authoritative.
-  An attributed import emits an inert marker; it does not register, authorize,
-  import, or execute a plugin component.
+- The compiler records the resolved capability independently of any plugin
+  registry. The final application either bundles that package capability or
+  does not; package inclusion is the activation trust boundary.
 - Stable generic refs and element-root generation-fenced release primitives
   belong in the framework and are reused by every plugin package.
 - Existing component placement, task, SSR, hydration, error, Suspense,
@@ -530,34 +530,33 @@ ErrorBoundary fallback, server patches, root teardown, compatibility adapters,
 testing, and inspection. This is framework cleanup, not plugin-specific
 duplication.
 
-## Runtime activation, trust, and warnings
+## Runtime activation, bundling, and warnings
 
-The existing plugin host and build pipeline own registration and trust. Marker
-emission is safe and inert. Runtime activation requires a trusted component
-mapped to the exact canonical plugin identity in the current renderer root.
+Marker emission is safe and inert. For every attributed import, the compiler
+emits build metadata containing the canonical identity and resolved runtime
+module export. It does so without loading or consulting a plugin registry; a
+library cannot know the final application's bundle policy.
 
-The mapping is a generated build product, not an authored second registry.
-During the existing server/client bundle preparation, the compiler catalogs
-valid attributed capability exports reachable through the application and its
-trusted plugin packages. Wrapper exports contribute their resolved wrapper
-identity while referencing the normally compiled component output. The
-prepared plugin registry carries that catalog to the renderer mode it already
-owns. A JSX use site contributes only its marker entry and never imports or
-registers the component implementation.
+The application build adapter links only metadata reached by compiled
+application modules into one bundle-local generated catalog. Consequently the
+application either bundles a package capability or does not. That package-level
+bundle decision is the trust and activation boundary. Wrapper exports retain
+their canonical wrapper identity while importing the normally compiled public
+component export. The generated catalog is passed into each renderer root; it
+is not an authored registry or a process-global component map.
 
 The outcomes are:
 
 | Resolution                                                    | Behavior                                                                  |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Active trusted component                                      | Instantiate the ordinary plugin component.                                |
-| Package matched by `pluginDiscovery.ignore` on the server     | Render unchanged and remain silent.                                       |
-| Absent, untrusted, or missing capability export on the server | Render unchanged and warn once per canonical identity and server host.    |
-| Inactive or absent on the client                              | Render unchanged and warn once per canonical identity and client runtime. |
+| Component included in the application bundle             | Instantiate the ordinary plugin component.                                |
+| Capability absent from the server bundle                  | Render unchanged and warn once per canonical identity and server host.    |
+| Capability absent from the client bundle                  | Render unchanged and warn once per canonical identity and client runtime. |
+| Bundled export is missing or not a component              | Fail the build or generated catalog initialization.                       |
 
-Server warnings use the existing logger and never include prop values. The
-client receives neither the server trust list nor the ignored-package policy.
-No enhancement-specific production mode or warning-suppression configuration is
-added.
+Server warnings use the existing logger and never include prop values. No
+server trust list or ignored-package policy is serialized to the client. No
+enhancement-specific production mode or warning-suppression configuration is added.
 
 All enhancements remain optional. Packages that provide required application
 behavior must expose and document an explicit ordinary component instead.
@@ -584,7 +583,7 @@ There is no plugin-specific serialization payload, hydration algorithm, or
 server/client placement policy.
 
 Microfrontends carry grouped markers through the existing eXact protocol and
-resolve them against the plugin registry of the renderer root that owns the
+resolve them against the generated catalog of the renderer root that owns the
 logical target. Portals retain logical source ownership. Remote roots cannot
 activate components in another root or disclose another server's allowlist.
 

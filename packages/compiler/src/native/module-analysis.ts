@@ -71,6 +71,7 @@ export function nativeModuleAnalysis(
 				artifactTargets: [...entry.artifactTargets]
 			}))
 		})),
+		rendererEnhancements: response.analysis.rendererEnhancements.map((entry) => ({ ...entry })),
 		resumptions: response.analysis.resumptions.map((resumption) => ({
 			componentId: resumption.componentId,
 			serverRender: {

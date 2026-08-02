@@ -1119,19 +1119,18 @@ The dependency distinctions are intentional:
    static generated contract;
 2. consuming a compiled motion marker requires only the generic core boundary
    and remains functional without an active motion component;
-3. the existing trusted host registry activates the exact canonical component;
+3. the final application bundle links the exact canonical component into its generated catalog;
 4. explicit JavaScript imports such as `Motion`, `Presence`, `defineMotion`,
    or `animate` create normal package dependencies; and
 5. a package exposing TSX source retains the attributed import for recompilers,
    while a precompiled package records only canonical marker provenance and
    does not forward a required motion runtime.
 
-The plugin registry remains the only activation and trust authority. A package
-matched by server `pluginDiscovery.ignore` is intentionally inactive and
-silent. Other unavailable server identities warn once per host; unavailable
-client identities warn once per client runtime without receiving server trust
-or ignore policy. The underlying target remains unchanged in every inactive
-case.
+The compiler emits this bundle metadata without a plugin registry. The final
+application either bundles the motion package capability or does not; package
+inclusion is the activation trust boundary. Unavailable server identities warn
+once per host, and unavailable client identities warn once per client runtime.
+The underlying target remains unchanged in every inactive case.
 
 The compiler must:
 
@@ -1159,7 +1158,7 @@ The compiler must:
 - project provenance through existing build and inspection products without an
   enhancement-specific protocol version.
 
-Language tools load the same prepared plugin registry as compilation. They
+Language tools use the same TypeScript module resolution and attributed-export analysis as compilation. They
 provide completion, hover, validation, source-site explanations, and semantic
 entities for owned namespaced attributes. They should explain relevant motion
 at the decorated element or retained range without covering ordinary
