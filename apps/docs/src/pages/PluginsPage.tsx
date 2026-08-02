@@ -77,6 +77,16 @@ export function PluginsPage(this: Component<{}>) {
 			<section>
 				<h2>The plugins in this repository</h2>
 				<div className="card-grid">
+					<Link className="topic-card" to="/plugins/motion">
+						<span className="topic-index">Visual behavior</span>
+						<strong>Motion</strong>
+						<p>Animate committed state with prepared definitions and task-owned playback.</p>
+					</Link>
+					<Link className="topic-card" to="/plugins/gestures">
+						<span className="topic-index">Semantic input</span>
+						<strong>Gestures</strong>
+						<p>Recognize pointer and keyboard intent with bounded component-owned sessions.</p>
+					</Link>
 					<Link className="topic-card" to="/plugins/microfrontends">
 						<span className="topic-index">Build + runtime</span>
 						<strong>Microfrontends</strong>

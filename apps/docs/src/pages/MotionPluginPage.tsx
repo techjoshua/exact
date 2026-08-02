@@ -46,7 +46,7 @@ export function MotionPluginPage(this: Component<{}>) {
 			title="Keep state authoritative while tasks own motion"
 			description="Prepared definitions describe finite visual paths. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
 			previous={{ path: '/plugins', label: 'Plugin system' }}
-			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
+			next={{ path: '/plugins/gestures', label: 'Gestures' }}
 		>
 			<section>
 				<h2>Prepare visual behavior once</h2>

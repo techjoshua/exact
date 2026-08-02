@@ -140,6 +140,8 @@ Read [distributed-execution.md](references/distributed-execution.md) before crea
 server tasks, server context, SSR resumption, or client/server protocol tests.
 Read [motion.md](references/motion.md) before adding prepared motion definitions, explicit motion
 components, imperative playback, or optional plugin-owned motion attributes.
+Read [gestures.md](references/gestures.md) before adding prepared gesture definitions, semantic
+input callbacks, explicit gesture components, or optional plugin-owned gesture attributes.
 
 ## Follow existing application structure
 

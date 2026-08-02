@@ -8,6 +8,7 @@ import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
+import { GesturesPluginPage } from './pages/GesturesPluginPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
 import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
@@ -223,6 +224,13 @@ export const docGroups: DocGroup[] = [
 				summary: 'Animate committed state with prepared definitions and task-owned playback.',
 				keywords: 'plugin motion animation presets reduced motion task playback Web Animations',
 				component: MotionPluginPage
+			},
+			{
+				path: '/plugins/gestures',
+				label: 'Gestures',
+				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
+				keywords: 'plugin gestures drag pan press hover pinch pointer keyboard accessibility',
+				component: GesturesPluginPage
 			},
 			{
 				path: '/plugins/microfrontends',

@@ -11,6 +11,7 @@
 		{ "path": "./packages/plugin-host" },
 		{ "path": "./plugins/secrets" },
 		{ "path": "./plugins/motion" },
+		{ "path": "./plugins/gestures" },
 		{ "path": "./packages/module-rewrite" },
 		{ "path": "./packages/reactive" },
 		{ "path": "./packages/core" },
