@@ -17,6 +17,10 @@ import {
 	type ExactResolvedPluginConfiguration
 } from './configuration.js';
 import { discoverExactPlugins, type ExactPluginDiscoveryResult } from './discovery.js';
+import {
+	createPreparedEnhancementCatalog,
+	type ExactPreparedEnhancement
+} from './enhancement-catalog.js';
 import { createExactPackageGraph, findUp, packageName, type ExactPackageGraph } from './graph.js';
 import { importPublicPackageEntry } from './modules.js';
 import { validateExactRuntimeExtensions } from './runtime.js';
@@ -43,6 +47,10 @@ export interface ExactPreparedPluginRegistry {
 	readonly hostMode: ExactPluginHostMode;
 	readonly discovery: ExactPluginDiscoveryResult;
 	readonly compiler: ExactPreparedCompilerRegistry;
+	/** Compiler-visible capability declarations, independent of final application trust. */
+	readonly enhancementDeclarations: readonly ExactPreparedEnhancement[];
+	/** Trusted compiler-attributed component exports available to renderer hosts. */
+	readonly enhancements: ReadonlyMap<string, ExactPreparedEnhancement>;
 	readonly server: ReadonlyMap<string, unknown>;
 	readonly render: ReadonlyMap<string, unknown>;
 	readonly client: ReadonlyMap<string, unknown>;
@@ -141,6 +149,7 @@ async function prepareUncached(
 				: new Error('Plugin registry preparation aborted');
 		}
 		const compiler = createCompilerRegistry(resolution.plugins, discovery);
+		const enhancementCatalogs = createPreparedEnhancementCatalog(graph, discovery);
 		const runtime = await loadRuntimeExtensions(resolution.plugins);
 		if (options.hostMode === 'server') {
 			await validateExactRuntimeExtensions(runtime.get('server') ?? []);
@@ -153,6 +162,8 @@ async function prepareUncached(
 			hostMode: options.hostMode,
 			discovery,
 			compiler,
+			enhancementDeclarations: enhancementCatalogs.declarations,
+			enhancements: enhancementCatalogs.trusted,
 			server: projectionMap(resolution.plugins, 'server'),
 			render: projectionMap(resolution.plugins, 'render'),
 			client: projectionMap(resolution.plugins, 'client'),
@@ -169,6 +180,8 @@ async function prepareUncached(
 		options.signal?.removeEventListener('abort', onAbort);
 	}
 }
+
+export type { ExactPreparedEnhancement } from './enhancement-catalog.js';
 
 function createCompilerRegistry(
 	resolved: ReadonlyMap<string, ExactResolvedPluginConfiguration>,

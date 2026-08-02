@@ -90,6 +90,12 @@ export function PluginsPage(this: Component<{}>) {
 					unavailable optional enhancement leaves the target unchanged.
 				</p>
 				<p>
+					Compilation records attributed capabilities independently of trust because a library cannot
+					know the final application's policy. At application preparation, package trust selects which
+					declared capabilities may activate. Trust belongs to the package: trusting it trusts its
+					attributed component capabilities.
+				</p>
+				<p>
 					Ordinary context production and consumption orders components before setup. Unrelated
 					capabilities use canonical identity, while a context cycle fails through normal component
 					error handling before any component in the cycle runs.

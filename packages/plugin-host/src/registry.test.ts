@@ -49,6 +49,7 @@ describe('prepared plugin registry', () => {
 			'@exactjs/example',
 			{
 				exports: {
+					'.': { types: './capability.d.ts', default: './index.js' },
 					'./config': './config.js',
 					'./config-types': './config.d.ts'
 				},
@@ -62,6 +63,13 @@ describe('prepared plugin registry', () => {
 				}
 			},
 			{
+				'capability.d.ts': `
+					export { default } from './component.js' with { type: 'exact-plugin' };
+					export * from './components.js' with { type: 'exact-plugin' };
+				`,
+				'component.d.ts': 'export default function Enhancement(props: { children?: unknown }): unknown;',
+				'components.d.ts': 'export declare function Named(props: {}): unknown; export declare const value: number;',
+				'index.js': 'export default function Enhancement() {}',
 				'config.js': `
         export default {
           defaults() { return { order: ["defaults"] }; },
@@ -92,9 +100,15 @@ describe('prepared plugin registry', () => {
 						}
 					}
 				},
-				exports: { './exact': './exact.js' }
+				exports: {
+					'.': { types: './capability.d.ts', default: './index.js' },
+					'./exact': './exact.js'
+				}
 			},
 			{
+				'capability.d.ts': `export { Wrapper as default } from './wrapper.js' with { type: 'exact-plugin' };`,
+				'wrapper.d.ts': 'export declare function Wrapper(props: { children?: unknown }): unknown;',
+				'index.js': 'export function Wrapper() {}',
 				'exact.js': `
         export async function configureExample(config) {
           await Promise.resolve();
@@ -105,7 +119,17 @@ describe('prepared plugin registry', () => {
 			},
 			{ '@exactjs/example': '^1.0.0' }
 		);
-		const graph = createFixtureGraph(root, plugin, framework);
+		const untrusted = createPackage(
+			root,
+			'@vendor/untrusted',
+			{ exports: { '.': { types: './capability.d.ts', default: './index.js' } } },
+			{
+				'capability.d.ts': `export { default } from './component.js' with { type: 'exact-plugin' };`,
+				'component.d.ts': 'export default function Untrusted(props: {}): unknown;',
+				'index.js': 'export default function Untrusted() {}'
+			}
+		);
+		const graph = createFixtureGraph(root, plugin, framework, untrusted);
 		const config: ExactConfig = {
 			plugins: {
 				example: async (value: unknown) => {
@@ -123,6 +147,41 @@ describe('prepared plugin registry', () => {
 		expect(registry.compiler.plugins['@exactjs/example']?.cacheKey).toEqual({
 			order: ['defaults', 'framework', 'root']
 		});
+		expect([...registry.enhancements]).toEqual([
+			[
+				'@acme/framework#default',
+				{
+					identity: '@acme/framework#default',
+					packageName: '@acme/framework',
+					subpath: '.',
+					exportName: 'default'
+				}
+			],
+			[
+				'@exactjs/example#default',
+				{
+					identity: '@exactjs/example#default',
+					packageName: '@exactjs/example',
+					subpath: '.',
+					exportName: 'default'
+				}
+			],
+			[
+				'@exactjs/example#Named',
+				{
+					identity: '@exactjs/example#Named',
+					packageName: '@exactjs/example',
+					subpath: '.',
+					exportName: 'Named'
+				}
+			]
+		]);
+		expect(registry.enhancementDeclarations.map((entry) => entry.identity)).toEqual([
+			'@acme/framework#default',
+			'@exactjs/example#default',
+			'@exactjs/example#Named',
+			'@vendor/untrusted#default'
+		]);
 		expect(registry.reports.map((report) => report.contributor)).toEqual([
 			'@acme/framework',
 			'@app/root'
@@ -179,7 +238,8 @@ function createPackage(
 function createFixtureGraph(
 	root: string,
 	plugin: ExactPackageNode,
-	framework: ExactPackageNode
+	framework: ExactPackageNode,
+	...additional: readonly ExactPackageNode[]
 ): ExactPackageGraph {
 	const rootNode: ExactPackageNode = {
 		id: 'root',
@@ -209,10 +269,11 @@ function createFixtureGraph(
 	};
 	return {
 		rootId: rootNode.id,
-		nodes: new Map([
+			nodes: new Map([
 			[rootNode.id, rootNode],
 			[frameworkNode.id, frameworkNode],
-			[plugin.id, plugin]
+			[plugin.id, plugin],
+			...additional.map((node) => [node.id, node] as const)
 		])
 	};
 }

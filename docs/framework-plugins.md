@@ -102,6 +102,12 @@ non-component values, open prop dictionaries, unknown members, and reserved memb
 diagnostics. Active renderer roots instantiate the mapped value as an ordinary inspectable
 component; unavailable capabilities leave the intrinsic target unchanged and warn once.
 
+Capability declaration and activation trust are separate stages. Compilation records attributed
+component exports for every participating package without consulting the eventual application's
+trust policy. The final application's prepared registry then selects activation entries by trusted
+package identity. Trusting a package trusts its attributed capabilities; an untrusted package may
+still be compiled and described, but its markers remain inert in that application.
+
 Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
 their reads reactive. Open dictionaries and effectful inline enhancement spreads are diagnostics.
@@ -117,5 +123,5 @@ cycle fails through the normal component error boundary before any member of the
   narrower host-specific feature set. Check the plugin and runtime docs.
 - Compiler extensions may contribute bounded, validated analysis data retained
   only for the active compiler session.
-- Generated trusted enhancement catalogs and attributed re-export identity tracing are still being
-  connected across build hosts; current low-level renderer callers can supply an explicit catalog.
+- Generated enhancement catalogs are still being connected from prepared registries into every
+  build and render host; current low-level renderer callers can supply an explicit catalog.
