@@ -150,11 +150,18 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<h2>Works beside TypeScript</h2>
 				<p>
 					VS Code's TypeScript extension continues to provide completion, rename, navigation,
-					formatting, and ordinary type diagnostics. The separate eXact language server adds only
-					framework-owned diagnostics, semantic modifiers, hovers, operation badges, CodeLens,
-					symbols, code actions, and the read-only Compiler Separation view. It filters ordinary
-					TypeScript diagnostics from compiler inspection so refactors do not leave a duplicate
-					squiggle behind.
+					formatting, and ordinary type diagnostics. A narrow bundled TypeScript plugin gives local
+					component functions the enclosing authored receiver for <code>this.</code> completion and
+					removes the corresponding implicit-<code>this</code> false positive. Attributed
+					enhancement imports count as used, and typing a prefix such as <code>motion:</code>{' '}
+					completes the callable&apos;s finite public props in kebab-case plus the reserved{' '}
+					<code>root</code> selector. Unrelated TypeScript diagnostics remain unchanged.
+				</p>
+				<p>
+					The separate eXact language server adds framework-owned diagnostics, semantic modifiers,
+					hovers, operation badges, CodeLens, symbols, code actions, and the read-only Compiler
+					Separation view. It filters ordinary TypeScript diagnostics from compiler inspection so
+					refactors do not leave a duplicate squiggle behind.
 				</p>
 				<p>
 					Task diagnostics describe local task functions, activation sites, and final{' '}

@@ -161,7 +161,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
 				keywords:
-					'language tools VS Code extension LSP semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred authored TaskContext policy task no emit',
+					'language tools VS Code extension LSP TypeScript plugin IntelliSense completion component this enhancement namespace props semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred authored TaskContext policy task no emit',
 				component: LanguageToolsPage
 			},
 			{

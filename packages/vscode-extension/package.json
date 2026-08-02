@@ -24,6 +24,12 @@
 		"README.md"
 	],
 	"contributes": {
+		"typescriptServerPlugins": [
+			{
+				"name": "@exactjs/typescript-plugin",
+				"enableForWorkspaceTypeScriptVersions": true
+			}
+		],
 		"commands": [
 			{
 				"command": "exact.showComponentSemantics",
@@ -153,6 +159,7 @@
 	},
 	"dependencies": {
 		"@exactjs/language-server": "^0.1.0",
+		"@exactjs/typescript-plugin": "^0.1.0",
 		"vscode-languageclient": "^9.0.1"
 	},
 	"devDependencies": {

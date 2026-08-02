@@ -165,8 +165,17 @@ policy. Removed component registration APIs receive no special parsing,
 classification, diagnostics, or refactors.
 
 VS Code's TypeScript extension remains responsible for ordinary TypeScript
-diagnostics. eXact does not publish a duplicate TypeScript error at the same
-range. The language server captures immutable URI, version, and source text
+diagnostics. The extension contributes a narrow TypeScript server compatibility
+plugin for syntax whose compiler meaning differs from TypeScript's default model.
+Local functions inside a component inherit the authored `this: Component<...>`
+receiver for member completion without receiving TS2683, and an attributed
+`exact-plugin` binding counts as used when it appears as a JSX namespace. Typing
+that namespace and a colon completes the imported callable's finite public props
+in kebab-case, plus the reserved `root` target selector. Unrelated implicit-`this`
+and unused-import diagnostics remain unchanged.
+
+eXact does not publish a duplicate TypeScript error at the same range. The
+language server captures immutable URI, version, and source text
 before asynchronous analysis. A result is published only if that snapshot is
 still the current open document, so a compiler diagnostic cannot appear or
 disappear one edit late.
@@ -256,6 +265,7 @@ sessions.
 
 The VS Code extension presents:
 
+- component receiver and enhancement namespace completions through its bundled TypeScript plugin;
 - eXact-owned semantic modifiers without replacing TypeScript coloring;
 - optional source-operation markers without whole-function decoration;
 - concise component CodeLens and operation-local inlay badges;
