@@ -44,7 +44,7 @@ export function MotionPluginPage(this: Component<{}>) {
 		<Article
 			eyebrow="Plugin / @exactjs/motion"
 			title="Keep state authoritative while tasks own motion"
-			description="Prepared definitions describe finite visual paths. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
+			description="Prepared definitions describe visual behavior. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
 			previous={{ path: '/plugins', label: 'Plugin system' }}
 			next={{ path: '/plugins/gestures', label: 'Gestures' }}
 		>
@@ -52,10 +52,15 @@ export function MotionPluginPage(this: Component<{}>) {
 				<h2>Prepare visual behavior once</h2>
 				<CodeBlock source={definitionSource} language="ts" title="dialog-motion.ts" />
 				<p>
-					Definitions are validated, checked for finite timing, and frozen. Keep them at module
-					scope, or use the small preset set from <code>@exactjs/motion/presets</code>, so reactive
-					updates do not accidentally recreate visual policy. Reduced-motion policy uses an explicit
-					reduced phase or completes visual work immediately.
+					Definitions are validated, checked for settling-safe timing, and frozen. Keep them at
+					module scope, or use the small preset set from <code>@exactjs/motion/presets</code>, so
+					reactive updates do not accidentally recreate visual policy. Reduced-motion policy uses an
+					explicit reduced phase or completes visual work immediately.
+				</p>
+				<p>
+					Enter/change phases may deliberately loop. Those loops detach from structural settlement
+					but remain component-owned; leave, Activity parking, and disposal cancel them. Leave
+					phases and the low-level <code>animate()</code> helper stay finite.
 				</p>
 				<p>
 					Later reactive insertions run enter automatically. Initial rendering and hydration skip it

@@ -17,7 +17,12 @@ import type {
 	MotionPlayback,
 	MotionSettings
 } from './contracts.js';
-import { animateInFrame, resolveMotionEffect } from './playback.js';
+import {
+	animateInFrame,
+	isDetachedMotionPlayback,
+	isLoopingMotionEffect,
+	resolveMotionEffect
+} from './playback.js';
 
 /** Transparent ordinary component activated for one resolved motion target. */
 export const MotionElement = markExactComponent(function MotionElement(
@@ -64,7 +69,9 @@ export const MotionElement = markExactComponent(function MotionElement(
 		if (entering && !shouldAppear) return;
 		changePlayback?.cancel('motion-superseded');
 		changePlayback = play(element, phase, entering ? 'enter' : 'change', props.apply, settings);
-		if (entering && changePlayback) presenceEnter?.register(changePlayback);
+		if (entering && changePlayback && !isDetachedMotionPlayback(changePlayback)) {
+			presenceEnter?.register(changePlayback);
+		}
 		if (changePlayback) observePlayback(changePlayback, this.log.error);
 	}, undefined);
 
@@ -127,7 +134,12 @@ function play(
 		unwrap(definition)?.reduced
 	);
 	if (!effect) return undefined;
-	return animateInFrame(element, effect, phaseName === 'enter' ? 'motion-enter' : 'motion-change');
+	return animateInFrame(
+		element,
+		effect,
+		phaseName === 'enter' ? 'motion-enter' : 'motion-change',
+		isLoopingMotionEffect(effect)
+	);
 }
 
 function playRelease(

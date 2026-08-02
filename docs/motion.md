@@ -30,8 +30,10 @@ export const dialogMotion = defineMotion({
 ```
 
 Definitions and their static effects are validated and frozen. Non-finite timing is rejected when
-a definition is prepared, and dynamic phases are validated again when resolved. The initial preset
-entry exports `fade`, `scale`, `pop`, `slideUp`, `slideDown`, `slideLeft`, and `slideRight`.
+a definition is prepared, except that component-owned enter/change phases may deliberately use
+`iterations: Infinity`; dynamic phases are validated again when resolved. Leave phases always
+remain finite. The initial preset entry exports `fade`, `scale`, `pop`, `slideUp`, `slideDown`,
+`slideLeft`, and `slideRight`.
 
 ## Explicit components and playback
 
@@ -49,6 +51,10 @@ returns cancelable playback structurally attached to an immediate, nonblocking f
 frame. Infinite effects are rejected by this finite helper. When reduced motion is active, an
 explicit `reduced` phase runs; without one, the visual work completes immediately while the same
 logical state transition and structural settlement continue.
+
+Looping enter/change phases are detached from their causal task's structural settlement but remain
+owned by `MotionElement`. Leave, Activity parking, target replacement, and component disposal
+cancel them. A looping enter does not block `Presence` in-out sequencing.
 
 An enter phase runs automatically when a root is introduced by a later reactive update. Initial
 client rendering and hydration adoption skip enter by default; `appear` opts those generations in.

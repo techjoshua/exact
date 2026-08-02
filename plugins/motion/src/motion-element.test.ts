@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { Activity, createEnhancementMarker, type Component } from '@exactjs/core';
+import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import {
@@ -10,6 +11,7 @@ import {
 } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installMotionDriver } from './driver.js';
+import { defineMotion } from './definitions.js';
 import { MotionElement } from './motion-element.js';
 import { Motion } from './motion.js';
 import { fade } from './presets.js';
@@ -152,6 +154,45 @@ describe('MotionElement', () => {
 			await settle();
 			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
 			expect(driver.playbacks).toHaveLength(1);
+		} finally {
+			restore();
+		}
+	});
+
+	it('detaches looping enter work from its causal task and cancels it on removal', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		const loop = defineMotion({
+			enter: {
+				keyframes: [{ opacity: 0.5 }, { opacity: 1 }],
+				options: { duration: 100, iterations: Infinity }
+			}
+		});
+		const container = document.createElement('div');
+		containers.push(container);
+		let causalSettled = false;
+		try {
+			const causal = runTaskFrame(
+				{ kind: 'test-motion-cause' },
+				{
+					work() {
+						render(
+							createVNode(Motion, { as: 'div', motion: loop, appear: true, children: 'Loop' }),
+							container
+						);
+					}
+				}
+			);
+			void causal.then(() => {
+				causalSettled = true;
+			});
+			await vi.waitFor(() => expect(causalSettled).toBe(true));
+			expect(driver.playbacks).toHaveLength(1);
+			expect(driver.playbacks[0]?.signal.aborted).toBe(false);
+
+			render(createVNode('span', null, 'Done'), container);
+			await vi.waitFor(() => expect(container.textContent).toBe('Done'));
+			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
 		} finally {
 			restore();
 		}

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MotionSettings } from './contracts.js';
-import { resolveMotionEffect } from './playback.js';
+import { animate, resolveMotionEffect } from './playback.js';
 
 const element = {} as Element;
 const settings = (reducedMotion: MotionSettings['reducedMotion']): MotionSettings => ({
@@ -44,5 +44,14 @@ describe('motion effect resolution', () => {
 				settings('never')
 			)
 		).toThrow('delay must be finite');
+	});
+
+	it('keeps the low-level imperative helper finite', () => {
+		expect(() =>
+			animate(element, {
+				keyframes: [{ opacity: 1 }],
+				options: { duration: 100, iterations: Infinity }
+			})
+		).toThrow('iterations must be finite');
 	});
 });

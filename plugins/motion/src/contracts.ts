@@ -3,7 +3,7 @@ import type { FrameworkPublicationRequest } from '@exactjs/core/framework/public
 
 declare const preparedMotionDefinition: unique symbol;
 
-/** One finite Web Animations-compatible visual effect. */
+/** One Web Animations-compatible visual effect. Structural phases remain finite. */
 export type MotionEffect = Readonly<{
 	keyframes: Keyframe[] | PropertyIndexedKeyframes;
 	options?: KeyframeAnimationOptions;

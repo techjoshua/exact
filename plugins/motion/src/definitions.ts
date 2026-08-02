@@ -34,11 +34,13 @@ export function isMotionDefinition(value: unknown): value is MotionDefinition {
 
 function preparePhase(phase: MotionPhase, label: string): MotionPhase {
 	if (typeof phase === 'function') return phase;
-	return prepareEffect(phase, label);
+	return prepareEffect(phase, label, label === 'enter' || label === 'change');
 }
 
-function prepareEffect(effect: MotionEffect, label: string): MotionEffect {
-	validateMotionEffect(effect, `Motion ${label} phase`);
+function prepareEffect(effect: MotionEffect, label: string, allowLoop: boolean): MotionEffect {
+	validateMotionEffect(effect, `Motion ${label} phase`, {
+		allowInfiniteIterations: allowLoop
+	});
 	const keyframes = Array.isArray(effect.keyframes)
 		? Object.freeze(effect.keyframes.map((frame) => Object.freeze({ ...frame })))
 		: Object.freeze({ ...effect.keyframes });

@@ -38,6 +38,24 @@ describe('motion definitions', () => {
 		).toThrow('duration must be finite');
 	});
 
+	it('allows component-owned enter and change loops but keeps leave finite', () => {
+		const loop = defineMotion({
+			enter: {
+				keyframes: [{ opacity: 0.5 }, { opacity: 1 }],
+				options: { duration: 500, iterations: Infinity }
+			}
+		});
+		expect((loop.enter as { options: KeyframeAnimationOptions }).options.iterations).toBe(Infinity);
+		expect(() =>
+			defineMotion({
+				leave: {
+					keyframes: [{ opacity: 0 }],
+					options: { duration: 500, iterations: Infinity }
+				}
+			})
+		).toThrow('iterations must be finite');
+	});
+
 	it('ships a small stable side-effect-free preset set', () => {
 		for (const preset of [fade, scale, pop, slideUp, slideDown, slideLeft, slideRight]) {
 			expect(isMotionDefinition(preset)).toBe(true);

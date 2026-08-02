@@ -25,7 +25,9 @@ releasing the previous range, while skipped reduced motion advances immediately.
 `LayoutGroup` and opt them into additive FLIP motion with `layout` and a stable `layoutId`. Browser
 drivers are loaded only by client/runtime entry points; importing definitions or presets on a
 server does not access browser globals. Prepared and dynamically resolved effects reject
-non-finite timing. Reduced-motion policy uses an explicit reduced phase when supplied and otherwise
+non-finite timing. Component-owned enter/change phases may opt into `iterations: Infinity`; those
+loops are detached from structural settlement but cancel with their owner. Leave and `animate()`
+remain finite. Reduced-motion policy uses an explicit reduced phase when supplied and otherwise
 completes visual work immediately.
 
 Later reactive insertions run their enter phase automatically. Initial client rendering and

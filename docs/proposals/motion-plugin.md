@@ -657,7 +657,10 @@ These dimensions remain independent:
 
 An infinite animation cannot structurally settle. `Motion` marks looping
 playback detached and owns it with the component. Leaving or disposing the
-component cancels the loop before finite leave work settles.
+component cancels the loop before finite leave work settles. Only enter/change
+phases accept `iterations: Infinity`; leave phases and the public low-level
+`animate()` helper reject it. Detached entering loops do not register with an
+`in-out` presence collector, so replacement ordering still advances.
 
 The expected tree is:
 

@@ -16,6 +16,7 @@ type MotionFrameKind =
 	| 'motion-change'
 	| 'motion-leave'
 	| 'layout-transition';
+const detachedPlaybacks = new WeakSet<MotionPlayback>();
 
 /** Starts finite motion inside an immediate, nonblocking task frame. */
 export function animate(element: Element, effect: MotionEffect): MotionPlayback {
@@ -26,14 +27,16 @@ export function animate(element: Element, effect: MotionEffect): MotionPlayback 
 export function animateInFrame(
 	element: Element,
 	effect: MotionEffect,
-	kind: MotionFrameKind
+	kind: MotionFrameKind,
+	detached = false
 ): MotionPlayback {
-	validateMotionEffect(effect, 'animate() effect');
+	validateMotionEffect(effect, 'animate() effect', { allowInfiniteIterations: detached });
 	const parent = captureTaskFrame();
-	return runTaskFrame(
+	const playback = runTaskFrame(
 		{
 			...(parent ? { parent } : {}),
 			kind,
+			detached,
 			label: describeElement(element),
 			priority: 'immediate',
 			readiness: 'nonblocking'
@@ -42,6 +45,13 @@ export function animateInFrame(
 			work: (context) => motionDriver().play(element, effect, context.signal)
 		}
 	) as MotionPlayback;
+	if (detached) detachedPlaybacks.add(playback);
+	return playback;
+}
+
+/** Reports whether package-owned playback is detached from structural task settlement. */
+export function isDetachedMotionPlayback(playback: MotionPlayback): boolean {
+	return detachedPlaybacks.has(playback);
 }
 
 /** Resolves one authored phase against reduced-motion and transition policy. */
@@ -71,8 +81,15 @@ export function resolveMotionEffect(
 			...resolvedEffect.options
 		}
 	};
-	validateMotionEffect(effect, `${phaseName} motion`);
+	validateMotionEffect(effect, `${phaseName} motion`, {
+		allowInfiniteIterations: phaseName !== 'leave'
+	});
 	return effect;
+}
+
+/** Reports whether one resolved effect must remain component-owned detached work. */
+export function isLoopingMotionEffect(effect: MotionEffect): boolean {
+	return effect.options?.iterations === Infinity;
 }
 
 function reducedMotion(policy: MotionSettings['reducedMotion']): boolean {
