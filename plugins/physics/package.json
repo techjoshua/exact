@@ -2,9 +2,9 @@
 	"name": "@exactjs/physics",
 	"version": "0.1.0",
 	"type": "module",
-	"files": ["AGENTS.md", "dist", "!dist/**/*.test.*"],
+	"files": ["AGENTS.md", "capability.d.ts", "dist", "!dist/**/*.test.*"],
 	"exports": {
-		".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+		".": { "types": "./capability.d.ts", "default": "./dist/index.js" },
 		"./projections": { "types": "./dist/projections.d.ts", "default": "./dist/projections.js" },
 		"./config": { "types": "./dist/config.d.ts", "default": "./dist/config.js" },
 		"./plugin-config": { "types": "./dist/plugin-config.d.ts", "default": "./dist/plugin-config.js" },
@@ -13,7 +13,7 @@
 		"./testing": { "types": "./dist/testing.d.ts", "default": "./dist/testing.js" }
 	},
 	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
+	"types": "./capability.d.ts",
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",

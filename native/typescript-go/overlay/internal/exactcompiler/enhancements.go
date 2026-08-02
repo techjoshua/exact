@@ -76,9 +76,19 @@ func collectEnhancementImports(
 		}
 		moduleSpecifier := declaration.ModuleSpecifier.AsStringLiteral().Text
 		if name := clause.Name(); name != nil {
+			identity, identityDiagnostic := resolveEnhancementIdentity(
+				declaration.ModuleSpecifier,
+				moduleSpecifier,
+				"default",
+				typeChecker,
+			)
+			if identityDiagnostic != "" {
+				addDiagnostic("EXACT6010", identityDiagnostic)
+				continue
+			}
 			binding, diagnostic := resolveEnhancementBinding(
 				name,
-				moduleSpecifier+"#default",
+				identity,
 				typeChecker,
 			)
 			if diagnostic != "" {
@@ -108,9 +118,19 @@ func collectEnhancementImports(
 			if specifier.PropertyName != nil {
 				exportName = specifier.PropertyName.Text()
 			}
+			identity, identityDiagnostic := resolveEnhancementIdentity(
+				declaration.ModuleSpecifier,
+				moduleSpecifier,
+				exportName,
+				typeChecker,
+			)
+			if identityDiagnostic != "" {
+				addDiagnostic("EXACT6010", identityDiagnostic)
+				continue
+			}
 			binding, diagnostic := resolveEnhancementBinding(
 				specifier.Name(),
-				moduleSpecifier+"#"+exportName,
+				identity,
 				typeChecker,
 			)
 			if diagnostic != "" {
@@ -122,6 +142,139 @@ func collectEnhancementImports(
 	}
 	collectEnhancementAttributeDiagnostics(sourceFile, &result, ordinaryBindings)
 	collectEnhancementSpreadDiagnostics(sourceFile, typeChecker, &result, ordinaryBindings)
+	return result
+}
+
+func resolveEnhancementIdentity(
+	moduleSpecifierNode *ast.Node,
+	moduleSpecifier string,
+	exportName string,
+	typeChecker *checker.Checker,
+) (string, string) {
+	if typeChecker == nil {
+		return "", "exact-plugin imports require semantic export resolution"
+	}
+	module := typeChecker.GetSymbolAtLocation(moduleSpecifierNode)
+	if module == nil {
+		return "", fmt.Sprintf("cannot resolve exact-plugin module %q", moduleSpecifier)
+	}
+	identities := traceEnhancementExport(
+		module,
+		moduleSpecifier,
+		exportName,
+		typeChecker,
+		make(map[string]struct{}),
+	)
+	if len(identities) == 0 {
+		return "", fmt.Sprintf(
+			"%s#%s has no reachable export edge with { type: 'exact-plugin' }",
+			moduleSpecifier,
+			exportName,
+		)
+	}
+	if len(identities) != 1 {
+		return "", fmt.Sprintf(
+			"%s#%s resolves to ambiguous exact-plugin identities: %s",
+			moduleSpecifier,
+			exportName,
+			strings.Join(identities, ", "),
+		)
+	}
+	return identities[0], ""
+}
+
+func traceEnhancementExport(
+	module *ast.Symbol,
+	moduleSpecifier string,
+	exportName string,
+	typeChecker *checker.Checker,
+	visited map[string]struct{},
+) []string {
+	key := fmt.Sprintf("%d:%s", ast.GetSymbolId(module), exportName)
+	if _, exists := visited[key]; exists {
+		return nil
+	}
+	visited[key] = struct{}{}
+	sourceFile := moduleSourceFile(module)
+	if sourceFile == nil {
+		return nil
+	}
+	identities := []string{}
+	for _, statement := range sourceFile.Statements.Nodes {
+		if !ast.IsExportDeclaration(statement) {
+			continue
+		}
+		declaration := statement.AsExportDeclaration()
+		if declaration.IsTypeOnly || declaration.ModuleSpecifier == nil {
+			continue
+		}
+		target := typeChecker.GetSymbolAtLocation(declaration.ModuleSpecifier)
+		if target == nil || !ast.IsStringLiteral(declaration.ModuleSpecifier) {
+			continue
+		}
+		targetSpecifier := declaration.ModuleSpecifier.AsStringLiteral().Text
+		if declaration.ExportClause == nil {
+			if exactPluginExport(declaration) {
+				if moduleExportsName(target, exportName, typeChecker) {
+					identities = append(identities, moduleSpecifier+"#"+exportName)
+				}
+			} else {
+				identities = append(identities, traceEnhancementExport(
+					target, targetSpecifier, exportName, typeChecker, cloneVisited(visited),
+				)...)
+			}
+			continue
+		}
+		if !ast.IsNamedExports(declaration.ExportClause) {
+			continue
+		}
+		for _, element := range declaration.ExportClause.AsNamedExports().Elements.Nodes {
+			specifier := element.AsExportSpecifier()
+			if specifier.IsTypeOnly || specifier.Name().Text() != exportName {
+				continue
+			}
+			sourceName := exportName
+			if specifier.PropertyName != nil {
+				sourceName = specifier.PropertyName.Text()
+			}
+			if exactPluginExport(declaration) {
+				identities = append(identities, moduleSpecifier+"#"+exportName)
+			} else {
+				identities = append(identities, traceEnhancementExport(
+					target, targetSpecifier, sourceName, typeChecker, cloneVisited(visited),
+				)...)
+			}
+		}
+	}
+	return uniqueStrings(identities)
+}
+
+func moduleSourceFile(module *ast.Symbol) *ast.SourceFile {
+	for _, declaration := range module.Declarations {
+		if ast.IsSourceFile(declaration) {
+			return declaration.AsSourceFile()
+		}
+		if sourceFile := ast.GetSourceFileOfNode(declaration); sourceFile != nil && sourceFile.Symbol == module {
+			return sourceFile
+		}
+	}
+	return nil
+}
+
+func moduleExportsName(module *ast.Symbol, name string, typeChecker *checker.Checker) bool {
+	for _, exported := range typeChecker.GetExportsOfModule(module) {
+		if ast.SymbolName(exported) == name {
+			return true
+		}
+	}
+	return false
+}
+
+func cloneVisited(source map[string]struct{}) map[string]struct{} {
+	result := make(map[string]struct{}, len(source))
+	for key := range source {
+		result[key] = struct{}{}
+	}
 	return result
 }
 
@@ -375,6 +528,20 @@ func exactPluginImport(declaration *ast.ImportDeclaration) bool {
 			continue
 		}
 		if item.Value.AsStringLiteral().Text == "exact-plugin" {
+			return true
+		}
+	}
+	return false
+}
+
+func exactPluginExport(declaration *ast.ExportDeclaration) bool {
+	if declaration.Attributes == nil {
+		return false
+	}
+	for _, attribute := range declaration.Attributes.AsImportAttributes().Attributes.Nodes {
+		item := attribute.AsImportAttribute()
+		if item.Name().Text() == "type" && item.Value != nil && ast.IsStringLiteral(item.Value) &&
+			item.Value.AsStringLiteral().Text == "exact-plugin" {
 			return true
 		}
 	}

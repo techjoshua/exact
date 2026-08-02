@@ -6254,6 +6254,7 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	configFile := filepath.Join(root, "tsconfig.json")
 	entryFile := filepath.Join(root, "plugin-enhancement.tsx")
 	motionFile := filepath.Join(root, "motion.ts")
+	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	entrySource := `
 			import { motion as animate } from "./motion.js" with { type: "exact-plugin" };
 			export function View(this: Component<{ duration: number }>) {
@@ -6270,9 +6271,10 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 			}
 		`
 	for filename, source := range map[string]string{
-		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
-		entryFile:  entrySource,
-		motionFile: `export function motion(props: { preset?: string; exitDuration?: number; children?: unknown }) { return props.children; }`,
+		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:          entrySource,
+		motionFile:         `export { motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		implementationFile: `export function motion(props: { preset?: string; exitDuration?: number; children?: unknown }) { return props.children; }`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
 			t.Fatal(err)
@@ -6329,10 +6331,12 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	componentFile := filepath.Join(root, "enhancements.ts")
+	implementationFile := filepath.Join(root, "enhancement-implementations.ts")
 	entryFile := filepath.Join(root, "entry.tsx")
 	for filename, source := range map[string]string{
-		configFile:    `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
-		componentFile: `export function motion(props: { layoutId?: string; children?: unknown }) { return props.children; } export function open(props: { [key: string]: unknown }) { return props; } export const value = 1;`,
+		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		componentFile:      `export { motion, open, value } from "./enhancement-implementations.js" with { type: "exact-plugin" };`,
+		implementationFile: `export function motion(props: { layoutId?: string; children?: unknown }) { return props.children; } export function open(props: { [key: string]: unknown }) { return props; } export const value = 1;`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
 			t.Fatal(err)
@@ -6381,15 +6385,17 @@ func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
 	configFile := filepath.Join(root, "tsconfig.json")
 	entryFile := filepath.Join(root, "entry.tsx")
 	componentFile := filepath.Join(root, "motion.ts")
+	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	entrySource := `
 		import { motion } from "./motion.js" with { type: "exact-plugin" };
 		const effects = { "motion:layout-id": "card", "motion:disabled": false, title: "Card" };
 		export const view = <article {...effects} />;
 	`
 	for filename, source := range map[string]string{
-		configFile:    `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
-		entryFile:     entrySource,
-		componentFile: `export function motion(props: { layoutId?: string; disabled?: boolean; children?: unknown }) { return props.children; }`,
+		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:          entrySource,
+		componentFile:      `export { motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		implementationFile: `export function motion(props: { layoutId?: string; disabled?: boolean; children?: unknown }) { return props.children; }`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
 			t.Fatal(err)
