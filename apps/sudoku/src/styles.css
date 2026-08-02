@@ -395,6 +395,10 @@ button {
 	display: none;
 }
 
+.mobile-game-status {
+	display: none;
+}
+
 .game-layout {
 	display: grid;
 	grid-template-areas:
@@ -865,17 +869,6 @@ p {
 	transform: none;
 }
 
-.remaining-copy {
-	margin: 8px 0 0;
-	color: var(--muted);
-	text-align: center;
-	font-size: 10px;
-}
-
-.remaining-copy span {
-	opacity: 0.68;
-}
-
 .side-card {
 	grid-area: side;
 	overflow: hidden;
@@ -929,20 +922,25 @@ p {
 }
 
 .progress-orbit {
+	position: relative;
+	isolation: isolate;
 	display: grid;
 	width: 64px;
 	height: 64px;
 	flex: 0 0 auto;
 	place-content: center;
-	border: 5px solid var(--accent-soft);
-	border-top-color: var(--accent);
 	border-radius: 50%;
+	background: var(--accent-soft);
 	text-align: center;
-	transform: rotate(8deg);
 }
 
-.progress-orbit > * {
-	transform: rotate(-8deg);
+.progress-orbit::before {
+	position: absolute;
+	z-index: -1;
+	inset: 5px;
+	border-radius: inherit;
+	background: var(--surface-solid);
+	content: '';
 }
 
 .progress-orbit strong {
@@ -1431,6 +1429,63 @@ p {
 		overflow: hidden;
 	}
 
+	.game-heading {
+		display: grid;
+		grid-template-areas:
+			'title status'
+			'meta status';
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 5px 18px;
+	}
+
+	.game-heading > div:first-child {
+		grid-area: title;
+	}
+
+	.mobile-game-status {
+		grid-area: status;
+		display: flex;
+		align-items: center;
+		gap: 14px;
+	}
+
+	.mobile-timer {
+		display: grid;
+		gap: 3px;
+		text-align: right;
+	}
+
+	.mobile-timer span {
+		color: var(--muted);
+		font-size: 9px;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.mobile-timer strong {
+		font-size: 14px;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.progress-orbit-compact {
+		width: 52px;
+		height: 52px;
+	}
+
+	.progress-orbit-compact strong {
+		font-size: 12px;
+	}
+
+	.game-meta {
+		grid-area: meta;
+	}
+
+	.game-meta > div {
+		display: none;
+	}
+
 	.game-column {
 		grid-template-rows: auto auto;
 		align-content: start;
@@ -1462,6 +1517,11 @@ p {
 }
 
 @media (max-width: 620px) {
+	.sudoku-app {
+		overflow-x: hidden;
+		overflow-y: auto;
+	}
+
 	.topbar {
 		width: calc(100% - 28px);
 		padding: 14px 0;
@@ -1484,11 +1544,13 @@ p {
 
 	.game-layout {
 		width: calc(100% - 20px);
+		height: auto;
+		overflow: visible;
 		padding: 4px 0 8px;
 	}
 
 	.game-heading {
-		align-items: center;
+		gap: 3px 10px;
 		margin-bottom: 8px;
 		margin-inline: 4px;
 	}
@@ -1502,7 +1564,7 @@ p {
 	}
 
 	.game-meta {
-		gap: 12px;
+		gap: 0;
 	}
 
 	.game-meta label span {
@@ -1514,8 +1576,17 @@ p {
 		font-size: 12px;
 	}
 
-	.game-meta > div {
-		display: none;
+	.mobile-game-status {
+		gap: 8px;
+	}
+
+	.progress-orbit-compact {
+		width: 46px;
+		height: 46px;
+	}
+
+	.progress-orbit-compact::before {
+		inset: 4px;
 	}
 
 	.progress-line {
@@ -1529,6 +1600,9 @@ p {
 	}
 
 	.game-controls {
+		display: grid;
+		grid-template-columns: repeat(30, minmax(0, 1fr));
+		gap: 5px 4px;
 		width: min(100%, 650px);
 	}
 
@@ -1545,36 +1619,48 @@ p {
 	}
 
 	.number-pad {
-		gap: 4px;
+		display: contents;
 	}
 
 	.number-key {
+		grid-column: span 6;
 		border-radius: 10px;
 		font-size: 20px;
 	}
 
 	.control-row {
-		gap: 2px;
+		display: contents;
 	}
 
 	.tool-button {
-		flex-direction: column;
-		gap: 2px;
-		padding: 8px 4px;
+		grid-column: span 10;
+		min-height: 42px;
+		gap: 4px;
+		padding: 7px 4px;
 		font-size: 9px;
+	}
+
+	.tool-button-notes {
+		grid-column: span 6;
+		flex-direction: column;
+		aspect-ratio: 1;
+	}
+
+	.tool-button-erase {
+		display: none;
 	}
 
 	.tool-button span {
 		font-size: 17px;
 	}
 
-	.remaining-copy {
-		margin: 6px 0 0;
+	.mobile-new-game-button {
+		grid-column: span 10;
+		width: auto;
+		min-height: 42px;
+		margin-top: 0;
+		padding: 7px 4px;
 		font-size: 9px;
-	}
-
-	.remaining-copy span {
-		display: none;
 	}
 
 	.side-card {
@@ -1692,17 +1778,20 @@ p {
 	}
 
 	.game-controls {
+		display: block;
 		flex: 0 0 clamp(280px, 48vw, 410px);
 		align-self: center;
 		margin-top: 0;
 	}
 
 	.number-pad {
+		display: grid;
 		grid-template-columns: repeat(9, minmax(0, 1fr));
 		gap: 3px;
 	}
 
 	.number-key {
+		grid-column: auto;
 		border-radius: 8px;
 		font-size: clamp(14px, 4vh, 19px);
 	}
@@ -1712,12 +1801,14 @@ p {
 	}
 
 	.control-row {
+		display: grid;
 		grid-template-columns: repeat(4, 1fr);
 		gap: 3px;
 		margin-top: 5px;
 	}
 
 	.tool-button {
+		grid-column: auto;
 		flex-direction: row;
 		gap: 4px;
 		padding: 5px 3px;
@@ -1728,15 +1819,20 @@ p {
 		font-size: 13px;
 	}
 
+	.tool-button-notes {
+		aspect-ratio: auto;
+	}
+
+	.tool-button-erase {
+		display: flex;
+	}
+
 	.mobile-new-game-button {
 		display: flex;
+		grid-column: auto;
 		width: 100%;
 		margin-top: 5px;
 		padding-block: 7px;
-	}
-
-	.remaining-copy {
-		display: none;
 	}
 
 	.side-card {

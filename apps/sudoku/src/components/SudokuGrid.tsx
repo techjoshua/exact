@@ -1,4 +1,7 @@
 import type { Component } from '@exactjs/core';
+import { defineGesture, type GestureSample } from '@exactjs/gestures';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by gesture:* attributes.
+import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
 import motion from '@exactjs/motion' with { type: 'exact-plugin' };
 import { fade, pop } from '@exactjs/motion/presets';
@@ -94,6 +97,33 @@ type CellButtonProps = {
 /** Renders one stable grid cell with value, notes, and accessible state. */
 function CellButton(this: Component<{}>, props: CellButtonProps) {
 	const game = this.getContext(SudokuContext);
+	let suppressClickUntil = 0;
+
+	function eraseHeldCell(sample: GestureSample) {
+		if (props.cell.given || props.paused) return;
+		suppressClickUntil = performance.now() + 500;
+		sample.originalEvent.preventDefault();
+		game.erase(props.cell.index);
+	}
+
+	// This is pointer-only convenience; keyboard activation must continue to select the cell.
+	const eraseOnHold = defineGesture({
+		name: 'erase-sudoku-cell-on-hold',
+		semantics: 'decorative',
+		press: {
+			threshold: 6,
+			delay: 550,
+			onPress: eraseHeldCell
+		}
+	});
+
+	const selectCell = () => {
+		if (performance.now() < suppressClickUntil) {
+			suppressClickUntil = 0;
+			return;
+		}
+		game.select(props.cell.index);
+	};
 
 	return () => (
 		<button
@@ -109,7 +139,8 @@ function CellButton(this: Component<{}>, props: CellButtonProps) {
 			aria-selected={props.selected}
 			disabled={props.paused}
 			tabIndex={props.selected ? 0 : -1}
-			onClick={() => game.select(props.cell.index)}
+			onClick={selectCell}
+			gesture:apply={eraseOnHold}
 		>
 			{props.cell.value !== undefined ? (
 				<span className="cell-value">{props.cell.value}</span>

@@ -4,7 +4,9 @@ An installable Sudoku game demonstrating compiler-backed TSX, fine-grained grid 
 and pointer input, local persistence, optional attributed motion enhancements, and offline
 standalone builds. Theme, pause, victory, and inspector elements remain ordinary functional JSX;
 when the motion capability is bundled they gain preset or reactive transitions, and when it is
-excluded they fall back to their authored states without replacement components.
+excluded they fall back to their authored states without replacement components. The portrait
+controls use the same progressive-enhancement model for long-press erase: ordinary tap and keyboard
+controls remain functional when the gestures capability is omitted.
 
 ## Run locally
 
