@@ -29,8 +29,9 @@ export const dialogMotion = defineMotion({
 });
 ```
 
-Definitions and their static effects are validated and frozen. The initial preset entry exports
-`fade`, `scale`, `pop`, `slideUp`, `slideDown`, `slideLeft`, and `slideRight`.
+Definitions and their static effects are validated and frozen. Non-finite timing is rejected when
+a definition is prepared, and dynamic phases are validated again when resolved. The initial preset
+entry exports `fade`, `scale`, `pop`, `slideUp`, `slideDown`, `slideLeft`, and `slideRight`.
 
 ## Explicit components and playback
 
@@ -45,7 +46,9 @@ Definitions and their static effects are validated and frozen. The initial prese
 `MotionConfig` publishes inherited `enabled`, `reducedMotion`, `transition`, and `appear` policy
 through one reactive context. `animate(element, effect)` is the low-level imperative seam; it
 returns cancelable playback structurally attached to an immediate, nonblocking framework task
-frame. Infinite effects are rejected by this finite helper.
+frame. Infinite effects are rejected by this finite helper. When reduced motion is active, an
+explicit `reduced` phase runs; without one, the visual work completes immediately while the same
+logical state transition and structural settlement continue.
 
 The client plugin entry installs a Web Animations driver. Importing the main package, definitions,
 or presets on a server does not read browser globals. `@exactjs/motion/testing` provides a

@@ -7,7 +7,7 @@ import {
 } from '@exactjs/core';
 import type { LayoutGroupProps, MotionElementProps, MotionPlayback } from './contracts.js';
 import { defaultMotionSettings, MotionContext } from './context.js';
-import { animate, resolveMotionEffect } from './playback.js';
+import { animateInFrame, resolveMotionEffect } from './playback.js';
 
 type LayoutMode = NonNullable<MotionElementProps['layout']>;
 type LayoutIdentity = string | symbol;
@@ -75,7 +75,7 @@ export const LayoutGroup = markExactComponent(function LayoutGroup(
 					participant.playback?.cancel('layout-superseded');
 					const resolved = resolveMotionEffect(effect, participant.element, 'change', settings);
 					if (!resolved) continue;
-					const playback = animate(participant.element, resolved);
+					const playback = animateInFrame(participant.element, resolved, 'layout-transition');
 					participant.playback = playback;
 					void playback.then(undefined, (error) => {
 						if (!playback.signal.aborted && !isTaskCancellation(error)) {

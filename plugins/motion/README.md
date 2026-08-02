@@ -23,7 +23,9 @@ ordering through `mode="sync" | "out-in" | "in-out"`; use `MotionList` for stabl
 of reactive application collections. Wrap layout participants in
 `LayoutGroup` and opt them into additive FLIP motion with `layout` and a stable `layoutId`. Browser
 drivers are loaded only by client/runtime entry points; importing definitions or presets on a
-server does not access browser globals.
+server does not access browser globals. Prepared and dynamically resolved effects reject
+non-finite timing. Reduced-motion policy uses an explicit reduced phase when supplied and otherwise
+completes visual work immediately.
 
 `createViewTransitionCoordinator()` can wrap a router or another framework publisher without
 introducing a dependency between motion and that publisher.

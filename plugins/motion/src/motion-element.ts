@@ -17,7 +17,7 @@ import type {
 	MotionPlayback,
 	MotionSettings
 } from './contracts.js';
-import { animate, resolveMotionEffect } from './playback.js';
+import { animateInFrame, resolveMotionEffect } from './playback.js';
 
 /** Transparent ordinary component activated for one resolved motion target. */
 export const MotionElement = markExactComponent(function MotionElement(
@@ -109,7 +109,7 @@ function play(
 		unwrap(definition)?.reduced
 	);
 	if (!effect) return undefined;
-	return animate(element, effect);
+	return animateInFrame(element, effect, phaseName === 'enter' ? 'motion-enter' : 'motion-change');
 }
 
 function playRelease(
@@ -127,7 +127,7 @@ function playRelease(
 		unwrap(definition)?.reduced
 	);
 	if (!effect) return undefined;
-	return animate(release.target, effect);
+	return animateInFrame(release.target, effect, 'motion-leave');
 }
 
 function observePlayback(

@@ -25,6 +25,19 @@ describe('motion definitions', () => {
 		expect(() => defineMotion({ enter: {} as never })).toThrow('requires keyframes');
 	});
 
+	it('rejects non-settling timing during preparation', () => {
+		expect(() =>
+			defineMotion({
+				leave: { keyframes: [{ opacity: 0 }], options: { iterations: Infinity } }
+			})
+		).toThrow('iterations must be finite');
+		expect(() =>
+			defineMotion({
+				change: { keyframes: [{ opacity: 1 }], options: { duration: Number.NaN } }
+			})
+		).toThrow('duration must be finite');
+	});
+
 	it('ships a small stable side-effect-free preset set', () => {
 		for (const preset of [fade, scale, pop, slideUp, slideDown, slideLeft, slideRight]) {
 			expect(isMotionDefinition(preset)).toBe(true);

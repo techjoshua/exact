@@ -52,9 +52,10 @@ export function MotionPluginPage(this: Component<{}>) {
 				<h2>Prepare visual behavior once</h2>
 				<CodeBlock source={definitionSource} language="ts" title="dialog-motion.ts" />
 				<p>
-					Definitions are validated and frozen. Keep them at module scope, or use the small preset
-					set from <code>@exactjs/motion/presets</code>, so reactive updates do not accidentally
-					recreate visual policy.
+					Definitions are validated, checked for finite timing, and frozen. Keep them at module
+					scope, or use the small preset set from <code>@exactjs/motion/presets</code>, so reactive
+					updates do not accidentally recreate visual policy. Reduced-motion policy uses an explicit
+					reduced phase or completes visual work immediately.
 				</p>
 			</section>
 			<section>
@@ -94,7 +95,8 @@ export function MotionPluginPage(this: Component<{}>) {
 				<p>
 					An attributed motion import enables typed <code>motion:*</code> attributes. Vite includes
 					reached capabilities in the application bundle and supplies its local catalog to DOM,
-					hydration, and SSR. Compilerless libraries can continue to use <code>Motion</code> directly.
+					hydration, and SSR. Compilerless libraries can continue to use <code>Motion</code>{' '}
+					directly.
 				</p>
 			</section>
 		</Article>

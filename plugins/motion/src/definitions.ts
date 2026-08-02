@@ -4,6 +4,7 @@ import type {
 	MotionEffect,
 	MotionPhase
 } from './contracts.js';
+import { validateMotionEffect } from './validation.js';
 
 const preparedMotionDefinition = Symbol('exact.motion.definition');
 
@@ -37,8 +38,7 @@ function preparePhase(phase: MotionPhase, label: string): MotionPhase {
 }
 
 function prepareEffect(effect: MotionEffect, label: string): MotionEffect {
-	if (!effect || typeof effect !== 'object' || !effect.keyframes)
-		throw new TypeError(`Motion ${label} phase requires keyframes`);
+	validateMotionEffect(effect, `Motion ${label} phase`);
 	const keyframes = Array.isArray(effect.keyframes)
 		? Object.freeze(effect.keyframes.map((frame) => Object.freeze({ ...frame })))
 		: Object.freeze({ ...effect.keyframes });

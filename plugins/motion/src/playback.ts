@@ -8,15 +8,32 @@ import type {
 	MotionSettings
 } from './contracts.js';
 import { motionDriver } from './driver.js';
+import { validateMotionEffect } from './validation.js';
+
+type MotionFrameKind =
+	| 'motion'
+	| 'motion-enter'
+	| 'motion-change'
+	| 'motion-leave'
+	| 'layout-transition';
 
 /** Starts finite motion inside an immediate, nonblocking task frame. */
 export function animate(element: Element, effect: MotionEffect): MotionPlayback {
-	validateEffect(effect);
+	return animateInFrame(element, effect, 'motion');
+}
+
+/** Starts package-owned motion with a phase-specific semantic task kind. */
+export function animateInFrame(
+	element: Element,
+	effect: MotionEffect,
+	kind: MotionFrameKind
+): MotionPlayback {
+	validateMotionEffect(effect, 'animate() effect');
 	const parent = captureTaskFrame();
 	return runTaskFrame(
 		{
 			...(parent ? { parent } : {}),
-			kind: 'motion',
+			kind,
 			label: describeElement(element),
 			priority: 'immediate',
 			readiness: 'nonblocking'
@@ -37,24 +54,25 @@ export function resolveMotionEffect(
 ): MotionEffect | undefined {
 	if (!settings.enabled || !phase) return undefined;
 	const reduced = reducedMotion(settings.reducedMotion);
-	if (reduced && reducedPhase === 'skip') return undefined;
-	const selected = reduced && reducedPhase ? reducedPhase : phase;
+	const selected = reduced ? (reducedPhase ?? 'skip') : phase;
 	if (selected === 'skip') return undefined;
 	const resolved =
 		typeof selected === 'function'
 			? selected({ phase: phaseName, element, reducedMotion: reduced })
 			: selected;
-	const effect = unwrap(resolved);
-	if (!effect) return undefined;
-	return {
-		keyframes: effect.keyframes,
+	const resolvedEffect = unwrap(resolved);
+	if (!resolvedEffect) return undefined;
+	const effect = {
+		keyframes: resolvedEffect.keyframes,
 		options: {
 			duration: 180,
 			easing: 'ease-out',
 			...settings.transition,
-			...effect.options
+			...resolvedEffect.options
 		}
 	};
+	validateMotionEffect(effect, `${phaseName} motion`);
+	return effect;
 }
 
 function reducedMotion(policy: MotionSettings['reducedMotion']): boolean {
@@ -64,13 +82,6 @@ function reducedMotion(policy: MotionSettings['reducedMotion']): boolean {
 		typeof globalThis.matchMedia === 'function' &&
 		globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches
 	);
-}
-
-function validateEffect(effect: MotionEffect): void {
-	if (!effect || typeof effect !== 'object' || !effect.keyframes)
-		throw new TypeError('animate() requires a finite motion effect');
-	const iterations = effect.options?.iterations;
-	if (iterations === Infinity) throw new TypeError('animate() accepts only finite effects');
 }
 
 function describeElement(element: Element): string {
