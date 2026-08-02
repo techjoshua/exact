@@ -67,6 +67,7 @@ import {
 import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { markDynamic } from './marker-identity.js';
 import { renderChildren } from './sync-tree.js';
+import { activateSsrEnhancements } from './enhancements.js';
 
 /** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
@@ -124,6 +125,8 @@ export async function renderVNodeAsyncInner(
 	parent: ComponentInstance<any> | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
+	const enhanced = activateSsrEnhancements(context, vnode);
+	if (enhanced !== vnode) return renderVNodeAsync(context, enhanced, parent, options);
 	if (isCellVNode(vnode)) {
 		return markerPair(context, markerId(context, 'cell', undefined, vnode.key), async () =>
 			renderVNodeAsync(context, getCellVNode(vnode), parent, options)

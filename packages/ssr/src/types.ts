@@ -49,6 +49,11 @@ export type RenderToStringOptions = {
 	signal?: AbortSignal;
 	/** Prepared render output policies. Transformations run before all final validators. */
 	outputExtensions?: readonly ExactOutputExtension[];
+	/** Bundle-local compiler-generated enhancement components available to this server artifact. */
+	enhancementCatalog?: ReadonlyMap<
+		string,
+		ComponentFunction<any, Record<string, unknown>>
+	>;
 	/** Allows unsafeHtml() ranges. The application accepts responsibility for their contents. */
 	allowUnsafeHtml?: boolean;
 	/** Receives an audit notification whenever an unsafe HTML range is rendered. */
@@ -288,6 +293,11 @@ export type SsrContext = {
 	documentHeadSeen: boolean;
 	documentBodySeen: boolean;
 	hostStack: string[];
+	enhancementCatalog?: ReadonlyMap<
+		string,
+		ComponentFunction<any, Record<string, unknown>>
+	>;
+	unavailableEnhancements: Set<string>;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;

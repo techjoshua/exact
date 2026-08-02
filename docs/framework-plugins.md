@@ -106,10 +106,12 @@ Capability declaration and activation are separate stages. Compilation records e
 import without consulting a plugin registry because a library cannot know the final application's
 bundle policy. The application build either includes that package capability or does not; bundling
 the package is the activation trust decision. Vite links compiler-emitted module fragments into a
-bundle-local generated catalog and supplies it to each renderer root through ordinary render
-options. Hydration adopts the authored DOM before activating the same catalog, so transparent
-enhancements preserve server node identity. Low-level renderer and component-test callers can
-provide the bundle-local catalog explicitly.
+bundle-local generated catalog and supplies it to DOM, hydration, and SSR entry points through
+ordinary render options. SSR activates available declarations as ordinary server component chains;
+absent server capabilities remain inert and warn once per identity. Hydration adopts the authored
+DOM before activating the client catalog, so transparent enhancements preserve server node
+identity. Low-level renderer and component-test callers can provide the bundle-local catalog
+explicitly.
 
 Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps

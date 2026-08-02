@@ -5,6 +5,8 @@ import path from 'node:path';
 import {
 	createViteDomEnhancementFacade,
 	createViteEnhancementCatalogRuntime,
+	createViteHydrateEnhancementFacade,
+	createViteSsrEnhancementFacade,
 	prependViteEnhancementRegistrations
 } from './enhancement-catalog.js';
 import { exact } from './plugin.js';
@@ -39,6 +41,20 @@ describe('Vite enhancement catalog emission', () => {
 		expect(facade).toContain(`options?.enhancementCatalog`);
 		expect(facade).toContain(`enhancementCatalog: exactEnhancementCatalog`);
 		expect(facade).not.toContain('registerExactEnhancement');
+	});
+
+	it('supplies the same bundle-local catalog to hydration and server renderers', () => {
+		const hydrate = createViteHydrateEnhancementFacade();
+		const ssr = createViteSsrEnhancementFacade();
+
+		expect(hydrate).toContain(`from '@exactjs/hydrate'`);
+		expect(hydrate).toContain('enhancementCatalog: exactEnhancementCatalog');
+		expect(ssr).toContain(`from '@exactjs/ssr'`);
+		expect(ssr).toContain('renderToStringAsync(vnode, options)');
+		expect(ssr).toContain('renderExactRequestToHtmlResponse(request, server, render, options)');
+		expect(ssr).toContain('enhancementCatalog: exactEnhancementCatalog');
+		expect(hydrate).not.toContain('registerExactEnhancement');
+		expect(ssr).not.toContain('registerExactEnhancement');
 	});
 
 	it('links compiler-emitted capability metadata without preparing a plugin registry', () => {

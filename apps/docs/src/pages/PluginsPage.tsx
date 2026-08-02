@@ -95,10 +95,10 @@ export function PluginsPage(this: Component<{}>) {
 					package capability or does not; package inclusion is the activation trust decision.
 				</p>
 				<p>
-					The Vite adapter links compiler-emitted module fragments into a bundle-local DOM catalog and
-					passes it into each renderer root. Hydration adopts authored DOM before activating that same
-					catalog. Low-level renderer and component-test callers can provide the bundle-local catalog
-					explicitly.
+					The Vite adapter links compiler-emitted module fragments into a bundle-local catalog and
+					passes it to DOM, hydration, and SSR entry points. SSR runs available declarations as
+					ordinary components; hydration adopts authored DOM before activating the client catalog.
+					Low-level renderer and component-test callers can provide the bundle-local catalog explicitly.
 				</p>
 				<p>
 					The reserved <code>namespace:root</code> member reactively selects the first matching

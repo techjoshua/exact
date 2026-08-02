@@ -3,8 +3,11 @@ import {
 	ErrorBoundary,
 	Suspense,
 	activateTaskForHost,
+	createEnhancementMarker,
 	defineTask,
+	markExactComponent,
 	stageTaskMutation,
+	type Child,
 	type Component,
 	type ErrorBoundaryFallbackProps
 } from '@exactjs/core';
@@ -19,6 +22,60 @@ import {
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr rendering', () => {
+	it('renders bundle-local enhancements as ordinary server components', async () => {
+		const identity = '@exactjs/ssr:test-enhancement#default';
+		let tone: unknown;
+		const Enhancement = markExactComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child; tone?: string }
+		) {
+			tone = props.tone;
+			return () => createVNode('aside', { 'data-enhanced': true }, props.children);
+		}, '@exactjs/ssr:test-enhancement');
+		const vnode = createVNode(
+			'button',
+			{
+				__exactEnhancements: createEnhancementMarker([
+					{ identity, props: { tone: 'quiet' } }
+				])
+			},
+			'Save'
+		);
+
+		const output = renderToString(vnode, {
+			markers: false,
+			enhancementCatalog: new Map([[identity, Enhancement]])
+		});
+		const asyncOutput = await renderToStringAsync(vnode, {
+			markers: false,
+			enhancementCatalog: new Map([[identity, Enhancement]])
+		});
+
+		expect(output.html).toBe('<aside data-enhanced><button>Save</button></aside>');
+		expect(asyncOutput.html).toBe(output.html);
+		expect(tone).toBe('quiet');
+	});
+
+	it('leaves unavailable server enhancements inert and warns once per identity', () => {
+		const identity = '@exactjs/ssr:missing#default';
+		const events: Array<{ message: string }> = [];
+		const marker = () =>
+			createEnhancementMarker([{ identity, props: { tone: 'quiet' } }]);
+		const output = renderToString(
+			createVNode(
+				'section',
+				null,
+				createVNode('button', { __exactEnhancements: marker() }, 'One'),
+				createVNode('button', { __exactEnhancements: marker() }, 'Two')
+			),
+			{ markers: false, logger: { log: (event) => events.push(event) } }
+		);
+
+		expect(output.html).toBe('<section><button>One</button><button>Two</button></section>');
+		expect(events).toHaveLength(1);
+		expect(events[0]?.message).toContain(identity);
+	});
+
 	it('normalizes native class arrays and truthy maps', () => {
 		const output = renderToString(
 			createVNode('section', {

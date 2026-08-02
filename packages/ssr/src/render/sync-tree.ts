@@ -61,6 +61,7 @@ import {
 	renderUnsafeHtml
 } from './host.js';
 import { renderNativeSuspenseSync } from './native-boundaries.js';
+import { activateSsrEnhancements } from './enhancements.js';
 
 /** Transforms vnode chunks into its required representation. */
 export function* renderVNodeChunks(
@@ -71,6 +72,11 @@ export function* renderVNodeChunks(
 ): Generator<string> {
 	if (depth > context.maxTreeDepth) throw new SsrTreeDepthError(context.maxTreeDepth);
 	countSsrNode(context);
+	const enhanced = activateSsrEnhancements(context, vnode);
+	if (enhanced !== vnode) {
+		yield* renderVNodeChunks(context, enhanced, parent, depth);
+		return;
+	}
 	const marked = function* (id: string, content: () => Generator<string>): Generator<string> {
 		if (context.markers) yield `<!--exact:${id}-->`;
 		yield* content();
@@ -329,6 +335,8 @@ export function renderVNodeInner(
 	vnode: VNode,
 	parent?: ComponentInstance<any>
 ): string {
+	const enhanced = activateSsrEnhancements(context, vnode);
+	if (enhanced !== vnode) return renderVNode(context, enhanced, parent);
 	if (isCellVNode(vnode)) {
 		return withMarker(context, 'cell', vnode.key, () =>
 			renderVNode(context, getCellVNode(vnode), parent)

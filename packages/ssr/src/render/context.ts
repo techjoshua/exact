@@ -74,6 +74,8 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		documentHeadSeen: false,
 		documentBodySeen: false,
 		hostStack: [],
+		enhancementCatalog: options.enhancementCatalog,
+		unavailableEnhancements: new Set(),
 		componentContexts: options.contexts,
 		...(options.inspection
 			? {

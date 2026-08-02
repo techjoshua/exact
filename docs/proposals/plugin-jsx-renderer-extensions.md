@@ -4,10 +4,11 @@
 
 Implementation in progress. Stable generic refs and root releases, grouped reactive markers,
 compile-only attributed value imports, checker-derived finite prop schemas and diagnostics,
-single-pass logical target discovery, prop merging, transparent or structural ordinary component
-activation, target-bound lifetime, inert unavailable behavior, and warning deduplication exist.
-Generated catalog carriage, native compiler emission of context-effect metadata, and coordinated
-non-DOM hosts remain. Compilerless package components can
+single-pass logical target discovery, reactive root rerouting, prop merging, transparent or
+structural ordinary component activation, target-bound lifetime, inert unavailable behavior,
+warning deduplication, bundle-local Vite catalog carriage, SSR activation, hydration adoption, and
+component-test host propagation exist. Native compiler emission of context-effect metadata and
+remaining coordinated non-DOM hosts remain. Compilerless package components can
 already attach the same generic context-token contract explicitly.
 
 ## Decision summary

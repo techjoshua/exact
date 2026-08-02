@@ -20,6 +20,10 @@ Plain SSR can remain script-free. Pair hydratable output with `@exactjs/hydrate`
 compiler-generated client artifacts. Component inputs included in hydration must be deterministic
 and serializable.
 
+Generated server entries pass their bundle-local plugin enhancement catalog through render
+options. Available declarations run as ordinary server components; absent optional capabilities
+leave authored output unchanged and warn once per identity.
+
 Generated task handlers, component identities, resumption records, and registry selections are
 opaque contracts shared with the client runtime.
 

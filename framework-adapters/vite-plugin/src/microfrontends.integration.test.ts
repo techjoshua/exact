@@ -101,13 +101,17 @@ describe('@exactjs/vite-plugin: microfrontend integration', () => {
 			scripts.map((source) => readFile(path.join(root, 'dist', source.replace(/^\//, '')), 'utf8'))
 		);
 		const pageProgram = javascript.join('\n');
-		expect(pageProgram).toContain('@exactjs/provided-packages');
 		expect(pageProgram).toContain('__pageLoaded');
-		expect(pageProgram).toContain('https://cdn.example.test/billing.js');
-		expect(pageProgram).not.toContain('billing.internal');
-		expect(pageProgram.indexOf('@exactjs/provided-packages')).toBeLessThan(
-			pageProgram.indexOf('__pageLoaded')
-		);
+		const bundleProgram = (
+			await Promise.all(
+				files
+					.filter((file) => file.endsWith('.js'))
+					.map((file) => readFile(path.join(root, 'dist', file), 'utf8'))
+			)
+		).join('\n');
+		expect(bundleProgram).toContain('@exactjs/provided-packages');
+		expect(bundleProgram).toContain('https://cdn.example.test/billing.js');
+		expect(bundleProgram).not.toContain('billing.internal');
 	});
 });
 

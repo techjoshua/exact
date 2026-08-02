@@ -6,6 +6,18 @@ export const exactEnhancementDomModule = 'virtual:exact/enhancement-dom';
 /** Internal resolved identifier for the generated DOM enhancement facade. */
 export const resolvedExactEnhancementDomModule = `\0${exactEnhancementDomModule}`;
 
+/** Public virtual module used for the generated hydration enhancement facade. */
+export const exactEnhancementHydrateModule = 'virtual:exact/enhancement-hydrate';
+
+/** Internal resolved identifier for the generated hydration enhancement facade. */
+export const resolvedExactEnhancementHydrateModule = `\0${exactEnhancementHydrateModule}`;
+
+/** Public virtual module used for the generated SSR enhancement facade. */
+export const exactEnhancementSsrModule = 'virtual:exact/enhancement-ssr';
+
+/** Internal resolved identifier for the generated SSR enhancement facade. */
+export const resolvedExactEnhancementSsrModule = `\0${exactEnhancementSsrModule}`;
+
 /** Bundle-local catalog populated only by compiler-observed attributed imports. */
 export const exactEnhancementCatalogModule = 'virtual:exact/enhancement-catalog';
 
@@ -37,6 +49,70 @@ export function render(vnode, container, options) {
 		? options
 		: { ...options, enhancementCatalog: exactEnhancementCatalog });
 }
+`;
+}
+
+/** Emits a hydration facade that activates this application bundle's catalog after adoption. */
+export function createViteHydrateEnhancementFacade(): string {
+	return `import { exactEnhancementCatalog } from '${exactEnhancementCatalogModule}';
+import { hydrate as __exactHydrate } from '@exactjs/hydrate';
+export * from '@exactjs/hydrate';
+
+export function hydrate(vnode, container, options) {
+	return __exactHydrate(vnode, container, options?.enhancementCatalog
+		? options
+		: { ...options, enhancementCatalog: exactEnhancementCatalog });
+}
+`;
+}
+
+/** Emits an SSR facade that supplies this server bundle's enhancement catalog. */
+export function createViteSsrEnhancementFacade(): string {
+	const vnodeRenderers = [
+		'renderToString',
+		'renderToStringAsync',
+		'renderToHydratableString',
+		'renderToHydratableStringAsync',
+		'renderToStream',
+		'renderToDocumentStream',
+		'renderToHydratableDocumentStream',
+		'renderToProgressiveHtmlStream',
+		'renderToHydratableProgressiveHtmlStream',
+		'renderToProgressiveHtmlResponse',
+		'renderToHydratableProgressiveHtmlResponse'
+	];
+	const requestRenderers = [
+		'renderExactRequestToHtmlResponse',
+		'renderExactRequestToProgressiveHtmlResponse'
+	];
+	const imports = [...vnodeRenderers, ...requestRenderers]
+		.map((name) => `${name} as __exact_${name}`)
+		.join(',\n\t');
+	const vnodeFunctions = vnodeRenderers
+		.map(
+			(name) =>
+				`export function ${name}(vnode, options) { return __exact_${name}(vnode, __exactOptions(options)); }`
+		)
+		.join('\n');
+	const requestFunctions = requestRenderers
+		.map(
+			(name) =>
+				`export function ${name}(request, server, render, options) { return __exact_${name}(request, server, render, __exactOptions(options)); }`
+		)
+		.join('\n');
+	return `import { exactEnhancementCatalog } from '${exactEnhancementCatalogModule}';
+import {
+	${imports}
+} from '@exactjs/ssr';
+export * from '@exactjs/ssr';
+
+function __exactOptions(options) {
+	return options?.enhancementCatalog
+		? options
+		: { ...options, enhancementCatalog: exactEnhancementCatalog };
+}
+${vnodeFunctions}
+${requestFunctions}
 `;
 }
 
