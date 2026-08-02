@@ -7,6 +7,9 @@ import {
 	type RootRelease
 } from '@exactjs/core';
 import { defaultMotionSettings, MotionContext } from './context.js';
+import { LayoutContext } from './layout.js';
+import { ExitLayoutContext } from './presence.js';
+import { acquireSemanticAbsence, releaseSemanticAbsence } from './semantics.js';
 import type {
 	MotionDefinition,
 	MotionElementProps,
@@ -28,6 +31,22 @@ export const MotionElement = markExactComponent(function MotionElement(
 	let changePlayback: MotionPlayback | undefined;
 	let leavePlayback: MotionPlayback | undefined;
 	let appeared = false;
+	const semanticOwner = Symbol('motion.element-presence');
+	let semanticTarget: Element | undefined;
+	const layoutIdentity = Symbol('motion.layout-participant');
+	let unregisterLayout: (() => void) | undefined;
+
+	watch(() => {
+		unregisterLayout?.();
+		unregisterLayout = undefined;
+		const element = root.current;
+		if (!element || !props.layout || !this.hasContext(LayoutContext)) return;
+		unregisterLayout = this.getContext(LayoutContext).register(
+			props.layoutId ?? layoutIdentity,
+			element,
+			props.layout
+		);
+	});
 
 	watch(() => {
 		const element = root.current;
@@ -44,13 +63,24 @@ export const MotionElement = markExactComponent(function MotionElement(
 
 	watch(() => {
 		const release = root.release;
-		if (!release) return;
+		if (!release) {
+			if (semanticTarget) releaseSemanticAbsence(semanticTarget, semanticOwner);
+			semanticTarget = undefined;
+			return;
+		}
+		semanticTarget = release.target;
+		const exitLayout = this.hasContext(ExitLayoutContext)
+			? this.getContext(ExitLayoutContext).mode
+			: undefined;
+		acquireSemanticAbsence(release.target, semanticOwner, { exitLayout });
 		leavePlayback?.cancel('motion-leave-superseded');
 		leavePlayback = playRelease(release, resolvePhase(props, 'leave'), props.apply, settings);
 		if (leavePlayback) observePlayback(leavePlayback, this.log.error);
 	}, undefined);
 
 	this.onUnmount(() => {
+		releaseSemanticAbsence(semanticTarget, semanticOwner);
+		unregisterLayout?.();
 		changePlayback?.cancel('motion-owner-disposed');
 		leavePlayback?.cancel('motion-owner-disposed');
 	});

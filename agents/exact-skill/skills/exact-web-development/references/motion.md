@@ -10,6 +10,8 @@ exported declarations before editing motion code.
 - Use `MotionConfig` for inherited enabled, transition, appear, and reduced-motion policy.
 - Use the explicit `Motion` component when compiler-owned namespaced activation is unavailable in
   the installed build host.
+- Use `Presence` for conditional focus-safe leave, `MotionList` for application-owned keyed
+  collections, and `LayoutGroup` with stable `layoutId` values for coordinated FLIP movement.
 - Treat `animate()` playback as structured, cancelable task work. Do not retain raw browser
   animations outside component ownership.
 - Follow the installed package surface for presence, list, layout, and router coordination; do not

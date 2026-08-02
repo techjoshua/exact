@@ -1,19 +1,25 @@
 import {
+	createContext,
 	createVNode,
 	isVNode,
 	markExactComponent,
 	watch,
 	type Child,
 	type Component,
-	type RootRelease,
 	type VNode
 } from '@exactjs/core';
 import type { PresenceProps } from './contracts.js';
+import { acquireSemanticAbsence, releaseSemanticAbsence } from './semantics.js';
 
 type PresenceRangeProps = Readonly<{
 	children?: Child;
 	returnFocus?: PresenceProps['returnFocus'];
+	exitLayout?: 'retain' | 'pop';
 }>;
+
+/** Internal collection-exit policy inherited by a motion-decorated list root. */
+export const ExitLayoutContext =
+	createContext<Readonly<{ mode: 'retain' | 'pop' }>>('motion.exit-layout');
 
 /** Conditionally projects children through generation-fenced renderer release and reversal. */
 export const Presence = markExactComponent(function Presence(
@@ -36,66 +42,37 @@ const PresenceRange = markExactComponent(function PresenceRange(
 	props: PresenceRangeProps
 ) {
 	const root = this.refs.root<Element>();
-	let semanticRelease:
-		| {
-				target: HTMLElement;
-				inert: boolean;
-				pointerEvents: string;
-				ariaHidden: string | null;
-		  }
-		| undefined;
+	const semanticOwner = Symbol('motion.presence');
+	let semanticTarget: Element | undefined;
+	if (props.exitLayout) {
+		this.setContext(ExitLayoutContext, {
+			get mode() {
+				return props.exitLayout ?? 'retain';
+			}
+		});
+	}
 
 	watch(() => {
 		const release = root.release;
-		if (release) makeSemanticallyAbsent(release, props, (value) => (semanticRelease = value));
-		else if (root.current && semanticRelease?.target === root.current) {
-			restoreSemanticPresence(semanticRelease);
-			semanticRelease = undefined;
+		if (release) {
+			semanticTarget = release.target;
+			acquireSemanticAbsence(release.target, semanticOwner, props);
+		} else if (semanticTarget) {
+			releaseSemanticAbsence(semanticTarget, semanticOwner);
+			semanticTarget = undefined;
 		}
 	});
+	this.onUnmount(() => releaseSemanticAbsence(semanticTarget, semanticOwner));
 
 	return () => props.children;
 }, '@exactjs/motion:PresenceRange');
 
-function makeSemanticallyAbsent(
-	release: RootRelease<Element>,
-	props: PresenceRangeProps,
-	publish: (state: NonNullable<ReturnType<typeof semanticState>>) => void
-): void {
-	if (!(release.target instanceof HTMLElement)) return;
-	const target = release.target;
-	const state = semanticState(target);
-	if (!state) return;
-	const active = target.ownerDocument.activeElement;
-	if (active && target.contains(active)) {
-		const returnTarget = props.returnFocus?.current;
-		if (returnTarget?.isConnected) returnTarget.focus();
-		else if (active instanceof HTMLElement) active.blur();
-	}
-	target.inert = true;
-	target.style.pointerEvents = 'none';
-	if (!target.contains(target.ownerDocument.activeElement))
-		target.setAttribute('aria-hidden', 'true');
-	publish(state);
-}
-
-function semanticState(target: HTMLElement) {
-	return {
-		target,
-		inert: target.inert === true,
-		pointerEvents: target.style.pointerEvents,
-		ariaHidden: target.getAttribute('aria-hidden')
-	};
-}
-
-function restoreSemanticPresence(state: NonNullable<ReturnType<typeof semanticState>>): void {
-	state.target.inert = state.inert;
-	state.target.style.pointerEvents = state.pointerEvents;
-	if (state.ariaHidden === null) state.target.removeAttribute('aria-hidden');
-	else state.target.setAttribute('aria-hidden', state.ariaHidden);
-}
-
-/** Applies a stable key to a projected child without changing its authored component identity. */
-export function keyedPresenceChild(child: Child, key: string): VNode {
+/** Applies a stable key and optional exit-layout owner to one projected list child. */
+export function keyedPresenceChild(
+	child: Child,
+	key: string,
+	exitLayout?: 'retain' | 'pop'
+): VNode {
+	if (exitLayout === 'pop') return createVNode(PresenceRange, { key, exitLayout }, child);
 	return isVNode(child) ? { ...child, key } : createVNode(PresenceRange, { key }, child);
 }

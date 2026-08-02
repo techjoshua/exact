@@ -35,6 +35,7 @@ describe('MotionElement', () => {
 			});
 			await settle();
 			expect(driver.playbacks).toHaveLength(1);
+			expect(container.querySelector('button')?.inert).toBe(true);
 			expect(container.innerHTML).toContain('<button');
 
 			driver.finishAll();

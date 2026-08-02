@@ -28,13 +28,15 @@ const componentSource = `<MotionConfig reducedMotion="system" transition={{ dura
   </Presence>
 </MotionConfig>`;
 
-const listSource = `<MotionList items={this.state.cards} getKey={(card) => card.id}>
-  {(card) => (
-    <Motion as="article" motion={cardMotion}>
-      {card.title}
-    </Motion>
-  )}
-</MotionList>`;
+const listSource = `<LayoutGroup id="cards">
+  <MotionList items={this.state.cards} getKey={(card) => card.id} exitLayout="pop">
+    {(card) => (
+      <Motion as="article" motion={cardMotion} layout="position" layoutId={card.id}>
+        {card.title}
+      </Motion>
+    )}
+  </MotionList>
+</LayoutGroup>`;
 
 /** Documents the current optional motion package surface and ownership model. */
 export function MotionPluginPage(this: Component<{}>) {
@@ -71,7 +73,9 @@ export function MotionPluginPage(this: Component<{}>) {
 				<p>
 					<code>MotionList</code> uses eXact&apos;s reactive keyed-list primitive directly.
 					Application state remains authoritative, keyed DOM survives reorder, and duplicate keys
-					fail immediately.
+					fail immediately. <code>LayoutGroup</code> measures those stable participants and plays
+					additive FLIP transforms after movement; <code>exitLayout=&quot;pop&quot;</code> removes
+					leaving items from layout while their retained generation settles.
 				</p>
 			</section>
 			<section>

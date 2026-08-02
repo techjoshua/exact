@@ -11,6 +11,7 @@ import {
 } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installMotionDriver } from './driver.js';
+import { LayoutGroup } from './layout.js';
 import { MotionList } from './motion-list.js';
 import { Motion } from './motion.js';
 import { Presence } from './presence.js';
@@ -62,10 +63,13 @@ describe('Presence and MotionList', () => {
 			owner.state.shown = false;
 			flushSync();
 			await settle();
+			expect(driver.playbacks).toHaveLength(1);
+			expect(driver.playbacks[0]?.element).toBe(target);
+			expect(driver.playbacks[0]?.signal.aborted).toBe(false);
+			expect(target.isConnected).toBe(true);
 			expect(target.inert).toBe(true);
 			expect(target.style.pointerEvents).toBe('none');
 			expect(document.activeElement).toBe(container.querySelector('button'));
-			expect(driver.playbacks).toHaveLength(1);
 
 			owner.state.shown = true;
 			flushSync();
@@ -107,12 +111,148 @@ describe('Presence and MotionList', () => {
 		]);
 		expect(container.querySelectorAll('li')[1]).toBe(first);
 
-		expect(() => owner.state.items.splice(0, 2, { id: 'a' }, { id: 'a' })).toThrow(
-			'Duplicate key "a" in this.map()'
-		);
+		const Duplicate = markTestComponent(function Duplicate(this: Component<{}>) {
+			const items = [{ id: 'a' }, { id: 'a' }];
+			return () =>
+				createVNode(MotionList, {
+					items,
+					getKey: (item: { id: string }) => item.id,
+					children: (item: { id: string }) => createVNode('li', null, item.id)
+				});
+		});
+		const duplicateContainer = document.createElement('div');
+		document.body.append(duplicateContainer);
+		containers.push(duplicateContainer);
+		render(createVNode(Duplicate, null), duplicateContainer);
+		expect(duplicateContainer.textContent).toContain('Duplicate key "a" in this.map()');
+	});
+
+	it('measures keyed reorders inside a LayoutGroup and plays additive FLIP motion', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		let owner!: Component<{ items: Array<{ id: string }> }>;
+		const List = markTestComponent(function List(
+			this: Component<{ items: Array<{ id: string }> }>
+		) {
+			owner = this;
+			this.state.items = [{ id: 'a' }, { id: 'b' }];
+			return () =>
+				createVNode(
+					LayoutGroup,
+					{ id: 'cards' },
+					createCompiledTestVNode(MotionList, {
+						items: createExpression(() => this.state.items),
+						getKey: (item: { id: string }) => item.id,
+						children: (item: { id: string }) =>
+							createVNode(Motion, {
+								as: 'li',
+								layout: 'position',
+								layoutId: item.id,
+								children: item.id
+							})
+					})
+				);
+		});
+		const container = document.createElement('div');
+		document.body.append(container);
+		containers.push(container);
+		try {
+			render(createVNode(List, null), container);
+			const elements = [...container.querySelectorAll('li')];
+			for (const element of elements) {
+				vi.spyOn(element, 'getBoundingClientRect').mockImplementation(() => {
+					const top = [...container.querySelectorAll('li')].indexOf(element) * 40;
+					return rect(top);
+				});
+			}
+
+			owner.state.items.reverse();
+			flushSync();
+			await settle();
+
+			expect(driver.playbacks).toHaveLength(2);
+			expect(driver.playbacks.map((playback) => playback.element.textContent).sort()).toEqual([
+				'a',
+				'b'
+			]);
+			for (const playback of driver.playbacks) {
+				const first = (playback.effect.keyframes as Keyframe[])[0]!;
+				expect(first.composite).toBe('add');
+				expect(first.transform).toMatch(/translate\(0px, (-40|40)px\)/);
+			}
+		} finally {
+			restore();
+		}
+	});
+
+	it('pops a leaving list item out of layout and restores it on reinsertion', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		let owner!: Component<{ items: Array<{ id: string }> }>;
+		const List = markTestComponent(function List(
+			this: Component<{ items: Array<{ id: string }> }>
+		) {
+			owner = this;
+			this.state.items = [{ id: 'a' }];
+			return () =>
+				createCompiledTestVNode(MotionList, {
+					items: createExpression(() => this.state.items),
+					getKey: (item: { id: string }) => item.id,
+					exitLayout: 'pop',
+					children: (item: { id: string }) =>
+						createVNode(Motion, {
+							as: 'li',
+							motion: fade,
+							children: item.id
+						})
+				});
+		});
+		const container = document.createElement('div');
+		document.body.append(container);
+		containers.push(container);
+		try {
+			render(createVNode(List, null), container);
+			const target = container.querySelector('li')!;
+			vi.spyOn(target, 'getBoundingClientRect').mockReturnValue(rect(24));
+
+			owner.state.items.splice(0, 1);
+			flushSync();
+			await settle();
+			expect(driver.playbacks).toHaveLength(1);
+			expect(driver.playbacks[0]?.element).toBe(target);
+			expect(driver.playbacks[0]?.signal.aborted).toBe(false);
+			expect(target.isConnected).toBe(true);
+			expect(target.inert).toBe(true);
+			expect(target.style.position).toBe('fixed');
+			expect(target.style.top).toBe('24px');
+
+			owner.state.items.push({ id: 'a' });
+			flushSync();
+			await settle();
+			expect(container.querySelector('li')).toBe(target);
+			expect(target.style.position).toBe('');
+			expect(target.style.top).toBe('');
+			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
+		} finally {
+			restore();
+		}
 	});
 });
 
 async function settle(): Promise<void> {
 	for (let index = 0; index < 8; index++) await Promise.resolve();
+}
+
+function rect(top: number): DOMRect {
+	return {
+		x: 0,
+		y: top,
+		top,
+		left: 0,
+		right: 100,
+		bottom: top + 20,
+		width: 100,
+		height: 20,
+		toJSON: () => ({})
+	};
 }

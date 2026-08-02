@@ -92,6 +92,13 @@ export type MotionListProps<Item> = Readonly<{
 	items: Iterable<Item>;
 	getKey(item: Item): string;
 	children(item: Item): Child;
+	exitLayout?: 'retain' | 'pop';
+}>;
+
+/** Props for one scoped layout-measurement and shared-identity boundary. */
+export type LayoutGroupProps = Readonly<{
+	id?: string;
+	children?: Child;
 }>;
 
 /** Cancelable task-frame-owned playback returned by {@link animate}. */

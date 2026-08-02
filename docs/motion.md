@@ -81,6 +81,31 @@ the renderer's generation-fenced release path, and duplicate keys fail immediate
 
 Neither component keeps a shadow copy of application data or exposes a manual retention token.
 
+Set `exitLayout="pop"` when a leaving list item should keep its last viewport geometry without
+occupying collection layout. The package restores the authored inline position and dimensions if
+that keyed generation is reinserted before leave settles.
+
+## Layout motion
+
+`LayoutGroup` scopes measurement and shared `layoutId` identity. A `MotionList` inside the group
+captures participant rectangles before publishing a keyed collection update and plays additive
+FLIP effects after the DOM has moved:
+
+```tsx
+<LayoutGroup id="cards">
+	<MotionList items={this.state.cards} getKey={(card) => card.id} exitLayout="pop">
+		{(card) => (
+			<Motion as="article" layout="position" layoutId={card.id} motion={cardMotion}>
+				{card.title}
+			</Motion>
+		)}
+	</MotionList>
+</LayoutGroup>
+```
+
+Use `layout="position"`, `layout="size"`, or `layout="both"`; `layout` alone means both. Layout
+keyframes use additive transform composition, so they do not replace an authored transform.
+
 ## Plugin-owned JSX
 
 The shared compiler and DOM renderer can carry grouped motion markers, resolve targets through
@@ -88,5 +113,5 @@ native component output, merge nearest props, and mount `MotionElement` as an or
 component. The generated plugin-host capability catalog is still being connected, so application
 code should use the explicit `Motion` component until that host integration is complete.
 
-Presence and keyed motion lists are available. Layout measurement and sequencing policies, shared
-layout identity, and router View Transition publication remain under implementation.
+Presence, keyed motion lists, scoped layout measurement, and shared layout identity are available.
+Presence sequencing policies and router View Transition publication remain under implementation.
