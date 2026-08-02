@@ -127,6 +127,12 @@ export function PluginsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>The plugins in this repository</h2>
+				<p>
+					The <code>apps/plugin-playground</code> sample demonstrates these optional JSX
+					capabilities on familiar controls: animated tabs, disclosures and toasts; semantic press,
+					hover, long-press, slider, pan, pinch and keyboard input; plus a bounded, deliberately
+					bouncy stage that composes motion, gestures, physics and gravity on one target.
+				</p>
 				<div className="card-grid">
 					<Link className="topic-card" to="/plugins/motion">
 						<span className="topic-index">Visual behavior</span>

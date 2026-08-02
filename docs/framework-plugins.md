@@ -121,6 +121,11 @@ warn once per identity. Hydration adopts the authored DOM before activating the 
 transparent enhancements preserve server node identity. Low-level renderer and component-test
 callers can provide the bundle-local catalog explicitly.
 
+The `apps/plugin-playground` sample turns these contracts into familiar interface patterns:
+state-owned animated tabs, disclosures, and toasts; semantic press, hover, long-press, slider,
+pan, pinch, and keyboard controls; and a bounded, deliberately bouncy stage that composes motion,
+gestures, physics, and gravity on one target.
+
 Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
 their reads reactive. Open dictionaries and effectful inline enhancement spreads are diagnostics.
