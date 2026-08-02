@@ -15,6 +15,11 @@ const pluginConfigSource = `export default {
   }
 };`;
 
+const enhancementSource = `import motion from '@exactjs/motion'
+  with { type: 'exact-plugin' };
+
+<article motion:apply={fade} motion:layout-id={card.id} />;`;
+
 /** Explains the validated compiler, runtime, rendering, and testing plugin lifecycle. */
 export function PluginsPage(this: Component<{}>) {
 	return () => (
@@ -72,6 +77,16 @@ export function PluginsPage(this: Component<{}>) {
 					Configuration transforms may mutate the provided value or return a replacement. Generated
 					type augmentation makes installed plugin keys available through{' '}
 					<code>@exactjs/config</code>.
+				</p>
+			</section>
+			<section>
+				<h2>Optional JSX remains ordinary component behavior</h2>
+				<CodeBlock source={enhancementSource} language="tsx" title="Card.tsx" />
+				<p>
+					An attributed value import establishes only the local prefix. The compiler derives a
+					finite canonical prop schema, rejects unknown and reserved members, and emits one grouped
+					reactive marker. An active trusted host mounts an ordinary inspectable component; an
+					unavailable optional enhancement leaves the target unchanged.
 				</p>
 			</section>
 			<section>

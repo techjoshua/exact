@@ -2,10 +2,12 @@
 
 ## Status
 
-Proposed future work. This document specifies the shared compiler and renderer
-foundation for optional motion, gesture, physics, gravity, and third-party JSX
-enhancements. It supersedes the earlier transparent-boundary, `PluginTarget`,
-explicit plugin ID, and plugin-specific removal-context designs.
+Implementation in progress. Stable generic refs and root releases, grouped reactive markers,
+compile-only attributed value imports, checker-derived finite prop schemas and diagnostics,
+single-pass logical target discovery, prop merging, transparent or structural ordinary component
+activation, target-bound lifetime, inert unavailable behavior, and warning deduplication exist.
+Attributed re-export identity tracing, finite spread partitioning, generated trusted catalogs,
+context-derived chain ordering, and coordinated non-DOM hosts remain.
 
 ## Decision summary
 

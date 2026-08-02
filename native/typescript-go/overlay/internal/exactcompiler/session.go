@@ -318,7 +318,7 @@ func (s *Session) Execute(request Request) Response {
 		components,
 		request.ID,
 	)
-	enhancementImports := collectEnhancementImports(sourceFile)
+	enhancementImports := collectEnhancementImports(sourceFile, generation.checker)
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()

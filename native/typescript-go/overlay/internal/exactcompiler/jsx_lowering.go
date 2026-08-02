@@ -1350,7 +1350,7 @@ func (lowering *jsxLowering) propsWithReactivity(
 							lowering.property(lowering.factory.NewIdentifier("__exactRoot"), value),
 						)
 					} else {
-						member = kebabToCamel(member)
+						member = binding.members[member]
 						enhancementEntries[binding.identity] = append(
 							enhancementEntries[binding.identity],
 							lowering.property(jsxPropertyName(lowering.factory, member), value),

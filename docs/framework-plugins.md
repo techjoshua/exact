@@ -84,6 +84,24 @@ ordinary task should remain application code. A framework plugin is warranted
 when the behavior must participate consistently in several compiler/runtime
 hosts or enforce a cross-cutting boundary.
 
+## Optional JSX enhancements
+
+An attributed value import can establish a local namespaced JSX prefix for an optional ordinary
+component enhancement. The compiler resolves the imported callable's public props, requires a
+finite key space, maps kebab-case JSX members to camel-case props, reserves `children`, `key`, and
+`ref`, and emits one grouped reactive marker. The compile-only import itself is erased.
+
+```tsx
+import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+
+<article motion:apply={fade} motion:layout-id={card.id} />;
+```
+
+An ordinary import cannot establish the prefix. Namespace imports, type-only bindings,
+non-component values, open prop dictionaries, unknown members, and reserved members are compiler
+diagnostics. Active renderer roots instantiate the mapped value as an ordinary inspectable
+component; unavailable capabilities leave the intrinsic target unchanged and warn once.
+
 ## Current limitations
 
 - Vite has the most complete automatic integration.
@@ -91,3 +109,5 @@ hosts or enforce a cross-cutting boundary.
   narrower host-specific feature set. Check the plugin and runtime docs.
 - Compiler extensions may contribute bounded, validated analysis data retained
   only for the active compiler session.
+- Generated trusted enhancement catalogs and attributed re-export identity tracing are still being
+  connected across build hosts; current low-level renderer callers can supply an explicit catalog.
