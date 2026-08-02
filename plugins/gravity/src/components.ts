@@ -1,4 +1,10 @@
-import { markExactComponent, unwrap, watch, type Component } from '@exactjs/core';
+import {
+	markExactComponent,
+	markExactEnhancementContexts,
+	unwrap,
+	watch,
+	type Component
+} from '@exactjs/core';
 import { PhysicsBodyContext, PhysicsWorldContext, type PhysicsWorld } from '@exactjs/physics';
 import { applyGravity } from './application.js';
 import type { GravityApplication, GravityElementProps, GravityFieldProps } from './contracts.js';
@@ -73,3 +79,5 @@ export const GravityElement = markExactComponent(function GravityElement(
 	this.onUnmount(() => registration[Symbol.dispose]());
 	return () => props.children;
 }, '@exactjs/gravity:GravityElement');
+
+markExactEnhancementContexts(GravityElement, { optionallyConsumes: [PhysicsBodyContext] });

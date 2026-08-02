@@ -89,6 +89,11 @@ export function PluginsPage(this: Component<{}>) {
 					prefix scanning. An active trusted host mounts an ordinary inspectable component; an
 					unavailable optional enhancement leaves the target unchanged.
 				</p>
+				<p>
+					Ordinary context production and consumption orders components before setup. Unrelated
+					capabilities use canonical identity, while a context cycle fails through normal component
+					error handling before any component in the cycle runs.
+				</p>
 			</section>
 			<section>
 				<h2>The plugins in this repository</h2>

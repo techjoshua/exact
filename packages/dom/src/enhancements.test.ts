@@ -2,7 +2,9 @@
  * @vitest-environment jsdom
  */
 import {
+	createContext,
 	createEnhancementMarker,
+	markExactEnhancementContexts,
 	type Child,
 	type Component,
 	type LogEvent,
@@ -134,5 +136,84 @@ describe('renderer enhancements', () => {
 		const warnings = events.filter((event) => event.level === 'warn');
 		expect(warnings).toHaveLength(1);
 		expect(warnings[0]?.message).toContain(identity);
+	});
+
+	it('orders co-targeted components from context token effects before setup', () => {
+		const token = createContext<string>('enhancement-order', true);
+		const observed: string[] = [];
+		const Provider = markTestComponent(function Provider(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			observed.push('provider');
+			this.setContext(token, 'ready');
+			return () => props.children;
+		});
+		markExactEnhancementContexts(Provider, { provides: [token] });
+		const Consumer = markTestComponent(function Consumer(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			observed.push(`consumer:${this.getContext(token)}`);
+			return () => props.children;
+		});
+		markExactEnhancementContexts(Consumer, { requires: [token] });
+		const providerIdentity = '@test/z-provider#default';
+		const consumerIdentity = '@test/a-consumer#default';
+		const marker = createEnhancementMarker([
+			{ identity: consumerIdentity, props: {} },
+			{ identity: providerIdentity, props: {} }
+		]);
+		const container = document.createElement('div');
+
+		render(createVNode('button', { __exactEnhancements: marker }), container, {
+			enhancementCatalog: new Map([
+				[consumerIdentity, Consumer],
+				[providerIdentity, Provider]
+			])
+		});
+
+		expect(observed).toEqual(['provider', 'consumer:ready']);
+	});
+
+	it('rejects context ordering cycles before plugin setup', () => {
+		const leftToken = createContext<string>('enhancement-cycle-left', true);
+		const rightToken = createContext<string>('enhancement-cycle-right', true);
+		const setup = vi.fn();
+		const Left = markTestComponent(function Left(this: Component<{}>, props: { children?: Child }) {
+			setup();
+			return () => props.children;
+		});
+		const Right = markTestComponent(function Right(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			setup();
+			return () => props.children;
+		});
+		markExactEnhancementContexts(Left, { provides: [leftToken], requires: [rightToken] });
+		markExactEnhancementContexts(Right, { provides: [rightToken], requires: [leftToken] });
+		const marker = createEnhancementMarker([
+			{ identity: '@test/left#default', props: {} },
+			{ identity: '@test/right#default', props: {} }
+		]);
+		const container = document.createElement('div');
+		const reported = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		try {
+			render(createVNode('button', { __exactEnhancements: marker }), container, {
+				enhancementCatalog: new Map([
+					['@test/left#default', Left],
+					['@test/right#default', Right]
+				])
+			});
+			expect(reported).toHaveBeenCalledOnce();
+			expect(setup).not.toHaveBeenCalled();
+			expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+				'Enhancement context ordering cycle: @test/left#default, @test/right#default'
+			);
+		} finally {
+			reported.mockRestore();
+		}
 	});
 });

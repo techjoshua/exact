@@ -1,6 +1,7 @@
 import {
 	createTaskOwner,
 	defineTask,
+	markExactEnhancementContexts,
 	markExactComponent,
 	taskAnimationFrame,
 	unwrap,
@@ -115,3 +116,5 @@ export const PhysicsElement = markExactComponent(function PhysicsElement(
 	this.onUnmount(() => controller[Symbol.dispose]());
 	return () => props.children;
 }, '@exactjs/physics:PhysicsElement');
+
+markExactEnhancementContexts(PhysicsElement, { provides: [PhysicsBodyContext] });

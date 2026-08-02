@@ -106,6 +106,10 @@ Statically finite setup-derived spreads may contain namespaced keys. The compile
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
 their reads reactive. Open dictionaries and effectful inline enhancement spreads are diagnostics.
 
+Before setup, co-targeted enhancement components are ordered from their ordinary context effects:
+providers wrap required and optional consumers, unrelated components use canonical identity, and a
+cycle fails through the normal component error boundary before any member of the cycle runs.
+
 ## Current limitations
 
 - Vite has the most complete automatic integration.

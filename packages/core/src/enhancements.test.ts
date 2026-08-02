@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createEnhancementMarker, omitKnownProps } from './enhancements.js';
+import { createContext } from './keys.js';
+import { markExactComponent } from './component-contracts.js';
+import {
+	createEnhancementMarker,
+	markExactEnhancementContexts,
+	omitKnownProps,
+	readExactEnhancementContexts
+} from './enhancements.js';
 import { createVNode } from './vnode.js';
 
 describe('renderer enhancement markers', () => {
@@ -34,5 +41,14 @@ describe('renderer enhancement markers', () => {
 		const source = { id: 'card', 'motion:apply': 'fade', title: 'Card' };
 		expect(omitKnownProps(source, ['motion:apply'])).toEqual({ id: 'card', title: 'Card' });
 		expect(source['motion:apply']).toBe('fade');
+	});
+
+	it('carries compilerless context effects by token identity', () => {
+		const token = createContext<string>('enhancement-test', true);
+		const component = markExactEnhancementContexts(
+			markExactComponent(function Test() {}, 'test:enhancement-contexts'),
+			{ provides: [token] }
+		);
+		expect(readExactEnhancementContexts(component)).toEqual({ provides: [token.id] });
 	});
 });

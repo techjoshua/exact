@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { render, unmount } from '@exactjs/dom';
+import { createEnhancementMarker } from '@exactjs/core';
 import { PhysicsElement, PhysicsWorld, createPhysicsWorld } from '@exactjs/physics';
 import { createTestVNode as createVNode } from '@exactjs/testing/internal/fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,5 +63,35 @@ describe('GravityElement', () => {
 			container
 		);
 		expect(container.textContent).toBe('safe');
+	});
+
+	it('orders same-target gravity inside physics independently of marker order', () => {
+		const world = createPhysicsWorld({ fixedStep: 1, sleep: false });
+		const body = world.createBody({ shape: { kind: 'circle', radius: 1 } });
+		const container = document.createElement('div');
+		containers.push(container);
+		const physicsIdentity = '@exactjs/physics#default';
+		const gravityIdentity = '@exactjs/gravity#default';
+		render(
+			createVNode(
+				PhysicsWorld,
+				{ world, running: false },
+				createVNode('div', {
+					__exactEnhancements: createEnhancementMarker([
+						{ identity: gravityIdentity, props: { apply: uniformGravity({ x: 0, y: 6 }) } },
+						{ identity: physicsIdentity, props: { body } }
+					])
+				})
+			),
+			container,
+			{
+				enhancementCatalog: new Map([
+					[gravityIdentity, GravityElement],
+					[physicsIdentity, PhysicsElement]
+				])
+			}
+		);
+		world.step(1);
+		expect(body.velocity.y).toBe(6);
 	});
 });
