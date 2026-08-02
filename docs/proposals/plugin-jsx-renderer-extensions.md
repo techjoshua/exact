@@ -671,10 +671,9 @@ Testing follows the repository's risk-based standard:
   deterministic ties, and cycles;
 - SSR/hydration/microfrontend tests for precompiled children and coordinated
   server/client behavior;
-- trust tests proving markers cannot activate untrusted code or reveal server
-  policy;
-- warning deduplication tests for ignored, absent, untrusted, server, and client
-  cases; and
+- bundle tests proving markers activate only capabilities linked into the final
+  application without revealing server policy;
+- warning deduplication tests for unavailable server and client identities; and
 - compatibility tests for arbitrary non-element refs and existing ref timing.
 
 ## Acceptance criteria
@@ -703,10 +702,10 @@ Testing follows the repository's risk-based standard:
 11. Generic refs remain reactive for arbitrary values, while element roots add
     presentation, generation-fenced release, shared reasons, and task settlement
     consistently across every renderer lifecycle path.
-12. Inactive enhancements always render the underlying target; ignored server
-    packages remain silent and unexpected unavailable identities warn once in
-    each applicable runtime.
-13. Existing plugin trust, placement, errors, SSR, hydration, serialization,
-    portals, and microfrontend ownership remain authoritative.
+12. Inactive enhancements always render the underlying target, and unavailable
+    identities warn once in each applicable runtime.
+13. Package inclusion remains the activation and trust decision, while existing
+    placement, errors, SSR, hydration, serialization, portals, and
+    microfrontend ownership remain authoritative.
 14. The implementation adds no second registry, transport payload, lifecycle
     system, trust list, client allowlist disclosure, or marker version field.

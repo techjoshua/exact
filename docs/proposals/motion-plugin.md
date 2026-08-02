@@ -185,14 +185,14 @@ Motion does not import `@exactjs/router`. Router does not import
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
 | Source imports motion with `type: 'exact-plugin'` and uses `motion:*`    | Source validates and emits an optional canonical motion marker.           |
 | Source uses an unbound prefix or ordinary import as `motion:*`           | Compilation fails with a prefix/import diagnostic.                        |
-| Precompiled marker, trusted plugin component active                      | The boundary mounts an ordinary compiled `MotionElement`.                 |
-| Precompiled marker, component absent, ignored, or untrusted              | The target renders unchanged and generic warning policy applies.          |
+| Precompiled marker, package capability bundled                           | The boundary mounts an ordinary compiled `MotionElement`.                 |
+| Precompiled marker, package capability not bundled                       | The target renders unchanged and generic warning policy applies.          |
 | SSR host has no active motion component                                  | Final semantic HTML renders from the unchanged child.                     |
 | Source imports `Motion`, `Presence`, `animate`, or another runtime value | The generated JavaScript has an ordinary dependency on `@exactjs/motion`. |
 | Component package publishes precompiled motion JSX                       | Consumers may execute it without installing or enabling motion.           |
 
 Compiled JSX markers use the generic capability-export, canonical-identity,
-wrapper-package, discovery, and trust behavior defined by
+wrapper-package, discovery, and package-inclusion behavior defined by
 [`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md). Motion
 adds no re-export, substitution, compatibility, or runtime-selection rule of its
 own. Explicit imports such as presets retain their ordinary JavaScript package
@@ -1227,8 +1227,8 @@ verify:
   provenance regardless of activation;
 - another package imported under the local prefix `motion` cannot claim these
   canonical markers;
-- active, ignored, absent, and untrusted identities produce the expected
-  enhanced, silent passthrough, or warn-once behavior;
+- bundled and unavailable identities produce the expected enhanced,
+  passthrough, or warn-once behavior;
 - named preset imports tree-shake independently and do not activate browser
   code during server import;
 - optional host capability metadata remains intact; and
@@ -1304,13 +1304,13 @@ dependency are removed; doing so must not require rewriting application state.
 
 - Implement stable generic refs and element-root lifecycle/release first, then attributed
   plugin exports/imports, canonical prop derivation, grouped markers, ordinary
-  plugin components, logical target resolution, enhancement-target-bound identity, and trust
-  behavior
+  plugin components, logical target resolution, enhancement-target-bound identity, and
+  package-inclusion behavior
   described in
   [`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md).
-- Prove compiler-only requirements and active, ignored, absent, untrusted,
-  context-ordered, and cyclic behavior.
-- Add root-scoped browser registry generation, language-tools, and test-host
+- Prove compiler-only requirements and bundled, unavailable, context-ordered,
+  and cyclic behavior.
+- Add root-scoped bundle catalog generation, language-tools, and test-host
   support.
 
 ### Phase 2: plugin and library foundation
@@ -1348,8 +1348,8 @@ dependency are removed; doing so must not require rewriting application state.
 
 - Add server no-op rendering, hydration adoption, `appear`, reduced motion,
   focus behavior, and browser tests.
-- Verify server, client, and testing behavior for active, ignored, absent, and
-  untrusted enhancements.
+- Verify server, client, and testing behavior for bundled and unavailable
+  enhancements.
 
 ### Phase 6: neutral publication and router opt-in
 
@@ -1390,8 +1390,8 @@ The proposal is complete when:
     deterministically;
 13. precompiled motion JSX remains functional when the plugin component is
     inactive;
-14. markers retain canonical attributed-export identity and only a trusted
-    exact registration can activate them;
+14. markers retain canonical attributed-export identity and activate only when
+    the final application bundles that package capability;
 15. intrinsic elements and nested native components share generic root
     resolution without receiving canonical motion props as ordinary props;
 16. DevTools shows motion under its causal task without exposing live
