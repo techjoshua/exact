@@ -17,6 +17,8 @@ These documents describe behavior that exists in the repository today:
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.                     |
 | [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.         |
 | [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.                     |
+| [gestures.md](gestures.md)                                                       | Prepared gesture recognition, ownership, accessibility, and testing.             |
+| [gravity.md](gravity.md)                                                         | Pure acceleration fields and physics force registration.                         |
 | [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                               |
 | [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                              |
 | [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.         |
@@ -24,6 +26,7 @@ These documents describe behavior that exists in the repository today:
 | [motion.md](motion.md)                                                           | Prepared motion definitions, finite playback, configuration, and current limits. |
 | [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.        |
 | [native-ssr-production-guide.md](native-ssr-production-guide.md)                 | Production SSR, request, response, security, and deployment contracts.           |
+| [physics.md](physics.md)                                                         | Deterministic simulation, component ownership, and safe DOM projection.          |
 | [react-compatibility.md](react-compatibility.md)                                 | React 18/19 compatibility surface and explicit fidelity limits.                  |
 | [react-ecosystem-adapters.md](react-ecosystem-adapters.md)                       | Native substitutions for selected React-owned packages.                          |
 | [react-router-compatibility.md](react-router-compatibility.md)                   | Implemented React Router 5/6/7 facade coverage.                                  |
@@ -39,21 +42,29 @@ The public learning guide is the eXact docs application under
 
 ## Proposals
 
-[`proposals`](proposals) contains both active designs and retained rationale
-for delivered designs. Every proposal begins with an implementation-status
-ledger that distinguishes current behavior from deferred work. Code and the
-current references above remain authoritative.
+[`proposals`](proposals) contains active designs and exploratory work. Neither
+is current framework behavior or a release commitment. Code and the current
+references above remain authoritative.
 
-Active proposals:
+Active proposals, in dependency order:
 
-| Proposal                                                                                                | Scope                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Unified function-defined tasks and structured task trees](proposals/unified-function-defined-tasks.md) | Replaces separate authored task/action APIs with compiler-recognized functions, one structured lifetime, unified tooling, and a future motion foundation. |
-| [Plugin-owned JSX and renderer extensions](proposals/plugin-jsx-renderer-extensions.md)                 | Defines attributed capability exports, grouped reactive markers, target-bound plugin components, and generic element-root release.                        |
-| [Optional motion plugin](proposals/motion-plugin.md)                                                    | Defines prepared `motion:*` presets, target-bound plugin components, task-owned presence and layout, and dependency-neutral View Transition coordination. |
-| [Optional gestures plugin](proposals/gestures-plugin.md)                                                | Defines prepared gesture recognition for pointer, touch, and keyboard input without requiring motion or physics.                                          |
-| [Optional physics plugin](proposals/physics-plugin.md)                                                  | Defines a deterministic DOM-independent 2D engine, ordinary body projection enhancement, and optional cross-package adapters.                             |
-| [Optional gravity plugin](proposals/gravity-plugin.md)                                                  | Defines independently sampleable gravity fields that compose through the physics force seam and ordinary component contexts.                              |
+| Proposal                                                                                              | Status   | Scope                                                                                     |
+| ----------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| [Recursive server/client graph partitioning](proposals/recursive-server-client-graph-partitioning.md) | Accepted | Preserve maximal same-placement regions across alternating client and server descendants. |
+| [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)                  | Proposed | Defer more statically safe client regions without replaying continuous event streams.     |
+| [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)               | Proposed | Emit source-informed refresh plans while retaining validated boundary replacement.        |
+| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)                | Proposed | Persist authenticated postponed renderer/task state and resume it in a later request.     |
+| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)      | Proposed | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.  |
+
+Exploratory work:
+
+| Document                                                                                       | Scope                                                                                        |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [Candidate future work](proposals/future-work.md)                                              | Uncommitted framework, integration, sample, and optimization candidates.                     |
+| [JavaScript runtime object-layout optimization](proposals/javascript-runtime-object-layout.md) | Initial measurements and acceptance gates for a production-shaped runtime-layout experiment. |
+
+Delivered proposals are removed after their current contracts and remaining limitations are captured
+by the references above. Git history retains their original delivery rationale.
 
 ## Historical evidence
 

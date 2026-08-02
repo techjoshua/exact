@@ -89,12 +89,15 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
-- More complete compiler splitting for complicated server-child subgraphs.
-- Additional proven structural patch forms.
-- Broader lazy-island classification where source remains statically safe.
-- Full production conformance for microfrontends outside Vite/Rollup.
-- Advanced partial-prerender/resume semantics; current progressive rendering
-  does not serialize an opaque suspended renderer state.
+- [Recursive compiler partitioning](proposals/recursive-server-client-graph-partitioning.md) for
+  complicated alternating server/client subgraphs.
+- [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md) for
+  additional proven patch forms.
+- [Broader lazy-island classification](proposals/lazy-interaction-islands.md) where source remains
+  statically safe.
+- [Full Webpack and Bun microfrontend production conformance](proposals/webpack-bun-microfrontend-parity.md).
+- [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md); current
+  progressive rendering does not persist opaque postponed renderer state.
 
 See [server-components.md](server-components.md) for authoring and
 [component-registries.md](component-registries.md) for finite dynamic

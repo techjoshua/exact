@@ -62,8 +62,8 @@ configured fallback rather than partially mounting a remote tree.
 ## Current limitations
 
 - Complete producer/consumer support is currently the Vite/Rollup path.
-- Webpack and Bun mappings prove the common artifact model but still need full
-  adapter lifecycle and heterogeneous conformance fixtures.
+- Webpack and Bun mappings prove the common artifact model but still need the
+  [full adapter lifecycle and heterogeneous conformance work](proposals/webpack-bun-microfrontend-parity.md).
 - Deployment discovery, signing, rollout policy, and service operation remain
   application/platform responsibilities.
 - Primary page-bundle replacement and component-authenticated protocol
