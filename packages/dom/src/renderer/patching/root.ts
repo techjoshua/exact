@@ -22,7 +22,6 @@ import {
 	getComponentProps,
 	getListBinding,
 	materializeList,
-	stopRemovedListChildren,
 	stopReplacedChildren
 } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
@@ -254,10 +253,7 @@ export function patchInner(
 						);
 					},
 					undefined,
-					{
-						scope: mounted.scope,
-						onSchedule: () => stopRemovedListChildren(mounted, nextList)
-					}
+					{ scope: mounted.scope }
 				);
 			}
 		} else if (!nextList) {

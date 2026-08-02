@@ -16,12 +16,7 @@ import {
 } from '@exactjs/core';
 import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import {
-	getListBinding,
-	materializeList,
-	stopRemovedListChildren,
-	stopReplacedChildren
-} from '../../children.js';
+import { getListBinding, materializeList, stopReplacedChildren } from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
 import { setElementOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
@@ -328,7 +323,7 @@ export function adoptStaticMountedInner(
 					);
 				},
 				undefined,
-				{ scope, onSchedule: () => stopRemovedListChildren(mounted, list) }
+				{ scope }
 			);
 		}
 		return { mounted, next: endIndex + 1 };

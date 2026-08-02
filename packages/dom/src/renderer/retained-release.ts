@@ -12,12 +12,17 @@ import {
 	reverseComponentRootRelease,
 	settleComponentRootRelease
 } from '@exactjs/core/framework/component-roots';
-import { captureTaskFrame, runTaskFrame } from '@exactjs/core/framework/task-frames';
+import {
+	captureTaskFrame,
+	runTaskFrame,
+	type TaskFrameExecution
+} from '@exactjs/core/framework/task-frames';
 import { flushSync } from '@exactjs/reactive';
 import type { Mounted, Root } from '../types.js';
 import { removeMountedNodes, unmountMounted } from './teardown.js';
 
 type RetainedRelease = NonNullable<Root['releasing']> extends Set<infer Entry> ? Entry : never;
+const pendingReleases = new WeakMap<Root, Set<Mounted>>();
 
 /** Retains a structurally absent range until root-release task descendants settle. */
 export function releaseMountedRange(
@@ -26,34 +31,44 @@ export function releaseMountedRange(
 	mounted: Mounted,
 	reason: StructuralReleaseReason
 ): boolean {
+	if (pendingReleases.get(root)?.has(mounted)) return true;
 	for (const retained of root.releasing ?? []) {
 		if (retained.parent === parent && retained.mounted === mounted && !retained.finalized)
 			return true;
 	}
 	const instances = observedRootInstances(mounted);
 	if (!instances.length) return false;
+	let pending = pendingReleases.get(root);
+	if (!pending) pendingReleases.set(root, (pending = new Set()));
+	pending.add(mounted);
 	const parentFrame = captureTaskFrame();
 	const generations = new Map<ComponentInstance<any>, number>();
-	const execution = runTaskFrame(
-		{
-			...(parentFrame ? { parent: parentFrame } : {}),
-			kind: 'root-release',
-			label: reason,
-			priority: 'immediate',
-			readiness: 'nonblocking'
-		},
-		{
-			work() {
-				for (const instance of instances) {
-					const release = publishComponentRootRelease(instance, reason);
-					if (release) generations.set(instance, release.generation);
+	let execution: TaskFrameExecution<void>;
+	try {
+		execution = runTaskFrame<void>(
+			{
+				...(parentFrame ? { parent: parentFrame } : {}),
+				kind: 'root-release',
+				label: reason,
+				priority: 'immediate',
+				readiness: 'nonblocking'
+			},
+			{
+				work() {
+					for (const instance of instances) {
+						const release = publishComponentRootRelease(instance, reason);
+						if (release) generations.set(instance, release.generation);
+					}
+					// Release-dependent tasks are ordinary reactive consumers. Flush while
+					// this frame is active so their consequence work attaches structurally.
+					flushSync();
 				}
-				// Release-dependent tasks are ordinary reactive consumers. Flush while
-				// this frame is active so their consequence work attaches structurally.
-				flushSync();
 			}
-		}
-	);
+		);
+	} finally {
+		pending.delete(mounted);
+		if (!pending.size) pendingReleases.delete(root);
+	}
 	if (!generations.size) {
 		execution.cancel('root-release-unobserved');
 		void execution.catch(() => undefined);

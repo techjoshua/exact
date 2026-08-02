@@ -312,6 +312,52 @@ describe('@exactjs/dom root-lifecycle', () => {
 		expect(childRoot.release).toBeUndefined();
 	});
 
+	it('publishes release before stopping a removed keyed-list child', async () => {
+		let owner!: Component<{ items: Array<{ id: string }> }>;
+		let childRoot!: RootLifecycle<Element>;
+		let finish!: () => void;
+		const settlement = new Promise<void>((resolve) => {
+			finish = resolve;
+		});
+
+		function Child(this: Component<{}>) {
+			const root = (childRoot = this.refs.root<Element>());
+			watch(() => {
+				if (!root.release) return;
+				void runTaskFrame(
+					{ kind: 'test-keyed-release', readiness: 'nonblocking' },
+					{ work: () => settlement }
+				).catch(() => undefined);
+			});
+			return () => jsx('li', { children: 'Retained keyed child' });
+		}
+
+		function List(this: Component<{ items: Array<{ id: string }> }>) {
+			owner = this;
+			this.state.items = [{ id: 'a' }];
+			return () =>
+				jsx('ul', {
+					children: this.map(
+						this.state.items,
+						(item) => item.id,
+						() => jsx(Child, {})
+					)
+				});
+		}
+
+		const container = document.createElement('div');
+		render(jsx(List, {}), container);
+		const item = container.querySelector('li');
+		expect(childRoot.current).toBe(item);
+
+		owner.state.items.splice(0, 1);
+		flushSync();
+		expect(container.querySelector('li')).toBe(item);
+
+		finish();
+		await vi.waitFor(() => expect(container.querySelector('li')).toBeNull());
+	});
+
 	it('clears the previous ref when a DOM node receives a new ref', () => {
 		const firstRef = createRef<HTMLButtonElement>('first');
 		const secondRef = createRef<HTMLButtonElement>('second');

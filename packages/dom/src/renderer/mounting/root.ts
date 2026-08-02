@@ -35,7 +35,6 @@ import {
 	getComponentProps,
 	getListBinding,
 	materializeList,
-	stopRemovedListChildren,
 	stopReplacedChildren
 } from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
@@ -231,10 +230,7 @@ export function mountInner(
 					);
 				},
 				undefined,
-				{
-					scope: mounted.scope,
-					onSchedule: () => stopRemovedListChildren(mounted, list)
-				}
+				{ scope: mounted.scope }
 			);
 		}
 		return mounted;
