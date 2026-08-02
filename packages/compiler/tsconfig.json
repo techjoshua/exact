@@ -9,9 +9,7 @@
 	},
 	"references": [
 		{ "path": "../devtools-protocol" },
-		{ "path": "../instrumentation" },
-		{ "path": "../plugin-api" },
-		{ "path": "../plugin-host" }
+		{ "path": "../instrumentation" }
 	],
 	"files": [
 		"src/adapter-support.ts",
@@ -81,7 +79,6 @@
 		"src/language-tools/task-refactor-parsing.ts",
 		"src/language-tools/task-refactor.ts",
 		"src/paths.ts",
-		"src/plugins.ts",
 		"src/policy-report.ts",
 		"src/registry.ts",
 		"src/source-maps.ts",

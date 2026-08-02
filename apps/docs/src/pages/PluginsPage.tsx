@@ -96,6 +96,11 @@ export function PluginsPage(this: Component<{}>) {
 					package capability or does not; package inclusion is the activation trust decision.
 				</p>
 				<p>
+					The application host may prepare build and runtime plugin projections, but it passes only
+					ordinary compile options to the compiler. Plugins cannot register compiler callbacks,
+					directives, analysis payloads, or transforms.
+				</p>
+				<p>
 					The Vite adapter links compiler-emitted module fragments into a bundle-local catalog and
 					passes it to DOM, hydration, and SSR entry points. SSR runs available declarations as
 					ordinary components at the resolved logical intrinsic target, including targets behind

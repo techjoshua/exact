@@ -1,6 +1,5 @@
 import { capabilityCompilationOptions } from '../compilation/capability-options.js';
 import { createExactCompilerExplanation } from '../explanation.js';
-import { applyCompilerPlugins } from '../plugins.js';
 import { createLineSourceMap } from '../source-maps.js';
 import { createExactSourceInspection } from '../language-tools/source-inspection.js';
 import {
@@ -8,7 +7,7 @@ import {
 	createExactRuntimeInspectionCorrelation
 } from '../language-tools/runtime-correlation.js';
 import { createExactInspectionRedactions } from '../language-tools/build-catalog.js';
-import type { TransformOptions, TransformResult, TransformTarget } from '../types.js';
+import type { TransformOptions, TransformResult } from '../types.js';
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import { nativeModuleAnalysis } from './module-analysis.js';
 import type {
@@ -60,7 +59,6 @@ export function transformSourceWithNativeCompiler(
 					}
 				}
 			: {}),
-		compatibilityExtensions: nativeCompatibilityExtensions(options.pluginRegistry),
 		...(options.moduleRewrite
 			? {
 					moduleRewrite: {
@@ -76,8 +74,6 @@ export function transformSourceWithNativeCompiler(
 		throw new Error(`Native compiler returned no generated code for ${filename}`);
 	const analysis = nativeModuleAnalysis(filename, response);
 	if (options.packageName) analysis.packageName = options.packageName;
-	applyNativePluginContributions(normalized, filename, target, analysis, options.pluginRegistry);
-	throwNativePluginErrors(analysis);
 	const needsInspection =
 		shouldEnableInspection(options.emitInspection) ||
 		shouldEnableInspection(options.instrumentInspection);
@@ -122,11 +118,6 @@ function shouldEnableInspection(
 	return value === true || (value === 'auto' && process.env.NODE_ENV !== 'production');
 }
 
-function throwNativePluginErrors(analysis: ExactModuleAnalysis): void {
-	const errors = analysis.diagnostics.filter((diagnostic) => /^error: \[@/.test(diagnostic));
-	if (errors.length) throw new Error(errors.join('\n'));
-}
-
 /** Analyzes one normalized module through the retained native project. */
 export function analyzeSourceWithNativeCompiler(
 	normalized: string,
@@ -163,17 +154,10 @@ export function analyzeSourceWithNativeCompiler(
 					}
 				}
 			: {}),
-		compatibilityExtensions: nativeCompatibilityExtensions(options.pluginRegistry)
+		instrumentInspection: shouldEnableInspection(options.instrumentInspection)
 	});
 	const analysis = nativeModuleAnalysis(filename, response);
 	if (options.packageName) analysis.packageName = options.packageName;
-	applyNativePluginContributions(
-		normalized,
-		filename,
-		options.target ?? 'default',
-		analysis,
-		options.pluginRegistry
-	);
 	return analysis;
 }
 
@@ -231,19 +215,6 @@ function nativeSourceMap(
 	};
 }
 
-function nativeCompatibilityExtensions(
-	registry: TransformOptions['pluginRegistry']
-): Readonly<Record<string, readonly string[]>> | undefined {
-	const entries = Object.values(registry?.plugins ?? {})
-		.flatMap((plugin) =>
-			plugin.extension
-				? [[plugin.extension.namespace, [...(plugin.extension.directives ?? [])]] as const]
-				: []
-		)
-		.sort(([left], [right]) => left.localeCompare(right));
-	return entries.length ? Object.fromEntries(entries) : undefined;
-}
-
 function nativeCapabilityPolicy(options: TransformOptions): NativeCompilerCapabilityPolicy {
 	return {
 		unsafeHtml: {
@@ -254,24 +225,4 @@ function nativeCapabilityPolicy(options: TransformOptions): NativeCompilerCapabi
 			allowPackages: [...(options.capabilityPolicy?.secrets?.allowPackages ?? [])]
 		}
 	};
-}
-
-/**
- * Preserves the existing JavaScript extension boundary around native analysis.
- *
- * The Go host owns parsing, checking, lowering, and built-in native extensions.
- * JavaScript plugin callbacks remain an opt-in compatibility boundary and
- * receive only the immutable source view defined by the plugin API.
- */
-function applyNativePluginContributions(
-	source: string,
-	filename: string,
-	target: TransformTarget,
-	analysis: ExactModuleAnalysis,
-	registry: TransformOptions['pluginRegistry']
-): void {
-	const contribution = applyCompilerPlugins(source, filename, target, registry);
-	if (contribution.pluginRegistry) analysis.pluginRegistry = contribution.pluginRegistry;
-	if (contribution.pluginData) analysis.pluginData = contribution.pluginData;
-	analysis.diagnostics.push(...contribution.diagnostics);
 }

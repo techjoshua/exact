@@ -2,8 +2,11 @@
 
 Status: implemented.
 
-eXact framework plugins add cross-cutting behavior to compiler, server,
-rendering, client, and testing hosts through one validated package protocol.
+eXact framework plugins add cross-cutting behavior to build, server, rendering,
+client, and testing hosts through one validated package protocol. The compiler
+is deliberately outside that registry: it always emits portable source-derived
+metadata, while the final application build decides which package capabilities
+to include.
 The implementation is divided between:
 
 - `@exactjs/plugin-api`, which owns browser-safe public contracts and package
@@ -12,7 +15,7 @@ The implementation is divided between:
   configuration;
 - `@exactjs/plugin-host`, which owns Node-side discovery, trust, version
   selection, graph ordering, projections, lifecycle, and cleanup; and
-- the compiler and host adapters, which consume prepared projections without
+- host adapters, which consume prepared application projections without
   reimplementing discovery.
 
 `@exactjs/secrets` and `@exactjs/microfrontends` exercise the protocol as
@@ -56,8 +59,10 @@ diagnostics, logs, or profile attributes.
 
 ## Host projections and lifecycle
 
-A prepared registry can expose separate compiler, server, render, client, and
-testing projections. Hosts run the shared lifecycle contracts rather than
+A prepared application registry can expose separate build, server, render,
+client, and testing projections. Build projections configure bundling and may
+be translated into ordinary compiler options, but the registry and plugin code
+never enter compiler analysis or lowering. Hosts run the shared lifecycle contracts rather than
 inventing plugin-specific hooks.
 
 Application and request resources are disposed in reverse acquisition order.
@@ -76,12 +81,12 @@ Output processing follows a strict boundary:
 
 Use `@exactjs/plugin-api` for shared contracts and package participation. Use
 `@exactjs/plugin-host/node` only in filesystem-backed hosts. Keep plugin
-analysis data bounded and JSON-safe, declare capabilities and ordering
+build data bounded and deterministic, declare capabilities and ordering
 explicitly, and put host-specific behavior in the appropriate projection.
 
 An application feature that can be expressed as a component, context, or
 ordinary task should remain application code. A framework plugin is warranted
-when the behavior must participate consistently in several compiler/runtime
+when the behavior must participate consistently in several build/runtime
 hosts or enforce a cross-cutting boundary.
 
 ## Optional JSX enhancements
@@ -136,7 +141,5 @@ generic contract explicitly.
 - Vite has the most complete automatic integration.
 - Webpack and Bun use the shared contracts but individual plugins may expose a
   narrower host-specific feature set. Check the plugin and runtime docs.
-- Compiler extensions may contribute bounded, validated analysis data retained
-  only for the active compiler session.
 - Compiler-emitted enhancement catalogs are still being connected into non-Vite build and render
   hosts; current low-level renderer callers can supply an explicit catalog.

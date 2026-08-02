@@ -7,9 +7,6 @@ const controller: ExactPluginConfigController<GesturePluginConfig> = {
 	},
 	structuralValidate: validate,
 	validate,
-	compilerConfig(config) {
-		return { cacheKey: { contract: 1, ...config } };
-	},
 	renderConfig: freeze,
 	clientConfig: freeze,
 	testingConfig: freeze

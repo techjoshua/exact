@@ -49,6 +49,7 @@ try {
 			renderEdges: [],
 			clientIslandCount: 0,
 			contexts: [],
+			enhancementContexts: { provides: [], requires: [], optionallyConsumes: [] },
 			splitBoundaries: [],
 			diagnostics: []
 		}
@@ -112,6 +113,7 @@ try {
 		boundaries: [],
 		continuations: [],
 		registries: [],
+		rendererEnhancements: [],
 		resumptions: [],
 		policy: { version: 1, subjects: [], flows: [], secretConsumers: [] },
 		requiredCapabilities: { rawHtml: [] },
@@ -187,35 +189,6 @@ try {
 	assert.equal(result.map?.sourcesContent?.[0]?.includes('NativePanel'), true);
 	assert.equal(typeof result.map?.mappings, 'string');
 
-	const configurationRegistry = {
-		fingerprint: 'native-configuration-registry',
-		plugins: {
-			'@scope/configuration': {
-				packageName: '@scope/configuration',
-				version: '1.0.0',
-				protocolVersion: '1.0.0',
-				required: true,
-				cacheKey: { mode: 'native' }
-			}
-		}
-	};
-	const configured = internalCompiler.analyzeSource('export const configured = true;', {
-		filename: 'configured.ts',
-		pluginRegistry: configurationRegistry,
-		session
-	});
-	assert.deepEqual(configured.pluginRegistry, {
-		fingerprint: configurationRegistry.fingerprint,
-		plugins: {
-			'@scope/configuration': {
-				version: '1.0.0',
-				protocolVersion: '1.0.0',
-				required: true,
-				compilerConfigKey: { mode: 'native' }
-			}
-		}
-	});
-
 	const htmlLibrary = internalCompiler.analyzeSource(
 		'import { unsafeHtml } from "@exactjs/core"; export function article(value: string) { return unsafeHtml(value); }',
 		{
@@ -271,7 +244,7 @@ try {
 		assert.match(await readFile(artifacts.clientFile, 'utf8'), /Panel_ExactClient_1/);
 		assert.match(await readFile(artifacts.serverFile, 'utf8'), /createServerBoundary/);
 		assert.equal(
-			artifacts.analysis.symbols.some((symbol) => symbol.role === 'client-island'),
+			artifacts.build.clientRegistrations.length > 0,
 			true
 		);
 	} finally {

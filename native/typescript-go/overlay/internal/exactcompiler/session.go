@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,19 +16,15 @@ import (
 	"github.com/microsoft/typescript-go/internal/tspath"
 )
 
-const maxExtensionAnalysisBytes = 256 * 1024
-
 // Session owns persistent native compiler state for a stream of requests.
 type Session struct {
 	mu       sync.Mutex
-	registry *Registry
 	projects map[string]*projectState
 }
 
 // NewSession creates an isolated compiler session.
-func NewSession(registry *Registry) *Session {
+func NewSession() *Session {
 	return &Session{
-		registry: registry,
 		projects: make(map[string]*projectState),
 	}
 }
@@ -412,15 +407,7 @@ func (s *Session) Execute(request Request) Response {
 			}
 		}
 	}
-	response.Diagnostics = append(
-		response.Diagnostics,
-		validateExtensionDirectives(
-			directives,
-			s.registry,
-			request.Extensions,
-			request.CompatibilityExtensions,
-		)...,
-	)
+	response.Diagnostics = append(response.Diagnostics, validateNamespacedDirectives(directives)...)
 	for _, diagnostic := range sourceFile.Diagnostics() {
 		response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
 	}
@@ -511,71 +498,6 @@ func (s *Session) Execute(request Request) Response {
 	response.Timings.LoweringMicroseconds = time.Since(
 		loweringStarted,
 	).Microseconds()
-	extensionStarted := time.Now()
-	for _, extension := range s.registry.all() {
-		config, enabled := request.Extensions[extension.Namespace()]
-		if !enabled {
-			continue
-		}
-		contribution, transformErr := extension.Transform(Module{
-			ID:               fileName,
-			Target:           request.Target,
-			SourceFile:       transformed,
-			Program:          generation.program,
-			Checker:          generation.checker,
-			Factory:          emitContext.Factory,
-			Directives:       directives,
-			Imports:          imports,
-			Components:       components,
-			JSX:              jsx,
-			StateAliases:     stateAliases,
-			StateReads:       stateReads,
-			StateWrites:      stateWrites,
-			ReactiveBindings: reactiveBindings,
-			Callables:        callables.summaries,
-			Tasks:            tasks,
-			Symbols:          symbols,
-			Boundaries:       boundaries,
-			Continuations:    continuations,
-			Resumptions:      resumptions,
-			Policy:           policy.graph,
-			Config:           config,
-		})
-		if transformErr != nil {
-			response.Error = fmt.Sprintf(
-				"native compiler extension %q failed: %v",
-				extension.Namespace(),
-				transformErr,
-			)
-			return response
-		}
-		if contribution.SourceFile != nil {
-			transformed = contribution.SourceFile
-		}
-		response.Diagnostics = append(response.Diagnostics, contribution.Diagnostics...)
-		if len(contribution.AnalysisData) != 0 {
-			if len(contribution.AnalysisData) > maxExtensionAnalysisBytes {
-				response.Error = fmt.Sprintf(
-					"native compiler extension %q analysis data exceeds %d bytes",
-					extension.Namespace(),
-					maxExtensionAnalysisBytes,
-				)
-				return response
-			}
-			if !json.Valid(contribution.AnalysisData) {
-				response.Error = fmt.Sprintf(
-					"native compiler extension %q returned invalid JSON analysis data",
-					extension.Namespace(),
-				)
-				return response
-			}
-			if response.AnalysisData == nil {
-				response.AnalysisData = make(map[string]json.RawMessage)
-			}
-			response.AnalysisData[extension.Namespace()] = contribution.AnalysisData
-		}
-	}
-	response.Timings.ExtensionMicroseconds = time.Since(extensionStarted).Microseconds()
 	transformed = pruneArtifactStatements(
 		transformed,
 		emitContext.Factory,

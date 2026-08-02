@@ -5,7 +5,6 @@ const controller: ExactPluginConfigController<GravityPluginConfig> = {
 	defaults: () => ({ enabled: true, maxAcceleration: 100_000 }),
 	structuralValidate: validate,
 	validate,
-	compilerConfig: (config) => ({ cacheKey: { contract: 1, ...config } }),
 	renderConfig: freeze,
 	clientConfig: freeze,
 	testingConfig: freeze

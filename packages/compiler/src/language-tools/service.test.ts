@@ -178,7 +178,6 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 			projectLinkMicroseconds: 0,
 			checkMicroseconds: 0,
 			loweringMicroseconds: 0,
-			extensionMicroseconds: 0,
 			printMicroseconds: 0,
 			totalMicroseconds: 0
 		}

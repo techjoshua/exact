@@ -1165,10 +1165,10 @@ Compiler meaning must not change with presentation settings.
 The extension launches the installed eXact compiler and may read project
 configuration. Respect VS Code workspace trust:
 
-- in a trusted workspace, load configured compiler plugins and project
+- in a trusted workspace, launch the installed compiler and read project
   configuration normally;
-- in an untrusted workspace, do not execute workspace binaries, configuration
-  modules, or compiler plugins;
+- in an untrusted workspace, do not execute workspace binaries or configuration
+  modules;
 - offer a limited syntax-only mode when it can run without workspace code;
 - clearly identify which compiler executable and version are active; and
 - never send source, diagnostics, or inspection data to a network service.

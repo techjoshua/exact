@@ -1,4 +1,3 @@
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactPreparedPluginRegistry } from '@exactjs/plugin-host/node';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -36,11 +35,10 @@ type ExactRollupOutputLike = {
 };
 
 type ExactMicrofrontendsRollupModule = {
-	readExactMicrofrontendCompilerConfig(value: unknown): unknown;
+	readExactMicrofrontendBuildConfig(value: unknown): unknown;
 	prepareExactRemoteArtifactBuild(options: {
 		applicationRoot: string;
-		compilerConfig: unknown;
-		pluginRegistry: ExactPreparedCompilerRegistry;
+		buildConfig: unknown;
 		serverComponents?: boolean;
 	}): Promise<{
 		plan: { exposures: readonly unknown[] };
@@ -104,16 +102,13 @@ export function createExactViteMicrofrontendIntegration(
 		): Promise<void> {
 			if (options.target === 'server') return;
 			serveMode = command === 'serve';
-			const remotePlugin = registry.compiler.plugins['@exactjs/microfrontends'];
-			if (!remotePlugin) return;
+			const buildConfigValue = registry.build.get('@exactjs/microfrontends');
+			if (!buildConfigValue) return;
 			const integration = await loadRollup();
-			const compilerConfig = integration.readExactMicrofrontendCompilerConfig(
-				remotePlugin.cacheKey
-			);
+			const buildConfig = integration.readExactMicrofrontendBuildConfig(buildConfigValue);
 			const prepared = await integration.prepareExactRemoteArtifactBuild({
 				applicationRoot: registry.applicationRoot,
-				compilerConfig,
-				pluginRegistry: registry.compiler,
+				buildConfig,
 				serverComponents: options.serverComponents
 			});
 			adapter = integration.createExactRemoteRollupAdapter({

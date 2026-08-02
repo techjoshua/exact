@@ -9,7 +9,6 @@ import {
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
@@ -59,7 +58,6 @@ export type ExactWebpackPluginOptions = {
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
 	applicationRoot?: string;
 	configPath?: string;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
@@ -324,7 +322,6 @@ export function transformExactWebpackSource(
 				sourceMap: options.sourceMap ?? true,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: true,
-				pluginRegistry: options.pluginRegistry,
 				jsxInterop: compatibilityEngine?.jsxInterop,
 				emitInspection: options.target === 'server' && webpackDebugEnabled(options.debug?.catalog),
 				instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
@@ -361,19 +358,16 @@ export async function transformExactWebpackSourceAsync(
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession
 ): Promise<{ code: string; map: unknown } | null> {
-	if (options.pluginRegistry)
-		return transformExactWebpackSource(source, filename, options, session);
 	const registry = await prepareExactPluginRegistry({
 		applicationRoot: options.applicationRoot ?? path.dirname(filename),
 		configPath: options.configPath,
-		hostMode: 'compiler'
+		hostMode: 'build'
 	});
 	return transformExactWebpackSource(
 		source,
 		filename,
 		{
 			...options,
-			pluginRegistry: registry.compiler,
 			debug: options.debug ?? registry.config?.debug
 		},
 		session

@@ -13,7 +13,6 @@ import {
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
 	createReactCompatibilityBuildEngine,
@@ -56,7 +55,6 @@ export type ExactBunPluginOptions = {
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
 	applicationRoot?: string;
 	configPath?: string;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
@@ -163,7 +161,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				});
 			}
 			const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
-			let pluginRegistry = options.pluginRegistry;
+			let registryPrepared = false;
 			let configuredDebug = options.debug;
 			build.config ??= {};
 			build.config.conditions = mergeConditions(
@@ -172,13 +170,13 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			);
 			build.onStart?.(async () => {
 				inspectionModules.clear();
-				if (!pluginRegistry) {
+				if (!registryPrepared) {
 					const prepared = await prepareExactPluginRegistry({
 						applicationRoot: options.applicationRoot,
 						configPath: options.configPath,
-						hostMode: 'compiler'
+						hostMode: 'build'
 					});
-					pluginRegistry = prepared.compiler;
+					registryPrepared = true;
 					configuredDebug ??= prepared.config?.debug;
 				}
 				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
@@ -238,7 +236,6 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					args.path,
 					{
 						...options,
-						pluginRegistry,
 						debug: resolveBunDebug(configuredDebug, automaticDevelopment)
 					},
 					compilerSession
@@ -344,7 +341,6 @@ export function transformExactBunSource(
 				sourceMap: options.sourceMap ?? true,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: true,
-				pluginRegistry: options.pluginRegistry,
 				jsxInterop: compatibilityEngine?.jsxInterop,
 				emitInspection: options.target === 'server' && bunDebugEnabled(options.debug?.catalog),
 				instrumentInspection: bunDebugEnabled(options.debug?.runtime)

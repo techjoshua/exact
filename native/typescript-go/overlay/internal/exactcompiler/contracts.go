@@ -1,13 +1,8 @@
 package exactcompiler
 
 import (
-	"encoding/json"
-
 	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
-	"github.com/microsoft/typescript-go/internal/compiler"
 	"github.com/microsoft/typescript-go/internal/core"
-	"github.com/microsoft/typescript-go/internal/printer"
 	"github.com/microsoft/typescript-go/internal/sourcemap"
 )
 
@@ -31,26 +26,24 @@ const (
 
 // Request is one newline-delimited command accepted by a Session.
 type Request struct {
-	ID                         string                     `json:"id,omitempty"`
-	Kind                       string                     `json:"kind"`
-	Source                     string                     `json:"source,omitempty"`
-	Root                       string                     `json:"root,omitempty"`
-	ConfigFile                 string                     `json:"configFile,omitempty"`
-	Target                     Target                     `json:"target,omitempty"`
-	ServerComponents           bool                       `json:"serverComponents,omitempty"`
-	PreserveComponentHoisting  bool                       `json:"preserveComponentHoisting,omitempty"`
-	Diagnostics                string                     `json:"diagnostics,omitempty"`
-	SourceMap                  bool                       `json:"sourceMap,omitempty"`
-	PackageType                string                     `json:"packageType,omitempty"`
-	PackageName                string                     `json:"packageName,omitempty"`
-	Capabilities               CapabilityPolicy           `json:"capabilities,omitempty"`
-	AssetRules                 []AssetRule                `json:"assetRules,omitempty"`
-	PreserveClientAssetImports bool                       `json:"preserveClientAssetImports,omitempty"`
-	JSXInterop                 *JSXInterop                `json:"jsxInterop,omitempty"`
-	Extensions                 map[string]json.RawMessage `json:"extensions,omitempty"`
-	CompatibilityExtensions    map[string][]string        `json:"compatibilityExtensions,omitempty"`
-	ModuleRewrite              *ModuleRewrite             `json:"moduleRewrite,omitempty"`
-	InstrumentInspection       bool                       `json:"instrumentInspection,omitempty"`
+	ID                         string           `json:"id,omitempty"`
+	Kind                       string           `json:"kind"`
+	Source                     string           `json:"source,omitempty"`
+	Root                       string           `json:"root,omitempty"`
+	ConfigFile                 string           `json:"configFile,omitempty"`
+	Target                     Target           `json:"target,omitempty"`
+	ServerComponents           bool             `json:"serverComponents,omitempty"`
+	PreserveComponentHoisting  bool             `json:"preserveComponentHoisting,omitempty"`
+	Diagnostics                string           `json:"diagnostics,omitempty"`
+	SourceMap                  bool             `json:"sourceMap,omitempty"`
+	PackageType                string           `json:"packageType,omitempty"`
+	PackageName                string           `json:"packageName,omitempty"`
+	Capabilities               CapabilityPolicy `json:"capabilities,omitempty"`
+	AssetRules                 []AssetRule      `json:"assetRules,omitempty"`
+	PreserveClientAssetImports bool             `json:"preserveClientAssetImports,omitempty"`
+	JSXInterop                 *JSXInterop      `json:"jsxInterop,omitempty"`
+	ModuleRewrite              *ModuleRewrite   `json:"moduleRewrite,omitempty"`
+	InstrumentInspection       bool             `json:"instrumentInspection,omitempty"`
 }
 
 // ModuleRewrite contains host-planned aliases applied before native printing.
@@ -885,25 +878,23 @@ type Timings struct {
 	ProjectLinkMicroseconds int64 `json:"projectLinkMicroseconds"`
 	CheckMicroseconds       int64 `json:"checkMicroseconds"`
 	LoweringMicroseconds    int64 `json:"loweringMicroseconds"`
-	ExtensionMicroseconds   int64 `json:"extensionMicroseconds"`
 	PrintMicroseconds       int64 `json:"printMicroseconds"`
 	TotalMicroseconds       int64 `json:"totalMicroseconds"`
 }
 
 // Response is one newline-delimited result emitted by a Session.
 type Response struct {
-	ID                string                     `json:"id,omitempty"`
-	ProtocolVersion   string                     `json:"protocolVersion"`
-	TypeScriptVersion string                     `json:"typescriptVersion"`
-	BackendVersion    string                     `json:"backendVersion"`
-	Code              string                     `json:"code"`
-	SourceMap         *sourcemap.RawSourceMap    `json:"sourceMap,omitempty"`
-	Diagnostics       []Diagnostic               `json:"diagnostics"`
-	AnalysisData      map[string]json.RawMessage `json:"analysisData,omitempty"`
-	Analysis          Analysis                   `json:"analysis"`
-	Timings           Timings                    `json:"timings"`
-	CacheHit          bool                       `json:"cacheHit,omitempty"`
-	Error             string                     `json:"error,omitempty"`
+	ID                string                  `json:"id,omitempty"`
+	ProtocolVersion   string                  `json:"protocolVersion"`
+	TypeScriptVersion string                  `json:"typescriptVersion"`
+	BackendVersion    string                  `json:"backendVersion"`
+	Code              string                  `json:"code"`
+	SourceMap         *sourcemap.RawSourceMap `json:"sourceMap,omitempty"`
+	Diagnostics       []Diagnostic            `json:"diagnostics"`
+	Analysis          Analysis                `json:"analysis"`
+	Timings           Timings                 `json:"timings"`
+	CacheHit          bool                    `json:"cacheHit,omitempty"`
+	Error             string                  `json:"error,omitempty"`
 }
 
 // NewResponseVersionFields returns the versions required on every response,
@@ -912,56 +903,4 @@ func NewResponseVersionFields(response *Response) {
 	response.ProtocolVersion = ProtocolVersion
 	response.TypeScriptVersion = core.Version()
 	response.BackendVersion = BackendVersion
-}
-
-// Module is the native state made available to an extension for one request.
-//
-// SourceFile and Factory are snapshot-local. Extensions must not retain them
-// after Transform returns.
-type Module struct {
-	ID               string
-	Target           Target
-	SourceFile       *ast.SourceFile
-	Program          *compiler.Program
-	Checker          *checker.Checker
-	Factory          *printer.NodeFactory
-	Directives       []Directive
-	Imports          []Import
-	Components       []Component
-	JSX              []JSXElement
-	StateAliases     []StateAlias
-	StateReads       []StateRead
-	StateWrites      []StateWrite
-	ReactiveBindings []ReactiveBinding
-	Callables        []CallableSummary
-	Tasks            []Task
-	Symbols          []SymbolRecord
-	Boundaries       []Boundary
-	Continuations    []Continuation
-	Resumptions      []ComponentResumption
-	Policy           PolicyAnalysis
-	Config           json.RawMessage
-}
-
-// Contribution is the bounded, serializable result of one extension.
-type Contribution struct {
-	SourceFile   *ast.SourceFile
-	Diagnostics  []Diagnostic
-	AnalysisData json.RawMessage
-}
-
-// Extension is a statically linked native compiler extension.
-//
-// Namespace is a stable analysis and configuration key. Transform may return
-// the input SourceFile when it has no work. Implementations must be
-// deterministic and must not retain snapshot-local AST nodes.
-type Extension interface {
-	Namespace() string
-	Transform(module Module) (Contribution, error)
-}
-
-// DirectiveExtension declares the namespaced directives owned by an extension.
-type DirectiveExtension interface {
-	Extension
-	Directives() []string
 }

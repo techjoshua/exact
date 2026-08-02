@@ -25,8 +25,7 @@ export async function createExactArtifactDevState(
 	const compiled = await compileArtifactPlanEntries(plan.entries, {
 		filename: (entry) => options.filename ?? entry.inputFile,
 		serverComponents: options.serverComponents,
-		session: options.session,
-		pluginRegistry: options.pluginRegistry
+		session: options.session
 	});
 	const entries = compiled.map(artifactGraphInputFromCompileResult);
 	return {
@@ -64,8 +63,7 @@ export async function updateExactArtifactDevState(
 	const compiled = await compileArtifactPlanEntries([...diff.added, ...diff.changed], {
 		filename: (entry) => options.filename ?? entry.inputFile,
 		serverComponents: options.serverComponents,
-		session: options.session,
-		pluginRegistry: options.pluginRegistry
+		session: options.session
 	});
 	const entries = [...retainedEntries, ...compiled.map(artifactGraphInputFromCompileResult)].sort(
 		(left, right) => left.inputFile.localeCompare(right.inputFile)

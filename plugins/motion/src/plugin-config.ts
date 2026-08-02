@@ -12,16 +12,6 @@ const controller: ExactPluginConfigController<MotionPluginConfig> = {
 	},
 	structuralValidate: validate,
 	validate,
-	compilerConfig(config) {
-		return {
-			cacheKey: {
-				contract: 1,
-				enabled: config.enabled,
-				reducedMotion: config.reducedMotion,
-				appear: config.appear
-			}
-		};
-	},
 	renderConfig(config) {
 		return Object.freeze({ ...config, transition: Object.freeze({ ...config.transition }) });
 	},

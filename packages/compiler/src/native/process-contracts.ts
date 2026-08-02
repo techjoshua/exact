@@ -49,8 +49,6 @@ export type NativeCompilerRequest = Readonly<{
 	assetRules?: readonly NativeCompilerAssetRule[];
 	preserveClientAssetImports?: boolean;
 	jsxInterop?: NativeCompilerJSXInterop;
-	extensions?: Readonly<Record<string, unknown>>;
-	compatibilityExtensions?: Readonly<Record<string, readonly string[]>>;
 	moduleRewrite?: NativeCompilerModuleRewrite;
 	/** Adds compact source identity markers without retaining rich inspection metadata. */
 	instrumentInspection?: boolean;
@@ -124,7 +122,6 @@ export type NativeCompilerTimings = Readonly<{
 	projectLinkMicroseconds: number;
 	checkMicroseconds: number;
 	loweringMicroseconds: number;
-	extensionMicroseconds: number;
 	printMicroseconds: number;
 	totalMicroseconds: number;
 }>;
@@ -401,7 +398,6 @@ export type NativeCompilerResponse = Readonly<{
 	code?: string;
 	sourceMap?: NativeCompilerSourceMap;
 	diagnostics: readonly NativeCompilerDiagnostic[];
-	analysisData?: Readonly<Record<string, unknown>>;
 	analysis: NativeCompilerAnalysis;
 	timings: NativeCompilerTimings;
 	cacheHit?: boolean;

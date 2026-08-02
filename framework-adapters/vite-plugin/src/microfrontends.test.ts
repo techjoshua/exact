@@ -4,9 +4,7 @@ import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 const registry = (enabled = true) =>
 	({
 		applicationRoot: '/application',
-		compiler: {
-			plugins: enabled ? { '@exactjs/microfrontends': { cacheKey: { enabled: true } } } : {}
-		}
+		build: new Map(enabled ? [['@exactjs/microfrontends', { enabled: true }]] : [])
 	}) as any;
 
 function rollupHarness(hasRemoteBindings = true, pageBootstrapImport = '/provided.js') {
@@ -20,7 +18,7 @@ function rollupHarness(hasRemoteBindings = true, pageBootstrapImport = '/provide
 		generateBundle: vi.fn()
 	};
 	const module = {
-		readExactMicrofrontendCompilerConfig: vi.fn(() => ({ exposes: {} })),
+		readExactMicrofrontendBuildConfig: vi.fn(() => ({ exposes: {} })),
 		prepareExactRemoteArtifactBuild: vi.fn(async () => ({
 			plan: { exposures: [] },
 			hasRemoteBindings

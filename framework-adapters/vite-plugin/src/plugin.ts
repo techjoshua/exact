@@ -116,7 +116,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		preparedRegistry = await prepareExactPluginRegistry({
 			applicationRoot: options.applicationRoot,
 			configPath: options.configPath,
-			hostMode: 'compiler'
+			hostMode: 'build'
 		});
 		configuredDebug ??= preparedRegistry.config?.debug;
 		return preparedRegistry;
@@ -321,10 +321,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				jsxOwnership: ownership,
 				usesReactRuntimeImports: usesReactRuntimeImports(code, filename),
 				transformReact: containsExactBuildJsx(filename, code),
-				shouldCompile: shouldCompileExactBuildModule(filename, code, {
-					...options,
-					pluginRegistry: options.pluginRegistry ?? preparedRegistry?.compiler
-				}),
+				shouldCompile: shouldCompileExactBuildModule(filename, code, options),
 				...(reactCompatibility
 					? {
 							react: () => {
@@ -352,7 +349,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						sourceMap: false,
 						assetRules: options.assetRules,
 						preserveClientAssetImports: true,
-						pluginRegistry: options.pluginRegistry ?? preparedRegistry?.compiler,
 						jsxInterop: compatibilityEngine?.jsxInterop,
 						emitInspection:
 							options.target === 'server' && inspectionCatalogEnabled(configuredDebug, viteCommand),

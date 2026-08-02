@@ -11,19 +11,14 @@ import (
 )
 
 func main() {
-	registry, err := exactcompiler.NewRegistry(linkedExtensions()...)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
 	if len(os.Args) > 1 && os.Args[1] == "--corpus" {
-		if err := runCorpus(os.Stdin, os.Stdout, registry); err != nil {
+		if err := runCorpus(os.Stdin, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 		return
 	}
-	if err := serve(os.Stdin, os.Stdout, exactcompiler.NewSession(registry)); err != nil {
+	if err := serve(os.Stdin, os.Stdout, exactcompiler.NewSession()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

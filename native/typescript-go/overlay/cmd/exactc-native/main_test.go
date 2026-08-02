@@ -12,17 +12,13 @@ import (
 )
 
 func TestServeProcessesMultipleRequestsInOneSession(t *testing.T) {
-	registry, err := exactcompiler.NewRegistry()
-	if err != nil {
-		t.Fatal(err)
-	}
 	input := strings.NewReader(
 		"{\"id\":\"component.tsx\",\"kind\":\"compile\",\"source\":\"const value = 1;\"}\n" +
 			"{\"id\":\"component.tsx\",\"kind\":\"compile\",\"source\":\"const value = 1;\"}\n" +
 			"{\"kind\":\"shutdown\"}\n",
 	)
 	var output bytes.Buffer
-	if err := serve(input, &output, exactcompiler.NewSession(registry)); err != nil {
+	if err := serve(input, &output, exactcompiler.NewSession()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,10 +46,6 @@ func TestServeProcessesMultipleRequestsInOneSession(t *testing.T) {
 }
 
 func TestRunCorpusCompilesFilesInsideNativeHost(t *testing.T) {
-	registry, err := exactcompiler.NewRegistry()
-	if err != nil {
-		t.Fatal(err)
-	}
 	directory := t.TempDir()
 	filename := directory + "/component.ts"
 	if err := os.WriteFile(filename, []byte("export const value = 1;"), 0o600); err != nil {
@@ -68,7 +60,7 @@ func TestRunCorpusCompilesFilesInsideNativeHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	var output bytes.Buffer
-	if err := runCorpus(bytes.NewReader(input), &output, registry); err != nil {
+	if err := runCorpus(bytes.NewReader(input), &output); err != nil {
 		t.Fatal(err)
 	}
 	var result corpusResult

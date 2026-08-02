@@ -32,7 +32,6 @@ export async function compileFile(
 		jsxInterop: options.jsxInterop,
 		assetRules: options.assetRules,
 		preserveClientAssetImports: options.preserveClientAssetImports,
-		pluginRegistry: options.pluginRegistry,
 		generatedValidation: options.generatedValidation,
 		...capabilityCompilationOptions(options)
 	});
@@ -94,7 +93,6 @@ export async function compileProject(
 				jsxInterop: options.jsxInterop,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: options.preserveClientAssetImports,
-				pluginRegistry: options.pluginRegistry,
 				...capabilityCompilationOptions(options)
 			})
 		);

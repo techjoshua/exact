@@ -1,4 +1,3 @@
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type {
 	ExactBuildInspectionCatalog,
 	ExactInspectionRedactionCatalog
@@ -66,8 +65,6 @@ export type TransformOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	/** Keeps client asset edges for a host bundler to consume during server builds. */
 	preserveClientAssetImports?: boolean;
-	/** Prepared, compiler-safe plugin projection. Raw plugin configuration is never accepted here. */
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	/**
 	 * Generated output is syntax-checked in the transform hot path by default.
 	 * Release checks can request a second full semantic binding.

@@ -1,26 +1,15 @@
 package exactcompiler
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/microsoft/typescript-go/internal/ast"
 )
 
-type recordingExtension struct {
-	calls        int
-	analysisData json.RawMessage
-	observedType string
-	directives   []Directive
-	imports      []Import
-}
-
 func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
-	response := NewSession(nil).Execute(Request{Kind: "version"})
+	response := NewSession().Execute(Request{Kind: "version"})
 	if response.ProtocolVersion != ProtocolVersion ||
 		response.BackendVersion != BackendVersion ||
 		!strings.HasPrefix(response.TypeScriptVersion, "7.") {
@@ -28,76 +17,8 @@ func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 	}
 }
 
-func (extension *recordingExtension) Namespace() string {
-	return "test"
-}
-
-func (extension *recordingExtension) Directives() []string {
-	return []string{"feature"}
-}
-
-func (extension *recordingExtension) Transform(module Module) (Contribution, error) {
-	extension.calls++
-	if module.Program == nil || module.Checker == nil {
-		panic("native extension did not receive program and checker ownership")
-	}
-	for _, candidate := range module.SourceFile.Statements.Nodes {
-		if !ast.IsVariableStatement(candidate) {
-			continue
-		}
-		declaration := candidate.AsVariableStatement().DeclarationList.
-			AsVariableDeclarationList().Declarations.Nodes[0].AsVariableDeclaration()
-		extension.observedType = module.Checker.TypeToString(
-			module.Checker.GetTypeAtLocation(declaration.Initializer),
-		)
-		break
-	}
-	extension.directives = append([]Directive(nil), module.Directives...)
-	extension.imports = append([]Import(nil), module.Imports...)
-	return Contribution{
-		SourceFile:   module.SourceFile,
-		AnalysisData: extension.analysisData,
-	}, nil
-}
-
-func TestSessionProvidesCanonicalImportFactsToNativeExtensions(t *testing.T) {
-	extension := &recordingExtension{analysisData: json.RawMessage(`{}`)}
-	registry, err := NewRegistry(extension)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := NewSession(registry).Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
-		Source: `
-			import type { Contract } from "./contract.js";
-			import { type Shape, runtime } from "./mixed.js";
-			import "./setup.js";
-			const value = 1;
-		`,
-		Extensions: map[string]json.RawMessage{
-			"test": json.RawMessage(`{}`),
-		},
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if len(extension.imports) != 3 {
-		t.Fatalf("extension received %d imports, expected 3", len(extension.imports))
-	}
-	if !extension.imports[0].TypeOnly || extension.imports[0].RuntimeBinding {
-		t.Fatalf("unexpected type-only import: %#v", extension.imports[0])
-	}
-	if extension.imports[1].TypeOnly || !extension.imports[1].RuntimeBinding {
-		t.Fatalf("unexpected mixed import: %#v", extension.imports[1])
-	}
-	if !extension.imports[2].SideEffectOnly || !extension.imports[2].RuntimeBinding {
-		t.Fatalf("unexpected side-effect import: %#v", extension.imports[2])
-	}
-}
-
 func TestSessionValidatesOnlyCommentDirectives(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -117,7 +38,7 @@ func TestSessionValidatesOnlyCommentDirectives(t *testing.T) {
 }
 
 func TestSessionRewritesModuleAliasesBeforeNativePrinting(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.ts",
 		Kind: "compile",
 		Source: `
@@ -158,7 +79,7 @@ func TestSessionRewritesModuleAliasesBeforeNativePrinting(t *testing.T) {
 }
 
 func TestSessionRetainsProgramAndCallableCacheAfterNativeLowering(t *testing.T) {
-	session := NewSession(nil)
+	session := NewSession()
 	request := Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
@@ -215,7 +136,7 @@ func TestSessionRewritesModuleExportReplacementsBeforeNativePrinting(t *testing.
 		TargetModule: "@exactjs/tanstack-query/default",
 		TargetExport: "default",
 	}
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.ts",
 		Kind: "compile",
 		Source: `
@@ -297,7 +218,7 @@ func TestSessionRejectsDuplicateModuleExportReplacements(t *testing.T) {
 		TargetModule: "target",
 		TargetExport: "value",
 	}
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:            "component.ts",
 		Kind:          "compile",
 		Source:        `import { value } from "source";`,
@@ -309,7 +230,7 @@ func TestSessionRejectsDuplicateModuleExportReplacements(t *testing.T) {
 }
 
 func TestSessionRejectsMultipleImportsMappedToOneDefaultExport(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.ts",
 		Kind:   "compile",
 		Source: `import { first, second } from "source";`,
@@ -390,7 +311,7 @@ func TestGeneratedValidationUsesNativeParserAndChecker(t *testing.T) {
 }
 
 func TestSessionSemanticallyValidatesGeneratedNativeArtifact(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:          "panel.tsx",
 		Kind:        "compile",
 		Target:      TargetServer,
@@ -418,35 +339,8 @@ func TestSessionSemanticallyValidatesGeneratedNativeArtifact(t *testing.T) {
 	}
 }
 
-func TestSessionProvidesNamespacedDirectivesToNativeExtensions(t *testing.T) {
-	extension := &recordingExtension{analysisData: json.RawMessage(`{}`)}
-	registry, err := NewRegistry(extension)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := NewSession(registry).Execute(Request{
-		ID:     "component.tsx",
-		Kind:   "compile",
-		Source: "/* @exact test.feature=enabled */ const value = 1;",
-		Extensions: map[string]json.RawMessage{
-			"test": json.RawMessage(`{}`),
-		},
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if len(extension.directives) != 1 {
-		t.Fatalf("extension received %d directives, expected 1", len(extension.directives))
-	}
-	directive := extension.directives[0]
-	if directive.Namespace != "test" || directive.Name != "feature" ||
-		!directive.HasArgument || directive.Argument != "enabled" {
-		t.Fatalf("unexpected native directive: %#v", directive)
-	}
-}
-
 func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -489,7 +383,7 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 }
 
 func TestSessionCreatesExportsAndRootSymbolsForExportedValues(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "values.ts",
 		Kind: "compile",
 		Source: `
@@ -529,7 +423,7 @@ func TestSessionCreatesExportsAndRootSymbolsForExportedValues(t *testing.T) {
 }
 
 func TestSessionCreatesValueExportsForAliasesAndDefaults(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "exports.ts",
 		Kind: "compile",
 		Source: `
@@ -550,7 +444,7 @@ func TestSessionCreatesValueExportsForAliasesAndDefaults(t *testing.T) {
 }
 
 func TestSessionMatchesCanonicalComponentIdentity(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "C:/exact/fixtures/component.tsx",
 		Kind: "compile",
 		Root: "C:/exact/fixtures",
@@ -592,7 +486,7 @@ func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
 		const Inline = () => <aside />;
 	`
 	for _, target := range []Target{TargetClient, TargetServer} {
-		response := NewSession(nil).Execute(Request{
+		response := NewSession().Execute(Request{
 			ID:     "component.tsx",
 			Kind:   "compile",
 			Source: source,
@@ -618,7 +512,7 @@ func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
 			}
 		}
 	}
-	defaultResponse := NewSession(nil).Execute(Request{
+	defaultResponse := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Source: source,
@@ -632,7 +526,7 @@ func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
 }
 
 func TestSessionBrandsPrivateComponentsInsideClientRoots(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "grid.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -657,7 +551,7 @@ func TestSessionBrandsPrivateComponentsInsideClientRoots(t *testing.T) {
 
 func TestSessionBrandsComponentsWithProjectResolvedPlacement(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
-		response := NewSession(nil).Execute(Request{
+		response := NewSession().Execute(Request{
 			ID:     "card.tsx",
 			Kind:   "compile",
 			Target: target,
@@ -685,7 +579,7 @@ func TestSessionBrandsComponentsWithProjectResolvedPlacement(t *testing.T) {
 }
 
 func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -717,7 +611,7 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 }
 
 func TestSessionEmitsClientRootComponentContract(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "button.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -773,7 +667,7 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 }
 
 func TestSessionEmitsClientRootContractForComponentValue(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "button.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -801,7 +695,7 @@ func TestSessionEmitsClientRootContractForComponentValue(t *testing.T) {
 }
 
 func TestSessionReplacesClientFunctionRootWithServerBoundaryStub(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "button.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -842,7 +736,7 @@ func TestSessionReplacesClientFunctionRootWithServerBoundaryStub(t *testing.T) {
 }
 
 func TestSessionReplacesClientComponentValueWithServerBoundaryStub(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "button.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -888,7 +782,7 @@ func rootBoundaryID(boundaries []Boundary, name string) string {
 }
 
 func TestSessionEmitsBoundaryForClientComponentRenderedByServer(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "page.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -944,7 +838,7 @@ __fixtureTask0();
 }
 
 func TestSessionSerializesPlainClientBoundaryChildrenAsProps(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "page.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -992,7 +886,7 @@ func TestSessionSerializesPlainClientBoundaryChildrenAsProps(t *testing.T) {
 }
 
 func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "page.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -1052,7 +946,7 @@ func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
 }
 
 func TestSessionExtractsIntrinsicClientIslandFromServerArtifact(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetServer,
@@ -1148,7 +1042,7 @@ __fixtureTask1();
 }
 
 func TestSessionEmitsGeneratedIntrinsicIslandInClientArtifact(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetClient,
@@ -1221,7 +1115,7 @@ __fixtureTask0();
 			return () => <input value:input={this.state.name} />;
 		}
 	`
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetServer,
@@ -1243,7 +1137,7 @@ __fixtureTask0();
 		)
 	}
 
-	client := NewSession(nil).Execute(Request{
+	client := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetClient,
@@ -1300,7 +1194,7 @@ __fixtureTask1();
 			</>;
 		}
 	`
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "form.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -1335,7 +1229,7 @@ __fixtureTask1();
 		strings.Contains(response.Code, "checked:change") {
 		t.Fatalf("form-binding compiler syntax escaped into output:\n%s", response.Code)
 	}
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:               "form.tsx",
 		Kind:             "compile",
 		Target:           TargetServer,
@@ -1365,7 +1259,7 @@ __fixtureTask1();
 }
 
 func TestSessionRejectsInvalidNativeFormBindingContracts(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "invalid-form.tsx",
 		Kind: "compile",
 		Source: `
@@ -1405,7 +1299,7 @@ __fixtureTask2();
 				</button>;
 		}
 	`
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetServer,
@@ -1424,7 +1318,7 @@ __fixtureTask2();
 		)
 	}
 
-	client := NewSession(nil).Execute(Request{
+	client := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetClient,
@@ -1471,7 +1365,7 @@ __fixtureTask4();
 				</section>;
 		}
 	`
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetServer,
@@ -1517,7 +1411,7 @@ __fixtureTask4();
 		t.Fatalf("client event escaped into server slot output:\n%s", server.Code)
 	}
 
-	client := NewSession(nil).Execute(Request{
+	client := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetClient,
@@ -1567,7 +1461,7 @@ __fixtureTask5();
 				</button>;
 		}
 	`
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetServer,
@@ -1594,7 +1488,7 @@ __fixtureTask5();
 		)
 	}
 
-	client := NewSession(nil).Execute(Request{
+	client := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetClient,
@@ -1648,7 +1542,7 @@ __fixtureTask6();
 				</button>;
 		}
 	`
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetServer,
@@ -1665,7 +1559,7 @@ __fixtureTask6();
 		)
 	}
 
-	client := NewSession(nil).Execute(Request{
+	client := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
 		Target:           TargetClient,
@@ -1709,7 +1603,7 @@ __fixtureTask6();
 }
 
 func TestSessionOmitsServerOnlyComponentsFromClientArtifact(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "server-components.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -1769,7 +1663,7 @@ __fixtureTask4();
 }
 
 func TestSessionPrunesImportsOwnedOnlyByOppositeArtifact(t *testing.T) {
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:     "page.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -1799,7 +1693,7 @@ func TestSessionPrunesImportsOwnedOnlyByOppositeArtifact(t *testing.T) {
 		)
 	}
 
-	client := NewSession(nil).Execute(Request{
+	client := NewSession().Execute(Request{
 		ID:     "loader.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -1829,7 +1723,7 @@ __fixtureTask5();
 }
 
 func TestSessionCollectsNamespacedJSXAttributes(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Source: `const view = <div className="base" className:active={ready} {...props} />;`,
@@ -1855,7 +1749,7 @@ func TestSessionCollectsNamespacedJSXAttributes(t *testing.T) {
 }
 
 func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -1890,7 +1784,7 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 }
 
 func TestSessionFoldsStaticConditionalClassNames(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Source: `const view = <div className="card" className:selected />;`,
@@ -1904,7 +1798,7 @@ func TestSessionFoldsStaticConditionalClassNames(t *testing.T) {
 }
 
 func TestSessionAllowsPossibleDynamicConditionalClassDuplicates(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `const view = (
@@ -1951,7 +1845,7 @@ func TestSessionRejectsAmbiguousConditionalClassInputs(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			response := NewSession(nil).Execute(Request{
+			response := NewSession().Execute(Request{
 				ID:     "component.tsx",
 				Kind:   "compile",
 				Source: test.source,
@@ -1972,7 +1866,7 @@ func TestSessionRejectsAmbiguousConditionalClassInputs(t *testing.T) {
 }
 
 func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2018,7 +1912,7 @@ func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
 }
 
 func TestSessionClassifiesSetupStateAssignments(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
@@ -2055,7 +1949,7 @@ __fixtureTask6();
 }
 
 func TestSessionLowersMapAndSetStateMutations(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2103,7 +1997,7 @@ func TestSessionLowersMapAndSetStateMutations(t *testing.T) {
 		}
 	}
 
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:     "server-collections.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -2128,7 +2022,7 @@ __fixtureTask7();
 		t.Fatalf("server collection delta lowering is missing:\n%s", server.Code)
 	}
 
-	invalid := NewSession(nil).Execute(Request{
+	invalid := NewSession().Execute(Request{
 		ID:     "invalid-server-map-key.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -2159,7 +2053,7 @@ __fixtureTask8();
 }
 
 func TestSessionLowersAliasedCompoundStateWrites(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2186,7 +2080,7 @@ func TestSessionLowersAliasedCompoundStateWrites(t *testing.T) {
 }
 
 func TestSessionLowersComputedStateWriteKeysAsExecutablePaths(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "computed-write.tsx",
 		Kind: "compile",
 		Source: `
@@ -2226,7 +2120,7 @@ func TestSessionLowersComputedStateWriteKeysAsExecutablePaths(t *testing.T) {
 }
 
 func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
-	accepted := NewSession(nil).Execute(Request{
+	accepted := NewSession().Execute(Request{
 		ID:   "accepted-render.tsx",
 		Kind: "compile",
 		Source: `
@@ -2249,7 +2143,7 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 		t.Fatalf("micro-component acquired component identity: %#v", accepted.Analysis.Components)
 	}
 
-	rejected := NewSession(nil).Execute(Request{
+	rejected := NewSession().Execute(Request{
 		ID:   "rejected-render.tsx",
 		Kind: "compile",
 		Source: `
@@ -2293,7 +2187,7 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 }
 
 func TestSessionLowersLexicalMicroComponentsWithoutDurableIdentity(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "micro-components.tsx",
 		Kind: "compile",
 		Source: `
@@ -2328,7 +2222,7 @@ func TestSessionLowersLexicalMicroComponentsWithoutDurableIdentity(t *testing.T)
 }
 
 func TestSessionAppliesRenderPurityToLexicalMicroComponents(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "impure-micro-component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2353,7 +2247,7 @@ func TestSessionAppliesRenderPurityToLexicalMicroComponents(t *testing.T) {
 		t.Fatalf("missing micro-component render diagnostic: %#v", response.Diagnostics)
 	}
 
-	mutable := NewSession(nil).Execute(Request{
+	mutable := NewSession().Execute(Request{
 		ID:   "mutable-micro-component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2377,7 +2271,7 @@ func TestSessionAppliesRenderPurityToLexicalMicroComponents(t *testing.T) {
 }
 
 func TestSessionRejectsSharedRenderCallables(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "shared-arrow.tsx",
 		Kind: "compile",
 		Source: `
@@ -2417,7 +2311,7 @@ func TestSessionPassesThroughExplicitForeignJSXModules(t *testing.T) {
 				return <button onClick={() => setCount(count + 1)}>{count}</button>;
 			}
 		`
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "react-stepper.tsx",
 		Kind:   "compile",
 		Source: source,
@@ -2431,7 +2325,7 @@ func TestSessionPassesThroughExplicitForeignJSXModules(t *testing.T) {
 }
 
 func TestSessionPreservesChainedAndMixedAssignmentResults(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "assignment-results.tsx",
 		Kind: "compile",
 		Source: `
@@ -2461,7 +2355,7 @@ func TestSessionPreservesChainedAndMixedAssignmentResults(t *testing.T) {
 }
 
 func TestSessionRejectsDynamicContinuationWriteContract(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "dynamic-continuation.tsx",
 		Kind: "compile",
 		Source: `
@@ -2527,7 +2421,7 @@ func TestSessionRejectsUnrepresentableStateMutationForms(t *testing.T) {
 	}
 	for name, source := range tests {
 		t.Run(name, func(t *testing.T) {
-			response := NewSession(nil).Execute(Request{
+			response := NewSession().Execute(Request{
 				ID:     name + ".tsx",
 				Kind:   "compile",
 				Source: source,
@@ -2546,7 +2440,7 @@ func TestSessionRejectsUnrepresentableStateMutationForms(t *testing.T) {
 }
 
 func TestSessionLowersJSXInsideNativeProcess(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "C:/tmp/native-equivalence.tsx",
 		Kind: "compile",
 		Source: `export function Panel(this: Component<{ count: number }>) { ` +
@@ -2578,7 +2472,7 @@ func TestSessionLowersJSXInsideNativeProcess(t *testing.T) {
 }
 
 func TestSessionLowersFragmentsSpreadsAndNamespacedAttributes(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "fragment.tsx",
 		Kind: "compile",
 		Source: `
@@ -2608,7 +2502,7 @@ func TestSessionLowersFragmentsSpreadsAndNamespacedAttributes(t *testing.T) {
 }
 
 func TestSessionElidesSingleConsumerScalarDerivedBindings(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "derived.tsx",
 		Kind: "compile",
 		Source: `
@@ -2640,7 +2534,7 @@ func TestSessionElidesSingleConsumerScalarDerivedBindings(t *testing.T) {
 }
 
 func TestSessionRetainsSharedAndIdentityBearingDerivedBindings(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "shared-derived.tsx",
 		Kind: "compile",
 		Source: `
@@ -2674,7 +2568,7 @@ func TestSessionRetainsSharedAndIdentityBearingDerivedBindings(t *testing.T) {
 }
 
 func TestSessionCachesRepeatedDerivedReadsForControlFlowNarrowing(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "derived-narrowing.tsx",
 		Kind: "compile",
 		Source: `
@@ -2711,7 +2605,7 @@ func TestSessionCachesRepeatedDerivedReadsForControlFlowNarrowing(t *testing.T) 
 }
 
 func TestSessionReadsDerivedValuesForInferredTaskDependencies(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "derived-task.ts",
 		Kind: "compile",
 		Source: `
@@ -2739,7 +2633,7 @@ __fixtureTask10();
 }
 
 func TestSessionTracksStateAliasesAndStopsAfterReassignment(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2800,7 +2694,7 @@ func TestSessionTracksStateAliasesAndStopsAfterReassignment(t *testing.T) {
 }
 
 func TestSessionCollectsExactAndBroadStateReads(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2833,7 +2727,7 @@ func TestSessionCollectsExactAndBroadStateReads(t *testing.T) {
 }
 
 func TestSessionBuildsReactiveBindingProvenance(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2871,7 +2765,7 @@ func TestSessionBuildsReactiveBindingProvenance(t *testing.T) {
 
 func TestSessionDoesNotQueryGeneratedTaskDependenciesWithSourceChecker(t *testing.T) {
 	t.Parallel()
-	session := NewSession(nil)
+	session := NewSession()
 	response := session.Execute(Request{
 		ID:   "GeneratedTaskDependency.tsx",
 		Kind: "compile",
@@ -2902,7 +2796,7 @@ __fixtureTask11();
 }
 
 func TestSessionAttributesStateEffectsToTaskWork(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2950,7 +2844,7 @@ __fixtureTask14();
 }
 
 func TestSessionRejectsUnsafeDerivedTaskDependencies(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -2991,7 +2885,7 @@ __fixtureTask15();
 }
 
 func TestSessionTreatsPeekAsExplicitTaskSnapshot(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3031,7 +2925,7 @@ __fixtureTask16();
 }
 
 func TestSessionDoesNotCaptureTaskLocalDerivedBindings(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
@@ -3063,7 +2957,7 @@ __fixtureTask17();
 }
 
 func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "view.tsx",
 		Kind: "compile",
 		Source: `
@@ -3083,7 +2977,7 @@ func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
 }
 
 func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3139,7 +3033,7 @@ func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
 }
 
 func TestSessionKeepsValueProducingSetupHelpersOutOfTaskAnalysis(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3198,7 +3092,7 @@ func TestSessionKeepsValueProducingSetupHelpersOutOfTaskAnalysis(t *testing.T) {
 }
 
 func TestSessionTreatsDiscardedVoidSetupCallsAsTaskActivations(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3229,7 +3123,7 @@ func TestSessionTreatsDiscardedVoidSetupCallsAsTaskActivations(t *testing.T) {
 }
 
 func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3285,7 +3179,7 @@ func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testi
 }
 
 func TestSessionTransportsCapturedDefaultsForInvokedServerTasks(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -3334,7 +3228,7 @@ func TestSessionTransportsCapturedDefaultsForInvokedServerTasks(t *testing.T) {
 }
 
 func TestSessionLowersInvokedFunctionTaskThroughPublicABI(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -3382,7 +3276,7 @@ func TestSessionLowersInvokedFunctionTaskThroughPublicABI(t *testing.T) {
 }
 
 func TestSessionSupportsAssignedAndExpressionTaskFunctions(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3428,7 +3322,7 @@ func TestSessionSupportsAssignedAndExpressionTaskFunctions(t *testing.T) {
 }
 
 func TestSessionEmitsEmptyInvocationArgumentsAsAnArray(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3468,7 +3362,7 @@ func TestSessionEmitsEmptyInvocationArgumentsAsAnArray(t *testing.T) {
 }
 
 func TestSessionTreatsNestedChildTaskCallsAsPlacementBoundaries(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -3527,7 +3421,7 @@ func TestSessionTreatsNestedChildTaskCallsAsPlacementBoundaries(t *testing.T) {
 }
 
 func TestSessionOwnsSyntheticTaskStatusDiagnostics(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:          "component.tsx",
 		Kind:        "analyze",
 		Diagnostics: "semantic",
@@ -3560,7 +3454,7 @@ func TestSessionOwnsSyntheticTaskStatusDiagnostics(t *testing.T) {
 }
 
 func TestSessionBuildsContinuationAndResumptionContracts(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3619,7 +3513,7 @@ __fixtureTask7();
 			return () => <output />;
 		}
 	`
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Source: source,
@@ -3645,7 +3539,7 @@ __fixtureTask7();
 			)
 		}
 	}
-	client := NewSession(nil).Execute(Request{
+	client := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Source: source,
@@ -3665,7 +3559,7 @@ __fixtureTask7();
 }
 
 func TestSessionEmitsClientDispatchStubForIsomorphicContinuation(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -3735,7 +3629,7 @@ __fixtureTask24();
 }
 
 func TestSessionEmitsServerContinuationExecutorContract(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
@@ -3818,7 +3712,7 @@ func TestSessionEmitsTypedInvokedServerTaskArtifactsWithRenderImports(t *testing
 			return () => <button onClick={() => load("workspace")}>{renderWorkspace()}</button>;
 		}
 	`
-	session := NewSession(nil)
+	session := NewSession()
 	client := session.Execute(Request{
 		ID: entry, Root: root, Kind: "compile", Target: TargetClient, Source: source,
 	})
@@ -3857,7 +3751,7 @@ func TestSessionEmitsTypedInvokedServerTaskArtifactsWithRenderImports(t *testing
 }
 
 func TestSessionPartitionsContinuationContextsByResidency(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
@@ -3948,7 +3842,7 @@ func TestSessionPartitionsContinuationContextsByResidency(t *testing.T) {
 }
 
 func TestSessionInfersAndValidatesTaskEnvironmentPlacement(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -3994,7 +3888,7 @@ __fixtureTask29();
 }
 
 func TestSessionPropagatesCallableStateContextAndEnvironmentEffects(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4058,7 +3952,7 @@ __fixtureTask30();
 }
 
 func TestSessionTreatsContextValueMethodsAsContextEffects(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4086,7 +3980,7 @@ func TestSessionTreatsContextValueMethodsAsContextEffects(t *testing.T) {
 }
 
 func TestSessionKeepsShadowedCallableSymbolsSeparate(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4117,7 +4011,7 @@ __fixtureTask31();
 }
 
 func TestSessionConvergesRecursiveCallableEffects(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4146,7 +4040,7 @@ func TestSessionConvergesRecursiveCallableEffects(t *testing.T) {
 }
 
 func TestSessionCollectsOwnedTaskResourcesAndSignals(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4232,7 +4126,7 @@ __fixtureTask32();
 }
 
 func TestSessionDoesNotClaimEventHandlerResourcesAsSetupOwned(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4261,7 +4155,7 @@ func TestSessionDoesNotClaimEventHandlerResourcesAsSetupOwned(t *testing.T) {
 }
 
 func TestSessionUsesExplicitPlacementToConstrainOpaqueComponentCalls(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
@@ -4286,7 +4180,7 @@ func TestSessionUsesExplicitPlacementToConstrainOpaqueComponentCalls(t *testing.
 }
 
 func TestSessionPreservesKnownClientPlacementThroughOpaqueRenderCalls(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
@@ -4312,7 +4206,7 @@ __fixtureTask33();
 }
 
 func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -4353,7 +4247,7 @@ func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
 }
 
 func TestSessionDoesNotScheduleTaskFromItsOwnUpdateTarget(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4402,7 +4296,7 @@ func TestSessionTreatsCoreRuntimeCallsAsPlacementNeutral(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry := filepath.Join(root, "component.tsx")
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   entry,
 		Root: root,
 		Kind: "analyze",
@@ -4440,7 +4334,7 @@ func TestSessionRetainsResolvedRecursiveCallsWhenMergingProjectEffects(t *testin
 		t.Fatal(err)
 	}
 	entry := filepath.Join(root, "component.tsx")
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   entry,
 		Root: root,
 		Kind: "analyze",
@@ -4462,7 +4356,7 @@ func TestSessionRetainsResolvedRecursiveCallsWhenMergingProjectEffects(t *testin
 }
 
 func TestSessionLowersKeyedMapsInsideMaterializedReactiveClosures(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4491,7 +4385,7 @@ func TestSessionReportsAuthoredLocationsAfterSourceNormalization(t *testing.T) {
 			return () => <article {title}>{props.title}</article>;
 		}
 	`
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:        "component.tsx",
 		Kind:      "compile",
 		Source:    source,
@@ -4521,7 +4415,7 @@ func TestSessionReportsAuthoredLocationsAfterSourceNormalization(t *testing.T) {
 }
 
 func TestSessionLowersTaskAwaitWithGenerationSignal(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4551,7 +4445,7 @@ __fixtureTask35();
 }
 
 func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4615,7 +4509,7 @@ __fixtureTask37();
 }
 
 func TestSessionAnalyzesComponentPlacementIslandsAndContexts(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4660,7 +4554,7 @@ __fixtureTask38();
 }
 
 func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "enhancement-contexts.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -4733,7 +4627,7 @@ func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
 }
 
 func TestSessionSeparatesTaskEffectsFromComponentSetupPlacement(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "workspace.tsx",
 		Kind: "analyze",
 		Source: `
@@ -4769,7 +4663,7 @@ func TestSessionSeparatesTaskEffectsFromComponentSetupPlacement(t *testing.T) {
 }
 
 func TestSessionBuildsLocalComponentRenderSubgraphs(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4798,7 +4692,7 @@ func TestSessionBuildsLocalComponentRenderSubgraphs(t *testing.T) {
 }
 
 func TestSessionKeepsNestedSameNamedComponentsDistinct(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4827,7 +4721,7 @@ func TestSessionKeepsNestedSameNamedComponentsDistinct(t *testing.T) {
 }
 
 func TestSessionAppliesStateAndContextResidencyToTasks(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
@@ -4896,7 +4790,7 @@ __fixtureTask41();
 }
 
 func TestSessionRejectsNonSharedCapturedInputsForServerTasks(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "captured-policy.tsx",
 		Kind: "compile",
 		Source: `
@@ -4933,7 +4827,7 @@ func TestSessionRejectsNonSharedCapturedInputsForServerTasks(t *testing.T) {
 }
 
 func TestSessionAppliesCallablePlacementAndResidencyAnnotations(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "policy.ts",
 		Kind: "compile",
 		Source: `
@@ -4967,7 +4861,7 @@ func TestSessionAppliesCallablePlacementAndResidencyAnnotations(t *testing.T) {
 }
 
 func TestSessionPropagatesAmbientCallablePlacementAnnotations(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "ambient-policy.tsx",
 		Kind: "analyze",
 		Source: `
@@ -4990,7 +4884,7 @@ func TestSessionPropagatesAmbientCallablePlacementAnnotations(t *testing.T) {
 }
 
 func TestSessionBuildsAndAuthorizesDeclarationPolicyFlows(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "policy.ts",
 		Kind: "compile",
 		Source: `
@@ -5032,7 +4926,7 @@ func TestSessionBuildsAndAuthorizesDeclarationPolicyFlows(t *testing.T) {
 }
 
 func TestSessionAuditsImportedSecretConsumption(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "policy.ts",
 		Kind: "compile",
 		Source: `
@@ -5072,7 +4966,7 @@ func TestSessionAuditsImportedSecretConsumption(t *testing.T) {
 }
 
 func TestSessionPreservesSelectorFromTypedSecretProviderFacade(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:          "app.ts",
 		Kind:        "analyze",
 		PackageType: "application",
@@ -5097,7 +4991,7 @@ func TestSessionPreservesSelectorFromTypedSecretProviderFacade(t *testing.T) {
 }
 
 func TestSessionEmitsLibrarySecretConsumptionRequirements(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:          "policy.ts",
 		Kind:        "analyze",
 		PackageType: "library",
@@ -5121,7 +5015,7 @@ func TestSessionEmitsLibrarySecretConsumptionRequirements(t *testing.T) {
 }
 
 func TestSessionValidatesNativeUnsafeHTMLCapabilities(t *testing.T) {
-	library := NewSession(nil).Execute(Request{
+	library := NewSession().Execute(Request{
 		ID:          "library.ts",
 		Kind:        "analyze",
 		PackageType: "library",
@@ -5161,7 +5055,7 @@ func TestSessionPlansAndPartitionsNativeAssetImports(t *testing.T) {
 			ImportMode: "url",
 		}},
 	}
-	analysis := NewSession(nil).Execute(request)
+	analysis := NewSession().Execute(request)
 	if analysis.Error != "" {
 		t.Fatal(analysis.Error)
 	}
@@ -5178,13 +5072,13 @@ func TestSessionPlansAndPartitionsNativeAssetImports(t *testing.T) {
 	}
 	request.Kind = "compile"
 	request.Target = TargetServer
-	server := NewSession(nil).Execute(request)
+	server := NewSession().Execute(request)
 	if strings.Contains(server.Code, "./app.scss") ||
 		!strings.Contains(server.Code, "./poster.avif?url") {
 		t.Fatalf("server asset partition is incorrect:\n%s", server.Code)
 	}
 	request.PreserveClientAssetImports = true
-	preserved := NewSession(nil).Execute(request)
+	preserved := NewSession().Execute(request)
 	if !strings.Contains(preserved.Code, "./app.scss") {
 		t.Fatalf("client asset edge was not preserved for bundler:\n%s", preserved.Code)
 	}
@@ -5193,7 +5087,7 @@ func TestSessionPlansAndPartitionsNativeAssetImports(t *testing.T) {
 func TestSessionConsumesNativeExactImportPlacementAttributes(t *testing.T) {
 	source := `import { privateConfig } from "./config.js" with { exact: "server" };
 		export const config = privateConfig;`
-	client := NewSession(nil).Execute(Request{
+	client := NewSession().Execute(Request{
 		ID: "placement.ts", Kind: "compile", Target: TargetClient, Source: source,
 	})
 	if client.Error != "" {
@@ -5203,7 +5097,7 @@ func TestSessionConsumesNativeExactImportPlacementAttributes(t *testing.T) {
 		strings.Contains(client.Code, "privateConfig") {
 		t.Fatalf("server import leaked into client output:\n%s", client.Code)
 	}
-	server := NewSession(nil).Execute(Request{
+	server := NewSession().Execute(Request{
 		ID: "placement.ts", Kind: "compile", Target: TargetServer, Source: source,
 	})
 	if server.Error != "" {
@@ -5216,7 +5110,7 @@ func TestSessionConsumesNativeExactImportPlacementAttributes(t *testing.T) {
 }
 
 func TestSessionPreservesInferredSecretQualificationInOutput(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "secret.ts",
 		Kind: "compile",
 		Source: `
@@ -5248,7 +5142,7 @@ func TestSessionPreservesInferredSecretQualificationInOutput(t *testing.T) {
 }
 
 func TestSessionRejectsSecretConsumptionInClientArtifact(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "policy.ts",
 		Kind:   "compile",
 		Target: TargetClient,
@@ -5279,7 +5173,7 @@ func TestSessionRejectsSecretConsumptionInClientArtifact(t *testing.T) {
 }
 
 func TestSessionRequiresQualifiedSecretCallBoundaries(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "policy.ts",
 		Kind: "compile",
 		Source: `
@@ -5324,7 +5218,7 @@ func TestSessionRequiresQualifiedSecretCallBoundaries(t *testing.T) {
 }
 
 func TestSessionPropagatesTypeAndReturnSecretPolicies(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "policy.ts",
 		Kind: "compile",
 		Source: `
@@ -5366,7 +5260,7 @@ func TestSessionPropagatesTypeAndReturnSecretPolicies(t *testing.T) {
 }
 
 func TestSessionPropagatesSecretThroughDestructuringUntilConsume(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "policy.ts",
 		Kind: "compile",
 		Source: `
@@ -5428,7 +5322,7 @@ func TestSessionPropagatesCallableEffectsAcrossProjectImports(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry := filepath.Join(root, "entry.tsx")
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   entry,
 		Root: root,
 		Kind: "compile",
@@ -5475,7 +5369,7 @@ func TestSessionPropagatesInteractiveHelperEffectsAcrossProjectImports(t *testin
 		t.Fatal(err)
 	}
 	entry := filepath.Join(root, "entry.tsx")
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   entry,
 		Root: root,
 		Kind: "analyze",
@@ -5509,7 +5403,7 @@ func TestSessionPropagatesInteractiveHelperEffectsAcrossProjectImports(t *testin
 		t.Fatal(err)
 	}
 	pageFile := filepath.Join(root, "page.tsx")
-	pageResponse := NewSession(nil).Execute(Request{
+	pageResponse := NewSession().Execute(Request{
 		ID:   pageFile,
 		Root: root,
 		Kind: "analyze",
@@ -5569,7 +5463,7 @@ __fixtureTask8();
 	if err := os.WriteFile(entry, []byte(entrySource), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	session := NewSession(nil)
+	session := NewSession()
 	initial := session.Execute(Request{
 		ID: entry, Root: root, ConfigFile: configFile,
 		Kind: "compile", Source: entrySource,
@@ -5647,7 +5541,7 @@ export const value: number = model.value;`),
 	); err != nil {
 		t.Fatal(err)
 	}
-	session := NewSession(nil)
+	session := NewSession()
 	initial := session.Execute(Request{
 		ID: model, Root: root, ConfigFile: configFile,
 		Kind: "diagnose", Source: initialModel, Diagnostics: "semantic",
@@ -5696,7 +5590,7 @@ func TestSessionResolvesImportedComponentPlacementSubgraphs(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry := filepath.Join(root, "entry.tsx")
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   entry,
 		Root: root,
 		Kind: "compile",
@@ -5723,7 +5617,7 @@ func TestSessionResolvesImportedComponentPlacementSubgraphs(t *testing.T) {
 func TestSessionAcceptsOpaqueRuntimeComponentImports(t *testing.T) {
 	root := t.TempDir()
 	entry := filepath.Join(root, "entry.tsx")
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   entry,
 		Root: root,
 		Kind: "compile",
@@ -5752,7 +5646,7 @@ func TestSessionAcceptsOpaqueRuntimeComponentImports(t *testing.T) {
 func TestSessionRejectsOpaqueTypeOnlyComponentImports(t *testing.T) {
 	root := t.TempDir()
 	entry := filepath.Join(root, "entry.tsx")
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   entry,
 		Root: root,
 		Kind: "analyze",
@@ -5812,7 +5706,7 @@ func TestSessionInvalidatesRetainedProjectComponentGraph(t *testing.T) {
 	if err := os.WriteFile(entry, []byte(entrySource), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	session := NewSession(nil)
+	session := NewSession()
 	initial := session.Execute(Request{
 		ID: entry, Root: root, ConfigFile: configFile,
 		Kind: "compile", Source: entrySource,
@@ -5856,60 +5750,8 @@ func TestSessionInvalidatesRetainedProjectComponentGraph(t *testing.T) {
 	}
 }
 
-func TestSessionRetainsParsedSourceAndRunsExtensions(t *testing.T) {
-	extension := &recordingExtension{
-		analysisData: json.RawMessage(`{"target":"client"}`),
-	}
-	registry, err := NewRegistry(extension)
-	if err != nil {
-		t.Fatal(err)
-	}
-	session := NewSession(registry)
-	request := Request{
-		ID:     "component.tsx",
-		Kind:   "compile",
-		Source: "const value: number = 1;",
-		Target: TargetClient,
-		Extensions: map[string]json.RawMessage{
-			"test": json.RawMessage(`{}`),
-		},
-	}
-
-	first := session.Execute(request)
-	if first.Error != "" {
-		t.Fatal(first.Error)
-	}
-	if first.CacheHit {
-		t.Fatal("first compilation unexpectedly reused a parsed source")
-	}
-	if first.Code == "" {
-		t.Fatal("native printer returned empty output")
-	}
-	if string(first.AnalysisData["test"]) != `{"target":"client"}` {
-		t.Fatalf("unexpected extension data: %s", first.AnalysisData["test"])
-	}
-
-	second := session.Execute(request)
-	if !second.CacheHit {
-		t.Fatal("unchanged source was not retained by the native session")
-	}
-	if extension.calls != 2 {
-		t.Fatalf("extension ran %d times, expected 2", extension.calls)
-	}
-	if extension.observedType != "1" {
-		t.Fatalf("extension observed type %q, expected literal type 1", extension.observedType)
-	}
-}
-
-func TestRegistryRejectsDuplicateNamespaces(t *testing.T) {
-	_, err := NewRegistry(&recordingExtension{}, &recordingExtension{})
-	if err == nil {
-		t.Fatal("duplicate extension namespace was accepted")
-	}
-}
-
 func TestSessionRejectsUnknownNamespacedDirectives(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Source: "/* @exact missing.feature */ const value = 1;",
@@ -5920,54 +5762,12 @@ func TestSessionRejectsUnknownNamespacedDirectives(t *testing.T) {
 	}
 }
 
-func TestSessionRequiresNamespacedDirectiveConfiguration(t *testing.T) {
-	registry, err := NewRegistry(&recordingExtension{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := NewSession(registry).Execute(Request{
-		ID:     "component.tsx",
-		Kind:   "compile",
-		Source: "/* @exact test.feature */ const value = 1;",
-	})
-	if len(response.Diagnostics) != 1 {
-		t.Fatalf("received %d diagnostics, expected 1", len(response.Diagnostics))
-	}
-}
-
-func TestSessionRejectsInvalidExtensionAnalysisData(t *testing.T) {
-	extension := &recordingExtension{analysisData: json.RawMessage(`{`)}
-	registry, err := NewRegistry(extension)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := NewSession(registry).Execute(Request{
-		ID:     "component.tsx",
-		Kind:   "compile",
-		Source: "const value = 1;",
-		Extensions: map[string]json.RawMessage{
-			"test": json.RawMessage(`{}`),
-		},
-	})
-	if response.Error == "" {
-		t.Fatal("invalid extension analysis data was accepted")
-	}
-}
-
 func TestSessionIncrementallyUpdatesProgramAndChecker(t *testing.T) {
-	extension := &recordingExtension{analysisData: json.RawMessage(`{}`)}
-	registry, err := NewRegistry(extension)
-	if err != nil {
-		t.Fatal(err)
-	}
-	session := NewSession(registry)
+	session := NewSession()
 	request := Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Source: "const value = 1;",
-		Extensions: map[string]json.RawMessage{
-			"test": json.RawMessage(`{}`),
-		},
 	}
 	if response := session.Execute(request); response.Error != "" {
 		t.Fatal(response.Error)
@@ -5980,13 +5780,13 @@ func TestSessionIncrementallyUpdatesProgramAndChecker(t *testing.T) {
 	if response.CacheHit {
 		t.Fatal("changed source unexpectedly reused the previous program generation")
 	}
-	if extension.observedType != `"updated"` {
-		t.Fatalf("updated checker observed type %q", extension.observedType)
+	if !strings.Contains(response.Code, `const value = "updated"`) {
+		t.Fatalf("updated program was not printed:\n%s", response.Code)
 	}
 }
 
 func TestSessionCanReportSemanticDiagnostics(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:          "component.tsx",
 		Kind:        "compile",
 		Source:      `const value: number = "wrong";`,
@@ -6004,7 +5804,7 @@ func TestSessionCanReportSemanticDiagnostics(t *testing.T) {
 }
 
 func TestSessionAnalyzesImportsWithoutLoweringOrPrinting(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:          "component.tsx",
 		Kind:        "analyze",
 		Diagnostics: "syntax",
@@ -6228,7 +6028,7 @@ func TestSessionDoesNotReportForeignModuleInitializerDiagnostics(t *testing.T) {
 		}
 	}
 
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:         currentFile,
 		Kind:       "compile",
 		Source:     `export const current = 1;`,
@@ -6246,38 +6046,8 @@ func TestSessionDoesNotReportForeignModuleInitializerDiagnostics(t *testing.T) {
 	}
 }
 
-func TestSessionValidatesJavaScriptCompatibilityExtensionDirectives(t *testing.T) {
-	request := Request{
-		ID:     "C:/virtual/compatibility-extension.ts",
-		Kind:   "analyze",
-		Source: "/** @exact audit.mark */\nexport const value = 1;",
-		CompatibilityExtensions: map[string][]string{
-			"audit": {"mark"},
-		},
-	}
-	response := NewSession(nil).Execute(request)
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if containsDiagnosticCode(response.Diagnostics, "EXACT1001") {
-		t.Fatalf(
-			"configured compatibility directive was rejected: %#v",
-			response.Diagnostics,
-		)
-	}
-
-	request.Source = "/** @exact audit.unknown */\nexport const value = 1;"
-	response = NewSession(nil).Execute(request)
-	if !containsDiagnosticCode(response.Diagnostics, "EXACT1001") {
-		t.Fatalf(
-			"unknown compatibility directive was accepted: %#v",
-			response.Diagnostics,
-		)
-	}
-}
-
 func TestSessionAcceptsUninitializedComponentLocals(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "C:/virtual/uninitialized-local.tsx",
 		Kind: "compile",
 		Source: `
@@ -6299,7 +6069,7 @@ func TestSessionAcceptsUninitializedComponentLocals(t *testing.T) {
 }
 
 func TestSessionTreatsUnderscoreJSXAsCompilerFragment(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:   "C:/virtual/fragment.tsx",
 		Kind: "compile",
 		Source: `
@@ -6353,7 +6123,7 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:         entryFile,
 		Kind:       "compile",
 		Source:     entrySource,
@@ -6393,7 +6163,7 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 }
 
 func TestSessionRejectsPluginNamespaceImports(t *testing.T) {
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:     "C:/virtual/plugin-namespace.tsx",
 		Kind:   "compile",
 		Source: `import * as motion from "@test/motion" with { type: "exact-plugin" };`,
@@ -6425,7 +6195,7 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 		if err := os.WriteFile(entryFile, []byte(source), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		return NewSession(nil).Execute(Request{
+		return NewSession().Execute(Request{
 			ID:         entryFile,
 			Kind:       "compile",
 			Source:     source,
@@ -6480,7 +6250,7 @@ func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	response := NewSession(nil).Execute(Request{
+	response := NewSession().Execute(Request{
 		ID:         entryFile,
 		Kind:       "compile",
 		Source:     entrySource,
@@ -6531,7 +6301,7 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 		if err := os.WriteFile(entryFile, []byte(source), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		return NewSession(nil).Execute(Request{
+		return NewSession().Execute(Request{
 			ID: entryFile, Kind: "compile", Source: source, ConfigFile: configFile,
 		})
 	}
@@ -6611,7 +6381,7 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 	if err := os.WriteFile(entryFile, []byte(validSource), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	valid := NewSession(nil).Execute(Request{
+	valid := NewSession().Execute(Request{
 		ID: entryFile, Kind: "compile", Source: validSource, ConfigFile: configFile,
 	})
 	for _, diagnostic := range valid.Diagnostics {
@@ -6639,7 +6409,7 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 	if err := os.WriteFile(entryFile, []byte(ambiguousSource), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ambiguous := NewSession(nil).Execute(Request{
+	ambiguous := NewSession().Execute(Request{
 		ID: entryFile, Kind: "compile", Source: ambiguousSource, ConfigFile: configFile,
 	})
 	if !containsDiagnosticCode(ambiguous.Diagnostics, "EXACT6010") {

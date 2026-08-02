@@ -68,8 +68,7 @@ describe('prepared plugin registry', () => {
           validate(config) {
             if (!Array.isArray(config.order)) throw new Error("invalid config");
             return undefined;
-          },
-          compilerConfig(config) { return { cacheKey: { order: config.order } }; }
+					}
         };
       `,
 				'config.d.ts': 'export {};'
@@ -119,9 +118,6 @@ describe('prepared plugin registry', () => {
 			graph,
 			config,
 			syncTypes: true
-		});
-		expect(registry.compiler.plugins['@exactjs/example']?.cacheKey).toEqual({
-			order: ['defaults', 'framework', 'root']
 		});
 		expect(registry.reports.map((report) => report.contributor)).toEqual([
 			'@acme/framework',

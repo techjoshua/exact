@@ -196,9 +196,9 @@ export function createExactRemoteRollupAdapter(
 	};
 }
 
-export { readExactMicrofrontendCompilerConfig } from './plugin-config.js';
+export { readExactMicrofrontendBuildConfig } from './plugin-config.js';
 export { prepareExactRemoteArtifactBuild } from './project.js';
-export type { ExactMicrofrontendCompilerConfig } from './plugin-config.js';
+export type { ExactMicrofrontendBuildConfig } from './plugin-config.js';
 export type { ExactPreparedRemoteArtifactBuild } from './project.js';
 
 function componentId(root: string, exposure: ExactRemoteExposureArtifact): string {

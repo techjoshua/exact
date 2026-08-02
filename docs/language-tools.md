@@ -321,10 +321,10 @@ not appear in the activation dependency list.
 
 The language server is local and does not send source, diagnostics, or
 inspection data to a network service. In a trusted workspace, the extension
-may launch the installed eXact compiler and load configured project plugins. In
-an untrusted workspace it does not execute workspace binaries, configuration
-modules, or compiler plugins; semantic compiler execution is disabled and the
-extension identifies that restricted mode.
+may launch the installed eXact compiler and read project configuration. In an
+untrusted workspace it does not execute workspace binaries or configuration
+modules; semantic compiler execution is disabled and the extension identifies
+that restricted mode. The compiler has no plugin loading or callback surface.
 
 ## Optional build inspection catalog
 

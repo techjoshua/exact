@@ -1,6 +1,5 @@
 import type { ExactConfig } from '@exactjs/config';
 import type {
-	ExactCompilerPluginConfig,
 	ExactPluginConfigContext,
 	ExactPluginConfigController,
 	ExactPluginConfigTransform,
@@ -30,7 +29,7 @@ export interface ExactConfigTransformReport {
 /** Configures exact resolved plugin. */
 export interface ExactResolvedPluginConfiguration {
 	readonly plugin: ExactSelectedPlugin;
-	readonly compiler?: ExactCompilerPluginConfig;
+	readonly build?: unknown;
 	readonly server?: unknown;
 	readonly render?: unknown;
 	readonly client?: unknown;
@@ -217,8 +216,8 @@ async function resolveOnePlugin<T>(
 	const validation = await controller.validate(current, finalContext);
 	if (validation !== undefined)
 		throw new Error(`Plugin ${selected.packageName} validate() must return undefined`);
-	const [compiler, server, render, client, testing] = await Promise.all([
-		controller.compilerConfig?.(current, finalContext),
+	const [build, server, render, client, testing] = await Promise.all([
+		options.hostMode === 'build' ? controller.buildConfig?.(current, finalContext) : undefined,
 		options.hostMode === 'server' ? controller.serverConfig?.(current, finalContext) : undefined,
 		options.hostMode === 'server' || options.hostMode === 'render'
 			? controller.renderConfig?.(current, finalContext)
@@ -226,10 +225,10 @@ async function resolveOnePlugin<T>(
 		options.hostMode === 'client' ? controller.clientConfig?.(current, finalContext) : undefined,
 		options.hostMode === 'testing' ? controller.testingConfig?.(current, finalContext) : undefined
 	]);
-	if (compiler) assertJsonSafe(compiler.cacheKey, `${selected.packageName} compiler cache key`);
+	if (build !== undefined) assertJsonSafe(build, `${selected.packageName} build configuration`);
 	return Object.freeze({
 		plugin: selected,
-		compiler,
+		build,
 		server,
 		render,
 		client,

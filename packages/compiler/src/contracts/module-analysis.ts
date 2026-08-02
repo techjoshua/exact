@@ -1,4 +1,3 @@
-import type { ExactJsonValue } from '@exactjs/plugin-api';
 import type {
 	ExactBoundaryIR,
 	ExactCallableSummaryIR,
@@ -37,18 +36,5 @@ export type ExactModuleAnalysis = {
 	requiredCapabilities?: {
 		rawHtml: ExactRawHtmlCapabilityIR[];
 	};
-	pluginRegistry?: {
-		fingerprint: string;
-		plugins: Record<
-			string,
-			{
-				version: string;
-				protocolVersion: string;
-				required: boolean;
-				compilerConfigKey: ExactJsonValue;
-			}
-		>;
-	};
-	pluginData?: Record<string, ExactJsonValue>;
 	diagnostics: string[];
 };

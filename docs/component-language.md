@@ -1256,9 +1256,9 @@ Annotations are checked rather than blindly trusted. A client declaration
 cannot make a server-only import browser-safe, `@exact shared` cannot release a
 secret, and serializable data is not automatically public.
 
-Plugins may register namespaced directives such as
-`@exact namespace.directive`. Such a directive is valid only when the owning
-native compiler extension is configured.
+The directive set is compiler-owned and finite. Namespaced forms such as
+`@exact namespace.directive` are diagnostics; plugins do not register compiler
+directives or transforms.
 
 ## Unsupported or diagnostic forms
 

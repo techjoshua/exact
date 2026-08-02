@@ -36,7 +36,6 @@
 		"dist/native/process-worker.*",
 		"dist/native/transformation.*",
 		"dist/paths.*",
-		"dist/plugins.*",
 		"dist/policy-report.*",
 		"dist/registry.*",
 		"dist/source-maps.*",
@@ -64,9 +63,7 @@
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/devtools-protocol": "^0.1.0",
-		"@exactjs/instrumentation": "^0.1.0",
-		"@exactjs/plugin-api": "^0.1.0",
-		"@exactjs/plugin-host": "^0.1.0"
+		"@exactjs/instrumentation": "^0.1.0"
 	},
 	"optionalDependencies": {
 		"@exactjs/compiler-native-darwin-arm64": "^0.1.0",

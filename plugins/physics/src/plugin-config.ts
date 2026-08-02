@@ -5,7 +5,6 @@ const controller: ExactPluginConfigController<PhysicsPluginConfig> = {
 	defaults: () => ({ enabled: true, fixedStep: 1 / 120, maxCatchUpSteps: 8 }),
 	structuralValidate: validate,
 	validate,
-	compilerConfig: (config) => ({ cacheKey: { contract: 1, ...config } }),
 	renderConfig: freeze,
 	clientConfig: freeze,
 	testingConfig: freeze

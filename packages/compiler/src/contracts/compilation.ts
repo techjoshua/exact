@@ -1,4 +1,3 @@
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
@@ -46,7 +45,6 @@ export type CompileArtifactsOptions = {
 	jsxInterop?: TransformOptions['jsxInterop'];
 	assetRules?: readonly ExactAssetRule[];
 	session?: ExactCompilerSession;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	generatedValidation?: 'syntax' | 'semantic';
 	packageType?: TransformOptions['packageType'];
 	packageName?: string;
@@ -115,7 +113,6 @@ export type CompileArtifactPlanEntriesOptions = {
 	jsxInterop?: TransformOptions['jsxInterop'];
 	assetRules?: readonly ExactAssetRule[];
 	session?: ExactCompilerSession;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	generatedValidation?: 'syntax' | 'semantic';
 	packageType?: TransformOptions['packageType'];
 	packageName?: string;

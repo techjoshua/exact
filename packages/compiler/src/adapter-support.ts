@@ -16,7 +16,6 @@ export type ExactBuildModuleSelectionOptions = Readonly<{
 	include?: ExactBuildFilter;
 	exclude?: ExactBuildFilter;
 	compileTestModules?: boolean;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 }>;
 
 /**
@@ -109,13 +108,6 @@ export function shouldCompileExactBuildModule(
 	if (!shouldTransformExactBuildModulePath(id, options)) return false;
 	return (
 		containsExactBuildJsx(id, source) ||
-		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source) ||
-		Object.values(options.pluginRegistry?.plugins ?? {}).some((plugin) => {
-			const include = plugin.extension?.include;
-			if (!include) return false;
-			include.lastIndex = 0;
-			return include.test(id);
-		})
+		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)
 	);
 }
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
