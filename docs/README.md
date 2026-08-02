@@ -48,8 +48,11 @@ Active proposals:
 | Proposal                                                                                                | Scope                                                                                                                                                     |
 | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Unified function-defined tasks and structured task trees](proposals/unified-function-defined-tasks.md) | Replaces separate authored task/action APIs with compiler-recognized functions, one structured lifetime, unified tooling, and a future motion foundation. |
-| [Optional motion plugin](proposals/motion-plugin.md)                                                    | Defines plugin-owned `motion:*` JSX, context-scoped policy, task-owned presence and layout, and dependency-neutral router transition coordination.        |
-| [Plugin-owned JSX and renderer extensions](proposals/plugin-jsx-renderer-extensions.md)                 | Adds constrained JSX namespaces, compact descriptors, renderer lifecycle hooks, removal leases, optional fallback, and cross-host plugin tooling.         |
+| [Plugin-owned JSX and renderer extensions](proposals/plugin-jsx-renderer-extensions.md)                 | Defines attributed capability exports, grouped reactive markers, target-bound plugin components, and generic element-root release.                        |
+| [Optional motion plugin](proposals/motion-plugin.md)                                                    | Defines prepared `motion:*` presets, target-bound plugin components, task-owned presence and layout, and dependency-neutral View Transition coordination. |
+| [Optional gestures plugin](proposals/gestures-plugin.md)                                                | Defines prepared gesture recognition for pointer, touch, and keyboard input without requiring motion or physics.                                          |
+| [Optional physics plugin](proposals/physics-plugin.md)                                                  | Defines a deterministic DOM-independent 2D engine, ordinary body projection enhancement, and optional cross-package adapters.                             |
+| [Optional gravity plugin](proposals/gravity-plugin.md)                                                  | Defines independently sampleable gravity fields that compose through the physics force seam and ordinary component contexts.                              |
 
 ## Historical evidence
 

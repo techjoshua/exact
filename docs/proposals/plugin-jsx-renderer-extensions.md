@@ -1,750 +1,708 @@
-# Plugin-owned JSX and renderer extensions
+# Plugin-owned JSX attributes and renderer enhancements
 
 ## Status
 
-Proposed. The current plugin protocol supports discovery, configuration,
-host-specific entries, namespaced `@exact` directives, module analysis,
-manifest data, output processing, and lifecycle resources. It does not yet let
-a plugin own JSX attribute syntax, contribute structured compiler lowering, or
-participate in renderer element and range lifecycle.
-
-This proposal adds those capabilities for the optional
-[`motion` plugin](motion-plugin.md) and future packages with the same
-cross-host need. Current behavior remains documented in
-[`../framework-plugins.md`](../framework-plugins.md).
+Proposed future work. This document specifies the shared compiler and renderer
+foundation for optional motion, gesture, physics, gravity, and third-party JSX
+enhancements. It supersedes the earlier transparent-boundary, `PluginTarget`,
+explicit plugin ID, and plugin-specific removal-context designs.
 
 ## Decision summary
 
-eXact should support plugin-owned JSX directives through a constrained,
-declarative compiler contract and bounded renderer lifecycle hooks:
-
-- one configured plugin may own a JSX attribute prefix such as `motion`;
-- the owner declares the bare attribute and allowed namespaced members;
-- the compiler validates and lowers those attributes into opaque directive
-  descriptors attached to existing vnode and range identity;
-- plugins do not receive arbitrary AST rewrite callbacks;
-- generated code uses a generic core ABI rather than importing a plugin
-  runtime;
-- renderers expose bounded mount, commit, layout, removal, hydration, and
-  disposal hooks;
-- required runtime capabilities fail during host preparation;
-- compiler syntax provenance and host-specific runtime capability requirements
-  are tracked separately;
-- mounted directives resolve ordinary reactive component context through their
-  logical owner; and
-- language tools, SSR, hydration, testing, and DevTools consume the same
-  registered namespace and protocol facts.
-
-The framework owns extension transport, deterministic ordering, identity,
-cleanup, and safety boundaries. Each plugin owns the meaning of its namespace.
-
-## Why this belongs in the plugin system
-
-A component or context is sufficient when behavior is established explicitly
-inside an authored component tree. A framework plugin is warranted when one
-feature must participate consistently in:
-
-- TypeScript JSX typing;
-- native compiler analysis and lowering;
-- DOM commit and removal;
-- SSR and hydration;
-- client activation;
-- language tools and DevTools; and
-- deterministic testing.
-
-Motion is the motivating example:
-
-```tsx
-<article motion={cardMotion} motion:layout="position" />
-```
-
-Hardcoding `motion` into the compiler would make animation a core language
-feature. Treating these names as ordinary DOM props would leak them into HTML
-and would not provide safe removal retention. A plugin-owned directive gives
-the syntax one explicit owner without making animation policy part of core.
+- A plugin component is an ordinary eXact component. It can always be exported
+  and used as an ordinary component.
+- An export becomes a plugin-capability export only at an export edge carrying
+  `with { type: 'exact-plugin' }`.
+- A consuming JSX file must use an attributed value import. The local import
+  binding supplies the authored JSX prefix but has no effect on canonical
+  identity.
+- Beginning at the module resolved for the consuming import, canonical identity
+  comes from the first valid attributed export edge on the uniquely resolved
+  ECMAScript export path: resolved public module identity plus export name.
+  There is no authored plugin ID.
+- The compiler emits one grouped enhancement marker per JSX boundary. Its
+  entries and prop values remain reactive through ordinary eXact prop
+  machinery.
+- Only canonical props derived from the plugin component's public prop type are
+  forwarded. `children`, `key`, and `ref` are reserved and never canonical.
+- Markers forward through ordinary components until the renderer resolves an
+  intrinsic enhancement target. Different plugins may select different targets.
+- A plugin component becomes a real, inspectable component instance tied to a
+  resolved enhancement-target identity and generation. No resolved target means
+  no instance.
+- Plugin components may render transparently, wrap the target, or replace it.
+  Structural DOM output is an author capability, not the default recommendation.
+- Component contexts determine enhancement ordering. The compiler projects a
+  minimal generated context contract; authors do not duplicate dependencies in
+  plugin metadata.
+- All enhancements are optional. An inactive plugin never prevents the
+  underlying target from rendering.
+- Existing plugin discovery and trust configuration remains authoritative.
+  An attributed import emits an inert marker; it does not register, authorize,
+  import, or execute a plugin component.
+- Stable generic refs and element-root generation-fenced release primitives
+  belong in the framework and are reused by every plugin package.
+- Existing component placement, task, SSR, hydration, error, Suspense,
+  Activity, microfrontend, and serialization semantics remain authoritative.
+- No enhancement-marker-specific version or negotiation field is introduced.
 
 ## Goals
 
-1. Let trusted plugins add clean, typed JSX attributes without alternate
-   component factories or wrapper ceremony.
-2. Preserve ordinary eXact component, JSX, binding, range, task, SSR, and
-   hydration semantics.
-3. Keep generated output compact and independent from a particular plugin
-   runtime implementation.
-4. Fail before application work when a required host capability is absent
-   or incompatible.
-5. Give compilerless libraries access to the same runtime behavior through
-   shared JavaScript contracts.
-6. Let mounted directives consume the same component contexts as authored
-   components without adding a second configuration system.
-7. Keep plugin execution deterministic, bounded, inspectable, and testable.
-8. Avoid dependency cycles between core, renderers, and optional plugins.
+1. Let packages add type-safe, namespaced JSX capabilities without changing
+   ordinary component prop declarations or emitting plugin attributes into DOM.
+2. Preserve eXact's setup-once component, precise reactivity, context, task,
+   lifecycle, ownership, and inspection behavior inside plugin components.
+3. Allow markers to cross precompiled component libraries and dynamic
+   `Child[]` trees without recompiling those libraries.
+4. Resolve targets deterministically across fragments, component output,
+   Suspense, Activity, portals, keyed collections, and microfrontends.
+5. Reuse existing renderer and compiler behavior instead of creating a parallel
+   component, transport, scheduler, lifecycle, or trust system.
+6. Keep inactive enhancements safe and functionally optional.
 
 ## Non-goals
 
-- A Babel-style arbitrary AST transformation API.
-- Runtime interpretation of arbitrary source strings.
-- Allowing unconfigured packages to claim JSX names opportunistically.
-- Letting plugins alter state authority, placement, serialization, security,
-  or final DOM semantics outside their declared renderer participation.
-- Making every plugin hook asynchronous.
-- Treating directive descriptors as DOM attributes or public serialization.
-- Replacing explicit components when they express a clearer policy boundary.
-- Making compiled plugin-owned JSX portable without its declared plugin
-  dependency.
+- React-style higher-order components, hooks, synthetic provider elements, or
+  repeated component execution.
+- Runtime scanning of arbitrary prop names for plugin prefixes.
+- A second plugin registry, allowlist, bundle loader, or authorization layer.
+- Plugin-specific server/client placement or serialization rules.
+- Making optional enhancements responsible for required application behavior.
+- Hiding active plugin failures or validation errors.
+- Inferring narrow DOM root types that TypeScript already cannot prove.
+- Adding marker schema versioning before independently evolving compiler and
+  renderer contracts require it.
 
-## Architectural boundaries
+## Attributed exports and canonical identity
 
-The dependency direction remains:
+The implementation component is ordinary eXact code:
 
-```text
-@exactjs/plugin-api
-        ^
-        |
-@exactjs/core <--- @exactjs/dom
-        ^              ^
-        |              |
-        +------ optional plugin
+```tsx
+export interface MotionElementProps {
+	preset?: MotionPreset;
+	duration?: number;
+	children?: Child;
+}
+
+export function MotionElement(this: Component<MotionElementState>, props: MotionElementProps) {
+	const root = this.refs.root<HTMLElement>();
+
+	async function applyMotion(
+		element: HTMLElement | undefined,
+		presented: boolean,
+		preset: MotionPreset | undefined,
+		duration: number | undefined,
+		task: TaskContext = TaskContext.client().latest().nonblocking()
+	) {
+		if (!element || !presented || !preset) return;
+		await playMotion(element, preset, duration, task.signal);
+	}
+
+	applyMotion(root.current, root.presented, props.preset, props.duration);
+
+	return () => props.children;
+}
 ```
 
-- `@exactjs/plugin-api` owns browser-safe declaration and projection types.
-- `@exactjs/plugin-host` owns discovery, trust, graph ordering, version
-  selection, and host activation.
-- `@exactjs/compiler` owns parsing, semantic validation, reactive lowering,
-  descriptor emission, and source identity.
-- `@exactjs/core` owns the opaque compiled descriptor ABI, component and task
-  ownership, and renderer-neutral capability declarations.
-- `@exactjs/dom` owns DOM-specific directive lifecycle and removal leases.
-- SSR renderers own equivalent host projections and may implement a semantic
-  no-op where that is the plugin's defined server behavior.
-- optional plugins implement their namespace without being imported by core or
-  a renderer.
+It becomes a plugin capability only at an attributed export:
 
-## Plugin declaration
+```ts
+export { MotionElement as motion } from './MotionElement.js'
+	with { type: 'exact-plugin' };
+```
 
-The existing package declaration already separates compiler, render, client,
-testing, and configuration-type entries. A plugin using JSX directives
-continues to declare those entries:
+The canonical identity is derived from the resolved public module and export.
+For example, the export above from `@exactjs/motion` is
+`@exactjs/motion#motion`. A default export is `@exactjs/motion#default`.
+Subpath exports retain their resolved public subpath.
 
-```json
+Starting with the module resolved for the consuming import, the compiler follows
+the uniquely resolved ECMAScript export path. The first valid edge carrying
+`type: 'exact-plugin'` establishes canonical identity; ordinary re-exports are
+transparent and continue along that path. Standard resolution ambiguity or
+failure is a compiler diagnostic.
+
+Canonical identity does not come from:
+
+- the consuming file's import spelling or path alias;
+- the local import binding;
+- the component function's source module;
+- a component property or explicit ID; or
+- the package-level plugin-host `configKey`.
+
+This permits organization-owned wrappers:
+
+```ts
+export { MotionElement as motion } from '@exactjs/motion/internal'
+	with { type: 'exact-plugin' };
+```
+
+Consumers resolve the wrapper's public identity. The organization may later
+replace the underlying compatible component without changing authored JSX.
+
+### Re-exports and barrels
+
+An ordinary named or star re-export is transparent and preserves a downstream
+plugin-capability identity:
+
+```ts
+export * from './enhancements.js';
+```
+
+An attributed named re-export establishes a new capability identity. An
+attributed star re-export establishes wrapper identities for each forwarded
+native eXact component under its forwarded export name:
+
+```ts
+export * from './enhancements.js' with { type: 'exact-plugin' };
+```
+
+Non-component values continue to be ordinary exports. Attempting to consume
+one as an exact plugin is a compiler diagnostic. Normal ECMAScript shadowing,
+ambiguity, default-export, and named-export rules continue to apply.
+
+Only default and named value imports may establish JSX prefixes. Namespace,
+type-only, and dynamic imports cannot do so. An attributed import may not mix
+plugin-capability values with ordinary values.
+
+## Authored JSX and canonical props
+
+The local attributed-import binding exclusively defines the lexical prefix:
+
+```tsx
+import motion from '@exactjs/motion'
+	with { type: 'exact-plugin' };
+import { gestures as input } from '@exactjs/gestures'
+	with { type: 'exact-plugin' };
+
+function SaveCard() {
+	return () => (
+		<Card
+			motion:preset="fade"
+			motion:duration={180}
+			input:draggable
+		/>
+	);
+}
+```
+
+Renaming `input` changes only this file's JSX spelling. The canonical identity
+still comes from the attributed export.
+
+The compiler derives canonical props from the plugin component's public prop
+type. Camel-case component props use kebab-case JSX names when TypeScript and
+the language server can normalize them without weakening type checking:
+
+```ts
+interface MotionElementProps {
+	layoutId?: string;
+	initialVelocity?: number;
+}
+```
+
+```tsx
+<Card motion:layout-id={id} motion:initial-velocity={velocity} />
+```
+
+The accepted prop type must resolve to a finite, semantically unambiguous set of
+string keys. Interfaces, `Pick`, intersections, finite mapped types, and finite
+unions are valid. Open index signatures and unresolved generic key spaces are
+diagnostics. Finite unions preserve their cross-property constraints in JSX.
+
+`children`, `key`, and `ref` are never canonical. Prefixed forms such as
+`motion:key` and `motion:ref` are invalid. `key` retains its ordinary authored
+structural meaning at the outer JSX boundary.
+
+### Statically finite spreads
+
+Spreads may contribute enhancement attributes only when semantic analysis can
+enumerate their locally namespaced keys:
+
+```tsx
+const effects = {
+	'motion:preset': this.state.preset,
+	'motion:duration': this.state.duration
+};
+
+return () => <Card {...effects} />;
+```
+
+`effects` follows ordinary eXact setup-derived semantics. Its identity-bearing
+object value is a derived reactive value whose state reads remain dependencies;
+the spread consumes its current value. Enhancement spreads do not introduce a
+plugin-specific snapshot or reactivity rule.
+
+Open dictionaries and runtime-computed property names cannot create
+enhancement entries. The runtime never scans strings for prefixes. Normal JSX
+left-to-right precedence applies among spreads and direct attributes; repeated
+direct attributes retain the ordinary duplicate-attribute diagnostic.
+
+## Grouped reactive marker
+
+Each JSX boundary carries at most one opaque framework marker. Conceptually:
+
+```ts
 {
-	"exact": {
-		"plugin": {
-			"schemaVersion": 1,
-			"protocolVersion": "1.0.0",
-			"configKey": "motion",
-			"entries": {
-				"config": "./dist/plugin/config.js",
-				"configTypes": "./dist/plugin/config-types.js",
-				"compiler": "./dist/plugin/compiler.js",
-				"render": "./dist/plugin/render.js",
-				"client": "./dist/plugin/client.js",
-				"testing": "./dist/plugin/testing.js"
-			}
+	enhancements: {
+		'@exactjs/motion#motion': {
+			preset: reactivePresetSlot,
+			duration: reactiveDurationSlot
+		},
+		'@exactjs/gestures#gestures': {
+			draggable: reactiveDraggableSlot
 		}
 	}
 }
 ```
 
-The compiler entry contributes a declarative namespace schema. The render and
-client entries claim compatible runtime capability identifiers. Discovery and
-trust rules remain unchanged: plugin code executes in process and must be
-trusted like build or server code.
+This is an internal representation, not an authored object or DOM attribute.
+The envelope groups routing information; each value uses existing reactive prop
+bindings. Updating one expression updates ordinary consumers in the active
+plugin component without recreating the marker, target, or component instance.
 
-A component package that authors plugin-owned JSX declares the plugin as a
-dependency and forwards it with `required: true`. This makes the language
-feature part of that package's honest runtime contract. A package that wants a
-plugin-free base exposes the enhanced components from a separate entry rather
-than asking one compiled artifact to tolerate missing infrastructure.
+Structural entry presence controls lifecycle independently of values. An entry
+whose values are all `undefined` still exists, just as an ordinary component
+with undefined props still exists. Removing the entry structurally removes its
+enhancement instance.
 
-## JSX namespace contract
+The marker uses existing component-prop transport. It does not define a second
+serialized prop payload. Existing placement and serialization checks determine
+whether a value may cross a server/client boundary.
 
-### Schema
+## Forwarding and prop merging
 
-`@exactjs/plugin-api` gains a structured JSX contribution:
+Only canonical enhancement entries forward through ordinary components.
+Arbitrary undeclared attributes do not forward. At each component boundary,
+the conceptual merge is:
 
 ```ts
-export interface ExactCompilerPluginExtension {
-	readonly namespace: string;
-	readonly directives?: readonly string[];
-	readonly jsx?: ExactCompilerJsxExtension;
-	readonly include?: RegExp;
-	analyzeModule?(view: ExactCompilerModuleView): ExactCompilerModuleContribution | undefined;
-	validateAnalysisData?(value: ExactJsonValue): undefined;
-}
-
-export interface ExactCompilerJsxExtension {
-	readonly attribute: string;
-	readonly targets: readonly ('html' | 'svg' | 'mathml' | 'component')[];
-	readonly members: Readonly<Record<string, ExactJsxDirectiveMember>>;
-	readonly protocolVersion: string;
-	readonly capability: string;
-}
-
-export interface ExactJsxDirectiveMember {
-	readonly sourceName: string;
-	readonly value:
-		| 'boolean'
-		| 'expression'
-		| Readonly<{ literals: readonly (string | number | boolean)[] }>;
-	readonly evaluation: 'stable' | 'reactive-value' | 'callback';
-	readonly clientParticipation: 'none' | 'activate';
-	readonly lifecycle?: readonly ('mount' | 'commit' | 'layout' | 'remove')[];
-}
+pluginProps = {
+	...inheritedPluginProps,
+	...actualPropsExceptDeclaredComponentProps
+};
 ```
 
-The exact final TypeScript shape may change, but the contract must remain
-declarative and bounded. Evaluation and lifecycle declarations tell the
-compiler when an authored value participates in existing reactive and client
-activation planning; they do not give the plugin a second reactive model. The
-plugin cannot replace nodes, manufacture imports, or execute a callback over
-the compiler AST.
+The real implementation partitions values by canonical identity and prop.
+Nearest values win. Explicit `undefined` is still a value and overwrites a more
+distant value. When paths carrying the same canonical identity converge on the
+same enhancement target, they create one instance with the merged props.
 
-For motion, `attribute: "motion"` owns both:
+Forwarding is renderer metadata, not an addition to the component's authored
+`children` value. Precompiled components that project `{props.children}` need
+no recompilation; dynamic resolution occurs during the normal render traversal.
+
+## Enhancement-target selection
+
+Different plugins may select different enhancement targets. The reserved
+lexical attribute `namespace:root` selects a target only for that canonical
+plugin identity:
 
 ```tsx
-<div motion={definition} motion:layout="position" />
+function Card() {
+	return () => (
+		<section motion:root>
+			<div input:root>{props.children}</div>
+		</section>
+	);
+}
 ```
 
-The bare attribute maps to a reserved member such as `default`; namespaced
-attributes map to declared members such as `layout`. Namespace ownership is
-unique across the prepared registry. A collision fails before compilation.
+`namespace:root` is not a plugin prop and never reaches DOM. It is a reactive
+boolean selector: bare syntax means `true`; `false`, `null`, and `undefined` do
+not select. A changed selection participates in normal reconciliation.
 
-### Target restrictions
+For each canonical identity, enhancement-target resolution performs one
+depth-first search through the current logical tree:
 
-Each extension declares where its attributes are meaningful. The initial
-protocol supports intrinsic HTML, SVG, and MathML elements. Component targets
-remain disabled until the framework defines whether a directive attaches to:
+1. Remember the first intrinsic element encountered.
+2. Continue until the first active matching explicit target is found.
+3. Return that explicit target immediately.
+4. If none is found, return the remembered first intrinsic element.
 
-- the component's whole mounted range;
-- one explicitly exported element capability; or
-- a component-owned forwarding point.
+The traversal follows fragments, native eXact components, selected Suspense and
+Activity branches, retained ranges, keyed collections, and portals according to
+logical ownership. It stops at opaque foreign-runtime boundaries unless their
+adapter exposes an explicit traversal contract.
 
-The compiler must not guess a component's root element.
+The compiler may lower a statically direct route. Dynamic and precompiled
+`Child[]` paths integrate discovery into the renderer's normal traversal rather
+than performing a second tree walk. The compiler emits no public stable versus
+replaceable classification and no redundant finite root-tag inventory.
 
-### TypeScript typing
+## Plugin component instances and output
 
-The plugin's `configTypes` entry augments a framework-owned extension
-interface used by intrinsic JSX attributes:
+An active enhancement is a real component instance. It receives ordinary
+reactive props plus exactly one logical child representing the next inner
+enhancement or resolved target. It may project that child no more than once.
+
+The component may:
+
+- return the child unchanged;
+- wrap it in structural DOM;
+- select a different intrinsic root with an ordinary element ref; or
+- omit or replace it when that is the package's documented behavior.
+
+Structural output can affect selectors, layout, accessibility, hydration, and
+CSS. The framework permits it because ordinary components already can do so,
+but transparent output should remain the default for optional visual or input
+enhancements.
+
+The enhancement target is resolved before the ordered plugin component chain is
+constructed. Each plugin component then has its own ordinary component root:
+
+1. an explicit binding passed to `this.refs.root(binding)` wins;
+2. otherwise the first intrinsic in its output is its root;
+3. a transparent component naturally resolves through its sole child; and
+4. a structural wrapper naturally becomes the root.
+
+The enhancement target and a plugin component's root are deliberately separate.
+Wrapping the child can change that component's root without changing the target
+to which the enhancement declaration is attached.
+
+### Enhancement-target-bound identity
+
+The marker declaration remains attached to its authored boundary, but an
+enhancement instance is keyed by canonical identity and resolved enhancement-
+target identity and generation. This keeps target-specific state with its target.
+
+- Reactive prop changes on the same target preserve the instance.
+- Keyed reordering preserves it when the renderer preserves target identity.
+- Activity parking and portal movement preserve it when logical identity remains.
+- Replacing the enhancement target disposes the old instance and creates a new
+  instance.
+- Replacing only a plugin component's rendered root preserves its ordinary
+  component instance while advancing that root's lifecycle generation.
+- With no resolved intrinsic target, the declaration remains dormant and no
+  instance exists.
+- A later target creates a new instance using the latest reactive prop values.
+- A reversed removal may restore the old instance only while the exact retained
+  enhancement-target generation remains under its pre-unmount lease.
+
+## Context-derived ordering
+
+There are no plugin-specific `requires`, `inside`, or `outside` declarations.
+Ordinary component context behavior supplies ordering:
+
+- `setContext(Token, value)` produces `Token` for descendants.
+- Unconditional `getContext(Token)` consumes it as required.
+- `hasContext(Token)` records optional consumption.
+- If a co-targeted plugin component produces an optionally consumed token, it
+  is placed outside the consumer; absence remains ordinary optional behavior.
+- An ordinary ancestor may already satisfy either consumption.
+- Unrelated enhancement components use canonical identity as a deterministic
+  tie-break.
+
+The compiler follows statically resolvable local helpers and imported callable-
+effect summaries using its existing transitive context analysis. A context read
+reached unconditionally is required; `hasContext()` and conditionally reached
+reads are optional. Opaque or dynamically dispatched reads are reported as
+unknown by language tools and do not invent an ordering edge. Existing compiler
+annotations may resolve an otherwise opaque boundary.
+
+The compiler reuses its existing context-read and context-write analysis to
+emit the minimal semantic component contract required before instantiation:
 
 ```ts
-declare module '@exactjs/jsx' {
-	interface ExactIntrinsicExtensionAttributes {
-		motion?: MotionDefinition;
-		'motion:enter'?: MotionPhase;
-		'motion:change'?: MotionPhase;
-		'motion:leave'?: MotionPhase;
-		'motion:appear'?: boolean;
-		'motion:layout'?: boolean | 'position' | 'size';
-		'motion:layout-id'?: string;
-	}
+{
+	provides: [PhysicsContext],
+	requires: [WorldContext],
+	optionallyConsumes: [ReducedMotionContext]
 }
 ```
 
-Configured plugin types are loaded by the generated application type
-environment and by the language server. Merely installing a package does not
-claim its namespace. With no configured owner, TypeScript and the eXact
-compiler both reject the attributes.
+This metadata contains token references, not values. It is runtime semantic
+data rather than optional inspection data. Statically known cycles are build
+diagnostics; dynamically assembled cycles fail deterministically before any
+component in the cycle is instantiated. Existing global/shared context rules
+remain responsible for cross-bundle and microfrontend token identity.
 
-The plugin host validates that the type contribution, compiler schema, and
-runtime capability use the same package and protocol identity.
+## Generic refs and element-root lifecycle
 
-## Compiler lowering
-
-### Structured input
-
-The native compiler already records structured JSX elements and attributes.
-The prepared registry projection should pass declarative JSX schemas into the
-native process beside the existing namespaced `@exact` directive registry.
-Validation operates on parsed JSX nodes, not regular expressions over source.
-
-For each owned attribute the compiler:
-
-1. verifies the target kind;
-2. verifies the member name and value form;
-3. type-checks the expression normally;
-4. preserves reactive dependencies with the same rules as ordinary props;
-5. allocates a stable opaque source-site identity;
-6. removes the directive from emitted DOM props;
-7. attaches one compact descriptor to the existing compiled vnode; and
-8. records syntax provenance, client activation, renderer lifecycle, and
-   host-specific runtime requirements.
-
-Unknown members, duplicate incompatible members, conflicting plugin ownership,
-unsupported targets, and invalid literal forms are diagnostics.
-
-### Emitted descriptor
-
-The renderer-neutral ABI is conceptually:
+Plugin packages require target acquisition and release, but those capabilities
+are general framework behavior. `RefBinding<T>` remains generic: a ref may hold
+an element, component instance, controller, resource, or other imperative value.
 
 ```ts
-export interface ExactCompiledDirective {
-	readonly namespace: string;
-	readonly protocolVersion: string;
-	readonly capability: string;
-	readonly site: string;
-	readonly values: Readonly<Record<string, unknown>>;
+interface RefValue<T> {
+	readonly current: T | undefined;
 }
 
-export function exactDirective(
-	namespace: string,
-	descriptor: Omit<ExactCompiledDirective, 'namespace'>
-): ExactCompiledDirective;
+interface RefBinding<T> extends RefValue<T> {
+	readonly key: RefKey<T>;
+	readonly owner: ComponentInstance<any>;
+	fulfill(value: T | undefined): void;
+}
+
+interface RootLifecycle<T extends Element> extends RefValue<T> {
+	readonly generation: number;
+	readonly presented: boolean;
+	readonly release: RootRelease<T> | undefined;
+}
+
+interface RootRelease<T extends Element> {
+	readonly target: T;
+	readonly generation: number;
+	readonly reason: StructuralReleaseReason;
+	readonly presented: boolean;
+}
+
+interface RootBinding<T extends Element> extends RefBinding<T>, RootLifecycle<T> {}
+
+interface RefRegistry {
+	get<T>(key: RefKey<T>): T | undefined;
+	root<T extends Element = Element>(): RootLifecycle<T>;
+	root<T extends Element>(binding: RefBinding<T>): RootBinding<T>;
+}
 ```
 
-Generated code imports this generic helper from `@exactjs/core`. It does not
-import a plugin runtime. Descriptor values may include stable authored values
-and compiler-owned reactive cells according to the member schema; they are not
-required to be JSON and are never copied into persisted compiler data or hydration
-payloads without an explicit serialization contract.
+`this.ref(key)` returns one stable reactive binding per component and key.
+`binding.current` and `this.refs.get(key)` read the same key-scoped reactive
+slot. DOM elements are never proxied. Arbitrary ref values have no structural
+generation, presentation, or release contract. The generic no-argument root
+type is an authored expectation; the compiler or language server reports a
+mismatch when it can prove one. Passing an element-valued binding to
+`root(binding)` returns that same stable binding augmented with intrinsic-root
+lifecycle.
 
-The descriptor attaches to existing vnode identity. It does not wrap the
-element in another component, alter its key, or create a second reconciliation
-tree.
+`presented` means that the value belongs to the renderer's currently presented
+logical range, not CSS visibility. Suspense candidates and precommit hydration
+may be fulfilled but unpresented. Activity parking changes presentation without
+clearing or releasing the ref.
 
-### No duplicated plumbing
+### Release and reasons
 
-Each compiled use contains only:
+`release` represents structural loss of one intrinsic component root generation.
+Public `fulfill()` remains ordinary ref assignment and never creates structural
+release or DOM retention. Renderer-owned root replacement or removal publishes
+the release and retains the old root until joined task descendants settle or
+are cancelled.
 
-- namespace and protocol identity;
-- a compact source-site identifier;
-- authored or lowered values.
+The framework uses one namespaced reason vocabulary across root release,
+component deactivation/unmount, and task cancellation, including:
 
-Animation drivers, observers, registries, lifecycle algorithms, and task
-coordination remain in the one active runtime plugin instance.
+- `reconcile-removed`, `reconcile-replaced`;
+- `suspense-content-replaced`, `suspense-candidate-discarded`;
+- `enhancement-target-rerouted`, `root-unmounted`, `owner-disposed`;
+- `activity-parked`, `activity-background`; and
+- `release-reversed`.
 
-## Compile-time and runtime requirements
-
-The current plugin registry fingerprint describes the active compiler registry
-as one unit. JSX extensions require more precise artifact facts:
+The release frame reuses existing task-child capture and `afterChildren`
+settlement. Plugin tasks receive the release and current prop values as explicit
+invocation arguments rather than reading reactive values through default
+parameters:
 
 ```ts
-export type ExactPluginArtifactRequirement =
-	| Readonly<{
-			packageName: string;
-			capability: string;
-			protocolVersion: string;
-			phase: 'source-transform';
-			requirement: 'provenance';
-	  }>
-	| Readonly<{
-			packageName: string;
-			capability: string;
-			protocolVersion: string;
-			phase: 'runtime';
-			requirement: 'required';
-			hosts: readonly ExactPluginHostMode[];
-	  }>;
+async function leave(
+	release: RootRelease<Element> | undefined,
+	definition: MotionDefinition | undefined,
+	task: TaskContext = TaskContext.client().latest().immediate().nonblocking()
+) {
+	if (!release || !release.presented || !definition) return;
+	await playMotion(release.target, definition, task.signal);
+}
+
+leave(root.release, props.leave);
+
+return () => props.children;
 ```
 
-- `source-transform/provenance` records which trusted schema validated and
-  lowered source. It participates in compiler cache invalidation.
-- `runtime/required` says host preparation must find a compatible
-  implementation in every listed host.
-
-Consuming already-lowered JavaScript does not require the source-transform
-plugin merely because that plugin authored the descriptor. Recompiling source,
-performing source-level whole-program analysis, or accepting an unlowered
-package does require it.
-
-Imported-artifact validation should compare individual requirements instead of
-rejecting every registry fingerprint difference. The full fingerprint remains
-useful as a cache key, not as proof that every plugin must be active at runtime.
-
-## Runtime directive registry
-
-Each renderer creates a directive registry while preparing the application.
-The plugin host contributes implementations in deterministic dependency-graph
-order. One namespace and capability pair has one active owner.
-
-The registry creates one durable mounted directive instance for each mounted
-element or range identity. Conceptually:
-
-```ts
-export interface ExactRendererDirectiveDefinition<ElementHandle, RangeHandle> {
-	readonly namespace: string;
-	readonly protocolVersion: string;
-	create(context: ExactDirectiveCreateContext): ExactMountedDirective<ElementHandle, RangeHandle>;
-}
-
-export interface ExactDirectiveCreateContext {
-	getContext<T>(token: ContextToken<T>): Reactive<T>;
-}
-
-export interface ExactMountedDirective<ElementHandle, RangeHandle> extends Disposable {
-	mount?(context: ExactDirectiveMountContext<ElementHandle>): void;
-	measureBeforeCommit?(context: ExactDirectiveCommitContext<ElementHandle>): void;
-	measureAfterCommit?(context: ExactDirectiveCommitContext<ElementHandle>): void;
-	applyAfterCommit?(context: ExactDirectiveCommitContext<ElementHandle>): void;
-	beforeRemove?(context: ExactDirectiveRemovalContext<RangeHandle>): void;
-}
-```
-
-These hooks are renderer operations, not application lifecycle callbacks. They
-run only at renderer-owned transition points and receive opaque handles where
-the plugin does not need platform-specific objects.
-
-`getContext()` resolves ordinary reactive eXact context through the mounted
-element's logical component ancestry. A directive uses the same context token,
-inheritance, reactivity, and portal semantics as an authored component; the
-plugin system does not introduce a separate configuration facility. The
-mounted instance and every subscription or resource it owns are disposed with
-that identity.
-
-DOM plugins may receive `Element` through an explicitly DOM-specific contract.
-Server and non-DOM renderers may provide semantic no-op implementations.
-
-### Commit and layout phases
-
-Layout-sensitive plugins need deterministic transaction phases:
-
-1. renderer plans the ordinary commit;
-2. all `measureBeforeCommit` hooks read old layout;
-3. renderer applies ordinary mutations;
-4. all `measureAfterCommit` hooks read new layout;
-5. all `applyAfterCommit` hooks schedule visual work and perform writes;
-6. renderer publishes completion;
-7. directive child tasks settle independently according to readiness.
-
-Hooks must not replace the renderer's mutation plan. Reads and writes are
-structurally separated across the entire renderer transaction to avoid
-plugin-specific layout thrashing. Hook ordering is stable, and a plugin may
-declare ordering constraints through the existing plugin graph.
-
-### Removal leases
-
-A directive may delay physical removal only through a renderer-owned lease:
-
-```ts
-export interface ExactDirectiveRemovalContext<RangeHandle> {
-	readonly range: RangeHandle;
-	readonly reason: 'conditional' | 'keyed-removal' | 'replacement';
-	readonly signal: AbortSignal;
-	retain(options: ExactRemovalLeaseOptions): ExactRemovalLease;
-}
-
-export interface ExactRemovalLease extends Disposable {
-	readonly signal: AbortSignal;
-}
-```
-
-Acquiring a lease:
-
-- leaves logical application state unchanged;
-- marks retained content semantically absent;
-- attaches finite work to the ambient task frame;
-- keeps renderer and component ownership intact;
-- prevents direct plugin DOM removal; and
-- releases automatically on cancellation, failure, owner disposal, or explicit
-  disposal.
-
-The renderer removes the range only after every current lease is released.
-Reinsertion or replacement cancels stale lease generations before reusing
-identity. Plugins never receive a public `Promise.all()`-style presence
-primitive.
-
-The renderer restores the task frame captured from the update that caused the
-removal before invoking `beforeRemove`, so work opened by the directive joins
-the correct causal tree. Owner or root disposal does not offer a retainable
-removal context: it cancels directive work, disposes the mounted instance, and
-removes the range immediately.
-
-The host enforces a bounded retention policy in development and testing so a
-faulty plugin cannot retain inaccessible DOM indefinitely.
-
-### Error and cancellation behavior
-
-- Hook errors report through the owning component or renderer error boundary.
-- A failed hook releases its leases before reporting.
-- Component disposal cancels directive work before destroying its range.
-- Superseded generations cannot mutate, release, or remove current ranges.
-- Plugins own resources with framework task or component ownership; live
-  elements and callbacks never enter inspection snapshots.
-
-## Required capability
-
-Source and component packages that use plugin-owned JSX depend on and forward
-the owning plugin. Before application work begins, each host validates the
-capabilities required by the compiled artifacts it will execute. A missing or
-incompatible implementation fails with package, capability, expected protocol,
-host, and provenance information.
-
-Optionality remains at the package and entry-point boundary: an application
-that does not use the syntax does not depend on the plugin. Disabling a feature
-whose plugin is installed is plugin policy, usually expressed through ordinary
-component context, not simulated by removing required infrastructure.
-
-## SSR and hydration
-
-SSR strips directive syntax from HTML. Descriptors do not become public
-attributes and their runtime values are not serialized.
-
-Stable compiled element and range identity remains sufficient for hydration:
-
-- the server render projection may intentionally implement a semantic no-op
-  while still satisfying the declared server capability;
-- the client projection activates directives only in compiler-planned client
-  regions;
-- both projections validate compatible protocol identity;
-- hydration adopts existing element and range identity before mount behavior;
-  and
-- a missing capability in any required host fails during preparation.
-
-Client-island and distributed-component artifacts carry capability identity
-and requirement, not callbacks, definitions, live resources, or source text.
-Placement analysis rejects directive values that would improperly move
-server-only data or browser-only callbacks across a boundary.
-
-## Compilerless and adapter use
-
-The renderer directive registry and removal lease are shared JavaScript
-contracts. A library that cannot use the eXact compiler may:
-
-- render an explicit component that owns a directive descriptor;
-- attach a descriptor through a public adapter helper;
-- use the same task-aware runtime implementation; or
-- expose an imperative API with an ordinary package dependency.
-
-Such code does not get namespaced JSX validation or automatic source identity,
-but it must be able to produce the same renderer behavior without imitating
-private generated output.
-
-The public adapter creates validated descriptors; callers do not construct
-protocol records or renderer leases manually.
-
-## Language tools
-
-The language server uses the same prepared plugin registry and schema as the
-build:
-
-- completion lists owned namespace members and literal values;
-- hover explains the member, evaluation, lifecycle, and host requirement;
-- diagnostics match native compiler validation;
-- source inspection associates the descriptor with its decorated element or
-  range;
-- rename does not treat namespace members as user identifiers; and
-- code actions may add plugin configuration but never silently activate a
-  trusted package.
-
-Plugin explanations supplement TypeScript hover rather than replacing it.
-Decorating an element must not decorate every expression or descendant in its
-containing function.
-
-## DevTools
-
-Runtime plugins may contribute a bounded presentation adapter:
-
-```ts
-export interface ExactDirectiveInspectionPresenter {
-	readonly capability: string;
-	summarize(snapshot: ExactDirectiveSnapshot): ExactJsonValue;
-}
-```
-
-The framework snapshot contains identifiers, lifecycle phase, ownership,
-generation, capability, host status, and sanitized plugin state. It excludes
-elements, callbacks, raw authored values, animation objects, task tokens, and
-secrets.
-
-## Configuration and activation
-
-Activation remains explicit through `exact.config.ts`, a root declaration, or
-a required plugin-forwarding declaration from a package that authors the
-syntax. Merely installing an unrelated package does not claim a namespace.
-
-The prepared registry must project compatible facts to:
-
-- compiler workers and caches;
-- TypeScript and language-tool sessions;
-- SSR/render hosts;
-- client bundle planning;
-- browser bootstrap;
-- testing hosts; and
-- DevTools metadata.
-
-Server and client projections contain only the configuration required by that
-host. Browser projections must not receive server-only plugin configuration.
-
-## Security and resource limits
-
-The existing trust model remains: plugin code is trusted in-process code, not
-sandboxed content. The new protocol nevertheless narrows accidental and
-cross-boundary risk:
-
-- namespace schemas are deterministic and serializable;
-- member counts, descriptor sizes, nesting, and manifest data are bounded;
-- compiler callbacks cannot rewrite arbitrary AST;
-- directive values follow ordinary placement and secret-flow analysis;
-- output escaping and URL policy run after directive processing;
-- host capability and protocol requirements are compiler-validated;
-- directive context reads use logical component ancestry and ordinary context
-  residency rules;
-- removal leases are owner-bound, cancellable, and observable; and
-- inspection projections are bounded and redacted.
-
-## Testing strategy
-
-Protection should focus on the extension boundary rather than exhaustively
-testing trivial schema forwarding.
-
-### Plugin API and host
-
-- namespace collision and protocol mismatch;
-- deterministic projection and cache-key changes;
-- malformed or oversized schemas;
-- host-specific required capability preparation;
-- reverse-order resource disposal; and
-- server/client configuration isolation.
-
-### Compiler
-
-- bare and namespaced attribute parsing;
-- target, member, literal, duplicate, and spread diagnostics;
-- reactive value lowering without dependency loss;
-- directive-driven client activation without broadening unrelated islands;
-- no directive leakage into DOM props;
-- stable site identity and source maps;
-- imported artifact provenance versus runtime requirements;
-- no duplicated plugin-runtime implementation in generated output; and
-- server/client placement and secret-flow diagnostics.
-
-### Renderer
-
-- mount, commit, layout, removal, cancellation, and disposal ordering;
-- durable mounted identity and logical component-context inheritance;
-- several directives on one element;
-- deterministic cross-plugin ordering;
-- required missing failure before render;
-- lease release on success, failure, cancellation, and owner disposal;
-- stale-generation fencing; and
-- keyed reinsertion and conditional reversal.
-
-### SSR and hydration
-
-Test compatible server semantic projections, client activation, hydration
-adoption, and required capability failure in each host. Verify semantic HTML
-and identity-preserving adoption rather than exact private descriptor
-representation.
-
-### Language tools and DevTools
-
-Test completion, hover composition, diagnostics, source range stability,
-context ownership, redaction, and bounded snapshots.
-
-### Reference plugin
-
-Motion is the first high-risk consumer, but a minimal test plugin should
-exercise the protocol without animation complexity. This separates framework
-contract regressions from Web Animations behavior.
+Release is generation fenced. Reversal cancels old work with
+`release-reversed`. Failures follow ordinary error handling, but structural
+removal always completes. There is no universal timeout; root shutdown cancels
+immediately and DevTools reports long-running release frames.
+
+There is at most one active release for one root lifecycle. A newer structural
+release cancels and finalizes the previous one. When one structural range change
+releases several intrinsic roots, the renderer groups those releases under its
+existing consequence frame and waits for their attached tasks; it does not
+expose a public release array or retention token. Explicit presence components
+coordinate policy and sequencing through the same task tree while the renderer
+continues to own and retain the affected ranges.
+
+The implementation must update every framework path that directly fulfills or
+clears refs so generic slots stay synchronized and renderer-owned element roots
+publish the appropriate lifecycle. The audit includes DOM mount, hydration,
+keyed reconciliation, registries, Suspense, Activity, retained ranges, portals,
+ErrorBoundary fallback, server patches, root teardown, compatibility adapters,
+testing, and inspection. This is framework cleanup, not plugin-specific
+duplication.
+
+## Runtime activation, trust, and warnings
+
+The existing plugin host and build pipeline own registration and trust. Marker
+emission is safe and inert. Runtime activation requires a trusted component
+mapped to the exact canonical plugin identity in the current renderer root.
+
+The mapping is a generated build product, not an authored second registry.
+During the existing server/client bundle preparation, the compiler catalogs
+valid attributed capability exports reachable through the application and its
+trusted plugin packages. Wrapper exports contribute their resolved wrapper
+identity while referencing the normally compiled component output. The
+prepared plugin registry carries that catalog to the renderer mode it already
+owns. A JSX use site contributes only its marker entry and never imports or
+registers the component implementation.
+
+The outcomes are:
+
+| Resolution                                                    | Behavior                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Active trusted component                                      | Instantiate the ordinary plugin component.                                |
+| Package matched by `pluginDiscovery.ignore` on the server     | Render unchanged and remain silent.                                       |
+| Absent, untrusted, or missing capability export on the server | Render unchanged and warn once per canonical identity and server host.    |
+| Inactive or absent on the client                              | Render unchanged and warn once per canonical identity and client runtime. |
+
+Server warnings use the existing logger and never include prop values. The
+client receives neither the server trust list nor the ignored-package policy.
+No enhancement-specific production mode or warning-suppression configuration is
+added.
+
+All enhancements remain optional. Packages that provide required application
+behavior must expose and document an explicit ordinary component instead.
+Active plugin prop and composition validation belongs to ordinary plugin
+component code, especially for complicated runtime unions. Inactive entries are
+not validated. When an active enhancement can safely decline invalid input, it
+reports a structured component error through `this.log.error()` and returns its
+child unchanged; the framework adds no error deduplication or throttling.
+Operational failures that are thrown still use ordinary ErrorBoundary behavior.
+Neither form is silenced or reclassified as an unavailable-plugin warning.
+
+## Placement, SSR, hydration, and microfrontends
+
+Plugin components use only ordinary compiler-derived placement:
+
+- universal components participate in SSR and hydration normally;
+- client components activate through existing client-component behavior;
+- server components contribute ordinary server output and protocol state; and
+- tasks retain their inferred or explicit placement.
+
+Enhancement props use ordinary VNode and component-prop transport. Only
+canonical marker identity and root-routing information are new renderer data.
+There is no plugin-specific serialization payload, hydration algorithm, or
+server/client placement policy.
+
+Microfrontends carry grouped markers through the existing eXact protocol and
+resolve them against the plugin registry of the renderer root that owns the
+logical target. Portals retain logical source ownership. Remote roots cannot
+activate components in another root or disclose another server's allowlist.
+
+The first implementation adds no enhancement marker schema version. Existing
+coordinated compiler/runtime builds, build fingerprints, and generic hydration
+compatibility remain authoritative. Marker versioning may be introduced later
+only if this contract needs to evolve independently.
+
+## Compiler and language-tool changes
+
+The compiler must:
+
+1. resolve attributed import and export edges through real module resolution;
+2. derive canonical identities from the first valid attributed export edge on
+   the uniquely resolved ECMAScript export path;
+3. support attributed named, default, and star re-exports under the rules above;
+4. derive finite canonical prop schemas and preserve TypeScript unions;
+5. augment JSX checking for local namespaced attributes and `namespace:root`;
+6. accept only statically finite enhancement keys from spreads;
+7. emit one grouped reactive marker per boundary;
+8. forward only canonical props through native eXact component output;
+9. reuse context analysis to emit minimal ordering contracts;
+10. lower direct target routes where proven without exposing stability metadata;
+11. include canonical source provenance in optional inspection catalogs; and
+12. diagnose reserved props, ambiguous exports, unresolved schemas, invalid
+    roots, unsupported imports, and statically known ordering cycles.
+
+The language server should present the same inferred canonical identity, prop
+mapping, target route, context ordering, and reactive dependency information. No
+compiler-emitted inspection catalog is required for runtime correctness beyond
+the narrow semantic contracts named above.
 
 ## Delivery plan
 
-### Phase 1: declaration and registry model
+### Phase 1: general lifecycle foundation
 
-- Add JSX schema, evaluation, lifecycle, capability, and artifact-requirement
-  contracts to
-  `@exactjs/plugin-api`.
-- Validate namespace uniqueness, protocol compatibility, resource limits, and
-  deterministic fingerprints in `@exactjs/plugin-host`.
-- Separate source-transform provenance from host-specific runtime
-  requirements.
-- Update package README and AGENTS guidance for both affected packages.
+- Make `this.ref(key)` stable and reactive.
+- Add stable generic ref bindings plus element-root discovery, presentation,
+  releases, and shared reasons.
+- Replace every framework path that directly fulfills or clears refs.
+- Add generation-fenced pre-unmount task frames and reversal.
 
-### Phase 2: native compiler transport and lowering
+### Phase 2: compiler surface
 
-- Project declarative schemas into the native compiler process.
-- Validate structured JSX attributes and targets.
-- Add the compact core directive descriptor ABI.
-- Preserve reactive values and existing element/range identity.
-- Feed declared client participation into existing island planning.
-- Emit per-capability artifact requirements and cache facts.
-- Add native/compiler contract and integration tests.
+- Add attributed export/import resolution and canonical identity.
+- Add TypeScript JSX augmentation, canonical props, finite spreads, root syntax,
+  and grouped reactive marker emission.
+- Emit the minimal context-ordering contract.
 
-### Phase 3: renderer lifecycle
+### Phase 3: renderer activation
 
-- Add renderer directive registries, durable mounted instances, ordinary
-  context resolution, and deterministic activation.
-- Add commit/layout phases and owner-bound removal leases to `@exactjs/dom`.
-- Add SSR semantic projections and generic hydration adoption.
-- Integrate task ownership, cancellation, errors, and disposal.
-- Add fake-renderer, DOM, SSR, and hydration tests.
+- Integrate forwarding and single-pass target discovery into normal traversal.
+- Merge converging entries and construct context-ordered component chains.
+- Implement enhancement-target-bound identity, dormant declarations,
+  component-root release, and structural output.
 
-### Phase 4: tooling and testing hosts
+### Phase 4: coordinated renderers and tooling
 
-- Load plugin JSX schemas in language-server sessions.
-- Add completion, hover, diagnostics, and semantic source entities.
-- Add bounded directive inspection and DevTools presentation.
-- Add a deterministic testing-host directive driver and minimal reference
-  plugin.
+- Carry markers through SSR, hydration, patches, portals, microfrontends,
+  testing renderers, and compatibility boundaries.
+- Add server/client unavailable warnings and DevTools inspection.
+- Add compiler and language-server explanations and diagnostics.
 
-### Phase 5: motion validation
+### Phase 5: packages
 
-- Implement the first `motion` namespace against only the public extension
-  contracts.
-- Verify that no motion-specific branch exists in compiler, core, DOM, SSR,
-  language tools, or DevTools.
-- Test compiler, render, client, testing, and missing-required-host
-  combinations.
-- Measure generated descriptor size and commit overhead.
+- Implement motion, gestures, physics, and gravity as independent ordinary
+  plugin components using only the shared foundation.
 
-### Phase 6: documentation and adoption
+## Testing strategy
 
-- Update `docs/framework-plugins.md` and the public docs application when the
-  extension ships.
-- Update compiler, core, DOM, plugin API, plugin host, language-tools, and
-  DevTools README and AGENTS guidance.
-- Add package authoring and application activation guides.
-- Extend documentation checks and package-content checks for every new public
-  entry.
+Testing follows the repository's risk-based standard:
 
-## Intentional changes to current behavior
-
-Implementation will intentionally change these current contracts:
-
-1. Compiler plugins will be able to declare structured JSX attribute
-   namespaces, not only `@exact namespace.directive` annotations and raw
-   module analysis.
-2. The native compiler will accept a bounded JSX schema registry and emit
-   opaque directive descriptors.
-3. Plugin artifact compatibility will distinguish compile provenance from
-   host-specific runtime requirements instead of treating one full registry
-   fingerprint as universal runtime necessity.
-4. Render hosts will create durable mounted directive instances, expose
-   bounded lifecycle phases, and resolve ordinary component context for them.
-5. Directive schemas will participate declaratively in existing reactive and
-   client-activation planning.
-6. DOM removal may be delayed by owner-bound renderer leases while logical
-   state remains absent.
-7. Configured plugin types will augment intrinsic JSX attributes.
-8. Language tools and DevTools will accept deterministic plugin-owned
-   presentation data.
-
-No existing plugin gains these capabilities implicitly. Existing plugins and
-applications without JSX extensions preserve their current behavior and
-generated output.
+- compiler semantic tests for import/export resolution, aliases, barrels,
+  wrapper identities, finite unions, spreads, and diagnostics;
+- compiler/runtime contract tests proving values remain reactive and no
+  canonical attributes reach DOM;
+- property-oriented merge and target-search tests over fragments and component
+  paths;
+- DOM identity tests for keyed moves, enhancement-target replacement,
+  component-root replacement, dormant markers, release reversal, Activity,
+  Suspense, portals, and structural output;
+- context graph tests for required/optional ordering, ancestor satisfaction,
+  deterministic ties, and cycles;
+- SSR/hydration/microfrontend tests for precompiled children and coordinated
+  server/client behavior;
+- trust tests proving markers cannot activate untrusted code or reveal server
+  policy;
+- warning deduplication tests for ignored, absent, untrusted, server, and client
+  cases; and
+- compatibility tests for arbitrary non-element refs and existing ref timing.
 
 ## Acceptance criteria
 
-The proposal is complete when:
-
-1. only one configured plugin can own a JSX attribute prefix;
-2. unknown or malformed plugin JSX fails with source-accurate diagnostics;
-3. plugins cannot perform unrestricted compiler AST rewrites;
-4. directive attributes never leak into rendered HTML;
-5. ordinary reactive bindings, keys, ranges, source maps, and hydration
-   identity remain intact;
-6. every executing host validates a compatible required capability and fails
-   before application work when it is missing;
-7. mounted directives have durable identity and resolve ordinary reactive
-   context through logical component ancestry;
-8. precompiled components do not duplicate plugin runtime machinery;
-9. source-transform provenance and runtime requirements are validated
-   independently;
-10. removal leases cannot outlive their owner or permit stale removal;
-11. SSR and hydration use compatible host projections and preserve identity;
-12. compilerless adapters can use supported public JavaScript helpers;
-13. language tools use the same schema and diagnostics as the compiler;
-14. inspection remains bounded, redacted, and free of live resources;
-15. motion can be implemented without framework motion-specific branches; and
-16. package, compiler, renderer, SSR, hydration, tooling, security, resource,
-    and documentation checks pass at risk-appropriate layers.
+1. A local attributed import provides a typed JSX prefix without defining
+   canonical identity.
+2. The first valid attributed export edge on the uniquely resolved ECMAScript
+   export path defines canonical module-plus-export identity without an authored
+   ID.
+3. Ordinary imports and ordinary component use remain valid for the same
+   implementation component.
+4. One grouped marker carries all canonical entries at a JSX boundary, and each
+   prop remains independently reactive.
+5. Only finite, canonical props forward; `children`, `key`, and `ref` never do.
+6. Direct attributes and statically finite spreads receive TypeScript-accurate
+   checking, including union constraints.
+7. Enhancement-target resolution follows the agreed one-pass depth-first
+   explicit-target-first algorithm through dynamic and precompiled native trees.
+8. Plugin components are ordinary inspectable instances whose lifecycle is tied
+   to resolved enhancement-target identity and generation, independently of
+   their ordinary component-root lifecycle.
+9. Different plugins may select different targets and may render transparent or
+   structural output.
+10. Context production and consumption determine ordering without authored
+    plugin dependency metadata.
+11. Generic refs remain reactive for arbitrary values, while element roots add
+    presentation, generation-fenced release, shared reasons, and task settlement
+    consistently across every renderer lifecycle path.
+12. Inactive enhancements always render the underlying target; ignored server
+    packages remain silent and unexpected unavailable identities warn once in
+    each applicable runtime.
+13. Existing plugin trust, placement, errors, SSR, hydration, serialization,
+    portals, and microfrontend ownership remain authoritative.
+14. The implementation adds no second registry, transport payload, lifecycle
+    system, trust list, client allowlist disclosure, or marker version field.

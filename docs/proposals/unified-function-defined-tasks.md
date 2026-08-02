@@ -2084,9 +2084,9 @@ frame through scheduler context capture. No public DOM-commit token is needed.
 
 A later proposal can define:
 
-- plugin-owned `motion`, `motion:enter`, `motion:change`, `motion:leave`,
-  `motion:appear`, `motion:layout`, and `motion:layout-id` intrinsic
-  attributes;
+- plugin-owned `motion:apply`, `motion:enter`, `motion:change`, `motion:leave`,
+  `motion:appear`, `motion:layout`, and `motion:layout-id` attributes on
+  intrinsic elements or components with stable intrinsic roots;
 - `Motion` for enter, leave, and update animations;
 - `Presence` for one stable conditional range;
 - `MotionList` for keyed collection enter/leave/reorder coordination;
@@ -2097,13 +2097,14 @@ A later proposal can define:
 - SSR/hydration behavior that never flashes a leave state; and
 - inspection events nested under the initiating task.
 
-Namespaced motion on ordinary conditional and keyed intrinsic roots requires a
-generic renderer removal lease that delays physical range disposal while
-logical state is already absent. That primitive has identity, hydration,
-cancellation, portal, and memory consequences and therefore belongs to the
-separate plugin-extension proposal rather than being smuggled into the task
-implementation. Explicit `Presence` and `MotionList` remain compilerless
-fallbacks and policy boundaries.
+Namespaced motion lowers to a generic transparent boundary around an ordinary
+intrinsic VNode or a component with a compiler-proven stable intrinsic root.
+On conditional and keyed removal, an active optional handler may acquire a
+generic renderer lease that delays physical disposal while logical state is
+already absent. Those boundary, identity, hydration, cancellation, portal, and
+memory consequences belong to the separate plugin-extension proposal rather
+than the task implementation. Explicit `Presence` and `MotionList` remain
+compilerless fallbacks and policy boundaries.
 
 ## Delivery plan
 

@@ -8,9 +8,9 @@ The structured task-tree prerequisites are implemented in `@exactjs/core`:
 opaque frame capture, atomic reservations, synchronous frame restoration,
 cancelable framework executions, descendant settlement, semantic frame kinds
 and labels, and structural finalizers that remain part of their parent's
-settlement. The plugin-system JSX and renderer extensions, motion package,
-publication coordinator, renderer behavior, tooling presentation, and sample
-migrations described here remain future work.
+settlement. The plugin-system enhancement markers and ordinary plugin
+components, general ref-release lifecycle, motion package, publication coordinator,
+tooling presentation, and sample migrations described here remain future work.
 
 This proposal depends on the current contracts in:
 
@@ -22,23 +22,31 @@ This proposal depends on the current contracts in:
 
 It also depends on the proposed generic extension contracts in
 [`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md).
+It may compose with the independent [`gestures`](gestures-plugin.md),
+[`physics`](physics-plugin.md), and [`gravity`](gravity-plugin.md) proposals,
+but none is a motion dependency.
 
 ## Decision summary
 
 eXact should provide motion as an optional framework plugin rather than embed
 animation policy into core or duplicate animation machinery in compiled
-components. The plugin owns the `motion` JSX namespace and uses the existing
-task tree as its lifetime and coordination model:
+components. An attributed import normally binds its canonical export to the
+local `motion` prefix, and the plugin component uses the existing task tree as its
+lifetime and coordination model:
 
-- `motion={definition}` attaches reusable motion to an intrinsic element.
+- `motion:apply={definition}` attaches reusable motion to an intrinsic element
+  or a component whose current logical output resolves an intrinsic root.
 - `@exactjs/motion/presets` supplies immutable, tree-shakeable definitions for
   common motion such as fades, slides, scales, and pops.
 - `motion:enter`, `motion:change`, and `motion:leave` override individual
   phases.
 - `motion:appear`, `motion:layout`, and `motion:layout-id` opt into specific
   behavior without creating alternate element types.
+- all namespaces on one JSX boundary compile into one grouped reactive marker;
+- an active motion entry resolves to an ordinary compiled `MotionElement`
+  whose lifecycle is tied to the selected enhancement-target generation;
 - conditional and keyed ranges retain removed motion elements through generic
-  renderer directive hooks;
+  generation-fenced component-root release;
 - `Motion`, `Presence`, and `MotionList` remain explicit compilerless forms
   for libraries and policies that need an authored boundary.
 - `LayoutGroup` coordinates layout measurement and shared layout identity.
@@ -47,10 +55,12 @@ task tree as its lifetime and coordination model:
 - animations are immediate, nonblocking, and structurally attached by default;
 - infinite animations are detached but remain component-owned;
 - cancellation and rapid reversal use `TaskFrameExecution.cancel()`;
-- no public transition token, presence promise collection, DOM commit token, or
-  second lifetime hierarchy is introduced; and
-- component packages that use motion depend on and forward the motion plugin,
-  while applications with no motion dependency pay no motion cost; and
+- no public transition token, retention lease, presence promise collection,
+  general DOM commit token, or second lifetime hierarchy is introduced;
+- compiling source that uses `motion:*` requires an attributed motion import,
+  while executing precompiled source remains functionally renderable when the
+  plugin component is inactive;
+  and
 - router integration uses a neutral publication-coordination contract from
   `@exactjs/core`, so router and motion never depend on one another.
 
@@ -68,7 +78,7 @@ task tree as its lifetime and coordination model:
    architecture.
 8. Integrate with the router through dependency inversion rather than package
    imports in either direction.
-9. Keep compiled motion descriptors small and renderable without copying the
+9. Keep compiled motion markers small and renderable without copying the
    motion engine into each component.
 10. Let pages and subtrees override motion policy through ordinary reactive
     component context.
@@ -92,9 +102,9 @@ task tree as its lifetime and coordination model:
 
 Motion affects how committed state becomes visible; it does not create a
 parallel application state store. A leaving child is semantically absent as
-soon as application state removes it. A directive removal lease or explicit
-`Presence` boundary retains only the physical range and component ownership
-necessary to finish leave work.
+soon as application state removes it. A generation-fenced component-root release or
+explicit `Presence` boundary retains only the mounted range and component
+ownership necessary to finish leave work.
 
 ### Tasks own time
 
@@ -105,10 +115,10 @@ settlement and cancellation can disagree with the task tree.
 
 ### The DOM stays renderer-owned
 
-The motion directive may ask the renderer to retain a range through a generic
-removal lease, but it must not remove renderer-owned nodes behind the
-renderer's back. Final presence removal releases the lease; the renderer
-performs physical removal through its ordinary keyed-range machinery.
+The renderer retains a root generation only while the generic release task
+frame settles. Motion never receives a public retention token and never
+removes renderer-owned nodes. The frame's generation-fenced structural
+finalizer calls the existing unmount-then-remove teardown path.
 
 ### Native APIs are drivers, not architecture
 
@@ -116,13 +126,15 @@ Web Animations, `ResizeObserver`, `MutationObserver`,
 `prefers-reduced-motion`, and View Transitions are useful browser mechanisms.
 They do not define component identity, task ownership, readiness, or routing.
 
-### Optionality belongs at the package boundary
+### Compilation and execution are independent
 
 Applications that do not use motion do not install or activate
-`@exactjs/motion`. Source and component packages that use `motion:*`, explicit
-motion components, or imperative helpers declare and forward the motion plugin
-as a required dependency. Missing or incompatible support fails during host
-preparation rather than silently changing a motion-enabled component.
+`@exactjs/motion`. Source files containing `motion:*` import the package's
+generated plugin contract with `with { type: 'exact-plugin' }`. Their emitted
+generic markers remain functionally renderable when the motion component is
+absent or inactive. Explicit motion components, presets, and
+imperative helpers remain ordinary JavaScript imports and therefore retain
+ordinary package dependencies.
 
 Disabling animation is policy, not missing infrastructure. `MotionConfig` may
 disable motion or select reduced motion while preserving the same committed
@@ -130,11 +142,14 @@ state, task cleanup, and structural-finalizer ordering.
 
 ### Plugins extend bounded framework seams
 
-The motion compiler extension validates and transports structured JSX
-directives. It does not receive an unrestricted compiler AST transform. The
-render and client extensions implement motion through generic element, commit,
-layout, removal, hydration, and disposal hooks. Core owns those seams and task
-frames; the plugin owns every animation policy.
+The attributed motion export supplies a static canonical-prop contract. The
+compiler validates the locally imported prefix, strips those canonical props,
+and emits one entry in the boundary's grouped marker. That marker travels
+through ordinary component output and mounts the ordinary compiled
+`MotionElement` at the resolved enhancement target. Motion reuses normal reactive
+props, refs, context, tasks, lifecycle, errors, readiness, hydration, and
+disposal. Core adds no motion-specific hook; the plugin owns every animation
+policy.
 
 ## Package and environment boundary
 
@@ -144,8 +159,8 @@ testing, and configuration-type entries through `@exactjs/plugin-api`.
 
 Its declarative JSX surface is isomorphic:
 
-- the compiler extension recognizes `motion` namespaced attributes only when
-  the plugin is configured;
+- the compiler recognizes `motion:*` only when `motion` resolves to an
+  attributed exact-plugin import;
 - browser rendering installs the Web Animations driver and observers when the
   runtime plugin is active;
 - SSR renders the final semantic element without animation state;
@@ -171,60 +186,37 @@ Motion does not import `@exactjs/router`. Router does not import
 
 | Situation                                                                | Result                                                                    |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Source uses `motion:*`, compiler plugin configured                       | Source validates and emits a required motion descriptor.                  |
-| Source uses `motion:*`, compiler plugin absent                           | Compilation fails with an unknown JSX directive namespace diagnostic.     |
-| Precompiled descriptor, compatible runtime plugin active                 | Motion participates in renderer lifecycle and task ownership.             |
-| Precompiled descriptor, runtime plugin absent or incompatible            | Host preparation fails before rendering.                                  |
-| SSR host loads the motion render projection                              | Final semantic HTML renders without browser animation state.              |
+| Source imports motion with `type: 'exact-plugin'` and uses `motion:*`    | Source validates and emits an optional canonical motion marker.           |
+| Source uses an unbound prefix or ordinary import as `motion:*`           | Compilation fails with a prefix/import diagnostic.                        |
+| Precompiled marker, trusted plugin component active                      | The boundary mounts an ordinary compiled `MotionElement`.                 |
+| Precompiled marker, component absent, ignored, or untrusted              | The target renders unchanged and generic warning policy applies.          |
+| SSR host has no active motion component                                  | Final semantic HTML renders from the unchanged child.                     |
 | Source imports `Motion`, `Presence`, `animate`, or another runtime value | The generated JavaScript has an ordinary dependency on `@exactjs/motion`. |
-| Component package authors motion                                         | It depends on and forwards `@exactjs/motion` as a required plugin.        |
+| Component package publishes precompiled motion JSX                       | Consumers may execute it without installing or enabling motion.           |
 
-Compiled JSX descriptors use a generic helper from `@exactjs/core`; they do not
-statically import the motion runtime. Consequently the animation driver is
-installed once per application rather than copied into every component. The
-package dependency and plugin-forwarding declaration, not a generated static
-runtime import, make the capability available to consuming hosts.
+Compiled JSX markers use the generic capability-export, canonical-identity,
+wrapper-package, discovery, and trust behavior defined by
+[`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md). Motion
+adds no re-export, substitution, compatibility, or runtime-selection rule of its
+own. Explicit imports such as presets retain their ordinary JavaScript package
+dependency.
 
-A motion-enabled component package declares the dependency normally and
-forwards its plugin requirement:
-
-```json
-{
-	"dependencies": {
-		"@exactjs/motion": "^0.1.0"
-	},
-	"exact": {
-		"forwarding": {
-			"schemaVersion": 1,
-			"include": {
-				"@exactjs/motion": {
-					"required": true
-				}
-			}
-		}
-	}
-}
-```
-
-A library that wants a motion-free base may expose a separate motion entry.
-The motion entry owns this dependency rather than asking the same compiled
-component to operate with a missing plugin.
-
-## JSX directive surface
+## Canonical prop surface
 
 The ordinary authoring form decorates a real intrinsic element:
 
 ```tsx
+import motion from '@exactjs/motion' with { type: 'exact-plugin' };
 import { pop } from '@exactjs/motion/presets';
 
-<section motion={pop} motion:appear motion:layout="position" />;
+<section motion:apply={pop} motion:appear motion:layout="position" />;
 ```
 
 The initial namespace is:
 
 | Attribute                     | Meaning                                                                  |
 | ----------------------------- | ------------------------------------------------------------------------ |
-| `motion={definition}`         | Accepts a package preset or prepared custom motion definition.           |
+| `motion:apply={definition}`   | Accepts a package preset or prepared custom motion definition.           |
 | `motion:enter={phase}`        | Overrides the reusable enter phase at this site.                         |
 | `motion:change={phase}`       | Overrides the reusable change phase at this site.                        |
 | `motion:leave={phase}`        | Overrides the reusable leave phase at this site.                         |
@@ -234,16 +226,38 @@ The initial namespace is:
 | `motion:layout="size"`        | Animates size changes without claiming position.                         |
 | `motion:layout-id={identity}` | Joins stable shared-layout identity under a `LayoutGroup`.               |
 
-These are compiler directives, not DOM attributes. They apply initially to
-intrinsic HTML, SVG, and MathML elements. Applying them to a component is a
-diagnostic because a component may render no element or several ranges and
-must choose explicitly where motion belongs.
+These are compiler-owned attributes, not DOM attributes. There is no bare
+`motion={...}` shorthand. The local `motion` prefix must resolve to the
+attributed import; aliases are allowed but do not change canonical identity.
+The compiler strips canonical motion props from intrinsic and component props
+before emitting one marker.
+
+They apply to intrinsic HTML, SVG, and MathML elements and to native eXact
+components. The renderer follows the normal logical tree through components,
+fragments, selected Activity/Suspense branches, retained ranges, and portals.
+The first active `motion:root` wins; otherwise the first intrinsic encountered
+is the fallback. Opaque foreign-runtime boundaries require an adapter contract.
+
+```tsx
+function SaveButton(this: Component<{}>, props: { children: Child }) {
+	return () => <button className="save">{props.children}</button>;
+}
+
+<SaveButton motion:apply={pop} motion:appear>
+	Save
+</SaveButton>;
+```
+
+The outer boundary owns the marker declaration. The renderer carries it through
+`SaveButton` and creates `MotionElement` for the resolved `button` root inside
+contexts published by intermediate components. `SaveButton` receives none of
+the motion props.
 
 The compiler preserves ordinary bindings and motion independently:
 
 ```tsx
 <div
-	style:opacity={this.state.enabled ? 1 : 0.5}
+	style={{ opacity: this.state.enabled ? 1 : 0.5 }}
 	motion:change={{
 		keyframes: [{ opacity: 0.5 }, { opacity: 1 }],
 		options: { duration: 120 }
@@ -263,21 +277,109 @@ motion unintentionally.
 Everyday source should normally use a preset:
 
 ```tsx
+import motion from '@exactjs/motion' with { type: 'exact-plugin' };
 import { fade, slideUp } from '@exactjs/motion/presets';
 
 return () => (
 	<>
-		<div motion={fade}>Saved</div>
-		<dialog motion={slideUp}>...</dialog>
+		<div motion:apply={fade}>Saved</div>
+		<dialog motion:apply={slideUp}>...</dialog>
 	</>
 );
 ```
 
-The `motion` attribute accepts only a prepared `MotionDefinition`. Package
+The `motion:apply` attribute accepts only a prepared `MotionDefinition`. Package
 presets are prepared definitions, and application or library authors prepare
 their own with `defineMotion()`. This keeps verbose keyframes at reusable
 module boundaries instead of inline in component JSX. Phase-specific
 attributes remain available for deliberate one-site overrides.
+
+## Plugin component and attributed export
+
+The implementation is compiled normally. Its public props define the canonical
+schema; `children` is reserved and does not become a namespaced attribute:
+
+```tsx
+export interface MotionElementProps {
+	apply?: MotionDefinition;
+	enter?: MotionPhase;
+	change?: MotionPhase;
+	leave?: MotionPhase;
+	appear?: boolean;
+	layout?: boolean | 'position' | 'size' | 'both';
+	layoutId?: string;
+	children?: Child;
+}
+```
+
+The attributed export establishes the capability:
+
+```ts
+export { MotionElement as default } from './MotionElement.js'
+	with { type: 'exact-plugin' };
+```
+
+The compiler derives the prop schema and maps `layoutId` to `layout-id`.
+Module resolution derives canonical identity `@exactjs/motion#default`; there
+is no authored plugin ID, runtime flag, output declaration, or special
+compilation mode.
+
+`MotionElement` is a setup-once eXact component rather than a handler object.
+Generic renderer traversal resolves its enhancement target. The ordinary root
+lifecycle of the transparent `MotionElement` reports the currently rendered
+element, presentation, and generation-fenced release:
+
+```tsx
+function MotionElement(this: Component<MotionElementState>, props: MotionElementProps) {
+	const root = this.refs.root<Element>();
+	const settings = this.getContext(MotionContext);
+
+	async function change(
+		element: Element | undefined,
+		presented: boolean,
+		definition: MotionDefinition | undefined,
+		config: MotionSettings,
+		task: TaskContext = TaskContext.client().latest().immediate().nonblocking()
+	) {
+		if (!element || !presented || !definition) return;
+		await playDefinition(element, definition, config, task.signal);
+	}
+
+	async function leave(
+		release: RootRelease<Element> | undefined,
+		definition: MotionDefinition | undefined,
+		config: MotionSettings,
+		task: TaskContext = TaskContext.client().latest().immediate().nonblocking()
+	) {
+		if (!release || !release.presented || !definition) return;
+		await playDefinition(release.target, definition, config, task.signal);
+	}
+
+	change(root.current, root.presented, resolveChange(props, settings), settings);
+	leave(root.release, resolveLeave(props, settings), settings);
+
+	return () => props.children;
+}
+```
+
+The calls occur in setup scope and therefore declare inferred initialization
+and reactive task activation. Their explicitly supplied prop, context, element,
+presentation, and release expressions remain ordinary dependencies; no
+non-context parameter default accidentally turns one into a captured input.
+Direct task activation from the returned view is a compiler diagnostic. The
+component may use state, contexts, tasks, ErrorBoundary behavior,
+Suspense/readiness, cleanup, and inspection normally.
+
+The motion instance is tied to the resolved enhancement-target generation, so
+target replacement creates a new instance while keyed movement or Activity
+parking preserves one whose target survives. Changing only structural output
+inside `MotionElement` preserves its ordinary component instance and advances
+its component-root lifecycle generation.
+
+The target is never found by querying DOM. Motion chooses transparent output,
+but the generic architecture permits structural plugin components. Explicit
+`Motion`, `Presence`, `MotionList`, and `LayoutGroup` remain the preferred
+authored structural forms.
 
 ## Library and adapter surface
 
@@ -340,8 +442,8 @@ effect:
 ```tsx
 import { fade, pop, slideUp } from '@exactjs/motion/presets';
 
-<aside motion={slideUp} />
-<output motion={fade} motion:leave={pop.leave} />
+<aside motion:apply={slideUp} />
+<output motion:apply={fade} motion:leave={pop.leave} />
 ```
 
 The initial preset set should remain small and unsurprising:
@@ -355,7 +457,7 @@ The initial preset set should remain small and unsurprising:
 | `slideLeft` / `slideRight` | Inline translation plus opacity.                     |
 
 Presets do not own application state, presence, layout identity, duration
-policy, or trigger conditions. The consuming directive supplies those through
+policy, or trigger conditions. The consuming boundary supplies those through
 its normal element identity, surrounding `Presence` or keyed range, and
 `MotionConfig`.
 
@@ -402,7 +504,7 @@ export function defineMotion(definition: MotionDefinitionInput): MotionDefinitio
 
 `defineMotion()` freezes and validates a reusable definition. It is ordinary
 JavaScript and does not require the eXact compiler. The private brand prevents
-an accidentally recreated inline object from satisfying the `motion`
+an accidentally recreated inline object from satisfying the `motion:apply`
 attribute while leaving phase-specific override attributes structurally
 authorable.
 
@@ -450,7 +552,7 @@ export const accountPanelMotion = defineMotion({
 ```tsx
 import { accountPanelMotion } from './account-motion.js';
 
-<section motion={accountPanelMotion}>...</section>;
+<section motion:apply={accountPanelMotion}>...</section>;
 ```
 
 An authored phase option overrides the corresponding preset or custom phase.
@@ -471,8 +573,8 @@ style represents the destination.
 
 ### `Motion`
 
-`Motion` is the explicit component equivalent of an intrinsic motion
-directive. It renders one real intrinsic element selected by `as`; it does not
+`Motion` is the explicit component equivalent of a motion-enhanced intrinsic
+boundary. It renders one real intrinsic element selected by `as`; it does not
 clone an arbitrary child or create `motion.div` factories:
 
 ```tsx
@@ -578,17 +680,18 @@ retained-removal contract:
 ```tsx
 return () =>
 	this.state.showDialog ? (
-		<dialog motion={dialogMotion}>
+		<dialog motion:apply={dialogMotion}>
 			<DialogContents />
 		</dialog>
 	) : null;
 ```
 
-The compiler does not need motion-specific conditional lowering. The mounted
-dialog retains its optional directive descriptor. When the renderer is about
-to remove the existing range, the active motion directive acquires a generic
-removal lease and releases it after the attached leave tree settles. Without
-the runtime plugin, no directive claims the lease and removal is immediate.
+The compiler does not need motion-specific conditional lowering. The generic
+component-root lifecycle publishes `root.release` while the renderer retains
+that root generation. `MotionElement` invokes its leave task with the release
+and current definition as explicit arguments. Existing task-child capture joins
+the leave work before structural teardown. Without an active motion component,
+no leave task exists and removal remains immediate.
 
 `Presence` remains the explicit boundary for policies that do not belong to
 one element, including focus return, named ranges, sibling fragments,
@@ -611,51 +714,79 @@ absent -> entering -> present -> leaving -> absent
                         reversal
 ```
 
-On removal, the directive handler or explicit `Presence` boundary:
+On removal, generic root release or explicit `Presence`:
 
 1. records a new leave generation;
-2. keeps the previous range in its retained projection;
-3. moves focus out of the range when an explicit policy requires it;
-4. makes retained content inert and removes it from accessibility navigation;
-5. opens a `presence-leave` task frame under the causal task;
-6. publishes the leaving phase so descendant `Motion` components participate;
-7. lets descendant animations and observers attach automatically;
-8. removes the retained projection only after a fulfilled structural
-   finalizer; and
-9. reports errors through the component error boundary.
+2. keeps the mounted range connected under existing renderer ownership;
+3. deactivates the functional subtree using existing Activity-style
+   activation ownership while release observers remain active;
+4. moves focus and makes retained content inert under motion policy;
+5. publishes each affected `RootRelease` inside the renderer's retained-removal
+   consequence frame;
+6. lets ordinary function-defined leave tasks attach automatically;
+7. waits for those task descendants and cleanup;
+8. checks the generation before calling the renderer's existing
+   `disposeMounted()` structural finalizer; and
+9. reports failures through existing task and component error handling while
+   still guaranteeing final removal.
 
 The core operation is:
 
 ```ts
-const leave = runTaskFrame(
+const execution = runTaskFrame(
 	{
 		parent: captureTaskFrame(),
-		kind: 'presence-leave',
-		label: 'Leave dialog',
+		kind: 'retained-removal',
+		label: 'Remove dialog',
 		priority: 'immediate',
 		readiness: 'nonblocking'
 	},
 	{
-		work: () => publishLeavingRange(),
+		work() {
+			for (const released of releasedRoots) {
+				publishRootRelease(released.lifecycle, {
+					generation: released.generation,
+					reason: 'reconcile-removed',
+					target: released.target,
+					presented: released.presented
+				});
+			}
+		},
 		afterChildren(outcome) {
-			if (outcome.status === 'fulfilled' && generationIsCurrent()) {
-				publishAbsentRange();
+			if (generationIsCurrent(generation, execution)) {
+				disposeMounted(mounted);
 			}
 		}
 	}
 );
 ```
 
+A single-root conditional therefore exposes one release, while a fragment or
+named range may release several independent roots. The renderer groups them
+under the one structural consequence and waits for their attached descendants;
+application and plugin code receive no release array or retention token.
+
 If presence returns before leave settles:
 
 ```ts
-leave.cancel('presence-restored');
+execution.cancel('release-reversed');
 ```
 
-Cancellation aborts every attached descendant, waits for cleanup, reports a
-cancelled outcome, and prevents stale removal. The next enter animation begins
-from the element's current computed visual state rather than resetting it to
-the original enter keyframe.
+The renderer increments the generation before cancellation, clears the
+published release, reactivates the existing subtree, and patches the same
+mounted identity. Cancellation aborts every attached descendant, waits for
+cleanup, reports a cancelled outcome, and prevents stale browser completion
+from removing the restored range. The next enter animation begins from the
+element's current computed visual state rather than resetting it to the
+original enter keyframe.
+
+There is no component-facing retention token or manual release completion. A
+plugin component with no applicable leave phase starts no child task. Root
+shutdown cancels the task frame and runs immediate existing teardown. Rejected
+motion is reported through ordinary error handling, while the structural
+finalizer still guarantees removal. The framework adds no universal timeout;
+motion definitions must remain abortable and bounded, and DevTools reports
+long-running release frames.
 
 Neither form requires application code to collect animation promises or call
 `Promise.all()`.
@@ -677,13 +808,13 @@ from visual timing.
 ## Motion lists
 
 A compiler-lowered keyed map already gives the renderer stable range identity.
-A motion-decorated keyed root can therefore acquire a removal lease from its
-existing mounted record:
+A motion-decorated keyed root can therefore enter a retained-removal task frame
+from its existing mounted record:
 
 ```tsx
 {
 	this.state.cards.map((card) => (
-		<article key={card.id} motion={cardMotion} motion:layout motion:layout-id={card.id}>
+		<article key={card.id} motion:apply={cardMotion} motion:layout motion:layout-id={card.id}>
 			<Card card={card} />
 		</article>
 	));
@@ -692,7 +823,7 @@ existing mounted record:
 
 Application state remains authoritative: the removed card is logically absent
 immediately, while the renderer temporarily retains only its mounted range and
-last committed directive inputs. Reinsertion with the same key cancels the
+last committed boundary inputs. Reinsertion with the same key cancels the
 stale leave generation and reuses identity when safe.
 
 `MotionList` remains the explicit compilerless form and supports additional
@@ -738,12 +869,14 @@ identity. It is not a second mutable application collection.
 </LayoutGroup>
 ```
 
-Each participant retains its previous committed rectangle. After a relevant
-DOM update it measures the new rectangle, applies the inverse visual transform,
-and animates to identity. `MotionList` can snapshot before publishing its keyed
-projection, providing the most precise reorder path. General descendants use
-element refs, mutation observation, resize observation, and animation-frame
-scheduling.
+Each participant retains its last rectangle. `ResizeObserver`, cached geometry,
+and a following animation frame provide localized change measurements without
+adding generic plugin before/after-update hooks. `MotionList` and `LayoutGroup`
+snapshot their owned participants before publishing a coordinated keyed
+projection, providing the precise reorder path without pretending the current
+eager DOM renderer has a global planned commit. Arbitrary FLIP coordination
+across independently updated roots is deferred until measurement proves a
+renderer transaction facility is warranted.
 
 The first release supports shared `layoutId` only while source and destination
 coexist under one `LayoutGroup`. Cross-route shared elements use the optional
@@ -763,7 +896,7 @@ authored transform.
 </MotionConfig>
 ```
 
-`MotionConfig` is an ordinary context provider. A page or subtree can override
+`MotionConfig` is an ordinary context-producing component. A page or subtree can override
 only the values it needs:
 
 ```tsx
@@ -789,10 +922,10 @@ export const MotionContext: ContextToken<MotionSettings>;
 
 `MotionConfig` reads the nearest `MotionContext`, merges its explicitly defined
 props, publishes the result with `this.setContext()`, and returns its children.
-Unspecified values inherit. With no provider, motion uses package defaults.
+Unspecified values inherit. With no `MotionConfig`, motion uses package defaults.
 The context uses ordinary eXact reactivity.
 
-Motion directives and explicit motion components read the nearest context from
+`MotionElement` and explicit motion components read the nearest context from
 their logical component ancestry. Portalled elements inherit from the component
 tree that owns them, not from their physical DOM destination. Direct
 element-phase options override context values; context values override package
@@ -810,8 +943,8 @@ different presence lifetime or ownership model.
 ## SSR and hydration
 
 - SSR emits final semantic DOM and never emits a leaving phase.
-- The required motion render projection is a semantic no-op for browser
-  animation and emits the same final DOM.
+- An inactive motion enhancement leaves the target unchanged and emits the same
+  final DOM.
 - Motion definitions and browser animation handles are not serialized.
 - Hydration adopts the existing element before installing observers.
 - Enter motion does not replay after hydration by default.
@@ -835,7 +968,12 @@ export interface FrameworkPublicationRequest<Metadata = unknown> {
 	readonly kind: string;
 	readonly signal: AbortSignal;
 	readonly metadata: Metadata;
-	publish(): void;
+	publish(): FrameworkPublicationCommit;
+}
+
+export interface FrameworkPublicationCommit {
+	/** Settles after the reactive renderer consequences caused by publication commit. */
+	readonly rendered: PromiseLike<void>;
 }
 
 export interface FrameworkPublicationCoordinator<Metadata = unknown> {
@@ -870,7 +1008,10 @@ export interface CreateExactRouterOptions<Route extends ExactRouteDefinition> {
 ```
 
 After loaders and blockers succeed, the router calls the coordinator around
-only the authoritative publication:
+only the authoritative publication. `publish()` performs the router's current
+source mutation, `sourceRevision` guard, subscription-source behavior, request
+source behavior, snapshot settlement, and notification exactly once; the
+following is intentionally abbreviated rather than a replacement algorithm:
 
 ```ts
 await publication.publish({
@@ -883,16 +1024,16 @@ await publication.publish({
 		transitionId: currentTransition
 	},
 	publish() {
-		source.push(target, options.state, options.status);
-		snapshot = buildSnapshot(action);
-		notify();
+		return publishAcceptedNavigationUsingCurrentSourceRules(action, target, operation, revision);
 	}
 });
 ```
 
 Without a coordinator, the router uses an identity coordinator that calls
-`publish()` synchronously. Router behavior therefore does not depend on motion
-being installed.
+`publish()` synchronously and awaits its `rendered` receipt only where the
+caller requires committed DOM. Router behavior therefore does not depend on
+motion being installed. The receipt is a narrow framework publication barrier,
+not a component-facing DOM commit token or a general plugin update hook.
 
 Motion provides a generic coordinator factory:
 
@@ -920,86 +1061,103 @@ When `document.startViewTransition` is available, the coordinator:
 1. opens an immediate, nonblocking `view-transition` frame under the active
    navigation task;
 2. invokes `request.publish()` exactly once in the native update callback;
-3. resolves the coordinator call once publication is complete;
-4. retains the native transition's visual completion as attached child work;
-5. forwards cancellation from `request.signal`;
-6. applies reduced-motion policy; and
-7. falls back to immediate publication when unsupported.
+3. awaits `commit.rendered` inside that callback so the browser captures the
+   DOM after eXact's reactive consequence flush;
+4. resolves the coordinator call once publication is complete;
+5. retains the native transition's visual completion as attached child work;
+6. forwards cancellation from `request.signal`;
+7. applies reduced-motion policy; and
+8. falls back to immediate publication when unsupported.
 
 This separates navigation readiness from visual settlement: route data and DOM
 may publish without waiting for animation, while the initiating task tree still
 contains the transition until it settles.
 
-The coordinator contract is also usable by future non-router publishers. It
-must remain synchronous-publication-oriented, transport-neutral, and free of
-route types.
+The coordinator contract is also usable by future non-router publishers. An
+accepted, current request publishes once; a stale or aborted request publishes
+zero times. The contract remains synchronous-publication-oriented,
+transport-neutral, and free of route types.
 
 ## Compilation and dependency boundary
 
-Compiling source containing `motion:*` requires the configured motion compiler
-extension. The extension contributes the namespace schema, diagnostics, and
-opaque descriptor payload through the constrained plugin API. It does not ship
-the animation driver in generated code and does not receive an unrestricted
-AST transformation callback.
+Compiling source containing `motion:*` requires `motion` to resolve to an
+attributed import with `with { type: 'exact-plugin' }`. The generic plugin
+proposal's uniquely resolved export-path rule selects the canonical attributed
+`MotionElement` export edge and contributes canonical props and diagnostics
+without executing plugin code or shipping the animation driver.
 
 Conceptually:
 
 ```tsx
-<article motion={cardMotion} motion:layout="position" />
+import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+
+<article motion:apply={cardMotion} motion:layout="position" />;
 ```
 
-lowers to the equivalent of:
+joins the boundary's conceptual grouped marker:
 
 ```ts
-createCompiledVNode(
-	'article',
-	ordinaryProps,
-	exactDirective('motion', {
-		protocol: motionDirectiveProtocol,
-		site: motionSite,
-		values: {
-			default: cardMotion,
-			layout: 'position'
+createEnhancementBoundary(
+	{
+		'@exactjs/motion#default': {
+			apply: reactiveSlot(cardMotion),
+			layout: reactiveSlot('position')
 		}
-	})
+	},
+	createCompiledVNode('article', ordinaryProps)
 );
 ```
 
-The actual descriptor is compact and opaque. `exactDirective()` belongs to a
-generic core/compiler ABI. Generated code does not import
-`@exactjs/motion/runtime`; the active render/client plugin claims the
-descriptor by namespace and protocol.
+The actual marker and boundary are compact, opaque compiler/renderer data.
+Generated JSX does not import a motion runtime. Resolution uses canonical
+module-plus-export identity; the local import alias never selects an active
+component.
 
 The dependency distinctions are intentional:
 
-1. source compilation requires the compiler extension;
-2. consuming a compiled motion descriptor requires a compatible runtime
-   capability in each relevant host;
-3. the package supplies a semantic server projection and browser client
-   projection through the same plugin protocol;
+1. source compilation requires the attributed exact-plugin import and its
+   static generated contract;
+2. consuming a compiled motion marker requires only the generic core boundary
+   and remains functional without an active motion component;
+3. the existing trusted host registry activates the exact canonical component;
 4. explicit JavaScript imports such as `Motion`, `Presence`, `defineMotion`,
    or `animate` create normal package dependencies; and
-5. a motion-enabled component package declares and forwards the plugin
-   dependency even when its generated descriptor uses only the generic core
-   ABI.
+5. a package exposing TSX source retains the attributed import for recompilers,
+   while a precompiled package records only canonical marker provenance and
+   does not forward a required motion runtime.
 
-The plugin registry tracks build-time syntax ownership and required
-host-specific runtime capabilities. Missing or incompatible declarations fail
-during host preparation rather than at the first render.
+The plugin registry remains the only activation and trust authority. A package
+matched by server `pluginDiscovery.ignore` is intentionally inactive and
+silent. Other unavailable server identities warn once per host; unavailable
+client identities warn once per client runtime without receiving server trust
+or ignore policy. The underlying target remains unchanged in every inactive
+case.
 
 The compiler must:
 
-- recognize `motion` only when one configured plugin owns that namespace;
+- recognize `motion:*` only when `motion` resolves lexically to the attributed
+  exact-plugin import;
+- reject bare `motion={...}` while accepting only statically finite namespaced
+  keys from spreads;
 - preserve normal intrinsic typing and ordinary reactive bindings;
-- reject the namespace on components until a component-range contract exists;
-- emit stable source, range, key, and hydration identity without source text;
+- forward only canonical `MotionElementProps`, leaving ordinary undeclared
+  attributes as component type errors;
+- resolve direct enhancement targets statically where possible and otherwise
+  use the generic explicit-target-first logical-tree traversal;
+- strip every motion member from intrinsic and component props, group all of
+  them into one motion entry inside the grouped marker with other capabilities
+  at that site;
+- transfer the authored key to the boundary without changing child component
+  identity;
+- emit source, range, key, and hydration identity without source text;
 - avoid browser-driver imports in server and client output alike;
-- record the client activation and renderer lifecycle phases required by each
-  directive member;
+- reuse generic component-root lifecycle and release participation;
 - preserve existing conditional and keyed range lowering rather than replacing
   it with motion-specific structures; and
-- record enough protocol metadata for deterministic compatibility checks and
-  cache invalidation.
+- stamp canonical module and attributed-export identity from resolution rather
+  than the local prefix or plugin-returned data; and
+- project provenance through existing build and inspection products without an
+  enhancement-specific protocol version.
 
 Language tools load the same prepared plugin registry as compilation. They
 provide completion, hover, validation, source-site explanations, and semantic
@@ -1045,7 +1203,7 @@ clock. Tests cover:
 - stale-generation fencing;
 - nested presence;
 - nearest `MotionConfig` inheritance and subtree overrides;
-- reactive context updates without recreating mounted directives;
+- reactive context updates without recreating `MotionElement` instances;
 - logical context inheritance through portals;
 - disabled motion preserving task and finalizer ordering;
 - detached-loop disposal;
@@ -1061,20 +1219,34 @@ verify:
 
 - every declared `motion:*` member, value form, target restriction, and
   diagnostic;
+- attributed re-export validation, local prefix aliases, canonical prop
+  derivation, and erased compile-only imports;
+- unbound prefixes, ordinary imports, open spread key spaces, and invalid
+  canonical prop schemas fail during compilation;
 - ordinary reactive props and motion expressions retain independent
   dependencies;
-- descriptors do not leak into DOM props or import the motion runtime;
+- attributes do not leak into intrinsic or component props, and markers
+  do not import the motion runtime;
+- emitted markers retain canonical module-plus-export identity and source-site
+  provenance regardless of activation;
+- another package imported under the local prefix `motion` cannot claim these
+  canonical markers;
+- active, ignored, absent, and untrusted identities produce the expected
+  enhanced, silent passthrough, or warn-once behavior;
 - named preset imports tree-shake independently and do not activate browser
   code during server import;
-- host-specific required capability metadata remains intact;
-- source compiled without the extension fails deterministically; and
-- a missing or incompatible runtime projection fails before rendering.
+- optional host capability metadata remains intact; and
+- source compiled without the attributed plugin import fails deterministically.
 
 ### DOM integration tests
 
 Use the real eXact DOM renderer to verify:
 
-- node and component identity remain stable;
+- intrinsic and nested component target resolution follows explicit-root-first
+  traversal and preserves keyed logical identity;
+- `MotionElement` is created for the resolved enhancement target inside
+  contexts published by every intermediate component and is recreated when
+  that target is replaced;
 - physical removal follows structural settlement;
 - a parent task waits through the presence finalizer;
 - authored styles survive animation cleanup;
@@ -1097,6 +1269,10 @@ Use a fake `FrameworkPublicationCoordinator` to prove:
 - loaders finish before publication;
 - stale navigation cannot publish;
 - cancellation reaches the coordinator;
+- the native update callback awaits the framework publication's `rendered`
+  receipt;
+- subscription-backed and request-backed sources retain their existing
+  `sourceRevision`, snapshot, and notification behavior;
 - absence of a coordinator preserves current behavior; and
 - motion and router packages can be built and tested independently.
 
@@ -1130,18 +1306,23 @@ dependency are removed; doing so must not require rewriting application state.
 
 ### Phase 1: generic plugin prerequisites
 
-- Implement the constrained JSX directive and renderer extension contracts
+- Implement stable generic refs and element-root lifecycle/release first, then attributed
+  plugin exports/imports, canonical prop derivation, grouped markers, ordinary
+  plugin components, logical target resolution, enhancement-target-bound identity, and trust
+  behavior
   described in
   [`plugin-jsx-renderer-extensions.md`](plugin-jsx-renderer-extensions.md).
-- Prove required host capability discovery, projection, and early failure.
-- Add registry compatibility, language-tools, and test-host support.
+- Prove compiler-only requirements and active, ignored, absent, untrusted,
+  context-ordered, and cyclic behavior.
+- Add root-scoped browser registry generation, language-tools, and test-host
+  support.
 
 ### Phase 2: plugin and library foundation
 
 - Create the package, README, agent guidance, contracts, context, and browser
   driver boundary.
-- Declare compiler, render, client, testing, and configuration-type plugin
-  entries and claim the `motion` namespace.
+- Implement the attributed `MotionElement` re-export and generated static
+  plugin contract; declare render, client, testing, and configuration entries.
 - Implement `defineMotion()`, `MotionConfig`, `animate()`, and finite owned
   playback.
 - Publish the side-effect-free common preset subpath and verify per-preset
@@ -1150,16 +1331,18 @@ dependency are removed; doing so must not require rewriting application state.
 
 ### Phase 3: JSX element and presence motion
 
-- Implement `motion`, phase overrides, `motion:appear`, and descriptor
-  activation on intrinsic elements.
+- Implement `motion:apply`, phase overrides, `motion:appear`, and transparent
+  `MotionElement` activation on intrinsic elements and nested components using
+  generic logical enhancement-target resolution.
 - Implement `Motion` with explicit intrinsic elements.
-- Implement generic removal-lease participation, `Presence`, semantic absence,
-  focus transfer, structural finalization, and reversal.
+- Implement generation-fenced `RootRelease`, `Presence`, semantic absence, focus
+  transfer, structural finalization, and reversal.
 - Add DOM identity and cancellation integration tests.
 
 ### Phase 4: keyed collections and layout
 
-- Implement motion directives on compiler-lowered keyed range roots.
+- Implement ordinary motion components on compiler-lowered keyed
+  range roots.
 - Implement `MotionList`, retained keyed records, reorder FLIP, and
   reinsertion.
 - Implement `LayoutGroup`, layout channels, shared identity, and transform
@@ -1169,8 +1352,8 @@ dependency are removed; doing so must not require rewriting application state.
 
 - Add server no-op rendering, hydration adoption, `appear`, reduced motion,
   focus behavior, and browser tests.
-- Verify compatible server, client, and testing projections and fail early when
-  a required host projection is missing.
+- Verify server, client, and testing behavior for active, ignored, absent, and
+  untrusted enhancements.
 
 ### Phase 6: neutral publication and router opt-in
 
@@ -1183,7 +1366,8 @@ dependency are removed; doing so must not require rewriting application state.
 ### Phase 7: tooling, docs, and samples
 
 - Add `motion:*` completion, hover, diagnostics, and semantic entities.
-- Add motion task and directive presentation to DevTools.
+- Add motion task, enhancement instance, component-root generation, and release
+  presentation to DevTools.
 - Publish the current reference and docs-app guide.
 - Update agent guidance and package checks.
 - Adopt motion in the selected samples.
@@ -1203,17 +1387,22 @@ The proposal is complete when:
 8. navigation works unchanged when no coordinator is supplied;
 9. compilerless libraries can use the public JavaScript helpers;
 10. `MotionConfig` uses one reactive context whose nearest page or subtree
-    provider supplies inherited policy;
-11. generated JSX-only code imports the generic directive ABI rather than the
+    component supplies inherited policy;
+11. generated JSX-only code uses the generic grouped-marker ABI rather than the
     motion runtime and does not duplicate the driver;
-12. missing or conflicting compiler namespace ownership fails deterministically;
-13. motion-enabled component packages depend on and forward the plugin, and a
-    missing required host projection fails during preparation;
-14. DevTools shows motion under its causal task without exposing live
+12. missing, ordinary, or incompatible attributed plugin imports fail
+    deterministically;
+13. precompiled motion JSX remains functional when the plugin component is
+    inactive;
+14. markers retain canonical attributed-export identity and only a trusted
+    exact registration can activate them;
+15. intrinsic elements and nested native components share generic root
+    resolution without receiving canonical motion props as ordinary props;
+16. DevTools shows motion under its causal task without exposing live
     resources; and
-15. `motion={...}` accepts shipped presets and custom `defineMotion()` results,
+17. `motion:apply={...}` accepts shipped presets and custom `defineMotion()` results,
     common preset imports are independently tree-shakeable, and ordinary JSX
     does not require inline keyframes; and
-16. package, compiler, plugin-host, DOM, browser, router, SSR, hydration, and
+18. package, compiler, plugin-host, DOM, browser, router, SSR, hydration, and
     documentation checks
     pass at the risk-appropriate layers.
