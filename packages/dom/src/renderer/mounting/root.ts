@@ -52,6 +52,7 @@ import { installActivity, prepareActivity } from '../activity.js';
 import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
+import { activateEnhancementSubtree } from '../enhancements.js';
 import {
 	mountChildren,
 	mountDetachedChildren,
@@ -74,8 +75,21 @@ export function mount(
 		const parked = takeParkedMount(root, vnode, parentInstance, parentScope);
 		if (parked) return parked;
 		const scope = createEffectScope(parentScope);
+		const hasEnhancements = !!vnode.enhancements?.entries.length;
+		const nesting = root.enhancementNesting ?? 0;
+		if (hasEnhancements) root.enhancementNesting = nesting + 1;
 		try {
-			const mounted = mountInner(root, vnode, scope, parentInstance, parentNode);
+			let mounted = mountInner(root, vnode, scope, parentInstance, parentNode);
+			if (hasEnhancements) {
+				if (nesting === 0)
+					mounted = activateEnhancementSubtree(
+						root,
+						mounted,
+						parentInstance,
+						parentScope,
+						(next, instance, nextScope, node) => mount(root, next, instance, nextScope, node, false)
+					);
+			}
 			const owner = mounted.instance ?? parentInstance;
 			if (owner) {
 				setNodeOwner(mounted.dom, owner);
@@ -85,6 +99,8 @@ export function mount(
 		} catch (error) {
 			scope.stop();
 			throw error;
+		} finally {
+			if (hasEnhancements) root.enhancementNesting = nesting;
 		}
 	});
 }

@@ -44,6 +44,7 @@ import { installActivity } from '../activity.js';
 import { updateSuspense } from '../suspense.js';
 import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
+import { patchEnhancementBoundary } from '../enhancements.js';
 
 /** Performs the patch domain operation. */
 export function patch(
@@ -82,6 +83,17 @@ export function patchInner(
 		const created = mount(root, next, parentInstance, parentScope, parent, false);
 		placeMountedBefore(root, parent, created, null);
 		return created;
+	}
+	if (mounted.enhancement) {
+		return patchEnhancementBoundary(
+			root,
+			mounted,
+			next,
+			parent,
+			parentInstance,
+			parentScope,
+			(current, vnode, instance, scope) => patch(root, parent, current, vnode, instance, scope)
+		);
 	}
 
 	// Pre-patch ownership hooks may stop a subtree before DOM mutation (for

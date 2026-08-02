@@ -1,4 +1,5 @@
 import type {
+	EnhancementEntry,
 	ComponentFunction,
 	ComponentInstance,
 	ExactRuntimeInspectionOwner,
@@ -42,6 +43,12 @@ export type Mounted = {
 	rawNodes?: Node[];
 	/** Reserved framework-owned insertion point after authored host children. */
 	childEnd?: Node;
+	/** Active plugin-component chain whose public reconciliation identity remains the authored target. */
+	enhancement?: {
+		readonly entries: readonly EnhancementEntry[];
+		readonly inheritedIdentities: ReadonlySet<string>;
+		readonly target: Mounted;
+	};
 	/** Retained native Activity state owned by this boundary mount. */
 	activity?: {
 		mode: ActivityMode;
@@ -90,6 +97,12 @@ export type Root = {
 	allowUnsafeHtml: boolean;
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	onProfile?: ExactProfileSink<DomProfileEvent>;
+	/** Trusted compiler-generated plugin capability catalog for this renderer root. */
+	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	/** Canonical unavailable identities already reported by this renderer root. */
+	unavailableEnhancements?: Set<string>;
+	/** Nested authored marker depth used to activate one complete logical declaration subtree. */
+	enhancementNesting?: number;
 	/** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
 	mode?: 'client' | 'hydrated' | 'document';
 	/** Component ranges are inferred when the public server format omits eXact markers. */
@@ -125,6 +138,8 @@ export type RenderOptions = {
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	/** Receives coarse renderer timings and traversal counts. */
 	onProfile?: ExactProfileSink<DomProfileEvent>;
+	/** Trusted compiler-generated mapping from canonical plugin identity to component implementation. */
+	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
 	/** Internal shared budget used when hydration combines DOM scans and renderer work. */
 	workBudget?: DomWorkBudget;
 	/** Internal logical parent used by a late island mounted in a nested DOM root. */

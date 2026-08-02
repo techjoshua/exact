@@ -109,6 +109,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	root.allowUnsafeHtml = options.allowUnsafeHtml ?? root.allowUnsafeHtml;
 	root.onUnsafeHtml = options.onUnsafeHtml ?? root.onUnsafeHtml;
 	root.onProfile = options.onProfile ?? root.onProfile;
+	root.enhancementCatalog = options.enhancementCatalog ?? root.enhancementCatalog;
 
 	const next =
 		root.mode === 'hydrated' ? vnode : createVNode(root.boundary, { version: root.version });
