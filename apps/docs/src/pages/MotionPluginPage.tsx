@@ -67,6 +67,11 @@ export function MotionPluginPage(this: Component<{}>) {
 					unless <code>appear</code> opts in. Release reversal retains the same generation and runs
 					enter from the interrupted computed frame instead of jumping to its first keyframe.
 				</p>
+				<p>
+					An attributed <code>motion:change</code> stays subscribed on a persistent target even when
+					that target has no enter phase. Ordinary reactive styles therefore remain authoritative
+					while the enhancement supplies the visual path between committed values.
+				</p>
 			</section>
 			<section>
 				<h2>Coordinate conditional presence</h2>

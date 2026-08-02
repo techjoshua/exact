@@ -2,8 +2,9 @@
 
 A practical eXact gallery showing how optional renderer enhancements improve familiar controls:
 
-- motion adds a sliding tab indicator plus retained enter/leave continuity for replacement panels,
-  disclosures, and toast presence;
+- motion attributes add a sliding tab indicator and preset enter/leave continuity to ordinary
+  panels, disclosures, and toast elements; explicit `Presence` remains only where conditional
+  retention or out-in sequencing is structurally meaningful;
 - gestures recognizes press, hover/focus intent, long press, drag and keyboard sliders, and
   pan/pinch media navigation with explicit desktop zoom and rotation equivalents;
 - physics owns a fixed-step, directly manipulated body with playful bounded collisions; and

@@ -1,7 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { Activity, createEnhancementMarker, type Component } from '@exactjs/core';
+import {
+	Activity,
+	createEnhancementMarker,
+	createExpression,
+	type Component
+} from '@exactjs/core';
 import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
@@ -105,6 +110,51 @@ describe('MotionElement', () => {
 			expect(driver.playbacks[0]?.effect.keyframes).toEqual(
 				(fade.enter as { keyframes: Keyframe[] }).keyframes
 			);
+		} finally {
+			restore();
+		}
+	});
+
+	it('observes a change-only phase after the initial enter path is skipped', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		let owner!: Component<{ offset: number }>;
+		const Scene = markTestComponent(function Scene(this: Component<{ offset: number }>) {
+			owner = this;
+			this.state.offset = 0;
+			const marker = createEnhancementMarker([
+				{
+					identity,
+					props: {
+						change: createExpression(() => ({
+							keyframes: [
+								{ transform: 'translateX(0)' },
+								{ transform: `translateX(${this.state.offset}px)` }
+							]
+						}))
+					}
+				}
+			]);
+			return () =>
+				createVNode('span', { __exactEnhancements: marker }, 'Indicator');
+		});
+		const container = document.createElement('div');
+		containers.push(container);
+		try {
+			render(createVNode(Scene, null), container, {
+				enhancementCatalog: new Map([[identity, MotionElement]])
+			});
+			expect(driver.playbacks).toHaveLength(0);
+
+			owner.state.offset = 48;
+			flushSync();
+			await settle();
+
+			expect(driver.playbacks).toHaveLength(1);
+			expect(driver.playbacks[0]?.effect.keyframes).toEqual([
+				{ transform: 'translateX(0)' },
+				{ transform: 'translateX(48px)' }
+			]);
 		} finally {
 			restore();
 		}

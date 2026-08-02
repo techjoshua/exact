@@ -60,6 +60,9 @@ An enter phase runs automatically when a root is introduced by a later reactive 
 client rendering and hydration adoption skip enter by default; `appear` opts those generations in.
 Release reversal retains the original generation but runs enter as a continuation from the
 interrupted computed frame rather than resetting to its authored first keyframe.
+An attributed `motion:change` remains subscribed on a persistent target even when that target has
+no enter phase, so an ordinary reactive style binding can own the destination while motion supplies
+the visual path between committed values.
 
 The main runtime uses a browser-safe Web Animations driver by default, so bundled attributed and
 explicit motion works without requiring a separate plugin host. Creating that driver does not read

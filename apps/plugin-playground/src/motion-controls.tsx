@@ -1,30 +1,8 @@
-import { createRef, type Component } from '@exactjs/core';
-import {
-	animate,
-	defineMotion,
-	Motion,
-	Presence,
-	type MotionEffect,
-	type MotionPlayback
-} from '@exactjs/motion';
-
-const panelMotion = defineMotion({
-	enter: {
-		keyframes: [
-			{ opacity: 0, transform: 'translateY(8px)' },
-			{ opacity: 1, transform: 'none' }
-		],
-		options: { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' }
-	},
-	leave: {
-		keyframes: [
-			{ opacity: 1, transform: 'none' },
-			{ opacity: 0, transform: 'translateY(-6px)' }
-		],
-		options: { duration: 130, easing: 'ease-in' }
-	},
-	reduced: 'skip'
-});
+import type { Component } from '@exactjs/core';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
+import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import { defineMotion, Presence, type MotionEffect } from '@exactjs/motion';
+import { slideLeft, slideUp } from '@exactjs/motion/presets';
 
 const disclosureMotion = defineMotion({
 	enter: {
@@ -59,24 +37,6 @@ const disclosureMotion = defineMotion({
 	reduced: 'skip'
 });
 
-const toastMotion = defineMotion({
-	enter: {
-		keyframes: [
-			{ opacity: 0, transform: 'translateX(20px) scale(.96)' },
-			{ opacity: 1, transform: 'none' }
-		],
-		options: { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' }
-	},
-	leave: {
-		keyframes: [
-			{ opacity: 1, transform: 'none' },
-			{ opacity: 0, transform: 'translateX(16px) scale(.96)' }
-		],
-		options: { duration: 150, easing: 'ease-in' }
-	},
-	reduced: 'skip'
-});
-
 type MotionControlsState = {
 	activeTab: 'profile' | 'activity';
 	expanded: boolean;
@@ -106,18 +66,12 @@ export function MotionControls(this: Component<MotionControlsState>) {
 	this.state.activeTab = 'profile';
 	this.state.expanded = false;
 	this.state.toastVisible = false;
-	const tabIndicator = createRef<HTMLElement>('plugin-playground-tab-indicator');
-	let indicatorPlayback: MotionPlayback | undefined;
+	let previousTab: MotionControlsState['activeTab'] = 'profile';
 	const selectTab = (tab: MotionControlsState['activeTab']) => {
 		if (tab === this.state.activeTab) return;
-		const previousTab = this.state.activeTab;
+		previousTab = this.state.activeTab;
 		this.state.activeTab = tab;
-		const indicator = this.refs.get(tabIndicator);
-		if (!indicator) return;
-		indicatorPlayback?.cancel('tab-selection-changed');
-		indicatorPlayback = animate(indicator, indicatorChange(previousTab, tab));
 	};
-	this.onUnmount(() => indicatorPlayback?.cancel('tab-control-unmounted'));
 
 	return () => (
 		<section className="demo-card motion-demo" aria-labelledby="motion-title">
@@ -133,36 +87,36 @@ export function MotionControls(this: Component<MotionControlsState>) {
 				<span
 					className="tab-indicator"
 					aria-hidden="true"
-					ref={this.ref(tabIndicator)}
+					motion:change={indicatorChange(previousTab, this.state.activeTab)}
 					style={{ transform: indicatorTransforms[this.state.activeTab] }}
 				/>
-					<button
-						role="tab"
-						aria-selected={this.state.activeTab === 'profile'}
-						onClick={() => selectTab('profile')}
-					>
-						<span className="tab-label">Profile</span>
-					</button>
-					<button
-						role="tab"
-						aria-selected={this.state.activeTab === 'activity'}
-						onClick={() => selectTab('activity')}
-					>
-						<span className="tab-label">Activity</span>
-					</button>
-				</div>
+				<button
+					role="tab"
+					aria-selected={this.state.activeTab === 'profile'}
+					onClick={() => selectTab('profile')}
+				>
+					<span className="tab-label">Profile</span>
+				</button>
+				<button
+					role="tab"
+					aria-selected={this.state.activeTab === 'activity'}
+					onClick={() => selectTab('activity')}
+				>
+					<span className="tab-label">Activity</span>
+				</button>
+			</div>
 			<div className="tab-panel">
 				<Presence when mode="out-in">
 					{this.state.activeTab === 'profile' ? (
-						<Motion key="profile" as="div" motion={panelMotion} role="tabpanel">
+						<div key="profile" motion:apply={slideUp} role="tabpanel">
 							<strong>Jordan Lee</strong>
 							<p>Design systems · Pacific time · Available for review</p>
-						</Motion>
+						</div>
 					) : (
-						<Motion key="activity" as="div" motion={panelMotion} role="tabpanel">
+						<div key="activity" motion:apply={slideUp} role="tabpanel">
 							<strong>Three updates today</strong>
 							<p>Published tokens, reviewed navigation, and resolved two comments.</p>
-						</Motion>
+						</div>
 					)}
 				</Presence>
 			</div>
@@ -184,18 +138,18 @@ export function MotionControls(this: Component<MotionControlsState>) {
 			</div>
 
 			<Presence when={this.state.expanded}>
-				<Motion key="details" as="div" className="disclosure" motion={disclosureMotion}>
+				<div key="details" className="disclosure" motion:apply={disclosureMotion}>
 					Motion follows committed state; it does not own whether this disclosure is open.
-				</Motion>
+				</div>
 			</Presence>
 			<Presence when={this.state.toastVisible}>
-				<Motion className="toast" key="saved" as="div" role="status" motion={toastMotion}>
+				<div className="toast" key="saved" role="status" motion:apply={slideLeft}>
 					<span className="toast-icon">✓</span>
 					<div>
 						<strong>Changes saved</strong>
 						<small>Your account settings are up to date.</small>
 					</div>
-				</Motion>
+				</div>
 			</Presence>
 		</section>
 	);

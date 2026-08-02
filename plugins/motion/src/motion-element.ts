@@ -60,9 +60,13 @@ export const MotionElement = markExactComponent(function MotionElement(
 	watch(() => {
 		const element = root.current;
 		if (!element || !root.presented) return;
+		// Read both live phases before selecting one so a change-only enhancement remains subscribed
+		// after its initial introduction chose the enter path.
+		const enterPhase = resolvePhase(props, 'enter');
+		const changePhase = resolvePhase(props, 'change');
 		const reversing = releasedGeneration === root.generation;
 		const entering = root.generation !== observedGeneration || reversing;
-		const phase = entering ? resolvePhase(props, 'enter') : resolvePhase(props, 'change');
+		const phase = entering ? enterPhase : changePhase;
 		const shouldAppear =
 			reversing ||
 			root.introduction === 'update' ||
