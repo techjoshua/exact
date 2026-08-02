@@ -96,6 +96,10 @@ export function PluginsPage(this: Component<{}>) {
 					attributed component capabilities.
 				</p>
 				<p>
+					The Vite adapter generates the final DOM catalog and passes it into each renderer root.
+					Low-level callers can still provide an explicit catalog when constructing a host directly.
+				</p>
+				<p>
 					Ordinary context production and consumption orders components before setup. Unrelated
 					capabilities use canonical identity, while a context cycle fails through normal component
 					error handling before any component in the cycle runs.

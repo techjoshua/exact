@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { packageDirectlyDependsOnPluginApi } from '@exactjs/plugin-api';
@@ -107,6 +107,8 @@ function publicTypeEntries(node: ExactPackageNode): PublicTypeEntry[] {
 }
 
 function attributedComponentExports(filename: string): readonly string[] {
+	const sourceText = readFileSync(filename, 'utf8');
+	if (!/\btype\s*:\s*['"]exact-plugin['"]/.test(sourceText)) return [];
 	const program = ts.createProgram([filename], {
 		allowJs: false,
 		module: ts.ModuleKind.NodeNext,

@@ -44,6 +44,11 @@ import {
 	validateViteDebugIdentity
 } from './debug-output.js';
 import type { ExactPlugin, ExactPluginOptions } from './plugin-contracts.js';
+import {
+	createViteDomEnhancementFacade,
+	exactEnhancementDomModule,
+	resolvedExactEnhancementDomModule
+} from './enhancement-catalog.js';
 
 export type {
 	ExactPlugin,
@@ -160,6 +165,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			server.watcher?.once('close', () => compilerSession.dispose());
 		},
 		resolveId(source, importer) {
+			if (source === exactEnhancementDomModule) return resolvedExactEnhancementDomModule;
 			if (
 				source === exactDevtoolsRuntimeModule &&
 				options.target !== 'server' &&
@@ -167,6 +173,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			)
 				return resolvedExactDevtoolsRuntimeModule;
 			const resolveFrameworkImport = () => {
+				if (source === '@exactjs/dom' && importer === resolvedExactEnhancementDomModule) {
+					return resolveExactArtifactImport(source, importer, 'client')?.id ?? null;
+				}
 				if (source === 'react-reconciler' && reactCompatibility) {
 					validateInstalledReactReconciler(
 						reactCompatibility.target,
@@ -181,6 +190,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					)?.id ?? null
 				);
 			};
+			if (source === '@exactjs/dom' && importer !== resolvedExactEnhancementDomModule) {
+				const resolvePrepared = (registry: ExactPreparedPluginRegistry) =>
+					registry.enhancements.size ? resolvedExactEnhancementDomModule : resolveFrameworkImport();
+				return preparedRegistry ? resolvePrepared(preparedRegistry) : prepareRegistry().then(resolvePrepared);
+			}
 			return microfrontends.resolveId(
 				source,
 				importer,
@@ -191,6 +205,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		load(id) {
+			if (id === resolvedExactEnhancementDomModule) {
+				return {
+					code: createViteDomEnhancementFacade(preparedRegistry?.enhancements ?? new Map()),
+					moduleType: 'js'
+				};
+			}
 			if (id === resolvedExactDevtoolsRuntimeModule)
 				return {
 					code: exactDevtoolsRuntimeBootstrap(configuredDebug),

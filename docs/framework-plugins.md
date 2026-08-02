@@ -107,6 +107,8 @@ component exports for every participating package without consulting the eventua
 trust policy. The final application's prepared registry then selects activation entries by trusted
 package identity. Trusting a package trusts its attributed capabilities; an untrusted package may
 still be compiled and described, but its markers remain inert in that application.
+Vite turns the final trusted selection into a generated DOM facade and supplies it to each renderer
+root through ordinary render options; callers that provide an explicit catalog retain control.
 
 Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
 the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
