@@ -276,6 +276,7 @@ export function MovableCard(this: Component<MovableCardState>, props: Readonly<{
 	this.state.dragging = false;
 
 	const drag = defineGesture({
+		semantics: 'control',
 		drag: {
 			axis: 'both',
 			threshold: 4,
@@ -327,8 +328,8 @@ removes recognition without changing the state architecture.
 
 Definitions must state whether they are decorative or control-like. A
 control-like preset either provides keyboard semantics or requires the author
-to configure them; the compiler/language server warns when a pointer-only
-control has no keyboard path.
+to configure them; TypeScript checking rejects a control-like definition with
+no keyboard path and the language server presents the same diagnostic.
 
 The package:
 

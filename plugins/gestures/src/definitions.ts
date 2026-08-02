@@ -21,6 +21,10 @@ const recognizerBrand = Symbol('exact.gesture-recognizer');
 export function defineGesture(input: GestureDefinitionInput): GestureDefinition {
 	if (!input || typeof input !== 'object')
 		throw new TypeError('defineGesture() requires an object');
+	if (input.semantics !== 'decorative' && input.semantics !== 'control')
+		throw new TypeError('defineGesture() requires decorative or control semantics');
+	if (input.semantics === 'control' && !input.keyboard)
+		throw new TypeError('control-like gestures require a keyboard policy');
 	const prepared = {
 		...input,
 		press: input.press && prepareRecognizer(input.press, 'press'),

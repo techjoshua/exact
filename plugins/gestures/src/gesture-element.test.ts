@@ -28,6 +28,7 @@ describe('GestureElement', () => {
 					GestureElement,
 					{
 						apply: defineGesture({
+							semantics: 'decorative',
 							press: { threshold: 4, onPress: press },
 							drag: {
 								threshold: 4,
@@ -74,6 +75,7 @@ describe('GestureElement', () => {
 				GestureElement,
 				{
 					apply: defineGesture({
+						semantics: 'control',
 						drag: { threshold: 0, onCancel: cancelled },
 						keyboard: { step: 6, onMove: (sample) => moves.push(sample.delta) }
 					})
@@ -107,6 +109,7 @@ describe('GestureElement', () => {
 				GestureElement,
 				{
 					apply: defineGesture({
+						semantics: 'decorative',
 						drag: {
 							threshold: 0,
 							priority: 2,
@@ -153,6 +156,7 @@ describe('GestureElement', () => {
 				GestureElement,
 				{
 					apply: defineGesture({
+						semantics: 'decorative',
 						hover: {
 							onStart: (sample) => hover.push(`start:${sample.pointerType}`),
 							onEnd: (sample) => hover.push(`end:${sample.pointerType}`)
@@ -182,6 +186,143 @@ describe('GestureElement', () => {
 		expect(hover).toEqual(['start:keyboard', 'end:keyboard']);
 		expect(pinch.map((sample) => sample.phase)).toEqual(['start', 'move', 'end']);
 		expect(pinch[1]?.scale).toBe(2);
+	});
+
+	it('routes nested targets by logical priority and prefers the nearest target on ties', async () => {
+		const calls: string[] = [];
+		const container = document.createElement('div');
+		containers.push(container);
+		const definition = (name: string, priority: number) =>
+			defineGesture({
+				semantics: 'decorative',
+				drag: {
+					threshold: 0,
+					priority,
+					onMove: () => calls.push(name)
+				}
+			});
+		const tree = (outerPriority: number) =>
+			createVNode(
+				GestureElement,
+				{ apply: definition('outer', outerPriority) },
+				createVNode(
+					'div',
+					null,
+					createVNode(
+						GestureElement,
+						{ apply: definition('inner', 1) },
+						createVNode('button', null, 'Nested')
+					)
+				)
+			);
+
+		render(tree(2), container);
+		let target = container.querySelector('button')!;
+		target.dispatchEvent(pointer('pointerdown', 1, 0, 0));
+		target.dispatchEvent(pointer('pointermove', 1, 4, 0));
+		target.dispatchEvent(pointer('pointerup', 1, 4, 0));
+		await settle();
+		expect(calls).toEqual(['outer']);
+
+		calls.length = 0;
+		unmount(container);
+		const tieContainer = document.createElement('div');
+		containers.push(tieContainer);
+		render(tree(1), tieContainer);
+		target = tieContainer.querySelector('button')!;
+		target.dispatchEvent(pointer('pointerdown', 2, 0, 0));
+		target.dispatchEvent(pointer('pointermove', 2, 4, 0));
+		target.dispatchEvent(pointer('pointerup', 2, 4, 0));
+		await settle();
+		expect(calls).toEqual(['inner']);
+	});
+
+	it('delivers loser cancellation before the winner and provides keyboard fallbacks', async () => {
+		const calls: string[] = [];
+		const container = document.createElement('div');
+		containers.push(container);
+		render(
+			createVNode(
+				GestureElement,
+				{
+					apply: defineGesture({
+						semantics: 'control',
+						press: {
+							onPress: (sample) => calls.push(`press:${sample.pointerType}`),
+							onCancel: () => calls.push('press:cancel')
+						},
+						drag: {
+							threshold: 0,
+							priority: 2,
+							onStart: () => calls.push('drag:start'),
+							onMove: (sample) => calls.push(`drag:${sample.pointerType}`)
+						},
+						pan: {
+							threshold: 0,
+							priority: 1,
+							onCancel: () => calls.push('pan:cancel')
+						},
+						keyboard: { step: 5 }
+					})
+				},
+				createVNode('button', null, 'Control')
+			),
+			container
+		);
+		const target = container.querySelector('button')!;
+		target.dispatchEvent(pointer('pointerdown', 1, 0, 0));
+		target.dispatchEvent(pointer('pointermove', 1, 4, 0));
+		target.dispatchEvent(pointer('pointerup', 1, 4, 0));
+		target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+		target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+		await settle();
+
+		expect(calls).toEqual([
+			'pan:cancel',
+			'press:cancel',
+			'drag:start',
+			'drag:mouse',
+			'drag:keyboard',
+			'press:keyboard'
+		]);
+	});
+
+	it('allows only the highest-priority recognizer in an explicit exclusive group', async () => {
+		const calls: string[] = [];
+		const container = document.createElement('div');
+		containers.push(container);
+		render(
+			createVNode(
+				GestureElement,
+				{
+					apply: defineGesture({
+						semantics: 'decorative',
+						drag: {
+							threshold: 0,
+							priority: 2,
+							exclusiveGroup: 'movement',
+							simultaneous: true,
+							onMove: () => calls.push('drag')
+						},
+						pan: {
+							threshold: 0,
+							priority: 1,
+							exclusiveGroup: 'movement',
+							simultaneous: true,
+							onMove: () => calls.push('pan')
+						}
+					})
+				},
+				createVNode('div', null)
+			),
+			container
+		);
+		const target = container.querySelector('div')!;
+		target.dispatchEvent(pointer('pointerdown', 1, 0, 0));
+		target.dispatchEvent(pointer('pointermove', 1, 1, 0));
+		target.dispatchEvent(pointer('pointerup', 1, 1, 0));
+		await settle();
+		expect(calls).toEqual(['drag']);
 	});
 });
 

@@ -30,6 +30,7 @@ export type GestureCallback<Sample extends GestureSample = GestureSample> = (
 /** Priority and competition policy shared by prepared recognizers. */
 export type GestureRecognizerBase = Readonly<{
 	priority?: number;
+	exclusiveGroup?: string;
 	simultaneous?: boolean;
 	name?: string;
 }>;
@@ -79,6 +80,7 @@ export type PinchRecognizerInput = GestureRecognizerBase &
 export type KeyboardRecognizerInput = Readonly<{
 	step?: number;
 	onMove?: GestureCallback;
+	onPress?: GestureCallback;
 }>;
 
 /** Immutable branded recognizer accepted by site-specific overrides. */
@@ -95,27 +97,36 @@ export type PanRecognizer = PreparedRecognizer<PanRecognizerInput>;
 /** Prepared pinch recognizer. */
 export type PinchRecognizer = PreparedRecognizer<PinchRecognizerInput>;
 
-/** Author input for one stable collection of competing recognizers. */
-export type GestureDefinitionInput = Readonly<{
+/** Shared author input for one stable collection of competing recognizers. */
+type GestureDefinitionBase = Readonly<{
 	name?: string;
 	press?: PressRecognizerInput | PressRecognizer;
 	hover?: HoverRecognizerInput | HoverRecognizer;
 	drag?: DragRecognizerInput | DragRecognizer;
 	pan?: PanRecognizerInput | PanRecognizer;
 	pinch?: PinchRecognizerInput | PinchRecognizer;
-	keyboard?: KeyboardRecognizerInput;
 	touchAction?: 'auto' | 'none' | 'pan-x' | 'pan-y' | 'manipulation';
 }>;
 
+/** Author input that classifies decorative or control-like recognition policy. */
+export type GestureDefinitionInput = GestureDefinitionBase &
+	(
+		| Readonly<{ semantics: 'decorative'; keyboard?: KeyboardRecognizerInput }>
+		| Readonly<{ semantics: 'control'; keyboard: KeyboardRecognizerInput }>
+	);
+
 /** Validated immutable reusable gesture policy. */
 export type GestureDefinition = Readonly<
-	Omit<GestureDefinitionInput, 'press' | 'hover' | 'drag' | 'pan' | 'pinch'> & {
+	Omit<GestureDefinitionBase, 'press' | 'hover' | 'drag' | 'pan' | 'pinch'> & {
 		press?: PressRecognizer;
 		hover?: HoverRecognizer;
 		drag?: DragRecognizer;
 		pan?: PanRecognizer;
 		pinch?: PinchRecognizer;
-	}
+	} & (
+			| Readonly<{ semantics: 'decorative'; keyboard?: KeyboardRecognizerInput }>
+			| Readonly<{ semantics: 'control'; keyboard: KeyboardRecognizerInput }>
+		)
 > &
 	Readonly<{ [gestureDefinitionBrand]: true }>;
 

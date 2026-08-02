@@ -1,4 +1,10 @@
-import { markExactComponent, unwrap, watch, type Component } from '@exactjs/core';
+import {
+	markExactComponent,
+	unwrap,
+	watch,
+	type Component,
+	type ComponentInstance
+} from '@exactjs/core';
 import { defaultGestureSettings, GestureContext } from './context.js';
 import type { GestureDefinition, GestureElementProps } from './contracts.js';
 import { GestureSession } from './session.js';
@@ -12,7 +18,10 @@ export const GestureElement = markExactComponent(function GestureElement(
 	const settings = this.hasContext(GestureContext)
 		? this.getContext(GestureContext)
 		: defaultGestureSettings;
-	const session = new GestureSession((error) => this.log.error('gesture callback failed', error));
+	const session = new GestureSession(
+		(error) => this.log.error('gesture callback failed', error),
+		this as ComponentInstance<{}>
+	);
 
 	watch(() => {
 		session.configure({

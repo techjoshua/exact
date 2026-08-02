@@ -11,6 +11,7 @@ import { defineGesture } from '@exactjs/gestures';
 
 export const movable = defineGesture({
 	name: 'movable-card',
+	semantics: 'control',
 	drag: {
 		axis: 'both',
 		threshold: 4,
@@ -42,9 +43,10 @@ The package exports `pressable`, `hoverable`, `draggable`, `pannable`, `pinchabl
 
 `GestureSample` contains the session phase, pointer type, viewport and local points, accumulated
 delta, sampled velocity, elapsed monotonic time, cancellation signal, and original event. Drag and
-pan candidates arbitrate by explicit priority and threshold. They run simultaneously only when
-both opt in. Press is suppressed once movement wins, and pinch cancels an active single-pointer
-candidate before its first sample.
+pan candidates arbitrate by explicit priority, threshold, and optional `exclusiveGroup`. They run
+simultaneously only when both opt in. Nested logical targets use the same priority policy and
+prefer the nearest target on a tie. Press and losing movement candidates receive cancellation
+before the winner's first sample, and pinch cancels an active single-pointer candidate.
 
 Slow move callbacks are bounded: one callback runs while only the latest pending sample is kept.
 Capture loss, pointer cancellation, window blur, target deactivation, disabling, policy replacement,
@@ -52,9 +54,11 @@ and component disposal all cancel the owned session and restore inline touch and
 
 ## Accessibility
 
-Control-like gestures need a keyboard path. The definition-level `keyboard` recognizer maps arrow
-keys to semantic move samples, while hover policy treats focus as equivalent intent. Authors remain
-responsible for a focusable target, an accurate accessible name, and any control-specific role.
+Every definition declares `semantics: 'decorative' | 'control'`. Control-like definitions require
+a keyboard policy at the type boundary. Arrow keys produce semantic move samples, while Enter and
+Space produce press samples; omitted callbacks fall back to the definition's drag, pan, or press
+callback. Hover policy treats focus as equivalent intent. Authors remain responsible for a
+focusable target, an accurate accessible name, and any control-specific role.
 
 ## Plugin-owned JSX
 

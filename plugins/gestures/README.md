@@ -11,6 +11,7 @@ import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
 import { defineGesture } from '@exactjs/gestures';
 
 const movable = defineGesture({
+	semantics: 'control',
 	drag: {
 		threshold: 4,
 		onMove(sample) {

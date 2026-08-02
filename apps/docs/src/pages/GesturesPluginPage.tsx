@@ -4,6 +4,7 @@ import { Article } from './Article.jsx';
 
 const definitionSource = `const movable = defineGesture({
   name: 'movable-card',
+  semantics: 'control',
   drag: {
     threshold: 4,
     onStart: () => this.state.dragging = true,

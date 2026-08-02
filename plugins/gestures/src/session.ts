@@ -1,4 +1,4 @@
-import { unwrap } from '@exactjs/core';
+import { unwrap, type ComponentInstance } from '@exactjs/core';
 import {
 	captureTaskFrame,
 	runTaskFrame,
@@ -39,6 +39,8 @@ export interface GestureClock {
 
 const browserClock: GestureClock = { now: () => performance.now() };
 let activeClock = browserClock;
+const sessionsByOwner = new WeakMap<ComponentInstance<any>, GestureSession>();
+const routedPointerDown = new WeakSet<Event>();
 
 /** Installs a gesture clock and returns a restoration function. */
 export function installGestureClock(clock: GestureClock): () => void {
@@ -74,9 +76,12 @@ export class GestureSession implements Disposable {
 	#userSelect = '';
 	#stylesCaptured = false;
 	#report: (error: unknown) => void;
+	#owner?: ComponentInstance<any>;
 
-	constructor(report: (error: unknown) => void = () => undefined) {
+	constructor(report: (error: unknown) => void = () => undefined, owner?: ComponentInstance<any>) {
 		this.#report = report;
+		this.#owner = owner;
+		if (owner) sessionsByOwner.set(owner, this);
 	}
 
 	/** Reconciles the stable session with its current target and prepared policy. */
@@ -124,6 +129,8 @@ export class GestureSession implements Disposable {
 		this.cancel('gesture-session-disposed');
 		this.#detach();
 		this.#element = undefined;
+		if (this.#owner && sessionsByOwner.get(this.#owner) === this)
+			sessionsByOwner.delete(this.#owner);
 	}
 
 	/** Installs idle target listeners and captures authored inline policy. */
@@ -176,6 +183,13 @@ export class GestureSession implements Disposable {
 
 	#pointerDown = (raw: Event): void => {
 		const event = raw as PointerEvent;
+		if (routedPointerDown.has(event)) return;
+		routedPointerDown.add(event);
+		this.#nestedWinner().#acceptPointerDown(event);
+	};
+
+	/** Starts the session selected by logical target ancestry and recognizer priority. */
+	#acceptPointerDown(event: PointerEvent): void {
 		if (!this.#configuration || !this.#element) return;
 		if (!this.#pointers.size) this.#beginSession();
 		const point = this.#point(event);
@@ -195,7 +209,37 @@ export class GestureSession implements Disposable {
 		if (this.#pointers.size === 2) this.#preparePinch();
 		if (this.#element instanceof HTMLElement) this.#element.style.userSelect = 'none';
 		globalThis.addEventListener?.('blur', this.#windowBlur, { once: true });
-	};
+	}
+
+	/** Selects one deterministic winner across nested logical gesture components. */
+	#nestedWinner(): GestureSession {
+		let winner: GestureSession = this;
+		let priority = this.#routingPriority();
+		let cursor = this.#owner?.parent;
+		while (cursor) {
+			const candidate = sessionsByOwner.get(cursor);
+			if (candidate && candidate.#element) {
+				const candidatePriority = candidate.#routingPriority();
+				if (candidatePriority > priority) {
+					winner = candidate;
+					priority = candidatePriority;
+				}
+			}
+			cursor = cursor.parent;
+		}
+		return winner;
+	}
+
+	/** Returns the highest explicit recognizer priority available at this target. */
+	#routingPriority(): number {
+		const recognizers = this.#recognizers();
+		return Math.max(
+			recognizers.press?.priority ?? 0,
+			recognizers.drag?.priority ?? 0,
+			recognizers.pan?.priority ?? 0,
+			recognizers.pinch?.priority ?? 0
+		);
+	}
 
 	#pointerMove = (raw: Event): void => {
 		const event = raw as PointerEvent;
@@ -263,9 +307,17 @@ export class GestureSession implements Disposable {
 	};
 
 	#keyDown = (event: Event): void => {
-		const keyboard = unwrap(this.#configuration?.definition)?.keyboard;
+		const definition = unwrap(this.#configuration?.definition);
+		const keyboard = definition?.keyboard;
 		if (!keyboard) return;
 		const key = (event as KeyboardEvent).key;
+		if (key === 'Enter' || key === ' ') {
+			const callback = keyboard.onPress ?? this.#recognizers().press?.onPress;
+			if (!callback) return;
+			event.preventDefault();
+			this.#invoke('keyboard-press', callback, this.#idleSample('end', event));
+			return;
+		}
 		const step = keyboard.step ?? 8;
 		const delta =
 			key === 'ArrowLeft'
@@ -280,9 +332,12 @@ export class GestureSession implements Disposable {
 		if (!delta) return;
 		event.preventDefault();
 		const signal = new AbortController().signal;
+		const callback =
+			keyboard.onMove ?? this.#recognizers().drag?.onMove ?? this.#recognizers().pan?.onMove;
+		if (!callback) return;
 		this.#invoke(
 			'keyboard',
-			keyboard.onMove,
+			callback,
 			freezeSample({
 				phase: 'move',
 				pointerType: 'keyboard',
@@ -383,14 +438,29 @@ export class GestureSession implements Disposable {
 			}
 			eligible.push({ ...candidate, axis });
 		}
-		const winner = eligible[0];
+		const groupWinners: ActiveRecognizer[] = [];
+		const claimedGroups = new Set<string>();
+		for (const candidate of eligible) {
+			const group = candidate.recognizer.exclusiveGroup ?? candidate.kind;
+			if (claimedGroups.has(group)) continue;
+			claimedGroups.add(group);
+			groupWinners.push(candidate);
+		}
+		const winner = groupWinners[0];
 		if (!winner) return;
 		this.#active = [
 			winner,
-			...eligible
+			...groupWinners
 				.slice(1)
 				.filter((candidate) => winner.recognizer.simultaneous && candidate.recognizer.simultaneous)
 		];
+		const selected = new Set(this.#active);
+		const cancelled = eligible.filter((candidate) => !selected.has(candidate));
+		const cancellation = this.#sample('cancel', point, pointer, event, pointer);
+		for (const candidate of cancelled)
+			this.#invoke(candidate.kind, candidate.recognizer.onCancel, cancellation);
+		const press = recognizers.press;
+		if (press) this.#invoke('press', press.onCancel, cancellation);
 		for (const active of this.#active) {
 			this.#invoke(
 				active.kind,
@@ -495,7 +565,8 @@ export class GestureSession implements Disposable {
 		const point = { x: 0, y: 0 };
 		return freezeSample({
 			phase,
-			pointerType: event.type.startsWith('focus') ? 'keyboard' : 'mouse',
+			pointerType:
+				event.type.startsWith('focus') || event.type.startsWith('key') ? 'keyboard' : 'mouse',
 			point,
 			localPoint: point,
 			delta: point,
