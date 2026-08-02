@@ -108,6 +108,8 @@ export type {
 	ComponentDomainIdentity,
 	DirectComponentFunction,
 	ComponentFunction,
+	EnhancementEntry,
+	EnhancementMarker,
 	ComponentInstance,
 	BlockingWork,
 	ComponentResumptionActivation,
@@ -142,6 +144,7 @@ export type {
 	VNodeCell,
 	VNodeType
 } from './component/contracts.js';
+export { createEnhancementMarker } from './enhancements.js';
 export { bindTask, bindTaskForHost, defineTask, invokeTask, taskStatus } from './tasks/runtime.js';
 export { activateTask, activateTaskForHost } from './tasks/activation.js';
 export { createTaskOwner } from './tasks/owners.js';

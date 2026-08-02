@@ -6248,3 +6248,64 @@ func TestSessionTreatsUnderscoreJSXAsCompilerFragment(t *testing.T) {
 		t.Fatalf("compiler fragment was not lowered:\n%s", response.Code)
 	}
 }
+
+func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "C:/virtual/plugin-enhancement.tsx",
+		Kind: "compile",
+		Source: `
+			import { motion as animate } from "@test/motion" with { type: "exact-plugin" };
+			export function View(this: Component<{ duration: number }>) {
+				this.state.duration = 120;
+				return () => (
+					<button
+						animate:preset="fade"
+						animate:exit-duration={this.state.duration}
+						animate:root
+					>
+						Save
+					</button>
+				);
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("plugin JSX namespace produced an error: %#v", response.Diagnostics)
+		}
+	}
+	if strings.Contains(response.Code, `from "@test/motion"`) {
+		t.Fatalf("compile-only plugin import was retained:\n%s", response.Code)
+	}
+	for _, expected := range []string{
+		"createEnhancementMarker",
+		`identity: "@test/motion#motion"`,
+		`preset: "fade"`,
+		"exitDuration:",
+		"root: true",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("plugin lowering omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Count(response.Code, "__exactEnhancements:") != 1 {
+		t.Fatalf("plugin props were not emitted as one grouped marker:\n%s", response.Code)
+	}
+}
+
+func TestSessionRejectsPluginNamespaceImports(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:     "C:/virtual/plugin-namespace.tsx",
+		Kind:   "compile",
+		Source: `import * as motion from "@test/motion" with { type: "exact-plugin" };`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !containsDiagnosticCode(response.Diagnostics, "EXACT6003") {
+		t.Fatalf("plugin namespace import was accepted: %#v", response.Diagnostics)
+	}
+}

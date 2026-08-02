@@ -318,6 +318,7 @@ func (s *Session) Execute(request Request) Response {
 		components,
 		request.ID,
 	)
+	enhancementImports := collectEnhancementImports(sourceFile)
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()
@@ -391,6 +392,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
@@ -476,6 +478,7 @@ func (s *Session) Execute(request Request) Response {
 		request.InstrumentInspection,
 		generation.checker,
 		request.JSXInterop,
+		enhancementImports,
 	)
 	// Contract wrapping synthesizes nested component implementations. Retain
 	// target-local import uses observed after task lowering so wrapping

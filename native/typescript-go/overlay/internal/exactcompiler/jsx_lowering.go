@@ -57,6 +57,7 @@ type jsxRuntimeNames struct {
 	arrayMutation          string
 	collectionMutation     string
 	componentRegistry      string
+	enhancements           string
 	interop                string
 }
 
@@ -94,6 +95,7 @@ type jsxLowering struct {
 	cachedDerivedNames   map[int]string
 	contextWrites        map[string][]string
 	collectionMaps       map[string]collectionMapPlan
+	enhancementImports   enhancementImports
 }
 
 type collectionMapPlan struct {
@@ -124,6 +126,7 @@ func lowerExactJSX(
 	instrumentInspection bool,
 	typeChecker *checker.Checker,
 	interop *JSXInterop,
+	enhancementImports enhancementImports,
 ) *ast.SourceFile {
 	hasJSX := sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0
 	hasReactiveCapture := strings.Contains(sourceFile.Text(), ".reactive")
@@ -166,6 +169,7 @@ func lowerExactJSX(
 		renderEdges:          indexRenderEdges(components),
 		contextWrites:        indexContinuationContextWrites(continuations),
 		collectionMaps:       make(map[string]collectionMapPlan),
+		enhancementImports:   enhancementImports,
 		clientIslands:        clientIslands,
 	}
 	lowering.indexCollectionMaps()
@@ -306,6 +310,11 @@ func (lowering *jsxLowering) omitFullyMaterializedRenderLocals(root *ast.Node) *
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
+	}
+	if ast.IsImportDeclaration(node) {
+		if _, exists := lowering.enhancementImports.declarations[node.Pos()]; exists {
+			return lowering.factory.NewEmptyStatement()
+		}
 	}
 	if captured := lowering.lowerReactiveCapture(node); captured != nil {
 		return captured
@@ -1282,6 +1291,8 @@ func (lowering *jsxLowering) propsWithReactivity(
 	reactive bool,
 ) *ast.Node {
 	properties := []*ast.Node{}
+	enhancementEntries := make(map[string][]*ast.Node)
+	enhancementOrder := []string{}
 	if intrinsic {
 		properties = append(
 			properties,
@@ -1320,6 +1331,34 @@ func (lowering *jsxLowering) propsWithReactivity(
 			}
 			attribute := property.AsJsxAttribute()
 			name := jsxAttributeText(attribute.Name())
+			if ast.IsJsxNamespacedName(attribute.Name()) {
+				namespaced := attribute.Name().AsJsxNamespacedName()
+				prefix := namespaced.Namespace.Text()
+				if binding, exists := lowering.enhancementImports.bindings[prefix]; exists {
+					if _, grouped := enhancementEntries[binding.identity]; !grouped {
+						enhancementOrder = append(enhancementOrder, binding.identity)
+						enhancementEntries[binding.identity] = []*ast.Node{}
+					}
+					value := lowering.jsxAttributeInitializer(attribute, tag, name, reactive)
+					if value == nil {
+						continue
+					}
+					member := namespaced.Name().Text()
+					if member == "root" {
+						enhancementEntries[binding.identity] = append(
+							enhancementEntries[binding.identity],
+							lowering.property(lowering.factory.NewIdentifier("__exactRoot"), value),
+						)
+					} else {
+						member = kebabToCamel(member)
+						enhancementEntries[binding.identity] = append(
+							enhancementEntries[binding.identity],
+							lowering.property(jsxPropertyName(lowering.factory, member), value),
+						)
+					}
+					continue
+				}
+			}
 			if bindingProperties := lowering.formBindingProperties(
 				name,
 				attribute.Initializer,
@@ -1365,10 +1404,90 @@ func (lowering *jsxLowering) propsWithReactivity(
 			)
 		}
 	}
+	if len(enhancementOrder) != 0 {
+		entries := make([]*ast.Node, 0, len(enhancementOrder))
+		for _, identity := range enhancementOrder {
+			members := enhancementEntries[identity]
+			props := []*ast.Node{}
+			var root *ast.Node
+			for _, member := range members {
+				if ast.IsPropertyAssignment(member) && member.AsPropertyAssignment().Name().Text() == "__exactRoot" {
+					root = member.AsPropertyAssignment().Initializer
+					continue
+				}
+				props = append(props, member)
+			}
+			entry := []*ast.Node{
+				lowering.property(
+					lowering.factory.NewIdentifier("identity"),
+					lowering.factory.NewStringLiteral(identity, ast.TokenFlagsNone),
+				),
+				lowering.property(
+					lowering.factory.NewIdentifier("props"),
+					lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(props), false),
+				),
+			}
+			if root != nil {
+				entry = append(entry, lowering.property(lowering.factory.NewIdentifier("root"), root))
+			}
+			entries = append(entries, lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(entry), false))
+		}
+		properties = append(properties, lowering.property(
+			lowering.factory.NewIdentifier("__exactEnhancements"),
+			lowering.call(lowering.names.enhancements, []*ast.Node{
+				lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(entries), false),
+			}),
+		))
+	}
 	return lowering.factory.NewObjectLiteralExpression(
 		lowering.factory.NewNodeList(properties),
 		false,
 	)
+}
+
+func (lowering *jsxLowering) jsxAttributeInitializer(
+	attribute *ast.JsxAttribute,
+	tag string,
+	name string,
+	reactive bool,
+) *ast.Node {
+	switch {
+	case attribute.Initializer == nil:
+		return lowering.factory.NewTrueExpression()
+	case ast.IsStringLiteral(attribute.Initializer):
+		return lowering.factory.NewStringLiteral(attribute.Initializer.AsStringLiteral().Text, ast.TokenFlagsNone)
+	case ast.IsJsxExpression(attribute.Initializer):
+		expression := attribute.Initializer.AsJsxExpression().Expression
+		if expression == nil {
+			return nil
+		}
+		expression = lowering.preserveContextualCallbackTypes(expression, tag, name)
+		initializer := lowering.visitor.VisitNode(expression)
+		if reactive && !jsxCallbackExpression(expression) {
+			initializer = lowering.reactiveExpression(expression, initializer)
+		}
+		return initializer
+	default:
+		return lowering.visitor.VisitNode(attribute.Initializer)
+	}
+}
+
+func kebabToCamel(value string) string {
+	result := ""
+	upper := false
+	for _, character := range value {
+		if character == '-' {
+			upper = true
+			continue
+		}
+		if upper {
+			result += strings.ToUpper(string(character))
+			upper = false
+			continue
+		}
+		result += string(character)
+	}
+	return result
 }
 
 func jsxClassNameContribution(property *ast.Node) bool {
@@ -5558,6 +5677,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		{"mutateReactiveArray", lowering.names.arrayMutation},
 		{"mutateReactiveCollection", lowering.names.collectionMutation},
 		{"createCompiledComponentRegistry", lowering.names.componentRegistry},
+		{"createEnhancementMarker", lowering.names.enhancements},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -5755,6 +5875,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		arrayMutation:          allocate("__exactArrayMutation"),
 		collectionMutation:     allocate("__exactCollectionMutation"),
 		componentRegistry:      allocate("__exactComponentRegistry"),
+		enhancements:           allocate("__exactEnhancements"),
 		interop:                allocate("__exactInteropComponent"),
 	}
 }

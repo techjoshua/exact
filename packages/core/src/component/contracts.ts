@@ -81,9 +81,23 @@ export type VNode<Props = Record<string, unknown>> = {
 	props: Props;
 	children: Child[];
 	key?: string;
+	/** Compiler-owned optional renderer enhancements attached to this authored JSX boundary. */
+	readonly enhancements?: EnhancementMarker;
 	/** Captured when authored; explicit ownership survives cross-root composition. */
 	readonly domain?: ComponentDomain;
 };
+
+/** One canonical plugin capability attached to an authored JSX boundary. */
+export type EnhancementEntry = Readonly<{
+	identity: string;
+	props: Readonly<Record<string, unknown>>;
+	root?: unknown;
+}>;
+
+/** Opaque grouped renderer-enhancement marker emitted by the compiler. */
+export type EnhancementMarker = Readonly<{
+	entries: readonly EnhancementEntry[];
+}>;
 
 /** Defines the vnode cell type contract. */
 export type VNodeCell = {
