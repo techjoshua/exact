@@ -788,6 +788,14 @@ long-running release frames.
 Neither form requires application code to collect animation promises or call
 `Promise.all()`.
 
+For keyed `in-out` replacement, each entering `PresenceRange` publishes an
+ordinary internal context that collects descendant enter playbacks. The old
+range is released after those task-owned playbacks settle. If no enter phase
+applies or reduced-motion policy skips it, the collector seals empty and the
+same state transition advances in the next microtask. `out-in` uses the
+renderer-owned release settlement first, then marks the replacement range as
+entering when it mounts.
+
 ### Focus and semantic absence
 
 A leaving range remains physically present but is semantically absent:

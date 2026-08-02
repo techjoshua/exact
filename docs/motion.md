@@ -70,8 +70,10 @@ the same connected DOM generation when presence reverses before leave completion
 
 The default `mode="sync"` reconciles keyed replacements together. `mode="out-in"` waits for old
 keyed ranges and their leave work to settle before mounting replacements. `mode="in-out"` commits
-new keyed ranges first, then releases the previous ranges. Rapid changes remain generation fenced,
-so an out-in reversal can restore retained keyed DOM instead of creating a second copy.
+new keyed ranges first, waits for their descendant enter playbacks to settle, then releases the
+previous ranges. If reduced-motion policy skips enter—or no enter phase applies—the same state
+machine advances immediately. Rapid changes remain generation fenced, so an out-in reversal can
+restore retained keyed DOM instead of creating a second copy.
 
 `MotionList` projects an application-owned reactive collection through eXact's native keyed-list
 primitive. Mutate `this.state` normally; reorders retain component and DOM identity, removals use

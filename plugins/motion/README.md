@@ -20,7 +20,8 @@ import { fade } from '@exactjs/motion/presets';
 The package also exports compilerless `Motion`, `Presence`, `MotionList`, `animate()`, and
 `defineMotion()` APIs. Use `Presence` for conditional leave, focus return, and keyed replacement
 ordering through `mode="sync" | "out-in" | "in-out"`; use `MotionList` for stable keyed projection
-of reactive application collections. Wrap layout participants in
+of reactive application collections. In-out sequencing waits for descendant enter playback before
+releasing the previous range, while skipped reduced motion advances immediately. Wrap layout participants in
 `LayoutGroup` and opt them into additive FLIP motion with `layout` and a stable `layoutId`. Browser
 drivers are loaded only by client/runtime entry points; importing definitions or presets on a
 server does not access browser globals. Prepared and dynamically resolved effects reject

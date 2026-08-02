@@ -8,7 +8,7 @@ import {
 } from '@exactjs/core';
 import { defaultMotionSettings, MotionContext } from './context.js';
 import { LayoutContext } from './layout.js';
-import { ExitLayoutContext } from './presence.js';
+import { ExitLayoutContext, PresenceEnterContext } from './presence.js';
 import { acquireSemanticAbsence, releaseSemanticAbsence } from './semantics.js';
 import type {
 	MotionDefinition,
@@ -28,6 +28,9 @@ export const MotionElement = markExactComponent(function MotionElement(
 	const settings = this.hasContext(MotionContext)
 		? this.getContext(MotionContext)
 		: defaultMotionSettings;
+	const presenceEnter = this.hasContext(PresenceEnterContext)
+		? this.getContext(PresenceEnterContext)
+		: undefined;
 	let changePlayback: MotionPlayback | undefined;
 	let leavePlayback: MotionPlayback | undefined;
 	let appeared = false;
@@ -53,11 +56,12 @@ export const MotionElement = markExactComponent(function MotionElement(
 		if (!element || !root.presented) return;
 		const entering = !appeared;
 		const phase = entering ? resolvePhase(props, 'enter') : resolvePhase(props, 'change');
-		const shouldAppear = props.appear ?? settings.appear;
+		const shouldAppear = presenceEnter?.entering || (props.appear ?? settings.appear);
 		appeared = true;
 		if (entering && !shouldAppear) return;
 		changePlayback?.cancel('motion-superseded');
 		changePlayback = play(element, phase, entering ? 'enter' : 'change', props.apply, settings);
+		if (entering && changePlayback) presenceEnter?.register(changePlayback);
 		if (changePlayback) observePlayback(changePlayback, this.log.error);
 	}, undefined);
 

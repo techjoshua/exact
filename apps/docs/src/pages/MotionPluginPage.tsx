@@ -67,7 +67,8 @@ export function MotionPluginPage(this: Component<{}>) {
 					through the logical component tree, including portals. <code>Presence</code> makes leaving
 					content inert, returns focus, and reuses the same DOM generation after a rapid reversal.
 					Its sync, out-in, and in-out modes order keyed replacements through the existing release
-					lifecycle.
+					lifecycle. In-out waits for descendant enter playback before releasing the old range, and
+					reduced-motion skips advance through the same state machine immediately.
 				</p>
 			</section>
 			<section>

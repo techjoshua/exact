@@ -11,6 +11,7 @@ import {
 } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installMotionDriver } from './driver.js';
+import { MotionConfig } from './context.js';
 import { LayoutGroup } from './layout.js';
 import { MotionList } from './motion-list.js';
 import { Motion } from './motion.js';
@@ -68,6 +69,8 @@ describe('Presence and MotionList', () => {
 				expect(container.textContent).toBe('b');
 			});
 			expect(container.querySelector('button')).not.toBe(first);
+			expect(driver.playbacks).toHaveLength(2);
+			expect(driver.playbacks[1]?.element.textContent).toBe('b');
 		} finally {
 			restore();
 		}
@@ -101,20 +104,64 @@ describe('Presence and MotionList', () => {
 
 			owner.state.key = 'b';
 			flushSync();
-			expect([...container.querySelectorAll('button')].map((item) => item.textContent)).toEqual([
-				'b',
-				'a'
-			]);
+			const current = [...container.querySelectorAll('button')];
+			expect(current.map((item) => item.textContent)).toEqual(['b', 'a']);
+			const replacement = current[0]!;
 
 			await settle();
 			flushSync();
 
 			expect(driver.playbacks).toHaveLength(1);
-			expect(driver.playbacks[0]?.element).toBe(first);
+			expect(driver.playbacks[0]?.element).toBe(replacement);
+			expect(first.inert).not.toBe(true);
+
+			driver.playbacks[0]?.finish();
+			await vi.waitFor(() => {
+				flushSync();
+				expect(driver.playbacks).toHaveLength(2);
+			});
+			expect(driver.playbacks[1]?.element).toBe(first);
 			expect(first.inert).toBe(true);
-			expect([...container.querySelectorAll('button')].some((item) => item.textContent === 'b')).toBe(
-				true
-			);
+		} finally {
+			restore();
+		}
+	});
+
+	it('advances in-out replacement immediately when reduced motion skips enter', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		let owner!: Component<{ key: string }>;
+		const View = markTestComponent(function View(this: Component<{ key: string }>) {
+			owner = this;
+			this.state.key = 'a';
+			return () =>
+				createVNode(
+					MotionConfig,
+					{ reducedMotion: 'always' },
+					createVNode(
+						Presence,
+						{ when: true, mode: 'in-out' },
+						createVNode(Motion, {
+							key: this.state.key,
+							as: 'button',
+							motion: fade,
+							children: this.state.key
+						})
+					)
+				);
+		});
+		const container = document.createElement('div');
+		document.body.append(container);
+		containers.push(container);
+		try {
+			render(createVNode(View, null), container);
+			owner.state.key = 'b';
+			flushSync();
+			await vi.waitFor(() => {
+				flushSync();
+				expect(container.textContent).toBe('b');
+			});
+			expect(driver.playbacks).toHaveLength(0);
 		} finally {
 			restore();
 		}
