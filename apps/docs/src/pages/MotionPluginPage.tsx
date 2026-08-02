@@ -1,0 +1,77 @@
+import type { Component } from '@exactjs/core';
+import { CodeBlock } from '../CodeBlock.jsx';
+import { Article } from './Article.jsx';
+
+const definitionSource = `import { defineMotion } from '@exactjs/motion';
+
+export const dialogMotion = defineMotion({
+  enter: {
+    keyframes: [
+      { opacity: 0, transform: 'translateY(8px) scale(.98)' },
+      { opacity: 1, transform: 'none' }
+    ]
+  },
+  leave: {
+    keyframes: [
+      { opacity: 1, transform: 'none' },
+      { opacity: 0, transform: 'translateY(6px) scale(.98)' }
+    ]
+  },
+  reduced: 'skip'
+});`;
+
+const componentSource = `<MotionConfig reducedMotion="system" transition={{ duration: 160 }}>
+  <Motion as="dialog" motion={dialogMotion} appear className="dialog">
+    <DialogContents />
+  </Motion>
+</MotionConfig>`;
+
+/** Documents the current optional motion package surface and ownership model. */
+export function MotionPluginPage(this: Component<{}>) {
+	return () => (
+		<Article
+			eyebrow="Plugin / @exactjs/motion"
+			title="Keep state authoritative while tasks own motion"
+			description="Prepared definitions describe finite visual paths. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
+			previous={{ path: '/plugins', label: 'Plugin system' }}
+			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
+		>
+			<section>
+				<h2>Prepare visual behavior once</h2>
+				<CodeBlock source={definitionSource} language="ts" title="dialog-motion.ts" />
+				<p>
+					Definitions are validated and frozen. Keep them at module scope, or use the small preset
+					set from <code>@exactjs/motion/presets</code>, so reactive updates do not accidentally
+					recreate visual policy.
+				</p>
+			</section>
+			<section>
+				<h2>Use the explicit component surface today</h2>
+				<CodeBlock source={componentSource} language="tsx" title="Dialog.tsx" />
+				<p>
+					<code>Motion</code> renders one real intrinsic selected by <code>as</code>.{' '}
+					<code>MotionConfig</code> inherits enabled, transition, appear, and reduced-motion policy
+					through the logical component tree, including portals.
+				</p>
+			</section>
+			<section>
+				<h2>Playback remains structured work</h2>
+				<p>
+					Finite playback opens an immediate, nonblocking task frame and remains structurally
+					attached to its cause. Root-release leave motion therefore delays physical removal without
+					giving application code a retention token. Cancellation propagates through the same task
+					tree.
+				</p>
+			</section>
+			<section>
+				<h2>Current integration limit</h2>
+				<p>
+					The compiler and renderer understand grouped plugin-owned attributes, but generated
+					plugin-host capability catalogs are still being connected. Use explicit{' '}
+					<code>Motion</code>
+					until namespaced <code>motion:*</code> activation is enabled by the normal build host.
+				</p>
+			</section>
+		</Article>
+	);
+}

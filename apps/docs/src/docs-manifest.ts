@@ -13,6 +13,7 @@ import { ListsPage } from './pages/ListsPage.jsx';
 import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
 import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
+import { MotionPluginPage } from './pages/MotionPluginPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
 import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
@@ -215,6 +216,13 @@ export const docGroups: DocGroup[] = [
 				summary: 'Package cross-cutting behavior as a validated, multi-host extension.',
 				keywords: 'plugin compiler server render client testing configuration package',
 				component: PluginsPage
+			},
+			{
+				path: '/plugins/motion',
+				label: 'Motion',
+				summary: 'Animate committed state with prepared definitions and task-owned playback.',
+				keywords: 'plugin motion animation presets reduced motion task playback Web Animations',
+				component: MotionPluginPage
 			},
 			{
 				path: '/plugins/microfrontends',

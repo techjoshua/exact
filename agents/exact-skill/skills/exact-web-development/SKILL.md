@@ -138,6 +138,8 @@ bindings, radio groups, multi-selects, checkbox groups, and list identity. Read
 [tasks-and-placement.md](references/tasks-and-placement.md) for asynchronous work and split builds.
 Read [distributed-execution.md](references/distributed-execution.md) before creating or changing
 server tasks, server context, SSR resumption, or client/server protocol tests.
+Read [motion.md](references/motion.md) before adding prepared motion definitions, explicit motion
+components, imperative playback, or optional plugin-owned motion attributes.
 
 ## Follow existing application structure
 
