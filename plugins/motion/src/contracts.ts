@@ -80,6 +80,20 @@ export type MotionProps = MotionElementProps &
 		[key: string]: unknown;
 	}>;
 
+/** Explicit conditional presence policy for compilerless callers. */
+export type PresenceProps = Readonly<{
+	when: boolean;
+	children?: Child | readonly Child[];
+	returnFocus?: RefBinding<HTMLElement>;
+}>;
+
+/** Stable keyed collection projection with optional exit layout policy. */
+export type MotionListProps<Item> = Readonly<{
+	items: Iterable<Item>;
+	getKey(item: Item): string;
+	children(item: Item): Child;
+}>;
+
 /** Cancelable task-frame-owned playback returned by {@link animate}. */
 export interface MotionPlayback extends PromiseLike<void> {
 	readonly signal: AbortSignal;

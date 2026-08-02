@@ -21,10 +21,20 @@ export const dialogMotion = defineMotion({
 });`;
 
 const componentSource = `<MotionConfig reducedMotion="system" transition={{ duration: 160 }}>
-  <Motion as="dialog" motion={dialogMotion} appear className="dialog">
-    <DialogContents />
-  </Motion>
+  <Presence when={this.state.open} returnFocus={this.ref.openButton}>
+    <Motion as="dialog" motion={dialogMotion} appear className="dialog">
+      <DialogContents />
+    </Motion>
+  </Presence>
 </MotionConfig>`;
+
+const listSource = `<MotionList items={this.state.cards} getKey={(card) => card.id}>
+  {(card) => (
+    <Motion as="article" motion={cardMotion}>
+      {card.title}
+    </Motion>
+  )}
+</MotionList>`;
 
 /** Documents the current optional motion package surface and ownership model. */
 export function MotionPluginPage(this: Component<{}>) {
@@ -46,12 +56,22 @@ export function MotionPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Use the explicit component surface today</h2>
+				<h2>Coordinate conditional presence</h2>
 				<CodeBlock source={componentSource} language="tsx" title="Dialog.tsx" />
 				<p>
 					<code>Motion</code> renders one real intrinsic selected by <code>as</code>.{' '}
 					<code>MotionConfig</code> inherits enabled, transition, appear, and reduced-motion policy
-					through the logical component tree, including portals.
+					through the logical component tree, including portals. <code>Presence</code> makes leaving
+					content inert, returns focus, and reuses the same DOM generation after a rapid reversal.
+				</p>
+			</section>
+			<section>
+				<h2>Preserve keyed identity</h2>
+				<CodeBlock source={listSource} language="tsx" title="CardList.tsx" />
+				<p>
+					<code>MotionList</code> uses eXact&apos;s reactive keyed-list primitive directly.
+					Application state remains authoritative, keyed DOM survives reorder, and duplicate keys
+					fail immediately.
 				</p>
 			</section>
 			<section>

@@ -46,6 +46,7 @@
 	},
 	"devDependencies": {
 		"@exactjs/dom": "^0.1.0",
+		"@exactjs/reactive": "^0.1.0",
 		"@exactjs/testing": "^0.1.0"
 	},
 	"exact": {

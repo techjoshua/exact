@@ -51,6 +51,36 @@ The client plugin entry installs a Web Animations driver. Importing the main pac
 or presets on a server does not read browser globals. `@exactjs/motion/testing` provides a
 deterministic injected driver whose playbacks settle only when the test advances them.
 
+## Presence and keyed collections
+
+`Presence` makes removed content semantically absent while its finite leave work settles. It moves
+focus to an optional return target, applies `inert` and disables pointer interaction, and restores
+the same connected DOM generation when presence reverses before leave completion:
+
+```tsx
+<Presence when={this.state.showDialog} returnFocus={this.ref.openButton}>
+	<Motion as="dialog" motion={dialogMotion}>
+		<DialogContents />
+	</Motion>
+</Presence>
+```
+
+`MotionList` projects an application-owned reactive collection through eXact's native keyed-list
+primitive. Mutate `this.state` normally; reorders retain component and DOM identity, removals use
+the renderer's generation-fenced release path, and duplicate keys fail immediately:
+
+```tsx
+<MotionList items={this.state.cards} getKey={(card) => card.id}>
+	{(card) => (
+		<Motion as="article" motion={cardMotion}>
+			{card.title}
+		</Motion>
+	)}
+</MotionList>
+```
+
+Neither component keeps a shadow copy of application data or exposes a manual retention token.
+
 ## Plugin-owned JSX
 
 The shared compiler and DOM renderer can carry grouped motion markers, resolve targets through
@@ -58,6 +88,5 @@ native component output, merge nearest props, and mount `MotionElement` as an or
 component. The generated plugin-host capability catalog is still being connected, so application
 code should use the explicit `Motion` component until that host integration is complete.
 
-Presence sequencing, keyed motion lists, layout groups, shared layout identity, and router View
-Transition publication remain under implementation and are not part of the current package
-surface yet.
+Presence and keyed motion lists are available. Layout measurement and sequencing policies, shared
+layout identity, and router View Transition publication remain under implementation.

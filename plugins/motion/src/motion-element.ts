@@ -39,6 +39,7 @@ export const MotionElement = markExactComponent(function MotionElement(
 		if (entering && !shouldAppear) return;
 		changePlayback?.cancel('motion-superseded');
 		changePlayback = play(element, phase, entering ? 'enter' : 'change', props.apply, settings);
+		if (changePlayback) observePlayback(changePlayback, this.log.error);
 	}, undefined);
 
 	watch(() => {
@@ -46,6 +47,7 @@ export const MotionElement = markExactComponent(function MotionElement(
 		if (!release) return;
 		leavePlayback?.cancel('motion-leave-superseded');
 		leavePlayback = playRelease(release, resolvePhase(props, 'leave'), props.apply, settings);
+		if (leavePlayback) observePlayback(leavePlayback, this.log.error);
 	}, undefined);
 
 	this.onUnmount(() => {
@@ -77,7 +79,7 @@ function play(
 		unwrap(definition)?.reduced
 	);
 	if (!effect) return undefined;
-	return observePlayback(animate(element, effect));
+	return animate(element, effect);
 }
 
 function playRelease(
@@ -95,12 +97,16 @@ function playRelease(
 		unwrap(definition)?.reduced
 	);
 	if (!effect) return undefined;
-	return observePlayback(animate(release.target, effect));
+	return animate(release.target, effect);
 }
 
-function observePlayback(playback: MotionPlayback): MotionPlayback {
+function observePlayback(
+	playback: MotionPlayback,
+	report: (message: string, error?: unknown) => void
+): void {
 	void playback.then(undefined, (error) => {
-		if (!playback.signal.aborted && !isTaskCancellation(error)) throw error;
+		if (!playback.signal.aborted && !isTaskCancellation(error)) {
+			report('motion playback failed', error);
+		}
 	});
-	return playback;
 }
