@@ -3,14 +3,15 @@
  */
 import { Activity, type Component } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
-import { flushSync } from '@exactjs/reactive';
+import { computed, flushSync } from '@exactjs/reactive';
 import {
 	createTestVNode as createVNode,
 	markTestComponent
 } from '@exactjs/testing/internal/fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PhysicsElement, PhysicsWorldComponent } from './components.js';
-import type { PhysicsBody } from './contracts.js';
+import { PhysicsBodyContext } from './context.js';
+import type { PhysicsBody, PhysicsWorld } from './contracts.js';
 import { createPhysicsWorld } from './world.js';
 
 const containers: Element[] = [];
@@ -124,5 +125,38 @@ describe('physics components', () => {
 		expect(resumedFrame).toBeDefined();
 		resumedFrame?.(32);
 		expect(world.running).toBe(true);
+	});
+
+	it('unwraps compiler-reactive resource props before invoking them', () => {
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+			frames.push(callback);
+			return frames.length;
+		});
+		const world = createPhysicsWorld({ fixedStep: 0.1 });
+		const body = world.createBody({ shape: { kind: 'circle', radius: 1 } });
+		let contextualBody: PhysicsBody | undefined;
+		const Consumer = markTestComponent(function Consumer(this: Component<{}>) {
+			contextualBody = this.getContext(PhysicsBodyContext).body;
+			return () => createVNode('div', null);
+		});
+		const container = document.createElement('div');
+		containers.push(container);
+		render(
+			createVNode(
+				PhysicsWorldComponent,
+				{ world: computed(() => world) as unknown as PhysicsWorld },
+				createVNode(
+					PhysicsElement,
+					{ body: computed(() => body) as unknown as PhysicsBody },
+					createVNode(Consumer, null)
+				)
+			),
+			container
+		);
+
+		frames.shift()?.(0);
+		expect(world.running).toBe(true);
+		expect(contextualBody).toBe(body);
 	});
 });

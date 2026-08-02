@@ -80,6 +80,10 @@ export function Counter(this: Component<CounterState>, props: CounterProps) {
 The outer function is setup. It normally executes once for each mounted
 instance. Props are parent-owned reactive inputs. State, tasks, contexts,
 refs, lifecycle registrations, and logging belong to the durable instance.
+Readonly prop tracking traverses plain objects and collections. Opaque class
+instances retain their authored identity even when supplied by a reactive JSX
+expression, so resource methods may mutate their own private state without
+being mistaken for writes to the parent-owned prop binding.
 
 Every component accepted by the native renderer is compiler-branded. The key
 `Symbol.for('@exactjs/component')` stores the component's opaque stable ID; a

@@ -23,8 +23,8 @@ export const PhysicsWorldComponent = markExactComponent(function PhysicsWorld(
 	this: Component<{}>,
 	props: PhysicsWorldProps
 ) {
-	const supplied = props.world;
-	const world = supplied ?? createPhysicsWorld(props.options);
+	const supplied = unwrap(props.world);
+	const world = supplied ?? createPhysicsWorld(unwrap(props.options));
 	this.setContext(PhysicsWorldContext, world);
 
 	this.onActivate(({ signal }) => {
@@ -78,7 +78,7 @@ export const PhysicsElement = markExactComponent(function PhysicsElement(
 	const world = this.getContext(PhysicsWorldContext) as PhysicsWorldResource;
 	this.setContext(PhysicsBodyContext, {
 		get body() {
-			return props.body;
+			return unwrap(props.body);
 		},
 		world
 	});
@@ -90,9 +90,9 @@ export const PhysicsElement = markExactComponent(function PhysicsElement(
 		const body = unwrap(props.body);
 		const projection = unwrap(props.project) ?? positionAndRotation;
 		// These reads subscribe one coalesced projection pass to the reactive pose snapshot.
-		body.pose.position.x;
-		body.pose.position.y;
-		body.pose.angle;
+		void body.pose.position.x;
+		void body.pose.position.y;
+		void body.pose.angle;
 		controller.configure({
 			body,
 			element: root.current,
@@ -105,12 +105,12 @@ export const PhysicsElement = markExactComponent(function PhysicsElement(
 
 	this.onDeactivate(() =>
 		controller.configure({
-			body: props.body,
+			body: unwrap(props.body),
 			element: root.current,
 			presented: false,
 			disabled: true,
-			projection: props.project ?? positionAndRotation,
-			collisions: props.collisions
+			projection: unwrap(props.project) ?? positionAndRotation,
+			collisions: unwrap(props.collisions)
 		})
 	);
 	this.onUnmount(() => controller[Symbol.dispose]());

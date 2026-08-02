@@ -90,6 +90,11 @@ export function ComponentsPage(this: Component<{}>) {
 					because the compiler has already connected consumers of that field.
 				</p>
 				<p>
+					Readonly prop tracking traverses plain objects and collections. Opaque class instances
+					retain their authored identity when passed through reactive JSX, so resource methods can
+					mutate their own private state without being treated as writes to the prop binding.
+				</p>
+				<p>
 					The compiler also stores an opaque stable ID under{' '}
 					<code>Symbol.for('@exactjs/component')</code>. Native renderers use that brand instead of
 					guessing from a function name or shape; unbranded React, Preact, and other foreign
