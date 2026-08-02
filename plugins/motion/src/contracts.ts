@@ -86,6 +86,8 @@ export type PresenceProps = Readonly<{
 	when: boolean;
 	children?: Child | readonly Child[];
 	returnFocus?: RefBinding<HTMLElement>;
+	/** Orders keyed replacement ranges without changing application-owned presence state. */
+	mode?: 'sync' | 'out-in' | 'in-out';
 }>;
 
 /** Stable keyed collection projection with optional exit layout policy. */

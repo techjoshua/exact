@@ -15,7 +15,11 @@ type PresenceRangeProps = Readonly<{
 	children?: Child;
 	returnFocus?: PresenceProps['returnFocus'];
 	exitLayout?: 'retain' | 'pop';
+	onEntered?: () => void;
+	onExited?: () => void;
 }>;
+
+type PresenceItem = Readonly<{ key: string; child: Child }>;
 
 /** Internal collection-exit policy inherited by a motion-decorated list root. */
 export const ExitLayoutContext =
@@ -23,19 +27,140 @@ export const ExitLayoutContext =
 
 /** Conditionally projects children through generation-fenced renderer release and reversal. */
 export const Presence = markExactComponent(function Presence(
-	this: Component<{}>,
+	this: Component<{ revision: number }>,
 	props: PresenceProps
 ) {
-	return () => {
-		if (!props.when) return null;
-		const children = Array.isArray(props.children) ? props.children : [props.children];
-		return children.map((child, index) => {
-			if (child === null || child === undefined || child === false || child === true) return child;
-			const key = isVNode(child) ? (child.key ?? `presence:${index}`) : `presence:${index}`;
-			return createVNode(PresenceRange, { key, returnFocus: props.returnFocus }, child);
+	this.state.revision = 0;
+	let displayed: PresenceItem[] | undefined;
+	let pending: PresenceItem[] = [];
+	let exiting: PresenceItem[] = [];
+	let phase: 'idle' | 'waiting-exit' | 'waiting-enter' = 'idle';
+	let transition = 0;
+	let awaiting = new Set<string>();
+
+	const invalidate = () => this.state.revision++;
+	const entered = (key: string) => {
+		if (phase !== 'waiting-enter' || !awaiting.delete(key) || awaiting.size) return;
+		const generation = transition;
+		queueMicrotask(() => {
+			if (phase !== 'waiting-enter' || transition !== generation) return;
+			displayed = pending;
+			phase = 'idle';
+			invalidate();
 		});
 	};
+	const exited = (key: string) => {
+		if (phase !== 'waiting-exit' || !awaiting.delete(key) || awaiting.size) return;
+		displayed = pending;
+		phase = 'idle';
+		invalidate();
+	};
+
+	return () => {
+		this.state.revision;
+		const desired = props.when ? presenceItems(props.children) : [];
+		displayed ??= desired;
+		const mode = props.mode ?? 'sync';
+		if (mode === 'sync') {
+			transition++;
+			phase = 'idle';
+			displayed = desired;
+			return projectPresence(displayed, props, entered, exited);
+		}
+
+		if (phase === 'waiting-exit') {
+			if (sameIdentities(desired, exiting)) {
+				transition++;
+				phase = 'idle';
+				displayed = desired;
+				return projectPresence(displayed, props, entered, exited);
+			}
+			pending = desired;
+			return [];
+		}
+		if (phase === 'waiting-enter') {
+			if (!sameIdentities(desired, pending)) {
+				transition++;
+				phase = 'idle';
+				displayed = desired;
+				return projectPresence(displayed, props, entered, exited);
+			}
+			return projectPresence(mergePresence(exiting, pending), props, entered, exited);
+		}
+
+		if (sameIdentities(displayed, desired) || !displayed.length || !desired.length) {
+			displayed = desired;
+			return projectPresence(displayed, props, entered, exited);
+		}
+
+		transition++;
+		exiting = displayed;
+		pending = desired;
+		if (mode === 'out-in') {
+			phase = 'waiting-exit';
+			awaiting = new Set(exiting.map((item) => item.key));
+			return [];
+		}
+		phase = 'waiting-enter';
+		awaiting = new Set(
+			desired.filter((item) => !exiting.some((old) => old.key === item.key)).map((item) => item.key)
+		);
+		if (!awaiting.size) {
+			displayed = desired;
+			phase = 'idle';
+			return projectPresence(displayed, props, entered, exited);
+		}
+		return projectPresence(mergePresence(exiting, desired), props, entered, exited);
+	};
 }, '@exactjs/motion:Presence');
+
+function presenceItems(children: PresenceProps['children']): PresenceItem[] {
+	const values = Array.isArray(children) ? children : [children];
+	const result: PresenceItem[] = [];
+	for (let index = 0; index < values.length; index++) {
+		const child = values[index];
+		if (child === null || child === undefined || child === false || child === true) continue;
+		result.push({
+			key: isVNode(child) ? (child.key ?? `presence:${index}`) : `presence:${index}`,
+			child
+		});
+	}
+	return result;
+}
+
+function sameIdentities(left: readonly PresenceItem[], right: readonly PresenceItem[]): boolean {
+	if (left.length !== right.length) return false;
+	const keys = new Set(left.map((item) => item.key));
+	return right.every((item) => keys.has(item.key));
+}
+
+function mergePresence(
+	oldItems: readonly PresenceItem[],
+	newItems: readonly PresenceItem[]
+): PresenceItem[] {
+	const desired = new Set(newItems.map((item) => item.key));
+	return [...newItems, ...oldItems.filter((item) => !desired.has(item.key))];
+}
+
+function projectPresence(
+	items: readonly PresenceItem[],
+	props: PresenceProps,
+	entered: (key: string) => void,
+	exited: (key: string) => void
+): VNode[] {
+	return items.map((item) =>
+		createVNode(
+			PresenceRange,
+			{
+				key: item.key,
+				returnFocus: props.returnFocus,
+				onEntered: () => entered(item.key),
+				onExited: () => exited(item.key)
+			},
+			item.child
+		)
+	);
+}
 
 const PresenceRange = markExactComponent(function PresenceRange(
 	this: Component<{}>,
@@ -51,6 +176,7 @@ const PresenceRange = markExactComponent(function PresenceRange(
 			}
 		});
 	}
+	this.onMount(() => props.onEntered?.());
 
 	watch(() => {
 		const release = root.release;
@@ -62,7 +188,10 @@ const PresenceRange = markExactComponent(function PresenceRange(
 			semanticTarget = undefined;
 		}
 	});
-	this.onUnmount(() => releaseSemanticAbsence(semanticTarget, semanticOwner));
+	this.onUnmount(() => {
+		releaseSemanticAbsence(semanticTarget, semanticOwner);
+		props.onExited?.();
+	});
 
 	return () => props.children;
 }, '@exactjs/motion:PresenceRange');

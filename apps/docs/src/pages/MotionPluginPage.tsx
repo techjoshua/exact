@@ -21,7 +21,7 @@ export const dialogMotion = defineMotion({
 });`;
 
 const componentSource = `<MotionConfig reducedMotion="system" transition={{ duration: 160 }}>
-  <Presence when={this.state.open} returnFocus={this.ref.openButton}>
+  <Presence when={this.state.open} returnFocus={this.ref.openButton} mode="out-in">
     <Motion as="dialog" motion={dialogMotion} appear className="dialog">
       <DialogContents />
     </Motion>
@@ -65,6 +65,8 @@ export function MotionPluginPage(this: Component<{}>) {
 					<code>MotionConfig</code> inherits enabled, transition, appear, and reduced-motion policy
 					through the logical component tree, including portals. <code>Presence</code> makes leaving
 					content inert, returns focus, and reuses the same DOM generation after a rapid reversal.
+					Its sync, out-in, and in-out modes order keyed replacements through the existing release
+					lifecycle.
 				</p>
 			</section>
 			<section>
@@ -88,12 +90,11 @@ export function MotionPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Current integration limit</h2>
+				<h2>Use attributes or explicit components</h2>
 				<p>
-					The compiler and renderer understand grouped plugin-owned attributes, but generated
-					plugin-host capability catalogs are still being connected. Use explicit{' '}
-					<code>Motion</code>
-					until namespaced <code>motion:*</code> activation is enabled by the normal build host.
+					An attributed motion import enables typed <code>motion:*</code> attributes. Vite includes
+					reached capabilities in the application bundle and supplies its local catalog to DOM,
+					hydration, and SSR. Compilerless libraries can continue to use <code>Motion</code> directly.
 				</p>
 			</section>
 		</Article>

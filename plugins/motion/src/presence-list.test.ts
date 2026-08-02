@@ -28,6 +28,98 @@ afterEach(() => {
 });
 
 describe('Presence and MotionList', () => {
+	it('waits for keyed exits before mounting an out-in replacement', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		let owner!: Component<{ key: string }>;
+		const View = markTestComponent(function View(this: Component<{ key: string }>) {
+			owner = this;
+			this.state.key = 'a';
+			return () =>
+				createVNode(
+					Presence,
+					{ when: true, mode: 'out-in' },
+					createVNode(Motion, {
+						key: this.state.key,
+						as: 'button',
+						motion: fade,
+						children: this.state.key
+					})
+				);
+		});
+		const container = document.createElement('div');
+		document.body.append(container);
+		containers.push(container);
+		try {
+			render(createVNode(View, null), container);
+			const first = container.querySelector('button')!;
+
+			owner.state.key = 'b';
+			flushSync();
+			await settle();
+
+			expect(container.textContent).toBe('a');
+			expect(container.querySelector('button')).toBe(first);
+			expect(driver.playbacks).toHaveLength(1);
+
+			driver.finishAll();
+			await vi.waitFor(() => {
+				flushSync();
+				expect(container.textContent).toBe('b');
+			});
+			expect(container.querySelector('button')).not.toBe(first);
+		} finally {
+			restore();
+		}
+	});
+
+	it('mounts an in-out replacement before releasing the previous keyed range', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		let owner!: Component<{ key: string }>;
+		const View = markTestComponent(function View(this: Component<{ key: string }>) {
+			owner = this;
+			this.state.key = 'a';
+			return () =>
+				createVNode(
+					Presence,
+					{ when: true, mode: 'in-out' },
+					createVNode(Motion, {
+						key: this.state.key,
+						as: 'button',
+						motion: fade,
+						children: this.state.key
+					})
+				);
+		});
+		const container = document.createElement('div');
+		document.body.append(container);
+		containers.push(container);
+		try {
+			render(createVNode(View, null), container);
+			const first = container.querySelector('button')!;
+
+			owner.state.key = 'b';
+			flushSync();
+			expect([...container.querySelectorAll('button')].map((item) => item.textContent)).toEqual([
+				'b',
+				'a'
+			]);
+
+			await settle();
+			flushSync();
+
+			expect(driver.playbacks).toHaveLength(1);
+			expect(driver.playbacks[0]?.element).toBe(first);
+			expect(first.inert).toBe(true);
+			expect([...container.querySelectorAll('button')].some((item) => item.textContent === 'b')).toBe(
+				true
+			);
+		} finally {
+			restore();
+		}
+	});
+
 	it('makes a leaving target inert, returns focus, and reverses the same DOM generation', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);

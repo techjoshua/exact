@@ -58,12 +58,17 @@ focus to an optional return target, applies `inert` and disables pointer interac
 the same connected DOM generation when presence reverses before leave completion:
 
 ```tsx
-<Presence when={this.state.showDialog} returnFocus={this.ref.openButton}>
+<Presence when={this.state.showDialog} returnFocus={this.ref.openButton} mode="out-in">
 	<Motion as="dialog" motion={dialogMotion}>
 		<DialogContents />
 	</Motion>
 </Presence>
 ```
+
+The default `mode="sync"` reconciles keyed replacements together. `mode="out-in"` waits for old
+keyed ranges and their leave work to settle before mounting replacements. `mode="in-out"` commits
+new keyed ranges first, then releases the previous ranges. Rapid changes remain generation fenced,
+so an out-in reversal can restore retained keyed DOM instead of creating a second copy.
 
 `MotionList` projects an application-owned reactive collection through eXact's native keyed-list
 primitive. Mutate `this.state` normally; reorders retain component and DOM identity, removals use
@@ -126,10 +131,9 @@ immediately through the same contract. An already aborted request publishes zero
 
 ## Plugin-owned JSX
 
-The shared compiler and DOM renderer can carry grouped motion markers, resolve targets through
-native component output, merge nearest props, and mount `MotionElement` as an ordinary transparent
-component. The generated plugin-host capability catalog is still being connected, so application
-code should use the explicit `Motion` component until that host integration is complete.
-
-Presence, keyed motion lists, scoped layout measurement, and shared layout identity are available.
-Presence sequencing policies remain under implementation.
+The shared compiler and DOM renderer carry grouped motion markers, resolve targets through native
+component output, merge nearest props, and mount `MotionElement` as an ordinary transparent
+component. An attributed `@exactjs/motion` import is recorded independently of build policy. Vite
+includes the reached capability in its bundle-local catalog and supplies it to DOM, hydration, and
+SSR entry points. Applications can therefore use either namespaced `motion:*` attributes or the
+explicit compilerless `Motion` component.

@@ -2,15 +2,12 @@
 
 ## Status
 
-Proposed. `@exactjs/motion` does not exist yet.
-
-The structured task-tree prerequisites are implemented in `@exactjs/core`:
-opaque frame capture, atomic reservations, synchronous frame restoration,
-cancelable framework executions, descendant settlement, semantic frame kinds
-and labels, and structural finalizers that remain part of their parent's
-settlement. The plugin-system enhancement markers and ordinary plugin
-components, general ref-release lifecycle, motion package, publication coordinator,
-tooling presentation, and sample migrations described here remain future work.
+Implemented. `@exactjs/motion` provides prepared definitions and presets, attributed JSX
+enhancement activation, compilerless `Motion`, generation-fenced `Presence`, sync/out-in/in-out
+keyed sequencing, `MotionList`, exit-layout policy, scoped FLIP layout, shared identities,
+reduced-motion configuration, deterministic test drivers, and neutral View Transition publication
+coordination. The implementation reuses the framework task tree and renderer root-release
+lifecycle; it adds no motion-specific retention token or application-state store.
 
 This proposal depends on the current contracts in:
 
