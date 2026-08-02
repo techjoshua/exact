@@ -35,6 +35,22 @@ a definition is prepared, except that component-owned enter/change phases may de
 remain finite. The initial preset entry exports `fade`, `scale`, `pop`, `slideUp`, `slideDown`,
 `slideLeft`, and `slideRight`.
 
+## Attributed enhancement
+
+Prefer the namespaced form when motion is optional visual continuity on existing design:
+
+```tsx
+import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import { slideUp } from '@exactjs/motion/presets';
+
+<output motion:apply={slideUp}>Changes saved</output>;
+<span style={{ transform: indicatorTransform }} motion:change={indicatorChange} />;
+```
+
+The authored element and its destination styles remain the fallback. A bundled capability mounts
+the same inspectable `MotionElement` owner that explicit usage creates; excluding the capability
+removes the visual path without replacing markup, state, events, or accessibility.
+
 ## Explicit components and playback
 
 `Motion` is the compilerless intrinsic form:
@@ -44,6 +60,10 @@ remain finite. The initial preset entry exports `fade`, `scale`, `pop`, `slideUp
 	<DialogContents />
 </Motion>
 ```
+
+Use the explicit form when motion is required, the caller is compilerless, or a structural
+component such as `Presence`, `MotionConfig`, or `MotionList` owns coordination beyond one existing
+target.
 
 `MotionConfig` publishes inherited `enabled`, `reducedMotion`, `transition`, and `appear` policy
 through one reactive context. `animate(element, effect)` is the low-level imperative seam; it

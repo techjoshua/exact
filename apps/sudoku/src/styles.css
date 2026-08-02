@@ -695,7 +695,6 @@ p {
 
 .victory-banner {
 	background: color-mix(in srgb, var(--surface-solid) 92%, transparent);
-	animation: arrive 420ms ease both;
 	backdrop-filter: blur(10px);
 }
 
@@ -1025,7 +1024,6 @@ p {
 	border-radius: var(--radius);
 	background: var(--surface-solid);
 	box-shadow: var(--shadow);
-	animation: arrive 180ms ease both;
 }
 
 .theme-menu-heading {
@@ -1167,7 +1165,6 @@ p {
 	translate: 0 -50%;
 	writing-mode: vertical-rl;
 	transform: rotate(180deg);
-	transition: right 220ms ease;
 	pointer-events: auto;
 }
 
@@ -1200,9 +1197,6 @@ p {
 	pointer-events: none;
 	translate: 0 -50%;
 	transform: translateX(100%);
-	transition:
-		opacity 160ms ease,
-		transform 220ms ease;
 }
 
 .exact-lens.is-open .lens-content {
@@ -1353,13 +1347,6 @@ p {
 	background: #c54e35;
 	color: white;
 	cursor: pointer;
-}
-
-@keyframes arrive {
-	from {
-		opacity: 0;
-		transform: translateY(8px) scale(0.98);
-	}
 }
 
 @keyframes victory-spin {

@@ -21,6 +21,16 @@ const componentSource = `<PhysicsWorld world={world} running={this.state.active}
   </PhysicsElement>
 </PhysicsWorld>`;
 
+const enhancementSource = `import physics from '@exactjs/physics'
+  with { type: 'exact-plugin' };
+
+<PhysicsWorld world={world}>
+  {/* Still a usable authored button when projection is excluded. */}
+  <button physics:body={ball} onClick={() => ball.applyImpulse(launch)}>
+    Launch
+  </button>
+</PhysicsWorld>`;
+
 /** Documents deterministic worlds and optional body projection. */
 export function PhysicsPluginPage(this: Component<{}>) {
 	return () => (
@@ -40,10 +50,21 @@ export function PhysicsPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Project an optional body onto existing design</h2>
+				<CodeBlock source={enhancementSource} language="tsx" title="OptionalBall.tsx" />
+				<p>
+					The world is required simulation ownership, while <code>physics:body</code> is an optional
+					transparent projection wrapper. Without that capability the authored button and click still
+					work; the DOM simply stops following the body. This lets a design component remain ignorant
+					of the projection implementation.
+				</p>
+			</section>
+			<section>
 				<h2>Use ordinary component ownership</h2>
 				<CodeBlock source={componentSource} language="tsx" title="BouncingBall.tsx" />
 				<p>
-					The world component owns one Activity-aware frame chain. The transparent body component
+					Use the explicit <code>PhysicsElement</code> when DOM attachment is required behavior or in
+					a compilerless caller. The world component owns one Activity-aware frame chain, and the body component
 					uses its logical root, publishes body context, and detaches projection and collision work
 					exactly once.
 				</p>

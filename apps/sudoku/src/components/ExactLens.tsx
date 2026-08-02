@@ -1,4 +1,7 @@
 import type { Component } from '@exactjs/core';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
+import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import type { MotionEffect } from '@exactjs/motion';
 import { SudokuContext } from '../context.js';
 import type { Digit, GameMove, SudokuCell } from '../types.js';
 
@@ -9,6 +12,30 @@ type ExactLensProps = {
 	conflicts: number[];
 	lastMove?: GameMove;
 };
+
+function lensTabChange(open: boolean): MotionEffect {
+	return {
+		keyframes: open
+			? [{ right: '0' }, { right: 'var(--lens-width)' }]
+			: [{ right: 'var(--lens-width)' }, { right: '0' }],
+		options: { duration: 220, easing: 'ease-out' }
+	};
+}
+
+function lensContentChange(open: boolean): MotionEffect {
+	return {
+		keyframes: open
+			? [
+					{ opacity: 0, transform: 'translateX(100%)' },
+					{ opacity: 1, transform: 'translateX(0)' }
+				]
+			: [
+					{ opacity: 1, transform: 'translateX(0)' },
+					{ opacity: 0, transform: 'translateX(100%)' }
+				],
+		options: { duration: 220, easing: 'ease-out' }
+	};
+}
 
 /** Makes the selected cell's observable state and derived work visible. */
 export function ExactLens(this: Component<{}>, props: ExactLensProps) {
@@ -21,12 +48,17 @@ export function ExactLens(this: Component<{}>, props: ExactLensProps) {
 				className="lens-tab"
 				aria-expanded={props.open}
 				onClick={() => game.toggleLens()}
+				motion:change={lensTabChange(props.open)}
 			>
 				<span className="lens-pulse" aria-hidden="true" />
 				eXact Lens
 				<span aria-hidden="true">{props.open ? '›' : '‹'}</span>
 			</button>
-			<div className="lens-content" aria-hidden={!props.open}>
+			<div
+				className="lens-content"
+				aria-hidden={!props.open}
+				motion:change={lensContentChange(props.open)}
+			>
 				<header>
 					<div>
 						<p>Live component instance</p>

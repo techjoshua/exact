@@ -102,6 +102,30 @@ import motion from '@exactjs/motion' with { type: 'exact-plugin' };
 <article motion:apply={fade} motion:layout-id={card.id} />;
 ```
 
+Enhancements package ordinary transparent wrapper components without making those wrappers part of
+the authored component's required design. The target continues to own its markup, state,
+accessibility, events, and fallback behavior. When the final application bundles the capability,
+the renderer mounts the package's inspectable wrapper at the resolved intrinsic root. When the
+capability is absent, the target is left unchanged:
+
+```tsx
+// Conceptual active form; the compiler does not literally emit this source tree.
+<MotionElement apply={fade}>
+	<ProductCard />
+</MotionElement>
+
+// Bundle-time fallback when motion is not included.
+<ProductCard />
+```
+
+This separates reusable functionality from design. A library can declare optional motion,
+gesture recognition, projection, or force policy without shipping that implementation as required
+component behavior or deciding whether the final application trusts and bundles its package.
+
+In VS Code, the eXact extension treats the attributed binding as a real use and completes the
+finite enhancement members after `motion:` using their kebab-case JSX spelling. The reserved
+`motion:root` selector is offered separately from the component's public props.
+
 An ordinary import cannot establish the prefix. Namespace imports, type-only bindings,
 non-component values, open prop dictionaries, unknown members, and reserved members are compiler
 diagnostics. Active renderer roots instantiate the mapped value as an ordinary inspectable

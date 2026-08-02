@@ -17,8 +17,22 @@ const pluginConfigSource = `export default {
 
 const enhancementSource = `import motion from '@exactjs/motion'
   with { type: 'exact-plugin' };
+import { fade } from '@exactjs/motion/presets';
 
-<article motion:apply={fade} motion:layout-id={card.id} />;`;
+function ProductCard(this: Component<{}>, props: CardProps) {
+  return () => <article className="product-card">{props.children}</article>;
+}
+
+// The card owns its design and required behavior. Motion is optional.
+<ProductCard motion:apply={fade}>...</ProductCard>;`;
+
+const enhancementExpansionSource = `// Conceptually, when the application bundles the capability:
+<MotionElement apply={fade}>
+  <ProductCard>...</ProductCard>
+</MotionElement>
+
+// When it does not, the authored fallback remains:
+<ProductCard>...</ProductCard>`;
 
 /** Explains the validated compiler, runtime, rendering, and testing plugin lifecycle. */
 export function PluginsPage(this: Component<{}>) {
@@ -81,15 +95,39 @@ export function PluginsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Optional JSX remains ordinary component behavior</h2>
+				<h2>Enhancements package reusable wrapper behavior</h2>
 				<CodeBlock source={enhancementSource} language="tsx" title="Card.tsx" />
 				<p>
-					An attributed value import establishes only the local prefix. The compiler derives a
-					finite canonical prop schema, rejects unknown and reserved members, and emits one grouped
-					reactive marker. Direct values and finite setup-derived spreads retain the component prop
-					type&apos;s discriminated-union constraints without runtime prefix scanning. A bundled
-					capability mounts an ordinary inspectable component; an unavailable optional enhancement
-					leaves the target unchanged.
+					An enhancement is an ordinary transparent component packaged so it can be attached without
+					putting that wrapper into the component&apos;s required design. The authored component still
+					owns its markup, state, accessibility, and fallback behavior. The enhancement owns one
+					reusable cross-cutting concern such as motion, gesture recognition, pose projection, or a
+					force contribution.
+				</p>
+				<CodeBlock
+					source={enhancementExpansionSource}
+					language="tsx"
+					title="Conceptual runtime expansion"
+				/>
+				<p>
+					The compiler does not literally rewrite source into that tree. It emits a typed marker, and
+					the renderer mounts the package&apos;s inspectable wrapper at the resolved intrinsic root only
+					when the final application includes that capability. Excluding it at bundle time removes the
+					wrapper implementation while leaving the authored component intact. This separates reusable
+					functionality from visual design and lets libraries declare optional behavior without deciding
+					the final application&apos;s trust or bundle policy.
+				</p>
+				<p>
+					The attributed import establishes only the local prefix. The compiler derives a finite
+					canonical prop schema, rejects unknown and reserved members, and emits one grouped reactive
+					marker. Direct values and finite setup-derived spreads retain the wrapper component&apos;s prop
+					types without runtime prefix scanning.
+				</p>
+				<p>
+					The VS Code extension recognizes the attributed binding as a use and completes finite
+					members after a prefix such as <code>motion:</code>. Suggested names use the same
+					kebab-case mapping as the compiler and include the reserved <code>root</code> target
+					selector.
 				</p>
 				<p>
 					Compilation records attributed capabilities without a plugin registry because a library

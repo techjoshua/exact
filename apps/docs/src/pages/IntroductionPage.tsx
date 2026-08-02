@@ -70,8 +70,9 @@ export function IntroductionPage(this: Component<{}>) {
 					<h2>See the model at play.</h2>
 					<p>
 						Sudoku Atelier turns direct state, precise updates, tasks, persistence, responsive
-						layout, full theming, and steady one-pass board derivation into one polished
-						application.
+						layout, full theming, optional attributed motion, and steady one-pass board derivation
+						into one polished application. Excluding motion keeps the same controls and design while
+						removing only their added visual continuity.
 					</p>
 				</div>
 				<a className="primary-link" href="./sudoku.html">

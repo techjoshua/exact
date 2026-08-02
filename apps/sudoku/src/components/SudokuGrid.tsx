@@ -1,4 +1,7 @@
 import type { Component } from '@exactjs/core';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
+import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import { fade, pop } from '@exactjs/motion/presets';
 import { SudokuContext } from '../context.js';
 import { arePeers } from '../game-engine.js';
 import type { Digit, SudokuCell } from '../types.js';
@@ -54,13 +57,18 @@ export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 				))}
 			</div>
 			{props.paused ? (
-				<button className="pause-cover" type="button" onClick={() => game.togglePause()}>
+				<button
+					className="pause-cover"
+					type="button"
+					onClick={() => game.togglePause()}
+					motion:apply={fade}
+				>
 					<span>Game paused</span>
 					<small>Tap to return</small>
 				</button>
 			) : null}
 			{props.complete ? (
-				<div className="victory-banner" role="status">
+				<div className="victory-banner" role="status" motion:apply={pop}>
 					<span className="victory-mark">✦</span>
 					<strong>Beautifully solved</strong>
 					<small>Every row, column and house is complete.</small>

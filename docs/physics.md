@@ -32,6 +32,25 @@ restitution, damping, sleeping, and deterministic
 
 ## Component ownership
 
+Keep the world explicit while making projection optional when the authored target has a useful
+fallback:
+
+```tsx
+import physics from '@exactjs/physics' with { type: 'exact-plugin' };
+
+<PhysicsWorld world={world}>
+	<button physics:body={ball} onClick={() => ball.applyImpulse(launch)}>
+		Launch
+	</button>
+</PhysicsWorld>;
+```
+
+When bundled, `physics:body` mounts the transparent projection owner and publishes body context for
+same-target enhancements. When excluded, the button and simulation remain; the DOM simply stops
+following that body. The element's markup and design never move into the physics package.
+
+Use explicit ownership when DOM projection is required behavior:
+
 ```tsx
 <PhysicsWorld world={world} running={this.state.active}>
 	<PhysicsElement body={ball}>
@@ -45,9 +64,9 @@ unmounting. It disposes a world it creates from `options`, but only pauses a sup
 `PhysicsElement` is a transparent ordinary component: its logical intrinsic root is the projection
 target, and replacing configuration reuses the durable component-owned controller.
 
-Use the explicit component when DOM attachment is required. The optional `physics:*` namespace is
-activated when the final application bundle includes the attributed capability and remains inert
-when it does not.
+Use the explicit component when DOM attachment is required or the caller is compilerless. The
+optional `physics:*` namespace is activated when the final application bundle includes the
+attributed capability and remains inert when it does not.
 
 ## Projection channels
 

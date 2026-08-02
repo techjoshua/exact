@@ -1,7 +1,10 @@
 # eXact Sudoku sample
 
 An installable Sudoku game demonstrating compiler-backed TSX, fine-grained grid updates, keyboard
-and pointer input, local persistence, and offline standalone builds.
+and pointer input, local persistence, optional attributed motion enhancements, and offline
+standalone builds. Theme, pause, victory, and inspector elements remain ordinary functional JSX;
+when the motion capability is bundled they gain preset or reactive transitions, and when it is
+excluded they fall back to their authored states without replacement components.
 
 ## Run locally
 

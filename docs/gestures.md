@@ -65,8 +65,26 @@ focusable target, an accurate accessible name, and any control-specific role.
 The canonical namespace accepts `apply`, `press`, `hover`, `drag`, `pan`, `pinch`, and `disabled`.
 The shared compiler and renderer carry grouped markers and ordinary transparent plugin components.
 Vite includes reached attributed capabilities in its bundle-local catalog and supplies them to
-DOM, hydration, and SSR. Continue to use explicit `GestureElement` when gesture behavior is required
-rather than optional enhancement.
+DOM, hydration, and SSR.
+
+```tsx
+import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
+
+<button onClick={() => openCard(card.id)} gesture:apply={movable}>
+	Open or move card
+</button>;
+```
+
+Here the authored click remains required fallback behavior. The optional wrapper adds reusable
+pointer capture, keyboard movement, cancellation, and cleanup without owning the button's design.
+If the final application excludes the capability, the button still opens the card. Continue to use
+explicit `GestureElement` when gesture behavior itself is required or the caller is compilerless:
+
+```tsx
+<GestureElement apply={movable}>
+	<article tabIndex={0}>Drag me or use the arrow keys</article>
+</GestureElement>
+```
 
 `@exactjs/gestures/testing` provides an injectable monotonic clock for deterministic thresholds,
 velocity, long press, and cancellation tests.

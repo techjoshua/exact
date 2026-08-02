@@ -16,6 +16,15 @@ const componentSource = `<PhysicsWorld world={world}>
   </GravityField>
 </PhysicsWorld>`;
 
+const enhancementSource = `import gravity from '@exactjs/gravity'
+  with { type: 'exact-plugin' };
+import physics from '@exactjs/physics'
+  with { type: 'exact-plugin' };
+
+<PhysicsWorld world={world}>
+  <div physics:body={satellite} gravity:apply={planet} />
+</PhysicsWorld>`;
+
 /** Documents pure gravity fields and physics force registration. */
 export function GravityPluginPage(this: Component<{}>) {
 	return () => (
@@ -35,10 +44,21 @@ export function GravityPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Add force policy to an existing body target</h2>
+				<CodeBlock source={enhancementSource} language="tsx" title="Satellite.tsx" />
+				<p>
+					The physics enhancement publishes body context and the gravity enhancement consumes it on
+					the same authored element. If gravity is excluded, the body still exists and projects; it
+					simply receives no contribution from that field. Neither capability owns the element&apos;s
+					design.
+				</p>
+			</section>
+			<section>
 				<h2>Register through physics</h2>
 				<CodeBlock source={componentSource} language="tsx" title="OrbitScene.tsx" />
 				<p>
-					Gravity adds one ordered force contributor and no loop. Stable body groups, collision
+					Use <code>GravityField</code> when scene-wide gravity is required or selection is broader
+					than one target. Gravity adds one ordered force contributor and no loop. Stable body groups, collision
 					layers, explicit sets, and predicates select bodies; independent registrations add and
 					dispose independently.
 				</p>

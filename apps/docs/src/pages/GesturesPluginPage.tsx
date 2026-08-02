@@ -25,7 +25,15 @@ const definitionSource = `const movable = defineGesture({
   touchAction: 'none'
 });`;
 
-const usageSource = `<GestureElement apply={movable}>
+const enhancementSource = `import gesture from '@exactjs/gestures'
+  with { type: 'exact-plugin' };
+
+// Click remains the required behavior; movement is optional.
+<button onClick={() => openCard(card.id)} gesture:apply={movable}>
+  Open or move card
+</button>`;
+
+const explicitSource = `<GestureElement apply={movable}>
   <article tabIndex={0} aria-label="Move card">
     Drag me or use the arrow keys
   </article>
@@ -50,12 +58,22 @@ export function GesturesPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Make required behavior explicit</h2>
-				<CodeBlock source={usageSource} language="tsx" title="MovableCard.tsx" />
+				<h2>Add optional intent without replacing controls</h2>
+				<CodeBlock source={enhancementSource} language="tsx" title="CardButton.tsx" />
 				<p>
-					Use the transparent explicit component when gesture behavior is functional. Vite bundles
-					reached attributed capabilities for optional namespaced enhancement across DOM, hydration,
-					and SSR.
+					The button remains a button and its click remains the fallback. When the capability is
+					bundled, one transparent gesture component additionally owns pointer capture, keyboard
+					movement, cancellation, and cleanup. Omitting it removes that extra intent without changing
+					the control&apos;s design or required action.
+				</p>
+			</section>
+			<section>
+				<h2>Make required gesture behavior explicit</h2>
+				<CodeBlock source={explicitSource} language="tsx" title="MovableCard.tsx" />
+				<p>
+					Use <code>GestureElement</code> when gesture behavior is part of the component&apos;s contract
+					or the caller is compilerless. Unlike the optional attribute, that component and its behavior
+					are always part of the authored tree.
 				</p>
 			</section>
 			<section>

@@ -45,6 +45,22 @@ retaining force history or predicates.
 
 ## Ordinary components
 
+Use same-target enhancements when gravity is optional policy for one existing physics body:
+
+```tsx
+import gravity from '@exactjs/gravity' with { type: 'exact-plugin' };
+import physics from '@exactjs/physics' with { type: 'exact-plugin' };
+
+<PhysicsWorld world={world}>
+	<div physics:body={satellite} gravity:apply={planet} />
+</PhysicsWorld>;
+```
+
+The physics wrapper publishes body context and gravity consumes it without owning the target's
+design. Excluding gravity leaves the projected body intact but removes that field contribution.
+
+Use explicit components when scene-wide registration is required:
+
 ```tsx
 <PhysicsWorld world={world}>
 	<GravityField field={earth} groups={['dynamic']}>

@@ -28,6 +28,18 @@ const componentSource = `<MotionConfig reducedMotion="system" transition={{ dura
   </Presence>
 </MotionConfig>`;
 
+const enhancementSource = `import motion from '@exactjs/motion'
+  with { type: 'exact-plugin' };
+import { slideUp } from '@exactjs/motion/presets';
+
+// Ordinary JSX remains the functional fallback.
+<output motion:apply={slideUp}>Changes saved</output>
+
+<span
+  style={{ transform: indicatorTransform }}
+  motion:change={indicatorChange}
+/>`;
+
 const listSource = `<LayoutGroup id="cards">
   <MotionList items={this.state.cards} getKey={(card) => card.id} exitLayout="pop">
     {(card) => (
@@ -74,10 +86,23 @@ export function MotionPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Enhance ordinary elements first</h2>
+				<CodeBlock source={enhancementSource} language="tsx" title="SaveFeedback.tsx" />
+				<p>
+					The namespaced form attaches the same transparent motion owner to an existing intrinsic
+					target. Remove the bundled capability and the output, styles, events, and application state
+					still work; only the visual path disappears. This is the preferred form when motion is a
+					progressive enhancement rather than required structure.
+				</p>
+			</section>
+			<section>
 				<h2>Coordinate conditional presence</h2>
 				<CodeBlock source={componentSource} language="tsx" title="Dialog.tsx" />
 				<p>
-					<code>Motion</code> renders one real intrinsic selected by <code>as</code>.{' '}
+					Use explicit components when a compilerless caller needs motion or when components such as{' '}
+					<code>Presence</code>, <code>MotionConfig</code>, and <code>MotionList</code> own structural
+					coordination rather than decorating one existing target. <code>Motion</code> renders one real
+					intrinsic selected by <code>as</code>.{' '}
 					<code>MotionConfig</code> inherits enabled, transition, appear, and reduced-motion policy
 					through the logical component tree, including portals. <code>Presence</code> makes leaving
 					content inert, returns focus, and reuses the same DOM generation after a rapid reversal.
@@ -111,15 +136,6 @@ export function MotionPluginPage(this: Component<{}>) {
 					components and attributed motion work without a separate plugin host. Server imports do
 					not read browser globals, and application or test drivers can still override playback with
 					owned leases.
-				</p>
-			</section>
-			<section>
-				<h2>Use attributes or explicit components</h2>
-				<p>
-					An attributed motion import enables typed <code>motion:*</code> attributes. Vite includes
-					reached capabilities in the application bundle and supplies its local catalog to DOM,
-					hydration, and SSR. Compilerless libraries can continue to use <code>Motion</code>{' '}
-					directly.
 				</p>
 			</section>
 		</Article>
