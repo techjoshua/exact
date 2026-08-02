@@ -106,6 +106,24 @@ FLIP effects after the DOM has moved:
 Use `layout="position"`, `layout="size"`, or `layout="both"`; `layout` alone means both. Layout
 keyframes use additive transform composition, so they do not replace an authored transform.
 
+## Coordinated publication
+
+`createViewTransitionCoordinator()` implements the neutral
+`@exactjs/core/framework/publication` contract. Pass it to `createExactRouter()` to publish an
+accepted navigation exactly once inside the native View Transition update callback:
+
+```ts
+const publication = createViewTransitionCoordinator({
+	name: (request) => (request.kind === 'navigation' ? 'route' : undefined)
+});
+
+const router = createExactRouter({ source, routes, publication });
+```
+
+The update callback awaits the framework commit's `rendered` receipt, while visual completion
+remains immediate, nonblocking task work. Unsupported browsers and reduced-motion policy publish
+immediately through the same contract. An already aborted request publishes zero times.
+
 ## Plugin-owned JSX
 
 The shared compiler and DOM renderer can carry grouped motion markers, resolve targets through
@@ -114,4 +132,4 @@ component. The generated plugin-host capability catalog is still being connected
 code should use the explicit `Motion` component until that host integration is complete.
 
 Presence, keyed motion lists, scoped layout measurement, and shared layout identity are available.
-Presence sequencing policies and router View Transition publication remain under implementation.
+Presence sequencing policies remain under implementation.

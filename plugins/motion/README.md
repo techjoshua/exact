@@ -24,4 +24,7 @@ stable keyed projection of reactive application collections. Wrap layout partici
 drivers are loaded only by client/runtime entry points; importing definitions or presets on a
 server does not access browser globals.
 
+`createViewTransitionCoordinator()` can wrap a router or another framework publisher without
+introducing a dependency between motion and that publisher.
+
 See [motion](../../docs/motion.md) for presence, layout, list, accessibility, and testing guidance.

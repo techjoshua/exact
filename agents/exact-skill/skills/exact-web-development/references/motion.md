@@ -12,6 +12,8 @@ exported declarations before editing motion code.
   the installed build host.
 - Use `Presence` for conditional focus-safe leave, `MotionList` for application-owned keyed
   collections, and `LayoutGroup` with stable `layoutId` values for coordinated FLIP movement.
+- Use `createViewTransitionCoordinator()` through a publisher's neutral framework publication
+  option; do not couple motion directly to router types.
 - Treat `animate()` playback as structured, cancelable task work. Do not retain raw browser
   animations outside component ownership.
 - Follow the installed package surface for presence, list, layout, and router coordination; do not

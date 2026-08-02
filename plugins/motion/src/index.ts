@@ -5,6 +5,7 @@ export { MotionElement } from './motion-element.js';
 export { Motion } from './motion.js';
 export { MotionList } from './motion-list.js';
 export { Presence } from './presence.js';
+export { createViewTransitionCoordinator } from './view-transition.js';
 export { animate, resolveMotionEffect } from './playback.js';
 export type {
 	MotionConfigProps,
@@ -23,7 +24,8 @@ export type {
 	MotionReducedPolicy,
 	MotionSettings,
 	MotionTransition,
-	PresenceProps
+	PresenceProps,
+	ViewTransitionCoordinatorOptions
 } from './contracts.js';
 
 export { MotionElement as default } from './motion-element.js';

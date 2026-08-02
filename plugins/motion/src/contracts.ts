@@ -1,4 +1,5 @@
 import type { Child, RefBinding } from '@exactjs/core';
+import type { FrameworkPublicationRequest } from '@exactjs/core/framework/publication';
 
 declare const preparedMotionDefinition: unique symbol;
 
@@ -99,6 +100,13 @@ export type MotionListProps<Item> = Readonly<{
 export type LayoutGroupProps = Readonly<{
 	id?: string;
 	children?: Child;
+}>;
+
+/** Policy for native View Transition publication coordination. */
+export type ViewTransitionCoordinatorOptions<Metadata> = Readonly<{
+	enabled?: boolean;
+	reducedMotion?: MotionReducedPolicy;
+	name?(request: FrameworkPublicationRequest<Metadata>): string | undefined;
 }>;
 
 /** Cancelable task-frame-owned playback returned by {@link animate}. */
