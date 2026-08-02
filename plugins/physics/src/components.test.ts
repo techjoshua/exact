@@ -1,11 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
+import { Activity, type Component } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
-import { createTestVNode as createVNode } from '@exactjs/testing/internal/fixtures';
+import {
+	createTestVNode as createVNode,
+	markTestComponent
+} from '@exactjs/testing/internal/fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PhysicsElement, PhysicsWorldComponent } from './components.js';
+import type { PhysicsBody } from './contracts.js';
 import { createPhysicsWorld } from './world.js';
 
 const containers: Element[] = [];
@@ -44,5 +49,80 @@ describe('physics components', () => {
 		world.step(0.1);
 		flushSync();
 		expect(target.style.translate).toBe('8px 13px');
+	});
+
+	it('rebinds a replaced body without replacing the component target', () => {
+		const world = createPhysicsWorld({ fixedStep: 0.1 });
+		const first = world.createBody({
+			position: { x: 2, y: 3 },
+			shape: { kind: 'circle', radius: 1 }
+		});
+		const second = world.createBody({
+			position: { x: 10, y: 12 },
+			shape: { kind: 'circle', radius: 1 }
+		});
+		let owner!: Component<{ body: PhysicsBody }>;
+		const Scene = markTestComponent(function Scene(this: Component<{ body: PhysicsBody }>) {
+			owner = this;
+			this.state.body = first;
+			return () =>
+				createVNode(
+					PhysicsWorldComponent,
+					{ world, running: false },
+					createVNode(PhysicsElement, { body: this.state.body }, createVNode('div', null))
+				);
+		});
+		const container = document.createElement('div');
+		containers.push(container);
+		render(createVNode(Scene, null), container);
+		const target = container.querySelector('div')!;
+
+		owner.state.body = second;
+		flushSync();
+		expect(container.querySelector('div')).toBe(target);
+		expect(target.style.translate).toBe('10px 12px');
+
+		first.setPose({ position: { x: 40, y: 50 } });
+		world.step(0.1);
+		flushSync();
+		expect(target.style.translate).toBe('10px 12px');
+
+		second.setPose({ position: { x: 14, y: 16 } });
+		world.step(0.1);
+		flushSync();
+		expect(target.style.translate).toBe('14px 16px');
+	});
+
+	it('pauses and replaces its owned frame loop across Activity deactivation', () => {
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+			frames.push(callback);
+			return frames.length;
+		});
+		const world = createPhysicsWorld({ fixedStep: 0.1 });
+		const container = document.createElement('div');
+		containers.push(container);
+		const tree = (mode: 'active' | 'parked') =>
+			createVNode(
+				Activity,
+				{ mode },
+				createVNode(PhysicsWorldComponent, { world }, createVNode('div', null))
+			);
+
+		render(tree('active'), container);
+		frames.shift()?.(0);
+		expect(world.running).toBe(true);
+		const activeFrame = frames.shift()!;
+
+		render(tree('parked'), container);
+		expect(world.running).toBe(false);
+		activeFrame(16);
+		expect(world.running).toBe(false);
+
+		render(tree('active'), container);
+		const resumedFrame = frames.shift();
+		expect(resumedFrame).toBeDefined();
+		resumedFrame?.(32);
+		expect(world.running).toBe(true);
 	});
 });
