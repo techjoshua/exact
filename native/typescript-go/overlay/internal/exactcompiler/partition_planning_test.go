@@ -554,23 +554,24 @@ func TestPartitionPlanLowersKeyedServerItemsIntoRuntimeRanges(t *testing.T) {
 }
 
 func TestPartitionPlanKeepsUnknownForeignChildNarrowAndExplained(t *testing.T) {
+	source := `
+		import { UnknownLibraryValue } from "unknown-component-library";
+		function ClientShell(props: { children?: unknown }) {
+			window.addEventListener("resize", () => undefined);
+			return () => <section>{props.children}</section>;
+		}
+		export function Page() {
+			return () => (
+				<ClientShell>
+					<UnknownLibraryValue />
+					<button onClick={() => undefined}>Edit</button>
+				</ClientShell>
+			);
+		}
+	`
 	response := NewSession().Execute(Request{
 		ID: "partition-unknown-child.tsx", Kind: "analyze", ServerComponents: true,
-		Source: `
-			declare const UnknownLibraryValue: (props: {}) => unknown;
-			function ClientShell(props: { children?: unknown }) {
-				window.addEventListener("resize", () => undefined);
-				return () => <section>{props.children}</section>;
-			}
-			export function Page() {
-				return () => (
-					<ClientShell>
-						<UnknownLibraryValue />
-						<button onClick={() => undefined}>Edit</button>
-					</ClientShell>
-				);
-			}
-		`,
+		Source: source,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
@@ -597,6 +598,16 @@ func TestPartitionPlanKeepsUnknownForeignChildNarrowAndExplained(t *testing.T) {
 	}
 	if !diagnostic {
 		t.Fatalf("unknown child did not produce an actionable partition diagnostic: %#v", response.Diagnostics)
+	}
+	compiled := NewSession().Execute(Request{
+		ID: "partition-unknown-child.tsx", Kind: "compile", Target: TargetClient,
+		ServerComponents: true, Source: source,
+	})
+	if compiled.Error != "" {
+		t.Fatal(compiled.Error)
+	}
+	if !strings.Contains(compiled.Code, "Page") {
+		t.Fatalf("partition warning suppressed the generated artifact (%#v):\n%s", compiled.Diagnostics, compiled.Code)
 	}
 }
 

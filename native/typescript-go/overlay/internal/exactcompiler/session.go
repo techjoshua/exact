@@ -451,7 +451,7 @@ func (s *Session) Execute(request Request) Response {
 		)
 		return response
 	}
-	if len(response.Diagnostics) != 0 {
+	if hasErrorDiagnostic(response.Diagnostics) {
 		return response
 	}
 
@@ -601,6 +601,15 @@ func (s *Session) Execute(request Request) Response {
 	)
 	response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 	return response
+}
+
+func hasErrorDiagnostic(diagnostics []Diagnostic) bool {
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Severity == "error" {
+			return true
+		}
+	}
+	return false
 }
 
 func syntheticTaskStatusDiagnostic(
