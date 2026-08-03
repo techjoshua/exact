@@ -6,3 +6,5 @@ eXact HTML and activate compiler-generated islands.
 - Hydrate the same compiled application that produced the server output.
 - Choose mismatch recovery deliberately.
 - Use generated operation, component, registry, and invocation identities without rewriting them.
+- Keep transport invocation and patch authority behind `ExactClient`; use its root-scoped methods
+  only when an integration genuinely needs them.

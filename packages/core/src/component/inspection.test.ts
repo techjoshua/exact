@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-	createComponentDomain,
 	createComponentInstance,
 	createContext,
 	createExactRuntimeInspectionOwner,
 	inspectExactRuntimeComponent,
 	type Component
 } from '../index.js';
+import { createFrameworkComponentDomain } from './domain.js';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 
 describe('component runtime inspection', () => {
@@ -24,7 +24,7 @@ describe('component runtime inspection', () => {
 			{},
 			undefined,
 			undefined,
-			createComponentDomain('page', undefined, undefined, owner)
+			createFrameworkComponentDomain({ executionRoot: 'page', inspection: owner })
 		);
 		const events: ExactRuntimeInspectionEvent[] = [];
 		owner.attach('session', { publish: (event) => events.push(event) });
@@ -60,7 +60,7 @@ describe('component runtime inspection', () => {
 			{},
 			undefined,
 			undefined,
-			createComponentDomain('page', undefined, undefined, owner)
+			createFrameworkComponentDomain({ executionRoot: 'page', inspection: owner })
 		);
 		owner.attach('session', {
 			publish() {
@@ -94,7 +94,7 @@ describe('component runtime inspection', () => {
 			{},
 			undefined,
 			undefined,
-			createComponentDomain('page', undefined, undefined, owner)
+			createFrameworkComponentDomain({ executionRoot: 'page', inspection: owner })
 		);
 		owner.attach('session', { publish() {} });
 

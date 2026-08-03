@@ -181,7 +181,7 @@ owned DOM boundaries.
 
 ## Protocol and security
 
-The endpoint accepts allowlisted action, refresh, and batch operations. The
+The endpoint accepts allowlisted invocation, refresh, and batch operations. The
 runtime validates request shape, dependency arity, state reads, public context,
 response state, context writes, patches, payload limits, build identity, and
 staleness before mutating the client machine.

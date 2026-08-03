@@ -13,6 +13,7 @@ import {
 import { exactComponentIdentity, isExactComponent } from '../component-contracts.js';
 import { inspectTaskFramesForHost, type TaskFrameInspection } from '../tasks/frame-inspection.js';
 import type { ComponentInstance } from './contracts.js';
+import { componentDomainInspection } from './domain.js';
 
 /** Runtime fields fixed for one build and component-domain owner. */
 export type ExactRuntimeInspectionOwnerOptions = Readonly<{
@@ -153,7 +154,7 @@ export function inspectExactRuntimeComponent(
 		suspense?: ExactInspectedRuntimeComponent['suspense'];
 	}> = {}
 ): ExactInspectedRuntimeComponent | undefined {
-	const owner = component.domain.inspection;
+	const owner = componentDomainInspection(component.domain);
 	const id = owner?.identity(component);
 	if (!owner || !id) return undefined;
 	return Object.freeze({

@@ -50,7 +50,7 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/compiler',
 				purpose:
-					'Native analysis and artifacts for reactivity, tasks, registries, placement, and the exactc CLI.'
+					'Native compilation and consolidated build products for task operations, registrations, placement, and the exactc CLI.'
 			},
 			{
 				name: '@exactjs/language-server',
@@ -85,11 +85,11 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/hydrate',
 				purpose:
-					'DOM adoption, action results, registry identity recovery, and safe server patch application.'
+					'DOM adoption, operation results, registry identity recovery, and safe server patch application.'
 			},
 			{
 				name: '@exactjs/server',
-				purpose: 'Opaque allowlisted action continuations, refreshes, and transport validation.'
+				purpose: 'Opaque allowlisted task continuations, refreshes, and transport validation.'
 			}
 		]
 	},

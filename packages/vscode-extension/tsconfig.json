@@ -7,7 +7,7 @@
 		"lib": ["ES2022", "DOM"],
 		"types": ["node", "vscode"]
 	},
-	"references": [{ "path": "../language-server" }],
+	"references": [{ "path": "../language-server" }, { "path": "../typescript-plugin" }],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts"]
 }

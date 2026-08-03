@@ -4,12 +4,17 @@ import {
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
 	resolveExactArtifactImport,
-	transformSource,
 	type ExactSourceInspection
 } from '@exactjs/compiler';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
-import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
-import { profileTimestamp } from '@exactjs/instrumentation';
+import {
+	containsExactBuildJsx,
+	createExactDiagnosticReporter,
+	isExactBuildSourceModule,
+	shouldCompileExactBuildModule,
+	shouldTransformExactBuildModulePath,
+	transformExactAdapterModule
+} from '@exactjs/compiler/adapter-support';
 import {
 	invalidateExactPluginRegistry,
 	prepareExactPluginRegistry,
@@ -25,14 +30,7 @@ import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compa
 import path from 'node:path';
 import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js';
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
-import {
-	containsExactJsx,
-	exactModuleFilename,
-	exactTransformTarget,
-	isExactTransformableModule,
-	shouldCompileExactModule,
-	shouldTransformExactModule
-} from './module-selection.js';
+import { exactModuleFilename, exactTransformTarget } from './module-selection.js';
 import { rewriteWithCompatibility, viteReactAliases } from './react-compatibility-emission.js';
 import {
 	createViteInspectionCatalog,
@@ -46,6 +44,10 @@ import {
 	validateViteDebugIdentity
 } from './debug-output.js';
 import type { ExactPlugin, ExactPluginOptions } from './plugin-contracts.js';
+import {
+	exactEnhancementFacades,
+	prependViteEnhancementRegistrations
+} from './enhancement-catalog.js';
 
 export type {
 	ExactPlugin,
@@ -103,7 +105,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		preparedRegistry = await prepareExactPluginRegistry({
 			applicationRoot: options.applicationRoot,
 			configPath: options.configPath,
-			hostMode: 'compiler'
+			hostMode: 'build'
 		});
 		configuredDebug ??= preparedRegistry.config?.debug;
 		return preparedRegistry;
@@ -162,6 +164,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			server.watcher?.once('close', () => compilerSession.dispose());
 		},
 		resolveId(source, importer) {
+			if (source in exactEnhancementFacades) {
+				const facade = exactEnhancementFacades[source as keyof typeof exactEnhancementFacades];
+				return this.resolve ? this.resolve(facade, importer, { skipSelf: true }) : facade;
+			}
 			if (
 				source === exactDevtoolsRuntimeModule &&
 				options.target !== 'server' &&
@@ -262,113 +268,105 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			compilerSession.dispose();
 		},
 		transform(code, id) {
-			if (!isExactTransformableModule(id)) return null;
+			if (!isExactBuildSourceModule(id)) return null;
 			const filename = exactModuleFilename(id);
-			if (!shouldTransformExactModule(filename, options)) return null;
+			if (!shouldTransformExactBuildModulePath(filename, options)) return null;
 			microfrontends.recordModule(code, id);
-			const profileStarted = options.onProfile ? profileTimestamp() : undefined;
-			try {
-				const ownership = jsxSourceOwnership(filename, code, reactCompatibility);
-				const reactOwned =
-					ownership === 'react' ||
-					(ownership === 'unknown' && usesReactRuntimeImports(code, filename));
-				if (reactOwned && containsExactJsx(filename, code)) {
-					if (!reactCompatibility) return null;
-					const lowered = transformReactJsx(code, {
-						filename,
-						target: reactCompatibility.target,
-						sourceMap: false
-					});
-					const rewritten = rewriteWithCompatibility(
-						compatibilityEngine!,
-						lowered.code,
-						filename,
-						options.target,
-						options.sourceMap,
-						code
-					);
-					microfrontends.recordModule(rewritten.code, id);
-					return { ...rewritten, moduleType: 'js' };
-				}
-				if (
-					shouldCompileExactModule(
-						filename,
-						code,
-						options,
-						options.pluginRegistry ?? preparedRegistry?.compiler
-					)
-				) {
-					const result = transformSource(code, {
-						filename,
+			const ownership = jsxSourceOwnership(filename, code, reactCompatibility);
+			const output = transformExactAdapterModule({
+				source: code,
+				filename,
+				errorId: id,
+				jsxOwnership: ownership,
+				usesReactRuntimeImports: usesReactRuntimeImports(code, filename),
+				transformReact: containsExactBuildJsx(filename, code),
+				shouldCompile: shouldCompileExactBuildModule(filename, code, options),
+				...(reactCompatibility
+					? {
+							react: () => {
+								const lowered = transformReactJsx(code, {
+									filename,
+									target: reactCompatibility.target,
+									sourceMap: false
+								});
+								return rewriteWithCompatibility(
+									compatibilityEngine!,
+									lowered.code,
+									filename,
+									options.target,
+									options.sourceMap,
+									code
+								);
+							}
+						}
+					: {}),
+				compiler: {
+					options: {
 						session: compilerSession,
 						target: exactTransformTarget(options),
 						serverComponents: options.serverComponents,
 						sourceMap: false,
 						assetRules: options.assetRules,
 						preserveClientAssetImports: true,
-						pluginRegistry: options.pluginRegistry ?? preparedRegistry?.compiler,
 						jsxInterop: compatibilityEngine?.jsxInterop,
 						emitInspection:
 							options.target === 'server' && inspectionCatalogEnabled(configuredDebug, viteCommand),
 						instrumentInspection: inspectionRuntimeEnabled(configuredDebug, viteCommand)
-					});
-					if (result.inspectionCatalog && options.target === 'server') {
-						inspectionModules.set(path.resolve(filename), {
-							inspection: result.inspectionCatalog,
-							redactions: result.inspectionRedactions,
-							source: code
-						});
-					}
-					const rewritten = compatibilityEngine
-						? compatibilityEngine.transformModule({
-								id: filename,
-								source: result.code,
-								format: 'module',
-								target: options.target === 'server' ? 'server' : 'client',
-								sourceMap: false
-							})
-						: { code: result.code };
-					const clientCode = prependViteDevtoolsRuntimeImport(
-						rewritten.code,
-						options.target !== 'server' && inspectionRuntimeEnabled(configuredDebug, viteCommand)
-					);
-					microfrontends.recordModule(clientCode, id);
-					return {
-						code: clientCode,
-						map:
-							options.sourceMap === false ? null : createLineSourceMap(filename, code, clientCode),
-						moduleType: 'js'
-					};
-				}
-				if (!compatibilityEngine) return null;
-				const rewritten = compatibilityEngine.transformModule({
-					id: filename,
-					source: code,
-					format: /\.c[jt]s$/i.test(filename) ? 'commonjs' : 'module',
-					target: options.target === 'server' ? 'server' : 'client',
-					sourceMap: options.sourceMap ?? true
-				});
-				for (const diagnostic of rewritten.diagnostics)
-					if (diagnostic.severity === 'warning') this.warn?.(diagnostic.message);
-				if (rewritten.changed) microfrontends.recordModule(rewritten.code, id);
-				return rewritten.changed
-					? { code: rewritten.code, map: rewritten.map, moduleType: 'js' }
-					: null;
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				throw new Error(`eXact JSX transform failed for ${id}\n${message}`);
-			} finally {
-				if (profileStarted !== undefined) {
-					options.onProfile?.(
-						Object.freeze({
-							subsystem: 'vite-plugin',
-							phase: 'transform',
-							elapsedMs: profileTimestamp() - profileStarted,
-							attributes: Object.freeze({ filename })
-						})
-					);
-				}
-			}
+					},
+					finish: (result) => {
+						const rewritten = compatibilityEngine
+							? compatibilityEngine.transformModule({
+									id: filename,
+									source: result.code,
+									format: 'module',
+									target: options.target === 'server' ? 'server' : 'client',
+									sourceMap: false
+								})
+							: { code: result.code };
+						const enhancementCode = prependViteEnhancementRegistrations(
+							rewritten.code,
+							result.rendererEnhancements
+						);
+						const clientCode = prependViteDevtoolsRuntimeImport(
+							enhancementCode,
+							options.target !== 'server' && inspectionRuntimeEnabled(configuredDebug, viteCommand)
+						);
+						return {
+							code: clientCode,
+							map:
+								options.sourceMap === false ? null : createLineSourceMap(filename, code, clientCode)
+						};
+					},
+					inspection: (result) =>
+						result.inspectionCatalog && options.target === 'server'
+							? {
+									inspection: result.inspectionCatalog,
+									redactions: result.inspectionRedactions,
+									source: code
+								}
+							: undefined
+				},
+				...(compatibilityEngine
+					? {
+							compatibility: () =>
+								compatibilityEngine.transformModule({
+									id: filename,
+									source: code,
+									format: /\.c[jt]s$/i.test(filename) ? 'commonjs' : 'module',
+									target: options.target === 'server' ? 'server' : 'client',
+									sourceMap: options.sourceMap ?? true
+								})
+						}
+					: {}),
+				warn: (message) => this.warn?.(message),
+				profile: options.onProfile
+					? { subsystem: 'vite-plugin' as const, sink: options.onProfile }
+					: undefined
+			});
+			if (!output) return null;
+			if (output.inspection) inspectionModules.set(path.resolve(filename), output.inspection);
+			microfrontends.recordModule(output.code, id);
+			return { code: output.code, map: output.map, moduleType: 'js' };
 		}
 	};
 }

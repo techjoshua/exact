@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
-import { analyzeSource } from './index.js';
+import { analyzeSource } from './compilation/source-analysis.js';
 
 describe('placement inference performance guard', () => {
 	it('keeps a deep fixed-point fixture within investigated time and analysis bounds', () => {

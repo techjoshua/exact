@@ -38,7 +38,7 @@ describe('@exactjs/ssr component resumption', () => {
 		const Counter = Object.assign(implementation, {
 			[exactComponentType]: 'component:Counter',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -106,7 +106,7 @@ describe('@exactjs/ssr component resumption', () => {
 		const StateOnly = Object.assign(implementation, {
 			[exactComponentType]: 'component:StateOnly',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [
@@ -155,7 +155,7 @@ describe('@exactjs/ssr component resumption', () => {
 		const ContinuationOwner = Object.assign(implementation, {
 			[exactComponentType]: 'component:ContinuationOwner',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [
@@ -238,7 +238,7 @@ describe('@exactjs/ssr component resumption', () => {
 		const StreamedCounter = Object.assign(implementation, {
 			[exactComponentType]: 'component:StreamedCounter',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -303,7 +303,7 @@ describe('@exactjs/ssr component resumption', () => {
 		const Provider = Object.assign(implementation, {
 			[exactComponentType]: 'component:Provider',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],

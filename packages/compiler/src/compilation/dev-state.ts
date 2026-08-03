@@ -1,7 +1,7 @@
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 import {
-	artifactGraphEntryFromCompileResult,
+	artifactGraphInputFromCompileResult,
 	createExactArtifactGraph,
 	diffExactArtifactPlans
 } from '../artifacts.js';
@@ -25,10 +25,10 @@ export async function createExactArtifactDevState(
 	const compiled = await compileArtifactPlanEntries(plan.entries, {
 		filename: (entry) => options.filename ?? entry.inputFile,
 		serverComponents: options.serverComponents,
-		session: options.session,
-		pluginRegistry: options.pluginRegistry
+		buildKey: options.buildKey ?? options.inspection?.buildKey,
+		session: options.session
 	});
-	const entries = compiled.map(artifactGraphEntryFromCompileResult);
+	const entries = compiled.map(artifactGraphInputFromCompileResult);
 	return {
 		plan,
 		entries,
@@ -43,6 +43,9 @@ export async function updateExactArtifactDevState(
 	changedInputs: readonly string[],
 	options: ExactArtifactDevStateOptions
 ): Promise<ExactArtifactDevStateUpdate> {
+	const requestedBuildKey = options.buildKey ?? options.inspection?.buildKey;
+	if (requestedBuildKey && requestedBuildKey !== state.graph.buildKey)
+		throw new Error('eXact artifact dev state cannot change its coordinated partition build key');
 	for (const changed of changedInputs) {
 		let removed = false;
 		try {
@@ -64,10 +67,10 @@ export async function updateExactArtifactDevState(
 	const compiled = await compileArtifactPlanEntries([...diff.added, ...diff.changed], {
 		filename: (entry) => options.filename ?? entry.inputFile,
 		serverComponents: options.serverComponents,
-		session: options.session,
-		pluginRegistry: options.pluginRegistry
+		buildKey: state.graph.buildKey,
+		session: options.session
 	});
-	const entries = [...retainedEntries, ...compiled.map(artifactGraphEntryFromCompileResult)].sort(
+	const entries = [...retainedEntries, ...compiled.map(artifactGraphInputFromCompileResult)].sort(
 		(left, right) => left.inputFile.localeCompare(right.inputFile)
 	);
 	return {

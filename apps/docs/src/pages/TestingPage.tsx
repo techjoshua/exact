@@ -8,7 +8,7 @@ const view = await testComponent(Counter)
   .context(AuthContext, auth)
   .mount();
 
-// Prefer an accessible query and a user-shaped action.
+// Prefer an accessible query and a user-shaped interaction.
 await view.root.getByRole('button', { name: 'Increment' }).click();
 
 // Inspect internal state only when behavior alone is not enough.
@@ -53,7 +53,7 @@ await view.getByRole('button', { name: 'Save' }).click();
 
 // IDs stay opaque: interrogate what actually crossed the boundary.
 const exchange = view.protocol.exchanges[0];
-expect(exchange.operations[0]?.type).toBe('action');
+expect(exchange.operations[0]?.type).toBe('invoke');
 expect(exchange.clientOperations[0]?.patchesApplied).toBe(true);
 expect(view.hydration[0]?.outcome).toBe('mounted');
 expect(server.resumptions).toEqual(expect.any(Array));
@@ -83,8 +83,8 @@ export function TestingPage(this: Component<{}>) {
 			<section>
 				<h2>Settling is explicit</h2>
 				<p>
-					State and event actions flush reactive rendering and wait for observed component tasks.
-					Long-lived work can opt out, while <code>view.flush()</code> and{' '}
+					State changes and event interactions flush reactive rendering and wait for observed
+					component tasks. Long-lived work can opt out, while <code>view.flush()</code> and{' '}
 					<code>view.settle()</code> keep timing choices visible.
 				</p>
 			</section>

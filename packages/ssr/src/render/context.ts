@@ -5,7 +5,7 @@ import {
 	normalizePositiveLimit,
 	normalizeSsrTreeDepth
 } from '../render/limits.js';
-import { createComponentDomain } from '@exactjs/core';
+import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 
 /** Performs the drain tasks domain operation. */
@@ -55,6 +55,8 @@ export async function awaitWithAbort<T>(
 /** Creates a ssr context. */
 export function createSsrContext(options: RenderToStringOptions): SsrContext {
 	return {
+		executionRoot: options.executionRoot ?? 'page',
+		buildKey: options.buildKey,
 		markers: options.markers ?? true,
 		textSeparators: options.textSeparators ?? false,
 		reactMarkup: options.reactMarkup ?? false,
@@ -74,15 +76,21 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		documentHeadSeen: false,
 		documentBodySeen: false,
 		hostStack: [],
+		enhancementCatalog: options.enhancementCatalog,
+		unavailableEnhancements: new Set(),
+		enhancementVNodes: new WeakSet(),
+		plannedEnhancementBoundaries: new WeakSet(),
+		enhancementTargets: new WeakMap(),
+		preparedEnhancementComponents: new WeakMap(),
+		preparedEnhancementChildren: new WeakMap(),
+		preparedEnhancementSuspense: new WeakMap(),
 		componentContexts: options.contexts,
 		...(options.inspection
 			? {
-					componentDomain: createComponentDomain(
-						options.inspection.executionRoot,
-						undefined,
-						undefined,
-						options.inspection
-					)
+					componentDomain: createFrameworkComponentDomain({
+						executionRoot: options.inspection.executionRoot,
+						inspection: options.inspection
+					})
 				}
 			: {}),
 		onComponentCreated: options.onComponentCreated,

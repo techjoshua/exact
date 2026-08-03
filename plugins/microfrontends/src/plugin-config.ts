@@ -2,7 +2,7 @@ import type { ExactJsonValue, ExactPluginConfigController } from '@exactjs/plugi
 import type { ExactMicrofrontendConfig } from './config.js';
 
 /** JSON-safe microfrontend build projection consumed by bundler adapters. */
-export type ExactMicrofrontendCompilerConfig = {
+export type ExactMicrofrontendBuildConfig = {
 	exposes: readonly (readonly [string, { readonly component: string }])[];
 	providedPackages: readonly string[];
 	remoteBindings: readonly (
@@ -26,23 +26,21 @@ const controller: ExactPluginConfigController<ExactMicrofrontendConfig> = {
 	},
 	structuralValidate: validateConfig,
 	validate: validateConfig,
-	compilerConfig(config) {
+	buildConfig(config) {
 		return {
-			cacheKey: {
-				exposes: sortedEntries(config.exposes),
-				providedPackages: allProvidedPackageKeys(config.providedPackages),
-				remoteBindings: Object.entries(config.remotes)
-					.sort(([left], [right]) => left.localeCompare(right))
-					.map(([binding, remote]) => [
-						binding,
-						{
-							clientEntry: remote.clientEntry,
-							...(remote.clientEntryResolver
-								? { clientEntryResolver: remote.clientEntryResolver }
-								: {})
-						}
-					])
-			}
+			exposes: sortedEntries(config.exposes),
+			providedPackages: allProvidedPackageKeys(config.providedPackages),
+			remoteBindings: Object.entries(config.remotes)
+				.sort(([left], [right]) => left.localeCompare(right))
+				.map(([binding, remote]) => [
+					binding,
+					{
+						clientEntry: remote.clientEntry,
+						...(remote.clientEntryResolver
+							? { clientEntryResolver: remote.clientEntryResolver }
+							: {})
+					}
+				])
 		};
 	},
 	serverConfig(config) {
@@ -84,11 +82,11 @@ export function allProvidedPackageKeys(configured: readonly string[]): string[] 
 }
 
 /** Validates and reconstructs the compiler's JSON-safe build projection. */
-export function readExactMicrofrontendCompilerConfig(
+export function readExactMicrofrontendBuildConfig(
 	value: ExactJsonValue
-): ExactMicrofrontendCompilerConfig {
+): ExactMicrofrontendBuildConfig {
 	if (!value || typeof value !== 'object' || Array.isArray(value))
-		throw new Error('Invalid microfrontends compiler configuration');
+		throw new Error('Invalid microfrontends build configuration');
 	const exposes = value.exposes;
 	const providedPackages = value.providedPackages;
 	const remoteBindings = value.remoteBindings;
@@ -100,7 +98,7 @@ export function readExactMicrofrontendCompilerConfig(
 		!Array.isArray(remoteBindings) ||
 		!remoteBindings.every(isCompilerRemoteBinding)
 	)
-		throw new Error('Invalid microfrontends compiler configuration');
+		throw new Error('Invalid microfrontends build configuration');
 	return Object.freeze({
 		exposes: Object.freeze(
 			exposes.map((entry) =>

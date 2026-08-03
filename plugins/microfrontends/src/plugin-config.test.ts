@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	allProvidedPackageKeys,
 	mandatoryExactProvidedPackages,
-	readExactMicrofrontendCompilerConfig
+	readExactMicrofrontendBuildConfig
 } from './plugin-config.js';
 import controller from './plugin-config.js';
 
@@ -12,15 +12,15 @@ const context: ExactPluginConfigContext = {
 	contributor: { packageName: '@company/app', version: '1.0.0' },
 	applicationRoot: '/workspace/app',
 	environment: 'test',
-	hostMode: 'compiler',
+	hostMode: 'build',
 	signal: new AbortController().signal,
 	executionIndex: 0,
 	provenance: { activationPaths: [], orderingAfter: [] }
 };
 
-describe('microfrontends compiler configuration', () => {
+describe('microfrontends build configuration', () => {
 	it('round-trips the bounded JSON build projection', () => {
-		const config = readExactMicrofrontendCompilerConfig({
+		const config = readExactMicrofrontendBuildConfig({
 			exposes: [['./Area', { component: './src/Area.tsx' }]],
 			providedPackages: [...mandatoryExactProvidedPackages, '@company/contexts'],
 			remoteBindings: [['billing', { clientEntry: 'https://cdn.example.test/billing.js' }]]
@@ -36,21 +36,21 @@ describe('microfrontends compiler configuration', () => {
 
 	it('rejects malformed or incomplete adapter input', () => {
 		expect(() =>
-			readExactMicrofrontendCompilerConfig({
+			readExactMicrofrontendBuildConfig({
 				exposes: [['./Area', { component: '' }]],
 				providedPackages: [],
 				remoteBindings: []
 			})
-		).toThrow('Invalid microfrontends compiler configuration');
+		).toThrow('Invalid microfrontends build configuration');
 		expect(() =>
-			readExactMicrofrontendCompilerConfig({
+			readExactMicrofrontendBuildConfig({
 				exposes: [],
 				providedPackages: []
 			})
-		).toThrow('Invalid microfrontends compiler configuration');
+		).toThrow('Invalid microfrontends build configuration');
 	});
 
-	it('creates deterministic compiler, server, and client projections', async () => {
+	it('creates deterministic build, server, and client projections', async () => {
 		const config = {
 			exposes: {
 				'./Zulu': { component: './src/Zulu.tsx' },
@@ -66,8 +66,8 @@ describe('microfrontends compiler configuration', () => {
 			providedPackages: ['@company/ui']
 		};
 
-		const compilerConfig = await controller.compilerConfig?.(config, context);
-		expect(compilerConfig?.cacheKey).toEqual({
+		const buildConfig = await controller.buildConfig?.(config, context);
+		expect(buildConfig).toEqual({
 			exposes: [
 				['./Alpha', { component: './src/Alpha.tsx' }],
 				['./Zulu', { component: './src/Zulu.tsx' }]
@@ -135,7 +135,7 @@ describe('microfrontends compiler configuration', () => {
 
 	it('rejects malformed remote resolver projections', () => {
 		expect(() =>
-			readExactMicrofrontendCompilerConfig({
+			readExactMicrofrontendBuildConfig({
 				exposes: [],
 				providedPackages: [],
 				remoteBindings: [
@@ -145,6 +145,6 @@ describe('microfrontends compiler configuration', () => {
 					]
 				]
 			})
-		).toThrow('Invalid microfrontends compiler configuration');
+		).toThrow('Invalid microfrontends build configuration');
 	});
 });

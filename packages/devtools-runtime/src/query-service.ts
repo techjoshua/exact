@@ -81,6 +81,13 @@ export function createExactClientInspectionQueryService(
 					);
 				case 'components.tree':
 					return mergedServerCollection(request, options, snapshot, maxResults);
+				case 'partitions.tree':
+					return mergedServerCollection(
+						request,
+						options,
+						options.dom.snapshot().partitions,
+						maxResults
+					);
 				case 'components.get':
 					return componentResponse(request, options.sessionId, snapshot, (component) => component);
 				case 'state.get':

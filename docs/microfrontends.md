@@ -38,6 +38,9 @@ without treating arbitrary semver similarity as runtime compatibility.
 `RemoteComponent` loads the generated registration, establishes an immutable
 component domain, and mounts page-authored children beneath that domain.
 Contexts and portals continue to follow logical component ownership.
+The domain's application-visible shape is only its `executionRoot` identity;
+transport, resumption, inspection, and activation capabilities remain private
+to framework render and hydration boundaries.
 
 ## Protocol and recovery
 
@@ -46,7 +49,7 @@ selects the private host from trusted binding and build metadata, removes
 framework routing headers before forwarding application traffic, and preserves
 one request authorization, CSRF, limit, response, and cleanup lifecycle.
 
-Different roots can share a batch without sharing their action or boundary ID
+Different roots can share a batch without sharing their invocation or boundary ID
 namespace. Work across roots is not atomic; failure is contained to the
 affected remote boundary.
 
@@ -59,8 +62,8 @@ configured fallback rather than partially mounting a remote tree.
 ## Current limitations
 
 - Complete producer/consumer support is currently the Vite/Rollup path.
-- Webpack and Bun mappings prove the common artifact model but still need full
-  adapter lifecycle and heterogeneous conformance fixtures.
+- Webpack and Bun mappings prove the common artifact model but still need the
+  [full adapter lifecycle and heterogeneous conformance work](proposals/webpack-bun-microfrontend-parity.md).
 - Deployment discovery, signing, rollout policy, and service operation remain
   application/platform responsibilities.
 - Primary page-bundle replacement and component-authenticated protocol

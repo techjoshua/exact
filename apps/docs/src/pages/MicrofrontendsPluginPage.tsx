@@ -21,7 +21,7 @@ const remoteConsumerSource = `export default {
     microfrontends(config) {
       config.providedPackages.push('@acme/design-system');
 
-      // The public client entry and private action endpoint are separate.
+      // The public client entry and private operation endpoint are separate.
       config.remotes.billing = {
         clientEntry: 'https://cdn.acme.test/billing/remote.js',
         endpoint: 'https://billing.internal/__exact'
@@ -51,7 +51,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			eyebrow="Plugin / @exactjs/microfrontends"
 			title="Independent deployment with component-shaped integration"
 			description="The microfrontends plugin compiles named eXact component roots as remote entries and lets a host mount them through trusted bindings, without reducing the remote to an iframe or an untyped module factory."
-			previous={{ path: '/plugins', label: 'Plugin system' }}
+			previous={{ path: '/plugins/gravity', label: 'Gravity' }}
 			next={{ path: '/plugins/secrets', label: 'Secrets' }}
 		>
 			<section>
@@ -77,8 +77,8 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<CodeBlock source={remoteConsumerSource} language="ts" title="page/exact.config.ts" />
 				<p>
 					The browser receives only the client entry binding it needs. The private endpoint remains
-					a server concern, where the eXact binding gateway validates and forwards action and
-					refresh traffic.
+					a server concern, where the eXact binding gateway validates and forwards task invocation
+					and refresh traffic.
 				</p>
 			</section>
 			<section>
@@ -88,6 +88,11 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					<code>RemoteComponent</code> loads and validates the generated registration, establishes
 					an isolated execution root, passes props and children, and owns disposal. A binding change
 					replaces the remote generation. Failed loads render the supplied fallback.
+				</p>
+				<p>
+					The component domain exposes only its immutable <code>executionRoot</code> identity.
+					Framework transport, resumption, inspection, and activation capabilities stay behind the
+					rendering and hydration boundary.
 				</p>
 			</section>
 			<section>

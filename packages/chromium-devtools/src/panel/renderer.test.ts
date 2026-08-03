@@ -138,6 +138,7 @@ function panelModel(
 	return {
 		sessionId: 'session',
 		components,
+		partitions: [],
 		selected,
 		state: { state: selected.state, props: selected.props },
 		contexts: [],

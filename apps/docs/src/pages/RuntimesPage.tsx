@@ -201,9 +201,9 @@ export function RuntimesPage(this: Component<{}>) {
 			<section>
 				<h2>Browser and server runtimes</h2>
 				<p>
-					Runtime adapters are deliberately transport layers. Protocol validation, action dispatch,
-					refresh handling, and request limits stay centralized in <code>@exactjs/server</code>{' '}
-					instead of being reimplemented by every framework.
+					Runtime adapters are deliberately transport layers. Protocol validation, operation
+					dispatch, refresh handling, and request limits stay centralized in{' '}
+					<code>@exactjs/server</code> instead of being reimplemented by every framework.
 				</p>
 				<StatusTable caption="Runtime integration status" integrations={runtimeIntegrations} />
 			</section>

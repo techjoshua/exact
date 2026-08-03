@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
-import path from 'node:path';
 import { compileProjectArtifacts } from './compilation/compiler.js';
 import { compileProject } from './compilation/file-compilation.js';
 import { createCompilerSession } from './expression/session.js';
@@ -24,9 +22,6 @@ async function main(argv: string[]): Promise<void> {
 		process.exitCode = 1;
 		return;
 	}
-	const pluginRegistry = await prepareCliRegistry(options);
-	const hasCompilerRegistry =
-		pluginRegistry !== undefined && Object.keys(pluginRegistry.plugins).length > 0;
 	const session = createCompilerSession({
 		nativeCompiler: { executable: resolveNativeCompilerExecutable() }
 	});
@@ -39,7 +34,6 @@ async function main(argv: string[]): Promise<void> {
 				rootDir: options.rootDir,
 				serverComponents: options.serverComponents,
 				sourceMap: options.sourceMap,
-				...(hasCompilerRegistry ? { pluginRegistry } : {}),
 				session
 			});
 			for (const result of results) {
@@ -57,7 +51,6 @@ async function main(argv: string[]): Promise<void> {
 			target: options.target,
 			serverComponents: options.serverComponents,
 			sourceMap: options.sourceMap,
-			...(hasCompilerRegistry ? { pluginRegistry } : {}),
 			session
 		});
 
@@ -77,21 +70,6 @@ async function main(argv: string[]): Promise<void> {
 		}
 	} finally {
 		session.dispose();
-	}
-}
-
-async function prepareCliRegistry(options: CliOptions) {
-	try {
-		return (
-			await prepareExactPluginRegistry({
-				applicationRoot: options.rootDir ?? path.dirname(path.resolve(options.inputs[0]!)),
-				hostMode: 'compiler'
-			})
-		).compiler;
-	} catch (error) {
-		if (error instanceof Error && /package\.json was not found above/.test(error.message))
-			return undefined;
-		throw error;
 	}
 }
 

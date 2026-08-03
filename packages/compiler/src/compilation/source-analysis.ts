@@ -1,6 +1,7 @@
 import { defaultNativeCompilerSession } from '../expression/session.js';
 import { analyzeSourceWithNativeCompiler } from '../native/transformation.js';
-import type { ExactModuleAnalysis, TransformOptions } from '../types.js';
+import type { TransformOptions } from '../types.js';
+import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 
 /** Analyzes source into the compiler analysis through the native compiler host. */
 export function analyzeSource(source: string, options: TransformOptions = {}): ExactModuleAnalysis {

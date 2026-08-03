@@ -15,6 +15,10 @@
 		"./internal": {
 			"types": "./dist/internal.d.ts",
 			"default": "./dist/internal.js"
+		},
+		"./enhanced": {
+			"types": "./dist/enhanced.d.ts",
+			"default": "./dist/enhanced.js"
 		}
 	},
 	"main": "./dist/index.js",

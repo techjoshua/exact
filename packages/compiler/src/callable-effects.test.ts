@@ -3,12 +3,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-	analyzeSource,
 	compileProjectArtifacts,
 	createExactArtifactDevState,
 	transform,
 	updateExactArtifactDevState
 } from './index.js';
+import { analyzeSource } from './compilation/source-analysis.js';
+import { artifactAnalysis } from './compilation/analysis-results.js';
 
 describe('symbol-level placement inference', () => {
 	it('uses callable client and server directives at invocation sites', () => {
@@ -266,7 +267,7 @@ describe('symbol-level placement inference', () => {
 			outDir: path.join(root, '.exact'),
 			serverComponents: true
 		});
-		expect(compiled!.analysis.components[0]!.tasks[0]!.placement).toBe('server');
+		expect(artifactAnalysis(compiled!).components[0]!.tasks[0]!.placement).toBe('server');
 		expect(await readFile(compiled!.clientFile, 'utf8')).not.toContain('quote()');
 		expect(await readFile(compiled!.serverFile, 'utf8')).toContain('quote()');
 	});
@@ -302,21 +303,23 @@ describe('symbol-level placement inference', () => {
 			serverComponents: true
 		};
 		const state = await createExactArtifactDevState([page], artifactOptions);
-		expect(state.entries[0]!.analysis.dependencies).toContain('provider.ts');
-		expect(state.entries[0]!.analysis.components[0]!.tasks[0]!.placement).toBe('server');
+		expect(state.entries[0]!.build.dependencies).toContain('provider.ts');
+		expect(await readFile(state.entries[0]!.serverFile, 'utf8')).toContain('value()');
 
 		await writeFile(provider, `export function value() { return window.location.href; }`);
 		const updated = await updateExactArtifactDevState(state, [page], [provider], artifactOptions);
 		expect(updated.diff.changed.map((entry) => path.resolve(entry.inputFile))).toEqual([
 			path.resolve(page)
 		]);
-		expect(updated.entries[0]!.analysis.components[0]!.tasks[0]!.placement).toBe('client');
+		expect(artifactAnalysis(updated.compiled[0]!).components[0]!.tasks[0]!.placement).toBe(
+			'client'
+		);
 		const warmClient = await readFile(updated.compiled[0]!.clientFile, 'utf8');
 		const warmServer = await readFile(updated.compiled[0]!.serverFile, 'utf8');
-		const warmManifest = JSON.stringify(updated.compiled[0]!.analysis);
+		const warmBuild = JSON.stringify(updated.compiled[0]!.build);
 		const [clean] = await compileProjectArtifacts([page], artifactOptions);
 		expect(await readFile(clean!.clientFile, 'utf8')).toBe(warmClient);
 		expect(await readFile(clean!.serverFile, 'utf8')).toBe(warmServer);
-		expect(JSON.stringify(clean!.analysis)).toBe(warmManifest);
+		expect(JSON.stringify(clean!.build)).toBe(warmBuild);
 	});
 });

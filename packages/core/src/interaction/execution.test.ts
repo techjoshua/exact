@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { createComponentInstance } from '../component/runtime.js';
+import { TaskCancellation } from '../tasks/cancellation.js';
+import { joinTask } from '../tasks/frame-runtime.js';
 import { defineTask } from '../tasks/runtime.js';
-import {
-	InteractionCancellation,
-	currentInteraction,
-	interactionAwait,
-	joinCurrentInteraction,
-	runComponentInteraction
-} from './execution.js';
+import { taskAwait } from '../tasks/resources.js';
+import { currentInteraction, runComponentInteraction } from './execution.js';
 
 describe('component interactions', () => {
 	it('aggregates work joined synchronously by an interaction host', async () => {
@@ -26,7 +23,7 @@ describe('component interactions', () => {
 			new AbortController(),
 			() => {
 				expect(currentInteraction()?.owner).toBe(owner);
-				joinCurrentInteraction(joined);
+				joinTask(joined);
 			}
 		).then(() => {
 			settled = true;
@@ -56,10 +53,10 @@ describe('component interactions', () => {
 			'normal',
 			controller,
 			async () => {
-				await interactionAwait(controller.signal, Promise.resolve());
+				await taskAwait(controller.signal, Promise.resolve());
 				expect(currentInteraction()?.owner).toBe(owner);
 				continuationReached = true;
-				joinCurrentInteraction(joined);
+				joinTask(joined);
 			}
 		).then(() => {
 			settled = true;
@@ -87,7 +84,7 @@ describe('component interactions', () => {
 		);
 
 		owner.unmount();
-		await expect(interaction).rejects.toBeInstanceOf(InteractionCancellation);
+		await expect(interaction).rejects.toBeInstanceOf(TaskCancellation);
 	});
 
 	it('attaches function-defined task descendants to an interaction root', async () => {

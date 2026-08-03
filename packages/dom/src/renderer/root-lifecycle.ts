@@ -1,10 +1,8 @@
+import { createVNode, Text, type ComponentInstance, type VNode } from '@exactjs/core';
 import {
-	createComponentDomain,
-	createVNode,
-	Text,
-	type ComponentInstance,
-	type VNode
-} from '@exactjs/core';
+	componentDomainInspection,
+	createFrameworkComponentDomain
+} from '@exactjs/core/framework/component-domains';
 import { flushSync } from '@exactjs/reactive';
 import { clearDelegated } from '../events.js';
 import {
@@ -27,6 +25,8 @@ import {
 	throwTeardownFailure,
 	unmountMounted
 } from './teardown.js';
+import { disposeRetainedReleases } from './retained-release.js';
+import { installEnhancementReconciliation } from './enhancements.js';
 
 /** Resolves a component dom node. */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
@@ -62,7 +62,10 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (inspection && !vnode.domain) {
 		vnode = {
 			...vnode,
-			domain: createComponentDomain(inspection.executionRoot, undefined, undefined, inspection)
+			domain: createFrameworkComponentDomain({
+				executionRoot: inspection.executionRoot,
+				inspection
+			})
 		};
 	}
 	let root = roots.get(container);
@@ -93,11 +96,14 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 			onProfile: options.onProfile
 		};
 		root.boundary = createRootBoundary(root);
+		installEnhancementReconciliation(root, (vnode, instance, scope, node) =>
+			patch(root!, node ?? root!.container, undefined, vnode, instance, scope)
+		);
 		roots.set(container, root);
-		if (vnode.domain?.inspection) registerInspectableRoot(root);
+		if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	}
 	root.current = vnode;
-	if (vnode.domain?.inspection) registerInspectableRoot(root);
+	if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	root.version++;
 	root.logger = options.logger;
 	root.debugMarkers = options.debugMarkers ?? false;
@@ -107,6 +113,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	root.allowUnsafeHtml = options.allowUnsafeHtml ?? root.allowUnsafeHtml;
 	root.onUnsafeHtml = options.onUnsafeHtml ?? root.onUnsafeHtml;
 	root.onProfile = options.onProfile ?? root.onProfile;
+	root.enhancementCatalog = options.enhancementCatalog ?? root.enhancementCatalog;
 
 	const next =
 		root.mode === 'hydrated' ? vnode : createVNode(root.boundary, { version: root.version });
@@ -123,6 +130,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 			);
 			flushSync();
 		});
+		root.initialCommitComplete = true;
 	} finally {
 		if (profileStarted !== undefined) {
 			root.onProfile?.(
@@ -157,6 +165,7 @@ export function dispose(container: Element, removeDom = false): boolean {
 	unregisterInspectableRoot(root);
 	const failure = teardownFailure();
 	attemptTeardown(failure, () => clearDelegated(root));
+	attemptTeardown(failure, () => disposeRetainedReleases(root));
 
 	const mounted = root.mounted;
 	root.mounted = undefined;

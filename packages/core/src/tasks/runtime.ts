@@ -1,8 +1,8 @@
 import { peek, reactive, rollbackReactiveMutationJournals, scheduleWork } from '@exactjs/reactive';
 
-import { InteractionCancellation } from '../interaction/execution.js';
-import { inheritComponentContinuationIdentity } from '../task/continuation.js';
-import { discardTaskMutations, publishTaskMutations } from '../task/resources.js';
+import { TaskCancellation } from './cancellation.js';
+import { inheritComponentContinuationIdentity } from './component-continuation.js';
+import { discardTaskMutations, publishTaskMutations } from './resources.js';
 import { readExactInspectionSource } from '../component/inspection-source.js';
 import type {
 	BoundTaskFunction,
@@ -315,11 +315,11 @@ function startGeneration<Args extends unknown[], Result>(
 			record.readinessRegistration?.cancel();
 			if (record.generation >= state.generation) {
 				state.generation = record.generation;
-				if (!(error instanceof InteractionCancellation)) state.error = error;
+				if (!(error instanceof TaskCancellation)) state.error = error;
 			}
 			if (record.generation >= lane.generation) {
 				lane.generation = record.generation;
-				if (!(error instanceof InteractionCancellation)) lane.error = error;
+				if (!(error instanceof TaskCancellation)) lane.error = error;
 			}
 			finishGeneration(definition, owner, state, lane, record);
 			record.reject(error);

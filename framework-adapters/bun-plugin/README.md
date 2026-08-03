@@ -26,5 +26,9 @@ The plugin compiles eXact source, resolves generated `.exact` facades, selects c
 exports, and participates in Bun watch builds. Use `@exactjs/bun-adapter` separately to connect
 the generated server runtime to `Bun.serve()`.
 
+Attributed plugin imports populate the application-bundle enhancement catalog. The plugin
+redirects DOM, hydration, and SSR entry points through the shared facades that supply that catalog;
+the compiler does not decide package trust or maintain a plugin registry.
+
 Optional `debug` settings control private server catalogs and compact browser instrumentation.
 Disable both for hardened output. See [eXact DevTools](../../docs/devtools.md).

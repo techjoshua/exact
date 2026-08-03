@@ -1,6 +1,5 @@
 import type { ExactAssetRule, TransformTarget } from '@exactjs/compiler';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ReactCompatibilityOptions } from '@exactjs/react-compat/plugin';
 import type { ExactRollupOutputLike } from './artifact-isolation.js';
 import type { ViteDebugOptions } from './debug-output.js';
@@ -19,7 +18,6 @@ export type ExactPluginOptions = {
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
 	applicationRoot?: string;
 	configPath?: string;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	configureJsxRuntime?: boolean;

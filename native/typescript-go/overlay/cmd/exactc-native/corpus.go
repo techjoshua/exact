@@ -50,13 +50,12 @@ type projectOutcome struct {
 func runCorpus(
 	input io.Reader,
 	output io.Writer,
-	registry *exactcompiler.Registry,
 ) error {
 	var request corpusInput
 	if err := json.NewDecoder(input).Decode(&request); err != nil {
 		return fmt.Errorf("decode native corpus request: %w", err)
 	}
-	result, err := compileCorpus(request, registry)
+	result, err := compileCorpus(request)
 	if err != nil {
 		return err
 	}
@@ -67,7 +66,6 @@ func runCorpus(
 
 func compileCorpus(
 	request corpusInput,
-	registry *exactcompiler.Registry,
 ) (corpusResult, error) {
 	workers := request.Workers
 	if workers <= 0 {
@@ -95,7 +93,7 @@ func compileCorpus(
 		workerGroup.Add(1)
 		go func() {
 			defer workerGroup.Done()
-			session := exactcompiler.NewSession(registry)
+			session := exactcompiler.NewSession()
 			for project := range jobs {
 				outcomes <- compileCorpusProject(project, session)
 			}
@@ -179,7 +177,6 @@ func accumulateCorpusTimings(target *exactcompiler.Timings, value exactcompiler.
 	target.ProjectLinkMicroseconds += value.ProjectLinkMicroseconds
 	target.CheckMicroseconds += value.CheckMicroseconds
 	target.LoweringMicroseconds += value.LoweringMicroseconds
-	target.ExtensionMicroseconds += value.ExtensionMicroseconds
 	target.PrintMicroseconds += value.PrintMicroseconds
 	target.TotalMicroseconds += value.TotalMicroseconds
 }
@@ -194,7 +191,6 @@ func addCorpusTimings(target map[string]int64, timings exactcompiler.Timings) {
 	target["projectLinkMicroseconds"] += timings.ProjectLinkMicroseconds
 	target["checkMicroseconds"] += timings.CheckMicroseconds
 	target["loweringMicroseconds"] += timings.LoweringMicroseconds
-	target["extensionMicroseconds"] += timings.ExtensionMicroseconds
 	target["printMicroseconds"] += timings.PrintMicroseconds
 	target["totalMicroseconds"] += timings.TotalMicroseconds
 }

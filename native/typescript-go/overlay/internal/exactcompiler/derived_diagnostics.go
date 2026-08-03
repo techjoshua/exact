@@ -125,11 +125,6 @@ func eagerRenderReference(reference *ast.Node, component *ast.Node) bool {
 		if ast.IsArrowFunction(current) || ast.IsFunctionExpression(current) {
 			renderRoot = current
 		}
-		if ast.IsCallExpression(current) {
-			if _, task := taskFacets(current.AsCallExpression().Expression); task {
-				return false
-			}
-		}
 	}
 	if renderRoot == nil {
 		return false

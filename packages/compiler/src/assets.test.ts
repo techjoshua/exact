@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, transform } from './index.js';
+import { transform } from './index.js';
+import { analyzeSource } from './compilation/source-analysis.js';
 
 describe('asset imports and explicit import placement', () => {
 	it('defaults side-effect stylesheet imports to client evaluation and delivery', () => {

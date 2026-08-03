@@ -24,7 +24,7 @@ The overlay implements the production compiler host:
   project and native corpus but pass through without eXact component analysis
   or lowering;
 - the native printer produces TypeScript 6-compatible source; and
-- only source, diagnostics, artifacts, manifests, explanations, source maps,
+- only source, diagnostics, artifacts, narrow build products, explanations, source maps,
   and timing summaries cross the process boundary.
 
 The `--corpus` mode accepts one pre-discovered project/source set and runs the

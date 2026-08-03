@@ -6,6 +6,7 @@ import {
 	type ComponentFunction,
 	type ComponentResumptionActivation
 } from '@exactjs/core';
+import { componentDomainResumption } from '@exactjs/core/framework/component-domains';
 
 /** Ordered resolver with checkpoints for fallible DOM adoption. */
 export type ComponentResumptionResolver = ((
@@ -14,8 +15,6 @@ export type ComponentResumptionResolver = ((
 	checkpoint(): number;
 	rollback(checkpoint: number): void;
 };
-
-const resolvers = new WeakMap<ComponentDomain, ComponentResumptionResolver>();
 
 /** Creates the ordered, contract-checked source of SSR component activations. */
 export function createComponentResumptionResolver(
@@ -67,22 +66,14 @@ export function createComponentResumptionResolver(
 	return resolve;
 }
 
-/** Associates one hydration-owned component domain with its activation transaction. */
-export function bindComponentResumptionResolver(
-	domain: ComponentDomain,
-	resolver: ComponentResumptionResolver
-): void {
-	resolvers.set(domain, resolver);
-}
-
 /** Captures the current activation cursor before a fallible adoption attempt. */
 export function checkpointComponentResumptions(domain: ComponentDomain): number {
-	return resolvers.get(domain)?.checkpoint() ?? 0;
+	return resolverForDomain(domain)?.checkpoint() ?? 0;
 }
 
 /** Retries a known component fallback with its rolled-back SSR activations. */
 export function withComponentResumptionFallback<T>(domain: ComponentDomain, work: () => T): T {
-	const resolver = resolvers.get(domain);
+	const resolver = resolverForDomain(domain);
 	if (!resolver) return work();
 	const checkpoint = resolver.checkpoint();
 	try {
@@ -95,5 +86,9 @@ export function withComponentResumptionFallback<T>(domain: ComponentDomain, work
 
 /** Restores activations consumed by a failed adoption attempt. */
 export function rollbackComponentResumptions(domain: ComponentDomain, checkpoint: number): void {
-	resolvers.get(domain)?.rollback(checkpoint);
+	resolverForDomain(domain)?.rollback(checkpoint);
+}
+
+function resolverForDomain(domain: ComponentDomain): ComponentResumptionResolver | undefined {
+	return componentDomainResumption(domain) as ComponentResumptionResolver | undefined;
 }

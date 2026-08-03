@@ -23,6 +23,22 @@
 		"./framework/task-frames": {
 			"types": "./dist/framework/task-frames.d.ts",
 			"default": "./dist/framework/task-frames.js"
+		},
+		"./framework/component-domains": {
+			"types": "./dist/framework/component-domains.d.ts",
+			"default": "./dist/framework/component-domains.js"
+		},
+		"./framework/component-roots": {
+			"types": "./dist/framework/component-roots.d.ts",
+			"default": "./dist/framework/component-roots.js"
+		},
+		"./framework/publication": {
+			"types": "./dist/framework/publication.d.ts",
+			"default": "./dist/framework/publication.js"
+		},
+		"./framework/enhancement-catalog": {
+			"types": "./dist/framework/enhancement-catalog.d.ts",
+			"default": "./dist/framework/enhancement-catalog.js"
 		}
 	},
 	"main": "./dist/index.js",

@@ -1,5 +1,5 @@
-import type { ExactModuleAnalysis } from './module-analysis.js';
 import type { ExactPlacement } from './policy.js';
+import type { ExactPartitionPlanIR } from './analysis.js';
 
 /** Configures package export map. */
 export type PackageExportMapOptions = {
@@ -36,6 +36,8 @@ export type ExactArtifactGraphOptions = PackageExportMapOptions & ClientIslandRe
 
 /** Defines the exact artifact graph type contract. */
 export type ExactArtifactGraph = {
+	/** Immutable namespace shared by every retained partition plan and boundary. */
+	buildKey: string;
 	conditions: {
 		client: string[];
 		server: string[];
@@ -44,8 +46,82 @@ export type ExactArtifactGraph = {
 	componentEdges: ExactArtifactComponentEdge[];
 	clientIslands: ClientIslandRegistryEntry[];
 	serverParts: ServerPartRegistryEntry[];
+	operations: ExactTaskOperationPlan[];
+	boundaries: ExactArtifactBoundaryPlan[];
+	partitionPlans: ExactArtifactPartitionPlan[];
 	artifacts: ExactArtifactGraphEntry[];
 };
+
+/** One module's normalized partition plan retained by the aggregate artifact graph. */
+export type ExactArtifactPartitionPlan = Readonly<{
+	inputFile: string;
+	plan: ExactPartitionPlanIR;
+}>;
+
+/** Stable state path used by one generated task operation. */
+export type ExactTaskStatePathPlan = Readonly<{
+	path: string;
+	kind: 'read' | 'write';
+	confidence: 'exact' | 'broad' | 'unknown';
+}>;
+
+/** Compiler-owned build description for one distributed task operation. */
+export type ExactTaskOperationPlan = Readonly<{
+	kind: 'task';
+	id: string;
+	componentId: string;
+	readiness: 'blocking' | 'nonblocking';
+	dependencies: readonly Readonly<{ source: 'state' | 'props' | 'derived' | 'argument' }>[];
+	stateReads: readonly ExactTaskStatePathPlan[];
+	stateWrites: readonly ExactTaskStatePathPlan[];
+	publicContexts: readonly string[];
+	serverContexts: readonly string[];
+	contextWrites: readonly string[];
+	serverContextWrites: readonly string[];
+	boundaries: readonly string[];
+	invocation?: Readonly<{
+		arguments: readonly Readonly<{ source: 'argument' }>[];
+		concurrency: 'parallel' | 'latest' | 'queue';
+	}>;
+}>;
+
+/** Compiler-owned build description for one client island or server slot boundary. */
+export type ExactArtifactBoundaryPlan = Readonly<{
+	id: string;
+	componentId?: string;
+	ownerComponentId?: string;
+	kind: 'client-island' | 'server-slot' | 'partition-range';
+	planVersion?: number;
+	buildKey?: string;
+	planEdgeId?: string;
+	parentPlanId?: string;
+	fallbackPlanId?: string;
+	patchTargets?: readonly string[];
+	discriminatorKind?: 'single' | 'branch' | 'keyed';
+	discriminatorValues?: readonly string[];
+	generation?: number;
+}>;
+
+/** Registry symbol retained solely to create target-specific module registrations. */
+export type ExactArtifactRegistryPlan = Readonly<{
+	id: string;
+	name: string;
+	exportName: string;
+	componentId?: string;
+}>;
+
+/** Supported compiler products consumed by build adapters and artifact graph creation. */
+export type ExactArtifactBuildProducts = Readonly<{
+	dependencies: readonly string[];
+	componentIds: readonly string[];
+	exposureRoots: readonly Readonly<{ componentId: string; exportName: string }>[];
+	componentEdges: readonly ExactArtifactComponentEdge[];
+	clientRegistrations: readonly ExactArtifactRegistryPlan[];
+	serverRegistrations: readonly ExactArtifactRegistryPlan[];
+	operations: readonly ExactTaskOperationPlan[];
+	boundaries: readonly ExactArtifactBoundaryPlan[];
+	partitionPlan: ExactPartitionPlanIR;
+}>;
 
 /** Defines the exact artifact component edge type contract. */
 export type ExactArtifactComponentEdge = {
@@ -68,7 +144,9 @@ export type ExactArtifactGraphEntry = {
 	clientFile: string;
 	serverFile: string;
 	sharedFile?: string;
-	analysis: ExactModuleAnalysis;
+	dependencies: readonly string[];
+	componentIds: readonly string[];
+	exposureRoots: readonly Readonly<{ componentId: string; exportName: string }>[];
 };
 
 /** Configures client island registry. */
@@ -76,14 +154,17 @@ export type ClientIslandRegistryOptions = {
 	rootDir?: string;
 };
 
-/** Defines the client island registry entry type contract. */
-export type ClientIslandRegistryEntry = {
+/** Identifies one generated component implementation in a target module. */
+export type ExactComponentRegistryEntry = {
 	id: string;
 	name: string;
 	exportName: string;
 	module: string;
 	componentId?: string;
 };
+
+/** Defines the client island registry entry type contract. */
+export type ClientIslandRegistryEntry = ExactComponentRegistryEntry;
 
 /** Configures server part registry. */
 export type ServerPartRegistryOptions = {
@@ -91,13 +172,7 @@ export type ServerPartRegistryOptions = {
 };
 
 /** Defines the server part registry entry type contract. */
-export type ServerPartRegistryEntry = {
-	id: string;
-	name: string;
-	exportName: string;
-	module: string;
-	componentId?: string;
-};
+export type ServerPartRegistryEntry = ExactComponentRegistryEntry;
 
 /** Configures exact hydration registration module. */
 export type ExactHydrationRegistrationModuleOptions = {

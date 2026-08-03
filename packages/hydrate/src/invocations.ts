@@ -24,6 +24,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 			type: options.type,
 			root: options.root,
 			id: options.id,
+			partition: options.partition,
 			payload: options.payload,
 			state: options.state,
 			publicContext: options.publicContext,

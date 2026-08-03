@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, transform, transformSource } from '../index.js';
+import { transform, transformSource } from '../index.js';
+import { analyzeSource } from '../compilation/source-analysis.js';
 
 describe('@exactjs/compiler component computations', () => {
 	it('keeps nullish component-state initialization in setup', () => {

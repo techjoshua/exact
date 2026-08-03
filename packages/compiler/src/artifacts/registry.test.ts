@@ -8,6 +8,7 @@ import {
 	transform
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
+import { artifactAnalysis } from '../compilation/analysis-results.js';
 
 describe('@exactjs/compiler: registries', () => {
 	it('creates hydration registration modules from artifact graphs', async () => {
@@ -29,7 +30,7 @@ describe('@exactjs/compiler: registries', () => {
 			sourceRoot: path.join(root, 'src'),
 			rootDir: root
 		});
-		const actionId = Object.keys(result.analysis.serverActions)[0]!;
+		const actionId = result.build.operations[0]!.id;
 		const module = createExactHydrationRegistrationModule(graph, {
 			endpoint: '/__exact',
 			endpoints: {
@@ -38,6 +39,9 @@ describe('@exactjs/compiler: registries', () => {
 			islandsExportName: 'islands',
 			registrationExportName: 'registration'
 		});
+		expect(graph.operations).toEqual(result.build.operations);
+		expect(graph.artifacts[0]).not.toHaveProperty('build');
+		expect(graph.artifacts[0]?.componentIds).toEqual(result.build.componentIds);
 
 		expect(module).toContain('export const islands');
 		expect(module).toContain('defineExactHydrationRegistration as __exactDefineRegistration');
@@ -88,13 +92,13 @@ describe('@exactjs/compiler: registries', () => {
 			sourceRoot: path.join(root, 'src'),
 			rootDir: root
 		});
-		const symbol = result.analysis.symbols.find(
+		const symbol = artifactAnalysis(result).symbols.find(
 			(candidate) => candidate.exportName === 'Workspace' && candidate.role === 'root'
 		)!;
 		const module = createExactHydrationRegistrationModule(graph);
 
 		expect(symbol.target).toBe('both');
-		expect(result.analysis.resumptions).toContainEqual(
+		expect(artifactAnalysis(result).resumptions).toContainEqual(
 			expect.objectContaining({ componentId: symbol.componentId })
 		);
 		expect(module).toContain('import("./dist/workspace.exact.client.js")');
@@ -121,8 +125,8 @@ describe('@exactjs/compiler: registries', () => {
 			rootDir: path.join(root, 'src')
 		});
 
-		expect(result.analysis.resumptions).toHaveLength(1);
-		expect(result.analysis.continuations).toHaveLength(0);
+		expect(artifactAnalysis(result).resumptions).toHaveLength(1);
+		expect(result.build.operations).toHaveLength(0);
 		expect(
 			createExactArtifactGraph([result], {
 				packageRoot: root,
@@ -159,8 +163,10 @@ describe('@exactjs/compiler: registries', () => {
 			sourceRoot: path.join(root, 'src'),
 			rootDir: root
 		});
-		const page = result.analysis.components.find((component) => component.name === 'Page')!;
-		const widget = result.analysis.components.find(
+		const page = artifactAnalysis(result).components.find(
+			(component) => component.name === 'Page'
+		)!;
+		const widget = artifactAnalysis(result).components.find(
 			(component) => component.name === 'ClientWidget'
 		)!;
 
@@ -205,9 +211,11 @@ describe('@exactjs/compiler: registries', () => {
 		});
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
-		const islands = result.analysis.symbols.filter((symbol) => symbol.role === 'client-island');
+		const islands = artifactAnalysis(result).symbols.filter(
+			(symbol) => symbol.role === 'client-island'
+		);
 
-		expect(result.analysis.components[0]!.clientIslandCount).toBe(2);
+		expect(artifactAnalysis(result).components[0]!.clientIslandCount).toBe(2);
 		expect(islands.map((symbol) => symbol.generatedName)).toEqual([
 			'Panel_ExactClient_1',
 			'Panel_ExactClient_2'
@@ -232,11 +240,11 @@ describe('@exactjs/compiler: registries', () => {
 		expect(server).not.toContain('className: "primary"');
 		expect(server).not.toContain('title: this.state.count');
 		expect(server).not.toContain('onClick');
-		expect(result.analysis.boundaries).toContainEqual({
+		expect(artifactAnalysis(result).boundaries).toContainEqual({
 			id: expect.any(String),
 			name: 'Panel',
-			componentId: result.analysis.components[0]!.id,
-			ownerComponentId: result.analysis.components[0]!.id,
+			componentId: artifactAnalysis(result).components[0]!.id,
+			ownerComponentId: artifactAnalysis(result).components[0]!.id,
 			kind: 'client-island'
 		});
 	});

@@ -25,7 +25,7 @@ function resumablePage(id: string, label: string) {
 	return Object.assign(implementation, {
 		[exactComponentType]: id,
 		[exactComponentContract]: {
-			version: 1 as const,
+			version: 2 as const,
 			placement: 'isomorphic' as const,
 			role: 'client' as const,
 			implementations: [],
@@ -71,7 +71,7 @@ describe('@exactjs/hydrate component resumption', () => {
 		const Shell = Object.assign(implementation, {
 			[exactComponentType]: 'component:PreHydrationShell',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -138,7 +138,7 @@ describe('@exactjs/hydrate component resumption', () => {
 		const Search = Object.assign(implementation, {
 			[exactComponentType]: 'component:Search',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -227,7 +227,7 @@ describe('@exactjs/hydrate component resumption', () => {
 		const Provider = Object.assign(implementation, {
 			[exactComponentType]: 'component:Provider',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],

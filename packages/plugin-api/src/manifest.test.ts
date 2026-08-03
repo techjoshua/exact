@@ -15,7 +15,7 @@ describe('plugin package manifests', () => {
 					schemaVersion: 1,
 					protocolVersion: '1.0.0',
 					configKey: 'example',
-					entries: { compiler: './compiler' }
+					entries: { render: './render' }
 				},
 				pluginConfiguration: {
 					'@example/dependency': {
@@ -26,7 +26,7 @@ describe('plugin package manifests', () => {
 			}
 		});
 
-		expect(participation.plugin?.entries.compiler).toBe('./compiler');
+		expect(participation.plugin?.entries.render).toBe('./render');
 		expect(participation.configuration['@example/dependency']?.export).toBe('configure');
 		expect(Object.isFrozen(participation)).toBe(true);
 	});
@@ -40,7 +40,7 @@ describe('plugin package manifests', () => {
 						schemaVersion: 1,
 						protocolVersion: '1.0.0',
 						configKey: 'example',
-						entries: { compiler: '../compiler' }
+						entries: { render: '../render' }
 					}
 				}
 			})

@@ -5,14 +5,9 @@ import { Fragment } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { defineExactBoundaryContract, handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
-import {
-	applyPatches,
-	createExactClient,
-	hydrate,
-	invokeExact,
-	invokeExactBatch,
-	readExactHydrationConfig
-} from './index.js';
+import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
+import { invokeExact, invokeExactBatch } from './invocations.js';
+import { applyPatches } from './patches.js';
 import { createVNode } from './test-support/native-vnode.js';
 import { noopLogger, testContinuation } from './test-support/responses.js';
 

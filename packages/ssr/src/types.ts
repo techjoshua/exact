@@ -3,6 +3,7 @@ import type {
 	ComponentDomain,
 	ComponentContextValues,
 	ExactComponentContinuationContract,
+	EnhancementEntry,
 	ComponentFunction,
 	ComponentInstance,
 	ComponentResumptionActivation,
@@ -26,6 +27,10 @@ import type {
 
 /** Configures render to string. */
 export type RenderToStringOptions = {
+	/** Immutable runtime namespace used by partition markers. */
+	executionRoot?: string;
+	/** Immutable deployment namespace used by partition markers. */
+	buildKey?: string;
 	markers?: boolean;
 	/** Inserts React-compatible separators between adjacent primitive text children. */
 	textSeparators?: boolean;
@@ -49,6 +54,8 @@ export type RenderToStringOptions = {
 	signal?: AbortSignal;
 	/** Prepared render output policies. Transformations run before all final validators. */
 	outputExtensions?: readonly ExactOutputExtension[];
+	/** Bundle-local compiler-generated enhancement components available to this server artifact. */
+	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
 	/** Allows unsafeHtml() ranges. The application accepts responsibility for their contents. */
 	allowUnsafeHtml?: boolean;
 	/** Receives an audit notification whenever an unsafe HTML range is rendered. */
@@ -267,6 +274,8 @@ export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
 
 /** Carries the context required by ssr. */
 export type SsrContext = {
+	executionRoot: string;
+	buildKey?: string;
 	markers: boolean;
 	textSeparators: boolean;
 	reactMarkup: boolean | 18 | 19;
@@ -288,6 +297,36 @@ export type SsrContext = {
 	documentHeadSeen: boolean;
 	documentBodySeen: boolean;
 	hostStack: string[];
+	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	unavailableEnhancements: Set<string>;
+	/** Generated ordinary component vnodes whose internal SSR boundary is not authored hydration data. */
+	enhancementVNodes: WeakSet<VNode>;
+	/** Authored boundaries whose logical subtree has an SSR enhancement route plan. */
+	plannedEnhancementBoundaries: WeakSet<VNode>;
+	/** Resolved intrinsic targets and their merged enhancement declarations. */
+	enhancementTargets: WeakMap<VNode, readonly EnhancementEntry[]>;
+	/** Component work materialized once while resolving a logical enhancement target. */
+	preparedEnhancementComponents: WeakMap<
+		VNode,
+		{
+			readonly instance?: ComponentInstance<any>;
+			readonly props: Record<string, unknown>;
+			readonly children: readonly Child[];
+			readonly failed: boolean;
+		}
+	>;
+	/** Dynamic/list children materialized while resolving an enhancement target. */
+	preparedEnhancementChildren: WeakMap<VNode, readonly Child[]>;
+	/** Suspense candidate selected while resolving an enhancement route. */
+	preparedEnhancementSuspense: WeakMap<
+		VNode,
+		{
+			readonly children: readonly Child[];
+			readonly parent?: ComponentInstance<any>;
+			readonly status: 'content' | 'fallback';
+			dispose(): void;
+		}
+	>;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;

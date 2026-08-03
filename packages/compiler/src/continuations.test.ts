@@ -1,10 +1,30 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { analyzeSource } from './index.js';
+import { analyzeSource } from './compilation/source-analysis.js';
 
 const fixture = (name: string) => path.join(process.cwd(), `${name}.continuation-fixture.tsx`);
 
 describe('distributed component continuation IR', () => {
+	it('gives removed component registration calls no special semantics in JavaScript', () => {
+		const analysis = analyzeSource(
+			`export function Legacy() {
+				this.task(async function oldTask() { await Promise.resolve(); });
+				this.action(function oldAction() {});
+				return () => <main />;
+			}`,
+			{ filename: fixture('removed-registrations.jsx') }
+		);
+
+		expect(analysis.components[0]?.tasks).toEqual([]);
+		expect(analysis.continuations).toEqual([]);
+		expect(analysis.callables.find((callable) => callable.name === 'oldTask')?.kind).toBe(
+			'function'
+		);
+		expect(analysis.callables.find((callable) => callable.name === 'oldAction')?.kind).toBe(
+			'function'
+		);
+	});
+
 	it('separates transported snapshots, server context, response effects, and ownership', () => {
 		const analysis = analyzeSource(
 			'import { TaskContext } from "@exactjs/core";\n\n      import { createContext, type Component } from "@exactjs/core";\n      const RepositoryContext = createContext<{ find(query: string): Promise<string[]> }>(\n        "repository",\n        { scope: "request" }\n      );\n      export function Search(this: Component<{ query: string; results: string[] }>) {\n        const repository = this.getContext(RepositoryContext);\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          this.state.results = await repository.find(this.state.query);\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.query = "next"}>{this.state.results.length}</button>;\n      }\n    ',
@@ -32,18 +52,7 @@ describe('distributed component continuation IR', () => {
 			ownership: { componentId: component.id, lifetime: 'component' },
 			cancellation: 'abort-signal'
 		});
-		expect(analysis.serverActions[continuation.id]).toEqual({
-			id: continuation.id,
-			componentId: continuation.componentId,
-			taskId: continuation.taskId,
-			placement: continuation.placement,
-			stateContract: {
-				reads: continuation.activation.stateReads,
-				writes: continuation.effects.stateWrites
-			},
-			serverContextContract: continuation.activation.serverContexts,
-			publicContextContract: continuation.activation.publicContexts
-		});
+		expect(analysis).not.toHaveProperty('serverActions');
 	});
 
 	it('keeps server render authority out of the client resumption record', () => {

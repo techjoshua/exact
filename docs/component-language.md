@@ -11,7 +11,7 @@ are not an application authoring surface.
 
 Compiler-aware editor support exposes the same language model without requiring
 generated-code inspection. eXact Language Tools identifies setup-once
-initializers, reactive render regions, inferred and explicit tasks, actions,
+initializers, reactive render regions, inferred and explicit tasks, interactions,
 derived values, bindings, and lifecycle registrations; each classification
 links to the compiler-owned source evidence behind it. See
 [Compiler-aware language tools](language-tools.md).
@@ -80,6 +80,10 @@ export function Counter(this: Component<CounterState>, props: CounterProps) {
 The outer function is setup. It normally executes once for each mounted
 instance. Props are parent-owned reactive inputs. State, tasks, contexts,
 refs, lifecycle registrations, and logging belong to the durable instance.
+Readonly prop tracking traverses plain objects and collections. Opaque class
+instances retain their authored identity even when supplied by a reactive JSX
+expression, so resource methods may mutate their own private state without
+being mistaken for writes to the parent-owned prop binding.
 
 Every component accepted by the native renderer is compiler-branded. The key
 `Symbol.for('@exactjs/component')` stores the component's opaque stable ID; a
@@ -325,7 +329,7 @@ whether an entry existed, and `clear()` returns `undefined`, matching native
 JavaScript. Adding an existing Set value or setting a Map key to the same value
 does not notify consumers.
 
-Maps and Sets cross SSR, hydration, action, and continuation boundaries through
+Maps and Sets cross SSR, hydration, invocation, and continuation boundaries through
 tagged JSON envelopes and are reconstructed as real collections. Transported
 Map keys must be `null`, booleans, finite numbers, or strings; values and Set
 members may use any otherwise transport-safe eXact value. Local-only
@@ -680,9 +684,31 @@ function Search(this: Component<{}>) {
 }
 ```
 
-The registry returns `undefined` before fulfillment and after removal. Refs
-follow element ownership through updates, hydration, and `Activity`
-parking.
+`this.ref(key)` returns one stable component-owned binding for that key.
+`binding.current` and the registry's `this.refs.get(key)` read the same reactive
+slot, returning `undefined` before fulfillment and after removal. Refs follow
+element ownership through updates, hydration, and `Activity` parking. Calling
+`fulfill()` directly remains ordinary imperative ref assignment; it does not
+claim DOM ownership or structural lifecycle behavior.
+
+`this.refs.root()` returns a stable reactive view of the component's first
+intrinsic root. Its `current`, `generation`, `introduction`, and `presented`
+fields follow root replacement and retained `Activity` ranges. `introduction`
+is `initial`, `hydration`, or `update` for the current generation and survives
+an exact release reversal. Pass an element-valued binding to
+`this.refs.root(binding)` when that ref, rather than the first intrinsic output,
+defines the component root. The binding must belong to the same component.
+
+Before a renderer-owned root generation is structurally removed or replaced,
+`release` publishes its retained target, generation, presentation state, and a
+namespaced structural reason. Tasks activated synchronously from that release
+join one renderer release frame. After those observers attach, the retained
+component subtree deactivates while physical removal waits for task descendants
+and cleanup. Reconciliation can reverse an in-flight release only for the exact
+retained identity and generation; it cancels stale release work and reactivates
+the same instances. Root shutdown cancels outstanding release work and completes
+removal immediately. Direct `fulfill()` calls remain ordinary ref assignment and
+never acquire structural retention.
 
 ### Keyed collections
 
@@ -1234,9 +1260,9 @@ Annotations are checked rather than blindly trusted. A client declaration
 cannot make a server-only import browser-safe, `@exact shared` cannot release a
 secret, and serializable data is not automatically public.
 
-Plugins may register namespaced directives such as
-`@exact namespace.directive`. Such a directive is valid only when the owning
-native compiler extension is configured.
+The directive set is compiler-owned and finite. Namespaced forms such as
+`@exact namespace.directive` are diagnostics; plugins do not register compiler
+directives or transforms.
 
 ## Unsupported or diagnostic forms
 

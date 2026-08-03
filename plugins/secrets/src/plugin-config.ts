@@ -28,13 +28,8 @@ const controller: ExactPluginConfigController<SecretsPluginConfig> = {
 			throw new Error(`@exactjs/secrets package ${duplicatePackage} is allowed more than once`);
 		return undefined;
 	},
-	compilerConfig(config) {
-		return {
-			cacheKey: {
-				policyVersion: 3,
-				allowPackages: [...config.allowPackages].sort()
-			}
-		};
+	buildConfig(config) {
+		return Object.freeze({ allowPackages: Object.freeze([...config.allowPackages].sort()) });
 	},
 	serverConfig(config, context) {
 		return createSecretResolver(config, {

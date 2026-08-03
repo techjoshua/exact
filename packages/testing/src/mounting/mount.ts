@@ -127,7 +127,9 @@ async function mountVNode(
 	const rendered = createVNode(TestMountHost, { entries }, vnode);
 	const tracker = new TaskTracker();
 	try {
-		withTaskObserver(tracker, () => render(rendered, container));
+		withTaskObserver(tracker, () =>
+			render(rendered, container, { enhancementCatalog: options.enhancementCatalog })
+		);
 		flushSync();
 		const view = new TestView(
 			container,

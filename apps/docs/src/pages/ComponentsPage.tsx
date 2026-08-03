@@ -90,6 +90,11 @@ export function ComponentsPage(this: Component<{}>) {
 					because the compiler has already connected consumers of that field.
 				</p>
 				<p>
+					Readonly prop tracking traverses plain objects and collections. Opaque class instances
+					retain their authored identity when passed through reactive JSX, so resource methods can
+					mutate their own private state without being treated as writes to the prop binding.
+				</p>
+				<p>
 					The compiler also stores an opaque stable ID under{' '}
 					<code>Symbol.for('@exactjs/component')</code>. Native renderers use that brand instead of
 					guessing from a function name or shape; unbranded React, Preact, and other foreign
@@ -164,6 +169,19 @@ export function ComponentsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>The instance surface, after the model</h2>
+				<p>
+					Calling <code>this.ref(key)</code> returns the same component-owned binding for that key.
+					Its reactive <code>current</code> value is also available through{' '}
+					<code>this.refs.get(key)</code>, so tasks and derived work can observe fulfillment and
+					removal without polling.
+				</p>
+				<p>
+					<code>this.refs.root()</code> observes the component&apos;s intrinsic root, generation,
+					introduction phase, presentation, and structural release. Work activated by a release is
+					owned by the renderer&apos;s release frame, allowing the old range to remain until
+					attached tasks and cleanup settle. The retained subtree deactivates after release
+					observers attach and reactivates only when exact-generation reversal restores it.
+				</p>
 				<div className="definition-grid">
 					<code>this.state</code>
 					<p>Reactive, instance-owned data.</p>
@@ -178,7 +196,10 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.ref()</code>
 					<p>A DOM reference owned by this component.</p>
 					<code>this.refs</code>
-					<p>Reads values published through the instance's ref bindings.</p>
+					<p>
+						Reads ref values and observes the component&apos;s intrinsic-root identity, generation,
+						introduction, and presentation.
+					</p>
 					<code>this.onMount()</code>
 					<p>Registers mounted work with an abort signal.</p>
 					<code>this.onUnmount()</code>

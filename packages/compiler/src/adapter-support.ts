@@ -1,3 +1,9 @@
+export { transformExactAdapterModule } from './compilation/adapter-transformation.js';
+export {
+	exactEnhancementFacadeImports,
+	prependExactEnhancementRegistrations
+} from './compilation/enhancement-registrations.js';
+
 /** A compiler diagnostic shape that build-tool integrations can report. */
 export type ExactBuildDiagnostic = Readonly<{
 	code: string;
@@ -8,6 +14,13 @@ export type ExactBuildDiagnostic = Readonly<{
 
 /** A string, regular expression, or list used to filter build input paths. */
 export type ExactBuildFilter = string | RegExp | readonly (string | RegExp)[];
+
+/** Build-tool-neutral filters used before compatibility or compiler transformation. */
+export type ExactBuildModuleSelectionOptions = Readonly<{
+	include?: ExactBuildFilter;
+	exclude?: ExactBuildFilter;
+	compileTestModules?: boolean;
+}>;
 
 /**
  * Creates a stateful reporter that emits only newly introduced diagnostics.
@@ -61,4 +74,44 @@ export function matchesExactBuildFilter(id: string, filter: ExactBuildFilter): b
 		pattern.lastIndex = 0;
 		return pattern.test(id);
 	});
+}
+
+/** Reports whether a build identifier names JavaScript or TypeScript source. */
+export function isExactBuildSourceModule(id: string): boolean {
+	return /\.[cm]?[jt]sx?(?:$|\?)/i.test(id);
+}
+
+/** Reports whether a JSX-bearing module contains syntax requiring ownership analysis. */
+export function containsExactBuildJsx(id: string, source: string): boolean {
+	return /\.[jt]sx(?:$|\?)/i.test(id) && source.includes('<');
+}
+
+/** Applies common include, exclude, and test-module filters before adapter transformation. */
+export function shouldTransformExactBuildModulePath(
+	id: string,
+	options: ExactBuildModuleSelectionOptions
+): boolean {
+	if (
+		options.compileTestModules !== true &&
+		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
+	)
+		return false;
+	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
+	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
+	return true;
+}
+
+/** Determines whether one source module requires native eXact compilation. */
+export function shouldCompileExactBuildModule(
+	id: string,
+	source: string,
+	options: ExactBuildModuleSelectionOptions
+): boolean {
+	if (!isExactBuildSourceModule(id)) return false;
+	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
+	if (!shouldTransformExactBuildModulePath(id, options)) return false;
+	return (
+		containsExactBuildJsx(id, source) ||
+		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)
+	);
 }

@@ -1,10 +1,16 @@
 import {
 	Activity,
 	ErrorBoundary,
+	Fragment,
 	Suspense,
 	activateTaskForHost,
+	createEnhancementMarker,
+	createContext,
 	defineTask,
+	markExactComponent,
+	markExactEnhancementContexts,
 	stageTaskMutation,
+	type Child,
 	type Component,
 	type ErrorBoundaryFallbackProps
 } from '@exactjs/core';
@@ -19,6 +25,186 @@ import {
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr rendering', () => {
+	it('renders bundle-local enhancements as ordinary server components', async () => {
+		const identity = '@exactjs/ssr:test-enhancement#default';
+		let tone: unknown;
+		const Enhancement = markExactComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child; tone?: string }
+		) {
+			tone = props.tone;
+			return () => createVNode('aside', { 'data-enhanced': true }, props.children);
+		}, '@exactjs/ssr:test-enhancement');
+		const vnode = createVNode(
+			'button',
+			{
+				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'quiet' } }])
+			},
+			'Save'
+		);
+
+		const output = renderToString(vnode, {
+			markers: false,
+			enhancementCatalog: new Map([[identity, Enhancement]])
+		});
+		const asyncOutput = await renderToStringAsync(vnode, {
+			markers: false,
+			enhancementCatalog: new Map([[identity, Enhancement]])
+		});
+
+		expect(output.html).toBe('<aside data-enhanced><button>Save</button></aside>');
+		expect(asyncOutput.html).toBe(output.html);
+		expect(tone).toBe('quiet');
+	});
+
+	it('leaves unavailable server enhancements inert and warns once per identity', () => {
+		const identity = '@exactjs/ssr:missing#default';
+		const events: Array<{ message: string }> = [];
+		const marker = () => createEnhancementMarker([{ identity, props: { tone: 'quiet' } }]);
+		const output = renderToString(
+			createVNode(
+				'section',
+				null,
+				createVNode('button', { __exactEnhancements: marker() }, 'One'),
+				createVNode('button', { __exactEnhancements: marker() }, 'Two')
+			),
+			{ markers: false, logger: { log: (event) => events.push(event) } }
+		);
+
+		expect(output.html).toBe('<section><button>One</button><button>Two</button></section>');
+		expect(events).toHaveLength(1);
+		expect(events[0]?.message).toContain(identity);
+	});
+
+	it('activates a component-boundary enhancement inside contexts published by that component', async () => {
+		const identity = '@exactjs/ssr:context-consumer#default';
+		const Theme = createContext('ssr enhancement theme');
+		const Enhancement = markExactEnhancementContexts(
+			markExactComponent(function Enhancement(this: Component<{}>, props: { children?: Child }) {
+				const theme = this.getContext(Theme);
+				return () => createVNode('strong', { 'data-theme': theme }, props.children);
+			}, '@exactjs/ssr:context-consumer'),
+			{ requires: [Theme] }
+		);
+		const Boundary = markExactComponent(function Boundary(this: Component<{}>) {
+			this.setContext(Theme, 'dark');
+			return () => createVNode('button', null, 'Save');
+		}, '@exactjs/ssr:context-boundary');
+
+		const output = renderToString(
+			createVNode(Boundary, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+			}),
+			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
+		);
+		const asyncOutput = await renderToStringAsync(
+			createVNode(Boundary, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+			}),
+			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
+		);
+
+		expect(output.html).toBe('<strong data-theme="dark"><button>Save</button></strong>');
+		expect(asyncOutput.html).toBe(output.html);
+	});
+
+	it('routes SSR structural output to an explicit logical intrinsic target', async () => {
+		const identity = '@exactjs/ssr:routed#default';
+		let boundarySetups = 0;
+		let targetSetups = 0;
+		let enhancementSetups = 0;
+		const Enhancement = markExactComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			enhancementSetups++;
+			return () => createVNode('aside', { 'data-enhanced': true }, props.children);
+		}, '@exactjs/ssr:routed');
+		const Target = markExactComponent(function Target(this: Component<{}>) {
+			targetSetups++;
+			return () =>
+				createVNode(
+					'main',
+					{
+						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+					},
+					'Target'
+				);
+		}, '@exactjs/ssr:routed-target');
+		const Boundary = markExactComponent(function Boundary(this: Component<{}>) {
+			boundarySetups++;
+			return () => [createVNode('button', null, 'Fallback'), createVNode(Target, null)];
+		}, '@exactjs/ssr:routed-boundary');
+
+		const output = renderToString(
+			createVNode(Boundary, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+			}),
+			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
+		);
+		const asyncOutput = await renderToStringAsync(
+			createVNode(Boundary, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+			}),
+			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
+		);
+
+		expect(output.html).toBe(
+			'<button>Fallback</button><aside data-enhanced><main>Target</main></aside>'
+		);
+		expect(asyncOutput.html).toBe(output.html);
+		expect(boundarySetups).toBe(2);
+		expect(targetSetups).toBe(2);
+		expect(enhancementSetups).toBe(2);
+	});
+
+	it('reuses keyed list candidates materialized for SSR target routing', async () => {
+		const identity = '@exactjs/ssr:routed-list#default';
+		let renderedItems = 0;
+		const Enhancement = markExactComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () => createVNode('strong', null, props.children);
+		}, '@exactjs/ssr:routed-list');
+		const Boundary = markExactComponent(function Boundary(this: Component<{}>) {
+			return () =>
+				createVNode(Fragment, {
+					list: {
+						collection: ['first', 'target'],
+						key: (item: string) => item,
+						render: (item: string) => {
+							renderedItems++;
+							return createVNode(
+								'li',
+								{
+									__exactEnhancements: createEnhancementMarker([
+										{ identity, props: {}, root: item === 'target' }
+									])
+								},
+								item
+							);
+						}
+					}
+				});
+		}, '@exactjs/ssr:routed-list-boundary');
+		const render = () =>
+			createVNode(Boundary, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+			});
+		const options = {
+			markers: false,
+			enhancementCatalog: new Map([[identity, Enhancement]])
+		} as const;
+
+		const output = renderToString(render(), options);
+		const asyncOutput = await renderToStringAsync(render(), options);
+
+		expect(output.html).toBe('<li>first</li><strong><li>target</li></strong>');
+		expect(asyncOutput.html).toBe(output.html);
+		expect(renderedItems).toBe(4);
+	});
+
 	it('normalizes native class arrays and truthy maps', () => {
 		const output = renderToString(
 			createVNode('section', {
@@ -124,6 +310,60 @@ describe('@exactjs/ssr rendering', () => {
 
 		expect(renderToString(vnode, { markers: false }).html).toBe('<span>loading</span>');
 		expect((await renderToStringAsync(vnode, { markers: false })).html).toBe('<p>ready</p>');
+	});
+
+	it('routes an enhancement through the Suspense candidate selected by each SSR mode', async () => {
+		const identity = '@exactjs/ssr:suspense-route#default';
+		const Enhancement = markExactComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () => createVNode('strong', null, props.children);
+		}, '@exactjs/ssr:suspense-route');
+		function AsyncPanel(this: Component<{ label: string }>) {
+			this.state.label = '';
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async ({ signal }) => {
+					const label = await Promise.resolve('ready');
+					stageTaskMutation(signal, () => {
+						this.state.label = label;
+					});
+				})
+			);
+			return () =>
+				createVNode(
+					'p',
+					{
+						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+					},
+					this.state.label
+				);
+		}
+		const render = () =>
+			createVNode(
+				Suspense,
+				{
+					fallback: createVNode(
+						'span',
+						{
+							__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+						},
+						'loading'
+					),
+					__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				},
+				createVNode(AsyncPanel, {})
+			);
+		const options = {
+			markers: false,
+			enhancementCatalog: new Map([[identity, Enhancement]])
+		} as const;
+
+		expect(renderToString(render(), options).html).toBe('<strong><span>loading</span></strong>');
+		expect((await renderToStringAsync(render(), options)).html).toBe(
+			'<strong><p>ready</p></strong>'
+		);
 	});
 
 	it('renders component output without marking components as mounted', () => {

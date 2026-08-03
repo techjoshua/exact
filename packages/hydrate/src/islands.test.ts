@@ -10,7 +10,8 @@ import {
 	handleExactRequest
 } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
-import { applyPatches, createExactClient, hydrateClientIslands } from './index.js';
+import { createExactClient, hydrateClientIslands } from './index.js';
+import { applyPatches } from './patches.js';
 import { noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate islands', () => {
@@ -163,7 +164,7 @@ describe('@exactjs/hydrate islands', () => {
 		const Counter = Object.assign(implementation, {
 			[exactComponentType]: 'component:Counter',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],

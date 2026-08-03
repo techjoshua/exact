@@ -2,6 +2,7 @@ export {
 	applyPatches,
 	boundaryInnerHtml,
 	boundaryInnerHtmls,
+	partitionAuthority,
 	createPatchBoundaryResolver,
 	hasExactMarkers,
 	reportMismatch

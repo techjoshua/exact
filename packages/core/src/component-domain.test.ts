@@ -9,10 +9,11 @@ import {
 	renderInstance,
 	withComponentDomain
 } from './index.js';
+import { componentDomainInspection, createFrameworkComponentDomain } from './component/domain.js';
 
 describe('component domains', () => {
 	it('captures the active immutable domain on authored VNodes', () => {
-		const remote = createComponentDomain('@company/billing#./Area');
+		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
 		const vnode = withComponentDomain(remote, () => createVNode('section', null));
 		expect(vnode.domain).toBe(remote);
 		expect(() => {
@@ -21,7 +22,7 @@ describe('component domains', () => {
 	});
 
 	it('uses the instance domain during setup and every render', () => {
-		const remote = createComponentDomain('@company/billing#./Area');
+		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
 		function Area(this: Component<{ count: number }>) {
 			this.state.count = 1;
 			const setup = createVNode('span', { phase: 'setup' });
@@ -41,5 +42,15 @@ describe('component domains', () => {
 		const instance = createComponentInstance(() => () => null, {});
 		expect(instance.domain).toBe(pageComponentDomain);
 		instance.unmount();
+	});
+
+	it('keeps framework capabilities outside the public domain identity', () => {
+		const domain = createFrameworkComponentDomain({
+			executionRoot: 'page',
+			dispatchContinuation: async () => undefined
+		});
+		expect(domain).toEqual({ executionRoot: 'page' });
+		expect(Object.keys(domain)).toEqual(['executionRoot']);
+		expect(componentDomainInspection(domain)).toBeUndefined();
 	});
 });

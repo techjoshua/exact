@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it } from 'vitest';
-import { invokeExact, invokeExactBatch } from './index.js';
+import { invokeExact, invokeExactBatch } from './invocations.js';
 import { ndjsonResponse } from './test-support/responses.js';
 
 describe('@exactjs/hydrate stream-transport', () => {

@@ -1,13 +1,11 @@
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type {
 	ExactArtifactGraph,
-	ExactArtifactGraphEntry,
+	ExactArtifactBuildProducts,
 	ExactArtifactGraphOptions
 } from './artifacts.js';
-import type { ExactModuleAnalysis } from './module-analysis.js';
 import type {
 	ExactAssetRule,
 	ModuleRewriteOptions,
@@ -38,6 +36,8 @@ export type CompileProjectOptions = TransformOptions & {
 /** Configures compile artifacts. */
 export type CompileArtifactsOptions = {
 	outDir: string;
+	/** Immutable deployment namespace; deterministically derived from all inputs when omitted. */
+	buildKey?: string;
 	rootDir?: string;
 	filename?: string;
 	serverComponents?: boolean;
@@ -47,7 +47,6 @@ export type CompileArtifactsOptions = {
 	jsxInterop?: TransformOptions['jsxInterop'];
 	assetRules?: readonly ExactAssetRule[];
 	session?: ExactCompilerSession;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	generatedValidation?: 'syntax' | 'semantic';
 	packageType?: TransformOptions['packageType'];
 	packageName?: string;
@@ -93,7 +92,7 @@ export type CompileArtifactsResult = {
 	client: TransformResult;
 	server: TransformResult;
 	shared?: TransformResult;
-	analysis: ExactModuleAnalysis;
+	build: ExactArtifactBuildProducts;
 	inspection?: ExactCompiledArtifactInspection;
 };
 
@@ -103,12 +102,14 @@ export type ExactArtifactGraphInput = {
 	clientFile: string;
 	serverFile: string;
 	sharedFile?: string;
-	analysis: ExactModuleAnalysis;
+	build: ExactArtifactBuildProducts;
 };
 
 /** Configures compile artifact plan entries. */
 export type CompileArtifactPlanEntriesOptions = {
 	filename?(entry: ExactArtifactPlanEntry): string;
+	/** Immutable deployment namespace shared by all entries. */
+	buildKey?: string;
 	serverComponents?: boolean;
 	sourceMap?: boolean;
 	moduleRewrite?: ModuleRewriteOptions;
@@ -116,7 +117,6 @@ export type CompileArtifactPlanEntriesOptions = {
 	jsxInterop?: TransformOptions['jsxInterop'];
 	assetRules?: readonly ExactAssetRule[];
 	session?: ExactCompilerSession;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	generatedValidation?: 'syntax' | 'semantic';
 	packageType?: TransformOptions['packageType'];
 	packageName?: string;
@@ -164,7 +164,7 @@ export type ExactArtifactDevStateOptions = CompileArtifactsOptions & ExactArtifa
 /** Tracks the state owned by exact artifact dev. */
 export type ExactArtifactDevState = {
 	plan: ExactArtifactPlan;
-	entries: ExactArtifactGraphEntry[];
+	entries: ExactArtifactGraphInput[];
 	graph: ExactArtifactGraph;
 };
 

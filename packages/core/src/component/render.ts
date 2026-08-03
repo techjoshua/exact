@@ -10,7 +10,7 @@ import {
 	handleComponentSuspension,
 	normalizeRenderResult
 } from './errors.js';
-import { withComponentDomain } from './domain.js';
+import { componentDomainInspection, withComponentDomain } from './domain.js';
 
 /** Renders a component instance inside a watcher and returns normalized child output. */
 export function renderInstance(
@@ -20,7 +20,7 @@ export function renderInstance(
 	let output: RenderResult = null;
 	const start = performanceNow();
 	const observedInvalidate = (): void => {
-		instance.domain.inspection?.publish({
+		componentDomainInspection(instance.domain)?.publish({
 			kind: 'render.invalidate',
 			component: instance
 		});

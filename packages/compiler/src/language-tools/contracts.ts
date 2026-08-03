@@ -231,6 +231,8 @@ export type ExactSourceInspection = Readonly<{
 	project?: Readonly<{ kind: 'configured' | 'inferred'; root: string }>;
 	/** Identifies the pinned compiler revisions that produced this inspection. */
 	compiler: Readonly<{ typescriptVersion: string; backendVersion: string }>;
+	/** Compiler-owned placement and ownership graph for this source generation. */
+	partitionPlan: Readonly<ExactPartitionPlanIR>;
 	components: readonly ExactInspectedComponent[];
 	diagnostics: readonly ExactSourceDiagnostic[];
 }>;
@@ -333,3 +335,4 @@ export interface ExactLanguageService {
 	stats(): ExactLanguageServiceStats;
 	dispose(): Promise<void>;
 }
+import type { ExactPartitionPlanIR } from '../contracts/analysis.js';

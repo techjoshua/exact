@@ -1,5 +1,6 @@
 import type { ExactRuntimeInspectionEventKind } from '@exactjs/devtools-protocol';
 import type { ComponentInstance } from '../component/contracts.js';
+import { componentDomainInspection } from '../component/domain.js';
 import type { TaskFrameRecord } from './frame-runtime.js';
 import { taskOwnerForHost } from './owner-hosts.js';
 
@@ -54,8 +55,8 @@ export function publishTaskFrameEvent(
 	reason?: unknown
 ): void {
 	const host = frame.owner.host as ComponentInstance<any> | undefined;
-	const inspection = host?.domain?.inspection;
-	if (!inspection) return;
+	const inspection = host?.domain ? componentDomainInspection(host.domain) : undefined;
+	if (!host || !inspection) return;
 	inspection.publish({
 		kind,
 		component: host,

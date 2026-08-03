@@ -1,0 +1,22 @@
+{
+	"name": "@exactjs/typescript-plugin",
+	"version": "0.1.0",
+	"type": "commonjs",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*",
+		"README.md"
+	],
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"devDependencies": {
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
+	},
+	"scripts": {
+		"build": "tsc6 -b",
+		"test": "vitest run --maxWorkers=4"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

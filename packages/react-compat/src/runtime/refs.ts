@@ -38,10 +38,15 @@ export function reactRefBinding<T>(ref: ReactRef<T>): RefBinding<T> {
 	const cached = refBindings.get(identity);
 	if (cached) return cached as RefBinding<T>;
 	let cleanup: (() => void) | undefined;
+	let current: T | undefined;
 	const binding: RefBinding<T> = {
+		get current() {
+			return current;
+		},
 		key: { id: Symbol('react.ref'), description: 'React compatibility ref' },
 		owner: undefined as never,
 		fulfill(value) {
+			current = value;
 			const rawRef = unwrap(ref) as ReactRef<T>;
 			if (value === undefined) {
 				if (cleanup) {

@@ -140,14 +140,42 @@ export function defineExactOperationContract(
 /** Builds an application-owned boundary contract with explicit ownership. */
 export function defineExactBoundaryContract(
 	id: string,
-	options: { componentId?: string; ownerComponentId?: string; kind?: string } = {}
+	options: {
+		componentId?: string;
+		ownerComponentId?: string;
+		kind?: string;
+		planVersion?: number;
+		buildKey?: string;
+		planEdgeId?: string;
+		parentPlanId?: string;
+		fallbackPlanId?: string;
+		patchTargets?: readonly string[];
+		discriminatorKind?: 'single' | 'branch' | 'keyed';
+		discriminatorValues?: readonly string[];
+		generation?: number;
+	} = {}
 ): ExactComponentBoundaryContract {
 	if (!id) throw new Error('eXact boundary id must be non-empty');
 	const componentId = options.componentId ?? `application:${id}`;
+	const partition = options.kind === 'partition-range';
+	const discriminatorKind = options.discriminatorKind ?? (partition ? 'single' : undefined);
+	const discriminatorValues =
+		options.discriminatorValues ??
+		(partition ? (discriminatorKind === 'branch' ? [id] : []) : undefined);
+	const generation = options.generation ?? (partition ? 1 : undefined);
 	return Object.freeze({
 		id,
 		componentId,
 		ownerComponentId: options.ownerComponentId ?? componentId,
-		kind: options.kind ?? 'application'
+		kind: options.kind ?? 'application',
+		...(options.planVersion === undefined ? {} : { planVersion: options.planVersion }),
+		...(options.buildKey === undefined ? {} : { buildKey: options.buildKey }),
+		...(options.planEdgeId === undefined ? {} : { planEdgeId: options.planEdgeId }),
+		...(options.parentPlanId === undefined ? {} : { parentPlanId: options.parentPlanId }),
+		...(options.fallbackPlanId === undefined ? {} : { fallbackPlanId: options.fallbackPlanId }),
+		...(options.patchTargets === undefined ? {} : { patchTargets: options.patchTargets }),
+		...(discriminatorKind === undefined ? {} : { discriminatorKind }),
+		...(discriminatorValues === undefined ? {} : { discriminatorValues }),
+		...(generation === undefined ? {} : { generation })
 	});
 }

@@ -16,6 +16,10 @@
 			"types": "./dist/plugins.d.ts",
 			"node": "./dist/plugins.js",
 			"default": "./dist/plugins.js"
+		},
+		"./enhanced": {
+			"types": "./dist/enhanced.d.ts",
+			"default": "./dist/enhanced.js"
 		}
 	},
 	"main": "./dist/index.js",

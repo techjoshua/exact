@@ -1,4 +1,5 @@
-import type { ExactModuleAnalysis, ExactPolicyAuditReport } from './types.js';
+import type { ExactPolicyAuditReport } from './types.js';
+import type { ExactModuleAnalysis } from './contracts/module-analysis.js';
 
 /** Configures exact policy audit report. */
 export type ExactPolicyAuditReportOptions = {

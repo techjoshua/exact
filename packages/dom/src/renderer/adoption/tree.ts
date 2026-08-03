@@ -16,12 +16,7 @@ import {
 } from '@exactjs/core';
 import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import {
-	getListBinding,
-	materializeList,
-	stopRemovedListChildren,
-	stopReplacedChildren
-} from '../../children.js';
+import { getListBinding, materializeList, stopReplacedChildren } from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
 import { setElementOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
@@ -29,6 +24,7 @@ import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
 import { patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
+import { refreshComponentRoot } from '../component-roots.js';
 import { unmountMany, unmountMounted } from '../teardown.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import { adoptActivityBoundary, adoptSuspenseBoundary } from './mode-boundaries.js';
@@ -102,6 +98,7 @@ export function adoptStaticMountedInner(
 				mounted.dom = start;
 				mounted.end = end;
 				mounted.children = adopted.mounts;
+				refreshComponentRoot(instance);
 				instance.markMounted();
 				return { mounted, next: cursor + adopted.next };
 			} catch (error) {
@@ -145,6 +142,7 @@ export function adoptStaticMountedInner(
 				return undefined;
 			}
 			mounted.children = children;
+			refreshComponentRoot(instance);
 			instance.markMounted();
 			return { mounted, next: endIndex + 1 };
 		} catch {
@@ -325,7 +323,7 @@ export function adoptStaticMountedInner(
 					);
 				},
 				undefined,
-				{ scope, onSchedule: () => stopRemovedListChildren(mounted, list) }
+				{ scope }
 			);
 		}
 		return { mounted, next: endIndex + 1 };

@@ -9,6 +9,7 @@ import {
 	withComponentDomain,
 	type Component
 } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { describe, expect, it, vi } from 'vitest';
 import { findNodeOwnerInstance, render, unmount } from './index.js';
 import { inspectDomRoot } from './testing.js';
@@ -17,8 +18,8 @@ import { createCompiledVNode, createVNode } from './test-support/native-vnode.js
 describe('component domain rendering', () => {
 	it('instantiates the same component function under the VNode owner domain', () => {
 		const container = document.createElement('div');
-		const page = createComponentDomain('page');
-		const remote = createComponentDomain('@company/branding#./Button');
+		const page = createComponentDomain({ executionRoot: 'page' });
+		const remote = createComponentDomain({ executionRoot: '@company/branding#./Button' });
 		function Button(this: Component<{}>) {
 			const executionRoot = currentComponentDomain()!.executionRoot;
 			return () => createVNode('button', null, executionRoot);
@@ -41,8 +42,8 @@ describe('component domain rendering', () => {
 	it('replaces rather than reuses an instance when immutable ownership changes', () => {
 		const container = document.createElement('div');
 		const unmounted = vi.fn();
-		const page = createComponentDomain('page');
-		const remote = createComponentDomain('@company/billing#./Area');
+		const page = createComponentDomain({ executionRoot: 'page' });
+		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
 		function Area(this: Component<{}>) {
 			this.onUnmount(unmounted);
 			const executionRoot = currentComponentDomain()!.executionRoot;
@@ -64,9 +65,9 @@ describe('component domain rendering', () => {
 	it('reparents a parked page instance while preserving captured context handles', () => {
 		const container = document.createElement('div');
 		const Tone = createContext<{ name: string }>('cross-root-tone');
-		const page = createComponentDomain('page');
-		const firstRemote = createComponentDomain('@company/branding#./Shell');
-		const secondRemote = createComponentDomain('@company/branding#./Shell');
+		const page = createComponentDomain({ executionRoot: 'page' });
+		const firstRemote = createComponentDomain({ executionRoot: '@company/branding#./Shell' });
+		const secondRemote = createComponentDomain({ executionRoot: '@company/branding#./Shell' });
 		const mounted = vi.fn();
 		const unmounted = vi.fn();
 		let pageChild!: Component<{ showDescendant: boolean }>;
@@ -149,7 +150,8 @@ describe('component domain rendering', () => {
 		render(createCompiledVNode(Panel, null), container, { inspection });
 
 		const button = container.querySelector('button')!;
-		expect(findNodeOwnerInstance(button)?.domain.inspection).toBe(inspection);
+		const instance = findNodeOwnerInstance(button);
+		expect(instance && componentDomainInspection(instance.domain)).toBe(inspection);
 		unmount(container);
 	});
 });

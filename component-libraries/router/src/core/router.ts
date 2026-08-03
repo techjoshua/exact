@@ -1,4 +1,5 @@
-import { joinCurrentInteraction } from '@exactjs/core';
+import { joinTask } from '@exactjs/core';
+import { createFrameworkPublicationCommit } from '@exactjs/core/framework/publication';
 
 import type {
 	CreateExactRouterOptions,
@@ -36,6 +37,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 	options: CreateExactRouterOptions<Route>
 ): ExactRouter<Route> {
 	const source = options.source;
+	const publication = options.publication;
 	const basename = normalizeBasename(options.basename);
 	const mode = options.mode ?? 'history';
 	let routes = normalizeRouteIds(options.routes ?? []);
@@ -158,20 +160,38 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 		errors = result.errors;
 		loaderHeaders = result.headers;
 		statusCode = result.statusCode;
-		if (options.replace) source.replace(target, options.state, options.status);
-		else source.push(target, options.state, options.status);
-		if (!operations.owns(operation)) return;
-		// Sources with subscriptions refresh themselves. Request-backed sources do
-		// not navigate locally, so retain their location and only settle state.
-		if (sourceRevision === revision) {
-			snapshot = source.subscribe
-				? buildSnapshot(action)
-				: Object.freeze({
-						...snapshot,
-						navigation: Object.freeze({ state: 'idle', transitionId: currentTransition })
-					});
-			notify();
-		}
+		let published = false;
+		const publish = () => {
+			if (published) throw new Error('A navigation publication may commit only once');
+			published = true;
+			if (options.replace) source.replace(target, options.state, options.status);
+			else source.push(target, options.state, options.status);
+			if (operations.owns(operation) && sourceRevision === revision) {
+				// Sources with subscriptions refresh themselves. Request-backed sources do
+				// not navigate locally, so retain their location and only settle state.
+				snapshot = source.subscribe
+					? buildSnapshot(action)
+					: Object.freeze({
+							...snapshot,
+							navigation: Object.freeze({ state: 'idle', transitionId: currentTransition })
+						});
+				notify();
+			}
+			return createFrameworkPublicationCommit();
+		};
+		if (publication) {
+			await publication.publish({
+				kind: 'navigation',
+				signal: operation.abort.signal,
+				metadata: {
+					historyAction: action,
+					from: transition.currentLocation,
+					to: nextLocation,
+					transitionId: currentTransition
+				},
+				publish
+			});
+		} else publish();
 	}
 
 	async function initialize(): Promise<void> {
@@ -411,6 +431,6 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
  * The same promise remains the public router result; joining adds settlement ownership only.
  */
 function joinRouterOperation<Result>(operation: Promise<Result>): Promise<Result> {
-	joinCurrentInteraction(operation);
+	joinTask(operation);
 	return operation;
 }

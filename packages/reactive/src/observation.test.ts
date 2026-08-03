@@ -210,6 +210,24 @@ describe('@exactjs/reactive observation', () => {
 		expect(unwrap(title)).toBe('Second');
 	});
 
+	it('keeps class resources opaque through computed readonly object props', () => {
+		class Resource {
+			count = 0;
+			increment(): void {
+				this.count++;
+			}
+		}
+		const resource = new Resource();
+		const props = reactive(
+			{ resource: computed(() => resource) as unknown as Resource },
+			{ readonly: true }
+		);
+
+		expect(props.resource).toBe(resource);
+		props.resource.increment();
+		expect(resource.count).toBe(1);
+	});
+
 	it('switches computed dependencies when conditional reads change', () => {
 		const state = reactive({ useNickname: true, nickname: 'Ace', firstName: 'Ada' });
 		const label = computed(() => (state.useNickname == true ? state.nickname : state.firstName));

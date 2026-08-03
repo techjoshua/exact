@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flushSync } from '@exactjs/reactive';
 import {
-	createComponentDomain,
 	createComponentInstance,
 	activateTask,
 	defineTask,
@@ -11,6 +10,7 @@ import {
 	type Component,
 	type TaskContext
 } from './index.js';
+import { createFrameworkComponentDomain } from './component/domain.js';
 
 describe('@exactjs/core component resumption', () => {
 	it('restores SSR state and arms settled continuations without repeating initial work', () => {
@@ -31,12 +31,15 @@ describe('@exactjs/core component resumption', () => {
 			);
 			return () => this.state.result;
 		}
-		const domain = createComponentDomain('page', undefined, () => ({
-			componentId: 'component:Search',
-			values: { query: 'server', result: 'SERVER' },
-			contexts: {},
-			settledContinuations: ['load']
-		}));
+		const domain = createFrameworkComponentDomain({
+			executionRoot: 'page',
+			resumeComponent: () => ({
+				componentId: 'component:Search',
+				values: { query: 'server', result: 'SERVER' },
+				contexts: {},
+				settledContinuations: ['load']
+			})
+		});
 
 		const fresh = createComponentInstance(Search, {}, undefined, undefined, domain);
 		expect(fresh.state.query).toBe('setup');

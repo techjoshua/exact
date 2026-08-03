@@ -23,7 +23,7 @@ describe('microfrontend project preparation', () => {
 		const prepared = await prepareExactRemoteArtifactBuild({
 			applicationRoot: root,
 			buildKey,
-			compilerConfig: {
+			buildConfig: {
 				exposes: [],
 				providedPackages: [],
 				remoteBindings: [['billing', { clientEntry: 'https://cdn.example.test/billing.js' }]]
@@ -42,7 +42,7 @@ describe('microfrontend project preparation', () => {
 			prepareExactRemoteArtifactBuild({
 				applicationRoot: missing,
 				buildKey,
-				compilerConfig: { exposes: [], providedPackages: [], remoteBindings: [] }
+				buildConfig: { exposes: [], providedPackages: [], remoteBindings: [] }
 			})
 		).rejects.toThrow('Unable to read the application package manifest');
 
@@ -51,7 +51,7 @@ describe('microfrontend project preparation', () => {
 			prepareExactRemoteArtifactBuild({
 				applicationRoot: nameless,
 				buildKey,
-				compilerConfig: { exposes: [], providedPackages: [], remoteBindings: [] }
+				buildConfig: { exposes: [], providedPackages: [], remoteBindings: [] }
 			})
 		).rejects.toThrow('require a package name');
 	});
@@ -64,7 +64,7 @@ describe('microfrontend project preparation', () => {
 			prepareExactRemoteArtifactBuild({
 				applicationRoot: root,
 				buildKey,
-				compilerConfig: {
+				buildConfig: {
 					exposes: [['./Area', { component: './src/Area.tsx' }]],
 					providedPackages: [],
 					remoteBindings: []

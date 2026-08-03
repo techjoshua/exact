@@ -2,6 +2,7 @@ import type { NativeCompilerModuleRewrite } from './process-module-contracts.js'
 import type { NativeCompilerComponent } from './process-component-contracts.js';
 import type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
 import type { NativeCompilerPolicyAnalysis } from './process-policy-contracts.js';
+import type { NativeCompilerPartitionPlan } from './process-partition-contracts.js';
 import type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 import type { NativeCompilerTask } from './process-task-contracts.js';
 
@@ -23,13 +24,18 @@ export type {
 } from './process-policy-contracts.js';
 export type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 export type {
+	NativeCompilerPartitionPlan,
+	NativeCompilerPartitionPlanEdge,
+	NativeCompilerPartitionPlanNode
+} from './process-partition-contracts.js';
+export type {
 	NativeCompilerTask,
 	NativeCompilerTaskResource,
 	NativeCompilerTaskSignalCall
 } from './process-task-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.26.0';
+export const nativeCompilerProtocolVersion = '1.27.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -37,6 +43,8 @@ export type NativeCompilerRequest = Readonly<{
 	kind: 'version' | 'reset' | 'diagnose' | 'analyze' | 'compile';
 	source?: string;
 	root?: string;
+	/** Immutable deployment namespace shared by every artifact in one partition graph. */
+	buildKey?: string;
 	configFile?: string;
 	target?: 'default' | 'client' | 'server';
 	serverComponents?: boolean;
@@ -49,8 +57,6 @@ export type NativeCompilerRequest = Readonly<{
 	assetRules?: readonly NativeCompilerAssetRule[];
 	preserveClientAssetImports?: boolean;
 	jsxInterop?: NativeCompilerJSXInterop;
-	extensions?: Readonly<Record<string, unknown>>;
-	compatibilityExtensions?: Readonly<Record<string, readonly string[]>>;
 	moduleRewrite?: NativeCompilerModuleRewrite;
 	/** Adds compact source identity markers without retaining rich inspection metadata. */
 	instrumentInspection?: boolean;
@@ -124,7 +130,6 @@ export type NativeCompilerTimings = Readonly<{
 	projectLinkMicroseconds: number;
 	checkMicroseconds: number;
 	loweringMicroseconds: number;
-	extensionMicroseconds: number;
 	printMicroseconds: number;
 	totalMicroseconds: number;
 }>;
@@ -170,7 +175,16 @@ export type NativeCompilerBoundary = Readonly<{
 	renderEdgeId?: string;
 	renderEdgeIndex?: number;
 	renderPath?: string;
-	kind: 'client-island' | 'server-slot';
+	kind: 'client-island' | 'server-slot' | 'partition-range';
+	planVersion?: number;
+	buildKey?: string;
+	planEdgeId?: string;
+	parentPlanId?: string;
+	fallbackPlanId?: string;
+	patchTargets?: readonly string[];
+	discriminatorKind?: 'single' | 'branch' | 'keyed';
+	discriminatorValues?: string[];
+	generation?: number;
 }>;
 
 /** Describes one JSX attribute discovered inside the native process. */
@@ -361,8 +375,14 @@ export type NativeCompilerAnalysis = Readonly<{
 	exports: readonly NativeCompilerExport[];
 	symbols: readonly NativeCompilerSymbol[];
 	boundaries: readonly NativeCompilerBoundary[];
+	partitionPlan: NativeCompilerPartitionPlan;
 	continuations: readonly NativeCompilerContinuation[];
 	registries?: readonly NativeCompilerComponentRegistry[];
+	rendererEnhancements: readonly Readonly<{
+		identity: string;
+		moduleSpecifier: string;
+		exportName: string;
+	}>[];
 	resumptions: readonly NativeCompilerComponentResumption[];
 	policy: NativeCompilerPolicyAnalysis;
 	requiredCapabilities: NativeCompilerCapabilityRequirements;
@@ -396,7 +416,6 @@ export type NativeCompilerResponse = Readonly<{
 	code?: string;
 	sourceMap?: NativeCompilerSourceMap;
 	diagnostics: readonly NativeCompilerDiagnostic[];
-	analysisData?: Readonly<Record<string, unknown>>;
 	analysis: NativeCompilerAnalysis;
 	timings: NativeCompilerTimings;
 	cacheHit?: boolean;

@@ -90,19 +90,6 @@ export function planChildReconciliation(
 	return { matches, oldKeyIndices, reusable };
 }
 
-/** Stops list children whose keys are not present in the next materialized list. */
-export function stopRemovedListChildren<T>(mounted: Mounted, list: ListBinding<T>): void {
-	const nextKeys = new Set(
-		materializeList(list)
-			.map((child) => child.key)
-			.filter((key): key is string => key !== undefined)
-	);
-	for (const child of mounted.children) {
-		if (child.vnode.key !== undefined && nextKeys.has(child.vnode.key)) continue;
-		child.scope.stop();
-	}
-}
-
 /** Converts a render child into a vnode, dropping boolean and nullish placeholders. */
 export function childToVNode(child: Child): VNode | undefined {
 	if (child === null || child === undefined || child === false || child === true) return undefined;

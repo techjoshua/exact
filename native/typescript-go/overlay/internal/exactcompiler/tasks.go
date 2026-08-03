@@ -758,48 +758,6 @@ func containsOpaqueEnvironment(sources []EnvironmentEffectSource) bool {
 	return false
 }
 
-func taskFacets(expression *ast.Node) ([]string, bool) {
-	var reversed []string
-	for ast.IsPropertyAccessExpression(expression) {
-		member := expression.AsPropertyAccessExpression()
-		if member.Name() == nil {
-			return nil, false
-		}
-		if member.Name().Text() == "task" &&
-			member.Expression.Kind == ast.KindThisKeyword {
-			facets := make([]string, len(reversed))
-			for index := range reversed {
-				facets[len(reversed)-index-1] = reversed[index]
-			}
-			return facets, true
-		}
-		reversed = append(reversed, member.Name().Text())
-		expression = member.Expression
-	}
-	return nil, false
-}
-
-func actionFacets(expression *ast.Node) ([]string, bool) {
-	var reversed []string
-	for ast.IsPropertyAccessExpression(expression) {
-		member := expression.AsPropertyAccessExpression()
-		if member.Name() == nil {
-			return nil, false
-		}
-		if member.Name().Text() == "action" &&
-			member.Expression.Kind == ast.KindThisKeyword {
-			facets := make([]string, len(reversed))
-			for index := range reversed {
-				facets[len(reversed)-index-1] = reversed[index]
-			}
-			return facets, true
-		}
-		reversed = append(reversed, member.Name().Text())
-		expression = member.Expression
-	}
-	return nil, false
-}
-
 func normalizeTaskFacets(component string, facets []string) Task {
 	task := Task{
 		Component:            component,

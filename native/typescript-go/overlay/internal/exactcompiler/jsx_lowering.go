@@ -25,6 +25,8 @@ type jsxRuntimeNames struct {
 	expression             string
 	dynamic                string
 	boundary               string
+	serverSlot             string
+	keyedServerSlot        string
 	clientProps            string
 	derived                string
 	write                  string
@@ -40,8 +42,7 @@ type jsxRuntimeNames struct {
 	taskFetch              string
 	taskResource           string
 	taskAwait              string
-	interactionAwait       string
-	interactionMutation    string
+	taskMutation           string
 	stageTaskMutation      string
 	taskCollectionMutation string
 	taskContinuation       string
@@ -58,6 +59,8 @@ type jsxRuntimeNames struct {
 	arrayMutation          string
 	collectionMutation     string
 	componentRegistry      string
+	enhancements           string
+	omitEnhancementProps   string
 	interop                string
 }
 
@@ -95,6 +98,8 @@ type jsxLowering struct {
 	cachedDerivedNames   map[int]string
 	contextWrites        map[string][]string
 	collectionMaps       map[string]collectionMapPlan
+	enhancementImports   enhancementImports
+	partitionPlan        PartitionPlan
 }
 
 type collectionMapPlan struct {
@@ -125,6 +130,8 @@ func lowerExactJSX(
 	instrumentInspection bool,
 	typeChecker *checker.Checker,
 	interop *JSXInterop,
+	enhancementImports enhancementImports,
+	partitionPlan PartitionPlan,
 ) *ast.SourceFile {
 	hasJSX := sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0
 	hasReactiveCapture := strings.Contains(sourceFile.Text(), ".reactive")
@@ -167,6 +174,8 @@ func lowerExactJSX(
 		renderEdges:          indexRenderEdges(components),
 		contextWrites:        indexContinuationContextWrites(continuations),
 		collectionMaps:       make(map[string]collectionMapPlan),
+		enhancementImports:   enhancementImports,
+		partitionPlan:        partitionPlan,
 		clientIslands:        clientIslands,
 	}
 	lowering.indexCollectionMaps()
@@ -307,6 +316,11 @@ func (lowering *jsxLowering) omitFullyMaterializedRenderLocals(root *ast.Node) *
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
+	}
+	if ast.IsImportDeclaration(node) {
+		if _, exists := lowering.enhancementImports.declarations[node.Pos()]; exists {
+			return lowering.factory.NewEmptyStatement()
+		}
 	}
 	if captured := lowering.lowerReactiveCapture(node); captured != nil {
 		return captured
@@ -916,6 +930,10 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		return lowering.lowerMicroComponent(tag, opening, children)
 	}
 	intrinsic := jsxIntrinsic(tagText)
+	partitionEdge, partitionedServerComponent := lowering.serverPartitionRangeEdge(identityNode.Pos())
+	if !intrinsic && partitionedServerComponent && lowering.target == TargetClient {
+		return lowering.clientPartitionSlot(opening, partitionEdge)
+	}
 	if intrinsic && lowering.target == TargetServer &&
 		lowering.serverComponents {
 		if island, exists := lowering.clientIslands[identityNode]; exists {
@@ -956,6 +974,9 @@ func (lowering *jsxLowering) lowerOpeningLike(
 	}
 	arguments = append(arguments, lowering.children(children)...)
 	element := lowering.call(lowering.names.element, arguments)
+	if !intrinsic && partitionedServerComponent && lowering.target == TargetServer {
+		element = lowering.serverPartitionSlot(opening, partitionEdge, element)
+	}
 	if !intrinsic && ast.IsIdentifier(tag) {
 		if _, derived := lowering.derivedBindingAtReference(tag); derived {
 			return lowering.call(
@@ -965,6 +986,91 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		}
 	}
 	return element
+}
+
+func (lowering *jsxLowering) serverPartitionRangeEdge(start int) (PartitionPlanEdge, bool) {
+	placements := make(map[string]string, len(lowering.partitionPlan.Nodes))
+	for _, node := range lowering.partitionPlan.Nodes {
+		placements[node.ID] = node.Placement
+	}
+	best := PartitionPlanEdge{}
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.Start != start || placements[edge.Parent] == "server" || placements[edge.Child] != "server" {
+			continue
+		}
+		if best.ID == "" || edge.Length < best.Length {
+			best = edge
+		}
+	}
+	return best, best.ID != ""
+}
+
+func (lowering *jsxLowering) clientPartitionSlot(
+	opening *ast.Node,
+	edge PartitionPlanEdge,
+) *ast.Node {
+	if edge.Kind == "keyed-item" {
+		key := lowering.partitionKey(opening)
+		if key != nil {
+			return lowering.call(lowering.names.keyedServerSlot, []*ast.Node{
+				lowering.factory.NewStringLiteral(edge.ID, ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral(edge.Parent, ast.TokenFlagsNone),
+				key,
+			})
+		}
+	}
+	return lowering.call(lowering.names.serverSlot, []*ast.Node{
+		lowering.factory.NewStringLiteral(edge.ID, ast.TokenFlagsNone),
+	})
+}
+
+func (lowering *jsxLowering) serverPartitionSlot(
+	opening *ast.Node,
+	edge PartitionPlanEdge,
+	child *ast.Node,
+) *ast.Node {
+	authority := lowering.partitionSlotReference(edge.ID)
+	if edge.Kind == "keyed-item" {
+		key := lowering.partitionKey(opening)
+		if key != nil {
+			return lowering.call(lowering.names.keyedServerSlot, []*ast.Node{
+				lowering.factory.NewStringLiteral(edge.ID, ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral(edge.Parent, ast.TokenFlagsNone),
+				key,
+				authority,
+				child,
+			})
+		}
+	}
+	return lowering.call(lowering.names.serverSlot, []*ast.Node{
+		lowering.factory.NewStringLiteral(edge.ID, ast.TokenFlagsNone),
+		authority,
+		child,
+	})
+}
+
+func (lowering *jsxLowering) partitionKey(opening *ast.Node) *ast.Node {
+	attributes := opening.Attributes()
+	if attributes == nil {
+		return nil
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if !ast.IsJsxAttribute(property) {
+			continue
+		}
+		attribute := property.AsJsxAttribute()
+		if attribute.Name().Text() != "key" || attribute.Initializer == nil {
+			continue
+		}
+		initializer := attribute.Initializer
+		if ast.IsStringLiteral(initializer) {
+			return lowering.factory.NewStringLiteral(initializer.AsStringLiteral().Text, ast.TokenFlagsNone)
+		}
+		if ast.IsJsxExpression(initializer) && initializer.AsJsxExpression().Expression != nil {
+			return lowering.visitor.VisitNode(initializer.AsJsxExpression().Expression)
+		}
+	}
+	return nil
 }
 
 func (lowering *jsxLowering) microComponentTag(tag *ast.Node) bool {
@@ -1070,6 +1176,19 @@ func (lowering *jsxLowering) clientComponentBoundary(
 	if childrenValue != nil {
 		props = lowering.appendObjectProperty(props, "children", childrenValue)
 	}
+	if serverSlot {
+		if slots := lowering.partitionSlotIDs(children); len(slots) != 0 {
+			values := make([]*ast.Node, len(slots))
+			for index, slot := range slots {
+				values[index] = lowering.partitionSlotReference(slot)
+			}
+			props = lowering.appendObjectProperty(
+				props,
+				"__exactServerSlots",
+				lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false),
+			)
+		}
+	}
 	arguments := []*ast.Node{
 		lowering.factory.NewStringLiteral(
 			exactStableID(
@@ -1087,6 +1206,166 @@ func (lowering *jsxLowering) clientComponentBoundary(
 		arguments = append(arguments, lowering.children(children)...)
 	}
 	return lowering.call(lowering.names.boundary, arguments)
+}
+
+func (lowering *jsxLowering) partitionSlotReference(edgeID string) *ast.Node {
+	ownerComponentID := ""
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.ID != edgeID {
+			continue
+		}
+		for _, node := range lowering.partitionPlan.Nodes {
+			if node.ID != edge.Child {
+				continue
+			}
+			for _, owner := range lowering.partitionPlan.Nodes {
+				if owner.ID == node.OwnerComponent {
+					ownerComponentID = owner.ComponentContract
+					break
+				}
+			}
+			break
+		}
+		break
+	}
+	property := func(name string, value *ast.Node) *ast.Node {
+		return lowering.property(lowering.factory.NewIdentifier(name), value)
+	}
+	return lowering.factory.NewObjectLiteralExpression(
+		lowering.factory.NewNodeList([]*ast.Node{
+			property("__exactServerSlot", lowering.factory.NewStringLiteral(edgeID, ast.TokenFlagsNone)),
+			property("planVersion", lowering.factory.NewNumericLiteral(strconv.Itoa(lowering.partitionPlan.Version), ast.TokenFlagsNone)),
+			property("buildKey", lowering.factory.NewStringLiteral(lowering.partitionPlan.BuildKey, ast.TokenFlagsNone)),
+			property("planEdgeId", lowering.factory.NewStringLiteral(edgeID, ast.TokenFlagsNone)),
+			property("ownerComponentId", lowering.factory.NewStringLiteral(ownerComponentID, ast.TokenFlagsNone)),
+			property("discriminator", lowering.partitionSlotDiscriminator(edgeID)),
+			property("generation", lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone)),
+		}),
+		false,
+	)
+}
+
+func (lowering *jsxLowering) partitionSlotDiscriminator(edgeID string) *ast.Node {
+	property := func(name string, value *ast.Node) *ast.Node {
+		return lowering.property(lowering.factory.NewIdentifier(name), value)
+	}
+	single := func() *ast.Node {
+		return lowering.factory.NewObjectLiteralExpression(
+			lowering.factory.NewNodeList([]*ast.Node{
+				property("kind", lowering.factory.NewStringLiteral("single", ast.TokenFlagsNone)),
+			}),
+			false,
+		)
+	}
+	var template PartitionPlanNode
+	edgeKind := ""
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.ID != edgeID {
+			continue
+		}
+		edgeKind = edge.Kind
+		for _, node := range lowering.partitionPlan.Nodes {
+			if node.ID == edge.Child {
+				template = node
+				break
+			}
+		}
+		break
+	}
+	if edgeKind == "branch" {
+		return lowering.factory.NewObjectLiteralExpression(
+			lowering.factory.NewNodeList([]*ast.Node{
+				property("kind", lowering.factory.NewStringLiteral("branch", ast.TokenFlagsNone)),
+				property("branch", lowering.factory.NewStringLiteral(edgeID, ast.TokenFlagsNone)),
+			}),
+			false,
+		)
+	}
+	if template.Kind != "conditional-template" {
+		return single()
+	}
+	var conditional *ast.Node
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if ast.IsConditionalExpression(node) && node.Pos() == template.Start {
+			conditional = node
+			return false
+		}
+		return conditional == nil
+	})
+	if conditional == nil {
+		return single()
+	}
+	value := conditional.AsConditionalExpression()
+	trueBranch := lowering.partitionBranchEdgeID(template.ID, value.WhenTrue.Pos())
+	falseBranch := lowering.partitionBranchEdgeID(template.ID, value.WhenFalse.Pos())
+	if trueBranch == "" || falseBranch == "" {
+		return single()
+	}
+	branch := lowering.conditional(
+		lowering.visitor.VisitNode(value.Condition),
+		lowering.factory.NewStringLiteral(trueBranch, ast.TokenFlagsNone),
+		lowering.factory.NewStringLiteral(falseBranch, ast.TokenFlagsNone),
+	)
+	return lowering.factory.NewObjectLiteralExpression(
+		lowering.factory.NewNodeList([]*ast.Node{
+			property("kind", lowering.factory.NewStringLiteral("branch", ast.TokenFlagsNone)),
+			property("branch", branch),
+		}),
+		false,
+	)
+}
+
+func (lowering *jsxLowering) partitionBranchEdgeID(parent string, start int) string {
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.Parent == parent && edge.Kind == "branch" && edge.Start == start {
+			return edge.ID
+		}
+	}
+	return ""
+}
+
+func (lowering *jsxLowering) partitionSlotIDs(children *ast.NodeList) []string {
+	if children == nil {
+		return nil
+	}
+	result := []string{}
+	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+		start, end := child.Pos(), child.End()
+		switch {
+		case ast.IsJsxText(child):
+			if normalizeJSXText(child.AsJsxText().Text) == "" {
+				continue
+			}
+		case ast.IsJsxExpression(child):
+			expression := child.AsJsxExpression().Expression
+			if expression == nil {
+				continue
+			}
+			start, end = expression.Pos(), expression.End()
+		}
+		id := lowering.partitionRangeEdgeID(start, end)
+		if id == "" {
+			return nil
+		}
+		result = append(result, id)
+	}
+	return result
+}
+
+func (lowering *jsxLowering) partitionRangeEdgeID(start int, end int) string {
+	best := ""
+	bestWidth := int(^uint(0) >> 1)
+	for _, edge := range lowering.partitionPlan.Edges {
+		if edge.Kind == "component" || edge.Kind == "enhancement" || edge.Length <= 0 ||
+			edge.Start < start || edge.Start+edge.Length > end {
+			continue
+		}
+		width := edge.Length
+		if edge.Start == start && width < bestWidth {
+			best, bestWidth = edge.ID, width
+		}
+	}
+	return best
 }
 
 func (lowering *jsxLowering) clientBoundaryChildren(
@@ -1283,6 +1562,8 @@ func (lowering *jsxLowering) propsWithReactivity(
 	reactive bool,
 ) *ast.Node {
 	properties := []*ast.Node{}
+	enhancementEntries := make(map[string][]*ast.Node)
+	enhancementOrder := []string{}
 	if intrinsic {
 		properties = append(
 			properties,
@@ -1311,6 +1592,37 @@ func (lowering *jsxLowering) propsWithReactivity(
 			}
 			if ast.IsJsxSpreadAttribute(property) {
 				expression := property.AsJsxSpreadAttribute().Expression
+				if plan, exists := lowering.enhancementImports.spreads[property.Pos()]; exists {
+					visited := lowering.visitor.VisitNode(expression)
+					keys := make([]*ast.Node, 0, len(plan.keys))
+					for _, key := range plan.keys {
+						keys = append(keys, lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone))
+					}
+					properties = append(properties, lowering.factory.NewSpreadAssignment(
+						lowering.call(lowering.names.omitEnhancementProps, []*ast.Node{
+							visited,
+							lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(keys), false),
+						}),
+					))
+					for _, member := range plan.members {
+						if _, grouped := enhancementEntries[member.identity]; !grouped {
+							enhancementOrder = append(enhancementOrder, member.identity)
+							enhancementEntries[member.identity] = []*ast.Node{}
+						}
+						value := lowering.factory.NewElementAccessExpression(
+							lowering.visitor.VisitNode(expression),
+							nil,
+							lowering.factory.NewStringLiteral(member.source, ast.TokenFlagsNone),
+							ast.NodeFlagsNone,
+						)
+						value = lowering.reactiveExpression(expression, value)
+						enhancementEntries[member.identity] = append(
+							enhancementEntries[member.identity],
+							lowering.property(lowering.factory.NewIdentifier(member.prop), value),
+						)
+					}
+					continue
+				}
 				properties = append(
 					properties,
 					lowering.factory.NewSpreadAssignment(
@@ -1321,6 +1633,34 @@ func (lowering *jsxLowering) propsWithReactivity(
 			}
 			attribute := property.AsJsxAttribute()
 			name := jsxAttributeText(attribute.Name())
+			if ast.IsJsxNamespacedName(attribute.Name()) {
+				namespaced := attribute.Name().AsJsxNamespacedName()
+				prefix := namespaced.Namespace.Text()
+				if binding, exists := lowering.enhancementImports.bindings[prefix]; exists {
+					if _, grouped := enhancementEntries[binding.identity]; !grouped {
+						enhancementOrder = append(enhancementOrder, binding.identity)
+						enhancementEntries[binding.identity] = []*ast.Node{}
+					}
+					value := lowering.jsxAttributeInitializer(attribute, tag, name, reactive)
+					if value == nil {
+						continue
+					}
+					member := namespaced.Name().Text()
+					if member == "root" {
+						enhancementEntries[binding.identity] = append(
+							enhancementEntries[binding.identity],
+							lowering.property(lowering.factory.NewIdentifier("__exactRoot"), value),
+						)
+					} else {
+						member = binding.members[member].prop
+						enhancementEntries[binding.identity] = append(
+							enhancementEntries[binding.identity],
+							lowering.property(jsxPropertyName(lowering.factory, member), value),
+						)
+					}
+					continue
+				}
+			}
 			if bindingProperties := lowering.formBindingProperties(
 				name,
 				attribute.Initializer,
@@ -1366,10 +1706,90 @@ func (lowering *jsxLowering) propsWithReactivity(
 			)
 		}
 	}
+	if len(enhancementOrder) != 0 {
+		entries := make([]*ast.Node, 0, len(enhancementOrder))
+		for _, identity := range enhancementOrder {
+			members := enhancementEntries[identity]
+			props := []*ast.Node{}
+			var root *ast.Node
+			for _, member := range members {
+				if ast.IsPropertyAssignment(member) && member.AsPropertyAssignment().Name().Text() == "__exactRoot" {
+					root = member.AsPropertyAssignment().Initializer
+					continue
+				}
+				props = append(props, member)
+			}
+			entry := []*ast.Node{
+				lowering.property(
+					lowering.factory.NewIdentifier("identity"),
+					lowering.factory.NewStringLiteral(identity, ast.TokenFlagsNone),
+				),
+				lowering.property(
+					lowering.factory.NewIdentifier("props"),
+					lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(props), false),
+				),
+			}
+			if root != nil {
+				entry = append(entry, lowering.property(lowering.factory.NewIdentifier("root"), root))
+			}
+			entries = append(entries, lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(entry), false))
+		}
+		properties = append(properties, lowering.property(
+			lowering.factory.NewIdentifier("__exactEnhancements"),
+			lowering.call(lowering.names.enhancements, []*ast.Node{
+				lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(entries), false),
+			}),
+		))
+	}
 	return lowering.factory.NewObjectLiteralExpression(
 		lowering.factory.NewNodeList(properties),
 		false,
 	)
+}
+
+func (lowering *jsxLowering) jsxAttributeInitializer(
+	attribute *ast.JsxAttribute,
+	tag string,
+	name string,
+	reactive bool,
+) *ast.Node {
+	switch {
+	case attribute.Initializer == nil:
+		return lowering.factory.NewTrueExpression()
+	case ast.IsStringLiteral(attribute.Initializer):
+		return lowering.factory.NewStringLiteral(attribute.Initializer.AsStringLiteral().Text, ast.TokenFlagsNone)
+	case ast.IsJsxExpression(attribute.Initializer):
+		expression := attribute.Initializer.AsJsxExpression().Expression
+		if expression == nil {
+			return nil
+		}
+		expression = lowering.preserveContextualCallbackTypes(expression, tag, name)
+		initializer := lowering.visitor.VisitNode(expression)
+		if reactive && !jsxCallbackExpression(expression) {
+			initializer = lowering.reactiveExpression(expression, initializer)
+		}
+		return initializer
+	default:
+		return lowering.visitor.VisitNode(attribute.Initializer)
+	}
+}
+
+func kebabToCamel(value string) string {
+	result := ""
+	upper := false
+	for _, character := range value {
+		if character == '-' {
+			upper = true
+			continue
+		}
+		if upper {
+			result += strings.ToUpper(string(character))
+			upper = false
+			continue
+		}
+		result += string(character)
+	}
+	return result
 }
 
 func jsxClassNameContribution(property *ast.Node) bool {
@@ -2473,8 +2893,8 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 				)
 				if mutation != nil {
 					return lowering.taskHelperCall(
-						"interactionMutation",
-						lowering.names.interactionMutation,
+						"taskMutation",
+						lowering.names.taskMutation,
 						[]*ast.Node{signal, lowering.arrow(mutation)},
 					)
 				}
@@ -2483,8 +2903,8 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 				value := visitor.VisitNode(current.AsAwaitExpression().Expression)
 				return lowering.factory.NewAwaitExpression(
 					lowering.taskHelperCall(
-						"interactionAwait",
-						lowering.names.interactionAwait,
+						"taskAwait",
+						lowering.names.taskAwait,
 						[]*ast.Node{signal, value},
 					),
 				)
@@ -5210,9 +5630,13 @@ func (lowering *jsxLowering) stateWriteRoot(write StateWrite) *ast.Node {
 	if write.RootAlias == "" {
 		return lowering.stateRoot()
 	}
-	return lowering.derivedGet(
-		lowering.factory.NewIdentifier(write.RootAlias),
-	)
+	alias := lowering.factory.NewIdentifier(write.RootAlias)
+	for _, binding := range lowering.derived {
+		if binding.Component == write.Component && binding.Name == write.RootAlias {
+			return lowering.derivedGet(alias)
+		}
+	}
+	return alias
 }
 
 func (lowering *jsxLowering) stateWritePath(write StateWrite) []string {
@@ -5551,6 +5975,8 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		{"createExpression", lowering.names.expression},
 		{"createDynamicChild", lowering.names.dynamic},
 		{"createServerBoundary", lowering.names.boundary},
+		{"createServerSlot", lowering.names.serverSlot},
+		{"createKeyedServerSlot", lowering.names.keyedServerSlot},
 		{"createDerived", lowering.names.derived},
 		{"writeReactiveLazy", lowering.names.write},
 		{"updateReactiveValue", lowering.names.update},
@@ -5559,6 +5985,8 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		{"mutateReactiveArray", lowering.names.arrayMutation},
 		{"mutateReactiveCollection", lowering.names.collectionMutation},
 		{"createCompiledComponentRegistry", lowering.names.componentRegistry},
+		{"createEnhancementMarker", lowering.names.enhancements},
+		{"omitKnownProps", lowering.names.omitEnhancementProps},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -5585,8 +6013,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		"withTaskSignal",
 		"combineTaskSignal",
 		"taskAwait",
-		"interactionAwait",
-		"interactionMutation",
+		"taskMutation",
 		"stageTaskMutation",
 		"mutateTaskCollection",
 		"markComponentContinuationTask",
@@ -5725,6 +6152,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		expression:             allocate("__exactExpression"),
 		dynamic:                allocate("__exactDynamic"),
 		boundary:               allocate("__exactBoundary"),
+		serverSlot:             allocate("__exactServerSlot"),
+		keyedServerSlot:        allocate("__exactKeyedServerSlot"),
 		clientProps:            allocate("__exactElementProps"),
 		derived:                allocate("__exactDerived"),
 		write:                  allocate("__exactWrite"),
@@ -5742,8 +6171,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		taskOptions:            allocate("__exactTaskOptionsSignal"),
 		taskCombined:           allocate("__exactTaskCombinedSignal"),
 		taskAwait:              allocate("__exactTaskAwait"),
-		interactionAwait:       allocate("__exactInteractionAwait"),
-		interactionMutation:    allocate("__exactInteractionMutation"),
+		taskMutation:           allocate("__exactTaskMutation"),
 		stageTaskMutation:      allocate("__exactStageTaskMutation"),
 		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),
 		taskContinuation:       allocate("__exactContinuationTask"),
@@ -5758,6 +6186,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		arrayMutation:          allocate("__exactArrayMutation"),
 		collectionMutation:     allocate("__exactCollectionMutation"),
 		componentRegistry:      allocate("__exactComponentRegistry"),
+		enhancements:           allocate("__exactEnhancements"),
+		omitEnhancementProps:   allocate("__exactOmitEnhancementProps"),
 		interop:                allocate("__exactInteropComponent"),
 	}
 }

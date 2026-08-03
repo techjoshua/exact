@@ -12,6 +12,7 @@ import {
 	transform
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
+import { artifactAnalysis } from './analysis-results.js';
 
 describe('@exactjs/compiler: artifact bundling', () => {
 	it('keeps a transitive server data stack out of final client chunks and assets', async () => {
@@ -157,11 +158,11 @@ describe('@exactjs/compiler: artifact bundling', () => {
     `
 		);
 		const result = await compileFileArtifacts(input, { outDir, rootDir: srcDir });
-		const usedId = result.analysis.symbols.find(
+		const usedId = artifactAnalysis(result).symbols.find(
 			(symbol) =>
 				symbol.target === 'client' && symbol.role === 'root' && symbol.debugName === 'Used'
 		)!.id;
-		const unusedId = result.analysis.symbols.find(
+		const unusedId = artifactAnalysis(result).symbols.find(
 			(symbol) =>
 				symbol.target === 'client' && symbol.role === 'root' && symbol.debugName === 'Unused'
 		)!.id;
@@ -336,13 +337,13 @@ describe('@exactjs/compiler: artifact bundling', () => {
 		expect(client).toContain('export { AliasedWidget as RenamedWidget };');
 		expect(client.match(/@exactjs\/component-contract/g)).toHaveLength(1);
 		expect(client.match(/Object\.assign/g)).toHaveLength(2);
-		expect(result.analysis.exports).toContainEqual(
+		expect(artifactAnalysis(result).exports).toContainEqual(
 			expect.objectContaining({
 				name: 'default',
 				kind: 'component'
 			})
 		);
-		expect(result.analysis.exports).toContainEqual(
+		expect(artifactAnalysis(result).exports).toContainEqual(
 			expect.objectContaining({
 				name: 'RenamedWidget',
 				kind: 'component'

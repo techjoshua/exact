@@ -17,6 +17,9 @@ view.unmount();
 The mounted view provides accessible role and text queries, settled user events, component state
 and context inspection, and DOM-focused matchers.
 
+Tests that exercise compiler-emitted plugin markers can pass the application bundle's local
+`enhancementCatalog` through `.configure()` or `mountTest()` options.
+
 ## Server and client/server tests
 
 Use `testServerComponent()` with a compiled `.exact.server` artifact to render and inspect server

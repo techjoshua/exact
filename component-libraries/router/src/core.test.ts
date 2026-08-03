@@ -80,6 +80,38 @@ describe('renderer-neutral router core', () => {
 		});
 	});
 
+	it('coordinates one authoritative navigation publication with typed metadata', async () => {
+		const source = createMemoryLocationSource('https://example.test/');
+		const stages: string[] = [];
+		const coordinator = {
+			async publish(request: {
+				metadata: { historyAction: string; from: { pathname: string }; to: { pathname: string } };
+				publish(): { rendered: PromiseLike<void> };
+			}) {
+				stages.push('coordinator');
+				expect(request.metadata).toMatchObject({
+					historyAction: 'PUSH',
+					from: { pathname: '/' },
+					to: { pathname: '/users/2' }
+				});
+				const commit = request.publish();
+				stages.push('published');
+				expect(() => request.publish()).toThrow('may commit only once');
+				await commit.rendered;
+				stages.push('rendered');
+			}
+		};
+		const router = createExactRouter({ source, routes, publication: coordinator });
+
+		await router.navigate('/users/2');
+
+		expect(stages).toEqual(['coordinator', 'published', 'rendered']);
+		expect(router.getSnapshot()).toMatchObject({
+			location: { pathname: '/users/2' },
+			navigation: { state: 'idle' }
+		});
+	});
+
 	it('joins navigation readiness to an active component interaction', async () => {
 		let release!: () => void;
 		const gate = new Promise<void>((resolve) => {

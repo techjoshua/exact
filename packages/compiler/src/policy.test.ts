@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, transform } from './index.js';
+import { transform } from './index.js';
+import { analyzeSource } from './compilation/source-analysis.js';
 
 const fixture = (name: string) => path.join(process.cwd(), `${name}.policy-fixture.tsx`);
 

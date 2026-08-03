@@ -24,6 +24,12 @@
 		"README.md"
 	],
 	"contributes": {
+		"typescriptServerPlugins": [
+			{
+				"name": "@exactjs/typescript-plugin",
+				"enableForWorkspaceTypeScriptVersions": true
+			}
+		],
 		"commands": [
 			{
 				"command": "exact.showComponentSemantics",
@@ -114,10 +120,6 @@
 				"description": "Task with authored policy"
 			},
 			{
-				"id": "exact.action",
-				"description": "Component action"
-			},
-			{
 				"id": "exact.derived",
 				"description": "Derived reactive value"
 			},
@@ -157,15 +159,17 @@
 	},
 	"dependencies": {
 		"@exactjs/language-server": "^0.1.0",
+		"@exactjs/typescript-plugin": "^0.1.0",
 		"vscode-languageclient": "^9.0.1"
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.2",
 		"@types/vscode": "^1.96.0",
+		"esbuild": "0.27.2",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"scripts": {
-		"build": "tsc6 -b",
+		"build": "tsc6 -b && node scripts/bundle.mjs",
 		"test": "vitest run --maxWorkers=4"
 	}
 }

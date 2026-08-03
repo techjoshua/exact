@@ -1,5 +1,12 @@
 import type { ContextToken } from './component/contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
+import { isExactComponentBoundaryContract } from './component-contract/boundary-validation.js';
+import {
+	hasOnlyContractKeys as hasOnlyKeys,
+	isContractRecord as isRecord,
+	isContractString as isString,
+	isSafeContractStringList as isSafeStringList
+} from './component-contract/metadata-validation.js';
 
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
@@ -94,6 +101,15 @@ export type ExactComponentBoundaryContract = Readonly<{
 	componentId: string;
 	ownerComponentId: string;
 	kind: string;
+	planVersion?: number;
+	buildKey?: string;
+	planEdgeId?: string;
+	parentPlanId?: string;
+	fallbackPlanId?: string;
+	patchTargets?: readonly string[];
+	discriminatorKind?: 'single' | 'branch' | 'keyed';
+	discriminatorValues?: readonly string[];
+	generation?: number;
 }>;
 
 /** Minimum browser-visible values required to resume one SSR component. */
@@ -107,7 +123,8 @@ export type ExactComponentResumptionContract = Readonly<{
 
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{
-	version: 1;
+	/** Partition-aware component artifact contract. Version 1 artifacts are not adopted. */
+	version: 2;
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
 	role: 'client' | 'executor';
 	implementations: readonly ExactComponentImplementationContract[];
@@ -278,7 +295,7 @@ function isComponentContract(value: unknown, componentId: string): value is Exac
 			'boundaries',
 			'resumption'
 		]) &&
-		value.version === 1 &&
+		value.version === 2 &&
 		(value.placement === 'client' ||
 			value.placement === 'server' ||
 			value.placement === 'isomorphic' ||
@@ -296,7 +313,8 @@ function isComponentContract(value: unknown, componentId: string): value is Exac
 		) &&
 		Array.isArray(value.boundaries) &&
 		value.boundaries.every(
-			(boundary) => isBoundary(boundary) && boundary.componentId === componentId
+			(boundary) =>
+				isExactComponentBoundaryContract(boundary) && boundary.componentId === componentId
 		) &&
 		(value.resumption === undefined ||
 			(isResumption(value.resumption) && value.resumption.componentId === componentId))
@@ -381,17 +399,6 @@ function isExecutor(value: unknown): value is ExactComponentContinuationExecutor
 }
 
 /** Validates one generated DOM boundary descriptor. */
-function isBoundary(value: unknown): value is ExactComponentBoundaryContract {
-	if (!isRecord(value)) return false;
-	return (
-		hasOnlyKeys(value, ['id', 'componentId', 'ownerComponentId', 'kind']) &&
-		isString(value.id) &&
-		isString(value.componentId) &&
-		isString(value.ownerComponentId) &&
-		isString(value.kind)
-	);
-}
-
 /** Validates one browser resumption allowlist. */
 function isResumption(value: unknown): value is ExactComponentResumptionContract {
 	if (!isRecord(value)) return false;
@@ -432,31 +439,4 @@ function isStatePath(value: unknown): value is ExactContinuationStatePathContrac
 			value.operation === 'map' ||
 			value.operation === 'set')
 	);
-}
-
-/** Validates non-empty names without prototype-bearing dictionary keys. */
-function isSafeStringList(value: unknown): value is string[] {
-	return (
-		Array.isArray(value) &&
-		value.every(
-			(item) =>
-				isString(item) && item !== '__proto__' && item !== 'prototype' && item !== 'constructor'
-		)
-	);
-}
-
-/** Narrows a generated metadata value to a non-array record. */
-function isRecord(value: unknown): value is Record<string, any> {
-	return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-/** Requires stable generated names to be non-empty. */
-function isString(value: unknown): value is string {
-	return typeof value === 'string' && value.length > 0;
-}
-
-/** Rejects missing and unexpected fields in versioned generated metadata. */
-function hasOnlyKeys(value: Record<string, any>, allowed: readonly string[]): boolean {
-	const keys = Object.keys(value);
-	return keys.every((key) => allowed.includes(key));
 }

@@ -70,13 +70,14 @@ export function createReactive(
 			if (isReactiveValue(current)) {
 				track(target, key);
 				const currentValue = current.get();
-				return currentValue && typeof currentValue === 'object'
+				const currentTarget = unwrap(currentValue);
+				return isReactiveContainer(currentTarget)
 					? createReactive(
-							unwrap(currentValue) as object,
+							currentTarget,
 							options,
 							createParentSource(target, key, options)
 						)
-					: currentValue;
+					: currentTarget;
 			}
 
 			if (current && typeof current === 'object' && isReactiveContainer(unwrap(current))) {

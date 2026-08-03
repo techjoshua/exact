@@ -162,7 +162,80 @@ export type ExactBoundaryIR = {
 	renderEdgeId?: string;
 	renderEdgeIndex?: number;
 	renderPath?: string;
-	kind: 'client-island' | 'server-slot';
+	kind: 'client-island' | 'server-slot' | 'partition-range';
+	planVersion?: number;
+	buildKey?: string;
+	planEdgeId?: string;
+	parentPlanId?: string;
+	fallbackPlanId?: string;
+	patchTargets?: string[];
+	discriminatorKind?: 'single' | 'branch' | 'keyed';
+	discriminatorValues?: string[];
+	generation?: number;
+};
+
+/** Defines the normalized build-scoped recursive client/server partition plan. */
+export type ExactPartitionPlanIR = {
+	version: 1;
+	/** Opaque identity shared by compatible artifacts from this build. */
+	buildKey: string;
+	readonly roots: readonly string[];
+	readonly nodes: readonly ExactPartitionPlanNodeIR[];
+	readonly edges: readonly ExactPartitionPlanEdgeIR[];
+};
+
+/** Defines one reusable component or structural partition template. */
+export type ExactPartitionPlanNodeIR = {
+	id: string;
+	kind:
+		| 'component'
+		| 'enhancement-component'
+		| 'region'
+		| 'conditional-template'
+		| 'keyed-template'
+		| 'readiness-boundary';
+	componentContract?: string;
+	ownerComponent: string;
+	placement: 'client' | 'server' | 'either';
+	artifactTargets: readonly ExactArtifactTarget[];
+	activation: 'server-only' | 'eager' | 'interaction' | 'inert';
+	refreshAuthority: 'client' | 'server' | 'none';
+	start: number;
+	length: number;
+	renderPath: readonly string[];
+	childEdges: readonly string[];
+	optional?: boolean;
+	conservative?: boolean;
+	reason?: string;
+};
+
+/** Defines one finite edge in a recursive partition plan. */
+export type ExactPartitionPlanEdgeIR = {
+	id: string;
+	parent: string;
+	child: string;
+	kind:
+		| 'component'
+		| 'enhancement'
+		| 'region'
+		| 'branch'
+		| 'keyed-item'
+		| 'server-range'
+		| 'client-range'
+		| 'readiness';
+	cardinality: 'one' | 'optional' | 'branch' | 'many-keyed';
+	data: readonly Readonly<{
+		id: string;
+		kind: 'prop' | 'state' | 'capture' | 'public-context' | 'server-context-name';
+		direction: 'client-to-server' | 'server-to-client' | 'host-resolved';
+		transfer: 'snapshot' | 'ordered-delta' | 'opaque-identity' | 'context-lookup';
+		residency: 'client' | 'server' | 'either';
+		secret: boolean;
+	}>[];
+	fallback: string;
+	start: number;
+	length: number;
+	renderPath: readonly string[];
 };
 
 /** Defines the exact imported component ir type contract. */

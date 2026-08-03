@@ -15,6 +15,10 @@
 		"./testing": {
 			"types": "./dist/testing.d.ts",
 			"default": "./dist/testing.js"
+		},
+		"./enhanced": {
+			"types": "./dist/enhanced.d.ts",
+			"default": "./dist/enhanced.js"
 		}
 	},
 	"main": "./dist/index.js",

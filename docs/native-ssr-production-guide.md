@@ -1,6 +1,6 @@
 # Native SSR Production Guide
 
-This guide is the production contract for native eXact SSR, actions, refreshes,
+This guide is the production contract for native eXact SSR, task invocations, refreshes,
 and server components. It applies to Fetch, Express, Hapi, Node, and framework
 adapters that translate the runtime-neutral request and response shapes.
 
@@ -53,7 +53,7 @@ eXact propagates that signal through:
 - Application and request context factories.
 - Component tasks and task-owned resources.
 - Initial rendering and task stabilization.
-- Actions, refreshes, batches, and response streams.
+- Invocations, refreshes, batches, and response streams.
 - Provider and request-scope disposal.
 
 Request resources remain alive until a non-stream response finishes or a stream
@@ -68,7 +68,7 @@ request disposal.
 
 ## Cache and `Vary`
 
-Action, refresh, and NDJSON protocol responses are `Cache-Control: no-store`.
+Invocation, refresh, and NDJSON protocol responses are `Cache-Control: no-store`.
 For HTML, the application owns cache policy:
 
 - Use `private, no-store` for user-specific or authorization-dependent pages.
@@ -92,7 +92,7 @@ Authenticate the platform request before or while creating request-scoped
 contexts. Expose trusted identity, authorization, and current-session data as
 request-scoped contexts. eXact does not retain a cross-request session scope.
 
-Server actions and refreshes independently re-run authorization and CSRF
+Server invocations and refreshes independently re-run authorization and CSRF
 checks. Client-visible roles or `hasRole()` helpers are presentation data, not
 an enforcement boundary. Session rotation and `Set-Cookie` occur before
 response commit. Session persistence belongs to the application's session
@@ -116,7 +116,7 @@ Deploy client assets and server artifacts from one build. Do not mix protocol
 IDs or client chunks from different releases. Use
 content-addressed client assets or an atomic release directory, and keep an old
 server release available while clients from that release can still invoke its
-action or refresh IDs.
+invocation or refresh IDs.
 
 ## Limits
 
@@ -147,7 +147,7 @@ Install an eXact `Logger` in production and carry a trace identifier from
 
 - Request method, normalized route, status, duration, and cancellation.
 - Render mode, component or boundary ID, package/build identity, and release.
-- Action/refresh ID, authorization outcome, patch count, response bytes, and
+- Invocation/refresh ID, authorization outcome, patch count, response bytes, and
   fallback replacement.
 - Stream start, completion, cancellation, and post-commit failure.
 - Policy and capability diagnostics without logging secret values.

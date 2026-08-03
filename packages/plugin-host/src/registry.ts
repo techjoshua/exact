@@ -1,11 +1,8 @@
 import type { ExactConfig } from '@exactjs/config';
 import type {
 	ExactPluginHostMode,
-	ExactPreparedCompilerPlugin,
-	ExactPreparedCompilerRegistry,
 	ExactRuntimePluginExtension
 } from '@exactjs/plugin-api';
-import { createHash } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -17,7 +14,7 @@ import {
 	type ExactResolvedPluginConfiguration
 } from './configuration.js';
 import { discoverExactPlugins, type ExactPluginDiscoveryResult } from './discovery.js';
-import { createExactPackageGraph, findUp, packageName, type ExactPackageGraph } from './graph.js';
+import { createExactPackageGraph, findUp, type ExactPackageGraph } from './graph.js';
 import { importPublicPackageEntry } from './modules.js';
 import { validateExactRuntimeExtensions } from './runtime.js';
 
@@ -42,7 +39,7 @@ export interface ExactPreparedPluginRegistry {
 	readonly environment: string;
 	readonly hostMode: ExactPluginHostMode;
 	readonly discovery: ExactPluginDiscoveryResult;
-	readonly compiler: ExactPreparedCompilerRegistry;
+	readonly build: ReadonlyMap<string, unknown>;
 	readonly server: ReadonlyMap<string, unknown>;
 	readonly render: ReadonlyMap<string, unknown>;
 	readonly client: ReadonlyMap<string, unknown>;
@@ -64,7 +61,7 @@ export async function prepareExactPluginRegistry(
 		? path.resolve(options.configPath)
 		: findExactConfig(applicationRoot);
 	const environment = options.environment ?? process.env.NODE_ENV ?? 'development';
-	const hostMode = options.hostMode ?? 'compiler';
+	const hostMode = options.hostMode ?? 'build';
 	const key = JSON.stringify([applicationRoot, configPath, environment, hostMode]);
 	if (!options.graph && !options.config && !options.signal) {
 		const cached = registryCache.get(key);
@@ -140,7 +137,6 @@ async function prepareUncached(
 				? controller.signal.reason
 				: new Error('Plugin registry preparation aborted');
 		}
-		const compiler = createCompilerRegistry(resolution.plugins, discovery);
 		const runtime = await loadRuntimeExtensions(resolution.plugins);
 		if (options.hostMode === 'server') {
 			await validateExactRuntimeExtensions(runtime.get('server') ?? []);
@@ -152,7 +148,7 @@ async function prepareUncached(
 			environment: options.environment,
 			hostMode: options.hostMode,
 			discovery,
-			compiler,
+			build: projectionMap(resolution.plugins, 'build'),
 			server: projectionMap(resolution.plugins, 'server'),
 			render: projectionMap(resolution.plugins, 'render'),
 			client: projectionMap(resolution.plugins, 'client'),
@@ -170,46 +166,10 @@ async function prepareUncached(
 	}
 }
 
-function createCompilerRegistry(
-	resolved: ReadonlyMap<string, ExactResolvedPluginConfiguration>,
-	discovery: ExactPluginDiscoveryResult
-): ExactPreparedCompilerRegistry {
-	const plugins: Record<string, ExactPreparedCompilerPlugin> = {};
-	const fingerprintInput: unknown[] = [];
-	for (const [name, value] of [...resolved].sort(([left], [right]) => left.localeCompare(right))) {
-		if (!value.compiler) continue;
-		const contributors = discovery.contributors
-			.filter((contributor) => contributor.plugin === name)
-			.map(
-				(contributor) =>
-					`${packageName(contributor.node)}:${contributor.declaration.subpath}#${contributor.declaration.export}`
-			)
-			.sort();
-		plugins[name] = Object.freeze({
-			packageName: name,
-			version: value.plugin.version,
-			protocolVersion: value.plugin.declaration.protocolVersion,
-			required: value.plugin.requirements.some((requirement) => requirement.required),
-			cacheKey: value.compiler.cacheKey,
-			extension: value.compiler.extension
-		});
-		fingerprintInput.push({
-			name,
-			version: value.plugin.version,
-			protocolVersion: value.plugin.declaration.protocolVersion,
-			compilerEntry: value.plugin.declaration.entries.compiler,
-			cacheKey: value.compiler.cacheKey,
-			contributors
-		});
-	}
-	const fingerprint = createHash('sha256').update(stableJson(fingerprintInput)).digest('hex');
-	return Object.freeze({ fingerprint, plugins: Object.freeze(plugins) });
-}
-
 async function loadRuntimeExtensions(
 	resolved: ReadonlyMap<string, ExactResolvedPluginConfiguration>
 ): Promise<ReadonlyMap<ExactPluginHostMode, readonly ExactRuntimePluginExtension[]>> {
-	const modes: ExactPluginHostMode[] = ['server', 'render', 'client', 'testing'];
+	const modes = ['server', 'render', 'client', 'testing'] as const;
 	const result = new Map<ExactPluginHostMode, readonly ExactRuntimePluginExtension[]>();
 	for (const mode of modes) {
 		const extensions: ExactRuntimePluginExtension[] = [];
@@ -236,7 +196,7 @@ async function loadRuntimeExtensions(
 
 function projectionMap(
 	resolved: ReadonlyMap<string, ExactResolvedPluginConfiguration>,
-	key: 'server' | 'render' | 'client' | 'testing'
+	key: 'build' | 'server' | 'render' | 'client' | 'testing'
 ): ReadonlyMap<string, unknown> {
 	return new Map(
 		[...resolved].flatMap(([name, value]) => (value[key] === undefined ? [] : [[name, value[key]]]))
@@ -376,20 +336,6 @@ function findExactConfig(cwd: string): string | undefined {
 		if (parent === directory) return undefined;
 		directory = parent;
 	}
-}
-
-function stableJson(value: unknown): string {
-	return JSON.stringify(sortJson(value));
-}
-
-function sortJson(value: unknown): unknown {
-	if (Array.isArray(value)) return value.map(sortJson);
-	if (!value || typeof value !== 'object') return value;
-	return Object.fromEntries(
-		Object.entries(value as Record<string, unknown>)
-			.sort(([left], [right]) => left.localeCompare(right))
-			.map(([key, child]) => [key, sortJson(child)])
-	);
 }
 
 function positiveTimeout(value: number | undefined): number {

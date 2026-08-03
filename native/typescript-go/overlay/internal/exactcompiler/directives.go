@@ -1,7 +1,6 @@
 package exactcompiler
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 
@@ -114,63 +113,16 @@ func validateCoreDirectives(directives []Directive) []Diagnostic {
 	return diagnostics
 }
 
-func validateExtensionDirectives(
-	directives []Directive,
-	registry *Registry,
-	configuration map[string]json.RawMessage,
-	compatibility map[string][]string,
-) []Diagnostic {
+func validateNamespacedDirectives(directives []Directive) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, directive := range directives {
 		if directive.Namespace == "exact" {
 			continue
 		}
-		extension := registry.extension(directive.Namespace)
-		if extension == nil {
-			if owned, configured := compatibility[directive.Namespace]; configured {
-				if !containsString(owned, directive.Name) {
-					diagnostics = append(diagnostics, directiveDiagnostic(
-						directive,
-						fmt.Sprintf(
-							"unknown @exact %s.%s directive",
-							directive.Namespace,
-							directive.Name,
-						),
-					))
-				}
-				continue
-			}
-			diagnostics = append(diagnostics, directiveDiagnostic(
-				directive,
-				fmt.Sprintf(
-					"unknown @exact directive namespace %q",
-					directive.Namespace,
-				),
-			))
-			continue
-		}
-		if !registry.ownsDirective(directive.Namespace, directive.Name) {
-			diagnostics = append(diagnostics, directiveDiagnostic(
-				directive,
-				fmt.Sprintf(
-					"unknown @exact %s.%s directive",
-					directive.Namespace,
-					directive.Name,
-				),
-			))
-			continue
-		}
-		if _, configured := configuration[directive.Namespace]; !configured {
-			diagnostics = append(diagnostics, directiveDiagnostic(
-				directive,
-				fmt.Sprintf(
-					"@exact %s.%s requires configured native extension %q",
-					directive.Namespace,
-					directive.Name,
-					directive.Namespace,
-				),
-			))
-		}
+		diagnostics = append(diagnostics, directiveDiagnostic(
+			directive,
+			fmt.Sprintf("unknown @exact directive namespace %q", directive.Namespace),
+		))
 	}
 	return diagnostics
 }

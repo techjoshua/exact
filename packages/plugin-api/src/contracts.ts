@@ -8,7 +8,7 @@ export const exactPluginForwardingSchemaVersion = 1 as const;
 export const exactPluginProtocolVersion = '1.0.0' as const;
 
 /** Defines the exact plugin host mode type contract. */
-export type ExactPluginHostMode = 'compiler' | 'server' | 'render' | 'client' | 'testing';
+export type ExactPluginHostMode = 'build' | 'server' | 'render' | 'client' | 'testing';
 
 /** Defines the exact json value type contract. */
 export type ExactJsonValue =
@@ -48,69 +48,6 @@ export type ExactPluginConfigTransform<T> = (
 	config: T,
 	context: ExactPluginConfigContext
 ) => T | undefined | Promise<T | undefined>;
-
-/** Defines the exact compiler diagnostic interface contract. */
-export interface ExactCompilerDiagnostic {
-	readonly severity: 'info' | 'warning' | 'error';
-	readonly code: string;
-	readonly message: string;
-	readonly start?: number;
-	readonly length?: number;
-}
-
-/** Defines the exact compiler module view interface contract. */
-export interface ExactCompilerModuleView {
-	readonly id: string;
-	readonly source: string;
-	readonly target: 'default' | 'client' | 'server';
-	readonly directives: readonly ExactCompilerDirective[];
-}
-
-/** Defines the exact compiler directive interface contract. */
-export interface ExactCompilerDirective {
-	readonly namespace: string;
-	readonly name: string;
-	readonly argument?: string;
-	readonly start: number;
-	readonly length: number;
-}
-
-/** Defines the exact compiler module contribution interface contract. */
-export interface ExactCompilerModuleContribution {
-	readonly diagnostics?: readonly ExactCompilerDiagnostic[];
-	readonly analysisData?: ExactJsonValue;
-}
-
-/** Defines the exact compiler plugin extension interface contract. */
-export interface ExactCompilerPluginExtension {
-	readonly namespace: string;
-	readonly directives?: readonly string[];
-	readonly include?: RegExp;
-	analyzeModule?(view: ExactCompilerModuleView): ExactCompilerModuleContribution | undefined;
-	validateAnalysisData?(value: ExactJsonValue): undefined;
-}
-
-/** Configures exact compiler plugin. */
-export interface ExactCompilerPluginConfig {
-	readonly cacheKey: ExactJsonValue;
-	readonly extension?: ExactCompilerPluginExtension;
-}
-
-/** Defines the exact prepared compiler plugin interface contract. */
-export interface ExactPreparedCompilerPlugin {
-	readonly packageName: string;
-	readonly version: string;
-	readonly protocolVersion: string;
-	readonly required: boolean;
-	readonly cacheKey: ExactJsonValue;
-	readonly extension?: ExactCompilerPluginExtension;
-}
-
-/** Defines the exact prepared compiler registry interface contract. */
-export interface ExactPreparedCompilerRegistry {
-	readonly fingerprint: string;
-	readonly plugins: Readonly<Record<string, ExactPreparedCompilerPlugin>>;
-}
 
 /** Carries the context required by exact output. */
 export interface ExactOutputContext {
@@ -165,10 +102,7 @@ export interface ExactPluginConfigController<T> {
 	defaults(context: ExactPluginConfigContext): T | Promise<T>;
 	structuralValidate?(config: T, context: ExactPluginConfigContext): undefined;
 	validate(config: T, context: ExactPluginConfigContext): undefined | Promise<undefined>;
-	compilerConfig?(
-		config: T,
-		context: ExactPluginConfigContext
-	): ExactCompilerPluginConfig | Promise<ExactCompilerPluginConfig>;
+	buildConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
 	serverConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
 	renderConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
 	clientConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
@@ -179,7 +113,6 @@ export interface ExactPluginConfigController<T> {
 export interface ExactPluginEntries {
 	readonly config?: string;
 	readonly configTypes?: string;
-	readonly compiler?: string;
 	readonly server?: string;
 	readonly render?: string;
 	readonly client?: string;

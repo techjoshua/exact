@@ -28,14 +28,8 @@ export {
 export { normalizeActivityMode } from './activity.js';
 export { observeComponentAsync, trackComponentAsync } from './component/async.js';
 export {
-	cancelComponentInteractions,
 	currentInteraction,
-	interactionAwait,
-	interactionMutation,
-	isInteractionCancellation,
-	joinCurrentInteraction,
 	runComponentInteraction,
-	InteractionCancellation,
 	type InteractionPriority,
 	type InteractionScope,
 	type InteractionSource
@@ -45,6 +39,7 @@ export {
 	currentComponentDomain,
 	dispatchComponentContinuation,
 	pageComponentDomain,
+	type ComponentDomainOptions,
 	withComponentDomain,
 	withComponentResumption
 } from './component/domain.js';
@@ -110,8 +105,11 @@ export type {
 	ComponentContinuationDispatcher,
 	ComponentContextValues,
 	ComponentDomain,
+	ComponentDomainIdentity,
 	DirectComponentFunction,
 	ComponentFunction,
+	EnhancementEntry,
+	EnhancementMarker,
 	ComponentInstance,
 	BlockingWork,
 	ComponentResumptionActivation,
@@ -126,6 +124,11 @@ export type {
 	RefBinding,
 	RefKey,
 	RefRegistry,
+	RootBinding,
+	RootIntroduction,
+	RootLifecycle,
+	RootRelease,
+	StructuralReleaseReason,
 	ReadinessContextValue,
 	ReadinessRegistration,
 	RenderEventHandler,
@@ -142,6 +145,14 @@ export type {
 	VNodeCell,
 	VNodeType
 } from './component/contracts.js';
+export {
+	createEnhancementMarker,
+	exactEnhancementContexts,
+	markExactEnhancementContexts,
+	omitKnownProps,
+	readExactEnhancementContexts,
+	type EnhancementContextContract
+} from './enhancements.js';
 export { bindTask, bindTaskForHost, defineTask, invokeTask, taskStatus } from './tasks/runtime.js';
 export { activateTask, activateTaskForHost } from './tasks/activation.js';
 export { createTaskOwner } from './tasks/owners.js';
@@ -151,6 +162,8 @@ export {
 	runTaskContinuation,
 	trackTaskReads
 } from './tasks/continuations.js';
+export { TaskCancellation, isTaskCancellation } from './tasks/cancellation.js';
+export { joinTask, taskMutation } from './tasks/frame-runtime.js';
 export { TaskContext } from './tasks/public.js';
 export type {
 	BoundTaskFunction,
@@ -223,11 +236,11 @@ export {
 	Text,
 	UnsafeHtml
 } from './symbols.js';
-export { withTaskObserver } from './task/observers.js';
+export { withTaskObserver } from './tasks/observers.js';
 export {
 	markComponentContinuationTask,
 	settledComponentContinuationIds
-} from './task/continuation.js';
+} from './tasks/component-continuation.js';
 export {
 	createDerived,
 	discardTaskMutations,
@@ -244,13 +257,13 @@ export {
 	taskInterval,
 	taskObserver,
 	taskTimeout
-} from './task/resources.js';
+} from './tasks/resources.js';
 export {
 	combineTaskSignal,
 	withAbortSignal,
 	withTaskSignal,
 	type ManagedEventListenerOptions
-} from './task/signals.js';
+} from './tasks/signals.js';
 export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './url.js';
 export {
 	createCellVNode,
@@ -261,6 +274,7 @@ export {
 	createPortal,
 	createServerBoundary,
 	createServerSlot,
+	createKeyedServerSlot,
 	createTextVNode,
 	createVNode,
 	getCellVNode,

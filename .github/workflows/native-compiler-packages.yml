@@ -105,6 +105,11 @@ jobs:
         shell: bash
         run: |
           npm run build -w @exactjs/compiler
+          npm run build \
+            -w @exactjs/gestures \
+            -w @exactjs/motion \
+            -w @exactjs/gravity \
+            -w @exactjs/physics
           EXACT_NATIVE_COMPILER="$PWD/.tmp/native-compiler/exactc-native" \
             npm run check:native-compiler-corpus
       - name: Install acceptance browser

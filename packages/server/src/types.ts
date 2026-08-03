@@ -37,6 +37,23 @@ import type {
 /** Defines the exact invocation kind type contract. */
 export type ExactInvocationKind = 'invoke' | 'refresh';
 
+/** Runtime authority for one concrete compiler-planned partition instance. */
+export type ExactPartitionDiscriminator =
+	| Readonly<{ kind: 'single' }>
+	| Readonly<{ kind: 'branch'; branch: string }>
+	| Readonly<{ kind: 'keyed'; list: string; keyToken: string }>;
+
+/** Runtime authority for one concrete compiler-planned partition instance. */
+export type ExactPartitionAuthority = Readonly<{
+	version: 1;
+	buildKey: string;
+	executionRoot: string;
+	planEdgeId: string;
+	ownerComponentId: string;
+	discriminator: ExactPartitionDiscriminator;
+	generation: number;
+}>;
+
 /** Immutable allowlist composed from explicitly imported executor artifacts. */
 export type ExactExecutorContract = {
 	version: 1;
@@ -232,6 +249,8 @@ export type ExactInvocationRequest = {
 	/** Compiler-generated namespace in which id and patch targets are interpreted. */
 	root?: string;
 	id: string;
+	/** Required when refreshing a compiler-planned partition range. */
+	partition?: ExactPartitionAuthority;
 	opId?: string;
 	dependsOn?: string[];
 	payload?: unknown;
@@ -429,6 +448,14 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 			context: ExactServerContext
 		) => Promise<ExactInvocationResult> | ExactInvocationResult
 	>;
+	/**
+	 * Resolves the currently mounted authority for dynamic branch/keyed ranges.
+	 * Returning no instance rejects the refresh before handler lookup.
+	 */
+	resolvePartitionAuthority?(
+		input: ExactInvocationRequest,
+		context: ExactServerContext
+	): Promise<ExactPartitionAuthority | undefined> | ExactPartitionAuthority | undefined;
 	/** Build-keyed remote executor registrations installed by the application. */
 	remoteBuilds?: Readonly<Record<string, ExactRemoteBuildRegistration>>;
 	/** Advisory retained build advertised for a future client root replacement. */

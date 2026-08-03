@@ -1,4 +1,4 @@
-import { InteractionCancellation } from '../interaction/execution.js';
+import { TaskCancellation } from './cancellation.js';
 import type { ReservedTaskCallback, TaskContext } from './contracts.js';
 import {
 	attachTaskFrameSettlement,
@@ -26,7 +26,7 @@ export function bindTaskCallback<Args extends unknown[], Result>(
 ): (...args: Args) => Result {
 	const owner = frameForTaskContext(task).owner;
 	return (...args) => {
-		if (owner.signal.aborted) throw new InteractionCancellation(owner.signal.reason);
+		if (owner.signal.aborted) throw new TaskCancellation(owner.signal.reason);
 		return callback(...args);
 	};
 }

@@ -42,6 +42,7 @@ type callableFacts struct {
 	targets            []int
 	externalTargets    []CallableSummary
 	callSymbols        map[string]ast.SymbolId
+	callExpressions    map[string]*ast.Node
 	artifactConstraint uint8
 }
 
@@ -102,7 +103,8 @@ func collectCallableEffects(
 				StateWrites:         []StateEffect{},
 				Contexts:            []ContextEffect{},
 			},
-			callSymbols: make(map[string]ast.SymbolId),
+			callSymbols:     make(map[string]ast.SymbolId),
+			callExpressions: make(map[string]*ast.Node),
 		})
 		if symbol := callableDeclarationSymbol(node, typeChecker); symbol != nil {
 			symbolTargets[ast.GetSymbolId(symbol)] = index
@@ -116,7 +118,7 @@ func collectCallableEffects(
 		symbolTargets,
 		typeChecker,
 	)
-	contextBindings := collectContextBindings(sourceFile)
+	contextBindings := collectContextBindings(sourceFile, typeChecker)
 
 	for index := range facts {
 		if callableIsInteractiveHandler(facts[index].node) {
@@ -528,7 +530,16 @@ func cloneCallableFact(value callableFacts) callableFacts {
 	value.summary.Contexts = append([]ContextEffect(nil), value.summary.Contexts...)
 	value.targets = append([]int(nil), value.targets...)
 	value.externalTargets = append([]CallableSummary(nil), value.externalTargets...)
+	value.callExpressions = cloneCallExpressions(value.callExpressions)
 	return value
+}
+
+func cloneCallExpressions(values map[string]*ast.Node) map[string]*ast.Node {
+	result := make(map[string]*ast.Node, len(values))
+	for id, expression := range values {
+		result[id] = expression
+	}
+	return result
 }
 
 func callableAnalysisFromFacts(
@@ -614,9 +625,6 @@ func callableIdentity(
 		}
 		return component.Name, "component", exports
 	}
-	if isTaskWork(node) {
-		return fmt.Sprintf("task@%d", node.Pos()), "task", nil
-	}
 	name := ""
 	if declarationName := node.Name(); declarationName != nil {
 		name = callableNameText(declarationName)
@@ -653,20 +661,6 @@ func callableNameText(name *ast.Node) string {
 		return name.Text()
 	}
 	return ""
-}
-
-func isTaskWork(node *ast.Node) bool {
-	parent := node.Parent
-	if parent == nil || !ast.IsCallExpression(parent) {
-		return false
-	}
-	call := parent.AsCallExpression()
-	if call.Arguments == nil || len(call.Arguments.Nodes) == 0 ||
-		call.Arguments.Nodes[len(call.Arguments.Nodes)-1] != node {
-		return false
-	}
-	_, ok := taskFacets(call.Expression)
-	return ok
 }
 
 func callableDeclarationSymbol(
@@ -845,7 +839,7 @@ func collectDirectCallableEffects(
 			return true
 		}
 		call := node.AsCallExpression()
-		if effect, ok := contextEffect(call, sourceFile); ok {
+		if effect, ok := contextEffect(call, sourceFile, typeChecker); ok {
 			fact.directContext = append(fact.directContext, effect)
 		} else if effect, ok := contextBindingCallEffect(
 			call.Expression,
@@ -874,6 +868,7 @@ func collectDirectCallableEffects(
 			Name:     strings.TrimSpace(sourceText(sourceFile, call.Expression)),
 			Resolved: resolved,
 		}
+		fact.callExpressions[edge.ID] = call.Expression
 		if reference, exists := externalImportForExpression(
 			call.Expression,
 			importBindings,
@@ -1189,14 +1184,16 @@ func directlyOwnedSpan(start int, end int, owner int, facts []callableFacts) boo
 func contextEffect(
 	call *ast.CallExpression,
 	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
 ) (ContextEffect, bool) {
 	if !ast.IsPropertyAccessExpression(call.Expression) {
 		return ContextEffect{}, false
 	}
 	member := call.Expression.AsPropertyAccessExpression()
-	if member.Expression == nil || member.Expression.Kind != ast.KindThisKeyword ||
+	if member.Expression == nil || !componentContextReceiver(member.Expression, typeChecker) ||
 		member.Name() == nil ||
-		(member.Name().Text() != "getContext" && member.Name().Text() != "setContext") {
+		(member.Name().Text() != "getContext" && member.Name().Text() != "hasContext" &&
+			member.Name().Text() != "setContext") {
 		return ContextEffect{}, false
 	}
 	token := "unknown"
@@ -1209,13 +1206,45 @@ func contextEffect(
 		}
 	}
 	kind := "read"
-	if member.Name().Text() == "setContext" {
+	switch member.Name().Text() {
+	case "hasContext":
+		kind = "probe"
+	case "setContext":
 		kind = "write"
 	}
 	return ContextEffect{Token: token, Kind: kind, Confidence: confidence}, true
 }
 
-func collectContextBindings(sourceFile *ast.SourceFile) map[string]ContextEffect {
+func componentContextReceiver(
+	expression *ast.Node,
+	typeChecker *checker.Checker,
+) (result bool) {
+	if expression.Kind == ast.KindThisKeyword {
+		return true
+	}
+	if typeChecker == nil {
+		return false
+	}
+	defer func() {
+		if recover() != nil {
+			result = false
+		}
+	}()
+	receiverType := typeChecker.GetTypeAtLocation(expression)
+	if receiverType == nil {
+		return false
+	}
+	if typeChecker.GetPropertyOfType(receiverType, "state") != nil {
+		return true
+	}
+	display := strings.TrimSpace(typeChecker.TypeToString(receiverType))
+	return display == "Component" || strings.HasPrefix(display, "Component<")
+}
+
+func collectContextBindings(
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) map[string]ContextEffect {
 	result := make(map[string]ContextEffect)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsVariableDeclaration(node) {
@@ -1231,6 +1260,7 @@ func collectContextBindings(sourceFile *ast.SourceFile) map[string]ContextEffect
 		if effect, ok := contextEffect(
 			declaration.Initializer.AsCallExpression(),
 			sourceFile,
+			typeChecker,
 		); ok && effect.Kind == "read" {
 			result[declaration.Name().Text()] = effect
 		}
@@ -1297,7 +1327,8 @@ func unresolvedCallEnvironment(
 	contextBindings map[string]ContextEffect,
 ) string {
 	text := strings.TrimSpace(sourceText(sourceFile, expression))
-	if exactComponentOperation(text) {
+	if exactComponentOperation(text) ||
+		componentContextOperation(expression, typeChecker) {
 		return ""
 	}
 	root := text
@@ -1334,6 +1365,25 @@ func unresolvedCallEnvironment(
 		return "browser"
 	}
 	return "unknown"
+}
+
+func componentContextOperation(
+	expression *ast.Node,
+	typeChecker *checker.Checker,
+) bool {
+	if !ast.IsPropertyAccessExpression(expression) {
+		return false
+	}
+	member := expression.AsPropertyAccessExpression()
+	if member.Name() == nil {
+		return false
+	}
+	switch member.Name().Text() {
+	case "getContext", "hasContext", "setContext":
+		return componentContextReceiver(member.Expression, typeChecker)
+	default:
+		return false
+	}
 }
 
 func declarationCallEnvironment(
@@ -1425,11 +1475,7 @@ func exactComponentOperation(text string) bool {
 		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender":
 		return true
 	}
-	return member == "task" ||
-		strings.HasPrefix(member, "task.") ||
-		member == "action" ||
-		strings.HasPrefix(member, "action.") ||
-		strings.HasPrefix(member, "log.") ||
+	return strings.HasPrefix(member, "log.") ||
 		strings.HasPrefix(member, "refs.")
 }
 

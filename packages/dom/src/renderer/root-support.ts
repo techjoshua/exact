@@ -70,6 +70,8 @@ export function createMarker(
 		| 'cell'
 		| 'component'
 		| 'dynamic'
+		| 'enhancement'
+		| 'enhancement-end'
 		| 'fragment'
 		| 'portal'
 		| 'suspense'

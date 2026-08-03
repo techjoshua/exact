@@ -1,9 +1,5 @@
-import type {
-	ExactModuleAnalysis,
-	ExactComponentIR,
-	ExactContinuationIR,
-	ExactTaskIR
-} from '../types.js';
+import type { ExactComponentIR, ExactContinuationIR, ExactTaskIR } from '../types.js';
+import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import type {
 	NativeCompilerComponent,
 	NativeCompilerContinuation,
@@ -28,25 +24,6 @@ export function nativeModuleAnalysis(
 	const continuations = response.analysis.continuations.map(nativeContinuation);
 	const symbols = response.analysis.symbols.map((symbol) => ({ ...symbol }));
 	const exports = response.analysis.exports.map((record) => ({ ...record }));
-	const serverActions: ExactModuleAnalysis['serverActions'] = {};
-	for (const continuation of continuations) {
-		serverActions[continuation.id] = {
-			id: continuation.id,
-			componentId: continuation.componentId,
-			taskId: continuation.taskId,
-			placement: continuation.placement,
-			stateContract: {
-				reads: continuation.activation.stateReads.map((effect) => ({ ...effect })),
-				writes: continuation.effects.stateWrites.map((effect) => ({ ...effect }))
-			},
-			serverContextContract: continuation.activation.serverContexts.map((effect) => ({
-				...effect
-			})),
-			publicContextContract: continuation.activation.publicContexts.map((effect) => ({
-				...effect
-			}))
-		};
-	}
 	return {
 		version: 1,
 		filename,
@@ -55,7 +32,30 @@ export function nativeModuleAnalysis(
 		components,
 		exports,
 		symbols,
-		boundaries: response.analysis.boundaries.map((boundary) => ({ ...boundary })),
+		boundaries: response.analysis.boundaries.map((boundary) => {
+			const { patchTargets, discriminatorValues, ...record } = boundary;
+			return {
+				...record,
+				...(patchTargets ? { patchTargets: [...patchTargets] } : {}),
+				...(discriminatorValues ? { discriminatorValues: [...discriminatorValues] } : {})
+			};
+		}),
+		partitionPlan: {
+			version: 1,
+			buildKey: response.analysis.partitionPlan.buildKey,
+			roots: [...response.analysis.partitionPlan.roots],
+			nodes: response.analysis.partitionPlan.nodes.map((node) => ({
+				...node,
+				artifactTargets: [...node.artifactTargets],
+				renderPath: [...node.renderPath],
+				childEdges: [...node.childEdges]
+			})),
+			edges: response.analysis.partitionPlan.edges.map((edge) => ({
+				...edge,
+				data: edge.data.map((slot) => ({ ...slot })),
+				renderPath: [...edge.renderPath]
+			}))
+		},
 		callables: response.analysis.callables.map((callable) => ({
 			...callable,
 			exportNames: [...callable.exportNames],
@@ -94,6 +94,7 @@ export function nativeModuleAnalysis(
 				artifactTargets: [...entry.artifactTargets]
 			}))
 		})),
+		rendererEnhancements: response.analysis.rendererEnhancements.map((entry) => ({ ...entry })),
 		resumptions: response.analysis.resumptions.map((resumption) => ({
 			componentId: resumption.componentId,
 			serverRender: {
@@ -141,7 +142,6 @@ export function nativeModuleAnalysis(
 					}
 				}
 			: {}),
-		serverActions,
 		diagnostics: [
 			...response.diagnostics.map((diagnostic) =>
 				diagnostic.message.startsWith(`${diagnostic.severity}:`)

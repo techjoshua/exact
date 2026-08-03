@@ -39,6 +39,46 @@ describe('@exactjs/bun-plugin', () => {
 		});
 	});
 
+	it('links attributed capabilities into the shared application-bundle catalog', () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-enhancement-'));
+		const entry = path.join(root, 'entry.tsx');
+		const source = `import motion from './motion.js' with { type: 'exact-plugin' };
+			export const view = <article motion:preset="fade" />;`;
+		try {
+			writeFileSync(
+				path.join(root, 'tsconfig.json'),
+				JSON.stringify({
+					compilerOptions: {
+						module: 'nodenext',
+						moduleResolution: 'nodenext',
+						target: 'es2022',
+						jsx: 'preserve'
+					},
+					include: ['*.ts', '*.tsx']
+				})
+			);
+			writeFileSync(
+				path.join(root, 'motion.ts'),
+				`export { default } from './motion-implementation.js' with { type: 'exact-plugin' };`
+			);
+			writeFileSync(
+				path.join(root, 'motion-implementation.ts'),
+				`export default function Motion(props: { preset?: string; children?: unknown }) { return props.children; }`
+			);
+			writeFileSync(entry, source);
+
+			const result = transformExactBunSource(source, entry, {
+				applicationRoot: root,
+				reactCompatibility: false
+			});
+
+			expect(result?.code).toContain(`__exactRegisterEnhancement("./motion.js#default"`);
+			expect(result?.code).toContain('@exactjs/core/framework/enhancement-catalog');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it('derives compact runtime instrumentation independently from hardened output', () => {
 		const source = `import { TaskContext } from '@exactjs/core';
 		function Page() {
@@ -184,6 +224,10 @@ describe('@exactjs/bun-plugin', () => {
 
 		expect(build.config?.conditions).toEqual(['exact-server', 'browser']);
 		await expect(Promise.resolve(startHook())).resolves.toBeUndefined();
+		const enhancementResolver = resolveHooks.find((entry) => entry.filter.test('@exactjs/dom'))!;
+		await expect(
+			Promise.resolve(enhancementResolver.handler({ path: '@exactjs/dom' }))
+		).resolves.toEqual({ path: '@exactjs/dom/enhanced' });
 		const exactResolver = resolveHooks.find((entry) => entry.filter.test('./Panel.exact'))!;
 		await expect(
 			Promise.resolve(

@@ -28,7 +28,7 @@ try {
 		diagnostics: 'syntax'
 	};
 	const first = compiler.request(request);
-	assert.equal(first.protocolVersion, '1.26.0');
+	assert.equal(first.protocolVersion, '1.27.0');
 	assert.match(first.typescriptVersion, /^7\./);
 	assert.equal(first.backendVersion, first.protocolVersion);
 	assert.equal(first.cacheHit, undefined);
@@ -49,6 +49,7 @@ try {
 			renderEdges: [],
 			clientIslandCount: 0,
 			contexts: [],
+			enhancementContexts: { provides: [], requires: [], optionallyConsumes: [] },
 			splitBoundaries: [],
 			diagnostics: []
 		}
@@ -112,6 +113,14 @@ try {
 		boundaries: [],
 		continuations: [],
 		registries: [],
+		rendererEnhancements: [],
+		partitionPlan: {
+			version: 1,
+			buildKey: 'xnJFRGpvxTmVuQ_9xmOcuF_',
+			roots: [],
+			nodes: [],
+			edges: []
+		},
 		resumptions: [],
 		policy: { version: 1, subjects: [], flows: [], secretConsumers: [] },
 		requiredCapabilities: { rawHtml: [] },
@@ -143,7 +152,7 @@ try {
 	assert.equal(invalid.diagnostics[0]?.code, 'TS2322');
 	assert.throws(
 		() => compiler.request({ kind: 'unsupported' }),
-		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.26\.0/
+		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.27\.0/
 	);
 } finally {
 	compiler.dispose();
@@ -151,6 +160,9 @@ try {
 
 const publicCompiler = await import(
 	pathToFileURL(path.join(repositoryRoot, 'packages/compiler/dist/index.js')).href
+);
+const internalCompiler = await import(
+	pathToFileURL(path.join(repositoryRoot, 'packages/compiler/dist/internal.js')).href
 );
 const session = publicCompiler.createCompilerSession({
 	nativeCompiler: { executable: path.resolve(executable) }
@@ -166,7 +178,7 @@ try {
 			session
 		}
 	);
-	const resultAnalysis = publicCompiler.analyzeSource(
+	const resultAnalysis = internalCompiler.analyzeSource(
 		'export function NativePanel() { return () => <button onClick={() => alert(1)}>Go</button>; }',
 		{ filename: 'native-panel.tsx', serverComponents: true, session }
 	);
@@ -184,36 +196,7 @@ try {
 	assert.equal(result.map?.sourcesContent?.[0]?.includes('NativePanel'), true);
 	assert.equal(typeof result.map?.mappings, 'string');
 
-	const configurationRegistry = {
-		fingerprint: 'native-configuration-registry',
-		plugins: {
-			'@scope/configuration': {
-				packageName: '@scope/configuration',
-				version: '1.0.0',
-				protocolVersion: '1.0.0',
-				required: true,
-				cacheKey: { mode: 'native' }
-			}
-		}
-	};
-	const configured = publicCompiler.analyzeSource('export const configured = true;', {
-		filename: 'configured.ts',
-		pluginRegistry: configurationRegistry,
-		session
-	});
-	assert.deepEqual(configured.pluginRegistry, {
-		fingerprint: configurationRegistry.fingerprint,
-		plugins: {
-			'@scope/configuration': {
-				version: '1.0.0',
-				protocolVersion: '1.0.0',
-				required: true,
-				compilerConfigKey: { mode: 'native' }
-			}
-		}
-	});
-
-	const htmlLibrary = publicCompiler.analyzeSource(
+	const htmlLibrary = internalCompiler.analyzeSource(
 		'import { unsafeHtml } from "@exactjs/core"; export function article(value: string) { return unsafeHtml(value); }',
 		{
 			filename: 'article.ts',
@@ -233,7 +216,7 @@ try {
 			session
 		}
 	);
-	const assetAnalysis = publicCompiler.analyzeSource(
+	const assetAnalysis = internalCompiler.analyzeSource(
 		'import "./app.scss"; import poster from "./poster.avif?url"; export const asset = poster;',
 		{
 			filename: 'assets.ts',
@@ -268,7 +251,7 @@ try {
 		assert.match(await readFile(artifacts.clientFile, 'utf8'), /Panel_ExactClient_1/);
 		assert.match(await readFile(artifacts.serverFile, 'utf8'), /createServerBoundary/);
 		assert.equal(
-			artifacts.analysis.symbols.some((symbol) => symbol.role === 'client-island'),
+			artifacts.build.clientRegistrations.length > 0,
 			true
 		);
 	} finally {

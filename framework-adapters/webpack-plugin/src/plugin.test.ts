@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	ExactWebpackPlugin,
 	addWebpackConditions,
+	addWebpackEnhancementAliases,
 	applyExactWebpackResolver,
 	createExactWebpackRule,
 	compilerSessionForWebpackLoader,
@@ -38,6 +39,46 @@ describe('@exactjs/webpack-plugin', () => {
 			sources: ['/src/view.tsx'],
 			sourcesContent: ['const view = <span />;']
 		});
+	});
+
+	it('links attributed capabilities into the shared application-bundle catalog', () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-webpack-enhancement-'));
+		const entry = path.join(root, 'entry.tsx');
+		const source = `import motion from './motion.js' with { type: 'exact-plugin' };
+			export const view = <article motion:preset="fade" />;`;
+		try {
+			writeFileSync(
+				path.join(root, 'tsconfig.json'),
+				JSON.stringify({
+					compilerOptions: {
+						module: 'nodenext',
+						moduleResolution: 'nodenext',
+						target: 'es2022',
+						jsx: 'preserve'
+					},
+					include: ['*.ts', '*.tsx']
+				})
+			);
+			writeFileSync(
+				path.join(root, 'motion.ts'),
+				`export { default } from './motion-implementation.js' with { type: 'exact-plugin' };`
+			);
+			writeFileSync(
+				path.join(root, 'motion-implementation.ts'),
+				`export default function Motion(props: { preset?: string; children?: unknown }) { return props.children; }`
+			);
+			writeFileSync(entry, source);
+
+			const result = transformExactWebpackSource(source, entry, {
+				applicationRoot: root,
+				reactCompatibility: false
+			});
+
+			expect(result?.code).toContain(`__exactRegisterEnhancement("./motion.js#default"`);
+			expect(result?.code).toContain('@exactjs/core/framework/enhancement-catalog');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	it('passes target options through to transforms', () => {
@@ -169,6 +210,20 @@ describe('@exactjs/webpack-plugin', () => {
 		expect(compiler.options.resolve?.conditionNames).toEqual(['exact-client', 'browser']);
 	});
 
+	it('adds renderer facade aliases without replacing application aliases', () => {
+		const compiler: WebpackCompilerLike = {
+			options: { resolve: { alias: { '@exactjs/dom$': '/custom/dom.js' } } }
+		};
+
+		addWebpackEnhancementAliases(compiler);
+
+		expect(compiler.options.resolve?.alias).toMatchObject({
+			'@exactjs/dom$': '/custom/dom.js',
+			'@exactjs/hydrate$': '@exactjs/hydrate/enhanced',
+			'@exactjs/ssr$': '@exactjs/ssr/enhanced'
+		});
+	});
+
 	it('creates a pre-loader rule', () => {
 		expect(createExactWebpackRule({ target: 'server' })).toMatchObject({
 			enforce: 'pre',
@@ -215,6 +270,11 @@ describe('@exactjs/webpack-plugin', () => {
 		new ExactWebpackPlugin({ target: 'server' }).apply(compiler);
 
 		expect(compiler.options.resolve?.conditionNames).toEqual(['exact-server']);
+		expect(compiler.options.resolve?.alias).toMatchObject({
+			'@exactjs/dom$': '@exactjs/dom/enhanced',
+			'@exactjs/hydrate$': '@exactjs/hydrate/enhanced',
+			'@exactjs/ssr$': '@exactjs/ssr/enhanced'
+		});
 		expect(compiler.options.module?.rules).toHaveLength(1);
 		expect(resolverFactory).toBeTypeOf('function');
 		expect(() =>

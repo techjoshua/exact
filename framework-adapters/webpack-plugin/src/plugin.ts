@@ -1,17 +1,16 @@
 import {
+	createLineSourceMap,
 	exactExportConditions,
-	transformSource,
 	type ExactAssetRule,
 	type ExactCompilerSession,
 	type TransformTarget
 } from '@exactjs/compiler';
-import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import {
-	profileTimestamp,
-	type ExactProfileEvent,
-	type ExactProfileSink
-} from '@exactjs/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+	createExactDiagnosticReporter,
+	prependExactEnhancementRegistrations,
+	transformExactAdapterModule
+} from '@exactjs/compiler/adapter-support';
+import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
@@ -34,6 +33,7 @@ import { webpackCompatibilityEngine } from './react-compatibility.js';
 import { shouldTransformWebpackModule, webpackTransformTarget } from './transform-selection.js';
 import {
 	addWebpackConditions,
+	addWebpackEnhancementAliases,
 	addWebpackReactAliases,
 	applyExactWebpackResolver
 } from './resolver.js';
@@ -44,6 +44,7 @@ import {
 } from './devtools.js';
 export {
 	addWebpackConditions,
+	addWebpackEnhancementAliases,
 	addWebpackReactAliases,
 	applyExactWebpackResolver,
 	resolveExactWebpackRequest
@@ -61,7 +62,6 @@ export type ExactWebpackPluginOptions = {
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
 	applicationRoot?: string;
 	configPath?: string;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
@@ -215,6 +215,7 @@ export class ExactWebpackPlugin {
 			compiler,
 			exactExportConditions(webpackTransformTarget(this.options), this.options)
 		);
+		addWebpackEnhancementAliases(compiler);
 		const reactCompatibility = resolveReactCompatibility(this.options.reactCompatibility);
 		if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
 		compiler.options.module ??= {};
@@ -295,67 +296,71 @@ export function transformExactWebpackSource(
 	session?: ExactCompilerSession
 ): { code: string; map: unknown } | null {
 	if (!shouldTransformWebpackModule(filename, source, options)) return null;
-	const profileStarted = options.onProfile ? profileTimestamp() : undefined;
-	try {
-		const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
-		const compatibilityEngine = reactCompatibility
-			? webpackCompatibilityEngine(options, session, reactCompatibility.target)
-			: undefined;
-		compatibilityEngine?.invalidate(filename);
-		const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
-		const reactOwned =
-			ownership === 'react' ||
-			(ownership === 'unknown' && usesReactRuntimeImports(source, filename));
-		if (reactOwned) {
-			if (!reactCompatibility) return null;
-			return transformReactJsx(source, {
-				filename,
-				target: reactCompatibility.target,
-				sourceMap: options.sourceMap ?? true
-			});
-		}
-		const result = transformSource(source, {
-			filename,
-			session,
-			target: webpackTransformTarget(options),
-			serverComponents: options.serverComponents,
-			sourceMap: options.sourceMap ?? true,
-			assetRules: options.assetRules,
-			preserveClientAssetImports: true,
-			pluginRegistry: options.pluginRegistry,
-			jsxInterop: compatibilityEngine?.jsxInterop,
-			emitInspection: options.target === 'server' && webpackDebugEnabled(options.debug?.catalog),
-			instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
-		});
-		if (result.inspectionCatalog)
-			recordWebpackInspectionModule(options.__exactSessionId, filename, source, {
-				inspection: result.inspectionCatalog,
-				redactions: result.inspectionRedactions,
-				debug: options.debug
-			});
-		const code =
-			options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)
-				? appendWebpackDevtoolsBootstrap(result.code, options.debug)
-				: result.code;
-		return {
-			code,
-			map: result.map
-		};
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		throw new Error(`eXact JSX transform failed for ${filename}\n${message}`);
-	} finally {
-		if (profileStarted !== undefined) {
-			options.onProfile?.(
-				Object.freeze({
-					subsystem: 'webpack-plugin',
-					phase: 'transform',
-					elapsedMs: profileTimestamp() - profileStarted,
-					attributes: Object.freeze({ filename })
-				})
-			);
-		}
-	}
+	const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
+	const compatibilityEngine = reactCompatibility
+		? webpackCompatibilityEngine(options, session, reactCompatibility.target)
+		: undefined;
+	const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
+	const output = transformExactAdapterModule({
+		source,
+		filename,
+		jsxOwnership: ownership,
+		usesReactRuntimeImports: usesReactRuntimeImports(source, filename),
+		transformReact: true,
+		shouldCompile: true,
+		invalidateCompatibility: () => compatibilityEngine?.invalidate(filename),
+		...(reactCompatibility
+			? {
+					react: () =>
+						transformReactJsx(source, {
+							filename,
+							target: reactCompatibility.target,
+							sourceMap: options.sourceMap ?? true
+						})
+				}
+			: {}),
+		compiler: {
+			options: {
+				session,
+				target: webpackTransformTarget(options),
+				serverComponents: options.serverComponents,
+				sourceMap: options.sourceMap ?? true,
+				assetRules: options.assetRules,
+				preserveClientAssetImports: true,
+				jsxInterop: compatibilityEngine?.jsxInterop,
+				emitInspection: options.target === 'server' && webpackDebugEnabled(options.debug?.catalog),
+				instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
+			},
+			finish: (result) => {
+				const enhanced = prependExactEnhancementRegistrations(
+					result.code,
+					result.rendererEnhancements
+				);
+				const code =
+					options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)
+						? appendWebpackDevtoolsBootstrap(enhanced, options.debug)
+						: enhanced;
+				return {
+					code,
+					map: options.sourceMap === false ? null : createLineSourceMap(filename, source, code)
+				};
+			},
+			inspection: (result) =>
+				result.inspectionCatalog
+					? {
+							inspection: result.inspectionCatalog,
+							redactions: result.inspectionRedactions,
+							debug: options.debug
+						}
+					: undefined
+		},
+		profile: options.onProfile
+			? { subsystem: 'webpack-plugin' as const, sink: options.onProfile }
+			: undefined
+	});
+	if (output?.inspection)
+		recordWebpackInspectionModule(options.__exactSessionId, filename, source, output.inspection);
+	return output ? { code: output.code, map: output.map } : null;
 }
 
 /** Prepares the application registry before invoking the synchronous webpack transform. */
@@ -365,19 +370,16 @@ export async function transformExactWebpackSourceAsync(
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession
 ): Promise<{ code: string; map: unknown } | null> {
-	if (options.pluginRegistry)
-		return transformExactWebpackSource(source, filename, options, session);
 	const registry = await prepareExactPluginRegistry({
 		applicationRoot: options.applicationRoot ?? path.dirname(filename),
 		configPath: options.configPath,
-		hostMode: 'compiler'
+		hostMode: 'build'
 	});
 	return transformExactWebpackSource(
 		source,
 		filename,
 		{
 			...options,
-			pluginRegistry: registry.compiler,
 			debug: options.debug ?? registry.config?.debug
 		},
 		session

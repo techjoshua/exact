@@ -202,6 +202,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 			'type',
 			'root',
 			'id',
+			'partition',
 			'opId',
 			'dependsOn',
 			'payload',
@@ -217,6 +218,8 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 	if (record.root !== undefined && (typeof record.root !== 'string' || !record.root))
 		throw new Error('invalid execution root');
 	if (typeof record.id !== 'string' || !record.id) throw new Error('invalid invocation id');
+	if (record.partition !== undefined && !isPartitionAuthority(record.partition))
+		throw new Error('invalid partition authority');
 	if (record.opId !== undefined && (typeof record.opId !== 'string' || !record.opId))
 		throw new Error('invalid operation id');
 	if (record.dependsOn !== undefined && !isStringList(record.dependsOn))
@@ -231,6 +234,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 		type: record.type,
 		...(typeof record.root === 'string' ? { root: record.root } : {}),
 		id: record.id,
+		...(record.partition === undefined ? {} : { partition: record.partition }),
 		...(typeof record.opId === 'string' ? { opId: record.opId } : {}),
 		...(Array.isArray(record.dependsOn) ? { dependsOn: record.dependsOn } : {}),
 		...(record.payload === undefined ? {} : { payload: record.payload }),
@@ -239,6 +243,55 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 		...(typeof record.boundaryHtml === 'string' ? { boundaryHtml: record.boundaryHtml } : {}),
 		...(record.boundaryHtmls === undefined ? {} : { boundaryHtmls: record.boundaryHtmls })
 	};
+}
+
+function isPartitionAuthority(value: unknown): value is ExactInvocationRequest['partition'] {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const authority = value as Record<string, unknown>;
+	if (
+		!hasOnlyKeys(authority, [
+			'version',
+			'buildKey',
+			'executionRoot',
+			'planEdgeId',
+			'ownerComponentId',
+			'discriminator',
+			'generation'
+		]) ||
+		authority.version !== 1 ||
+		typeof authority.buildKey !== 'string' ||
+		!authority.buildKey ||
+		typeof authority.executionRoot !== 'string' ||
+		!authority.executionRoot ||
+		typeof authority.planEdgeId !== 'string' ||
+		!authority.planEdgeId ||
+		typeof authority.ownerComponentId !== 'string' ||
+		!authority.ownerComponentId ||
+		!Number.isSafeInteger(authority.generation) ||
+		(authority.generation as number) < 1
+	)
+		return false;
+	return isPartitionDiscriminator(authority.discriminator);
+}
+
+function isPartitionDiscriminator(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const discriminator = value as Record<string, unknown>;
+	if (discriminator.kind === 'single') return hasOnlyKeys(discriminator, ['kind']);
+	if (discriminator.kind === 'branch')
+		return (
+			hasOnlyKeys(discriminator, ['kind', 'branch']) &&
+			typeof discriminator.branch === 'string' &&
+			!!discriminator.branch
+		);
+	return (
+		discriminator.kind === 'keyed' &&
+		hasOnlyKeys(discriminator, ['kind', 'list', 'keyToken']) &&
+		typeof discriminator.list === 'string' &&
+		!!discriminator.list &&
+		typeof discriminator.keyToken === 'string' &&
+		!!discriminator.keyToken
+	);
 }
 
 function isBoundaryHtmlMap(value: unknown): value is Record<string, string> {

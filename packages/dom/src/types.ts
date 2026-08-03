@@ -1,4 +1,5 @@
 import type {
+	EnhancementEntry,
 	ComponentFunction,
 	ComponentInstance,
 	ExactRuntimeInspectionOwner,
@@ -17,6 +18,7 @@ import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentati
 import type { EffectScope } from '@exactjs/reactive';
 import type { DomWorkBudget } from './work.js';
 import type { RetainedMountedRanges } from './renderer/retained-range.js';
+import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';
 
 /** Defines the mounted type contract. */
 export type Mounted = {
@@ -41,6 +43,13 @@ export type Mounted = {
 	rawNodes?: Node[];
 	/** Reserved framework-owned insertion point after authored host children. */
 	childEnd?: Node;
+	/** Active plugin-component chain whose public reconciliation identity remains the authored target. */
+	enhancement?: {
+		readonly entries: readonly EnhancementEntry[];
+		readonly inheritedIdentities: ReadonlySet<string>;
+		readonly target: Mounted;
+		readonly boundaries: ReadonlyMap<string, readonly Mounted[]>;
+	};
 	/** Retained native Activity state owned by this boundary mount. */
 	activity?: {
 		mode: ActivityMode;
@@ -89,8 +98,20 @@ export type Root = {
 	allowUnsafeHtml: boolean;
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	onProfile?: ExactProfileSink<DomProfileEvent>;
+	/** Trusted compiler-generated plugin capability catalog for this renderer root. */
+	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	/** Canonical unavailable identities already reported by this renderer root. */
+	unavailableEnhancements?: Set<string>;
+	/** Nested authored marker depth used to activate one complete logical declaration subtree. */
+	enhancementNesting?: number;
+	/** Guards patch-time route reconciliation while a changed declaration subtree is rebuilt. */
+	enhancementReconciliationDepth?: number;
+	/** Re-evaluates compiler-owned reactive root selectors for the current mounted tree. */
+	reconcileEnhancements?: () => void;
 	/** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
 	mode?: 'client' | 'hydrated' | 'document';
+	/** Becomes true after the root's first client mount or hydration adoption finishes. */
+	initialCommitComplete?: boolean;
 	/** Component ranges are inferred when the public server format omits eXact markers. */
 	markerlessHydration?: boolean;
 	/** Renderer-internal mounts parked during one cross-domain replacement transaction. */
@@ -98,6 +119,15 @@ export type Root = {
 		mounts: Map<VNode, Array<{ mounted: Mounted; parent: Node }>>;
 		commits: Array<() => void>;
 	};
+	/** Structurally absent ranges retained while component-root release work settles. */
+	releasing?: Set<{
+		readonly parent: Node;
+		readonly mounted: Mounted;
+		readonly execution: TaskFrameExecution<void>;
+		readonly generations: ReadonlyMap<ComponentInstance<any>, number>;
+		readonly activityToken: symbol;
+		finalized: boolean;
+	}>;
 };
 
 /** Configures render. */
@@ -116,6 +146,8 @@ export type RenderOptions = {
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	/** Receives coarse renderer timings and traversal counts. */
 	onProfile?: ExactProfileSink<DomProfileEvent>;
+	/** Trusted compiler-generated mapping from canonical plugin identity to component implementation. */
+	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
 	/** Internal shared budget used when hydration combines DOM scans and renderer work. */
 	workBudget?: DomWorkBudget;
 	/** Internal logical parent used by a late island mounted in a nested DOM root. */

@@ -10,7 +10,7 @@ import {
 	walkDomSubtree,
 	type DomWorkBudget
 } from '@exactjs/dom';
-import type { ExactPatch } from '@exactjs/server';
+import type { ExactPartitionAuthority, ExactPatch } from '@exactjs/server';
 import type { HydrationDiagnostic } from '../types.js';
 import { applyPatch } from './application.js';
 import { createProtocolIndex } from './indexing.js';
@@ -161,6 +161,64 @@ export function boundaryInnerHtml(
 	const index = createProtocolIndex(container, work, executionRoot);
 	if (!index) return undefined;
 	return indexedBoundaryHtml(container, index, id);
+}
+
+/** Reads one fully attributed partition instance from the bounded protocol index. */
+export function partitionAuthority(
+	container: Element,
+	id: string,
+	work?: number | DomWorkBudget,
+	executionRoot = 'page'
+): ExactPartitionAuthority | undefined {
+	const index = createProtocolIndex(container, work, executionRoot);
+	const marker = index && findServerSlotElement(container, id, index);
+	if (!marker) return undefined;
+	const version = Number(marker.getAttribute('data-exact-partition-version'));
+	const buildKey = marker.getAttribute('data-exact-partition-build');
+	const root = marker.getAttribute('data-exact-partition-root');
+	const planEdgeId = marker.getAttribute('data-exact-partition-edge');
+	const ownerComponentId = marker.getAttribute('data-exact-partition-owner');
+	const discriminator = partitionMarkerDiscriminator(marker);
+	const generation = Number(marker.getAttribute('data-exact-partition-generation'));
+	if (
+		version !== 1 ||
+		!buildKey ||
+		root !== executionRoot ||
+		!planEdgeId ||
+		!discriminator ||
+		(planEdgeId !== id &&
+			!(discriminator.kind === 'keyed' && id.startsWith(`${planEdgeId}:key:`))) ||
+		!ownerComponentId ||
+		!Number.isSafeInteger(generation) ||
+		generation < 1
+	)
+		return undefined;
+	return Object.freeze({
+		version: 1,
+		buildKey,
+		executionRoot: root,
+		planEdgeId,
+		ownerComponentId,
+		discriminator,
+		generation
+	});
+}
+
+function partitionMarkerDiscriminator(
+	marker: Element
+): ExactPartitionAuthority['discriminator'] | undefined {
+	const kind = marker.getAttribute('data-exact-partition-discriminator');
+	if (kind === 'single') return Object.freeze({ kind });
+	if (kind === 'branch') {
+		const branch = marker.getAttribute('data-exact-partition-branch');
+		return branch ? Object.freeze({ kind, branch }) : undefined;
+	}
+	if (kind === 'keyed') {
+		const list = marker.getAttribute('data-exact-partition-list');
+		const keyToken = marker.getAttribute('data-exact-partition-key');
+		return list && keyToken ? Object.freeze({ kind, list, keyToken }) : undefined;
+	}
+	return undefined;
 }
 
 /** Performs the boundary inner htmls domain operation. */

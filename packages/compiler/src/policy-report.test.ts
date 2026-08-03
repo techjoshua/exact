@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-	analyzeSource,
-	createExactPolicyAuditReport,
-	formatExactPolicyAuditReport
-} from './index.js';
+import { createExactPolicyAuditReport, formatExactPolicyAuditReport } from './policy-report.js';
+import { analyzeSource } from './compilation/source-analysis.js';
 
 describe('policy audit reports', () => {
 	it('reports which packages deliberately consume secret-qualified variables', () => {

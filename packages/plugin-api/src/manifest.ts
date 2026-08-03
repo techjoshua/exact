@@ -63,7 +63,7 @@ function readPlugin(value: unknown, label: string): ExactPluginDeclaration | und
 	const entriesRecord = requiredRecord(record.entries, `${label}.exact.plugin.entries`);
 	assertOnlyKeys(
 		entriesRecord,
-		['config', 'configTypes', 'compiler', 'server', 'render', 'client', 'testing'],
+		['config', 'configTypes', 'server', 'render', 'client', 'testing'],
 		`${label}.exact.plugin.entries`
 	);
 	const entries: Record<string, string> = {};
