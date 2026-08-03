@@ -1,7 +1,6 @@
 export type * from './contracts/transform.js';
 export type * from './contracts/policy.js';
 export type * from './contracts/analysis.js';
-export type * from './contracts/module-analysis.js';
 export type * from './contracts/compilation.js';
 export type * from './contracts/artifacts.js';
 export type * from './contracts/continuations.js';

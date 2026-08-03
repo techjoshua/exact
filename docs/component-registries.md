@@ -1,8 +1,6 @@
 # Finite component registries
 
 This document describes the implemented native component-registry contract.
-The design rationale and delivery inventory remain in
-[`proposals/safe-dynamic-component-registries.md`](proposals/safe-dynamic-component-registries.md).
 
 ## Declare a finite registry
 

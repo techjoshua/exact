@@ -13,7 +13,6 @@ import {
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
-	normalizeActivityMode,
 	renderInstance,
 	withTaskObserver,
 	type VNode
@@ -32,7 +31,6 @@ import {
 	boundedJoin,
 	countSsrNode,
 	isSsrRenderInterruption,
-	isSsrRenderLimitError,
 	withSsrTreeDepthAsync
 } from '../render/limits.js';
 import type {
@@ -45,11 +43,12 @@ import type {
 } from '../types.js';
 import {
 	componentMarkerId,
-	componentName,
-	getComponentProps,
 	renderResumableComponentBoundary,
-	renderServerBoundaryAsync
+	renderServerBoundaryAsync,
+	serverSlotOpening,
+	serverSlotVNodeReference
 } from './boundaries.js';
+import { componentName, getComponentProps } from './component-vnode.js';
 import { handleSsrConstructionError } from './construction-errors.js';
 import { awaitWithAbort, drainTasks } from './context.js';
 import { type SsrRenderOptions } from './entrypoints.js';
@@ -66,7 +65,12 @@ import {
 } from './host.js';
 import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { markDynamic } from './marker-identity.js';
-import { renderChildren } from './sync-tree.js';
+import {
+	resolveSsrActivityChildren,
+	resolveSsrDynamicChildren,
+	resolveSsrFragmentChildren
+} from './logical-children.js';
+import { activateSsrEnhancementsAsync } from './enhancements.js';
 
 /** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
@@ -124,6 +128,8 @@ export async function renderVNodeAsyncInner(
 	parent: ComponentInstance<any> | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
+	const enhanced = await activateSsrEnhancementsAsync(context, vnode, parent, options);
+	if (enhanced !== vnode) return renderVNodeAsync(context, enhanced, parent, options);
 	if (isCellVNode(vnode)) {
 		return markerPair(context, markerId(context, 'cell', undefined, vnode.key), async () =>
 			renderVNodeAsync(context, getCellVNode(vnode), parent, options)
@@ -141,14 +147,23 @@ export async function renderVNodeAsyncInner(
 	}
 
 	if (vnode.type === Activity) {
-		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
 		return markerPair(context, markerId(context, 'activity', undefined, vnode.key), async () =>
-			mode === 'active' ? await renderChildrenAsync(context, vnode.children, parent, options) : ''
+			renderChildrenAsync(context, resolveSsrActivityChildren(context, vnode), parent, options)
 		);
 	}
 
 	if (vnode.type === Suspense) {
 		const identity = markerId(context, 'suspense', undefined, vnode.key);
+		const prepared = context.preparedEnhancementSuspense.get(vnode);
+		if (prepared) {
+			try {
+				return await markerPair(context, suspenseStatusMarkerId(identity, prepared.status), () =>
+					renderChildrenAsync(context, prepared.children, prepared.parent, options)
+				);
+			} finally {
+				prepared.dispose();
+			}
+		}
 		const rendered = await renderNativeSuspenseAsync(context, vnode, parent, options);
 		return markerPair(
 			context,
@@ -158,28 +173,19 @@ export async function renderVNodeAsyncInner(
 	}
 
 	if (vnode.type === Fragment) {
-		const list = vnode.props.list as
-			| {
-					collection: Iterable<unknown>;
-					source?: { get(): Iterable<unknown> };
-					key(item: unknown): string;
-					render(item: unknown): VNode;
-			  }
-			| undefined;
+		const fragment = resolveSsrFragmentChildren(context, vnode);
 		const marker =
-			list && vnode.key
+			fragment.list && vnode.key
 				? exactMarkerId(vnode.key)
 				: markerId(context, 'fragment', undefined, vnode.key);
 		return markerPair(context, marker, async () => {
-			if (!list) return renderChildrenAsync(context, vnode.children, parent, options);
-			const collection = list.source ? list.source.get() : list.collection;
+			if (!fragment.list) return renderChildrenAsync(context, fragment.children, parent, options);
 			const html: string[] = [];
-			for (const item of collection) {
-				const key = String(list.key(item));
-				const child = list.render(item);
+			for (const child of fragment.children) {
+				if (!isVNode(child)) continue;
 				html.push(
-					await markerPair(context, markerId(context, 'item', undefined, key), async () =>
-						renderVNodeAsync(context, { ...child, key }, parent, options)
+					await markerPair(context, markerId(context, 'item', undefined, child.key), () =>
+						renderVNodeAsync(context, child, parent, options)
 					)
 				);
 			}
@@ -189,12 +195,7 @@ export async function renderVNodeAsyncInner(
 
 	if (vnode.type === Dynamic) {
 		return markDynamic(context, vnode, async () =>
-			renderChildrenAsync(
-				context,
-				normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]),
-				parent,
-				options
-			)
+			renderChildrenAsync(context, resolveSsrDynamicChildren(context, vnode), parent, options)
 		);
 	}
 
@@ -202,7 +203,10 @@ export async function renderVNodeAsyncInner(
 		return renderServerBoundaryAsync(context, vnode, parent, options);
 	}
 
-	if (vnode.type === ServerSlot) return '';
+	if (vnode.type === ServerSlot) {
+		if (!vnode.children.length) return '';
+		return `${serverSlotOpening(serverSlotVNodeReference(vnode), context)}${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`;
+	}
 
 	if (typeof vnode.type === 'function') {
 		return renderComponentAsync(context, vnode, parent, options);
@@ -274,62 +278,6 @@ async function renderNativeSuspenseAsync(
 	}
 }
 
-/** Transforms component into its required representation. */
-export function renderComponent(
-	context: SsrContext,
-	vnode: VNode,
-	parent?: ComponentInstance<any>
-): string {
-	const componentId = componentMarkerId(context, vnode);
-	const documentProbe = context.documentProbe && context.hostStack.length === 0;
-	let instance: ComponentInstance<any> | undefined;
-	let output!: string;
-	try {
-		const componentProps = getComponentProps(vnode);
-		instance = createComponentInstance(
-			vnode.type as ComponentFunction<any, Record<string, unknown>>,
-			componentProps,
-			parent,
-			context.componentContexts,
-			context.componentDomain
-		);
-		context.onComponentCreated?.(instance);
-		let invalidated = false;
-		let stabilized = false;
-		for (let pass = 0; pass < 25; pass++) {
-			if (documentProbe) resetDocumentProbe(context);
-			invalidated = false;
-			const children = renderInstance(instance, () => {
-				invalidated = true;
-			});
-			const html = renderChildren(context, children, instance);
-			flushSync();
-			if (!invalidated) {
-				output =
-					documentProbe && context.documentRootSeen
-						? html
-						: parent
-							? renderResumableComponentBoundary(context, vnode, componentId, html, componentProps)
-							: markerPair(context, componentId, () => html);
-				stabilized = true;
-				break;
-			}
-		}
-		if (!stabilized)
-			throw new Error('eXact SSR component did not stabilize after 25 render passes');
-	} catch (error) {
-		if (isSsrRenderLimitError(error)) throw error;
-		const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
-		const html = fallback ? renderChildren(context, normalizeRenderResult(fallback()), parent) : '';
-		output =
-			documentProbe && context.documentRootSeen
-				? html
-				: markerPair(context, componentId, () => html);
-	}
-	if (instance) context.onComponentRendered?.(instance);
-	return output;
-}
-
 /** Transforms component async into its required representation. */
 export async function renderComponentAsync(
 	context: SsrContext,
@@ -338,11 +286,30 @@ export async function renderComponentAsync(
 	options: SsrRenderOptions
 ): Promise<string> {
 	const componentId = componentMarkerId(context, vnode);
+	const enhancement = context.enhancementVNodes.has(vnode);
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	let instance: ComponentInstance<any> | undefined;
 	let primary: unknown = noPrimaryFailure;
 	try {
 		try {
+			const prepared = context.preparedEnhancementComponents.get(vnode);
+			if (prepared) {
+				instance = prepared.instance;
+				if (documentProbe) resetDocumentProbe(context);
+				const html = await renderChildrenAsync(
+					context,
+					prepared.children,
+					prepared.failed ? parent : (instance ?? parent),
+					options
+				);
+				return enhancement
+					? html
+					: documentProbe && context.documentRootSeen
+						? html
+						: parent
+							? renderResumableComponentBoundary(context, vnode, componentId, html, prepared.props)
+							: markerPair(context, componentId, () => html);
+			}
 			const pending = new Set<Promise<unknown>>();
 			const observer: TaskObserver = {
 				register: (promise) => {
@@ -376,11 +343,19 @@ export async function renderComponentAsync(
 				await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
 				flushSync();
 				if (!invalidated)
-					return documentProbe && context.documentRootSeen
+					return enhancement
 						? html
-						: parent
-							? renderResumableComponentBoundary(context, vnode, componentId, html, componentProps)
-							: markerPair(context, componentId, () => html);
+						: documentProbe && context.documentRootSeen
+							? html
+							: parent
+								? renderResumableComponentBoundary(
+										context,
+										vnode,
+										componentId,
+										html,
+										componentProps
+									)
+								: markerPair(context, componentId, () => html);
 			}
 			throw new Error(
 				`eXact async SSR component did not stabilize after ${maxPasses} render passes`
@@ -391,9 +366,11 @@ export async function renderComponentAsync(
 			const html = fallback
 				? await renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options)
 				: '';
-			return documentProbe && context.documentRootSeen
+			return enhancement
 				? html
-				: markerPair(context, componentId, () => html);
+				: documentProbe && context.documentRootSeen
+					? html
+					: markerPair(context, componentId, () => html);
 		}
 	} catch (error) {
 		primary = error;

@@ -2,7 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it } from 'vitest';
-import { applyPatches, createExactClient } from './index.js';
+import { createExactClient } from './index.js';
+import { applyPatches } from './patches.js';
 import { ndjsonResponse, noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate patch-application', () => {

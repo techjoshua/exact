@@ -11,7 +11,8 @@ import {
 	stageTaskMutation,
 	taskAwait,
 	type ActivityMode,
-	type Component
+	type Component,
+	type RootLifecycle
 } from '@exactjs/core';
 import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
@@ -33,9 +34,11 @@ describe('@exactjs/dom native Activity', () => {
 		const buttonRef = createRef<HTMLButtonElement>('counter');
 		let boundary!: Component<{ mode: ActivityMode }>;
 		let counter!: Component<{ count: number }>;
+		let counterRoot!: RootLifecycle<Element>;
 
 		function Counter(this: Component<{ count: number }>) {
 			counter = this;
+			counterRoot = this.refs.root();
 			this.state.count = 0;
 			return () =>
 				createCompiledVNode(
@@ -64,6 +67,8 @@ describe('@exactjs/dom native Activity', () => {
 		flushSync();
 		expect(container.querySelector('button')).toBeNull();
 		expect(counter.refs.get(buttonRef)).toBe(button);
+		expect(counterRoot.current).toBe(button);
+		expect(counterRoot.presented).toBe(false);
 		const inspected = inspectDomRoot(container);
 		const activityNode = inspected ? findActivity(inspected) : undefined;
 		expect(activityNode?.activity).toMatchObject({
@@ -79,6 +84,7 @@ describe('@exactjs/dom native Activity', () => {
 		flushSync();
 		expect(container.querySelector('button')).toBe(button);
 		expect(button.textContent).toBe('2');
+		expect(counterRoot.presented).toBe(true);
 
 		unmount(container);
 		expect(counter.refs.get(buttonRef)).toBeUndefined();

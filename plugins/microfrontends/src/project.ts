@@ -3,7 +3,6 @@ import {
 	createExactArtifactGraph,
 	type ExactArtifactGraph
 } from '@exactjs/compiler';
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -11,7 +10,7 @@ import ts from 'typescript';
 import { createExactRemoteArtifactPlan, resolveExactBuildKey } from './build.js';
 import { generateExactClientBindingsBootstrap } from './artifacts.js';
 import type { ExactMicrofrontendConfig } from './config.js';
-import type { ExactMicrofrontendCompilerConfig } from './plugin-config.js';
+import type { ExactMicrofrontendBuildConfig } from './plugin-config.js';
 
 /** Retains the shared exposure plan and optional compiler graph prepared for one bundler build. */
 export type ExactPreparedRemoteArtifactBuild = {
@@ -23,17 +22,16 @@ export type ExactPreparedRemoteArtifactBuild = {
 /** Prepares the common artifact plan and compiler graph used by bundler adapters. */
 export async function prepareExactRemoteArtifactBuild(options: {
 	applicationRoot: string;
-	compilerConfig: ExactMicrofrontendCompilerConfig;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
+	buildConfig: ExactMicrofrontendBuildConfig;
 	serverComponents?: boolean;
 	buildKey?: string;
 }): Promise<ExactPreparedRemoteArtifactBuild> {
 	const applicationRoot = path.resolve(options.applicationRoot);
 	const packageName = await applicationPackageName(applicationRoot);
 	const config: ExactMicrofrontendConfig = {
-		exposes: Object.fromEntries(options.compilerConfig.exposes),
+		exposes: Object.fromEntries(options.buildConfig.exposes),
 		remotes: {},
-		providedPackages: [...options.compilerConfig.providedPackages]
+		providedPackages: [...options.buildConfig.providedPackages]
 	};
 	const basePlan = createExactRemoteArtifactPlan(config, {
 		packageName,
@@ -42,14 +40,14 @@ export async function prepareExactRemoteArtifactBuild(options: {
 	const plan = Object.freeze({
 		...basePlan,
 		providedBootstrapSource: `${basePlan.providedBootstrapSource}${generateExactClientBindingsBootstrap(
-			options.compilerConfig.remoteBindings,
+			options.buildConfig.remoteBindings,
 			{ applicationRoot }
 		)}`
 	});
 	if (!plan.exposures.length)
 		return Object.freeze({
 			plan,
-			hasRemoteBindings: options.compilerConfig.remoteBindings.length > 0
+			hasRemoteBindings: options.buildConfig.remoteBindings.length > 0
 		});
 
 	const exposureFiles = plan.exposures.map((exposure) =>
@@ -62,7 +60,6 @@ export async function prepareExactRemoteArtifactBuild(options: {
 			outDir: temporaryOutput,
 			rootDir: applicationRoot,
 			serverComponents: options.serverComponents,
-			pluginRegistry: options.pluginRegistry
 		});
 		const graph = createExactArtifactGraph(results, {
 			packageRoot: applicationRoot,
@@ -72,7 +69,7 @@ export async function prepareExactRemoteArtifactBuild(options: {
 		return Object.freeze({
 			plan,
 			artifactGraph: graph,
-			hasRemoteBindings: options.compilerConfig.remoteBindings.length > 0
+			hasRemoteBindings: options.buildConfig.remoteBindings.length > 0
 		});
 	} finally {
 		await rm(temporaryOutput, { recursive: true });

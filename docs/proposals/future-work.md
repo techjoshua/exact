@@ -47,21 +47,40 @@ See [`javascript-runtime-object-layout.md`](javascript-runtime-object-layout.md)
 for the initial measurements, rejected options, prioritized experiments, and
 acceptance gates.
 
-## Partial prerender and resume
+## Progressive native forms and file transport
 
-Native eXact progressive SSR can emit a fallback shell and reveal settled
-Suspense ranges. It does not yet stop a prerender, serialize a resumable
-component/task continuation record, and resume that work in a later request.
+Task-owned forms currently coordinate validation, pending UI, optimism, server invocation, and
+router work. Investigate a compiler-generated, no-JavaScript submission contract only after the
+transport can preserve the same allowlisting, context, cancellation, validation, redirect, and
+settlement guarantees as the hydrated path.
 
-An eXact design should serialize compiler-defined continuation state rather
-than renderer call stacks. It must answer:
+File uploads need a separate streaming policy covering size limits, content validation, temporary
+storage ownership, cleanup, cancellation, replay protection, and deployment-specific storage.
+Do not encode those concerns as ordinary serialized task arguments or imply progressive behavior
+that the generated server artifact cannot actually provide.
 
-- which component instances and task generations are resumable;
-- how request/application contexts are reacquired;
-- how build identity and operation contracts are pinned;
-- how secret and server-only values are excluded;
-- how stale or retired deployments fail; and
-- whether resumption continues on a server, a client, or either.
+## Registry scope beyond finite local graphs
+
+Native component registries intentionally describe a finite, immutable set of compiler-visible
+components. Possible later work includes stronger production-graph verification, signed remote
+entry installation, inactive-instance caching, standalone lazy components, and preload heuristics.
+
+Any remote or runtime-extensible design must define deployment trust, version and artifact
+identity, placement, SSR and hydration authority, stale-load fencing, and cleanup. It must not
+weaken `createComponentRegistry()` by treating arbitrary authored strings as component or protocol
+identity. React-owned values should continue to cross the explicit compatibility boundary unless
+a future compiler-owned contract can prove ownership.
+
+## Optional visual and simulation adapters
+
+Motion, gestures, physics, and gravity compose today through ordinary state, callbacks, contexts,
+task ownership, and the physics force seam. Consider convenience adapters only where repeated
+application code demonstrates a stable cross-package contract. Keep each base package independently
+usable and avoid introducing a required dependency cycle.
+
+Related experiments may evaluate shared-layout coordination across independently updated roots and
+worker-oriented physics helpers. They must preserve renderer-owned DOM identity, deterministic
+simulation, generation fencing, cancellation, and bounded inspection.
 
 ## Reactive secret rotation
 
@@ -77,18 +96,6 @@ logs, diagnostics, profiling, or public source maps.
 Open questions include whether the reactive value represents availability,
 value, version, or a combination; how in-flight work is cancelled; and which
 contract survives package publication.
-
-## Complete microfrontend host coverage
-
-The trusted microfrontend reference path is implemented for Vite/Rollup.
-Webpack and Bun have artifact-mapping proofs but need complete lifecycle
-integration and heterogeneous producer/consumer conformance before being
-advertised.
-
-Possible later work also includes primary page-bundle replacement and
-component-authenticated protocol messages. Deployment discovery, signing, and
-rollout control remain platform concerns unless a concrete framework invariant
-requires otherwise.
 
 ## Reactive Sudoku sample
 

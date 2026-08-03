@@ -49,6 +49,7 @@ export function createExactSourceInspection(
 			typescriptVersion: response.typescriptVersion,
 			backendVersion: response.backendVersion
 		}),
+		partitionPlan: freezePartitionPlan(response.analysis.partitionPlan),
 		components: Object.freeze(components),
 		diagnostics: Object.freeze(
 			// TypeScript diagnostics remain available from the native response for builds,
@@ -56,6 +57,35 @@ export function createExactSourceInspection(
 			response.diagnostics
 				.filter(isExactCompilerDiagnostic)
 				.map((diagnostic) => sourceDiagnostic(filename, source, diagnostic, response.analysis))
+		)
+	});
+}
+
+function freezePartitionPlan(
+	plan: NativeCompilerAnalysis['partitionPlan']
+): ExactSourceInspection['partitionPlan'] {
+	return Object.freeze({
+		...plan,
+		version: 1,
+		roots: Object.freeze([...plan.roots]),
+		nodes: Object.freeze(
+			plan.nodes.map((node) =>
+				Object.freeze({
+					...node,
+					artifactTargets: Object.freeze([...node.artifactTargets]),
+					renderPath: Object.freeze([...node.renderPath]),
+					childEdges: Object.freeze([...node.childEdges])
+				})
+			)
+		),
+		edges: Object.freeze(
+			plan.edges.map((edge) =>
+				Object.freeze({
+					...edge,
+					data: Object.freeze(edge.data.map((slot) => Object.freeze({ ...slot }))),
+					renderPath: Object.freeze([...edge.renderPath])
+				})
+			)
 		)
 	});
 }

@@ -26,10 +26,12 @@ Language sessions are permanently `noEmit: true`: they never write JavaScript,
 target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
-Native protocol 1.25 retains `setupExecution` on authored state assignments
-across source normalization, distinguishing one-time initialization from
-deferred reactive calculation. Analysis responses remap those assignment spans
-to the original source before returning them to the language service.
+Native protocol 1.27 and generated component-contract version 2 carry the normalized recursive
+partition plan, including ordinary enhancement-component owners, structural templates,
+crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains
+`setupExecution` on authored state assignments across source normalization, distinguishing
+one-time initialization from deferred reactive calculation. Analysis responses remap those
+assignment spans to the original source before returning them to the language service.
 See [Compiler-aware language tools](language-tools.md).
 
 ## Application and compiler TypeScript versions
@@ -67,7 +69,10 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
-diagnostics, and dispose it when the build closes.
+diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share one tool-neutral
+transformation kernel for JSX ownership, React compatibility selection, native compilation,
+inspection controls, instrumentation, source results, and contextual failures. Resolution, HMR,
+asset emission, and build-tool lifecycle behavior remain adapter-owned.
 
 Generated operation identifiers, ephemeral module analysis, helper imports, and lowered source
 are compiler-session details. Applications should depend on authored TypeScript behavior and

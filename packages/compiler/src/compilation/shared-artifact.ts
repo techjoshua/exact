@@ -1,6 +1,7 @@
 import { unlink } from 'node:fs/promises';
 import path from 'node:path';
-import type { ExactModuleAnalysis, TransformResult } from '../types.js';
+import type { TransformResult } from '../types.js';
+import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 
 /** Performs the shared artifact result domain operation. */
 export function sharedArtifactResult(
@@ -12,7 +13,7 @@ export function sharedArtifactResult(
 		client.code !== server.code ||
 		analysis.assets.length ||
 		analysis.boundaries.length ||
-		Object.keys(analysis.serverActions).length ||
+		analysis.continuations.some((continuation) => continuation.invocation) ||
 		analysis.components.some(
 			(component) =>
 				component.tasks.length || component.contexts.length || component.clientIslandCount

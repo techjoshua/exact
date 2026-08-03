@@ -150,24 +150,30 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<h2>Works beside TypeScript</h2>
 				<p>
 					VS Code's TypeScript extension continues to provide completion, rename, navigation,
-					formatting, and ordinary type diagnostics. The separate eXact language server adds only
-					framework-owned diagnostics, semantic modifiers, hovers, operation badges, CodeLens,
-					symbols, code actions, and the read-only Compiler Separation view. It filters ordinary
-					TypeScript diagnostics from compiler inspection so refactors do not leave a duplicate
-					squiggle behind.
+					formatting, and ordinary type diagnostics. A narrow bundled TypeScript plugin gives local
+					component functions the enclosing authored receiver for <code>this.</code> completion and
+					removes the corresponding implicit-<code>this</code> false positive. Attributed
+					enhancement imports count as used, and typing a prefix such as <code>motion:</code>{' '}
+					completes the callable&apos;s finite public props in kebab-case plus the reserved{' '}
+					<code>root</code> selector. Unrelated TypeScript diagnostics remain unchanged.
+				</p>
+				<p>
+					The separate eXact language server adds framework-owned diagnostics, semantic modifiers,
+					hovers, operation badges, CodeLens, symbols, code actions, and the read-only Compiler
+					Separation view. It filters ordinary TypeScript diagnostics from compiler inspection so
+					refactors do not leave a duplicate squiggle behind.
 				</p>
 				<p>
 					Task diagnostics describe local task functions, activation sites, and final{' '}
-					<code>TaskContext</code> policy. Compatibility parsing can still recognize legacy task
-					registrations for migration, but fixes never recommend authoring the removed API.
+					<code>TaskContext</code> policy. Removed component registration APIs receive no special
+					parsing, classification, diagnostics, or migration behavior.
 				</p>
 				<p>
 					Badges sit at token boundaries: before an assignment or immediately after a call's opening
 					parenthesis. <code>⚙</code> marks a specific one-time state initialization;{' '}
-					<code>⚡</code> on an assignment marks a deferred reactive calculation. Composable task
-					and action badges use <code>📋</code>, <code>▶</code>, <code>🖥</code> or <code>📱</code>{' '}
-					for placement, <code>⏳</code> for deferred priority, and <code>🚨</code> for immediate
-					publication.
+					<code>⚡</code> on an assignment marks a deferred reactive calculation. Task badges use{' '}
+					<code>📋</code>, <code>🖥</code> or <code>📱</code> for placement, <code>⏳</code> for
+					deferred priority, and <code>🚨</code> for immediate publication.
 				</p>
 				<p>
 					eXact hover and region markers are limited to the selected operation or identifier. They
@@ -220,11 +226,12 @@ export function LanguageToolsPage(this: Component<{}>) {
 					title="Extension Development Host"
 				/>
 				<p>
-					The launcher builds the language server and VS Code client, prefers that freshly built
-					sibling over any installed dependency copy, and opens a fresh development host. Use{' '}
-					<code>--skip-build</code> when reusing current output or <code>--dry-run</code> to inspect
-					the launch plan. Trust the opened workspace and open a TypeScript or TSX file to activate
-					eXact Language Tools.
+					The launcher builds the language server and bundles the VS Code client beneath its
+					registered extension path, leaving only VS Code&apos;s host API external. It prefers the
+					freshly built sibling server over any installed dependency copy and opens a fresh
+					development host. Use <code>--skip-build</code> when reusing current output or{' '}
+					<code>--dry-run</code> to inspect the launch plan. Trust the opened workspace and open a
+					TypeScript or TSX file to activate eXact Language Tools.
 				</p>
 			</section>
 			<Callout title="One compiler authority">

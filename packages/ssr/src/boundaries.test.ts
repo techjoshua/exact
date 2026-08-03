@@ -1,4 +1,9 @@
-import { createServerBoundary, createTextVNode, type Component } from '@exactjs/core';
+import {
+	createKeyedServerSlot,
+	createServerBoundary,
+	createTextVNode,
+	type Component
+} from '@exactjs/core';
 import { createVNode } from './test-support/native-vnode.js';
 import {
 	defineExactOperationContract,
@@ -91,6 +96,127 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(result.html).toContain(
 			'&quot;__exactServerSlot&quot;:&quot;island-children:children&quot;'
 		);
+	});
+
+	it('renders independently adoptable partition slots for client-boundary children', async () => {
+		const boundary = createServerBoundary(
+			'island-partitioned',
+			'Shell_ExactClient_1',
+			{ __exactServerSlots: ['summary-edge', 'permissions-edge'] },
+			createVNode('p', null, 'Summary'),
+			createVNode('p', null, 'Permissions')
+		);
+		for (const html of [
+			renderToString(boundary).html,
+			(await renderToStringAsync(boundary)).html
+		]) {
+			expect(html).toContain('data-exact-server-slot="summary-edge"');
+			expect(html).toContain('data-exact-server-slot="permissions-edge"');
+			expect(html).toContain(
+				'&quot;children&quot;:[{&quot;__exactServerSlot&quot;:&quot;summary-edge&quot;},{&quot;__exactServerSlot&quot;:&quot;permissions-edge&quot;}]'
+			);
+			expect(html).not.toContain('__exactServerSlots');
+		}
+	});
+
+	it('emits the complete partition authority tuple for compiler-planned ranges', () => {
+		const reference = {
+			__exactServerSlot: 'summary-edge',
+			planVersion: 1,
+			buildKey: 'build-1',
+			planEdgeId: 'summary-edge',
+			ownerComponentId: 'workspace-component',
+			discriminator: { kind: 'single' as const },
+			generation: 1
+		};
+		const html = renderToString(
+			createServerBoundary(
+				'island-partitioned',
+				'Shell_ExactClient_1',
+				{ __exactServerSlots: [reference] },
+				createVNode('p', null, 'Summary')
+			),
+			{ buildKey: 'build-1', executionRoot: 'page' }
+		).html;
+		expect(html).toContain('data-exact-partition-build="build-1"');
+		expect(html).toContain('data-exact-partition-root="page"');
+		expect(html).toContain('data-exact-partition-edge="summary-edge"');
+		expect(html).toContain('data-exact-partition-owner="workspace-component"');
+		expect(html).toContain('&quot;generation&quot;:1');
+	});
+
+	it('emits opaque branch and keyed instance discriminators', () => {
+		const slot = (
+			id: string,
+			discriminator:
+				| { kind: 'branch'; branch: string }
+				| { kind: 'keyed'; list: string; keyToken: string }
+		) => ({
+			__exactServerSlot: id,
+			planVersion: 1,
+			buildKey: 'build-1',
+			planEdgeId: id,
+			ownerComponentId: 'workspace-component',
+			discriminator,
+			generation: 2
+		});
+		const html = renderToString(
+			createServerBoundary(
+				'island-structured',
+				'Shell_ExactClient_1',
+				{
+					__exactServerSlots: [
+						slot('remote-branch', { kind: 'branch', branch: 'remote-branch' }),
+						slot('row-edge', { kind: 'keyed', list: 'rows-template', keyToken: 'row:7' })
+					]
+				},
+				createVNode('p', null, 'Remote'),
+				createVNode('p', null, 'Row')
+			),
+			{ buildKey: 'build-1', executionRoot: 'page' }
+		).html;
+
+		expect(html).toContain('data-exact-partition-branch="remote-branch"');
+		expect(html).toContain('data-exact-partition-list="rows-template"');
+		expect(html).toContain('data-exact-partition-key="row:7"');
+	});
+
+	it('renders standalone keyed ranges emitted inside structural callbacks', () => {
+		const html = renderToString(
+			createKeyedServerSlot(
+				'row-edge',
+				'rows-template',
+				7,
+				{
+					planVersion: 1,
+					buildKey: 'build-1',
+					planEdgeId: 'row-edge',
+					ownerComponentId: 'rows-component',
+					generation: 2
+				},
+				createVNode('p', null, 'Row seven')
+			),
+			{ buildKey: 'build-1', executionRoot: 'page' }
+		).html;
+
+		expect(html).toContain('data-exact-server-slot="row-edge:key:7"');
+		expect(html).toContain('data-exact-partition-list="rows-template"');
+		expect(html).toContain('data-exact-partition-key="7"');
+		expect(html).toContain('<p>Row seven</p>');
+	});
+
+	it('rejects malformed partition slot metadata before publishing markup', () => {
+		expect(() =>
+			renderToString(
+				createServerBoundary(
+					'island-partitioned',
+					'Shell_ExactClient_1',
+					{ __exactServerSlots: ['duplicate', 'duplicate'] },
+					createVNode('p', null, 'Summary'),
+					createVNode('p', null, 'Permissions')
+				)
+			)
+		).toThrow('partition slots must uniquely identify every server child');
 	});
 
 	it('serializes state-derived client boundary props at render time', () => {

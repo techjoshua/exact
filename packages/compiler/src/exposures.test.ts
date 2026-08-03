@@ -25,6 +25,55 @@ describe('exposure artifact graph selection', () => {
 		);
 	});
 
+	it('derives exposure reachability from partition component ownership', () => {
+		const graph = fixtureGraph();
+		graph.componentEdges = [];
+		const node = (id: string, componentContract: string, childEdges: string[]) => ({
+			id,
+			kind: 'component' as const,
+			componentContract,
+			ownerComponent: id,
+			placement: 'either' as const,
+			artifactTargets: ['client', 'server'] as const,
+			activation: 'eager' as const,
+			refreshAuthority: 'none' as const,
+			start: 0,
+			length: 1,
+			renderPath: [],
+			childEdges
+		});
+		graph.partitionPlans = [
+			{
+				inputFile: '/src/billing.tsx',
+				plan: {
+					version: 1,
+					buildKey: 'build',
+					roots: ['billing-node'],
+					nodes: [
+						node('billing-node', 'billing', ['billing-button']),
+						node('button-node', 'button', [])
+					],
+					edges: [
+						{
+							id: 'billing-button',
+							parent: 'billing-node',
+							child: 'button-node',
+							kind: 'component',
+							cardinality: 'one',
+							data: [],
+							fallback: 'billing-node',
+							start: 0,
+							length: 1,
+							renderPath: []
+						}
+					]
+				}
+			}
+		];
+
+		expect([...exactReachableExposureComponents(graph, 'billing')]).toEqual(['billing', 'button']);
+	});
+
 	it('partitions server-owned inspection data to the reachable exposure', () => {
 		const inspection = {
 			generation: 1,
@@ -55,47 +104,15 @@ function fixtureGraph(): ExactArtifactGraph {
 		inputFile,
 		clientFile: `${inputFile}.client.js`,
 		serverFile: `${inputFile}.server.js`,
-		analysis: {
-			version: 1 as const,
-			filename: inputFile,
-			dependencies: [],
-			assets: [],
-			components: [
-				{
-					id,
-					name: id,
-					exported: true,
-					placement: 'isomorphic' as const,
-					subgraphPlacement: 'isomorphic' as const,
-					renderEdges: [],
-					clientIslandCount: 0,
-					tasks: [],
-					contexts: [],
-					splitBoundaries: [],
-					diagnostics: []
-				}
-			],
-			exports: [],
-			symbols: [],
-			boundaries: [],
-			callables: [],
-			continuations: [],
-			resumptions: [],
-			policy: {
-				version: 1 as const,
-				capabilities: [],
-				subjects: [],
-				flows: [],
-				secretConsumers: []
-			},
-			serverActions: {},
-			diagnostics: []
-		}
+		dependencies: [],
+		componentIds: [id],
+		exposureRoots: [{ componentId: id, exportName: 'default' }]
 	});
 	const billing = artifact('/src/billing.tsx', 'billing');
 	const button = artifact('/src/button.tsx', 'button');
 	const admin = artifact('/src/admin.tsx', 'admin');
 	return {
+		buildKey: 'build',
 		conditions: { client: ['exact-client'], server: ['exact-server'] },
 		packageExports: {},
 		componentEdges: [
@@ -145,6 +162,9 @@ function fixtureGraph(): ExactArtifactGraph {
 				componentId: 'admin'
 			}
 		],
+		operations: [],
+		boundaries: [],
+		partitionPlans: [],
 		artifacts: [billing, button, admin]
 	};
 }

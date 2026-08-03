@@ -11,7 +11,6 @@ type GameControlsProps = {
 	canUndo: boolean;
 	canRedo: boolean;
 	paused: boolean;
-	remaining: number;
 	digitProgress: readonly DigitPlacementProgress[];
 };
 
@@ -50,7 +49,7 @@ export function GameControls(this: Component<{}>, props: GameControlsProps) {
 			<div className="control-row">
 				<button
 					type="button"
-					className="tool-button"
+					className="tool-button tool-button-notes"
 					className:is-active={props.noteMode}
 					aria-pressed={props.noteMode}
 					onClick={() => game.toggleNotes()}
@@ -61,7 +60,7 @@ export function GameControls(this: Component<{}>, props: GameControlsProps) {
 				</button>
 				<button
 					type="button"
-					className="tool-button"
+					className="tool-button tool-button-erase"
 					onClick={() => game.erase()}
 					disabled={props.paused}
 				>
@@ -70,7 +69,7 @@ export function GameControls(this: Component<{}>, props: GameControlsProps) {
 				</button>
 				<button
 					type="button"
-					className="tool-button"
+					className="tool-button tool-button-undo"
 					onClick={() => game.undo()}
 					disabled={!props.canUndo || props.paused}
 				>
@@ -79,7 +78,7 @@ export function GameControls(this: Component<{}>, props: GameControlsProps) {
 				</button>
 				<button
 					type="button"
-					className="tool-button"
+					className="tool-button tool-button-redo"
 					onClick={() => game.redo()}
 					disabled={!props.canRedo || props.paused}
 				>
@@ -91,14 +90,6 @@ export function GameControls(this: Component<{}>, props: GameControlsProps) {
 				<span aria-hidden="true">↻</span>
 				New puzzle
 			</button>
-			<p className="remaining-copy">
-				{props.selectedDigit === undefined
-					? 'Choose a number, then tap cells'
-					: `${props.selectedDigit} selected · tap cells to ${
-							props.noteMode ? 'toggle pencil marks' : 'fill them'
-						}`}
-				<span> · {props.remaining} cells waiting</span>
-			</p>
 		</section>
 	);
 }

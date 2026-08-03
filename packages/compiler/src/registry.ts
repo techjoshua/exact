@@ -3,11 +3,10 @@ import { clientRegistryModulePath } from './paths.js';
 import type {
 	ClientIslandRegistryEntry,
 	ClientIslandRegistryOptions,
+	ExactComponentRegistryEntry,
 	ExactArtifactGraph,
 	ExactArtifactGraphInput,
-	ExactContinuationIR,
 	ExactHydrationRegistrationModuleOptions,
-	ExactSymbolIR,
 	ServerPartRegistryEntry,
 	ServerPartRegistryOptions
 } from './types.js';
@@ -17,29 +16,7 @@ export function clientIslandRegistryEntries(
 	results: readonly ExactArtifactGraphInput[],
 	options: ClientIslandRegistryOptions = {}
 ): ClientIslandRegistryEntry[] {
-	const entries: ClientIslandRegistryEntry[] = [];
-
-	for (const result of results) {
-		const modulePath = clientRegistryModulePath(
-			result.clientFile,
-			options.rootDir ?? path.dirname(result.clientFile)
-		);
-		const continuationComponents = new Set(
-			result.analysis.continuations.map((continuation) => continuation.componentId)
-		);
-		for (const symbol of result.analysis.symbols) {
-			if (!clientRegistrySymbol(symbol, continuationComponents)) continue;
-			entries.push({
-				id: symbol.id,
-				name: symbol.generatedName,
-				exportName: symbol.exportName,
-				module: modulePath,
-				componentId: symbol.componentId
-			});
-		}
-	}
-
-	return entries.sort((left, right) => left.id.localeCompare(right.id));
+	return componentRegistryEntries(results, 'client', options.rootDir);
 }
 
 /** Creates registry entries for generated server component parts from compiled artifacts. */
@@ -47,26 +24,22 @@ export function serverPartRegistryEntries(
 	results: readonly ExactArtifactGraphInput[],
 	options: ServerPartRegistryOptions = {}
 ): ServerPartRegistryEntry[] {
-	const entries: ServerPartRegistryEntry[] = [];
+	return componentRegistryEntries(results, 'server', options.rootDir);
+}
 
+function componentRegistryEntries(
+	results: readonly ExactArtifactGraphInput[],
+	target: 'client' | 'server',
+	rootDir: string | undefined
+): ExactComponentRegistryEntry[] {
+	const entries: ExactComponentRegistryEntry[] = [];
 	for (const result of results) {
-		const modulePath = clientRegistryModulePath(
-			result.serverFile,
-			options.rootDir ?? path.dirname(result.serverFile)
-		);
-		for (const symbol of result.analysis.symbols) {
-			if (symbol.role !== 'server-part' || symbol.target !== 'server' || !symbol.exportName)
-				continue;
-			entries.push({
-				id: symbol.id,
-				name: symbol.generatedName,
-				exportName: symbol.exportName,
-				module: modulePath,
-				componentId: symbol.componentId
-			});
-		}
+		const targetFile = target === 'client' ? result.clientFile : result.serverFile;
+		const module = clientRegistryModulePath(targetFile, rootDir ?? path.dirname(targetFile));
+		const registrations =
+			target === 'client' ? result.build.clientRegistrations : result.build.serverRegistrations;
+		for (const registration of registrations) entries.push({ ...registration, module });
 	}
-
 	return entries.sort((left, right) => left.id.localeCompare(right.id));
 }
 
@@ -106,10 +79,11 @@ function createClientDescriptorCompositionModule(
 	const islands = entries.map((entry) => {
 		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(runtimeModuleSpecifier(entry.module))}).then((module) => module[${JSON.stringify(entry.exportName)}]))`;
 	});
-	const continuationValues = continuationDescriptorValues(
-		graph.artifacts.flatMap((artifact) => artifact.analysis.continuations),
-		true
-	);
+	const continuationValues = graph.operations.map((continuation) => ({
+		...continuation,
+		serverContexts: [],
+		serverContextWrites: []
+	}));
 	const continuations: Record<string, Record<string, unknown>> = {};
 	for (const continuation of continuationValues) {
 		const id = continuation.id;
@@ -130,67 +104,6 @@ function createClientDescriptorCompositionModule(
 		'}).continuations;',
 		''
 	].join('\n');
-}
-
-function continuationDescriptorValues(
-	continuations: readonly ExactContinuationIR[],
-	client: boolean
-): readonly Record<string, unknown>[] {
-	return continuations.map((continuation) => ({
-		kind: continuation.kind,
-		id: continuation.id,
-		componentId: continuation.componentId,
-		readiness: continuation.readiness,
-		dependencies: continuation.activation.dependencies.map(({ source }) => ({ source })),
-		stateReads: continuation.activation.stateReads.map(statePathDescriptor),
-		stateWrites: continuation.effects.stateWrites.map(statePathDescriptor),
-		publicContexts: continuation.activation.publicContexts.map((context) => context.token),
-		serverContexts: client
-			? []
-			: continuation.activation.serverContexts.map((context) => context.token),
-		contextWrites: continuation.effects.contextWrites.map((context) => context.token),
-		serverContextWrites: client
-			? []
-			: continuation.effects.serverContextWrites.map((context) => context.token),
-		boundaries: continuation.effects.boundaries,
-		...(continuation.invocation
-			? {
-					invocation: {
-						arguments: continuation.invocation.arguments.map(({ source }) => ({ source })),
-						concurrency: continuation.invocation.concurrency
-					}
-				}
-			: {})
-	}));
-}
-
-function statePathDescriptor(
-	effect: ExactContinuationIR['activation']['stateReads'][number]
-): Record<string, unknown> {
-	return {
-		path: effect.path,
-		kind: effect.kind,
-		confidence: effect.confidence
-	};
-}
-
-function clientRegistrySymbol(
-	symbol: ExactSymbolIR,
-	continuationComponents: ReadonlySet<string>
-): symbol is ExactSymbolIR & { exportName: string } {
-	if (!symbol.exportName) return false;
-	return (
-		(symbol.target === 'client' &&
-			(symbol.role === 'client-island' ||
-				(symbol.role === 'root' &&
-					symbol.kind === 'component' &&
-					symbol.placement === 'client'))) ||
-		(symbol.target === 'both' &&
-			symbol.role === 'root' &&
-			symbol.kind === 'component' &&
-			!!symbol.componentId &&
-			continuationComponents.has(symbol.componentId))
-	);
 }
 
 function uniqueRegistryEntries<T extends ClientIslandRegistryEntry | ServerPartRegistryEntry>(

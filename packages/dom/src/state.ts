@@ -1,4 +1,5 @@
 import type { ComponentInstance, ExactRuntimeInspectionOwner, StopHandle } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import type { Mounted, Root } from './types.js';
 
 /** Provides the canonical roots value. */
@@ -75,7 +76,7 @@ export function activeInspectableRoots(): readonly Root[] {
 			inspectableRoots.delete(reference);
 			continue;
 		}
-		if (root.current.domain?.inspection) active.push(root);
+		if (root.current.domain && componentDomainInspection(root.current.domain)) active.push(root);
 	}
 	return Object.freeze(active);
 }

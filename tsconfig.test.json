@@ -12,6 +12,7 @@
 	},
 	"include": [
 		"packages/*/src/**/*.ts",
+		"packages/*/src/**/*.mts",
 		"packages/*/src/**/*.tsx",
 		"framework-adapters/*/src/**/*.ts",
 		"framework-adapters/*/src/**/*.tsx",

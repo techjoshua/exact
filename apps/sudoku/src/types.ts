@@ -85,7 +85,7 @@ export type SudokuState = {
 export type SudokuCommands = {
 	select(index: number): void;
 	toggleDigit(digit: Digit): void;
-	erase(): void;
+	erase(index?: number): void;
 	toggleNotes(): void;
 	undo(): void;
 	redo(): void;

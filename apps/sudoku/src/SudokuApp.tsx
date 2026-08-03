@@ -28,6 +28,29 @@ import { GameControls } from './components/GameControls.jsx';
 import { SudokuGrid } from './components/SudokuGrid.jsx';
 import { ThemePicker } from './components/ThemePicker.jsx';
 
+type ProgressOrbitProps = {
+	progress: number;
+	compact?: boolean;
+	showLabel?: boolean;
+};
+
+/** Renders the same reactive completion ring in wide and compact layouts. */
+function ProgressOrbit(this: Component<{}>, props: ProgressOrbitProps) {
+	return () => (
+		<div
+			className="progress-orbit"
+			className:progress-orbit-compact={props.compact}
+			style={{
+				background: `conic-gradient(var(--accent) ${props.progress}%, var(--accent-soft) 0)`
+			}}
+			aria-label={`${props.progress}% filled`}
+		>
+			<strong>{props.progress}%</strong>
+			{props.showLabel ? <span>filled</span> : null}
+		</div>
+	);
+}
+
 /** Owns the complete browser-local game, history, timer, preferences, and command surface. */
 export function SudokuApp(this: Component<SudokuState>) {
 	const restored = loadSavedGame();
@@ -75,8 +98,8 @@ export function SudokuApp(this: Component<SudokuState>) {
 		commit(`Enter ${digit}`, planValueEntry(this.state.cells, this.state.selectedIndex, digit));
 	};
 
-	const erase = () => {
-		const cell = this.state.cells[this.state.selectedIndex];
+	const erase = (index = this.state.selectedIndex) => {
+		const cell = this.state.cells[index];
 		if (!cell || cell.given) return;
 		commit('Erase cell', planValueEntry(this.state.cells, cell.index, undefined));
 	};
@@ -239,7 +262,6 @@ export function SudokuApp(this: Component<SudokuState>) {
 	const selectedCell = this.state.cells[this.state.selectedIndex]!;
 	const selectedCandidates = candidatesFor(this.state.cells, this.state.selectedIndex);
 	const lastMove = this.state.history[this.state.history.length - 1];
-	const remaining = editable - entered;
 	const progress = editable === 0 ? 100 : Math.round((entered / editable) * 100);
 	const digitProgress = digitPlacementProgress(this.state.cells, conflicts);
 
@@ -289,6 +311,13 @@ export function SudokuApp(this: Component<SudokuState>) {
 						<p className="eyebrow">{puzzle.title}</p>
 						<h1>A quiet place to think.</h1>
 					</div>
+					<div className="mobile-game-status">
+						<div className="mobile-timer">
+							<span>Time</span>
+							<strong>{formatElapsed(this.state.elapsedSeconds)}</strong>
+						</div>
+						<ProgressOrbit progress={progress} compact />
+					</div>
 					<div className="game-meta">
 						<label>
 							<span>Difficulty</span>
@@ -330,7 +359,6 @@ export function SudokuApp(this: Component<SudokuState>) {
 						canUndo={this.state.history.length > 0}
 						canRedo={this.state.future.length > 0}
 						paused={this.state.paused}
-						remaining={remaining}
 						digitProgress={digitProgress}
 					/>
 				</section>
@@ -346,10 +374,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 						</p>
 					</div>
 					<div className="progress-summary">
-						<div className="progress-orbit">
-							<strong>{progress}%</strong>
-							<span>filled</span>
-						</div>
+						<ProgressOrbit progress={progress} showLabel />
 						<div>
 							<strong>
 								{entered} / {editable}

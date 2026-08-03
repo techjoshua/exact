@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ExactBuildUnsupportedError, invokeExact } from './index.js';
+import { ExactBuildUnsupportedError, invokeExact } from './invocations.js';
 
 describe('build compatibility responses', () => {
 	it('reports a preferred build before consuming a successful response', async () => {

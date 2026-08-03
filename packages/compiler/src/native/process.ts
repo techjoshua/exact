@@ -126,6 +126,7 @@ export class NativeCompilerProcess {
 			!Array.isArray(response.analysis.boundaries) ||
 			!Array.isArray(response.analysis.continuations) ||
 			!Array.isArray(response.analysis.resumptions) ||
+			!Array.isArray(response.analysis.rendererEnhancements) ||
 			!Array.isArray(response.analysis.requiredCapabilities?.rawHtml) ||
 			!Array.isArray(response.analysis.assets) ||
 			response.analysis.policy?.version !== 1 ||

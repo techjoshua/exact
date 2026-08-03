@@ -1,6 +1,7 @@
 import { computed, unwrap } from '@exactjs/reactive';
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
+import { encodeExactMarkerPart } from './protocol.js';
 import {
 	Cell,
 	Dynamic,
@@ -20,7 +21,7 @@ export function createVNode(
 ): VNode {
 	// Exclude the JSX-only key while copying so V8 can construct the normalized props object
 	// directly instead of transitioning it through a property deletion.
-	const { key: authoredKey, ...normalizedProps } = props ?? {};
+	const { key: authoredKey, __exactEnhancements: enhancements, ...normalizedProps } = props ?? {};
 	const rawKey = unwrap(authoredKey);
 	const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
 	const domain = currentComponentDomain();
@@ -30,6 +31,7 @@ export function createVNode(
 		props: normalizedProps,
 		children: normalizeChildren(children),
 		key,
+		...(enhancements ? { enhancements: enhancements as VNode['enhancements'] } : {}),
 		...(domain ? { domain } : {})
 	};
 }
@@ -115,9 +117,38 @@ export function createServerBoundary(
 	);
 }
 
-/** Creates a placeholder vnode for server-rendered children passed through a client island. */
-export function createServerSlot(id: string): VNode {
-	return createVNode(ServerSlot, { id });
+/** Creates or adopts one compiler-owned server range. Children are emitted only by server artifacts. */
+export function createServerSlot(
+	id: string,
+	authority: Record<string, unknown> = {},
+	...children: unknown[]
+): VNode {
+	return createVNode(ServerSlot, { id, ...authority }, ...children);
+}
+
+/** Creates one canonical keyed server-range instance without exposing authored keys as protocol ids. */
+export function createKeyedServerSlot(
+	id: string,
+	list: string,
+	key: unknown,
+	authority: Record<string, unknown> = {},
+	...children: unknown[]
+): VNode {
+	const rawKey = unwrap(key);
+	if (rawKey === null || rawKey === undefined)
+		throw new Error('Keyed server ranges require a canonical key');
+	const keyToken = String(rawKey);
+	const runtimeId = `${id}:key:${encodeExactMarkerPart(keyToken)}`;
+	return createVNode(
+		ServerSlot,
+		{
+			id: runtimeId,
+			...authority,
+			key: keyToken,
+			discriminator: { kind: 'keyed', list, keyToken }
+		},
+		...children
+	);
 }
 
 /**

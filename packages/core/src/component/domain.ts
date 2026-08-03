@@ -2,6 +2,7 @@ import type {
 	ComponentContinuationDispatch,
 	ComponentContinuationDispatcher,
 	ComponentDomain,
+	ComponentDomainIdentity,
 	ComponentInstance,
 	ComponentResumptionActivation,
 	ComponentFunction
@@ -10,28 +11,70 @@ import type { ExactRuntimeInspectionOwner } from './inspection.js';
 
 let activeDomain: ComponentDomain | undefined;
 const resumingDomains = new WeakMap<ComponentDomain, number>();
+const domainCapabilities = new WeakMap<ComponentDomain, ComponentDomainCapabilities>();
 
-/** The default execution namespace for ordinary page-authored component instances. */
-export const pageComponentDomain = createComponentDomain('page');
+/** Public options for creating an application-owned component domain. */
+export type ComponentDomainOptions = ComponentDomainIdentity;
 
-/** Creates immutable ownership metadata carried by VNodes and component instances. */
-export function createComponentDomain(
-	executionRoot: string,
-	dispatchContinuation?: ComponentContinuationDispatcher,
+/** Framework-owned capabilities attached without expanding the public domain shape. */
+export type ComponentDomainCapabilities = Readonly<{
+	dispatchContinuation?: ComponentContinuationDispatcher;
 	resumeComponent?: (
 		type: ComponentFunction<any, any>
-	) => ComponentResumptionActivation | undefined,
-	inspection?: ExactRuntimeInspectionOwner,
-	inspectionActivation?: ComponentDomain['inspectionActivation']
+	) => ComponentResumptionActivation | undefined;
+	inspection?: ExactRuntimeInspectionOwner;
+	inspectionActivation?: 'hydration';
+}>;
+
+/** Internal construction options used by framework render and hydration boundaries. */
+export type FrameworkComponentDomainOptions = ComponentDomainOptions & ComponentDomainCapabilities;
+
+/** The default execution namespace for ordinary page-authored component instances. */
+export const pageComponentDomain = createComponentDomain({ executionRoot: 'page' });
+
+/** Creates immutable ownership metadata carried by VNodes and component instances. */
+export function createComponentDomain(options: ComponentDomainOptions): ComponentDomain {
+	return constructComponentDomain(options);
+}
+
+/** Creates a component domain with capabilities reserved for framework packages. */
+export function createFrameworkComponentDomain(
+	options: FrameworkComponentDomainOptions
 ): ComponentDomain {
-	if (!executionRoot) throw new Error('Component execution root must be a non-empty string');
-	return Object.freeze({
-		executionRoot,
-		...(dispatchContinuation ? { dispatchContinuation } : {}),
-		...(resumeComponent ? { resumeComponent } : {}),
-		...(inspection ? { inspection } : {}),
-		...(inspectionActivation ? { inspectionActivation } : {})
+	const domain = constructComponentDomain(options);
+	const capabilities: ComponentDomainCapabilities = Object.freeze({
+		...(options.dispatchContinuation ? { dispatchContinuation: options.dispatchContinuation } : {}),
+		...(options.resumeComponent ? { resumeComponent: options.resumeComponent } : {}),
+		...(options.inspection ? { inspection: options.inspection } : {}),
+		...(options.inspectionActivation ? { inspectionActivation: options.inspectionActivation } : {})
 	});
+	domainCapabilities.set(domain, capabilities);
+	return domain;
+}
+
+/** Returns the inspection owner attached by a framework rendering boundary. */
+export function componentDomainInspection(
+	domain: ComponentDomain
+): ExactRuntimeInspectionOwner | undefined {
+	return domainCapabilities.get(domain)?.inspection;
+}
+
+/** Returns the resumption source attached by a framework hydration boundary. */
+export function componentDomainResumption(
+	domain: ComponentDomain
+): ComponentDomainCapabilities['resumeComponent'] {
+	return domainCapabilities.get(domain)?.resumeComponent;
+}
+
+/** Reports whether a framework domain activated its root through hydration. */
+export function isHydrationComponentDomain(domain: ComponentDomain): boolean {
+	return domainCapabilities.get(domain)?.inspectionActivation === 'hydration';
+}
+
+function constructComponentDomain(options: ComponentDomainOptions): ComponentDomain {
+	if (!options.executionRoot)
+		throw new Error('Component execution root must be a non-empty string');
+	return Object.freeze({ executionRoot: options.executionRoot });
 }
 
 /** Advances the server continuation registered for a compiled component task. */
@@ -43,7 +86,7 @@ export function dispatchComponentContinuation<Result = void>(
 	contextWrites: ComponentContinuationDispatch['contextWrites'] = [],
 	generation?: number
 ): Promise<Result> {
-	const dispatch = instance.domain.dispatchContinuation;
+	const dispatch = domainCapabilities.get(instance.domain)?.dispatchContinuation;
 	if (!dispatch) throw new Error(`No eXact continuation transport is registered for ${id}`);
 	return dispatch({
 		instance,
@@ -83,7 +126,9 @@ export function resolveComponentResumption(
 	domain: ComponentDomain,
 	type: ComponentFunction<any, any>
 ): ComponentResumptionActivation | undefined {
-	return resumingDomains.has(domain) ? domain.resumeComponent?.(type) : undefined;
+	return resumingDomains.has(domain)
+		? domainCapabilities.get(domain)?.resumeComponent?.(type)
+		: undefined;
 }
 
 /** Returns the domain currently responsible for authored VNode creation. */

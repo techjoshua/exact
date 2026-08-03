@@ -138,6 +138,14 @@ bindings, radio groups, multi-selects, checkbox groups, and list identity. Read
 [tasks-and-placement.md](references/tasks-and-placement.md) for asynchronous work and split builds.
 Read [distributed-execution.md](references/distributed-execution.md) before creating or changing
 server tasks, server context, SSR resumption, or client/server protocol tests.
+Read [motion.md](references/motion.md) before adding prepared motion definitions, explicit motion
+components, imperative playback, or optional plugin-owned motion attributes.
+Read [gestures.md](references/gestures.md) before adding prepared gesture definitions, semantic
+input callbacks, explicit gesture components, or optional plugin-owned gesture attributes.
+Read [physics.md](references/physics.md) before adding fixed-step simulation, body commands,
+force contributors, constraints, collision handling, or body DOM projection.
+Read [gravity.md](references/gravity.md) before adding uniform, radial, point, bounded, or composite
+fields and before registering acceleration policy with a physics world or body.
 
 ## Follow existing application structure
 

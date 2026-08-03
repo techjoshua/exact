@@ -220,6 +220,15 @@ describe('@exactjs/compiler: artifact planning', () => {
 		expect(pageServer).toContain('__exactBoundary');
 		expect(pageServer).toContain('"ClientWidget"');
 		expect(pageServer).not.toContain('from "./ClientWidget"');
+		await expect(
+			updateExactArtifactDevState(updated, [src], [], {
+				outDir,
+				rootDir: src,
+				packageRoot: root,
+				sourceRoot: src,
+				buildKey: 'different-deployment'
+			})
+		).rejects.toThrow(/cannot change its coordinated partition build key/);
 	});
 });
 

@@ -10,6 +10,7 @@ import type {
 	SsrContext
 } from '../types.js';
 import { renderChildrenAsync } from './async-tree.js';
+import { componentName } from './component-vnode.js';
 import { renderChildren } from './sync-tree.js';
 
 /** Transforms server boundary into its required representation. */
@@ -17,7 +18,7 @@ export function renderServerBoundary(context: SsrContext, vnode: VNode): string 
 	const id = String(unwrap(vnode.props.id) ?? '');
 	const name = String(unwrap(vnode.props.name) ?? '');
 	const hydration = clientBoundaryHydration(vnode);
-	const props = clientBoundaryProps(vnode);
+	const props = clientBoundaryProps(context, vnode);
 	const unsafePath = jsonUnsafePath(props);
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
@@ -121,24 +122,26 @@ export async function renderServerBoundaryAsync(
 	const id = String(unwrap(vnode.props.id) ?? '');
 	const name = String(unwrap(vnode.props.name) ?? '');
 	const hydration = clientBoundaryHydration(vnode);
-	const props = clientBoundaryProps(vnode);
+	const props = clientBoundaryProps(context, vnode);
 	const unsafePath = jsonUnsafePath(props);
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	}
 	const fallback = clientBoundaryHydrationFallback(vnode);
-	const slotId = serverSlotId(id);
+	const slots = serverBoundarySlotReferences(vnode);
 	const children = fallback
 		? await renderChildrenAsync(context, [fallback], parent, options)
-		: vnode.children.length
-			? `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`
-			: '';
+		: slots
+			? await boundedServerRangeChildrenAsync(context, vnode, slots, parent, options)
+			: vnode.children.length
+				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`
+				: '';
 	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"${hydration ? ` data-exact-client-hydration="${hydration}" data-exact-client-generation="1"` : ''}>${children}</div>`;
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 
 /** Performs the client boundary props domain operation. */
-export function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
+export function clientBoundaryProps(context: SsrContext, vnode: VNode): Record<string, unknown> {
 	const id = String(unwrap(vnode.props.id) ?? '');
 	const rawProps = unwrap(vnode.props.props) ?? {};
 	const props =
@@ -148,6 +151,12 @@ export function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
 	if (props && typeof props === 'object' && !Array.isArray(props)) {
 		delete (props as Record<string, unknown>).__exactHydration;
 		delete (props as Record<string, unknown>).__exactHydrationFallback;
+		delete (props as Record<string, unknown>).__exactServerSlots;
+	}
+	const slots = serverBoundarySlotReferences(vnode);
+	for (const slot of slots ?? []) {
+		if (slot.buildKey && context.buildKey && slot.buildKey !== context.buildKey)
+			throw new Error('Client boundary partition build does not match the SSR build');
 	}
 	if (
 		vnode.children.length &&
@@ -156,7 +165,12 @@ export function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
 		!Array.isArray(props) &&
 		!('children' in props)
 	) {
-		(props as Record<string, unknown>).children = serverSlotPayload(serverSlotId(id));
+		const children = slots?.map((slot) => serverSlotPayload(slot, context));
+		(props as Record<string, unknown>).children = children
+			? children.length === 1
+				? children[0]
+				: children
+			: serverSlotPayload({ id: serverSlotId(id) }, context);
 	}
 	return props as Record<string, unknown>;
 }
@@ -206,8 +220,71 @@ export function renderServerBoundaryChildren(
 	parent: ComponentInstance<any> | undefined
 ): string {
 	if (!vnode.children.length) return '';
+	const slots = serverBoundarySlotReferences(vnode);
+	if (slots) {
+		return vnode.children
+			.map(
+				(child, index) =>
+					`${serverSlotOpening(slots[index]!, context)}${renderChildren(context, [child], parent)}</span>`
+			)
+			.join('');
+	}
 	const slotId = serverSlotId(String(unwrap(vnode.props.id) ?? ''));
 	return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, vnode.children, parent)}</span>`;
+}
+
+/** Reads and validates compiler-owned independent range identities. */
+export function serverBoundarySlotIds(vnode: VNode): readonly string[] | undefined {
+	return serverBoundarySlotReferences(vnode)?.map((slot) => slot.id);
+}
+
+/** Reads and validates compiler-owned independent range authority. */
+export function serverBoundarySlotReferences(
+	vnode: VNode
+): readonly ExactServerSlotReference[] | undefined {
+	const props = unwrap(vnode.props.props);
+	if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
+	const value = (props as Record<string, unknown>).__exactServerSlots;
+	if (value === undefined) return undefined;
+	if (
+		!Array.isArray(value) ||
+		value.length !== vnode.children.length ||
+		value.some((entry) => !serverSlotReference(entry))
+	) {
+		throw new Error('Client boundary partition slots must uniquely identify every server child');
+	}
+	const slots = value.map((entry) =>
+		typeof entry === 'string'
+			? ({ id: entry } satisfies ExactServerSlotReference)
+			: {
+					id: (entry as Record<string, unknown>).__exactServerSlot,
+					planVersion: (entry as Record<string, unknown>).planVersion,
+					buildKey: (entry as Record<string, unknown>).buildKey,
+					planEdgeId: (entry as Record<string, unknown>).planEdgeId,
+					ownerComponentId: (entry as Record<string, unknown>).ownerComponentId,
+					discriminator: (entry as Record<string, unknown>).discriminator,
+					generation: (entry as Record<string, unknown>).generation
+				}
+	) as ExactServerSlotReference[];
+	if (new Set(slots.map((slot) => slot.id)).size !== slots.length)
+		throw new Error('Client boundary partition slots must uniquely identify every server child');
+	return slots;
+}
+
+async function boundedServerRangeChildrenAsync(
+	context: SsrContext,
+	vnode: VNode,
+	slots: readonly ExactServerSlotReference[],
+	parent: ComponentInstance<any> | undefined,
+	options: RenderToStringOptions
+): Promise<string> {
+	const ranges = await Promise.all(
+		vnode.children.map(
+			async (child, index) =>
+				`${serverSlotOpening(slots[index]!, context)}${await renderChildrenAsync(context, [child], parent, options)}</span>`
+		)
+	);
+	return ranges.join('');
 }
 
 /** Performs the server slot id domain operation. */
@@ -216,8 +293,119 @@ export function serverSlotId(boundaryId: string): string {
 }
 
 /** Performs the server slot payload domain operation. */
-export function serverSlotPayload(id: string): Record<string, string> {
-	return { __exactServerSlot: id };
+export function serverSlotPayload(
+	slot: ExactServerSlotReference,
+	context: Pick<SsrContext, 'executionRoot'>
+): Record<string, unknown> {
+	return slot.planVersion === undefined
+		? { __exactServerSlot: slot.id }
+		: {
+				__exactServerSlot: slot.id,
+				planVersion: slot.planVersion,
+				buildKey: slot.buildKey,
+				executionRoot: context.executionRoot,
+				planEdgeId: slot.planEdgeId,
+				ownerComponentId: slot.ownerComponentId,
+				discriminator: slot.discriminator,
+				generation: slot.generation
+			};
+}
+
+/** Static authority attached to one compiler-planned server slot. */
+export type ExactServerSlotReference = Readonly<{
+	id: string;
+	planVersion?: number;
+	buildKey?: string;
+	planEdgeId?: string;
+	ownerComponentId?: string;
+	discriminator?:
+		| Readonly<{ kind: 'single' }>
+		| Readonly<{ kind: 'branch'; branch: string }>
+		| Readonly<{ kind: 'keyed'; list: string; keyToken: string }>;
+	generation?: number;
+}>;
+
+/** Reads one standalone compiler-emitted server-range vnode. */
+export function serverSlotVNodeReference(vnode: VNode): ExactServerSlotReference {
+	const props = unwrap(vnode.props) as Record<string, unknown>;
+	const id = props.id;
+	const candidate = {
+		__exactServerSlot: id,
+		planVersion: props.planVersion,
+		buildKey: props.buildKey,
+		planEdgeId: props.planEdgeId,
+		ownerComponentId: props.ownerComponentId,
+		discriminator: props.discriminator,
+		generation: props.generation
+	};
+	if (!serverSlotReference(candidate))
+		throw new Error('Compiler-planned server range has malformed runtime authority');
+	return {
+		id: id as string,
+		planVersion: props.planVersion as number,
+		buildKey: props.buildKey as string,
+		planEdgeId: props.planEdgeId as string,
+		ownerComponentId: props.ownerComponentId as string,
+		discriminator: props.discriminator as NonNullable<ExactServerSlotReference['discriminator']>,
+		generation: props.generation as number
+	};
+}
+
+function serverSlotReference(value: unknown): value is ExactServerSlotReference | string {
+	if (typeof value === 'string') return value.length > 0;
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const slot = value as Record<string, unknown>;
+	return (
+		typeof slot.__exactServerSlot === 'string' &&
+		slot.__exactServerSlot.length > 0 &&
+		slot.planVersion === 1 &&
+		typeof slot.buildKey === 'string' &&
+		slot.buildKey.length > 0 &&
+		(slot.planEdgeId === slot.__exactServerSlot ||
+			(validServerSlotDiscriminator(slot.discriminator) &&
+				(slot.discriminator as Record<string, unknown>).kind === 'keyed' &&
+				slot.__exactServerSlot.startsWith(`${slot.planEdgeId}:key:`))) &&
+		typeof slot.ownerComponentId === 'string' &&
+		slot.ownerComponentId.length > 0 &&
+		validServerSlotDiscriminator(slot.discriminator) &&
+		Number.isSafeInteger(slot.generation) &&
+		(slot.generation as number) > 0
+	);
+}
+
+function validServerSlotDiscriminator(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const discriminator = value as Record<string, unknown>;
+	if (discriminator.kind === 'single') return Object.keys(discriminator).length === 1;
+	if (discriminator.kind === 'branch')
+		return (
+			Object.keys(discriminator).length === 2 &&
+			typeof discriminator.branch === 'string' &&
+			!!discriminator.branch
+		);
+	return (
+		discriminator.kind === 'keyed' &&
+		Object.keys(discriminator).length === 3 &&
+		typeof discriminator.list === 'string' &&
+		!!discriminator.list &&
+		typeof discriminator.keyToken === 'string' &&
+		!!discriminator.keyToken
+	);
+}
+
+/** Emits the compact runtime authority tuple on one retained server range. */
+export function serverSlotOpening(
+	slot: ExactServerSlotReference,
+	context: Pick<SsrContext, 'executionRoot' | 'buildKey'>
+): string {
+	if (slot.buildKey && context.buildKey && slot.buildKey !== context.buildKey)
+		throw new Error('Client boundary partition slot build does not match the SSR build');
+	const discriminator = slot.discriminator;
+	const authority =
+		slot.planVersion === undefined
+			? ''
+			: ` data-exact-partition-version="${slot.planVersion}" data-exact-partition-build="${escapeAttr(slot.buildKey!)}" data-exact-partition-root="${escapeAttr(context.executionRoot)}" data-exact-partition-edge="${escapeAttr(slot.planEdgeId!)}" data-exact-partition-owner="${escapeAttr(slot.ownerComponentId!)}" data-exact-partition-discriminator="${discriminator!.kind}"${discriminator?.kind === 'branch' ? ` data-exact-partition-branch="${escapeAttr(discriminator.branch)}"` : ''}${discriminator?.kind === 'keyed' ? ` data-exact-partition-list="${escapeAttr(discriminator.list)}" data-exact-partition-key="${escapeAttr(discriminator.keyToken)}"` : ''} data-exact-partition-generation="${slot.generation}"`;
+	return `<span data-exact-server-slot="${escapeAttr(slot.id)}"${authority} style="display: contents;">`;
 }
 
 /** Reports whether emit document hydration. */
@@ -236,19 +424,6 @@ export function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptio
 		options.scriptId !== undefined ||
 		options.nonce !== undefined
 	);
-}
-
-/** Resolves a component props. */
-export function getComponentProps(vnode: VNode): Record<string, unknown> {
-	const props = { ...vnode.props };
-	if (vnode.children.length === 1) props.children = vnode.children[0];
-	else if (vnode.children.length > 1) props.children = vnode.children;
-	return props;
-}
-
-/** Performs the component name domain operation. */
-export function componentName(type: VNode['type']): string {
-	return typeof type === 'function' ? type.name || 'anonymous' : String(type);
 }
 
 /** Returns the stable protocol identity embedded in a hydratable component marker. */

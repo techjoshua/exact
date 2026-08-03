@@ -1,13 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-	analyzeSource,
-	compileFileArtifacts,
-	compileProjectArtifacts,
-	transform
-} from '../../index.js';
+import { compileFileArtifacts, compileProjectArtifacts, transform } from '../../index.js';
+import { analyzeSource } from '../../compilation/source-analysis.js';
 import { createTestWorkspace } from '../../test-support/workspace.js';
+import { artifactAnalysis } from '../../compilation/analysis-results.js';
 
 describe('@exactjs/compiler: island boundaries', () => {
 	it('splits self-closing client components out of server artifacts', async () => {
@@ -49,13 +46,14 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain('title: this.state.title');
 		expect(server).not.toContain('window.innerWidth');
 		expect(server).not.toContain('onClick');
-		expect(result.analysis.boundaries).toContainEqual(
+		expect(artifactAnalysis(result).boundaries).toContainEqual(
 			expect.objectContaining({
 				id: expect.any(String),
 				name: 'ClientWidget',
 				componentId: expect.any(String),
-				ownerComponentId: result.analysis.components.find((component) => component.name === 'Page')!
-					.id,
+				ownerComponentId: artifactAnalysis(result).components.find(
+					(component) => component.name === 'Page'
+				)!.id,
 				kind: 'client-island'
 			})
 		);
@@ -137,6 +135,45 @@ describe('@exactjs/compiler: island boundaries', () => {
 				(boundary) => boundary.name === 'ClientShell:children' && boundary.kind === 'server-slot'
 			)
 		).toHaveLength(1);
+	});
+
+	it('projects independent recursive server ranges through native module analysis', () => {
+		const analysis = analyzeSource(
+			`
+      import { TaskContext } from "@exactjs/core";
+      function ServerSummary() {
+        const load = async (_task: TaskContext = TaskContext.server()) => fetchSummary();
+        load();
+        return () => <p>Summary</p>;
+      }
+      function ServerPermissions() {
+        const load = async (_task: TaskContext = TaskContext.server()) => fetchPermissions();
+        load();
+        return () => <p>Permissions</p>;
+      }
+      export function Workspace(this: Component<{ editing: boolean }>) {
+        return () => (
+          <section onClick={() => this.state.editing = true}>
+            <ServerSummary />
+            <button>Edit</button>
+            <ServerPermissions />
+          </section>
+        );
+      }
+    `,
+			{ filename: 'PartitionSiblings.tsx' }
+		);
+		const serverRanges = analysis.partitionPlan.edges.filter(
+			(edge) => edge.kind === 'server-range'
+		);
+
+		expect(analysis.partitionPlan.version).toBe(1);
+		expect(serverRanges).toHaveLength(2);
+		expect(serverRanges[0]!.parent).toBe(serverRanges[1]!.parent);
+		expect(serverRanges[0]!.child).not.toBe(serverRanges[1]!.child);
+		expect(
+			analysis.partitionPlan.nodes.find((node) => node.id === serverRanges[0]!.parent)
+		).toMatchObject({ kind: 'region', placement: 'client', activation: 'eager' });
 	});
 
 	it('uses distinct boundaries for repeated client component tag instances', () => {
@@ -341,17 +378,17 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain('"Server child"');
 		expect(server).not.toContain('from "./ClientWidget"');
 		expect(server).not.toContain('window.innerWidth');
-		expect(page.analysis.boundaries).toContainEqual(
+		expect(artifactAnalysis(page).boundaries).toContainEqual(
 			expect.objectContaining({
 				name: 'ClientWidget',
-				componentId: widget.analysis.components[0]!.id,
+				componentId: artifactAnalysis(widget).components[0]!.id,
 				kind: 'client-island'
 			})
 		);
-		expect(page.analysis.boundaries).toContainEqual(
+		expect(artifactAnalysis(page).boundaries).toContainEqual(
 			expect.objectContaining({
 				name: 'ClientWidget:children',
-				componentId: widget.analysis.components[0]!.id,
+				componentId: artifactAnalysis(widget).components[0]!.id,
 				kind: 'server-slot'
 			})
 		);

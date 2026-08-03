@@ -1,5 +1,6 @@
 import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom';
 import { stageTaskMutation, type ComponentInstance, type ContextToken } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { enqueueExactOperation } from '../batching.js';
 import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
 import { hydrateClientIslands } from '../islands.js';
@@ -7,7 +8,8 @@ import {
 	applyPatches,
 	boundaryInnerHtml,
 	boundaryInnerHtmls,
-	createPatchBoundaryResolver
+	createPatchBoundaryResolver,
+	partitionAuthority
 } from '../patches.js';
 import {
 	commitCollectionMutationsForContract,
@@ -68,10 +70,15 @@ export async function invokeAndApply(
 	const stateCommittedKey = componentKey ? `${componentKey}:state-committed` : 'state-committed';
 	const requestOrdinal = (versions.get(requestOrdinalKey) ?? 0) + 1;
 	versions.set(requestOrdinalKey, requestOrdinal);
+	const refreshPartition =
+		type === 'refresh'
+			? partitionAuthority(container, id, work, options.executionRoot ?? 'page')
+			: undefined;
 	const operation: ExactInvocationRequest = {
 		type,
 		root: options.executionRoot ?? 'page',
-		id,
+		id: refreshPartition?.planEdgeId ?? id,
+		...(refreshPartition ? { partition: refreshPartition } : {}),
 		payload: component
 			? {
 					dependencies: component.dependencies,
@@ -97,13 +104,16 @@ export async function invokeAndApply(
 				? boundaryHtmlsFor(container, configuredBoundaries, work, options.executionRoot ?? 'page')
 				: undefined
 	};
-	component?.instance.domain.inspection?.publish({
-		kind: 'continuation.dispatch',
-		component: component.instance,
-		operationId: id,
-		generation: component.generation
-	});
-	const endpoint = requireEndpoint(endpointForOperation(client, type, id));
+	if (component)
+		componentDomainInspection(component.instance.domain)?.publish({
+			kind: 'continuation.dispatch',
+			component: component.instance,
+			operationId: id,
+			generation: component.generation
+		});
+	const endpoint = requireEndpoint(
+		endpointForOperation(client, type, refreshPartition?.planEdgeId ?? id)
+	);
 	const transport = transportForEndpoint(options, endpoint);
 	// Operations can route to per-invocation or per-boundary endpoints, which keeps
 	// server components usable inside independently deployed micro-frontend bundles.
@@ -201,7 +211,12 @@ export async function invokeAndApply(
 		});
 		return result;
 	}
-	let responsePatches = result.patches;
+	let responsePatches =
+		refreshPartition && result.patches
+			? result.patches.map((patch) =>
+					patch.id === refreshPartition.planEdgeId ? { ...patch, id } : patch
+				)
+			: result.patches;
 	const partiallyStale = staleKeys.size > 0;
 	if (partiallyStale && configuredBoundaries && responsePatches) {
 		const rejected: string[] = [];
@@ -273,14 +288,14 @@ export async function invokeAndApply(
 		}
 		if (component) {
 			if (appliedPatches.length)
-				component.instance.domain.inspection?.publish({
+				componentDomainInspection(component.instance.domain)?.publish({
 					kind: 'patch.apply',
 					component: component.instance,
 					operationId: id,
 					generation: component.generation,
 					attributes: Object.freeze({ count: appliedPatches.length })
 				});
-			component.instance.domain.inspection?.publish({
+			componentDomainInspection(component.instance.domain)?.publish({
 				kind: 'continuation.apply',
 				component: component.instance,
 				operationId: id,

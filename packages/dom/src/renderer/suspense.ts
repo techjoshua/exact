@@ -11,6 +11,7 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../types.js';
 import { placeMountedBefore } from '../placement.js';
@@ -182,7 +183,7 @@ function commitSuspenseCandidate(root: Root, mounted: Mounted, generation: numbe
 function publishSuspenseChange(mounted: Mounted): void {
 	const suspense = mounted.suspense;
 	if (!suspense) return;
-	suspense.owner.domain.inspection?.publish({
+	componentDomainInspection(suspense.owner.domain)?.publish({
 		kind: 'suspense.change',
 		component: suspense.owner,
 		attributes: Object.freeze({

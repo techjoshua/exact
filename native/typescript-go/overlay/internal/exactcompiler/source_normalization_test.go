@@ -11,25 +11,57 @@ import (
 func TestNormalizeAuthoredSourceRewritesPropPunning(t *testing.T) {
 	source := `
 		const text = "<Card {ignored} />";
+		const template = ` + "`<Card {alsoIgnored} />`" + `;
 		// <Card {commented} />
 		export function View() {
-			return () => <Card {value} expression={{ pattern: /}/ }} />;
+			return () => (
+				<Card {value} {count} expression={{ pattern: /}/, template: ` + "`value=${{ nested: true }.nested}`" + ` }} {...shared}>
+					{value}
+					<Nested {subtitle} />
+				</Card>
+			);
 		}
 	`
 	normalized, err := normalizeAuthoredSource(normalizationTestFile(t, "view.tsx"), source)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(normalized.text, "<Card value={value}") {
-		t.Fatalf("punned prop was not normalized:\n%s", normalized.text)
+	for _, rewritten := range []string{
+		"<Card value={value} count={count}",
+		"<Nested subtitle={subtitle}",
+	} {
+		if !strings.Contains(normalized.text, rewritten) {
+			t.Fatalf("punned prop was not normalized to %q:\n%s", rewritten, normalized.text)
+		}
 	}
 	for _, retained := range []string{
 		`"<Card {ignored} />"`,
+		"`<Card {alsoIgnored} />`",
 		`// <Card {commented} />`,
-		`expression={{ pattern: /}/ }}`,
+		"expression={{ pattern: /}/, template: `value=${{ nested: true }.nested}` }}",
+		`{...shared}`,
+		"\n\t\t\t\t\t{value}\n",
 	} {
 		if !strings.Contains(normalized.text, retained) {
 			t.Fatalf("normalization changed %q:\n%s", retained, normalized.text)
+		}
+	}
+}
+
+func TestPlanPropPunningRejectsNonShorthandBraceForms(t *testing.T) {
+	for _, source := range []string{
+		`const view = <Card value={value} />;`,
+		`const view = <Card {...shared} />;`,
+		`const view = <Card {value + other} />;`,
+		`const view = <Card { value } />;`,
+		`const view = <Card>{value}</Card>;`,
+		`const text = "<Card {value} />";`,
+		"const text = `<Card {value} />`;",
+		`// <Card {value} />`,
+	} {
+		edits := planPropPunning(normalizationTestFile(t, "unchanged.tsx"), source)
+		if len(edits) != 0 {
+			t.Fatalf("non-shorthand source produced edits %#v:\n%s", edits, source)
 		}
 	}
 }

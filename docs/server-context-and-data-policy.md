@@ -70,7 +70,7 @@ data must still pass JSON-safety, size, state-contract, and secret checks.
 
 Without an allowed public projection, server-derived data may participate in
 server-rendered HTML but cannot be captured in client code or returned through
-framework-controlled state, hydration, action, refresh, or patch payloads.
+framework-controlled state, hydration, invocation, refresh, or patch payloads.
 
 ## Secrets
 

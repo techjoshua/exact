@@ -5,7 +5,6 @@ export {
 	type ExactClientArtifactIsolationViolation,
 	type ExactClientArtifactOutput
 } from '../artifact-isolation.js';
-export { createExactCompilerExplanation } from '../explanation.js';
 export {
 	assertExactArtifactTarget,
 	createExactArtifactComponentEdges,
@@ -29,32 +28,26 @@ export {
 } from '../expression/session.js';
 export {
 	exactReachableExposureComponents,
+	exactExposureRootComponentId,
 	selectExactExposureInspectionCatalog,
-	selectExactExposureArtifactGraph
+	selectExactExposureArtifactGraph,
+	withExactAuthoredClientModules
 } from '../exposures.js';
 export type { ExactExposureInspectionCatalog } from '../exposures.js';
 export {
 	createExactBuildInspectionCatalog,
 	createExactInspectionBuildKey,
-	createExactInspectionRedactions,
 	exactInspectionSourceHash,
 	type ExactBuildInspectionCatalogOptions,
 	type ExactBuildInspectionRootInput
 } from '../language-tools/build-catalog.js';
 export { createExactRuntimeInspectionCorrelation } from '../language-tools/runtime-correlation.js';
 export { generatedComponentName } from '../names.js';
-export {
-	createExactPolicyAuditReport,
-	formatExactPolicyAuditReport,
-	type ExactPolicyAuditReportOptions
-} from '../policy-report.js';
 export { createExactHydrationRegistrationModule } from '../registry.js';
 export { createLineSourceMap } from '../source-maps.js';
 export type * from '../types.js';
 
 export { compileFile, compileProject } from './file-compilation.js';
-/** @internal Prefer compiler sessions and supported inspection reports in application tooling. */
-export { analyzeSource } from './source-analysis.js';
 export { transform, transformSource } from './transformation.js';
 
 export {

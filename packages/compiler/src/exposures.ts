@@ -1,5 +1,6 @@
 import type { ExactArtifactGraph } from './contracts/artifacts.js';
 import type { ExactSourceInspection } from './language-tools/contracts.js';
+import path from 'node:path';
 
 /** Server-owned source catalog scoped to one microfrontend exposure graph. */
 export type ExactExposureInspectionCatalog = Readonly<{
@@ -8,30 +9,57 @@ export type ExactExposureInspectionCatalog = Readonly<{
 	files: readonly ExactSourceInspection[];
 }>;
 
-/** Returns component ids reachable through authored render edges from one explicit root. */
+/** Returns component ids reachable through the normalized partition plan from one explicit root. */
 export function exactReachableExposureComponents(
 	graph: ExactArtifactGraph,
 	rootComponentId: string
 ): ReadonlySet<string> {
-	const known = new Set(
-		graph.artifacts.flatMap((artifact) =>
-			artifact.analysis.components.map((component) => component.id)
+	const known = new Set([
+		...graph.artifacts.flatMap((artifact) => artifact.componentIds),
+		...graph.partitionPlans.flatMap((entry) =>
+			entry.plan.nodes.flatMap((node) => (node.componentContract ? [node.componentContract] : []))
 		)
-	);
+	]);
 	if (!known.has(rootComponentId))
 		throw new Error(`Unknown eXact exposure root component ${rootComponentId}`);
+	const adjacency = partitionComponentAdjacency(graph);
+	// Keep compiler-branded cross-module render edges until every package plan is
+	// linked into one native project projection.
+	for (const edge of graph.componentEdges) {
+		if (!edge.targetComponentId) continue;
+		const targets = adjacency.get(edge.sourceComponentId) ?? new Set<string>();
+		targets.add(edge.targetComponentId);
+		adjacency.set(edge.sourceComponentId, targets);
+	}
 	const reachable = new Set([rootComponentId]);
-	let changed = true;
-	while (changed) {
-		changed = false;
-		for (const edge of graph.componentEdges) {
-			if (!reachable.has(edge.sourceComponentId) || !edge.targetComponentId) continue;
-			if (reachable.has(edge.targetComponentId)) continue;
-			reachable.add(edge.targetComponentId);
-			changed = true;
+	const pending = [rootComponentId];
+	while (pending.length) {
+		for (const target of adjacency.get(pending.shift()!) ?? []) {
+			if (reachable.has(target)) continue;
+			reachable.add(target);
+			pending.push(target);
 		}
 	}
 	return reachable;
+}
+
+function partitionComponentAdjacency(graph: ExactArtifactGraph): Map<string, Set<string>> {
+	const adjacency = new Map<string, Set<string>>();
+	for (const entry of graph.partitionPlans) {
+		const nodes = new Map(entry.plan.nodes.map((node) => [node.id, node]));
+		for (const edge of entry.plan.edges) {
+			const parent = nodes.get(edge.parent);
+			const child = nodes.get(edge.child);
+			const owner = parent && nodes.get(parent.ownerComponent);
+			const source = parent?.componentContract ?? owner?.componentContract;
+			const target = child?.componentContract;
+			if (!source || !target || source === target) continue;
+			const targets = adjacency.get(source) ?? new Set<string>();
+			targets.add(target);
+			adjacency.set(source, targets);
+		}
+	}
+	return adjacency;
 }
 
 /**
@@ -46,10 +74,11 @@ export function selectExactExposureArtifactGraph(
 ): ExactArtifactGraph {
 	const reachable = exactReachableExposureComponents(graph, rootComponentId);
 	const artifacts = graph.artifacts.filter((artifact) =>
-		artifact.analysis.components.some((component) => reachable.has(component.id))
+		artifact.componentIds.some((componentId) => reachable.has(componentId))
 	);
 	const selectedInputs = new Set(artifacts.map((artifact) => artifact.inputFile));
 	return {
+		buildKey: graph.buildKey,
 		conditions: graph.conditions,
 		packageExports: Object.fromEntries(
 			Object.entries(graph.packageExports).filter(([_key, value]) =>
@@ -75,8 +104,54 @@ export function selectExactExposureArtifactGraph(
 		serverParts: graph.serverParts.filter(
 			(entry) => !entry.componentId || reachable.has(entry.componentId)
 		),
+		operations: graph.operations.filter((entry) => reachable.has(entry.componentId)),
+		boundaries: graph.boundaries.filter(
+			(entry) =>
+				(!entry.componentId || reachable.has(entry.componentId)) &&
+				(!entry.ownerComponentId || reachable.has(entry.ownerComponentId))
+		),
+		partitionPlans: graph.partitionPlans.filter((entry) => selectedInputs.has(entry.inputFile)),
 		artifacts
 	};
+}
+
+/** Resolves one default-exported component root without exposing symbol analysis. */
+export function exactExposureRootComponentId(
+	graph: ExactArtifactGraph,
+	inputFile: string
+): string | undefined {
+	const target = path.resolve(inputFile);
+	const artifact = graph.artifacts.find(
+		(candidate) => path.resolve(candidate.inputFile) === target
+	);
+	return artifact?.exposureRoots.find((root) => root.exportName === 'default')?.componentId;
+}
+
+/** Remaps selected client-island imports to authored modules for bundler composition. */
+export function withExactAuthoredClientModules(graph: ExactArtifactGraph): ExactArtifactGraph {
+	const moduleByComponent = new Map<string, string>();
+	for (const artifact of graph.artifacts) {
+		const authoredModule = slashPath(path.resolve(artifact.inputFile));
+		for (const componentId of artifact.componentIds)
+			moduleByComponent.set(componentId, authoredModule);
+	}
+	return {
+		...graph,
+		clientIslands: graph.clientIslands.map((entry) => ({
+			...entry,
+			module: entry.componentId
+				? (moduleByComponent.get(entry.componentId) ?? entry.module)
+				: entry.module
+		})),
+		artifacts: graph.artifacts.map((artifact) => ({
+			...artifact,
+			clientFile: slashPath(path.resolve(artifact.inputFile))
+		}))
+	};
+}
+
+function slashPath(value: string): string {
+	return value.replaceAll(path.sep, '/');
 }
 
 /**

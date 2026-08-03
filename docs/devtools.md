@@ -69,7 +69,7 @@ The Chromium panel and automation agent consume the same versioned protocol. The
 - bounded previews of props, state, and public contexts;
 - task placement, readiness, priority, generation, cancellation, and settlement;
 - framework task kinds and optional human-facing labels without treating either as authority;
-- named action placement, concurrency, pending work, and optimistic generations;
+- invoked-task placement, concurrency, pending work, and optimistic generations;
 - lifecycle, render invalidation, Activity, Suspense, hydration, and resumption events;
 - server requests, continuations, context access, patches, errors, and profiling observations; and
 - compiler-owned task and dependency explanations from the exact running build.
@@ -108,9 +108,9 @@ resources second, and an authorized server excerpt last. Protected source excerp
 `source` capability and pre-redacted retained source whenever the compiler catalog contains
 secret-qualified names.
 
-Instrumented task and action callbacks carry their canonical compiler source ID through a WeakMap
-marker. Core records that ID when the resource is registered; query consumers never recreate
-source ordering from runtime arrays.
+Instrumented task functions carry their canonical compiler source ID through a WeakMap marker.
+Core records that ID when the function is defined; query consumers never recreate source ordering
+from runtime arrays.
 
 ## Secret handling
 

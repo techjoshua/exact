@@ -8,6 +8,7 @@ import {
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import { commonRoot } from '../paths.js';
 import type { CompileArtifactsOptions, CompileArtifactsResult } from '../types.js';
+import { artifactAnalysis, retainArtifactAnalysis } from './analysis-results.js';
 
 /** Finalizes the shared inspection catalog after every project artifact has compiled. */
 export async function finalizeArtifactInspection(
@@ -35,6 +36,7 @@ export async function finalizeArtifactInspection(
 	for (const [filename, source] of sources) sourceRecord[filename] = source;
 	const inspections = inspected.map((result) => result.inspection.inspection);
 	const buildKey =
+		options.buildKey ??
 		options.inspection?.buildKey ??
 		createExactInspectionBuildKey(
 			projectRoot,
@@ -56,7 +58,7 @@ export async function finalizeArtifactInspection(
 				inspections,
 				sources: sourceRecord,
 				redactions: createExactInspectionRedactions(
-					results.map((result) => result.analysis),
+					results.map(artifactAnalysis),
 					options.inspection?.redactions
 				)
 			}
@@ -70,17 +72,19 @@ export async function finalizeArtifactInspection(
 		throw new Error(`Inspection output ${inspectionFile} must remain inside artifact output`);
 	await mkdir(path.dirname(inspectionFile), { recursive: true });
 	await writeFile(inspectionFile, `${JSON.stringify(catalog, null, 2)}\n`);
-	return results.map((result) =>
-		result.inspection
-			? {
-					...result,
-					inspection: Object.freeze({
-						inspectionFile,
-						inspection: result.inspection.inspection
-					})
-				}
-			: result
-	);
+	return results.map((result) => {
+		if (!result.inspection) return result;
+		return retainArtifactAnalysis(
+			{
+				...result,
+				inspection: Object.freeze({
+					inspectionFile,
+					inspection: result.inspection.inspection
+				})
+			},
+			artifactAnalysis(result)
+		);
+	});
 }
 
 function isWithinDirectory(directory: string, candidate: string): boolean {

@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ExactCompilerSession } from '../expression/project.js';
-import { artifactPathsFor } from '../paths.js';
+import { artifactPathsFor, commonRoot } from '../paths.js';
 import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
 import type {
 	CompileArtifactPlanEntriesOptions,
@@ -31,7 +31,10 @@ import { analyzeSource } from './source-analysis.js';
 import { transformSource } from './transformation.js';
 import { createOwnedNativeCompilationSession } from './native-session.js';
 import { writeArtifactPlanEntry } from './artifact-entry-output.js';
+import { createExactInspectionBuildKey } from '../language-tools/build-catalog.js';
 import { finalizeArtifactInspection } from './artifact-inspection.js';
+import { artifactAnalysis, retainArtifactAnalysis } from './analysis-results.js';
+import { createArtifactBuildProducts } from './build-products.js';
 
 /** Compiles one source file into paired client/server artifacts. */
 export async function compileFileArtifacts(
@@ -48,18 +51,25 @@ export async function compileFileArtifacts(
 	}
 	const source = await readFile(inputFile, 'utf8');
 	const filename = options.filename ?? inputFile;
+	const buildKey =
+		options.buildKey ??
+		options.inspection?.buildKey ??
+		createExactInspectionBuildKey(path.dirname(path.resolve(inputFile)), [
+			{ filename: path.resolve(inputFile), source }
+		]);
 	const capabilityOptions = capabilityCompilationOptions(options);
 	const analysis = analyzeSource(source, {
 		filename,
+		buildKey,
 		session: options.session,
 		assetRules: options.assetRules,
 		jsxInterop: options.jsxInterop,
-		pluginRegistry: options.pluginRegistry,
 		generatedValidation: options.generatedValidation,
 		...capabilityOptions
 	});
 	const client = transformSource(source, {
 		filename,
+		buildKey,
 		session: options.session,
 		target: 'client',
 		serverComponents: options.serverComponents,
@@ -68,7 +78,6 @@ export async function compileFileArtifacts(
 		moduleTransform: options.moduleTransform,
 		jsxInterop: options.jsxInterop,
 		assetRules: options.assetRules,
-		pluginRegistry: options.pluginRegistry,
 		generatedValidation: options.generatedValidation,
 		emitInspection: options.emitInspection,
 		instrumentInspection: options.instrumentInspection,
@@ -76,6 +85,7 @@ export async function compileFileArtifacts(
 	});
 	const server = transformSource(source, {
 		filename,
+		buildKey,
 		session: options.session,
 		target: 'server',
 		serverComponents: options.serverComponents,
@@ -84,7 +94,6 @@ export async function compileFileArtifacts(
 		moduleTransform: options.moduleTransform,
 		jsxInterop: options.jsxInterop,
 		assetRules: options.assetRules,
-		pluginRegistry: options.pluginRegistry,
 		generatedValidation: options.generatedValidation,
 		emitInspection: false,
 		instrumentInspection: false,
@@ -124,21 +133,24 @@ export async function compileFileArtifacts(
 			serverMapFile,
 			`${JSON.stringify(withSourceMapFile(server.map, path.basename(paths.serverFile)), null, 2)}\n`
 		);
-	const result: CompileArtifactsResult = {
-		inputFile,
-		clientFile: paths.clientFile,
-		serverFile: paths.serverFile,
-		...(shared ? { sharedFile: paths.sharedFile } : {}),
-		clientMapFile,
-		serverMapFile,
-		client,
-		server,
-		...(shared ? { shared } : {}),
-		analysis,
-		...(client.inspectionCatalog
-			? { inspection: Object.freeze({ inspection: client.inspectionCatalog }) }
-			: {})
-	};
+	const result: CompileArtifactsResult = retainArtifactAnalysis(
+		{
+			inputFile,
+			clientFile: paths.clientFile,
+			serverFile: paths.serverFile,
+			...(shared ? { sharedFile: paths.sharedFile } : {}),
+			clientMapFile,
+			serverMapFile,
+			client,
+			server,
+			...(shared ? { shared } : {}),
+			build: createArtifactBuildProducts(inputFile, analysis),
+			...(client.inspectionCatalog
+				? { inspection: Object.freeze({ inspection: client.inspectionCatalog }) }
+				: {})
+		},
+		analysis
+	);
 	const finalized = await finalizeArtifactInspection(
 		[result],
 		options,
@@ -166,13 +178,13 @@ export async function compileProjectArtifacts(
 		filename: (entry) =>
 			entries.length === 1 ? (options.filename ?? entry.inputFile) : entry.inputFile,
 		serverComponents: options.serverComponents,
+		buildKey: options.buildKey ?? options.inspection?.buildKey,
 		sourceMap: options.sourceMap,
 		session: options.session,
 		moduleRewrite: options.moduleRewrite,
 		moduleTransform: options.moduleTransform,
 		jsxInterop: options.jsxInterop,
 		assetRules: options.assetRules,
-		pluginRegistry: options.pluginRegistry,
 		emitInspection: options.emitInspection,
 		instrumentInspection: options.instrumentInspection,
 		...capabilityCompilationOptions(options)
@@ -206,6 +218,12 @@ export async function compileArtifactPlanEntries(
 		const source = await readFile(entry.inputFile, 'utf8');
 		sources.set(path.resolve(entry.inputFile), source);
 	}
+	const buildKey =
+		options.buildKey ??
+		createExactInspectionBuildKey(
+			commonRoot(entries.map((entry) => entry.inputFile)),
+			[...sources].map(([filename, source]) => ({ filename, source }))
+		);
 	const dependencyAnalysis = await collectPlacementAnalysisDependencies(sources, options.session);
 	const dependencyGraph = dependencyAnalysis.graph;
 	const localDependencies = dependencyAnalysis.localDependencies;
@@ -219,6 +237,7 @@ export async function compileArtifactPlanEntries(
 			await compileArtifactPlanEntry(
 				entry,
 				filename,
+				buildKey,
 				options.serverComponents ?? false,
 				options.sourceMap ?? false,
 				dependencies,
@@ -230,7 +249,6 @@ export async function compileArtifactPlanEntries(
 				options.jsxInterop,
 				options.session,
 				options.assetRules,
-				options.pluginRegistry,
 				options.generatedValidation,
 				options.emitInspection,
 				options.instrumentInspection,
@@ -245,6 +263,7 @@ export async function compileArtifactPlanEntries(
 async function compileArtifactPlanEntry(
 	entry: ExactArtifactPlanEntry,
 	filename: string,
+	buildKey: string,
 	serverComponents = false,
 	sourceMap = false,
 	dependencies: readonly string[] = [],
@@ -256,7 +275,6 @@ async function compileArtifactPlanEntry(
 	jsxInterop?: TransformOptions['jsxInterop'],
 	session?: ExactCompilerSession,
 	assetRules?: TransformOptions['assetRules'],
-	pluginRegistry?: TransformOptions['pluginRegistry'],
 	generatedValidation?: TransformOptions['generatedValidation'],
 	emitInspection?: TransformOptions['emitInspection'],
 	instrumentInspection?: TransformOptions['instrumentInspection'],
@@ -265,10 +283,10 @@ async function compileArtifactPlanEntry(
 	const source = await readFile(entry.inputFile, 'utf8');
 	const base = analyzeSource(source, {
 		filename,
+		buildKey,
 		session,
 		assetRules,
 		jsxInterop,
-		pluginRegistry,
 		generatedValidation,
 		emitInspection,
 		instrumentInspection,
@@ -283,6 +301,7 @@ async function compileArtifactPlanEntry(
 	].sort();
 	const client = transformSource(source, {
 		filename,
+		buildKey,
 		session,
 		target: 'client',
 		serverComponents,
@@ -298,7 +317,6 @@ async function compileArtifactPlanEntry(
 		moduleTransform,
 		jsxInterop,
 		assetRules,
-		pluginRegistry,
 		generatedValidation,
 		emitInspection,
 		instrumentInspection,
@@ -306,6 +324,7 @@ async function compileArtifactPlanEntry(
 	});
 	const server = transformSource(source, {
 		filename,
+		buildKey,
 		session,
 		target: 'server',
 		serverComponents,
@@ -321,7 +340,6 @@ async function compileArtifactPlanEntry(
 		moduleTransform,
 		jsxInterop,
 		assetRules,
-		pluginRegistry,
 		generatedValidation,
 		emitInspection: false,
 		instrumentInspection: false,
@@ -329,9 +347,12 @@ async function compileArtifactPlanEntry(
 	});
 	const result = await writeArtifactPlanEntry(entry, base, client, server, sourceMap);
 	return client.inspectionCatalog
-		? {
-				...result,
-				inspection: Object.freeze({ inspection: client.inspectionCatalog })
-			}
+		? retainArtifactAnalysis(
+				{
+					...result,
+					inspection: Object.freeze({ inspection: client.inspectionCatalog })
+				},
+				artifactAnalysis(result)
+			)
 		: result;
 }

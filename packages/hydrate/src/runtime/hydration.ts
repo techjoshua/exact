@@ -53,14 +53,15 @@ export function hydrateRoot(
 	const rootContainer = documentNode?.documentElement ?? (container as Element);
 	const existing = roots.get(rootContainer);
 	if (existing) {
-		render(ownedVNode(vnode, existing.domain), rootContainer, {
+			render(ownedVNode(vnode, existing.domain), rootContainer, {
 			logger: options.logger,
 			onErrorReport: options.onErrorReport,
 			maxTreeDepth: options.maxTreeDepth,
 			maxTreeNodes: options.maxTreeNodes,
 			allowUnsafeHtml: options.allowUnsafeHtml,
 			onUnsafeHtml: options.onUnsafeHtml,
-			onProfile: options.onProfile
+				onProfile: options.onProfile,
+				enhancementCatalog: options.enhancementCatalog
 		});
 		options.onHydration?.(
 			Object.freeze({
@@ -192,7 +193,8 @@ function rendererOptions(options: HydrateOptions, work: DomWorkBudget): RenderOp
 		workBudget: work,
 		allowUnsafeHtml: options.allowUnsafeHtml,
 		onUnsafeHtml: options.onUnsafeHtml,
-		onProfile: options.onProfile
+		onProfile: options.onProfile,
+		enhancementCatalog: options.enhancementCatalog
 	};
 }
 

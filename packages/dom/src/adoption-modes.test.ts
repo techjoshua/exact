@@ -10,6 +10,7 @@ import {
 	Fragment,
 	Suspense,
 	type Component,
+	type RootLifecycle,
 	type TaskContext,
 	unsafeHtml
 } from '@exactjs/core';
@@ -27,7 +28,9 @@ import {
 
 describe('DOM adoption modes', () => {
 	it('adopts a component boundary and keeps it live for later renders', () => {
+		let lifecycle!: RootLifecycle<Element>;
 		function Greeting(this: Component<Record<string, never>>) {
+			lifecycle = this.refs.root();
 			return () => createVNode('span', null, 'server');
 		}
 		const container = document.createElement('div');
@@ -38,6 +41,7 @@ describe('DOM adoption modes', () => {
 
 		expect(adoptComponentRoot(vnode, container)).toBe(true);
 		expect(container.querySelector('span')).toBe(serverSpan);
+		expect(lifecycle.introduction).toBe('hydration');
 		expect(adoptComponentRoot(vnode, container)).toBe(false);
 		render(vnode, container);
 		expect(container.textContent).toBe('server');

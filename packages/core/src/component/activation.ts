@@ -1,6 +1,7 @@
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
 import type { ComponentInstance } from './contracts.js';
+import { componentDomainInspection } from './domain.js';
 import { createErrorReport, handleComponentError } from './errors.js';
 
 /** Controls active/deactive lifecycle transitions for one mounted component instance. */
@@ -21,7 +22,7 @@ export function createComponentActivation(
 	const deactivate = (reason: string): void => {
 		if (!active) return;
 		active = false;
-		instance.domain.inspection?.publish({
+		componentDomainInspection(instance.domain)?.publish({
 			kind: 'component.deactivate',
 			component: instance,
 			reason
@@ -52,7 +53,7 @@ export function createComponentActivation(
 			}
 			if (active) return;
 			active = true;
-			instance.domain.inspection?.publish({
+			componentDomainInspection(instance.domain)?.publish({
 				kind: 'component.activate',
 				component: instance,
 				reason

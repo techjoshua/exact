@@ -8,11 +8,15 @@ import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
+import { GesturesPluginPage } from './pages/GesturesPluginPage.jsx';
+import { GravityPluginPage } from './pages/GravityPluginPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
 import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
 import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
+import { MotionPluginPage } from './pages/MotionPluginPage.jsx';
+import { PhysicsPluginPage } from './pages/PhysicsPluginPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
 import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
@@ -157,7 +161,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
 				keywords:
-					'language tools VS Code extension LSP semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred authored TaskContext policy task no emit',
+					'language tools VS Code extension LSP TypeScript plugin IntelliSense completion component this enhancement namespace props semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred authored TaskContext policy task no emit',
 				component: LanguageToolsPage
 			},
 			{
@@ -215,6 +219,34 @@ export const docGroups: DocGroup[] = [
 				summary: 'Package cross-cutting behavior as a validated, multi-host extension.',
 				keywords: 'plugin compiler server render client testing configuration package',
 				component: PluginsPage
+			},
+			{
+				path: '/plugins/motion',
+				label: 'Motion',
+				summary: 'Animate committed state with prepared definitions and task-owned playback.',
+				keywords: 'plugin motion animation presets reduced motion task playback Web Animations',
+				component: MotionPluginPage
+			},
+			{
+				path: '/plugins/gestures',
+				label: 'Gestures',
+				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
+				keywords: 'plugin gestures drag pan press hover pinch pointer keyboard accessibility',
+				component: GesturesPluginPage
+			},
+			{
+				path: '/plugins/physics',
+				label: 'Physics',
+				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
+				keywords: 'plugin physics simulation body force constraint collision fixed step projection',
+				component: PhysicsPluginPage
+			},
+			{
+				path: '/plugins/gravity',
+				label: 'Gravity',
+				summary: 'Compose pure bounded acceleration fields through the physics force seam.',
+				keywords: 'plugin gravity field force uniform radial point orbit physics acceleration',
+				component: GravityPluginPage
 			},
 			{
 				path: '/plugins/microfrontends',

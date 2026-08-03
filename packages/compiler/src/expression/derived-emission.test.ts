@@ -63,6 +63,23 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain('return __exact_user_1;');
 	});
 
+	it('preserves the observable proxy for direct state aliases captured by callbacks', () => {
+		const output = transform(`
+      function View(this: Component<{ count: number }>) {
+        const state = this.state;
+        function increment() {
+          state.count++;
+        }
+        return () => <button onClick={increment}>{state.count}</button>;
+      }
+    `);
+
+		expect(output).toContain('const state = this.state;');
+		expect(output).not.toContain('const state = __exactDerived');
+		expect(output).not.toContain('state.get()');
+		expect(output).toContain('__exactUpdateResult(state, ["count"]');
+	});
+
 	it('elides safe scalar derived chains inside one reactive JSX prop', () => {
 		const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {

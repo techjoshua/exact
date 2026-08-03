@@ -20,16 +20,16 @@ import type {
 	PackageExportMapOptions
 } from './types.js';
 
-/** Converts a compile result into the graph entry shape used by artifact tooling. */
-export function artifactGraphEntryFromCompileResult(
+/** Retains the narrow compile products required to rebuild an artifact graph incrementally. */
+export function artifactGraphInputFromCompileResult(
 	result: CompileArtifactsResult
-): ExactArtifactGraphEntry {
+): ExactArtifactGraphInput {
 	return {
 		inputFile: result.inputFile,
 		clientFile: result.clientFile,
 		serverFile: result.serverFile,
 		...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
-		analysis: result.analysis
+		build: result.build
 	};
 }
 
@@ -175,7 +175,11 @@ export function createExactArtifactGraph(
 	results: readonly ExactArtifactGraphInput[],
 	options: ExactArtifactGraphOptions
 ): ExactArtifactGraph {
+	const buildKeys = new Set(results.map((result) => result.build.partitionPlan.buildKey));
+	if (buildKeys.size > 1)
+		throw new Error('eXact artifact graphs require one coordinated partition build key');
 	return {
+		buildKey: [...buildKeys][0] ?? '',
 		conditions: {
 			client: exactExportConditions('client', options),
 			server: exactExportConditions('server', options)
@@ -188,13 +192,25 @@ export function createExactArtifactGraph(
 		serverParts: serverPartRegistryEntries(results, {
 			rootDir: options.rootDir ?? options.packageRoot
 		}),
-		artifacts: results.map((result) => ({
+		operations: uniqueBuildRecords(results.flatMap((result) => result.build.operations)),
+		boundaries: uniqueBuildRecords(results.flatMap((result) => result.build.boundaries)),
+		partitionPlans: results.map((result) => ({
 			inputFile: result.inputFile,
-			clientFile: result.clientFile,
-			serverFile: result.serverFile,
-			...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
-			analysis: result.analysis
-		}))
+			plan: result.build.partitionPlan
+		})),
+		artifacts: results.map(artifactGraphEntryFromInput)
+	};
+}
+
+function artifactGraphEntryFromInput(result: ExactArtifactGraphInput): ExactArtifactGraphEntry {
+	return {
+		inputFile: result.inputFile,
+		clientFile: result.clientFile,
+		serverFile: result.serverFile,
+		...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
+		dependencies: result.build.dependencies,
+		componentIds: result.build.componentIds,
+		exposureRoots: result.build.exposureRoots
 	};
 }
 
@@ -204,23 +220,7 @@ export function createExactArtifactComponentEdges(
 ): ExactArtifactComponentEdge[] {
 	const edges: ExactArtifactComponentEdge[] = [];
 	for (const result of results) {
-		for (const component of result.analysis.components) {
-			for (const edge of component.renderEdges) {
-				edges.push({
-					id: edge.id,
-					sourceFile: result.inputFile,
-					sourceComponentId: component.id,
-					sourceName: component.name,
-					targetComponentId: edge.componentId,
-					targetName: edge.name,
-					tag: edge.tag,
-					placement: edge.placement,
-					boundary: edge.boundary,
-					index: edge.index,
-					path: edge.path
-				});
-			}
-		}
+		edges.push(...result.build.componentEdges);
 	}
 	return edges.sort((left, right) =>
 		[
@@ -241,4 +241,15 @@ export function createExactArtifactComponentEdges(
 				].join(':')
 			)
 	);
+}
+
+function uniqueBuildRecords<T extends { readonly id: string }>(records: readonly T[]): T[] {
+	const byId = new Map<string, T>();
+	for (const record of records) {
+		const previous = byId.get(record.id);
+		if (previous && JSON.stringify(previous) !== JSON.stringify(record))
+			throw new Error(`Conflicting eXact build product ${record.id}`);
+		byId.set(record.id, record);
+	}
+	return [...byId.values()].sort((left, right) => left.id.localeCompare(right.id));
 }

@@ -21,6 +21,12 @@ render(
   document.getElementById('app')!
 );`;
 
+const publicationSource = `const publication = createViewTransitionCoordinator({
+  name: (request) => request.kind === 'navigation' ? 'route' : undefined
+});
+
+const router = createExactRouter({ source, routes, publication });`;
+
 /** Documents nested routing, navigation, data loading, and server coordination. */
 export function RoutingPage(this: Component<{}>) {
 	return () => (
@@ -69,6 +75,15 @@ export function RoutingPage(this: Component<{}>) {
 						</tr>
 					</tbody>
 				</table>
+			</section>
+			<section>
+				<h2>Coordinate only the publication boundary</h2>
+				<CodeBlock source={publicationSource} language="ts" title="router.ts" />
+				<p>
+					The optional coordinator runs after blockers and loaders succeed. It wraps exactly one
+					authoritative publication and receives a rendered receipt, so motion can use native View
+					Transitions without the router importing or depending on motion.
+				</p>
 			</section>
 		</Article>
 	);

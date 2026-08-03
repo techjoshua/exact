@@ -6,8 +6,9 @@ Compiler-backed editing support for eXact components and TypeScript.
 
 The extension adds eXact diagnostics, component and task hovers, navigation, semantic tokens,
 inlay hints, CodeLens, refactors, region markers, a component semantics tree, and a read-only
-client/server separation view. It runs beside VS Code's TypeScript extension and leaves ordinary
-TypeScript diagnostics and syntax presentation intact.
+client/server separation view. A bundled TypeScript plugin supplies component-owned `this.` and
+namespaced enhancement-prop completions, and removes only the corresponding false-positive
+TypeScript diagnostics. Other TypeScript diagnostics and syntax presentation remain intact.
 
 Compiler analysis starts only for trusted workspaces. Source and inspection data remain local.
 
@@ -17,7 +18,9 @@ Compiler analysis starts only for trusted workspaces. Source and inspection data
 npm run dev:vscode-extension
 ```
 
-The command builds the language server and extension, then opens an Extension Development Host.
+The command builds the language server, bundles the extension client beneath its registered
+extension path, and then opens an Extension Development Host. The bundle keeps VS Code's host API
+external while containing the language client's runtime dependencies.
 Use `--code code-insiders`, `--workspace <path>`, `--skip-build`, or `--dry-run` when needed.
 
 See [compiler-aware language tools](../../docs/language-tools.md) for the semantic model.

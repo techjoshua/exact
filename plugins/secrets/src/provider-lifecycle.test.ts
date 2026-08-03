@@ -97,9 +97,6 @@ describe('secret provider and resolver lifecycle', () => {
 		expect(defaults.providers).toHaveLength(1);
 		expect(controller.structuralValidate?.(defaults, context)).toBeUndefined();
 		expect(await controller.validate(defaults, context)).toBeUndefined();
-		expect(await controller.compilerConfig?.(defaults, context)).toEqual({
-			cacheKey: { policyVersion: 3, allowPackages: [] }
-		});
 		expect(await controller.renderConfig?.(defaults, context)).toEqual({});
 
 		const invalidShapes = [

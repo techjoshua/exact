@@ -12,6 +12,7 @@ import (
 
 var componentProtocolCalls = map[string]struct{}{
 	"getContext": {},
+	"hasContext": {},
 	"map":        {},
 	"onMount":    {},
 	"onRender":   {},
@@ -53,8 +54,13 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			ArtifactTargets:   []string{"client", "server"},
 			RenderEdges:       []RenderEdge{},
 			Contexts:          []ContextEffect{},
-			SplitBoundaries:   []string{},
-			Diagnostics:       []string{},
+			EnhancementContexts: EnhancementContextEffects{
+				Provides:           []string{},
+				Requires:           []string{},
+				OptionallyConsumes: []string{},
+			},
+			SplitBoundaries: []string{},
+			Diagnostics:     []string{},
 		})
 	}
 	sort.Slice(components, func(left int, right int) bool {

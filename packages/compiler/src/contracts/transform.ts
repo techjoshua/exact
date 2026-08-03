@@ -1,4 +1,3 @@
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type {
 	ExactBuildInspectionCatalog,
 	ExactInspectionRedactionCatalog
@@ -30,6 +29,8 @@ export type TransformOptions = {
 	filename?: string;
 	/** Root used to resolve relative filenames; defaults to the nearest package.json from cwd. */
 	root?: string;
+	/** Immutable deployment namespace shared by coordinated client/server artifacts. */
+	buildKey?: string;
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */
 	session?: ExactCompilerSession;
 	target?: TransformTarget;
@@ -66,8 +67,6 @@ export type TransformOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	/** Keeps client asset edges for a host bundler to consume during server builds. */
 	preserveClientAssetImports?: boolean;
-	/** Prepared, compiler-safe plugin projection. Raw plugin configuration is never accepted here. */
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	/**
 	 * Generated output is syntax-checked in the transform hot path by default.
 	 * Release checks can request a second full semantic binding.
@@ -171,11 +170,20 @@ export type ExactRawHtmlCapabilityIR = {
 	targets: ExactArtifactTarget[];
 };
 
+/** Identifies one compiler-resolved renderer capability imported by a module. */
+export type ExactRendererEnhancementIR = {
+	identity: string;
+	moduleSpecifier: string;
+	exportName: string;
+};
+
 /** Describes the result produced by transform. */
 export type TransformResult = {
 	code: string;
 	map: ExactSourceMap | null;
 	filename: string;
+	/** Build-facing capability imports; emitted independently of application plugin registries. */
+	rendererEnhancements?: readonly ExactRendererEnhancementIR[];
 	explanation?: ExactCompilerExplanation;
 	/** Optional host-side inspection catalog; never embedded in generated code. */
 	inspectionCatalog?: ExactSourceInspection;

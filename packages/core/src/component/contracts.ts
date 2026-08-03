@@ -7,7 +7,6 @@ import type {
 } from '@exactjs/reactive';
 
 import type { ComponentLog } from '../logging.js';
-import type { ExactRuntimeInspectionOwner } from './inspection.js';
 import type {
 	Activity,
 	Cell,
@@ -39,20 +38,13 @@ export type VNodeType =
 /** Controls whether a native Activity subtree is connected, parked, or prepared in background. */
 export type ActivityMode = 'active' | 'parked' | 'background';
 
-/** Immutable execution-root ownership for one component instance. */
-export type ComponentDomain = {
+/** Public identity of the execution root that owns a component instance. */
+export type ComponentDomainIdentity = {
 	readonly executionRoot: string;
-	/** Optional explicit runtime inspection owner; absent from hardened builds. */
-	readonly inspection?: ExactRuntimeInspectionOwner;
-	/** Framework-private activation phase inherited by the root component. */
-	readonly inspectionActivation?: 'hydration';
-	/** Framework-private bridge used by compiler-generated distributed continuations. */
-	readonly dispatchContinuation?: ComponentContinuationDispatcher;
-	/** Framework-private source of one serialized SSR component activation. */
-	readonly resumeComponent?: (
-		type: ComponentFunction<any, any>
-	) => ComponentResumptionActivation | undefined;
 };
+
+/** Immutable execution-root ownership for one component instance. */
+export type ComponentDomain = ComponentDomainIdentity;
 
 /** Client-visible state and settled work used to reconstruct one SSR component instance. */
 export type ComponentResumptionActivation = Readonly<{
@@ -89,9 +81,23 @@ export type VNode<Props = Record<string, unknown>> = {
 	props: Props;
 	children: Child[];
 	key?: string;
+	/** Compiler-owned optional renderer enhancements attached to this authored JSX boundary. */
+	readonly enhancements?: EnhancementMarker;
 	/** Captured when authored; explicit ownership survives cross-root composition. */
 	readonly domain?: ComponentDomain;
 };
+
+/** One canonical plugin capability attached to an authored JSX boundary. */
+export type EnhancementEntry = Readonly<{
+	identity: string;
+	props: Readonly<Record<string, unknown>>;
+	root?: unknown;
+}>;
+
+/** Opaque grouped renderer-enhancement marker emitted by the compiler. */
+export type EnhancementMarker = Readonly<{
+	entries: readonly EnhancementEntry[];
+}>;
 
 /** Defines the vnode cell type contract. */
 export type VNodeCell = {
@@ -250,14 +256,57 @@ export type RefKey<T> = {
 
 /** Defines the ref binding type contract. */
 export type RefBinding<T> = {
+	/** Current value published for this component-owned binding. */
+	readonly current: T | undefined;
 	readonly key: RefKey<T>;
 	readonly owner: ComponentInstance<any>;
+	/** Publishes an imperative value without assigning it component-root lifecycle semantics. */
 	fulfill(value: T | undefined): void;
 };
+
+/** Identifies why a renderer-owned component root is leaving its structural generation. */
+export type StructuralReleaseReason =
+	| 'reconcile-removed'
+	| 'reconcile-replaced'
+	| 'suspense-content-replaced'
+	| 'suspense-candidate-discarded'
+	| 'enhancement-target-rerouted'
+	| 'root-unmounted'
+	| 'owner-disposed'
+	| 'activity-parked'
+	| 'activity-background'
+	| 'release-reversed';
+
+/** Describes one renderer-owned intrinsic root generation being structurally released. */
+export type RootRelease<T extends object> = {
+	readonly target: T;
+	readonly generation: number;
+	readonly reason: StructuralReleaseReason;
+	readonly presented: boolean;
+};
+
+/** Renderer phase that first published the current intrinsic-root generation. */
+export type RootIntroduction = 'initial' | 'update' | 'hydration';
+
+/** Exposes the reactive intrinsic-root lifecycle for one component instance. */
+export type RootLifecycle<T extends object> = {
+	readonly current: T | undefined;
+	readonly generation: number;
+	readonly introduction: RootIntroduction | undefined;
+	readonly presented: boolean;
+	readonly release: RootRelease<T> | undefined;
+};
+
+/** Augments an element ref with the component-root lifecycle it explicitly selects. */
+export type RootBinding<T extends object> = RefBinding<T> & RootLifecycle<T>;
 
 /** Defines the ref registry type contract. */
 export type RefRegistry = {
 	get<T>(key: RefKey<T>): T | undefined;
+	/** Observes the component's first intrinsic root. */
+	root<T extends object = object>(): RootLifecycle<T>;
+	/** Selects an element ref as the component root and observes its lifecycle. */
+	root<T extends object>(binding: RefBinding<T>): RootBinding<T>;
 };
 
 /** Defines the task resource disposal type contract. */

@@ -126,9 +126,9 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 	}));
 	return {
 		id: filename,
-		protocolVersion: '1.26.0',
+		protocolVersion: '1.27.0',
 		typescriptVersion: '7.0.0',
-		backendVersion: '1.26.0',
+		backendVersion: '1.27.0',
 		diagnostics: [],
 		analysis: {
 			imports: [],
@@ -161,7 +161,9 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 			exports: [],
 			symbols: [],
 			boundaries: [],
+			partitionPlan: { version: 1, buildKey: '', roots: [], nodes: [], edges: [] },
 			continuations: [],
+			rendererEnhancements: [],
 			resumptions: [],
 			policy: { version: 1, subjects: [], flows: [], secretConsumers: [] },
 			requiredCapabilities: { rawHtml: [] },
@@ -178,7 +180,6 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 			projectLinkMicroseconds: 0,
 			checkMicroseconds: 0,
 			loweringMicroseconds: 0,
-			extensionMicroseconds: 0,
 			printMicroseconds: 0,
 			totalMicroseconds: 0
 		}

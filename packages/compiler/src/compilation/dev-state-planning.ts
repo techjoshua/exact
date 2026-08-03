@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { ExactArtifactGraphEntry } from '../types.js';
+import type { ExactArtifactGraphInput } from '../types.js';
 
 /**
  * Expands changed inputs to include artifacts whose retained analyses depend on them.
@@ -9,15 +9,15 @@ import type { ExactArtifactGraphEntry } from '../types.js';
  * this boundary prevents platform-specific path spelling from hiding changes.
  */
 export function affectedArtifactInputs(
-	entries: readonly ExactArtifactGraphEntry[],
+	entries: readonly ExactArtifactGraphInput[],
 	changedInputs: readonly string[]
 ): string[] {
 	const changed = new Set(changedInputs.map((input) => path.resolve(input)));
 	const affected = new Set(changed);
 	for (const entry of entries) {
 		if (
-			entry.analysis.dependencies.some((dependency) =>
-				changed.has(path.resolve(path.dirname(entry.analysis.filename), dependency))
+			entry.build.dependencies.some((dependency) =>
+				changed.has(path.resolve(path.dirname(entry.inputFile), dependency))
 			)
 		) {
 			affected.add(path.resolve(entry.inputFile));

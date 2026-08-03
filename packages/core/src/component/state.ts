@@ -1,5 +1,6 @@
 import { reactive, type Reactive } from '@exactjs/reactive';
 import type { ComponentDomain, ComponentInstance } from './contracts.js';
+import { componentDomainInspection } from './domain.js';
 
 /** Creates inspectable component state before the final instance reference is assigned. */
 export function createComponentState<State extends object>(
@@ -10,7 +11,7 @@ export function createComponentState<State extends object>(
 		onMutation(key, operation) {
 			const component = instance();
 			if (!component) return;
-			domain.inspection?.publish({
+			componentDomainInspection(domain)?.publish({
 				kind: 'state.change',
 				component,
 				path: key === undefined ? 'state' : `state.${String(key)}`,

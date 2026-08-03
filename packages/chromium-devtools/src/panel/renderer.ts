@@ -3,10 +3,11 @@ import type {
 	ExactInspectedMicrofrontend,
 	ExactInspectionRuntimeId,
 	ExactRuntimeInspectionEvent,
-	ExactTaskRuntimeSnapshot,
 	ExactValuePreview
 } from '@exactjs/devtools-protocol';
 import type { ExactDevtoolsPanelModel } from './model.js';
+import { renderPartitionTree } from './partition-tree.js';
+import { renderTaskSection } from './task-section.js';
 import {
 	buildExactComponentForest,
 	buildExactProfilerFrames,
@@ -41,6 +42,7 @@ export function renderExactComponentsView(
 			emptyState('No inspectable components', 'Reload the page with runtime inspection enabled.')
 		);
 	sidebar.append(tree);
+	sidebar.append(...renderPartitionTree(model.partitions));
 	layout.append(sidebar, renderComponentDetails(model));
 	replacePanelView(container, layout, 'components');
 }
@@ -64,7 +66,7 @@ export function renderExactProfilerView(
 			recording
 				? 'Use the application; frames and reactive changes will appear here.'
 				: captureComplete
-					? 'Try recording again and trigger state changes, actions, navigation, or task work.'
+					? 'Try recording again and trigger state changes, interactions, navigation, or task work.'
 					: 'Press Record, interact with the page, then press Stop to inspect the captured work.'
 		);
 		replacePanelView(container, empty, 'profiler');
@@ -185,7 +187,7 @@ function renderComponentDetails(model: ExactDevtoolsPanelModel): HTMLElement {
 		previewSection('State', state, 'State is empty'),
 		previewSection('Props', props, 'No props'),
 		contextSection(model.contexts),
-		taskSection(model.tasks)
+		renderTaskSection(model.tasks)
 	);
 	if (model.dependency !== undefined) {
 		const dependency = document.createElement('details');
@@ -262,29 +264,6 @@ function contextSection(contexts: readonly ExactContextPreview[]): HTMLElement {
 			labeledValue(context.name, context.scope),
 			context.value ? renderPreview(context.value) : badge(context.availability, 'neutral')
 		);
-		section.append(row);
-	}
-	return section;
-}
-
-function taskSection(tasks: readonly ExactTaskRuntimeSnapshot[]): HTMLElement {
-	const section = document.createElement('details');
-	section.className = 'detail-section';
-	section.setAttribute('data-panel-disclosure-key', 'tasks');
-	const summary = document.createElement('summary');
-	summary.textContent = `Tasks & actions (${tasks.length})`;
-	section.append(summary);
-	if (!tasks.length) section.append(emptyState('No owned tasks or actions'));
-	for (const task of tasks) {
-		const row = node('div', 'task-row');
-		const identity = task.name ?? task.kind ?? task.id.sourceEntityId ?? 'Task';
-		const title = node('strong');
-		title.textContent = identity;
-		const metadata = node('span', 'task-metadata');
-		metadata.textContent = `${task.activation} · ${task.placement} · generation ${task.generation}`;
-		row.append(title, badge(task.status, task.status), metadata);
-		if (task.startedAt !== undefined && task.settledAt !== undefined)
-			row.append(badge(formatExactProfilerDuration(task.settledAt - task.startedAt), 'neutral'));
 		section.append(row);
 	}
 	return section;

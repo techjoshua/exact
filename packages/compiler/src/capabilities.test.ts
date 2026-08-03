@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, transformSource } from './index.js';
+import { transformSource } from './index.js';
+import { analyzeSource } from './compilation/source-analysis.js';
 
 const rawHtmlSource = `
   import { unsafeHtml as raw } from "@exactjs/core";

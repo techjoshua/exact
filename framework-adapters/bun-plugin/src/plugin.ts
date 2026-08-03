@@ -1,21 +1,21 @@
 import {
 	createCompilerSession,
+	createLineSourceMap,
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
-	transformSource,
 	type ExactAssetRule,
 	type ExactCompilerSession,
 	type ExactSourceInspection,
 	type TransformTarget
 } from '@exactjs/compiler';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
-import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import {
-	profileTimestamp,
-	type ExactProfileEvent,
-	type ExactProfileSink
-} from '@exactjs/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+	createExactDiagnosticReporter,
+	exactEnhancementFacadeImports,
+	prependExactEnhancementRegistrations,
+	transformExactAdapterModule
+} from '@exactjs/compiler/adapter-support';
+import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
 	createReactCompatibilityBuildEngine,
@@ -58,7 +58,6 @@ export type ExactBunPluginOptions = {
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
 	applicationRoot?: string;
 	configPath?: string;
-	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
@@ -165,7 +164,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				});
 			}
 			const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
-			let pluginRegistry = options.pluginRegistry;
+			let registryPrepared = false;
 			let configuredDebug = options.debug;
 			build.config ??= {};
 			build.config.conditions = mergeConditions(
@@ -174,13 +173,13 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			);
 			build.onStart?.(async () => {
 				inspectionModules.clear();
-				if (!pluginRegistry) {
+				if (!registryPrepared) {
 					const prepared = await prepareExactPluginRegistry({
 						applicationRoot: options.applicationRoot,
 						configPath: options.configPath,
-						hostMode: 'compiler'
+						hostMode: 'build'
 					});
-					pluginRegistry = prepared.compiler;
+					registryPrepared = true;
 					configuredDebug ??= prepared.config?.debug;
 				}
 				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
@@ -210,6 +209,9 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				const resolved = resolveExactBunRequest(args.path, args.importer, options);
 				return resolved ? { path: resolved } : undefined;
 			});
+			build.onResolve({ filter: /^@exactjs\/(?:dom|hydrate|ssr)$/ }, (args) => ({
+				path: exactEnhancementFacadeImports[args.path as keyof typeof exactEnhancementFacadeImports]
+			}));
 			if (reactCompatibility) {
 				build.onResolve({ filter: /^react-reconciler$/ }, (args) => {
 					validateInstalledReactReconciler(
@@ -240,7 +242,6 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					args.path,
 					{
 						...options,
-						pluginRegistry,
 						debug: resolveBunDebug(configuredDebug, automaticDevelopment)
 					},
 					compilerSession
@@ -315,69 +316,68 @@ export function transformExactBunSource(
 	}>;
 } | null {
 	if (!shouldTransform(filename, source, options)) return null;
-	const profileStarted = options.onProfile ? profileTimestamp() : undefined;
-	try {
-		const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
-		const compatibilityEngine = reactCompatibility
-			? bunCompatibilityEngine(options, session, reactCompatibility.target)
-			: undefined;
-		compatibilityEngine?.invalidate(filename);
-		const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
-		const reactOwned =
-			ownership === 'react' ||
-			(ownership === 'unknown' && usesReactRuntimeImports(source, filename));
-		if (reactOwned) {
-			if (!reactCompatibility) return null;
-			return transformReactJsx(source, {
-				filename,
-				target: reactCompatibility.target,
-				sourceMap: options.sourceMap ?? true
-			});
-		}
-		const result = transformSource(source, {
-			filename,
-			session,
-			target: targetFor(options),
-			serverComponents: options.serverComponents,
-			sourceMap: options.sourceMap ?? true,
-			assetRules: options.assetRules,
-			preserveClientAssetImports: true,
-			pluginRegistry: options.pluginRegistry,
-			jsxInterop: compatibilityEngine?.jsxInterop,
-			emitInspection: options.target === 'server' && bunDebugEnabled(options.debug?.catalog),
-			instrumentInspection: bunDebugEnabled(options.debug?.runtime)
-		});
-		const code =
-			options.target !== 'server' && bunDebugEnabled(options.debug?.runtime)
-				? appendBunDevtoolsBootstrap(result.code, options.debug)
-				: result.code;
-		return {
-			code,
-			map: result.map,
-			...(result.inspectionCatalog
-				? {
-						inspection: {
+	const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
+	const compatibilityEngine = reactCompatibility
+		? bunCompatibilityEngine(options, session, reactCompatibility.target)
+		: undefined;
+	const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
+	const output = transformExactAdapterModule({
+		source,
+		filename,
+		jsxOwnership: ownership,
+		usesReactRuntimeImports: usesReactRuntimeImports(source, filename),
+		transformReact: true,
+		shouldCompile: true,
+		invalidateCompatibility: () => compatibilityEngine?.invalidate(filename),
+		...(reactCompatibility
+			? {
+					react: () =>
+						transformReactJsx(source, {
+							filename,
+							target: reactCompatibility.target,
+							sourceMap: options.sourceMap ?? true
+						})
+				}
+			: {}),
+		compiler: {
+			options: {
+				session,
+				target: targetFor(options),
+				serverComponents: options.serverComponents,
+				sourceMap: options.sourceMap ?? true,
+				assetRules: options.assetRules,
+				preserveClientAssetImports: true,
+				jsxInterop: compatibilityEngine?.jsxInterop,
+				emitInspection: options.target === 'server' && bunDebugEnabled(options.debug?.catalog),
+				instrumentInspection: bunDebugEnabled(options.debug?.runtime)
+			},
+			finish: (result) => {
+				const enhanced = prependExactEnhancementRegistrations(
+					result.code,
+					result.rendererEnhancements
+				);
+				const code =
+					options.target !== 'server' && bunDebugEnabled(options.debug?.runtime)
+						? appendBunDevtoolsBootstrap(enhanced, options.debug)
+						: enhanced;
+				return {
+					code,
+					map: options.sourceMap === false ? null : createLineSourceMap(filename, source, code)
+				};
+			},
+			inspection: (result) =>
+				result.inspectionCatalog
+					? {
 							inspection: result.inspectionCatalog,
 							redactions: result.inspectionRedactions
 						}
-					}
-				: {})
-		};
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		throw new Error(`eXact JSX transform failed for ${filename}\n${message}`);
-	} finally {
-		if (profileStarted !== undefined) {
-			options.onProfile?.(
-				Object.freeze({
-					subsystem: 'bun-plugin',
-					phase: 'transform',
-					elapsedMs: profileTimestamp() - profileStarted,
-					attributes: Object.freeze({ filename })
-				})
-			);
-		}
-	}
+					: undefined
+		},
+		profile: options.onProfile
+			? { subsystem: 'bun-plugin' as const, sink: options.onProfile }
+			: undefined
+	});
+	return output ? { code: output.code, map: output.map, inspection: output.inspection } : null;
 }
 
 function bunCompatibilityEngine(

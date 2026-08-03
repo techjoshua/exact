@@ -11,6 +11,7 @@ import {
 	type ComponentInstance,
 	type ReadinessContextValue
 } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import {
 	flushSync,
 	setEffectScopeWorkPriority,
@@ -20,6 +21,7 @@ import {
 import type { Mounted, Root } from '../types.js';
 import { detachMountedRanges, restoreMountedRanges } from './retained-range.js';
 import { ownMountedInstance } from './root-lifecycle.js';
+import { setMountedRootPresentation } from './component-roots.js';
 
 /** Installs the private readiness gate and logical owner inherited by Activity descendants. */
 export function prepareActivity(
@@ -166,7 +168,7 @@ function finishActivityActivation(root: Root, mounted: Mounted, generation: numb
 function publishActivityChange(mounted: Mounted): void {
 	const activity = mounted.activity;
 	if (!activity) return;
-	activity.owner.domain.inspection?.publish({
+	componentDomainInspection(activity.owner.domain)?.publish({
 		kind: 'activity.change',
 		component: activity.owner,
 		attributes: Object.freeze({
@@ -190,6 +192,7 @@ function retainWhenPlaced(mounted: Mounted): void {
 
 function setDescendantActivity(mounted: Mounted, active: boolean): void {
 	const token = mounted.activity!.token;
+	for (const child of mounted.children) setMountedRootPresentation(child, active);
 	const pending = [...mounted.children];
 	while (pending.length) {
 		const child = pending.pop()!;

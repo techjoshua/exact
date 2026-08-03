@@ -25,6 +25,8 @@ import {
 	unmountMounted
 } from '../teardown.js';
 import { patch } from './root.js';
+import { refreshComponentRoot } from '../component-roots.js';
+import { releaseMountedRange } from '../retained-release.js';
 
 /** Performs the patch children domain operation. */
 export function patchChildren(
@@ -116,11 +118,17 @@ export function patchChildrenInner(
 	const teardown = teardownFailure();
 	for (const old of oldChildren) {
 		if (!retained.has(old)) {
-			attemptTeardown(teardown, () => unmountMounted(old));
-			attemptTeardown(teardown, () => removeMountedNodes(parent, old));
+			if (!releaseMountedRange(root, parent, old, 'reconcile-removed')) {
+				attemptTeardown(teardown, () => unmountMounted(old));
+				attemptTeardown(teardown, () => removeMountedNodes(parent, old));
+			}
 		}
 	}
 	throwTeardownFailure(teardown);
+	if (parentInstance) refreshComponentRoot(parentInstance);
+	if (!root.enhancementReconciliationDepth) {
+		root.reconcileEnhancements?.();
+	}
 
 	return nextMounted;
 }

@@ -1,17 +1,22 @@
 import { inspectExactRuntimeComponent, type ExactRuntimeInspectionOwner } from '@exactjs/core';
+import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import type {
 	ExactInspectedRuntimeComponent,
+	ExactInspectedPartitionInstance,
 	ExactInspectionExecutionRoot,
 	ExactInspectionRuntimeId,
 	ExactRuntimeInspectionSink
 } from '@exactjs/devtools-protocol';
 import { activeInspectableRoots, elementOwners } from './state.js';
+import { findNodeOwnerInstance } from './ownership.js';
+import { walkDomSubtree } from './work.js';
 import type { Mounted, Root } from './types.js';
 
 /** Current client-side projection consumed by the page-world bridge. */
 export type ExactDomInspectionSnapshot = Readonly<{
 	roots: readonly ExactInspectionExecutionRoot[];
 	components: readonly ExactInspectedRuntimeComponent[];
+	partitions: readonly ExactInspectedPartitionInstance[];
 }>;
 
 /** Production-safe renderer inspection surface that never returns component instances. */
@@ -29,7 +34,9 @@ export function createExactDomInspectionHost(): ExactDomInspectionHost {
 	const host: ExactDomInspectionHost = {
 		attach(sessionId, sink) {
 			for (const root of activeInspectableRoots()) {
-				const owner = root.current.domain?.inspection;
+				const owner = root.current.domain
+					? componentDomainInspection(root.current.domain)
+					: undefined;
 				if (!owner) continue;
 				owner.attach(sessionId, sink);
 				attachedOwners.add(owner);
@@ -44,7 +51,7 @@ export function createExactDomInspectionHost(): ExactDomInspectionHost {
 		},
 		ownerOfElement(element) {
 			const instance = elementOwners.get(element);
-			return instance?.domain.inspection?.identity(instance);
+			return instance ? componentDomainInspection(instance.domain)?.identity(instance) : undefined;
 		},
 		ownedElements(identity) {
 			for (const root of activeInspectableRoots()) {
@@ -62,8 +69,9 @@ export function createExactDomInspectionHost(): ExactDomInspectionHost {
 function snapshotRoots(roots: readonly Root[]): ExactDomInspectionSnapshot {
 	const executionRoots: ExactInspectionExecutionRoot[] = [];
 	const components: ExactInspectedRuntimeComponent[] = [];
+	const partitions: ExactInspectedPartitionInstance[] = [];
 	for (const root of roots) {
-		const owner = root.current.domain?.inspection;
+		const owner = root.current.domain ? componentDomainInspection(root.current.domain) : undefined;
 		if (!owner || !root.mounted) continue;
 		const before = components.length;
 		appendMounted(root.mounted, undefined, components);
@@ -77,10 +85,99 @@ function snapshotRoots(roots: readonly Root[]): ExactDomInspectionSnapshot {
 				components: components.length - before
 			})
 		);
+		partitions.push(...partitionRoots(root, owner.buildKey, owner.executionRoot));
 	}
 	return Object.freeze({
 		roots: Object.freeze(executionRoots),
-		components: Object.freeze(components)
+		components: Object.freeze(components),
+		partitions: Object.freeze(partitions)
+	});
+}
+
+type MutablePartitionInspection = {
+	value: Omit<ExactInspectedPartitionInstance, 'children'>;
+	children: MutablePartitionInspection[];
+};
+
+function partitionRoots(
+	root: Root,
+	buildKey: string,
+	executionRoot: string
+): readonly ExactInspectedPartitionInstance[] {
+	const byElement = new Map<Element, MutablePartitionInspection>();
+	const roots: MutablePartitionInspection[] = [];
+	walkDomSubtree(
+		root.container,
+		(node) => {
+			if (!(node instanceof Element) || !node.hasAttribute('data-exact-partition-edge')) return;
+			const markerBuild = node.getAttribute('data-exact-partition-build');
+			const markerRoot = node.getAttribute('data-exact-partition-root');
+			const plan = node.getAttribute('data-exact-partition-edge');
+			const ownerComponentId = node.getAttribute('data-exact-partition-owner');
+			const generation = Number(node.getAttribute('data-exact-partition-generation'));
+			const discriminator = inspectedPartitionDiscriminator(node);
+			if (
+				node.getAttribute('data-exact-partition-version') !== '1' ||
+				markerBuild !== buildKey ||
+				markerRoot !== executionRoot ||
+				!plan ||
+				!ownerComponentId ||
+				!discriminator ||
+				!Number.isSafeInteger(generation) ||
+				generation < 1
+			)
+				return;
+			const owner = findNodeOwnerInstance(node);
+			const ownerIdentity = owner
+				? componentDomainInspection(owner.domain)?.identity(owner)
+				: undefined;
+			const mutable: MutablePartitionInspection = {
+				value: Object.freeze({
+					executionRoot,
+					buildKey,
+					plan,
+					ownerComponentId,
+					...(ownerIdentity ? { ownerComponentInstance: ownerIdentity } : {}),
+					discriminator,
+					generation,
+					host: 'server' as const
+				}),
+				children: []
+			};
+			byElement.set(node, mutable);
+			const parentElement = node.parentElement?.closest('[data-exact-partition-edge]');
+			const parent = parentElement ? byElement.get(parentElement) : undefined;
+			if (parent) parent.children.push(mutable);
+			else roots.push(mutable);
+		},
+		{ maxNodes: root.maxTreeNodes }
+	);
+	return Object.freeze(roots.map(freezePartitionInspection));
+}
+
+function inspectedPartitionDiscriminator(
+	marker: Element
+): ExactInspectedPartitionInstance['discriminator'] | undefined {
+	const kind = marker.getAttribute('data-exact-partition-discriminator');
+	if (kind === 'single') return Object.freeze({ kind });
+	if (kind === 'branch') {
+		const branch = marker.getAttribute('data-exact-partition-branch');
+		return branch ? Object.freeze({ kind, branch }) : undefined;
+	}
+	if (kind === 'keyed') {
+		const list = marker.getAttribute('data-exact-partition-list');
+		const keyToken = marker.getAttribute('data-exact-partition-key');
+		return list && keyToken ? Object.freeze({ kind, list, keyToken }) : undefined;
+	}
+	return undefined;
+}
+
+function freezePartitionInspection(
+	instance: MutablePartitionInspection
+): ExactInspectedPartitionInstance {
+	return Object.freeze({
+		...instance.value,
+		children: Object.freeze(instance.children.map(freezePartitionInspection))
 	});
 }
 
@@ -90,7 +187,9 @@ function appendMounted(
 	output: ExactInspectedRuntimeComponent[]
 ): void {
 	const instance = mounted.instance;
-	const identity = instance?.domain.inspection?.identity(instance);
+	const identity = instance
+		? componentDomainInspection(instance.domain)?.identity(instance)
+		: undefined;
 	const nextParent = identity ?? parent;
 	if (instance && identity) {
 		const snapshot = inspectExactRuntimeComponent(instance, {
