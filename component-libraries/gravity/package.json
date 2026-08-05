@@ -21,7 +21,12 @@
 	"main": "./dist/index.js",
 	"types": "./capability.d.ts",
 	"sideEffects": false,
+	"exactComponentLibrary": {
+		"protocol": 1,
+		"build": "./dist/exact-component-build.json"
+	},
 	"dependencies": {
+		"@exactjs/component-library": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/physics": "^0.1.0"
 	},
@@ -30,7 +35,7 @@
 		"@exactjs/testing": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc6 -b",
+		"build": "tsc6 -b && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

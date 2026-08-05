@@ -90,6 +90,7 @@ function createFixture() {
 		JSON.stringify({
 			name: '@acme/cards',
 			version: '1.0.0',
+			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
 			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})

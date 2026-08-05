@@ -27,6 +27,18 @@ export type ExactNormalizedComponentLibraryPolicy = Readonly<{
 export function normalizeExactComponentLibraryPolicy(
 	config: ExactComponentLibraryTrustConfig | undefined
 ): ExactNormalizedComponentLibraryPolicy {
+	if (config !== undefined) {
+		if (!config || typeof config !== 'object' || Array.isArray(config))
+			throw new Error('componentLibraries must be an object');
+		assertKnownKeys(config, [
+			'mode',
+			'allow',
+			'deny',
+			'trustedScopes',
+			'includeDefaultTrustedScopes',
+			'unauthorizedOptionalEnhancements'
+		], 'componentLibraries');
+	}
 	const mode = config?.mode ?? 'trusted';
 	if (!['root', 'trusted', 'all'].includes(mode))
 		throw new Error(`Invalid componentLibraries.mode: ${String(mode)}`);
@@ -36,6 +48,8 @@ export function normalizeExactComponentLibraryPolicy(
 		[...(config?.trustedScopes ?? [])].map((scope) => validateScope(scope, 'trustedScopes')).sort()
 	);
 	const includeDefaultTrustedScopes = config?.includeDefaultTrustedScopes ?? true;
+	if (typeof includeDefaultTrustedScopes !== 'boolean')
+		throw new Error('componentLibraries.includeDefaultTrustedScopes must be a boolean');
 	const unauthorizedOptionalEnhancements = config?.unauthorizedOptionalEnhancements ?? 'error';
 	if (!['error', 'exclude'].includes(unauthorizedOptionalEnhancements))
 		throw new Error(
@@ -93,6 +107,7 @@ function normalizeRule(
 	}
 	if (!rule || typeof rule !== 'object' || Array.isArray(rule))
 		throw new Error(`componentLibraries.${field} must be a package rule`);
+	assertKnownKeys(rule, ['package', 'version', 'integrity'], `componentLibraries.${field}`);
 	const packageName = validatePackageName(rule.package, field);
 	if (rule.version && !semver.validRange(rule.version))
 		throw new Error(`componentLibraries.${field}.version is not a valid semver range`);
@@ -106,6 +121,11 @@ function normalizeRule(
 		...(rule.integrity ? { integrity: rule.integrity } : {}),
 		description
 	});
+}
+
+function assertKnownKeys(value: object, known: readonly string[], field: string): void {
+	const unexpected = Object.keys(value).find((key) => !known.includes(key));
+	if (unexpected) throw new Error(`${field}.${unexpected} is not a supported property`);
 }
 
 function validatePackageName(value: string, field: string): string {

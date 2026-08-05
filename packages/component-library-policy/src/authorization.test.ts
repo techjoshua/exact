@@ -37,6 +37,14 @@ describe('@exactjs/component-library-policy', () => {
 				allow: [{ package: '@acme/cards', version: 'not semver' }]
 			})
 		).toThrow('valid semver range');
+		expect(() =>
+			normalizeExactComponentLibraryPolicy({ unexpected: true } as never)
+		).toThrow('unexpected is not a supported property');
+		expect(() =>
+			normalizeExactComponentLibraryPolicy({
+				allow: [{ package: '@acme/cards', unexpected: true } as never]
+			})
+		).toThrow('unexpected is not a supported property');
 	});
 
 	it('authorizes a resolver-proven root dependency and emits deterministic redacted output', async () => {
@@ -226,6 +234,7 @@ function createFixture() {
 		exactComponentLibraryProtocol: 1
 	});
 	const library = createPackage(root, '@acme/cards', '1.2.3', 'cards', {
+		exports: { '.': './dist/index.js' },
 		dependencies: { '@exactjs/component-library': '^0.1.0' },
 		exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 	});
@@ -252,6 +261,7 @@ function addLibrary(fixture: Fixture, name: string, version: string, directory: 
 		}
 	);
 	const instance = createPackage(fixture.root, name, version, directory, {
+		exports: { '.': './dist/index.js' },
 		dependencies: { '@exactjs/component-library': '^0.1.0' },
 		exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 	});

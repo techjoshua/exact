@@ -88,7 +88,7 @@ export async function validateExactComponentParticipation(
 			`Unable to read ${instance.name} component build facts: ${errorMessage(error)}`
 		);
 	}
-	validatePublishedBuildFacts(buildFacts, instance);
+	validatePublishedBuildFacts(buildFacts, instance, manifest);
 	const resolvedModule = packageModulePath(instance.root, candidate.resolvedModuleId);
 	const selected = buildFacts.exports.find(
 		(record) =>
@@ -115,6 +115,7 @@ type PackageManifest = Readonly<{
 	dependencies?: Readonly<Record<string, string>>;
 	exactComponentLibraryProtocol?: number;
 	exactComponentLibrary?: Readonly<{ protocol?: number; build?: string }>;
+	exports?: unknown;
 }>;
 
 async function readManifest(instance: ExactResolvedPackageInstance): Promise<PackageManifest> {
@@ -138,7 +139,8 @@ async function readManifest(instance: ExactResolvedPackageInstance): Promise<Pac
 
 function validatePublishedBuildFacts(
 	facts: ExactPublishedComponentBuildFacts,
-	instance: ExactResolvedPackageInstance
+	instance: ExactResolvedPackageInstance,
+	manifest: PackageManifest
 ): void {
 	if (
 		!facts ||
@@ -174,7 +176,36 @@ function validatePublishedBuildFacts(
 			!module.facts.components.some((component) => component.id === record.componentId)
 		)
 			invalidBuildFacts(instance, `export ${record.exportName} has no matching component`);
+		const targets = packageExportTargets(manifest.exports, record.subpath, record.condition).map(
+			normalizeModulePath
+		);
+		if (!targets.includes(normalizeModulePath(record.module)))
+			invalidBuildFacts(
+				instance,
+				`export ${record.subpath} condition ${record.condition} does not target ${record.module}`
+			);
 	}
+}
+
+function packageExportTargets(exportsValue: unknown, subpath: string, condition: string): string[] {
+	if (exportsValue === undefined) return subpath === '.' ? [] : [];
+	const root =
+		exportsValue &&
+		typeof exportsValue === 'object' &&
+		!Array.isArray(exportsValue) &&
+		Object.keys(exportsValue).some((key) => key.startsWith('.'))
+			? (exportsValue as Record<string, unknown>)[subpath]
+			: subpath === '.'
+				? exportsValue
+				: undefined;
+	return conditionTargets(root, condition);
+}
+
+function conditionTargets(value: unknown, condition: string): string[] {
+	if (typeof value === 'string') return condition === 'default' ? [value] : [];
+	if (Array.isArray(value)) return value.flatMap((entry) => conditionTargets(entry, condition));
+	if (!value || typeof value !== 'object') return [];
+	return conditionTargets((value as Record<string, unknown>)[condition], 'default');
 }
 
 function packageRelativePath(root: string, value: string, label: string): string {

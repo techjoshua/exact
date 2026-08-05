@@ -76,6 +76,7 @@ function createFixture() {
 			name: '@acme/cards',
 			version: '1.0.0',
 			main: './dist/index.js',
+			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
 			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})

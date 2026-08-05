@@ -8,6 +8,7 @@
 		"dist/artifact-isolation.*",
 		"dist/artifacts.*",
 		"dist/cli.*",
+		"dist/component-library-build.*",
 		"dist/compilation",
 		"!dist/compilation/analysis-results.*",
 		"!dist/compilation/generated-diagnostics.*",
@@ -54,6 +55,10 @@
 		"./adapter-support": {
 			"types": "./dist/adapter-support.d.ts",
 			"default": "./dist/adapter-support.js"
+		},
+		"./component-library-build": {
+			"types": "./dist/component-library-build.d.ts",
+			"default": "./dist/component-library-build.js"
 		}
 	},
 	"bin": {
