@@ -45,9 +45,9 @@ export function createCounter() {
 		expect(enhanced.map((diagnostic) => diagnostic.code)).toContain(2683);
 	});
 
-	it('counts exact-plugin JSX namespaces as import usage', () => {
+	it('counts exact-enhancement JSX namespaces as import usage', () => {
 		const source = `
-import motion from './motion.js' with { type: 'exact-plugin' };
+import motion from './motion.js' with { type: 'exact-enhancement' };
 declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
 export const view = <div motion:animate="in" />;`;
 		const { original, enhanced } = diagnostics(source, 'Motion.tsx');
@@ -58,7 +58,7 @@ export const view = <div motion:animate="in" />;`;
 
 	it('completes finite enhancement props using namespaced JSX spelling', () => {
 		const source = `
-import motion from './motion.js' with { type: 'exact-plugin' };
+import motion from './motion.js' with { type: 'exact-enhancement' };
 declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
 export const view = <div motion: />;`;
 		const completions = completionNames(source, 'Motion.tsx', source.indexOf('motion:') + 7);
@@ -69,8 +69,8 @@ export const view = <div motion: />;`;
 
 	it('retains an unrelated unused enhancement import', () => {
 		const source = `
-import motion from './motion.js' with { type: 'exact-plugin' };
-import gravity from './gravity.js' with { type: 'exact-plugin' };
+import motion from './motion.js' with { type: 'exact-enhancement' };
+import gravity from './gravity.js' with { type: 'exact-enhancement' };
 declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
 export const view = <div motion:animate="in" />;`;
 		const { enhanced } = diagnostics(source, 'Named.tsx');
@@ -90,7 +90,7 @@ import motion from './motion.js';
 declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
 export const view = <div motion:animate="in" />;`;
 		const unusedEnhancement = `
-import motion from './motion.js' with { type: 'exact-plugin' };
+import motion from './motion.js' with { type: 'exact-enhancement' };
 export const view = 1;`;
 
 		expect(diagnostics(ordinary, 'Ordinary.tsx').enhanced.map(({ code }) => code)).toContain(6133);

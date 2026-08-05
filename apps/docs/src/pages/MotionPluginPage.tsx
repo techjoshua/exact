@@ -29,7 +29,7 @@ const componentSource = `<MotionConfig reducedMotion="system" transition={{ dura
 </MotionConfig>`;
 
 const enhancementSource = `import motion from '@exactjs/motion'
-  with { type: 'exact-plugin' };
+  with { type: 'exact-enhancement' };
 import { slideUp } from '@exactjs/motion/presets';
 
 // Ordinary JSX remains the functional fallback.
@@ -90,9 +90,9 @@ export function MotionPluginPage(this: Component<{}>) {
 				<CodeBlock source={enhancementSource} language="tsx" title="SaveFeedback.tsx" />
 				<p>
 					The namespaced form attaches the same transparent motion owner to an existing intrinsic
-					target. Remove the bundled capability and the output, styles, events, and application state
-					still work; only the visual path disappears. This is the preferred form when motion is a
-					progressive enhancement rather than required structure.
+					target. Remove the bundled capability and the output, styles, events, and application
+					state still work; only the visual path disappears. This is the preferred form when motion
+					is a progressive enhancement rather than required structure.
 				</p>
 			</section>
 			<section>
@@ -100,15 +100,15 @@ export function MotionPluginPage(this: Component<{}>) {
 				<CodeBlock source={componentSource} language="tsx" title="Dialog.tsx" />
 				<p>
 					Use explicit components when a compilerless caller needs motion or when components such as{' '}
-					<code>Presence</code>, <code>MotionConfig</code>, and <code>MotionList</code> own structural
-					coordination rather than decorating one existing target. <code>Motion</code> renders one real
-					intrinsic selected by <code>as</code>.{' '}
-					<code>MotionConfig</code> inherits enabled, transition, appear, and reduced-motion policy
-					through the logical component tree, including portals. <code>Presence</code> makes leaving
-					content inert, returns focus, and reuses the same DOM generation after a rapid reversal.
-					Its sync, out-in, and in-out modes order keyed replacements through the existing release
-					lifecycle. In-out waits for descendant enter playback before releasing the old range, and
-					reduced-motion skips advance through the same state machine immediately.
+					<code>Presence</code>, <code>MotionConfig</code>, and <code>MotionList</code> own
+					structural coordination rather than decorating one existing target. <code>Motion</code>{' '}
+					renders one real intrinsic selected by <code>as</code>. <code>MotionConfig</code> inherits
+					enabled, transition, appear, and reduced-motion policy through the logical component tree,
+					including portals. <code>Presence</code> makes leaving content inert, returns focus, and
+					reuses the same DOM generation after a rapid reversal. Its sync, out-in, and in-out modes
+					order keyed replacements through the existing release lifecycle. In-out waits for
+					descendant enter playback before releasing the old range, and reduced-motion skips advance
+					through the same state machine immediately.
 				</p>
 			</section>
 			<section>

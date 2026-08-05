@@ -95,7 +95,7 @@ export interface GravityFieldProps extends GravityApplicationOptions {
 	readonly children?: Child;
 }
 
-/** Canonical props accepted by the plugin-owned JSX namespace. */
+/** Canonical props accepted by the enhancement JSX namespace. */
 export interface GravityElementProps {
 	readonly apply?: GravityField;
 	readonly scale?: number;

@@ -157,7 +157,7 @@ function componentReceiverAtCompletion(
 	return enclosingComponentReceiver(typescript, sourceFile, receiver);
 }
 
-/** Resolves the exact-plugin prefix at an incomplete namespaced JSX attribute. */
+/** Resolves the exact-enhancement prefix at an incomplete namespaced JSX attribute. */
 function enhancementPrefixAtCompletion(
 	typescript: TypeScript,
 	sourceFile: tsModule.SourceFile,
@@ -192,7 +192,10 @@ function enhancementImportBinding(
 	prefix: string
 ): tsModule.Identifier | undefined {
 	for (const statement of sourceFile.statements) {
-		if (!typescript.isImportDeclaration(statement) || !isExactPluginImport(typescript, statement))
+		if (
+			!typescript.isImportDeclaration(statement) ||
+			!isExactEnhancementImport(typescript, statement)
+		)
 			continue;
 		const clause = statement.importClause;
 		if (!clause || clause.isTypeOnly) continue;
@@ -269,7 +272,7 @@ function authoredComponentReceiver(
 	);
 }
 
-/** Recognizes an exact-plugin binding consumed as a JSX attribute namespace. */
+/** Recognizes an exact-enhancement binding consumed as a JSX attribute namespace. */
 function isUsedEnhancementImport(
 	typescript: TypeScript,
 	sourceFile: tsModule.SourceFile,
@@ -278,7 +281,7 @@ function isUsedEnhancementImport(
 ): boolean {
 	const diagnosticNode = deepestNodeAtPosition(sourceFile, position);
 	const declaration = enclosingImportDeclaration(typescript, diagnosticNode);
-	if (!declaration || !isExactPluginImport(typescript, declaration)) return false;
+	if (!declaration || !isExactEnhancementImport(typescript, declaration)) return false;
 	const bindings = importBindingNames(typescript, declaration);
 	if (!bindings.size) return false;
 	const used = new Set<string>();
@@ -326,7 +329,7 @@ function enclosingImportDeclaration(
 }
 
 /** Tests the compiler-reserved import attribute without depending on module naming conventions. */
-function isExactPluginImport(
+function isExactEnhancementImport(
 	typescript: TypeScript,
 	declaration: tsModule.ImportDeclaration
 ): boolean {
@@ -334,7 +337,7 @@ function isExactPluginImport(
 		(attribute) =>
 			attribute.name.text === 'type' &&
 			typescript.isStringLiteral(attribute.value) &&
-			attribute.value.text === 'exact-plugin'
+			attribute.value.text === 'exact-enhancement'
 	);
 }
 

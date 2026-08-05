@@ -60,7 +60,7 @@ export type MotionConfigProps = Readonly<{
 	children?: Child;
 }>;
 
-/** Canonical props accepted by the plugin-owned JSX namespace. */
+/** Canonical props accepted by the enhancement JSX namespace. */
 export interface MotionElementProps {
 	apply?: MotionDefinition;
 	enter?: MotionPhase;

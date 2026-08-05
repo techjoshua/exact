@@ -22,7 +22,7 @@ The plugin installs the compiler loader, applies client or server export conditi
 diagnostics, supports source maps and watch invalidation, verifies browser isolation, and can
 configure React compatibility.
 
-Attributed plugin imports populate the application-bundle enhancement catalog. The plugin aliases
+Attributed enhancement imports populate the application-bundle enhancement catalog. The plugin aliases
 DOM, hydration, and SSR entry points to the shared facades that supply that catalog; application
 aliases remain authoritative, and the compiler does not maintain a plugin registry.
 

@@ -174,7 +174,7 @@ Component instances continue to own:
 
 - `this.state`, props, contexts, refs, and lifecycle registrations;
 - task definitions, task generations, optimistic journals, and owned resources;
-- plugin enhancement contexts and same-target ordering; and
+- enhancement contexts and same-target ordering; and
 - component error and cleanup behavior.
 
 Partition region instances own only framework authority:

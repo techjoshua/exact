@@ -173,7 +173,7 @@ diagnostics. The extension contributes a narrow TypeScript server compatibility
 plugin for syntax whose compiler meaning differs from TypeScript's default model.
 Local functions inside a component inherit the authored `this: Component<...>`
 receiver for member completion without receiving TS2683, and an attributed
-`exact-plugin` binding counts as used when it appears as a JSX namespace. Typing
+`exact-enhancement` binding counts as used when it appears as a JSX namespace. Typing
 that namespace and a colon completes the imported callable's finite public props
 in kebab-case, plus the reserved `root` target selector. Unrelated implicit-`this`
 and unused-import diagnostics remain unchanged.

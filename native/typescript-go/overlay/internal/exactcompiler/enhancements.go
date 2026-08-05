@@ -53,7 +53,7 @@ func collectEnhancementImports(
 			continue
 		}
 		declaration := statement.AsImportDeclaration()
-		if !exactPluginImport(declaration) {
+		if !exactEnhancementImport(declaration) {
 			collectImportLocalNames(declaration, ordinaryBindings)
 			continue
 		}
@@ -73,12 +73,12 @@ func collectEnhancementImports(
 		}
 		if declaration.ImportClause == nil ||
 			!ast.IsStringLiteral(declaration.ModuleSpecifier) {
-			addDiagnostic("EXACT6001", "exact-plugin imports require value bindings from a string module specifier")
+			addDiagnostic("EXACT6001", "exact-enhancement imports require value bindings from a string module specifier")
 			continue
 		}
 		clause := declaration.ImportClause.AsImportClause()
 		if clause.PhaseModifier == ast.KindTypeKeyword {
-			addDiagnostic("EXACT6002", "type-only imports cannot define an exact-plugin JSX namespace")
+			addDiagnostic("EXACT6002", "type-only imports cannot define an exact-enhancement JSX namespace")
 			continue
 		}
 		moduleSpecifier := declaration.ModuleSpecifier.AsStringLiteral().Text
@@ -108,18 +108,18 @@ func collectEnhancementImports(
 		bindings := clause.NamedBindings
 		if bindings == nil {
 			if clause.Name() == nil {
-				addDiagnostic("EXACT6001", "exact-plugin imports require a default or named value binding")
+				addDiagnostic("EXACT6001", "exact-enhancement imports require a default or named value binding")
 			}
 			continue
 		}
 		if ast.IsNamespaceImport(bindings) {
-			addDiagnostic("EXACT6003", "namespace imports cannot define an exact-plugin JSX namespace")
+			addDiagnostic("EXACT6003", "namespace imports cannot define an exact-enhancement JSX namespace")
 			continue
 		}
 		for _, element := range bindings.AsNamedImports().Elements.Nodes {
 			specifier := element.AsImportSpecifier()
 			if specifier.IsTypeOnly {
-				addDiagnostic("EXACT6002", "type-only imports cannot define an exact-plugin JSX namespace")
+				addDiagnostic("EXACT6002", "type-only imports cannot define an exact-enhancement JSX namespace")
 				continue
 			}
 			exportName := specifier.Name().Text()
@@ -178,11 +178,11 @@ func resolveEnhancementIdentity(
 	typeChecker *checker.Checker,
 ) (string, string) {
 	if typeChecker == nil {
-		return "", "exact-plugin imports require semantic export resolution"
+		return "", "exact-enhancement imports require semantic export resolution"
 	}
 	module := typeChecker.GetSymbolAtLocation(moduleSpecifierNode)
 	if module == nil {
-		return "", fmt.Sprintf("cannot resolve exact-plugin module %q", moduleSpecifier)
+		return "", fmt.Sprintf("cannot resolve exact-enhancement module %q", moduleSpecifier)
 	}
 	identities := traceEnhancementExport(
 		module,
@@ -193,14 +193,14 @@ func resolveEnhancementIdentity(
 	)
 	if len(identities) == 0 {
 		return "", fmt.Sprintf(
-			"%s#%s has no reachable export edge with { type: 'exact-plugin' }",
+			"%s#%s has no reachable export edge with { type: 'exact-enhancement' }",
 			moduleSpecifier,
 			exportName,
 		)
 	}
 	if len(identities) != 1 {
 		return "", fmt.Sprintf(
-			"%s#%s resolves to ambiguous exact-plugin identities: %s",
+			"%s#%s resolves to ambiguous exact-enhancement identities: %s",
 			moduleSpecifier,
 			exportName,
 			strings.Join(identities, ", "),
@@ -240,7 +240,7 @@ func traceEnhancementExport(
 		}
 		targetSpecifier := declaration.ModuleSpecifier.AsStringLiteral().Text
 		if declaration.ExportClause == nil {
-			if exactPluginExport(declaration) {
+			if exactEnhancementExport(declaration) {
 				if moduleExportsName(target, exportName, typeChecker) {
 					identities = append(identities, moduleSpecifier+"#"+exportName)
 				}
@@ -263,7 +263,7 @@ func traceEnhancementExport(
 			if specifier.PropertyName != nil {
 				sourceName = specifier.PropertyName.Text()
 			}
-			if exactPluginExport(declaration) {
+			if exactEnhancementExport(declaration) {
 				identities = append(identities, moduleSpecifier+"#"+exportName)
 			} else {
 				identities = append(identities, traceEnhancementExport(
@@ -337,7 +337,7 @@ func collectEnhancementSpreadDiagnostics(
 							sourceFile,
 							node,
 							"EXACT6005",
-							fmt.Sprintf("JSX plugin prefix %q requires an import with { type: 'exact-plugin' }", prefix),
+							fmt.Sprintf("JSX enhancement prefix %q requires an import with { type: 'exact-enhancement' }", prefix),
 						))
 					}
 					continue
@@ -360,7 +360,7 @@ func collectEnhancementSpreadDiagnostics(
 					message := fmt.Sprintf("unknown %s prop %q", binding.identity, member)
 					if member == "children" || member == "key" || member == "ref" {
 						code = "EXACT6006"
-						message = fmt.Sprintf("%s is reserved and cannot be a plugin prop", source)
+						message = fmt.Sprintf("%s is reserved and cannot be an enhancement prop", source)
 					}
 					imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
 						sourceFile, node, code, message,
@@ -384,7 +384,7 @@ func collectEnhancementSpreadDiagnostics(
 				sourceFile,
 				node,
 				"EXACT6008",
-				"JSX spreads in a plugin-enabled module require a statically finite key space",
+				"JSX spreads in an enhancement-enabled module require a statically finite key space",
 			))
 		}
 		if len(plan.members) != 0 {
@@ -409,13 +409,13 @@ func resolveEnhancementBinding(
 	typeChecker *checker.Checker,
 ) (enhancementBinding, string) {
 	if typeChecker == nil {
-		return enhancementBinding{}, "exact-plugin imports require semantic component resolution"
+		return enhancementBinding{}, "exact-enhancement imports require semantic component resolution"
 	}
 	valueType := typeChecker.GetTypeAtLocation(localName)
 	signatures := typeChecker.GetSignaturesOfType(valueType, checker.SignatureKindCall)
 	if len(signatures) == 0 || len(signatures[0].Parameters()) == 0 {
 		return enhancementBinding{}, fmt.Sprintf(
-			"exact-plugin import %q does not resolve to an eXact component with public props",
+			"exact-enhancement import %q does not resolve to an eXact component with public props",
 			localName.Text(),
 		)
 	}
@@ -423,7 +423,7 @@ func resolveEnhancementBinding(
 	for _, memberType := range propsType.Distributed() {
 		if len(typeChecker.GetIndexInfosOfType(memberType)) != 0 {
 			return enhancementBinding{}, fmt.Sprintf(
-				"exact-plugin import %q has an open prop key space; plugin props must be finite",
+				"exact-enhancement import %q has an open prop key space; enhancement props must be finite",
 				localName.Text(),
 			)
 		}
@@ -468,7 +468,7 @@ func collectEnhancementAttributeDiagnostics(
 					sourceFile,
 					node,
 					"EXACT6005",
-					fmt.Sprintf("JSX plugin prefix %q requires an import with { type: 'exact-plugin' }", prefix),
+					fmt.Sprintf("JSX enhancement prefix %q requires an import with { type: 'exact-enhancement' }", prefix),
 				))
 			}
 			return true
@@ -481,7 +481,7 @@ func collectEnhancementAttributeDiagnostics(
 				sourceFile,
 				node,
 				"EXACT6006",
-				fmt.Sprintf("%s:%s is reserved and cannot be a plugin prop", prefix, member),
+				fmt.Sprintf("%s:%s is reserved and cannot be an enhancement prop", prefix, member),
 			))
 			return true
 		}
@@ -551,7 +551,7 @@ func camelToKebab(value string) string {
 	return result.String()
 }
 
-func exactPluginImport(declaration *ast.ImportDeclaration) bool {
+func exactEnhancementImport(declaration *ast.ImportDeclaration) bool {
 	if declaration.Attributes == nil {
 		return false
 	}
@@ -561,21 +561,21 @@ func exactPluginImport(declaration *ast.ImportDeclaration) bool {
 			!ast.IsStringLiteral(item.Value) {
 			continue
 		}
-		if item.Value.AsStringLiteral().Text == "exact-plugin" {
+		if item.Value.AsStringLiteral().Text == "exact-enhancement" {
 			return true
 		}
 	}
 	return false
 }
 
-func exactPluginExport(declaration *ast.ExportDeclaration) bool {
+func exactEnhancementExport(declaration *ast.ExportDeclaration) bool {
 	if declaration.Attributes == nil {
 		return false
 	}
 	for _, attribute := range declaration.Attributes.AsImportAttributes().Attributes.Nodes {
 		item := attribute.AsImportAttribute()
 		if item.Name().Text() == "type" && item.Value != nil && ast.IsStringLiteral(item.Value) &&
-			item.Value.AsStringLiteral().Text == "exact-plugin" {
+			item.Value.AsStringLiteral().Text == "exact-enhancement" {
 			return true
 		}
 	}

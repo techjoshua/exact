@@ -130,7 +130,7 @@ export type GestureDefinition = Readonly<
 > &
 	Readonly<{ [gestureDefinitionBrand]: true }>;
 
-/** Canonical props accepted by the plugin-owned JSX namespace. */
+/** Canonical props accepted by the enhancement JSX namespace. */
 export interface GestureElementProps {
 	apply?: GestureDefinition;
 	press?: PressRecognizer;

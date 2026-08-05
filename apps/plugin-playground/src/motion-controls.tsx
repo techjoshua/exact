@@ -1,6 +1,6 @@
 import type { Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import { defineMotion, Presence, type MotionEffect } from '@exactjs/motion';
 import { slideLeft, slideUp } from '@exactjs/motion/presets';
 
@@ -53,10 +53,7 @@ function indicatorChange(
 	to: MotionControlsState['activeTab']
 ): MotionEffect {
 	return {
-		keyframes: [
-			{ transform: indicatorTransforms[from] },
-			{ transform: indicatorTransforms[to] }
-		],
+		keyframes: [{ transform: indicatorTransforms[from] }, { transform: indicatorTransforms[to] }],
 		options: { duration: 320, easing: 'cubic-bezier(.2,.8,.2,1)' }
 	};
 }

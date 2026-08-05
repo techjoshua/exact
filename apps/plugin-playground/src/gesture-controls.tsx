@@ -1,6 +1,6 @@
 import { peek, type Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by gesture:* attributes.
-import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
+import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 import { defineGesture, type GestureSample, type PinchGestureSample } from '@exactjs/gestures';
 
 type GestureControlsState = {

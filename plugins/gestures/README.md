@@ -7,7 +7,7 @@ Optional prepared gesture recognition for eXact component and intrinsic roots.
 Keep application state authoritative and prepare recognition policy once:
 
 ```tsx
-import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
+import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 import { defineGesture } from '@exactjs/gestures';
 
 const movable = defineGesture({

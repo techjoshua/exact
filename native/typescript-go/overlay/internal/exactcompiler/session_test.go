@@ -6208,7 +6208,7 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	entrySource := `
 			import { TaskContext } from "@exactjs/core";
-			import { gravity, motion as animate } from "./motion.js" with { type: "exact-plugin" };
+			import { gravity, motion as animate } from "./motion.js" with { type: "exact-enhancement" };
 			function ServerSummary() {
 				const load = async (_task: TaskContext = TaskContext.server()) => summary();
 				load();
@@ -6231,7 +6231,7 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	for filename, source := range map[string]string{
 		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
 		entryFile:          entrySource,
-		motionFile:         `export { gravity, motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		motionFile:         `export { gravity, motion } from "./motion-implementation.js" with { type: "exact-enhancement" };`,
 		implementationFile: `export function motion(props: { preset?: string; exitDuration?: number; children?: unknown }) { return props.children; } export function gravity(props: { apply?: string; children?: unknown }) { return props.children; }`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
@@ -6250,11 +6250,11 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	}
 	for _, diagnostic := range response.Diagnostics {
 		if diagnostic.Severity == "error" {
-			t.Fatalf("plugin JSX namespace produced an error: %#v", response.Diagnostics)
+			t.Fatalf("enhancement JSX namespace produced an error: %#v", response.Diagnostics)
 		}
 	}
 	if strings.Contains(response.Code, `from "./motion.js"`) {
-		t.Fatalf("compile-only plugin import was retained:\n%s", response.Code)
+		t.Fatalf("compile-only enhancement import was retained:\n%s", response.Code)
 	}
 	for _, expected := range []string{
 		"createEnhancementMarker",
@@ -6268,7 +6268,7 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 		}
 	}
 	if strings.Count(response.Code, "__exactEnhancements:") != 1 {
-		t.Fatalf("plugin props were not emitted as one grouped marker:\n%s", response.Code)
+		t.Fatalf("enhancement props were not emitted as one grouped marker:\n%s", response.Code)
 	}
 	if len(response.Analysis.Enhancements) != 2 ||
 		response.Analysis.Enhancements[1].Identity != "./motion.js#motion" ||
@@ -6308,13 +6308,13 @@ func TestSessionRejectsPluginNamespaceImports(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "C:/virtual/plugin-namespace.tsx",
 		Kind:   "compile",
-		Source: `import * as motion from "@test/motion" with { type: "exact-plugin" };`,
+		Source: `import * as motion from "@test/motion" with { type: "exact-enhancement" };`,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
 	if !containsDiagnosticCode(response.Diagnostics, "EXACT6003") {
-		t.Fatalf("plugin namespace import was accepted: %#v", response.Diagnostics)
+		t.Fatalf("enhancement namespace import was accepted: %#v", response.Diagnostics)
 	}
 }
 
@@ -6326,7 +6326,7 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 	entryFile := filepath.Join(root, "entry.tsx")
 	for filename, source := range map[string]string{
 		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
-		componentFile:      `export { motion, open, value } from "./enhancement-implementations.js" with { type: "exact-plugin" };`,
+		componentFile:      `export { motion, open, value } from "./enhancement-implementations.js" with { type: "exact-enhancement" };`,
 		implementationFile: `export function motion(props: { layoutId?: string; children?: unknown }) { return props.children; } export function open(props: { [key: string]: unknown }) { return props; } export const value = 1;`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
@@ -6345,27 +6345,27 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 		})
 	}
 
-	unknown := compile(`import { motion } from "./enhancements.js" with { type: "exact-plugin" }; export const view = <div motion:unknown />;`)
+	unknown := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div motion:unknown />;`)
 	if !containsDiagnosticCode(unknown.Diagnostics, "EXACT6007") {
 		t.Fatalf("unknown plugin prop was accepted: %#v", unknown.Diagnostics)
 	}
-	reserved := compile(`import { motion } from "./enhancements.js" with { type: "exact-plugin" }; export const view = <div motion:key="x" />;`)
+	reserved := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div motion:key="x" />;`)
 	if !containsDiagnosticCode(reserved.Diagnostics, "EXACT6006") {
 		t.Fatalf("reserved plugin prop was accepted: %#v", reserved.Diagnostics)
 	}
 	ordinary := compile(`import { motion } from "./enhancements.js"; export const view = <div motion:layout-id="x" />;`)
 	if !containsDiagnosticCode(ordinary.Diagnostics, "EXACT6005") {
-		t.Fatalf("ordinary import established a plugin prefix: %#v", ordinary.Diagnostics)
+		t.Fatalf("ordinary import established a enhancement prefix: %#v", ordinary.Diagnostics)
 	}
-	open := compile(`import { open as field } from "./enhancements.js" with { type: "exact-plugin" }; export const view = <div field:anything />;`)
+	open := compile(`import { open as field } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div field:anything />;`)
 	if !containsDiagnosticCode(open.Diagnostics, "EXACT6004") {
 		t.Fatalf("open plugin prop schema was accepted: %#v", open.Diagnostics)
 	}
-	nonComponent := compile(`import { value as field } from "./enhancements.js" with { type: "exact-plugin" }; export const view = <div field:anything />;`)
+	nonComponent := compile(`import { value as field } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div field:anything />;`)
 	if !containsDiagnosticCode(nonComponent.Diagnostics, "EXACT6004") {
 		t.Fatalf("non-component plugin capability was accepted: %#v", nonComponent.Diagnostics)
 	}
-	openSpread := compile(`import { motion } from "./enhancements.js" with { type: "exact-plugin" }; const props: Record<string, unknown> = {}; export const view = <div {...props} />;`)
+	openSpread := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; const props: Record<string, unknown> = {}; export const view = <div {...props} />;`)
 	if !containsDiagnosticCode(openSpread.Diagnostics, "EXACT6008") {
 		t.Fatalf("open plugin spread key space was accepted: %#v", openSpread.Diagnostics)
 	}
@@ -6378,14 +6378,14 @@ func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
 	componentFile := filepath.Join(root, "motion.ts")
 	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	entrySource := `
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		const effects = { "motion:layout-id": "card", "motion:disabled": false, title: "Card" };
 		export const view = <article {...effects} />;
 	`
 	for filename, source := range map[string]string{
 		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
 		entryFile:          entrySource,
-		componentFile:      `export { motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		componentFile:      `export { motion } from "./motion-implementation.js" with { type: "exact-enhancement" };`,
 		implementationFile: `export function motion(props: { layoutId?: string; disabled?: boolean; children?: unknown }) { return props.children; }`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
@@ -6427,7 +6427,7 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	for filename, source := range map[string]string{
 		configFile:    `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
-		componentFile: `export { motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		componentFile: `export { motion } from "./motion-implementation.js" with { type: "exact-enhancement" };`,
 		implementationFile: `
 			type MotionProps =
 				| { kind: "spring"; stiffness?: number; children?: unknown }
@@ -6448,7 +6448,7 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 		})
 	}
 	valid := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		const options:
 			| { "motion:kind": "spring"; "motion:stiffness": number }
 			| { "motion:kind": "tween"; "motion:duration": "fast" | "slow" } =
@@ -6458,31 +6458,31 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 		export const spread = <div {...options} />;
 	`)
 	if containsDiagnosticCode(valid.Diagnostics, "EXACT6011") {
-		t.Fatalf("valid discriminated plugin props were rejected: %#v", valid.Diagnostics)
+		t.Fatalf("valid discriminated enhancement props were rejected: %#v", valid.Diagnostics)
 	}
 	wrongValue := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		export const view = <div motion:kind="spring" motion:stiffness="strong" />;
 	`)
 	if !containsDiagnosticCode(wrongValue.Diagnostics, "EXACT6011") {
 		t.Fatalf("invalid plugin prop value was accepted: %#v", wrongValue.Diagnostics)
 	}
 	wrongTemplate := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		export const view = <div motion:kind="tween" motion:delay="soon" />;
 	`)
 	if !containsDiagnosticCode(wrongTemplate.Diagnostics, "EXACT6011") {
 		t.Fatalf("invalid plugin template-literal prop was accepted: %#v", wrongTemplate.Diagnostics)
 	}
 	wrongCombination := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		export const view = <div motion:kind="spring" motion:duration="fast" />;
 	`)
 	if !containsDiagnosticCode(wrongCombination.Diagnostics, "EXACT6011") {
 		t.Fatalf("invalid plugin prop union combination was accepted: %#v", wrongCombination.Diagnostics)
 	}
 	wrongSpread := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		const options:
 			| { "motion:kind": "spring"; "motion:duration": "fast" }
 			| { "motion:kind": "tween"; "motion:duration": "fast" } =
@@ -6501,11 +6501,11 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 	for filename, source := range map[string]string{
 		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
 		filepath.Join(root, "default-implementation.ts"): `export default function motion(props: { preset?: "fade" | "slide"; children?: unknown }) { return props.children; }`,
-		filepath.Join(root, "default-capability.ts"):     `export { default } from "./default-implementation.js" with { type: "exact-plugin" };`,
+		filepath.Join(root, "default-capability.ts"):     `export { default } from "./default-implementation.js" with { type: "exact-enhancement" };`,
 		filepath.Join(root, "named-implementation.ts"):   `export function motion(props: { preset?: "fade" | "slide"; children?: unknown }) { return props.children; }`,
-		filepath.Join(root, "star-capability.ts"):        `export * from "./named-implementation.js" with { type: "exact-plugin" };`,
-		filepath.Join(root, "left-capability.ts"):        `export { motion } from "./named-implementation.js" with { type: "exact-plugin" };`,
-		filepath.Join(root, "right-capability.ts"):       `export { motion } from "./named-implementation.js" with { type: "exact-plugin" };`,
+		filepath.Join(root, "star-capability.ts"):        `export * from "./named-implementation.js" with { type: "exact-enhancement" };`,
+		filepath.Join(root, "left-capability.ts"):        `export { motion } from "./named-implementation.js" with { type: "exact-enhancement" };`,
+		filepath.Join(root, "right-capability.ts"):       `export { motion } from "./named-implementation.js" with { type: "exact-enhancement" };`,
 		filepath.Join(root, "ambiguous.ts"): `
 			export { motion } from "./left-capability.js";
 			export { motion } from "./right-capability.js";
@@ -6516,8 +6516,8 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 		}
 	}
 	validSource := `
-		import defaultMotion from "./default-capability.js" with { type: "exact-plugin" };
-		import { motion as starMotion } from "./star-capability.js" with { type: "exact-plugin" };
+		import defaultMotion from "./default-capability.js" with { type: "exact-enhancement" };
+		import { motion as starMotion } from "./star-capability.js" with { type: "exact-enhancement" };
 		export const view = <button defaultMotion:preset="fade" starMotion:preset="slide" />;
 	`
 	if err := os.WriteFile(entryFile, []byte(validSource), 0o600); err != nil {
@@ -6545,7 +6545,7 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 	}
 
 	ambiguousSource := `
-		import { motion } from "./ambiguous.js" with { type: "exact-plugin" };
+		import { motion } from "./ambiguous.js" with { type: "exact-enhancement" };
 		export const view = <button motion:preset="fade" />;
 	`
 	if err := os.WriteFile(entryFile, []byte(ambiguousSource), 0o600); err != nil {

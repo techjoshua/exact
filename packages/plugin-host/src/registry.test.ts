@@ -11,7 +11,7 @@ import {
 
 describe('prepared plugin registry', () => {
 	it('loads TypeScript configuration through the native Node loader and removes its temporary module', async () => {
-		const root = mkdtempSync(path.join(tmpdir(), 'exact-plugin-config-success-'));
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-enhancement-config-success-'));
 		const configPath = path.join(root, 'exact.config.ts');
 		writeFileSync(configPath, "export default { pluginDiscovery: { mode: 'root' } };\n");
 
@@ -27,7 +27,7 @@ describe('prepared plugin registry', () => {
 	});
 
 	it('removes a temporary TypeScript configuration module when validation fails', async () => {
-		const root = mkdtempSync(path.join(tmpdir(), 'exact-plugin-config-failure-'));
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-enhancement-config-failure-'));
 		const configPath = path.join(root, 'exact.config.ts');
 		writeFileSync(configPath, 'export default null;\n');
 
@@ -43,7 +43,7 @@ describe('prepared plugin registry', () => {
 	});
 
 	it('runs defaults, deepest contributors, and root mutation with undefined retention', async () => {
-		const root = mkdtempSync(path.join(tmpdir(), 'exact-plugin-registry-'));
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-enhancement-registry-'));
 		const plugin = createPackage(
 			root,
 			'@exactjs/example',

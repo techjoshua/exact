@@ -22,7 +22,7 @@ const componentSource = `<PhysicsWorld world={world} running={this.state.active}
 </PhysicsWorld>`;
 
 const enhancementSource = `import physics from '@exactjs/physics'
-  with { type: 'exact-plugin' };
+  with { type: 'exact-enhancement' };
 
 <PhysicsWorld world={world}>
   {/* Still a usable authored button when projection is excluded. */}
@@ -54,19 +54,19 @@ export function PhysicsPluginPage(this: Component<{}>) {
 				<CodeBlock source={enhancementSource} language="tsx" title="OptionalBall.tsx" />
 				<p>
 					The world is required simulation ownership, while <code>physics:body</code> is an optional
-					transparent projection wrapper. Without that capability the authored button and click still
-					work; the DOM simply stops following the body. This lets a design component remain ignorant
-					of the projection implementation.
+					transparent projection wrapper. Without that capability the authored button and click
+					still work; the DOM simply stops following the body. This lets a design component remain
+					ignorant of the projection implementation.
 				</p>
 			</section>
 			<section>
 				<h2>Use ordinary component ownership</h2>
 				<CodeBlock source={componentSource} language="tsx" title="BouncingBall.tsx" />
 				<p>
-					Use the explicit <code>PhysicsElement</code> when DOM attachment is required behavior or in
-					a compilerless caller. The world component owns one Activity-aware frame chain, and the body component
-					uses its logical root, publishes body context, and detaches projection and collision work
-					exactly once.
+					Use the explicit <code>PhysicsElement</code> when DOM attachment is required behavior or
+					in a compilerless caller. The world component owns one Activity-aware frame chain, and the
+					body component uses its logical root, publishes body context, and detaches projection and
+					collision work exactly once.
 				</p>
 			</section>
 			<section>

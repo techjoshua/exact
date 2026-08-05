@@ -36,7 +36,7 @@ Keep the world explicit while making projection optional when the authored targe
 fallback:
 
 ```tsx
-import physics from '@exactjs/physics' with { type: 'exact-plugin' };
+import physics from '@exactjs/physics' with { type: 'exact-enhancement' };
 
 <PhysicsWorld world={world}>
 	<button physics:body={ball} onClick={() => ball.applyImpulse(launch)}>

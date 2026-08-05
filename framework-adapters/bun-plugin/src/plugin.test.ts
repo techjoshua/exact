@@ -42,7 +42,7 @@ describe('@exactjs/bun-plugin', () => {
 	it('links attributed capabilities into the shared application-bundle catalog', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-enhancement-'));
 		const entry = path.join(root, 'entry.tsx');
-		const source = `import motion from './motion.js' with { type: 'exact-plugin' };
+		const source = `import motion from './motion.js' with { type: 'exact-enhancement' };
 			export const view = <article motion:preset="fade" />;`;
 		try {
 			writeFileSync(
@@ -59,7 +59,7 @@ describe('@exactjs/bun-plugin', () => {
 			);
 			writeFileSync(
 				path.join(root, 'motion.ts'),
-				`export { default } from './motion-implementation.js' with { type: 'exact-plugin' };`
+				`export { default } from './motion-implementation.js' with { type: 'exact-enhancement' };`
 			);
 			writeFileSync(
 				path.join(root, 'motion-implementation.ts'),

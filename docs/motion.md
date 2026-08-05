@@ -40,7 +40,7 @@ remain finite. The initial preset entry exports `fade`, `scale`, `pop`, `slideUp
 Prefer the namespaced form when motion is optional visual continuity on existing design:
 
 ```tsx
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import { slideUp } from '@exactjs/motion/presets';
 
 <output motion:apply={slideUp}>Changes saved</output>;

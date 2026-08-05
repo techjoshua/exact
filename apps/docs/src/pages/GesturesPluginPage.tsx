@@ -26,7 +26,7 @@ const definitionSource = `const movable = defineGesture({
 });`;
 
 const enhancementSource = `import gesture from '@exactjs/gestures'
-  with { type: 'exact-plugin' };
+  with { type: 'exact-enhancement' };
 
 // Click remains the required behavior; movement is optional.
 <button onClick={() => openCard(card.id)} gesture:apply={movable}>
@@ -63,17 +63,17 @@ export function GesturesPluginPage(this: Component<{}>) {
 				<p>
 					The button remains a button and its click remains the fallback. When the capability is
 					bundled, one transparent gesture component additionally owns pointer capture, keyboard
-					movement, cancellation, and cleanup. Omitting it removes that extra intent without changing
-					the control&apos;s design or required action.
+					movement, cancellation, and cleanup. Omitting it removes that extra intent without
+					changing the control&apos;s design or required action.
 				</p>
 			</section>
 			<section>
 				<h2>Make required gesture behavior explicit</h2>
 				<CodeBlock source={explicitSource} language="tsx" title="MovableCard.tsx" />
 				<p>
-					Use <code>GestureElement</code> when gesture behavior is part of the component&apos;s contract
-					or the caller is compilerless. Unlike the optional attribute, that component and its behavior
-					are always part of the authored tree.
+					Use <code>GestureElement</code> when gesture behavior is part of the component&apos;s
+					contract or the caller is compilerless. Unlike the optional attribute, that component and
+					its behavior are always part of the authored tree.
 				</p>
 			</section>
 			<section>

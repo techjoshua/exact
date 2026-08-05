@@ -68,7 +68,7 @@ Vite includes reached attributed capabilities in its bundle-local catalog and su
 DOM, hydration, and SSR.
 
 ```tsx
-import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
+import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 
 <button onClick={() => openCard(card.id)} gesture:apply={movable}>
 	Open or move card

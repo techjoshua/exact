@@ -16,7 +16,7 @@ const pluginConfigSource = `export default {
 };`;
 
 const enhancementSource = `import motion from '@exactjs/motion'
-  with { type: 'exact-plugin' };
+  with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
 
 function ProductCard(this: Component<{}>, props: CardProps) {
@@ -99,10 +99,10 @@ export function PluginsPage(this: Component<{}>) {
 				<CodeBlock source={enhancementSource} language="tsx" title="Card.tsx" />
 				<p>
 					An enhancement is an ordinary transparent component packaged so it can be attached without
-					putting that wrapper into the component&apos;s required design. The authored component still
-					owns its markup, state, accessibility, and fallback behavior. The enhancement owns one
-					reusable cross-cutting concern such as motion, gesture recognition, pose projection, or a
-					force contribution.
+					putting that wrapper into the component&apos;s required design. The authored component
+					still owns its markup, state, accessibility, and fallback behavior. The enhancement owns
+					one reusable cross-cutting concern such as motion, gesture recognition, pose projection,
+					or a force contribution.
 				</p>
 				<CodeBlock
 					source={enhancementExpansionSource}
@@ -110,18 +110,18 @@ export function PluginsPage(this: Component<{}>) {
 					title="Conceptual runtime expansion"
 				/>
 				<p>
-					The compiler does not literally rewrite source into that tree. It emits a typed marker, and
-					the renderer mounts the package&apos;s inspectable wrapper at the resolved intrinsic root only
-					when the final application includes that capability. Excluding it at bundle time removes the
-					wrapper implementation while leaving the authored component intact. This separates reusable
-					functionality from visual design and lets libraries declare optional behavior without deciding
-					the final application&apos;s trust or bundle policy.
+					The compiler does not literally rewrite source into that tree. It emits a typed marker,
+					and the renderer mounts the package&apos;s inspectable wrapper at the resolved intrinsic
+					root only when the final application includes that capability. Excluding it at bundle time
+					removes the wrapper implementation while leaving the authored component intact. This
+					separates reusable functionality from visual design and lets libraries declare optional
+					behavior without deciding the final application&apos;s trust or bundle policy.
 				</p>
 				<p>
 					The attributed import establishes only the local prefix. The compiler derives a finite
-					canonical prop schema, rejects unknown and reserved members, and emits one grouped reactive
-					marker. Direct values and finite setup-derived spreads retain the wrapper component&apos;s prop
-					types without runtime prefix scanning.
+					canonical prop schema, rejects unknown and reserved members, and emits one grouped
+					reactive marker. Direct values and finite setup-derived spreads retain the wrapper
+					component&apos;s prop types without runtime prefix scanning.
 				</p>
 				<p>
 					The VS Code extension recognizes the attributed binding as a use and completes finite

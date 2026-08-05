@@ -1,15 +1,15 @@
 import { createRef, type Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by gesture:* attributes.
-import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
+import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 import { defineGesture } from '@exactjs/gestures';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by gravity:* attributes.
-import gravity from '@exactjs/gravity' with { type: 'exact-plugin' };
+import gravity from '@exactjs/gravity' with { type: 'exact-enhancement' };
 import { uniformGravity } from '@exactjs/gravity';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import { defineMotion } from '@exactjs/motion';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by physics:* attributes.
-import physics from '@exactjs/physics' with { type: 'exact-plugin' };
+import physics from '@exactjs/physics' with { type: 'exact-enhancement' };
 import { PhysicsWorld, createPhysicsWorld } from '@exactjs/physics';
 
 const orbMotion = defineMotion({

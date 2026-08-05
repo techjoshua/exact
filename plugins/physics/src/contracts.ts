@@ -193,7 +193,7 @@ export interface PhysicsWorldProps {
 	readonly children?: import('@exactjs/core').Child;
 }
 
-/** Canonical props accepted by the plugin-owned JSX namespace. */
+/** Canonical props accepted by the enhancement JSX namespace. */
 export interface PhysicsElementProps {
 	readonly body: PhysicsBody;
 	readonly project?: PhysicsProjection;

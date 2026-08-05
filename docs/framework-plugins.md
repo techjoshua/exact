@@ -97,7 +97,7 @@ finite key space, maps kebab-case JSX members to camel-case props, reserves `chi
 `ref`, and emits one grouped reactive marker. The compile-only import itself is erased.
 
 ```tsx
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 
 <article motion:apply={fade} motion:layout-id={card.id} />;
 ```
