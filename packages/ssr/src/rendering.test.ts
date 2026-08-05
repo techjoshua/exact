@@ -119,6 +119,40 @@ describe('@exactjs/ssr rendering', () => {
 		expect(asyncOutput.html).toBe(output.html);
 	});
 
+	it('serializes nested target layers with authored and nearest-owner precedence', async () => {
+		const vnode = createVNode(
+			TargetBoundary,
+			{
+				className: 'outer shared',
+				style: { color: 'red', marginTop: '2px' },
+				'aria-describedby': 'outer shared',
+				'data-tone': 'outer'
+			},
+			createVNode(
+				TargetBoundary,
+				{
+					className: 'inner shared',
+					style: { color: 'blue', paddingTop: '4px' },
+					'aria-describedby': 'inner shared',
+					'data-tone': 'inner'
+				},
+				createVNode('button', {
+					className: 'authored shared',
+					style: { color: 'green' },
+					'aria-describedby': 'authored shared',
+					title: null
+				})
+			)
+		);
+		const output = renderToString(vnode, { markers: false });
+		const asyncOutput = await renderToStringAsync(vnode, { markers: false });
+
+		expect(output.html).toBe(
+			'<button class="authored shared inner outer" style="color: green; margin-top: 2px; padding-top: 4px;" aria-describedby="authored shared inner outer" data-tone="inner"></button>'
+		);
+		expect(asyncOutput.html).toBe(output.html);
+	});
+
 	it('leaves unavailable server enhancements inert and warns once per identity', () => {
 		const identity = '@exactjs/ssr:missing#default';
 		const events: Array<{ message: string }> = [];
@@ -372,6 +406,39 @@ describe('@exactjs/ssr rendering', () => {
 
 		expect(renderToString(vnode, { markers: false }).html).toBe('<span>loading</span>');
 		expect((await renderToStringAsync(vnode, { markers: false })).html).toBe('<p>ready</p>');
+	});
+
+	it('forwards one target layer to the Suspense branch selected by each SSR mode', async () => {
+		function AsyncTarget(this: Component<{ label: string }>) {
+			this.state.label = '';
+			activateTaskForHost(
+				this,
+				defineTask({ readiness: 'blocking' }, async ({ signal }) => {
+					const label = await Promise.resolve('ready');
+					stageTaskMutation(signal, () => {
+						this.state.label = label;
+					});
+				})
+			);
+			return () => createVNode('p', null, this.state.label);
+		}
+		const render = () =>
+			createVNode(
+				TargetBoundary,
+				{ className: 'owned' },
+				createVNode(
+					Suspense,
+					{ fallback: createVNode('span', null, 'loading') },
+					createVNode(AsyncTarget, {})
+				)
+			);
+
+		expect(renderToString(render(), { markers: false }).html).toBe(
+			'<span class="owned">loading</span>'
+		);
+		expect((await renderToStringAsync(render(), { markers: false })).html).toBe(
+			'<p class="owned">ready</p>'
+		);
 	});
 
 	it('routes an enhancement through the Suspense candidate selected by each SSR mode', async () => {

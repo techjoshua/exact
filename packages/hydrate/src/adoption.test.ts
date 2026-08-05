@@ -40,6 +40,43 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(serverButton.getAttribute('aria-describedby')).toBe('help');
 	});
 
+	it('adopts nested target owners with independent refs and event subscriptions', () => {
+		const calls: string[] = [];
+		const refs: Element[] = [];
+		const ref = { fulfill: (value: unknown) => value instanceof Element && refs.push(value) };
+		const vnode = createVNode(
+			Target,
+			{ className: 'outer', ref, onClick: () => calls.push('outer') },
+			createVNode(
+				Target,
+				{ className: 'inner', ref, onClick: () => calls.push('inner') },
+				createVNode(
+					'button',
+					{
+						className: 'authored',
+						ref,
+						onClick: (event: Event) => {
+							calls.push('authored');
+							event.stopImmediatePropagation();
+						}
+					},
+					'Save'
+				)
+			)
+		);
+		const root = document.createElement('div');
+		root.innerHTML = renderToString(vnode).html;
+		const serverButton = root.querySelector('button')!;
+
+		hydrate(vnode, root, { logger: noopLogger });
+		serverButton.click();
+
+		expect(root.querySelector('button')).toBe(serverButton);
+		expect(serverButton.className).toBe('authored inner outer');
+		expect(refs).toEqual([serverButton, serverButton, serverButton]);
+		expect(calls).toEqual(['authored']);
+	});
+
 	it('activates bundle-local enhancements after adopting their authored target', () => {
 		const identity = '@exactjs/hydrate:test-enhancement#default';
 		const roots: RootLifecycle<HTMLElement>[] = [];

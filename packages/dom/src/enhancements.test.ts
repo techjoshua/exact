@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import {
+	Activity,
 	createContext,
 	createDynamicChild,
 	createEnhancementMarker,
@@ -397,6 +398,31 @@ describe('renderer enhancements', () => {
 		flushSync();
 		expect(container.querySelector('a')?.className).toBe('inner outer');
 		expect(outerRefs.at(-1)).toBe(container.querySelector('a'));
+	});
+
+	it('retains target identity and contributions while Activity parks and restores output', () => {
+		const state = reactive({ mode: 'active' as 'active' | 'parked' });
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Activity,
+				{ mode: computed(() => state.mode) },
+				createVNode(Target, { className: 'owned' }, createVNode('button', null, 'Retained'))
+			),
+			container
+		);
+		const button = container.querySelector('button')!;
+		expect(button.className).toBe('owned');
+
+		state.mode = 'parked';
+		flushSync();
+		expect(container.querySelector('button')).toBeNull();
+		expect(button.className).toBe('owned');
+
+		state.mode = 'active';
+		flushSync();
+		expect(container.querySelector('button')).toBe(button);
+		expect(button.className).toBe('owned');
 	});
 
 	it('forwards declarations through components and merges nearest props at an explicit target', () => {
