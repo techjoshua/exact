@@ -3,6 +3,7 @@
  */
 import {
 	Fragment,
+	Target,
 	createEnhancementMarker,
 	createCompiledComponentRegistry,
 	createDynamicChild,
@@ -22,6 +23,23 @@ import { hydrate } from './index.js';
 import { noopLogger } from './test-support/responses.js';
 
 describe('@exactjs/hydrate adoption', () => {
+	it('adopts target-forwarded attributes without replacing the intrinsic', () => {
+		const vnode = createVNode(
+			Target,
+			{ className: 'forwarded', 'aria-describedby': 'help' },
+			createVNode('button', { className: 'authored' }, 'Save')
+		);
+		const root = document.createElement('div');
+		root.innerHTML = renderToString(vnode).html;
+		const serverButton = root.querySelector('button')!;
+
+		hydrate(vnode, root, { logger: noopLogger });
+
+		expect(root.querySelector('button')).toBe(serverButton);
+		expect(serverButton.className).toBe('authored forwarded');
+		expect(serverButton.getAttribute('aria-describedby')).toBe('help');
+	});
+
 	it('activates bundle-local enhancements after adopting their authored target', () => {
 		const identity = '@exactjs/hydrate:test-enhancement#default';
 		const roots: RootLifecycle<HTMLElement>[] = [];

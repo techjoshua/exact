@@ -7,6 +7,7 @@ import {
 	createEnhancementMarker,
 	createPortal,
 	Fragment,
+	Target,
 	markExactEnhancementContexts,
 	type Child,
 	type Component,
@@ -23,7 +24,7 @@ import { createVNode } from './test-support/native-vnode.js';
 const identity = '@test/motion#motion';
 
 describe('renderer enhancements', () => {
-	it('activates a transparent plugin as an ordinary component around its intrinsic target', () => {
+	it('activates a transparent enhancement as an ordinary component around its intrinsic target', () => {
 		const setup = vi.fn();
 		let target!: RootLifecycle<HTMLElement>;
 		const Motion = markTestComponent(function Motion(
@@ -48,7 +49,7 @@ describe('renderer enhancements', () => {
 		expect(target.presented).toBe(true);
 	});
 
-	it('allows an active plugin component to wrap its target', () => {
+	it('allows an active enhancement component to wrap its target', () => {
 		const released = vi.fn();
 		const Wrapper = markTestComponent(function Wrapper(
 			this: Component<{}>,
@@ -106,6 +107,148 @@ describe('renderer enhancements', () => {
 		);
 
 		expect(container.innerHTML).toBe('<aside>Before<strong>After</strong></aside>');
+	});
+
+	it('forwards layered target properties through ordinary component composition', () => {
+		const calls: string[] = [];
+		const refs = (name: string) => ({
+			fulfill(value: unknown) {
+				if (value instanceof Element) calls.push(`ref:${name}`);
+			}
+		});
+		const Inner = markTestComponent(function Inner(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () =>
+				createVNode(
+					Target,
+					{
+						title: 'inner',
+						className: 'inner shared',
+						style: { color: 'blue', paddingTop: '4px' },
+						'aria-describedby': 'inner shared',
+						ref: refs('inner'),
+						onClick: () => calls.push('inner')
+					},
+					props.children
+				);
+		});
+		const Outer = markTestComponent(function Outer(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () =>
+				createVNode(
+					'section',
+					null,
+					createVNode(
+						Target,
+						{
+							title: 'outer',
+							className: 'outer shared',
+							style: { color: 'red', marginTop: '2px' },
+							'aria-describedby': 'outer shared',
+							ref: refs('outer'),
+							onClick: () => calls.push('outer')
+						},
+						createVNode(Inner, null, props.children)
+					)
+				);
+		});
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Outer,
+				null,
+				createVNode(
+					'button',
+					{
+						title: 'authored',
+						className: 'authored shared',
+						style: { color: 'green' },
+						'aria-describedby': 'authored shared',
+						ref: refs('authored'),
+						onClick: () => calls.push('authored')
+					},
+					'Save'
+				)
+			),
+			container
+		);
+
+		const button = container.querySelector('button')!;
+		expect(button.title).toBe('authored');
+		expect(button.className).toBe('authored shared inner outer');
+		expect(button.getAttribute('style')).toContain('color: green');
+		expect(button.getAttribute('style')).toContain('padding-top: 4px');
+		expect(button.getAttribute('style')).toContain('margin-top: 2px');
+		expect(button.getAttribute('aria-describedby')).toBe('authored shared inner outer');
+		expect(new Set(calls)).toEqual(new Set(['ref:authored', 'ref:inner', 'ref:outer']));
+		calls.length = 0;
+		button.click();
+		expect(calls).toEqual(['authored', 'inner', 'outer']);
+		expect(container.querySelector('section')).not.toBeNull();
+	});
+
+	it('uses the same target forwarding when an ordinary component is enhancement-invoked', () => {
+		let root!: RootLifecycle<HTMLElement>;
+		const Surface = markTestComponent(function Surface(
+			this: Component<{}>,
+			props: { children?: Child; tone?: string }
+		) {
+			root = this.refs.root<HTMLElement>();
+			return () =>
+				createVNode(
+					'label',
+					{ className: 'surface' },
+					createVNode(
+						Target,
+						{ className: props.tone, 'aria-describedby': 'surface-help' },
+						props.children
+					),
+					createVNode('small', { id: 'surface-help' }, 'Help')
+				);
+		});
+		const container = document.createElement('div');
+
+		render(
+			createVNode('input', {
+				className: 'authored',
+				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'enhanced' } }])
+			}),
+			container,
+			{ enhancementCatalog: new Map([[identity, Surface]]) }
+		);
+
+		const input = container.querySelector('input')!;
+		expect(container.innerHTML).toBe(
+			'<label class="surface"><input class="authored enhanced" aria-describedby="surface-help"><small id="surface-help">Help</small></label>'
+		);
+		expect(root.current).toBe(input);
+	});
+
+	it('keeps dormant target contributions and attaches them after structural output appears', () => {
+		const state = reactive({ visible: false, tone: 'quiet' });
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Target,
+				{ className: computed(() => state.tone) },
+				createDynamicChild(() =>
+					state.visible ? createVNode('button', { id: 'target' }, 'Ready') : 'Waiting'
+				)
+			),
+			container
+		);
+
+		expect(container.textContent).toBe('Waiting');
+		state.visible = true;
+		flushSync();
+		expect(container.querySelector('button')?.className).toBe('quiet');
+		state.tone = 'active';
+		flushSync();
+		expect(container.querySelector('button')?.className).toBe('active');
 	});
 
 	it('forwards declarations through components and merges nearest props at an explicit target', () => {
@@ -175,13 +318,10 @@ describe('renderer enhancements', () => {
 				);
 		});
 		const tree = (left: boolean) =>
-			createVNode(
-				Boundary,
-				{
-					left,
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
-				}
-			);
+			createVNode(Boundary, {
+				left,
+				__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+			});
 		const container = document.createElement('div');
 		const options = { enhancementCatalog: new Map([[identity, Motion]]) };
 
@@ -190,7 +330,9 @@ describe('renderer enhancements', () => {
 		expect(roots[0]?.current?.id).toBe('left');
 
 		render(tree(false), container, options);
-		expect(container.innerHTML).toBe('<button id="left">Left</button><button id="right">Right</button>');
+		expect(container.innerHTML).toBe(
+			'<button id="left">Left</button><button id="right">Right</button>'
+		);
 		expect(roots.map((root) => root.current?.id)).toEqual([undefined, 'right']);
 		expect(roots[0]?.release?.reason).toBe('enhancement-target-rerouted');
 		await vi.waitFor(() => expect(released).toHaveBeenCalledOnce());
@@ -226,12 +368,9 @@ describe('renderer enhancements', () => {
 		});
 
 		render(
-			createVNode(
-				Boundary,
-				{
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
-				}
-			),
+			createVNode(Boundary, {
+				__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Motion]]) }
 		);
@@ -297,7 +436,7 @@ describe('renderer enhancements', () => {
 		expect(observed).toEqual(['provider', 'consumer:ready']);
 	});
 
-	it('rejects context ordering cycles before plugin setup', () => {
+	it('rejects context ordering cycles before enhancement setup', () => {
 		const leftToken = createContext<string>('enhancement-cycle-left', true);
 		const rightToken = createContext<string>('enhancement-cycle-right', true);
 		const setup = vi.fn();
@@ -338,7 +477,7 @@ describe('renderer enhancements', () => {
 		}
 	});
 
-	it('lets different plugins select and structurally wrap different logical targets', () => {
+	it('lets different enhancements select and structurally wrap different logical targets', () => {
 		const leftIdentity = '@test/left-target#default';
 		const rightIdentity = '@test/right-target#default';
 		const wrapper = (className: string) =>
@@ -366,15 +505,12 @@ describe('renderer enhancements', () => {
 				);
 		});
 		render(
-			createVNode(
-				Boundary,
-				{
-					__exactEnhancements: createEnhancementMarker([
-						{ identity: leftIdentity, props: {} },
-						{ identity: rightIdentity, props: {} }
-					])
-				}
-			),
+			createVNode(Boundary, {
+				__exactEnhancements: createEnhancementMarker([
+					{ identity: leftIdentity, props: {} },
+					{ identity: rightIdentity, props: {} }
+				])
+			}),
 			container,
 			{
 				enhancementCatalog: new Map([

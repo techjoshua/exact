@@ -5,6 +5,7 @@ import {
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	createComponentInstance,
@@ -71,6 +72,7 @@ import {
 	resolveSsrFragmentChildren
 } from './logical-children.js';
 import { activateSsrEnhancementsAsync } from './enhancements.js';
+import { applySsrTargetContributionsAsync } from './target-contributions.js';
 
 /** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
@@ -193,6 +195,13 @@ export async function renderVNodeAsyncInner(
 		});
 	}
 
+	if (vnode.type === Target) {
+		await applySsrTargetContributionsAsync(context, vnode, parent, options);
+		return markerPair(context, markerId(context, 'target', undefined, vnode.key), () =>
+			renderChildrenAsync(context, vnode.children, parent, options)
+		);
+	}
+
 	if (vnode.type === Dynamic) {
 		return markDynamic(context, vnode, async () =>
 			renderChildrenAsync(context, resolveSsrDynamicChildren(context, vnode), parent, options)
@@ -212,7 +221,8 @@ export async function renderVNodeAsyncInner(
 		return renderComponentAsync(context, vnode, parent, options);
 	}
 
-	const host = enterHost(context, vnode);
+	const contributed = context.targetContributions.get(vnode);
+	const host = enterHost(context, contributed ? { ...vnode, props: contributed } : vnode);
 	const hostVNode = host.vnode;
 	const tag = host.tag;
 	try {

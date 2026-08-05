@@ -534,6 +534,93 @@ return () => (
 );
 ```
 
+## Enhancement composition
+
+An attributed import establishes a local JSX namespace for optional ordinary components supplied
+by a component library:
+
+```tsx
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
+import { fade } from '@exactjs/motion/presets';
+
+return () => <ProductCard motion:apply={fade} motion:duration={180} />;
+```
+
+The compiler type-checks the finite namespaced props, removes the compile-only import, and emits
+canonical component identities and grouped reactive props. Build adapters may link those identities
+into the application bundle's enhancement catalog. An available entry mounts as an ordinary,
+inspectable component; an unavailable entry leaves the authored output unchanged. Enhancement
+metadata and the bundle-local catalog are not framework-plugin discovery or lifecycle.
+
+An enhancement module may attribute named re-exports as finite activators:
+
+```ts
+export {
+	FadeMotion as fade,
+	SlideUpMotion as slideUp
+} from './components.js' with { type: 'exact-enhancement' };
+```
+
+```tsx
+import * as motion from '@exactjs/motion/enhancements'
+	with { type: 'exact-enhancement' };
+
+<section motion:fade motion:slide-up={{ distance: 24 }} motion:duration={180} />;
+```
+
+Activator presence selects its mapped component. It is selector-only and must be valueless unless
+that component declares the matching camel-case prop; a declared activator prop receives `true` for
+a valueless attribute or the authored payload. Remaining props are distributed to every selected
+component that declares them. Aliases resolving to one canonical component produce one instance and
+one complete grouped prop object. Named activators suppress an implicit default component; a mapped
+namespace without a default requires an activator.
+
+The framework `_` fragment is also a direct enhancement boundary. Its active enhancement chain
+occupies the fragment boundary and may produce text or several nodes without finding an intrinsic
+root. If the enhancement is unavailable, the authored children remain the fallback.
+
+### Semantic targets
+
+`<_target>` is an ordinary transparent component-language boundary. It requires children, emits no
+DOM of its own, and lets any component contribute properties to and export one semantic intrinsic
+target while still rendering surrounding structure:
+
+```tsx
+function Field(props: FieldProps) {
+	return () => (
+		<label className="field">
+			<span>{props.label}</span>
+			<_target aria-describedby={props.descriptionId}>{props.children}</_target>
+			<small id={props.descriptionId}>{props.description}</small>
+		</label>
+	);
+}
+```
+
+The same form works when `Field` is invoked explicitly or selected as an enhancement. A component
+may wrap, replace, or otherwise compose its children around `_target`; omitting children is a
+compiler diagnostic. Nested target boundaries contribute independently to the same intrinsic.
+Authored singular props take precedence, followed by the nearest contribution; `undefined` falls
+through and `null` explicitly suppresses a lower value. Classes and token-list attributes are
+deduplicated, styles merge per property, refs fan out, and event subscriptions preserve intrinsic
+then inner-to-outer ordering. Reactive contributions update without changing the authored VNode.
+
+### Bounded target routing
+
+An enhancement written on an intrinsic targets that intrinsic immediately. One written on `_`
+uses the fragment boundary directly. A component declaration first consumes a propagated
+`_target`; otherwise it follows only the component's selected logical output path until it finds the
+first intrinsic or the first nested component frame that already owns a root. After such a frame is
+selected, later siblings and alternate nested component output are not searched for another root.
+A pass-through component returning `props.children` contributes no new frame, so the projected
+children remain in the receiving logical output frame.
+
+Conditional output resolves only the active branch. Structural changes may attach a previously
+dormant `_target` contribution or move an enhancement to a new target generation, releasing the old
+attachment first. The reserved `namespace:root` selector is restricted to that same bounded frame;
+it cannot redirect an enhancement authored directly on an intrinsic. DOM rendering, SSR, hydration,
+and component testing use the same routing contract.
+
 ### Events
 
 DOM events use `onName` and capture events use `onNameCapture`:

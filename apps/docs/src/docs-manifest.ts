@@ -6,6 +6,7 @@ import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
+import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
 import { GesturesPluginPage } from './pages/GesturesPluginPage.jsx';
@@ -211,6 +212,47 @@ export const docGroups: DocGroup[] = [
 		]
 	},
 	{
+		label: 'Component libraries',
+		pages: [
+			{
+				path: '/components/enhancements',
+				label: 'Enhancements',
+				summary: 'Apply optional ordinary components through finite namespaced JSX.',
+				keywords: 'enhancement component library activator target composition optional namespace',
+				component: EnhancementsPage
+			},
+			{
+				path: '/components/motion',
+				label: 'Motion',
+				summary: 'Animate committed state with prepared definitions and task-owned playback.',
+				keywords: 'component library enhancement motion animation presets task Web Animations',
+				component: MotionPluginPage
+			},
+			{
+				path: '/components/gestures',
+				label: 'Gestures',
+				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
+				keywords: 'component library enhancement gestures drag pan pointer keyboard accessibility',
+				component: GesturesPluginPage
+			},
+			{
+				path: '/components/physics',
+				label: 'Physics',
+				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
+				keywords:
+					'component library enhancement physics body force collision fixed step projection',
+				component: PhysicsPluginPage
+			},
+			{
+				path: '/components/gravity',
+				label: 'Gravity',
+				summary: 'Compose pure bounded acceleration fields through the physics force seam.',
+				keywords: 'component library enhancement gravity field force physics acceleration',
+				component: GravityPluginPage
+			}
+		]
+	},
+	{
 		label: 'Extend eXact',
 		pages: [
 			{
@@ -219,34 +261,6 @@ export const docGroups: DocGroup[] = [
 				summary: 'Package cross-cutting behavior as a validated, multi-host extension.',
 				keywords: 'plugin compiler server render client testing configuration package',
 				component: PluginsPage
-			},
-			{
-				path: '/plugins/motion',
-				label: 'Motion',
-				summary: 'Animate committed state with prepared definitions and task-owned playback.',
-				keywords: 'plugin motion animation presets reduced motion task playback Web Animations',
-				component: MotionPluginPage
-			},
-			{
-				path: '/plugins/gestures',
-				label: 'Gestures',
-				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
-				keywords: 'plugin gestures drag pan press hover pinch pointer keyboard accessibility',
-				component: GesturesPluginPage
-			},
-			{
-				path: '/plugins/physics',
-				label: 'Physics',
-				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
-				keywords: 'plugin physics simulation body force constraint collision fixed step projection',
-				component: PhysicsPluginPage
-			},
-			{
-				path: '/plugins/gravity',
-				label: 'Gravity',
-				summary: 'Compose pure bounded acceleration fields through the physics force seam.',
-				keywords: 'plugin gravity field force uniform radial point orbit physics acceleration',
-				component: GravityPluginPage
 			},
 			{
 				path: '/plugins/microfrontends',

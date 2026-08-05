@@ -29,11 +29,11 @@ import physics from '@exactjs/physics'
 export function GravityPluginPage(this: Component<{}>) {
 	return () => (
 		<Article
-			eyebrow="Plugin / @exactjs/gravity"
+			eyebrow="Component library / @exactjs/gravity"
 			title="Compose acceleration without another simulation"
 			description="Pure finite fields can be sampled anywhere, while ordinary components register named force contributors into an existing deterministic physics world."
-			previous={{ path: '/plugins/physics', label: 'Physics' }}
-			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
+			previous={{ path: '/components/physics', label: 'Physics' }}
+			next={{ path: '/plugins', label: 'Plugin system' }}
 		>
 			<section>
 				<h2>Prepare bounded field math</h2>

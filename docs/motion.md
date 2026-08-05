@@ -181,7 +181,7 @@ The update callback awaits the framework commit's `rendered` receipt, while visu
 remains immediate, nonblocking task work. Unsupported browsers and reduced-motion policy publish
 immediately through the same contract. An already aborted request publishes zero times.
 
-## Plugin-owned JSX
+## Namespaced enhancement composition
 
 The shared compiler and DOM renderer carry grouped motion markers, resolve targets through native
 component output, merge nearest props, and mount `MotionElement` as an ordinary transparent

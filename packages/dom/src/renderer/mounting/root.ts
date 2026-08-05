@@ -14,6 +14,7 @@ import {
 	renderInstance,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	unwrap,
@@ -49,6 +50,7 @@ import { bindText, patchChildren, rerenderComponent } from '../patching/children
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
 import { installActivity, prepareActivity } from '../activity.js';
+import { refreshTargetBoundary } from '../target-contributions.js';
 import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
@@ -198,6 +200,19 @@ export function mountInner(
 			children: []
 		};
 		initializeSuspense(root, mounted, parentInstance, parentNode);
+		return mounted;
+	}
+
+	if (vnode.type === Target) {
+		const marker = createMarker(root, 'target');
+		const mounted: Mounted = {
+			vnode,
+			dom: marker,
+			scope,
+			children: mountDetachedChildren(root, vnode.children, parentInstance, scope, parentNode),
+			targetBoundary: {}
+		};
+		refreshTargetBoundary(root, mounted, parentInstance);
 		return mounted;
 	}
 

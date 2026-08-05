@@ -67,6 +67,8 @@ export function unmountMounted(mounted: Mounted): void {
 			attemptTeardown(failure, () => current.mounted.instance!.unmount());
 			attemptTeardown(failure, () => disposeMountedComponentRoot(current.mounted.instance!));
 		}
+		if (current.mounted.targetBoundary?.release)
+			attemptTeardown(failure, current.mounted.targetBoundary.release);
 		if (current.mounted.stop) attemptTeardown(failure, current.mounted.stop);
 		if (current.mounted.dom instanceof Element) {
 			attemptTeardown(failure, () => clearElementProps(current.mounted.dom as Element));

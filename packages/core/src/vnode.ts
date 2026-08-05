@@ -10,6 +10,7 @@ import {
 	ServerBoundary,
 	ServerSlot,
 	Text,
+	Target,
 	UnsafeHtml
 } from './symbols.js';
 
@@ -79,6 +80,14 @@ export function createCompiledFragment(
 	...children: unknown[]
 ): VNode {
 	return createCompiledVNode(Fragment, props, ...children);
+}
+
+/** Creates a compiled semantic-target boundary from ordinary component output. */
+export function createCompiledTarget(
+	props: Record<string, unknown> | null,
+	...children: unknown[]
+): VNode {
+	return createCompiledVNode(Target, props, ...children);
 }
 
 /** Creates a reactive expression wrapper for compiler-generated expression boundaries. */

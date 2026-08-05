@@ -1,5 +1,6 @@
 import {
 	Fragment,
+	Target,
 	Text,
 	UnsafeHtml,
 	isVNode,
@@ -47,7 +48,8 @@ export function adoptStaticTree(
 ): boolean {
 	visitStatic(budget, 0);
 	const nodes = contentNodes(container);
-	if (vnode.type === Fragment) return repairStaticChildren(vnode.children, nodes, budget, 1);
+	if (vnode.type === Fragment || vnode.type === Target)
+		return repairStaticChildren(vnode.children, nodes, budget, 1);
 	if (nodes.length !== 1) return false;
 	if (matchesStaticVNode(vnode, nodes[0]!, budget, 0)) return true;
 	const replacement = createStaticNode(vnode, undefined, budget, 0);
@@ -211,7 +213,7 @@ function flattenStaticChildren(
 	for (const child of children) {
 		visitStatic(budget, depth);
 		if (child === null || child === undefined || child === false || child === true) continue;
-		if (isVNode(child) && child.type === Fragment)
+		if (isVNode(child) && (child.type === Fragment || child.type === Target))
 			flattened.push(...flattenStaticChildren(child.children, budget, depth + 1));
 		else flattened.push(child);
 	}

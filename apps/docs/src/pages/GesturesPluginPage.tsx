@@ -43,11 +43,11 @@ const explicitSource = `<GestureElement apply={movable}>
 export function GesturesPluginPage(this: Component<{}>) {
 	return () => (
 		<Article
-			eyebrow="Plugin / @exactjs/gestures"
+			eyebrow="Component library / @exactjs/gestures"
 			title="Recognize intent without owning application state"
 			description="Prepared recognizers normalize pointer, hover, focus, keyboard, and pinch input while one durable component session owns capture, cancellation, coalescing, and cleanup."
-			previous={{ path: '/plugins/motion', label: 'Motion' }}
-			next={{ path: '/plugins/physics', label: 'Physics' }}
+			previous={{ path: '/components/motion', label: 'Motion' }}
+			next={{ path: '/components/physics', label: 'Physics' }}
 		>
 			<section>
 				<h2>Prepare policy once</h2>

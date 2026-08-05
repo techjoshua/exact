@@ -1,6 +1,7 @@
 import {
 	Fragment,
 	Suspense,
+	Target,
 	getCellVNode,
 	isCellVNode,
 	isVNode,
@@ -56,7 +57,9 @@ function mergeEntry(group: TargetGroup, entry: EnhancementEntry, order: number):
 	const nearer = order > existingOrder;
 	group.entries[index] = Object.freeze({
 		identity: existing.identity,
-		props: Object.freeze(nearer ? { ...existing.props, ...entry.props } : { ...entry.props, ...existing.props }),
+		props: Object.freeze(
+			nearer ? { ...existing.props, ...entry.props } : { ...entry.props, ...existing.props }
+		),
 		...(nearer
 			? entry.root === undefined
 				? {}
@@ -75,10 +78,54 @@ function resolveSsrEnhancementTarget(
 	identity: string
 ): RoutedTarget | undefined {
 	const vnode = isCellVNode(boundary) ? getCellVNode(boundary) : boundary;
-	if (typeof vnode.type === 'string' || vnode.type === Fragment) return { target: vnode, frame: vnode };
+	if (typeof vnode.type === 'string' || vnode.type === Fragment)
+		return { target: vnode, frame: vnode };
+	const exported = findFirstTargetExport(context, vnode, parent);
+	if (exported) return { target: exported, frame: vnode };
 	const routed = findRootBearingFrame(context, vnode, parent);
 	if (!routed) return undefined;
-	return { target: findExplicitTarget(context, routed.frame, identity) ?? routed.target, frame: routed.frame };
+	return {
+		target: findExplicitTarget(context, routed.frame, identity) ?? routed.target,
+		frame: routed.frame
+	};
+}
+
+/** Resolves an ordinary `_target` boundary's semantic intrinsic from prepared logical output. */
+export function resolveSsrTargetBoundary(
+	context: SsrContext,
+	boundary: VNode,
+	parent: ComponentInstance<any> | undefined
+): VNode | undefined {
+	const nested = findFirstTargetExport(context, boundary, parent, true);
+	if (nested) return nested;
+	for (const child of plannedChildren(context, boundary, parent)) {
+		if (!isVNode(child)) continue;
+		const routed = findFirstRoot(context, child, parent, boundary);
+		if (routed) return routed.target;
+	}
+	return undefined;
+}
+
+function findFirstTargetExport(
+	context: SsrContext,
+	vnode: VNode,
+	parent: ComponentInstance<any> | undefined,
+	skipBoundary = false
+): VNode | undefined {
+	if (isCellVNode(vnode)) return findFirstTargetExport(context, getCellVNode(vnode), parent);
+	if (!skipBoundary && vnode.type === Target)
+		return resolveSsrTargetBoundary(context, vnode, parent);
+	let childParent = parent;
+	if (typeof vnode.type === 'function') {
+		const prepared = context.preparedEnhancementComponents.get(vnode);
+		childParent = prepared?.failed ? parent : (prepared?.instance ?? parent);
+	}
+	for (const child of plannedChildren(context, vnode, childParent)) {
+		if (!isVNode(child)) continue;
+		const target = findFirstTargetExport(context, child, childParent);
+		if (target) return target;
+	}
+	return undefined;
 }
 
 function findRootBearingFrame(
@@ -86,12 +133,13 @@ function findRootBearingFrame(
 	boundary: VNode,
 	parent: ComponentInstance<any> | undefined
 ): RoutedTarget | undefined {
-	const prepared = typeof boundary.type === 'function'
-		? context.preparedEnhancementComponents.get(boundary)
-		: undefined;
+	const prepared =
+		typeof boundary.type === 'function'
+			? context.preparedEnhancementComponents.get(boundary)
+			: undefined;
 	const frame = typeof boundary.type === 'function' ? boundary : undefined;
 	const instance = prepared?.failed ? parent : (prepared?.instance ?? parent);
-	const children = frame ? prepared?.children ?? [] : [boundary];
+	const children = frame ? (prepared?.children ?? []) : [boundary];
 	for (const child of children) {
 		if (!isVNode(child)) continue;
 		const routed = findFirstRoot(context, child, instance, frame);
@@ -122,10 +170,9 @@ function findExplicitTarget(
 	frame: VNode,
 	identity: string
 ): VNode | undefined {
-	const prepared = typeof frame.type === 'function'
-		? context.preparedEnhancementComponents.get(frame)
-		: undefined;
-	const children = typeof frame.type === 'function' ? prepared?.children ?? [] : [frame];
+	const prepared =
+		typeof frame.type === 'function' ? context.preparedEnhancementComponents.get(frame) : undefined;
+	const children = typeof frame.type === 'function' ? (prepared?.children ?? []) : [frame];
 	for (const child of children) {
 		if (!isVNode(child)) continue;
 		const target = findExplicitInTransparentOutput(context, child, identity);
@@ -139,7 +186,8 @@ function findExplicitInTransparentOutput(
 	vnode: VNode,
 	identity: string
 ): VNode | undefined {
-	if (isCellVNode(vnode)) return findExplicitInTransparentOutput(context, getCellVNode(vnode), identity);
+	if (isCellVNode(vnode))
+		return findExplicitInTransparentOutput(context, getCellVNode(vnode), identity);
 	if (typeof vnode.type === 'function') return undefined;
 	if (typeof vnode.type === 'string') {
 		const selector = vnode.enhancements?.entries.find(
@@ -158,9 +206,10 @@ function findExplicitInTransparentOutput(
 function plannedChildren(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined
+	_parent: ComponentInstance<any> | undefined
 ): readonly unknown[] {
-	if (vnode.type === Suspense) return context.preparedEnhancementSuspense.get(vnode)?.children ?? [];
+	if (vnode.type === Suspense)
+		return context.preparedEnhancementSuspense.get(vnode)?.children ?? [];
 	if (typeof vnode.type === 'function')
 		return context.preparedEnhancementComponents.get(vnode)?.children ?? [];
 	return resolveSsrLogicalChildren(context, vnode);

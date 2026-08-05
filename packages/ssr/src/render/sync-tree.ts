@@ -5,6 +5,7 @@ import {
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	createComponentInstance,
@@ -64,6 +65,7 @@ import {
 import { renderNativeSuspenseSync } from './native-boundaries.js';
 import { activateSsrEnhancements } from './enhancements.js';
 import * as syncComponents from './sync-component.js';
+import { applySsrTargetContributions } from './target-contributions.js';
 
 const syncComponentOperations = {
 	renderChildren,
@@ -155,6 +157,15 @@ export function* renderVNodeChunks(
 					renderVNodeChunks(context, child, parent, depth + 1)
 				);
 			}
+		});
+		return;
+	}
+	if (vnode.type === Target) {
+		applySsrTargetContributions(context, vnode, parent);
+		const id = markerId(context, 'target', undefined, vnode.key);
+		yield* marked(id, function* () {
+			for (const child of vnode.children)
+				yield* renderChildChunks(context, child, parent, depth + 1);
 		});
 		return;
 	}
@@ -394,6 +405,13 @@ export function renderVNodeInner(
 			}
 			return boundedJoin(context, html);
 		});
+	}
+
+	if (vnode.type === Target) {
+		applySsrTargetContributions(context, vnode, parent);
+		return markerPair(context, markerId(context, 'target', undefined, vnode.key), () =>
+			renderChildren(context, vnode.children, parent)
+		);
 	}
 
 	if (vnode.type === Dynamic) {

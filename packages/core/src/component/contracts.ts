@@ -16,6 +16,7 @@ import type {
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml
 } from '../symbols.js';
@@ -32,6 +33,7 @@ export type VNodeType =
 	| typeof ServerBoundary
 	| typeof ServerSlot
 	| typeof Suspense
+	| typeof Target
 	| typeof UnsafeHtml
 	| ComponentFunction<any, any>;
 
@@ -87,7 +89,7 @@ export type VNode<Props = Record<string, unknown>> = {
 	readonly domain?: ComponentDomain;
 };
 
-/** One canonical plugin capability attached to an authored JSX boundary. */
+/** One canonical enhancement component attached to an authored JSX boundary. */
 export type EnhancementEntry = Readonly<{
 	identity: string;
 	props: Readonly<Record<string, unknown>>;

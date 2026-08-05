@@ -1,4 +1,4 @@
-import { Text, type ComponentInstance, type RootIntroduction } from '@exactjs/core';
+import { Target, Text, type ComponentInstance, type RootIntroduction } from '@exactjs/core';
 import {
 	disposeComponentRoot,
 	publishComponentRoot,
@@ -16,10 +16,20 @@ export function refreshComponentRoot(
 	const mounted = componentMounts.get(instance);
 	publishComponentRoot(
 		instance,
-		mounted ? firstHostElement(mounted) : undefined,
+		mounted ? (firstTargetElement(mounted) ?? firstHostElement(mounted)) : undefined,
 		presented,
 		introduction
 	);
+}
+
+function firstTargetElement(mounted: Mounted): Element | undefined {
+	if (mounted.vnode.type === Target && mounted.targetBoundary?.selected?.dom instanceof Element)
+		return mounted.targetBoundary.selected.dom;
+	for (const child of mounted.children) {
+		const element = firstTargetElement(child);
+		if (element) return element;
+	}
+	return undefined;
 }
 
 /** Classifies a newly mounted component root without exposing renderer internals to components. */

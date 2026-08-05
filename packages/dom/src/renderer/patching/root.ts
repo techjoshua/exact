@@ -8,6 +8,7 @@ import {
 	Portal,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	unwrap,
@@ -26,7 +27,6 @@ import {
 } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
-import { updateProps } from '../../props.js';
 import { mountServerSlot } from '../../server-slots.js';
 import type { Mounted, Root } from '../../types.js';
 import { countDomWork, withTreeDepth } from '../limits.js';
@@ -44,6 +44,7 @@ import { updateSuspense } from '../suspense.js';
 import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
 import { patchEnhancementBoundary } from '../enhancements.js';
+import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
 
 /** Performs the patch domain operation. */
 export function patch(
@@ -223,6 +224,21 @@ export function patchInner(
 		return mounted;
 	}
 
+	if (next.type === Target) {
+		mounted.vnode = next;
+		mounted.children = patchChildren(
+			root,
+			parent,
+			mounted.children,
+			next.children,
+			parentInstance,
+			mounted.scope,
+			afterMountedChildren(mounted)
+		);
+		refreshTargetBoundary(root, mounted, parentInstance);
+		return mounted;
+	}
+
 	if (next.type === Fragment) {
 		const previousList = getListBinding(mounted.vnode);
 		const nextList = getListBinding(next);
@@ -371,7 +387,7 @@ export function patchInner(
 		mounted.scope,
 		mounted.childEnd
 	);
-	updateProps(root, mounted.dom as Element, previousProps, next.props, mounted.scope);
+	updateTargetedIntrinsicProps(root, mounted, previousProps, next.props);
 	return mounted;
 }
 

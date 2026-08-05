@@ -54,11 +54,11 @@ const listSource = `<LayoutGroup id="cards">
 export function MotionPluginPage(this: Component<{}>) {
 	return () => (
 		<Article
-			eyebrow="Plugin / @exactjs/motion"
+			eyebrow="Component library / @exactjs/motion"
 			title="Keep state authoritative while tasks own motion"
 			description="Prepared definitions describe visual behavior. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
-			previous={{ path: '/plugins', label: 'Plugin system' }}
-			next={{ path: '/plugins/gestures', label: 'Gestures' }}
+			previous={{ path: '/components/enhancements', label: 'Enhancements' }}
+			next={{ path: '/components/gestures', label: 'Gestures' }}
 		>
 			<section>
 				<h2>Prepare visual behavior once</h2>

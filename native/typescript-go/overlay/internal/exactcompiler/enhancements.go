@@ -195,7 +195,32 @@ func collectEnhancementImports(
 	}
 	collectEnhancementApplications(sourceFile, typeChecker, &result, ordinaryBindings)
 	collectEnhancementTypeDiagnostics(sourceFile, typeChecker, &result)
+	collectTargetDiagnostics(sourceFile, &result)
 	return result
+}
+
+func collectTargetDiagnostics(sourceFile *ast.SourceFile, imports *enhancementImports) {
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		missing := false
+		switch {
+		case ast.IsJsxSelfClosingElement(node):
+			missing = sourceText(sourceFile, node.AsJsxSelfClosingElement().TagName) == "_target"
+		case ast.IsJsxElement(node):
+			element := node.AsJsxElement()
+			missing = sourceText(sourceFile, element.OpeningElement.TagName()) == "_target" &&
+				len(element.Children.Nodes) == 0
+		}
+		if !missing {
+			return true
+		}
+		imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
+			sourceFile,
+			node,
+			"EXACT6016",
+			"_target requires children",
+		))
+		return true
+	})
 }
 
 func appendEnhancementCatalog(

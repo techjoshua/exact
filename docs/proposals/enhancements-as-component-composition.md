@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed after the implemented
+In implementation after the implemented
 [`recursive-server-client-graph-partitioning.md`](recursive-server-client-graph-partitioning.md)
 contract and before
 [`server-component-library-trust.md`](server-component-library-trust.md),
@@ -15,6 +15,22 @@ contract and before
 the component groups, `_target` exports and contribution ownership, root-bearing frames, and target
 generations defined here rather than preserve the current single-callable namespace or unrestricted
 target search.
+
+The terminology cutover, finite activator maps, direct `_` composition, and bounded
+logical-output-frame routing are implemented. `_target` lowering and its first DOM, SSR, and
+hydration contract are implemented, but this proposal is not complete until contribution ownership,
+local structural invalidation, DevTools inspection, package classification, and the documentation
+move satisfy the verification section below. The next proposal in the sequence must not treat this
+contract as implemented until those gates are complete and this status changes to **Implemented**.
+
+| Delivery area                              | Current state         | Completion gate                                                                                                                                             |
+| ------------------------------------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exact-enhancement` terminology            | Implemented           | Repository consistency checks retain no former source spelling or enhancement-as-plugin descriptions.                                                       |
+| Finite activator maps                      | Implemented           | Full alias, canonical grouping, selector, spread, and grouped-prop acceptance coverage remains green.                                                       |
+| Direct `_` composition and bounded routing | Implemented           | DOM, SSR, hydration, and conditional-frame coverage remains green.                                                                                          |
+| Ordinary `_target`                         | In implementation     | Independently owned events/refs, owner cleanup, local rerouting, DevTools ownership, and conditional-generation tests are complete.                         |
+| Component-library reclassification         | Pending               | Package manifests, projections, READMEs, local guides, repository placement, and docs navigation distinguish component libraries from genuine host plugins. |
+| Portable trust-policy seam                 | Pending documentation | Compiler-emitted package/component/placement/enhancement metadata is documented as the sole input consumed by the following bundler policy proposal.        |
 
 This proposal combines a terminology, package-classification, and documentation correction with
 three component-language changes. It generalizes compiler resolution so one finite enhancement

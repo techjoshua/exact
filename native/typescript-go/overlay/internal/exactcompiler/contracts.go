@@ -168,7 +168,7 @@ type Component struct {
 	Diagnostics         []string                  `json:"diagnostics"`
 }
 
-// EnhancementContextEffects is the token-identity contract needed before plugin instantiation.
+// EnhancementContextEffects is the token-identity contract needed before enhancement setup.
 type EnhancementContextEffects struct {
 	Provides           []string `json:"provides"`
 	Requires           []string `json:"requires"`

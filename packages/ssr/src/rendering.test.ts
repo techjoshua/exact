@@ -3,6 +3,7 @@ import {
 	ErrorBoundary,
 	Fragment,
 	Suspense,
+	Target as TargetBoundary,
 	activateTaskForHost,
 	createEnhancementMarker,
 	createContext,
@@ -76,6 +77,46 @@ describe('@exactjs/ssr rendering', () => {
 		);
 
 		expect(output.html).toBe('<aside>Before<strong>After</strong></aside>');
+	});
+
+	it('forwards ordinary target properties through structural component output', async () => {
+		const Field = markExactComponent(function Field(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () =>
+				createVNode(
+					'label',
+					{ className: 'field' },
+					createVNode('span', null, 'Account'),
+					createVNode(
+						TargetBoundary,
+						{
+							className: 'control shared',
+							style: { color: 'red', paddingTop: '4px' },
+							'aria-describedby': 'description shared'
+						},
+						props.children
+					),
+					createVNode('small', { id: 'description' }, 'Help')
+				);
+		}, '@exactjs/ssr:target-field');
+		const vnode = createVNode(
+			Field,
+			null,
+			createVNode('input', {
+				className: 'authored shared',
+				style: { color: 'green' },
+				'aria-describedby': 'authored shared'
+			})
+		);
+		const output = renderToString(vnode, { markers: false });
+		const asyncOutput = await renderToStringAsync(vnode, { markers: false });
+
+		expect(output.html).toBe(
+			'<label class="field"><span>Account</span><input class="authored shared control" style="color: green; padding-top: 4px;" aria-describedby="authored shared description"><small id="description">Help</small></label>'
+		);
+		expect(asyncOutput.html).toBe(output.html);
 	});
 
 	it('leaves unavailable server enhancements inert and warns once per identity', () => {

@@ -60,7 +60,7 @@ Space produce press samples; omitted callbacks fall back to the definition's dra
 callback. Hover policy treats focus as equivalent intent. Authors remain responsible for a
 focusable target, an accurate accessible name, and any control-specific role.
 
-## Plugin-owned JSX
+## Namespaced enhancement composition
 
 The canonical namespace accepts `apply`, `press`, `hover`, `drag`, `pan`, `pinch`, and `disabled`.
 The shared compiler and renderer carry grouped markers and ordinary transparent plugin components.

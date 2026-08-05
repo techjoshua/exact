@@ -233,6 +233,7 @@ export {
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml
 } from './symbols.js';
@@ -268,6 +269,7 @@ export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './
 export {
 	createCellVNode,
 	createCompiledFragment,
+	createCompiledTarget,
 	createCompiledVNode,
 	createDynamicChild,
 	createExpression,

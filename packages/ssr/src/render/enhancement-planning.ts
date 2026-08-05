@@ -52,6 +52,29 @@ export async function planSsrEnhancementBoundaryAsync(
 	collectSsrEnhancementRoutes(context, boundary, parent, 1, { nodes: 0 });
 }
 
+/** Prepares one `_target` subtree without requiring an enhancement declaration. */
+export function prepareSsrTargetBoundary(
+	context: SsrContext,
+	boundary: VNode,
+	parent: ComponentInstance<any> | undefined
+): void {
+	if (context.plannedTargetBoundaries.has(boundary)) return;
+	materializeSync(context, boundary, parent, 1, { nodes: 0 });
+	context.plannedTargetBoundaries.add(boundary);
+}
+
+/** Asynchronously prepares one `_target` subtree and its setup-once component instances. */
+export async function prepareSsrTargetBoundaryAsync(
+	context: SsrContext,
+	boundary: VNode,
+	parent: ComponentInstance<any> | undefined,
+	options: SsrAsyncOptions
+): Promise<void> {
+	if (context.plannedTargetBoundaries.has(boundary)) return;
+	await materializeAsync(context, boundary, parent, options, 1, { nodes: 0 });
+	context.plannedTargetBoundaries.add(boundary);
+}
+
 /**
  * Executes setup once for the logical component subtree needed by target discovery.
  * The prepared instances and finite expansions are transferred to the normal renderer.

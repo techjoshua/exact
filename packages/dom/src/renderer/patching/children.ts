@@ -125,6 +125,7 @@ export function patchChildrenInner(
 		}
 	}
 	throwTeardownFailure(teardown);
+	root.reconcileTargets?.();
 	if (parentInstance) refreshComponentRoot(parentInstance);
 	if (!root.enhancementReconciliationDepth) {
 		root.reconcileEnhancements?.();

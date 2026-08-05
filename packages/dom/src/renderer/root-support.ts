@@ -76,6 +76,7 @@ export function createMarker(
 		| 'portal'
 		| 'suspense'
 		| 'suspense-end'
+		| 'target'
 ): Node {
 	return root.debugMarkers ? document.createComment(`exact-${label}`) : document.createTextNode('');
 }

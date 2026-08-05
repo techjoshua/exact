@@ -6200,10 +6200,10 @@ func TestSessionTreatsUnderscoreJSXAsCompilerFragment(t *testing.T) {
 	}
 }
 
-func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
+func TestSessionLowersAttributedEnhancementJSXNamespaces(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
-	entryFile := filepath.Join(root, "plugin-enhancement.tsx")
+	entryFile := filepath.Join(root, "enhancement-composition.tsx")
 	motionFile := filepath.Join(root, "motion.ts")
 	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	entrySource := `
@@ -6264,7 +6264,7 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 		"root: true",
 	} {
 		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("plugin lowering omitted %q:\n%s", expected, response.Code)
+			t.Fatalf("enhancement lowering omitted %q:\n%s", expected, response.Code)
 		}
 	}
 	if strings.Count(response.Code, "__exactEnhancements:") != 1 {
@@ -6359,7 +6359,26 @@ func TestSessionLowersFiniteEnhancementActivatorNamespaces(t *testing.T) {
 	}
 }
 
-func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
+func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) {
+	valid := NewSession().Execute(Request{
+		ID: "target.tsx", Kind: "compile",
+		Source: `export const view = <_target className="surface"><button>Save</button></_target>;`,
+	})
+	if valid.Error != "" {
+		t.Fatal(valid.Error)
+	}
+	if !strings.Contains(valid.Code, "createCompiledTarget") || strings.Contains(valid.Code, `"_target"`) {
+		t.Fatalf("_target was not lowered as a transparent target boundary:\n%s", valid.Code)
+	}
+	missing := NewSession().Execute(Request{
+		ID: "missing-target.tsx", Kind: "compile", Source: `export const view = <_target />;`,
+	})
+	if !containsDiagnosticCode(missing.Diagnostics, "EXACT6016") {
+		t.Fatalf("childless _target was accepted: %#v", missing.Diagnostics)
+	}
+}
+
+func TestSessionValidatesAttributedEnhancementComponentSchemas(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	componentFile := filepath.Join(root, "enhancements.ts")
@@ -6388,11 +6407,11 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 
 	unknown := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div motion:unknown />;`)
 	if !containsDiagnosticCode(unknown.Diagnostics, "EXACT6007") {
-		t.Fatalf("unknown plugin prop was accepted: %#v", unknown.Diagnostics)
+		t.Fatalf("unknown enhancement prop was accepted: %#v", unknown.Diagnostics)
 	}
 	reserved := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div motion:key="x" />;`)
 	if !containsDiagnosticCode(reserved.Diagnostics, "EXACT6006") {
-		t.Fatalf("reserved plugin prop was accepted: %#v", reserved.Diagnostics)
+		t.Fatalf("reserved enhancement prop was accepted: %#v", reserved.Diagnostics)
 	}
 	ordinary := compile(`import { motion } from "./enhancements.js"; export const view = <div motion:layout-id="x" />;`)
 	if !containsDiagnosticCode(ordinary.Diagnostics, "EXACT6005") {
@@ -6400,7 +6419,7 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 	}
 	open := compile(`import { open as field } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div field:anything />;`)
 	if !containsDiagnosticCode(open.Diagnostics, "EXACT6004") {
-		t.Fatalf("open plugin prop schema was accepted: %#v", open.Diagnostics)
+		t.Fatalf("open enhancement prop schema was accepted: %#v", open.Diagnostics)
 	}
 	nonComponent := compile(`import { value as field } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div field:anything />;`)
 	if !containsDiagnosticCode(nonComponent.Diagnostics, "EXACT6004") {
@@ -6408,11 +6427,11 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 	}
 	openSpread := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; const props: Record<string, unknown> = {}; export const view = <div {...props} />;`)
 	if !containsDiagnosticCode(openSpread.Diagnostics, "EXACT6008") {
-		t.Fatalf("open plugin spread key space was accepted: %#v", openSpread.Diagnostics)
+		t.Fatalf("open enhancement spread key space was accepted: %#v", openSpread.Diagnostics)
 	}
 }
 
-func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
+func TestSessionPartitionsFiniteEnhancementSpreads(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	entryFile := filepath.Join(root, "entry.tsx")
@@ -6444,7 +6463,7 @@ func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
 	}
 	for _, diagnostic := range response.Diagnostics {
 		if diagnostic.Severity == "error" {
-			t.Fatalf("finite plugin spread produced an error: %#v", response.Diagnostics)
+			t.Fatalf("finite enhancement spread produced an error: %#v", response.Diagnostics)
 		}
 	}
 	for _, expected := range []string{
@@ -6455,12 +6474,12 @@ func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
 		`title: "Card"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("finite plugin spread omitted %q:\n%s", expected, response.Code)
+			t.Fatalf("finite enhancement spread omitted %q:\n%s", expected, response.Code)
 		}
 	}
 }
 
-func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
+func TestSessionChecksEnhancementPropTypesAndUnionCorrelation(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	entryFile := filepath.Join(root, "entry.tsx")
@@ -6506,7 +6525,7 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 		export const view = <div motion:kind="spring" motion:stiffness="strong" />;
 	`)
 	if !containsDiagnosticCode(wrongValue.Diagnostics, "EXACT6011") {
-		t.Fatalf("invalid plugin prop value was accepted: %#v", wrongValue.Diagnostics)
+		t.Fatalf("invalid enhancement prop value was accepted: %#v", wrongValue.Diagnostics)
 	}
 	wrongTemplate := compile(`
 		import { motion } from "./motion.js" with { type: "exact-enhancement" };
@@ -6520,7 +6539,7 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 		export const view = <div motion:kind="spring" motion:duration="fast" />;
 	`)
 	if !containsDiagnosticCode(wrongCombination.Diagnostics, "EXACT6011") {
-		t.Fatalf("invalid plugin prop union combination was accepted: %#v", wrongCombination.Diagnostics)
+		t.Fatalf("invalid enhancement prop union combination was accepted: %#v", wrongCombination.Diagnostics)
 	}
 	wrongSpread := compile(`
 		import { motion } from "./motion.js" with { type: "exact-enhancement" };
@@ -6535,7 +6554,7 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 	}
 }
 
-func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
+func TestSessionResolvesDefaultStarAndAmbiguousEnhancementExports(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	entryFile := filepath.Join(root, "entry.tsx")
@@ -6569,7 +6588,7 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 	})
 	for _, diagnostic := range valid.Diagnostics {
 		if diagnostic.Severity == "error" {
-			t.Fatalf("default or star plugin export produced an error: %#v", valid.Diagnostics)
+			t.Fatalf("default or star enhancement export produced an error: %#v", valid.Diagnostics)
 		}
 	}
 	identities := make(map[string]struct{}, len(valid.Analysis.Enhancements))
@@ -6581,7 +6600,7 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 		"./star-capability.js#motion",
 	} {
 		if _, exists := identities[identity]; !exists {
-			t.Fatalf("compiler omitted resolved plugin identity %q: %#v", identity, valid.Analysis.Enhancements)
+			t.Fatalf("compiler omitted resolved enhancement identity %q: %#v", identity, valid.Analysis.Enhancements)
 		}
 	}
 
@@ -6596,6 +6615,6 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 		ID: entryFile, Kind: "compile", Source: ambiguousSource, ConfigFile: configFile,
 	})
 	if !containsDiagnosticCode(ambiguous.Diagnostics, "EXACT6010") {
-		t.Fatalf("ambiguous plugin export path was accepted: %#v", ambiguous.Diagnostics)
+		t.Fatalf("ambiguous enhancement export path was accepted: %#v", ambiguous.Diagnostics)
 	}
 }

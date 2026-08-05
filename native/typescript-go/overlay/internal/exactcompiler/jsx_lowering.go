@@ -22,6 +22,7 @@ import (
 type jsxRuntimeNames struct {
 	element                string
 	fragment               string
+	target                 string
 	expression             string
 	dynamic                string
 	boundary               string
@@ -922,6 +923,15 @@ func (lowering *jsxLowering) lowerOpeningLike(
 				[]*ast.Node{
 					lowering.props(opening.Attributes(), "", false, ""),
 				},
+				lowering.children(children)...,
+			),
+		)
+	}
+	if tagText == "_target" {
+		return lowering.call(
+			lowering.names.target,
+			append(
+				[]*ast.Node{lowering.props(opening.Attributes(), "", false, "")},
 				lowering.children(children)...,
 			),
 		)
@@ -5971,6 +5981,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 	}{
 		{"createCompiledVNode", lowering.names.element},
 		{"createCompiledFragment", lowering.names.fragment},
+		{"createCompiledTarget", lowering.names.target},
 		{"createExpression", lowering.names.expression},
 		{"createDynamicChild", lowering.names.dynamic},
 		{"createServerBoundary", lowering.names.boundary},
@@ -6148,6 +6159,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	return jsxRuntimeNames{
 		element:                allocate("__exactVNode"),
 		fragment:               allocate("__exactFragment"),
+		target:                 allocate("__exactTarget"),
 		expression:             allocate("__exactExpression"),
 		dynamic:                allocate("__exactDynamic"),
 		boundary:               allocate("__exactBoundary"),

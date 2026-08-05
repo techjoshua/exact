@@ -303,6 +303,12 @@ export type SsrContext = {
 	enhancementVNodes: WeakSet<VNode>;
 	/** Authored boundaries whose logical subtree has an SSR enhancement route plan. */
 	plannedEnhancementBoundaries: WeakSet<VNode>;
+	/** `_target` boundaries whose logical children have been prepared once. */
+	plannedTargetBoundaries: WeakSet<VNode>;
+	/** `_target` boundaries whose owned layer has been applied to the active target. */
+	appliedTargetBoundaries: WeakSet<VNode>;
+	/** Effective layered props contributed to resolved semantic intrinsic targets. */
+	targetContributions: WeakMap<VNode, Record<string, unknown>>;
 	/** Resolved intrinsic targets and their merged enhancement declarations. */
 	enhancementTargets: WeakMap<VNode, readonly EnhancementEntry[]>;
 	/** Component work materialized once while resolving a logical enhancement target. */

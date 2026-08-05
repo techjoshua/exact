@@ -1,6 +1,13 @@
-import { Fragment, unwrap, type ComponentInstance, type EnhancementEntry } from '@exactjs/core';
+import {
+	Fragment,
+	Target,
+	unwrap,
+	type ComponentInstance,
+	type EnhancementEntry
+} from '@exactjs/core';
 import type { Mounted } from '../types.js';
 
+/** One mounted semantic target and the logical owner frame that selected it. */
 export type EnhancementTarget = {
 	readonly mounted: Mounted;
 	readonly owner?: Mounted;
@@ -8,6 +15,7 @@ export type EnhancementTarget = {
 	readonly depth: number;
 };
 
+/** Enhancement entries and declarations grouped onto one mounted semantic target. */
 export type TargetEnhancements = {
 	readonly target: EnhancementTarget;
 	readonly entries: EnhancementEntry[];
@@ -70,7 +78,9 @@ function mergeEntry(
 	const nearer = order > existingOrder;
 	group.entries[index] = Object.freeze({
 		identity: existing.identity,
-		props: Object.freeze(nearer ? { ...existing.props, ...entry.props } : { ...entry.props, ...existing.props }),
+		props: Object.freeze(
+			nearer ? { ...existing.props, ...entry.props } : { ...entry.props, ...existing.props }
+		),
 		...(nearer
 			? entry.root === undefined
 				? {}
@@ -92,9 +102,64 @@ export function resolveEnhancementTarget(
 ): EnhancementTarget | undefined {
 	if (typeof boundary.vnode.type === 'string' || boundary.vnode.type === Fragment)
 		return { mounted: boundary, owner, parentInstance, depth };
+	const exported = findFirstTargetExport(boundary, owner, parentInstance, depth);
+	if (exported) return exported;
 	const routed = findRootBearingFrame(boundary, owner, parentInstance, depth);
 	if (!routed) return undefined;
 	return findExplicitTarget(routed.frame, identity, routed.parentInstance, routed.depth) ?? routed;
+}
+
+/** Resolves one `_target` boundary's children without treating the boundary itself as output. */
+export function resolveTargetBoundary(
+	boundary: Mounted,
+	parentInstance: ComponentInstance<any> | undefined
+): EnhancementTarget | undefined {
+	const nested = findFirstTargetExport(boundary, undefined, parentInstance, 0, true);
+	if (nested) return nested;
+	for (const child of boundary.children) {
+		const routed = findFirstRoot(child, boundary, parentInstance, 1, boundary);
+		if (routed) return routed;
+	}
+	return undefined;
+}
+
+function findFirstTargetExport(
+	boundary: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number,
+	skipBoundary = false
+): EnhancementTarget | undefined {
+	if (!skipBoundary && boundary.vnode.type === Target && boundary.targetBoundary?.selected)
+		return locateMountedTarget(
+			boundary,
+			boundary.targetBoundary.selected,
+			owner,
+			parentInstance,
+			depth
+		);
+	const childInstance = boundary.instance ?? parentInstance;
+	for (const child of boundary.children) {
+		const result = findFirstTargetExport(child, boundary, childInstance, depth + 1);
+		if (result) return result;
+	}
+	return undefined;
+}
+
+function locateMountedTarget(
+	boundary: Mounted,
+	target: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number
+): EnhancementTarget | undefined {
+	if (boundary === target) return { mounted: boundary, owner, parentInstance, depth };
+	const childInstance = boundary.instance ?? parentInstance;
+	for (const child of boundary.children) {
+		const result = locateMountedTarget(child, target, boundary, childInstance, depth + 1);
+		if (result) return result;
+	}
+	return undefined;
 }
 
 function findRootBearingFrame(
@@ -143,7 +208,13 @@ function findExplicitTarget(
 ): EnhancementTarget | undefined {
 	const children = typeof frame.vnode.type === 'function' ? frame.children : [frame];
 	for (const child of children) {
-		const result = findExplicitInTransparentOutput(child, frame, parentInstance, depth + 1, identity);
+		const result = findExplicitInTransparentOutput(
+			child,
+			frame,
+			parentInstance,
+			depth + 1,
+			identity
+		);
 		if (result) return result;
 	}
 	return undefined;
@@ -185,6 +256,7 @@ function findExplicitInTransparentOutput(
 	return undefined;
 }
 
+/** Visits every mounted node in physical child order while carrying component ownership. */
 export function walkMounted(
 	mounted: Mounted,
 	owner: Mounted | undefined,
@@ -199,9 +271,11 @@ export function walkMounted(
 ): void {
 	visit(mounted, owner, parentInstance, depth);
 	const childInstance = mounted.instance ?? parentInstance;
-	for (const child of mounted.children) walkMounted(child, mounted, childInstance, depth + 1, visit);
+	for (const child of mounted.children)
+		walkMounted(child, mounted, childInstance, depth + 1, visit);
 }
 
+/** Visits authored logical output while bypassing active enhancement wrapper chains. */
 export function walkLogicalMounted(
 	mounted: Mounted,
 	owner: Mounted | undefined,

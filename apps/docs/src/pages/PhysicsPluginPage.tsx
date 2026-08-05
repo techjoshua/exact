@@ -35,11 +35,11 @@ const enhancementSource = `import physics from '@exactjs/physics'
 export function PhysicsPluginPage(this: Component<{}>) {
 	return () => (
 		<Article
-			eyebrow="Plugin / @exactjs/physics"
+			eyebrow="Component library / @exactjs/physics"
 			title="Simulate first, project second"
 			description="A deterministic DOM-independent 2D engine owns bodies, forces, constraints, collisions, and fixed-step time; an ordinary eXact component optionally projects coalesced poses."
-			previous={{ path: '/plugins/gestures', label: 'Gestures' }}
-			next={{ path: '/plugins/gravity', label: 'Gravity' }}
+			previous={{ path: '/components/gestures', label: 'Gestures' }}
+			next={{ path: '/components/gravity', label: 'Gravity' }}
 		>
 			<section>
 				<h2>Keep simulation deterministic</h2>

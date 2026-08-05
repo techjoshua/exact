@@ -6,6 +6,7 @@ import {
 	normalizeRenderResult,
 	renderInstance,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	unwrap,
@@ -27,6 +28,7 @@ import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { unmountMany, unmountMounted } from '../teardown.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
+import { refreshTargetBoundary } from '../target-contributions.js';
 import { adoptActivityBoundary, adoptSuspenseBoundary } from './mode-boundaries.js';
 import {
 	componentMarkerBoundary,
@@ -250,13 +252,14 @@ export function adoptStaticMountedInner(
 			adoptStaticChildren
 		);
 	}
-	if (vnode.type === Fragment) {
+	if (vnode.type === Fragment || vnode.type === Target) {
 		const start = nodes[cursor];
-		const list = getListBinding(vnode);
+		const list = vnode.type === Fragment ? getListBinding(vnode) : undefined;
 		const isListMarker = list && start instanceof Comment && start.data.startsWith('exact:');
 		if (
 			!(start instanceof Comment) ||
-			(!start.data.startsWith('exact:fragment:') && !isListMarker)
+			(!start.data.startsWith(`exact:${vnode.type === Target ? 'target' : 'fragment'}:`) &&
+				!isListMarker)
 		) {
 			const adopted = adoptStaticChildrenRange(
 				root,
@@ -278,7 +281,15 @@ export function adoptStaticMountedInner(
 				return undefined;
 			}
 			first.parentNode.insertBefore(marker, first);
-			return { mounted: { vnode, dom: marker, scope, children }, next: cursor + adopted.next };
+			const mounted: Mounted = {
+				vnode,
+				dom: marker,
+				scope,
+				children,
+				...(vnode.type === Target ? { targetBoundary: {} } : {})
+			};
+			if (vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
+			return { mounted, next: cursor + adopted.next };
 		}
 		const endIndex = nodes.findIndex(
 			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
@@ -306,7 +317,15 @@ export function adoptStaticMountedInner(
 			scope.stop();
 			return undefined;
 		}
-		const mounted: Mounted = { vnode, dom: start, end: nodes[endIndex]!, scope, children };
+		const mounted: Mounted = {
+			vnode,
+			dom: start,
+			end: nodes[endIndex]!,
+			scope,
+			children,
+			...(vnode.type === Target ? { targetBoundary: {} } : {})
+		};
+		if (vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
 		if (list) {
 			mounted.stop = watch(
 				() => {

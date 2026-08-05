@@ -264,6 +264,7 @@ export namespace JSX {
 	};
 
 	export interface IntrinsicElements extends HTMLIntrinsicElements {
+		_target: IntrinsicElementProps<EventTarget> & { children: Child | Child[] };
 		[elementName: string]: IntrinsicElementProps<any>;
 	}
 }
