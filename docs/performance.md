@@ -1,0 +1,90 @@
+# JavaScript performance measurement
+
+The repository's opt-in performance profile separates correctness checks from repeatable framework
+measurements. The tracked
+[`javascript-framework.json`](performance-baselines/javascript-framework.json) baseline records the
+current client, server, wire, heap, and production-fixture build evidence. It is a comparison point,
+not a machine-independent release budget.
+
+## Commands
+
+Run the complete framework baseline after building the repository:
+
+```sh
+npm run benchmark:framework
+```
+
+The release performance profile builds the repository first and then runs the framework, reactive,
+compiler, DevTools, and React-compatibility benchmarks without competing correctness work:
+
+```sh
+npm run performance:check
+```
+
+Update the tracked framework baseline only from a complete Node and Chromium run:
+
+```sh
+node scripts/benchmark-framework-performance.mjs --output=docs/performance-baselines/javascript-framework.json
+```
+
+`EXACT_FRAMEWORK_BENCH_SAMPLES` controls independent process samples and defaults to `5`.
+`EXACT_FRAMEWORK_BENCH_WARMUPS` controls per-process warmups and defaults to `2`. `--node-only` and
+`--scenario=<name>` are diagnostic shortcuts; a run using either incomplete mode cannot write a
+tracked baseline. `--keep-temporary` retains generated fixture artifacts only for compiler-output
+diagnosis.
+
+The focused reactive command includes the repaired compiled keyed-list DOM gate:
+
+```sh
+npm run benchmark:reactive
+```
+
+## Measurement contract
+
+The framework suite:
+
+- compiles its TSX fixtures through the production Vite adapter rather than branding a handwritten
+  benchmark component as a substitute for compiler output;
+- treats fixture compilation, component construction, scenario assertions, browser startup, and
+  missing structured output as setup failures rather than slow samples;
+- records medians, nearest-rank p95, minimum, and maximum values from fresh Node or Chromium
+  processes;
+- performs warmups inside each sample process so one sample's optimized state and garbage
+  collection cannot contaminate another sample;
+- records Node, operating system, CPU, Chromium version, sample count, and warmup count;
+- reports raw, gzip, and Brotli sizes for built artifacts and representative SSR and operation
+  payloads;
+- uses portable elapsed-time and heap measurements for release evidence; and
+- exposes garbage collection only for the repeated mount/unmount plateau scenario, without making
+  an exact engine-specific byte count a pass condition.
+
+Production fixture builds are also repeated in clean Node processes. Their emitted raw and
+compressed byte sizes must be deterministic before the suite reports a build baseline.
+
+## Scenario coverage
+
+| Area                 | Scenarios                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Startup and mounting | Static and dynamic mount, compiled module evaluation, production fixture build, and raw/gzip/Brotli artifact sizes.        |
+| Hydration            | Renderer adoption of matching SSR-style root markers while retaining existing DOM identity.                                |
+| Interaction          | First delegated click, scalar publication, branch replacement, and 1,000-item keyed rotation.                              |
+| Framework boundaries | Enhancement target reroute, Activity park/reactivate, Suspense settlement, and mixed-tree mount/teardown.                  |
+| Component ownership  | Creation/disposal of 2,000 compiled instances, inspectable state/API access, and repeated DOM mount/unmount heap plateaus. |
+| SSR                  | Synchronous trees, CPU-bound async work, I/O-bound async siblings, and progressive first-chunk/completion timing.          |
+| Server protocol      | Ordinary operation requests and streaming batches with representative payloads and compressed/uncompressed sizes.          |
+| Browser              | Every client/component scenario above in the current Playwright Chromium build, with a new browser process per sample.     |
+
+The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
+size and generation cost have their own scenarios, which keeps the two costs attributable.
+
+## Baseline and regression policy
+
+The tracked JSON is authoritative measurement evidence for its recorded environment. Compare a
+candidate on the same machine and software versions when possible. Investigate changes in the
+primary metric together with bundle, payload, heap, and tail-latency counter-metrics; do not accept
+a gain that merely moves work into startup or retained state.
+
+The compiled 1,000-item DOM rotation remains a coarse safety gate at a 2,000 ms p95. That generous
+limit detects construction failures, runaway reconciliation, and gross regressions without
+pretending noisy local timing is a precise cross-machine budget. Add tighter release budgets only
+after repeated baselines establish normal variance on supported environments.

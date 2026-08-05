@@ -26,6 +26,7 @@ These documents describe behavior that exists in the repository today:
 | [motion.md](motion.md)                                                           | Prepared motion definitions, finite playback, configuration, and current limits. |
 | [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.        |
 | [native-ssr-production-guide.md](native-ssr-production-guide.md)                 | Production SSR, request, response, security, and deployment contracts.           |
+| [performance.md](performance.md)                                                 | Opt-in JavaScript performance suite, measurement contract, and tracked baseline. |
 | [physics.md](physics.md)                                                         | Deterministic simulation, component ownership, and safe DOM projection.          |
 | [react-compatibility.md](react-compatibility.md)                                 | React 18/19 compatibility surface and explicit fidelity limits.                  |
 | [react-ecosystem-adapters.md](react-ecosystem-adapters.md)                       | Native substitutions for selected React-owned packages.                          |
@@ -46,22 +47,51 @@ The public learning guide is the eXact docs application under
 is current framework behavior or a release commitment. Code and the current
 references above remain authoritative.
 
-Active proposals, in dependency order:
+The proposal program is executed through the following gates. A later stage may be investigated,
+but it is not finalized or advertised until every earlier completion gate is satisfied. When a
+performance experiment succeeds, either implement it under an already decision-complete proposal
+or create and insert a focused proposal before any dependent stage; when it fails, record the
+rejection and continue. “Resolve” therefore means an explicit accept-or-reject decision, not an
+indefinite exploratory pause.
 
-| Proposal                                                                                              | Status   | Scope                                                                                     |
-| ----------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
-| [Recursive server/client graph partitioning](proposals/recursive-server-client-graph-partitioning.md) | Accepted | Preserve maximal same-placement regions across alternating client and server descendants. |
-| [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)                  | Proposed | Defer more statically safe client regions without replaying continuous event streams.     |
-| [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)               | Proposed | Emit source-informed refresh plans while retaining validated boundary replacement.        |
-| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)                | Proposed | Persist authenticated postponed renderer/task state and resume it in a later request.     |
-| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)      | Proposed | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.  |
+| Stage | Work                                                                                                  | Completion gate                                                                                                                          |
+| ----: | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+|     0 | [Recursive server/client graph partitioning](proposals/recursive-server-client-graph-partitioning.md) | Already implemented; retain as the protocol and ownership baseline.                                                                      |
+|     1 | [JavaScript performance measurement baseline](proposals/javascript-performance-improvements.md)       | **Completed:** compiled DOM gate plus production-shaped client, server, network, heap, Chromium, and build baselines.                    |
+|     2 | [Separate enhancements from framework plugins](proposals/enhancements-as-component-composition.md)    | Finish enhancement terminology, activator grouping, `_`, `_target`, bounded routing, and the portable bundler seam.                      |
+|     3 | [Bundler-enforced server component-library trust](proposals/server-component-library-trust.md)        | Authorize resolved server-executing component graphs without adding compiler policy.                                                     |
+|     4 | [Cooperative structured children](proposals/cooperative-structured-children.md)                       | Prototype and then explicitly accept a generic design or reject it and select the documented narrower internationalization mechanism.    |
+|     5 | [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)         | Finalize and implement against the stage 4 outcome.                                                                                      |
+|     6 | [Component value/callback binding shorthand](proposals/component-value-callback-bindings.md)          | Implement canonical component and intrinsic value/callback pairs over the settled enhancement syntax.                                    |
+|     7 | [Dependent performance foundations](proposals/javascript-performance-improvements.md)                 | Resolve render-plan, deterministic async SSR, compact hydration/progressive publication, and transport/build-host experiments 2–4 and 6. |
+|     8 | [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)                  | Implement deferred ownership, replay, capability splitting, hydration, and diagnostics over the settled contracts.                       |
+|     9 | [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)               | Implement typed structural plans using the settled render-slot, activation, and fallback contracts.                                      |
+|    10 | [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)                | Implement authenticated reconstruction using settled structural plans, SSR ownership, and streaming contracts.                           |
+|    11 | [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)      | Complete heterogeneous adapter conformance over all preceding artifact, trust, locale, activation, refresh, and resumption contracts.    |
+|    12 | [Remaining JavaScript performance experiments](proposals/javascript-performance-improvements.md)      | Resolve experiments 5 and 7–13, land or separately propose successful work, rerun whole-framework profiles, and record rejected options. |
 
-Exploratory work:
+The active and gated documents are:
 
-| Document                                                                                       | Scope                                                                                        |
-| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [Candidate future work](proposals/future-work.md)                                              | Uncommitted framework, integration, sample, and optimization candidates.                     |
-| [JavaScript runtime object-layout optimization](proposals/javascript-runtime-object-layout.md) | Initial measurements and acceptance gates for a production-shaped runtime-layout experiment. |
+| Proposal                                                                                              | Status      | Scope                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [Recursive server/client graph partitioning](proposals/recursive-server-client-graph-partitioning.md) | Implemented | Preserve maximal same-placement regions across alternating client and server descendants.                                   |
+| [JavaScript performance improvements](proposals/javascript-performance-improvements.md)               | Gated       | Establish baselines, resolve dependent foundations, and complete the remaining measured optimization program.               |
+| [Separate enhancements from framework plugins](proposals/enhancements-as-component-composition.md)    | Proposed    | Separate plugins, add activator maps and direct `_` hosts, and bound component-root routing.                                |
+| [Bundler-enforced server component-library trust](proposals/server-component-library-trust.md)        | Proposed    | Authorize resolved component packages before code enters server-executing artifacts.                                        |
+| [Cooperative structured children](proposals/cooperative-structured-children.md)                       | Exploratory | Investigate generic child inspection, scoped capability propagation, and alternate projection without committing to an API. |
+| [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)         | Proposed    | Compile optional localized regions, artifact catalogs, and automatic unit conversion.                                       |
+| [Component value/callback binding shorthand](proposals/component-value-callback-bindings.md)          | Proposed    | Pair controlled values with typed change callbacks while preserving parent state ownership.                                 |
+| [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)                  | Ready       | Defer more statically safe client regions with compiler-proven ownership and replay.                                        |
+| [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)               | Proposed    | Emit source-informed refresh plans while retaining validated boundary replacement.                                          |
+| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)                | Proposed    | Persist authenticated postponed renderer/task state and resume it in a later request.                                       |
+| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)      | Proposed    | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                                    |
+
+Other exploratory work that is not part of the sequential program until promoted into a focused
+proposal:
+
+| Document                                          | Scope                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Candidate future work](proposals/future-work.md) | Uncommitted framework, integration, sample, and optimization candidates. |
 
 Delivered proposals are removed after their current contracts and remaining limitations are captured
 by the references above. Git history retains their original delivery rationale.
