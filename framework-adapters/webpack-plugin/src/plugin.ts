@@ -23,10 +23,14 @@ import path from 'node:path';
 import {
 	createWebpackCompilerSession,
 	clearWebpackInspectionModules,
+	authorizeWebpackResolvedComponent,
+	commitWebpackAuthorizationGeneration,
 	disposeWebpackCompilerSession,
 	replaceWebpackCompilerSession,
 	webpackCompilerSession,
 	recordWebpackInspectionModule,
+	recordWebpackComponentBuildFacts,
+	resetWebpackAuthorizationGeneration,
 	webpackInspectionCatalog
 } from './sessions.js';
 import { webpackCompatibilityEngine } from './react-compatibility.js';
@@ -151,6 +155,12 @@ export type WebpackCompilerLike = {
 				name: string,
 				handler: (factory: {
 					hooks?: {
+						afterResolve?: {
+							tapPromise?(
+								name: string,
+								handler: (data: WebpackAfterResolveData | false | undefined) => Promise<void>
+							): void;
+						};
 						resolver?: {
 							tap?(
 								name: string,
@@ -170,6 +180,7 @@ export type WebpackCompilerLike = {
 					hooks?: {
 						processAssets?: {
 							tap?(options: { name: string }, handler: () => void): void;
+							tapPromise?(options: { name: string }, handler: () => Promise<void>): void;
 						};
 					};
 					emitAsset?(filename: string, source: { source(): string; size(): number }): void;
@@ -185,6 +196,13 @@ export type WebpackResolveRequest = {
 	request?: string;
 	path?: string;
 };
+
+/** Resolved NormalModuleFactory record available before the module build begins. */
+export type WebpackAfterResolveData = Readonly<{
+	request?: string;
+	contextInfo?: Readonly<{ issuer?: string }>;
+	createData?: Readonly<{ resource?: string; rawRequest?: string }>;
+}>;
 
 /** Defines the webpack resolve callback type contract. */
 export type WebpackResolveCallback = (error?: Error | null, result?: unknown) => void;
@@ -234,9 +252,16 @@ export class ExactWebpackPlugin {
 				'eXact production DevTools output requires one explicit immutable debug.buildKey'
 			);
 		compiler.options.module.rules.push(createExactWebpackRule(buildOptions, owned.id));
+		const authorizationOptions = {
+			target: buildOptions.target,
+			applicationRoot: buildOptions.applicationRoot,
+			configPath: buildOptions.configPath,
+			buildKey: buildOptions.debug.buildKey
+		};
+		resetWebpackAuthorizationGeneration(owned.id, authorizationOptions);
 		if (buildOptions.target === 'server') {
 			compiler.hooks?.thisCompilation?.tap?.('ExactWebpackPlugin', (compilation) => {
-				compilation.hooks?.processAssets?.tap?.({ name: 'ExactWebpackPlugin' }, () => {
+				const emitInspection = () => {
 					const catalog = webpackInspectionCatalog(owned.id, {
 						applicationRoot: buildOptions.applicationRoot,
 						...buildOptions.debug
@@ -247,11 +272,34 @@ export class ExactWebpackPlugin {
 						source: () => contents,
 						size: () => Buffer.byteLength(contents)
 					});
-				});
+				};
+				const processAssets = async () => {
+					emitInspection();
+					const committed = await commitWebpackAuthorizationGeneration(
+						owned.id,
+						authorizationOptions
+					);
+					if (!committed || !compilation.emitAsset) return;
+					for (const [filename, value] of [
+						['.exact/component-library-authorization.json', committed.manifest],
+						['.exact/component-library-audit.json', committed.audit]
+					] as const) {
+						const contents = `${JSON.stringify(value, null, 2)}\n`;
+						compilation.emitAsset(filename, {
+							source: () => contents,
+							size: () => Buffer.byteLength(contents)
+						});
+					}
+				};
+				if (compilation.hooks?.processAssets?.tapPromise)
+					compilation.hooks.processAssets.tapPromise({ name: 'ExactWebpackPlugin' }, processAssets);
+				else
+					compilation.hooks?.processAssets?.tap?.({ name: 'ExactWebpackPlugin' }, emitInspection);
 			});
 		}
 		compiler.hooks?.watchRun?.tap?.('ExactWebpackPlugin', (current) => {
 			clearWebpackInspectionModules(owned.id);
+			resetWebpackAuthorizationGeneration(owned.id, authorizationOptions);
 			if (this.options.diagnostics === undefined) configureDiagnostics(true);
 			const modified = [...(current.modifiedFiles ?? [])];
 			const removed = new Set(current.removedFiles ?? []);
@@ -264,6 +312,19 @@ export class ExactWebpackPlugin {
 			factory.hooks?.resolver?.tap?.('ExactWebpackPlugin', (resolver) =>
 				applyExactWebpackResolver(resolver, this.options)
 			);
+			factory.hooks?.afterResolve?.tapPromise?.('ExactWebpackPlugin', async (data) => {
+				const request = data && (data.createData?.rawRequest ?? data.request);
+				const importer = data && data.contextInfo?.issuer;
+				const resource = data && data.createData?.resource;
+				if (request && importer && resource)
+					await authorizeWebpackResolvedComponent(
+						owned.id,
+						authorizationOptions,
+						request,
+						importer,
+						resource
+					);
+			});
 		});
 		const dispose = (): void => disposeWebpackCompilerSession(owned.id);
 		compiler.hooks?.watchClose?.tap?.('ExactWebpackPlugin', dispose);
@@ -332,6 +393,12 @@ export function transformExactWebpackSource(
 				instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
 			},
 			finish: (result) => {
+				recordWebpackComponentBuildFacts(
+					options.__exactSessionId,
+					filename,
+					source,
+					result.componentBuild
+				);
 				const enhanced = prependExactEnhancementRegistrations(
 					result.code,
 					result.rendererEnhancements
