@@ -7,6 +7,7 @@ import {
 	type ExactSourceInspection
 } from '@exactjs/compiler';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
+import { loadExactConfig, type ExactLoadedConfig } from '@exactjs/config/node';
 import {
 	createExactComponentAuthorizationSession,
 	recordExactNodeComponentProvenance,
@@ -97,6 +98,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			)
 		: undefined;
 	let preparedRegistry: ExactPreparedPluginRegistry | undefined;
+	let loadedConfig: ExactLoadedConfig | undefined;
 	let authorizationSession: ExactComponentAuthorizationSession | undefined;
 	const componentFacts = new Map<
 		string,
@@ -115,9 +117,13 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	const microfrontends = createExactViteMicrofrontendIntegration(options);
 	const prepareRegistry = async (): Promise<ExactPreparedPluginRegistry> => {
 		if (preparedRegistry) return preparedRegistry;
+		loadedConfig ??= await loadExactConfig({
+			applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
+			configPath: options.configPath
+		});
 		preparedRegistry = await prepareExactPluginRegistry({
 			applicationRoot: options.applicationRoot,
-			configPath: options.configPath,
+			loadedConfig,
 			hostMode: 'build'
 		});
 		configuredDebug ??= preparedRegistry.config?.debug;
@@ -127,7 +133,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		authorizationSession?.dispose();
 		authorizationSession = createExactComponentAuthorizationSession({
 			buildKey: viteAuthorizationBuildKey(registry.applicationRoot, configuredDebug?.buildKey),
-			config: registry.config?.componentLibraries
+			config: loadedConfig?.config?.componentLibraries
 		});
 		for (const [moduleId, record] of componentFacts)
 			authorizationSession.recordImporterFacts(moduleId, record.facts, record.version);
@@ -329,6 +335,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			if (preparedRegistry?.watchFiles.includes(path.resolve(context.file))) {
 				invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
 				preparedRegistry = undefined;
+				loadedConfig = undefined;
 			}
 			// The compiler session owns watch-file classification so every
 			// integration applies the same source, project, and asset rules.
@@ -347,6 +354,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			if (preparedRegistry?.watchFiles.includes(path.resolve(id))) {
 				invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
 				preparedRegistry = undefined;
+				loadedConfig = undefined;
 			}
 			diagnosticReporter(compilerSession.invalidate(id, change.event === 'delete'), (message) =>
 				this.warn?.(message)

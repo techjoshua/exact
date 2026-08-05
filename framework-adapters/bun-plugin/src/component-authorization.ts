@@ -6,6 +6,7 @@ import {
 	type ExactResolvedComponentCandidate
 } from '@exactjs/component-library-policy';
 import { loadExactConfig } from '@exactjs/config/node';
+import type { ExactLoadedConfig } from '@exactjs/config/node';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -35,13 +36,18 @@ export class ExactBunComponentAuthorization {
 
 	/** Opens a clean authorization generation before Bun resolves candidate modules. */
 	async start(configPath?: string): Promise<void> {
-		this.#session?.rejectGeneration();
-		this.#session?.dispose();
-		this.#facts.clear();
 		const loaded = await loadExactConfig({
 			applicationRoot: this.#applicationRoot,
 			configPath
 		});
+		this.startLoaded(loaded);
+	}
+
+	/** Opens a generation from the same neutral config load supplied to the plugin host. */
+	startLoaded(loaded: ExactLoadedConfig): void {
+		this.#session?.rejectGeneration();
+		this.#session?.dispose();
+		this.#facts.clear();
 		this.#session = createExactComponentAuthorizationSession({
 			buildKey: this.#buildKey,
 			config: loaded.config?.componentLibraries

@@ -10,6 +10,7 @@ import {
 	type TransformTarget
 } from '@exactjs/compiler';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
+import { loadExactConfig } from '@exactjs/config/node';
 import {
 	createExactDiagnosticReporter,
 	exactEnhancementFacadeImports,
@@ -193,11 +194,15 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				});
 			build.onStart?.(async () => {
 				inspectionModules.clear();
-				await componentAuthorization?.start(options.configPath);
+				const loadedConfig = await loadExactConfig({
+					applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
+					configPath: options.configPath
+				});
+				componentAuthorization?.startLoaded(loadedConfig);
 				if (!registryPrepared) {
 					const prepared = await prepareExactPluginRegistry({
 						applicationRoot: options.applicationRoot,
-						configPath: options.configPath,
+						loadedConfig,
 						hostMode: 'build'
 					});
 					registryPrepared = true;

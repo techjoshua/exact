@@ -1,5 +1,5 @@
 import type { ExactConfig } from '@exactjs/config';
-import { loadExactConfig } from '@exactjs/config/node';
+import { loadExactConfig, type ExactLoadedConfig } from '@exactjs/config/node';
 import type { ExactPluginHostMode, ExactRuntimePluginExtension } from '@exactjs/plugin-api';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -19,6 +19,8 @@ export interface PrepareExactPluginRegistryOptions {
 	readonly applicationRoot?: string;
 	readonly configPath?: string;
 	readonly config?: ExactConfig;
+	/** Neutral config load shared by build policy consumers before plugin preparation. */
+	readonly loadedConfig?: ExactLoadedConfig;
 	readonly environment?: string;
 	readonly hostMode?: ExactPluginHostMode;
 	readonly timeoutMs?: number;
@@ -53,18 +55,18 @@ export async function prepareExactPluginRegistry(
 	options: PrepareExactPluginRegistryOptions = {}
 ): Promise<ExactPreparedPluginRegistry> {
 	const applicationRoot = resolveApplicationRoot(options);
-	const loaded = options.config
+	const loaded = options.loadedConfig ?? (options.config
 		? Object.freeze({
 				config: options.config,
 				...(options.configPath ? { configPath: path.resolve(options.configPath) } : {}),
 				watchFiles: Object.freeze(options.configPath ? [path.resolve(options.configPath)] : [])
 			})
-		: await loadExactConfig({ applicationRoot, configPath: options.configPath });
+		: await loadExactConfig({ applicationRoot, configPath: options.configPath }));
 	const configPath = loaded.configPath;
 	const environment = options.environment ?? process.env.NODE_ENV ?? 'development';
 	const hostMode = options.hostMode ?? 'build';
 	const key = JSON.stringify([applicationRoot, configPath, environment, hostMode]);
-	if (!options.graph && !options.config && !options.signal) {
+	if (!options.graph && !options.config && !options.loadedConfig && !options.signal) {
 		const cached = registryCache.get(key);
 		if (cached) return cached;
 	}
@@ -77,7 +79,8 @@ export async function prepareExactPluginRegistry(
 		environment,
 		hostMode
 	});
-	if (!options.graph && !options.config && !options.signal) registryCache.set(key, promise);
+	if (!options.graph && !options.config && !options.loadedConfig && !options.signal)
+		registryCache.set(key, promise);
 	try {
 		return await promise;
 	} catch (error) {
