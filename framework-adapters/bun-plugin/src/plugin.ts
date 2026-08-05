@@ -1,6 +1,5 @@
 import {
 	createCompilerSession,
-	createLineSourceMap,
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
 	type ExactAssetRule,
@@ -13,28 +12,18 @@ import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol
 import { loadExactConfig } from '@exactjs/config/node';
 import {
 	createExactDiagnosticReporter,
-	exactEnhancementFacadeImports,
-	prependExactEnhancementRegistrations,
-	transformExactAdapterModule
+	exactEnhancementFacadeImports
 } from '@exactjs/compiler/adapter-support';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
-	createReactCompatibilityBuildEngine,
-	type ReactCompatibilityBuildEngine
-} from '@exactjs/react-compat/build';
-import {
-	jsxSourceOwnership,
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
 	type ReactCompatibilityOptions
 } from '@exactjs/react-compat/plugin';
-import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import {
-	appendBunDevtoolsBootstrap,
-	bunDebugEnabled,
 	createBunInspectionCatalog,
 	resolveBunDebug,
 	type ExactBunInspectionModule
@@ -43,12 +32,8 @@ import {
 	ExactBunComponentAuthorization,
 	type ExactBunResolver
 } from './component-authorization.js';
-import {
-	mergeConditions,
-	resolveExactBunRequest,
-	shouldTransform,
-	targetFor
-} from './selection.js';
+import { mergeConditions, resolveExactBunRequest, targetFor } from './selection.js';
+import { transformExactBunSource as transformExactBunSourceImpl } from './transform.js';
 export { mergeConditions, resolveExactBunRequest } from './selection.js';
 
 /** Configures exact bun plugin. */
@@ -86,10 +71,6 @@ export type ExactBunDebugOptions = {
 export type ExactBunProfileEvent = ExactProfileEvent<'bun-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
-const bunCompatibilityEngines = new WeakMap<
-	ExactCompilerSession,
-	Map<string, ReactCompatibilityBuildEngine>
->();
 
 /** Defines the bun build like type contract. */
 export type BunBuildLike = {
@@ -111,7 +92,11 @@ export type BunBuildLike = {
 		handler: (args: BunLoadArgs) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>
 	): void;
 	onStart?(handler: () => void | Promise<void>): void;
-	onEnd?(handler: (result?: Readonly<{ success?: boolean; logs?: readonly unknown[] }>) => void | Promise<void>): void;
+	onEnd?(
+		handler: (
+			result?: Readonly<{ success?: boolean; logs?: readonly unknown[] }>
+		) => void | Promise<void>
+	): void;
 };
 
 /** Defines the bun resolve args type contract. */
@@ -158,10 +143,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 	return {
 		name: 'exact',
 		setup(build) {
-			if (
-				options.target === 'server' &&
-				(build.config?.hot || process.argv.includes('--hot'))
-			)
+			if (options.target === 'server' && (build.config?.hot || process.argv.includes('--hot')))
 				throw new Error(
 					'[server-hmr-unsupported] Bun server --hot cannot preserve the last authorized component graph; use --watch instead'
 				);
@@ -233,11 +215,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				if (debug.catalog === true) {
 					const catalog = createBunInspectionCatalog(options, debug, inspectionModules);
 					if (catalog) {
-						const filename = path.join(
-							outputRoot,
-							'.exact-inspection',
-							`${catalog.buildKey}.json`
-						);
+						const filename = path.join(outputRoot, '.exact-inspection', `${catalog.buildKey}.json`);
 						await mkdir(path.dirname(filename), { recursive: true });
 						await writeFile(filename, `${JSON.stringify(catalog, null, 2)}\n`);
 					}
@@ -287,10 +265,10 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			build.onResolve({ filter: /^(?:@[^/]+\/[^/]+|[^./][^:]*)/ }, async (args) =>
 				componentAuthorization?.authorize(args.path, args.importer ?? '', build.resolve)
 			);
-			build.onLoad(
-				{ filter: /.*/, namespace: 'exact-omitted-enhancement' },
-				() => ({ contents: 'export {};\n', loader: 'js' })
-			);
+			build.onLoad({ filter: /.*/, namespace: 'exact-omitted-enhancement' }, () => ({
+				contents: 'export {};\n',
+				loader: 'js'
+			}));
 			// Bun does not expose Vite's changed-file HMR hook. Observe every loaded
 			// TypeScript/JavaScript dependency so non-JSX type and export changes
 			// invalidate their transitive expression consumers before compilation.
@@ -378,106 +356,5 @@ export function transformExactBunSource(
 	}>;
 	componentBuild?: ExactComponentBuildFacts;
 } | null {
-	if (!shouldTransform(filename, source, options)) return null;
-	let componentBuild: ExactComponentBuildFacts | undefined;
-	const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
-	const compatibilityEngine = reactCompatibility
-		? bunCompatibilityEngine(options, session, reactCompatibility.target)
-		: undefined;
-	const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
-	const output = transformExactAdapterModule({
-		source,
-		filename,
-		jsxOwnership: ownership,
-		usesReactRuntimeImports: usesReactRuntimeImports(source, filename),
-		transformReact: true,
-		shouldCompile: true,
-		invalidateCompatibility: () => compatibilityEngine?.invalidate(filename),
-		...(reactCompatibility
-			? {
-					react: () =>
-						transformReactJsx(source, {
-							filename,
-							target: reactCompatibility.target,
-							sourceMap: options.sourceMap ?? true
-						})
-				}
-			: {}),
-		compiler: {
-			options: {
-				session,
-				target: targetFor(options),
-				serverComponents: options.serverComponents,
-				sourceMap: options.sourceMap ?? true,
-				assetRules: options.assetRules,
-				preserveClientAssetImports: true,
-				jsxInterop: compatibilityEngine?.jsxInterop,
-				emitInspection: options.target === 'server' && bunDebugEnabled(options.debug?.catalog),
-				instrumentInspection: bunDebugEnabled(options.debug?.runtime)
-			},
-			finish: (result) => {
-				componentBuild = result.componentBuild;
-				const enhanced = prependExactEnhancementRegistrations(
-					result.code,
-					result.rendererEnhancements
-				);
-				const code =
-					options.target !== 'server' && bunDebugEnabled(options.debug?.runtime)
-						? appendBunDevtoolsBootstrap(enhanced, options.debug)
-						: enhanced;
-				return {
-					code,
-					map: options.sourceMap === false ? null : createLineSourceMap(filename, source, code)
-				};
-			},
-			inspection: (result) =>
-				result.inspectionCatalog
-					? {
-							inspection: result.inspectionCatalog,
-							redactions: result.inspectionRedactions
-						}
-					: undefined
-		},
-		profile: options.onProfile
-			? { subsystem: 'bun-plugin' as const, sink: options.onProfile }
-			: undefined
-	});
-	return output
-		? {
-				code: output.code,
-				map: output.map,
-				inspection: output.inspection,
-				...(componentBuild ? { componentBuild } : {})
-			}
-		: null;
-}
-
-function bunCompatibilityEngine(
-	options: ExactBunPluginOptions,
-	session: ExactCompilerSession | undefined,
-	target: 18 | 19
-): ReactCompatibilityBuildEngine {
-	const configured =
-		typeof options.reactCompatibility === 'object'
-			? options.reactCompatibility
-			: { target, cwd: options.applicationRoot ?? process.cwd() };
-	if (!session) return createReactCompatibilityBuildEngine(configured);
-	const key = JSON.stringify([
-		target,
-		configured.cwd ?? '',
-		configured.source instanceof RegExp
-			? [configured.source.source, configured.source.flags]
-			: (configured.source ?? '')
-	]);
-	let engines = bunCompatibilityEngines.get(session);
-	if (!engines) {
-		engines = new Map();
-		bunCompatibilityEngines.set(session, engines);
-	}
-	let engine = engines.get(key);
-	if (!engine) {
-		engine = createReactCompatibilityBuildEngine(configured);
-		engines.set(key, engine);
-	}
-	return engine;
+	return transformExactBunSourceImpl(source, filename, options, session);
 }

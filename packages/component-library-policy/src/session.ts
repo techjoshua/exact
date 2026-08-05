@@ -22,6 +22,11 @@ import {
 } from './contracts.js';
 import { canonicalHash } from './hashing.js';
 import {
+	createExactAuthorizationArtifacts,
+	type ExactAuthorizedGenerationRecord,
+	type ExactOmittedGenerationRecord
+} from './generation-output.js';
+import {
 	ExactComponentParticipationError,
 	validateExactComponentParticipation,
 	type ExactComponentParticipation
@@ -34,19 +39,10 @@ export type CreateExactComponentAuthorizationSessionOptions = Readonly<{
 }>;
 
 type ImporterRecord = Readonly<{ facts: ExactComponentBuildFacts; version: string }>;
-type AuthorizedRecord = {
-	instance: ExactResolvedPackageInstance;
-	instanceId: string;
-	participation: ExactComponentParticipation;
-	decision: ExactComponentAuthorizationDecision;
-	matchedRule?: string;
+type AuthorizedRecord = ExactAuthorizedGenerationRecord & {
 	reasons: Set<ExactComponentServerExecutionReason>;
 };
-type OmittedRecord = Readonly<{
-	identity: string;
-	packageName: string;
-	reason: OmittedReason;
-}>;
+type OmittedRecord = ExactOmittedGenerationRecord;
 type OmittedReason = ExactComponentAuthorizationAudit['omittedEnhancements'][number]['reason'];
 
 /** Creates the authoritative pre-evaluation policy session for one build generation. */
@@ -201,56 +197,17 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 		}>
 	> {
 		this.assertOpen();
-		const packages = [...this.#authorized.values()].sort((left, right) =>
-			left.instanceId.localeCompare(right.instanceId)
-		);
-		const omitted = [...this.#omitted.values()].sort((left, right) =>
-			left.identity.localeCompare(right.identity)
-		);
-		const fingerprint = canonicalHash({
-			protocol: 1,
-			markerProtocol: 1,
+		const artifacts = createExactAuthorizationArtifacts({
 			buildKey: this.buildKey,
 			policyHash: this.policy.policyHash,
-			packages: packages.map((record) => ({
-				instanceId: record.instanceId,
-				decision: record.decision,
-				reasons: sorted(record.reasons)
-			})),
-			omittedEnhancements: omitted.map((record) => record.identity)
-		});
-		const manifest: ExactComponentAuthorizationManifest = Object.freeze({
-			protocol: 1,
-			buildKey: this.buildKey,
-			fingerprint,
-			policyHash: this.policy.policyHash,
-			markerProtocol: 1,
-			packages: Object.freeze(
-				packages.map((record) =>
-					Object.freeze({
-						instanceId: record.instanceId,
-						name: record.instance.name,
-						version: record.instance.version,
-						...(record.instance.integrity
-							? { integrityHash: canonicalHash(record.instance.integrity) }
-							: {}),
-						decision: record.decision,
-						reasons: Object.freeze(sorted(record.reasons))
-					})
-				)
-			),
-			omittedEnhancements: Object.freeze(omitted.map((record) => record.identity))
-		});
-		const audit: ExactComponentAuthorizationAudit = Object.freeze({
-			protocol: 1,
-			buildKey: this.buildKey,
-			fingerprint,
-			packages: Object.freeze(packages.map((record) => this.auditPackage(record))),
-			omittedEnhancements: Object.freeze(omitted.map((record) => Object.freeze({ ...record })))
+			packages: [...this.#authorized.values()],
+			omittedEnhancements: [...this.#omitted.values()],
+			instances: this.#instances,
+			edges: this.#edges
 		});
 		this.#state = 'committed';
 		this.releaseMutableInputs();
-		return Object.freeze({ manifest, audit });
+		return artifacts;
 	}
 
 	rejectGeneration(): void {
@@ -341,34 +298,6 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 		return delegated ? Object.freeze({ denied: false, decision: 'delegated' }) : undefined;
 	}
 
-	private auditPackage(
-		record: AuthorizedRecord
-	): ExactComponentAuthorizationAudit['packages'][number] {
-		const provenance = this.#edges
-			.filter((edge) => edge.candidate === record.instance.key)
-			.map((edge) =>
-				Object.freeze({
-					owner:
-						edge.owner === 'application'
-							? ('application' as const)
-							: (this.#instances.get(edge.owner)?.name ?? edge.owner),
-					specifier: edge.specifier,
-					kind: edge.kind
-				})
-			)
-			.sort((left, right) => canonicalHash(left).localeCompare(canonicalHash(right)));
-		return Object.freeze({
-			instanceId: record.instanceId,
-			name: record.instance.name,
-			version: record.instance.version,
-			markerVersion: record.participation.markerVersion,
-			decision: record.decision,
-			reasons: Object.freeze(sorted(record.reasons)),
-			...(record.matchedRule ? { matchedRule: record.matchedRule } : {}),
-			provenance: Object.freeze(provenance)
-		});
-	}
-
 	private candidateError(
 		code: ExactComponentAuthorizationErrorCode,
 		candidate: ExactResolvedComponentCandidate,
@@ -437,10 +366,6 @@ function packageInstanceId(instance: ExactResolvedPackageInstance): string {
 		instance.version,
 		instance.integrity ?? ''
 	]);
-}
-
-function sorted<T extends string>(values: Iterable<T>): T[] {
-	return [...values].sort((left, right) => left.localeCompare(right));
 }
 
 function isOmittableReason(code: ExactComponentAuthorizationErrorCode): code is OmittedReason {

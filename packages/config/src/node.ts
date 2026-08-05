@@ -3,7 +3,7 @@ import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
-import type { ExactConfig } from './index.js';
+import type { ExactConfig } from './contracts.js';
 
 const configNames = Object.freeze([
 	'exact.config.ts',
