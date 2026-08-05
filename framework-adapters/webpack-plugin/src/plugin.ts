@@ -22,6 +22,8 @@ import {
 	disposeWebpackCompilerSession,
 	replaceWebpackCompilerSession,
 	webpackCompilerSession,
+	recordWebpackInspectionModule,
+	recordWebpackComponentBuildFacts,
 	resetWebpackAuthorizationGeneration,
 	webpackInspectionCatalog
 } from './sessions.js';
@@ -33,7 +35,12 @@ import {
 	applyExactWebpackResolver
 } from './resolver.js';
 import { resolveWebpackDebug } from './devtools.js';
-import { transformExactWebpackModule } from './transform.js';
+import { transformExactWebpackModule, type ExactWebpackTransformResult } from './transform.js';
+import {
+	installExactWebpackLoaderBridge,
+	removeExactWebpackLoaderBridge,
+	type ExactWebpackLoaderBridgeCarrier
+} from './loader-bridge.js';
 export {
 	addWebpackConditions,
 	addWebpackEnhancementAliases,
@@ -231,6 +238,19 @@ export class ExactWebpackPlugin {
 			...this.options,
 			debug: resolveWebpackDebug(this.options.debug, development)
 		};
+		const bridgeCarrier = compiler as WebpackCompilerLike & ExactWebpackLoaderBridgeCarrier;
+		installExactWebpackLoaderBridge(bridgeCarrier, {
+			get session() {
+				return compilerSession;
+			},
+			record: (filename, source, result) =>
+				recordWebpackTransformResult(
+					{ ...buildOptions, __exactSessionId: owned.id },
+					filename,
+					source,
+					result
+				)
+		});
 		if (
 			!development &&
 			(buildOptions.debug.catalog === true || buildOptions.debug.runtime === true) &&
@@ -319,7 +339,10 @@ export class ExactWebpackPlugin {
 				}
 			});
 		});
-		const dispose = (): void => disposeWebpackCompilerSession(owned.id);
+		const dispose = (): void => {
+			removeExactWebpackLoaderBridge(bridgeCarrier);
+			disposeWebpackCompilerSession(owned.id);
+		};
 		compiler.hooks?.watchClose?.tap?.('ExactWebpackPlugin', dispose);
 		compiler.hooks?.shutdown?.tap?.('ExactWebpackPlugin', dispose);
 	}
@@ -333,6 +356,7 @@ export function createExactWebpackRule(
 	return {
 		test: /\.[cm]?[jt]sx?$/,
 		enforce: 'pre',
+		type: 'javascript/auto',
 		use: [
 			{
 				loader: '@exactjs/webpack-plugin/loader',
@@ -349,7 +373,10 @@ export function transformExactWebpackSource(
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession
 ): { code: string; map: unknown } | null {
-	return transformExactWebpackModule(source, filename, options, session);
+	const result = transformExactWebpackModule(source, filename, options, session);
+	if (!result) return null;
+	recordWebpackTransformResult(options, filename, source, result);
+	return { code: result.code, map: result.map };
 }
 
 /** Prepares the application registry before invoking the synchronous webpack transform. */
@@ -357,22 +384,40 @@ export async function transformExactWebpackSourceAsync(
 	source: string,
 	filename: string,
 	options: ExactWebpackPluginOptions = {},
-	session?: ExactCompilerSession
+	session?: ExactCompilerSession,
+	record?: (result: ExactWebpackTransformResult) => void
 ): Promise<{ code: string; map: unknown } | null> {
 	const registry = await prepareExactPluginRegistry({
 		applicationRoot: options.applicationRoot ?? path.dirname(filename),
 		configPath: options.configPath,
 		hostMode: 'build'
 	});
-	return transformExactWebpackSource(
-		source,
-		filename,
-		{
-			...options,
-			debug: options.debug ?? registry.config?.debug
-		},
-		session
-	);
+	const configured = {
+		...options,
+		debug: options.debug ?? registry.config?.debug
+	};
+	const result = transformExactWebpackModule(source, filename, configured, session);
+	if (!result) return null;
+	if (record) record(result);
+	else recordWebpackTransformResult(configured, filename, source, result);
+	return { code: result.code, map: result.map };
+}
+
+function recordWebpackTransformResult(
+	options: ExactWebpackPluginOptions,
+	filename: string,
+	source: string,
+	result: ExactWebpackTransformResult
+): void {
+	if (result.componentBuild)
+		recordWebpackComponentBuildFacts(
+			options.__exactSessionId,
+			filename,
+			source,
+			result.componentBuild
+		);
+	if (result.inspection)
+		recordWebpackInspectionModule(options.__exactSessionId, filename, source, result.inspection);
 }
 
 /** Performs the compiler session for webpack loader domain operation. */

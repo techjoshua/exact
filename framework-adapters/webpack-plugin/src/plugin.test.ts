@@ -227,6 +227,7 @@ describe('@exactjs/webpack-plugin', () => {
 	it('creates a pre-loader rule', () => {
 		expect(createExactWebpackRule({ target: 'server' })).toMatchObject({
 			enforce: 'pre',
+			type: 'javascript/auto',
 			use: [{ loader: '@exactjs/webpack-plugin/loader', options: { target: 'server' } }]
 		});
 	});

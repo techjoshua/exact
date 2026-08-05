@@ -162,7 +162,8 @@ export async function authorizeWebpackResolvedComponent(
 	resolvedModuleId: string
 ): Promise<'authorized' | 'omitted' | undefined> {
 	if (options.target !== 'server') return;
-	const importer = componentFacts.get(id)?.get(path.resolve(importerModuleId));
+	const importerPath = webpackIssuerResource(importerModuleId);
+	const importer = componentFacts.get(id)?.get(importerPath);
 	if (!importer) return;
 	const componentEdge = importer.facts.componentImports.find(
 		(edge) => edge.moduleSpecifier === request && edge.artifactTargets.includes('server')
@@ -175,12 +176,12 @@ export async function authorizeWebpackResolvedComponent(
 	const provenance = await recordExactNodeComponentProvenance({
 		session: generation.session!,
 		applicationRoot: generation.applicationRoot!,
-		importerModuleId: path.resolve(importerModuleId),
+		importerModuleId: importerPath,
 		moduleSpecifier: request,
 		resolvedModuleId
 	});
 	const candidate: ExactResolvedComponentCandidate = {
-		importerModuleId: path.resolve(importerModuleId),
+		importerModuleId: importerPath,
 		moduleSpecifier: request,
 		exportName: componentEdge?.exportName ?? enhancement!.exportName,
 		resolvedModuleId,
@@ -190,6 +191,12 @@ export async function authorizeWebpackResolvedComponent(
 	};
 	const authorization = await generation.session!.authorizeResolvedComponent(candidate);
 	return authorization.outcome;
+}
+
+/** Maps Webpack's loader-prefixed issuer identity back to the importer resource recorded by the pre-loader. */
+function webpackIssuerResource(issuer: string): string {
+	const resource = issuer.slice(issuer.lastIndexOf('!') + 1).split('?', 1)[0] ?? issuer;
+	return path.resolve(resource);
 }
 
 /** Commits and returns the pending Webpack authorization manifests for processAssets. */

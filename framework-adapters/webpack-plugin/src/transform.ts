@@ -8,8 +8,19 @@ import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compa
 import { appendWebpackDevtoolsBootstrap, webpackDebugEnabled } from './devtools.js';
 import type { ExactWebpackPluginOptions } from './plugin.js';
 import { webpackCompatibilityEngine } from './react-compatibility.js';
-import { recordWebpackComponentBuildFacts, recordWebpackInspectionModule } from './sessions.js';
 import { shouldTransformWebpackModule, webpackTransformTarget } from './transform-selection.js';
+
+/** Compiler output retained for the owning plugin or cross-module loader bridge. */
+export type ExactWebpackTransformResult = Readonly<{
+	code: string;
+	map: unknown;
+	componentBuild?: import('@exactjs/compiler').ExactComponentBuildFacts;
+	inspection?: Readonly<{
+		inspection: import('@exactjs/compiler').ExactSourceInspection;
+		redactions?: import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog;
+		debug?: ExactWebpackPluginOptions['debug'];
+	}>;
+}>;
 
 /** Transforms one webpack-loaded source file when it matches eXact plugin filters. */
 export function transformExactWebpackModule(
@@ -17,8 +28,9 @@ export function transformExactWebpackModule(
 	filename: string,
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession
-): { code: string; map: unknown } | null {
+): ExactWebpackTransformResult | null {
 	if (!shouldTransformWebpackModule(filename, source, options)) return null;
+	let componentBuild: ExactWebpackTransformResult['componentBuild'] | undefined;
 	const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
 	const compatibilityEngine = reactCompatibility
 		? webpackCompatibilityEngine(options, session, reactCompatibility.target)
@@ -55,12 +67,7 @@ export function transformExactWebpackModule(
 				instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
 			},
 			finish: (result) => {
-				recordWebpackComponentBuildFacts(
-					options.__exactSessionId,
-					filename,
-					source,
-					result.componentBuild
-				);
+				componentBuild = result.componentBuild;
 				const enhanced = prependExactEnhancementRegistrations(
 					result.code,
 					result.rendererEnhancements
@@ -87,7 +94,12 @@ export function transformExactWebpackModule(
 			? { subsystem: 'webpack-plugin' as const, sink: options.onProfile }
 			: undefined
 	});
-	if (output?.inspection)
-		recordWebpackInspectionModule(options.__exactSessionId, filename, source, output.inspection);
-	return output ? { code: output.code, map: output.map } : null;
+	return output
+		? {
+				code: output.code,
+				map: output.map,
+				...(componentBuild ? { componentBuild } : {}),
+				...(output.inspection ? { inspection: output.inspection } : {})
+			}
+		: null;
 }
