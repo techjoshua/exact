@@ -3,7 +3,7 @@
 ## Status
 
 Proposed after
-[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md) and before
+[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and before
 [`cooperative-structured-children.md`](cooperative-structured-children.md),
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
@@ -182,7 +182,7 @@ server mode rather than load code and report afterward.
 ## Enhancements and optional catalogs
 
 Enhancements remain ordinary optional components under
-[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md). Their
+[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md). Their
 compile-time metadata is unaffected by this proposal.
 
 At bundle time, an enhancement implementation can enter a server enhancement catalog only when its

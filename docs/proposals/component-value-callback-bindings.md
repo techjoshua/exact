@@ -3,7 +3,7 @@
 ## Status
 
 Proposed after
-[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md) and before
+[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and before
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md). It can be implemented

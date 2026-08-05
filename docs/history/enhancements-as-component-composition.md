@@ -2,16 +2,21 @@
 
 ## Status
 
+Implemented and archived. Current authoring and host behavior is defined by
+[`component-language.md`](../component-language.md) and
+[`framework-plugins.md`](../framework-plugins.md); this record preserves the delivered design and
+verification rationale.
+
 Implemented after the implemented
 [`recursive-server-client-graph-partitioning.md`](recursive-server-client-graph-partitioning.md)
 contract and before
-[`server-component-library-trust.md`](server-component-library-trust.md),
-[`cooperative-structured-children.md`](cooperative-structured-children.md),
-[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
-[`component-value-callback-bindings.md`](component-value-callback-bindings.md),
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
-[`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md). Those proposals must consume
+[`server-component-library-trust.md`](../proposals/server-component-library-trust.md),
+[`cooperative-structured-children.md`](../proposals/cooperative-structured-children.md),
+[`enhancement-first-internationalization.md`](../proposals/enhancement-first-internationalization.md),
+[`component-value-callback-bindings.md`](../proposals/component-value-callback-bindings.md),
+[`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
+[`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md), and
+[`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md). Those proposals must consume
 the component groups, `_target` exports and contribution ownership, root-bearing frames, and target
 generations defined here rather than preserve the former single-callable namespace or unrestricted
 target search.
@@ -319,7 +324,7 @@ The compiler and language tools must enforce the following rules:
     and all possible namespaced members are statically known; their values join the same selection,
     distribution, and grouped-contract validation.
 14. After
-    [`component-value-callback-bindings.md`](component-value-callback-bindings.md), a namespaced
+    [`component-value-callback-bindings.md`](../proposals/component-value-callback-bindings.md), a namespaced
     attribute that resolves both as an enhancement member and as a finite component value/callback
     pair is an ambiguity diagnostic. Kebab-case and camelCase completion reduce collisions but never
     establish silent precedence.
@@ -811,7 +816,7 @@ they are harmless data or that only framework plugins require a trust decision. 
 reduces required coupling; it does not reduce the authority of an activated component.
 
 The follow-on
-[`server-component-library-trust.md`](server-component-library-trust.md) proposal defines the
+[`server-component-library-trust.md`](../proposals/server-component-library-trust.md) proposal defines the
 boundary for enhancements and explicitly composed components together. Participating packages use
 an inert `@exactjs/component-library` dependency marker, while shared bundler infrastructure applies
 a plugin-like trust policy to resolved component code entering server-executing artifacts. Client-only
@@ -877,7 +882,7 @@ that enhancement mechanics never require plugin participation.
 ## Performance and allocation constraints
 
 This design must remain compatible with the ranked work in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md). In particular:
+[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). In particular:
 
 - an unavailable enhancement adds compile-time/catalog metadata but no component instance, effect
   scope, wrapper mount, target contribution table, or reactive watcher at runtime;

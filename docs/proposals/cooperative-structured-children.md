@@ -5,7 +5,7 @@
 **Exploratory. This proposal is not ready for acceptance, final API selection, or implementation.**
 
 Investigate after
-[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md) and
+[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
 [`server-component-library-trust.md`](server-component-library-trust.md), and before finalizing
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md). The
 internationalization proposal supplies the first concrete use case, but this proposal must not add

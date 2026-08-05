@@ -3,7 +3,7 @@
 ## Status
 
 Proposed after the higher-leverage compiler and SSR boundary work, including
-[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md),
+[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](server-component-library-trust.md),
 resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md), and

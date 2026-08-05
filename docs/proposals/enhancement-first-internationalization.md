@@ -3,7 +3,7 @@
 ## Status
 
 Proposed after
-[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md) and
+[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
 [`server-component-library-trust.md`](server-component-library-trust.md). Its runtime composition
 model must not be finalized until the exploratory
 [`cooperative-structured-children.md`](cooperative-structured-children.md) proposal is resolved. It

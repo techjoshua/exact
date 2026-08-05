@@ -3,8 +3,8 @@
 ## Status
 
 Proposed after
-[`recursive-server-client-graph-partitioning.md`](recursive-server-client-graph-partitioning.md),
-[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md),
+[`recursive-server-client-graph-partitioning.md`](../history/recursive-server-client-graph-partitioning.md),
+[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](server-component-library-trust.md),
 resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md),

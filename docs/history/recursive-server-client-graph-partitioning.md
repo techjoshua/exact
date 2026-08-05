@@ -2,6 +2,12 @@
 
 ## Status
 
+Implemented and archived. Current runtime behavior is defined by
+[`distributed-component-continuations.md`](../distributed-component-continuations.md),
+[`server-components.md`](../server-components.md), and
+[`ssr-hydration.md`](../ssr-hydration.md); this record preserves the delivered design and
+verification rationale.
+
 Implemented for the first delivery in native protocol 1.27 and generated component-contract
 version 2. The native compiler emits the build-scoped normalized plan, paired artifacts consume its
 reachability and range contracts, and SSR, hydration, refresh dispatch, language tools, and DevTools
@@ -9,8 +15,8 @@ share its partition identities. Conditional branches and keyed items carry insta
 discriminators and generations. Boundary replacement remains the range-local correctness fallback;
 it is no longer the ordinary representation for independently provable server descendants.
 
-Changes to the ownership, identity, data-boundary, or fallback rules in this document require an
-explicit proposal amendment rather than an implementation-local approximation.
+Future changes to ownership, identity, data-boundary, or fallback rules require a new active
+proposal rather than an implementation-local approximation.
 
 | Delivery area                          | Implemented contract                                      |
 | -------------------------------------- | --------------------------------------------------------- |
@@ -23,9 +29,9 @@ explicit proposal amendment rather than an implementation-local approximation.
 | Enhancements                           | Ordinary component nodes in every partition projection    |
 
 This proposal is the prerequisite for
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
-[`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md).
+[`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
+[`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md), and
+[`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md).
 
 ## Decision
 
