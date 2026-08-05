@@ -6,6 +6,7 @@ import {
 	createDynamicChild,
 	createEnhancementMarker,
 	createPortal,
+	Fragment,
 	markExactEnhancementContexts,
 	type Child,
 	type Component,
@@ -84,6 +85,29 @@ describe('renderer enhancements', () => {
 		expect(released).toHaveBeenCalledOnce();
 	});
 
+	it('composes an enhancement directly around an underscore fragment boundary', () => {
+		const Wrapper = markTestComponent(function Wrapper(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () => createVNode('aside', null, props.children);
+		});
+		const container = document.createElement('div');
+
+		render(
+			createVNode(
+				Fragment,
+				{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+				'Before',
+				createVNode('strong', null, 'After')
+			),
+			container,
+			{ enhancementCatalog: new Map([[identity, Wrapper]]) }
+		);
+
+		expect(container.innerHTML).toBe('<aside>Before<strong>After</strong></aside>');
+	});
+
 	it('forwards declarations through components and merges nearest props at an explicit target', () => {
 		const setup = vi.fn();
 		const Motion = markTestComponent(function Motion(
@@ -138,14 +162,25 @@ describe('renderer enhancements', () => {
 			return () => props.children;
 		});
 		const marker = (root: boolean) => createEnhancementMarker([{ identity, props: {}, root }]);
+		const Boundary = markTestComponent(function Boundary(
+			this: Component<{}>,
+			props: { left: boolean }
+		) {
+			return () =>
+				createVNode(
+					Fragment,
+					null,
+					createVNode('button', { id: 'left', __exactEnhancements: marker(props.left) }, 'Left'),
+					createVNode('button', { id: 'right', __exactEnhancements: marker(!props.left) }, 'Right')
+				);
+		});
 		const tree = (left: boolean) =>
 			createVNode(
-				'section',
+				Boundary,
 				{
+					left,
 					__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
-				},
-				createVNode('button', { id: 'left', __exactEnhancements: marker(left) }, 'Left'),
-				createVNode('button', { id: 'right', __exactEnhancements: marker(!left) }, 'Right')
+				}
 			);
 		const container = document.createElement('div');
 		const options = { enhancementCatalog: new Map([[identity, Motion]]) };
@@ -155,9 +190,7 @@ describe('renderer enhancements', () => {
 		expect(roots[0]?.current?.id).toBe('left');
 
 		render(tree(false), container, options);
-		expect(container.innerHTML).toBe(
-			'<section><button id="left">Left</button><button id="right">Right</button></section>'
-		);
+		expect(container.innerHTML).toBe('<button id="left">Left</button><button id="right">Right</button>');
 		expect(roots.map((root) => root.current?.id)).toEqual([undefined, 'right']);
 		expect(roots[0]?.release?.reason).toBe('enhancement-target-rerouted');
 		await vi.waitFor(() => expect(released).toHaveBeenCalledOnce());
@@ -176,21 +209,28 @@ describe('renderer enhancements', () => {
 		const left = computed(() => state.left);
 		const right = computed(() => !state.left);
 		const container = document.createElement('div');
+		const Boundary = markTestComponent(function Boundary(this: Component<{}>) {
+			return () =>
+				createVNode(
+					Fragment,
+					null,
+					createVNode('button', {
+						id: 'left',
+						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: left }])
+					}),
+					createVNode('button', {
+						id: 'right',
+						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: right }])
+					})
+				);
+		});
 
 		render(
 			createVNode(
-				'section',
+				Boundary,
 				{
 					__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
-				},
-				createVNode('button', {
-					id: 'left',
-					__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: left }])
-				}),
-				createVNode('button', {
-					id: 'right',
-					__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: right }])
-				})
+				}
 			),
 			container,
 			{ enhancementCatalog: new Map([[identity, Motion]]) }
@@ -306,27 +346,34 @@ describe('renderer enhancements', () => {
 				return () => createVNode('div', { className }, props.children);
 			});
 		const container = document.createElement('div');
+		const Boundary = markTestComponent(function Boundary(this: Component<{}>) {
+			return () =>
+				createVNode(
+					Fragment,
+					null,
+					createVNode('button', {
+						id: 'left',
+						__exactEnhancements: createEnhancementMarker([
+							{ identity: leftIdentity, props: {}, root: true }
+						])
+					}),
+					createVNode('button', {
+						id: 'right',
+						__exactEnhancements: createEnhancementMarker([
+							{ identity: rightIdentity, props: {}, root: true }
+						])
+					})
+				);
+		});
 		render(
 			createVNode(
-				'section',
+				Boundary,
 				{
 					__exactEnhancements: createEnhancementMarker([
 						{ identity: leftIdentity, props: {} },
 						{ identity: rightIdentity, props: {} }
 					])
-				},
-				createVNode('button', {
-					id: 'left',
-					__exactEnhancements: createEnhancementMarker([
-						{ identity: leftIdentity, props: {}, root: true }
-					])
-				}),
-				createVNode('button', {
-					id: 'right',
-					__exactEnhancements: createEnhancementMarker([
-						{ identity: rightIdentity, props: {}, root: true }
-					])
-				})
+				}
 			),
 			container,
 			{
@@ -338,7 +385,7 @@ describe('renderer enhancements', () => {
 		);
 
 		expect(container.innerHTML).toBe(
-			'<section><div class="left-shell"><button id="left"></button></div><div class="right-shell"><button id="right"></button></div></section>'
+			'<div class="left-shell"><button id="left"></button></div><div class="right-shell"><button id="right"></button></div>'
 		);
 	});
 

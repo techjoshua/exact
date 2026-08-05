@@ -57,6 +57,27 @@ describe('@exactjs/ssr rendering', () => {
 		expect(tone).toBe('quiet');
 	});
 
+	it('composes an enhancement directly around an underscore fragment boundary', () => {
+		const identity = '@exactjs/ssr:fragment-enhancement#default';
+		const Enhancement = markExactComponent(function Enhancement(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () => createVNode('aside', null, props.children);
+		}, '@exactjs/ssr:fragment-enhancement');
+		const output = renderToString(
+			createVNode(
+				Fragment,
+				{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+				'Before',
+				createVNode('strong', null, 'After')
+			),
+			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
+		);
+
+		expect(output.html).toBe('<aside>Before<strong>After</strong></aside>');
+	});
+
 	it('leaves unavailable server enhancements inert and warns once per identity', () => {
 		const identity = '@exactjs/ssr:missing#default';
 		const events: Array<{ message: string }> = [];
@@ -108,7 +129,7 @@ describe('@exactjs/ssr rendering', () => {
 		expect(asyncOutput.html).toBe(output.html);
 	});
 
-	it('routes SSR structural output to an explicit logical intrinsic target', async () => {
+	it('stops SSR root selection at the first root-bearing frame', async () => {
 		const identity = '@exactjs/ssr:routed#default';
 		let boundarySetups = 0;
 		let targetSetups = 0;
@@ -150,7 +171,7 @@ describe('@exactjs/ssr rendering', () => {
 		);
 
 		expect(output.html).toBe(
-			'<button>Fallback</button><aside data-enhanced><main>Target</main></aside>'
+			'<aside data-enhanced><button>Fallback</button></aside><main>Target</main>'
 		);
 		expect(asyncOutput.html).toBe(output.html);
 		expect(boundarySetups).toBe(2);

@@ -1,4 +1,4 @@
-import { unwrap, type ComponentInstance, type EnhancementEntry } from '@exactjs/core';
+import { Fragment, unwrap, type ComponentInstance, type EnhancementEntry } from '@exactjs/core';
 import type { Mounted } from '../types.js';
 
 export type EnhancementTarget = {
@@ -15,104 +15,174 @@ export type TargetEnhancements = {
 	readonly boundaries: Map<string, Mounted[]>;
 };
 
-type Declaration = {
-	entry: EnhancementEntry;
-	boundary: Mounted;
-	order: number;
-	fallback?: EnhancementTarget;
-	explicit?: EnhancementTarget;
-};
+type RoutedTarget = EnhancementTarget & { readonly frame: Mounted };
 
-/** Groups inherited declarations by the logical element selected as their target. */
+/** Resolves each declaration independently, then groups declarations sharing one bounded target. */
 export function collectTargetEnhancements(
 	boundary: Mounted,
 	parentInstance: ComponentInstance<any> | undefined
 ): Map<Mounted, TargetEnhancements> {
 	const grouped = new Map<Mounted, TargetEnhancements>();
-	const groupedOrders = new Map<Mounted, Map<string, number>>();
-	let nextOrder = 0;
-	const finalize = (declaration: Declaration) => {
-		const target = declaration.explicit ?? declaration.fallback;
-		if (!target) return;
-		let group = grouped.get(target.mounted);
-		if (!group) {
-			group = { target, entries: [], inheritedIdentities: new Set(), boundaries: new Map() };
-			grouped.set(target.mounted, group);
-		}
-		const boundaries = group.boundaries.get(declaration.entry.identity) ?? [];
-		if (!boundaries.includes(declaration.boundary)) boundaries.push(declaration.boundary);
-		group.boundaries.set(declaration.entry.identity, boundaries);
-		if (declaration.boundary !== target.mounted)
-			group.inheritedIdentities.add(declaration.entry.identity);
-		mergeDeclaration(groupedOrders, group, declaration);
-	};
-	const visit = (
-		current: Mounted,
-		owner: Mounted | undefined,
-		instance: ComponentInstance<any> | undefined,
-		depth: number,
-		inherited: readonly Declaration[]
-	): void => {
-		if (current.enhancement) {
-			visit(current.enhancement.target, owner, instance, depth, inherited);
-			return;
-		}
-		const local: Declaration[] = (current.vnode.enhancements?.entries ?? [])
-			.filter((entry) => !isRoutingOnlyEntry(entry))
-			.map((entry) => ({ entry, boundary: current, order: nextOrder++ }));
-		const active = local.length ? [...inherited, ...local] : inherited;
-		if (typeof current.vnode.type === 'string') {
-			const candidate = { mounted: current, owner, parentInstance: instance, depth };
-			for (const declaration of active) {
-				declaration.fallback ??= candidate;
-				if (declaration.explicit) continue;
-				const selector = current.vnode.enhancements?.entries.find(
-					(entry) => entry.identity === declaration.entry.identity
-				);
-				if (selector?.root !== undefined && unwrap(selector.root)) declaration.explicit = candidate;
+	const orders = new Map<Mounted, Map<string, number>>();
+	let order = 0;
+	walkMounted(boundary, undefined, parentInstance, 0, (mounted, owner, instance, depth) => {
+		for (const entry of mounted.vnode.enhancements?.entries ?? []) {
+			if (isRoutingOnlyEntry(entry)) continue;
+			const target = resolveEnhancementTarget(mounted, entry.identity, instance, owner, depth);
+			if (!target) continue;
+			let group = grouped.get(target.mounted);
+			if (!group) {
+				group = {
+					target,
+					entries: [],
+					inheritedIdentities: new Set(),
+					boundaries: new Map()
+				};
+				grouped.set(target.mounted, group);
 			}
+			const boundaries = group.boundaries.get(entry.identity) ?? [];
+			if (!boundaries.includes(mounted)) boundaries.push(mounted);
+			group.boundaries.set(entry.identity, boundaries);
+			if (mounted !== target.mounted) group.inheritedIdentities.add(entry.identity);
+			mergeEntry(group, orders, entry, order++);
 		}
-		const childInstance = current.instance ?? instance;
-		for (const child of current.children) visit(child, current, childInstance, depth + 1, active);
-		for (const declaration of local) finalize(declaration);
-	};
-	visit(boundary, undefined, parentInstance, 0, []);
+	});
 	return grouped;
 }
 
-function mergeDeclaration(
-	groupedOrders: Map<Mounted, Map<string, number>>,
+function mergeEntry(
 	group: TargetEnhancements,
-	declaration: Declaration
+	groupedOrders: Map<Mounted, Map<string, number>>,
+	entry: EnhancementEntry,
+	order: number
 ): void {
-	const existing = group.entries.find((entry) => entry.identity === declaration.entry.identity);
+	const existing = group.entries.find((candidate) => candidate.identity === entry.identity);
 	if (!existing) {
-		group.entries.push(declaration.entry);
-		let orders = groupedOrders.get(group.target.mounted);
-		if (!orders) groupedOrders.set(group.target.mounted, (orders = new Map()));
-		orders.set(declaration.entry.identity, declaration.order);
+		group.entries.push(entry);
+		let values = groupedOrders.get(group.target.mounted);
+		if (!values) groupedOrders.set(group.target.mounted, (values = new Map()));
+		values.set(entry.identity, order);
 		return;
 	}
 	const index = group.entries.indexOf(existing);
-	const orders = groupedOrders.get(group.target.mounted)!;
-	const existingOrder = orders.get(existing.identity)!;
-	const declarationIsNearer = declaration.order > existingOrder;
+	const values = groupedOrders.get(group.target.mounted)!;
+	const existingOrder = values.get(existing.identity)!;
+	const nearer = order > existingOrder;
 	group.entries[index] = Object.freeze({
 		identity: existing.identity,
-		props: Object.freeze(
-			declarationIsNearer
-				? { ...existing.props, ...declaration.entry.props }
-				: { ...declaration.entry.props, ...existing.props }
-		),
-		...(declarationIsNearer
-			? declaration.entry.root === undefined
+		props: Object.freeze(nearer ? { ...existing.props, ...entry.props } : { ...entry.props, ...existing.props }),
+		...(nearer
+			? entry.root === undefined
 				? {}
-				: { root: declaration.entry.root }
+				: { root: entry.root }
 			: existing.root === undefined
 				? {}
 				: { root: existing.root })
 	});
-	orders.set(existing.identity, Math.max(existingOrder, declaration.order));
+	values.set(existing.identity, Math.max(existingOrder, order));
+}
+
+/** Resolves direct intrinsic/fragment declarations or one component's bounded first-root frame. */
+export function resolveEnhancementTarget(
+	boundary: Mounted,
+	identity: string,
+	parentInstance: ComponentInstance<any> | undefined,
+	owner?: Mounted,
+	depth = 0
+): EnhancementTarget | undefined {
+	if (typeof boundary.vnode.type === 'string' || boundary.vnode.type === Fragment)
+		return { mounted: boundary, owner, parentInstance, depth };
+	const routed = findRootBearingFrame(boundary, owner, parentInstance, depth);
+	if (!routed) return undefined;
+	return findExplicitTarget(routed.frame, identity, routed.parentInstance, routed.depth) ?? routed;
+}
+
+function findRootBearingFrame(
+	boundary: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number
+): RoutedTarget | undefined {
+	const frame = typeof boundary.vnode.type === 'function' ? boundary : undefined;
+	const children = frame ? boundary.children : [boundary];
+	const instance = frame?.instance ?? parentInstance;
+	for (const child of children) {
+		const result = findFirstRoot(child, frame ?? owner, instance, depth + (frame ? 1 : 0), frame);
+		if (result) return result;
+	}
+	return undefined;
+}
+
+function findFirstRoot(
+	mounted: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number,
+	frame: Mounted | undefined
+): RoutedTarget | undefined {
+	if (mounted.enhancement)
+		return findFirstRoot(mounted.enhancement.target, owner, parentInstance, depth, frame);
+	if (typeof mounted.vnode.type === 'string') {
+		return { mounted, owner, parentInstance, depth, frame: frame ?? owner ?? mounted };
+	}
+	if (typeof mounted.vnode.type === 'function')
+		return findRootBearingFrame(mounted, owner, parentInstance, depth);
+	const childInstance = mounted.instance ?? parentInstance;
+	for (const child of mounted.children) {
+		const result = findFirstRoot(child, mounted, childInstance, depth + 1, frame);
+		if (result) return result;
+	}
+	return undefined;
+}
+
+function findExplicitTarget(
+	frame: Mounted,
+	identity: string,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number
+): EnhancementTarget | undefined {
+	const children = typeof frame.vnode.type === 'function' ? frame.children : [frame];
+	for (const child of children) {
+		const result = findExplicitInTransparentOutput(child, frame, parentInstance, depth + 1, identity);
+		if (result) return result;
+	}
+	return undefined;
+}
+
+function findExplicitInTransparentOutput(
+	mounted: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number,
+	identity: string
+): EnhancementTarget | undefined {
+	if (mounted.enhancement)
+		return findExplicitInTransparentOutput(
+			mounted.enhancement.target,
+			owner,
+			parentInstance,
+			depth,
+			identity
+		);
+	if (typeof mounted.vnode.type === 'function') return undefined;
+	if (typeof mounted.vnode.type === 'string') {
+		const selector = mounted.vnode.enhancements?.entries.find(
+			(entry) => entry.identity === identity && entry.root !== undefined
+		);
+		if (selector && unwrap(selector.root)) return { mounted, owner, parentInstance, depth };
+	}
+	const childInstance = mounted.instance ?? parentInstance;
+	for (const child of mounted.children) {
+		const result = findExplicitInTransparentOutput(
+			child,
+			mounted,
+			childInstance,
+			depth + 1,
+			identity
+		);
+		if (result) return result;
+	}
+	return undefined;
 }
 
 export function walkMounted(
@@ -129,25 +199,7 @@ export function walkMounted(
 ): void {
 	visit(mounted, owner, parentInstance, depth);
 	const childInstance = mounted.instance ?? parentInstance;
-	for (const child of mounted.children)
-		walkMounted(child, mounted, childInstance, depth + 1, visit);
-}
-
-export function resolveEnhancementTarget(
-	boundary: Mounted,
-	identity: string,
-	parentInstance: ComponentInstance<any> | undefined
-): EnhancementTarget | undefined {
-	let first: EnhancementTarget | undefined;
-	let explicit: EnhancementTarget | undefined;
-	walkLogicalMounted(boundary, undefined, parentInstance, 0, (current, owner, instance, depth) => {
-		if (explicit || typeof current.vnode.type !== 'string') return;
-		const candidate = { mounted: current, owner, parentInstance: instance, depth };
-		first ??= candidate;
-		const entry = current.vnode.enhancements?.entries.find((value) => value.identity === identity);
-		if (entry && unwrap(entry.root)) explicit = candidate;
-	});
-	return explicit ?? first;
+	for (const child of mounted.children) walkMounted(child, mounted, childInstance, depth + 1, visit);
 }
 
 export function walkLogicalMounted(
