@@ -26,6 +26,9 @@ For `target: 'server'`, compiler-recorded component package requests are resolve
 before Vite loads their implementations. Configure trust once through `componentLibraries` in
 `exact.config.*`; successful builds emit server-private authorization and audit manifests under
 `.exact/`. Client-only package components do not pass through this server authorization gate.
+Automatic dependency discovery is disabled for server targets so unresolved component candidates
+cannot be prebundled before that gate; authorized packages still participate in ordinary Rollup
+chunking after resolution.
 
 Attributed enhancement imports reached by an application bundle populate the shared bundle-local
 enhancement catalog. The adapter redirects DOM, hydration, and SSR entry points through the common

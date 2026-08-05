@@ -117,6 +117,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		enforce: 'pre',
 		config() {
 			return {
+				...(options.target === 'server'
+					? { optimizeDeps: { noDiscovery: true as const, include: [] } }
+					: {}),
 				resolve: {
 					conditions: exactExportConditions(
 						options.target === 'server' ? 'server' : 'client',

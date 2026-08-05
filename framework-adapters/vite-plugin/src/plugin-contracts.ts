@@ -43,6 +43,7 @@ export type ExactPlugin = {
 	enforce: 'pre';
 	warn?(message: string): void;
 	config?(): {
+		optimizeDeps?: { noDiscovery: true; include: never[] };
 		resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> };
 		oxc?: {
 			jsx: {
