@@ -61,7 +61,125 @@ function createLanguageServiceProxy(
 					entries
 				};
 	};
+	proxy.getQuickInfoAtPosition = (filename, position) => {
+		const ordinary = service.getQuickInfoAtPosition(filename, position);
+		const program = service.getProgram();
+		const sourceFile = program?.getSourceFile(filename);
+		if (!program || !sourceFile) return ordinary;
+		return (
+			enhancementQuickInfo(typescript, program.getTypeChecker(), sourceFile, position) ?? ordinary
+		);
+	};
 	return proxy;
+}
+
+/** Describes activator selection and all recipients of a namespaced enhancement prop. */
+function enhancementQuickInfo(
+	typescript: TypeScript,
+	checker: tsModule.TypeChecker,
+	sourceFile: tsModule.SourceFile,
+	position: number
+): tsModule.QuickInfo | undefined {
+	let node = deepestNodeAtPosition(sourceFile, position);
+	while (node && !typescript.isJsxNamespacedName(node)) node = node.parent;
+	if (!node || !typescript.isJsxNamespacedName(node)) return undefined;
+	const prefix = node.namespace.text;
+	const member = node.name.text;
+	const binding = enhancementImportBinding(typescript, sourceFile, prefix);
+	if (!binding) return undefined;
+	const descriptions: string[] = [];
+	if (typescript.isNamespaceImport(binding.parent)) {
+		const namespaceType = checker.getTypeAtLocation(binding);
+		const exports = checker.getPropertiesOfType(namespaceType);
+		const activator = exports.find(
+			(exported) => exported.getName() !== 'default' && camelToKebab(exported.getName()) === member
+		);
+		if (activator) {
+			const componentName = enhancementComponentDisplayName(typescript, checker, activator);
+			const props = componentProps(typescript, checker, activator, binding);
+			const payload = props
+				? enhancementProperty(checker, props, activator.getName(), binding)
+				: undefined;
+			descriptions.push(
+				payload
+					? `enhancement activator ${componentName}: ${checker.typeToString(payload)}`
+					: `selector-only enhancement activator ${componentName}`
+			);
+		} else {
+			const opening = jsxOpeningAtPosition(typescript, sourceFile, node.getStart(sourceFile));
+			const selected = new Set<string>();
+			if (opening) {
+				for (const property of opening.attributes.properties)
+					if (
+						typescript.isJsxAttribute(property) &&
+						typescript.isJsxNamespacedName(property.name) &&
+						property.name.namespace.text === prefix
+					)
+						selected.add(property.name.name.text);
+			}
+			for (const exported of exports) {
+				if (exported.getName() === 'default' && selected.size) continue;
+				if (
+					exported.getName() !== 'default' &&
+					!selected.has(camelToKebab(exported.getName()))
+				)
+					continue;
+				const props = componentProps(typescript, checker, exported, binding);
+				const property = props
+					? distributedTypes(typescript, props)
+							.map((variant) => checker.getPropertyOfType(variant, kebabToCamel(member)))
+							.find((candidate) => !!candidate)
+					: undefined;
+				if (property)
+					descriptions.push(
+						`${enhancementComponentDisplayName(typescript, checker, exported)}: ${checker.typeToString(checker.getTypeOfSymbolAtLocation(property, binding))}`
+					);
+			}
+		}
+	} else {
+		const symbol = checker.getSymbolAtLocation(binding);
+		const props = symbol ? componentProps(typescript, checker, symbol, binding) : undefined;
+		const property = props
+			? distributedTypes(typescript, props)
+					.map((variant) => checker.getPropertyOfType(variant, kebabToCamel(member)))
+					.find((candidate) => !!candidate)
+			: undefined;
+		if (property)
+			descriptions.push(
+				`enhancement prop: ${checker.typeToString(checker.getTypeOfSymbolAtLocation(property, binding))}`
+			);
+	}
+	if (!descriptions.length) return undefined;
+	return {
+		kind: typescript.ScriptElementKind.memberVariableElement,
+		kindModifiers: '',
+		textSpan: { start: node.getStart(sourceFile), length: node.getWidth(sourceFile) },
+		displayParts: [{ text: descriptions.join(' · '), kind: 'text' }]
+	};
+}
+
+/** Names an aliased component implementation rather than its activator export when available. */
+function enhancementComponentDisplayName(
+	typescript: TypeScript,
+	checker: tsModule.TypeChecker,
+	symbol: tsModule.Symbol
+): string {
+	return symbol.flags & typescript.SymbolFlags.Alias
+		? checker.getAliasedSymbol(symbol).getName()
+		: symbol.getName();
+}
+
+/** Resolves the first props parameter of a callable component export. */
+function componentProps(
+	typescript: TypeScript,
+	checker: tsModule.TypeChecker,
+	symbol: tsModule.Symbol,
+	location: tsModule.Node
+): tsModule.Type | undefined {
+	const componentType = checker.getTypeOfSymbolAtLocation(symbol, location);
+	const props = checker.getSignaturesOfType(componentType, typescript.SignatureKind.Call)[0]
+		?.parameters[0];
+	return props ? checker.getTypeOfSymbolAtLocation(props, location) : undefined;
 }
 
 /** Creates type-derived completions for eXact receiver and JSX enhancement syntax. */
@@ -85,6 +203,15 @@ function exactCompletionEntries(
 	if (!prefix) return [];
 	const binding = enhancementImportBinding(typescript, sourceFile, prefix);
 	if (!binding) return [];
+	if (typescript.isNamespaceImport(binding.parent))
+		return enhancementNamespaceCompletionEntries(
+			typescript,
+			checker,
+			sourceFile,
+			position,
+			prefix,
+			binding
+		);
 	const componentType = checker.getTypeAtLocation(binding);
 	const props = checker.getSignaturesOfType(componentType, typescript.SignatureKind.Call)[0]
 		?.parameters[0];
@@ -99,6 +226,96 @@ function exactCompletionEntries(
 			labelDetails: { detail: ' · enhancement target selector' }
 		}
 	];
+}
+
+/** Completes activators and the finite props of components selected at one JSX boundary. */
+function enhancementNamespaceCompletionEntries(
+	typescript: TypeScript,
+	checker: tsModule.TypeChecker,
+	sourceFile: tsModule.SourceFile,
+	position: number,
+	prefix: string,
+	binding: tsModule.Identifier
+): tsModule.CompletionEntry[] {
+	const namespaceType = checker.getTypeAtLocation(binding);
+	const activators = new Map<
+		string,
+		{ symbol: tsModule.Symbol; props: tsModule.Type; payload?: tsModule.Type }
+	>();
+	let defaultProps: tsModule.Type | undefined;
+	for (const exported of checker.getPropertiesOfType(namespaceType)) {
+		const componentType = checker.getTypeOfSymbolAtLocation(exported, binding);
+		const props = checker.getSignaturesOfType(componentType, typescript.SignatureKind.Call)[0]
+			?.parameters[0];
+		if (!props) continue;
+		const propsType = checker.getTypeOfSymbolAtLocation(props, binding);
+		if (exported.getName() === 'default') {
+			defaultProps = propsType;
+			continue;
+		}
+		const name = camelToKebab(exported.getName());
+		if (name === 'children' || name === 'key' || name === 'ref' || name === 'root') continue;
+		const payload = enhancementProperty(checker, propsType, exported.getName(), binding);
+		activators.set(name, { symbol: exported, props: propsType, payload });
+	}
+
+	const selected = new Set<string>();
+	const opening = jsxOpeningAtPosition(typescript, sourceFile, position);
+	for (const property of opening?.attributes.properties ?? []) {
+		if (
+			typescript.isJsxAttribute(property) &&
+			typescript.isJsxNamespacedName(property.name) &&
+			property.name.namespace.text === prefix &&
+			activators.has(property.name.name.text)
+		)
+			selected.add(property.name.name.text);
+	}
+
+	const entries = new Map<string, tsModule.CompletionEntry>();
+	for (const [name, activator] of activators) {
+		entries.set(name, {
+			name,
+			kind: activator.payload
+				? typescript.ScriptElementKind.memberVariableElement
+				: typescript.ScriptElementKind.memberFunctionElement,
+			sortText: '10',
+			labelDetails: {
+				detail: activator.payload
+					? ` · enhancement activator · ${checker.typeToString(activator.payload)}`
+					: ' · selector-only enhancement activator'
+			}
+		});
+	}
+	const selectedProps = selected.size
+		? [...selected].map((name) => activators.get(name)!.props)
+		: defaultProps
+			? [defaultProps]
+			: [];
+	for (const props of selectedProps) {
+		for (const entry of propertyCompletionEntries(typescript, checker, props, binding, true))
+			if (!entries.has(entry.name)) entries.set(entry.name, entry);
+	}
+	entries.set('root', {
+		name: 'root',
+		kind: typescript.ScriptElementKind.memberVariableElement,
+		sortText: '12',
+		labelDetails: { detail: ' · enhancement target selector' }
+	});
+	return [...entries.values()];
+}
+
+/** Finds a camel-case prop across a component's finite union for activator payload typing. */
+function enhancementProperty(
+	checker: tsModule.TypeChecker,
+	type: tsModule.Type,
+	name: string,
+	location: tsModule.Node
+): tsModule.Type | undefined {
+	for (const memberType of type.isUnion() ? type.types : [type]) {
+		const property = checker.getPropertyOfType(memberType, name);
+		if (property) return checker.getTypeOfSymbolAtLocation(property, location);
+	}
+	return undefined;
 }
 
 /** Projects finite public properties into language-service completion entries. */
@@ -144,6 +361,11 @@ function camelToKebab(name: string): string {
 	return name.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
 }
 
+/** Converts authored namespaced JSX spelling back to a component prop name. */
+function kebabToCamel(name: string): string {
+	return name.replace(/-([a-z])/g, (_match, character: string) => character.toUpperCase());
+}
+
 /** Resolves the outer component receiver for a completion immediately following local `this.`. */
 function componentReceiverAtCompletion(
 	typescript: TypeScript,
@@ -185,6 +407,23 @@ function insideJsxOpening(
 	}
 }
 
+/** Returns the opening-like JSX element containing a completion position. */
+function jsxOpeningAtPosition(
+	typescript: TypeScript,
+	sourceFile: tsModule.SourceFile,
+	position: number
+): tsModule.JsxOpeningLikeElement | undefined {
+	let found: tsModule.JsxOpeningLikeElement | undefined;
+	visit(sourceFile);
+	return found;
+
+	function visit(node: tsModule.Node): void {
+		if (position < node.getFullStart() || position > node.getEnd()) return;
+		if (typescript.isJsxOpeningLikeElement(node)) found = node;
+		typescript.forEachChild(node, visit);
+	}
+}
+
 /** Finds the attributed import binding which owns one enhancement namespace. */
 function enhancementImportBinding(
 	typescript: TypeScript,
@@ -200,6 +439,12 @@ function enhancementImportBinding(
 		const clause = statement.importClause;
 		if (!clause || clause.isTypeOnly) continue;
 		if (clause.name?.text === prefix) return clause.name;
+		if (
+			clause.namedBindings &&
+			typescript.isNamespaceImport(clause.namedBindings) &&
+			clause.namedBindings.name.text === prefix
+		)
+			return clause.namedBindings.name;
 		if (clause.namedBindings && typescript.isNamedImports(clause.namedBindings)) {
 			const binding = clause.namedBindings.elements.find(
 				(element) => !element.isTypeOnly && element.name.text === prefix
@@ -311,6 +556,8 @@ function importBindingIdentifiers(
 	const clause = declaration.importClause;
 	if (!clause || clause.isTypeOnly) return result;
 	if (clause.name) result.push(clause.name);
+	if (clause.namedBindings && typescript.isNamespaceImport(clause.namedBindings))
+		result.push(clause.namedBindings.name);
 	if (clause.namedBindings && typescript.isNamedImports(clause.namedBindings)) {
 		for (const element of clause.namedBindings.elements)
 			if (!element.isTypeOnly) result.push(element.name);
@@ -350,6 +597,8 @@ function importBindingNames(
 	const clause = declaration.importClause;
 	if (!clause || clause.isTypeOnly) return result;
 	if (clause.name) result.add(clause.name.text);
+	if (clause.namedBindings && typescript.isNamespaceImport(clause.namedBindings))
+		result.add(clause.namedBindings.name.text);
 	if (clause.namedBindings && typescript.isNamedImports(clause.namedBindings)) {
 		for (const element of clause.namedBindings.elements)
 			if (!element.isTypeOnly) result.add(element.name.text);

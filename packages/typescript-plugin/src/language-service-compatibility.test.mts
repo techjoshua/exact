@@ -67,6 +67,52 @@ export const view = <div motion: />;`;
 		expect(completions).not.toContain('children');
 	});
 
+	it('completes activators and selected component props for enhancement namespaces', () => {
+		const beforeSelection = `
+import * as motion from './motion.js' with { type: 'exact-enhancement' };
+declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
+export const view = <div motion: />;`;
+		const afterSelection = `
+import * as motion from './motion.js' with { type: 'exact-enhancement' };
+declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
+export const view = <div motion:slide-up motion: />;`;
+
+		expect(
+			completionNames(beforeSelection, 'Before.tsx', beforeSelection.lastIndexOf('motion:') + 7)
+		).toEqual(expect.arrayContaining(['fade', 'slide-up', 'apply', 'layout-id', 'root']));
+		const selected = completionNames(
+			afterSelection,
+			'After.tsx',
+			afterSelection.lastIndexOf('motion:') + 7
+		);
+		expect(selected).toEqual(
+			expect.arrayContaining(['fade', 'slide-up', 'duration', 'distance', 'root'])
+		);
+		expect(selected).not.toContain('layout-id');
+	});
+
+	it('describes selector-only activators and shared prop recipients', () => {
+		const source = `
+import * as motion from './motion.js' with { type: 'exact-enhancement' };
+declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
+export const view = <div motion:fade motion:slide-up motion:duration={180} />;`;
+		const { enhanced } = languageServices(source, 'Hover.tsx');
+		const fade = enhanced.getQuickInfoAtPosition(
+			'Hover.tsx',
+			source.indexOf('motion:fade') + 'motion:'.length
+		);
+		const duration = enhanced.getQuickInfoAtPosition(
+			'Hover.tsx',
+			source.indexOf('motion:duration') + 'motion:'.length
+		);
+
+		expect(ts.displayPartsToString(fade?.displayParts)).toContain(
+			'selector-only enhancement activator FadeMotion'
+		);
+		expect(ts.displayPartsToString(duration?.displayParts)).toContain('FadeMotion: number');
+		expect(ts.displayPartsToString(duration?.displayParts)).toContain('SlideUpMotion: number');
+	});
+
 	it('retains an unrelated unused enhancement import', () => {
 		const source = `
 import motion from './motion.js' with { type: 'exact-enhancement' };
@@ -117,6 +163,9 @@ function languageServices(source: string, filename: string) {
 declare const motion: (props: Props) => unknown;
 declare const gravity: (props: { strength?: number }) => unknown;
 export { motion, gravity };
+export function FadeMotion(props: { duration?: number; children?: unknown }): unknown;
+export function SlideUpMotion(props: { slideUp: true | { distance: number }; duration?: number; distance?: number; children?: unknown }): unknown;
+export { FadeMotion as fade, SlideUpMotion as slideUp };
 export default motion;`
 		]
 	]);
