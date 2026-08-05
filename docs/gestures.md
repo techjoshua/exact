@@ -63,7 +63,7 @@ focusable target, an accurate accessible name, and any control-specific role.
 ## Namespaced enhancement composition
 
 The canonical namespace accepts `apply`, `press`, `hover`, `drag`, `pan`, `pinch`, and `disabled`.
-The shared compiler and renderer carry grouped markers and ordinary transparent plugin components.
+The shared compiler and renderer carry grouped markers and ordinary transparent enhancement components.
 Vite includes reached attributed capabilities in its bundle-local catalog and supplies them to
 DOM, hydration, and SSR.
 

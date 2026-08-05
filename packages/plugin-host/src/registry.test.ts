@@ -11,7 +11,7 @@ import {
 
 describe('prepared plugin registry', () => {
 	it('loads TypeScript configuration through the native Node loader and removes its temporary module', async () => {
-		const root = mkdtempSync(path.join(tmpdir(), 'exact-enhancement-config-success-'));
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-plugin-config-success-'));
 		const configPath = path.join(root, 'exact.config.ts');
 		writeFileSync(configPath, "export default { pluginDiscovery: { mode: 'root' } };\n");
 
@@ -27,7 +27,7 @@ describe('prepared plugin registry', () => {
 	});
 
 	it('removes a temporary TypeScript configuration module when validation fails', async () => {
-		const root = mkdtempSync(path.join(tmpdir(), 'exact-enhancement-config-failure-'));
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-plugin-config-failure-'));
 		const configPath = path.join(root, 'exact.config.ts');
 		writeFileSync(configPath, 'export default null;\n');
 
@@ -43,7 +43,7 @@ describe('prepared plugin registry', () => {
 	});
 
 	it('runs defaults, deepest contributors, and root mutation with undefined retention', async () => {
-		const root = mkdtempSync(path.join(tmpdir(), 'exact-enhancement-registry-'));
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-plugin-registry-'));
 		const plugin = createPackage(
 			root,
 			'@exactjs/example',
@@ -127,6 +127,61 @@ describe('prepared plugin registry', () => {
 			'/// <reference types="@exactjs/example/config-types" />'
 		);
 		expect(JSON.stringify(registry)).not.toContain('providers');
+	});
+
+	it('does not discover component-library enhancement metadata as a framework plugin', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-component-library-'));
+		const library: ExactPackageNode = {
+			id: '@exactjs/example-components',
+			location: path.join(root, 'node_modules', '@exactjs', 'example-components'),
+			realPath: path
+				.join(root, 'node_modules', '@exactjs', 'example-components')
+				.replaceAll('\\', '/'),
+			manifest: {
+				name: '@exactjs/example-components',
+				version: '1.0.0',
+				exports: { '.': './capability.d.ts' }
+			},
+			dependencies: new Map()
+		};
+		const rootNode = emptyFixtureGraph(root).nodes.get('root')!;
+		const graph: ExactPackageGraph = {
+			rootId: rootNode.id,
+			nodes: new Map([
+				[
+					rootNode.id,
+					{
+						...rootNode,
+						manifest: {
+							...rootNode.manifest,
+							dependencies: { '@exactjs/example-components': '^1.0.0' }
+						},
+						dependencies: new Map([
+							[
+								'@exactjs/example-components',
+								{
+									name: '@exactjs/example-components',
+									range: '^1.0.0',
+									kind: 'dependency',
+									targetId: library.id
+								}
+							]
+						])
+					}
+				],
+				[library.id, library]
+			])
+		};
+
+		const registry = await prepareExactPluginRegistry({
+			applicationRoot: root,
+			graph,
+			config: { pluginDiscovery: { mode: 'all' } },
+			syncTypes: false
+		});
+
+		expect(registry.discovery.plugins.size).toBe(0);
+		expect(registry.discovery.participants.has(library.id)).toBe(false);
 	});
 });
 

@@ -9,15 +9,15 @@ import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
-import { GesturesPluginPage } from './pages/GesturesPluginPage.jsx';
-import { GravityPluginPage } from './pages/GravityPluginPage.jsx';
+import { GesturesPage } from './pages/GesturesPage.jsx';
+import { GravityPage } from './pages/GravityPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
 import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
 import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
-import { MotionPluginPage } from './pages/MotionPluginPage.jsx';
-import { PhysicsPluginPage } from './pages/PhysicsPluginPage.jsx';
+import { MotionPage } from './pages/MotionPage.jsx';
+import { PhysicsPage } from './pages/PhysicsPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
 import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
@@ -226,14 +226,14 @@ export const docGroups: DocGroup[] = [
 				label: 'Motion',
 				summary: 'Animate committed state with prepared definitions and task-owned playback.',
 				keywords: 'component library enhancement motion animation presets task Web Animations',
-				component: MotionPluginPage
+				component: MotionPage
 			},
 			{
 				path: '/components/gestures',
 				label: 'Gestures',
 				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
 				keywords: 'component library enhancement gestures drag pan pointer keyboard accessibility',
-				component: GesturesPluginPage
+				component: GesturesPage
 			},
 			{
 				path: '/components/physics',
@@ -241,14 +241,14 @@ export const docGroups: DocGroup[] = [
 				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
 				keywords:
 					'component library enhancement physics body force collision fixed step projection',
-				component: PhysicsPluginPage
+				component: PhysicsPage
 			},
 			{
 				path: '/components/gravity',
 				label: 'Gravity',
 				summary: 'Compose pure bounded acceleration fields through the physics force seam.',
 				keywords: 'component library enhancement gravity field force physics acceleration',
-				component: GravityPluginPage
+				component: GravityPage
 			}
 		]
 	},
