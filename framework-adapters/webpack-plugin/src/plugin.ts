@@ -20,6 +20,7 @@ import {
 } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
 	createWebpackCompilerSession,
 	clearWebpackInspectionModules,
@@ -201,7 +202,7 @@ export type WebpackResolveRequest = {
 export type WebpackAfterResolveData = Readonly<{
 	request?: string;
 	contextInfo?: Readonly<{ issuer?: string }>;
-	createData?: Readonly<{ resource?: string; rawRequest?: string }>;
+	createData?: { resource?: string; rawRequest?: string };
 }>;
 
 /** Defines the webpack resolve callback type contract. */
@@ -316,14 +317,19 @@ export class ExactWebpackPlugin {
 				const request = data && (data.createData?.rawRequest ?? data.request);
 				const importer = data && data.contextInfo?.issuer;
 				const resource = data && data.createData?.resource;
-				if (request && importer && resource)
-					await authorizeWebpackResolvedComponent(
+				if (request && importer && resource) {
+					const authorization = await authorizeWebpackResolvedComponent(
 						owned.id,
 						authorizationOptions,
 						request,
 						importer,
 						resource
 					);
+					if (authorization === 'omitted' && data?.createData)
+						data.createData.resource = fileURLToPath(
+							new URL('./omitted-enhancement.js', import.meta.url)
+						);
+				}
 			});
 		});
 		const dispose = (): void => disposeWebpackCompilerSession(owned.id);

@@ -160,7 +160,7 @@ export async function authorizeWebpackResolvedComponent(
 	request: string,
 	importerModuleId: string,
 	resolvedModuleId: string
-): Promise<void> {
+): Promise<'authorized' | 'omitted' | undefined> {
 	if (options.target !== 'server') return;
 	const importer = componentFacts.get(id)?.get(path.resolve(importerModuleId));
 	if (!importer) return;
@@ -188,7 +188,8 @@ export async function authorizeWebpackResolvedComponent(
 		reason: enhancement ? 'server-enhancement' : webpackServerReason(componentEdge!.reason),
 		...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
 	};
-	await generation.session!.authorizeResolvedComponent(candidate);
+	const authorization = await generation.session!.authorizeResolvedComponent(candidate);
+	return authorization.outcome;
 }
 
 /** Commits and returns the pending Webpack authorization manifests for processAssets. */

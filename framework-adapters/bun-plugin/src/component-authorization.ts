@@ -68,7 +68,7 @@ export class ExactBunComponentAuthorization {
 		request: string,
 		importerModuleId: string,
 		resolve?: ExactBunResolver
-	): Promise<Readonly<{ path: string }> | undefined> {
+	): Promise<Readonly<{ path: string; namespace?: string }> | undefined> {
 		const importer =
 			this.#facts.get(importerModuleId) ?? this.#facts.get(path.resolve(importerModuleId));
 		if (!importer || !this.#session) return undefined;
@@ -104,8 +104,13 @@ export class ExactBunComponentAuthorization {
 			reason: enhancement ? 'server-enhancement' : bunServerReason(componentEdge!.reason),
 			...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
 		};
-		await this.#session.authorizeResolvedComponent(candidate);
-		return Object.freeze({ path: resolvedModuleId });
+		const authorization = await this.#session.authorizeResolvedComponent(candidate);
+		return authorization.outcome === 'omitted'
+			? Object.freeze({
+					path: encodeURIComponent(authorization.enhancementIdentity),
+					namespace: 'exact-omitted-enhancement'
+				})
+			: Object.freeze({ path: resolvedModuleId });
 	}
 
 	/** Commits the active generation and returns its private manifest products. */

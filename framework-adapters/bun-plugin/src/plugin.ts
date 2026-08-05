@@ -107,7 +107,7 @@ export type BunBuildLike = {
 		) => BunResolveResult | undefined | Promise<BunResolveResult | undefined>
 	): void;
 	onLoad(
-		options: { filter: RegExp },
+		options: { filter: RegExp; namespace?: string },
 		handler: (args: BunLoadArgs) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>
 	): void;
 	onStart?(handler: () => void | Promise<void>): void;
@@ -124,6 +124,7 @@ export type BunResolveArgs = {
 export type BunResolveResult = {
 	path: string;
 	external?: boolean;
+	namespace?: string;
 };
 
 /** Defines the bun load args type contract. */
@@ -281,6 +282,10 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			}
 			build.onResolve({ filter: /^(?:@[^/]+\/[^/]+|[^./][^:]*)/ }, async (args) =>
 				componentAuthorization?.authorize(args.path, args.importer ?? '', build.resolve)
+			);
+			build.onLoad(
+				{ filter: /.*/, namespace: 'exact-omitted-enhancement' },
+				() => ({ contents: 'export {};\n', loader: 'js' })
 			);
 			// Bun does not expose Vite's changed-file HMR hook. Observe every loaded
 			// TypeScript/JavaScript dependency so non-JSX type and export changes

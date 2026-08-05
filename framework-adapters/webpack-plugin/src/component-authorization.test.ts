@@ -9,6 +9,7 @@ import {
 	commitWebpackAuthorizationGeneration,
 	createWebpackCompilerSession,
 	disposeWebpackCompilerSession,
+	recordWebpackComponentBuildFacts,
 	resetWebpackAuthorizationGeneration
 } from './sessions.js';
 
@@ -69,6 +70,38 @@ describe('@exactjs/webpack-plugin: component authorization', () => {
 				fixture.libraryModule
 			)
 		).rejects.toMatchObject({ code: 'explicitly-denied' });
+		expect(existsSync(fixture.executedFile)).toBe(false);
+	});
+
+	it('returns an omitted decision only for an explicitly excluded enhancement', async () => {
+		const fixture = createFixture();
+		writeFileSync(
+			path.join(fixture.root, 'exact.config.mjs'),
+			"export default { componentLibraries: { deny: ['@acme/cards'], unauthorizedOptionalEnhancements: 'exclude' } };\n"
+		);
+		const owned = createWebpackCompilerSession(false);
+		onTestFinished(() => disposeWebpackCompilerSession(owned.id));
+		const options = { target: 'server', applicationRoot: fixture.root } as const;
+		resetWebpackAuthorizationGeneration(owned.id, options);
+		recordWebpackComponentBuildFacts(owned.id, fixture.pageFile, fixture.pageSource, {
+			protocol: 1,
+			filename: fixture.pageFile,
+			components: [],
+			componentImports: [],
+			rendererEnhancements: [
+				{ identity: '@acme/cards#default', moduleSpecifier: '@acme/cards', exportName: 'Card' }
+			]
+		});
+
+		await expect(
+			authorizeWebpackResolvedComponent(
+				owned.id,
+				options,
+				'@acme/cards',
+				fixture.pageFile,
+				fixture.libraryModule
+			)
+		).resolves.toBe('omitted');
 		expect(existsSync(fixture.executedFile)).toBe(false);
 	});
 });

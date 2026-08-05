@@ -58,6 +58,8 @@ import {
 	prependViteEnhancementRegistrations
 } from './enhancement-catalog.js';
 
+const omittedEnhancementPrefix = '\0exact:omitted-enhancement/';
+
 export type {
 	ExactPlugin,
 	ExactPluginOptions,
@@ -270,6 +272,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				);
 		},
 		load(id) {
+			if (id.startsWith(omittedEnhancementPrefix)) return { code: 'export {};\n', moduleType: 'js' };
 			if (id === resolvedExactDevtoolsRuntimeModule)
 				return {
 					code: exactDevtoolsRuntimeBootstrap(configuredDebug),
@@ -517,7 +520,9 @@ async function authorizeViteComponentResolution(
 		...(enhancementEdge ? { optionalEnhancementIdentity: enhancementEdge.identity } : {})
 	});
 	const authorization = await session.authorizeResolvedComponent(candidate);
-	return authorization.outcome === 'omitted' ? null : resolved;
+	return authorization.outcome === 'omitted'
+		? `${omittedEnhancementPrefix}${encodeURIComponent(authorization.enhancementIdentity)}`
+		: resolved;
 }
 
 function viteRequiresComponentAuthorization(

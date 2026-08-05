@@ -69,6 +69,36 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 		).rejects.toMatchObject({ code: 'explicitly-denied' });
 		expect(existsSync(fixture.executedFile)).toBe(false);
 	});
+
+	it('routes an explicitly excluded enhancement to the empty-module namespace', async () => {
+		const fixture = createFixture();
+		writeFileSync(
+			path.join(fixture.root, 'exact.config.mjs'),
+			"export default { componentLibraries: { deny: ['@acme/cards'], unauthorizedOptionalEnhancements: 'exclude' } };\n"
+		);
+		const authorization = new ExactBunComponentAuthorization({ applicationRoot: fixture.root });
+		onTestFinished(() => authorization.dispose());
+		await authorization.start();
+		authorization.record(fixture.pageFile, fixture.pageSource, {
+			protocol: 1,
+			filename: fixture.pageFile,
+			components: [],
+			componentImports: [],
+			rendererEnhancements: [
+				{ identity: '@acme/cards#default', moduleSpecifier: '@acme/cards', exportName: 'Card' }
+			]
+		});
+
+		await expect(
+			authorization.authorize('@acme/cards', fixture.pageFile, async () => ({
+				path: fixture.libraryModule
+			}))
+		).resolves.toEqual({
+			path: encodeURIComponent('@acme/cards#default'),
+			namespace: 'exact-omitted-enhancement'
+		});
+		expect(existsSync(fixture.executedFile)).toBe(false);
+	});
 });
 
 function createFixture() {

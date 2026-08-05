@@ -82,6 +82,34 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 			)
 		).toBeNull();
 	});
+
+	it('resolves an excluded optional enhancement to an adapter-owned empty module', async () => {
+		const fixture = createViteFixture();
+		writeFileSync(
+			path.join(fixture.root, 'exact.config.mjs'),
+			"export default { componentLibraries: { deny: ['@acme/cards'], unauthorizedOptionalEnhancements: 'exclude' } };\n"
+		);
+		const source = `import cards from '@acme/cards' with { type: 'exact-enhancement' };
+			export function Page() { return () => <main cards:active />; }`;
+		const plugin = exact({
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		await plugin.buildStart?.call({ addWatchFile() {} });
+		plugin.transform(source, fixture.pageFile);
+
+		const resolved = await plugin.resolveId?.call(
+			{ resolve: async () => ({ id: fixture.libraryModule }) },
+			'@acme/cards',
+			fixture.pageFile
+		);
+		expect(resolved).toMatch(/^\0exact:omitted-enhancement\//);
+		expect(plugin.load?.call({}, resolved as string)).toEqual({
+			code: 'export {};\n',
+			moduleType: 'js'
+		});
+	});
 });
 
 function createViteFixture() {
@@ -107,7 +135,9 @@ function createViteFixture() {
 		JSON.stringify({
 			name: '@acme/cards',
 			version: '1.0.0',
-			exports: { '.': './dist/index.js' },
+			exports: {
+				'.': { types: './capability.d.ts', default: './dist/index.js' }
+			},
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
 			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
@@ -120,7 +150,18 @@ function createViteFixture() {
 			exactComponentLibraryProtocol: 1
 		})
 	);
-	writeFileSync(libraryModule, 'export function Card() { return () => null; }\n');
+	writeFileSync(
+		libraryModule,
+		'export function Card() { return () => null; } export default Card;\n'
+	);
+	writeFileSync(
+		path.join(libraryRoot, 'dist', 'index.d.ts'),
+		'export declare function Card(props: { active?: boolean; children?: unknown }): unknown; export default Card;\n'
+	);
+	writeFileSync(
+		path.join(libraryRoot, 'capability.d.ts'),
+		"export { Card } from './dist/index.js'; export { default } from './dist/index.js' with { type: 'exact-enhancement' };\n"
+	);
 	const facts: ExactPublishedComponentBuildFacts = {
 		protocol: 1,
 		package: { name: '@acme/cards', version: '1.0.0' },
@@ -147,6 +188,13 @@ function createViteFixture() {
 				condition: 'default',
 				module: 'dist/index.js',
 				exportName: 'Card',
+				componentId: '@acme/cards:Card'
+			},
+			{
+				subpath: '.',
+				condition: 'default',
+				module: 'dist/index.js',
+				exportName: 'default',
 				componentId: '@acme/cards:Card'
 			}
 		]
