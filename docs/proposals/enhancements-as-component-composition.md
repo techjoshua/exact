@@ -2,7 +2,7 @@
 
 ## Status
 
-In implementation after the implemented
+Implemented after the implemented
 [`recursive-server-client-graph-partitioning.md`](recursive-server-client-graph-partitioning.md)
 contract and before
 [`server-component-library-trust.md`](server-component-library-trust.md),
@@ -13,24 +13,21 @@ contract and before
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md). Those proposals must consume
 the component groups, `_target` exports and contribution ownership, root-bearing frames, and target
-generations defined here rather than preserve the current single-callable namespace or unrestricted
+generations defined here rather than preserve the former single-callable namespace or unrestricted
 target search.
 
-The terminology cutover, finite activator maps, direct `_` composition, and bounded
-logical-output-frame routing are implemented. `_target` lowering and its first DOM, SSR, and
-hydration contract are implemented, but this proposal is not complete until contribution ownership,
-local structural invalidation, DevTools inspection, package classification, and the documentation
-move satisfy the verification section below. The next proposal in the sequence must not treat this
-contract as implemented until those gates are complete and this status changes to **Implemented**.
+The terminology cutover, finite activator maps, direct `_` composition, ordinary `_target`, bounded
+logical-output-frame routing, local structural invalidation, production inspection, package
+classification, and portable metadata documentation are implemented and verified.
 
-| Delivery area                              | Current state         | Completion gate                                                                                                                                             |
-| ------------------------------------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `exact-enhancement` terminology            | Implemented           | Repository consistency checks retain no former source spelling or enhancement-as-plugin descriptions.                                                       |
-| Finite activator maps                      | Implemented           | Full alias, canonical grouping, selector, spread, and grouped-prop acceptance coverage remains green.                                                       |
-| Direct `_` composition and bounded routing | Implemented           | DOM, SSR, hydration, and conditional-frame coverage remains green.                                                                                          |
-| Ordinary `_target`                         | In implementation     | Independently owned events/refs, owner cleanup, local rerouting, DevTools ownership, and conditional-generation tests are complete.                         |
-| Component-library reclassification         | Pending               | Package manifests, projections, READMEs, local guides, repository placement, and docs navigation distinguish component libraries from genuine host plugins. |
-| Portable trust-policy seam                 | Pending documentation | Compiler-emitted package/component/placement/enhancement metadata is documented as the sole input consumed by the following bundler policy proposal.        |
+| Delivery area                              | State       | Delivered contract                                                                                                                        |
+| ------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `exact-enhancement` terminology            | Implemented | Current source, compiler diagnostics, adapters, packages, and docs use enhancement terminology without a compatibility spelling.          |
+| Finite activator maps                      | Implemented | Alias chains, canonical grouping, selector/payload activators, default suppression, finite spreads, distribution, and grouped validation. |
+| Direct `_` composition and bounded routing | Implemented | DOM, SSR, hydration, component testing, conditional frames, Suspense, and Activity share the bounded route contract.                      |
+| Ordinary `_target`                         | Implemented | Independently owned props, events, refs, cleanup, local rerouting, generations, and redaction-safe production inspection.                 |
+| Component-library reclassification         | Implemented | Motion, gestures, physics, and gravity are ordinary component libraries with no classification-only framework-plugin projections.         |
+| Portable trust-policy seam                 | Implemented | Package identity, component placement/reachability, and enhancement linkage are documented as policy-free compiler output.                |
 
 This proposal combines a terminology, package-classification, and documentation correction with
 three component-language changes. It generalizes compiler resolution so one finite enhancement
@@ -1036,6 +1033,22 @@ distinguish build-tool plugins, framework plugins, and enhancement component lib
   does not require them.
 - Documentation checks prove current references, docs-app pages, package READMEs, local agent
   guides, and the reusable skill use the distinction consistently.
+
+### Delivery evidence
+
+The completed implementation was audited against every acceptance criterion on 2026-08-05. The
+native compiler's complete Go suite, the repository build, strict test typecheck, compiler
+acceptance applications, publish/package checks, and all package tests passed. The package suite
+covered 274 test files and 1,628 tests, with two intentional skips.
+
+The focused production-fixture reroute measurement was repeated on the baseline machine with five
+fresh Node processes and two warmups per process. Median enhancement reroute time moved from
+0.5466 ms in the tracked pre-implementation baseline to 0.0868 ms, while p95 moved from 0.9097 ms
+to 0.0939 ms. Correctness tests additionally assert that unrelated structural updates do not run a
+whole-root target walk, unavailable enhancements allocate no component ownership, and DOM, SSR,
+hydration, Activity, Suspense, direct `_`, and `_target` generations retain their required cleanup
+and identity behavior. The focused diagnostic run does not replace the complete tracked baseline;
+the general JavaScript performance proposal owns subsequent whole-suite profiles.
 
 ## Acceptance criteria
 
