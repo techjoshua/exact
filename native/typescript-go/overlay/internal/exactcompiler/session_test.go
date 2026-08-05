@@ -5747,7 +5747,7 @@ func TestSessionResolvesImportedComponentPlacementSubgraphs(t *testing.T) {
 	}
 }
 
-func TestSessionAcceptsOpaqueRuntimeComponentImports(t *testing.T) {
+func TestSessionDescribesOpaqueRuntimeComponentImports(t *testing.T) {
 	root := t.TempDir()
 	entry := filepath.Join(root, "entry.tsx")
 	response := NewSession().Execute(Request{
@@ -5768,8 +5768,11 @@ func TestSessionAcceptsOpaqueRuntimeComponentImports(t *testing.T) {
 	if len(page.Diagnostics) != 0 {
 		t.Fatalf("opaque runtime import produced diagnostics: %#v", page.Diagnostics)
 	}
-	if len(page.RenderEdges) != 0 {
-		t.Fatalf("opaque runtime import unexpectedly produced placement edges: %#v", page.RenderEdges)
+	if len(page.RenderEdges) != 1 ||
+		page.RenderEdges[0].ModuleSpecifier != "@exactjs/microfrontends/client" ||
+		page.RenderEdges[0].ExportName != "RemoteComponent" ||
+		page.RenderEdges[0].ComponentID != "" {
+		t.Fatalf("opaque runtime import build edge was not retained: %#v", page.RenderEdges)
 	}
 	if !strings.Contains(response.Code, "__exactVNode(RemoteComponent") {
 		t.Fatalf("runtime component import was not lowered: %s", response.Code)

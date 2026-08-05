@@ -177,15 +177,17 @@ type EnhancementContextEffects struct {
 
 // RenderEdge describes one local component dependency authored as a JSX tag.
 type RenderEdge struct {
-	ID          string `json:"id"`
-	NodeID      string `json:"nodeId,omitempty"`
-	Tag         string `json:"tag"`
-	Name        string `json:"name"`
-	ComponentID string `json:"componentId,omitempty"`
-	Placement   string `json:"placement"`
-	Boundary    string `json:"boundary"`
-	Index       int    `json:"index"`
-	Path        string `json:"path"`
+	ID              string `json:"id"`
+	NodeID          string `json:"nodeId,omitempty"`
+	Tag             string `json:"tag"`
+	Name            string `json:"name"`
+	ComponentID     string `json:"componentId,omitempty"`
+	ModuleSpecifier string `json:"moduleSpecifier,omitempty"`
+	ExportName      string `json:"exportName,omitempty"`
+	Placement       string `json:"placement"`
+	Boundary        string `json:"boundary"`
+	Index           int    `json:"index"`
+	Path            string `json:"path"`
 }
 
 // SymbolRecord identifies one authored or compiler-generated artifact export.

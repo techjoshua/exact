@@ -177,11 +177,64 @@ export type ExactRendererEnhancementIR = {
 	exportName: string;
 };
 
+/** Explains why a build adapter must resolve one imported component edge. */
+export type ExactComponentImportReason =
+	| 'render'
+	| 'enhancement'
+	| 'registry'
+	| 'task-owner'
+	| 'continuation';
+
+/** Target-neutral component facts consumed by build adapters without carrying trust decisions. */
+export type ExactComponentBuildFacts = Readonly<{
+	protocol: 1;
+	filename: string;
+	/** Optional integration hint. Resolved package provenance remains authoritative. */
+	packageName?: string;
+	components: readonly Readonly<{
+		id: string;
+		placement: import('./policy.js').ExactPlacement;
+		artifactTargets: readonly ExactArtifactTarget[];
+	}>[];
+	componentImports: readonly Readonly<{
+		ownerComponentId: string;
+		moduleSpecifier: string;
+		exportName: string;
+		canonicalComponentId?: string;
+		artifactTargets: readonly ExactArtifactTarget[];
+		reason: ExactComponentImportReason;
+	}>[];
+	rendererEnhancements: readonly Readonly<{
+		identity: string;
+		moduleSpecifier: string;
+		exportName: string;
+	}>[];
+}>;
+
+/** Static protocol-1 build facts published by a precompiled eXact component library. */
+export type ExactPublishedComponentBuildFacts = Readonly<{
+	protocol: 1;
+	package: Readonly<{ name: string; version: string }>;
+	modules: readonly Readonly<{
+		path: string;
+		facts: Omit<ExactComponentBuildFacts, 'filename' | 'packageName'>;
+	}>[];
+	exports: readonly Readonly<{
+		subpath: string;
+		condition: string;
+		module: string;
+		exportName: string;
+		componentId: string;
+	}>[];
+}>;
+
 /** Describes the result produced by transform. */
 export type TransformResult = {
 	code: string;
 	map: ExactSourceMap | null;
 	filename: string;
+	/** Descriptive protocol facts for authoritative build-tool graph authorization. */
+	componentBuild: ExactComponentBuildFacts;
 	/** Build-facing capability imports; emitted independently of application plugin registries. */
 	rendererEnhancements?: readonly ExactRendererEnhancementIR[];
 	explanation?: ExactCompilerExplanation;

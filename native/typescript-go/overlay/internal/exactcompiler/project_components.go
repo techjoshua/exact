@@ -215,6 +215,26 @@ func linkProjectComponents(
 					); strings.Contains(diagnostic, "type-only import") {
 						appendComponentDiagnostic(&record.component, diagnostic)
 					}
+					edgeIndex := len(edges) + 1
+					edges = append(edges, RenderEdge{
+						ID: fmt.Sprintf(
+							"%s:render:%d:%s",
+							record.component.ID,
+							node.Pos(),
+							tagText,
+						),
+						NodeID:          nodeIDs[node],
+						Tag:             tagText,
+						Name:            reference.exportName,
+						ModuleSpecifier: reference.moduleSpecifier,
+						ExportName:      reference.exportName,
+						// Opaque packages publish their precise placement separately.
+						// Keeping the owner placement here preserves existing lowering.
+						Placement: record.component.Placement,
+						Boundary:  record.component.Placement,
+						Index:     edgeIndex,
+						Path:      fmt.Sprintf("%d", node.Pos()),
+					})
 					return true
 				}
 			}

@@ -104,6 +104,10 @@ export type ExactComponentRenderEdgeIR = {
 	tag: string;
 	name: string;
 	componentId?: string;
+	/** Authored module edge for an opaque precompiled component. */
+	moduleSpecifier?: string;
+	/** Selected export for an opaque precompiled component. */
+	exportName?: string;
 	placement: ExactPlacement;
 	boundary: ExactPlacement;
 	index: number;
