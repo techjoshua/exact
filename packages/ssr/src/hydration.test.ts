@@ -41,6 +41,37 @@ describe('@exactjs/ssr hydration', () => {
 		expect(payload.state.records.itemHashes).toHaveLength(2);
 	});
 
+	it('serializes only the compact component authorization identity', () => {
+		const script = renderHydrationScript({
+			componentAuthorization: {
+				protocol: 1,
+				buildKey: 'build-one',
+				fingerprint: 'authorization-one'
+			}
+		});
+		const payload = JSON.parse(script.match(/>(.*)<\/script>/s)![1]) as any;
+
+		expect(payload.componentAuthorization).toEqual({
+			protocol: 1,
+			buildKey: 'build-one',
+			fingerprint: 'authorization-one'
+		});
+		expect(script).not.toContain('packages');
+	});
+
+	it('rejects component authorization prepared for another build', () => {
+		expect(() =>
+			renderHydrationScript({
+				buildKey: 'build-one',
+				componentAuthorization: {
+					protocol: 1,
+					buildKey: 'build-two',
+					fingerprint: 'authorization-two'
+				}
+			})
+		).toThrow('does not match the hydration build key');
+	});
+
 	it('renders compiled cells and dynamic children with hydration markers', () => {
 		function Panel(this: Component<{ show: boolean }>) {
 			this.state.show = true;

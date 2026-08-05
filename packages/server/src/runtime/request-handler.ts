@@ -167,6 +167,12 @@ async function handleExactRequestOwned(
 	if (build === null) {
 		return withBuildHeaders(jsonResponse(410, { error: 'exact_build_unsupported' }), context);
 	}
+	const componentAuthorization = build?.componentAuthorization ?? context.componentAuthorization;
+	if (
+		componentAuthorization &&
+		requestHeader(request, 'x-exact-component-authorization') !== componentAuthorization.fingerprint
+	)
+		return withBuildHeaders(jsonResponse(410, { error: 'exact_build_unsupported' }), context);
 	const responseContext = context;
 	const dispatch = build
 		? (

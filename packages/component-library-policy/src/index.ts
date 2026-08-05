@@ -27,3 +27,4 @@ export {
 	type ExactNodeComponentProvenance,
 	type RecordExactNodeComponentProvenanceOptions
 } from './node-provenance.js';
+export { exactComponentAuthorizationIdentity } from './runtime-identity.js';

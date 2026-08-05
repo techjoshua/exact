@@ -6,6 +6,7 @@ import { flushSync, registerReactiveListKey } from '@exactjs/reactive';
 import { renderHydrationScript, renderToHydratableString } from '@exactjs/ssr';
 import { expect, it } from 'vitest';
 import { hydrate, readExactHydrationConfig } from './index.js';
+import { resolveHydrateOptions } from './config.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 it('reports opt-in hydration timings', () => {
@@ -121,4 +122,31 @@ it('retains generated action invocation metadata from serialized hydration confi
 	});
 
 	expect(readExactHydrationConfig(root).continuations?.[continuation.id]).toEqual(continuation);
+});
+
+it('checks paired component authorization and sends only its fingerprint', () => {
+	const root = document.createElement('div');
+	root.innerHTML = renderHydrationScript({
+		componentAuthorization: {
+			protocol: 1,
+			buildKey: 'build-one',
+			fingerprint: 'authorization-one'
+		}
+	});
+
+	expect(() =>
+		resolveHydrateOptions(root, {
+			componentAuthorization: {
+				protocol: 1,
+				buildKey: 'build-one',
+				fingerprint: 'authorization-two'
+			}
+		})
+	).toThrow('authorization fingerprints do not match');
+	expect(resolveHydrateOptions(root, {}).headers).toEqual({
+		'X-Exact-Component-Authorization': 'authorization-one'
+	});
+	expect(() => resolveHydrateOptions(root, { buildKey: 'another-build' })).toThrow(
+		'does not match the hydration build key'
+	);
 });

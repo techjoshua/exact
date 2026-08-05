@@ -104,6 +104,12 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					the remote component descriptor instead of pretending two independently built trees are
 					one local bundle.
 				</p>
+				<p>
+					A server-executing remote also carries its compact component-library authorization
+					fingerprint. Operation requests must match the retained remote build before dispatch; a
+					mismatch uses the same bounded replacement flow without exposing package provenance to the
+					browser.
+				</p>
 			</section>
 			<section>
 				<h2>Current host support is deliberately explicit</h2>

@@ -88,6 +88,11 @@ export function generateRemoteEntryModule(options: ExactRemoteEntryModuleOptions
 		'',
 		'const __exactRemoteModule = Object.freeze({',
 		`\tbuildKey: ${quote(options.buildKey)},`,
+		...(options.componentAuthorization
+			? [
+					`\tcomponentAuthorization: Object.freeze(${JSON.stringify(options.componentAuthorization)}),`
+				]
+			: []),
 		`\troot: ${quote(options.root)},`,
 		'\tcomponent: __exactComponent,',
 		'\tregistration: __exactRegistration',
@@ -184,12 +189,13 @@ function pathSpecifier(applicationRoot: string, configured: string): string {
 	if (!configured.startsWith('.')) return configured;
 	return path.resolve(applicationRoot, configured).replaceAll('\\', '/');
 }
-import type { ComponentFunction } from '@exactjs/core';
+import type { ComponentFunction, ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactHydrationRegistration } from '@exactjs/hydrate';
 
 /** Public shape exported by every independently loadable eXact remote entry. */
 export type ExactRemoteModule = {
 	buildKey: string;
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	root: string;
 	component: ComponentFunction<any, any>;
 	registration: ExactHydrationRegistration;
@@ -198,6 +204,7 @@ export type ExactRemoteModule = {
 /** Inputs used to generate one canonical remote entry module. */
 export type ExactRemoteEntryModuleOptions = {
 	buildKey: string;
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	root: string;
 	componentImport: string;
 	registrationImport: string;

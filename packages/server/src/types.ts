@@ -5,6 +5,7 @@ import type {
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract,
 	ExactCollectionMutation,
+	ExactComponentAuthorizationIdentity,
 	ComponentResumptionActivation,
 	Logger
 } from '@exactjs/core';
@@ -166,6 +167,8 @@ export type ExactServerContextAccessObservation = Readonly<{
 
 /** Configures exact server context. */
 export type ExactServerContextConfiguration = {
+	/** Compact authorization identity required from coordinated client artifacts. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	/**
 	 * Trusted externally visible application origin. A resolver is an explicit
 	 * deployment trust boundary and must apply the host server's proxy policy.
@@ -274,6 +277,7 @@ export type ExactRemoteRootDispatch = {
 /** Registers the executor artifacts retained for one immutable client build. */
 export type ExactRemoteBuildRegistration = {
 	buildKey: string;
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	roots: Readonly<Record<string, ExactRemoteRootDispatch>>;
 };
 

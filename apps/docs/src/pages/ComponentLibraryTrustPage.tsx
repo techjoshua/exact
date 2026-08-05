@@ -40,8 +40,8 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 				<h2>One application policy</h2>
 				<p>
 					The default <code>trusted</code> mode admits compatible direct dependencies, explicit
-					packages and scopes, official eXact libraries, and production dependencies delegated by
-					an already authorized library. A deny rule always wins. Rules may constrain a resolved
+					packages and scopes, official eXact libraries, and production dependencies delegated by an
+					already authorized library. A deny rule always wins. Rules may constrain a resolved
 					package version or lockfile integrity.
 				</p>
 				<CodeBlock source={policySource} language="ts" title="exact.config.ts" />
@@ -62,6 +62,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					evaluation. Successful server builds emit a compact authorization manifest and a redacted
 					audit under <code>.exact/</code>. Client-only component code requires no additional eXact
 					authorization.
+				</p>
+				<p>
+					Paired hydration and retained remote artifacts carry only the manifest protocol, build
+					key, and fingerprint. A mismatch follows the existing unsupported-build recovery path;
+					package and policy provenance stays server-private.
 				</p>
 				<p>
 					This authorizes ordinary in-process JavaScript; it is not a sandbox. Framework-plugin

@@ -8,6 +8,7 @@ import type {
 	ComponentInstance,
 	ComponentResumptionActivation,
 	ExactRuntimeInspectionOwner,
+	ExactComponentAuthorizationIdentity,
 	Logger,
 	TaskObserver,
 	UnsafeHtmlAuditEvent,
@@ -97,6 +98,8 @@ export type HydrationScriptOptions = {
 	executionRoot?: string;
 	binding?: string;
 	buildKey?: string;
+	/** Compact server-build component authorization identity checked by hydration. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	scriptId?: string;
 	nonce?: string;
 	/** Maximum hydration JSON graph depth. Defaults to 100. */

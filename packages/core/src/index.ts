@@ -26,6 +26,11 @@ export {
 	type CleanupFailure
 } from './cleanup.js';
 export { normalizeActivityMode } from './activity.js';
+export {
+	isExactComponentAuthorizationIdentity,
+	sameExactComponentAuthorization,
+	type ExactComponentAuthorizationIdentity
+} from './component/authorization.js';
 export { observeComponentAsync, trackComponentAsync } from './component/async.js';
 export {
 	currentInteraction,

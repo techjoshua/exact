@@ -19,10 +19,7 @@ import { defineConfig } from '@exactjs/config';
 export default defineConfig({
 	componentLibraries: {
 		mode: 'trusted',
-		allow: [
-			'@acme/maps',
-			{ package: '@vendor/charts', version: '^2.4.0' }
-		],
+		allow: ['@acme/maps', { package: '@vendor/charts', version: '^2.4.0' }],
 		deny: ['@unreviewed/'],
 		trustedScopes: ['@company/'],
 		unauthorizedOptionalEnhancements: 'error'
@@ -86,6 +83,10 @@ Each successful server build writes private files under `.exact/`:
 The audit excludes absolute package paths, raw integrity values, source text, and unrelated
 dependencies. Client output must never expose the full policy or audit graph.
 
+Paired SSR, hydration, and retained remote artifacts exchange only the compact `{ protocol,
+buildKey, fingerprint }` identity projected from the manifest. Hydration rejects a mismatched
+client/server identity, and server operations carrying a stale fingerprint follow the existing
+unsupported-build recovery path.
+
 Framework-plugin discovery remains independent. A package can separately be a component library
 and a framework plugin, but authorizing either role never authorizes the other.
-

@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactMicrofrontendConfig } from './config.js';
 import {
 	generateProvidedPackageBootstrap,
@@ -22,6 +23,7 @@ export type ExactRemoteExposureArtifact = {
 /** Bundler-neutral artifact description mapped by each supported adapter. */
 export type ExactRemoteArtifactPlan = {
 	buildKey: string;
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	providedPackages: readonly string[];
 	providedBootstrapSource: string;
 	exposures: readonly ExactRemoteExposureArtifact[];
@@ -30,9 +32,18 @@ export type ExactRemoteArtifactPlan = {
 /** Creates canonical entries and provider publication for one application build. */
 export function createExactRemoteArtifactPlan(
 	config: ExactMicrofrontendConfig,
-	options: { packageName: string; buildKey: string }
+	options: {
+		packageName: string;
+		buildKey: string;
+		componentAuthorization?: ExactComponentAuthorizationIdentity;
+	}
 ): ExactRemoteArtifactPlan {
 	validateBuildKey(options.buildKey);
+	if (
+		options.componentAuthorization &&
+		options.componentAuthorization.buildKey !== options.buildKey
+	)
+		throw new Error('Remote component authorization does not match its build key');
 	if (!options.packageName) throw new Error('Remote artifact plan requires a package name');
 	const providedPackages = Object.freeze(allProvidedPackageKeys(config.providedPackages));
 	const exposures = Object.freeze(
@@ -54,6 +65,9 @@ export function createExactRemoteArtifactPlan(
 					registrationId,
 					entrySource: generateRemoteEntryModule({
 						buildKey: options.buildKey,
+						...(options.componentAuthorization
+							? { componentAuthorization: options.componentAuthorization }
+							: {}),
 						root,
 						componentImport: componentFacadeId,
 						registrationImport: registrationId
@@ -63,6 +77,9 @@ export function createExactRemoteArtifactPlan(
 	);
 	return Object.freeze({
 		buildKey: options.buildKey,
+		...(options.componentAuthorization
+			? { componentAuthorization: options.componentAuthorization }
+			: {}),
 		providedPackages,
 		providedBootstrapSource: generateProvidedPackageBootstrap(providedPackages),
 		exposures

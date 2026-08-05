@@ -1,4 +1,9 @@
-import { decodeReactiveProtocolValue, sameJsonData } from '@exactjs/core';
+import {
+	decodeReactiveProtocolValue,
+	isExactComponentAuthorizationIdentity,
+	sameExactComponentAuthorization,
+	sameJsonData
+} from '@exactjs/core';
 import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
 import type {
 	ClientIslandRegistry,
@@ -70,9 +75,18 @@ function parseHydrationConfig(
 				'publicContexts',
 				'executionRoot',
 				'binding',
-				'buildKey'
+				'buildKey',
+				'componentAuthorization'
 			])
 		)
+			return {};
+		const componentAuthorization = isExactComponentAuthorizationIdentity(
+			record.componentAuthorization
+		)
+			? record.componentAuthorization
+			: undefined;
+		const buildKey = typeof record.buildKey === 'string' ? record.buildKey : undefined;
+		if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
 			return {};
 		return {
 			pluginRegistryFingerprint:
@@ -87,7 +101,8 @@ function parseHydrationConfig(
 			publicContexts: isRecord(record.publicContexts) ? record.publicContexts : undefined,
 			executionRoot: typeof record.executionRoot === 'string' ? record.executionRoot : undefined,
 			binding: typeof record.binding === 'string' ? record.binding : undefined,
-			buildKey: typeof record.buildKey === 'string' ? record.buildKey : undefined
+			buildKey,
+			componentAuthorization
 		};
 	} catch {
 		return {};
@@ -107,6 +122,16 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 	if (config.buildKey && options.buildKey && config.buildKey !== options.buildKey) {
 		throw new Error('Client and server eXact build identities do not match');
 	}
+	if (
+		config.componentAuthorization &&
+		options.componentAuthorization &&
+		!sameExactComponentAuthorization(config.componentAuthorization, options.componentAuthorization)
+	)
+		throw new Error('Client and server component authorization fingerprints do not match');
+	const componentAuthorization = options.componentAuthorization ?? config.componentAuthorization;
+	const buildKey = options.buildKey ?? config.buildKey;
+	if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
+		throw new Error('Component authorization identity does not match the hydration build key');
 	return {
 		...options,
 		endpoint: options.endpoint ?? config.endpoint,
@@ -122,7 +147,14 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 		publicContexts: options.publicContexts ?? config.publicContexts,
 		executionRoot: options.executionRoot ?? config.executionRoot,
 		binding: options.binding ?? config.binding,
-		buildKey: options.buildKey ?? config.buildKey
+		buildKey,
+		componentAuthorization,
+		headers: componentAuthorization
+			? {
+					...options.headers,
+					'X-Exact-Component-Authorization': componentAuthorization.fingerprint
+				}
+			: options.headers
 	};
 }
 

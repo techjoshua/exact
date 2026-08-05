@@ -4,6 +4,7 @@ import type {
 	ExactComponentContinuationContract,
 	ExactRuntimeInspectionOwner,
 	ComponentFunction,
+	ExactComponentAuthorizationIdentity,
 	ErrorReport,
 	Logger,
 	UnsafeHtmlAuditEvent
@@ -36,6 +37,8 @@ export type HydrateOptions = {
 	binding?: string;
 	/** Full Git commit SHA embedded in this client root's generated entry. */
 	buildKey?: string;
+	/** Compact bundler authorization identity for the paired client artifact. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	/** Explicit observation owner; instrumented bootstraps derive one when omitted. */
 	inspection?: ExactRuntimeInspectionOwner;
 	/** Internal explicit ownership used when mounting islands into this client root. */
@@ -147,6 +150,7 @@ export type ExactHydrationConfig = {
 	executionRoot?: string;
 	binding?: string;
 	buildKey?: string;
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 };
 
 /** Defines the exact hydration registration type contract. */

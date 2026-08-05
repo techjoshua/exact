@@ -6,6 +6,12 @@ import type { HydrationScriptOptions } from './types.js';
 
 /** Renders the JSON script tag consumed by the hydration client. */
 export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
+	if (
+		options.buildKey &&
+		options.componentAuthorization &&
+		options.componentAuthorization.buildKey !== options.buildKey
+	)
+		throw new Error('Component authorization identity does not match the hydration build key');
 	const payloadValue = processExactOutputSync<Record<string, unknown>>(
 		omitUndefinedProperties({
 			pluginRegistryFingerprint: options.pluginRegistryFingerprint,
@@ -17,7 +23,8 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 			publicContexts: options.publicContexts,
 			executionRoot: options.executionRoot,
 			binding: options.binding,
-			buildKey: options.buildKey
+			buildKey: options.buildKey,
+			componentAuthorization: options.componentAuthorization
 		}),
 		{ kind: 'hydration' },
 		(options.outputExtensions ?? []) as readonly ExactOutputExtension<Record<string, unknown>>[]

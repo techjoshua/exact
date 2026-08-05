@@ -9,6 +9,7 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import {
 	ExactComponentAuthorizationError,
 	createExactComponentAuthorizationSession,
+	exactComponentAuthorizationIdentity,
 	normalizeExactComponentLibraryPolicy,
 	type ExactComponentAuthorizationSession,
 	type ExactResolvedComponentCandidate,
@@ -37,9 +38,9 @@ describe('@exactjs/component-library-policy', () => {
 				allow: [{ package: '@acme/cards', version: 'not semver' }]
 			})
 		).toThrow('valid semver range');
-		expect(() =>
-			normalizeExactComponentLibraryPolicy({ unexpected: true } as never)
-		).toThrow('unexpected is not a supported property');
+		expect(() => normalizeExactComponentLibraryPolicy({ unexpected: true } as never)).toThrow(
+			'unexpected is not a supported property'
+		);
 		expect(() =>
 			normalizeExactComponentLibraryPolicy({
 				allow: [{ package: '@acme/cards', unexpected: true } as never]
@@ -67,6 +68,11 @@ describe('@exactjs/component-library-policy', () => {
 		]);
 		expect(JSON.stringify(first)).not.toContain(fixture.root);
 		expect(JSON.stringify(first)).not.toContain('sha512-secret-integrity');
+		expect(exactComponentAuthorizationIdentity(first.manifest)).toEqual({
+			protocol: 1,
+			buildKey: 'build-one',
+			fingerprint: first.manifest.fingerprint
+		});
 	});
 
 	it('applies deny before root and constrained allow rules by resolved instance', async () => {
