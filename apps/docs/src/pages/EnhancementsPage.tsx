@@ -60,6 +60,20 @@ export function EnhancementsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Build metadata, not plugin authority</h2>
+				<p>
+					The compiler reports the package identity supplied by the build, canonical component
+					ownership, client/server placement and reachability, and canonical enhancement exports.
+					Those data are the compiler&apos;s complete portable seam for catalog linking and later
+					server component-library policy.
+				</p>
+				<p>
+					The metadata never grants trust. A server bundler combines it with the physical package,
+					alias, lockfile, and module graph that the bundler actually resolved. The compiler does
+					not read a component-library marker or duplicate bundler authorization diagnostics.
+				</p>
+			</section>
+			<section>
 				<h2>Component libraries in this repository</h2>
 				<div className="card-grid">
 					<Link className="topic-card" to="/components/motion">

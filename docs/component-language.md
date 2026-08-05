@@ -621,6 +621,26 @@ attachment first. The reserved `namespace:root` selector is restricted to that s
 it cannot redirect an enhancement authored directly on an intrinsic. DOM rendering, SSR, hydration,
 and component testing use the same routing contract.
 
+### Portable build metadata
+
+Enhancement composition does not introduce a plugin manifest or a second component registry. For
+each compiled module, the compiler's existing portable analysis is the complete compiler-provided
+input for build adapters:
+
+- `packageName` identifies the package boundary supplied by the build integration;
+- `components` records canonical component IDs, inferred placement, environment effects, and the
+  client/server artifact targets that can contain each component;
+- `partitionPlan` records component ownership and actual client/server reachability through the
+  compiled output graph; and
+- `rendererEnhancements` records each selected canonical enhancement identity together with its
+  module specifier and export name for bundle-local catalog linking.
+
+The fields are data-only and safe to pass between the compiler host and build integrations. They
+do not say that a package is trusted, inspect `@exactjs/component-library`, read application policy,
+or authorize execution. A server-executing bundler combines this semantic output with its own
+resolved module and package graph. The bundler is the only authority for package provenance and
+component-library trust; compiler and language-service diagnostics do not approximate that policy.
+
 ### Events
 
 DOM events use `onName` and capture events use `onNameCapture`:

@@ -6359,6 +6359,107 @@ func TestSessionLowersFiniteEnhancementActivatorNamespaces(t *testing.T) {
 	}
 }
 
+func TestSessionGroupsEnhancementActivatorAliasesByCanonicalComponent(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	entrySource := `
+		import * as motion from "./motion.js" with { type: "exact-enhancement" };
+		export const view = (
+			<section motion:fade={false} motion:slide-up={{ distance: 24 }} motion:duration={180} />
+		);
+	`
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:  entrySource,
+		filepath.Join(root, "motion.ts"): `
+			export { fade, slideUp } from "./motion-capability.js";
+		`,
+		filepath.Join(root, "motion-capability.ts"): `
+			export { TransitionMotion as fade, TransitionMotion as slideUp }
+				from "./motion-implementation.js" with { type: "exact-enhancement" };
+		`,
+		filepath.Join(root, "motion-implementation.ts"): `
+			export function TransitionMotion(props: {
+				fade?: boolean;
+				slideUp?: true | { distance: number };
+				duration?: number;
+				children?: unknown;
+			}) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("canonical enhancement activators produced an error: %#v", response.Diagnostics)
+		}
+	}
+	if strings.Count(response.Code, "createEnhancementMarker") != 1 {
+		t.Fatalf("canonical activator aliases did not produce one grouped marker:\n%s", response.Code)
+	}
+	for _, expected := range []string{"fade:", "slideUp:", "distance: 24", "duration:"} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("canonical activator group omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if len(response.Analysis.Enhancements) != 1 {
+		t.Fatalf("canonical activator aliases produced duplicate metadata: %#v", response.Analysis.Enhancements)
+	}
+}
+
+func TestSessionSuppressesDefaultEnhancementWhenNamedActivatorIsPresent(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	entrySource := `
+		import * as motion from "./motion.js" with { type: "exact-enhancement" };
+		export const implicit = <section motion:duration={100} />;
+		export const selected = <section motion:fade motion:duration={200} />;
+	`
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:  entrySource,
+		filepath.Join(root, "motion.ts"): `
+			export { DefaultMotion as default, FadeMotion as fade }
+				from "./motion-implementation.js" with { type: "exact-enhancement" };
+		`,
+		filepath.Join(root, "motion-implementation.ts"): `
+			export function DefaultMotion(props: { duration?: number; children?: unknown }) { return props.children; }
+			export function FadeMotion(props: { duration?: number; children?: unknown }) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("default and named enhancement selection produced an error: %#v", response.Diagnostics)
+		}
+	}
+	if strings.Count(response.Code, `identity: "./motion.js#default"`) != 1 {
+		t.Fatalf("default enhancement was not limited to the unactivated boundary:\n%s", response.Code)
+	}
+	if strings.Count(response.Code, `identity: "./motion.js#fade"`) != 1 {
+		t.Fatalf("named activator did not suppress the default enhancement:\n%s", response.Code)
+	}
+}
+
 func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) {
 	valid := NewSession().Execute(Request{
 		ID: "target.tsx", Kind: "compile",
@@ -6532,7 +6633,7 @@ func TestSessionChecksEnhancementPropTypesAndUnionCorrelation(t *testing.T) {
 		export const view = <div motion:kind="tween" motion:delay="soon" />;
 	`)
 	if !containsDiagnosticCode(wrongTemplate.Diagnostics, "EXACT6011") {
-		t.Fatalf("invalid plugin template-literal prop was accepted: %#v", wrongTemplate.Diagnostics)
+		t.Fatalf("invalid enhancement template-literal prop was accepted: %#v", wrongTemplate.Diagnostics)
 	}
 	wrongCombination := compile(`
 		import { motion } from "./motion.js" with { type: "exact-enhancement" };
@@ -6550,7 +6651,7 @@ func TestSessionChecksEnhancementPropTypesAndUnionCorrelation(t *testing.T) {
 		export const view = <div {...options} />;
 	`)
 	if !containsDiagnosticCode(wrongSpread.Diagnostics, "EXACT6011") {
-		t.Fatalf("invalid finite plugin union spread was accepted: %#v", wrongSpread.Diagnostics)
+		t.Fatalf("invalid finite enhancement union spread was accepted: %#v", wrongSpread.Diagnostics)
 	}
 }
 

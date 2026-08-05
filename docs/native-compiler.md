@@ -78,6 +78,22 @@ Generated operation identifiers, ephemeral module analysis, helper imports, and 
 are compiler-session details. Applications should depend on authored TypeScript behavior and
 documented executable runtime contracts rather than generated representation.
 
+### Portable build analysis
+
+Although the complete module analysis is owned by a compiler session, a stable build-facing subset
+crosses the compiler/bundler boundary. `ExactModuleAnalysis.packageName` carries the package identity
+provided by the build integration. Its `components` and `partitionPlan` entries carry canonical
+component ownership, placement, environment effects, and concrete client/server artifact
+reachability. `rendererEnhancements` carries canonical enhancement identity plus the module
+specifier and export needed to construct a bundle-local enhancement catalog.
+
+This is the sole compiler-provided seam for component-library authorization. It is deliberately
+descriptive rather than authoritative: the compiler does not read the component-library marker,
+trust configuration, lockfile, aliases, or resolved physical package graph. A server bundler must
+join these facts to its own resolved graph and enforce one policy before evaluating admitted server
+modules. Client-only component code remains distinguishable through placement and artifact targets
+without adding a compiler-side trust decision.
+
 ## Repository-only compiler corpus
 
 [`../fixtures/native-compiler-corpus`](../fixtures/native-compiler-corpus) retains focused
