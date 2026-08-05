@@ -152,6 +152,7 @@ export function inspectExactRuntimeComponent(
 		ownedElements?: number;
 		activity?: ExactInspectedRuntimeComponent['activity'];
 		suspense?: ExactInspectedRuntimeComponent['suspense'];
+		targetContributions?: ExactInspectedRuntimeComponent['targetContributions'];
 	}> = {}
 ): ExactInspectedRuntimeComponent | undefined {
 	const owner = componentDomainInspection(component.domain);
@@ -172,6 +173,9 @@ export function inspectExactRuntimeComponent(
 		]),
 		...(options.activity ? { activity: options.activity } : {}),
 		...(options.suspense ? { suspense: options.suspense } : {}),
+		...(options.targetContributions?.length
+			? { targetContributions: Object.freeze([...options.targetContributions]) }
+			: {}),
 		ownedElements: options.ownedElements ?? 0
 	});
 }
