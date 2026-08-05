@@ -22,3 +22,8 @@ export {
 	createExactComponentAuthorizationSession,
 	type CreateExactComponentAuthorizationSessionOptions
 } from './session.js';
+export {
+	recordExactNodeComponentProvenance,
+	type ExactNodeComponentProvenance,
+	type RecordExactNodeComponentProvenanceOptions
+} from './node-provenance.js';

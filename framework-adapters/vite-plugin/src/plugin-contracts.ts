@@ -69,6 +69,7 @@ export type ExactPlugin = {
 	resolveId?(
 		this: {
 			warn?(message: string): void;
+			addWatchFile?(file: string): void;
 			resolve?(
 				source: string,
 				importer?: string,
@@ -99,7 +100,7 @@ export type ExactPlugin = {
 		this: { warn?(message: string): void },
 		id: string,
 		change: { event: 'create' | 'update' | 'delete' }
-	): void;
+	): void | Promise<void>;
 	transformIndexHtml?: {
 		order: 'pre';
 		handler(html: string): string;
@@ -110,6 +111,6 @@ export type ExactPlugin = {
 		},
 		_options: unknown,
 		bundle: Readonly<Record<string, ExactRollupOutputLike>>
-	): void;
+	): void | Promise<void>;
 	closeBundle?(): void;
 };

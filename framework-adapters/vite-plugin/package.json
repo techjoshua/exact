@@ -16,6 +16,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
+		"@exactjs/component-library-policy": "^0.1.0",
 		"@exactjs/compiler": "^0.1.0",
 		"@exactjs/devtools-protocol": "^0.1.0",
 		"@exactjs/devtools-runtime": "^0.1.0",

@@ -6,6 +6,13 @@ import {
 	resolveExactArtifactImport,
 	type ExactSourceInspection
 } from '@exactjs/compiler';
+import type { ExactComponentBuildFacts } from '@exactjs/compiler';
+import {
+	createExactComponentAuthorizationSession,
+	recordExactNodeComponentProvenance,
+	type ExactComponentAuthorizationSession,
+	type ExactResolvedComponentCandidate
+} from '@exactjs/component-library-policy';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import {
 	containsExactBuildJsx,
@@ -28,6 +35,7 @@ import {
 } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js';
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 import { exactModuleFilename, exactTransformTarget } from './module-selection.js';
@@ -89,6 +97,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			)
 		: undefined;
 	let preparedRegistry: ExactPreparedPluginRegistry | undefined;
+	let authorizationSession: ExactComponentAuthorizationSession | undefined;
+	const componentFacts = new Map<
+		string,
+		Readonly<{ facts: ExactComponentBuildFacts; version: string }>
+	>();
 	let viteCommand: 'build' | 'serve' = 'build';
 	let configuredDebug = options.debug;
 	const inspectionModules = new Map<
@@ -109,6 +122,15 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		});
 		configuredDebug ??= preparedRegistry.config?.debug;
 		return preparedRegistry;
+	};
+	const openAuthorizationGeneration = (registry: ExactPreparedPluginRegistry): void => {
+		authorizationSession?.dispose();
+		authorizationSession = createExactComponentAuthorizationSession({
+			buildKey: viteAuthorizationBuildKey(registry.applicationRoot, configuredDebug?.buildKey),
+			config: registry.config?.componentLibraries
+		});
+		for (const [moduleId, record] of componentFacts)
+			authorizationSession.recordImporterFacts(moduleId, record.facts, record.version);
 	};
 	return {
 		name: 'exact',
@@ -142,6 +164,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			inspectionModules.clear();
 			for (const file of compatibilityEngine?.watchFiles ?? []) this.addWatchFile(file);
 			const registry = await prepareRegistry();
+			if (options.target === 'server') openAuthorizationGeneration(registry);
 			validateViteDebugIdentity(configuredDebug, viteCommand);
 			for (const file of registry.watchFiles) this.addWatchFile(file);
 			for (const warning of registry.warnings) this.warn?.(warning);
@@ -166,7 +189,27 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		resolveId(source, importer) {
 			if (source in exactEnhancementFacades) {
 				const facade = exactEnhancementFacades[source as keyof typeof exactEnhancementFacades];
-				return this.resolve ? this.resolve(facade, importer, { skipSelf: true }) : facade;
+				const resolved = this.resolve ? this.resolve(facade, importer, { skipSelf: true }) : facade;
+				if (
+					!viteRequiresComponentAuthorization(
+						source,
+						importer,
+						componentFacts,
+						authorizationSession
+					)
+				)
+					return resolved;
+				return Promise.resolve(resolved).then((value) =>
+					authorizeViteComponentResolution(
+						value,
+						source,
+						importer,
+						componentFacts,
+						authorizationSession,
+						preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+						(file) => this.addWatchFile?.(file)
+					)
+				);
 			}
 			if (
 				source === exactDevtoolsRuntimeModule &&
@@ -189,7 +232,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					)?.id ?? null
 				);
 			};
-			return microfrontends.resolveId(
+			const resolved = microfrontends.resolveId(
 				source,
 				importer,
 				resolveFrameworkImport,
@@ -197,6 +240,26 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					? (request, owner) => this.resolve!(request, owner, { skipSelf: true })
 					: undefined
 			);
+			if (
+				!viteRequiresComponentAuthorization(source, importer, componentFacts, authorizationSession)
+			)
+				return resolved;
+			return Promise.resolve(resolved)
+				.then((value) =>
+					value ??
+					(this.resolve ? this.resolve(source, importer, { skipSelf: true }) : null)
+				)
+				.then((value) =>
+					authorizeViteComponentResolution(
+						value,
+						source,
+						importer,
+						componentFacts,
+						authorizationSession,
+						preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+						(file) => this.addWatchFile?.(file)
+					)
+				);
 		},
 		load(id) {
 			if (id === resolvedExactDevtoolsRuntimeModule)
@@ -238,9 +301,27 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					});
 				}
 			}
+			if (options.target === 'server' && authorizationSession) {
+				if (!this.emitFile)
+					throw new Error('Vite/Rollup emitFile is unavailable for component authorization');
+				const emitFile = this.emitFile.bind(this);
+				return authorizationSession.commitGeneration().then((committed) => {
+					emitFile({
+						type: 'asset',
+						fileName: '.exact/component-library-authorization.json',
+						source: `${JSON.stringify(committed.manifest, null, 2)}\n`
+					});
+					emitFile({
+						type: 'asset',
+						fileName: '.exact/component-library-audit.json',
+						source: `${JSON.stringify(committed.audit, null, 2)}\n`
+					});
+					microfrontends.generateBundle(bundle);
+				});
+			}
 			microfrontends.generateBundle(bundle);
 		},
-		handleHotUpdate(context) {
+		async handleHotUpdate(context) {
 			if (options.diagnostics === undefined) configureDiagnostics(true);
 			compatibilityEngine?.invalidate(context.file);
 			if (preparedRegistry?.watchFiles.includes(path.resolve(context.file))) {
@@ -252,6 +333,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			diagnosticReporter(compilerSession.invalidate(context.file), (message) =>
 				this.warn?.(message)
 			);
+			if (options.target === 'server') {
+				authorizationSession?.rejectGeneration();
+				componentFacts.delete(exactModuleFilename(context.file));
+				openAuthorizationGeneration(await prepareRegistry());
+			}
 		},
 		watchChange(id, change) {
 			if (options.diagnostics === undefined) configureDiagnostics(true);
@@ -265,6 +351,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		closeBundle() {
+			authorizationSession?.dispose();
 			compilerSession.dispose();
 		},
 		transform(code, id) {
@@ -314,6 +401,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						instrumentInspection: inspectionRuntimeEnabled(configuredDebug, viteCommand)
 					},
 					finish: (result) => {
+						const version = sourceVersion(code);
+						componentFacts.set(filename, Object.freeze({ facts: result.componentBuild, version }));
+						if (options.target === 'server' && authorizationSession)
+							authorizationSession.recordImporterFacts(filename, result.componentBuild, version);
 						const rewritten = compatibilityEngine
 							? compatibilityEngine.transformModule({
 									id: filename,
@@ -369,4 +460,88 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			return { code: output.code, map: output.map, moduleType: 'js' };
 		}
 	};
+}
+
+async function authorizeViteComponentResolution(
+	resolved: string | { id: string; external?: boolean | 'absolute' | 'relative' } | null,
+	source: string,
+	importer: string | undefined,
+	factsByModule: ReadonlyMap<
+		string,
+		Readonly<{ facts: ExactComponentBuildFacts; version: string }>
+	>,
+	session: ExactComponentAuthorizationSession | undefined,
+	applicationRoot: string,
+	watch: (file: string) => void
+): Promise<string | { id: string; external?: boolean | 'absolute' | 'relative' } | null> {
+	if (!resolved || !importer || !session) return resolved;
+	const importerModuleId = exactModuleFilename(importer);
+	const importerRecord = factsByModule.get(importerModuleId);
+	if (!importerRecord) return resolved;
+	const componentEdge = importerRecord.facts.componentImports.find(
+		(edge) => edge.moduleSpecifier === source && edge.artifactTargets.includes('server')
+	);
+	const enhancementEdge = importerRecord.facts.rendererEnhancements.find(
+		(edge) => edge.moduleSpecifier === source
+	);
+	if (!componentEdge && !enhancementEdge) return resolved;
+	const resolvedModuleId = typeof resolved === 'string' ? resolved : resolved.id;
+	const provenance = await recordExactNodeComponentProvenance({
+		session,
+		applicationRoot,
+		importerModuleId,
+		moduleSpecifier: source,
+		resolvedModuleId
+	});
+	for (const file of provenance.watchFiles) watch(file);
+	const candidate: ExactResolvedComponentCandidate = Object.freeze({
+		importerModuleId,
+		moduleSpecifier: source,
+		exportName: componentEdge?.exportName ?? enhancementEdge!.exportName,
+		resolvedModuleId,
+		packageInstanceKey: provenance.instance.key,
+		reason: enhancementEdge ? 'server-enhancement' : serverReason(componentEdge!.reason),
+		...(enhancementEdge ? { optionalEnhancementIdentity: enhancementEdge.identity } : {})
+	});
+	const authorization = await session.authorizeResolvedComponent(candidate);
+	return authorization.outcome === 'omitted' ? null : resolved;
+}
+
+function viteRequiresComponentAuthorization(
+	source: string,
+	importer: string | undefined,
+	factsByModule: ReadonlyMap<
+		string,
+		Readonly<{ facts: ExactComponentBuildFacts; version: string }>
+	>,
+	session: ExactComponentAuthorizationSession | undefined
+): boolean {
+	if (!importer || !session) return false;
+	const facts = factsByModule.get(exactModuleFilename(importer))?.facts;
+	return (
+		facts?.componentImports.some(
+			(edge) => edge.moduleSpecifier === source && edge.artifactTargets.includes('server')
+		) === true ||
+		facts?.rendererEnhancements.some((edge) => edge.moduleSpecifier === source) === true
+	);
+}
+
+function serverReason(
+	reason: ExactComponentBuildFacts['componentImports'][number]['reason']
+): ExactResolvedComponentCandidate['reason'] {
+	if (reason === 'enhancement') return 'server-enhancement';
+	if (reason === 'task-owner') return 'server-task';
+	if (reason === 'continuation') return 'server-component';
+	return 'ssr';
+}
+
+function sourceVersion(source: string): string {
+	return createHash('sha256').update(source).digest('base64url');
+}
+
+function viteAuthorizationBuildKey(applicationRoot: string, configured?: string): string {
+	return (
+		configured ??
+		`vite-${createHash('sha256').update(path.resolve(applicationRoot)).digest('base64url')}`
+	);
 }
