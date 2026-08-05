@@ -959,6 +959,31 @@ func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
 	}
 }
 
+func TestSessionKeepsUnknownComponentChildrenInClientOnlyArtifacts(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "client-only.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare function External(props: { children?: unknown }): unknown;
+			export function Page() {
+				return () => <External><span>Client child</span></External>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, "__exactServerSlot") {
+		t.Fatalf("client-only compilation replaced an unknown component child with a server slot:\n%s", response.Code)
+	}
+	for _, expected := range []string{`__exactVNode(External`, `__exactVNode("span"`, `"Client child"`} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("client-only component output omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestSessionExtractsIntrinsicClientIslandFromServerArtifact(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:               "panel.tsx",

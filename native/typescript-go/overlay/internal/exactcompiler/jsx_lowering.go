@@ -941,7 +941,8 @@ func (lowering *jsxLowering) lowerOpeningLike(
 	}
 	intrinsic := jsxIntrinsic(tagText)
 	partitionEdge, partitionedServerComponent := lowering.serverPartitionRangeEdge(identityNode.Pos())
-	if !intrinsic && partitionedServerComponent && lowering.target == TargetClient {
+	if !intrinsic && partitionedServerComponent && lowering.target == TargetClient &&
+		lowering.serverComponents {
 		return lowering.clientPartitionSlot(opening, partitionEdge)
 	}
 	if intrinsic && lowering.target == TargetServer &&
