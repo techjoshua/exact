@@ -36,7 +36,8 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 		expect(committed?.manifest.packages[0]).toMatchObject({
 			name: '@acme/cards',
 			decision: 'root',
-			reasons: ['ssr']
+			reasons: ['ssr'],
+			integrityHash: expect.any(String)
 		});
 		expect(existsSync(fixture.executedFile)).toBe(false);
 	});
@@ -84,6 +85,15 @@ function createFixture() {
 	writeFileSync(
 		path.join(root, 'package.json'),
 		JSON.stringify({ name: '@app/test', version: '1.0.0', dependencies: { '@acme/cards': '1.0.0' } })
+	);
+	writeFileSync(
+		path.join(root, 'package-lock.json'),
+		JSON.stringify({
+			lockfileVersion: 3,
+			packages: {
+				'node_modules/@acme/cards': { integrity: 'sha512-fixture-integrity' }
+			}
+		})
 	);
 	writeFileSync(
 		path.join(libraryRoot, 'package.json'),

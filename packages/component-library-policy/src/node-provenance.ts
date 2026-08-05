@@ -31,14 +31,18 @@ export async function recordExactNodeComponentProvenance(
 	options: RecordExactNodeComponentProvenanceOptions
 ): Promise<ExactNodeComponentProvenance> {
 	const applicationRoot = await realpath(path.resolve(options.applicationRoot));
-	const candidate = await packageInstanceForModule(options.resolvedModuleId);
+	let candidate = await packageInstanceForModule(options.resolvedModuleId);
+	const lockfile = findUpFile(applicationRoot, 'package-lock.json');
+	if (lockfile) candidate = await withNpmIntegrity(candidate, lockfile);
 	options.session.recordPackageInstance(candidate.instance);
 	const watchFiles = new Set<string>([candidate.instance.manifestPath]);
+	if (lockfile) watchFiles.add(lockfile);
 	const applicationManifestPath = findPackageManifest(applicationRoot);
 	if (!applicationManifestPath)
 		throw new Error(`No application package.json found from ${applicationRoot}`);
 	const applicationManifest = await readManifest(applicationManifestPath);
-	const importer = await optionalPackageInstanceForModule(options.importerModuleId);
+	let importer = await optionalPackageInstanceForModule(options.importerModuleId);
+	if (importer && lockfile) importer = await withNpmIntegrity(importer, lockfile);
 	const importerIsApplication =
 		!importer ||
 		path.resolve(importer.instance.root) === path.resolve(path.dirname(applicationManifestPath));
@@ -70,6 +74,26 @@ export async function recordExactNodeComponentProvenance(
 	return Object.freeze({
 		instance: candidate.instance,
 		watchFiles: Object.freeze([...watchFiles].sort())
+	});
+}
+
+async function withNpmIntegrity(
+	resolved: ResolvedPackage,
+	lockfilePath: string
+): Promise<ResolvedPackage> {
+	let lock: { packages?: Record<string, { integrity?: unknown }> };
+	try {
+		lock = JSON.parse(await readFile(lockfilePath, 'utf8')) as typeof lock;
+	} catch {
+		return resolved;
+	}
+	const lockRoot = path.dirname(lockfilePath);
+	const key = path.relative(lockRoot, resolved.instance.root).replaceAll(path.sep, '/');
+	const integrity = lock.packages?.[key]?.integrity;
+	if (typeof integrity !== 'string' || !integrity) return resolved;
+	return Object.freeze({
+		manifest: resolved.manifest,
+		instance: Object.freeze({ ...resolved.instance, integrity })
 	});
 }
 
@@ -158,6 +182,17 @@ function findPackageManifest(start: string): string | undefined {
 	let directory = path.resolve(start);
 	while (true) {
 		const candidate = path.join(directory, 'package.json');
+		if (existsSync(candidate)) return candidate;
+		const parent = path.dirname(directory);
+		if (parent === directory) return undefined;
+		directory = parent;
+	}
+}
+
+function findUpFile(start: string, name: string): string | undefined {
+	let directory = path.resolve(start);
+	while (true) {
+		const candidate = path.join(directory, name);
 		if (existsSync(candidate)) return candidate;
 		const parent = path.dirname(directory);
 		if (parent === directory) return undefined;
