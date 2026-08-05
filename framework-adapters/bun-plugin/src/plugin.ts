@@ -4,6 +4,7 @@ import {
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
 	type ExactAssetRule,
+	type ExactComponentBuildFacts,
 	type ExactCompilerSession,
 	type ExactSourceInspection,
 	type TransformTarget
@@ -37,6 +38,10 @@ import {
 	resolveBunDebug,
 	type ExactBunInspectionModule
 } from './devtools.js';
+import {
+	ExactBunComponentAuthorization,
+	type ExactBunResolver
+} from './component-authorization.js';
 import {
 	mergeConditions,
 	resolveExactBunRequest,
@@ -90,8 +95,10 @@ export type BunBuildLike = {
 	config?: {
 		conditions?: string | string[];
 		watch?: boolean;
+		hot?: boolean;
 		outdir?: string;
 	};
+	resolve?: ExactBunResolver;
 	onResolve(
 		options: { filter: RegExp },
 		handler: (
@@ -145,9 +152,17 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 	});
 	const reportDiagnostics = createExactDiagnosticReporter();
 	const inspectionModules = new Map<string, ExactBunInspectionModule>();
+	let componentAuthorization: ExactBunComponentAuthorization | undefined;
 	return {
 		name: 'exact',
 		setup(build) {
+			if (
+				options.target === 'server' &&
+				(build.config?.hot || process.argv.includes('--hot'))
+			)
+				throw new Error(
+					'[server-hmr-unsupported] Bun server --hot cannot preserve the last authorized component graph; use --watch instead'
+				);
 			const automaticDevelopment = Boolean(
 				build.config?.watch ||
 					process.argv.includes('--watch') ||
@@ -171,8 +186,14 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				normalizeConditions(build.config.conditions),
 				exactExportConditions(targetFor(options), options)
 			);
+			if (options.target === 'server')
+				componentAuthorization = new ExactBunComponentAuthorization({
+					applicationRoot: options.applicationRoot,
+					buildKey: options.debug?.buildKey
+				});
 			build.onStart?.(async () => {
 				inspectionModules.clear();
+				await componentAuthorization?.start(options.configPath);
 				if (!registryPrepared) {
 					const prepared = await prepareExactPluginRegistry({
 						applicationRoot: options.applicationRoot,
@@ -194,16 +215,38 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			});
 			build.onEnd?.(async () => {
 				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
-				if (options.target !== 'server' || debug.catalog !== true) return;
-				const catalog = createBunInspectionCatalog(options, debug, inspectionModules);
-				if (!catalog) return;
+				if (options.target !== 'server') return;
 				const outputRoot = path.resolve(
 					options.applicationRoot ?? process.cwd(),
 					build.config?.outdir ?? 'dist'
 				);
-				const filename = path.join(outputRoot, '.exact-inspection', `${catalog.buildKey}.json`);
-				await mkdir(path.dirname(filename), { recursive: true });
-				await writeFile(filename, `${JSON.stringify(catalog, null, 2)}\n`);
+				if (debug.catalog === true) {
+					const catalog = createBunInspectionCatalog(options, debug, inspectionModules);
+					if (catalog) {
+						const filename = path.join(
+							outputRoot,
+							'.exact-inspection',
+							`${catalog.buildKey}.json`
+						);
+						await mkdir(path.dirname(filename), { recursive: true });
+						await writeFile(filename, `${JSON.stringify(catalog, null, 2)}\n`);
+					}
+				}
+				const committed = await componentAuthorization?.commit();
+				if (committed) {
+					const exactRoot = path.join(outputRoot, '.exact');
+					await mkdir(exactRoot, { recursive: true });
+					await Promise.all([
+						writeFile(
+							path.join(exactRoot, 'component-library-authorization.json'),
+							`${JSON.stringify(committed.manifest, null, 2)}\n`
+						),
+						writeFile(
+							path.join(exactRoot, 'component-library-audit.json'),
+							`${JSON.stringify(committed.audit, null, 2)}\n`
+						)
+					]);
+				}
 			});
 			build.onResolve({ filter: /\.exact$/ }, (args) => {
 				const resolved = resolveExactBunRequest(args.path, args.importer, options);
@@ -231,6 +274,9 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					}
 				);
 			}
+			build.onResolve({ filter: /^(?:@[^/]+\/[^/]+|[^./][^:]*)/ }, async (args) =>
+				componentAuthorization?.authorize(args.path, args.importer ?? '', build.resolve)
+			);
 			// Bun does not expose Vite's changed-file HMR hook. Observe every loaded
 			// TypeScript/JavaScript dependency so non-JSX type and export changes
 			// invalidate their transitive expression consumers before compilation.
@@ -247,6 +293,8 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					compilerSession
 				);
 				if (!result) return undefined;
+				if (result.componentBuild)
+					componentAuthorization?.record(args.path, source, result.componentBuild);
 				if (result.inspection)
 					inspectionModules.set(path.resolve(args.path), {
 						...result.inspection,
@@ -314,8 +362,10 @@ export function transformExactBunSource(
 		inspection: ExactSourceInspection;
 		redactions?: ExactInspectionRedactionCatalog;
 	}>;
+	componentBuild?: ExactComponentBuildFacts;
 } | null {
 	if (!shouldTransform(filename, source, options)) return null;
+	let componentBuild: ExactComponentBuildFacts | undefined;
 	const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
 	const compatibilityEngine = reactCompatibility
 		? bunCompatibilityEngine(options, session, reactCompatibility.target)
@@ -352,6 +402,7 @@ export function transformExactBunSource(
 				instrumentInspection: bunDebugEnabled(options.debug?.runtime)
 			},
 			finish: (result) => {
+				componentBuild = result.componentBuild;
 				const enhanced = prependExactEnhancementRegistrations(
 					result.code,
 					result.rendererEnhancements
@@ -377,7 +428,14 @@ export function transformExactBunSource(
 			? { subsystem: 'bun-plugin' as const, sink: options.onProfile }
 			: undefined
 	});
-	return output ? { code: output.code, map: output.map, inspection: output.inspection } : null;
+	return output
+		? {
+				code: output.code,
+				map: output.map,
+				inspection: output.inspection,
+				...(componentBuild ? { componentBuild } : {})
+			}
+		: null;
 }
 
 function bunCompatibilityEngine(

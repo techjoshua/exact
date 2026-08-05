@@ -167,6 +167,16 @@ describe('@exactjs/bun-plugin', () => {
 		await expect(start()).rejects.toThrow(/explicit immutable debug\.buildKey/);
 	});
 
+	it('rejects unsupported Bun server hot reload at startup', () => {
+		expect(() =>
+			exact({ target: 'server' }).setup({
+				config: { hot: true },
+				onResolve() {},
+				onLoad() {}
+			})
+		).toThrow(/server-hmr-unsupported/);
+	});
+
 	it('resolves exact facade imports through shared artifact resolution', () => {
 		expect(resolveExactBunRequest('./Panel.exact', '/app/src/main.ts', { target: 'server' })).toBe(
 			path.resolve('/app/src/Panel.exact.server.ts')
