@@ -69,4 +69,28 @@ describe('build inspection catalog validation', () => {
 		};
 		expect(isExactBuildInspectionCatalog(classificationValue)).toBe(false);
 	});
+
+	it('validates a redacted component authorization projection against the catalog build', () => {
+		const value = catalog();
+		value.componentAuthorization = {
+			protocol: 1,
+			buildKey: 'build',
+			fingerprint: 'fingerprint',
+			packages: [
+				{
+					instanceId: 'instance',
+					name: '@acme/cards',
+					version: '1.0.0',
+					markerVersion: '0.1.0',
+					decision: 'root',
+					reasons: ['ssr'],
+					provenance: [{ owner: 'application', specifier: '@acme/cards', kind: 'dependency' }]
+				}
+			],
+			omittedEnhancements: []
+		};
+		expect(isExactBuildInspectionCatalog(value)).toBe(true);
+		value.componentAuthorization.buildKey = 'other-build';
+		expect(isExactBuildInspectionCatalog(value)).toBe(false);
+	});
 });

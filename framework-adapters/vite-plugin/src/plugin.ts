@@ -108,7 +108,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	const openAuthorizationGeneration = (registry: ExactPreparedPluginRegistry): void => {
 		componentAuthorization.open({
 			applicationRoot: registry.applicationRoot,
-			buildKey: configuredDebug?.buildKey,
+			buildKey: configuredDebug?.buildKey ?? (viteCommand === 'serve' ? 'development' : undefined),
 			config: loadedConfig?.config?.componentLibraries
 		});
 	};
@@ -251,28 +251,26 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		generateBundle(_output, bundle) {
 			if (options.target !== 'server') assertExactViteClientArtifactIsolation(bundle);
-			if (options.target === 'server' && inspectionCatalogEnabled(configuredDebug, viteCommand)) {
-				const catalog = createViteInspectionCatalog(
-					options.applicationRoot,
-					configuredDebug,
-					inspectionModules,
-					viteCommand
-				);
-				if (catalog) {
-					if (!this.emitFile)
-						throw new Error('Vite/Rollup emitFile is unavailable for eXact inspection catalog');
-					this.emitFile({
-						type: 'asset',
-						fileName: `.exact-inspection/${catalog.buildKey}.json`,
-						source: `${JSON.stringify(catalog, null, 2)}\n`
-					});
-				}
-			}
 			if (options.target === 'server' && componentAuthorization.active) {
 				if (!this.emitFile)
 					throw new Error('Vite/Rollup emitFile is unavailable for component authorization');
 				const emitFile = this.emitFile.bind(this);
 				return componentAuthorization.commit()!.then((committed) => {
+					if (inspectionCatalogEnabled(configuredDebug, viteCommand)) {
+						const catalog = createViteInspectionCatalog(
+							options.applicationRoot,
+							configuredDebug,
+							inspectionModules,
+							viteCommand,
+							committed.audit
+						);
+						if (catalog)
+							emitFile({
+								type: 'asset',
+								fileName: `.exact-inspection/${catalog.buildKey}.json`,
+								source: `${JSON.stringify(catalog, null, 2)}\n`
+							});
+					}
 					emitFile({
 						type: 'asset',
 						fileName: '.exact/component-library-authorization.json',

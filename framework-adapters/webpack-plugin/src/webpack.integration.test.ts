@@ -33,6 +33,16 @@ it('emits authorization artifacts from a real authorized Webpack server compilat
 	expect(manifest.packages).toEqual([
 		expect.objectContaining({ name: '@acme/cards', decision: 'root' })
 	]);
+	const inspection = JSON.parse(
+		readFileSync(
+			path.join(fixture.root, 'dist', '.exact-inspection', 'webpack-integration.json'),
+			'utf8'
+		)
+	) as { componentAuthorization?: { fingerprint: string; packages: unknown[] } };
+	expect(inspection.componentAuthorization).toMatchObject({
+		fingerprint: expect.any(String),
+		packages: [expect.objectContaining({ name: '@acme/cards', decision: 'root' })]
+	});
 });
 
 async function compile(applicationRoot: string): Promise<Stats> {
@@ -54,7 +64,8 @@ async function compile(applicationRoot: string): Promise<Stats> {
 				target: 'server',
 				applicationRoot,
 				reactCompatibility: false,
-				sourceMap: false
+				sourceMap: false,
+				debug: { catalog: true, buildKey: 'webpack-integration' }
 			})
 		]
 	};

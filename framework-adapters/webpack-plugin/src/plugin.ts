@@ -5,6 +5,7 @@ import {
 	type TransformTarget
 } from '@exactjs/compiler';
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
+import type { ExactComponentAuthorizationAudit } from '@exactjs/component-library-policy';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
@@ -269,10 +270,11 @@ export class ExactWebpackPlugin {
 		resetWebpackAuthorizationGeneration(owned.id, authorizationOptions);
 		if (buildOptions.target === 'server') {
 			compiler.hooks?.thisCompilation?.tap?.('ExactWebpackPlugin', (compilation) => {
-				const emitInspection = () => {
+				const emitInspection = (componentAuthorization?: ExactComponentAuthorizationAudit) => {
 					const catalog = webpackInspectionCatalog(owned.id, {
 						applicationRoot: buildOptions.applicationRoot,
-						...buildOptions.debug
+						...buildOptions.debug,
+						componentAuthorization
 					});
 					if (!catalog || !compilation.emitAsset) return;
 					const contents = `${JSON.stringify(catalog, null, 2)}\n`;
@@ -282,11 +284,11 @@ export class ExactWebpackPlugin {
 					});
 				};
 				const processAssets = async () => {
-					emitInspection();
 					const committed = await commitWebpackAuthorizationGeneration(
 						owned.id,
 						authorizationOptions
 					);
+					emitInspection(committed?.audit);
 					if (!committed || !compilation.emitAsset) return;
 					for (const [filename, value] of [
 						['.exact/component-library-authorization.json', committed.manifest],

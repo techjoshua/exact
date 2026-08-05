@@ -173,7 +173,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			if (options.target === 'server')
 				componentAuthorization = new ExactBunComponentAuthorization({
 					applicationRoot: options.applicationRoot,
-					buildKey: options.debug?.buildKey
+					buildKey: options.debug?.buildKey ?? (automaticDevelopment ? 'development' : undefined)
 				});
 			build.onStart?.(async () => {
 				inspectionModules.clear();
@@ -212,15 +212,20 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					options.applicationRoot ?? process.cwd(),
 					build.config?.outdir ?? 'dist'
 				);
+				const committed = await componentAuthorization?.commit();
 				if (debug.catalog === true) {
-					const catalog = createBunInspectionCatalog(options, debug, inspectionModules);
+					const catalog = createBunInspectionCatalog(
+						options,
+						debug,
+						inspectionModules,
+						committed?.audit
+					);
 					if (catalog) {
 						const filename = path.join(outputRoot, '.exact-inspection', `${catalog.buildKey}.json`);
 						await mkdir(path.dirname(filename), { recursive: true });
 						await writeFile(filename, `${JSON.stringify(catalog, null, 2)}\n`);
 					}
 				}
-				const committed = await componentAuthorization?.commit();
 				if (committed) {
 					const exactRoot = path.join(outputRoot, '.exact');
 					await mkdir(exactRoot, { recursive: true });

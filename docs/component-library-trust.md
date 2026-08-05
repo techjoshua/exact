@@ -83,6 +83,10 @@ Each successful server build writes private files under `.exact/`:
 The audit excludes absolute package paths, raw integrity values, source text, and unrelated
 dependencies. Client output must never expose the full policy or audit graph.
 
+When server inspection catalogs are enabled, the matching build catalog includes this redacted
+audit for authorized DevTools inspection. It remains server-owned and is never emitted into client
+code.
+
 Paired SSR, hydration, and retained remote artifacts exchange only the compact `{ protocol,
 buildKey, fingerprint }` identity projected from the manifest. Hydration rejects a mismatched
 client/server identity, and server operations carrying a stale fingerprint follow the existing

@@ -64,6 +64,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					authorization.
 				</p>
 				<p>
+					When server inspection catalogs are enabled, they include that redacted decision data
+					under the same build key. It is available only through the authorized DevTools path and is
+					never emitted into client code.
+				</p>
+				<p>
 					Paired hydration and retained remote artifacts carry only the manifest protocol, build
 					key, and fingerprint. A mismatch follows the existing unsupported-build recovery path;
 					package and policy provenance stays server-private.

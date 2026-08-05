@@ -11,6 +11,7 @@ import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import {
 	createExactComponentAuthorizationSession,
 	recordExactNodeComponentProvenance,
+	type ExactComponentAuthorizationAudit,
 	type ExactComponentAuthorizationSession,
 	type ExactResolvedComponentCandidate
 } from '@exactjs/component-library-policy';
@@ -265,6 +266,7 @@ export function webpackInspectionCatalog(
 		rootComponentId?: string;
 		producer?: Readonly<{ packageName?: string; version?: string }>;
 		redactions?: Partial<ExactInspectionRedactionCatalog>;
+		componentAuthorization?: ExactComponentAuthorizationAudit;
 	}>
 ): ExactBuildInspectionCatalog | undefined {
 	const modules = inspectionModules.get(id);
@@ -283,7 +285,7 @@ export function webpackInspectionCatalog(
 	if (!rootComponentId) return undefined;
 	const buildKey =
 		options.buildKey ?? configured?.buildKey ?? createExactInspectionBuildKey(root, entries);
-	return createExactBuildInspectionCatalog({
+	const catalog = createExactBuildInspectionCatalog({
 		buildKey,
 		root,
 		...((options.producer ?? configured?.producer)
@@ -304,6 +306,14 @@ export function webpackInspectionCatalog(
 			}
 		]
 	});
+	if (
+		options.componentAuthorization &&
+		options.componentAuthorization.buildKey !== catalog.buildKey
+	)
+		throw new Error('Component authorization and Webpack inspection build keys do not match');
+	return options.componentAuthorization
+		? Object.freeze({ ...catalog, componentAuthorization: options.componentAuthorization })
+		: catalog;
 }
 
 function mergeInspectionRedactions(
