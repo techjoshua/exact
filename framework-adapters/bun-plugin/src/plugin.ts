@@ -111,7 +111,7 @@ export type BunBuildLike = {
 		handler: (args: BunLoadArgs) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>
 	): void;
 	onStart?(handler: () => void | Promise<void>): void;
-	onEnd?(handler: () => void | Promise<void>): void;
+	onEnd?(handler: (result?: Readonly<{ success?: boolean; logs?: readonly unknown[] }>) => void | Promise<void>): void;
 };
 
 /** Defines the bun resolve args type contract. */
@@ -219,7 +219,11 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 						'eXact production DevTools output requires one explicit immutable debug.buildKey'
 					);
 			});
-			build.onEnd?.(async () => {
+			build.onEnd?.(async (result) => {
+				if (result?.success === false) {
+					componentAuthorization?.reject();
+					return;
+				}
 				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
 				if (options.target !== 'server') return;
 				const outputRoot = path.resolve(

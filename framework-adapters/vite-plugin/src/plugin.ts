@@ -2,6 +2,7 @@ import {
 	createCompilerSession,
 	createLineSourceMap,
 	exactExportConditions,
+	inspectExactComponentBuildFacts,
 	resolveNativeCompilerExecutable,
 	resolveExactArtifactImport,
 	type ExactSourceInspection
@@ -346,9 +347,62 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				this.warn?.(message)
 			);
 			if (options.target === 'server') {
+				const filename = exactModuleFilename(context.file);
+				const previous = componentFacts.get(filename);
 				authorizationSession?.rejectGeneration();
-				componentFacts.delete(exactModuleFilename(context.file));
-				openAuthorizationGeneration(await prepareRegistry());
+				componentFacts.delete(filename);
+				const registry = await prepareRegistry();
+				openAuthorizationGeneration(registry);
+				if (
+					context.read &&
+					context.server?.pluginContainer?.resolveId &&
+					shouldTransformExactBuildModulePath(filename, options)
+				) {
+					try {
+						const source = await context.read();
+						if (shouldCompileExactBuildModule(filename, source, options)) {
+							const facts = inspectExactComponentBuildFacts(source, {
+								session: compilerSession,
+								filename,
+								target: exactTransformTarget(options),
+								serverComponents: options.serverComponents
+							});
+							const version = sourceVersion(source);
+							componentFacts.set(filename, Object.freeze({ facts, version }));
+							authorizationSession!.recordImporterFacts(filename, facts, version);
+							const requests = new Set([
+								...facts.componentImports
+									.filter((edge) => edge.artifactTargets.includes('server'))
+									.map((edge) => edge.moduleSpecifier),
+								...facts.rendererEnhancements.map((edge) => edge.moduleSpecifier)
+							]);
+							for (const request of requests) {
+								const resolved = await context.server.pluginContainer.resolveId(
+									request,
+									filename
+								);
+								await authorizeViteComponentResolution(
+									resolved,
+									request,
+									filename,
+									componentFacts,
+									authorizationSession,
+									registry.applicationRoot,
+									options.serverExecutionReason,
+									(file) => this.addWatchFile?.(file)
+								);
+							}
+							await authorizationSession!.commitGeneration();
+							openAuthorizationGeneration(registry);
+						}
+					} catch (error) {
+						authorizationSession?.rejectGeneration();
+						if (previous) componentFacts.set(filename, previous);
+						else componentFacts.delete(filename);
+						openAuthorizationGeneration(registry);
+						throw error;
+					}
+				}
 			}
 		},
 		watchChange(id, change) {

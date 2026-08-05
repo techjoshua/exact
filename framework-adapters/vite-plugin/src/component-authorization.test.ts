@@ -110,6 +110,37 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 			moduleType: 'js'
 		});
 	});
+
+	it('preflights a denied server HMR edge before accepting the changed module', async () => {
+		const fixture = createViteFixture();
+		writeFileSync(
+			path.join(fixture.root, 'exact.config.mjs'),
+			"export default { componentLibraries: { deny: ['@acme/cards'] } };\n"
+		);
+		const plugin = exact({
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		await plugin.buildStart?.call({ addWatchFile() {} });
+		const changed =
+			"import { Card } from '@acme/cards'; export function Page() { return () => <Card />; }";
+
+		await expect(
+			plugin.handleHotUpdate?.call(
+				{ addWatchFile() {} },
+				{
+					file: fixture.pageFile,
+					read: async () => changed,
+					server: {
+						pluginContainer: {
+							resolveId: async () => ({ id: fixture.libraryModule })
+						}
+					}
+				}
+			)
+		).rejects.toMatchObject({ code: 'explicitly-denied' });
+	});
 });
 
 function createViteFixture() {

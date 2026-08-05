@@ -118,6 +118,14 @@ export class ExactBunComponentAuthorization {
 		return this.#session?.commitGeneration();
 	}
 
+	/** Rejects a failed Bun build without retaining or emitting its partial decision graph. */
+	reject(): void {
+		this.#session?.rejectGeneration();
+		this.#session?.dispose();
+		this.#session = undefined;
+		this.#facts.clear();
+	}
+
 	/** Releases all generation state owned by this plugin instance. */
 	dispose(): void {
 		this.#session?.dispose();

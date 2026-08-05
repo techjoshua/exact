@@ -97,7 +97,21 @@ export type ExactPlugin = {
 		code: string,
 		id: string
 	): { code: string; map: unknown; moduleType?: 'js' } | null;
-	handleHotUpdate?(this: { warn?(message: string): void }, context: { file: string }): void;
+	handleHotUpdate?(
+		this: { warn?(message: string): void; addWatchFile?(file: string): void },
+		context: {
+			file: string;
+			read?(): Promise<string>;
+			server?: {
+				pluginContainer?: {
+					resolveId(
+						source: string,
+						importer?: string
+					): Promise<{ id: string; external?: boolean | 'absolute' | 'relative' } | null>;
+				};
+			};
+		}
+	): void | Promise<void>;
 	watchChange?(
 		this: { warn?(message: string): void },
 		id: string,

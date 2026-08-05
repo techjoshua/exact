@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -175,6 +175,34 @@ describe('@exactjs/bun-plugin', () => {
 				onLoad() {}
 			})
 		).toThrow(/server-hmr-unsupported/);
+	});
+
+	it('does not commit authorization artifacts for a failed watch build', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-failed-generation-'));
+		let start!: () => void | Promise<void>;
+		let end!: (result?: { success?: boolean }) => void | Promise<void>;
+		try {
+			writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));
+			exact({ target: 'server', applicationRoot: root }).setup({
+				config: { watch: true, outdir: 'dist' },
+				onResolve() {},
+				onLoad() {},
+				onStart(handler) {
+					start = handler;
+				},
+				onEnd(handler) {
+					end = handler;
+				}
+			});
+			await start();
+			await end({ success: false });
+
+			expect(
+				existsSync(path.join(root, 'dist', '.exact', 'component-library-authorization.json'))
+			).toBe(false);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	it('resolves exact facade imports through shared artifact resolution', () => {
