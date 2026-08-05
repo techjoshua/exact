@@ -34,16 +34,16 @@ describe('view transition publication', () => {
 		});
 		const publish = vi.fn(() => ({ rendered: renderedGate }));
 		let coordinated = false;
-		const result = createViewTransitionCoordinator({ name: () => 'route' })
-			.publish({
+		const result = Promise.resolve(
+			createViewTransitionCoordinator({ name: () => 'route' }).publish({
 				kind: 'navigation',
 				signal: new AbortController().signal,
 				metadata: {},
 				publish
 			})
-			.then(() => {
-				coordinated = true;
-			});
+		).then(() => {
+			coordinated = true;
+		});
 
 		await Promise.resolve();
 		expect(publish).toHaveBeenCalledTimes(1);

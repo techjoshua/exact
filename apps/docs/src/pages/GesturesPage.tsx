@@ -80,8 +80,9 @@ export function GesturesPage(this: Component<{}>) {
 				<h2>Bound input work</h2>
 				<p>
 					Priority and thresholds arbitrate competing recognizers. Slow move callbacks retain only
-					the latest pending sample, while capture loss, blur, deactivation, disabling, and disposal
-					cancel the named session and restore browser policy.
+					the latest pending sample. Synchronous return values are ignored, while returned thenables
+					are awaited before that pending sample runs. Capture loss, blur, deactivation, disabling,
+					and disposal cancel the named session and restore browser policy.
 				</p>
 			</section>
 			<section>

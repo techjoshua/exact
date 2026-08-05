@@ -34,7 +34,7 @@ describe('Vite enhancement catalog emission', () => {
 		const plugin = exact({ reactCompatibility: false });
 
 		for (const [request, facade] of Object.entries(exactEnhancementFacades)) {
-			expect(plugin.resolveId(request)).toBe(facade);
+			expect(plugin.resolveId!(request)).toBe(facade);
 		}
 	});
 

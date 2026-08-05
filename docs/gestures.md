@@ -49,6 +49,8 @@ prefer the nearest target on a tie. Press and losing movement candidates receive
 before the winner's first sample, and pinch cancels an active single-pointer candidate.
 
 Slow move callbacks are bounded: one callback runs while only the latest pending sample is kept.
+Synchronous callback return values are ignored; a returned thenable participates in that bounded
+delivery and is awaited before the latest pending sample runs.
 Capture loss, pointer cancellation, window blur, target deactivation, disabling, policy replacement,
 and component disposal all cancel the owned session and restore inline touch and selection policy.
 

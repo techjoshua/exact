@@ -77,6 +77,7 @@ class FakeLanguageService implements ExactLanguageService {
 			filename: this.filename,
 			project: { kind: this.options.projectKind ?? 'configured', root: this.options.root },
 			compiler: { typescriptVersion: '7.0.0', backendVersion: '1.26.0' },
+			partitionPlan: { version: 1, buildKey: 'fixture', roots: [], nodes: [], edges: [] },
 			components: [],
 			diagnostics: []
 		};

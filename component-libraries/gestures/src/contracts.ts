@@ -22,10 +22,10 @@ export interface PinchGestureSample extends GestureSample {
 	readonly rotation: number;
 }
 
-/** Callback invoked for one immutable semantic gesture sample. */
+/** Callback invoked for one immutable sample; synchronous results are ignored and thenables awaited. */
 export type GestureCallback<Sample extends GestureSample = GestureSample> = (
 	sample: Sample
-) => void | PromiseLike<void>;
+) => unknown | PromiseLike<unknown>;
 
 /** Priority and competition policy shared by prepared recognizers. */
 export type GestureRecognizerBase = Readonly<{

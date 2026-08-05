@@ -2,7 +2,12 @@
  * @vitest-environment jsdom
  */
 import { render, unmount } from '@exactjs/dom';
-import { Activity, createEnhancementMarker, type Component } from '@exactjs/core';
+import {
+	Activity,
+	createEnhancementMarker,
+	type Component,
+	type ComponentFunction
+} from '@exactjs/core';
 import { PhysicsElement, PhysicsWorld, createPhysicsWorld } from '@exactjs/physics';
 import { flushSync } from '@exactjs/reactive';
 import {
@@ -90,7 +95,7 @@ describe('GravityElement', () => {
 			),
 			container,
 			{
-				enhancementCatalog: new Map([
+				enhancementCatalog: new Map<string, ComponentFunction<any, any>>([
 					[gravityIdentity, GravityElement],
 					[physicsIdentity, PhysicsElement]
 				])
