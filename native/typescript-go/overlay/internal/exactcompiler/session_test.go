@@ -6304,17 +6304,58 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	}
 }
 
-func TestSessionRejectsPluginNamespaceImports(t *testing.T) {
+func TestSessionLowersFiniteEnhancementActivatorNamespaces(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	entrySource := `
+		import * as motion from "./motion.js" with { type: "exact-enhancement" };
+		export const view = (
+			<section motion:fade motion:slide-up={{ distance: 24 }} motion:duration={180} />
+		);
+	`
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:  entrySource,
+		filepath.Join(root, "motion.ts"): `
+			export { FadeMotion as fade, SlideUpMotion as slideUp }
+				from "./motion-implementation.js" with { type: "exact-enhancement" };
+		`,
+		filepath.Join(root, "motion-implementation.ts"): `
+			export function FadeMotion(props: { duration?: number; children?: unknown }) { return props.children; }
+			export function SlideUpMotion(props: { slideUp: true | { distance: number }; duration?: number; children?: unknown }) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	response := NewSession().Execute(Request{
-		ID:     "C:/virtual/plugin-namespace.tsx",
-		Kind:   "compile",
-		Source: `import * as motion from "@test/motion" with { type: "exact-enhancement" };`,
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !containsDiagnosticCode(response.Diagnostics, "EXACT6003") {
-		t.Fatalf("enhancement namespace import was accepted: %#v", response.Diagnostics)
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("finite enhancement namespace produced an error: %#v", response.Diagnostics)
+		}
+	}
+	for _, expected := range []string{
+		`identity: "./motion.js#fade"`,
+		`identity: "./motion.js#slideUp"`,
+		"slideUp:",
+		"distance: 24",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("finite enhancement lowering omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Count(response.Code, "duration: __exactExpression(() => 180)") != 2 {
+		t.Fatalf("shared enhancement prop was not distributed to both components:\n%s", response.Code)
+	}
+	if len(response.Analysis.Enhancements) != 2 {
+		t.Fatalf("finite namespace omitted renderer metadata: %#v", response.Analysis.Enhancements)
 	}
 }
 

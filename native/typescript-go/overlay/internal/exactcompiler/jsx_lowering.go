@@ -1564,6 +1564,17 @@ func (lowering *jsxLowering) propsWithReactivity(
 	properties := []*ast.Node{}
 	enhancementEntries := make(map[string][]*ast.Node)
 	enhancementOrder := []string{}
+	application := enhancementApplication{}
+	if attributes != nil {
+		application = lowering.enhancementImports.applications[attributes.Pos()]
+	}
+	for _, component := range application.components {
+		if _, grouped := enhancementEntries[component.identity]; grouped {
+			continue
+		}
+		enhancementOrder = append(enhancementOrder, component.identity)
+		enhancementEntries[component.identity] = []*ast.Node{}
+	}
 	if intrinsic {
 		properties = append(
 			properties,
@@ -1636,27 +1647,15 @@ func (lowering *jsxLowering) propsWithReactivity(
 			if ast.IsJsxNamespacedName(attribute.Name()) {
 				namespaced := attribute.Name().AsJsxNamespacedName()
 				prefix := namespaced.Namespace.Text()
-				if binding, exists := lowering.enhancementImports.bindings[prefix]; exists {
-					if _, grouped := enhancementEntries[binding.identity]; !grouped {
-						enhancementOrder = append(enhancementOrder, binding.identity)
-						enhancementEntries[binding.identity] = []*ast.Node{}
-					}
+				if _, exists := lowering.enhancementImports.bindings[prefix]; exists {
 					value := lowering.jsxAttributeInitializer(attribute, tag, name, reactive)
-					if value == nil {
-						continue
-					}
-					member := namespaced.Name().Text()
-					if member == "root" {
-						enhancementEntries[binding.identity] = append(
-							enhancementEntries[binding.identity],
-							lowering.property(lowering.factory.NewIdentifier("__exactRoot"), value),
-						)
-					} else {
-						member = binding.members[member].prop
-						enhancementEntries[binding.identity] = append(
-							enhancementEntries[binding.identity],
-							lowering.property(jsxPropertyName(lowering.factory, member), value),
-						)
+					if value != nil {
+						for _, member := range application.attributes[property.Pos()] {
+							enhancementEntries[member.identity] = append(
+								enhancementEntries[member.identity],
+								lowering.property(jsxPropertyName(lowering.factory, member.prop), value),
+							)
+						}
 					}
 					continue
 				}
