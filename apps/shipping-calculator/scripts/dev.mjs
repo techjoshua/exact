@@ -2,8 +2,15 @@ import { createServer as createHttpServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createServer as createViteServer } from 'vite';
 
-const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'custom' });
 const port = readPort(process.env.PORT);
+const hmrPort = process.env.HMR_PORT ? readPort(process.env.HMR_PORT) : undefined;
+const vite = await createViteServer({
+	server: {
+		middlewareMode: true,
+		...(hmrPort ? { hmr: { host: '127.0.0.1', port: hmrPort, clientPort: hmrPort } } : {})
+	},
+	appType: 'custom'
+});
 let generating = false;
 let queued = false;
 
