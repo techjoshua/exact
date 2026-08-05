@@ -5,6 +5,7 @@ import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
+import { ComponentLibraryTrustPage } from './pages/ComponentLibraryTrustPage.jsx';
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
@@ -220,6 +221,14 @@ export const docGroups: DocGroup[] = [
 				summary: 'Apply optional ordinary components through finite namespaced JSX.',
 				keywords: 'enhancement component library activator target composition optional namespace',
 				component: EnhancementsPage
+			},
+			{
+				path: '/components/trust',
+				label: 'Server trust',
+				summary: 'Authorize resolved component packages before server execution.',
+				keywords:
+					'component library trust authorization marker policy allow deny server bundler supply chain',
+				component: ComponentLibraryTrustPage
 			},
 			{
 				path: '/components/motion',

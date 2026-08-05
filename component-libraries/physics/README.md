@@ -33,3 +33,5 @@ transparent `PhysicsElement` components own the browser frame chain and DOM proj
 [physics reference](../../docs/physics.md) for component usage and projection channel rules.
 The package has no framework-plugin manifest; `@exactjs/physics/testing` exports an ordinary manual
 clock helper.
+The package publishes inert component build facts for the consuming server bundler's
+[component-library policy](../../docs/component-library-trust.md).

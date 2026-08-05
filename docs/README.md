@@ -13,6 +13,7 @@ These documents describe behavior that exists in the repository today:
 | [actions-and-forms.md](actions-and-forms.md)                                     | Task interactions, optimism, forms, and router coordination.                     |
 | [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                        |
 | [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                           |
+| [component-library-trust.md](component-library-trust.md)                         | Bundler-enforced server component package authorization.                         |
 | [component-registries.md](component-registries.md)                               | Finite eager/lazy component selection, identity, SSR, and hydration.             |
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.                     |
 | [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.         |

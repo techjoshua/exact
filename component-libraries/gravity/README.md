@@ -30,3 +30,5 @@ parked Activity subtrees contribute no force. See [gravity](../../docs/gravity.m
 composition details.
 The package has no framework-plugin manifest; `@exactjs/gravity/testing` is an ordinary sampling
 helper entry point.
+The package publishes inert component build facts for the consuming server bundler's
+[component-library policy](../../docs/component-library-trust.md).

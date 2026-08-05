@@ -22,6 +22,11 @@ The plugin installs the compiler loader, applies client or server export conditi
 diagnostics, supports source maps and watch invalidation, verifies browser isolation, and can
 configure React compatibility.
 
+For `target: 'server'`, the loader records compiler component facts and the module factory
+authorizes resolved package instances before Webpack builds them. Configure `componentLibraries`
+once in `exact.config.*`; successful compilations emit private authorization and audit assets under
+`.exact/`. Client-only component code does not use this additional gate.
+
 Attributed enhancement imports populate the application-bundle enhancement catalog. The plugin aliases
 DOM, hydration, and SSR entry points to the shared facades that supply that catalog; application
 aliases remain authoritative, and the compiler does not maintain a plugin registry.

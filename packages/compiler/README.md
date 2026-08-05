@@ -37,6 +37,10 @@ descriptive component/import projection without emitting JavaScript. The result 
 interpretation, package trust, or authorization decision; adapters must join its authored edges to
 their own resolver provenance.
 
+Published libraries can use `@exactjs/compiler/component-library-build` to normalize and write the
+static protocol-1 package facts referenced by `exactComponentLibrary.build`. This writer validates
+component/export correspondence but deliberately contains no trust policy.
+
 ```ts
 const language = createExactLanguageService({ root, noEmit: true });
 await language.synchronize([{ kind: 'upsert', filename, version, source }]);

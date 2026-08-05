@@ -25,3 +25,5 @@ accessible relationships and validation coordination without introducing a secon
 Submission pending state includes validation and async work started by the callback.
 
 See [actions and forms](../../docs/actions-and-forms.md).
+The package publishes inert component build facts for the consuming server bundler's
+[component-library policy](../../docs/component-library-trust.md).

@@ -57,7 +57,7 @@ export function MotionPage(this: Component<{}>) {
 			eyebrow="Component library / @exactjs/motion"
 			title="Keep state authoritative while tasks own motion"
 			description="Prepared definitions describe visual behavior. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
-			previous={{ path: '/components/enhancements', label: 'Enhancements' }}
+			previous={{ path: '/components/trust', label: 'Server trust' }}
 			next={{ path: '/components/gestures', label: 'Gestures' }}
 		>
 			<section>

@@ -45,3 +45,5 @@ This package has no framework-plugin manifest or host lifecycle. `@exactjs/motio
 introducing a dependency between motion and that publisher.
 
 See [motion](../../docs/motion.md) for presence, layout, list, accessibility, and testing guidance.
+The package publishes inert component build facts for the consuming server bundler's
+[component-library policy](../../docs/component-library-trust.md).

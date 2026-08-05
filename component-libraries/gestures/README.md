@@ -37,3 +37,5 @@ activates reached attributed imports through the application bundle's local enha
 The package has no framework-plugin manifest; `@exactjs/gestures/testing` is an ordinary testing
 helper entry point.
 See [gestures](../../docs/gestures.md) for the complete current surface.
+The package publishes inert component build facts for the consuming server bundler's
+[component-library policy](../../docs/component-library-trust.md).
