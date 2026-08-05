@@ -32,6 +32,11 @@ module-local dependencies and component identity on each artifact entry. Ephemer
 analysis is compiler-owned and is not part of compilation results or artifact graphs.
 Generated component, operation, continuation, and registry identities are opaque build output.
 
+Build and test adapters can call `inspectExactComponentBuildFacts()` for the same protocol-1
+descriptive component/import projection without emitting JavaScript. The result contains no marker
+interpretation, package trust, or authorization decision; adapters must join its authored edges to
+their own resolver provenance.
+
 ```ts
 const language = createExactLanguageService({ root, noEmit: true });
 await language.synchronize([{ kind: 'upsert', filename, version, source }]);

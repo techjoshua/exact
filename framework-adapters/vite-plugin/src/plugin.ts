@@ -207,6 +207,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						componentFacts,
 						authorizationSession,
 						preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+						options.serverExecutionReason,
 						(file) => this.addWatchFile?.(file)
 					)
 				);
@@ -245,9 +246,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			)
 				return resolved;
 			return Promise.resolve(resolved)
-				.then((value) =>
-					value ??
-					(this.resolve ? this.resolve(source, importer, { skipSelf: true }) : null)
+				.then(
+					(value) =>
+						value ?? (this.resolve ? this.resolve(source, importer, { skipSelf: true }) : null)
 				)
 				.then((value) =>
 					authorizeViteComponentResolution(
@@ -257,6 +258,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						componentFacts,
 						authorizationSession,
 						preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+						options.serverExecutionReason,
 						(file) => this.addWatchFile?.(file)
 					)
 				);
@@ -472,6 +474,7 @@ async function authorizeViteComponentResolution(
 	>,
 	session: ExactComponentAuthorizationSession | undefined,
 	applicationRoot: string,
+	executionReason: ExactResolvedComponentCandidate['reason'] | undefined,
 	watch: (file: string) => void
 ): Promise<string | { id: string; external?: boolean | 'absolute' | 'relative' } | null> {
 	if (!resolved || !importer || !session) return resolved;
@@ -500,7 +503,9 @@ async function authorizeViteComponentResolution(
 		exportName: componentEdge?.exportName ?? enhancementEdge!.exportName,
 		resolvedModuleId,
 		packageInstanceKey: provenance.instance.key,
-		reason: enhancementEdge ? 'server-enhancement' : serverReason(componentEdge!.reason),
+		reason:
+			executionReason ??
+			(enhancementEdge ? 'server-enhancement' : serverReason(componentEdge!.reason)),
 		...(enhancementEdge ? { optionalEnhancementIdentity: enhancementEdge.identity } : {})
 	});
 	const authorization = await session.authorizeResolvedComponent(candidate);

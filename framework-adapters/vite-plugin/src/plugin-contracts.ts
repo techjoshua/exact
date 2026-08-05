@@ -27,6 +27,8 @@ export type ExactPluginOptions = {
 	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
 	/** Derives server catalog emission and compact client runtime correlation together. */
 	debug?: ExactViteDebugOptions;
+	/** @internal Execution reason supplied by eXact test integrations. */
+	serverExecutionReason?: 'server-test';
 };
 
 /** Higher-level build controls for server-cooperative DevTools output. */

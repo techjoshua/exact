@@ -49,6 +49,7 @@ export type * from '../types.js';
 
 export { compileFile, compileProject } from './file-compilation.js';
 export { transform, transformSource } from './transformation.js';
+export { inspectExactComponentBuildFacts } from './component-build-analysis.js';
 
 export {
 	compileArtifactPlanEntries,

@@ -24,6 +24,7 @@
 		"src/compilation/capability-options.ts",
 		"src/compilation/compiler.ts",
 		"src/compilation/component-build-facts.ts",
+		"src/compilation/component-build-analysis.ts",
 		"src/compilation/dependency-discovery.ts",
 		"src/compilation/dev-state-planning.ts",
 		"src/compilation/dev-state.ts",
