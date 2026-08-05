@@ -22,9 +22,30 @@ export type ExactPluginDiscoveryConfig =
 			ignore?: readonly string[];
 	  };
 
+/** Selects one package instance eligible for component-library authorization. */
+export type ExactComponentLibraryRule =
+	| string
+	| Readonly<{
+			package: string;
+			version?: string;
+			integrity?: string;
+	  }>;
+
+/** Configures server-executing component-library authorization at the build boundary. */
+export type ExactComponentLibraryTrustConfig = Readonly<{
+	mode?: 'root' | 'trusted' | 'all';
+	allow?: readonly ExactComponentLibraryRule[];
+	deny?: readonly ExactComponentLibraryRule[];
+	trustedScopes?: readonly string[];
+	includeDefaultTrustedScopes?: boolean;
+	unauthorizedOptionalEnhancements?: 'error' | 'exclude';
+}>;
+
 /** Configures exact. */
 export interface ExactConfig {
 	pluginDiscovery?: ExactPluginDiscoveryConfig;
+	/** Authoritative build-time policy for component code that can execute on the server. */
+	componentLibraries?: ExactComponentLibraryTrustConfig;
 	/** Compiler/build output required for client and server DevTools cooperation. */
 	debug?: ExactDebugBuildConfig;
 	plugins?: {

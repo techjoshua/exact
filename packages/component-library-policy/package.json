@@ -1,39 +1,26 @@
 {
-	"name": "@exactjs/plugin-host",
+	"name": "@exactjs/component-library-policy",
 	"version": "0.1.0",
+	"description": "Shared build-time authorization policy for eXact component libraries",
 	"type": "module",
 	"files": [
-		"AGENTS.md",
+		"README.md",
 		"dist",
 		"!dist/**/*.test.*"
 	],
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
+			"node": "./dist/index.js",
 			"default": "./dist/index.js"
-		},
-		"./runtime": {
-			"types": "./dist/runtime.d.ts",
-			"default": "./dist/runtime.js"
-		},
-		"./node": {
-			"types": "./dist/node.d.ts",
-			"node": "./dist/node.js",
-			"default": "./dist/node.js"
-		},
-		"./cli": {
-			"types": "./dist/cli.d.ts",
-			"default": "./dist/cli.js"
 		}
-	},
-	"bin": {
-		"exact": "./dist/cli.js"
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"sideEffects": false,
 	"dependencies": {
+		"@exactjs/compiler": "^0.1.0",
 		"@exactjs/config": "^0.1.0",
-		"@exactjs/plugin-api": "^0.1.0",
 		"semver": "^7.8.5"
 	},
 	"scripts": {

@@ -1,13 +1,9 @@
 import type { ExactConfig } from '@exactjs/config';
-import type {
-	ExactPluginHostMode,
-	ExactRuntimePluginExtension
-} from '@exactjs/plugin-api';
-import { existsSync, statSync } from 'node:fs';
+import { loadExactConfig } from '@exactjs/config/node';
+import type { ExactPluginHostMode, ExactRuntimePluginExtension } from '@exactjs/plugin-api';
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import ts from 'typescript';
 import {
 	resolveExactPluginConfigurations,
 	type ExactConfigTransformReport,
@@ -57,9 +53,14 @@ export async function prepareExactPluginRegistry(
 	options: PrepareExactPluginRegistryOptions = {}
 ): Promise<ExactPreparedPluginRegistry> {
 	const applicationRoot = resolveApplicationRoot(options);
-	const configPath = options.configPath
-		? path.resolve(options.configPath)
-		: findExactConfig(applicationRoot);
+	const loaded = options.config
+		? Object.freeze({
+				config: options.config,
+				...(options.configPath ? { configPath: path.resolve(options.configPath) } : {}),
+				watchFiles: Object.freeze(options.configPath ? [path.resolve(options.configPath)] : [])
+			})
+		: await loadExactConfig({ applicationRoot, configPath: options.configPath });
+	const configPath = loaded.configPath;
 	const environment = options.environment ?? process.env.NODE_ENV ?? 'development';
 	const hostMode = options.hostMode ?? 'build';
 	const key = JSON.stringify([applicationRoot, configPath, environment, hostMode]);
@@ -71,6 +72,8 @@ export async function prepareExactPluginRegistry(
 		...options,
 		applicationRoot,
 		configPath,
+		config: loaded.config,
+		configWatchFiles: loaded.watchFiles,
 		environment,
 		hostMode
 	});
@@ -106,6 +109,7 @@ async function prepareUncached(
 	options: PrepareExactPluginRegistryOptions & {
 		applicationRoot: string;
 		configPath?: string;
+		configWatchFiles: readonly string[];
 		environment: string;
 		hostMode: ExactPluginHostMode;
 	}
@@ -119,7 +123,7 @@ async function prepareUncached(
 		timeoutMs
 	);
 	try {
-		const config = options.config ?? (await loadExactConfig(options.configPath));
+		const config = options.config;
 		const graph = options.graph ?? createExactPackageGraph(options.applicationRoot);
 		const discovery = discoverExactPlugins(graph, config?.pluginDiscovery);
 		const resolution = await abortable(
@@ -156,7 +160,12 @@ async function prepareUncached(
 			runtime,
 			reports: resolution.reports,
 			warnings: discovery.warnings,
-			watchFiles: discoverWatchFiles(options.applicationRoot, options.configPath, graph, discovery)
+			watchFiles: discoverWatchFiles(
+				options.applicationRoot,
+				options.configWatchFiles,
+				graph,
+				discovery
+			)
 		});
 		if (options.syncTypes !== false) await writePluginTypes(options.applicationRoot, discovery);
 		return registry;
@@ -203,60 +212,6 @@ function projectionMap(
 	);
 }
 
-async function loadExactConfig(configPath: string | undefined): Promise<ExactConfig | undefined> {
-	if (!configPath) return undefined;
-	let imported: Record<string, unknown>;
-	if (/\.[cm]?ts$/i.test(configPath)) {
-		const source = await readFile(configPath, 'utf8');
-		const output = ts.transpileModule(source, {
-			compilerOptions: {
-				target: ts.ScriptTarget.ES2022,
-				module: ts.ModuleKind.ESNext,
-				moduleResolution: ts.ModuleResolutionKind.Bundler,
-				verbatimModuleSyntax: true
-			},
-			fileName: configPath,
-			reportDiagnostics: true
-		});
-		const errors =
-			output.diagnostics?.filter(
-				(diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error
-			) ?? [];
-		if (errors.length) {
-			throw new Error(
-				`Unable to transpile ${configPath}: ${errors.map((error) => ts.flattenDiagnosticMessageText(error.messageText, '\n')).join('\n')}`
-			);
-		}
-		const temporary = path.join(
-			path.dirname(configPath),
-			`.exact-config-${process.pid}-${Date.now()}.mjs`
-		);
-		try {
-			await writeFile(temporary, output.outputText, { flag: 'wx' });
-			imported = await nativeImport(`${pathToFileURL(temporary).href}?t=${Date.now()}`);
-		} finally {
-			await rm(temporary, { force: true });
-		}
-	} else {
-		imported = await nativeImport(
-			`${pathToFileURL(configPath).href}?t=${statSync(configPath).mtimeMs}`
-		);
-	}
-	const config = imported.default;
-	if (!config || typeof config !== 'object' || Array.isArray(config)) {
-		throw new Error(`${configPath} must default-export an eXact configuration object`);
-	}
-	return config as ExactConfig;
-}
-
-async function nativeImport(specifier: string): Promise<Record<string, unknown>> {
-	return import(
-		/* @vite-ignore */
-		/* webpackIgnore: true */
-		specifier
-	) as Promise<Record<string, unknown>>;
-}
-
 async function writePluginTypes(
 	applicationRoot: string,
 	discovery: ExactPluginDiscoveryResult
@@ -293,12 +248,12 @@ async function writePluginTypes(
 
 function discoverWatchFiles(
 	applicationRoot: string,
-	configPath: string | undefined,
+	configWatchFiles: readonly string[],
 	graph: ExactPackageGraph,
 	discovery: ExactPluginDiscoveryResult
 ): readonly string[] {
 	const files = new Set<string>();
-	if (configPath) files.add(configPath);
+	for (const configWatchFile of configWatchFiles) files.add(configWatchFile);
 	files.add(path.join(applicationRoot, 'package.json'));
 	try {
 		files.add(findUp(applicationRoot, 'package-lock.json'));
@@ -313,29 +268,7 @@ function discoverWatchFiles(
 function resolveApplicationRoot(options: PrepareExactPluginRegistryOptions): string {
 	if (options.applicationRoot) return path.resolve(options.applicationRoot);
 	if (options.configPath) return path.dirname(path.resolve(options.configPath));
-	const config = findExactConfig(process.cwd());
-	if (config) return path.dirname(config);
 	return path.dirname(findUp(process.cwd(), 'package.json'));
-}
-
-function findExactConfig(cwd: string): string | undefined {
-	let directory = path.resolve(cwd);
-	const names = [
-		'exact.config.ts',
-		'exact.config.mts',
-		'exact.config.js',
-		'exact.config.mjs',
-		'exact.config.cjs'
-	];
-	while (true) {
-		for (const name of names) {
-			const candidate = path.join(directory, name);
-			if (existsSync(candidate)) return candidate;
-		}
-		const parent = path.dirname(directory);
-		if (parent === directory) return undefined;
-		directory = parent;
-	}
 }
 
 function positiveTimeout(value: number | undefined): number {

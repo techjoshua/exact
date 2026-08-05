@@ -1,0 +1,455 @@
+import type { ExactComponentBuildFacts } from '@exactjs/compiler';
+import type { ExactComponentLibraryTrustConfig } from '@exactjs/config';
+import path from 'node:path';
+import {
+	exactComponentLibraryRuleMatches,
+	normalizeExactComponentLibraryPolicy,
+	type ExactNormalizedComponentLibraryPolicy,
+	type ExactNormalizedComponentLibraryRule
+} from './configuration.js';
+import {
+	ExactComponentAuthorizationError,
+	type ExactComponentAuthorizationAudit,
+	type ExactComponentAuthorizationDecision,
+	type ExactComponentAuthorizationErrorCode,
+	type ExactComponentAuthorizationManifest,
+	type ExactComponentAuthorizationSession,
+	type ExactComponentServerExecutionReason,
+	type ExactResolvedComponentAuthorization,
+	type ExactResolvedComponentCandidate,
+	type ExactResolvedDependencyEdge,
+	type ExactResolvedPackageInstance
+} from './contracts.js';
+import { canonicalHash } from './hashing.js';
+import {
+	ExactComponentParticipationError,
+	validateExactComponentParticipation,
+	type ExactComponentParticipation
+} from './participation.js';
+
+/** Options for one isolated build/watch authorization generation. */
+export type CreateExactComponentAuthorizationSessionOptions = Readonly<{
+	buildKey: string;
+	config?: ExactComponentLibraryTrustConfig;
+}>;
+
+type ImporterRecord = Readonly<{ facts: ExactComponentBuildFacts; version: string }>;
+type AuthorizedRecord = {
+	instance: ExactResolvedPackageInstance;
+	instanceId: string;
+	participation: ExactComponentParticipation;
+	decision: ExactComponentAuthorizationDecision;
+	matchedRule?: string;
+	reasons: Set<ExactComponentServerExecutionReason>;
+};
+type OmittedRecord = Readonly<{
+	identity: string;
+	packageName: string;
+	reason: OmittedReason;
+}>;
+type OmittedReason = ExactComponentAuthorizationAudit['omittedEnhancements'][number]['reason'];
+
+/** Creates the authoritative pre-evaluation policy session for one build generation. */
+export function createExactComponentAuthorizationSession(
+	options: CreateExactComponentAuthorizationSessionOptions
+): ExactComponentAuthorizationSession {
+	if (!options.buildKey.trim()) throw new Error('Component authorization requires a buildKey');
+	return new ComponentAuthorizationGeneration(
+		options.buildKey,
+		normalizeExactComponentLibraryPolicy(options.config)
+	);
+}
+
+/** Owns all mutable provenance and decisions until one atomic commit or rejection. */
+class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSession {
+	readonly #importers = new Map<string, ImporterRecord>();
+	readonly #instances = new Map<string, ExactResolvedPackageInstance>();
+	readonly #edges: ExactResolvedDependencyEdge[] = [];
+	readonly #authorized = new Map<string, AuthorizedRecord>();
+	readonly #omitted = new Map<string, OmittedRecord>();
+	#state: 'open' | 'committed' | 'rejected' | 'disposed' = 'open';
+
+	constructor(
+		private readonly buildKey: string,
+		private readonly policy: ExactNormalizedComponentLibraryPolicy
+	) {}
+
+	recordImporterFacts(moduleId: string, facts: ExactComponentBuildFacts, version: string): void {
+		this.assertOpen();
+		if (facts.protocol !== 1 || facts.filename !== moduleId)
+			throw this.error('provenance-unresolved', 'Importer facts do not match their module ID');
+		const existing = this.#importers.get(moduleId);
+		if (existing && existing.version !== version)
+			throw this.error(
+				'generation-stale',
+				`Importer ${moduleId} changed during authorization generation ${this.buildKey}`
+			);
+		this.#importers.set(moduleId, Object.freeze({ facts, version }));
+	}
+
+	recordPackageInstance(instance: ExactResolvedPackageInstance): void {
+		this.assertOpen();
+		if (
+			!instance.key ||
+			!path.isAbsolute(instance.root) ||
+			!path.isAbsolute(instance.manifestPath) ||
+			!instance.name ||
+			!instance.version
+		)
+			throw this.error('provenance-unresolved', 'Resolver supplied an incomplete package identity');
+		const existing = this.#instances.get(instance.key);
+		if (existing && canonicalHash(existing) !== canonicalHash(instance))
+			throw this.error(
+				'provenance-unresolved',
+				`Resolver key ${instance.key} identifies more than one physical package instance`
+			);
+		this.#instances.set(instance.key, Object.freeze({ ...instance }));
+	}
+
+	recordDependencyEdge(edge: ExactResolvedDependencyEdge): void {
+		this.assertOpen();
+		if (!edge.candidate || !edge.specifier)
+			throw this.error('provenance-unresolved', 'Resolver supplied an incomplete dependency edge');
+		if (!this.#edges.some((existing) => canonicalHash(existing) === canonicalHash(edge)))
+			this.#edges.push(Object.freeze({ ...edge }));
+	}
+
+	async authorizeResolvedComponent(
+		candidate: ExactResolvedComponentCandidate
+	): Promise<ExactResolvedComponentAuthorization> {
+		this.assertOpen();
+		const instance = this.#instances.get(candidate.packageInstanceKey);
+		if (!instance)
+			throw this.candidateError(
+				'provenance-unresolved',
+				candidate,
+				undefined,
+				`No resolved package instance was recorded for ${candidate.moduleSpecifier}`
+			);
+		this.validateImporterCandidate(candidate, instance);
+		try {
+			const participation = await validateExactComponentParticipation(
+				instance,
+				candidate,
+				this.#instances,
+				this.#edges
+			);
+			const decision = this.policyDecision(instance);
+			if (!decision)
+				throw this.candidateError(
+					'not-allowed',
+					candidate,
+					instance,
+					`${instance.name}@${instance.version} is not allowed by componentLibraries policy`
+				);
+			if (decision.denied)
+				throw this.candidateError(
+					'explicitly-denied',
+					candidate,
+					instance,
+					`${instance.name}@${instance.version} matches deny rule ${decision.matchedRule}`
+				);
+			const instanceId = packageInstanceId(instance);
+			const existing = this.#authorized.get(instance.key);
+			if (existing) {
+				existing.reasons.add(candidate.reason);
+			} else {
+				this.#authorized.set(instance.key, {
+					instance,
+					instanceId,
+					participation,
+					decision: decision.decision,
+					...(decision.matchedRule ? { matchedRule: decision.matchedRule } : {}),
+					reasons: new Set([candidate.reason])
+				});
+			}
+			return Object.freeze({ outcome: 'authorized' as const, packageInstanceId: instanceId });
+		} catch (error) {
+			const authorizationError =
+				error instanceof ExactComponentAuthorizationError
+					? error
+					: error instanceof ExactComponentParticipationError
+						? this.candidateError(error.code, candidate, instance, error.message)
+						: error;
+			if (
+				authorizationError instanceof ExactComponentAuthorizationError &&
+				candidate.optionalEnhancementIdentity &&
+				this.policy.unauthorizedOptionalEnhancements === 'exclude' &&
+				isOmittableReason(authorizationError.code)
+			) {
+				this.#omitted.set(
+					candidate.optionalEnhancementIdentity,
+					Object.freeze({
+						identity: candidate.optionalEnhancementIdentity,
+						packageName: instance.name,
+						reason: authorizationError.code
+					})
+				);
+				return Object.freeze({
+					outcome: 'omitted' as const,
+					enhancementIdentity: candidate.optionalEnhancementIdentity
+				});
+			}
+			throw authorizationError;
+		}
+	}
+
+	async commitGeneration(): Promise<
+		Readonly<{
+			manifest: ExactComponentAuthorizationManifest;
+			audit: ExactComponentAuthorizationAudit;
+		}>
+	> {
+		this.assertOpen();
+		const packages = [...this.#authorized.values()].sort((left, right) =>
+			left.instanceId.localeCompare(right.instanceId)
+		);
+		const omitted = [...this.#omitted.values()].sort((left, right) =>
+			left.identity.localeCompare(right.identity)
+		);
+		const fingerprint = canonicalHash({
+			protocol: 1,
+			markerProtocol: 1,
+			buildKey: this.buildKey,
+			policyHash: this.policy.policyHash,
+			packages: packages.map((record) => ({
+				instanceId: record.instanceId,
+				decision: record.decision,
+				reasons: sorted(record.reasons)
+			})),
+			omittedEnhancements: omitted.map((record) => record.identity)
+		});
+		const manifest: ExactComponentAuthorizationManifest = Object.freeze({
+			protocol: 1,
+			buildKey: this.buildKey,
+			fingerprint,
+			policyHash: this.policy.policyHash,
+			markerProtocol: 1,
+			packages: Object.freeze(
+				packages.map((record) =>
+					Object.freeze({
+						instanceId: record.instanceId,
+						name: record.instance.name,
+						version: record.instance.version,
+						...(record.instance.integrity
+							? { integrityHash: canonicalHash(record.instance.integrity) }
+							: {}),
+						decision: record.decision,
+						reasons: Object.freeze(sorted(record.reasons))
+					})
+				)
+			),
+			omittedEnhancements: Object.freeze(omitted.map((record) => record.identity))
+		});
+		const audit: ExactComponentAuthorizationAudit = Object.freeze({
+			protocol: 1,
+			buildKey: this.buildKey,
+			fingerprint,
+			packages: Object.freeze(packages.map((record) => this.auditPackage(record))),
+			omittedEnhancements: Object.freeze(omitted.map((record) => Object.freeze({ ...record })))
+		});
+		this.#state = 'committed';
+		this.releaseMutableInputs();
+		return Object.freeze({ manifest, audit });
+	}
+
+	rejectGeneration(): void {
+		if (this.#state !== 'open') return;
+		this.#state = 'rejected';
+		this.releaseMutableInputs();
+	}
+
+	dispose(): void {
+		if (this.#state === 'disposed') return;
+		this.#state = 'disposed';
+		this.releaseMutableInputs();
+	}
+
+	private validateImporterCandidate(
+		candidate: ExactResolvedComponentCandidate,
+		instance: ExactResolvedPackageInstance
+	): void {
+		const importer = this.#importers.get(candidate.importerModuleId);
+		if (!importer)
+			throw this.candidateError(
+				'provenance-unresolved',
+				candidate,
+				instance,
+				`No compiler component facts were recorded for ${candidate.importerModuleId}`
+			);
+		const componentEdge = importer.facts.componentImports.some(
+			(edge) =>
+				edge.moduleSpecifier === candidate.moduleSpecifier &&
+				edge.exportName === candidate.exportName &&
+				edge.artifactTargets.includes('server')
+		);
+		const enhancementEdge =
+			candidate.reason === 'server-enhancement' &&
+			importer.facts.rendererEnhancements.some(
+				(edge) =>
+					edge.moduleSpecifier === candidate.moduleSpecifier &&
+					edge.exportName === candidate.exportName
+			);
+		if (!componentEdge && !enhancementEdge)
+			throw this.candidateError(
+				'provenance-unresolved',
+				candidate,
+				instance,
+				`Compiler facts do not contain a server component edge for ${candidate.moduleSpecifier}#${candidate.exportName}`
+			);
+	}
+
+	private policyDecision(instance: ExactResolvedPackageInstance):
+		| Readonly<{
+				denied: false;
+				decision: ExactComponentAuthorizationDecision;
+				matchedRule?: string;
+		  }>
+		| Readonly<{ denied: true; matchedRule: string }>
+		| undefined {
+		const denied = this.policy.deny.find((rule) =>
+			exactComponentLibraryRuleMatches(rule, instance)
+		);
+		if (denied) return Object.freeze({ denied: true, matchedRule: denied.description });
+		const allowed = this.policy.allow.find((rule) =>
+			exactComponentLibraryRuleMatches(rule, instance)
+		);
+		if (allowed)
+			return Object.freeze({ denied: false, decision: 'allow', matchedRule: allowed.description });
+		const rootEdge = this.#edges.find(
+			(edge) =>
+				edge.owner === 'application' &&
+				edge.candidate === instance.key &&
+				edge.kind === 'dependency'
+		);
+		if (rootEdge) return Object.freeze({ denied: false, decision: 'root' });
+		if (this.policy.mode === 'root') return undefined;
+		if (this.policy.mode === 'all') return Object.freeze({ denied: false, decision: 'all' });
+		const scopes = [
+			...this.policy.trustedScopes,
+			...(this.policy.includeDefaultTrustedScopes ? ['@exactjs/'] : [])
+		];
+		const scope = scopes.find((prefix) => instance.name.startsWith(prefix));
+		if (scope) return Object.freeze({ denied: false, decision: 'scope', matchedRule: scope });
+		const delegated = this.#edges.find(
+			(edge) =>
+				edge.candidate === instance.key &&
+				edge.kind === 'dependency' &&
+				edge.owner !== 'application' &&
+				this.#authorized.has(edge.owner)
+		);
+		return delegated ? Object.freeze({ denied: false, decision: 'delegated' }) : undefined;
+	}
+
+	private auditPackage(
+		record: AuthorizedRecord
+	): ExactComponentAuthorizationAudit['packages'][number] {
+		const provenance = this.#edges
+			.filter((edge) => edge.candidate === record.instance.key)
+			.map((edge) =>
+				Object.freeze({
+					owner:
+						edge.owner === 'application'
+							? ('application' as const)
+							: (this.#instances.get(edge.owner)?.name ?? edge.owner),
+					specifier: edge.specifier,
+					kind: edge.kind
+				})
+			)
+			.sort((left, right) => canonicalHash(left).localeCompare(canonicalHash(right)));
+		return Object.freeze({
+			instanceId: record.instanceId,
+			name: record.instance.name,
+			version: record.instance.version,
+			markerVersion: record.participation.markerVersion,
+			decision: record.decision,
+			reasons: Object.freeze(sorted(record.reasons)),
+			...(record.matchedRule ? { matchedRule: record.matchedRule } : {}),
+			provenance: Object.freeze(provenance)
+		});
+	}
+
+	private candidateError(
+		code: ExactComponentAuthorizationErrorCode,
+		candidate: ExactResolvedComponentCandidate,
+		instance: ExactResolvedPackageInstance | undefined,
+		message: string
+	): ExactComponentAuthorizationError {
+		return this.error(code, message, candidate, instance);
+	}
+
+	private error(
+		code: ExactComponentAuthorizationErrorCode,
+		message: string,
+		candidate?: ExactResolvedComponentCandidate,
+		instance?: ExactResolvedPackageInstance
+	): ExactComponentAuthorizationError {
+		return new ExactComponentAuthorizationError(
+			Object.freeze({
+				code,
+				message,
+				buildKey: this.buildKey,
+				...(candidate
+					? {
+							request: Object.freeze({
+								importerModuleId: candidate.importerModuleId,
+								moduleSpecifier: candidate.moduleSpecifier,
+								exportName: candidate.exportName,
+								resolvedModuleId: candidate.resolvedModuleId,
+								reason: candidate.reason
+							})
+						}
+					: {}),
+				...(instance
+					? {
+							package: Object.freeze({
+								instanceId: packageInstanceId(instance),
+								name: instance.name,
+								version: instance.version
+							})
+						}
+					: {})
+			})
+		);
+	}
+
+	private assertOpen(): void {
+		if (this.#state !== 'open')
+			throw this.error(
+				'generation-stale',
+				`Authorization generation ${this.buildKey} is ${this.#state}`
+			);
+	}
+
+	private releaseMutableInputs(): void {
+		this.#importers.clear();
+		this.#instances.clear();
+		this.#edges.length = 0;
+		this.#authorized.clear();
+		this.#omitted.clear();
+	}
+}
+
+function packageInstanceId(instance: ExactResolvedPackageInstance): string {
+	return canonicalHash([
+		path.normalize(instance.root),
+		instance.name,
+		instance.version,
+		instance.integrity ?? ''
+	]);
+}
+
+function sorted<T extends string>(values: Iterable<T>): T[] {
+	return [...values].sort((left, right) => left.localeCompare(right));
+}
+
+function isOmittableReason(code: ExactComponentAuthorizationErrorCode): code is OmittedReason {
+	return [
+		'unmarked',
+		'marker-incompatible',
+		'build-facts-missing',
+		'build-facts-invalid',
+		'not-allowed',
+		'explicitly-denied'
+	].includes(code);
+}

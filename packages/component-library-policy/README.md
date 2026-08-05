@@ -1,0 +1,18 @@
+# @exactjs/component-library-policy
+
+This Node/build-tool package is the single authorization engine used by eXact bundler and test
+adapters before external component code can enter a server-executing artifact.
+
+## Build integration
+
+Adapters create one authorization session per build generation, record compiler component facts
+and resolver-owned package provenance, authorize each resolved server component before loading it,
+then atomically commit or reject the generation.
+
+The package validates the inert component-library marker, static compiler build facts, dependency
+provenance, and the application's `componentLibraries` configuration. It returns compact manifests
+and server-private audits; it does not sandbox authorized JavaScript or participate in eXact plugin
+lifecycle.
+
+Application authors configure this behavior through `exact.config.*`, not by importing this
+package directly.

@@ -8,6 +8,7 @@
 		{ "path": "./packages/instrumentation" },
 		{ "path": "./packages/plugin-api" },
 		{ "path": "./packages/config" },
+		{ "path": "./packages/component-library-policy" },
 		{ "path": "./packages/plugin-host" },
 		{ "path": "./plugins/secrets" },
 		{ "path": "./component-libraries/motion" },
