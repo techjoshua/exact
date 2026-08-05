@@ -242,7 +242,8 @@ export function mountInner(
 						nextChildren,
 						parentInstance,
 						mounted.scope,
-						afterMountedChildren(mounted)
+						afterMountedChildren(mounted),
+						mounted
 					);
 				},
 				undefined,
@@ -276,7 +277,8 @@ export function mountInner(
 						nextChildren,
 						parentInstance,
 						mounted.scope,
-						afterMountedChildren(mounted)
+						afterMountedChildren(mounted),
+						mounted
 					)
 				);
 			},

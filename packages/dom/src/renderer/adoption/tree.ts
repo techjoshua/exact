@@ -196,7 +196,8 @@ export function adoptStaticMountedInner(
 					nextChildren,
 					parentInstance,
 					scope,
-					afterMountedChildren(mounted)
+					afterMountedChildren(mounted),
+					mounted
 				);
 			},
 			undefined,
@@ -338,7 +339,8 @@ export function adoptStaticMountedInner(
 						materializeList(list),
 						parentInstance,
 						scope,
-						afterMountedChildren(mounted)
+						afterMountedChildren(mounted),
+						mounted
 					);
 				},
 				undefined,

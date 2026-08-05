@@ -213,7 +213,8 @@ export function patchInner(
 			next.children,
 			activity.owner,
 			activity.contentScope,
-			activity.retained?.detached ? null : mounted.end
+			activity.retained?.detached ? null : mounted.end,
+			mounted
 		);
 		installActivity(root, mounted);
 		return mounted;
@@ -233,7 +234,8 @@ export function patchInner(
 			next.children,
 			parentInstance,
 			mounted.scope,
-			afterMountedChildren(mounted)
+			afterMountedChildren(mounted),
+			mounted
 		);
 		refreshTargetBoundary(root, mounted, parentInstance);
 		return mounted;
@@ -253,7 +255,8 @@ export function patchInner(
 				nextList ? materializeList(nextList) : next.children,
 				parentInstance,
 				mounted.scope,
-				afterMountedChildren(mounted)
+				afterMountedChildren(mounted),
+				mounted
 			);
 			if (nextList) {
 				mounted.stop = watch(
@@ -265,7 +268,8 @@ export function patchInner(
 							materializeList(nextList),
 							parentInstance,
 							mounted.scope,
-							afterMountedChildren(mounted)
+							afterMountedChildren(mounted),
+							mounted
 						);
 					},
 					undefined,
@@ -280,7 +284,8 @@ export function patchInner(
 				next.children,
 				parentInstance,
 				mounted.scope,
-				afterMountedChildren(mounted)
+				afterMountedChildren(mounted),
+				mounted
 			);
 		}
 		return mounted;
@@ -297,7 +302,8 @@ export function patchInner(
 			normalizeRenderResult(unwrap(value) as Child | Child[]),
 			parentInstance,
 			mounted.scope,
-			afterMountedChildren(mounted)
+			afterMountedChildren(mounted),
+			mounted
 		);
 		mounted.stop = watch(
 			() => {
@@ -309,7 +315,8 @@ export function patchInner(
 					nextChildren,
 					parentInstance,
 					mounted.scope,
-					afterMountedChildren(mounted)
+					afterMountedChildren(mounted),
+					mounted
 				);
 			},
 			undefined,
@@ -333,7 +340,9 @@ export function patchInner(
 				mounted.children,
 				[],
 				parentInstance,
-				mounted.scope
+				mounted.scope,
+				undefined,
+				mounted
 			);
 			mounted.portalTarget = nextTarget;
 			const eventContainer = portalEventContainer(root, nextTarget);
@@ -349,7 +358,9 @@ export function patchInner(
 					mounted.children,
 					next.children,
 					parentInstance,
-					mounted.scope
+					mounted.scope,
+					undefined,
+					mounted
 				)
 			);
 		}
@@ -385,7 +396,8 @@ export function patchInner(
 		next.children,
 		parentInstance,
 		mounted.scope,
-		mounted.childEnd
+		mounted.childEnd,
+		mounted
 	);
 	updateTargetedIntrinsicProps(root, mounted, previousProps, next.props);
 	return mounted;

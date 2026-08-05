@@ -39,12 +39,24 @@ export type Mounted = {
 	instance?: ComponentInstance<any>;
 	delegatedEvents?: Map<string, EventListener>;
 	stop?: StopHandle;
-	/** Semantic target exported by an ordinary `_target` boundary. */
-	targetBoundary?: { selected?: Mounted; release?: () => void };
+	/** Semantic target exported by an ordinary `_target` boundary and its route dependencies. */
+	targetBoundary?: {
+		selected?: Mounted;
+		owner?: ComponentInstance<any>;
+		dependencies?: Set<Mounted>;
+		release?: () => void;
+	};
+	/** Target boundaries whose route currently depends on this mounted structural owner. */
+	targetDependents?: Set<Mounted>;
 	/** Independently owned `_target` property layers currently attached to this intrinsic. */
-	targetContributions?: Map<Mounted, Readonly<Record<string, unknown>>>;
+	targetContributions?: Map<
+		Mounted,
+		Readonly<{ props: Readonly<Record<string, unknown>>; owner?: ComponentInstance<any> }>
+	>;
 	/** Last effective intrinsic props after composing authored and `_target` layers. */
 	targetEffectiveProps?: Record<string, unknown>;
+	/** Native event subscriptions installed for independently owned target layers. */
+	targetEventReleases?: Array<() => void>;
 	/** Unmanaged nodes between an opaque raw-HTML range's boundary markers. */
 	rawNodes?: Node[];
 	/** Reserved framework-owned insertion point after authored host children. */
@@ -114,8 +126,6 @@ export type Root = {
 	enhancementReconciliationDepth?: number;
 	/** Re-evaluates compiler-owned reactive root selectors for the current mounted tree. */
 	reconcileEnhancements?: () => void;
-	/** Re-resolves `_target` boundaries after structural output changes. */
-	reconcileTargets?: () => void;
 	/** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
 	mode?: 'client' | 'hydrated' | 'document';
 	/** Becomes true after the root's first client mount or hydration adoption finishes. */

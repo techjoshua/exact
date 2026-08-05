@@ -27,6 +27,7 @@ import {
 import { patch } from './root.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { releaseMountedRange } from '../retained-release.js';
+import { refreshTargetDependents } from '../target-contributions.js';
 
 /** Performs the patch children domain operation. */
 export function patchChildren(
@@ -36,7 +37,8 @@ export function patchChildren(
 	nextChildren: Child[],
 	parentInstance?: ComponentInstance<any>,
 	parentScope?: EffectScope,
-	before?: Node | null
+	before?: Node | null,
+	structuralOwner?: Mounted
 ): Mounted[] {
 	domDebug(root, 'patch children', {
 		parent: describeNode(parent),
@@ -56,7 +58,8 @@ export function patchChildren(
 				nextChildren,
 				parentInstance,
 				parentScope,
-				before
+				before,
+				structuralOwner
 			);
 		})
 	);
@@ -70,7 +73,8 @@ export function patchChildrenInner(
 	nextChildren: Child[],
 	parentInstance?: ComponentInstance<any>,
 	parentScope?: EffectScope,
-	before?: Node | null
+	before?: Node | null,
+	structuralOwner?: Mounted
 ): Mounted[] {
 	const nextVNodes = nextChildren.map(childToVNode).filter((vnode): vnode is VNode => !!vnode);
 	const nextKeys = new Set<string>();
@@ -125,7 +129,7 @@ export function patchChildrenInner(
 		}
 	}
 	throwTeardownFailure(teardown);
-	root.reconcileTargets?.();
+	if (structuralOwner) refreshTargetDependents(root, structuralOwner);
 	if (parentInstance) refreshComponentRoot(parentInstance);
 	if (!root.enhancementReconciliationDepth) {
 		root.reconcileEnhancements?.();
@@ -162,7 +166,8 @@ export function rerenderComponent(root: Root, mounted: Mounted): void {
 				nextChildren,
 				mounted.instance,
 				mounted.scope,
-				afterMountedChildren(mounted)
+				afterMountedChildren(mounted),
+				mounted
 			);
 		} while (mounted.rerenderPending && mounted.scope.active);
 	} finally {

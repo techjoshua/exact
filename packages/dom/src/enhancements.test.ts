@@ -19,6 +19,7 @@ import { markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
+import { inspectDomRoot } from './testing.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 const identity = '@test/motion#motion';
@@ -191,6 +192,87 @@ describe('renderer enhancements', () => {
 		expect(container.querySelector('section')).not.toBeNull();
 	});
 
+	it('keeps target event subscriptions independent and honors immediate propagation stops', () => {
+		const calls: string[] = [];
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Target,
+				{ onClick: () => calls.push('outer') },
+				createVNode(
+					Target,
+					{ onClick: () => calls.push('inner') },
+					createVNode(
+						'button',
+						{
+							onClick: (event: Event) => {
+								calls.push('authored');
+								event.stopImmediatePropagation();
+							}
+						},
+						'Save'
+					)
+				)
+			),
+			container
+		);
+
+		container.querySelector('button')!.click();
+		expect(calls).toEqual(['authored']);
+	});
+
+	it('does not reroute target ownership for unrelated structural changes', () => {
+		const state = reactive({ sibling: false });
+		const refCalls: unknown[] = [];
+		const target = {
+			fulfill(value: unknown) {
+				refCalls.push(value);
+			}
+		};
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Fragment,
+				null,
+				createVNode(Target, { ref: target }, createVNode('button', null, 'Stable')),
+				createDynamicChild(() =>
+					state.sibling
+						? createVNode('aside', null, 'Changed')
+						: createVNode('span', null, 'Initial')
+				)
+			),
+			container
+		);
+
+		expect(refCalls).toHaveLength(1);
+		state.sibling = true;
+		flushSync();
+		expect(refCalls).toHaveLength(1);
+		expect(container.querySelector('button')?.textContent).toBe('Stable');
+	});
+
+	it('exposes target owners, live contribution values, and effective props to inspection', () => {
+		const state = reactive({ title: 'contributed' });
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Target,
+				{ title: computed(() => state.title), className: 'layer' },
+				createVNode('button', { className: 'authored' }, 'Inspect')
+			),
+			container
+		);
+
+		state.title = 'updated';
+		flushSync();
+		const root = inspectDomRoot(container)!;
+		const boundary = root.children[0]!;
+		const intrinsic = boundary.children[0]!;
+		expect(boundary.target?.selected).toBe(container.querySelector('button'));
+		expect(intrinsic.target?.contributions[0]?.props.title).toBe('updated');
+		expect(intrinsic.target?.effectiveProps?.className).toBe('authored layer');
+	});
+
 	it('uses the same target forwarding when an ordinary component is enhancement-invoked', () => {
 		let root!: RootLifecycle<HTMLElement>;
 		const Surface = markTestComponent(function Surface(
@@ -249,6 +331,72 @@ describe('renderer enhancements', () => {
 		state.tone = 'active';
 		flushSync();
 		expect(container.querySelector('button')?.className).toBe('active');
+	});
+
+	it('releases and reattaches one target owner across conditional target generations', () => {
+		const state = reactive({ mode: 'button' as 'button' | 'text' | 'link' });
+		const refs: unknown[] = [];
+		const target = {
+			fulfill(value: unknown) {
+				refs.push(value);
+			}
+		};
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Target,
+				{ ref: target, title: 'owned' },
+				createDynamicChild(() =>
+					state.mode === 'button'
+						? createVNode('button', null, 'Button')
+						: state.mode === 'link'
+							? createVNode('a', { href: '#' }, 'Link')
+							: 'No target'
+				)
+			),
+			container
+		);
+
+		expect(refs.at(-1)).toBe(container.querySelector('button'));
+		state.mode = 'text';
+		flushSync();
+		expect(refs.at(-1)).toBeUndefined();
+		expect(container.textContent).toBe('No target');
+		state.mode = 'link';
+		flushSync();
+		expect(refs.at(-1)).toBe(container.querySelector('a'));
+		expect(container.querySelector('a')?.title).toBe('owned');
+	});
+
+	it('propagates a nested target generation change to outer target owners', () => {
+		const state = reactive({ link: false });
+		const outerRefs: unknown[] = [];
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Target,
+				{
+					className: 'outer',
+					ref: { fulfill: (value: unknown) => outerRefs.push(value) }
+				},
+				createVNode(
+					Target,
+					{ className: 'inner' },
+					createDynamicChild(() =>
+						state.link
+							? createVNode('a', { href: '#' }, 'Link')
+							: createVNode('button', null, 'Button')
+					)
+				)
+			),
+			container
+		);
+
+		expect(container.querySelector('button')?.className).toBe('inner outer');
+		state.link = true;
+		flushSync();
+		expect(container.querySelector('a')?.className).toBe('inner outer');
+		expect(outerRefs.at(-1)).toBe(container.querySelector('a'));
 	});
 
 	it('forwards declarations through components and merges nearest props at an explicit target', () => {

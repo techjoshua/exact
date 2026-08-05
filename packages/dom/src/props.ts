@@ -13,7 +13,12 @@ import {
 } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
 import { describeNode, domDebug } from './debug.js';
-import { ensureDelegated, requiresDirectListener, runEventInteraction } from './events.js';
+import {
+	ensureDelegated,
+	eventTypeForProp,
+	requiresDirectListener,
+	runEventInteraction
+} from './events.js';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
@@ -208,22 +213,6 @@ function eventContainerFor(root: Root, element: Element): Node {
 	if (root.container.contains(element)) return root.container;
 	for (const target of root.portalTargets) if (target.contains(element)) return target;
 	return root.container;
-}
-
-/** Converts JSX's DOM-style handler names to their platform event names. */
-function eventTypeForProp(key: string): { type: string; capture: boolean } {
-	// Pointer capture lifecycle events are event names, not capture-phase
-	// variants.  Treating onLostPointerCapture as onLostPointer + Capture
-	// silently registered a nonexistent "lostpointer" listener.
-	const pointerCaptureLifecycle = key === 'onLostPointerCapture' || key === 'onGotPointerCapture';
-	const capture = key.endsWith('Capture') && !pointerCaptureLifecycle;
-	const name = key.slice(2, capture ? -7 : undefined);
-	const aliases: Record<string, string> = {
-		DoubleClick: 'dblclick',
-		FocusIn: 'focusin',
-		FocusOut: 'focusout'
-	};
-	return { type: aliases[name] ?? name.toLowerCase(), capture };
 }
 
 function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): StopHandle {
