@@ -1,7 +1,6 @@
 /** Returns whether an object contains only the explicitly allowed own enumerable keys. */
 export function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
-	const allowedSet = new Set(allowed);
-	return Object.keys(record).every((key) => allowedSet.has(key));
+	return Object.keys(record).every((key) => allowed.includes(key));
 }
 
 /** Returns whether a value can be safely encoded as JSON without prototypes or cycles. */
@@ -13,7 +12,6 @@ export function isJsonSafe(
 	const maxNodes = positiveLimit(limits.maxNodes, 100_000);
 	const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
 	try {
-		const encoder = new TextEncoder();
 		const seen = new Set<object>();
 		const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
 		let nodes = 0;
@@ -27,7 +25,7 @@ export function isJsonSafe(
 				continue;
 			}
 			if (typeof item === 'string') {
-				bytes += encoder.encode(item).byteLength;
+				bytes += utf8ByteLength(item);
 				if (bytes > maxBytes) return false;
 				continue;
 			}
@@ -35,7 +33,7 @@ export function isJsonSafe(
 			seen.add(item);
 			if (item instanceof Map) {
 				for (const [key, entryValue] of item) {
-					if (!isTransportableMapKey(key)) return false;
+					if (!isTransportableReactiveMapKey(key)) return false;
 					pending.push({ value: entryValue, depth: depth + 1 });
 				}
 				continue;
@@ -50,7 +48,7 @@ export function isJsonSafe(
 			for (const key of keys) {
 				const descriptor = Object.getOwnPropertyDescriptor(item, key);
 				if (!descriptor || !('value' in descriptor)) return false;
-				bytes += encoder.encode(key).byteLength;
+				bytes += utf8ByteLength(key);
 				if (bytes > maxBytes) return false;
 				pending.push({ value: descriptor.value, depth: depth + 1 });
 			}
@@ -61,15 +59,5 @@ export function isJsonSafe(
 	}
 }
 
-function isTransportableMapKey(value: unknown): boolean {
-	return (
-		value === null ||
-		typeof value === 'boolean' ||
-		typeof value === 'string' ||
-		(typeof value === 'number' && Number.isFinite(value))
-	);
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
-}
+import { isTransportableReactiveMapKey } from '@exactjs/core';
+import { positiveLimit, utf8ByteLength } from './limits.js';

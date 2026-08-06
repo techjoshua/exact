@@ -127,6 +127,32 @@ it('retains generated action invocation metadata from serialized hydration confi
 	);
 });
 
+it('uses the core continuation contract for collection state paths', () => {
+	const root = document.createElement('div');
+	root.innerHTML = renderHydrationScript({
+		continuations: {
+			'action:collection': {
+				kind: 'task',
+				id: 'action:collection',
+				componentId: 'component:Workspace',
+				readiness: 'nonblocking',
+				dependencies: [],
+				stateReads: [{ path: 'records', kind: 'read', confidence: 'exact', operation: 'map' }],
+				stateWrites: [],
+				publicContexts: [],
+				serverContexts: [],
+				contextWrites: [],
+				serverContextWrites: [],
+				boundaries: []
+			}
+		}
+	});
+
+	expect(readExactHydrationConfig(root).continuations?.['action:collection']?.stateReads).toEqual([
+		{ path: 'records', kind: 'read', confidence: 'exact', operation: 'map' }
+	]);
+});
+
 it('normalizes omitted hydration metadata to shared immutable defaults', () => {
 	const sparse = {
 		kind: 'task' as const,

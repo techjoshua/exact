@@ -8,13 +8,17 @@ import {
 } from './frame-continuation.js';
 import { createTaskFrameContext, frameForTaskContext } from './frame-context.js';
 import { publishTaskFrameEvent } from './frame-inspection.js';
-import { runTaskFrameCleanups, settleTaskFrameChildren } from './frame-settlement.js';
+import {
+	registerTaskFrameSettlement,
+	runTaskFrameCleanups,
+	settleTaskFrameChildren
+} from './frame-settlement.js';
+import { createLazyTaskOwnerRecord } from './owner-record.js';
 
 import {
 	taskFrameTokenBrand,
 	taskOwnerBrand,
 	type InternalTaskFrameOptions,
-	type TaskActivationRegistration,
 	type TaskFrameCleanup,
 	type TaskFrameRecord,
 	type TaskOwnerRecord
@@ -32,38 +36,7 @@ const synchronousFrameErrors = new WeakMap<Promise<unknown>, { readonly error: u
 
 /** Creates a durable task owner and its cancellation lifetime. */
 export function createTaskOwnerRecord(label?: string): TaskOwnerRecord {
-	const controller = new AbortController();
-	const frames = new Set<TaskFrameRecord>();
-	const settlements = new Set<PromiseLike<unknown>>();
-	const ownerCleanups = new Set<TaskFrameCleanup>();
-	const activationRegistrations = new Set<TaskActivationRegistration>();
-	const owner: TaskOwnerRecord = {
-		[taskOwnerBrand]: true,
-		...(label === undefined ? {} : { label }),
-		controller,
-		frames,
-		settlements,
-		ownerCleanups,
-		activationRegistrations,
-		activationsDeferred: false,
-		disposed: false,
-		get signal() {
-			return controller.signal;
-		},
-		async [Symbol.asyncDispose]() {
-			if (owner.disposed) return;
-			owner.disposed = true;
-			controller.abort('task-owner-disposed');
-			for (const frame of frames) frame.controller.abort('task-owner-disposed');
-			for (const cleanup of [...ownerCleanups].reverse()) await cleanup();
-			ownerCleanups.clear();
-			await Promise.allSettled([
-				...[...frames].map((frame) => waitForFrame(frame)),
-				...settlements
-			]);
-		}
-	};
-	return owner;
+	return createLazyTaskOwnerRecord(label);
 }
 
 /** Retains setup-owned cleanup until its durable task owner is disposed. */
@@ -169,7 +142,7 @@ export function executeTaskFrame<T>(
 	};
 	(frame as { context: TaskContext }).context = createTaskFrameContext(frame, options);
 	registerTaskFrameSignal(controller.signal, frame);
-	frameWaiters.set(frame, settlement);
+	registerTaskFrameSettlement(frame, settlement);
 	owner.frames.add(frame);
 	publishTaskFrameEvent(frame, 'task.frame.enter');
 	publishTaskFrameEvent(frame, 'task.start');
@@ -330,7 +303,6 @@ export function resumeTaskFrame(signal: AbortSignal, resume: () => void): void {
 
 export { frameForTaskContext };
 
-const frameWaiters = new WeakMap<TaskFrameRecord, Promise<void>>();
 type ScheduledReactionBatch = {
 	readonly frame: TaskFrameRecord;
 	readonly resolve: () => void;
@@ -348,10 +320,6 @@ function linkAbort(signal: AbortSignal, target: AbortController): void {
 		return;
 	}
 	signal.addEventListener('abort', () => target.abort(signal.reason), { once: true });
-}
-
-function waitForFrame(frame: TaskFrameRecord): Promise<void> {
-	return frameWaiters.get(frame) ?? Promise.resolve();
 }
 
 function monotonicTimestamp(): number {

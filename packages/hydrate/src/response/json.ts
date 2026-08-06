@@ -1,11 +1,11 @@
-import { decodeReactiveProtocolValue } from '@exactjs/core';
 import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult,
 	ExactPatch
 } from '@exactjs/server';
-import { hasOnlyKeys, isJsonSafe } from '../validation.js';
+import { hasOnlyKeys } from '../validation.js';
+import { decodeBoundedReactiveProtocolValue } from '../protocol-decoding.js';
 import { positiveLimit } from './ndjson.js';
 import { isCollectionMutationLike, isPatchLike, parseExactOperationResult } from './result.js';
 import { matchesOperation } from './stream.js';
@@ -25,28 +25,16 @@ export function parseExactInvocationResponse(
 	expected?: ExactInvocationRequest,
 	limits: ResponseLimits = {}
 ): ExactInvocationResult {
-	if (
-		!isJsonSafe(body, {
+	body = decodeBoundedReactiveProtocolValue(
+		body,
+		{
 			maxDepth: limits.maxJsonDepth,
 			maxNodes: limits.maxJsonNodes,
 			maxBytes: limits.maxBytes
-		})
-	)
-		throw new Error(message);
-	try {
-		body = decodeReactiveProtocolValue(body);
-	} catch {
-		throw new Error(message);
-	}
+		},
+		() => new Error(message)
+	);
 	if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(message);
-	if (
-		!isJsonSafe(body, {
-			maxDepth: limits.maxJsonDepth,
-			maxNodes: limits.maxJsonNodes,
-			maxBytes: limits.maxBytes
-		})
-	)
-		throw new Error(message);
 	const record = body as Record<string, unknown>;
 	if (record.ok !== true) throw new Error(message);
 	if (
@@ -107,28 +95,16 @@ export function parseExactBatchResponse(
 	limits: ResponseLimits = {}
 ): ExactOperationResult[] {
 	const message = 'eXact batch invocation returned malformed results';
-	if (
-		!isJsonSafe(body, {
+	body = decodeBoundedReactiveProtocolValue(
+		body,
+		{
 			maxDepth: limits.maxJsonDepth,
 			maxNodes: limits.maxJsonNodes,
 			maxBytes: limits.maxBytes
-		})
-	)
-		throw new Error(message);
-	try {
-		body = decodeReactiveProtocolValue(body);
-	} catch {
-		throw new Error(message);
-	}
+		},
+		() => new Error(message)
+	);
 	if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(message);
-	if (
-		!isJsonSafe(body, {
-			maxDepth: limits.maxJsonDepth,
-			maxNodes: limits.maxJsonNodes,
-			maxBytes: limits.maxBytes
-		})
-	)
-		throw new Error(message);
 	const record = body as Record<string, unknown>;
 	if (record.ok !== true) throw new Error(message);
 	if (!hasOnlyKeys(record, ['ok', 'version', 'results'])) throw new Error(message);

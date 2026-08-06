@@ -1,5 +1,4 @@
 import {
-	decodeReactiveProtocolValue,
 	isExactComponentAuthorizationIdentity,
 	sameExactComponentAuthorization,
 	sameJsonData
@@ -15,7 +14,7 @@ import type {
 	ExactHydrationRegistrationInput,
 	HydrateOptions
 } from './types.js';
-import { hasOnlyKeys, isJsonSafe } from './validation.js';
+import { hasOnlyKeys } from './validation.js';
 import {
 	isEndpointRoutes,
 	isRecord,
@@ -23,6 +22,8 @@ import {
 	normalizeContinuationMap,
 	positiveLimit
 } from './config-validation.js';
+import { utf8ByteLength } from './limits.js';
+import { decodeBoundedReactiveProtocolValue } from './protocol-decoding.js';
 
 /** Contextually types a compiler-generated hydration registration without changing its value. */
 export function defineExactHydrationRegistration(
@@ -30,8 +31,13 @@ export function defineExactHydrationRegistration(
 ): ExactHydrationRegistration {
 	const continuations = normalizeContinuationMap(registration.continuations);
 	const resumptions = normalizeComponentResumptions(registration.resumptions);
+	const {
+		continuations: _serializedContinuations,
+		resumptions: _serializedResumptions,
+		...fields
+	} = registration;
 	return {
-		...registration,
+		...fields,
 		...(continuations === undefined ? {} : { continuations }),
 		...(resumptions === undefined ? {} : { resumptions })
 	};
@@ -62,16 +68,16 @@ function parseHydrationConfig(
 	try {
 		const source = script.textContent ?? '{}';
 		const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
-		if (source.length > maxBytes || new TextEncoder().encode(source).byteLength > maxBytes)
-			return {};
+		if (source.length > maxBytes || utf8ByteLength(source) > maxBytes) return {};
 		const encoded = JSON.parse(source);
-		if (!isJsonSafe(encoded, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes }))
-			return {};
-		const value = decodeReactiveProtocolValue(encoded);
+		const value = decodeBoundedReactiveProtocolValue(
+			encoded,
+			{ maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes },
+			() => new TypeError('Malformed eXact hydration config')
+		);
 		if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
 		const record = value as Record<string, unknown>;
 		if (
-			!isJsonSafe(record, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes }) ||
 			!hasOnlyKeys(record, [
 				'pluginRegistryFingerprint',
 				'endpoint',
@@ -166,7 +172,7 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 		state: options.state === undefined ? config.state : options.state,
 		continuations: mergeUniqueRecord(
 			config.continuations,
-			options.continuations,
+			normalizeContinuationMap(options.continuations),
 			'continuation',
 			sameJsonData
 		),

@@ -1,7 +1,6 @@
 import {
 	createComponentDomain,
 	createVNode,
-	decodeReactiveProtocolValue,
 	logFrameworkEvent,
 	withComponentDomain,
 	type ComponentFunction
@@ -19,8 +18,9 @@ import { captureHydrationDom, restoreFormState } from './adoption/form-state.js'
 import { disposeInteractionHydration, ensureInteractionHydration } from './islands/interaction.js';
 import { isClientIslandLoader, loadClientIsland } from './islands/loading.js';
 import { revivePartitionServerSlots } from './islands/partition-slots.js';
+import { positiveLimit, utf8ByteLength } from './limits.js';
+import { decodeBoundedReactiveProtocolValue } from './protocol-decoding.js';
 import type { ClientIslandRegistry, HydrateOptions } from './types.js';
-import { isJsonSafe } from './validation.js';
 import { inspectExactPartitionInstances } from './partition-instances.js';
 import { roots } from './runtime/state.js';
 import {
@@ -251,28 +251,18 @@ function parseIslandProps(
 	if (!raw) return {};
 	try {
 		const maxBytes = positiveLimit(options.configLimits?.maxBytes, 16 * 1024 * 1024);
-		if (new TextEncoder().encode(raw).byteLength > maxBytes) return {};
+		if (utf8ByteLength(raw) > maxBytes) return {};
 		const encoded = JSON.parse(raw);
-		if (
-			!isJsonSafe(encoded, {
+		const parsed = decodeBoundedReactiveProtocolValue(
+			encoded,
+			{
 				maxDepth: positiveLimit(options.configLimits?.maxDepth, 100),
 				maxNodes: positiveLimit(options.configLimits?.maxNodes, 100_000),
 				maxBytes
-			})
-		)
-			return {};
-		const parsed = decodeReactiveProtocolValue(encoded);
-		if (
-			!parsed ||
-			typeof parsed !== 'object' ||
-			Array.isArray(parsed) ||
-			!isJsonSafe(parsed, {
-				maxDepth: positiveLimit(options.configLimits?.maxDepth, 100),
-				maxNodes: positiveLimit(options.configLimits?.maxNodes, 100_000),
-				maxBytes
-			})
-		)
-			return {};
+			},
+			() => new TypeError('Malformed eXact island props')
+		);
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
 		const props = (parsed as Record<string, unknown>).props;
 		return props && typeof props === 'object' && !Array.isArray(props)
 			? (revivePartitionServerSlots(props, options, boundary) as Record<string, unknown>)
@@ -280,8 +270,4 @@ function parseIslandProps(
 	} catch {
 		return {};
 	}
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }

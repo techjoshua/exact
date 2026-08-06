@@ -80,6 +80,13 @@ export function Counter(this: Component<CounterState>, props: CounterProps) {
 The outer function is setup. It normally executes once for each mounted
 instance. Props are parent-owned reactive inputs. State, tasks, contexts,
 refs, lifecycle registrations, and logging belong to the durable instance.
+The runtime keeps that ownership inspectable without allocating a separate
+method closure or empty collection for every capability on every instance.
+Stable component and logging methods are shared. Refs, list caches, contexts,
+lifecycle storage, task collections, and lifecycle cancellation are
+materialized when the component actually uses them. This does not make
+extracted unbound component methods valid: component methods use their
+instance receiver.
 Readonly prop tracking traverses plain objects and collections. Opaque class
 instances retain their authored identity even when supplied by a reactive JSX
 expression, so resource methods may mutate their own private state without

@@ -7,15 +7,15 @@ import type {
 	ErrorSource,
 	RenderFunction,
 	RenderResult,
-	SuspensionContextValue,
-	VNode
+	SuspensionContextValue
 } from './contracts.js';
 
 import { ErrorContext, SuspensionContext } from './contexts.js';
 
 import { reactive, unwrap } from '@exactjs/reactive';
-import { createVNode, normalizeChildren } from '../vnode.js';
-import { componentLogScope, formatError, isErrorReport, logFrameworkEvent } from './log.js';
+import { normalizeChildren } from '../vnode.js';
+import { componentLogScope, isErrorReport, logFrameworkEvent } from './log.js';
+import { createDefaultErrorView } from './error-view.js';
 
 let nextErrorId = 1;
 
@@ -39,23 +39,6 @@ export function createErrorContext(errors: ErrorReport[] = []): ErrorContextValu
 			reactiveErrors.splice(0, reactiveErrors.length);
 		}
 	};
-}
-
-function createDefaultErrorView(errors: Iterable<ErrorReport>): VNode {
-	return createVNode(
-		'section',
-		{ role: 'alert', className: 'exact-error-boundary' },
-		createVNode('h1', null, 'Application error'),
-		...Array.from(errors).map((error) =>
-			createVNode(
-				'article',
-				{ key: error.id, className: 'exact-error' },
-				createVNode('h2', null, error.component?.name ?? 'Framework'),
-				createVNode('p', null, `${error.source}${error.phase ? `:${error.phase}` : ''}`),
-				createVNode('pre', null, formatError(error.error))
-			)
-		)
-	);
 }
 
 /** Creates a structured error report for component or framework failures. */

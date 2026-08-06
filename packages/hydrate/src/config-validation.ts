@@ -2,6 +2,11 @@ import type {
 	ComponentResumptionActivation,
 	ExactComponentContinuationContract
 } from '@exactjs/core';
+import {
+	isExactContinuationDependency,
+	isExactContinuationInvocation,
+	isExactContinuationStatePath
+} from '@exactjs/core/framework/component-contract-validation';
 
 import type {
 	ExactEndpointRoutes,
@@ -9,6 +14,7 @@ import type {
 	ExactSerializedContinuationContract
 } from './types.js';
 import { hasOnlyKeys } from './validation.js';
+export { positiveLimit } from './limits.js';
 
 const emptyList = Object.freeze([]) as readonly never[];
 const emptyRecord = Object.freeze({}) as Readonly<Record<string, never>>;
@@ -48,11 +54,6 @@ export function normalizeComponentResumptions(
 			settledContinuations: item.settledContinuations ?? emptyList
 		};
 	});
-}
-
-/** Normalizes a positive integer limit or returns its configured fallback. */
-export function positiveLimit(value: number | undefined, fallback: number): number {
-	return Number.isSafeInteger(value) && value! > 0 ? value! : fallback;
 }
 
 /** Narrows an unknown protocol value to a plain record shape. */
@@ -113,7 +114,9 @@ function isContinuation(value: unknown): value is ExactSerializedContinuationCon
 		typeof record.id === 'string' &&
 		typeof record.componentId === 'string' &&
 		(record.readiness === 'blocking' || record.readiness === 'nonblocking') &&
-		(record.dependencies === undefined || isContinuationDependencies(record.dependencies)) &&
+		(record.dependencies === undefined ||
+			(Array.isArray(record.dependencies) &&
+				record.dependencies.every(isExactContinuationDependency))) &&
 		(record.stateReads === undefined || isStatePathList(record.stateReads)) &&
 		(record.stateWrites === undefined || isStatePathList(record.stateWrites)) &&
 		(record.publicContexts === undefined || isStringList(record.publicContexts)) &&
@@ -122,7 +125,8 @@ function isContinuation(value: unknown): value is ExactSerializedContinuationCon
 		(record.contextWrites === undefined || isStringList(record.contextWrites)) &&
 		(record.serverContextWrites === undefined || isStringList(record.serverContextWrites)) &&
 		(record.serverContextWrites === undefined || record.serverContextWrites.length === 0) &&
-		(record.invocation === undefined || isContinuationInvocation(record.invocation)) &&
+		(record.invocation === undefined ||
+			isExactContinuationInvocation(record.invocation, { argumentsOptional: true })) &&
 		(record.boundaries === undefined || isStringList(record.boundaries))
 	);
 }
@@ -130,7 +134,7 @@ function isContinuation(value: unknown): value is ExactSerializedContinuationCon
 function normalizeContinuation(
 	value: ExactSerializedContinuationContract
 ): ExactComponentContinuationContract {
-	const { invocation, ...fields } = value;
+	const { invocation, serverContextWrites: _serverContextWrites, ...fields } = value;
 	return {
 		...fields,
 		dependencies: value.dependencies ?? emptyList,
@@ -160,55 +164,8 @@ function isComponentResumption(value: unknown): value is ExactSerializedComponen
 	);
 }
 
-function isContinuationDependencies(value: unknown): boolean {
-	return (
-		Array.isArray(value) &&
-		value.every(
-			(item) =>
-				Boolean(item && typeof item === 'object' && !Array.isArray(item)) &&
-				hasOnlyKeys(item as Record<string, unknown>, ['source']) &&
-				((item as Record<string, unknown>).source === 'state' ||
-					(item as Record<string, unknown>).source === 'props' ||
-					(item as Record<string, unknown>).source === 'derived' ||
-					(item as Record<string, unknown>).source === 'argument')
-		)
-	);
-}
-
-function isContinuationInvocation(value: unknown): boolean {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const record = value as Record<string, unknown>;
-	return (
-		hasOnlyKeys(record, ['arguments', 'concurrency']) &&
-		Array.isArray(record.arguments) &&
-		record.arguments.every(
-			(argument) =>
-				Boolean(argument && typeof argument === 'object' && !Array.isArray(argument)) &&
-				hasOnlyKeys(argument as Record<string, unknown>, ['source']) &&
-				(argument as Record<string, unknown>).source === 'argument'
-		) &&
-		(record.concurrency === 'parallel' ||
-			record.concurrency === 'latest' ||
-			record.concurrency === 'queue')
-	);
-}
-
 function isStatePathList(value: unknown): boolean {
-	return (
-		Array.isArray(value) &&
-		value.every((item) => {
-			if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
-			const record = item as Record<string, unknown>;
-			return (
-				hasOnlyKeys(record, ['path', 'kind', 'confidence']) &&
-				typeof record.path === 'string' &&
-				(record.kind === 'read' || record.kind === 'write') &&
-				(record.confidence === 'exact' ||
-					record.confidence === 'broad' ||
-					record.confidence === 'unknown')
-			);
-		})
-	);
+	return Array.isArray(value) && value.every(isExactContinuationStatePath);
 }
 
 function isStringList(value: unknown): value is string[] {

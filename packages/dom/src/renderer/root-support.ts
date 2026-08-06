@@ -1,6 +1,5 @@
 import {
 	createErrorContext,
-	createVNode,
 	ErrorContext,
 	markExactComponent,
 	type Component,
@@ -9,7 +8,7 @@ import {
 	type ErrorReport,
 	type VNode
 } from '@exactjs/core';
-import { formatError } from '../debug.js';
+import { createDefaultErrorView } from '@exactjs/core/framework/error-view';
 import { namespaceForTag } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';
 
@@ -41,24 +40,7 @@ export function createDomErrorContext(options: RenderOptions): ErrorContextValue
 
 /** Creates a root error view. */
 export function createRootErrorView(errors: ErrorReport[]): VNode {
-	const reports: ErrorReport[] = [];
-	for (let index = 0; index < errors.length; index++) {
-		reports.push(errors[index]!);
-	}
-	return createVNode(
-		'section',
-		{ role: 'alert', className: 'exact-error-boundary' },
-		createVNode('h1', null, 'Application error'),
-		...reports.map((error) =>
-			createVNode(
-				'article',
-				{ key: error.id, className: 'exact-error' },
-				createVNode('h2', null, error.component?.name ?? 'Application'),
-				createVNode('p', null, `${error.source}${error.phase ? `:${error.phase}` : ''}`),
-				createVNode('pre', null, formatError(error.error))
-			)
-		)
-	);
+	return createDefaultErrorView(errors, { componentFallback: 'Application' });
 }
 
 /** Creates a marker. */

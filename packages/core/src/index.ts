@@ -4,6 +4,7 @@ export {
 	decodeReactiveProtocolValue,
 	deleteReactiveValue,
 	encodeReactiveProtocolValue,
+	isTransportableReactiveMapKey,
 	mutateReactiveArray,
 	mutateReactiveCollection,
 	peek,

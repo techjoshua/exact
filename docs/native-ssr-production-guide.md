@@ -140,6 +140,14 @@ output bytes, stream chunks and bytes, and hydration graph depth, nodes, and
 bytes. Lower these limits for public anonymous endpoints and raise them only
 with measured fixtures.
 
+Browser hydration uses one bounded reactive-protocol decoder for document
+configuration, island props, JSON responses, and streaming events. Each entry
+path retains its own fail-soft or throwing behavior, but depth, node, byte,
+prototype, accessor, cycle, and finite-number checks stay at one authoritative
+boundary. Static hydration repair likewise uses the DOM package's intrinsic
+namespace, attribute, URL, class, and unsafe-HTML rules rather than maintaining
+a second element contract.
+
 ## Observability
 
 Install an eXact `Logger` in production and carry a trace identifier from

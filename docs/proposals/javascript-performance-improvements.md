@@ -695,6 +695,25 @@ compiler IPC and artifact emission separately before selecting binary framing or
 
 ### 7. Prototype a class-backed component instance
 
+Status: **implemented and accepted on 2026-08-06.** The component instance, logger, ref bindings,
+ref registry, and task-owner record now use shared prototype methods. Optional lifecycle arrays,
+context maps, refs, list-controller storage, activity blockers, task-controller state, and task
+settlement sets are materialized only when used. Mount and activation abort controllers are also
+deferred until the corresponding lifecycle phase has registered handlers.
+
+Five isolated Node 24.11.1 processes each retained 50,000 empty component instances. Median
+retained heap fell from 12,985.06 bytes to 6,712.19 bytes per instance, a 48.3% reduction. Median
+construction-plus-collection time fell from 791.47 ms to 566.91 ms, a 28.4% reduction. These are
+focused component-shell measurements rather than whole-application memory claims; representative
+DOM and lifecycle suites remain the acceptance guard for behavioral and update regressions.
+
+The production-compiled DOM fixtures also improved against the checked-in Windows baseline:
+static mounting fell from 38.98 ms to 33.02 ms median (15.3%), while the mixed-tree lifecycle
+fixture fell from 28.41 ms to 22.95 ms for mounting (19.2%) and from 11.28 ms to 6.76 ms for
+teardown (40.1%). Five measured processes followed two warmups for each fixture. These directional
+results clear the experiment's acceptance thresholds without replacing the broader regression
+suite or future cross-platform measurements.
+
 Replace the large object-literal construction internally with a
 `ComponentInstanceImpl` class or equivalent shared prototype:
 

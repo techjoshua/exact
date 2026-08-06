@@ -16,7 +16,7 @@ import type { DomProfileEvent, Mounted, RenderOptions } from '../types.js';
 import { walkDomSubtree, type DomWorkBudget } from '../work.js';
 import { normalizeTreeDepth, normalizeTreeNodes, withDomWork } from './limits.js';
 import { patch } from './patching/root.js';
-import { createDomErrorContext, createRootBoundary } from './root-support.js';
+import { createRendererRoot } from './root-construction.js';
 import {
 	attemptTeardown,
 	recordTeardownFailure,
@@ -76,26 +76,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 		vnode = { ...vnode, domain: root.current.domain };
 	}
 	if (!root) {
-		root = {
-			container,
-			delegated: new Map(),
-			errors: createDomErrorContext(options),
-			portalTargets: new Set(),
-			current: vnode,
-			version: 0,
-			boundary: undefined as never,
-			debugMarkers: false,
-			maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
-			traversalDepth: 0,
-			maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
-			traversedNodes: 0,
-			workDepth: 0,
-			workBudget: options.workBudget,
-			allowUnsafeHtml: options.allowUnsafeHtml ?? false,
-			onUnsafeHtml: options.onUnsafeHtml,
-			onProfile: options.onProfile
-		};
-		root.boundary = createRootBoundary(root);
+		root = createRendererRoot(container, vnode, options, { version: 0 });
 		installEnhancementReconciliation(root, (vnode, instance, scope, node) =>
 			patch(root!, node ?? root!.container, undefined, vnode, instance, scope)
 		);

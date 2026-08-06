@@ -13,6 +13,7 @@ import type {
 	InvokeExactBatchOptions,
 	InvokeExactOptions
 } from './types.js';
+import { positiveLimit, utf8ByteLength } from './limits.js';
 
 /** Invokes a single eXact server task or boundary refresh endpoint operation. */
 export async function invokeExact(options: InvokeExactOptions): Promise<ExactInvocationResult> {
@@ -183,7 +184,7 @@ function responseHeader(
 
 function encodeRequest(value: unknown, maxBytes?: number): string {
 	const body = JSON.stringify(encodeReactiveProtocolValue(value));
-	if (new TextEncoder().encode(body).byteLength > positiveLimit(maxBytes, 4 * 1024 * 1024)) {
+	if (utf8ByteLength(body) > positiveLimit(maxBytes, 4 * 1024 * 1024)) {
 		throw new Error('eXact request exceeded maxRequestBytes');
 	}
 	return body;
@@ -214,13 +215,9 @@ async function readJsonResponse(
 }
 
 function assertResponseBytes(value: string, configured?: number): void {
-	if (new TextEncoder().encode(value).byteLength > positiveLimit(configured, 16 * 1024 * 1024)) {
+	if (utf8ByteLength(value) > positiveLimit(configured, 16 * 1024 * 1024)) {
 		throw new Error('eXact response exceeded maxBytes');
 	}
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
