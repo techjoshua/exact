@@ -59,6 +59,45 @@ describe('@exactjs/ssr hydration', () => {
 		expect(script).not.toContain('packages');
 	});
 
+	it('omits empty hydration metadata without removing authored empty state', () => {
+		const script = renderHydrationScript({
+			endpoints: { invocations: {}, boundaries: {} },
+			state: { items: [], selection: {} },
+			publicContexts: {},
+			continuations: {
+				refresh: {
+					id: 'refresh',
+					componentId: 'test:refresh',
+					kind: 'task',
+					readiness: 'nonblocking',
+					dependencies: [],
+					stateReads: [],
+					stateWrites: [],
+					publicContexts: [],
+					serverContexts: ['PrivateRepository'],
+					contextWrites: [],
+					serverContextWrites: ['PrivateStatus'],
+					boundaries: []
+				}
+			},
+			resumptions: [
+				{ componentId: 'test:refresh', values: {}, contexts: {}, settledContinuations: [] }
+			]
+		});
+		const payload = JSON.parse(script.match(/>(.*)<\/script>/s)![1]) as any;
+
+		expect(payload).not.toHaveProperty('endpoints');
+		expect(payload).not.toHaveProperty('publicContexts');
+		expect(payload.state).toEqual({ items: [], selection: {} });
+		expect(payload.continuations.refresh).toEqual({
+			id: 'refresh',
+			componentId: 'test:refresh',
+			kind: 'task',
+			readiness: 'nonblocking'
+		});
+		expect(payload.resumptions).toEqual([{ componentId: 'test:refresh' }]);
+	});
+
 	it('rejects component authorization prepared for another build', () => {
 		expect(() =>
 			renderHydrationScript({

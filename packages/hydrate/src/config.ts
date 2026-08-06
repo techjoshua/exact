@@ -12,22 +12,29 @@ import type {
 	ExactHydrationConfig,
 	ExactHydrationConfigLimits,
 	ExactHydrationRegistration,
+	ExactHydrationRegistrationInput,
 	HydrateOptions
 } from './types.js';
 import { hasOnlyKeys, isJsonSafe } from './validation.js';
 import {
-	isComponentResumptions,
-	isContinuationMap,
 	isEndpointRoutes,
 	isRecord,
+	normalizeComponentResumptions,
+	normalizeContinuationMap,
 	positiveLimit
 } from './config-validation.js';
 
 /** Contextually types a compiler-generated hydration registration without changing its value. */
 export function defineExactHydrationRegistration(
-	registration: ExactHydrationRegistration
+	registration: ExactHydrationRegistrationInput
 ): ExactHydrationRegistration {
-	return registration;
+	const continuations = normalizeContinuationMap(registration.continuations);
+	const resumptions = normalizeComponentResumptions(registration.resumptions);
+	return {
+		...registration,
+		...(continuations === undefined ? {} : { continuations }),
+		...(resumptions === undefined ? {} : { resumptions })
+	};
 }
 
 /** Reads and validates the serialized hydration configuration embedded in the document. */
@@ -88,24 +95,44 @@ function parseHydrationConfig(
 		const buildKey = typeof record.buildKey === 'string' ? record.buildKey : undefined;
 		if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
 			return {};
+		const continuations = safelyNormalizeContinuationMap(record.continuations);
+		const resumptions = safelyNormalizeComponentResumptions(record.resumptions);
+		const endpoints = isEndpointRoutes(record.endpoints)
+			? mergeEndpointRoutes(undefined, record.endpoints)
+			: undefined;
 		return {
-			pluginRegistryFingerprint:
-				typeof record.pluginRegistryFingerprint === 'string'
-					? record.pluginRegistryFingerprint
-					: undefined,
-			endpoint: typeof record.endpoint === 'string' ? record.endpoint : undefined,
-			endpoints: isEndpointRoutes(record.endpoints) ? record.endpoints : undefined,
+			...(typeof record.pluginRegistryFingerprint === 'string'
+				? { pluginRegistryFingerprint: record.pluginRegistryFingerprint }
+				: {}),
+			...(typeof record.endpoint === 'string' ? { endpoint: record.endpoint } : {}),
+			...(endpoints === undefined ? {} : { endpoints }),
 			...('state' in record ? { state: record.state } : {}),
-			continuations: isContinuationMap(record.continuations) ? record.continuations : undefined,
-			resumptions: isComponentResumptions(record.resumptions) ? record.resumptions : undefined,
-			publicContexts: isRecord(record.publicContexts) ? record.publicContexts : undefined,
-			executionRoot: typeof record.executionRoot === 'string' ? record.executionRoot : undefined,
-			binding: typeof record.binding === 'string' ? record.binding : undefined,
-			buildKey,
-			componentAuthorization
+			...(continuations === undefined ? {} : { continuations }),
+			...(resumptions === undefined ? {} : { resumptions }),
+			...(isRecord(record.publicContexts) ? { publicContexts: record.publicContexts } : {}),
+			...(typeof record.executionRoot === 'string' ? { executionRoot: record.executionRoot } : {}),
+			...(typeof record.binding === 'string' ? { binding: record.binding } : {}),
+			...(buildKey === undefined ? {} : { buildKey }),
+			...(componentAuthorization === undefined ? {} : { componentAuthorization })
 		};
 	} catch {
 		return {};
+	}
+}
+
+function safelyNormalizeContinuationMap(value: unknown) {
+	try {
+		return normalizeContinuationMap(value);
+	} catch {
+		return undefined;
+	}
+}
+
+function safelyNormalizeComponentResumptions(value: unknown) {
+	try {
+		return normalizeComponentResumptions(value);
+	} catch {
+		return undefined;
 	}
 }
 

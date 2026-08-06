@@ -6,7 +6,6 @@ import type {
 	ExactComponentContinuationExecutorContract,
 	ExactCollectionMutation,
 	ExactComponentAuthorizationIdentity,
-	ComponentResumptionActivation,
 	Logger
 } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
@@ -523,13 +522,3 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 
 /** Reports an observable server profile event. */
 export type ServerProfileEvent = ExactProfileEvent<'server', 'request'>;
-
-/** Browser-visible configuration derived from an executor contract and SSR state. */
-export type ExactHydrationConfig = {
-	endpoint?: string;
-	endpoints?: ExactEndpointRoutes;
-	state?: unknown;
-	continuations?: Record<string, ExactComponentContinuationContract>;
-	resumptions?: readonly ComponentResumptionActivation[];
-	publicContexts?: Record<string, unknown>;
-};

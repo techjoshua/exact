@@ -153,12 +153,63 @@ export type ExactHydrationConfig = {
 	componentAuthorization?: ExactComponentAuthorizationIdentity;
 };
 
+/** Compact serialized continuation accepted at the hydration boundary. */
+export type ExactSerializedContinuationContract = Omit<
+	ExactComponentContinuationContract,
+	| 'dependencies'
+	| 'stateReads'
+	| 'stateWrites'
+	| 'publicContexts'
+	| 'serverContexts'
+	| 'contextWrites'
+	| 'serverContextWrites'
+	| 'boundaries'
+	| 'invocation'
+> & {
+	dependencies?: ExactComponentContinuationContract['dependencies'];
+	stateReads?: ExactComponentContinuationContract['stateReads'];
+	stateWrites?: ExactComponentContinuationContract['stateWrites'];
+	publicContexts?: ExactComponentContinuationContract['publicContexts'];
+	serverContexts?: ExactComponentContinuationContract['serverContexts'];
+	contextWrites?: ExactComponentContinuationContract['contextWrites'];
+	serverContextWrites?: ExactComponentContinuationContract['serverContextWrites'];
+	boundaries?: ExactComponentContinuationContract['boundaries'];
+	invocation?: Omit<NonNullable<ExactComponentContinuationContract['invocation']>, 'arguments'> & {
+		arguments?: NonNullable<ExactComponentContinuationContract['invocation']>['arguments'];
+	};
+};
+
+/** Compact serialized component resumption accepted at the hydration boundary. */
+export type ExactSerializedComponentResumption = Omit<
+	ComponentResumptionActivation,
+	'values' | 'contexts' | 'settledContinuations'
+> & {
+	values?: ComponentResumptionActivation['values'];
+	contexts?: ComponentResumptionActivation['contexts'];
+	settledContinuations?: ComponentResumptionActivation['settledContinuations'];
+};
+
+/** Compiler-generated or document-serialized hydration input before normalization. */
+export type ExactHydrationConfigInput = Omit<
+	ExactHydrationConfig,
+	'continuations' | 'resumptions'
+> & {
+	continuations?: Record<string, ExactSerializedContinuationContract>;
+	resumptions?: readonly ExactSerializedComponentResumption[];
+};
+
 /** Defines the exact hydration registration type contract. */
 export type ExactHydrationRegistration = ExactHydrationConfig & {
 	islands?: ClientIslandRegistry;
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
+	transports?: Record<string, ExactEndpointTransport>;
+};
+
+/** Compiler-generated hydration registration before compact defaults are restored. */
+export type ExactHydrationRegistrationInput = ExactHydrationConfigInput & {
+	islands?: ClientIslandRegistry;
 	transports?: Record<string, ExactEndpointTransport>;
 };
 

@@ -82,6 +82,12 @@ export function AdvancedPage(this: Component<{}>) {
 					instances.
 				</p>
 				<p>
+					Compiler-owned hydration metadata omits schema-defined empty arrays and objects, then
+					restores shared immutable defaults in the browser. Authored empty state, props, and
+					context values remain application data. When a generated client registration owns
+					continuation contracts, the server can omit a duplicate document copy.
+				</p>
+				<p>
 					The compiler recognizes client islands whose initial browser responsibility is limited to
 					supported events and reactive form bindings. SSR emits the real inert control, and the
 					generated hydration registration loads that island&apos;s chunk when its first interaction

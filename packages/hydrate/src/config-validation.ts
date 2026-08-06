@@ -3,35 +3,51 @@ import type {
 	ExactComponentContinuationContract
 } from '@exactjs/core';
 
-import type { ExactEndpointRoutes } from './types.js';
+import type {
+	ExactEndpointRoutes,
+	ExactSerializedComponentResumption,
+	ExactSerializedContinuationContract
+} from './types.js';
 import { hasOnlyKeys } from './validation.js';
 
-/** Validates a serialized continuation contract map. */
-export function isContinuationMap(
+const emptyList = Object.freeze([]) as readonly never[];
+const emptyRecord = Object.freeze({}) as Readonly<Record<string, never>>;
+
+/** Validates and restores compact serialized continuation defaults. */
+export function normalizeContinuationMap(
 	value: unknown
-): value is Record<string, ExactComponentContinuationContract> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	return Object.values(value as Record<string, unknown>).every(isContinuation);
+): Record<string, ExactComponentContinuationContract> | undefined {
+	if (value === undefined) return undefined;
+	if (!value || typeof value !== 'object' || Array.isArray(value))
+		throw new TypeError('Malformed eXact hydration continuations');
+	const entries = Object.entries(value as Record<string, unknown>);
+	if (!entries.length) return emptyRecord;
+	const output: Record<string, ExactComponentContinuationContract> = {};
+	for (const [id, continuation] of entries) {
+		if (!isContinuation(continuation))
+			throw new TypeError(`Malformed eXact hydration continuation ${id}`);
+		output[id] = normalizeContinuation(continuation);
+	}
+	return output;
 }
 
-/** Validates ordered SSR activations before they can affect component construction. */
-export function isComponentResumptions(value: unknown): value is ComponentResumptionActivation[] {
-	return (
-		Array.isArray(value) &&
-		value.every((item) => {
-			if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
-			const record = item as Record<string, unknown>;
-			return (
-				hasOnlyKeys(record, ['componentId', 'values', 'contexts', 'settledContinuations']) &&
-				typeof record.componentId === 'string' &&
-				isRecord(record.values) &&
-				Object.keys(record.values).every(safeResumptionPath) &&
-				isRecord(record.contexts) &&
-				Object.keys(record.contexts).every(safeContextName) &&
-				isStringList(record.settledContinuations)
-			);
-		})
-	);
+/** Validates and restores compact serialized resumption defaults. */
+export function normalizeComponentResumptions(
+	value: unknown
+): readonly ComponentResumptionActivation[] | undefined {
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value)) throw new TypeError('Malformed eXact component resumptions');
+	if (!value.length) return emptyList;
+	return value.map((item, index) => {
+		if (!isComponentResumption(item))
+			throw new TypeError(`Malformed eXact component resumption ${index}`);
+		return {
+			componentId: item.componentId,
+			values: item.values ?? emptyRecord,
+			contexts: item.contexts ?? emptyRecord,
+			settledContinuations: item.settledContinuations ?? emptyList
+		};
+	});
 }
 
 /** Normalizes a positive integer limit or returns its configured fallback. */
@@ -74,7 +90,7 @@ function safeContextName(name: string): boolean {
 	return name.length > 0 && name !== '__proto__' && name !== 'prototype' && name !== 'constructor';
 }
 
-function isContinuation(value: unknown): value is ExactComponentContinuationContract {
+function isContinuation(value: unknown): value is ExactSerializedContinuationContract {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const record = value as Record<string, unknown>;
 	return (
@@ -97,16 +113,50 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		typeof record.id === 'string' &&
 		typeof record.componentId === 'string' &&
 		(record.readiness === 'blocking' || record.readiness === 'nonblocking') &&
-		isContinuationDependencies(record.dependencies) &&
-		isStatePathList(record.stateReads) &&
-		isStatePathList(record.stateWrites) &&
-		isStringList(record.publicContexts) &&
-		isStringList(record.serverContexts) &&
-		record.serverContexts.length === 0 &&
-		isStringList(record.contextWrites) &&
+		(record.dependencies === undefined || isContinuationDependencies(record.dependencies)) &&
+		(record.stateReads === undefined || isStatePathList(record.stateReads)) &&
+		(record.stateWrites === undefined || isStatePathList(record.stateWrites)) &&
+		(record.publicContexts === undefined || isStringList(record.publicContexts)) &&
+		(record.serverContexts === undefined || isStringList(record.serverContexts)) &&
+		(record.serverContexts === undefined || record.serverContexts.length === 0) &&
+		(record.contextWrites === undefined || isStringList(record.contextWrites)) &&
 		(record.serverContextWrites === undefined || isStringList(record.serverContextWrites)) &&
+		(record.serverContextWrites === undefined || record.serverContextWrites.length === 0) &&
 		(record.invocation === undefined || isContinuationInvocation(record.invocation)) &&
-		isStringList(record.boundaries)
+		(record.boundaries === undefined || isStringList(record.boundaries))
+	);
+}
+
+function normalizeContinuation(
+	value: ExactSerializedContinuationContract
+): ExactComponentContinuationContract {
+	const { invocation, ...fields } = value;
+	return {
+		...fields,
+		dependencies: value.dependencies ?? emptyList,
+		stateReads: value.stateReads ?? emptyList,
+		stateWrites: value.stateWrites ?? emptyList,
+		publicContexts: value.publicContexts ?? emptyList,
+		serverContexts: emptyList,
+		contextWrites: value.contextWrites ?? emptyList,
+		boundaries: value.boundaries ?? emptyList,
+		...(invocation === undefined
+			? {}
+			: { invocation: { ...invocation, arguments: invocation.arguments ?? emptyList } })
+	};
+}
+
+function isComponentResumption(value: unknown): value is ExactSerializedComponentResumption {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	return (
+		hasOnlyKeys(record, ['componentId', 'values', 'contexts', 'settledContinuations']) &&
+		typeof record.componentId === 'string' &&
+		(record.values === undefined ||
+			(isRecord(record.values) && Object.keys(record.values).every(safeResumptionPath))) &&
+		(record.contexts === undefined ||
+			(isRecord(record.contexts) && Object.keys(record.contexts).every(safeContextName))) &&
+		(record.settledContinuations === undefined || isStringList(record.settledContinuations))
 	);
 }
 

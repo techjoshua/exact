@@ -43,6 +43,11 @@ component, operation, or patch identity.
 
 Build key, execution root, component authorization, continuation/resumption data, public contexts,
 plugin fingerprint, and endpoint configuration remain in the existing root hydration payload.
+That existing metadata uses canonical compact defaults: schema-defined empty arrays and objects are
+omitted during serialization and restored as shared immutable empty values during hydration.
+Authored state, props, and context values are never compacted by this rule. A generated client
+registration is the sole continuation-contract source when server hydration explicitly selects it,
+preventing the same contracts from appearing in both HTML and client code.
 The table may be embedded in that script or referenced by one sibling script, whichever wins
 raw/gzip/Brotli and parse measurements without weakening CSP or document streaming.
 

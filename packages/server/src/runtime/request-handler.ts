@@ -66,6 +66,7 @@ export {
 	registerExactInspectionCatalog
 } from '../debug/runtime.js';
 export type * from '../types.js';
+export type * from '../hydration-types.js';
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
 export async function handleExactRequest(

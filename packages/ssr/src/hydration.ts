@@ -34,7 +34,7 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 		maxNodes: options.maxHydrationNodes
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
-	const payload = serializeHydrationPayload(payloadValue);
+	const payload = serializeHydrationPayload(compactHydrationMetadata(payloadValue));
 	if (
 		new TextEncoder().encode(payload).byteLength >
 		positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)
@@ -44,6 +44,102 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 	const id = options.scriptId ?? '__exact_hydration';
 	const nonce = options.nonce ? ` nonce="${escapeAttr(options.nonce)}"` : '';
 	return `<script type="application/json" id="${escapeAttr(id)}"${nonce}>${payload}</script>`;
+}
+
+function compactHydrationMetadata(value: Record<string, unknown>): Record<string, unknown> {
+	const output = { ...value };
+	compactOptionalRecord(output, 'endpoints', compactEndpointRoutes);
+	compactOptionalRecord(output, 'continuations', compactContinuations);
+	compactOptionalArray(output, 'resumptions', compactResumption);
+	for (const field of ['publicContexts'] as const) {
+		if (isEmptyRecord(output[field])) delete output[field];
+	}
+	return output;
+}
+
+function compactEndpointRoutes(value: Record<string, unknown>): Record<string, unknown> {
+	const output = { ...value };
+	for (const field of ['invocations', 'boundaries'] as const) {
+		if (isEmptyRecord(output[field])) delete output[field];
+	}
+	return output;
+}
+
+function compactContinuations(value: Record<string, unknown>): Record<string, unknown> {
+	return Object.fromEntries(
+		Object.entries(value).map(([id, continuation]) => [
+			id,
+			isPlainRecord(continuation) ? compactContinuation(continuation) : continuation
+		])
+	);
+}
+
+function compactContinuation(value: Record<string, unknown>): Record<string, unknown> {
+	const output = omitEmptyArrays(value, [
+		'dependencies',
+		'stateReads',
+		'stateWrites',
+		'publicContexts',
+		'contextWrites',
+		'boundaries'
+	]);
+	delete output.serverContexts;
+	delete output.serverContextWrites;
+	return output;
+}
+
+function compactResumption(value: unknown): unknown {
+	if (!isPlainRecord(value)) return value;
+	const output = omitEmptyArrays(value, ['settledContinuations']);
+	for (const field of ['values', 'contexts'] as const) {
+		if (isEmptyRecord(output[field])) delete output[field];
+	}
+	return output;
+}
+
+function compactOptionalRecord(
+	owner: Record<string, unknown>,
+	field: string,
+	compact: (value: Record<string, unknown>) => Record<string, unknown>
+): void {
+	const value = owner[field];
+	if (!isPlainRecord(value)) return;
+	const compacted = compact(value);
+	if (Object.keys(compacted).length) owner[field] = compacted;
+	else delete owner[field];
+}
+
+function compactOptionalArray(
+	owner: Record<string, unknown>,
+	field: string,
+	compact: (value: unknown) => unknown
+): void {
+	const value = owner[field];
+	if (!Array.isArray(value)) return;
+	if (!value.length) delete owner[field];
+	else owner[field] = value.map(compact);
+}
+
+function omitEmptyArrays(
+	value: Record<string, unknown>,
+	fields: readonly string[]
+): Record<string, unknown> {
+	const output = { ...value };
+	for (const field of fields) {
+		const item = output[field];
+		if (Array.isArray(item) && !item.length) delete output[field];
+	}
+	const invocation = output.invocation;
+	if (isPlainRecord(invocation)) output.invocation = omitEmptyArrays(invocation, ['arguments']);
+	return output;
+}
+
+function isEmptyRecord(value: unknown): boolean {
+	return isPlainRecord(value) && Object.keys(value).length === 0;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
 /** Serializes hydration JSON while escaping script-breaking characters. */

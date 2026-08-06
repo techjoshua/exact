@@ -36,6 +36,14 @@ Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
 
+Schema-defined empty hydration metadata is omitted from compiler registrations and document
+payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with
+shared immutable empty values. This compaction never applies recursively to authored state, props,
+or public-context values, where an empty collection remains meaningful application data.
+Applications whose client entry imports a generated hydration registration should set
+`includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
+same continuation contracts.
+
 Component resumption records authorize state restoration only when the DOM
 renderer has matched an SSR component marker and is constructing that exact
 component for adoption. Compiled markers use the same contract identity as
