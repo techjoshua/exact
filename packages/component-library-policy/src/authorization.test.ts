@@ -102,6 +102,67 @@ describe('@exactjs/component-library-policy', () => {
 		});
 	});
 
+	it('applies trusted scopes, disabled defaults, all mode, and optional dependency rules', async () => {
+		const fixture = createFixture();
+		const scoped = createSession(fixture, {
+			trustedScopes: ['@acme/'],
+			includeDefaultTrustedScopes: false
+		});
+		recordCandidateGraph(scoped, fixture, false);
+		await scoped.authorizeResolvedComponent(fixture.candidate);
+		expect((await scoped.commitGeneration()).manifest.packages[0]?.decision).toBe('scope');
+
+		const all = createSession(fixture, {
+			mode: 'all',
+			includeDefaultTrustedScopes: false
+		});
+		recordCandidateGraph(all, fixture, false);
+		await all.authorizeResolvedComponent(fixture.candidate);
+		expect((await all.commitGeneration()).manifest.packages[0]?.decision).toBe('all');
+
+		const optional = createSession(fixture);
+		recordCandidateGraph(optional, fixture, false);
+		optional.recordDependencyEdge({
+			owner: 'application',
+			candidate: fixture.library.key,
+			specifier: '@acme/cards',
+			kind: 'optionalDependency'
+		});
+		await expect(optional.authorizeResolvedComponent(fixture.candidate)).rejects.toMatchObject({
+			code: 'not-allowed'
+		});
+
+		const explicitlyAllowed = createSession(fixture, { allow: ['@acme/cards'] });
+		recordCandidateGraph(explicitlyAllowed, fixture, false);
+		explicitlyAllowed.recordDependencyEdge({
+			owner: 'application',
+			candidate: fixture.library.key,
+			specifier: '@acme/cards',
+			kind: 'optionalDependency'
+		});
+		await explicitlyAllowed.authorizeResolvedComponent(fixture.candidate);
+		expect((await explicitlyAllowed.commitGeneration()).manifest.packages[0]?.decision).toBe(
+			'allow'
+		);
+	});
+
+	it('keeps duplicate physical instances separate even when names and versions match', async () => {
+		const fixture = createFixture();
+		const first = addLibrary(fixture, '@vendor/icons', '2.0.0', 'icons-one');
+		const second = addLibrary(fixture, '@vendor/icons', '2.0.0', 'icons-two');
+		const session = createSession(fixture, { mode: 'all' });
+		session.recordImporterFacts('/app/Page.tsx', importerFacts([['@vendor/icons', 'Icon']]), 'v1');
+		recordPackage(session, first.instance, first.marker);
+		recordPackage(session, second.instance, second.marker);
+		await session.authorizeResolvedComponent(first.candidate);
+		await session.authorizeResolvedComponent(second.candidate);
+
+		const packages = (await session.commitGeneration()).manifest.packages;
+		expect(packages).toHaveLength(2);
+		expect(new Set(packages.map((candidate) => candidate.instanceId)).size).toBe(2);
+		expect(packages.map((candidate) => candidate.name)).toEqual(['@vendor/icons', '@vendor/icons']);
+	});
+
 	it('requires the production marker edge and never imports candidate code to validate it', async () => {
 		const fixture = createFixture();
 		const executed = path.join(fixture.root, 'executed.txt');
