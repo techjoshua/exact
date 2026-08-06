@@ -25,10 +25,20 @@ export type ExactViteComponentFactRecord = Readonly<{
 	source: 'compiler' | 'published';
 }>;
 
+type ExactViteAuthorizedCandidate = Readonly<{
+	resolvedModuleId: string;
+	source: string;
+	importerModuleId: string;
+	executionReason?: ExactResolvedComponentCandidate['reason'];
+}>;
+
 /** Owns Vite's build-scoped compiler facts and replaceable authorization generation. */
 export class ExactViteComponentAuthorization {
 	readonly #facts = new Map<string, ExactViteComponentFactRecord>();
 	readonly #preflighted = new Map<string, string | null>();
+	readonly #pendingCandidates = new Map<string, ExactViteAuthorizedCandidate>();
+	readonly #acceptedCandidates = new Map<string, ExactViteAuthorizedCandidate>();
+	readonly #authorizationInputs = new Set<string>();
 	#session?: ExactComponentAuthorizationSession;
 
 	/** Reports whether a server authorization generation is currently open. */
@@ -44,6 +54,7 @@ export class ExactViteComponentAuthorization {
 	}): void {
 		this.#session?.dispose();
 		this.#preflighted.clear();
+		this.#pendingCandidates.clear();
 		this.#session = createExactComponentAuthorizationSession({
 			buildKey: authorizationBuildKey(options.applicationRoot, options.buildKey),
 			config: options.config
@@ -135,6 +146,7 @@ export class ExactViteComponentAuthorization {
 				resolvedModuleId
 			});
 			for (const file of provenance.watchFiles) options.watch(file);
+			for (const file of provenance.watchFiles) this.#authorizationInputs.add(path.resolve(file));
 			const authorization = await this.#session.authorizeResolvedComponent(
 				Object.freeze({
 					importerModuleId,
@@ -149,6 +161,10 @@ export class ExactViteComponentAuthorization {
 				})
 			);
 			if (authorization.outcome === 'authorized') {
+				for (const file of authorization.watchFiles) {
+					options.watch(file);
+					this.#authorizationInputs.add(path.resolve(file));
+				}
 				const facts = authorization.componentBuild;
 				const record = Object.freeze({
 					facts,
@@ -166,6 +182,15 @@ export class ExactViteComponentAuthorization {
 				preflightKey,
 				typeof result === 'string' && result.startsWith(omittedEnhancementPrefix) ? result : ''
 			);
+			this.#pendingCandidates.set(
+				preflightKey,
+				Object.freeze({
+					resolvedModuleId,
+					source,
+					importerModuleId,
+					...(options.executionReason ? { executionReason: options.executionReason } : {})
+				})
+			);
 			return result;
 		} catch (error) {
 			this.#preflighted.delete(preflightKey);
@@ -174,13 +199,48 @@ export class ExactViteComponentAuthorization {
 	}
 
 	/** Commits the current generation and returns its immutable authorization artifacts. */
-	commit(): ReturnType<ExactComponentAuthorizationSession['commitGeneration']> | undefined {
-		return this.#session?.commitGeneration();
+	async commit(): Promise<
+		Awaited<ReturnType<ExactComponentAuthorizationSession['commitGeneration']>> | undefined
+	> {
+		if (!this.#session) return undefined;
+		const committed = await this.#session.commitGeneration();
+		this.#acceptedCandidates.clear();
+		for (const [key, candidate] of this.#pendingCandidates)
+			this.#acceptedCandidates.set(key, candidate);
+		this.#pendingCandidates.clear();
+		return committed;
+	}
+
+	/** Reauthorizes the last committed graph before one development generation can replace it. */
+	async revalidate(
+		options: Parameters<ExactViteComponentAuthorization['authorize']>[3],
+		excludedImporter?: string
+	): Promise<void> {
+		const excluded = excludedImporter ? exactModuleFilename(excludedImporter) : undefined;
+		for (const candidate of this.#acceptedCandidates.values()) {
+			if (excluded && exactModuleFilename(candidate.importerModuleId) === excluded) continue;
+			await this.authorize(
+				candidate.resolvedModuleId,
+				candidate.source,
+				candidate.importerModuleId,
+				{
+					...options,
+					...(candidate.executionReason ? { executionReason: candidate.executionReason } : {})
+				}
+			);
+		}
+	}
+
+	/** Reports whether a changed file is part of the committed package-policy input set. */
+	watches(filename: string): boolean {
+		return this.#authorizationInputs.has(path.resolve(filename));
 	}
 
 	/** Rejects the current generation without discarding reusable compiler facts. */
 	reject(): void {
 		this.#session?.rejectGeneration();
+		this.#pendingCandidates.clear();
+		this.#preflighted.clear();
 	}
 
 	/** Releases the generation and all retained compiler facts. */
@@ -189,6 +249,9 @@ export class ExactViteComponentAuthorization {
 		this.#session = undefined;
 		this.#facts.clear();
 		this.#preflighted.clear();
+		this.#pendingCandidates.clear();
+		this.#acceptedCandidates.clear();
+		this.#authorizationInputs.clear();
 	}
 
 	private async preflightPublishedEdges(

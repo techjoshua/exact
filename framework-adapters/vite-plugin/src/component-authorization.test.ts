@@ -31,6 +31,9 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 		await plugin.buildEnd?.call({ emitFile: (asset) => (assets.push(asset), 'asset') }, undefined);
 
 		expect(watched).toContain(path.join(fixture.libraryRoot, 'package.json'));
+		expect(watched).toContain(
+			path.join(fixture.libraryRoot, 'dist', 'exact-component-build.json')
+		);
 		expect(assets.map((asset) => asset.fileName)).toEqual([
 			'.exact/component-library-authorization.json',
 			'.exact/component-library-audit.json'
@@ -136,6 +139,46 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 				}
 			)
 		).rejects.toMatchObject({ code: 'explicitly-denied' });
+	});
+
+	it('revalidates the committed graph when policy changes and recovers after correction', async () => {
+		const fixture = createViteFixture();
+		const configFile = path.join(fixture.root, 'exact.config.mjs');
+		writeFileSync(configFile, 'export default {};\n');
+		const plugin = exact({
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		plugin.configResolved?.({ command: 'serve' });
+		await plugin.buildStart?.call({ addWatchFile() {} });
+		const server = {
+			pluginContainer: {
+				resolveId: async () => ({ id: fixture.libraryModule })
+			}
+		};
+		await plugin.handleHotUpdate?.call(
+			{ addWatchFile() {} },
+			{ file: fixture.pageFile, read: async () => fixture.pageSource, server }
+		);
+
+		const denied = "export default { componentLibraries: { deny: ['@acme/cards'] } };\n";
+		writeFileSync(configFile, denied);
+		await expect(
+			plugin.handleHotUpdate?.call(
+				{ addWatchFile() {} },
+				{ file: configFile, read: async () => denied, server }
+			)
+		).rejects.toMatchObject({ code: 'explicitly-denied' });
+
+		const corrected = 'export default {};\n';
+		writeFileSync(configFile, corrected);
+		await expect(
+			plugin.handleHotUpdate?.call(
+				{ addWatchFile() {} },
+				{ file: configFile, read: async () => corrected, server }
+			)
+		).resolves.toBeUndefined();
 	});
 });
 

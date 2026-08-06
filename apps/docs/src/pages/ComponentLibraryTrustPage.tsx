@@ -69,6 +69,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					external to the server bundle.
 				</p>
 				<p>
+					Development revalidates the complete last-committed candidate set when policy or package
+					inputs change. A rejected generation cannot replace the active graph and recovers normally
+					after the input is corrected.
+				</p>
+				<p>
 					When server inspection catalogs are enabled, they include that redacted decision data
 					under the same build key. It is available only through the authorized DevTools path and is
 					never emitted into client code.

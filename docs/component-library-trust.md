@@ -76,6 +76,9 @@ builds instead.
 Authorizing a precompiled package also promotes its validated static build facts into the active
 component graph. The adapter recursively resolves and authorizes packaged component and enhancement
 imports before runtime, including imports hidden behind a server-externalized parent package.
+Development generations retain only the last committed candidate set and revalidate that complete
+set when source, policy, package manifests, lockfiles, or published build facts change. A rejected
+generation leaves the prior graph active and can recover after the input is corrected.
 
 Each successful server build writes private files under `.exact/`:
 

@@ -145,6 +145,7 @@ export type ExactResolvedComponentAuthorization =
 			outcome: 'authorized';
 			packageInstanceId: string;
 			componentBuild: ExactComponentBuildFacts;
+			watchFiles: readonly string[];
 	  }>
 	| Readonly<{ outcome: 'omitted'; enhancementIdentity: string }>;
 

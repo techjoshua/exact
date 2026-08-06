@@ -181,7 +181,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			}
 			if (!this.emitFile)
 				throw new Error('Vite/Rollup emitFile is unavailable for component authorization');
-			const committed = await componentAuthorization.commit()!;
+			const committed = await componentAuthorization.commit();
+			if (!committed) throw new Error('Vite component authorization generation is unavailable');
 			if (inspectionCatalogEnabled(configuredDebug, viteCommand)) {
 				const catalog = createViteInspectionCatalog(
 					options.applicationRoot,
@@ -310,14 +311,23 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				const previous = componentAuthorization.invalidate(filename);
 				const registry = await prepareRegistry();
 				openAuthorizationGeneration(registry);
-				if (
-					context.read &&
-					context.server?.pluginContainer?.resolveId &&
-					shouldTransformExactBuildModulePath(filename, options)
-				) {
-					try {
+				try {
+					const authorizationOptions = {
+						applicationRoot: registry.applicationRoot,
+						executionReason: options.serverExecutionReason,
+						watch: (file: string) => this.addWatchFile?.(file)
+					};
+					await componentAuthorization.revalidate(
+						authorizationOptions,
+						componentAuthorization.watches(context.file) ? undefined : filename
+					);
+					if (context.read && shouldTransformExactBuildModulePath(filename, options)) {
 						const source = await context.read();
 						if (shouldCompileExactBuildModule(filename, source, options)) {
+							if (!context.server?.pluginContainer?.resolveId)
+								throw new Error(
+									`Vite cannot preflight component imports for changed module ${filename}`
+								);
 							const facts = inspectExactComponentBuildFacts(source, {
 								session: compilerSession,
 								filename,
@@ -333,21 +343,22 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 							]);
 							for (const request of requests) {
 								const resolved = await context.server.pluginContainer.resolveId(request, filename);
-								await componentAuthorization.authorize(resolved, request, filename, {
-									applicationRoot: registry.applicationRoot,
-									executionReason: options.serverExecutionReason,
-									watch: (file) => this.addWatchFile?.(file)
-								});
+								await componentAuthorization.authorize(
+									resolved,
+									request,
+									filename,
+									authorizationOptions
+								);
 							}
-							await componentAuthorization.commit();
-							openAuthorizationGeneration(registry);
 						}
-					} catch (error) {
-						componentAuthorization.reject();
-						componentAuthorization.restore(filename, previous);
-						openAuthorizationGeneration(registry);
-						throw error;
 					}
+					await componentAuthorization.commit();
+					openAuthorizationGeneration(registry);
+				} catch (error) {
+					componentAuthorization.reject();
+					componentAuthorization.restore(filename, previous);
+					openAuthorizationGeneration(registry);
+					throw error;
 				}
 			}
 		},

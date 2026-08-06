@@ -163,7 +163,8 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 			return Object.freeze({
 				outcome: 'authorized' as const,
 				packageInstanceId: instanceId,
-				componentBuild: participation.componentBuild
+				componentBuild: participation.componentBuild,
+				watchFiles: Object.freeze([participation.buildFactsPath])
 			});
 		} catch (error) {
 			const authorizationError =

@@ -175,7 +175,8 @@ export async function authorizeWebpackResolvedComponent(
 	request: string,
 	importerModuleId: string,
 	resolvedModuleId: string,
-	resolvePublished?: ExactWebpackComponentResolver
+	resolvePublished?: ExactWebpackComponentResolver,
+	watchFile?: (filename: string) => void
 ): Promise<'authorized' | 'omitted' | undefined> {
 	if (options.target !== 'server') return;
 	const importerPath = webpackIssuerResource(importerModuleId);
@@ -217,6 +218,7 @@ export async function authorizeWebpackResolvedComponent(
 		};
 		const authorization = await generation.session!.authorizeResolvedComponent(candidate);
 		if (authorization.outcome === 'authorized') {
+			for (const file of authorization.watchFiles) watchFile?.(file);
 			const facts = authorization.componentBuild;
 			componentFacts.get(id)?.set(
 				path.resolve(facts.filename),
@@ -239,7 +241,8 @@ export async function authorizeWebpackResolvedComponent(
 					edge.moduleSpecifier,
 					facts.filename,
 					child,
-					resolvePublished
+					resolvePublished,
+					watchFile
 				);
 			}
 			for (const nested of facts.rendererEnhancements) {
@@ -254,7 +257,8 @@ export async function authorizeWebpackResolvedComponent(
 					nested.moduleSpecifier,
 					facts.filename,
 					child,
-					resolvePublished
+					resolvePublished,
+					watchFile
 				);
 			}
 		}

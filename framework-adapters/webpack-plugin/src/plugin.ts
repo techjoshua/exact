@@ -190,6 +190,7 @@ export type WebpackCompilerLike = {
 			tap?(
 				name: string,
 				handler: (compilation: {
+					fileDependencies?: { add(filename: string): unknown };
 					hooks?: {
 						processAssets?: {
 							tap?(options: { name: string }, handler: () => void): void;
@@ -269,8 +270,10 @@ export class ExactWebpackPlugin {
 			buildKey: buildOptions.debug.buildKey
 		};
 		resetWebpackAuthorizationGeneration(owned.id, authorizationOptions);
+		let watchAuthorizationFile: ((filename: string) => void) | undefined;
 		if (buildOptions.target === 'server') {
 			compiler.hooks?.thisCompilation?.tap?.('ExactWebpackPlugin', (compilation) => {
+				watchAuthorizationFile = (filename) => compilation.fileDependencies?.add(filename);
 				const emitInspection = (componentAuthorization?: ExactComponentAuthorizationAudit) => {
 					const catalog = webpackInspectionCatalog(owned.id, {
 						applicationRoot: buildOptions.applicationRoot,
@@ -337,7 +340,8 @@ export class ExactWebpackPlugin {
 						request,
 						importer,
 						resource,
-						resolvePublished
+						resolvePublished,
+						watchAuthorizationFile
 					);
 					if (authorization === 'omitted' && data?.createData)
 						data.createData.resource = fileURLToPath(
