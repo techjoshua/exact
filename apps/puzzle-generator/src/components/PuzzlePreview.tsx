@@ -5,7 +5,7 @@ type PuzzlePreviewProps = {
 	documents: PuzzleDocuments;
 	solution: boolean;
 	status: string;
-	onMode(solution: boolean): void;
+	onSolution(solution: boolean): void;
 	onDownload(solution: boolean): void;
 };
 
@@ -22,14 +22,14 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 					<button
 						type="button"
 						className:active={!props.solution}
-						onClick={() => props.onMode(false)}
+						onClick={() => props.onSolution(false)}
 					>
 						Puzzle
 					</button>
 					<button
 						type="button"
 						className:active={props.solution}
-						onClick={() => props.onMode(true)}
+						onClick={() => props.onSolution(true)}
 					>
 						Solution
 					</button>

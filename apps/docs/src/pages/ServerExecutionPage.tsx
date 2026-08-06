@@ -160,22 +160,27 @@ export function ServerExecutionPage(this: Component<{}>) {
 				</p>
 				<p>
 					For compiler-proven intrinsic regions, eXact can skip generic VNode traversal: the server
-					writes escaped scalar slots directly, the browser clones a cached template, and hydration
-					adopts with compiler paths. Unsupported host semantics retain a lazy region-local
-					fallback.
+					writes escaped text and finite host slots directly, the browser clones a cached HTML, SVG,
+					or MathML template, and hydration adopts with compiler paths. Properties, styles, URLs,
+					forms, events, and refs retain ordinary host semantics. Conditional intrinsic regions keep
+					their enclosing SVG or MathML namespace across SSR, hydration, and later client mounts;
+					structural and otherwise unproven regions retain a lazy region-local fallback.
 				</p>
 				<p>
 					Independent local, context-free component siblings may settle concurrently during
 					markerless async SSR. <code>maxAsyncSsrConcurrency</code> defaults to <code>4</code>,{' '}
 					<code>1</code>
 					forces serial work, and the renderer caps the value at <code>32</code>. Results still
-					publish in source order; marker-bearing and unproven groups remain serial.
+					publish in source order. Nested proven groups share the same request-wide bound;
+					marker-bearing, callback-observed, and unproven groups remain serial.
 				</p>
 				<p>
 					Finite client islands share one grouped hydration table instead of repeating their
 					component name and props on every boundary. Opaque spreads keep the self-describing
-					fallback. Progressive inline responses install one root-confined reveal helper and use
-					compact calls afterward; inert mode remains available when policy forbids inline code.
+					fallback. Compact interaction islands keep no decoded prop shell while dormant and release
+					the shared table after final activation. Progressive inline responses install one
+					root-confined reveal helper and use compact calls afterward; hydration claims that helper,
+					and inert mode remains available when policy forbids inline code.
 				</p>
 				<p>
 					A lazily loaded island may expose a continuation already present in the generated startup

@@ -160,6 +160,19 @@ func (s *Session) Execute(request Request) Response {
 	if usesForeignJSXRuntime(sourceFile) {
 		if request.Kind == "compile" {
 			response.Code = authoredSource
+			if request.Diagnostics == "semantic" {
+				validationStarted := time.Now()
+				validated, validationErr := validateGeneratedCode(request, fileName, response.Code)
+				response.Timings.CheckMicroseconds += time.Since(validationStarted).Microseconds()
+				if validationErr != nil {
+					response.Error = fmt.Sprintf(
+						"could not validate untransformed TypeScript module: %v",
+						validationErr,
+					)
+					return response
+				}
+				response.Diagnostics = append(response.Diagnostics, validated...)
+			}
 		}
 		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 		return response

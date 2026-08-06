@@ -60,7 +60,6 @@
 		{ "path": "./apps/kanban" },
 		{ "path": "./apps/workbench" },
 		{ "path": "./apps/sudoku" },
-		{ "path": "./apps/puzzle-generator" },
 		{ "path": "./apps/microfrontend-portal" },
 		{ "path": "./apps/server-components" },
 		{ "path": "./apps/shipping-calculator" },

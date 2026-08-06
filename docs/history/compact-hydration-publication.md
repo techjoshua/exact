@@ -2,19 +2,21 @@
 
 ## Status
 
-In implementation after
+Implemented after
 [`compiler-owned-render-programs.md`](compiler-owned-render-programs.md) and
 [`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md). This proposal implements
 the accepted hydration/progressive experiment in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md). It must land
+[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). It must land
 before lazy interaction islands, structural refresh, resumption, and final adapter parity depend on
 the compact table and shared bootstrap.
 
 The grouped table, private compiler-finite boundary proof, compact coordinate, bootstrap
-validation, deferred island row lookup, opaque-spread fallback, and one-helper progressive inline
-encoder are implemented. Complete compiled adoption, independently published fallback records,
-atomic hydration/helper ownership, adapter projection, and the full browser/corruption/byte gates
-remain.
+validation, deferred island lookup without dormant prop shells, row-local corruption confinement,
+opaque-spread and independent-publication fallback, compiled adoption, and one-helper progressive
+inline encoder are implemented. Compact interaction boundaries participate in event discovery,
+their shared table is released after the final activation, and root hydration atomically claims the
+deterministically named progressive helper. The format travels through the common hydration and
+stream options used by every server/build adapter.
 
 ## Decision
 
@@ -132,10 +134,10 @@ For the accepted 200-boundary workload, framework cost excludes application-owne
 boundary identities, prop schemas, and values. The August 6, 2026 production-path run reduced the
 framework-owned raw envelope from 18,866 to 5,204 bytes. Generated coordinates are framework cost,
 so the isolated envelope grew from 204 to 542 gzip bytes and 92 to 342 Brotli bytes; compressed
-category sizes are not additive. Indexed parsing was 23.6% faster. The whole response fell from
+category sizes are not additive. Indexed parsing was 25.6% faster. The whole response fell from
 45,469 to 12,902 raw bytes and from 1,194 to 1,130 Brotli bytes, while gzip grew by 37 bytes. The
 32-reveal shared helper reduced raw output from 19,692 to 3,010 bytes, gzip from 661 to 624, and
-Brotli from 448 to 445, while median execution improved from 7.86 to 6.73 ms.
+Brotli from 448 to 445, while median execution improved from 12.25 to 10.56 ms.
 
 ## Acceptance criteria
 

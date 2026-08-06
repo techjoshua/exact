@@ -23,4 +23,7 @@ micro-component tags to lexical view calls.
 
 The runtime exports `jsx`, `jsxs`, `jsxDEV`, `Fragment`, and the keyed-fragment marker. DOM
 event props preserve eXact interaction typing, and finite registry members remain ordinary JSX
-component values.
+component values. Namespaced attributes are accepted as compiler-owned source syntax. Use
+`exactc --check` rather than raw `tsc --noEmit` when an application uses syntax such as component
+value/callback bindings; the compiler validates the finite pair and checks its lowered TypeScript
+representation.

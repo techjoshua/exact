@@ -45,6 +45,30 @@ it('writes compiler-owned scalar programs directly and retains marker-mode fallb
 	expect(constructions).toBe(1);
 });
 
+it('serializes planned host slots with ordinary SSR attribute semantics', () => {
+	const program = createCompiledRenderProgram(
+		'render-program:ssr-props',
+		() => ({
+			version: 1,
+			id: 'render-program:ssr-props',
+			namespace: 'html',
+			template: '<button data-exact-id="planned">Save</button>',
+			parts: ['<button data-exact-id="planned"', '', '', '>Save</button>'],
+			slots: [
+				{ id: 'class', kind: 'class', path: [], name: 'className' },
+				{ id: 'disabled', kind: 'property', path: [], name: 'disabled' },
+				{ id: 'click', kind: 'property', path: [], name: 'onClick' }
+			],
+			nodes: [{ id: 'planned', path: [], tag: 'button', namespace: 'html' }]
+		}),
+		[() => ['primary', { active: true }], () => true, () => () => undefined],
+		() => createCompiledVNode('button', { className: 'primary active', disabled: true }, 'Save')
+	);
+	expect(renderToString(program, { markers: false }).html).toBe(
+		'<button data-exact-id="planned" class="primary active" disabled>Save</button>'
+	);
+});
+
 it('bounds compiler-proven sibling work while preserving source order', async () => {
 	const releases: Array<() => void> = [];
 	let started = 0;
@@ -68,5 +92,41 @@ it('bounds compiler-proven sibling work while preserving source order', async ()
 	releases.splice(0).forEach((release) => release());
 	await expect(rendering).resolves.toMatchObject({
 		html: '<div><span>a</span><span>b</span><span>c</span><span>d</span></div>'
+	});
+});
+
+it('shares the request limit with nested proven sibling groups without deadlocking', async () => {
+	function Leaf(this: Component<{}>, props: { label: string; delay: number }) {
+		activateTaskForHost(
+			this,
+			defineTask({}, async () => {
+				await new Promise<void>((resolve) => setTimeout(resolve, props.delay));
+			})
+		);
+		return () => createVNode('span', null, props.label);
+	}
+	function Pair(this: Component<{}>, props: { prefix: string }) {
+		return () =>
+			markIndependentAsyncSiblings(
+				createVNode(
+					'section',
+					null,
+					createVNode(Leaf, { label: `${props.prefix}1`, delay: 4 }),
+					createVNode(Leaf, { label: `${props.prefix}2`, delay: 1 })
+				)
+			);
+	}
+	const root = markIndependentAsyncSiblings(
+		createVNode(
+			'main',
+			null,
+			createVNode(Pair, { prefix: 'a' }),
+			createVNode(Pair, { prefix: 'b' })
+		)
+	);
+	await expect(
+		renderToStringAsync(root, { markers: false, maxAsyncSsrConcurrency: 2 })
+	).resolves.toMatchObject({
+		html: '<main><section><span>a1</span><span>a2</span></section><section><span>b1</span><span>b2</span></section></main>'
 	});
 });

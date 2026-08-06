@@ -9,7 +9,10 @@ updates, and the framework's normal build adapters.
 [`apps/puzzle-generator`](../apps/puzzle-generator) is a browser-local publishing tool for Sudoku,
 word-search, and crossword puzzles. Its algorithms are deterministic from a visible seed and its
 generated puzzle and solution are independent SVG documents. Shared title, typography, color, and
-line settings are rendered into both files.
+line settings are rendered into both files. Titles may be omitted or aligned independently of the
+grid. Crossword line and unused-background colors are separate, its word bank is optional, and
+answer keys support color or puzzle-specific black-and-white rendering. Sudoku answer digits may
+use their own portable font stack and weight.
 
 The standalone build is intentionally one HTML file:
 

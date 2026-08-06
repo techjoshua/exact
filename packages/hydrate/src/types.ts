@@ -159,11 +159,14 @@ export type ExactHydrationConfig = {
 /** Internal grouped boundary table. Coordinates are local to its containing root. */
 export type ExactHydrationTable = readonly [
 	version: 1,
-	groups: readonly (readonly [
-		componentName: string,
-		propNames: readonly string[],
-		rows: readonly (readonly [boundaryId: string, ...values: unknown[]])[]
-	])[]
+	groups: readonly (
+		| readonly [
+				componentName: string,
+				propNames: readonly string[],
+				rows: readonly (readonly [boundaryId: string, ...values: unknown[]] | undefined)[]
+		  ]
+		| undefined
+	)[]
 ];
 
 /** Compact serialized continuation accepted at the hydration boundary. */

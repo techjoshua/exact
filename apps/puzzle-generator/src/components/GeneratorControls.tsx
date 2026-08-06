@@ -14,7 +14,7 @@ type GeneratorControlsProps = {
 	onBoxSize(size: 2 | 3): void;
 	onRows(rows: number): void;
 	onColumns(columns: number): void;
-	onWords(words: string): void;
+	onWordText(wordText: string): void;
 	onGenerate(): void;
 	onRandomize(): void;
 };
@@ -111,7 +111,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 					<textarea
 						rows={6}
 						value={props.wordText}
-						onInput={(event) => props.onWords(event.currentTarget.value)}
+						onInput={(event) => props.onWordText(event.currentTarget.value)}
 						spellcheck="false"
 					/>
 					<small>

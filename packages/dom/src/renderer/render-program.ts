@@ -10,7 +10,8 @@ import {
 } from '@exactjs/core';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import type { EffectScope } from '@exactjs/reactive';
-import { setElementOwner, setNodeOwner } from '../ownership.js';
+import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
+import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { countDomWork } from './limits.js';
 
@@ -26,24 +27,27 @@ export function mountRenderProgram(
 	parentInstance?: ComponentInstance<any>
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
-	if (!invocation || !validScalarReaders(invocation)) return undefined;
+	if (!invocation) return undefined;
 	const template = programTemplate(invocation.program, root.container.ownerDocument);
 	const fragment = template.content.cloneNode(true) as DocumentFragment;
 	if (fragment.childNodes.length !== 1) return undefined;
 	const dom = fragment.firstChild!;
 	const slotNodes = invocation.program.slots.map((slot) => nodeAtPath(dom, slot.path));
-	if (slotNodes.some((node) => node?.nodeType !== textNode)) return undefined;
-	for (let index = 1; index < invocation.program.nodes.length; index++) countDomWork(root);
-	for (const _slot of invocation.program.slots) countDomWork(root);
+	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom,
 		scope,
 		children: [],
-		renderProgram: { invocation, slotNodes }
+		renderProgram: { invocation, slotNodes, root }
 	};
 	if (parentInstance) ownProgramNodes(invocation.program, dom, parentInstance);
-	bindRenderProgram(mounted);
+	if (!bindRenderProgram(mounted)) {
+		releaseProgramNodeOwners(invocation.program, dom);
+		return undefined;
+	}
+	for (let index = 1; index < invocation.program.nodes.length; index++) countDomWork(root);
+	for (const _slot of invocation.program.slots) countDomWork(root);
 	return mounted;
 }
 
@@ -56,28 +60,51 @@ export function adoptRenderProgram(
 	parentInstance: ComponentInstance<any>
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
-	if (!invocation || !validScalarReaders(invocation)) return undefined;
+	if (!invocation) return undefined;
 	const rootNode = invocation.program.nodes[0];
-	if (!rootNode || dom.nodeType !== elementNode || (dom as Element).localName !== rootNode.tag)
+	if (!rootNode || !matchesProgramElement(dom, rootNode.id, rootNode.tag, rootNode.namespace))
 		return undefined;
 	for (const node of invocation.program.nodes) {
 		const target = nodeAtPath(dom, node.path);
-		if (target?.nodeType !== elementNode || (target as Element).localName !== node.tag)
-			return undefined;
-		countDomWork(root);
+		if (!matchesProgramElement(target, node.id, node.tag, node.namespace)) return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) => nodeAtPath(dom, slot.path));
-	if (slotNodes.some((node) => node?.nodeType !== textNode)) return undefined;
+	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom,
 		scope,
 		children: [],
-		renderProgram: { invocation, slotNodes }
+		renderProgram: { invocation, slotNodes, root }
 	};
 	ownProgramNodes(invocation.program, dom, parentInstance);
-	bindRenderProgram(mounted);
+	if (!bindRenderProgram(mounted)) {
+		releaseProgramNodeOwners(invocation.program, dom);
+		return undefined;
+	}
+	for (const _node of invocation.program.nodes) countDomWork(root);
 	return mounted;
+}
+
+function matchesProgramElement(
+	node: Node | undefined,
+	id: string,
+	tag: string | undefined,
+	namespace: ExactRenderProgram['namespace']
+): boolean {
+	if (node?.nodeType !== elementNode || !tag) return false;
+	const element = node as Element;
+	const uri =
+		namespace === 'svg'
+			? 'http://www.w3.org/2000/svg'
+			: namespace === 'mathml'
+				? 'http://www.w3.org/1998/Math/MathML'
+				: 'http://www.w3.org/1999/xhtml';
+	return (
+		element.localName.toLowerCase() === tag.toLowerCase() &&
+		element.namespaceURI === uri &&
+		element.getAttribute('data-exact-id') === id
+	);
 }
 
 /** Adopts a program or transfers the untouched range to its generic fallback. */
@@ -119,14 +146,12 @@ export function patchRenderProgram(mounted: Mounted, vnode: VNode): boolean {
 	if (
 		!invocation ||
 		!mounted.renderProgram ||
-		mounted.renderProgram.invocation.program.id !== invocation.program.id ||
-		!validScalarReaders(invocation)
+		mounted.renderProgram.invocation.program.id !== invocation.program.id
 	)
 		return false;
 	mounted.vnode = vnode;
 	mounted.renderProgram.invocation = invocation;
-	bindRenderProgram(mounted);
-	return true;
+	return bindRenderProgram(mounted);
 }
 
 /** Returns the lazy fallback without exposing its compiler-owned brand. */
@@ -134,32 +159,81 @@ export function fallbackRenderProgram(vnode: VNode): VNode {
 	return renderProgramFallback(vnode);
 }
 
-function bindRenderProgram(mounted: Mounted): void {
+function bindRenderProgram(mounted: Mounted): boolean {
 	mounted.stop?.();
 	const state = mounted.renderProgram!;
-	mounted.stop = watchRetained(
+	const previousProps = state.props ?? new Map<Element, Record<string, unknown>>();
+	state.props = previousProps;
+	let released = false;
+	let valid = true;
+	const release = () => {
+		if (released) return;
+		released = true;
+		for (const [element, props] of previousProps) {
+			const ref = props.ref as { fulfill(value: unknown): void } | undefined;
+			ref?.fulfill(undefined);
+			clearElementProps(element);
+		}
+		previousProps.clear();
+		mounted.stop = undefined;
+	};
+	const stop = watchRetained(
 		() => {
+			const nextProps = new Map<Element, Record<string, unknown>>();
 			for (let index = 0; index < state.slotNodes.length; index++) {
 				const value = unwrap(state.invocation.readers[index]!());
+				const slot = state.invocation.program.slots[index]!;
+				const target = state.slotNodes[index];
+				if (slot.kind !== 'text') {
+					const element = target as Element;
+					let props = nextProps.get(element);
+					if (!props) nextProps.set(element, (props = {}));
+					props[slot.name!] = value;
+					continue;
+				}
+				if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
+					valid = false;
+					return;
+				}
 				const text =
 					value === null || value === undefined || value === false || value === true
 						? ''
 						: String(value);
-				const node = state.slotNodes[index] as Text;
+				const node = target as Text;
 				if (node.data !== text) node.data = text;
 			}
+			for (const [element, previous] of previousProps) {
+				if (!nextProps.has(element)) updateProps(state.root, element, previous, {}, mounted.scope);
+			}
+			for (const [element, next] of nextProps) {
+				updateProps(state.root, element, previousProps.get(element) ?? {}, next, mounted.scope);
+			}
+			previousProps.clear();
+			for (const [element, props] of nextProps) previousProps.set(element, props);
 		},
 		undefined,
-		{ scope: mounted.scope, onRelease: () => (mounted.stop = undefined) }
+		{ scope: mounted.scope }
 	);
-}
-
-function validScalarReaders(invocation: ExactRenderProgramInvocation): boolean {
-	for (const read of invocation.readers) {
-		const value = unwrap(read());
-		if (isVNode(value) || Array.isArray(value) || value instanceof Promise) return false;
+	mounted.stop = () => {
+		stop?.();
+		release();
+	};
+	if (!valid) {
+		mounted.stop();
+		return false;
 	}
 	return true;
+}
+
+function validSlotNodes(
+	invocation: ExactRenderProgramInvocation,
+	nodes: readonly (Node | undefined)[]
+): boolean {
+	return nodes.every((node, index) =>
+		invocation.program.slots[index]?.kind === 'text'
+			? node?.nodeType === textNode
+			: node?.nodeType === elementNode
+	);
 }
 
 function programTemplate(
@@ -171,7 +245,20 @@ function programTemplate(
 	let template = cache.get(program);
 	if (!template) {
 		template = ownerDocument.createElement('template');
-		template.innerHTML = program.template;
+		if (program.namespace === 'html') {
+			template.innerHTML = program.template;
+		} else {
+			const namespace =
+				program.namespace === 'svg'
+					? 'http://www.w3.org/2000/svg'
+					: 'http://www.w3.org/1998/Math/MathML';
+			const wrapper = ownerDocument.createElementNS(
+				namespace,
+				program.namespace === 'svg' ? 'svg' : 'math'
+			);
+			wrapper.innerHTML = program.template;
+			template.content.append(...wrapper.childNodes);
+		}
 		cache.set(program, template);
 	}
 	return template;
@@ -193,5 +280,14 @@ function ownProgramNodes(
 		if (!node) continue;
 		setNodeOwner(node, owner);
 		if (node.nodeType === elementNode) setElementOwner(node as Element, owner);
+	}
+}
+
+function releaseProgramNodeOwners(program: ExactRenderProgram, root: Node): void {
+	for (const planned of program.nodes) {
+		const node = nodeAtPath(root, planned.path);
+		if (!node) continue;
+		clearNodeOwner(node);
+		if (node.nodeType === elementNode) clearElementOwner(node as Element);
 	}
 }

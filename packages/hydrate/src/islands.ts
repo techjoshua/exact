@@ -100,18 +100,29 @@ export function hydrateClientIslands(
 	if (dormant)
 		ensureInteractionHydration(
 			container,
-			(boundary, event) =>
-				hydrateIslandChain(
+			(boundary, event) => {
+				const result = hydrateIslandChain(
 					boundary,
 					registry,
 					options,
 					createDomWorkBudget(options.maxTreeNodes),
 					domain,
 					event
-				),
+				);
+				if (result instanceof Promise)
+					return result.then((hydrated) => {
+						if (hydrated) releaseHydrationTableIfUnused(container, options);
+						return hydrated;
+					});
+				if (result) releaseHydrationTableIfUnused(container, options);
+				return result;
+			},
 			options
 		);
-	else disposeInteractionHydration(container);
+	else {
+		disposeInteractionHydration(container);
+		releaseHydrationTableIfUnused(container, options);
+	}
 	return hydrated;
 }
 
@@ -167,9 +178,27 @@ function hydrateIslandBoundary(
 		return loadClientIsland(entry, options).then((component) => {
 			registry[name] = component;
 			if (!boundary.isConnected && !boundary.parentNode) return false;
-			return mountIslandBoundary(boundary, name, component, options, work, domain, activationEvent);
+			return mountIslandBoundary(
+				boundary,
+				name,
+				component,
+				options,
+				work,
+				domain,
+				activationEvent,
+				compact?.props
+			);
 		});
-	return mountIslandBoundary(boundary, name, entry, options, work, domain, activationEvent);
+	return mountIslandBoundary(
+		boundary,
+		name,
+		entry,
+		options,
+		work,
+		domain,
+		activationEvent,
+		compact?.props
+	);
 }
 
 function mountIslandBoundary(
@@ -179,11 +208,12 @@ function mountIslandBoundary(
 	options: HydrateOptions,
 	work: ReturnType<typeof createDomWorkBudget>,
 	domain: ReturnType<typeof createComponentDomain>,
-	activationEvent?: Event
+	activationEvent?: Event,
+	compactProps?: Record<string, unknown>
 ): boolean {
 	if (boundary.getAttribute('data-exact-client-hydrated') === 'true') return true;
 	const props =
-		compactBoundaryProps(boundary, options)?.props ??
+		compactProps ??
 		parseIslandProps(boundary.getAttribute('data-exact-client-props'), options, boundary);
 	const vnode = withComponentDomain(domain, () => createVNode(component, props));
 	const remaining = work.limit - work.used;
@@ -239,6 +269,15 @@ function mountIslandBoundary(
 	return true;
 }
 
+function releaseHydrationTableIfUnused(
+	container: Element | Document,
+	options: HydrateOptions
+): void {
+	if (!options.hydrationTable) return;
+	if (container.querySelector('[data-xh]:not([data-exact-client-hydrated="true"])')) return;
+	options.hydrationTable = undefined;
+}
+
 function compactBoundaryProps(
 	boundary: Element,
 	options: HydrateOptions
@@ -251,7 +290,15 @@ function compactBoundaryProps(
 	if (!match || !table || table[0] !== 1) return undefined;
 	const group = table[1][Number.parseInt(match[1]!, 36)];
 	const row = group?.[2][Number.parseInt(match[2]!, 36)];
-	if (!group || !row) return undefined;
+	if (
+		!group ||
+		!row ||
+		typeof group[0] !== 'string' ||
+		!Array.isArray(group[1]) ||
+		!group[1].every((name) => typeof name === 'string') ||
+		typeof row[0] !== 'string'
+	)
+		return undefined;
 	const authoredId = boundary.getAttribute('data-exact-client-boundary');
 	if (authoredId !== null && row[0] !== authoredId) return undefined;
 	const names = group[1];

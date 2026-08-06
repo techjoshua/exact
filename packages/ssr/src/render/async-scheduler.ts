@@ -20,8 +20,18 @@ export class AsyncSsrScheduler {
 		try {
 			return await work();
 		} finally {
-			this.active--;
-			this.queued.shift()?.();
+			this.release();
+		}
+	}
+
+	/** Temporarily yields a held permit while nested scheduled work settles. */
+	async suspend<T>(work: () => Promise<T>): Promise<T> {
+		this.release();
+		try {
+			return await work();
+		} finally {
+			// Reacquire unconditionally so the outer run still owns the permit it releases.
+			await this.acquire();
 		}
 	}
 
@@ -51,5 +61,11 @@ export class AsyncSsrScheduler {
 			// Close the race between the caller's initial check and listener registration.
 			if (signal?.aborted) abort();
 		});
+	}
+
+	private release(): void {
+		if (this.active <= 0) throw new Error('eXact async SSR scheduler released an unowned slot');
+		this.active--;
+		this.queued.shift()?.();
 	}
 }

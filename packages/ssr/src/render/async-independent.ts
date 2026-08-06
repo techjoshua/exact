@@ -22,12 +22,15 @@ export function canRenderIndependentChildren(
 	options: RenderToStringOptions
 ): boolean {
 	return !(
-		context.asyncFrame ||
 		context.asyncScheduler.limit === 1 ||
 		context.markers ||
 		context.reactMarkup ||
 		context.documentRootSeen ||
-		options.inspection
+		options.inspection ||
+		options.onComponentCreated ||
+		options.onComponentRendered ||
+		options.onUnsafeHtml ||
+		options.onProfile
 	);
 }
 
@@ -36,6 +39,17 @@ export function canRenderIndependentChildren(
  * and publishes HTML and observations in authored order.
  */
 export async function renderIndependentChildren(
+	context: SsrContext,
+	children: readonly Child[],
+	parent: ComponentInstance<any> | undefined,
+	options: RenderToStringOptions,
+	renderChild: IndependentChildRenderer
+): Promise<string> {
+	const render = () => renderIndependentGroup(context, children, parent, options, renderChild);
+	return context.asyncFrame ? context.asyncScheduler.suspend(render) : render();
+}
+
+async function renderIndependentGroup(
 	context: SsrContext,
 	children: readonly Child[],
 	parent: ComponentInstance<any> | undefined,

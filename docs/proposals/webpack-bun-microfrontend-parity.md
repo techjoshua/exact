@@ -9,9 +9,9 @@ resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md), and
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
-[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
-[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md),
-[`compact-hydration-publication.md`](compact-hydration-publication.md),
+[`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md),
+[`compact-hydration-publication.md`](../history/compact-hydration-publication.md),
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md). The dependent-foundation

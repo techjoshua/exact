@@ -7,7 +7,7 @@
 		"dev": "vite --host 0.0.0.0",
 		"build": "vite build",
 		"build:standalone": "node scripts/build-standalone.mjs",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "exactc --check .",
 		"test": "vitest run src"
 	},
 	"dependencies": {
@@ -17,6 +17,7 @@
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {
+		"@exactjs/compiler": "^0.1.0",
 		"typescript": "^7.0.2",
 		"vite": "8.1.5",
 		"vitest": "4.1.10"

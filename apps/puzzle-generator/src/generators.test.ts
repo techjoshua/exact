@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
+import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
 import { generateSudoku, countSudokuSolutions } from './sudoku.js';
 import type { PuzzleStyle } from './types.js';
 import { generateWordSearch, gridContainsBlockedSequence } from './word-search.js';
@@ -8,12 +9,19 @@ import { parseWords, validateWords } from './words.js';
 
 const style: PuzzleStyle = {
 	title: 'Test & Proof',
+	titleAlignment: 'left',
 	fontFamily: 'sans',
 	fontSize: 20,
 	ink: '#111111',
 	accent: '#cc3300',
 	paper: '#ffffff',
-	lineWidth: 1.5
+	lineWidth: 1.5,
+	monochromeSolution: false,
+	crosswordGrid: '#111111',
+	crosswordBlocks: '#111111',
+	crosswordWordList: true,
+	sudokuSolutionFont: 'inherit',
+	sudokuSolutionBold: false
 };
 
 describe('Sudoku generation', () => {
@@ -80,5 +88,68 @@ describe('document and input contracts', () => {
 		expect(documents.puzzleSvg).toContain('Test &amp; Proof');
 		expect(documents.solutionSvg).not.toBe(documents.puzzleSvg);
 		expect(exportBaseName('My Puzzle!', 'sudoku')).toBe('my-puzzle');
+	});
+
+	it('omits an empty title and aligns a supplied title', () => {
+		const puzzle = generateSudoku(2, 'easy', 7);
+		const untitled = renderSudokuSvg(puzzle, { ...style, title: '' }, false);
+		const centered = renderSudokuSvg(
+			puzzle,
+			{ ...style, title: 'Centered', titleAlignment: 'center' },
+			false
+		);
+		expect(untitled).not.toContain('>Sudoku</text>');
+		expect(centered).toContain('text-anchor="middle"');
+		expect(centered).toContain('>Centered</text>');
+	});
+
+	it('renders puzzle-specific print and solution options', () => {
+		const wordSearch = generateWordSearch(['ORBIT', 'COMET'], 8, 8, 'easy', 19);
+		const wordPuzzleSvg = renderWordSearchSvg(wordSearch, style, false);
+		const colorWordSolutionSvg = renderWordSearchSvg(wordSearch, style, true);
+		const wordSolutionSvg = renderWordSearchSvg(
+			wordSearch,
+			{ ...style, monochromeSolution: true },
+			true
+		);
+		expect(wordPuzzleSvg).toContain('<rect x="34"');
+		expect(wordSolutionSvg).not.toContain('<ellipse');
+		expect(wordSolutionSvg).toContain('fill="none" stroke="#000000"');
+		const colorPaths = [
+			...colorWordSolutionSvg.matchAll(/data-solution-word="([^"]+)" d="([^"]+)"/g)
+		];
+		const monochromePaths = [
+			...wordSolutionSvg.matchAll(/data-solution-word="([^"]+)" d="([^"]+)"/g)
+		];
+		expect(monochromePaths.map((match) => match[1])).toEqual(colorPaths.map((match) => match[1]));
+		expect(monochromePaths.map((match) => match[2])).toEqual(colorPaths.map((match) => match[2]));
+		expect(monochromePaths).toHaveLength(wordSearch.placements.length);
+
+		const crossword = generateCrossword(['ORBIT', 'COMET', 'METEOR'], 21);
+		const crosswordSvg = renderCrosswordSvg(
+			crossword,
+			{
+				...style,
+				crosswordGrid: '#123456',
+				crosswordBlocks: '#ffffff',
+				crosswordWordList: false,
+				monochromeSolution: true
+			},
+			true
+		);
+		expect(crosswordSvg).toContain('stroke="#123456"');
+		expect(crosswordSvg.match(/stroke="#123456"/g)).toHaveLength(1);
+		expect(crosswordSvg).not.toMatch(/<rect[^>]+stroke=/);
+		expect(crosswordSvg).toContain('fill="#ffffff"');
+		expect(crosswordSvg).not.toContain('>ORBIT</text>');
+		expect(crosswordSvg).toContain('fill="#000000"');
+
+		const sudokuSvg = renderSudokuSvg(
+			generateSudoku(2, 'medium', 22),
+			{ ...style, sudokuSolutionFont: 'handwritten', sudokuSolutionBold: true },
+			true
+		);
+		expect(sudokuSvg).toContain('font-family="&apos;Segoe Print&apos;');
+		expect(sudokuSvg).toContain('font-weight="800"');
 	});
 });

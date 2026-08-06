@@ -10,6 +10,29 @@ const execFileAsync = promisify(execFile);
 const cliPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist/cli.js');
 
 describe('exactc', { timeout: 15_000 }, () => {
+	it('checks compiler-lowered source without emitting files', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-check-'));
+		const input = path.join(root, 'model.ts');
+		await writeFile(input, 'const answer: number = 42; void answer;');
+
+		const result = await execFileAsync(process.execPath, [cliPath, '--check', root]);
+
+		expect(result.stdout).toBe('');
+		expect(await readdir(root)).toEqual(['model.ts']);
+	});
+
+	it('reports ordinary TypeScript failures from check mode', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-check-error-'));
+		const input = path.join(root, 'model.ts');
+		await writeFile(input, 'const answer: string = 42; void answer;');
+
+		await expect(execFileAsync(process.execPath, [cliPath, '--check', root])).rejects.toMatchObject(
+			{
+				stderr: expect.stringContaining("Type 'number' is not assignable to type 'string'")
+			}
+		);
+	});
+
 	it('compiles TSX files through the CLI', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-'));
 		const input = path.join(root, 'src', 'view.tsx');

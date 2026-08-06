@@ -18,9 +18,9 @@ components without making trust decisions; bundlers admit only authorized server
 Translated message branches and structural slots must remain within their compiler-emitted message
 plans and active locale/catalog generation.
 The accepted
-[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
-[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md), and
-[`compact-hydration-publication.md`](compact-hydration-publication.md) proposals are implemented
+[`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md), and
+[`compact-hydration-publication.md`](../history/compact-hydration-publication.md) proposals are implemented
 first. Structural refresh reuses their slot, range, deterministic identity, compiled-cursor, and
 publication contracts while retaining its documented generic parser/differ and authoritative
 boundary-replacement fallbacks.

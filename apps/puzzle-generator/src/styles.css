@@ -270,6 +270,11 @@ main {
 	gap: 14px;
 }
 
+.title-fields {
+	grid-template-columns: minmax(0, 1.55fr) minmax(140px, 0.45fr);
+	margin-bottom: 17px;
+}
+
 label > span {
 	display: block;
 	margin-bottom: 7px;
@@ -378,6 +383,63 @@ input[type='range'] {
 	padding: 3px;
 	border: 1px solid #c9c3b5;
 	background: #fffef9;
+}
+
+.check-field {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 18px;
+	color: #3f4b43;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.check-field input {
+	width: 17px;
+	height: 17px;
+	margin: 0;
+	accent-color: #d85f3d;
+}
+
+.check-field > span {
+	display: inline;
+	margin: 0;
+	color: inherit;
+	font-size: inherit;
+	font-weight: inherit;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+.option-box {
+	margin-top: 20px;
+	padding: 16px;
+	border: 1px solid #d4cec0;
+	border-radius: 3px;
+	background: rgba(241, 238, 229, 0.55);
+}
+
+.option-box > strong {
+	display: block;
+	margin-bottom: 14px;
+	font-family: Georgia, serif;
+	font-size: 14px;
+}
+
+.option-box .check-field {
+	margin-top: 13px;
+}
+
+.option-box .compact-check {
+	align-self: end;
+	min-height: 43px;
+	margin-top: 0;
+}
+
+.crossword-colors {
+	grid-template-columns: repeat(2, 1fr);
+	margin-top: 0;
 }
 
 .preview-panel {
@@ -532,7 +594,8 @@ footer {
 	}
 
 	.kind-grid,
-	.field-grid {
+	.field-grid,
+	.title-fields {
 		grid-template-columns: 1fr;
 	}
 

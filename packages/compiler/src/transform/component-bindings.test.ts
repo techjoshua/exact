@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import path from 'node:path';
 import { transformSource } from '../compilation/transformation.js';
 
 describe('@exactjs/compiler component value/callback bindings', () => {
@@ -17,7 +18,10 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 					return () => <Dialog open:onOpenChanged={this.state.dialogOpen} />;
 				}
 			`,
-			{ filename: '/app/Page.tsx' }
+			{
+				filename: path.resolve('src/fixtures/component-binding-page.tsx'),
+				generatedValidation: 'semantic'
+			}
 		);
 
 		expect(result.code).not.toContain('open:onOpenChanged');

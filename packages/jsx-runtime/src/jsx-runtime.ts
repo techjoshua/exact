@@ -114,6 +114,7 @@ export namespace JSX {
 	export type StyleObject = Record<string, StyleValue>;
 	export interface IntrinsicAttributes {
 		key?: string;
+		[binding: `${string}:${string}`]: unknown;
 	}
 	export interface ElementChildrenAttribute {
 		children: {};

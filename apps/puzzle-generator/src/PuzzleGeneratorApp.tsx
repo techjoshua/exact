@@ -9,7 +9,7 @@ import {
 	type DocumentRequest
 } from './documents.js';
 import { createSeed } from './random.js';
-import type { Difficulty, PuzzleGeneratorState, PuzzleKind, PuzzleStyle } from './types.js';
+import type { PuzzleGeneratorState, PuzzleKind, PuzzleStyle } from './types.js';
 
 const starterWords = `ORBIT
 COMET
@@ -24,12 +24,19 @@ NEBULA`;
 
 const initialStyle: PuzzleStyle = {
 	title: 'The Sunday Puzzle No. 1',
+	titleAlignment: 'left',
 	fontFamily: 'sans',
 	fontSize: 20,
 	ink: '#17251e',
 	accent: '#d85f3d',
 	paper: '#fffdf6',
-	lineWidth: 1.5
+	lineWidth: 1.5,
+	monochromeSolution: false,
+	crosswordGrid: '#17251e',
+	crosswordBlocks: '#fffdf6',
+	crosswordWordList: false,
+	sudokuSolutionFont: 'inherit',
+	sudokuSolutionBold: false
 };
 
 /** Owns the browser-local generator inputs and the current pair of SVG artifacts. */
@@ -50,7 +57,6 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		try {
 			this.state.documents = peek(() => createPuzzleDocuments(requestFromState(this.state)));
 			this.state.status = 'Freshly generated';
-			this.state.previewSolution = false;
 		} catch (error) {
 			this.state.status = error instanceof Error ? error.message : String(error);
 		}
@@ -58,15 +64,6 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 
 	const changeKind = (kind: PuzzleKind) => {
 		this.state.kind = kind;
-		this.state.style = {
-			...this.state.style,
-			title:
-				kind === 'sudoku'
-					? 'The Sunday Sudoku'
-					: kind === 'word-search'
-						? 'A Search Through Space'
-						: 'The Stellar Crossword'
-		};
 		generate();
 	};
 
@@ -117,30 +114,18 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 					<aside className="controls-panel">
 						<GeneratorControls
 							kind={this.state.kind}
-							difficulty={this.state.difficulty}
-							seed={this.state.seed}
-							boxSize={this.state.sudokuBoxSize}
+							difficulty:onDifficulty={this.state.difficulty}
+							seed:onSeed={this.state.seed}
+							boxSize:onBoxSize={this.state.sudokuBoxSize}
 							rows={this.state.wordRows}
 							columns={this.state.wordColumns}
-							wordText={this.state.wordText}
+							wordText:onWordText={this.state.wordText}
 							onKind={changeKind}
-							onDifficulty={(difficulty: Difficulty) => {
-								this.state.difficulty = difficulty;
-							}}
-							onSeed={(seed: number) => {
-								this.state.seed = seed;
-							}}
-							onBoxSize={(size: 2 | 3) => {
-								this.state.sudokuBoxSize = size;
-							}}
 							onRows={(rows: number) => {
 								this.state.wordRows = clampDimension(rows);
 							}}
 							onColumns={(columns: number) => {
 								this.state.wordColumns = clampDimension(columns);
-							}}
-							onWords={(words: string) => {
-								this.state.wordText = words;
 							}}
 							onGenerate={generate}
 							onRandomize={() => {
@@ -149,6 +134,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							}}
 						/>
 						<StyleControls
+							kind={this.state.kind}
 							style={this.state.style}
 							onStyle={(style: PuzzleStyle) => {
 								this.state.style = style;
@@ -159,11 +145,8 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 
 					<PuzzlePreview
 						documents={this.state.documents}
-						solution={this.state.previewSolution}
+						solution:onSolution={this.state.previewSolution}
 						status={this.state.status}
-						onMode={(solution: boolean) => {
-							this.state.previewSolution = solution;
-						}}
 						onDownload={download}
 					/>
 				</div>

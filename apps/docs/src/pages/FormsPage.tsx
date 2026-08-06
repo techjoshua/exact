@@ -147,7 +147,10 @@ export function FormsPage(this: Component<{}>) {
 					For a capitalized eXact component, both sides of the colon are ordinary props from the
 					component&apos;s finite prop type. The compiler supplies the reactive value and an
 					ordinary callback that assigns its first argument to the parent-owned state path. There is
-					no writable prop, channel, or component runtime binding object.
+					no writable prop, channel, or component runtime binding object. Run{' '}
+					<code>exactc --check</code> for application type checking: it validates the finite pair
+					and checks the compiler-lowered TypeScript representation rather than asking raw
+					TypeScript to interpret compiler-owned TSX syntax.
 				</p>
 				<p>
 					Use explicit props when the callback validates, transforms, refuses, logs, awaits, or

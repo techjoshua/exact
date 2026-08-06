@@ -22,9 +22,9 @@ This proposal defines the first broader lazy-island delivery over that resulting
 authorized bundle model.
 
 It also follows the accepted performance foundations
-[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
-[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md), and
-[`compact-hydration-publication.md`](compact-hydration-publication.md). Lazy boundaries consume the
+[`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md), and
+[`compact-hydration-publication.md`](../history/compact-hydration-publication.md). Lazy boundaries consume the
 shared slot identities and compact validated rows; they do not preserve per-boundary JSON or a
 generic adoption scan as their normal path.
 

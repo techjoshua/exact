@@ -41,6 +41,49 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 	}
 }
 
+func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-props.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			export function Planned(props: { label: string; disabled: boolean }) {
+				return () => <button className="action" disabled={props.disabled}>{props.label}</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		"createCompiledRenderProgram",
+		"kind: \"class\"",
+		"name: \"className\"",
+		"kind: \"property\"",
+		"name: \"disabled\"",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-svg.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			export function Route(props: { path?: string }) {
+				return () => <svg>{props.path ? <path className="route" d={props.path} /> : null}</svg>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `namespace: "svg", template: "<path`) ||
+		!strings.Contains(response.Code, `tag: "path", namespace: "svg"`) {
+		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
+	}
+}
+
 func TestSessionMarksOnlyProvenAsyncSiblingGroups(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "siblings.tsx", Kind: "compile", Target: TargetServer,
@@ -6670,6 +6713,19 @@ func TestSessionRejectsEnhancementAndComponentBindingAmbiguity(t *testing.T) {
 			containsDiagnosticCode(enhancementOnly.Diagnostics, "EXACT_FORM_BINDING") {
 			t.Fatalf("valid enhancement was misclassified as a value binding: %#v", enhancementOnly.Diagnostics)
 		}
+	}
+}
+
+func TestSessionSemanticallyChecksUntransformedModulesDuringCompilation(t *testing.T) {
+	source := `export const answer: string = 42;`
+	response := NewSession().Execute(Request{
+		ID:          filepath.Join(t.TempDir(), "model.ts"),
+		Kind:        "compile",
+		Source:      source,
+		Diagnostics: "semantic",
+	})
+	if !containsDiagnosticCode(response.Diagnostics, "TS2322") {
+		t.Fatalf("semantic compilation omitted ordinary TypeScript diagnostics: %#v", response.Diagnostics)
 	}
 }
 

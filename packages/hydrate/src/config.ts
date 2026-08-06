@@ -198,22 +198,27 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 function normalizeHydrationTable(value: unknown): ExactHydrationConfig['hydrationTable'] {
 	if (!Array.isArray(value) || value.length !== 2 || value[0] !== 1 || !Array.isArray(value[1]))
 		return undefined;
-	for (const group of value[1]) {
-		if (
-			!Array.isArray(group) ||
-			group.length !== 3 ||
-			typeof group[0] !== 'string' ||
-			!Array.isArray(group[1]) ||
-			!group[1].every((name) => typeof name === 'string') ||
-			new Set(group[1]).size !== group[1].length ||
-			!Array.isArray(group[2])
-		)
-			return undefined;
-		for (const row of group[2])
-			if (!Array.isArray(row) || row.length !== group[1].length + 1 || typeof row[0] !== 'string')
+	const groups = value[1].map(
+		(group): NonNullable<ExactHydrationConfig['hydrationTable']>[1][number] => {
+			if (
+				!Array.isArray(group) ||
+				group.length !== 3 ||
+				typeof group[0] !== 'string' ||
+				!Array.isArray(group[1]) ||
+				!group[1].every((name) => typeof name === 'string') ||
+				new Set(group[1]).size !== group[1].length ||
+				!Array.isArray(group[2])
+			)
 				return undefined;
-	}
-	return value as unknown as NonNullable<ExactHydrationConfig['hydrationTable']>;
+			const rows = group[2].map((row) =>
+				Array.isArray(row) && row.length === group[1].length + 1 && typeof row[0] === 'string'
+					? (row as [string, ...unknown[]])
+					: undefined
+			);
+			return [group[0], group[1], rows] as const;
+		}
+	);
+	return [1, groups];
 }
 
 /** Merges a late-loaded hydration registration into an existing client runtime configuration. */

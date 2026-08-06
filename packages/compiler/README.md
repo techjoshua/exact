@@ -18,6 +18,12 @@ language tools, and custom artifact pipelines.
 npx exactc --help
 ```
 
+Use `npx exactc --check .` for no-emit application checking. It validates eXact source semantics,
+lowers compiler-owned TSX such as component value/callback bindings, and runs TypeScript semantic
+checking on the resulting representation. This preserves ordinary TypeScript errors without
+requiring raw `tsc` to understand eXact syntax. Check mode uses `tsconfig.json` in the current
+directory when present; pass `--project path/to/tsconfig.json` to select another configuration.
+
 The npm package selects the native compiler binary for the current operating system and
 architecture. Application developers do not need Go installed.
 

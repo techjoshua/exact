@@ -2,17 +2,19 @@
 
 ## Status
 
-In implementation after
+Implemented after
 [`compiler-owned-render-programs.md`](compiler-owned-render-programs.md). This proposal implements
 the accepted async SSR concurrency experiment in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md). It must land
+[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). It must land
 before partial-prerender resumption and any adapter advertises concurrent sibling rendering.
 
 The request-wide FIFO scheduler, `maxAsyncSsrConcurrency` normalization, isolated renderer frames,
-ordered merge, cancellation fencing, and compiler proof for local neutral context-free component
-siblings are implemented. Marker-bearing, document, inspection, React-compatible, nested-frame,
-and unproven groups remain serial. Deterministic marker reservation, broader proofs, adapters, and
-the complete stress/performance gates remain.
+ordered merge, cancellation fencing, nested permit yielding, and compiler proof for local neutral
+context-free component siblings are implemented. Marker-bearing, document, inspection,
+React-compatible, callback-observed, and unproven groups remain the exact serial fallback. This
+final scope avoids speculative marker reservation and arbitrary callback reordering while allowing
+nested proven groups to share one request-wide bound without deadlock. All SSR entry points,
+request handlers, test hosts, and progressive options project the common render option.
 
 ## Decision
 
@@ -100,9 +102,10 @@ merge contract.
 - Concurrent-request tests prove one request cannot consume another request's slots or identity.
 - Adapter tests prove option projection and cancellation from disconnected clients.
 
-The August 6, 2026 production-path five-process run of the accepted eight-sibling I/O workload
-measured a 4.66x concurrency-four improvement (116.72 ms serial versus 25.23 ms), with 5.3% focused
-peak-heap growth. The paired CPU-throughput ratio was 4.3% better rather than regressing. Concurrent-request
+The final August 6, 2026 production-path five-process run of the accepted eight-sibling I/O
+workload measured a 4.91x concurrency-four improvement (116.59 ms serial versus 24.42 ms), with
+5.4% focused peak-heap growth. The paired CPU-throughput ratio was 5.3% better rather than
+regressing. Concurrent-request
 throughput, p95 latency, and cancellation cleanup remain release counter-metrics.
 
 ## Acceptance criteria

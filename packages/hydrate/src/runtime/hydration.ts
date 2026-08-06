@@ -90,6 +90,7 @@ export function hydrateRoot(
 		);
 		for (const control of restoreFormState(rootContainer, formState, work))
 			synchronizeFormBinding(control);
+		releaseProgressiveHelper(rootContainer);
 		rootContainer.setAttribute('data-exact-hydrated', 'true');
 		resolvedOptions.onHydration?.(
 			Object.freeze({
@@ -109,6 +110,16 @@ export function hydrateRoot(
 		root.dispose();
 		throw error;
 	}
+}
+
+function releaseProgressiveHelper(root: Element): void {
+	let hash = 2166136261;
+	const rootId = root.id || 'exact-root';
+	for (let index = 0; index < rootId.length; index++) {
+		hash ^= rootId.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+	delete (globalThis as Record<string, unknown>)[`__xR${(hash >>> 0).toString(36)}`];
 }
 
 /** Adopts compatible SSR output or mounts a fresh non-document tree after reporting the mismatch. */

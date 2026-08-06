@@ -7,6 +7,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { escapeText } from '../html.js';
+import { renderAttrs } from '../markup.js';
 import { boundedJoin, countSsrNode } from './limits.js';
 import type { SsrContext } from '../types.js';
 
@@ -23,16 +24,29 @@ export function renderSsrProgram(
 		return { fallback: renderProgramFallback(vnode) };
 	const output: string[] = [program.parts[0] ?? ''];
 	for (let index = 0; index < readers.length; index++) {
+		const slot = program.slots[index]!;
 		const value = unwrap(readers[index]!());
-		if (isVNode(value) || Array.isArray(value) || value instanceof Promise)
+		if (
+			value instanceof Promise ||
+			(slot.kind === 'text' && (isVNode(value) || Array.isArray(value)))
+		)
 			return { fallback: renderProgramFallback(vnode) };
 		countSsrNode(context);
-		if (value !== null && value !== undefined && value !== false && value !== true)
-			output.push(escapeText(String(value)));
+		if (slot.kind === 'text') {
+			if (value !== null && value !== undefined && value !== false && value !== true)
+				output.push(escapeText(String(value)));
+		} else if (slot.name) {
+			const node = program.nodes.find((candidate) => samePath(candidate.path, slot.path));
+			output.push(renderAttrs({ [slot.name]: value }, false, node?.tag, context));
+		}
 		output.push(program.parts[index + 1] ?? '');
 	}
 	for (let index = 1; index < program.nodes.length; index++) countSsrNode(context);
 	return { html: boundedJoin(context, output) };
+}
+
+function samePath(left: readonly number[], right: readonly number[]): boolean {
+	return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 /** Handles a render-program string node while leaving every other vnode untouched. */

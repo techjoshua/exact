@@ -30,16 +30,21 @@ Root-document mode accepts authored `html`, `head`, and `body` and inserts
 framework-owned hydration or progressive-stream nodes into reserved positions.
 Rendering applies output-size, task-pass, and task-duration limits.
 
-The native compiler emits branded render programs for the first conservative fast-path subset:
-attribute-free intrinsic HTML regions with static structure and independently addressable scalar
-text expressions. Markerless SSR writes their escaped parts directly, client mounting clones a
-cached inert template, and markerless hydration adopts them with compiler paths. Unsupported slot
-shapes and host semantics use the lazy region-local VNode fallback.
+The native compiler emits branded render programs for compiler-finite intrinsic regions. HTML,
+SVG, MathML, scalar text, finite host properties and attributes, classes, styles, URLs, ordinary
+form controls, events, and refs reuse the same host operations as generic rendering. Markerless SSR
+writes escaped parts directly, client mounting clones a cached inert template, and markerless
+hydration adopts with compiler paths. Nested conditional regions retain the namespace established
+by their intrinsic JSX ancestors, and standalone SVG or MathML programs mount through a
+namespace-correct template. Structural, marker-bearing, enhancement-routed,
+opaque-spread, raw-content, and otherwise unproven regions use the lazy region-local VNode fallback.
 
 Async SSR uses a request-owned FIFO scheduler for compiler-proven local, neutral, context-free
 component sibling groups. `maxAsyncSsrConcurrency` defaults to 4, accepts 1 for serial execution,
-and is capped at 32. Child frames isolate renderer state and merge in authored order. Marker-bearing,
-document, inspection, React-compatible, nested-frame, and unproven groups remain serial.
+and is capped at 32. Child frames isolate renderer state and merge in authored order. Nested proven
+groups temporarily yield their parent permit and reuse the same request-wide scheduler, avoiding
+both multiplied concurrency and deadlock. Marker-bearing, document, inspection, React-compatible,
+callback-observed, and unproven groups remain serial.
 
 ## Hydration
 
@@ -62,10 +67,14 @@ Compiler-finite client boundaries are grouped once per response by component nam
 prop schema. Each boundary carries a compact table coordinate instead of repeating its component
 name and serialized props; opaque spreads retain the self-describing representation. Hydration
 validates the table, row arity, coordinate, and boundary identity before constructing props.
+Malformed rows are isolated from valid siblings. Interaction-only compact boundaries retain the
+shared table without per-boundary props objects until activation, and the table is released after
+the final dormant coordinate is claimed.
 
 Progressive inline streams install one root-confined replacement helper on the first reveal and
 emit small ordered calls afterward. `progressiveMode: 'inert'` continues to emit non-executable
-template payloads. The helper refuses hydrated or foreign roots.
+template payloads. Root hydration derives and removes the response helper before publishing
+hydrated ownership, while any late reveal observes the hydrated root and refuses to mutate it.
 
 Component resumption records authorize state restoration only when the DOM
 renderer has matched an SSR component marker and is constructing that exact
@@ -139,14 +148,6 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
-- [Compiler-owned render programs](proposals/compiler-owned-render-programs.md) must expand the
-  initial scalar subset to finite attributes, styles, URLs, forms, events, refs, namespaces,
-  inspection, and bounded enhancement targets.
-- [Bounded deterministic async SSR](proposals/bounded-deterministic-async-ssr.md) still needs
-  marker-range reservation, broader compiler proofs, adapter projection, and its full gates.
-- [Compact hydration and progressive publication](proposals/compact-hydration-publication.md)
-  still needs complete compiled adoption, independent-fragment fallbacks, atomic helper ownership,
-  adapter projection, and its remaining byte/corruption/browser gates.
 - [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md) for
   additional proven patch forms.
 - [Broader lazy-island classification](proposals/lazy-interaction-islands.md) where source remains

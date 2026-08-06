@@ -2,14 +2,16 @@
 
 ## Status
 
-In implementation. The compiler-owned brand, one-time lazy program construction, lazy region fallback, direct markerless SSR writer,
-cached-template DOM mount, and markerless adoption cursor are implemented for attribute-free HTML
-regions containing static structure or one independently addressable scalar text child. Finite
-host props, namespaces, forms, events, refs, inspection, enhancements, marker-aware direct writing,
-and the full measurement gates remain.
+Implemented. Compiler-finite intrinsic regions now use branded, revision-cached programs across
+markerless SSR, DOM mounting, patching, and markerless hydration. The executor covers HTML, SVG,
+MathML, scalar text, finite properties and attributes, classes, styles, URLs, ordinary form
+controls, events, and refs by reusing the generic host operations. Program roots participate in
+component-root publication and release static as well as reactive host ownership. Marker-bearing,
+structural, enhancement-routed, opaque-spread, raw-content, and otherwise unproven regions retain
+the region-local generic fallback by design; no partially supported host semantics remain.
 
 This proposal implements the accepted render-plan experiment in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md). It follows the
+[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). It follows the
 delivered component, enhancement, binding, partition, and component-library trust contracts. It
 must land before bounded async SSR, compact hydration publication, lazy interaction islands,
 structural refresh, partial-prerender resumption, or final adapter parity consumes render-slot
@@ -74,6 +76,9 @@ The first production subset includes intrinsic HTML structure, static text, comp
 text cells, and finite property/attribute/style/class/URL slots. Eligibility is region-local.
 A containing component can therefore use planned intrinsic regions around generic children without
 forcing the whole component into either path.
+Compiler-owned regions nested beneath intrinsic SVG or MathML elements retain that source-known
+namespace even when a structural expression extracts the region into its own program. Programs
+whose insertion namespace is component-defined remain on the generic path.
 
 The compiler uses the generic path for:
 
@@ -172,9 +177,9 @@ the generic artifact; no plan opcode becomes durable server protocol identity.
 - Artifact tests prove target splitting, tree shaking, deterministic programs, generic fallback,
   and absence of source text or server-only values from client output.
 
-The production-path 500-row markerless SSR workload emits identical 9,903-byte output. The August
-6, 2026 tracked five-process run measured a 17.99x median CPU improvement and reduced focused peak
-heap from 12,437,208 to 115,512 bytes. Client mount and hydration
+The production-path 500-row markerless SSR workload emits identical 9,903-byte output. The final
+August 6, 2026 tracked five-process run measured a 19.79x median CPU improvement and reduced
+focused peak heap from 12,456,752 to 115,512 bytes. Client mount and hydration
 must improve or remain within 3% of generic medians for each newly eligible category; raw, gzip,
 Brotli, startup, update, and retained-heap counter-metrics are mandatory.
 

@@ -72,7 +72,11 @@ export function disposeMountedComponentRoot(instance: ComponentInstance<any>): v
 
 /** Finds the first intrinsic element while preserving logical traversal through framework ranges. */
 export function firstHostElement(mounted: Mounted): Element | undefined {
-	if (typeof mounted.vnode.type === 'string' && mounted.dom instanceof Element) return mounted.dom;
+	if (
+		(typeof mounted.vnode.type === 'string' || mounted.renderProgram) &&
+		mounted.dom instanceof Element
+	)
+		return mounted.dom;
 	if (mounted.vnode.type === Text) return undefined;
 	for (const child of mounted.children) {
 		const element = firstHostElement(child);

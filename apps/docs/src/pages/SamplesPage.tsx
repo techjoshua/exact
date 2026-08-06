@@ -20,23 +20,34 @@ export function SamplesPage(this: Component<{}>) {
 				<p>
 					Puzzle Foundry creates Sudoku, word-search, and crossword artwork entirely in the browser.
 					A visible seed makes each result reproducible. Common print settings feed two independent
-					SVG documents: the unsolved puzzle and its answer key.
+					SVG documents: the unsolved puzzle and its answer key. Titles are optional, font choices
+					remain portable, and answer keys can use color or puzzle-specific black-and-white
+					rendering.
 				</p>
 				<div className="card-grid">
 					<div className="topic-card">
 						<span className="topic-index">Sudoku</span>
 						<strong>4×4 and 9×9</strong>
-						<p>Difficulty changes clue density while every exported grid retains one solution.</p>
+						<p>
+							Difficulty changes clue density while every grid retains one solution. Answer digits
+							may use a separate font and weight.
+						</p>
 					</div>
 					<div className="topic-card">
 						<span className="topic-index">Search</span>
 						<strong>Rectangular and safety checked</strong>
-						<p>Hard mode adds near matches; generated lines are screened for blocked sequences.</p>
+						<p>
+							Hard mode adds near matches; monochrome solutions circle answers with transparent
+							ovals.
+						</p>
 					</div>
 					<div className="topic-card">
 						<span className="topic-index">Crossword</span>
 						<strong>Connected and compact</strong>
-						<p>Repeated layouts maximize overlap and disclose words that cannot join the grid.</p>
+						<p>
+							Repeated layouts maximize overlap. Grid and background colors are separate, and the
+							word bank is optional.
+						</p>
 					</div>
 				</div>
 				<CodeBlock source={standaloneCommand} language="shell" />

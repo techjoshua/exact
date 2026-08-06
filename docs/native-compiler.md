@@ -73,6 +73,13 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
 
+`exactc --check .` is the no-emit application type-check path. It analyzes and lowers each
+transformable project module before TypeScript semantic validation, so compiler-owned TSX is
+checked as the ordinary props and callbacks it produces. Untransformed TypeScript modules are
+still checked directly. Raw `tsc --noEmit` remains useful for packages that contain no eXact-owned
+source syntax, but it is not authoritative for an eXact application. The current directory's
+`tsconfig.json` is used automatically; `--project` selects a different configuration.
+
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
 diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share one tool-neutral

@@ -756,6 +756,10 @@ The compiler resolves component bindings alongside attributed enhancement namesp
 interpretations are valid, compilation fails and the source must expand the component props or
 rename the enhancement import namespace. Custom elements do not gain this convention, and
 `_target` remains intrinsic contribution syntax rather than a component binding boundary.
+The public JSX declarations admit namespaced source syntax, while `exactc --check` validates the
+finite pair and then runs TypeScript semantic checking against the lowered representation. Raw
+`tsc --noEmit` sees the authored namespaced attribute rather than the two compiler-generated props
+and is therefore not the application type-check command for compiler-owned TSX syntax.
 
 ### Intrinsic bindings
 

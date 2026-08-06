@@ -35,6 +35,9 @@ export type Mounted = {
 	renderProgram?: {
 		invocation: ExactRenderProgramInvocation;
 		readonly slotNodes: readonly (Node | undefined)[];
+		readonly root: Root;
+		/** Last effective planned props, grouped by their target element. */
+		props?: Map<Element, Record<string, unknown>>;
 	};
 	/** Physical parent for children whose logical parent remains elsewhere. */
 	portalTarget?: Node;

@@ -63,9 +63,9 @@ counter-metric rather than replace it with proposal-local timing loops.
 
 The dependent-foundation gate was completed on 2026-08-05. Experiments 2–4 were accepted and split
 into the ordered implementation proposals
-[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
-[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md), and
-[`compact-hydration-publication.md`](compact-hydration-publication.md). Experiment 6 removed the
+[`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md), and
+[`compact-hydration-publication.md`](../history/compact-hydration-publication.md). Experiment 6 removed the
 duplicate decoded request traversal and made independent artifact-file publication concurrent.
 Binary native framing and additional artifact workers were rejected because measured JSON framing
 was immaterial and native single-owned work dominated the profiled build path.
@@ -587,7 +587,7 @@ state and garbage collection from one candidate do not contaminate another.
 
 ### 2. Prototype a compiler-owned render plan
 
-Status: **accepted for a focused implementation proposal on 2026-08-05.** The first bounded
+Status: **implemented and archived on 2026-08-06.** The first bounded
 prototype writes the same static-intrinsic-plus-dynamic-text tree directly from compiler-shaped
 slots while retaining the generic VNode renderer as the fallback. Five isolated Node 24.11.1
 processes on Windows x64 measured 20 renders of a 500-row tree. Median render time fell from
@@ -605,13 +605,14 @@ exact output, CPU, bytes, and peak heap against generic VNode SSR. Then reuse th
 for client template mounting and compiled hydration adoption. Expand only after namespace, form,
 custom-element, event/ref, mismatch, Suspense, Activity, enhancement, and inspection contracts pass.
 
-Accept a target-specific realization only when its plan is smaller or faster in representative
-artifacts, its generic fallback is explicit, and no public component/VNode API depends on the
-internal plan shape.
+The delivered finite host subset retains the explicit generic fallback and no public
+component/VNode API depends on the internal plan shape. The final production-path run retained
+identical output, measured a 19.79x median SSR improvement, and reduced focused peak heap from
+12,456,752 to 115,512 bytes.
 
 ### 3. Prototype bounded deterministic async SSR concurrency
 
-Status: **accepted for a focused implementation proposal on 2026-08-05.** Five isolated Node
+Status: **implemented and archived on 2026-08-06.** Five isolated Node
 24.11.1 processes rendered eight compiler-independent task-owning siblings with a 5 ms I/O delay.
 Ordered concurrency four reduced median completion from 117.79 ms to 26.27 ms (4.49x), while
 concurrency eight completed in 10.91 ms. Observed peak heap remained effectively flat: 707,744
@@ -620,12 +621,12 @@ improved the CPU-bound comparison from 62.34 ms to 60.01 ms, and four concurrent
 in 124.69 ms versus 499.06 ms when deliberately serialized. Exact
 HTML and raw/gzip/Brotli bytes were unchanged.
 
-The implementation must consume compiler-proven independence rather than parallelize arbitrary
-children. It must reserve deterministic identity ranges, merge output and resource hints in source
-order, isolate mutable traversal state, bound upstream work, cancel sibling work after failure, and
-dispose every completed or abandoned owner. Concurrency remains configurable and defaults to a
-bounded server policy; the serial path remains the fallback for unproven relationships and
-concurrency one.
+The implementation consumes compiler-proven independence rather than parallelizing arbitrary
+children. It merges isolated output and side records in source order, bounds and cancels sibling
+work, and lets nested groups yield and reacquire the same request permit. Marker-bearing and
+callback-observed work deliberately remains serial instead of introducing speculative identity or
+observation semantics. The final run measured a 4.91x concurrency-four improvement with a 5.4%
+focused peak-heap increase and improved CPU throughput.
 
 Measure serial rendering against compiler-proven independent sibling groups with concurrency 1, 2,
 4, and 8. Test isolated child contexts or deterministic identity-range reservation, ordered output
@@ -635,7 +636,7 @@ regression.
 
 ### 4. Prototype compact hydration and progressive publication
 
-Status: **accepted for a focused implementation proposal on 2026-08-05.** The accepted hydration
+Status: **implemented and archived on 2026-08-06.** The accepted hydration
 shape groups boundaries by compiler-known component and finite prop schema, stores compact value
 rows in one indexed table, and leaves unsupported or open-ended prop shapes on the existing
 attribute representation. A naive object-record table was rejected because it increased compressed
@@ -647,8 +648,10 @@ A single progressive replacement helper plus 32 ordered calls reduced 19,692 raw
 661 gzip bytes to 594, and 448 Brotli bytes to 426. Median JSDOM parse/execution fell from 9.33 ms
 to 8.00 ms. The implementation must retain CSP nonces, inert mode, range-local marker lookup,
 hydration ownership transfer, malformed-record isolation, early interaction, form state, and a
-per-boundary fallback. The helper is installed at most once per response and never claims a root
-already marked hydrated.
+per-boundary fallback. The delivered path also isolates malformed rows, avoids dormant decoded-prop
+shells, releases the shared table after final activation, and lets hydration atomically remove the
+deterministically named helper. The helper is installed at most once per response and never claims
+a root already marked hydrated.
 
 Compare per-boundary JSON attributes with one indexed hydration table under eager and lazy islands,
 including compressed HTML, parse/validation time, range-local corruption, and activation latency.
