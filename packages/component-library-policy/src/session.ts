@@ -14,6 +14,7 @@ import {
 	type ExactComponentAuthorizationErrorCode,
 	type ExactComponentAuthorizationManifest,
 	type ExactComponentAuthorizationSession,
+	type ExactComponentAuthorizationTelemetry,
 	type ExactComponentServerExecutionReason,
 	type ExactResolvedComponentAuthorization,
 	type ExactResolvedComponentCandidate,
@@ -215,6 +216,18 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 		this.#state = 'committed';
 		this.releaseMutableInputs();
 		return artifacts;
+	}
+
+	getTelemetry(): ExactComponentAuthorizationTelemetry {
+		return Object.freeze({
+			state: this.#state,
+			importers: this.#importers.size,
+			packageInstances: this.#instances.size,
+			dependencyEdges: this.#edges.length,
+			authorizedPackages: this.#authorized.size,
+			omittedEnhancements: this.#omitted.size,
+			participationCacheEntries: this.#participation.size
+		});
 	}
 
 	rejectGeneration(): void {

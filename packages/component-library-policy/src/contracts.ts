@@ -149,6 +149,17 @@ export type ExactResolvedComponentAuthorization =
 	  }>
 	| Readonly<{ outcome: 'omitted'; enhancementIdentity: string }>;
 
+/** Build-only entry counts used to verify bounded authorization generations. */
+export type ExactComponentAuthorizationTelemetry = Readonly<{
+	state: 'open' | 'committed' | 'rejected' | 'disposed';
+	importers: number;
+	packageInstances: number;
+	dependencyEdges: number;
+	authorizedPackages: number;
+	omittedEnhancements: number;
+	participationCacheEntries: number;
+}>;
+
 /** Atomic authorization generation shared by build and test adapters. */
 export interface ExactComponentAuthorizationSession {
 	recordImporterFacts(moduleId: string, facts: ExactComponentBuildFacts, version: string): void;
@@ -163,6 +174,8 @@ export interface ExactComponentAuthorizationSession {
 			audit: ExactComponentAuthorizationAudit;
 		}>
 	>;
+	/** Returns value-free build telemetry; no paths, package names, or source data are exposed. */
+	getTelemetry(): ExactComponentAuthorizationTelemetry;
 	rejectGeneration(): void;
 	dispose(): void;
 }

@@ -6,6 +6,7 @@ export {
 	type ExactComponentAuthorizationErrorCode,
 	type ExactComponentAuthorizationManifest,
 	type ExactComponentAuthorizationSession,
+	type ExactComponentAuthorizationTelemetry,
 	type ExactComponentServerExecutionReason,
 	type ExactResolvedComponentAuthorization,
 	type ExactResolvedComponentCandidate,

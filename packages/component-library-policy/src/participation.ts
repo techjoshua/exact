@@ -31,6 +31,7 @@ type ExactValidatedPackageParticipation = Readonly<{
 export class ExactComponentParticipationValidator {
 	readonly #packages = new Map<string, Promise<ExactValidatedPackageParticipation>>();
 
+	/** Validates one selected component export while reusing its package's inert metadata read. */
 	async validate(
 		instance: ExactResolvedPackageInstance,
 		candidate: ExactResolvedComponentCandidate,
@@ -48,6 +49,11 @@ export class ExactComponentParticipationValidator {
 	/** Releases all successful and rejected validation entries with their build generation. */
 	clear(): void {
 		this.#packages.clear();
+	}
+
+	/** Number of package-instance validations retained by the active generation. */
+	get size(): number {
+		return this.#packages.size;
 	}
 }
 

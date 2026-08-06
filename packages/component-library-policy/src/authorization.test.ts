@@ -301,6 +301,11 @@ describe('@exactjs/component-library-policy', () => {
 		recordCandidateGraph(session, fixture);
 
 		await session.authorizeResolvedComponent(fixture.candidate);
+		expect(session.getTelemetry()).toMatchObject({
+			state: 'open',
+			authorizedPackages: 1,
+			participationCacheEntries: 1
+		});
 		rmSync(path.join(fixture.library.root, 'dist', 'exact-component-build.json'));
 		await expect(session.authorizeResolvedComponent(fixture.candidate)).resolves.toMatchObject({
 			outcome: 'authorized'
@@ -354,6 +359,15 @@ describe('@exactjs/component-library-policy', () => {
 			ExactComponentAuthorizationError
 		);
 		session.rejectGeneration();
+		expect(session.getTelemetry()).toEqual({
+			state: 'rejected',
+			importers: 0,
+			packageInstances: 0,
+			dependencyEdges: 0,
+			authorizedPackages: 0,
+			omittedEnhancements: 0,
+			participationCacheEntries: 0
+		});
 		expect(() => session.recordPackageInstance(fixture.library)).toThrowError(
 			ExactComponentAuthorizationError
 		);
