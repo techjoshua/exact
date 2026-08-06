@@ -388,6 +388,30 @@ describe('@exactjs/component-library-policy', () => {
 			ExactComponentAuthorizationError
 		);
 	});
+
+	it('keeps accepted and rejected authorization churn generation-bounded', async () => {
+		const fixture = createFixture();
+		for (let generation = 0; generation < 20; generation++) {
+			const session = createExactComponentAuthorizationSession({
+				buildKey: `churn-${generation}`
+			});
+			recordCandidateGraph(session, fixture);
+			await session.authorizeResolvedComponent(fixture.candidate);
+			expect(session.getTelemetry()).toMatchObject({
+				authorizedPackages: 1,
+				participationCacheEntries: 1
+			});
+			if (generation % 2 === 0) await session.commitGeneration();
+			else session.rejectGeneration();
+			expect(session.getTelemetry()).toMatchObject({
+				importers: 0,
+				packageInstances: 0,
+				dependencyEdges: 0,
+				authorizedPackages: 0,
+				participationCacheEntries: 0
+			});
+		}
+	});
 });
 
 type Fixture = ReturnType<typeof createFixture>;
