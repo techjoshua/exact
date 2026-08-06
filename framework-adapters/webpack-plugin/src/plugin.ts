@@ -42,6 +42,22 @@ import {
 	removeExactWebpackLoaderBridge,
 	type ExactWebpackLoaderBridgeCarrier
 } from './loader-bridge.js';
+import {
+	createWebpackPublishedComponentResolver,
+	type WebpackNormalResolver
+} from './published-component-resolver.js';
+import type {
+	WebpackAfterResolveData,
+	WebpackResolveCallback,
+	WebpackResolveRequest
+} from './resolution-contracts.js';
+import { createExactWebpackRule } from './rule.js';
+export { createExactWebpackRule } from './rule.js';
+export type {
+	WebpackAfterResolveData,
+	WebpackResolveCallback,
+	WebpackResolveRequest
+} from './resolution-contracts.js';
 export {
 	addWebpackConditions,
 	addWebpackEnhancementAliases,
@@ -150,6 +166,7 @@ export type WebpackCompilerLike = {
 			tap?(
 				name: string,
 				handler: (factory: {
+					getResolver?(type: 'normal'): WebpackNormalResolver;
 					hooks?: {
 						afterResolve?: {
 							tapPromise?(
@@ -186,22 +203,6 @@ export type WebpackCompilerLike = {
 	};
 	getInfrastructureLogger?(name: string): { warn(message: string): void };
 };
-
-/** Defines the webpack resolve request type contract. */
-export type WebpackResolveRequest = {
-	request?: string;
-	path?: string;
-};
-
-/** Resolved NormalModuleFactory record available before the module build begins. */
-export type WebpackAfterResolveData = Readonly<{
-	request?: string;
-	contextInfo?: Readonly<{ issuer?: string }>;
-	createData?: { resource?: string; rawRequest?: string };
-}>;
-
-/** Defines the webpack resolve callback type contract. */
-export type WebpackResolveCallback = (error?: Error | null, result?: unknown) => void;
 
 /** Defines the exact webpack plugin class contract. */
 export class ExactWebpackPlugin {
@@ -319,6 +320,9 @@ export class ExactWebpackPlugin {
 				if (!modified.includes(file)) reporter(compilerSession.invalidate(file, true), warn);
 		});
 		compiler.hooks?.normalModuleFactory?.tap?.('ExactWebpackPlugin', (factory) => {
+			const resolvePublished = createWebpackPublishedComponentResolver(
+				factory.getResolver?.('normal')
+			);
 			factory.hooks?.resolver?.tap?.('ExactWebpackPlugin', (resolver) =>
 				applyExactWebpackResolver(resolver, this.options)
 			);
@@ -332,7 +336,8 @@ export class ExactWebpackPlugin {
 						authorizationOptions,
 						request,
 						importer,
-						resource
+						resource,
+						resolvePublished
 					);
 					if (authorization === 'omitted' && data?.createData)
 						data.createData.resource = fileURLToPath(
@@ -348,24 +353,6 @@ export class ExactWebpackPlugin {
 		compiler.hooks?.watchClose?.tap?.('ExactWebpackPlugin', dispose);
 		compiler.hooks?.shutdown?.tap?.('ExactWebpackPlugin', dispose);
 	}
-}
-
-/** Creates the webpack pre-loader rule for eXact JSX transforms. */
-export function createExactWebpackRule(
-	options: ExactWebpackPluginOptions = {},
-	sessionId?: string
-): Record<string, unknown> {
-	return {
-		test: /\.[cm]?[jt]sx?$/,
-		enforce: 'pre',
-		type: 'javascript/auto',
-		use: [
-			{
-				loader: '@exactjs/webpack-plugin/loader',
-				options: { ...options, ...(sessionId ? { __exactSessionId: sessionId } : {}) }
-			}
-		]
-	};
 }
 
 /** Transforms one webpack-loaded source file when it matches eXact plugin filters. */

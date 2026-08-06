@@ -23,8 +23,13 @@ export class ExactBunComponentAuthorization {
 	readonly #buildKey: string;
 	readonly #facts = new Map<
 		string,
-		Readonly<{ facts: ExactComponentBuildFacts; version: string }>
+		Readonly<{
+			facts: ExactComponentBuildFacts;
+			version: string;
+			source: 'compiler' | 'published';
+		}>
 	>();
+	readonly #preflighted = new Map<string, Readonly<{ path: string; namespace?: string }> | null>();
 	#session?: ExactComponentAuthorizationSession;
 
 	constructor(options: Readonly<{ applicationRoot?: string; buildKey?: string }>) {
@@ -48,6 +53,7 @@ export class ExactBunComponentAuthorization {
 		this.#session?.rejectGeneration();
 		this.#session?.dispose();
 		this.#facts.clear();
+		this.#preflighted.clear();
 		this.#session = createExactComponentAuthorizationSession({
 			buildKey: this.#buildKey,
 			config: loaded.config?.componentLibraries
@@ -57,9 +63,15 @@ export class ExactBunComponentAuthorization {
 	/** Retains compiler facts for the active generation without retaining authored source. */
 	record(filename: string, source: string, facts: ExactComponentBuildFacts): void {
 		const moduleId = facts.filename;
+		if (
+			this.#facts.get(moduleId)?.source === 'published' ||
+			this.#facts.get(path.resolve(filename))?.source === 'published'
+		)
+			return;
 		const version = createHash('sha256').update(source).digest('base64url');
-		this.#facts.set(moduleId, Object.freeze({ facts, version }));
-		this.#facts.set(path.resolve(filename), Object.freeze({ facts, version }));
+		const record = Object.freeze({ facts, version, source: 'compiler' as const });
+		this.#facts.set(moduleId, record);
+		this.#facts.set(path.resolve(filename), record);
 		this.#session?.recordImporterFacts(moduleId, facts, version);
 	}
 
@@ -81,30 +93,62 @@ export class ExactBunComponentAuthorization {
 			(edge) => edge.moduleSpecifier === request
 		);
 		if (!componentEdge && !enhancement) return undefined;
-		const resolvedModuleId = await resolveBunCandidate(request, importerId, resolve, aliases);
-		const provenance = await recordExactNodeComponentProvenance({
-			session: this.#session,
-			applicationRoot: this.#applicationRoot,
-			importerModuleId: importerId,
-			moduleSpecifier: request,
-			resolvedModuleId
-		});
-		const candidate: ExactResolvedComponentCandidate = {
-			importerModuleId: importerId,
-			moduleSpecifier: request,
-			exportName: componentEdge?.exportName ?? enhancement!.exportName,
-			resolvedModuleId,
-			packageInstanceKey: provenance.instance.key,
-			reason: enhancement ? 'server-enhancement' : bunServerReason(componentEdge!.reason),
-			...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
-		};
-		const authorization = await this.#session.authorizeResolvedComponent(candidate);
-		return authorization.outcome === 'omitted'
-			? Object.freeze({
-					path: encodeURIComponent(authorization.enhancementIdentity),
-					namespace: 'exact-omitted-enhancement'
-				})
-			: Object.freeze({ path: resolvedModuleId });
+		const preflightKey = [
+			importerId,
+			request,
+			componentEdge?.exportName ?? enhancement!.exportName
+		].join('\0');
+		if (this.#preflighted.has(preflightKey))
+			return this.#preflighted.get(preflightKey) ?? undefined;
+		this.#preflighted.set(preflightKey, null);
+		try {
+			const resolvedModuleId = await resolveBunCandidate(request, importerId, resolve, aliases);
+			const provenance = await recordExactNodeComponentProvenance({
+				session: this.#session,
+				applicationRoot: this.#applicationRoot,
+				importerModuleId: importerId,
+				moduleSpecifier: request,
+				resolvedModuleId
+			});
+			const candidate: ExactResolvedComponentCandidate = {
+				importerModuleId: importerId,
+				moduleSpecifier: request,
+				exportName: componentEdge?.exportName ?? enhancement!.exportName,
+				resolvedModuleId,
+				packageInstanceKey: provenance.instance.key,
+				reason: enhancement ? 'server-enhancement' : bunServerReason(componentEdge!.reason),
+				...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
+			};
+			const authorization = await this.#session.authorizeResolvedComponent(candidate);
+			if (authorization.outcome === 'authorized') {
+				const facts = authorization.componentBuild;
+				const record = Object.freeze({
+					facts,
+					version: createHash('sha256').update(JSON.stringify(facts)).digest('base64url'),
+					source: 'published' as const
+				});
+				this.#facts.set(facts.filename, record);
+				this.#facts.set(path.resolve(facts.filename), record);
+				for (const edge of facts.componentImports) {
+					if (edge.artifactTargets.includes('server'))
+						await this.authorize(edge.moduleSpecifier, facts.filename, resolve, aliases);
+				}
+				for (const nested of facts.rendererEnhancements)
+					await this.authorize(nested.moduleSpecifier, facts.filename, resolve, aliases);
+			}
+			const result =
+				authorization.outcome === 'omitted'
+					? Object.freeze({
+							path: encodeURIComponent(authorization.enhancementIdentity),
+							namespace: 'exact-omitted-enhancement'
+						})
+					: Object.freeze({ path: resolvedModuleId });
+			this.#preflighted.set(preflightKey, result);
+			return result;
+		} catch (error) {
+			this.#preflighted.delete(preflightKey);
+			throw error;
+		}
 	}
 
 	/** Commits the active generation and returns its private manifest products. */
@@ -118,6 +162,7 @@ export class ExactBunComponentAuthorization {
 		this.#session?.dispose();
 		this.#session = undefined;
 		this.#facts.clear();
+		this.#preflighted.clear();
 	}
 
 	/** Releases all generation state owned by this plugin instance. */
@@ -125,6 +170,7 @@ export class ExactBunComponentAuthorization {
 		this.#session?.dispose();
 		this.#session = undefined;
 		this.#facts.clear();
+		this.#preflighted.clear();
 	}
 }
 

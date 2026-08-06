@@ -159,7 +159,12 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 					reasons: new Set([candidate.reason])
 				});
 			}
-			return Object.freeze({ outcome: 'authorized' as const, packageInstanceId: instanceId });
+			this.recordPublishedImporterFacts(participation.componentBuild);
+			return Object.freeze({
+				outcome: 'authorized' as const,
+				packageInstanceId: instanceId,
+				componentBuild: participation.componentBuild
+			});
 		} catch (error) {
 			const authorizationError =
 				error instanceof ExactComponentAuthorizationError
@@ -254,6 +259,17 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 				instance,
 				`Compiler facts do not contain a server component edge for ${candidate.moduleSpecifier}#${candidate.exportName}`
 			);
+	}
+
+	private recordPublishedImporterFacts(facts: ExactComponentBuildFacts): void {
+		const version = canonicalHash(facts);
+		const existing = this.#importers.get(facts.filename);
+		if (existing && canonicalHash(existing.facts) !== canonicalHash(facts))
+			throw this.error(
+				'provenance-unresolved',
+				`Published component facts conflict for ${facts.filename}`
+			);
+		if (!existing) this.#importers.set(facts.filename, Object.freeze({ facts, version }));
 	}
 
 	private policyDecision(instance: ExactResolvedPackageInstance):

@@ -17,6 +17,7 @@ import {
 } from '@exactjs/component-library-policy';
 import { loadExactConfig } from '@exactjs/config/node';
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import type {
 	ExactBuildInspectionCatalog,
 	ExactInspectionRedactionCatalog
@@ -27,7 +28,10 @@ const sessions = new Map<string, ExactCompilerSession>();
 const inspectionModules = new Map<string, Map<string, ExactWebpackInspectionModule>>();
 const componentFacts = new Map<
 	string,
-	Map<string, Readonly<{ facts: ExactComponentBuildFacts; version: string }>>
+	Map<
+		string,
+		Readonly<{ facts: ExactComponentBuildFacts; version: string; source: 'compiler' | 'published' }>
+	>
 >();
 const authorizations = new Map<string, WebpackAuthorizationGeneration>();
 let nextSessionId = 0;
@@ -130,9 +134,13 @@ export function recordWebpackComponentBuildFacts(
 ): void {
 	if (!id) return;
 	const version = createHash('sha256').update(source).digest('base64url');
-	componentFacts.get(id)?.set(path.resolve(filename), Object.freeze({ facts, version }));
+	const moduleId = path.resolve(filename);
+	const records = componentFacts.get(id);
+	if (records?.get(moduleId)?.source !== 'published')
+		records?.set(moduleId, Object.freeze({ facts, version, source: 'compiler' }));
 	const authorization = authorizations.get(id)?.session;
-	if (authorization) authorization.recordImporterFacts(path.resolve(filename), facts, version);
+	if (authorization && records?.get(moduleId)?.source !== 'published')
+		authorization.recordImporterFacts(moduleId, facts, version);
 }
 
 /** Options needed to open a Webpack authorization generation lazily from resolver hooks. */
@@ -142,6 +150,12 @@ export type ExactWebpackAuthorizationOptions = Readonly<{
 	configPath?: string;
 	buildKey?: string;
 }>;
+
+/** Resolves a published component edge with Webpack's configured normal resolver. */
+export type ExactWebpackComponentResolver = (
+	request: string,
+	importerModuleId: string
+) => Promise<string>;
 
 /** Rejects the pending Webpack generation while retaining no failed graph history. */
 export function resetWebpackAuthorizationGeneration(
@@ -160,7 +174,8 @@ export async function authorizeWebpackResolvedComponent(
 	options: ExactWebpackAuthorizationOptions,
 	request: string,
 	importerModuleId: string,
-	resolvedModuleId: string
+	resolvedModuleId: string,
+	resolvePublished?: ExactWebpackComponentResolver
 ): Promise<'authorized' | 'omitted' | undefined> {
 	if (options.target !== 'server') return;
 	const importerPath = webpackIssuerResource(importerModuleId);
@@ -174,24 +189,91 @@ export async function authorizeWebpackResolvedComponent(
 	);
 	if (!componentEdge && !enhancement) return;
 	const generation = await webpackAuthorizationGeneration(id, options);
-	const provenance = await recordExactNodeComponentProvenance({
-		session: generation.session!,
-		applicationRoot: generation.applicationRoot!,
-		importerModuleId: importerPath,
-		moduleSpecifier: request,
-		resolvedModuleId
-	});
-	const candidate: ExactResolvedComponentCandidate = {
-		importerModuleId: importerPath,
-		moduleSpecifier: request,
-		exportName: componentEdge?.exportName ?? enhancement!.exportName,
-		resolvedModuleId,
-		packageInstanceKey: provenance.instance.key,
-		reason: enhancement ? 'server-enhancement' : webpackServerReason(componentEdge!.reason),
-		...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
-	};
-	const authorization = await generation.session!.authorizeResolvedComponent(candidate);
-	return authorization.outcome;
+	const preflightKey = [
+		importerPath,
+		request,
+		componentEdge?.exportName ?? enhancement!.exportName
+	].join('\0');
+	if (generation.preflighted?.has(preflightKey))
+		return generation.preflighted.get(preflightKey) ?? 'authorized';
+	generation.preflighted ??= new Map();
+	generation.preflighted.set(preflightKey, null);
+	try {
+		const provenance = await recordExactNodeComponentProvenance({
+			session: generation.session!,
+			applicationRoot: generation.applicationRoot!,
+			importerModuleId: importerPath,
+			moduleSpecifier: request,
+			resolvedModuleId
+		});
+		const candidate: ExactResolvedComponentCandidate = {
+			importerModuleId: importerPath,
+			moduleSpecifier: request,
+			exportName: componentEdge?.exportName ?? enhancement!.exportName,
+			resolvedModuleId,
+			packageInstanceKey: provenance.instance.key,
+			reason: enhancement ? 'server-enhancement' : webpackServerReason(componentEdge!.reason),
+			...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
+		};
+		const authorization = await generation.session!.authorizeResolvedComponent(candidate);
+		if (authorization.outcome === 'authorized') {
+			const facts = authorization.componentBuild;
+			componentFacts.get(id)?.set(
+				path.resolve(facts.filename),
+				Object.freeze({
+					facts,
+					version: createHash('sha256').update(JSON.stringify(facts)).digest('base64url'),
+					source: 'published'
+				})
+			);
+			for (const edge of facts.componentImports) {
+				if (!edge.artifactTargets.includes('server')) continue;
+				const child = await resolveWebpackPublishedComponent(
+					edge.moduleSpecifier,
+					facts.filename,
+					resolvePublished
+				);
+				await authorizeWebpackResolvedComponent(
+					id,
+					options,
+					edge.moduleSpecifier,
+					facts.filename,
+					child,
+					resolvePublished
+				);
+			}
+			for (const nested of facts.rendererEnhancements) {
+				const child = await resolveWebpackPublishedComponent(
+					nested.moduleSpecifier,
+					facts.filename,
+					resolvePublished
+				);
+				await authorizeWebpackResolvedComponent(
+					id,
+					options,
+					nested.moduleSpecifier,
+					facts.filename,
+					child,
+					resolvePublished
+				);
+			}
+		}
+		generation.preflighted.set(preflightKey, authorization.outcome);
+		return authorization.outcome;
+	} catch (error) {
+		generation.preflighted.delete(preflightKey);
+		throw error;
+	}
+}
+
+async function resolveWebpackPublishedComponent(
+	request: string,
+	importerModuleId: string,
+	resolve: ExactWebpackComponentResolver | undefined
+): Promise<string> {
+	return resolve
+		? resolve(request, importerModuleId)
+		: createRequire(importerModuleId).resolve(request);
 }
 
 /** Maps Webpack's loader-prefixed issuer identity back to the importer resource recorded by the pre-loader. */
@@ -217,6 +299,7 @@ type WebpackAuthorizationGeneration = {
 	preparing?: Promise<void>;
 	session?: ExactComponentAuthorizationSession;
 	applicationRoot?: string;
+	preflighted?: Map<string, 'authorized' | 'omitted' | null>;
 };
 
 async function webpackAuthorizationGeneration(

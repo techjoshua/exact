@@ -73,7 +73,37 @@ it('rejects an unauthorized component during a real Vite server build', async ()
 	});
 });
 
-function createFixture() {
+it('gates transitive component imports using the parent package published facts', async () => {
+	const fixture = createFixture(true);
+	writeFileSync(
+		path.join(fixture.root, 'exact.config.mjs'),
+		"export default { componentLibraries: { deny: ['@vendor/icons'] } };\n"
+	);
+
+	await expect(
+		build({
+			root: fixture.root,
+			configFile: false,
+			logLevel: 'silent',
+			plugins: [
+				exact({
+					target: 'server',
+					applicationRoot: fixture.root,
+					reactCompatibility: false
+				})
+			],
+			build: {
+				ssr: fixture.entry,
+				outDir: path.join(fixture.root, 'dist'),
+				rollupOptions: { external: ['@exactjs/core'] }
+			}
+		})
+	).rejects.toMatchObject({
+		errors: [expect.objectContaining({ pluginCode: 'explicitly-denied' })]
+	});
+});
+
+function createFixture(transitive = false) {
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-authorization-build-'));
 	onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 	const entry = path.join(root, 'src', 'Page.tsx');
@@ -98,7 +128,10 @@ function createFixture() {
 			version: '1.0.0',
 			type: 'module',
 			exports: { '.': './dist/index.js' },
-			dependencies: { '@exactjs/component-library': '^0.1.0' },
+			dependencies: {
+				'@exactjs/component-library': '^0.1.0',
+				...(transitive ? { '@vendor/icons': '2.0.0' } : {})
+			},
 			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
@@ -112,7 +145,9 @@ function createFixture() {
 	);
 	writeFileSync(
 		path.join(libraryRoot, 'dist', 'index.js'),
-		'export function Card() { return () => null; }\n'
+		transitive
+			? "import { Icon } from '@vendor/icons'; export function Card() { return () => Icon; }\n"
+			: 'export function Card() { return () => null; }\n'
 	);
 	const facts: ExactPublishedComponentBuildFacts = {
 		protocol: 1,
@@ -129,7 +164,17 @@ function createFixture() {
 							artifactTargets: ['client', 'server']
 						}
 					],
-					componentImports: [],
+					componentImports: transitive
+						? [
+								{
+									ownerComponentId: '@acme/cards:Card',
+									moduleSpecifier: '@vendor/icons',
+									exportName: 'Icon',
+									artifactTargets: ['client', 'server'],
+									reason: 'render'
+								}
+							]
+						: [],
 					rendererEnhancements: []
 				}
 			}
@@ -148,9 +193,61 @@ function createFixture() {
 		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
 		JSON.stringify(facts)
 	);
+	if (transitive) writeTransitiveLibrary(root);
 	writeFileSync(
 		entry,
 		"import { Card } from '@acme/cards'; export function Page() { return () => <Card />; }\n"
 	);
 	return { root, entry };
+}
+
+function writeTransitiveLibrary(root: string): void {
+	const libraryRoot = path.join(root, 'node_modules', '@vendor', 'icons');
+	mkdirSync(path.join(libraryRoot, 'dist'), { recursive: true });
+	writeFileSync(
+		path.join(libraryRoot, 'package.json'),
+		JSON.stringify({
+			name: '@vendor/icons',
+			version: '2.0.0',
+			type: 'module',
+			exports: { '.': './dist/index.js' },
+			dependencies: { '@exactjs/component-library': '^0.1.0' },
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+		})
+	);
+	writeFileSync(path.join(libraryRoot, 'dist', 'index.js'), 'export const Icon = () => null;\n');
+	const facts: ExactPublishedComponentBuildFacts = {
+		protocol: 1,
+		package: { name: '@vendor/icons', version: '2.0.0' },
+		modules: [
+			{
+				path: 'dist/index.js',
+				facts: {
+					protocol: 1,
+					components: [
+						{
+							id: '@vendor/icons:Icon',
+							placement: 'isomorphic',
+							artifactTargets: ['client', 'server']
+						}
+					],
+					componentImports: [],
+					rendererEnhancements: []
+				}
+			}
+		],
+		exports: [
+			{
+				subpath: '.',
+				condition: 'default',
+				module: 'dist/index.js',
+				exportName: 'Icon',
+				componentId: '@vendor/icons:Icon'
+			}
+		]
+	};
+	writeFileSync(
+		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
+		JSON.stringify(facts)
+	);
 }

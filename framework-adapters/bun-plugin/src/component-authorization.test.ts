@@ -125,9 +125,32 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 		});
 		expect(existsSync(fixture.executedFile)).toBe(false);
 	});
+
+	it('preflights denied transitive imports from published component facts', async () => {
+		const fixture = createFixture(true);
+		writeFileSync(
+			path.join(fixture.root, 'exact.config.mjs'),
+			"export default { componentLibraries: { deny: ['@vendor/icons'] } };\n"
+		);
+		const authorization = new ExactBunComponentAuthorization({ applicationRoot: fixture.root });
+		onTestFinished(() => authorization.dispose());
+		await authorization.start();
+		const transformed = transformExactBunSource(fixture.pageSource, fixture.pageFile, {
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		authorization.record(fixture.pageFile, fixture.pageSource, transformed!.componentBuild!);
+
+		await expect(
+			authorization.authorize('@acme/cards', fixture.pageFile, async (request) => ({
+				path: request === '@vendor/icons' ? fixture.childModule! : fixture.libraryModule
+			}))
+		).rejects.toMatchObject({ code: 'explicitly-denied' });
+	});
 });
 
-function createFixture() {
+function createFixture(transitive = false) {
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-component-policy-'));
 	onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 	const pageFile = path.join(root, 'src', 'Page.tsx');
@@ -161,7 +184,10 @@ function createFixture() {
 			name: '@acme/cards',
 			version: '1.0.0',
 			exports: { '.': './dist/index.js' },
-			dependencies: { '@exactjs/component-library': '^0.1.0' },
+			dependencies: {
+				'@exactjs/component-library': '^0.1.0',
+				...(transitive ? { '@vendor/icons': '2.0.0' } : {})
+			},
 			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
@@ -192,7 +218,17 @@ function createFixture() {
 							artifactTargets: ['client', 'server']
 						}
 					],
-					componentImports: [],
+					componentImports: transitive
+						? [
+								{
+									ownerComponentId: '@acme/cards:Card',
+									moduleSpecifier: '@vendor/icons',
+									exportName: 'Icon',
+									artifactTargets: ['client', 'server'],
+									reason: 'render'
+								}
+							]
+						: [],
 					rendererEnhancements: []
 				}
 			}
@@ -211,8 +247,60 @@ function createFixture() {
 		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
 		JSON.stringify(facts)
 	);
+	const childModule = transitive ? writeTransitiveLibrary(root) : undefined;
 	const pageSource =
 		"import { Card } from '@acme/cards'; export function Page() { return () => <Card />; }";
 	writeFileSync(pageFile, pageSource);
-	return { root, pageFile, pageSource, libraryModule, executedFile };
+	return { root, pageFile, pageSource, libraryModule, childModule, executedFile };
+}
+
+function writeTransitiveLibrary(root: string): string {
+	const libraryRoot = path.join(root, 'node_modules', '@vendor', 'icons');
+	const module = path.join(libraryRoot, 'dist', 'index.js');
+	mkdirSync(path.dirname(module), { recursive: true });
+	writeFileSync(
+		path.join(libraryRoot, 'package.json'),
+		JSON.stringify({
+			name: '@vendor/icons',
+			version: '2.0.0',
+			exports: { '.': './dist/index.js' },
+			dependencies: { '@exactjs/component-library': '^0.1.0' },
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+		})
+	);
+	writeFileSync(module, 'export const Icon = () => null;\n');
+	writeFileSync(
+		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
+		JSON.stringify({
+			protocol: 1,
+			package: { name: '@vendor/icons', version: '2.0.0' },
+			modules: [
+				{
+					path: 'dist/index.js',
+					facts: {
+						protocol: 1,
+						components: [
+							{
+								id: '@vendor/icons:Icon',
+								placement: 'isomorphic',
+								artifactTargets: ['client', 'server']
+							}
+						],
+						componentImports: [],
+						rendererEnhancements: []
+					}
+				}
+			],
+			exports: [
+				{
+					subpath: '.',
+					condition: 'default',
+					module: 'dist/index.js',
+					exportName: 'Icon',
+					componentId: '@vendor/icons:Icon'
+				}
+			]
+		} satisfies ExactPublishedComponentBuildFacts)
+	);
+	return module;
 }

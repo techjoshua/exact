@@ -1,7 +1,8 @@
 import {
 	createCompilerSession,
 	inspectExactComponentBuildFacts,
-	resolveNativeCompilerExecutable
+	resolveNativeCompilerExecutable,
+	type ExactComponentBuildFacts
 } from '@exactjs/compiler';
 import {
 	createExactComponentAuthorizationSession,
@@ -58,6 +59,7 @@ export default async function exactJestGlobalSetup(
 	});
 	const resolutions: Record<string, string> = {};
 	try {
+		const componentGraph: ExactComponentBuildFacts[] = [];
 		for (const { filename, source } of sourceRecords) {
 			const ownership = jsxSourceOwnership(filename, source, undefined);
 			if (
@@ -72,55 +74,9 @@ export default async function exactJestGlobalSetup(
 				session: compilerSession
 			});
 			session.recordImporterFacts(filename, facts, sourceHashes[filename]!);
-			for (const edge of facts.componentImports) {
-				if (
-					!edge.artifactTargets.includes('server') ||
-					!externalPackageRequest(edge.moduleSpecifier)
-				)
-					continue;
-				const resolvedModuleId = createRequire(filename).resolve(edge.moduleSpecifier);
-				const provenance = await recordExactNodeComponentProvenance({
-					session,
-					applicationRoot: projectRoot,
-					importerModuleId: filename,
-					moduleSpecifier: edge.moduleSpecifier,
-					resolvedModuleId
-				});
-				await session.authorizeResolvedComponent({
-					importerModuleId: filename,
-					moduleSpecifier: edge.moduleSpecifier,
-					exportName: edge.exportName,
-					resolvedModuleId,
-					packageInstanceKey: provenance.instance.key,
-					reason: 'server-test'
-				});
-				resolutions[exactJestResolutionKey(path.dirname(filename), edge.moduleSpecifier)] =
-					resolvedModuleId;
-			}
-			for (const enhancement of facts.rendererEnhancements) {
-				if (!externalPackageRequest(enhancement.moduleSpecifier)) continue;
-				const resolvedModuleId = createRequire(filename).resolve(enhancement.moduleSpecifier);
-				const provenance = await recordExactNodeComponentProvenance({
-					session,
-					applicationRoot: projectRoot,
-					importerModuleId: filename,
-					moduleSpecifier: enhancement.moduleSpecifier,
-					resolvedModuleId
-				});
-				const result = await session.authorizeResolvedComponent({
-					importerModuleId: filename,
-					moduleSpecifier: enhancement.moduleSpecifier,
-					exportName: enhancement.exportName,
-					resolvedModuleId,
-					packageInstanceKey: provenance.instance.key,
-					reason: 'server-test',
-					optionalEnhancementIdentity: enhancement.identity
-				});
-				if (result.outcome === 'authorized')
-					resolutions[exactJestResolutionKey(path.dirname(filename), enhancement.moduleSpecifier)] =
-						resolvedModuleId;
-			}
+			componentGraph.push(facts);
 		}
+		await authorizeComponentGraph(componentGraph, session, projectRoot, resolutions);
 		const committed = await session.commitGeneration();
 		const cache: ExactJestAuthorizationCache = Object.freeze({
 			protocol: 1,
@@ -144,6 +100,87 @@ export default async function exactJestGlobalSetup(
 		compilerSession.dispose();
 		session.dispose();
 	}
+}
+
+async function authorizeComponentGraph(
+	pending: ExactComponentBuildFacts[],
+	session: ReturnType<typeof createExactComponentAuthorizationSession>,
+	projectRoot: string,
+	resolutions: Record<string, string>
+): Promise<void> {
+	const visited = new Set<string>();
+	while (pending.length) {
+		const facts = pending.shift()!;
+		const graphKey = `${facts.filename}\0${sourceHash(JSON.stringify(facts))}`;
+		if (visited.has(graphKey)) continue;
+		visited.add(graphKey);
+		for (const edge of facts.componentImports) {
+			if (!edge.artifactTargets.includes('server') || !externalPackageRequest(edge.moduleSpecifier))
+				continue;
+			const result = await authorizeJestCandidate({
+				session,
+				projectRoot,
+				facts,
+				moduleSpecifier: edge.moduleSpecifier,
+				exportName: edge.exportName
+			});
+			if (!result.componentBuild)
+				throw new Error(`Required Jest component ${edge.moduleSpecifier} was unexpectedly omitted`);
+			resolutions[exactJestResolutionKey(path.dirname(facts.filename), edge.moduleSpecifier)] =
+				result.resolvedModuleId;
+			pending.push(result.componentBuild);
+		}
+		for (const enhancement of facts.rendererEnhancements) {
+			if (!externalPackageRequest(enhancement.moduleSpecifier)) continue;
+			const result = await authorizeJestCandidate({
+				session,
+				projectRoot,
+				facts,
+				moduleSpecifier: enhancement.moduleSpecifier,
+				exportName: enhancement.exportName,
+				optionalEnhancementIdentity: enhancement.identity
+			});
+			if (result.componentBuild) {
+				resolutions[
+					exactJestResolutionKey(path.dirname(facts.filename), enhancement.moduleSpecifier)
+				] = result.resolvedModuleId;
+				pending.push(result.componentBuild);
+			}
+		}
+	}
+}
+
+async function authorizeJestCandidate(options: {
+	session: ReturnType<typeof createExactComponentAuthorizationSession>;
+	projectRoot: string;
+	facts: ExactComponentBuildFacts;
+	moduleSpecifier: string;
+	exportName: string;
+	optionalEnhancementIdentity?: string;
+}): Promise<{ resolvedModuleId: string; componentBuild?: ExactComponentBuildFacts }> {
+	const resolvedModuleId = createRequire(options.facts.filename).resolve(options.moduleSpecifier);
+	const provenance = await recordExactNodeComponentProvenance({
+		session: options.session,
+		applicationRoot: options.projectRoot,
+		importerModuleId: options.facts.filename,
+		moduleSpecifier: options.moduleSpecifier,
+		resolvedModuleId
+	});
+	const result = await options.session.authorizeResolvedComponent({
+		importerModuleId: options.facts.filename,
+		moduleSpecifier: options.moduleSpecifier,
+		exportName: options.exportName,
+		resolvedModuleId,
+		packageInstanceKey: provenance.instance.key,
+		reason: 'server-test',
+		...(options.optionalEnhancementIdentity
+			? { optionalEnhancementIdentity: options.optionalEnhancementIdentity }
+			: {})
+	});
+	return {
+		resolvedModuleId,
+		...(result.outcome === 'authorized' ? { componentBuild: result.componentBuild } : {})
+	};
 }
 
 async function authoredModules(roots: readonly string[]): Promise<string[]> {

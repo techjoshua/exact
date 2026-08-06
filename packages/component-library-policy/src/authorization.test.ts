@@ -239,6 +239,54 @@ describe('@exactjs/component-library-policy', () => {
 		});
 	});
 
+	it('feeds published importer facts into transitive component authorization', async () => {
+		const fixture = createFixture();
+		const child = addLibrary(fixture, '@vendor/icons', '2.0.0', 'published-icons');
+		writeBuildFacts(fixture.library, 'Card', [
+			{
+				ownerComponentId: '@acme/cards:Card',
+				moduleSpecifier: '@vendor/icons',
+				exportName: 'Icon',
+				artifactTargets: ['client', 'server'],
+				reason: 'render'
+			}
+		]);
+		const session = createSession(fixture);
+		session.recordImporterFacts('/app/Page.tsx', importerFacts(), 'v1');
+		recordPackage(session, fixture.library, fixture.marker);
+		recordPackage(session, child.instance, child.marker);
+		session.recordDependencyEdge({
+			owner: 'application',
+			candidate: fixture.library.key,
+			specifier: '@acme/cards',
+			kind: 'dependency'
+		});
+		session.recordDependencyEdge({
+			owner: fixture.library.key,
+			candidate: child.instance.key,
+			specifier: '@vendor/icons',
+			kind: 'dependency'
+		});
+		const parent = await session.authorizeResolvedComponent(fixture.candidate);
+		expect(parent).toMatchObject({
+			outcome: 'authorized',
+			componentBuild: {
+				filename: fixture.candidate.resolvedModuleId,
+				packageName: '@acme/cards'
+			}
+		});
+		await expect(
+			session.authorizeResolvedComponent({
+				...child.candidate,
+				importerModuleId: fixture.candidate.resolvedModuleId
+			})
+		).resolves.toMatchObject({ outcome: 'authorized' });
+
+		expect(
+			(await session.commitGeneration()).manifest.packages.map((entry) => entry.decision).sort()
+		).toEqual(['delegated', 'root']);
+	});
+
 	it('omits only optional enhancements under the explicit exclude policy', async () => {
 		const fixture = createFixture();
 		const session = createSession(fixture, {
@@ -369,7 +417,11 @@ function createPackage(
 	});
 }
 
-function writeBuildFacts(instance: ExactResolvedPackageInstance, exportName: string): void {
+function writeBuildFacts(
+	instance: ExactResolvedPackageInstance,
+	exportName: string,
+	componentImports: ExactComponentBuildFacts['componentImports'] = []
+): void {
 	const facts: ExactPublishedComponentBuildFacts = {
 		protocol: 1,
 		package: { name: instance.name, version: instance.version },
@@ -385,7 +437,7 @@ function writeBuildFacts(instance: ExactResolvedPackageInstance, exportName: str
 							artifactTargets: ['client', 'server']
 						}
 					],
-					componentImports: [],
+					componentImports,
 					rendererEnhancements: []
 				}
 			}

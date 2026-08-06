@@ -141,7 +141,11 @@ export class ExactComponentAuthorizationError extends Error {
 
 /** Result of authorizing one required component or optional enhancement. */
 export type ExactResolvedComponentAuthorization =
-	| Readonly<{ outcome: 'authorized'; packageInstanceId: string }>
+	| Readonly<{
+			outcome: 'authorized';
+			packageInstanceId: string;
+			componentBuild: ExactComponentBuildFacts;
+	  }>
 	| Readonly<{ outcome: 'omitted'; enhancementIdentity: string }>;
 
 /** Atomic authorization generation shared by build and test adapters. */

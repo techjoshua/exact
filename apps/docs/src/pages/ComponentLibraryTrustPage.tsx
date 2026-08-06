@@ -64,6 +64,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					authorization.
 				</p>
 				<p>
+					Validated package build facts become part of the active component graph. Packaged component
+					and enhancement imports are recursively authorized even when their parent package remains
+					external to the server bundle.
+				</p>
+				<p>
 					When server inspection catalogs are enabled, they include that redacted decision data
 					under the same build key. It is available only through the authorized DevTools path and is
 					never emitted into client code.

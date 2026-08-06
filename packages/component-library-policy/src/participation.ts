@@ -1,4 +1,7 @@
-import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
+import type {
+	ExactComponentBuildFacts,
+	ExactPublishedComponentBuildFacts
+} from '@exactjs/compiler';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import semver from 'semver';
@@ -15,6 +18,7 @@ export type ExactComponentParticipation = Readonly<{
 	buildFactsPath: string;
 	buildFacts: ExactPublishedComponentBuildFacts;
 	componentId: string;
+	componentBuild: ExactComponentBuildFacts;
 }>;
 
 /** Failure produced while reading inert participation metadata before candidate evaluation. */
@@ -90,12 +94,15 @@ export async function validateExactComponentParticipation(
 	}
 	validatePublishedBuildFacts(buildFacts, instance, manifest);
 	const resolvedModule = packageModulePath(instance.root, candidate.resolvedModuleId);
+	const resolvedModuleFacts = buildFacts.modules.find(
+		(module) => normalizeModulePath(module.path) === resolvedModule
+	);
 	const selected = buildFacts.exports.find(
 		(record) =>
 			normalizeModulePath(record.module) === resolvedModule &&
 			record.exportName === candidate.exportName
 	);
-	if (!selected) {
+	if (!selected || !resolvedModuleFacts) {
 		throw new ExactComponentParticipationError(
 			'build-facts-invalid',
 			`${instance.name} build facts do not map ${resolvedModule}#${candidate.exportName}`
@@ -105,7 +112,12 @@ export async function validateExactComponentParticipation(
 		markerVersion: marker.version,
 		buildFactsPath,
 		buildFacts,
-		componentId: selected.componentId
+		componentId: selected.componentId,
+		componentBuild: Object.freeze({
+			...resolvedModuleFacts.facts,
+			filename: candidate.resolvedModuleId,
+			packageName: instance.name
+		})
 	});
 }
 

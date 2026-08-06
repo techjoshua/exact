@@ -199,6 +199,14 @@ its ordinary implementation closure may execute as in-process server code; utili
 that closure are governed by ordinary supply-chain controls unless they are themselves reached as
 eXact component owners.
 
+Successful package authorization returns the selected module's validated published
+`componentBuild` projection to the adapter and records it as importer facts in the same generation.
+Adapters recursively resolve its server component and enhancement edges before accepting the
+parent, even when the bundler externalizes that parent and would not otherwise traverse its
+implementation graph. Cycles are generation-fenced by resolved importer, export, and physical
+candidate identity; an actual later bundler resolution is checked independently when aliases select
+a different package instance.
+
 ## Component-library marker
 
 Publish `@exactjs/component-library` as a browser-safe, inert marker dependency. A participating
