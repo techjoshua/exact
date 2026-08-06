@@ -85,6 +85,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					after the input is corrected.
 				</p>
 				<p>
+					Participation metadata is validated once per resolved package instance in each generation,
+					and every generation-owned cache is released on commit or rejection. Build-only telemetry
+					reports value-free entry counts for performance verification; none enters runtime output.
+				</p>
+				<p>
 					When server inspection catalogs are enabled, they include that redacted decision data
 					under the same build key. It is available only through the authorized DevTools path and is
 					never emitted into client code.

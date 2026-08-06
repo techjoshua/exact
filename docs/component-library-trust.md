@@ -80,6 +80,11 @@ Development generations retain only the last committed candidate set and revalid
 set when source, policy, package manifests, lockfiles, or published build facts change. A rejected
 generation leaves the prior graph active and can recover after the input is corrected.
 
+The shared policy validates participation metadata once per resolved package instance in each
+generation. Build integrations can sample value-free entry counts with `session.getTelemetry()`;
+commit, rejection, and disposal clear every generation-owned cache. This supports latency and heap
+benchmarks without placing provenance telemetry in runtime artifacts.
+
 Each successful server build writes private files under `.exact/`:
 
 - `component-library-authorization.json` contains the deterministic policy hash, package-instance
