@@ -4,8 +4,7 @@ import path from 'node:path';
 import {
 	exactComponentLibraryRuleMatches,
 	normalizeExactComponentLibraryPolicy,
-	type ExactNormalizedComponentLibraryPolicy,
-	type ExactNormalizedComponentLibraryRule
+	type ExactNormalizedComponentLibraryPolicy
 } from './configuration.js';
 import {
 	ExactComponentAuthorizationError,
@@ -29,8 +28,7 @@ import {
 } from './generation-output.js';
 import {
 	ExactComponentParticipationValidator,
-	ExactComponentParticipationError,
-	type ExactComponentParticipation
+	ExactComponentParticipationError
 } from './participation.js';
 
 /** Options for one isolated build/watch authorization generation. */
