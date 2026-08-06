@@ -3,6 +3,7 @@ import { cpus, platform, release } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { buildPerformanceFixtures } from './performance/fixture-build.mjs';
 import { measureChromium } from './performance/browser-measurement.mjs';
 import {
@@ -75,6 +76,7 @@ try {
 	const report = {
 		schemaVersion: 1,
 		generatedAt: new Date().toISOString(),
+		buildIdentity: repositoryIdentity(),
 		environment: {
 			node: process.version,
 			platform: `${platform()} ${release()}`,
@@ -121,4 +123,17 @@ function positiveInteger(value, name, minimum) {
 function argument(name) {
 	const prefix = `--${name}=`;
 	return process.argv.find((value) => value.startsWith(prefix))?.slice(prefix.length);
+}
+
+function repositoryIdentity() {
+	const commit = execFileSync('git', ['rev-parse', 'HEAD'], {
+		cwd: workspace,
+		encoding: 'utf8'
+	}).trim();
+	const dirty =
+		execFileSync('git', ['status', '--short'], {
+			cwd: workspace,
+			encoding: 'utf8'
+		}).trim().length > 0;
+	return { commit, dirty };
 }

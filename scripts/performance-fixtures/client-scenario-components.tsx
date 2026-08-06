@@ -24,6 +24,9 @@ export let branchInstance: Component<{ visible: boolean }> | undefined;
 export let listInstance: Component<{ items: Item[] }> | undefined;
 export let activityInstance: Component<{ mode: ActivityMode }> | undefined;
 export let suspenseInstance: Component<{ ready: boolean }> | undefined;
+export let commitInstance:
+	| Component<{ value: string; title: string; selected: boolean }>
+	| undefined;
 export let settleSuspense: (() => void) | undefined;
 
 /** Releases the retained scalar component so heap measurements do not retain prior workloads. */
@@ -52,41 +55,9 @@ export function releaseSuspenseInstance(): void {
 	settleSuspense = undefined;
 }
 
-/** Runs one browser or DOM-emulated framework scenario against compiler-produced components. */
-export async function runClientScenario(
-	name: ClientScenarioName,
-	options: Readonly<{ iterations?: number }> = {}
-): Promise<ClientScenarioResult> {
-	switch (name) {
-		case 'client.static-mount':
-			return staticMount(options.iterations ?? defaultTreeSize);
-		case 'client.dynamic-mount':
-			return dynamicMount(options.iterations ?? defaultTreeSize);
-		case 'client.hydration':
-			return hydration();
-		case 'client.first-interaction':
-			return firstInteraction();
-		case 'client.scalar-update':
-			return scalarUpdate();
-		case 'client.branch-update':
-			return branchUpdate();
-		case 'client.keyed-list-update':
-			return keyedListUpdate(options.iterations ?? defaultListSize);
-		case 'client.enhancement-reroute':
-			return enhancementReroute();
-		case 'client.activity-cycle':
-			return activityCycle();
-		case 'client.suspense-cycle':
-			return suspenseCycle();
-		case 'client.mixed-tree-lifecycle':
-			return mixedTreeLifecycle(options.iterations ?? 100);
-		case 'component.population':
-			return componentPopulation(options.iterations ?? 2_000);
-		case 'component.api-state':
-			return componentApiState(options.iterations ?? 10_000);
-		case 'component.mount-unmount-heap':
-			return componentMountUnmountHeap(options.iterations ?? 200);
-	}
+/** Releases the retained DOM-commit component after its burst workload. */
+export function releaseCommitInstance(): void {
+	commitInstance = undefined;
 }
 
 /** Produces the fixed host tree used to measure initial mount throughput. */
@@ -227,4 +198,15 @@ export function MixedTree(props: { count: number }) {
 export function PopulationComponent(this: Component<{ value: number }>, props: { value: number }) {
 	this.state.value = props.value;
 	return () => <span>{this.state.value}</span>;
+}
+
+/** Exposes several bindings on one focused control for root-commit workloads. */
+export function CommitBurst(this: Component<{ value: string; title: string; selected: boolean }>) {
+	commitInstance = this;
+	this.state.value = 'initial';
+	this.state.title = 'initial';
+	this.state.selected = false;
+	return () => (
+		<input value={this.state.value} title={this.state.title} aria-selected={this.state.selected} />
+	);
 }

@@ -33,6 +33,11 @@ import {
 	suspenseInstance,
 	type Item
 } from './client-scenario-components.js';
+import {
+	domCommitBurst,
+	keyedListMutations,
+	schedulerWorkloads
+} from './client-update-scenarios.js';
 
 const defaultListSize = 1_000;
 const defaultTreeSize = 500;
@@ -46,6 +51,9 @@ export const clientScenarioNames = [
 	'client.scalar-update',
 	'client.branch-update',
 	'client.keyed-list-update',
+	'client.keyed-list-mutations',
+	'client.scheduler-workloads',
+	'client.dom-commit-burst',
 	'client.enhancement-reroute',
 	'client.activity-cycle',
 	'client.suspense-cycle',
@@ -84,6 +92,12 @@ export async function runClientScenario(
 			return branchUpdate();
 		case 'client.keyed-list-update':
 			return keyedListUpdate(options.iterations ?? defaultListSize);
+		case 'client.keyed-list-mutations':
+			return keyedListMutations(options.iterations ?? defaultListSize);
+		case 'client.scheduler-workloads':
+			return schedulerWorkloads(options.iterations ?? 2_000);
+		case 'client.dom-commit-burst':
+			return domCommitBurst();
 		case 'client.enhancement-reroute':
 			return enhancementReroute();
 		case 'client.activity-cycle':
