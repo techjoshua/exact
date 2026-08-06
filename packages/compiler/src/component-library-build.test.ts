@@ -66,4 +66,62 @@ describe('component-library build facts', () => {
 			})
 		).toThrow(/has no @acme\/cards:Card component/);
 	});
+
+	it('rejects package paths that escape the package and conflicting export selections', () => {
+		expect(() =>
+			createExactPublishedComponentBuildFacts({
+				package: { name: '@acme/cards', version: '1.0.0' },
+				modules: [{ path: '../outside.js', facts: emptyFacts() }],
+				exports: []
+			})
+		).toThrow(/Invalid package-relative/);
+
+		expect(() =>
+			createExactPublishedComponentBuildFacts({
+				package: { name: '@acme/cards', version: '1.0.0' },
+				modules: [
+					{ path: 'dist/a.js', facts: cardFacts('@acme/cards:A') },
+					{ path: 'dist/b.js', facts: cardFacts('@acme/cards:B') }
+				],
+				exports: [
+					{
+						subpath: '.',
+						condition: 'default',
+						module: 'dist/a.js',
+						exportName: 'Card',
+						componentId: '@acme/cards:A'
+					},
+					{
+						subpath: '.',
+						condition: 'default',
+						module: 'dist/b.js',
+						exportName: 'Card',
+						componentId: '@acme/cards:B'
+					}
+				]
+			})
+		).toThrow(/conflicting export/);
+	});
 });
+
+function emptyFacts() {
+	return {
+		protocol: 1 as const,
+		components: [],
+		componentImports: [],
+		rendererEnhancements: []
+	};
+}
+
+function cardFacts(id: string) {
+	return {
+		...emptyFacts(),
+		components: [
+			{
+				id,
+				placement: 'isomorphic' as const,
+				artifactTargets: ['client', 'server'] as const
+			}
+		]
+	};
+}

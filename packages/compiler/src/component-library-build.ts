@@ -48,10 +48,25 @@ export function createExactPublishedComponentBuildFacts(
 			})
 		)
 		.sort((left, right) =>
-			[left.subpath, left.condition, left.exportName, left.componentId].join('\0').localeCompare(
-				[right.subpath, right.condition, right.exportName, right.componentId].join('\0')
-			)
+			[left.subpath, left.condition, left.exportName, left.componentId]
+				.join('\0')
+				.localeCompare(
+					[right.subpath, right.condition, right.exportName, right.componentId].join('\0')
+				)
 		);
+	const exportSelections = new Map<string, string>();
+	for (const record of exports) {
+		const selection = [record.subpath, record.condition, record.exportName].join('\0');
+		const target = [record.module, record.componentId].join('\0');
+		const existing = exportSelections.get(selection);
+		if (existing)
+			throw new Error(
+				existing === target
+					? `Published component build facts contain duplicate export ${record.subpath} (${record.condition})#${record.exportName}`
+					: `Published component build facts contain conflicting export ${record.subpath} (${record.condition})#${record.exportName}`
+			);
+		exportSelections.set(selection, target);
+	}
 	const moduleComponents = new Map(
 		modules.map((module) => [
 			module.path,
