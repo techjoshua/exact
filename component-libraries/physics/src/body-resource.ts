@@ -85,22 +85,27 @@ export class BodyResource implements PhysicsBody {
 		});
 	}
 
+	/** Reactive world-space position and angle owned by this body. */
 	get pose(): PhysicsPose {
 		return this.state.pose;
 	}
 
+	/** Reactive linear velocity in world units per second. */
 	get velocity(): Vector2 {
 		return this.state.velocity;
 	}
 
+	/** Reactive angular velocity in radians per second. */
 	get angularVelocity(): number {
 		return this.state.angularVelocity;
 	}
 
+	/** Reports whether integration currently skips this settled body. */
 	get sleeping(): boolean {
 		return this.state.sleeping;
 	}
 
+	/** Queues a force for the next simulation step, optionally at a world-space point. */
 	applyForce(force: Vector2, point?: Vector2): void {
 		const next = finiteVector(force, 'force');
 		const applicationPoint = point ? finiteVector(point, 'force point') : undefined;
@@ -113,6 +118,7 @@ export class BodyResource implements PhysicsBody {
 		});
 	}
 
+	/** Applies an instantaneous momentum change, optionally producing angular velocity. */
 	applyImpulse(impulse: Vector2, point?: Vector2): void {
 		const next = finiteVector(impulse, 'impulse');
 		const applicationPoint = point ? finiteVector(point, 'impulse point') : undefined;
@@ -128,6 +134,7 @@ export class BodyResource implements PhysicsBody {
 		});
 	}
 
+	/** Queues an authored pose change and clears velocity unless preservation is requested. */
 	setPose(pose: Partial<PhysicsPose>, options: SetPoseOptions = {}): void {
 		const position = pose.position ? finiteVector(pose.position, 'pose.position') : undefined;
 		const angle = pose.angle === undefined ? undefined : finite(pose.angle, 'pose.angle');
@@ -146,6 +153,7 @@ export class BodyResource implements PhysicsBody {
 		});
 	}
 
+	/** Switches a non-static body between authored kinematic and simulated dynamic motion. */
 	setKinematic(active: boolean): void {
 		this.world.command(this, () => {
 			if (this.type === 'static') return;
@@ -154,15 +162,18 @@ export class BodyResource implements PhysicsBody {
 		});
 	}
 
+	/** Queues this body to resume simulation through the owning world's command boundary. */
 	wake(): void {
 		this.world.command(this, () => this.wakeNow());
 	}
 
+	/** Immediately clears sleeping state for solver-internal use. */
 	wakeNow(): void {
 		this.sleepTime = 0;
 		this.state.sleeping = false;
 	}
 
+	/** Idempotently removes this body from its owning world and rejects future participation. */
 	[Symbol.dispose](): void {
 		if (this.disposed) return;
 		this.disposed = true;

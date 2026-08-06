@@ -7,12 +7,14 @@ import type {
 } from './contracts.js';
 import { pointDistance, type Point } from './gesture-samples.js';
 
+/** Threshold-qualified drag or pan recognizer selected for an active pointer session. */
 export type ActiveRecognizer = {
 	kind: 'drag' | 'pan';
 	recognizer: DragRecognizer;
 	axis: 'x' | 'y' | 'both';
 };
 
+/** Complete authored and target-local policy used to arbitrate one gesture session. */
 export type SessionConfiguration = Readonly<{
 	element?: Element;
 	presented: boolean;

@@ -68,7 +68,7 @@ export const Presence = markExactComponent(function Presence(
 	};
 
 	return () => {
-		this.state.revision;
+		void this.state.revision;
 		const desired = props.when ? presenceItems(props.children) : [];
 		const initial = displayed === undefined;
 		displayed ??= desired;

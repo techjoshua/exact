@@ -46,11 +46,11 @@ export class BodyProjectionController implements Disposable {
 			this.collisionSubscription?.[Symbol.dispose]();
 			this.collisionSubscription = configuration.collisions
 				? this.world.onCollision((events) => {
-					const matching = events.filter(
-						(event) => event.bodyA === configuration.body || event.bodyB === configuration.body
-					);
-					if (matching.length) configuration.collisions!(Object.freeze(matching));
-				})
+						const matching = events.filter(
+							(event) => event.bodyA === configuration.body || event.bodyB === configuration.body
+						);
+						if (matching.length) configuration.collisions!(Object.freeze(matching));
+					})
 				: undefined;
 		}
 		this.configuration = configuration;
@@ -60,11 +60,7 @@ export class BodyProjectionController implements Disposable {
 	/** Applies the latest body pose through channels that remain safe to claim. */
 	project(): void {
 		const configuration = this.configuration;
-		if (
-			!configuration?.element ||
-			!configuration.presented ||
-			configuration.disabled
-		) {
+		if (!configuration?.element || !configuration.presented || configuration.disabled) {
 			return;
 		}
 		const style = (configuration.element as HTMLElement).style;
@@ -91,9 +87,7 @@ export class BodyProjectionController implements Disposable {
 			}
 		}
 		const activeChannels = new Set(this.owned.keys());
-		if (
-			(configuration.projection.channels ?? []).some((channel) => !activeChannels.has(channel))
-		) {
+		if ((configuration.projection.channels ?? []).some((channel) => !activeChannels.has(channel))) {
 			return;
 		}
 		configuration.projection.apply({ body: configuration.body, element: configuration.element });

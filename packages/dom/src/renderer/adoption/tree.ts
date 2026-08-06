@@ -39,6 +39,7 @@ import {
 	adoptStaticChildren,
 	adoptStaticChildrenRange,
 	authoredChildNodes,
+	closingMarkerIndex,
 	createRangeAnchor,
 	frameworkChildRange
 } from './boundaries.js';
@@ -157,9 +158,7 @@ export function adoptStaticMountedInner(
 		const start = nodes[cursor];
 		if (!(start instanceof Comment) || !start.data.startsWith(`exact:${kind}:`))
 			return stopFailedAdoption(scope);
-		const endIndex = nodes.findIndex(
-			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-		);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
 		if (endIndex < 0) return stopFailedAdoption(scope);
 		const end = nodes[endIndex] as Comment;
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
@@ -214,9 +213,7 @@ export function adoptStaticMountedInner(
 		const start = nodes[cursor];
 		if (!(start instanceof Comment) || !start.data.startsWith('exact:unsafe-html:'))
 			return stopFailedAdoption(scope);
-		const endIndex = nodes.findIndex(
-			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-		);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
 		if (endIndex < 0) return stopFailedAdoption(scope);
 		const mounted: Mounted = {
 			vnode,
@@ -292,9 +289,7 @@ export function adoptStaticMountedInner(
 			if (vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
 			return { mounted, next: cursor + adopted.next };
 		}
-		const endIndex = nodes.findIndex(
-			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-		);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
 		if (endIndex < 0) {
 			scope.stop();
 			return undefined;

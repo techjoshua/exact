@@ -16,8 +16,34 @@ import {
 } from '@exactjs/core';
 import { adoptStatic, render, unmount, type RenderOptions } from '@exactjs/dom';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
+import {
+	ActivityBoundary,
+	Branch,
+	DynamicTree,
+	InteractiveCounter,
+	KeyedList,
+	MixedTree,
+	PopulationComponent,
+	RoutingEnhancement,
+	ScalarCounter,
+	StaticTree,
+	SuspenseBoundary,
+	activityInstance,
+	branchInstance,
+	enhancementIdentity,
+	hydrationTree,
+	listInstance,
+	releaseActivityInstance,
+	releaseBranchInstance,
+	releaseListInstance,
+	releaseScalarInstance,
+	releaseSuspenseInstance,
+	scalarInstance,
+	settleSuspense,
+	suspenseInstance,
+	type Item
+} from './client-scenario-components.js';
 
-const enhancementIdentity = '@exactjs/performance#routing';
 const defaultListSize = 1_000;
 const defaultTreeSize = 500;
 
@@ -47,178 +73,6 @@ export type ClientScenarioResult = Readonly<{
 	metrics: Readonly<Record<string, number>>;
 	units: Readonly<Record<string, 'bytes' | 'count' | 'ms'>>;
 }>;
-
-type Item = Readonly<{ id: string; label: string }>;
-
-let scalarInstance: Component<{ count: number }> | undefined;
-let branchInstance: Component<{ visible: boolean }> | undefined;
-let listInstance: Component<{ items: Item[] }> | undefined;
-let activityInstance: Component<{ mode: ActivityMode }> | undefined;
-let suspenseInstance: Component<{ ready: boolean }> | undefined;
-let settleSuspense: (() => void) | undefined;
-
-/** Runs one browser or DOM-emulated framework scenario against compiler-produced components. */
-export async function runClientScenario(
-	name: ClientScenarioName,
-	options: Readonly<{ iterations?: number }> = {}
-): Promise<ClientScenarioResult> {
-	switch (name) {
-		case 'client.static-mount':
-			return staticMount(options.iterations ?? defaultTreeSize);
-		case 'client.dynamic-mount':
-			return dynamicMount(options.iterations ?? defaultTreeSize);
-		case 'client.hydration':
-			return hydration();
-		case 'client.first-interaction':
-			return firstInteraction();
-		case 'client.scalar-update':
-			return scalarUpdate();
-		case 'client.branch-update':
-			return branchUpdate();
-		case 'client.keyed-list-update':
-			return keyedListUpdate(options.iterations ?? defaultListSize);
-		case 'client.enhancement-reroute':
-			return enhancementReroute();
-		case 'client.activity-cycle':
-			return activityCycle();
-		case 'client.suspense-cycle':
-			return suspenseCycle();
-		case 'client.mixed-tree-lifecycle':
-			return mixedTreeLifecycle(options.iterations ?? 100);
-		case 'component.population':
-			return componentPopulation(options.iterations ?? 2_000);
-		case 'component.api-state':
-			return componentApiState(options.iterations ?? 10_000);
-		case 'component.mount-unmount-heap':
-			return componentMountUnmountHeap(options.iterations ?? 200);
-	}
-}
-
-function StaticTree(_props: { count: number }) {
-	return () => (
-		<ul>
-			{Array.from({ length: _props.count }, (_, index) => (
-				<li data-index={index}>Row {index}</li>
-			))}
-		</ul>
-	);
-}
-
-function DynamicTree(this: Component<{ value: number }>, props: { count: number }) {
-	this.state.value = 1;
-	return () => (
-		<section>
-			{Array.from({ length: props.count }, (_, index) => (
-				<span>{this.state.value + index}</span>
-			))}
-		</section>
-	);
-}
-
-function hydrationTree() {
-	return createVNode(
-		Fragment,
-		null,
-		createVNode('i', null, 'first'),
-		createVNode('b', null, 'second')
-	);
-}
-
-function InteractiveCounter(this: Component<{ count: number }>) {
-	this.state.count = 0;
-	return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
-}
-
-function ScalarCounter(this: Component<{ count: number }>) {
-	scalarInstance = this;
-	this.state.count = 0;
-	return () => <output>{this.state.count}</output>;
-}
-
-function Branch(this: Component<{ visible: boolean }>) {
-	branchInstance = this;
-	this.state.visible = false;
-	return () => <section>{this.state.visible ? <p>visible</p> : <span>hidden</span>}</section>;
-}
-
-function KeyedList(this: Component<{ items: Item[] }>, props: { items: Item[] }) {
-	listInstance = this;
-	this.state.items = props.items;
-	return () => (
-		<ul>
-			{this.map(
-				this.state.items,
-				(item) => item.id,
-				(item) => (
-					<li>{item.label}</li>
-				)
-			)}
-		</ul>
-	);
-}
-
-const RoutingEnhancement = markExactComponent(function RoutingEnhancement(_props: {
-	children?: Child;
-}) {
-	return () => _props.children;
-}, '@exactjs/performance:RoutingEnhancement');
-
-function ActivityBoundary(this: Component<{ mode: ActivityMode }>) {
-	activityInstance = this;
-	this.state.mode = 'active';
-	const mode = computed(() => this.state.mode);
-	return () => createVNode(Activity, { mode }, <button>retained</button>);
-}
-
-function SuspendedPanel(this: Component<{ ready: boolean }>) {
-	suspenseInstance = this;
-	this.state.ready = false;
-	const pending = new Promise<void>((resolve) => {
-		settleSuspense = resolve;
-	});
-	activateTaskForHost(
-		this,
-		defineTask({ readiness: 'blocking' }, async ({ signal }) => {
-			await pending;
-			stageTaskMutation(signal, () => {
-				this.state.ready = true;
-			});
-		})
-	);
-	return () => <p>{this.state.ready ? 'ready' : 'waiting'}</p>;
-}
-
-function SuspenseBoundary() {
-	return () => createVNode(Suspense, { fallback: <span>loading</span> }, <SuspendedPanel />);
-}
-
-function MixedLeaf(this: Component<{ count: number }>, props: { index: number }) {
-	this.state.count = props.index;
-	return () => <button>{this.state.count}</button>;
-}
-
-function MixedTree(props: { count: number }) {
-	return () => (
-		<main>
-			<header>mixed</header>
-			{createVNode(
-				Activity,
-				{ mode: 'active' },
-				<section>
-					{Array.from({ length: props.count }, (_, index) => (
-						<MixedLeaf key={String(index)} index={index} />
-					))}
-				</section>
-			)}
-			<footer>done</footer>
-		</main>
-	);
-}
-
-function PopulationComponent(this: Component<{ value: number }>, props: { value: number }) {
-	this.state.value = props.value;
-	return () => <span>{this.state.value}</span>;
-}
 
 function staticMount(count: number): ClientScenarioResult {
 	const container = createContainer();
@@ -272,7 +126,7 @@ function firstInteraction(): ClientScenarioResult {
 
 function scalarUpdate(): ClientScenarioResult {
 	const container = createContainer();
-	scalarInstance = undefined;
+	releaseScalarInstance();
 	render(<ScalarCounter />, container);
 	assert(scalarInstance, 'compiled scalar component did not expose its instance');
 	const started = performance.now();
@@ -286,7 +140,7 @@ function scalarUpdate(): ClientScenarioResult {
 
 function branchUpdate(): ClientScenarioResult {
 	const container = createContainer();
-	branchInstance = undefined;
+	releaseBranchInstance();
 	render(<Branch />, container);
 	assert(branchInstance, 'compiled branch component did not expose its instance');
 	const started = performance.now();
@@ -307,7 +161,7 @@ function keyedListUpdate(count: number): ClientScenarioResult {
 		label: `Row ${index}`
 	}));
 	const container = createContainer();
-	listInstance = undefined;
+	releaseListInstance();
 	render(<KeyedList items={items} />, container);
 	assert(listInstance, 'compiled keyed-list component did not expose its instance');
 	const last = items.at(-1);
@@ -365,7 +219,7 @@ function enhancementReroute(): ClientScenarioResult {
 
 function activityCycle(): ClientScenarioResult {
 	const container = createContainer();
-	activityInstance = undefined;
+	releaseActivityInstance();
 	render(<ActivityBoundary />, container);
 	assert(activityInstance, 'compiled Activity boundary did not expose its instance');
 	const button = container.querySelector('button');
@@ -383,8 +237,7 @@ function activityCycle(): ClientScenarioResult {
 
 async function suspenseCycle(): Promise<ClientScenarioResult> {
 	const container = createContainer();
-	suspenseInstance = undefined;
-	settleSuspense = undefined;
+	releaseSuspenseInstance();
 	render(<SuspenseBoundary />, container);
 	assert(container.textContent === 'loading', 'Suspense fixture did not publish fallback');
 	assert(settleSuspense, 'Suspense fixture did not activate blocking work');

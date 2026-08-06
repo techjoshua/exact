@@ -1,12 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	Activity,
-	createEnhancementMarker,
-	createExpression,
-	type Component
-} from '@exactjs/core';
+import { Activity, createEnhancementMarker, createExpression, type Component } from '@exactjs/core';
 import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
@@ -135,8 +130,7 @@ describe('MotionElement', () => {
 					}
 				}
 			]);
-			return () =>
-				createVNode('span', { __exactEnhancements: marker }, 'Indicator');
+			return () => createVNode('span', { __exactEnhancements: marker }, 'Indicator');
 		});
 		const container = document.createElement('div');
 		containers.push(container);

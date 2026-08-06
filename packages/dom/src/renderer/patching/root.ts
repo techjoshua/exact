@@ -45,6 +45,7 @@ import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
 import { patchEnhancementBoundary } from '../enhancements.js';
 import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
+import { parkForeignMounts } from './replacement-parking.js';
 
 /** Performs the patch domain operation. */
 export function patch(
@@ -401,33 +402,4 @@ export function patchInner(
 	);
 	updateTargetedIntrinsicProps(root, mounted, previousProps, next.props);
 	return mounted;
-}
-
-function parkForeignMounts(
-	owner: Mounted,
-	replacedDomain: ComponentInstance<any>['domain'],
-	parking: Map<VNode, Array<{ mounted: Mounted; parent: Node }>>,
-	ownerSnapshots: Map<Mounted, Mounted[]>,
-	fallbackParent: Node
-): void {
-	ownerSnapshots.set(owner, owner.children);
-	const retained: Mounted[] = [];
-	for (const child of owner.children) {
-		const domain = child.instance?.domain ?? child.vnode.domain;
-		if (domain && domain !== replacedDomain) {
-			const candidates = parking.get(child.vnode) ?? [];
-			candidates.push({ mounted: child, parent: child.dom.parentNode ?? fallbackParent });
-			parking.set(child.vnode, candidates);
-			continue;
-		}
-		parkForeignMounts(
-			child,
-			replacedDomain,
-			parking,
-			ownerSnapshots,
-			child.portalTarget ?? fallbackParent
-		);
-		retained.push(child);
-	}
-	owner.children = retained;
 }

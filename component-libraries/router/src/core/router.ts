@@ -1,6 +1,3 @@
-import { joinTask } from '@exactjs/core';
-import { createFrameworkPublicationCommit } from '@exactjs/core/framework/publication';
-
 import type {
 	CreateExactRouterOptions,
 	ExactRouteDefinition,
@@ -29,7 +26,8 @@ import {
 	stripBasename
 } from './locations.js';
 import { matchRoutes } from './matching.js';
-import { RouterOperationCoordinator } from './operation-coordinator.js';
+import { idleRouterNavigation, publishRouterNavigation } from './navigation-publication.js';
+import * as routerOperation from './operation-coordinator.js';
 import { createRouteLoader } from './route-loaders.js';
 
 /** Creates an exact router. */
@@ -50,9 +48,10 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 	let loaderHeaders: Record<string, Headers> = {};
 	let actionHeaders: Record<string, Headers> = {};
 	let revalidation: 'idle' | 'loading' = 'idle';
-	const operations = new RouterOperationCoordinator(() => {
+	const operations = new routerOperation.RouterOperationCoordinator(() => {
 		revalidation = 'idle';
 	});
+	const join = routerOperation.joinRouterOperation;
 	const fetchers = new Map<string, FetcherSnapshot>();
 	const fetcherAborts = new Map<string, AbortController>();
 	const loaderRuntime = createRouteLoader<Route>(options.context);
@@ -75,10 +74,9 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 
 	function buildSnapshot(
 		action: HistoryAction,
-		navigation: ExactRouterSnapshot<Route>['navigation'] = {
-			state: 'idle',
-			transitionId: operations.transitionId
-		}
+		navigation: ExactRouterSnapshot<Route>['navigation'] = idleRouterNavigation(
+			operations.transitionId
+		)
 	): ExactRouterSnapshot<Route> {
 		const location = locationValue(source, mode, basename);
 		const matches = matchRoutes(routes, location.pathname);
@@ -105,7 +103,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 		options: NavigationOptions = {},
 		redirectDepth = 0
 	): Promise<void> {
-		assertActive();
+		routerOperation.assertRouterActive(disposed);
 		if (redirectDepth > 20) throw new Error('Router exceeded the maximum redirect depth of 20');
 		if (typeof to === 'number') {
 			if (!source.go)
@@ -160,42 +158,35 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 		errors = result.errors;
 		loaderHeaders = result.headers;
 		statusCode = result.statusCode;
-		let published = false;
-		const publish = () => {
-			if (published) throw new Error('A navigation publication may commit only once');
-			published = true;
-			if (options.replace) source.replace(target, options.state, options.status);
-			else source.push(target, options.state, options.status);
-			if (operations.owns(operation) && sourceRevision === revision) {
-				// Sources with subscriptions refresh themselves. Request-backed sources do
-				// not navigate locally, so retain their location and only settle state.
-				snapshot = source.subscribe
-					? buildSnapshot(action)
-					: Object.freeze({
-							...snapshot,
-							navigation: Object.freeze({ state: 'idle', transitionId: currentTransition })
-						});
-				notify();
+		await publishRouterNavigation({
+			publication,
+			signal: operation.abort.signal,
+			metadata: {
+				historyAction: action,
+				from: transition.currentLocation,
+				to: nextLocation,
+				transitionId: currentTransition
+			},
+			commit() {
+				if (options.replace) source.replace(target, options.state, options.status);
+				else source.push(target, options.state, options.status);
+				if (operations.owns(operation) && sourceRevision === revision) {
+					// Sources with subscriptions refresh themselves. Request-backed sources do
+					// not navigate locally, so retain their location and only settle state.
+					snapshot = source.subscribe
+						? buildSnapshot(action)
+						: Object.freeze({
+								...snapshot,
+								navigation: Object.freeze({ state: 'idle', transitionId: currentTransition })
+							});
+					notify();
+				}
 			}
-			return createFrameworkPublicationCommit();
-		};
-		if (publication) {
-			await publication.publish({
-				kind: 'navigation',
-				signal: operation.abort.signal,
-				metadata: {
-					historyAction: action,
-					from: transition.currentLocation,
-					to: nextLocation,
-					transitionId: currentTransition
-				},
-				publish
-			});
-		} else publish();
+		});
 	}
 
 	async function initialize(): Promise<void> {
-		assertActive();
+		routerOperation.assertRouterActive(disposed);
 		if (initialized) return;
 		const operation = operations.beginAuthoritative();
 		const result = await runLoaders(source.location(), snapshot.matches, operation.abort.signal);
@@ -217,7 +208,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 	}
 
 	async function submit(target: string | URL, init: RequestInit = {}): Promise<void> {
-		assertActive();
+		routerOperation.assertRouterActive(disposed);
 		const url = resolveTarget(target, source.location(), basename, mode);
 		const matches = matchRoutes(routes, stripBasename(normalizePath(url.pathname), basename));
 		const actionMatch = [...matches]
@@ -280,7 +271,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 		actionResult?: unknown,
 		owner?: Readonly<{ id: number; abort: AbortController }>
 	): Promise<void> {
-		assertActive();
+		routerOperation.assertRouterActive(disposed);
 		const operation = owner ?? operations.beginRevalidation();
 		const independentId = owner ? undefined : operations.revalidationId;
 		const startingTransition = operations.transitionId;
@@ -328,7 +319,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 		target: string | URL,
 		init: RequestInit = {}
 	): Promise<void> {
-		assertActive();
+		routerOperation.assertRouterActive(disposed);
 		const url = resolveTarget(target, source.location(), basename, mode);
 		const matches = matchRoutes(routes, stripBasename(normalizePath(url.pathname), basename));
 		const match = matches.find((candidate) => candidate.id === routeId);
@@ -376,39 +367,35 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 		if (fetcherAborts.get(key) === abort) fetcherAborts.delete(key);
 	}
 
-	function assertActive(): void {
-		if (disposed) throw new Error('Cannot use a disposed router');
-	}
-
 	return Object.freeze({
 		basename,
 		mode,
 		getSnapshot: () => snapshot,
 		subscribe(listener: () => void) {
-			assertActive();
+			routerOperation.assertRouterActive(disposed);
 			listeners.add(listener);
 			return () => listeners.delete(listener);
 		},
 		sync(action = source.action?.() ?? 'POP', publish = true) {
-			assertActive();
+			routerOperation.assertRouterActive(disposed);
 			refresh(action, publish);
 		},
 		setRoutes(nextRoutes: readonly Route[]) {
-			assertActive();
+			routerOperation.assertRouterActive(disposed);
 			routes = normalizeRouteIds(nextRoutes);
 			refresh(snapshot.historyAction);
 		},
 		createHref: (to: string | URL) => hrefFor(to, source.location(), basename, mode),
 		navigate(to: string | URL | number, navigationOptions?: NavigationOptions) {
-			return joinRouterOperation(navigate(to, navigationOptions));
+			return join(navigate(to, navigationOptions));
 		},
-		initialize: () => joinRouterOperation(initialize()),
-		submit: (target: string | URL, init?: RequestInit) => joinRouterOperation(submit(target, init)),
+		initialize: () => join(initialize()),
+		submit: (target: string | URL, init?: RequestInit) => join(submit(target, init)),
 		fetch: (key: string, routeId: string, target: string | URL, init?: RequestInit) =>
-			joinRouterOperation(fetch(key, routeId, target, init)),
-		revalidate: () => joinRouterOperation(revalidate()),
+			join(fetch(key, routeId, target, init)),
+		revalidate: () => join(revalidate()),
 		block(blocker: NavigationBlocker) {
-			assertActive();
+			routerOperation.assertRouterActive(disposed);
 			blockers.add(blocker);
 			return () => blockers.delete(blocker);
 		},
@@ -423,14 +410,4 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 			blockers.clear();
 		}
 	});
-}
-
-/**
- * Joins one router promise to a synchronously active form, event, or action interaction.
- *
- * The same promise remains the public router result; joining adds settlement ownership only.
- */
-function joinRouterOperation<Result>(operation: Promise<Result>): Promise<Result> {
-	joinTask(operation);
-	return operation;
 }

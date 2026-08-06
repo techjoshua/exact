@@ -17,6 +17,7 @@ export class GestureCallbackDelivery {
 
 	constructor(private readonly report: (error: unknown) => void) {}
 
+	/** Signal aborted when the current gesture session is cancelled or replaced. */
 	get signal(): AbortSignal {
 		return this.#abort.signal;
 	}

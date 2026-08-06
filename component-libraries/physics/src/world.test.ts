@@ -76,17 +76,17 @@ describe('physics world', () => {
 
 	it('detects circle-box and box-box contacts with stable body ordering', () => {
 		const world = createPhysicsWorld({ fixedStep: 0.1, sleep: false });
-		const circle = world.createBody({
+		world.createBody({
 			id: 'circle',
 			position: { x: 1.5, y: 0 },
 			shape: { kind: 'circle', radius: 1 }
 		});
-		const box = world.createBody({
+		world.createBody({
 			id: 'box',
 			type: 'static',
 			shape: { kind: 'box', width: 2, height: 2 }
 		});
-		const otherBox = world.createBody({
+		world.createBody({
 			id: 'other-box',
 			position: { x: 10, y: 0 },
 			shape: { kind: 'box', width: 2, height: 2 }

@@ -72,11 +72,7 @@ export function createReactive(
 				const currentValue = current.get();
 				const currentTarget = unwrap(currentValue);
 				return isReactiveContainer(currentTarget)
-					? createReactive(
-							currentTarget,
-							options,
-							createParentSource(target, key, options)
-						)
+					? createReactive(currentTarget, options, createParentSource(target, key, options))
 					: currentTarget;
 			}
 

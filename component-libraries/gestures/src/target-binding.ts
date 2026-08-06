@@ -33,10 +33,12 @@ export class GestureTargetBinding implements Disposable {
 			this.element.style.touchAction = touchAction ?? this.#touchAction;
 	}
 
+	/** Temporarily disables text selection while a pointer gesture owns the target. */
 	suppressSelection(): void {
 		if (this.element instanceof HTMLElement) this.element.style.userSelect = 'none';
 	}
 
+	/** Restores the target's authored inline text-selection policy after gesture ownership ends. */
 	restoreSelection(): void {
 		if (this.element instanceof HTMLElement) this.element.style.userSelect = this.#userSelect;
 	}

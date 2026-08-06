@@ -31,9 +31,7 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 		await plugin.buildEnd?.call({ emitFile: (asset) => (assets.push(asset), 'asset') }, undefined);
 
 		expect(watched).toContain(path.join(fixture.libraryRoot, 'package.json'));
-		expect(watched).toContain(
-			path.join(fixture.libraryRoot, 'dist', 'exact-component-build.json')
-		);
+		expect(watched).toContain(path.join(fixture.libraryRoot, 'dist', 'exact-component-build.json'));
 		expect(assets.map((asset) => asset.fileName)).toEqual([
 			'.exact/component-library-authorization.json',
 			'.exact/component-library-audit.json'

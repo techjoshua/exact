@@ -55,13 +55,15 @@ export async function prepareExactPluginRegistry(
 	options: PrepareExactPluginRegistryOptions = {}
 ): Promise<ExactPreparedPluginRegistry> {
 	const applicationRoot = resolveApplicationRoot(options);
-	const loaded = options.loadedConfig ?? (options.config
-		? Object.freeze({
-				config: options.config,
-				...(options.configPath ? { configPath: path.resolve(options.configPath) } : {}),
-				watchFiles: Object.freeze(options.configPath ? [path.resolve(options.configPath)] : [])
-			})
-		: await loadExactConfig({ applicationRoot, configPath: options.configPath }));
+	const loaded =
+		options.loadedConfig ??
+		(options.config
+			? Object.freeze({
+					config: options.config,
+					...(options.configPath ? { configPath: path.resolve(options.configPath) } : {}),
+					watchFiles: Object.freeze(options.configPath ? [path.resolve(options.configPath)] : [])
+				})
+			: await loadExactConfig({ applicationRoot, configPath: options.configPath }));
 	const configPath = loaded.configPath;
 	const environment = options.environment ?? process.env.NODE_ENV ?? 'development';
 	const hostMode = options.hostMode ?? 'build';

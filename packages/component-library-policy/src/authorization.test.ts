@@ -551,7 +551,7 @@ function importerFacts(
 			reason: 'render'
 		})),
 		rendererEnhancements: []
-	});
+	} satisfies ExactComponentBuildFacts);
 }
 
 function createSession(

@@ -15,7 +15,7 @@ import {
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
 import path from 'node:path';
-import { ExactViteComponentAuthorization } from './component-authorization.js';
+import type { ExactViteComponentAuthorization } from './component-authorization.js';
 import {
 	inspectionCatalogEnabled,
 	inspectionRuntimeEnabled,

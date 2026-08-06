@@ -66,6 +66,9 @@ import { renderNativeSuspenseSync } from './native-boundaries.js';
 import { activateSsrEnhancements } from './enhancements.js';
 import * as syncComponents from './sync-component.js';
 import { applySsrTargetContributions } from './target-contributions.js';
+import { renderChildren } from './sync-children.js';
+
+export { renderChildren } from './sync-children.js';
 
 const syncComponentOperations = {
 	renderChildren,
@@ -294,34 +297,6 @@ export function* renderChildChunks(
 		claimRootText(context);
 		yield escapeText(String(unwrap(child)));
 	}
-}
-
-/** Transforms children into its required representation. */
-export function renderChildren(
-	context: SsrContext,
-	children: readonly Child[],
-	parent?: ComponentInstance<any>
-): string {
-	const html: string[] = [];
-	let previousWasText = false;
-	for (const child of children) {
-		let rendered: string;
-		if (isVNode(child)) rendered = renderVNode(context, child, parent);
-		else {
-			countSsrNode(context);
-			if (child === null || child === undefined || child === false || child === true) rendered = '';
-			else {
-				claimRootText(context);
-				rendered = escapeText(String(unwrap(child)));
-			}
-		}
-		const isText = !isVNode(child) && rendered !== '';
-		if (context.textSeparators && isText && previousWasText) html.push('<!-- -->');
-		if (rendered !== '') html.push(rendered);
-		if (isVNode(child)) previousWasText = false;
-		else if (isText) previousWasText = true;
-	}
-	return boundedJoin(context, html);
 }
 
 /** Transforms vnode into its required representation. */

@@ -33,7 +33,6 @@ import {
 	injectModuleBootstrap,
 	inspectionCatalogEnabled,
 	inspectionRuntimeEnabled,
-	prependViteDevtoolsRuntimeImport,
 	resolvedExactDevtoolsRuntimeModule,
 	validateViteDebugIdentity
 } from './debug-output.js';

@@ -112,10 +112,12 @@ export function resolveContactPosition(contact: PhysicsContact): void {
 	if (inverseB) moveBody(contact.bodyB, scale(correction, inverseB));
 }
 
+/** Returns solver inverse mass, treating static and kinematic bodies as immovable. */
 export function inverseMass(body: BodyResource): number {
 	return body.type === 'dynamic' ? 1 / body.mass : 0;
 }
 
+/** Mutates a body's reactive world position by one solver correction delta. */
 export function moveBody(body: BodyResource, delta: Vector2): void {
 	body.state.pose.position.x += delta.x;
 	body.state.pose.position.y += delta.y;

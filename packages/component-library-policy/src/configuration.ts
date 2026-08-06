@@ -30,14 +30,18 @@ export function normalizeExactComponentLibraryPolicy(
 	if (config !== undefined) {
 		if (!config || typeof config !== 'object' || Array.isArray(config))
 			throw new Error('componentLibraries must be an object');
-		assertKnownKeys(config, [
-			'mode',
-			'allow',
-			'deny',
-			'trustedScopes',
-			'includeDefaultTrustedScopes',
-			'unauthorizedOptionalEnhancements'
-		], 'componentLibraries');
+		assertKnownKeys(
+			config,
+			[
+				'mode',
+				'allow',
+				'deny',
+				'trustedScopes',
+				'includeDefaultTrustedScopes',
+				'unauthorizedOptionalEnhancements'
+			],
+			'componentLibraries'
+		);
 	}
 	const mode = config?.mode ?? 'trusted';
 	if (!['root', 'trusted', 'all'].includes(mode))

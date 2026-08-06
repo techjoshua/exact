@@ -15,6 +15,7 @@ import {
 } from '@exactjs/react-compat/plugin';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Compiler as WebpackCompiler } from 'webpack';
 import {
 	createWebpackCompilerSession,
 	clearWebpackInspectionModules,
@@ -48,16 +49,13 @@ import {
 } from './published-component-resolver.js';
 import type {
 	WebpackAfterResolveData,
+	WebpackAliasConfiguration,
 	WebpackResolveCallback,
 	WebpackResolveRequest
 } from './resolution-contracts.js';
 import { createExactWebpackRule } from './rule.js';
 export { createExactWebpackRule } from './rule.js';
-export type {
-	WebpackAfterResolveData,
-	WebpackResolveCallback,
-	WebpackResolveRequest
-} from './resolution-contracts.js';
+export type * from './resolution-contracts.js';
 export {
 	addWebpackConditions,
 	addWebpackEnhancementAliases,
@@ -143,7 +141,7 @@ export type WebpackCompilerLike = {
 		watch?: boolean;
 		resolve?: {
 			conditionNames?: string[];
-			alias?: Record<string, string>;
+			alias?: WebpackAliasConfiguration;
 		};
 		module?: {
 			rules?: unknown[];
@@ -214,7 +212,10 @@ export class ExactWebpackPlugin {
 	}
 
 	/** Applies an apply to the owned runtime state for this exact webpack plugin instance. */
-	apply(compiler: WebpackCompilerLike): void {
+	apply(compiler: WebpackCompiler): void;
+	apply(compiler: WebpackCompilerLike): void;
+	apply(input: WebpackCompiler | WebpackCompilerLike): void {
+		const compiler = input as WebpackCompilerLike;
 		let diagnosticsEnabled =
 			this.options.diagnostics ?? Boolean(compiler.watchMode || compiler.options.watch);
 		const owned = createWebpackCompilerSession(diagnosticsEnabled, this.options.onProfile);

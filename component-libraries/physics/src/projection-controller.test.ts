@@ -14,7 +14,13 @@ describe('body projection controller', () => {
 		});
 		const element = document.createElement('div');
 		const controller = new BodyProjectionController(world);
-		controller.configure({ body, element, presented: true, disabled: false, projection: positionAndRotation });
+		controller.configure({
+			body,
+			element,
+			presented: true,
+			disabled: false,
+			projection: positionAndRotation
+		});
 		expect(element.style.translate).toBe('2px 3px');
 		expect(element.style.rotate).toBe('0.5rad');
 		controller[Symbol.dispose]();
@@ -29,7 +35,13 @@ describe('body projection controller', () => {
 		element.style.translate = '10px';
 		const warn = vi.fn();
 		const controller = new BodyProjectionController(world, warn);
-		controller.configure({ body, element, presented: true, disabled: false, projection: positionOnly });
+		controller.configure({
+			body,
+			element,
+			presented: true,
+			disabled: false,
+			projection: positionOnly
+		});
 		expect(element.style.translate).toBe('10px');
 		expect(warn).toHaveBeenCalledOnce();
 	});
@@ -37,7 +49,10 @@ describe('body projection controller', () => {
 	it('filters collision batches to the configured body and rebinds atomically', () => {
 		const world = createPhysicsWorld({ fixedStep: 0.1 });
 		const first = world.createBody({ type: 'static', shape: { kind: 'circle', radius: 2 } });
-		const second = world.createBody({ position: { x: 3, y: 0 }, shape: { kind: 'circle', radius: 2 } });
+		const second = world.createBody({
+			position: { x: 3, y: 0 },
+			shape: { kind: 'circle', radius: 2 }
+		});
 		const listener = vi.fn();
 		const controller = new BodyProjectionController(world);
 		controller.configure({

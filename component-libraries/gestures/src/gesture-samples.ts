@@ -1,6 +1,8 @@
 import type { GestureSample } from './contracts.js';
 
+/** Immutable viewport coordinate used by normalized gesture calculations. */
 export type Point = Readonly<{ x: number; y: number }>;
+/** Mutable session record retaining a pointer's origin and latest observed position. */
 export type PointerRecord = { origin: Point; last: Point; time: number; pointerType: string };
 
 type PointerSampleInput = Readonly<{
@@ -65,6 +67,7 @@ export function createIdleGestureSample(phase: 'start' | 'end', event: Event): G
 	});
 }
 
+/** Freezes a semantic sample and each public coordinate so callbacks cannot mutate session data. */
 export function freezeGestureSample(sample: GestureSample): GestureSample {
 	return Object.freeze({
 		...sample,
@@ -75,18 +78,22 @@ export function freezeGestureSample(sample: GestureSample): GestureSample {
 	});
 }
 
+/** Reads one pointer event as a viewport coordinate, tolerating incomplete test events. */
 export function pointerEventPoint(event: PointerEvent): Point {
 	return { x: event.clientX ?? 0, y: event.clientY ?? 0 };
 }
 
+/** Returns the Euclidean distance between two viewport coordinates. */
 export function pointDistance(first: Point, second: Point): number {
 	return Math.hypot(second.x - first.x, second.y - first.y);
 }
 
+/** Returns the coordinate centered between two pointer positions. */
 export function pointMidpoint(first: Point, second: Point): Point {
 	return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
 }
 
+/** Returns the directed angle in radians from the first coordinate to the second. */
 export function pointAngle(first: Point, second: Point): number {
 	return Math.atan2(second.y - first.y, second.x - first.x);
 }

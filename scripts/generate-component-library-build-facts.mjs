@@ -156,7 +156,8 @@ function normalizeExports(value) {
 
 function exportTargets(value, inheritedCondition = 'default') {
 	if (typeof value === 'string') return [{ condition: inheritedCondition, path: value }];
-	if (Array.isArray(value)) return value.flatMap((entry) => exportTargets(entry, inheritedCondition));
+	if (Array.isArray(value))
+		return value.flatMap((entry) => exportTargets(entry, inheritedCondition));
 	if (!value || typeof value !== 'object') return [];
 	return Object.entries(value).flatMap(([condition, entry]) => exportTargets(entry, condition));
 }
