@@ -21,6 +21,7 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 			continuations: options.continuations,
 			resumptions: options.resumptions,
 			publicContexts: options.publicContexts,
+			h: options.hydrationTable,
 			executionRoot: options.executionRoot,
 			binding: options.binding,
 			buildKey: options.buildKey,

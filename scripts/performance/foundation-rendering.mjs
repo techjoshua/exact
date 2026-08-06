@@ -1,8 +1,10 @@
 import {
 	activateTaskForHost,
+	createCompiledRenderProgram,
 	createVNode,
 	defineTask,
-	exactComponentType
+	exactComponentType,
+	markIndependentAsyncSiblings
 } from '../../packages/core/dist/index.js';
 import { renderToString, renderToStringAsync } from '../../packages/ssr/dist/index.js';
 import {
@@ -44,6 +46,7 @@ export function measureRenderPlan() {
 	const count = 500;
 	const iterations = 20;
 	const vnode = createBenchmarkTree(count);
+	const plannedVNode = createBenchmarkProgram(count, vnode);
 	const expected = renderToString(vnode, { markers: false }).html;
 	const generic = elapsedWithPeakHeap(() => {
 		let output = '';
@@ -53,7 +56,8 @@ export function measureRenderPlan() {
 	});
 	const planned = elapsedWithPeakHeap(() => {
 		let output = '';
-		for (let index = 0; index < iterations; index++) output = renderBenchmarkPlan(count);
+		for (let index = 0; index < iterations; index++)
+			output = renderToString(plannedVNode, { markers: false }).html;
 		return output;
 	});
 	if (generic.value !== expected || planned.value !== expected)
@@ -72,23 +76,37 @@ function createBenchmarkTree(count) {
 	return createVNode(
 		'main',
 		null,
-		createVNode('h1', null, 'Server benchmark'),
-		createVNode(
-			'ul',
-			null,
-			...Array.from({ length: count }, (_, index) =>
-				createVNode('li', { 'data-index': index }, `Row ${index}`)
-			)
-		)
+		...Array.from({ length: count }, (_, index) => createVNode('span', null, `Row ${index}`))
 	);
 }
 
-function renderBenchmarkPlan(count) {
-	const chunks = ['<main><h1>Server benchmark</h1><ul>'];
-	for (let index = 0; index < count; index++)
-		chunks.push(`<li data-index="${index}">Row ${String(index)}</li>`);
-	chunks.push('</ul></main>');
-	return chunks.join('');
+function createBenchmarkProgram(count, fallback) {
+	const template = `<main>${Array.from(
+		{ length: count },
+		(_, index) => `<span>Row ${index}</span>`
+	).join('')}</main>`;
+	return createCompiledRenderProgram(
+		'performance:static-500',
+		() => ({
+			version: 1,
+			id: 'performance:static-500',
+			namespace: 'html',
+			template,
+			parts: [template],
+			slots: [],
+			nodes: [
+				{ id: 'root', path: [], tag: 'main', namespace: 'html' },
+				...Array.from({ length: count }, (_, index) => ({
+					id: `row:${index}`,
+					path: [index],
+					tag: 'span',
+					namespace: 'html'
+				}))
+			]
+		}),
+		[],
+		() => fallback
+	);
 }
 
 /** Compares serial SSR with bounded ordered rendering of independent sibling roots. */
@@ -155,7 +173,18 @@ async function renderIoGroup(siblings, delayMs) {
 }
 
 async function renderIoGroupConcurrently(siblings, delayMs, concurrency) {
-	return renderIndependently(siblings, concurrency, () => createVNode(IoPanel, { delayMs }));
+	return (
+		await renderToStringAsync(
+			markIndependentAsyncSiblings(
+				createVNode(
+					'section',
+					null,
+					...Array.from({ length: siblings }, () => createVNode(IoPanel, { delayMs }))
+				)
+			),
+			{ markers: false, maxAsyncSsrConcurrency: concurrency }
+		)
+	).html;
 }
 
 async function renderCpuGroup(siblings, iterations) {
@@ -172,20 +201,16 @@ async function renderCpuGroup(siblings, iterations) {
 }
 
 async function renderCpuGroupConcurrently(siblings, iterations, concurrency) {
-	return renderIndependently(siblings, concurrency, () => createVNode(CpuPanel, { iterations }));
-}
-
-async function renderIndependently(siblings, concurrency, vnode) {
-	const output = new Array(siblings);
-	let next = 0;
-	await Promise.all(
-		Array.from({ length: Math.min(concurrency, siblings) }, async () => {
-			while (true) {
-				const index = next++;
-				if (index >= siblings) return;
-				output[index] = (await renderToStringAsync(vnode(), { markers: false })).html;
-			}
-		})
-	);
-	return `<section>${output.join('')}</section>`;
+	return (
+		await renderToStringAsync(
+			markIndependentAsyncSiblings(
+				createVNode(
+					'section',
+					null,
+					...Array.from({ length: siblings }, () => createVNode(CpuPanel, { iterations }))
+				)
+			),
+			{ markers: false, maxAsyncSsrConcurrency: concurrency }
+		)
+	).html;
 }

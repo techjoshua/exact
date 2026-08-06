@@ -189,6 +189,21 @@ describe('@exactjs/hydrate remote-registry', () => {
 		expect(client.continuations?.['remote-save']?.stateReads[0]?.path).toBe('project.id');
 	});
 
+	it('normalizes compiler-local empty server fields before idempotent registration', () => {
+		const container = document.createElement('div');
+		const continuation = {
+			...testContinuation('save'),
+			serverContextWrites: []
+		};
+		const client = createExactClient(container, {
+			continuations: { save: continuation }
+		});
+
+		expect(() =>
+			client.registerComponents({ continuations: { save: continuation } })
+		).not.toThrow();
+	});
+
 	it('rejects cyclic continuation registrations without throwing a serialization error', () => {
 		const container = document.createElement('div');
 		const client = createExactClient(container, { endpoint: '/__exact' });

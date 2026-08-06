@@ -2,6 +2,7 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
+	RenderProgram,
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
@@ -11,6 +12,7 @@ import {
 	createComponentInstance,
 	createReadinessCoordinator,
 	getCellVNode,
+	hasIndependentAsyncSiblings,
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
@@ -73,6 +75,8 @@ import {
 } from './logical-children.js';
 import { activateSsrEnhancementsAsync } from './enhancements.js';
 import { applySsrTargetContributionsAsync } from './target-contributions.js';
+import { renderSsrProgram } from './render-program.js';
+import { canRenderIndependentChildren, renderIndependentChildren } from './async-independent.js';
 
 /** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
@@ -136,6 +140,12 @@ export async function renderVNodeAsyncInner(
 		return markerPair(context, markerId(context, 'cell', undefined, vnode.key), async () =>
 			renderVNodeAsync(context, getCellVNode(vnode), parent, options)
 		);
+	}
+	if (vnode.type === RenderProgram) {
+		const planned = renderSsrProgram(context, vnode);
+		return planned.fallback
+			? renderVNodeAsync(context, planned.fallback, parent, options)
+			: planned.html!;
 	}
 
 	if (vnode.type === Text) {
@@ -239,7 +249,16 @@ export async function renderVNodeAsyncInner(
 			if (context.reactMarkup && tag === 'select')
 				context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
-				content = await renderChildrenAsync(context, hostVNode.children, parent, options);
+				content =
+					hasIndependentAsyncSiblings(hostVNode) && canRenderIndependentChildren(context, options)
+						? await renderIndependentChildren(
+								context,
+								hostVNode.children,
+								parent,
+								options,
+								renderChildAsync
+							)
+						: await renderChildrenAsync(context, hostVNode.children, parent, options);
 			} finally {
 				context.reactSelectValue = previousSelect;
 			}

@@ -21,11 +21,14 @@ import (
 
 type jsxRuntimeNames struct {
 	element                string
+	renderProgram          string
 	fragment               string
 	target                 string
 	expression             string
 	dynamic                string
 	boundary               string
+	finiteBoundary         string
+	asyncSiblings          string
 	serverSlot             string
 	keyedServerSlot        string
 	clientProps            string
@@ -66,42 +69,76 @@ type jsxRuntimeNames struct {
 }
 
 type jsxLowering struct {
-	sourceFile           *ast.SourceFile
-	factory              *printer.NodeFactory
-	visitor              *ast.NodeVisitor
-	names                jsxRuntimeNames
-	nodeIDs              map[*ast.Node]string
-	writes               map[string]StateWrite
-	tasks                map[string]Task
-	invokedTasks         map[int]Task
-	functionTasks        map[int]Task
-	taskDefinitions      map[ast.SymbolId]Task
-	taskDefinitionNames  map[string]Task
-	operations           map[string]InvokedTaskOperation
-	stateReads           []StateRead
-	bindings             []ReactiveBinding
-	formBindings         map[int]formBinding
-	componentBindings    map[int]componentBinding
-	checker              *checker.Checker
-	taskHelpers          map[string]string
-	derived              map[int]ReactiveBinding
-	elidedDerived        map[int]ReactiveBinding
-	target               Target
-	serverComponents     bool
-	instrumentInspection bool
-	components           map[string]Component
-	microComponents      map[ast.SymbolId]struct{}
-	renderEdges          map[string]RenderEdge
-	clientIslands        map[*ast.Node]clientElementIsland
-	clientDefinitions    []*ast.Node
-	captureValues        map[ast.SymbolId]string
-	interop              *JSXInterop
-	materializedNames    map[int]string
-	cachedDerivedNames   map[int]string
-	contextWrites        map[string][]string
-	collectionMaps       map[string]collectionMapPlan
-	enhancementImports   enhancementImports
-	partitionPlan        PartitionPlan
+	sourceFile            *ast.SourceFile
+	factory               *printer.NodeFactory
+	visitor               *ast.NodeVisitor
+	names                 jsxRuntimeNames
+	nodeIDs               map[*ast.Node]string
+	writes                map[string]StateWrite
+	tasks                 map[string]Task
+	invokedTasks          map[int]Task
+	functionTasks         map[int]Task
+	taskDefinitions       map[ast.SymbolId]Task
+	taskDefinitionNames   map[string]Task
+	operations            map[string]InvokedTaskOperation
+	stateReads            []StateRead
+	bindings              []ReactiveBinding
+	formBindings          map[int]formBinding
+	componentBindings     map[int]componentBinding
+	checker               *checker.Checker
+	taskHelpers           map[string]string
+	derived               map[int]ReactiveBinding
+	elidedDerived         map[int]ReactiveBinding
+	target                Target
+	serverComponents      bool
+	instrumentInspection  bool
+	components            map[string]Component
+	microComponents       map[ast.SymbolId]struct{}
+	renderEdges           map[string]RenderEdge
+	clientIslands         map[*ast.Node]clientElementIsland
+	clientDefinitions     []*ast.Node
+	captureValues         map[ast.SymbolId]string
+	interop               *JSXInterop
+	materializedNames     map[int]string
+	cachedDerivedNames    map[int]string
+	contextWrites         map[string][]string
+	collectionMaps        map[string]collectionMapPlan
+	enhancementImports    enhancementImports
+	partitionPlan         PartitionPlan
+	renderProgramFallback bool
+}
+
+type renderProgramSlot struct {
+	id         string
+	path       []int
+	expression *ast.Node
+}
+
+type renderProgramNode struct {
+	id   string
+	path []int
+	tag  string
+}
+
+type renderProgramBuild struct {
+	template strings.Builder
+	part     strings.Builder
+	parts    []string
+	slots    []renderProgramSlot
+	nodes    []renderProgramNode
+}
+
+func (build *renderProgramBuild) write(value string) {
+	build.template.WriteString(value)
+	build.part.WriteString(value)
+}
+
+func (build *renderProgramBuild) slot(id string, path []int, expression *ast.Node) {
+	index := len(build.slots)
+	build.template.WriteString(fmt.Sprintf("\ue000exact:%d\ue001", index))
+	build.parts = append(build.parts, build.part.String())
+	build.part.Reset()
+	build.slots = append(build.slots, renderProgramSlot{id: id, path: append([]int(nil), path...), expression: expression})
 }
 
 type collectionMapPlan struct {
@@ -968,6 +1005,11 @@ func (lowering *jsxLowering) lowerOpeningLike(
 			)
 		}
 	}
+	if intrinsic && !lowering.renderProgramFallback {
+		if planned := lowering.lowerRenderProgram(identityNode, opening, children); planned != nil {
+			return planned
+		}
+	}
 	var emittedTag *ast.Node
 	if intrinsic {
 		emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
@@ -977,17 +1019,21 @@ func (lowering *jsxLowering) lowerOpeningLike(
 			emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
 		}
 	}
+	props := lowering.props(
+		opening.Attributes(),
+		lowering.elementID(identityNode),
+		intrinsic,
+		tagText,
+	)
 	arguments := []*ast.Node{
 		emittedTag,
-		lowering.props(
-			opening.Attributes(),
-			lowering.elementID(identityNode),
-			intrinsic,
-			tagText,
-		),
+		props,
 	}
 	arguments = append(arguments, lowering.children(children)...)
 	element := lowering.call(lowering.names.element, arguments)
+	if intrinsic && lowering.independentAsyncSiblings(children) {
+		element = lowering.call(lowering.names.asyncSiblings, []*ast.Node{element})
+	}
 	if !intrinsic && partitionedServerComponent && lowering.target == TargetServer {
 		element = lowering.serverPartitionSlot(opening, partitionEdge, element)
 	}
@@ -1000,6 +1046,215 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		}
 	}
 	return element
+}
+
+func (lowering *jsxLowering) independentAsyncSiblings(children *ast.NodeList) bool {
+	if children == nil || lowering.target == TargetClient {
+		return false
+	}
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	if len(semantic) < 2 {
+		return false
+	}
+	for _, child := range semantic {
+		var tag *ast.Node
+		switch {
+		case ast.IsJsxElement(child):
+			tag = child.AsJsxElement().OpeningElement.AsJsxOpeningElement().TagName
+		case ast.IsJsxSelfClosingElement(child):
+			tag = child.AsJsxSelfClosingElement().TagName
+		default:
+			return false
+		}
+		if !ast.IsIdentifier(tag) {
+			return false
+		}
+		component, exists := lowering.components[tag.Text()]
+		if !exists || component.Placement == "client" || component.EnvironmentEffect != "neutral" ||
+			len(component.Contexts) != 0 || len(component.EnhancementContexts.Provides) != 0 ||
+			len(component.EnhancementContexts.Requires) != 0 ||
+			len(component.EnhancementContexts.OptionallyConsumes) != 0 || len(component.SplitBoundaries) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// lowerRenderProgram emits the first deliberately conservative planned subset:
+// intrinsic HTML trees with no authored attributes and with scalar expression
+// children occupying their own text node. Unsupported regions remain generic.
+func (lowering *jsxLowering) lowerRenderProgram(
+	identityNode *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+) *ast.Node {
+	build := &renderProgramBuild{}
+	if !lowering.appendRenderProgramElement(build, identityNode, opening, children, nil) {
+		return nil
+	}
+	build.parts = append(build.parts, build.part.String())
+	programID := exactStableID(
+		lowering.sourceFile.FileName(),
+		"render-program",
+		lowering.nodeIDs[identityNode],
+	)
+	programCacheKey := exactStableID(programID, sourceText(lowering.sourceFile, identityNode))
+	program := lowering.renderProgramLiteral(programID, build)
+	readers := make([]*ast.Node, len(build.slots))
+	for index, slot := range build.slots {
+		readers[index] = lowering.arrow(lowering.visitor.VisitNode(slot.expression))
+	}
+	lowering.renderProgramFallback = true
+	fallback := lowering.lowerOpeningLike(identityNode, opening, children)
+	lowering.renderProgramFallback = false
+	return lowering.call(lowering.names.renderProgram, []*ast.Node{
+		lowering.factory.NewStringLiteral(programCacheKey, ast.TokenFlagsNone),
+		lowering.arrow(program),
+		lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false),
+		lowering.arrow(fallback),
+	})
+}
+
+func (lowering *jsxLowering) appendRenderProgramElement(
+	build *renderProgramBuild,
+	identityNode *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+	path []int,
+) bool {
+	tag := sourceText(lowering.sourceFile, openingTag(opening))
+	if !jsxIntrinsic(tag) || unsupportedPlannedHost(tag) ||
+		hasJSXAttributes(opening.Attributes()) {
+		return false
+	}
+	build.nodes = append(build.nodes, renderProgramNode{
+		id: lowering.elementID(identityNode), path: append([]int(nil), path...), tag: tag,
+	})
+	build.write("<" + tag + ` data-exact-id="` + html.EscapeString(lowering.elementID(identityNode)) + `">`)
+	domIndex := 0
+	semantic := ast.GetSemanticJsxChildren(nil)
+	if children != nil {
+		semantic = ast.GetSemanticJsxChildren(children.Nodes)
+	}
+	for _, child := range semantic {
+		childPath := append(append([]int(nil), path...), domIndex)
+		switch {
+		case ast.IsJsxText(child):
+			text := normalizeJSXText(child.AsJsxText().Text)
+			if text == "" {
+				continue
+			}
+			build.write(html.EscapeString(text))
+			domIndex++
+		case ast.IsJsxExpression(child):
+			expression := child.AsJsxExpression().Expression
+			if expression == nil {
+				continue
+			}
+			// Adjacent text would be coalesced by HTML parsing and cannot retain an
+			// independently addressable reactive slot without extra marker nodes.
+			if domIndex != 0 || len(semantic) != 1 ||
+				expression.SubtreeFacts()&ast.SubtreeContainsJsx != 0 ||
+				!lowering.scalarRenderProgramExpression(expression) {
+				return false
+			}
+			build.slot(lowering.dynamicID(child), childPath, expression)
+			domIndex++
+		case ast.IsJsxElement(child):
+			element := child.AsJsxElement()
+			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath) {
+				return false
+			}
+			domIndex++
+		case ast.IsJsxSelfClosingElement(child):
+			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath) {
+				return false
+			}
+			domIndex++
+		default:
+			return false
+		}
+	}
+	build.write("</" + tag + ">")
+	return true
+}
+
+func (lowering *jsxLowering) scalarRenderProgramExpression(expression *ast.Node) bool {
+	// Type queries are valid only for nodes from the bound source tree. Reactive
+	// lowering can revisit synthetic expressions whose parent chain is incomplete.
+	for current := expression; current != nil; current = current.Parent {
+		if current == lowering.sourceFile.AsNode() {
+			return scalarDerivedType(lowering.checker.GetTypeAtLocation(expression))
+		}
+	}
+	return false
+}
+
+func hasJSXAttributes(attributes *ast.Node) bool {
+	return attributes != nil && len(attributes.AsJsxAttributes().Properties.Nodes) != 0
+}
+
+func voidElement(tag string) bool {
+	switch tag {
+	case "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr":
+		return true
+	}
+	return false
+}
+
+func unsupportedPlannedHost(tag string) bool {
+	if voidElement(tag) {
+		return true
+	}
+	switch tag {
+	case "html", "head", "body", "select", "option", "textarea", "script", "style", "title", "template", "svg", "math":
+		return true
+	}
+	return false
+}
+
+func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgramBuild) *ast.Node {
+	property := func(name string, value *ast.Node) *ast.Node {
+		return lowering.property(lowering.factory.NewIdentifier(name), value)
+	}
+	array := func(values []*ast.Node) *ast.Node {
+		return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
+	}
+	path := func(values []int) *ast.Node {
+		items := make([]*ast.Node, len(values))
+		for index, value := range values {
+			items[index] = lowering.factory.NewNumericLiteral(strconv.Itoa(value), ast.TokenFlagsNone)
+		}
+		return array(items)
+	}
+	parts := make([]*ast.Node, len(build.parts))
+	for index, value := range build.parts {
+		parts[index] = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)
+	}
+	slots := make([]*ast.Node, len(build.slots))
+	for index, slot := range build.slots {
+		slots[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+			property("id", lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone)),
+			property("kind", lowering.factory.NewStringLiteral("text", ast.TokenFlagsNone)),
+			property("path", path(slot.path)),
+		}), false)
+	}
+	nodes := make([]*ast.Node, len(build.nodes))
+	for index, node := range build.nodes {
+		nodes[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+			property("id", lowering.factory.NewStringLiteral(node.id, ast.TokenFlagsNone)),
+			property("path", path(node.path)),
+			property("tag", lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone)),
+			property("namespace", lowering.factory.NewStringLiteral("html", ast.TokenFlagsNone)),
+		}), false)
+	}
+	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+		property("version", lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone)),
+		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
+		property("namespace", lowering.factory.NewStringLiteral("html", ast.TokenFlagsNone)),
+		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
+		property("parts", array(parts)), property("slots", array(slots)), property("nodes", array(nodes)),
+	}), false)
 }
 
 func (lowering *jsxLowering) serverPartitionRangeEdge(start int) (PartitionPlanEdge, bool) {
@@ -1186,6 +1441,7 @@ func (lowering *jsxLowering) clientComponentBoundary(
 		"",
 		false,
 	)
+	finite := finiteJSXAttributes(opening.Attributes())
 	childrenValue, serverSlot := lowering.clientBoundaryChildren(children)
 	if childrenValue != nil {
 		props = lowering.appendObjectProperty(props, "children", childrenValue)
@@ -1219,7 +1475,23 @@ func (lowering *jsxLowering) clientComponentBoundary(
 	if serverSlot {
 		arguments = append(arguments, lowering.children(children)...)
 	}
-	return lowering.call(lowering.names.boundary, arguments)
+	boundary := lowering.call(lowering.names.boundary, arguments)
+	if finite {
+		return lowering.call(lowering.names.finiteBoundary, []*ast.Node{boundary})
+	}
+	return boundary
+}
+
+func finiteJSXAttributes(attributes *ast.Node) bool {
+	if attributes == nil {
+		return true
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxSpreadAttribute(property) {
+			return false
+		}
+	}
+	return true
 }
 
 func (lowering *jsxLowering) partitionSlotReference(edgeID string) *ast.Node {
@@ -6042,11 +6314,14 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		local    string
 	}{
 		{"createCompiledVNode", lowering.names.element},
+		{"createCompiledRenderProgram", lowering.names.renderProgram},
 		{"createCompiledFragment", lowering.names.fragment},
 		{"createCompiledTarget", lowering.names.target},
 		{"createExpression", lowering.names.expression},
 		{"createDynamicChild", lowering.names.dynamic},
 		{"createServerBoundary", lowering.names.boundary},
+		{"markFiniteClientBoundary", lowering.names.finiteBoundary},
+		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings},
 		{"createServerSlot", lowering.names.serverSlot},
 		{"createKeyedServerSlot", lowering.names.keyedServerSlot},
 		{"createDerived", lowering.names.derived},
@@ -6220,11 +6495,14 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	}
 	return jsxRuntimeNames{
 		element:                allocate("__exactVNode"),
+		renderProgram:          allocate("__exactRenderProgram"),
 		fragment:               allocate("__exactFragment"),
 		target:                 allocate("__exactTarget"),
 		expression:             allocate("__exactExpression"),
 		dynamic:                allocate("__exactDynamic"),
 		boundary:               allocate("__exactBoundary"),
+		finiteBoundary:         allocate("__exactFiniteBoundary"),
+		asyncSiblings:          allocate("__exactAsyncSiblings"),
 		serverSlot:             allocate("__exactServerSlot"),
 		keyedServerSlot:        allocate("__exactKeyedServerSlot"),
 		clientProps:            allocate("__exactElementProps"),

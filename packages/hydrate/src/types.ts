@@ -50,6 +50,8 @@ export type HydrateOptions = {
 	resumptions?: readonly ComponentResumptionActivation[];
 	/** Shared context projections available for compiler-selected operations. */
 	publicContexts?: Record<string, unknown>;
+	/** Validated response-local compiler-finite boundary table. */
+	hydrationTable?: ExactHydrationTable;
 	islands?: ClientIslandRegistry;
 	batch?: boolean;
 	stream?: boolean;
@@ -147,11 +149,22 @@ export type ExactHydrationConfig = {
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
+	hydrationTable?: ExactHydrationTable;
 	executionRoot?: string;
 	binding?: string;
 	buildKey?: string;
 	componentAuthorization?: ExactComponentAuthorizationIdentity;
 };
+
+/** Internal grouped boundary table. Coordinates are local to its containing root. */
+export type ExactHydrationTable = readonly [
+	version: 1,
+	groups: readonly (readonly [
+		componentName: string,
+		propNames: readonly string[],
+		rows: readonly (readonly [boundaryId: string, ...values: unknown[]])[]
+	])[]
+];
 
 /** Compact serialized continuation accepted at the hydration boundary. */
 export type ExactSerializedContinuationContract = Omit<

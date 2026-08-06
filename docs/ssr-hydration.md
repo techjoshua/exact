@@ -30,6 +30,17 @@ Root-document mode accepts authored `html`, `head`, and `body` and inserts
 framework-owned hydration or progressive-stream nodes into reserved positions.
 Rendering applies output-size, task-pass, and task-duration limits.
 
+The native compiler emits branded render programs for the first conservative fast-path subset:
+attribute-free intrinsic HTML regions with static structure and independently addressable scalar
+text expressions. Markerless SSR writes their escaped parts directly, client mounting clones a
+cached inert template, and markerless hydration adopts them with compiler paths. Unsupported slot
+shapes and host semantics use the lazy region-local VNode fallback.
+
+Async SSR uses a request-owned FIFO scheduler for compiler-proven local, neutral, context-free
+component sibling groups. `maxAsyncSsrConcurrency` defaults to 4, accepts 1 for serial execution,
+and is capped at 32. Child frames isolate renderer state and merge in authored order. Marker-bearing,
+document, inspection, React-compatible, nested-frame, and unproven groups remain serial.
+
 ## Hydration
 
 Hydration adopts matching server nodes rather than recreating them. It
@@ -43,6 +54,18 @@ or public-context values, where an empty collection remains meaningful applicati
 Applications whose client entry imports a generated hydration registration should set
 `includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
 same continuation contracts.
+When a lazy island later exposes the same compiler contract, hydration canonicalizes omitted empty
+client fields before comparison. Equivalent repeat registration is idempotent; a materially
+different contract with the same continuation identity remains an error.
+
+Compiler-finite client boundaries are grouped once per response by component name and canonical
+prop schema. Each boundary carries a compact table coordinate instead of repeating its component
+name and serialized props; opaque spreads retain the self-describing representation. Hydration
+validates the table, row arity, coordinate, and boundary identity before constructing props.
+
+Progressive inline streams install one root-confined replacement helper on the first reveal and
+emit small ordered calls afterward. `progressiveMode: 'inert'` continues to emit non-executable
+template payloads. The helper refuses hydrated or foreign roots.
 
 Component resumption records authorize state restoration only when the DOM
 renderer has matched an SSR component marker and is constructing that exact
@@ -116,12 +139,14 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
-- [Compiler-owned render programs](proposals/compiler-owned-render-programs.md) for direct SSR,
-  template mounting, and compiled adoption over shared slot identities.
-- [Bounded deterministic async SSR](proposals/bounded-deterministic-async-ssr.md) for ordered
-  request-owned concurrency of compiler-proven independent siblings.
-- [Compact hydration and progressive publication](proposals/compact-hydration-publication.md) for
-  schema-grouped boundary rows and one response-local reveal helper.
+- [Compiler-owned render programs](proposals/compiler-owned-render-programs.md) must expand the
+  initial scalar subset to finite attributes, styles, URLs, forms, events, refs, namespaces,
+  inspection, and bounded enhancement targets.
+- [Bounded deterministic async SSR](proposals/bounded-deterministic-async-ssr.md) still needs
+  marker-range reservation, broader compiler proofs, adapter projection, and its full gates.
+- [Compact hydration and progressive publication](proposals/compact-hydration-publication.md)
+  still needs complete compiled adoption, independent-fragment fallbacks, atomic helper ownership,
+  adapter projection, and its remaining byte/corruption/browser gates.
 - [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md) for
   additional proven patch forms.
 - [Broader lazy-island classification](proposals/lazy-interaction-islands.md) where source remains

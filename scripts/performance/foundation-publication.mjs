@@ -1,8 +1,18 @@
 import { JSDOM } from 'jsdom';
-import { scopedReplacementScript } from '../../packages/ssr/dist/stream/protocol.js';
+import {
+	Fragment,
+	createServerBoundary,
+	createVNode,
+	markFiniteClientBoundary
+} from '../../packages/core/dist/index.js';
+import { renderToHydratableString } from '../../packages/ssr/dist/index.js';
+import {
+	progressiveHtmlChunk,
+	scopedReplacementScript
+} from '../../packages/ssr/dist/stream/protocol.js';
 import { elapsed, payloadBytes } from './foundation-measurement.mjs';
 
-/** Compares self-describing hydration and inline reveals with compact publication candidates. */
+/** Compares the production self-describing and compact hydration publication paths. */
 export function measureHydrationPublication() {
 	const count = 200;
 	const records = Array.from({ length: count }, (_, index) => ({
@@ -10,44 +20,30 @@ export function measureHydrationPublication() {
 		name: index % 2 ? 'EditableRow' : 'SelectableRow',
 		props: { index, label: `Parcel ${index}`, selected: index % 3 === 0 }
 	}));
-	const attributed = records
-		.map(
-			(record) =>
-				`<div data-exact-client-boundary="${record.id}" data-exact-client-name="${record.name}" data-exact-client-props="${escapeAttribute(JSON.stringify({ props: record.props }))}"><span>${record.props.label}</span></div>`
-		)
-		.join('');
-	const compactGroups = ['SelectableRow', 'EditableRow'].map((name) => {
-		const entries = records.filter((record) => record.name === name);
-		return [
-			name,
-			['index', 'label', 'selected'],
-			entries.map((record) => [
-				record.id,
-				record.props.index,
-				record.props.label,
-				record.props.selected
-			])
-		];
-	});
-	const groupIndexes = new Map(compactGroups.map((group, index) => [group[0], index]));
-	const groupRows = new Map();
-	const indexed = `${records
-		.map((record) => {
-			const row = groupRows.get(record.name) ?? 0;
-			groupRows.set(record.name, row + 1);
-			return `<div data-exact-client="${groupIndexes.get(record.name)}.${row}"><span>${record.props.label}</span></div>`;
-		})
-		.join(
-			''
-		)}<script type="application/json" id="__exact_islands">${jsonForScript(compactGroups)}</script>`;
+	const attributed = renderBoundaries(records, false);
+	const indexed = renderBoundaries(records, true);
 	const attributedParse = elapsed(() => parseAttributedBoundaries(attributed));
 	const indexedParse = elapsed(() => parseIndexedBoundaries(indexed));
 	if (attributedParse.value.length !== count || indexedParse.value.length !== count)
-		throw new Error('hydration publication prototype lost a boundary record');
+		throw new Error('hydration publication lost a boundary record');
 	const progressive = progressivePayloads(32);
+	const applicationPayload = JSON.stringify(records);
+	const attributedFramework = `${'<div data-exact-client-boundary="" data-exact-client-name="" data-exact-client-props=""></div>'.repeat(count)}<script type="application/json" id="__exact_hydration">{}</script>`;
+	const indexedCoordinates = records
+		.map(
+			(_record, index) =>
+				`<div data-xh="${(index % 2).toString(36)}.${Math.floor(index / 2).toString(36)}"></div>`
+		)
+		.join('');
+	const indexedFramework = `${indexedCoordinates}<script type="application/json" id="__exact_hydration">{"h":[1,[]]}</script>`;
 	const inlineExecution = elapsed(() => executeProgressivePayload(progressive.inline, 32));
 	const sharedExecution = elapsed(() => executeProgressivePayload(progressive.shared, 32));
 	return {
+		...payloadBytes('applicationPayload', applicationPayload),
+		...payloadBytes('attributedFramework', attributedFramework),
+		...payloadBytes('indexedFramework', indexedFramework),
+		// Whole-response sizes remain transport counter-metrics. They deliberately
+		// include application IDs, schemas, and values and are not framework cost.
 		...payloadBytes('attributed', attributed),
 		...payloadBytes('indexed', indexed),
 		attributedParseMs: attributedParse.duration,
@@ -70,16 +66,26 @@ function parseAttributedBoundaries(html) {
 
 function parseIndexedBoundaries(html) {
 	const document = new JSDOM(`<body>${html}</body>`).window.document;
-	const groups = JSON.parse(document.getElementById('__exact_islands').textContent);
-	return [...document.querySelectorAll('[data-exact-client]')].map((boundary) => {
+	const groups = JSON.parse(document.getElementById('__exact_hydration').textContent).h[1];
+	return [...document.querySelectorAll('[data-xh]')].map((boundary) => {
 		const [groupIndex, rowIndex] = boundary
-			.getAttribute('data-exact-client')
+			.getAttribute('data-xh')
 			.split('.')
-			.map(Number);
+			.map((value) => Number.parseInt(value, 36));
 		const [name, keys, rows] = groups[groupIndex];
 		const [id, ...values] = rows[rowIndex];
 		return { id, name, props: Object.fromEntries(keys.map((key, index) => [key, values[index]])) };
 	});
+}
+
+function renderBoundaries(records, compact) {
+	const boundaries = records.map((record) => {
+		const vnode = createServerBoundary(record.id, record.name, record.props);
+		return compact ? markFiniteClientBoundary(vnode) : vnode;
+	});
+	return renderToHydratableString(createVNode(Fragment, null, ...boundaries), {
+		markers: false
+	}).htmlWithHydration;
 }
 
 function progressivePayloads(count) {
@@ -88,12 +94,24 @@ function progressivePayloads(count) {
 			rootId: 'exact-root'
 		})
 	).join('');
-	const helper = `<script>globalThis.__exactReplace=function(i,h){var r=document.getElementById("exact-root");if(r&&r.getAttribute("data-exact-hydrated")!=="true"){var e=document.getElementById(i),t=document.createElement("template");t.innerHTML=h;if(e&&(e===r||r.contains(e)))e.replaceChildren(t.content);else{var w=document.createTreeWalker(r,128),s=null,n;while(n=w.nextNode())if(n.data==="exact:"+i){s=n;break}if(s){var p=s.parentNode,x=s;while(x&&!(x.nodeType===8&&x.data==="/exact:"+i))x=x.nextSibling;if(x){var a=x.nextSibling;p.insertBefore(t.content,s);while(s!==a){var q=s.nextSibling;p.removeChild(s);s=q}}}}}}</script>`;
-	const shared = `${helper}${Array.from(
-		{ length: count },
-		(_, index) =>
-			`<script>__exactReplace(${JSON.stringify(`boundary-${index}`)},${JSON.stringify(`<p>Resolved ${index}</p>`)})</script>`
-	).join('')}`;
+	const state = {};
+	progressiveHtmlChunk(
+		{ event: 'shell', version: 1, html: '<p>shell</p>' },
+		{ rootId: 'exact-root' },
+		state
+	);
+	const shared = Array.from({ length: count }, (_, index) =>
+		progressiveHtmlChunk(
+			{
+				event: 'replace',
+				version: 1,
+				id: `boundary-${index}`,
+				html: `<p>Resolved ${index}</p>`
+			},
+			{ rootId: 'exact-root' },
+			state
+		)
+	).join('');
 	return { inline, shared };
 }
 
@@ -106,21 +124,6 @@ function executeProgressivePayload(payload, count) {
 		runScripts: 'dangerously'
 	});
 	if (dom.window.document.querySelectorAll('#exact-root p').length !== count)
-		throw new Error('progressive publication prototype lost a replacement');
+		throw new Error('progressive publication lost a replacement');
 	dom.window.close();
-}
-
-function escapeAttribute(value) {
-	return value
-		.replace(/&/g, '&amp;')
-		.replace(/"/g, '&quot;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
-}
-
-function jsonForScript(value) {
-	return JSON.stringify(value)
-		.replace(/</g, '\\u003C')
-		.replace(/\u2028/g, '\\u2028')
-		.replace(/\u2029/g, '\\u2029');
 }

@@ -10,6 +10,7 @@ import {
 	normalizeActivityMode,
 	normalizeRenderResult,
 	Portal,
+	RenderProgram,
 	reparentComponentInstance,
 	renderInstance,
 	ServerSlot,
@@ -55,6 +56,7 @@ import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import { activateEnhancementSubtree } from '../enhancements.js';
+import { fallbackRenderProgram, mountRenderProgram } from '../render-program.js';
 import {
 	mountChildren,
 	mountDetachedChildren,
@@ -148,6 +150,13 @@ export function mountInner(
 			parentNode
 		);
 		return mounted;
+	}
+
+	if (vnode.type === RenderProgram) {
+		return (
+			mountRenderProgram(root, vnode, scope, parentInstance) ??
+			mountInner(root, fallbackRenderProgram(vnode), scope, parentInstance, parentNode)
+		);
 	}
 
 	if (vnode.type === Text) {

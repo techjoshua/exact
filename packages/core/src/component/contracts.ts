@@ -13,6 +13,7 @@ import type {
 	Dynamic,
 	Fragment,
 	Portal,
+	RenderProgram,
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
@@ -30,6 +31,7 @@ export type VNodeType =
 	| typeof Cell
 	| typeof Dynamic
 	| typeof Portal
+	| typeof RenderProgram
 	| typeof ServerBoundary
 	| typeof ServerSlot
 	| typeof Suspense

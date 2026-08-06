@@ -6,6 +6,7 @@ import {
 	normalizeDocumentVNode,
 	normalizeRenderResult,
 	Portal,
+	RenderProgram,
 	ServerSlot,
 	Suspense,
 	Target,
@@ -46,6 +47,7 @@ import { releaseMountedRange, takeReversedRelease } from '../retained-release.js
 import { patchEnhancementBoundary } from '../enhancements.js';
 import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
 import { parkForeignMounts } from './replacement-parking.js';
+import { fallbackRenderProgram, patchRenderProgram } from '../render-program.js';
 
 /** Performs the patch domain operation. */
 export function patch(
@@ -185,6 +187,11 @@ export function patchInner(
 			placeMountedBefore(root, parent, child, mounted.dom.nextSibling);
 		}
 		return mounted;
+	}
+
+	if (next.type === RenderProgram) {
+		if (patchRenderProgram(mounted, next)) return mounted;
+		return patch(root, parent, mounted, fallbackRenderProgram(next), parentInstance, parentScope);
 	}
 
 	if (next.type === Text) {

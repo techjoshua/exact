@@ -51,7 +51,7 @@ export function hydrateClientIslands(
 			(node) => {
 				if (
 					node instanceof Element &&
-					node.hasAttribute('data-exact-client-boundary') &&
+					(node.hasAttribute('data-exact-client-boundary') || node.hasAttribute('data-xh')) &&
 					!attempted.has(node)
 				)
 					boundaries.push(node);
@@ -68,7 +68,7 @@ export function hydrateClientIslands(
 			attempted.has(boundary)
 		)
 			continue;
-		const parent = boundary.parentElement?.closest('[data-exact-client-boundary]');
+		const parent = boundary.parentElement?.closest('[data-exact-client-boundary], [data-xh]');
 		if (parent && parent.getAttribute('data-exact-client-hydrated') !== 'true') continue;
 		if (shouldDeferIsland(boundary, options)) {
 			dormant = true;
@@ -123,7 +123,7 @@ function hydrateIslandChain(
 	domain: ReturnType<typeof createComponentDomain>,
 	activationEvent?: Event
 ): boolean | Promise<boolean> {
-	const parent = boundary.parentElement?.closest('[data-exact-client-boundary]');
+	const parent = boundary.parentElement?.closest('[data-exact-client-boundary], [data-xh]');
 	if (parent && parent.getAttribute('data-exact-client-hydrated') !== 'true') {
 		const parentResult = hydrateIslandChain(parent, registry, options, work, domain);
 		if (parentResult instanceof Promise)
@@ -146,7 +146,8 @@ function hydrateIslandBoundary(
 	activationEvent?: Event
 ): boolean | Promise<boolean> {
 	if (boundary.getAttribute('data-exact-client-hydrated') === 'true') return true;
-	const name = boundary.getAttribute('data-exact-client-name');
+	const compact = compactBoundaryProps(boundary, options);
+	const name = boundary.getAttribute('data-exact-client-name') ?? compact?.name ?? null;
 	if (!name) return false;
 	const entry = registry[name];
 	if (!entry) {
@@ -160,6 +161,8 @@ function hydrateIslandBoundary(
 		);
 		return false;
 	}
+	if (compact && !boundary.hasAttribute('data-exact-client-boundary'))
+		boundary.setAttribute('data-exact-client-boundary', compact.id);
 	if (isClientIslandLoader(entry))
 		return loadClientIsland(entry, options).then((component) => {
 			registry[name] = component;
@@ -179,11 +182,9 @@ function mountIslandBoundary(
 	activationEvent?: Event
 ): boolean {
 	if (boundary.getAttribute('data-exact-client-hydrated') === 'true') return true;
-	const props = parseIslandProps(
-		boundary.getAttribute('data-exact-client-props'),
-		options,
-		boundary
-	);
+	const props =
+		compactBoundaryProps(boundary, options)?.props ??
+		parseIslandProps(boundary.getAttribute('data-exact-client-props'), options, boundary);
 	const vnode = withComponentDomain(domain, () => createVNode(component, props));
 	const remaining = work.limit - work.used;
 	if (remaining <= 0) consumeDomWork(work);
@@ -236,6 +237,32 @@ function mountIslandBoundary(
 		})
 	);
 	return true;
+}
+
+function compactBoundaryProps(
+	boundary: Element,
+	options: HydrateOptions
+):
+	| { readonly id: string; readonly name: string; readonly props: Record<string, unknown> }
+	| undefined {
+	const coordinate = boundary.getAttribute('data-xh');
+	const match = coordinate?.match(/^([0-9a-z]+)\.([0-9a-z]+)$/);
+	const table = options.hydrationTable;
+	if (!match || !table || table[0] !== 1) return undefined;
+	const group = table[1][Number.parseInt(match[1]!, 36)];
+	const row = group?.[2][Number.parseInt(match[2]!, 36)];
+	if (!group || !row) return undefined;
+	const authoredId = boundary.getAttribute('data-exact-client-boundary');
+	if (authoredId !== null && row[0] !== authoredId) return undefined;
+	const names = group[1];
+	if (row.length !== names.length + 1) return undefined;
+	const props: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+	for (let index = 0; index < names.length; index++) props[names[index]!] = row[index + 1];
+	return {
+		id: row[0],
+		name: group[0],
+		props: revivePartitionServerSlots(props, options, boundary) as Record<string, unknown>
+	};
 }
 
 function shouldDeferIsland(boundary: Element, options: HydrateOptions): boolean {

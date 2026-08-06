@@ -52,6 +52,8 @@ export function progressiveHtmlResponse(
 export type ProgressiveDocumentState = {
 	html?: string;
 	hydration?: string;
+	replacementHelper?: string;
+	helperEmitted?: boolean;
 };
 
 /** Encodes one progressive HTML payload with the protocol framing expected by hydration. */
@@ -75,7 +77,7 @@ export function progressiveHtmlChunk(
 				document.html = event.html;
 				return '';
 			}
-			return scopedReplacementScript(event.id, event.html, options);
+			return scopedReplacementScript(event.id, event.html, options, document);
 		case 'hydration':
 			if (document.html !== undefined) {
 				document.hydration = event.html;
@@ -130,7 +132,8 @@ export function progressiveErrorScript(
 export function scopedReplacementScript(
 	id: string,
 	html: string,
-	options: RenderToProgressiveHtmlStreamOptions
+	options: RenderToProgressiveHtmlStreamOptions,
+	documentState?: ProgressiveDocumentState
 ): string {
 	if (options.progressiveMode === 'inert') {
 		const payload = JSON.stringify({ version: 1, operation: 'replace', id, html });
@@ -139,10 +142,30 @@ export function scopedReplacementScript(
 	const rootId = inlineJsonString(progressiveRootId(options));
 	const targetId = inlineJsonString(id);
 	const content = inlineJsonString(html);
+	if (documentState) {
+		const helper = (documentState.replacementHelper ??= progressiveHelperName(
+			progressiveRootId(options)
+		));
+		const reference = helper;
+		const call = `${reference}(${targetId},${content});`;
+		if (documentState.helperEmitted) return inlineScript(call, options);
+		documentState.helperEmitted = true;
+		const install = `globalThis.${reference}=function(i,h){var r=document.getElementById(${rootId});if(!r||r.getAttribute("data-exact-hydrated")==="true"){delete globalThis.${reference};return}var e=document.getElementById(i),t=document.createElement("template");t.innerHTML=h;if(e&&(e===r||r.contains(e)))e.replaceChildren(t.content);else{var w=document.createTreeWalker(r,128),s=null,n;while(n=w.nextNode())if(n.data==="exact:"+i){s=n;break}if(s){var p=s.parentNode,x=s;while(x&&!(x.nodeType===8&&x.data==="/exact:"+i))x=x.nextSibling;if(x){var a=x.nextSibling;p.insertBefore(t.content,s);while(s!==a){var q=s.nextSibling;p.removeChild(s);s=q}}}}};`;
+		return inlineScript(install + call, options);
+	}
 	return inlineScript(
 		`var r=document.getElementById(${rootId});if(r&&r.getAttribute("data-exact-hydrated")!=="true"){var i=${targetId},e=document.getElementById(i),t=document.createElement("template");t.innerHTML=${content};if(e&&(e===r||r.contains(e)))e.replaceChildren(t.content);else{var w=document.createTreeWalker(r,128),s=null,n;while(n=w.nextNode())if(n.data==="exact:"+i){s=n;break}if(s){var p=s.parentNode,x=s;while(x&&!(x.nodeType===8&&x.data==="/exact:"+i))x=x.nextSibling;if(x){var a=x.nextSibling;p.insertBefore(t.content,s);while(s!==a){var q=s.nextSibling;p.removeChild(s);s=q}}}}}`,
 		options
 	);
+}
+
+function progressiveHelperName(rootId: string): string {
+	let hash = 2166136261;
+	for (let index = 0; index < rootId.length; index++) {
+		hash ^= rootId.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+	return `__xR${(hash >>> 0).toString(36)}`;
 }
 
 /** Performs the inline script domain operation. */

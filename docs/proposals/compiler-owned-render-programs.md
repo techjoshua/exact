@@ -2,7 +2,13 @@
 
 ## Status
 
-Implementation-ready. This proposal implements the accepted render-plan experiment in
+In implementation. The compiler-owned brand, one-time lazy program construction, lazy region fallback, direct markerless SSR writer,
+cached-template DOM mount, and markerless adoption cursor are implemented for attribute-free HTML
+regions containing static structure or one independently addressable scalar text child. Finite
+host props, namespaces, forms, events, refs, inspection, enhancements, marker-aware direct writing,
+and the full measurement gates remain.
+
+This proposal implements the accepted render-plan experiment in
 [`javascript-performance-improvements.md`](javascript-performance-improvements.md). It follows the
 delivered component, enhancement, binding, partition, and component-library trust contracts. It
 must land before bounded async SSR, compact hydration publication, lazy interaction islands,
@@ -31,6 +37,7 @@ type ExactRenderProgram = Readonly<{
 	id: string;
 	namespace: 'html' | 'svg' | 'mathml';
 	template: string;
+	parts: readonly string[];
 	slots: readonly ExactRenderSlot[];
 	nodes: readonly ExactRenderNode[];
 }>;
@@ -40,7 +47,6 @@ type ExactRenderSlot = Readonly<{
 	kind: 'text' | 'property' | 'attribute' | 'style' | 'class' | 'url';
 	path: readonly number[];
 	name?: string;
-	read: () => unknown;
 }>;
 
 type ExactRenderNode = Readonly<{
@@ -55,8 +61,11 @@ These names describe compiler/runtime ownership, not stable exported TypeScript 
 artifacts may encode paths and kinds as compact tuples after semantic tests prove equivalence.
 Rich source ranges and explanations remain in inspection artifacts, never in client programs.
 
-The compiler emits a branded planned result containing the immutable program, the current slot
-readers, and a lazy fallback function. It does not eagerly construct the fallback VNode tree.
+The compiler emits a branded planned result containing a stable semantic program identity, a
+source-revision cache key, a lazy factory that constructs the immutable program once per revision,
+the current invocation's slot readers, and a lazy fallback function. It does not allocate another
+program descriptor or eagerly construct the fallback VNode tree for each component instance, and
+HMR cannot reuse a stale descriptor after the planned region changes.
 Renderers reject unbranded authored lookalikes.
 
 ## Eligibility and fallback
@@ -163,8 +172,9 @@ the generic artifact; no plan opcode becomes durable server protocol identity.
 - Artifact tests prove target splitting, tree shaking, deterministic programs, generic fallback,
   and absence of source text or server-only values from client output.
 
-The accepted 500-row SSR workload must retain identical 16,327-byte output and materially preserve
-the measured 6.34x median CPU and 81% observed peak-heap improvements. Client mount and hydration
+The production-path 500-row markerless SSR workload emits identical 9,903-byte output. The August
+6, 2026 tracked five-process run measured a 17.99x median CPU improvement and reduced focused peak
+heap from 12,437,208 to 115,512 bytes. Client mount and hydration
 must improve or remain within 3% of generic medians for each newly eligible category; raw, gzip,
 Brotli, startup, update, and retained-heap counter-metrics are mandatory.
 

@@ -84,9 +84,11 @@ export function renderToStringOwned(
 		options.outputExtensions ?? []
 	) as string;
 	assertOutputWithinLimit(context, html);
+	const hydrationTable = context.hydrationTable.value();
 	return {
 		html,
-		state: options.state
+		state: options.state,
+		...(hydrationTable ? { hydrationTable } : {})
 	};
 }
 
@@ -107,6 +109,7 @@ export function renderToHydratableString(
 		continuations: options.continuations,
 		resumptions: emittedResumptions,
 		publicContexts: options.publicContexts,
+		hydrationTable: result.hydrationTable,
 		executionRoot: options.executionRoot,
 		binding: options.binding,
 		buildKey: options.buildKey,

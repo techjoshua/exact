@@ -7,6 +7,8 @@ import {
 } from '../render/limits.js';
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
+import { AsyncSsrScheduler } from './async-scheduler.js';
+import { SsrHydrationTable } from './hydration-table.js';
 
 /** Performs the drain tasks domain operation. */
 export async function drainTasks(
@@ -97,6 +99,9 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 				}
 			: {}),
 		onComponentCreated: options.onComponentCreated,
-		onComponentRendered: options.onComponentRendered
+		onComponentRendered: options.onComponentRendered,
+		asyncScheduler: new AsyncSsrScheduler(options.maxAsyncSsrConcurrency),
+		asyncFrame: false,
+		hydrationTable: new SsrHydrationTable()
 	};
 }

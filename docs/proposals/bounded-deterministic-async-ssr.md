@@ -2,11 +2,17 @@
 
 ## Status
 
-Implementation-ready after
+In implementation after
 [`compiler-owned-render-programs.md`](compiler-owned-render-programs.md). This proposal implements
 the accepted async SSR concurrency experiment in
 [`javascript-performance-improvements.md`](javascript-performance-improvements.md). It must land
 before partial-prerender resumption and any adapter advertises concurrent sibling rendering.
+
+The request-wide FIFO scheduler, `maxAsyncSsrConcurrency` normalization, isolated renderer frames,
+ordered merge, cancellation fencing, and compiler proof for local neutral context-free component
+siblings are implemented. Marker-bearing, document, inspection, React-compatible, nested-frame,
+and unproven groups remain serial. Deterministic marker reservation, broader proofs, adapters, and
+the complete stress/performance gates remain.
 
 ## Decision
 
@@ -94,10 +100,10 @@ merge contract.
 - Concurrent-request tests prove one request cannot consume another request's slots or identity.
 - Adapter tests prove option projection and cancellation from disconnected clients.
 
-The accepted eight-sibling I/O workload must retain its 4.46x concurrency-four improvement without
-more than 10% peak-heap growth. CPU-bound throughput must remain within 3% of serial unless a repeat
-profile proves a gain, and concurrent-request throughput, p95 latency, and cancellation cleanup are
-release counter-metrics.
+The August 6, 2026 production-path five-process run of the accepted eight-sibling I/O workload
+measured a 4.66x concurrency-four improvement (116.72 ms serial versus 25.23 ms), with 5.3% focused
+peak-heap growth. The paired CPU-throughput ratio was 4.3% better rather than regressing. Concurrent-request
+throughput, p95 latency, and cancellation cleanup remain release counter-metrics.
 
 ## Acceptance criteria
 

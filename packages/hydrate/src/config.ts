@@ -86,6 +86,7 @@ function parseHydrationConfig(
 				'continuations',
 				'resumptions',
 				'publicContexts',
+				'h',
 				'executionRoot',
 				'binding',
 				'buildKey',
@@ -106,6 +107,7 @@ function parseHydrationConfig(
 		const endpoints = isEndpointRoutes(record.endpoints)
 			? mergeEndpointRoutes(undefined, record.endpoints)
 			: undefined;
+		const hydrationTable = normalizeHydrationTable(record.h);
 		return {
 			...(typeof record.pluginRegistryFingerprint === 'string'
 				? { pluginRegistryFingerprint: record.pluginRegistryFingerprint }
@@ -116,6 +118,7 @@ function parseHydrationConfig(
 			...(continuations === undefined ? {} : { continuations }),
 			...(resumptions === undefined ? {} : { resumptions }),
 			...(isRecord(record.publicContexts) ? { publicContexts: record.publicContexts } : {}),
+			...(hydrationTable ? { hydrationTable } : {}),
 			...(typeof record.executionRoot === 'string' ? { executionRoot: record.executionRoot } : {}),
 			...(typeof record.binding === 'string' ? { binding: record.binding } : {}),
 			...(buildKey === undefined ? {} : { buildKey }),
@@ -178,6 +181,7 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 		),
 		resumptions: options.resumptions ?? config.resumptions,
 		publicContexts: options.publicContexts ?? config.publicContexts,
+		hydrationTable: options.hydrationTable ?? config.hydrationTable,
 		executionRoot: options.executionRoot ?? config.executionRoot,
 		binding: options.binding ?? config.binding,
 		buildKey,
@@ -189,6 +193,27 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 				}
 			: options.headers
 	};
+}
+
+function normalizeHydrationTable(value: unknown): ExactHydrationConfig['hydrationTable'] {
+	if (!Array.isArray(value) || value.length !== 2 || value[0] !== 1 || !Array.isArray(value[1]))
+		return undefined;
+	for (const group of value[1]) {
+		if (
+			!Array.isArray(group) ||
+			group.length !== 3 ||
+			typeof group[0] !== 'string' ||
+			!Array.isArray(group[1]) ||
+			!group[1].every((name) => typeof name === 'string') ||
+			new Set(group[1]).size !== group[1].length ||
+			!Array.isArray(group[2])
+		)
+			return undefined;
+		for (const row of group[2])
+			if (!Array.isArray(row) || row.length !== group[1].length + 1 || typeof row[0] !== 'string')
+				return undefined;
+	}
+	return value as unknown as NonNullable<ExactHydrationConfig['hydrationTable']>;
 }
 
 /** Merges a late-loaded hydration registration into an existing client runtime configuration. */
@@ -207,7 +232,7 @@ export function mergeHydrationRegistration(
 	if (registration.continuations) {
 		options.continuations = mergeUniqueRecord(
 			options.continuations,
-			registration.continuations,
+			normalizeRegistrationContinuations(registration.continuations),
 			'continuation',
 			sameJsonData
 		);
@@ -231,6 +256,20 @@ export function mergeHydrationRegistration(
 			'endpoint transport',
 			sameEndpointTransport
 		);
+	}
+}
+
+/**
+ * Canonicalizes valid compiler contracts while retaining malformed values for
+ * the existing fail-closed duplicate-conflict path.
+ */
+function normalizeRegistrationContinuations(
+	continuations: ExactHydrationRegistration['continuations']
+): ExactHydrationRegistration['continuations'] {
+	try {
+		return normalizeContinuationMap(continuations);
+	} catch {
+		return continuations;
 	}
 }
 

@@ -91,7 +91,7 @@ function runWorker(scenario) {
 }
 
 function primarySummary(metrics) {
-	const preferred = ['speedup', 'speedupAt4', 'indexedBytes', 'validationShare'];
+	const preferred = ['speedup', 'speedupAt4', 'indexedFrameworkBytes', 'validationShare'];
 	const name = preferred.find((candidate) => candidate in metrics) ?? Object.keys(metrics)[0];
 	return `${name} median ${metrics[name].median.toFixed(2)}`;
 }

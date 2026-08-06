@@ -67,6 +67,8 @@ import { activateSsrEnhancements } from './enhancements.js';
 import * as syncComponents from './sync-component.js';
 import { applySsrTargetContributions } from './target-contributions.js';
 import { renderChildren } from './sync-children.js';
+import { renderSsrProgramChunks, renderSsrProgramString } from './render-program.js';
+import { createSsrChunkMarker } from './sync-markers.js';
 
 export { renderChildren } from './sync-children.js';
 
@@ -90,15 +92,18 @@ export function* renderVNodeChunks(
 		yield* renderVNodeChunks(context, enhanced, parent, depth);
 		return;
 	}
-	const marked = function* (id: string, content: () => Generator<string>): Generator<string> {
-		if (context.markers) yield `<!--exact:${id}-->`;
-		yield* content();
-		if (context.markers) yield `<!--/exact:${id}-->`;
-	};
+	const marked = createSsrChunkMarker(context);
 
 	if (isCellVNode(vnode)) {
 		const id = markerId(context, 'cell', undefined, vnode.key);
 		yield* marked(id, () => renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1));
+		return;
+	}
+	const programChunks = renderSsrProgramChunks(context, vnode, (fallback) =>
+		renderVNodeChunks(context, fallback, parent, depth + 1)
+	);
+	if (programChunks) {
+		yield* programChunks;
 		return;
 	}
 	if (vnode.type === Text) {
@@ -326,6 +331,10 @@ export function renderVNodeInner(
 			renderVNode(context, getCellVNode(vnode), parent)
 		);
 	}
+	const program = renderSsrProgramString(context, vnode, (fallback) =>
+		renderVNode(context, fallback, parent)
+	);
+	if (program !== undefined) return program;
 
 	if (vnode.type === Text) {
 		return escapeText(String(unwrap(vnode.props.value) ?? ''));

@@ -97,6 +97,21 @@ compressed byte sizes must be deterministic before the suite reports a build bas
 The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
 size and generation cost have their own scenarios, which keeps the two costs attributable.
 
+Hydration-publication reports separate application-payload, framework-envelope, and whole-response
+sizes. Component names, boundary identities, prop schemas, and prop values are application data;
+they are not charged to framework size merely because the compact representation stores them in a
+response table. Whole-response raw/gzip/Brotli sizes remain required transport counter-metrics so
+an envelope optimization cannot hide an application-facing network regression.
+
+The August 6, 2026 production-path run for 200 boundaries measured the framework-owned raw envelope
+falling from 18,866 to 5,204 bytes. This envelope includes generated coordinates and attribute
+delimiters but excludes the application-owned table values. Its isolated compression grew from 204
+to 542 gzip bytes and 92 to 342 Brotli bytes because unique coordinates compress less readily than
+repeated attribute names. The separately reported application payload was 20,404 raw bytes.
+Whole-response compression remains the authoritative transport counter-metric: raw and Brotli
+improved, while gzip grew by 37 bytes. Compressed category measurements are diagnostic rather than
+additive because a compressor shares its dictionary across application and framework bytes.
+
 ## Baseline and regression policy
 
 The tracked JSON is authoritative measurement evidence for its recorded environment. Compare a

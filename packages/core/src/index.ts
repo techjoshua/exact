@@ -27,6 +27,8 @@ export {
 	type CleanupFailure
 } from './cleanup.js';
 export { normalizeActivityMode } from './activity.js';
+export { isFiniteClientBoundary, markFiniteClientBoundary } from './hydration-boundary.js';
+export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from './ssr-independence.js';
 export {
 	isExactComponentAuthorizationIdentity,
 	sameExactComponentAuthorization,
@@ -236,6 +238,7 @@ export {
 	Dynamic,
 	Fragment,
 	Portal,
+	RenderProgram,
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
@@ -243,6 +246,15 @@ export {
 	Text,
 	UnsafeHtml
 } from './symbols.js';
+export {
+	createCompiledRenderProgram,
+	readRenderProgram,
+	renderProgramFallback,
+	type ExactRenderProgram,
+	type ExactRenderProgramInvocation,
+	type ExactRenderProgramNode,
+	type ExactRenderProgramSlot
+} from './render-program.js';
 export { withTaskObserver } from './tasks/observers.js';
 export {
 	markComponentContinuationTask,

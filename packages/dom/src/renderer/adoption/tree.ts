@@ -2,12 +2,12 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
+	RenderProgram,
 	isCellVNode,
 	normalizeRenderResult,
 	renderInstance,
 	Suspense,
 	Target,
-	Text,
 	UnsafeHtml,
 	unwrap,
 	watch,
@@ -19,9 +19,7 @@ import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/r
 import { getOwnedCellVNode } from '../../cells.js';
 import { getListBinding, materializeList, stopReplacedChildren } from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
-import { setElementOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
-import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
 import { patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
@@ -38,14 +36,14 @@ import {
 import {
 	adoptStaticChildren,
 	adoptStaticChildrenRange,
-	authoredChildNodes,
 	closingMarkerIndex,
-	createRangeAnchor,
-	frameworkChildRange
+	createRangeAnchor
 } from './boundaries.js';
 import { adoptKeyedListChildren } from './keyed.js';
 import { normalizeAdoptionVNode } from './normalization.js';
 import { constructAdoptedComponent } from './construction.js';
+import { adoptRenderProgramOrFallback } from '../render-program.js';
+import { adoptStaticLeaf } from './leaf.js';
 
 /** Performs the adopt static mounted inner domain operation. */
 export function adoptStaticMountedInner(
@@ -208,6 +206,18 @@ export function adoptStaticMountedInner(
 		);
 		return { mounted, next: endIndex + 1 };
 	}
+	if (vnode.type === RenderProgram) {
+		return adoptRenderProgramOrFallback(
+			root,
+			vnode,
+			nodes,
+			cursor,
+			parentInstance,
+			parentScope,
+			scope,
+			adoptStaticMountedInner
+		);
+	}
 	if (vnode.type === UnsafeHtml) {
 		assertUnsafeHtmlAllowed(root);
 		const start = nodes[cursor];
@@ -349,52 +359,5 @@ export function adoptStaticMountedInner(
 		scope.stop();
 		return undefined;
 	}
-	if (vnode.type === Text) {
-		if (node.nodeType !== Node.TEXT_NODE || node.textContent !== String(vnode.props.value ?? '')) {
-			scope.stop();
-			return undefined;
-		}
-		const separator =
-			root.markerlessHydration &&
-			nodes[cursor + 1] instanceof Comment &&
-			(nodes[cursor + 1] as Comment).data === ' '
-				? nodes[cursor + 1]
-				: undefined;
-		return {
-			mounted: { vnode, dom: node, ...(separator ? { end: separator } : {}), scope, children: [] },
-			next: cursor + (separator ? 2 : 1)
-		};
-	}
-	if (
-		typeof vnode.type !== 'string' ||
-		!(node instanceof Element) ||
-		node.tagName.toLowerCase() !== vnode.type.toLowerCase()
-	) {
-		scope.stop();
-		return undefined;
-	}
-	const framework = frameworkChildRange(node);
-	const children = adoptStaticChildren(
-		root,
-		vnode.children,
-		authoredChildNodes(node, framework),
-		parentInstance,
-		scope
-	);
-	if (!children) {
-		scope.stop();
-		return undefined;
-	}
-	setElementOwner(node, parentInstance);
-	updateProps(root, node, {}, vnode.props, scope);
-	return {
-		mounted: {
-			vnode,
-			dom: node,
-			scope,
-			children,
-			...(framework ? { childEnd: framework.start } : {})
-		},
-		next: cursor + 1
-	};
+	return adoptStaticLeaf(root, vnode, node, nodes, cursor, parentInstance, scope);
 }

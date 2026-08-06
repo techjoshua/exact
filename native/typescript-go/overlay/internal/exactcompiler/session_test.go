@@ -17,6 +17,47 @@ func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 	}
 }
 
+func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			export function Planned(props: { label: string }) {
+				return () => <span>{props.label}</span>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		"createCompiledRenderProgram",
+		"version: 1",
+		"kind: \"text\"",
+		"() => __exactVNode(\"span\"",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("planned output omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionMarksOnlyProvenAsyncSiblingGroups(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "siblings.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			function Left() { return () => <span>left</span>; }
+			function Right() { return () => <span>right</span>; }
+			export function Page() { return () => <main><Left /><Right /></main>; }
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "__exactAsyncSiblings(__exactVNode(\"main\"") {
+		t.Fatalf("proven sibling group was not marked:\n%s", response.Code)
+	}
+}
+
 func TestSessionValidatesOnlyCommentDirectives(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
