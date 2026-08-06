@@ -80,14 +80,7 @@ export class ExactBunComponentAuthorization {
 			(edge) => edge.moduleSpecifier === request
 		);
 		if (!componentEdge && !enhancement) return undefined;
-		const resolvedModuleId = resolve
-			? (
-					await resolve(request, {
-						kind: 'import-statement',
-						resolveDir: path.dirname(importerId)
-					})
-				).path
-			: createRequire(importerId).resolve(request);
+		const resolvedModuleId = await resolveBunCandidate(request, importerId, resolve);
 		const provenance = await recordExactNodeComponentProvenance({
 			session: this.#session,
 			applicationRoot: this.#applicationRoot,
@@ -132,6 +125,29 @@ export class ExactBunComponentAuthorization {
 		this.#session = undefined;
 		this.#facts.clear();
 	}
+}
+
+async function resolveBunCandidate(
+	request: string,
+	importerId: string,
+	resolve: ExactBunResolver | undefined
+): Promise<string> {
+	if (resolve)
+		try {
+			return (
+				await resolve(request, {
+					kind: 'import-statement',
+					resolveDir: path.dirname(importerId)
+				})
+			).path;
+		} catch (error) {
+			if (!isUnavailableBunResolver(error)) throw error;
+		}
+	return createRequire(importerId).resolve(request);
+}
+
+function isUnavailableBunResolver(error: unknown): boolean {
+	return error instanceof Error && error.message.includes('build.resolve() is not implemented yet');
 }
 
 function bunServerReason(

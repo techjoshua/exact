@@ -7,6 +7,7 @@ import {
 	type ExactResolvedComponentCandidate
 } from '@exactjs/component-library-policy';
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { exactModuleFilename } from './module-selection.js';
 
@@ -103,7 +104,8 @@ export class ExactViteComponentAuthorization {
 			(edge) => edge.moduleSpecifier === source
 		);
 		if (!componentEdge && !enhancementEdge) return resolved;
-		const resolvedModuleId = typeof resolved === 'string' ? resolved : resolved.id;
+		const bundlerModuleId = typeof resolved === 'string' ? resolved : resolved.id;
+		const resolvedModuleId = physicalViteModuleId(bundlerModuleId, importer, source);
 		const provenance = await recordExactNodeComponentProvenance({
 			session: this.#session,
 			applicationRoot: options.applicationRoot,
@@ -145,6 +147,17 @@ export class ExactViteComponentAuthorization {
 		this.#session?.dispose();
 		this.#session = undefined;
 		this.#facts.clear();
+	}
+}
+
+function physicalViteModuleId(resolvedModuleId: string, importer: string, source: string): string {
+	const clean = resolvedModuleId.replace(/[?#].*$/, '');
+	if (path.isAbsolute(clean)) return clean;
+	const resolve = createRequire(importer).resolve;
+	try {
+		return resolve(clean);
+	} catch {
+		return resolve(source);
 	}
 }
 

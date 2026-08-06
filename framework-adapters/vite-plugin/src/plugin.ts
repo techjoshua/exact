@@ -118,7 +118,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		config() {
 			return {
 				...(options.target === 'server'
-					? { optimizeDeps: { noDiscovery: true as const, include: [] } }
+					? {
+							optimizeDeps: { noDiscovery: true as const, include: [] },
+							build: { ssrEmitAssets: true as const }
+						}
 					: {}),
 				resolve: {
 					conditions: exactExportConditions(
@@ -168,6 +171,42 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		configureServer(server) {
 			server.httpServer?.once('close', () => compilerSession.dispose());
 			server.watcher?.once('close', () => compilerSession.dispose());
+		},
+		async buildEnd(error) {
+			if (options.target !== 'server' || viteCommand !== 'build' || !componentAuthorization.active)
+				return;
+			if (error) {
+				componentAuthorization.reject();
+				return;
+			}
+			if (!this.emitFile)
+				throw new Error('Vite/Rollup emitFile is unavailable for component authorization');
+			const committed = await componentAuthorization.commit()!;
+			if (inspectionCatalogEnabled(configuredDebug, viteCommand)) {
+				const catalog = createViteInspectionCatalog(
+					options.applicationRoot,
+					configuredDebug,
+					inspectionModules,
+					viteCommand,
+					committed.audit
+				);
+				if (catalog)
+					this.emitFile({
+						type: 'asset',
+						fileName: `.exact-inspection/${catalog.buildKey}.json`,
+						source: `${JSON.stringify(catalog, null, 2)}\n`
+					});
+			}
+			this.emitFile({
+				type: 'asset',
+				fileName: '.exact/component-library-authorization.json',
+				source: `${JSON.stringify(committed.manifest, null, 2)}\n`
+			});
+			this.emitFile({
+				type: 'asset',
+				fileName: '.exact/component-library-audit.json',
+				source: `${JSON.stringify(committed.audit, null, 2)}\n`
+			});
 		},
 		resolveId(source, importer) {
 			if (source in exactEnhancementFacades) {
@@ -251,39 +290,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		generateBundle(_output, bundle) {
 			if (options.target !== 'server') assertExactViteClientArtifactIsolation(bundle);
-			if (options.target === 'server' && componentAuthorization.active) {
-				if (!this.emitFile)
-					throw new Error('Vite/Rollup emitFile is unavailable for component authorization');
-				const emitFile = this.emitFile.bind(this);
-				return componentAuthorization.commit()!.then((committed) => {
-					if (inspectionCatalogEnabled(configuredDebug, viteCommand)) {
-						const catalog = createViteInspectionCatalog(
-							options.applicationRoot,
-							configuredDebug,
-							inspectionModules,
-							viteCommand,
-							committed.audit
-						);
-						if (catalog)
-							emitFile({
-								type: 'asset',
-								fileName: `.exact-inspection/${catalog.buildKey}.json`,
-								source: `${JSON.stringify(catalog, null, 2)}\n`
-							});
-					}
-					emitFile({
-						type: 'asset',
-						fileName: '.exact/component-library-authorization.json',
-						source: `${JSON.stringify(committed.manifest, null, 2)}\n`
-					});
-					emitFile({
-						type: 'asset',
-						fileName: '.exact/component-library-audit.json',
-						source: `${JSON.stringify(committed.audit, null, 2)}\n`
-					});
-					microfrontends.generateBundle(bundle);
-				});
-			}
 			microfrontends.generateBundle(bundle);
 		},
 		async handleHotUpdate(context) {

@@ -28,11 +28,7 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 			)
 		).resolves.toEqual({ id: fixture.libraryModule });
 		const assets: Array<{ fileName?: string; source?: string }> = [];
-		await plugin.generateBundle?.call(
-			{ emitFile: (asset) => (assets.push(asset), 'asset') },
-			{},
-			{}
-		);
+		await plugin.buildEnd?.call({ emitFile: (asset) => (assets.push(asset), 'asset') }, undefined);
 
 		expect(watched).toContain(path.join(fixture.libraryRoot, 'package.json'));
 		expect(assets.map((asset) => asset.fileName)).toEqual([

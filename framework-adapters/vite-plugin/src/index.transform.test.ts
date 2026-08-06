@@ -143,7 +143,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 		});
 	});
 
-	it('emits one server-only catalog asset with explicit production debug output', () => {
+	it('emits one server-only catalog asset with explicit production debug output', async () => {
 		const emitted: Array<{ type: 'asset'; fileName: string; source: string }> = [];
 		const plugin = exact({
 			target: 'server',
@@ -156,19 +156,21 @@ describe('@exactjs/vite-plugin: transform', () => {
 				executionRoot: 'page'
 			}
 		});
+		await plugin.buildStart?.call({ addWatchFile() {} });
 		plugin.transform(
 			`export function Page(this: Component<{}>) { return () => <main />; }`,
 			`${process.cwd()}/src/Page.tsx`
 		);
-		plugin.generateBundle?.call(
+		await plugin.buildEnd?.call(
 			{ emitFile: (asset) => (emitted.push(asset), 'inspection') },
-			{},
-			{}
+			undefined
 		);
 
-		expect(emitted).toHaveLength(1);
-		expect(emitted[0]!.fileName).toBe('.exact-inspection/immutable-build.json');
-		expect(JSON.parse(emitted[0]!.source)).toMatchObject({
+		const catalog = emitted.find(
+			(asset) => asset.fileName === '.exact-inspection/immutable-build.json'
+		);
+		expect(catalog).toBeDefined();
+		expect(JSON.parse(catalog!.source)).toMatchObject({
 			protocol: 1,
 			buildKey: 'immutable-build',
 			roots: { page: { executionRoot: 'page' } }

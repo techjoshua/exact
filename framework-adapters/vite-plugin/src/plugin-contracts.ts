@@ -44,6 +44,7 @@ export type ExactPlugin = {
 	warn?(message: string): void;
 	config?(): {
 		optimizeDeps?: { noDiscovery: true; include: never[] };
+		build?: { ssrEmitAssets: true };
 		resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> };
 		oxc?: {
 			jsx: {
@@ -65,6 +66,12 @@ export type ExactPlugin = {
 			preserveSignature?: 'strict';
 		}): string;
 	}): void | Promise<void>;
+	buildEnd?(
+		this: {
+			emitFile?(file: { type: 'asset'; fileName: string; source: string }): string;
+		},
+		error?: Error
+	): void | Promise<void>;
 	configureServer?(server: {
 		httpServer?: { once(event: 'close', listener: () => void): unknown };
 		watcher?: { once(event: 'close', listener: () => void): unknown };
