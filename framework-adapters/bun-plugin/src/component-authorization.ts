@@ -67,7 +67,8 @@ export class ExactBunComponentAuthorization {
 	async authorize(
 		request: string,
 		importerModuleId: string,
-		resolve?: ExactBunResolver
+		resolve?: ExactBunResolver,
+		aliases?: Readonly<Record<string, string>>
 	): Promise<Readonly<{ path: string; namespace?: string }> | undefined> {
 		const importer =
 			this.#facts.get(importerModuleId) ?? this.#facts.get(path.resolve(importerModuleId));
@@ -80,7 +81,7 @@ export class ExactBunComponentAuthorization {
 			(edge) => edge.moduleSpecifier === request
 		);
 		if (!componentEdge && !enhancement) return undefined;
-		const resolvedModuleId = await resolveBunCandidate(request, importerId, resolve);
+		const resolvedModuleId = await resolveBunCandidate(request, importerId, resolve, aliases);
 		const provenance = await recordExactNodeComponentProvenance({
 			session: this.#session,
 			applicationRoot: this.#applicationRoot,
@@ -130,7 +131,8 @@ export class ExactBunComponentAuthorization {
 async function resolveBunCandidate(
 	request: string,
 	importerId: string,
-	resolve: ExactBunResolver | undefined
+	resolve: ExactBunResolver | undefined,
+	aliases: Readonly<Record<string, string>> | undefined
 ): Promise<string> {
 	if (resolve)
 		try {
@@ -143,7 +145,7 @@ async function resolveBunCandidate(
 		} catch (error) {
 			if (!isUnavailableBunResolver(error)) throw error;
 		}
-	return createRequire(importerId).resolve(request);
+	return createRequire(importerId).resolve(aliases?.[request] ?? request);
 }
 
 function isUnavailableBunResolver(error: unknown): boolean {

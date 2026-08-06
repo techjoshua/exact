@@ -75,6 +75,7 @@ type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 /** Defines the bun build like type contract. */
 export type BunBuildLike = {
 	config?: {
+		alias?: Readonly<Record<string, string>>;
 		conditions?: string | string[];
 		watch?: boolean;
 		hot?: boolean;
@@ -268,7 +269,12 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				);
 			}
 			build.onResolve({ filter: /^(?:@[^/]+\/[^/]+|[^./][^:]*)/ }, async (args) =>
-				componentAuthorization?.authorize(args.path, args.importer ?? '', build.resolve)
+				componentAuthorization?.authorize(
+					args.path,
+					args.importer ?? '',
+					build.resolve,
+					build.config?.alias
+				)
 			);
 			build.onLoad({ filter: /.*/, namespace: 'exact-omitted-enhancement' }, () => ({
 				contents: 'export {};\n',

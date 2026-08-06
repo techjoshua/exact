@@ -20,11 +20,7 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 			applicationRoot: fixture.root,
 			reactCompatibility: false
 		});
-		authorization.record(
-			fixture.pageFile,
-			fixture.pageSource,
-			transformed!.componentBuild!
-		);
+		authorization.record(fixture.pageFile, fixture.pageSource, transformed!.componentBuild!);
 
 		await expect(
 			authorization.authorize('@acme/cards', fixture.pageFile, async () => ({
@@ -56,11 +52,7 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 			applicationRoot: fixture.root,
 			reactCompatibility: false
 		});
-		authorization.record(
-			fixture.pageFile,
-			fixture.pageSource,
-			transformed!.componentBuild!
-		);
+		authorization.record(fixture.pageFile, fixture.pageSource, transformed!.componentBuild!);
 
 		await expect(
 			authorization.authorize('@acme/cards', fixture.pageFile, async () => ({
@@ -68,6 +60,40 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 			}))
 		).rejects.toMatchObject({ code: 'explicitly-denied' });
 		expect(existsSync(fixture.executedFile)).toBe(false);
+	});
+
+	it('applies Bun aliases when native build.resolve is unavailable', async () => {
+		const fixture = createFixture();
+		writeFileSync(
+			path.join(fixture.root, 'package.json'),
+			JSON.stringify({
+				name: '@app/test',
+				version: '1.0.0',
+				dependencies: { 'cards-alias': 'npm:@acme/cards@1.0.0' }
+			})
+		);
+		const source =
+			"import { Card } from 'cards-alias'; export function Page() { return () => <Card />; }";
+		const authorization = new ExactBunComponentAuthorization({ applicationRoot: fixture.root });
+		onTestFinished(() => authorization.dispose());
+		await authorization.start();
+		const transformed = transformExactBunSource(source, fixture.pageFile, {
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		authorization.record(fixture.pageFile, source, transformed!.componentBuild!);
+
+		await expect(
+			authorization.authorize(
+				'cards-alias',
+				fixture.pageFile,
+				async () => {
+					throw new Error('build.resolve() is not implemented yet');
+				},
+				{ 'cards-alias': '@acme/cards' }
+			)
+		).resolves.toEqual({ path: fixture.libraryModule });
 	});
 
 	it('routes an explicitly excluded enhancement to the empty-module namespace', async () => {
@@ -114,7 +140,11 @@ function createFixture() {
 	mkdirSync(markerRoot, { recursive: true });
 	writeFileSync(
 		path.join(root, 'package.json'),
-		JSON.stringify({ name: '@app/test', version: '1.0.0', dependencies: { '@acme/cards': '1.0.0' } })
+		JSON.stringify({
+			name: '@app/test',
+			version: '1.0.0',
+			dependencies: { '@acme/cards': '1.0.0' }
+		})
 	);
 	writeFileSync(
 		path.join(root, 'package-lock.json'),
@@ -177,7 +207,10 @@ function createFixture() {
 			}
 		]
 	};
-	writeFileSync(path.join(libraryRoot, 'dist', 'exact-component-build.json'), JSON.stringify(facts));
+	writeFileSync(
+		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
+		JSON.stringify(facts)
+	);
 	const pageSource =
 		"import { Card } from '@acme/cards'; export function Page() { return () => <Card />; }";
 	writeFileSync(pageFile, pageSource);

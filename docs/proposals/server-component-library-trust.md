@@ -470,14 +470,14 @@ policy predicates and cannot manufacture an authorized result.
 
 The required lifecycle is fixed:
 
-| Integration       | Candidate discovery and pre-evaluation gate                                                                                                                                    | Generation behavior                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Vite/Rollup build | `transform` records importer facts; subsequent `resolveId` joins component requests through `this.resolve`; `load` refuses a candidate until the shared session authorizes it. | `buildStart` opens, `generateBundle` commits and emits manifests, and `closeBundle` releases the generation. |
-| Vite development  | The same `transform`/`resolveId`/`load` gate runs before the SSR module runner receives source; `handleHotUpdate` preflights the affected graph.                               | Preflight commits before Vite publishes an update; only that file-version generation may transform.          |
-| Webpack           | The pre-loader records importer facts; `NormalModuleFactory` `beforeResolve`/`afterResolve` hooks join resolved package instances and reject before module build/evaluation.   | `thisCompilation` owns a generation; watch invalidation commits atomically or retains the prior compilation. |
-| Bun build/watch   | `onLoad` records importer facts and `onResolve` authorizes component requests before the candidate `onLoad` runs.                                                              | `onStart` opens and `onEnd` commits; rejected watch builds retain no authorization state.                    |
-| Vitest            | Uses the Vite development/build integration with a `server-test` execution reason whenever the configured target executes on the server.                                       | Each test-server graph uses the enclosing Vite generation.                                                   |
-| Jest              | `@exactjs/jest` preflights test entries and installs a resolver that admits only component candidates recorded in the authorized preflight manifest.                           | Workers read one immutable cache-keyed generation; teardown deletes it after the test run.                   |
+| Integration       | Candidate discovery and pre-evaluation gate                                                                                                                                    | Generation behavior                                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Vite/Rollup build | `transform` records importer facts; subsequent `resolveId` joins component requests through `this.resolve`; `load` refuses a candidate until the shared session authorizes it. | `buildStart` opens, `buildEnd` commits and emits manifests before output generation, and `closeBundle` releases the generation. |
+| Vite development  | The same `transform`/`resolveId`/`load` gate runs before the SSR module runner receives source; `handleHotUpdate` preflights the affected graph.                               | Preflight commits before Vite publishes an update; only that file-version generation may transform.                             |
+| Webpack           | The pre-loader records importer facts; `NormalModuleFactory` `beforeResolve`/`afterResolve` hooks join resolved package instances and reject before module build/evaluation.   | `thisCompilation` owns a generation; watch invalidation commits atomically or retains the prior compilation.                    |
+| Bun build/watch   | `onLoad` records importer facts and `onResolve` authorizes component requests before the candidate `onLoad` runs.                                                              | `onStart` opens and `onEnd` commits; rejected watch builds retain no authorization state.                                       |
+| Vitest            | Uses the Vite development/build integration with a `server-test` execution reason whenever the configured target executes on the server.                                       | Each test-server graph uses the enclosing Vite generation.                                                                      |
+| Jest              | `@exactjs/jest` preflights test entries and installs a resolver that admits only component candidates recorded in the authorized preflight manifest.                           | Workers read one immutable cache-keyed generation; teardown deletes it after the test run.                                      |
 
 Rollup/Vite dependency optimization must exclude unresolved component candidates until the gate has
 classified them; it may prebundle an already authorized instance under the same fingerprint. Bun
@@ -485,6 +485,18 @@ server `--hot` mode is unsupported until its plugin lifecycle can prove that a r
 leaves the last valid server graph active. When requested before that proof exists, the adapter
 fails startup with a dedicated diagnostic rather than weakening enforcement. Ordinary Bun
 production and watch builds remain required in this proposal.
+
+Vite server builds enable `build.ssrEmitAssets` so the private authorization products emitted from
+`buildEnd` survive SSR output filtering. Vite may externalize a package and return a bare ID from
+`this.resolve`; the adapter materializes that resolved package ID from the importing module only for
+provenance and static build-facts validation, while preserving Vite's externalization decision.
+Failure to obtain a physical package identity is `provenance-unresolved`, never permission to skip
+the gate.
+
+Bun uses `build.resolve` when the installed Bun version implements it. Bun versions that expose the
+method but explicitly report it as unimplemented fall back to package resolution from the importer;
+the fallback applies Bun's exact package aliases first and remains limited to package candidates.
+Other resolver failures propagate unchanged rather than being reinterpreted as a fallback.
 
 Re-export and facade resolution may require several resolver edges, but no candidate implementation
 is loaded while the chain is unresolved. The static package build-facts file supplies the export
