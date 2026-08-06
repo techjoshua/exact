@@ -2,7 +2,7 @@ import type {
 	ExactComponentBuildFacts,
 	ExactPublishedComponentBuildFacts
 } from '@exactjs/compiler';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
@@ -192,6 +192,22 @@ describe('@exactjs/component-library-policy', () => {
 			code: 'unmarked'
 		});
 		expect(() => rmSync(executed)).toThrow();
+	});
+
+	it('rejects malformed nested build facts before candidate evaluation', async () => {
+		const fixture = createFixture();
+		const factsPath = path.join(fixture.library.root, 'dist', 'exact-component-build.json');
+		const facts = JSON.parse(readFileSync(factsPath, 'utf8')) as {
+			modules: Array<{ facts: { components: Array<{ artifactTargets: string[] }> } }>;
+		};
+		facts.modules[0]!.facts.components[0]!.artifactTargets = ['server', 'worker'];
+		writeFileSync(factsPath, JSON.stringify(facts));
+		const session = createSession(fixture);
+		recordCandidateGraph(session, fixture);
+
+		await expect(session.authorizeResolvedComponent(fixture.candidate)).rejects.toMatchObject({
+			code: 'build-facts-invalid'
+		});
 	});
 
 	it('delegates only across an authorized production dependency edge', async () => {

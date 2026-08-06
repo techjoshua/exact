@@ -218,15 +218,29 @@ function validatePublishedBuildFacts(
 	)
 		invalidBuildFacts(instance, 'top-level protocol or package identity is invalid');
 	const modules = new Map<string, ExactPublishedComponentBuildFacts['modules'][number]>();
-	for (const module of facts.modules) {
-		const modulePath = normalizeModulePath(module.path);
-		if (modulePath !== module.path || modules.has(modulePath) || module.facts?.protocol !== 1)
-			invalidBuildFacts(instance, `invalid or duplicate module ${String(module.path)}`);
-		modules.set(modulePath, module);
+	for (const rawModule of facts.modules as readonly unknown[]) {
+		if (!isRecord(rawModule) || !nonemptyString(rawModule.path))
+			invalidBuildFacts(instance, 'module record is not an object');
+		const modulePath = normalizeModulePath(rawModule.path);
+		if (modulePath !== rawModule.path || modules.has(modulePath))
+			invalidBuildFacts(instance, `invalid or duplicate module ${String(rawModule.path)}`);
+		validateComponentBuildProjection(rawModule.facts, instance, modulePath);
+		modules.set(modulePath, rawModule as ExactPublishedComponentBuildFacts['modules'][number]);
 	}
 	let previous = '';
 	const exportsSeen = new Set<string>();
-	for (const record of facts.exports) {
+	for (const rawRecord of facts.exports as readonly unknown[]) {
+		if (!isRecord(rawRecord)) invalidBuildFacts(instance, 'export record is not an object');
+		if (
+			!nonemptyString(rawRecord.subpath) ||
+			!nonemptyString(rawRecord.condition) ||
+			!nonemptyString(rawRecord.module) ||
+			!nonemptyString(rawRecord.exportName) ||
+			!nonemptyString(rawRecord.componentId) ||
+			normalizeModulePath(rawRecord.module) !== rawRecord.module
+		)
+			invalidBuildFacts(instance, 'export record contains invalid fields');
+		const record = rawRecord as ExactPublishedComponentBuildFacts['exports'][number];
 		const key = [record.subpath, record.condition, record.exportName, record.componentId].join(
 			'\0'
 		);
@@ -251,6 +265,76 @@ function validatePublishedBuildFacts(
 				`export ${record.subpath} condition ${record.condition} does not target ${record.module}`
 			);
 	}
+}
+
+function validateComponentBuildProjection(
+	facts: unknown,
+	instance: ExactResolvedPackageInstance,
+	modulePath: string
+): void {
+	if (
+		!isRecord(facts) ||
+		facts.protocol !== 1 ||
+		!Array.isArray(facts.components) ||
+		!Array.isArray(facts.componentImports) ||
+		!Array.isArray(facts.rendererEnhancements)
+	)
+		invalidBuildFacts(instance, `module ${modulePath} has an invalid component projection`);
+	const projection = facts as ExactPublishedComponentBuildFacts['modules'][number]['facts'];
+	const componentIds = new Set<string>();
+	for (const component of projection.components) {
+		if (
+			!isRecord(component) ||
+			typeof component.id !== 'string' ||
+			!component.id ||
+			!['client', 'server', 'isomorphic'].includes(String(component.placement)) ||
+			!validArtifactTargets(component.artifactTargets) ||
+			componentIds.has(component.id)
+		)
+			invalidBuildFacts(instance, `module ${modulePath} has an invalid component record`);
+		componentIds.add(component.id);
+	}
+	for (const edge of projection.componentImports)
+		if (
+			!isRecord(edge) ||
+			typeof edge.ownerComponentId !== 'string' ||
+			!edge.ownerComponentId ||
+			typeof edge.moduleSpecifier !== 'string' ||
+			!edge.moduleSpecifier ||
+			typeof edge.exportName !== 'string' ||
+			!edge.exportName ||
+			(edge.canonicalComponentId !== undefined && typeof edge.canonicalComponentId !== 'string') ||
+			!validArtifactTargets(edge.artifactTargets) ||
+			!['render', 'enhancement', 'registry', 'task-owner', 'continuation'].includes(
+				String(edge.reason)
+			)
+		)
+			invalidBuildFacts(instance, `module ${modulePath} has an invalid component import`);
+	for (const enhancement of projection.rendererEnhancements)
+		if (
+			!isRecord(enhancement) ||
+			!nonemptyString(enhancement.identity) ||
+			!nonemptyString(enhancement.moduleSpecifier) ||
+			!nonemptyString(enhancement.exportName)
+		)
+			invalidBuildFacts(instance, `module ${modulePath} has an invalid renderer enhancement`);
+}
+
+function validArtifactTargets(value: unknown): value is readonly ('client' | 'server')[] {
+	return (
+		Array.isArray(value) &&
+		value.length > 0 &&
+		value.every((target) => target === 'client' || target === 'server') &&
+		new Set(value).size === value.length
+	);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function nonemptyString(value: unknown): value is string {
+	return typeof value === 'string' && value.length > 0;
 }
 
 function packageExportTargets(exportsValue: unknown, subpath: string, condition: string): string[] {
