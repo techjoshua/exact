@@ -1229,6 +1229,11 @@ An error thrown by the boundary or its fallback proceeds to the next enclosing b
 lower-level `ErrorContext` and `createErrorContext()` when capture, reporting, or reset behavior
 must differ; ordinary application recovery should prefer the built-in component.
 
+Application-created error contexts retain their full authored history until the application clears
+it. Only the process-global fallback context is framework-bounded: it keeps the newest 100 reports
+so an unattached failure path cannot retain an unlimited process history. Attaching or detaching
+inspection does not replay or retain reports outside the owning context.
+
 `Suspense` waits for descendant blocking task generations:
 
 ```tsx

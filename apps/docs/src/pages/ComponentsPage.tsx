@@ -103,6 +103,11 @@ export function ComponentsPage(this: Component<{}>) {
 					its watcher; reactive expressions retain the same fine-grained update behavior.
 				</p>
 				<p>
+					Application-created error contexts retain the history their owner chooses. The framework's
+					process-global fallback keeps only the newest 100 unattached reports, preventing an
+					unlimited fallback history without changing application-owned diagnostics.
+				</p>
+				<p>
 					Readonly prop tracking traverses plain objects and collections. Opaque class instances
 					retain their authored identity when passed through reactive JSX, so resource methods can
 					mutate their own private state without being treated as writes to the prop binding.

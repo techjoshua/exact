@@ -12,7 +12,7 @@ import type {
 
 import { ErrorContext, SuspensionContext } from './contexts.js';
 
-import { reactive, unwrap } from '@exactjs/reactive';
+import { batch, reactive, unwrap } from '@exactjs/reactive';
 import { normalizeChildren } from '../vnode.js';
 import { componentLogScope, isErrorReport, logFrameworkEvent } from './log.js';
 import { createDefaultErrorView } from './error-view.js';
@@ -21,13 +21,24 @@ let nextErrorId = 1;
 
 /** Creates the default reactive error context used by app and framework error boundaries. */
 export function createErrorContext(errors: ErrorReport[] = []): ErrorContextValue {
+	return createErrorContextWithLimit(errors);
+}
+
+function createErrorContextWithLimit(
+	errors: ErrorReport[],
+	maxReports?: number
+): ErrorContextValue {
 	const reactiveErrors = reactive(errors);
 
 	return {
 		errors: reactiveErrors,
 		report(error, options) {
 			const report = isErrorReport(error) ? error : createErrorReportFromOptions(error, options);
-			reactiveErrors.push(report);
+			batch(() => {
+				reactiveErrors.push(report);
+				if (maxReports !== undefined && reactiveErrors.length > maxReports)
+					reactiveErrors.splice(0, reactiveErrors.length - maxReports);
+			});
 			return report;
 		},
 		clear(error) {
@@ -134,4 +145,4 @@ export function normalizeRenderResult(result: RenderResult): Child[] {
 }
 
 /** Provides the canonical default error context value. */
-export const defaultErrorContext = createErrorContext();
+export const defaultErrorContext = createErrorContextWithLimit([], 100);
