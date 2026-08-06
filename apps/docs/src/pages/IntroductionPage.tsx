@@ -81,6 +81,18 @@ export function IntroductionPage(this: Component<{}>) {
 			</section>
 
 			<section>
+				<h2>Publish puzzles from one portable file.</h2>
+				<p>
+					Puzzle Foundry is a second complete native sample: deterministic Sudoku, word-search, and
+					crossword generation; shared print styling; and separate puzzle and solution SVG exports.
+					Its production artifact is one self-contained HTML file with no network dependency.
+				</p>
+				<Link className="primary-link" to="/samples">
+					Explore sample applications <span aria-hidden="true">{'→'}</span>
+				</Link>
+			</section>
+
+			<section>
 				<h2>Why another web framework?</h2>
 				<p>
 					React is the current center of gravity for web interfaces, and for good reason: its

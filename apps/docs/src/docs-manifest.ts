@@ -24,6 +24,7 @@ import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
 import { RoutingPage } from './pages/RoutingPage.jsx';
 import { RuntimesPage } from './pages/RuntimesPage.jsx';
+import { SamplesPage } from './pages/SamplesPage.jsx';
 import { SecretsPluginPage } from './pages/SecretsPluginPage.jsx';
 import { ServerExecutionPage } from './pages/ServerExecutionPage.jsx';
 import { StatePage } from './pages/StatePage.jsx';
@@ -78,6 +79,14 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'create exact app install scaffold vite runtime test runner agent skill native compiler platform binary TypeScript 7',
 				component: GettingStartedPage
+			},
+			{
+				path: '/samples',
+				label: 'Sample applications',
+				summary: 'Explore complete eXact applications and portable standalone builds.',
+				keywords:
+					'samples applications puzzle generator Sudoku word search crossword standalone HTML SVG shipping kanban workbench',
+				component: SamplesPage
 			},
 			{
 				path: '/runtimes',

@@ -32,6 +32,7 @@ These documents describe behavior that exists in the repository today:
 | [react-compatibility.md](react-compatibility.md)                                 | React 18/19 compatibility surface and explicit fidelity limits.                  |
 | [react-ecosystem-adapters.md](react-ecosystem-adapters.md)                       | Native substitutions for selected React-owned packages.                          |
 | [react-router-compatibility.md](react-router-compatibility.md)                   | Implemented React Router 5/6/7 facade coverage.                                  |
+| [sample-applications.md](sample-applications.md)                                 | Complete native applications and their build or runtime focus.                   |
 | [scheduling-suspense-activity.md](scheduling-suspense-activity.md)               | Native scheduling, readiness, retained DOM, and async-component semantics.       |
 | [server-components.md](server-components.md)                                     | Authoring and operating server-executed component work.                          |
 | [server-context-and-data-policy.md](server-context-and-data-policy.md)           | Context lifetime, placement, residency, sharing, and secret boundaries.          |
