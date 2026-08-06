@@ -21,6 +21,36 @@ export type ExactComponentParticipation = Readonly<{
 	componentBuild: ExactComponentBuildFacts;
 }>;
 
+type ExactValidatedPackageParticipation = Readonly<{
+	markerVersion: string;
+	buildFactsPath: string;
+	buildFacts: ExactPublishedComponentBuildFacts;
+}>;
+
+/** Generation-scoped validator that reads participation metadata once per package instance. */
+export class ExactComponentParticipationValidator {
+	readonly #packages = new Map<string, Promise<ExactValidatedPackageParticipation>>();
+
+	async validate(
+		instance: ExactResolvedPackageInstance,
+		candidate: ExactResolvedComponentCandidate,
+		instances: ReadonlyMap<string, ExactResolvedPackageInstance>,
+		edges: readonly ExactResolvedDependencyEdge[]
+	): Promise<ExactComponentParticipation> {
+		let pending = this.#packages.get(instance.key);
+		if (!pending) {
+			pending = validatePackageParticipation(instance, instances, edges);
+			this.#packages.set(instance.key, pending);
+		}
+		return selectComponentParticipation(instance, candidate, await pending);
+	}
+
+	/** Releases all successful and rejected validation entries with their build generation. */
+	clear(): void {
+		this.#packages.clear();
+	}
+}
+
 /** Failure produced while reading inert participation metadata before candidate evaluation. */
 export class ExactComponentParticipationError extends Error {
 	readonly code: ExactComponentAuthorizationErrorCode;
@@ -42,6 +72,15 @@ export async function validateExactComponentParticipation(
 	instances: ReadonlyMap<string, ExactResolvedPackageInstance>,
 	edges: readonly ExactResolvedDependencyEdge[]
 ): Promise<ExactComponentParticipation> {
+	const validated = await validatePackageParticipation(instance, instances, edges);
+	return selectComponentParticipation(instance, candidate, validated);
+}
+
+async function validatePackageParticipation(
+	instance: ExactResolvedPackageInstance,
+	instances: ReadonlyMap<string, ExactResolvedPackageInstance>,
+	edges: readonly ExactResolvedDependencyEdge[]
+): Promise<ExactValidatedPackageParticipation> {
 	const manifest = await readManifest(instance);
 	const markerRange = manifest.dependencies?.['@exactjs/component-library'];
 	if (typeof markerRange !== 'string') {
@@ -93,6 +132,15 @@ export async function validateExactComponentParticipation(
 		);
 	}
 	validatePublishedBuildFacts(buildFacts, instance, manifest);
+	return Object.freeze({ markerVersion: marker.version, buildFactsPath, buildFacts });
+}
+
+function selectComponentParticipation(
+	instance: ExactResolvedPackageInstance,
+	candidate: ExactResolvedComponentCandidate,
+	validated: ExactValidatedPackageParticipation
+): ExactComponentParticipation {
+	const { markerVersion, buildFactsPath, buildFacts } = validated;
 	const resolvedModule = packageModulePath(instance.root, candidate.resolvedModuleId);
 	const resolvedModuleFacts = buildFacts.modules.find(
 		(module) => normalizeModulePath(module.path) === resolvedModule
@@ -109,7 +157,7 @@ export async function validateExactComponentParticipation(
 		);
 	}
 	return Object.freeze({
-		markerVersion: marker.version,
+		markerVersion,
 		buildFactsPath,
 		buildFacts,
 		componentId: selected.componentId,

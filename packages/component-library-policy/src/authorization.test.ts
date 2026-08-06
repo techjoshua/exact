@@ -295,6 +295,18 @@ describe('@exactjs/component-library-policy', () => {
 		).toEqual(['delegated', 'root']);
 	});
 
+	it('validates package participation once within a generation', async () => {
+		const fixture = createFixture();
+		const session = createSession(fixture);
+		recordCandidateGraph(session, fixture);
+
+		await session.authorizeResolvedComponent(fixture.candidate);
+		rmSync(path.join(fixture.library.root, 'dist', 'exact-component-build.json'));
+		await expect(session.authorizeResolvedComponent(fixture.candidate)).resolves.toMatchObject({
+			outcome: 'authorized'
+		});
+	});
+
 	it('omits only optional enhancements under the explicit exclude policy', async () => {
 		const fixture = createFixture();
 		const session = createSession(fixture, {

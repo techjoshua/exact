@@ -27,8 +27,8 @@ import {
 	type ExactOmittedGenerationRecord
 } from './generation-output.js';
 import {
+	ExactComponentParticipationValidator,
 	ExactComponentParticipationError,
-	validateExactComponentParticipation,
 	type ExactComponentParticipation
 } from './participation.js';
 
@@ -63,6 +63,7 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 	readonly #edges: ExactResolvedDependencyEdge[] = [];
 	readonly #authorized = new Map<string, AuthorizedRecord>();
 	readonly #omitted = new Map<string, OmittedRecord>();
+	readonly #participation = new ExactComponentParticipationValidator();
 	#state: 'open' | 'committed' | 'rejected' | 'disposed' = 'open';
 
 	constructor(
@@ -124,7 +125,7 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 			);
 		this.validateImporterCandidate(candidate, instance);
 		try {
-			const participation = await validateExactComponentParticipation(
+			const participation = await this.#participation.validate(
 				instance,
 				candidate,
 				this.#instances,
@@ -373,6 +374,7 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 		this.#edges.length = 0;
 		this.#authorized.clear();
 		this.#omitted.clear();
+		this.#participation.clear();
 	}
 }
 
