@@ -546,9 +546,12 @@ func jsxAttributeNames(node *ast.Node) []string {
 }
 
 func interactiveJSXAttribute(name string) bool {
-	if name == "ref" || name == "value:input" || name == "value:change" ||
-		name == "checked:change" {
+	if name == "ref" || name == "value:onInput" || name == "value:onChange" ||
+		name == "checked:onChange" || name == "open:onToggle" {
 		return true
+	}
+	if separator := strings.IndexByte(name, ':'); separator >= 0 {
+		name = name[separator+1:]
 	}
 	if !strings.HasPrefix(name, "on") {
 		return false

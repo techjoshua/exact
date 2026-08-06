@@ -81,6 +81,7 @@ type jsxLowering struct {
 	stateReads           []StateRead
 	bindings             []ReactiveBinding
 	formBindings         map[int]formBinding
+	componentBindings    map[int]componentBinding
 	checker              *checker.Checker
 	taskHelpers          map[string]string
 	derived              map[int]ReactiveBinding
@@ -121,6 +122,7 @@ func lowerExactJSX(
 	stateReads []StateRead,
 	reactiveBindings []ReactiveBinding,
 	formBindings map[int]formBinding,
+	componentBindings map[int]componentBinding,
 	components []Component,
 	tasks []Task,
 	operations []InvokedTaskOperation,
@@ -160,6 +162,7 @@ func lowerExactJSX(
 		stateReads:           stateReads,
 		bindings:             reactiveBindings,
 		formBindings:         formBindings,
+		componentBindings:    componentBindings,
 		checker:              typeChecker,
 		taskHelpers:          make(map[string]string),
 		materializedNames:    make(map[int]string),
@@ -1655,6 +1658,10 @@ func (lowering *jsxLowering) propsWithReactivity(
 			}
 			attribute := property.AsJsxAttribute()
 			name := jsxAttributeText(attribute.Name())
+			if binding, exists := lowering.componentBindings[property.Pos()]; exists {
+				properties = append(properties, lowering.componentBindingProperties(binding)...)
+				continue
+			}
 			if ast.IsJsxNamespacedName(attribute.Name()) {
 				namespaced := attribute.Name().AsJsxNamespacedName()
 				prefix := namespaced.Namespace.Text()
@@ -2155,13 +2162,67 @@ func (lowering *jsxLowering) contextualCallbackParameterTypes(
 	return result
 }
 
+func (lowering *jsxLowering) componentBindingProperties(
+	binding componentBinding,
+) []*ast.Node {
+	target := lowering.visitor.VisitNode(binding.target)
+	next := lowering.factory.NewIdentifier("__exactBindingValue")
+	write := lowering.call(
+		lowering.names.write,
+		[]*ast.Node{
+			lowering.stateWriteRoot(binding.write),
+			lowering.stateWritePathNode(binding.write),
+			lowering.arrow(next),
+		},
+	)
+	body := lowering.factory.NewBlock(
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewExpressionStatement(write),
+		}),
+		true,
+	)
+	parameterType := lowering.checker.TypeToTypeNode(
+		binding.parameter,
+		binding.target,
+		nodebuilder.FlagsNoTruncation,
+		nil,
+	)
+	parameter := lowering.factory.NewParameterDeclaration(
+		nil,
+		nil,
+		next,
+		nil,
+		parameterType,
+		nil,
+	)
+	callback := lowering.factory.NewArrowFunction(
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{parameter}),
+		nil,
+		nil,
+		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+		body,
+	)
+	return []*ast.Node{
+		lowering.property(
+			jsxPropertyName(lowering.factory, binding.valueProp),
+			lowering.reactiveExpression(binding.target, target),
+		),
+		lowering.property(
+			jsxPropertyName(lowering.factory, binding.callbackProp),
+			callback,
+		),
+	}
+}
+
 func (lowering *jsxLowering) formBindingProperties(
 	name string,
 	initializer *ast.Node,
 	attributes *ast.Node,
 ) []*ast.Node {
-	if name != "value:input" && name != "value:change" &&
-		name != "checked:change" {
+	if name != "value:onInput" && name != "value:onChange" &&
+		name != "checked:onChange" && name != "open:onToggle" {
 		return nil
 	}
 	if initializer == nil || !ast.IsJsxExpression(initializer) {

@@ -191,8 +191,9 @@ export const docGroups: DocGroup[] = [
 				path: '/guides/forms',
 				label: 'Accessible forms',
 				summary:
-					'Bind native inputs and compose accessible validation without surrendering your data.',
-				keywords: 'form input binding value change checked field validation label accessible',
+					'Bind component callbacks and native controls while preserving explicit state ownership.',
+				keywords:
+					'form input component binding callback value change checked details toggle field validation label accessible',
 				component: FormsPage
 			},
 			{

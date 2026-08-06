@@ -9,7 +9,7 @@ Proposed after
 resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md),
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
-[`component-value-callback-bindings.md`](component-value-callback-bindings.md),
+[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md), and
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md). Resumption must
 persist the settled activator-selected enhancement ownership, bundler authorization fingerprint,

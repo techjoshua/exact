@@ -13,7 +13,7 @@ contract and before
 [`server-component-library-trust.md`](server-component-library-trust.md),
 [`cooperative-structured-children.md`](../proposals/cooperative-structured-children.md),
 [`enhancement-first-internationalization.md`](../proposals/enhancement-first-internationalization.md),
-[`component-value-callback-bindings.md`](../proposals/component-value-callback-bindings.md),
+[`component-value-callback-bindings.md`](component-value-callback-bindings.md),
 [`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md). Those proposals must consume
@@ -324,7 +324,7 @@ The compiler and language tools must enforce the following rules:
     and all possible namespaced members are statically known; their values join the same selection,
     distribution, and grouped-contract validation.
 14. After
-    [`component-value-callback-bindings.md`](../proposals/component-value-callback-bindings.md), a namespaced
+    [`component-value-callback-bindings.md`](component-value-callback-bindings.md), a namespaced
     attribute that resolves both as an enhancement member and as a finite component value/callback
     pair is an ambiguity diagnostic. Kebab-case and camelCase completion reduce collisions but never
     establish silent precedence.

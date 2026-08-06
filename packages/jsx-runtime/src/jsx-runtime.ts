@@ -128,9 +128,10 @@ export namespace JSX {
 		disabled?: unknown;
 		checked?: unknown;
 		value?: unknown;
-		'value:input'?: unknown;
-		'value:change'?: unknown;
-		'checked:change'?: unknown;
+		'value:onInput'?: unknown;
+		'value:onChange'?: unknown;
+		'checked:onChange'?: unknown;
+		'open:onToggle'?: unknown;
 		[attributeName: string]: unknown;
 	}
 

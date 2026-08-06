@@ -8,15 +8,15 @@ Ready for implementation after
 resolution or explicit rejection of the exploratory
 [`cooperative-structured-children.md`](cooperative-structured-children.md) design,
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), and
-[`component-value-callback-bindings.md`](component-value-callback-bindings.md). Recursive
-server/client graph partitioning is implemented in native protocol 1.27 and generated
-component-contract version 2. The enhancement proposal is the next ownership prerequisite: it
-allows one namespace to select several ordinary component nodes and replaces unrestricted target
-search with bounded root-bearing output frames. The trust proposal then ensures that the bundler
-authorizes the resolved package graph before any of those nodes enter a server-executing artifact,
-without adding policy to compiler eligibility analysis. The binding proposal then defines how
-generated value/change callbacks and intrinsic adapters enter the same event, ownership, and replay
-analysis as their explicit source expansions. The internationalization proposal adds message-plan,
+[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md). Recursive
+server/client graph partitioning and binding edges are implemented in native protocol 1.28, while
+generated component contracts remain version 2. The implemented enhancement contract allows one
+namespace to select several ordinary component nodes and uses bounded root-bearing output frames.
+The trust contract ensures that bundlers authorize the resolved package graph before any of those
+nodes enter a server-executing artifact, without adding policy to compiler eligibility analysis.
+The implemented binding contract makes generated value/change callbacks and intrinsic adapters
+enter the same state-effect, ownership, and placement analysis as their explicit source
+expansions. The internationalization proposal adds message-plan,
 locale-catalog, formatter, and Unicode-data requirements that must travel with a deferred artifact.
 This proposal defines the first broader lazy-island delivery over that resulting partition and
 authorized bundle model.

@@ -150,6 +150,33 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(value).toBe('typed');
 	});
 
+	it('adopts and publishes disclosure changes made before hydration', () => {
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<!--exact:fragment:0--><details data-exact-id=more data-exact-ssr-open=false></details><!--/exact:fragment:0-->';
+		const details = container.querySelector('details')!;
+		details.open = true;
+		let open = false;
+		hydrate(
+			createVNode(
+				Fragment,
+				null,
+				createVNode('details', {
+					'data-exact-id': 'more',
+					open,
+					__exactBindToggle: (event: Event) => {
+						open = (event.currentTarget as HTMLDetailsElement).open;
+					}
+				})
+			),
+			container,
+			{ logger: noopLogger }
+		);
+
+		expect(container.querySelector('details')?.open).toBe(true);
+		expect(open).toBe(true);
+	});
+
 	it('makes hydration idempotent and exposes idempotent disposal', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<!--exact:fragment:0--><p>server</p><!--/exact:fragment:0-->';

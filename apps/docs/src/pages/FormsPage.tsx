@@ -36,26 +36,28 @@ const reactiveInputSource = `function ProfileEditor(this: Component<{
   delivery: 'ground' | 'express';
   carriers: ('ups' | 'usps')[];
   tags: string[];
+  advanced: boolean;
 }>) {
   return () => (
     <form>
-      <input value:input={this.state.name} />
-      <input type="number" value:change={this.state.quantity} />
-      <input type="checkbox" checked:change={this.state.subscribed} />
+      <input value:onInput={this.state.name} />
+      <input type="number" value:onChange={this.state.quantity} />
+      <input type="checkbox" checked:onChange={this.state.subscribed} />
 
       <input
         type="radio"
         value="ground"
-        checked:change={this.state.delivery}
+        checked:onChange={this.state.delivery}
       />
 
       <input
         type="checkbox"
         value="ups"
-        checked:change={this.state.carriers}
+        checked:onChange={this.state.carriers}
       />
 
-      <select multiple value:change={this.state.tags}>...</select>
+      <select multiple value:onChange={this.state.tags}>...</select>
+      <details open:onToggle={this.state.advanced}>Advanced settings</details>
     </form>
   );
 }`;
@@ -69,30 +71,47 @@ const manualInputSource = `// Ordinary controlled input:
 />
 
 // The same property projection and write-back relationship:
-<input value:input={this.state.name} />`;
+<input value:onInput={this.state.name} />`;
 
 const bindingEffectsSource = `<input
-  value:input={this.state.name}
+  value:onInput={this.state.name}
   onInput={() => {
     // The binding has already updated state.
     this.log.info('Name edited', { name: this.state.name });
   }}
 />`;
 
+const componentBindingSource = `type DialogProps = {
+  open: boolean;
+  onOpenChanged?(open: boolean, reason?: string): void;
+};
+
+// Exact shorthand for a reactive open prop plus an assignment callback.
+<Dialog open:onOpenChanged={this.state.dialogOpen} />
+
+// Write the full form when notification does more than assign.
+<Dialog
+  open={this.state.dialogOpen}
+  onOpenChanged={(open, reason) => {
+    this.log.info('dialog changed', { open, reason });
+    this.state.dialogOpen = open;
+  }}
+/>`;
+
 const invalidInputBindingsSource = `// A binding needs one writable location, not a derived value.
-<input value:input={\`\${this.state.first} \${this.state.last}\`} />
+<input value:onInput={\`\${this.state.first} \${this.state.last}\`} />
 
 // Checkboxes project their checked property, not their value property.
-<input type="checkbox" value:change={this.state.enabled} />
+<input type="checkbox" value:onChange={this.state.enabled} />
 
 // Select controls commit through change, not input.
-<select value:input={this.state.status}>...</select>
+<select value:onInput={this.state.status}>...</select>
 
 // The compiler generates value, so an explicit value would conflict.
-<input value={this.state.name} value:input={this.state.name} />
+<input value={this.state.name} value:onInput={this.state.name} />
 
 // An array-bound checkbox needs the value it will add or remove.
-<input type="checkbox" checked:change={this.state.filters} />`;
+<input type="checkbox" checked:onChange={this.state.filters} />`;
 
 /** Documents native element bindings separately from eXact form-library components. */
 export function FormsPage(this: Component<{}>) {
@@ -107,18 +126,38 @@ export function FormsPage(this: Component<{}>) {
 			<section>
 				<h2>Start with native DOM controls</h2>
 				<p>
-					The lowercase <code>{'<input>'}</code>, <code>{'<textarea>'}</code>, and{' '}
-					<code>{'<select>'}</code> elements in the following sections are ordinary browser
-					elements, not eXact components. A controlled input normally repeats the same state path
-					twice: once to project state into a DOM property and once to copy the browser's next value
-					back during an event. eXact supports a narrow
+					The lowercase <code>{'<input>'}</code>, <code>{'<textarea>'}</code>,{' '}
+					<code>{'<select>'}</code>, and <code>{'<details>'}</code> elements in the following
+					sections are ordinary browser elements, not eXact components. A controlled input normally
+					repeats the same state path twice: once to project state into a DOM property and once to
+					copy the browser's next value back during an event. eXact supports a narrow
 					<code>property:event</code> notation for that recurring relationship.
 				</p>
 				<CodeBlock source={manualInputSource} language="tsx" title="Equivalent input code" />
 				<p>
-					The compiler still emits a reactive <code>value</code> or <code>checked</code> property
-					and a lifecycle-owned native listener. The notation removes mechanical code; it does not
-					introduce a general directive or event system.
+					The compiler still emits a reactive <code>value</code>, <code>checked</code>, or{' '}
+					<code>open</code> property and a lifecycle-owned native listener. The notation removes
+					mechanical code; it does not introduce a general directive or event system.
+				</p>
+			</section>
+			<section>
+				<h2>Bind controlled components without inventing a protocol</h2>
+				<CodeBlock source={componentBindingSource} language="tsx" title="DialogBinding.tsx" />
+				<p>
+					For a capitalized eXact component, both sides of the colon are ordinary props from the
+					component&apos;s finite prop type. The compiler supplies the reactive value and an
+					ordinary callback that assigns its first argument to the parent-owned state path. There is
+					no writable prop, channel, or component runtime binding object.
+				</p>
+				<p>
+					Use explicit props when the callback validates, transforms, refuses, logs, awaits, or
+					returns a result. Supplying either generated prop alongside the shorthand is an error;
+					component callbacks are not composed.
+				</p>
+				<p>
+					A namespaced attribute that also resolves as an imported enhancement is an error. Expand
+					the two component props or rename the enhancement namespace; casing never silently chooses
+					one meaning.
 				</p>
 			</section>
 			<section>
@@ -136,24 +175,31 @@ export function FormsPage(this: Component<{}>) {
 						<tbody>
 							<tr>
 								<td>
-									<code>value:input</code>
+									<code>value:onInput</code>
 								</td>
 								<td>Input and textarea</td>
 								<td>String, number, date, or nullable variants</td>
 							</tr>
 							<tr>
 								<td>
-									<code>value:change</code>
+									<code>value:onChange</code>
 								</td>
 								<td>Input, textarea, select, and multi-select</td>
 								<td>Scalar values or a string/number array for multi-select</td>
 							</tr>
 							<tr>
 								<td>
-									<code>checked:change</code>
+									<code>checked:onChange</code>
 								</td>
 								<td>Checkbox and radio input</td>
 								<td>Boolean, radio value, or string/number checkbox array</td>
+							</tr>
+							<tr>
+								<td>
+									<code>open:onToggle</code>
+								</td>
+								<td>Details disclosure</td>
+								<td>Boolean open state</td>
 							</tr>
 						</tbody>
 					</table>
@@ -169,10 +215,17 @@ export function FormsPage(this: Component<{}>) {
 				<h2>Authored handlers still handle authored behavior</h2>
 				<CodeBlock source={bindingEffectsSource} language="tsx" title="InputWithAudit.tsx" />
 				<p>
-					A separate <code>onInput</code> or <code>onChange</code> handler may validate, log,
-					persist, or coordinate other state. The direct binding listener runs first, so the
-					authored handler reads the updated value. Both listeners are removed when the element is
-					removed.
+					A separate <code>onInput</code>, <code>onChange</code>, or <code>onToggle</code> handler
+					may validate, log, persist, or coordinate other state. The direct binding listener runs
+					first, so the authored handler reads the updated value. Both listeners are removed when
+					the element is removed.
+				</p>
+				<p>
+					A bound <code>{'<details>'}</code> reads its final <code>open</code> property on each{' '}
+					<code>toggle</code>, including browser changes within a named exclusive group. Hydration
+					preserves and publishes a disclosure changed before the app starts. Bindings otherwise
+					observe only their declared endpoint: eXact does not poll controls or synthesize events
+					for reset, autofill, restoration, or silent platform mutations.
 				</p>
 			</section>
 			<section>

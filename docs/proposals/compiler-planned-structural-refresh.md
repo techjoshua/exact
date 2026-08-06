@@ -9,7 +9,7 @@ Proposed after
 resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md),
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
-[`component-value-callback-bindings.md`](component-value-callback-bindings.md), and
+[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md), and
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md). Structural plans must consume the
 settled activator-selected enhancement component groups, bundler-authorized server component graph,
 bounded root-bearing frames, target generations, and activation containment rather than encode the

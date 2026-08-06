@@ -67,6 +67,7 @@ type enhancementResolutionDiagnostic struct {
 func collectEnhancementImports(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	skippedAttributes map[int]struct{},
 ) enhancementImports {
 	result := enhancementImports{
 		bindings:     make(map[string]enhancementBinding),
@@ -193,7 +194,7 @@ func collectEnhancementImports(
 			appendEnhancementCatalog(&result, identity, moduleSpecifier, exportName)
 		}
 	}
-	collectEnhancementApplications(sourceFile, typeChecker, &result, ordinaryBindings)
+	collectEnhancementApplications(sourceFile, typeChecker, &result, ordinaryBindings, skippedAttributes)
 	collectEnhancementTypeDiagnostics(sourceFile, typeChecker, &result)
 	collectTargetDiagnostics(sourceFile, &result)
 	return result

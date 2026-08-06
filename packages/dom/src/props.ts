@@ -63,7 +63,10 @@ export function clearElementProps(element: Element): void {
  */
 export function synchronizeFormBinding(element: Element): boolean {
 	const entries = directEventHandlers.get(element);
-	const entry = entries?.get('__exactBindInput') ?? entries?.get('__exactBindChange');
+	const entry =
+		entries?.get('__exactBindInput') ??
+		entries?.get('__exactBindChange') ??
+		entries?.get('__exactBindToggle');
 	if (!entry) return false;
 	const event = new Event(entry.type, { bubbles: false, cancelable: false });
 	Object.defineProperties(event, {
@@ -99,12 +102,12 @@ function setProp(
 		return;
 	}
 
-	if (key === '__exactBindInput' || key === '__exactBindChange') {
+	if (key === '__exactBindInput' || key === '__exactBindChange' || key === '__exactBindToggle') {
 		setDirectEventHandler(
 			root,
 			element,
 			key,
-			key === '__exactBindInput' ? 'input' : 'change',
+			key === '__exactBindInput' ? 'input' : key === '__exactBindToggle' ? 'toggle' : 'change',
 			value,
 			false
 		);

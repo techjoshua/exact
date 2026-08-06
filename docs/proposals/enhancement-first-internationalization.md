@@ -13,10 +13,10 @@ This proposal remains before
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md),
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md), and
-[`webpack-bun-microfrontend-parity.md`](webpack-bun-microfrontend-parity.md). It can be implemented
-independently of
-[`component-value-callback-bindings.md`](component-value-callback-bindings.md), but both proposals
-precede the broader lazy-island delivery in the repository queue.
+[`webpack-bun-microfrontend-parity.md`](webpack-bun-microfrontend-parity.md). The implemented
+[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md) contract is
+not an internationalization prerequisite, but its callback and intrinsic-adapter analysis is now
+part of the settled compiler baseline that precedes broader lazy-island delivery.
 
 The enhancement proposal supplies finite activator maps, optional ordinary-component activation,
 and direct `_` composition boundaries. The trust proposal authorizes any selected component-library

@@ -8,7 +8,7 @@ Proposed after the higher-leverage compiler and SSR boundary work, including
 resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md), and
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
-[`component-value-callback-bindings.md`](component-value-callback-bindings.md),
+[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md), as well as resolution of the

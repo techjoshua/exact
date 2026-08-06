@@ -21,12 +21,13 @@ func collectEnhancementApplications(
 	typeChecker *checker.Checker,
 	imports *enhancementImports,
 	ordinaryBindings map[string]struct{},
+	skippedAttributes map[int]struct{},
 ) {
 	if typeChecker == nil {
 		return
 	}
 	if len(imports.bindings) == 0 {
-		collectOrdinaryEnhancementPrefixDiagnostics(sourceFile, imports, ordinaryBindings)
+		collectOrdinaryEnhancementPrefixDiagnostics(sourceFile, imports, ordinaryBindings, skippedAttributes)
 		return
 	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
@@ -65,6 +66,9 @@ func collectEnhancementApplications(
 				continue
 			}
 			attribute := property.AsJsxAttribute()
+			if _, skipped := skippedAttributes[property.Pos()]; skipped {
+				continue
+			}
 			if !ast.IsJsxNamespacedName(attribute.Name()) {
 				continue
 			}
@@ -122,6 +126,9 @@ func collectEnhancementApplications(
 				continue
 			}
 			attribute := property.AsJsxAttribute()
+			if _, skipped := skippedAttributes[property.Pos()]; skipped {
+				continue
+			}
 			if !ast.IsJsxNamespacedName(attribute.Name()) {
 				continue
 			}
@@ -152,6 +159,7 @@ func collectOrdinaryEnhancementPrefixDiagnostics(
 	sourceFile *ast.SourceFile,
 	imports *enhancementImports,
 	ordinaryBindings map[string]struct{},
+	skippedAttributes map[int]struct{},
 ) {
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		attributes := jsxOpeningAttributes(node)
@@ -163,6 +171,9 @@ func collectOrdinaryEnhancementPrefixDiagnostics(
 				continue
 			}
 			attribute := property.AsJsxAttribute()
+			if _, skipped := skippedAttributes[property.Pos()]; skipped {
+				continue
+			}
 			if !ast.IsJsxNamespacedName(attribute.Name()) {
 				continue
 			}

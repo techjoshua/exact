@@ -39,7 +39,7 @@ func (s *Session) Execute(request Request) Response {
 		ID:          request.ID,
 		Diagnostics: []Diagnostic{},
 		Analysis: NewAnalysis(
-			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, PartitionPlan{}, nil,
 			newPolicyAnalysis(),
 			CapabilityRequirements{},
@@ -173,14 +173,43 @@ func (s *Session) Execute(request Request) Response {
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
 	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
-	stateWriteDiagnostics := unsupportedStateWriteDiagnostics(
+	preliminaryEnhancements := collectEnhancementImports(sourceFile, generation.checker, nil)
+	componentBindings, componentBindingWrites, componentBindingDiagnostics := analyzeComponentBindings(
 		sourceFile,
 		generation.checker,
+		preliminaryEnhancements,
 	)
-	formBindings, formBindingDiagnostics := analyzeFormBindings(
+	stateWrites = append(stateWrites, componentBindingWrites...)
+	formBindings, blockedIntrinsicEnhancements, formBindingDiagnostics := analyzeFormBindings(
 		sourceFile,
 		generation.checker,
 		stateReads,
+		preliminaryEnhancements,
+	)
+	skippedEnhancementAttributes := make(
+		map[int]struct{},
+		len(componentBindings)+len(formBindings)+len(blockedIntrinsicEnhancements),
+	)
+	for position := range componentBindings {
+		skippedEnhancementAttributes[position] = struct{}{}
+	}
+	for position := range formBindings {
+		skippedEnhancementAttributes[position] = struct{}{}
+	}
+	for position := range blockedIntrinsicEnhancements {
+		skippedEnhancementAttributes[position] = struct{}{}
+	}
+	enhancementImports := preliminaryEnhancements
+	if len(skippedEnhancementAttributes) != 0 {
+		enhancementImports = collectEnhancementImports(
+			sourceFile,
+			generation.checker,
+			skippedEnhancementAttributes,
+		)
+	}
+	stateWriteDiagnostics := unsupportedStateWriteDiagnostics(
+		sourceFile,
+		generation.checker,
 	)
 	classNameDiagnostics := analyzeClassNames(sourceFile)
 	renderContractDiagnostics := renderDiagnostics(
@@ -207,6 +236,7 @@ func (s *Session) Execute(request Request) Response {
 		components,
 		stateReads,
 		stateWrites,
+		componentBindings,
 	)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
@@ -313,7 +343,6 @@ func (s *Session) Execute(request Request) Response {
 		components,
 		request.ID,
 	)
-	enhancementImports := collectEnhancementImports(sourceFile, generation.checker)
 	partitionPlan := createPartitionPlan(
 		sourceFile,
 		request.BuildKey,
@@ -336,6 +365,7 @@ func (s *Session) Execute(request Request) Response {
 		stateAliases,
 		stateReads,
 		stateWrites,
+		collectValueCallbackBindings(componentBindings, formBindings, components, generation.checker),
 		reactiveBindings,
 		callables.summaries,
 		tasks,
@@ -398,6 +428,7 @@ func (s *Session) Execute(request Request) Response {
 		)...,
 	)
 	response.Diagnostics = append(response.Diagnostics, formBindingDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, componentBindingDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
@@ -470,6 +501,7 @@ func (s *Session) Execute(request Request) Response {
 		stateReads,
 		reactiveBindings,
 		formBindings,
+		componentBindings,
 		components,
 		tasks,
 		operations,

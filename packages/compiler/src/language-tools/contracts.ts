@@ -164,6 +164,15 @@ export type ExactStateAssignmentClassification = Readonly<{
 export type ExactBindingClassification = Readonly<{
 	kind: 'binding';
 	dependencies: readonly ExactSourceDependency[];
+	statePath: string;
+	valueProp: string;
+	callbackProp: string;
+	callbackValueType: string;
+	additionalParameters: number;
+	additionalParameterTypes: readonly string[];
+	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
+	artifactTargets: readonly ('client' | 'server')[];
+	intrinsicAdapter?: string;
 }>;
 
 /** Component-owned lifecycle registration classification. */

@@ -3,9 +3,9 @@
 ## Status
 
 **Deferred and exploratory. This proposal is not ready for acceptance, final API selection, or
-implementation.** The repository queue proceeds with
-[`component-value-callback-bindings.md`](component-value-callback-bindings.md) before returning to
-this decision gate.
+implementation.** With
+[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md) implemented,
+the repository queue now pauses at this decision gate before internationalization work proceeds.
 
 Investigate after
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and

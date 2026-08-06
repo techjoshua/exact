@@ -721,44 +721,80 @@ Each reactive style entry updates independently. Unit helpers such as `px()`,
 `rem()`, `percent()`, and `ms()` are exported by `@exactjs/dom` when an
 explicit reactive CSS value is useful.
 
-### Native form bindings
+### Component value/callback bindings
 
-Three compiler-owned namespaced props provide two-way bindings to one writable
+A component can pair an ordinary value prop with an ordinary notification callback when the
+callback's first argument is a replacement value:
+
+```tsx
+<Dialog open:onOpenChanged={this.state.dialogOpen} />
+```
+
+This is exactly shorthand for a reactive `open` prop and an ordinary callback that assigns its
+first argument to `this.state.dialogOpen`. Both names must exist in the component's finite prop
+type, the callback must return only `void` or `undefined`, and the target must be one writable state
+location. Additional callback arguments are allowed and ignored.
+
+The parent remains the state owner and the child still receives immutable props. Write the two
+props explicitly when the callback must validate, refuse, transform, log, await, or return a
+meaningful result. Supplying either generated prop explicitly is a duplicate-prop error; the
+compiler never composes component callbacks.
+
+The compiler resolves component bindings alongside attributed enhancement namespaces. If both
+interpretations are valid, compilation fails and the source must expand the component props or
+rename the enhancement import namespace. Custom elements do not gain this convention, and
+`_target` remains intrinsic contribution syntax rather than a component binding boundary.
+
+### Intrinsic bindings
+
+Four compiler-owned namespaced props provide two-way bindings to one writable
 reactive location:
 
 ```tsx
-<input value:input={this.state.name} />
-<input type="number" value:change={this.state.quantity} />
-<input type="date" value:change={this.state.date} />
-<input type="checkbox" checked:change={this.state.subscribed} />
-<input type="radio" value="ground" checked:change={this.state.delivery} />
-<input type="checkbox" value="ups" checked:change={this.state.carriers} />
-<select multiple value:change={this.state.tags}>...</select>
+<input value:onInput={this.state.name} />
+<input type="number" value:onChange={this.state.quantity} />
+<input type="date" value:onChange={this.state.date} />
+<input type="checkbox" checked:onChange={this.state.subscribed} />
+<input type="radio" value="ground" checked:onChange={this.state.delivery} />
+<input type="checkbox" value="ups" checked:onChange={this.state.carriers} />
+<select multiple value:onChange={this.state.tags}>...</select>
+<details open:onToggle={this.state.advanced}>Advanced settings</details>
 ```
 
 The supported combinations are:
 
-| Syntax           | Controls                                         | State value                                                         |
-| ---------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
-| `value:input`    | `input`, `textarea`                              | string, number, `Date`, or a nullable variant                       |
-| `value:change`   | `input`, `textarea`, `select`, `select multiple` | scalar value, or a homogeneous string/number array for multi-select |
-| `checked:change` | checkbox or radio `input`                        | boolean, the radio value, or a homogeneous string/number array      |
+| Syntax             | Controls                                         | State value                                                         |
+| ------------------ | ------------------------------------------------ | ------------------------------------------------------------------- |
+| `value:onInput`    | `input`, `textarea`                              | string, number, `Date`, or a nullable variant                       |
+| `value:onChange`   | `input`, `textarea`, `select`, `select multiple` | scalar value, or a homogeneous string/number array for multi-select |
+| `checked:onChange` | checkbox or radio `input`                        | boolean, the radio value, or a homogeneous string/number array      |
+| `open:onToggle`    | `details`                                        | boolean disclosure state                                            |
 
 Select controls always commit on `change`. Boolean state requires
 `type="checkbox"`. A `Date` requires `type="date"`. An array-bound checkbox
 requires an explicit `value`, and an array is otherwise valid only for
 `<select multiple>`.
 
-The binding generates the corresponding `value` or `checked` prop, so that prop
+The binding generates the corresponding `value`, `checked`, or `open` prop, so that prop
 cannot also be written explicitly. An authored handler for the same event is
 allowed and runs after state has been updated:
 
 ```tsx
 <input
-	value:input={this.state.name}
+	value:onInput={this.state.name}
 	onInput={() => this.log.info('edited', { name: this.state.name })}
 />
 ```
+
+`details` publishes the final `open` property observed at `toggle`. In a named exclusive group,
+each member that the browser changes publishes its own final value, and an agreeing state update
+does not write the property back. A disclosure changed before hydration is treated like a dirty
+form control: hydration preserves the live value and publishes it before normal reactive updates.
+
+Bindings observe only their declared browser endpoint. Reset, autofill, restoration, or another
+platform mutation updates state when the browser dispatches that endpoint; eXact does not synthesize
+events, poll controls, or install document-wide mutation observers. Use explicit coordination when
+a platform behavior does not dispatch the selected event.
 
 Use an ordinary controlled element when conversion or write-back is more
 complex:

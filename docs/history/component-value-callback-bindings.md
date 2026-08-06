@@ -2,26 +2,21 @@
 
 ## Status
 
-**Ready for implementation.** Implement after
-[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
-[`server-component-library-trust.md`](../history/server-component-library-trust.md), and before
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
-[`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md). It is independent of the
-deferred [`cooperative-structured-children.md`](cooperative-structured-children.md) decision and
-[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), so it is
-the next actionable proposal while those designs remain unresolved. Lazy eligibility and event
-replay must analyze the generated callback exactly as they analyze its explicit source equivalent.
+**Implemented and archived in August 2026.** The compiler now lowers finite component
+`valueProp:callbackProp` pairs to ordinary reactive props and callback assignments, exposes their
+source binding edges through native protocol 1.28, and rejects duplicate, incompatible, ambiguous,
+or non-writable forms. Intrinsic bindings use the canonical `value:onInput`, `value:onChange`,
+`checked:onChange`, and `open:onToggle` spellings, including details SSR and dirty-hydration
+adoption. Language tools provide completion, hover, rename, and source inspection without adding a
+runtime component-binding abstraction.
 
-The syntax, duplicate-prop behavior, ordinary callback semantics, intrinsic endpoint table,
-enhancement ambiguity policy, compiler ownership, delivery order, and acceptance gates are
-decision-complete. Implementation may refine private compiler organization but must not add
-callback composition, binding-specific lifetime behavior, writable props, or a runtime binding
-abstraction.
-
-This proposal depends on the enhancement proposal's final namespaced-JSX and kebab-case resolution
-rules. A namespaced attribute that could denote either an enhancement member or a component binding
-must fail with an ambiguity diagnostic; neither feature receives silent precedence.
+The normative contracts now live in
+[component-language.md](../component-language.md), [language-tools.md](../language-tools.md), and
+[native-compiler.md](../native-compiler.md). This record preserves the implemented design and its
+acceptance rationale. Later work builds on it through
+[lazy interaction islands](../proposals/lazy-interaction-islands.md),
+[compiler-planned structural refresh](../proposals/compiler-planned-structural-refresh.md), and
+[partial-prerender resumption](../proposals/partial-prerender-resumption.md).
 
 | Area                        | Current form                                        | Proposed form                                                            |
 | --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -77,7 +72,7 @@ own `this.state.dialogOpen`; the child receives an ordinary reactive `open` valu
 ordinary callback when it wants to publish a replacement.
 
 The lowering must also preserve the performance constraints in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md). A binding adds no
+[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). A binding adds no
 runtime registry, subscription, channel, or per-render composition object beyond what its explicit
 value-plus-callback expansion requires. It receives exactly the callback allocation, identity,
 ownership, cleanup, and optimization behavior of the equivalent authored lambda—no stronger and no

@@ -8,7 +8,7 @@ Accessible form components for eXact applications.
 <Form errors={this.state.errors} onValidSubmit={save}>
 	<Field name="email">
 		<Label>Email</Label>
-		<Input type="email" value:input={this.state.email} />
+		<Input type="email" />
 		<FieldError />
 	</Field>
 	<Submit pendingText="Saving…">Save</Submit>

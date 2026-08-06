@@ -79,6 +79,7 @@ export type {
 	NativeCompilerStateAlias,
 	NativeCompilerStateRead,
 	NativeCompilerStateWrite,
+	NativeCompilerValueBinding,
 	NativeCompilerStateEffect,
 	NativeCompilerTask,
 	NativeCompilerRequest,

@@ -1151,7 +1151,7 @@ func TestSessionLowersFormBindingInsideGeneratedIntrinsicIsland(t *testing.T) {
 		export function Panel(this: Component<{ name: string }>) {
 			const __fixtureTask0 = async (_task: TaskContext = TaskContext.server()) => loadPanel();
 __fixtureTask0();
-			return () => <input value:input={this.state.name} />;
+			return () => <input value:onInput={this.state.name} />;
 		}
 	`
 	server := NewSession().Execute(Request{
@@ -1164,7 +1164,7 @@ __fixtureTask0();
 	if server.Error != "" {
 		t.Fatal(server.Error)
 	}
-	if strings.Contains(server.Code, "value:input") ||
+	if strings.Contains(server.Code, "value:onInput") ||
 		strings.Contains(server.Code, "__exactBindInput") ||
 		!strings.Contains(
 			server.Code,
@@ -1199,7 +1199,7 @@ __fixtureTask0();
 			)
 		}
 	}
-	if strings.Contains(client.Code, "value:input") {
+	if strings.Contains(client.Code, "value:onInput") {
 		t.Fatalf(
 			"authored form-binding namespace escaped into client output:\n%s",
 			client.Code,
@@ -1222,14 +1222,14 @@ func TestSessionLowersTypedNativeFormBindingConversions(t *testing.T) {
 			const __fixtureTask1 = async (_task: TaskContext = TaskContext.server()) => loadForm();
 __fixtureTask1();
 			return () => <>
-				<input type="number" value:change={this.state.count} />
-				<input type="checkbox" checked:change={this.state.enabled} />
-				<input type="radio" value="ground" checked:change={this.state.method} />
-				<select multiple value:change={this.state.tags}>
+				<input type="number" value:onChange={this.state.count} />
+				<input type="checkbox" checked:onChange={this.state.enabled} />
+				<input type="radio" value="ground" checked:onChange={this.state.method} />
+				<select multiple value:onChange={this.state.tags}>
 					<option value="a">A</option>
 				</select>
-				<input type="checkbox" value="2" checked:change={this.state.codes} />
-				<input type="date" value:change={this.state.birthday} />
+				<input type="checkbox" value="2" checked:onChange={this.state.codes} />
+				<input type="date" value:onChange={this.state.birthday} />
 			</>;
 		}
 	`
@@ -1264,8 +1264,8 @@ __fixtureTask1();
 		}
 	}
 	if strings.Contains(response.Code, "__exactAny") ||
-		strings.Contains(response.Code, "value:change") ||
-		strings.Contains(response.Code, "checked:change") {
+		strings.Contains(response.Code, "value:onChange") ||
+		strings.Contains(response.Code, "checked:onChange") {
 		t.Fatalf("form-binding compiler syntax escaped into output:\n%s", response.Code)
 	}
 	server := NewSession().Execute(Request{
@@ -1291,8 +1291,8 @@ __fixtureTask1();
 		}
 	}
 	if strings.Contains(server.Code, "__exactBind") ||
-		strings.Contains(server.Code, "value:change") ||
-		strings.Contains(server.Code, "checked:change") {
+		strings.Contains(server.Code, "value:onChange") ||
+		strings.Contains(server.Code, "checked:onChange") {
 		t.Fatalf("server form-binding fallback retained client behavior:\n%s", server.Code)
 	}
 }
@@ -1305,7 +1305,7 @@ func TestSessionRejectsInvalidNativeFormBindingContracts(t *testing.T) {
 			declare class Component<State> { state: State }
 			export function Form(this: Component<{ enabled: boolean }>) {
 				return () =>
-					<input type="checkbox" value:change={this.state.enabled} />;
+					<input type="checkbox" value:onChange={this.state.enabled} />;
 			}
 		`,
 	})
@@ -1315,7 +1315,7 @@ func TestSessionRejectsInvalidNativeFormBindingContracts(t *testing.T) {
 	if !containsDiagnosticCode(response.Diagnostics, "EXACT_FORM_BINDING") ||
 		!strings.Contains(
 			response.Diagnostics[0].Message,
-			"use checked:change",
+			"use checked:onChange",
 		) {
 		t.Fatalf("missing invalid form-binding diagnostic: %#v", response.Diagnostics)
 	}
@@ -6505,6 +6505,13 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	if !containsDiagnosticCode(missing.Diagnostics, "EXACT6016") {
 		t.Fatalf("childless _target was accepted: %#v", missing.Diagnostics)
 	}
+	targetBinding := NewSession().Execute(Request{
+		ID: "target-binding.tsx", Kind: "compile",
+		Source: `export const view = <_target open:onOpenChanged={state.open}><button>Save</button></_target>;`,
+	})
+	if containsDiagnosticCode(targetBinding.Diagnostics, "EXACT_COMPONENT_BINDING") {
+		t.Fatalf("_target was treated as a generic component binding boundary: %#v", targetBinding.Diagnostics)
+	}
 }
 
 func TestSessionValidatesAttributedEnhancementComponentSchemas(t *testing.T) {
@@ -6557,6 +6564,120 @@ func TestSessionValidatesAttributedEnhancementComponentSchemas(t *testing.T) {
 	openSpread := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; const props: Record<string, unknown> = {}; export const view = <div {...props} />;`)
 	if !containsDiagnosticCode(openSpread.Diagnostics, "EXACT6008") {
 		t.Fatalf("open enhancement spread key space was accepted: %#v", openSpread.Diagnostics)
+	}
+}
+
+func TestSessionRejectsEnhancementAndComponentBindingAmbiguity(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	enhancementFile := filepath.Join(root, "enhancement.ts")
+	implementationFile := filepath.Join(root, "enhancement-implementation.ts")
+	entrySource := `
+		import { mode } from "./enhancement.js" with { type: "exact-enhancement" };
+		type WidgetProps = { mode: boolean; toggle(next: boolean): void };
+		declare function Widget(props: WidgetProps): unknown;
+		export function View(this: Component<{ enabled: boolean }>) {
+			return () => <Widget mode:toggle={this.state.enabled} />;
+		}
+	`
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:  entrySource,
+		enhancementFile: `
+			export { mode, value } from "./enhancement-implementation.js" with { type: "exact-enhancement" };
+		`,
+		implementationFile: `
+			export function mode(props: { toggle?: boolean; children?: unknown }) { return props.children; }
+			export function value(props: { tone?: string; children?: unknown }) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
+	})
+	if !containsDiagnosticCode(response.Diagnostics, "EXACT_COMPONENT_BINDING") {
+		t.Fatalf("ambiguous enhancement and component binding was accepted: %#v", response.Diagnostics)
+	}
+	foundMessage := false
+	for _, diagnostic := range response.Diagnostics {
+		if strings.Contains(diagnostic.Message, "ambiguous between component props") {
+			foundMessage = true
+			break
+		}
+	}
+	if !foundMessage {
+		t.Fatalf("ambiguity diagnostic omitted both interpretations: %#v", response.Diagnostics)
+	}
+	for _, source := range []string{
+		`import { mode } from "./enhancement.js" with { type: "exact-enhancement" };
+		 type WidgetProps = { label: string }; declare function Widget(props: WidgetProps): unknown;
+		 export const view = <Widget mode:toggle />;`,
+		`import { value } from "./enhancement.js" with { type: "exact-enhancement" };
+		 export const view = <input value:tone="quiet" />;`,
+	} {
+		if err := os.WriteFile(entryFile, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		enhancementOnly := NewSession().Execute(Request{
+			ID: entryFile, Kind: "compile", Source: source, ConfigFile: configFile,
+		})
+		if containsDiagnosticCode(enhancementOnly.Diagnostics, "EXACT_COMPONENT_BINDING") ||
+			containsDiagnosticCode(enhancementOnly.Diagnostics, "EXACT_FORM_BINDING") {
+			t.Fatalf("valid enhancement was misclassified as a value binding: %#v", enhancementOnly.Diagnostics)
+		}
+	}
+}
+
+func TestSessionAttributesComponentBindingWritesToCallbackCallable(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	if err := os.WriteFile(configFile, []byte(`{"compilerOptions":{"target":"es2022","jsx":"preserve"},"include":["*.tsx"]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	compile := func(body string) Response {
+		source := `
+			declare class Component<S extends object> { state: S; }
+			type DialogProps = { open: boolean; onOpenChanged(open: boolean): void };
+			declare function Dialog(props: DialogProps): unknown;
+			export function View(this: Component<{ open: boolean }>) {
+				return () => ` + body + `;
+			}
+		`
+		if err := os.WriteFile(entryFile, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return NewSession().Execute(Request{
+			ID: entryFile, Kind: "compile", Source: source, ConfigFile: configFile,
+		})
+	}
+	shorthand := compile(`<Dialog open:onOpenChanged={this.state.open} />`)
+	explicit := compile(`<Dialog open={this.state.open} onOpenChanged={(open) => { this.state.open = open; }} />`)
+	callbackShape := func(response Response) (string, string, int) {
+		for _, callable := range response.Analysis.Callables {
+			if callable.Kind != "function" || len(callable.StateWrites) != 1 ||
+				callable.StateWrites[0].Path != "open" {
+				continue
+			}
+			return callable.DirectEffect, callable.StateWrites[0].Operation, len(callable.ArtifactTargets)
+		}
+		return "missing", "missing", -1
+	}
+	shorthandEffect, shorthandOperation, shorthandTargets := callbackShape(shorthand)
+	explicitEffect, explicitOperation, explicitTargets := callbackShape(explicit)
+	if shorthandEffect == "missing" || explicitEffect == "missing" {
+		t.Fatalf("callback callable missing: shorthand=%#v explicit=%#v", shorthand.Analysis.Callables, explicit.Analysis.Callables)
+	}
+	if shorthandEffect != explicitEffect || shorthandOperation != explicitOperation || shorthandTargets != explicitTargets {
+		t.Fatalf(
+			"binding callback analysis differs from explicit lambda: shorthand=%q/%q/%d explicit=%q/%q/%d",
+			shorthandEffect, shorthandOperation, shorthandTargets,
+			explicitEffect, explicitOperation, explicitTargets,
+		)
 	}
 }
 

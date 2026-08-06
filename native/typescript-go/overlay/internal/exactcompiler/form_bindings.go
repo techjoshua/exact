@@ -17,6 +17,8 @@ type formBinding struct {
 	target     *ast.Node
 	option     *ast.Node
 	targetPath []string
+	start      int
+	length     int
 }
 
 // analyzeFormBindings validates namespaced native-control bindings once, before
@@ -26,8 +28,10 @@ func analyzeFormBindings(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	stateReads []StateRead,
-) (map[int]formBinding, []Diagnostic) {
+	enhancements enhancementImports,
+) (map[int]formBinding, map[int]struct{}, []Diagnostic) {
 	result := make(map[int]formBinding)
+	blockedEnhancements := make(map[int]struct{})
 	diagnostics := []Diagnostic{}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsJsxOpeningElement(node) && !ast.IsJsxSelfClosingElement(node) {
@@ -52,13 +56,27 @@ func analyzeFormBindings(
 					diagnostics,
 					formBindingDiagnostic(
 						property,
-						"bindInput and bindChange were removed; use value:input, value:change, or checked:change",
+						"bindInput and bindChange were removed; use value:onInput, value:onChange, or checked:onChange",
 					),
 				)
 				return true
 			}
 			if strings.HasPrefix(name, "value:") ||
-				strings.HasPrefix(name, "checked:") {
+				strings.HasPrefix(name, "checked:") ||
+				strings.HasPrefix(name, "open:") {
+				members := enhancements.applications[attributes.Pos()].attributes[property.Pos()]
+				canonical := name == "value:onInput" || name == "value:onChange" ||
+					name == "checked:onChange" || name == "open:onToggle"
+				if len(members) != 0 {
+					if canonical {
+						blockedEnhancements[property.Pos()] = struct{}{}
+						diagnostics = append(diagnostics, formBindingDiagnostic(
+							property,
+							name+" is ambiguous between a compiler-owned intrinsic binding and an enhancement member; rename the enhancement namespace",
+						))
+					}
+					continue
+				}
 				binders = append(binders, property)
 			}
 		}
@@ -77,13 +95,13 @@ func analyzeFormBindings(
 		}
 		attribute := binders[0].AsJsxAttribute()
 		name := jsxAttributeText(attribute.Name())
-		if name != "value:input" && name != "value:change" &&
-			name != "checked:change" {
+		if name != "value:onInput" && name != "value:onChange" &&
+			name != "checked:onChange" && name != "open:onToggle" {
 			diagnostics = append(
 				diagnostics,
 				formBindingDiagnostic(
 					binders[0],
-					"supported reactive form attributes are value:input, value:change, and checked:change",
+					"supported intrinsic bindings are value:onInput, value:onChange, checked:onChange, and open:onToggle",
 				),
 			)
 			return true
@@ -117,7 +135,7 @@ func analyzeFormBindings(
 		if valueKind == "" && targetType != nil &&
 			targetType.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
 			valueKind = "string"
-			if name == "checked:change" {
+			if name == "checked:onChange" || name == "open:onToggle" {
 				valueKind = "boolean"
 			}
 			empty = "value"
@@ -136,6 +154,8 @@ func analyzeFormBindings(
 		multiple := jsxHasAttribute(attributes, "multiple")
 		control := "value"
 		switch {
+		case tag == "details":
+			control = "open"
 		case tag == "select" && multiple:
 			control = "multiple"
 		case staticType == "checkbox" && array:
@@ -145,12 +165,12 @@ func analyzeFormBindings(
 		case staticType == "radio":
 			control = "radio"
 		}
-		if tag != "input" && tag != "textarea" && tag != "select" {
+		if tag != "input" && tag != "textarea" && tag != "select" && tag != "details" {
 			diagnostics = append(
 				diagnostics,
 				formBindingDiagnostic(
 					binders[0],
-					name+" is supported only on input, textarea, and select",
+					name+" is supported only on input, textarea, select, and details",
 				),
 			)
 			return true
@@ -159,31 +179,50 @@ func analyzeFormBindings(
 		if control == "checked" || control == "checkbox-group" ||
 			control == "radio" {
 			generatedProp = "checked"
+		} else if control == "open" {
+			generatedProp = "open"
 		}
-		requiredEvent := strings.TrimPrefix(name, generatedProp+":")
+		requiredEvent := "input"
+		if name != "value:onInput" {
+			requiredEvent = "change"
+		}
 		if control == "checked" || control == "checkbox-group" ||
 			control == "radio" || tag == "select" {
 			requiredEvent = "change"
+		} else if control == "open" {
+			requiredEvent = "toggle"
 		}
-		if name != generatedProp+":"+requiredEvent {
+		expectedName := generatedProp + ":on" + strings.ToUpper(requiredEvent[:1]) + requiredEvent[1:]
+		if name != expectedName {
 			diagnostics = append(
 				diagnostics,
 				formBindingDiagnostic(
 					binders[0],
 					name+" is not supported by this control; use "+
-						generatedProp+":"+requiredEvent,
+						expectedName,
 				),
 			)
 			return true
 		}
 		if valueKind == "boolean" && control != "checked" {
-			diagnostics = append(
-				diagnostics,
-				formBindingDiagnostic(
-					binders[0],
-					"boolean bindings require an input with type=\"checkbox\"",
-				),
-			)
+			if control == "open" {
+				// Details openness is the one non-form boolean intrinsic binding.
+			} else {
+				diagnostics = append(
+					diagnostics,
+					formBindingDiagnostic(
+						binders[0],
+						"boolean bindings require an input with type=\"checkbox\"",
+					),
+				)
+				return true
+			}
+		}
+		if control == "open" && valueKind != "boolean" {
+			diagnostics = append(diagnostics, formBindingDiagnostic(
+				binders[0],
+				"open:onToggle requires a boolean state location",
+			))
 			return true
 		}
 		if (array && control != "multiple" && control != "checkbox-group") ||
@@ -250,10 +289,12 @@ func analyzeFormBindings(
 			target:     target,
 			option:     option,
 			targetPath: path,
+			start:      binders[0].Pos(),
+			length:     binders[0].End() - binders[0].Pos(),
 		}
 		return true
 	})
-	return result, diagnostics
+	return result, blockedEnhancements, diagnostics
 }
 
 func formBindingType(
@@ -411,10 +452,14 @@ func (lowering *jsxLowering) lowerFormBinding(
 		binding.control == "checkbox-group" ||
 		binding.control == "radio" {
 		property = "checked"
+	} else if binding.control == "open" {
+		property = "open"
 	}
 	eventProperty := "__exactBindChange"
 	if binding.event == "input" {
 		eventProperty = "__exactBindInput"
+	} else if binding.event == "toggle" {
+		eventProperty = "__exactBindToggle"
 	}
 	return []*ast.Node{
 		lowering.property(
@@ -448,6 +493,8 @@ func (lowering *jsxLowering) serverFormBindingProperty(
 		binding.control == "checkbox-group" ||
 		binding.control == "radio" {
 		property = "checked"
+	} else if binding.control == "open" {
+		property = "open"
 	}
 	return lowering.property(
 		lowering.factory.NewIdentifier(property),
@@ -484,7 +531,7 @@ func (lowering *jsxLowering) formBindingProjection(
 				false,
 			),
 		)
-	case "checked":
+	case "checked", "open":
 		return lowering.binary(
 			target,
 			ast.KindQuestionQuestionToken,
@@ -543,6 +590,8 @@ func (lowering *jsxLowering) formBindingHandler(
 	switch binding.control {
 	case "checked":
 		next = lowering.propertyAccess(current, "checked")
+	case "open":
+		next = lowering.propertyAccess(current, "open")
 	case "radio":
 		next = lowering.convertFormBindingValue(
 			binding,
@@ -723,6 +772,8 @@ func (lowering *jsxLowering) formBindingEventType(binding formBinding) *ast.Node
 		element = "HTMLSelectElement"
 	} else if binding.element == "textarea" {
 		element = "HTMLTextAreaElement"
+	} else if binding.element == "details" {
+		element = "HTMLDetailsElement"
 	}
 	currentTarget := lowering.factory.NewPropertySignatureDeclaration(
 		lowering.factory.NewModifierList([]*ast.Node{
