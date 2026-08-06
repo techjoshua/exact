@@ -39,6 +39,26 @@ The focused reactive command includes the repaired compiled keyed-list DOM gate:
 npm run benchmark:reactive
 ```
 
+Dependent-foundation candidates are measured one at a time in isolated Node processes:
+
+```sh
+npm run benchmark:performance-foundations -- --scenario=render-plan
+```
+
+The supported scenario names are `render-plan`, `async-ssr`, `hydration-publication`, `transport`,
+and `build-host`. `EXACT_PERFORMANCE_FOUNDATION_SAMPLES` controls outer process samples;
+`EXACT_PERFORMANCE_INNER_SAMPLES` controls observations inside each process. These exploratory
+measurements become tracked release evidence only when their proposal records an accepted result
+and the production implementation retains the same workload as a before/after guard.
+
+The completed dependent-foundation evidence is tracked in
+[`dependent-foundations.json`](performance-baselines/dependent-foundations.json) and can be
+reproduced after a repository build with:
+
+```sh
+node scripts/benchmark-performance-foundations.mjs --output=docs/performance-baselines/dependent-foundations.json
+```
+
 ## Measurement contract
 
 The framework suite:

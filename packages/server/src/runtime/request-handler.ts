@@ -8,7 +8,7 @@ import {
 	logReject,
 	matchesConfiguredEndpoint
 } from '../operations.js';
-import { jsonResponse, parseExactRequestBody, readBody, requestPayloadSafe } from '../protocol.js';
+import { jsonResponse, parseExactRequestBody, readBody } from '../protocol.js';
 import { dispatchExactBatch, streamExactResponse, wantsStreaming } from '../streaming.js';
 import { exactServerDebugRuntime } from '../debug/runtime.js';
 import type {
@@ -123,16 +123,6 @@ async function handleExactRequestOwned(
 		return jsonResponse(400, { error: 'bad_request' });
 	}
 
-	if (
-		!requestPayloadSafe(input, {
-			maxJsonDepth: context.limits?.maxJsonDepth,
-			maxJsonNodes: context.limits?.maxJsonNodes,
-			maxRequestBytes: context.limits?.maxRequestBytes
-		})
-	) {
-		logReject(context, 'rejected non-serializable exact invocation payload');
-		return jsonResponse(400, { error: 'bad_request' });
-	}
 	const debugRuntime =
 		input.type === 'debug'
 			? (debugOwnerContext.debugRuntime ?? exactServerDebugRuntime(debugOwnerContext))

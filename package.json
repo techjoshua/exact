@@ -47,6 +47,7 @@
 		"check:typescript-compatibility": "node scripts/check-typescript-compatibility.mjs",
 		"benchmark:reactive": "node scripts/benchmark-reactive.mjs && node scripts/benchmark-dom-list.mjs",
 		"benchmark:framework": "node scripts/benchmark-framework-performance.mjs",
+		"benchmark:performance-foundations": "node scripts/benchmark-performance-foundations.mjs",
 		"benchmark:compiler": "node scripts/benchmark-compiler-workflow.mjs",
 		"benchmark:devtools": "node scripts/benchmark-devtools.mjs",
 		"check:native-compiler-corpus": "node scripts/check-native-compiler-corpus.mjs",

@@ -17,11 +17,13 @@ current unrestricted enhancement target walk. The compiler emits structural fact
 components without making trust decisions; bundlers admit only authorized server implementations.
 Translated message branches and structural slots must remain within their compiler-emitted message
 plans and active locale/catalog generation.
-The measurement baseline and dependent-foundation experiments 2–4 and 6 in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md) must also be
-resolved before implementation. This proposal consumes any accepted compiler render-slot,
-hydration, SSR-writer, and transport contracts and retains its documented generic parser/differ and
-boundary-replacement fallbacks for rejected experiments.
+The accepted
+[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md), and
+[`compact-hydration-publication.md`](compact-hydration-publication.md) proposals are implemented
+first. Structural refresh reuses their slot, range, deterministic identity, compiled-cursor, and
+publication contracts while retaining its documented generic parser/differ and authoritative
+boundary-replacement fallbacks.
 The current SSR refresh path supports text, properties, styles, keyed lists, compiler-stable dynamic
 ranges, nested element replacement, and authoritative boundary replacement. Its safe HTML differ
 still rediscovers some authored structure from serialized HTML.

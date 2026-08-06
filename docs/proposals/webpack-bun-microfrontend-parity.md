@@ -9,11 +9,15 @@ resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md), and
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
+[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md),
+[`compact-hydration-publication.md`](compact-hydration-publication.md),
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md), as well as resolution of the
-dependent-foundation experiments 2–4 and 6 in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md). The trusted
+[`partial-prerender-resumption.md`](partial-prerender-resumption.md). The dependent-foundation
+experiments 2–4 and 6 in
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md) are resolved by
+the focused prerequisites above and the implemented transport/build-host work. The trusted
 microfrontend model and Vite/Rollup producer/consumer path are implemented. Final adapter
 conformance must treat compiler-emitted enhancement catalogs and framework-plugin projections as
 separate inputs, preserve activator-resolved canonical component identities, and apply the shared

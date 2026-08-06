@@ -1,18 +1,8 @@
 import {
-	Activity,
-	Fragment,
-	Suspense,
-	activateTaskForHost,
 	createComponentInstance,
 	createEnhancementMarker,
 	createVNode,
-	defineTask,
-	markExactComponent,
-	renderInstance,
-	stageTaskMutation,
-	type ActivityMode,
-	type Child,
-	type Component
+	renderInstance
 } from '@exactjs/core';
 import { adoptStatic, render, unmount, type RenderOptions } from '@exactjs/dom';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
@@ -73,6 +63,43 @@ export type ClientScenarioResult = Readonly<{
 	metrics: Readonly<Record<string, number>>;
 	units: Readonly<Record<string, 'bytes' | 'count' | 'ms'>>;
 }>;
+
+/** Runs one browser or DOM-emulated framework scenario against compiler-produced components. */
+export async function runClientScenario(
+	name: ClientScenarioName,
+	options: Readonly<{ iterations?: number }> = {}
+): Promise<ClientScenarioResult> {
+	switch (name) {
+		case 'client.static-mount':
+			return staticMount(options.iterations ?? defaultTreeSize);
+		case 'client.dynamic-mount':
+			return dynamicMount(options.iterations ?? defaultTreeSize);
+		case 'client.hydration':
+			return hydration();
+		case 'client.first-interaction':
+			return firstInteraction();
+		case 'client.scalar-update':
+			return scalarUpdate();
+		case 'client.branch-update':
+			return branchUpdate();
+		case 'client.keyed-list-update':
+			return keyedListUpdate(options.iterations ?? defaultListSize);
+		case 'client.enhancement-reroute':
+			return enhancementReroute();
+		case 'client.activity-cycle':
+			return activityCycle();
+		case 'client.suspense-cycle':
+			return suspenseCycle();
+		case 'client.mixed-tree-lifecycle':
+			return mixedTreeLifecycle(options.iterations ?? 100);
+		case 'component.population':
+			return componentPopulation(options.iterations ?? 2_000);
+		case 'component.api-state':
+			return componentApiState(options.iterations ?? 10_000);
+		case 'component.mount-unmount-heap':
+			return componentMountUnmountHeap(options.iterations ?? 200);
+	}
+}
 
 function staticMount(count: number): ClientScenarioResult {
 	const container = createContainer();

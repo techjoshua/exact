@@ -10,6 +10,9 @@ resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md),
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
+[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md),
+[`compact-hydration-publication.md`](compact-hydration-publication.md),
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md), and
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md). Resumption must
 persist the settled activator-selected enhancement ownership, bundler authorization fingerprint,
@@ -21,10 +24,10 @@ does not serialize postponed renderer/task ownership and continue it in a later 
 
 The measurement baseline and dependent-foundation experiments 2–4 and 6 in
 [`javascript-performance-improvements.md`](javascript-performance-improvements.md) must have
-recorded dispositions before implementation. Resumption uses accepted render plans, deterministic
-async SSR ownership, request-wide writing, progressive publication, and transport contracts; when
-an experiment is rejected, this proposal must name and test the bounded generic fallback rather
-than recreate the rejected representation locally.
+recorded dispositions before implementation; those dispositions now exist. Resumption uses the
+focused render-program, deterministic async SSR, compact hydration, progressive publication, and
+fused transport contracts above and retains each bounded generic fallback rather than recreating a
+parallel representation.
 
 | Delivery area          | Current state                             | Proposed state                                         |
 | ---------------------- | ----------------------------------------- | ------------------------------------------------------ |

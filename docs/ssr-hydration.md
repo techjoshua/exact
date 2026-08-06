@@ -97,6 +97,10 @@ turning inspection identities into dispatch authority.
 ## Data boundary
 
 Hydration bootstrap data and protocol values use validated JSON-safe data.
+Server requests bound and validate the complete encoded JSON graph before reactive protocol
+decoding. Decoding reconstructs only plain data and validated collection envelopes, so dispatch
+does not repeat the same graph traversal after reconstruction; operation contracts and security
+hooks remain independent authoritative checks.
 Compiler-approved `Map` and `Set` state uses tagged entries and is restored as
 real collections; continuation changes travel as ordered entry or membership
 deltas. Functions, DOM nodes, unsupported class instances, `Date`, cycles,
@@ -104,6 +108,12 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
+- [Compiler-owned render programs](proposals/compiler-owned-render-programs.md) for direct SSR,
+  template mounting, and compiled adoption over shared slot identities.
+- [Bounded deterministic async SSR](proposals/bounded-deterministic-async-ssr.md) for ordered
+  request-owned concurrency of compiler-proven independent siblings.
+- [Compact hydration and progressive publication](proposals/compact-hydration-publication.md) for
+  schema-grouped boundary rows and one response-local reveal helper.
 - [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md) for
   additional proven patch forms.
 - [Broader lazy-island classification](proposals/lazy-interaction-islands.md) where source remains

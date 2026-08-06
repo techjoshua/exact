@@ -21,13 +21,18 @@ locale-catalog, formatter, and Unicode-data requirements that must travel with a
 This proposal defines the first broader lazy-island delivery over that resulting partition and
 authorized bundle model.
 
+It also follows the accepted performance foundations
+[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md), and
+[`compact-hydration-publication.md`](compact-hydration-publication.md). Lazy boundaries consume the
+shared slot identities and compact validated rows; they do not preserve per-boundary JSON or a
+generic adoption scan as their normal path.
+
 Before implementation begins, experiment 1 and the dependent-foundation experiments 2–4 and 6 in
 [`javascript-performance-improvements.md`](javascript-performance-improvements.md) must have
-recorded dispositions. Successful render-plan, hydration-publication, progressive-bootstrap, or
-transport representations must be implemented or inserted as focused prerequisite proposals;
-rejected candidates leave the explicit generic fallback described here. This prevents lazy-island
-artifacts from freezing a representation that the immediately preceding performance gate is meant
-to select.
+recorded dispositions. Those dispositions now exist. This proposal begins only after the three
+accepted focused prerequisites above are implemented; their explicit generic and self-describing
+fallbacks remain available to boundaries that are not compiler-finite.
 
 The first delivery includes independent server ranges, checker-proven finite spreads, localized
 eager descendants, structured fallback explanations, and the event policies defined below. New

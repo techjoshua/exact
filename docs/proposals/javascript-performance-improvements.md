@@ -1,10 +1,10 @@
 # JavaScript performance improvements
 
-Status: gated exploratory investigation plan. Its measurement baseline, dependent-foundation
-decisions, and final optimization disposition are mandatory stages in the repository execution
-sequence. This document records a client/server performance audit, directional measurements, and
-the work justified by them. It is not an accepted implementation plan, a commitment to V8-specific
-behavior, or permission to trade correctness and lifecycle ownership for benchmark results.
+Status: gated exploratory investigation plan. Its measurement baseline and dependent-foundation
+decisions are complete; its final optimization disposition remains a mandatory later stage in the
+repository execution sequence. This document records a client/server performance audit,
+directional measurements, and the work justified by them. It is not a commitment to V8-specific
+behavior or permission to trade correctness and lifecycle ownership for benchmark results.
 
 ## Goal
 
@@ -39,7 +39,7 @@ it is not one undifferentiated optimization phase:
 1. **Measurement baseline:** complete experiment 1 before new proposal implementation. A benchmark
    that does not reach its timed framework path is a failed test, not a performance result.
 2. **Dependent foundations:** after enhancement and trust contracts, the structured-child decision,
-   and internationalization and binding contracts settle, resolve experiments 2–4 and 6 before lazy
+   and internationalization and binding contracts settle or are explicitly deferred, resolve experiments 2–4 and 6 before lazy
    islands, structural refresh, resumption, or final adapter parity consumes their representations. Each successful experiment
    must either be implemented under a decision-complete owning proposal or become a focused proposal
    inserted before its first consumer. A rejected experiment must record the measured reason and the
@@ -60,6 +60,15 @@ evidence is tracked in
 [`../performance-baselines/javascript-framework.json`](../performance-baselines/javascript-framework.json).
 Later performance stages must extend that suite when they introduce a new primary metric or
 counter-metric rather than replace it with proposal-local timing loops.
+
+The dependent-foundation gate was completed on 2026-08-05. Experiments 2–4 were accepted and split
+into the ordered implementation proposals
+[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md), and
+[`compact-hydration-publication.md`](compact-hydration-publication.md). Experiment 6 removed the
+duplicate decoded request traversal and made independent artifact-file publication concurrent.
+Binary native framing and additional artifact workers were rejected because measured JSON framing
+was immaterial and native single-owned work dominated the profiled build path.
 
 ## Performance dimensions
 
@@ -579,6 +588,19 @@ state and garbage collection from one candidate do not contaminate another.
 
 ### 2. Prototype a compiler-owned render plan
 
+Status: **accepted for a focused implementation proposal on 2026-08-05.** The first bounded
+prototype writes the same static-intrinsic-plus-dynamic-text tree directly from compiler-shaped
+slots while retaining the generic VNode renderer as the fallback. Five isolated Node 24.11.1
+processes on Windows x64 measured 20 renders of a 500-row tree. Median render time fell from
+11.35 ms to 0.51 ms (22.33x), and observed peak heap growth fell from 18,812,656 bytes to 1,976,152
+bytes. Raw, gzip, and Brotli output remained exactly 16,327, 2,462, and 1,025 bytes.
+
+This result accepts the internal render-program direction, not a universal renderer replacement.
+The focused implementation must prove client template mounting, compiled hydration adoption,
+namespaces, form state, custom elements, events, refs, mismatch recovery, Suspense, Activity,
+enhancements, inspection, and target-specific fallback before broadening eligibility. The reusable
+slot identity must precede lazy islands and structural refresh in the execution queue.
+
 Start with direct bounded SSR writing for a static-intrinsic-plus-dynamic-text subset and compare
 exact output, CPU, bytes, and peak heap against generic VNode SSR. Then reuse the same logical slots
 for client template mounting and compiled hydration adoption. Expand only after namespace, form,
@@ -590,6 +612,22 @@ internal plan shape.
 
 ### 3. Prototype bounded deterministic async SSR concurrency
 
+Status: **accepted for a focused implementation proposal on 2026-08-05.** Five isolated Node
+24.11.1 processes rendered eight compiler-independent task-owning siblings with a 5 ms I/O delay.
+Ordered concurrency four reduced median completion from 117.79 ms to 26.27 ms (4.49x), while
+concurrency eight completed in 10.91 ms. Observed peak heap remained effectively flat: 707,744
+bytes for serial rendering and 724,368 bytes at concurrency four. The same isolated-root prototype
+improved the CPU-bound comparison from 62.34 ms to 60.01 ms, and four concurrent requests completed
+in 124.69 ms versus 499.06 ms when deliberately serialized. Exact
+HTML and raw/gzip/Brotli bytes were unchanged.
+
+The implementation must consume compiler-proven independence rather than parallelize arbitrary
+children. It must reserve deterministic identity ranges, merge output and resource hints in source
+order, isolate mutable traversal state, bound upstream work, cancel sibling work after failure, and
+dispose every completed or abandoned owner. Concurrency remains configurable and defaults to a
+bounded server policy; the serial path remains the fallback for unproven relationships and
+concurrency one.
+
 Measure serial rendering against compiler-proven independent sibling groups with concurrency 1, 2,
 4, and 8. Test isolated child contexts or deterministic identity-range reservation, ordered output
 merge, resource hints, cleanup, cancellation, upstream limits, and concurrent requests. Accept only
@@ -597,6 +635,21 @@ if I/O-heavy latency improves materially without an unacceptable CPU-bound throu
 regression.
 
 ### 4. Prototype compact hydration and progressive publication
+
+Status: **accepted for a focused implementation proposal on 2026-08-05.** The accepted hydration
+shape groups boundaries by compiler-known component and finite prop schema, stores compact value
+rows in one indexed table, and leaves unsupported or open-ended prop shapes on the existing
+attribute representation. A naive object-record table was rejected because it increased compressed
+bytes. Across five isolated Node 24.11.1 processes, 200 representative boundaries fell from 49,893
+to 19,432 raw bytes, 2,702 to 2,649 gzip bytes, and 1,449 to 1,365 Brotli bytes. Median parse and
+record reconstruction fell from 9.89 ms to 8.44 ms.
+
+A single progressive replacement helper plus 32 ordered calls reduced 19,692 raw bytes to 2,736,
+661 gzip bytes to 594, and 448 Brotli bytes to 426. Median JSDOM parse/execution fell from 9.33 ms
+to 8.00 ms. The implementation must retain CSP nonces, inert mode, range-local marker lookup,
+hydration ownership transfer, malformed-record isolation, early interaction, form state, and a
+per-boundary fallback. The helper is installed at most once per response and never claims a root
+already marked hydrated.
 
 Compare per-boundary JSON attributes with one indexed hydration table under eager and lazy islands,
 including compressed HTML, parse/validation time, range-local corruption, and activation latency.
@@ -615,6 +668,25 @@ retain priority, starvation, task-context, transaction, error, focus, pointer-ca
 tests so benchmark gains remain attributable.
 
 ### 6. Prototype fused transport and build-host work
+
+Status: **implemented where accepted and otherwise resolved on 2026-08-05.** Five isolated Node 24.11.1
+processes showed that encoded and decoded graph validation consumed about 85% of the representative
+request pipeline. The second decoded traversal duplicated the stronger bound already established by
+strict encoded-JSON validation and safe reactive-envelope reconstruction. Removing it reduced the
+2,000-request microbenchmark from 192.72 ms to 108.24 ms (1.79x). Five hundred over-depth requests
+were rejected in 30.63 ms median (about 0.06 ms each). The production-shaped
+`server.operation-request` workload subsequently improved from the tracked 6.73 ms median to
+5.88 ms for 100 requests (12.7%) with identical response bytes. Accessor, prototype, depth, node,
+byte, finite-number, and malformed-envelope rejection remain covered at the authoritative parser.
+
+Build-host profiling attributes 6.31 ms of an 8.10 ms paired-artifact sample to native requests and
+1.90 ms to JavaScript host/emission work. Concurrent publication of already-settled independent
+client, server, shared, and source-map files reduced host time from the 2.65 ms prototype baseline
+to 1.90 ms (28.3%) and total time from 9.98 ms to 8.10 ms (18.8%). Request JSON encoding plus
+response JSON decoding measured about 0.05 ms against a 1.79 ms native request, so binary framing is
+rejected until a larger real workload shows IPC serialization as a material target. Additional
+artifact workers are likewise rejected for now: native semantic work is single-owned and dominates
+the measured path, while safe independent output publication is already concurrent.
 
 Instrument parse, encoded validation, decode, decoded validation, operation validation, extension,
 encode, stringify, byte count, and stream emission separately. Fuse only confirmed duplicate
