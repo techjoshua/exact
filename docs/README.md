@@ -60,7 +60,7 @@ indefinite exploratory pause.
 |     0 | [Recursive server/client graph partitioning](history/recursive-server-client-graph-partitioning.md) | **Completed and archived:** retain as the protocol and ownership baseline.                                                               |
 |     1 | [JavaScript performance measurement baseline](proposals/javascript-performance-improvements.md)     | **Completed:** compiled DOM gate plus production-shaped client, server, network, heap, Chromium, and build baselines.                    |
 |     2 | [Separate enhancements from framework plugins](history/enhancements-as-component-composition.md)    | **Completed and archived:** enhancement terminology, activator grouping, `_`, `_target`, bounded routing, ownership, and metadata.       |
-|     3 | [Bundler-enforced server component-library trust](proposals/server-component-library-trust.md)      | Authorize resolved server-executing component graphs without adding compiler policy.                                                     |
+|     3 | [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | **Completed and archived:** authorize resolved server-executing component graphs without adding compiler policy.                         |
 |     4 | [Cooperative structured children](proposals/cooperative-structured-children.md)                     | Prototype and then explicitly accept a generic design or reject it and select the documented narrower internationalization mechanism.    |
 |     5 | [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)       | Finalize and implement against the stage 4 outcome.                                                                                      |
 |     6 | [Component value/callback binding shorthand](proposals/component-value-callback-bindings.md)        | Implement canonical component and intrinsic value/callback pairs over the settled enhancement syntax.                                    |
@@ -76,7 +76,6 @@ The active and gated documents are:
 | Proposal                                                                                         | Status      | Scope                                                                                                                       |
 | ------------------------------------------------------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
 | [JavaScript performance improvements](proposals/javascript-performance-improvements.md)          | Gated       | Establish baselines, resolve dependent foundations, and complete the remaining measured optimization program.               |
-| [Bundler-enforced server component-library trust](proposals/server-component-library-trust.md)   | Ready       | Authorize resolved component packages before code enters server-executing artifacts.                                        |
 | [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Investigate generic child inspection, scoped capability propagation, and alternate projection without committing to an API. |
 | [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)    | Proposed    | Compile optional localized regions, artifact catalogs, and automatic unit conversion.                                       |
 | [Component value/callback binding shorthand](proposals/component-value-callback-bindings.md)     | Proposed    | Pair controlled values with typed change callbacks while preserving parent state ownership.                                 |
@@ -108,6 +107,7 @@ Completed proposal records:
 | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | [Recursive server/client graph partitioning](history/recursive-server-client-graph-partitioning.md) | Maximal same-placement regions across alternating client and server descendants.                                                    |
 | [Enhancements as component composition](history/enhancements-as-component-composition.md)           | Ordinary component-library enhancements, finite activators, direct `_`, semantic `_target`, bounded routing, and portable metadata. |
+| [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | Resolver-proven server component authorization, inert package facts, atomic development generations, and paired fingerprints.       |
 
 The current repository-wide implementation review is recorded in
 [`history/repository-code-review-2026-07.md`](history/repository-code-review-2026-07.md).

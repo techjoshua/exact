@@ -4,7 +4,7 @@
 
 Proposed after
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
-[`server-component-library-trust.md`](server-component-library-trust.md). Its runtime composition
+[`server-component-library-trust.md`](../history/server-component-library-trust.md). Its runtime composition
 model must not be finalized until the exploratory
 [`cooperative-structured-children.md`](cooperative-structured-children.md) proposal is resolved. It
 must consume either that proposal's accepted generic contract or the narrower replacement recorded

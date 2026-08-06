@@ -8,7 +8,7 @@ Proposed after
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md). It can be implemented
 independently of
-[`server-component-library-trust.md`](server-component-library-trust.md) and
+[`server-component-library-trust.md`](../history/server-component-library-trust.md) and
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), but all
 three proposals precede the broader lazy-island delivery in the repository queue. Lazy eligibility
 and event replay must analyze the generated callback exactly as they analyze its explicit source

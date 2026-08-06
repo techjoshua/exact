@@ -6,7 +6,7 @@
 
 Investigate after
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
-[`server-component-library-trust.md`](server-component-library-trust.md), and before finalizing
+[`server-component-library-trust.md`](../history/server-component-library-trust.md), and before finalizing
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md). The
 internationalization proposal supplies the first concrete use case, but this proposal must not add
 an internationalization-only compiler capability merely to satisfy that design. A second credible

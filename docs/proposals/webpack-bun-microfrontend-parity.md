@@ -4,7 +4,7 @@
 
 Proposed after the higher-leverage compiler and SSR boundary work, including
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
-[`server-component-library-trust.md`](server-component-library-trust.md),
+[`server-component-library-trust.md`](../history/server-component-library-trust.md),
 resolution or explicit rejection of
 [`cooperative-structured-children.md`](cooperative-structured-children.md), and
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),

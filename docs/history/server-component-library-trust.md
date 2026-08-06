@@ -2,21 +2,24 @@
 
 ## Status
 
-Ready for implementation after
-[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and before
-[`cooperative-structured-children.md`](cooperative-structured-children.md),
-[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
-[`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md),
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md), and
-[`webpack-bun-microfrontend-parity.md`](webpack-bun-microfrontend-parity.md). Those proposals must
+Implemented on 2026-08-05 after
+[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md) and before
+[`cooperative-structured-children.md`](../proposals/cooperative-structured-children.md),
+[`enhancement-first-internationalization.md`](../proposals/enhancement-first-internationalization.md),
+[`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
+[`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md),
+[`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md), and
+[`webpack-bun-microfrontend-parity.md`](../proposals/webpack-bun-microfrontend-parity.md). Those proposals must
 operate on the component graph authorized for each server-executing artifact and preserve its
 authorization fingerprint across development, SSR, hydration, refresh, resumption, and remote
 boundaries.
 
-The policy, configuration, metadata seam, adapter lifecycle, manifest format, failure behavior, and
-delivery gates are decision-complete. Implementation may refine private module organization but
-must not defer or independently reinterpret these public and cross-package contracts.
+The implementation now supplies the policy, configuration, compiler metadata seam, static package
+facts, adapter and test-runner enforcement, atomic development generations, private manifests and
+audits, paired runtime fingerprints, DevTools inspection, and microfrontend provenance described
+below. Package participation metadata is validated once per resolved package instance in a
+generation, value-free entry telemetry supports performance verification, and accepted/rejected
+churn tests prove generation-owned caches are released.
 
 This proposal introduces a component-library participation marker and a plugin-like package trust
 policy, but it does not make component libraries framework plugins. Enforcement belongs entirely
@@ -525,7 +528,7 @@ candidate to discover whether it is authorized.
 ## Enhancements and optional catalogs
 
 Enhancements remain ordinary optional components under
-[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md). Their
+[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md). Their
 compile-time metadata is unaffected by this proposal.
 
 At bundle time, an enhancement implementation can enter a server enhancement catalog only when its
@@ -696,7 +699,7 @@ must not make the plugin registry responsible for ordinary components.
 ## Build-performance and runtime-state constraints
 
 Authorization must remain compatible with
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md). Resolved dependency
+[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). Resolved dependency
 graphs, package manifests, source ranges, and diagnostic provenance are bundler/build inputs; paired
 runtime artifacts retain only compact authorized component/catalog identities, the decision needed
 at that boundary, and the authorization fingerprint. They must not ship or reconstruct the complete

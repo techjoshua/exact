@@ -10,7 +10,7 @@ verification rationale.
 Implemented after the implemented
 [`recursive-server-client-graph-partitioning.md`](recursive-server-client-graph-partitioning.md)
 contract and before
-[`server-component-library-trust.md`](../proposals/server-component-library-trust.md),
+[`server-component-library-trust.md`](server-component-library-trust.md),
 [`cooperative-structured-children.md`](../proposals/cooperative-structured-children.md),
 [`enhancement-first-internationalization.md`](../proposals/enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](../proposals/component-value-callback-bindings.md),
@@ -816,7 +816,7 @@ they are harmless data or that only framework plugins require a trust decision. 
 reduces required coupling; it does not reduce the authority of an activated component.
 
 The follow-on
-[`server-component-library-trust.md`](../proposals/server-component-library-trust.md) proposal defines the
+[`server-component-library-trust.md`](server-component-library-trust.md) proposal defines the
 boundary for enhancements and explicitly composed components together. Participating packages use
 an inert `@exactjs/component-library` dependency marker, while shared bundler infrastructure applies
 a plugin-like trust policy to resolved component code entering server-executing artifacts. Client-only

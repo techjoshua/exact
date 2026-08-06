@@ -501,8 +501,8 @@ analysis and deterministic diagnostics remain single-owned.
 
 ## Cross-proposal constraints
 
-The following active proposals must treat this plan as a performance constraint rather than wait
-for a later cleanup:
+The following active proposals, together with delivered foundations whose performance contracts
+remain binding, must treat this plan as a constraint rather than wait for a later cleanup:
 
 - **Enhancements as component composition:** `_`, `_target`, contribution layers, target routing,
   and unavailable enhancements must reuse ordinary component/mounted ownership. They must not add

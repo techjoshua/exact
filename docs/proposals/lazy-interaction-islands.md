@@ -4,7 +4,7 @@
 
 Ready for implementation after
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
-[`server-component-library-trust.md`](server-component-library-trust.md),
+[`server-component-library-trust.md`](../history/server-component-library-trust.md),
 resolution or explicit rejection of the exploratory
 [`cooperative-structured-children.md`](cooperative-structured-children.md) design,
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), and
