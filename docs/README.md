@@ -62,8 +62,8 @@ indefinite exploratory pause.
 |     2 | [Separate enhancements from framework plugins](history/enhancements-as-component-composition.md)    | **Completed and archived:** enhancement terminology, activator grouping, `_`, `_target`, bounded routing, ownership, and metadata.       |
 |     3 | [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | **Completed and archived:** authorize resolved server-executing component graphs without adding compiler policy.                         |
 |     4 | [Component value/callback binding shorthand](history/component-value-callback-bindings.md)          | **Completed and archived:** finite component pairs, canonical intrinsic endpoints, details adoption, and language tooling.               |
-|     5 | [Cooperative structured children](proposals/cooperative-structured-children.md)                     | **Deferred decision gate:** prototype and accept the generic design or reject it and select the narrower internationalization mechanism. |
-|     6 | [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)       | Finalize and implement against the stage 5 outcome.                                                                                      |
+|     5 | [Cooperative structured children](proposals/cooperative-structured-children.md)                     | **Deferred prerequisite:** no implementation work is scheduled; it must be accepted and implemented before stage 6 can resume.           |
+|     6 | [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)       | **Deferred dependent stage:** do not finalize or implement until stage 5 supplies its accepted framework contract.                       |
 |     7 | [Dependent performance foundations](proposals/javascript-performance-improvements.md)               | Resolve render-plan, deterministic async SSR, compact hydration/progressive publication, and transport/build-host experiments 2–4 and 6. |
 |     8 | [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)                | Implement deferred ownership, replay, capability splitting, hydration, and diagnostics over the settled contracts.                       |
 |     9 | [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)             | Implement typed structural plans using the settled render-slot, activation, and fallback contracts.                                      |
@@ -73,15 +73,15 @@ indefinite exploratory pause.
 
 The active and gated documents are:
 
-| Proposal                                                                                         | Status      | Scope                                                                                                                       |
-| ------------------------------------------------------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
-| [JavaScript performance improvements](proposals/javascript-performance-improvements.md)          | Gated       | Establish baselines, resolve dependent foundations, and complete the remaining measured optimization program.               |
-| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Investigate generic child inspection, scoped capability propagation, and alternate projection without committing to an API. |
-| [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)    | Proposed    | Compile optional localized regions, artifact catalogs, and automatic unit conversion.                                       |
-| [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)             | Ready       | Defer more statically safe client regions with compiler-proven ownership and replay.                                        |
-| [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)          | Proposed    | Emit source-informed refresh plans while retaining validated boundary replacement.                                          |
-| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)           | Proposed    | Persist authenticated postponed renderer/task state and resume it in a later request.                                       |
-| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md) | Proposed    | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                                    |
+| Proposal                                                                                         | Status   | Scope                                                                                                                |
+| ------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| [JavaScript performance improvements](proposals/javascript-performance-improvements.md)          | Gated    | Establish baselines, resolve dependent foundations, and complete the remaining measured optimization program.        |
+| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Deferred | Prerequisite for nested cooperative message composition; no prototype or implementation work is currently scheduled. |
+| [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)    | Deferred | Depends on an accepted and implemented cooperative-children contract before finalization or implementation.          |
+| [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)             | Ready    | Defer more statically safe client regions with compiler-proven ownership and replay.                                 |
+| [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)          | Proposed | Emit source-informed refresh plans while retaining validated boundary replacement.                                   |
+| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)           | Proposed | Persist authenticated postponed renderer/task state and resume it in a later request.                                |
+| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md) | Proposed | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                             |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
 proposal:

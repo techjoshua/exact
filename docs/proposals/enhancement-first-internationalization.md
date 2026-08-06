@@ -2,13 +2,15 @@
 
 ## Status
 
-Proposed after
+**Deferred dependent proposal. It is not ready for finalization or implementation, and no
+internationalization implementation work is currently scheduled.** It follows
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
 [`server-component-library-trust.md`](../history/server-component-library-trust.md). Its runtime composition
-model must not be finalized until the exploratory
-[`cooperative-structured-children.md`](cooperative-structured-children.md) proposal is resolved. It
-must consume either that proposal's accepted generic contract or the narrower replacement recorded
-by its explicit rejection; an unresolved exploratory document is not a valid prerequisite outcome.
+model explicitly depends on
+[`cooperative-structured-children.md`](cooperative-structured-children.md). Internationalization
+must not resume finalization, implementation planning, or implementation until that proposal has
+an accepted and implemented framework contract. Both proposals are currently deferred; an
+unresolved or rejected prerequisite does not unblock this proposal.
 This proposal remains before
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md),
@@ -25,12 +27,11 @@ analysis, an official internationalization component library and enhancement sur
 optional framework plugin for cross-host catalog coordination without allowing plugins to install
 compiler callbacks.
 
-The cooperative-children proposal is intentionally not accepted. Examples below establish desired
-internationalization behavior, not a settled choice between compiler-owned message slots,
-structured child inspection, cooperative capability props, or a narrower internationalization
-runtime. Internationalization may continue to refine catalog and Unicode semantics while that
-runtime boundary remains open, but it is not ready for final acceptance or implementation planning
-that depends on the unresolved composition model.
+The cooperative-children proposal is intentionally not accepted yet. Examples below establish
+desired internationalization behavior, not a settled framework composition contract.
+Internationalization may retain these requirements while deferred, but it may not independently
+select compiler-owned message slots, structured child inspection, cooperative capability props, or
+another runtime boundary in place of its prerequisite.
 
 | Concern                         | Owner                                                         |
 | ------------------------------- | ------------------------------------------------------------- |
@@ -923,23 +924,25 @@ Verification must cover:
 
 ## Delivery order
 
-1. Define the browser-safe message IR, formatter roles, normalized identity, and catalog validation
+1. Resume only after the cooperative structured-children contract is accepted, implemented, and
+   reflected in this proposal's composition model.
+2. Define the browser-safe message IR, formatter roles, normalized identity, and catalog validation
    contracts.
-2. Extend compiler and language tools with the finite internationalization role brands, message
+3. Extend compiler and language tools with the finite internationalization role brands, message
    regions, scalar formatters, structural slots, and pure select/plural branch analysis.
-3. Implement explicit source-local components and enhancement export maps over one shared runtime.
-4. Add per-package source locale/unit conventions, catalog extraction, component-library publication
+4. Implement explicit source-local components and enhancement export maps over one shared runtime.
+5. Add per-package source locale/unit conventions, catalog extraction, component-library publication
    metadata, application override merging, missing/obsolete diagnostics, and pseudo-locales.
-5. Implement versioned Unicode unit conversion/preferences with artifact-level data slicing and
+6. Implement versioned Unicode unit conversion/preferences with artifact-level data slicing and
    adversarial conformance tests.
-6. Add framework-plugin configuration and build/server/render/client/testing projections without a
+7. Add framework-plugin configuration and build/server/render/client/testing projections without a
    compiler callback surface.
-7. Coordinate development-entry locale selection, dependency translation lookup, runtime locale
+8. Coordinate development-entry locale selection, dependency translation lookup, runtime locale
    negotiation, SSR, hydration, reactive locale changes, lazy catalog fragments, and generation
    fencing.
-8. Integrate structural refresh, partial-prerender resumption, and microfrontend artifact contracts.
-9. Add current engineering references, package READMEs/local agent guidance, docs-app pages,
-   examples, and translation-tool adapter documentation when implementation lands.
+9. Integrate structural refresh, partial-prerender resumption, and microfrontend artifact contracts.
+10. Add current engineering references, package READMEs/local agent guidance, docs-app pages,
+    examples, and translation-tool adapter documentation when implementation lands.
 
 ## Acceptance criteria
 

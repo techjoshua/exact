@@ -2,10 +2,12 @@
 
 ## Status
 
-**Deferred and exploratory. This proposal is not ready for acceptance, final API selection, or
-implementation.** With
+**Deferred prerequisite. This proposal is not ready for acceptance, final API selection, or
+implementation, and no prototype or implementation work is currently scheduled.** With
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md) implemented,
-the repository queue now pauses at this decision gate before internationalization work proceeds.
+the repository queue now pauses at this prerequisite. The dependent internationalization proposal
+is also deferred and must not resume finalization or implementation until this proposal supplies an
+accepted and implemented framework contract.
 
 Investigate after
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
@@ -327,17 +329,16 @@ proportional to the changed part rather than the complete child sequence.
 
 ## Resolution procedure
 
-This document is a mandatory decision gate, not an implementation stage with a presumed positive
+This document is a mandatory prerequisite, not an implementation stage with a presumed positive
 outcome. Work on it completes in exactly one of two ways:
 
 1. **Accept the generic capability.** Complete the finalization gates, replace the exploratory
    probes with one decision-complete public or internal contract, update the status and downstream
    proposals, and insert any required implementation work into the repository execution sequence.
 2. **Reject the generic capability.** Record why the prototypes or performance evidence did not
-   justify it, remove language that implies future acceptance, select the narrowest ordinary
-   component/compiler mechanism needed by internationalization, and update internationalization,
-   structural refresh, lazy islands, and resumption to consume that mechanism without a parallel
-   child graph.
+   justify it and withdraw or replace the currently proposed internationalization composition
+   model. Any narrower replacement must become its own accepted prerequisite before
+   internationalization can resume; rejection does not silently unblock the current proposal.
 
 Merely answering some open questions or leaving the proposal exploratory does not unblock the next
 stage. Either outcome must settle component opacity, ownership, dynamic generations, SSR,
@@ -386,7 +387,7 @@ Do not change this proposal to Proposed, Ready, or Accepted until all of the fol
 6. Decide whether literal-expression provenance is a supported source contract and provide compiler
    and language-tool diagnostics if it is.
 7. Resolve the catalog-extraction boundary without package compiler callbacks or public compiler IR.
-8. Update the internationalization proposal with the selected model, or explicitly reject this
-   candidate and document the narrower replacement.
+8. Implement the selected framework contract and update the internationalization proposal to
+   consume it before internationalization work resumes.
 
 Until those gates pass, examples in this proposal are design probes rather than promised eXact APIs.
