@@ -59,6 +59,12 @@ reproduced after a repository build with:
 node scripts/benchmark-performance-foundations.mjs --output=docs/performance-baselines/dependent-foundations.json
 ```
 
+Remaining stage-16 candidates use the focused production and representation fixtures in
+`scripts/performance/remaining-optimizations.mjs`. Their five-process measurements, counter-metrics,
+environment, and accept/reject decisions are tracked in
+[`remaining-optimizations.json`](performance-baselines/remaining-optimizations.json). A measured
+rejection is final for the recorded profile; it leaves no production implementation behind.
+
 ## Measurement contract
 
 The framework suite:
@@ -83,16 +89,17 @@ compressed byte sizes must be deterministic before the suite reports a build bas
 
 ## Scenario coverage
 
-| Area                 | Scenarios                                                                                                                  |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Startup and mounting | Static and dynamic mount, compiled module evaluation, production fixture build, and raw/gzip/Brotli artifact sizes.        |
-| Hydration            | Renderer adoption of matching SSR-style root markers while retaining existing DOM identity.                                |
-| Interaction          | First delegated click, scalar publication, branch replacement, and 1,000-item keyed rotation.                              |
-| Framework boundaries | Enhancement target reroute, Activity park/reactivate, Suspense settlement, and mixed-tree mount/teardown.                  |
-| Component ownership  | Creation/disposal of 2,000 compiled instances, inspectable state/API access, and repeated DOM mount/unmount heap plateaus. |
-| SSR                  | Synchronous trees, CPU-bound async work, I/O-bound async siblings, and progressive first-chunk/completion timing.          |
-| Server protocol      | Ordinary operation requests and streaming batches with representative payloads and compressed/uncompressed sizes.          |
-| Browser              | Every client/component scenario above in the current Playwright Chromium build, with a new browser process per sample.     |
+| Area                 | Scenarios                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Startup and mounting | Static and dynamic mount, compiled module evaluation, production fixture build, and raw/gzip/Brotli artifact sizes.                                                            |
+| Hydration            | Renderer adoption of matching SSR-style root markers while retaining existing DOM identity.                                                                                    |
+| Interaction          | First delegated click, scalar publication, branch replacement, and 1,000-item keyed rotation.                                                                                  |
+| Update matrices      | Keyed unchanged/change/sparse/rotation/append/prepend/truncate/splice/replacement, mixed-priority scheduling, and a focused DOM transaction that protects focus and selection. |
+| Framework boundaries | Enhancement target reroute, Activity park/reactivate, Suspense settlement, and mixed-tree mount/teardown.                                                                      |
+| Component ownership  | Creation/disposal of 2,000 compiled instances, inspectable state/API access, and repeated DOM mount/unmount heap plateaus.                                                     |
+| SSR                  | Synchronous trees, CPU-bound async work, I/O-bound async siblings, and progressive first-chunk/completion timing.                                                              |
+| Server protocol      | Ordinary operation requests and streaming batches with representative payloads and compressed/uncompressed sizes.                                                              |
+| Browser              | Every client/component scenario above in the current Playwright Chromium build, with a new browser process per sample.                                                         |
 
 The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
 size and generation cost have their own scenarios, which keeps the two costs attributable.
@@ -130,3 +137,10 @@ cost, while static, mixed-lifecycle, and keyed-list fixtures detect work shifted
 patching, or teardown. Do not compare a candidate directly with an older tracked scenario when
 intervening renderer features materially changed that workload; first establish a current
 same-tree baseline or describe the result as cumulative.
+
+For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
+target median by at least 10%, and retained or peak heap must improve by at least 15%. No
+representative counter-metric median may regress by more than 3%, p95 by more than 5%, or compressed
+emitted bytes by more than 1%. Correctness, cleanup, cancellation, security, and deterministic
+output remain unconditional gates. The dominant `Mounted` experiment instead uses its explicit 5%
+mixed-tree/keyed-workload, neutral-teardown, and at-most-10%-heap-growth gate.

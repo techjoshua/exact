@@ -1,8 +1,8 @@
 # JavaScript performance improvements
 
-Status: gated exploratory investigation plan. Its measurement baseline and dependent-foundation
-decisions are complete; its final optimization disposition remains a mandatory later stage in the
-repository execution sequence. This document records a client/server performance audit,
+Status: **implementation complete; final archival and public promotion are program-gated by stages
+5–6 and 11–15.** The measurement baseline, dependent-foundation decisions, and remaining
+optimization dispositions are complete. This document records a client/server performance audit,
 directional measurements, and the work justified by them. It is not a commitment to V8-specific
 behavior or permission to trade correctness and lifecycle ownership for benchmark results.
 
@@ -660,6 +660,20 @@ and measure repeated reveal bytes and execution against the current per-reveal i
 
 ### 5. Prototype reactive, list, scheduler, and DOM fast paths
 
+Status: **resolved on 2026-08-06.** The production fixture now measures the complete keyed mutation
+matrix, mixed-priority scheduling, pause/resume and cancellation pressure, and one batched DOM
+commit that protects focus and selection. Compiler dependency slots, renderer-owned keyed deltas,
+root commit publication, and another enhancement-routing subsystem were rejected at the final
+profile gate: after compiler-owned render programs and bounded enhancement routing, none appeared
+as a named hot path with a measured 10% end-to-end opportunity. No private slot identity, second
+list protocol, or commit/routing production layer remains.
+
+The priority-bucket scheduler received a complete production prototype and retained all 108
+reactive tests. Across five isolated processes its 10,000-entry mixed-burst median changed from
+86.88 ms to 87.99 ms, a 1.3% regression rather than the required 10% improvement, so the source was
+restored. The expanded current keyed controls record 5.99 ms sparse, 6.91 ms append, and 7.62 ms
+prepend medians for future profiles without treating those controls as a delta implementation.
+
 Land the linear result-array construction and low-risk reconciliation fast paths before designing a
 keyed delta contract. Measure mutation-to-paint in a real browser with one changed item, sparse
 changes, rotation, append/prepend, and full replacement. Prototype prewired component-local
@@ -747,6 +761,13 @@ property baselines below.
 
 ### 8. Prototype only a dominant `Mounted` header
 
+Status: **rejected on 2026-08-06.** A centralized dominant-header factory improved mixed-tree mount
+from 23.31 ms to 20.68 ms and teardown from 5.67 ms to 5.18 ms with neutral peak heap and identical
+built bytes. It failed the explicit keyed counter-gate: sparse updates regressed from 5.99 ms to
+8.61 ms, append from 6.91 ms to 7.44 ms, and prepend from 7.62 ms to 7.96 ms. The factory was
+removed. A separate kind-specialized traversal prototype regressed its focused median from 41.19
+ms to 48.07 ms. The current compact records remain authoritative.
+
 Do not initialize every optional field. Test a renderer-owned constructor that
 gives the dominant host, text/dynamic, and component records the same ordered
 header, initially limited to:
@@ -796,6 +817,13 @@ material reactive-update regression.
 
 ### 10. Prototype traversal-scoped SSR ownership and chunked output
 
+Status: **rejected on 2026-08-06.** The traversal-owner prototype tracked component completion,
+pending tasks, and descendant settlement and passed all 142 SSR tests. Wide synchronous render CPU
+improved 10.6%, but peak heap grew from 29.16 MiB to 34.00 MiB instead of improving by the required
+20%; deep-tree peak heap also did not improve. The implementation was removed. Final profiling did
+not identify bounded string joining as a named 10% CPU or allocation target, so a request-wide
+writer was rejected at the profile gate and current exact-output and byte-limit behavior remains.
+
 First make completed component instances disposable during synchronous rendering while preserving
 reverse child-before-parent teardown. Extend the same lifetime to asynchronous rendering and
 streaming only after Suspense, task settlement, resumption capture, cleanup failure, and aborted
@@ -807,14 +835,21 @@ rendering, streaming, output extensions, resumable boundaries, and configured by
 
 ### 11. Prototype compact cells, list state, and snapshots
 
-Status: **reconciliation fast paths implemented; compact cell, keyed-cache, and SSR snapshot
-experiments remain open.** Child normalization now uses one allocation pass. Reconciliation skips
+Status: **resolved on 2026-08-06.** Child normalization uses one allocation pass. Reconciliation skips
 key maps for all-unkeyed children, avoids LIS construction for monotonic keyed order, fills the
 result array directly, and allocates unmatched-child tracking only when an old child is genuinely
 unconsumed. A preliminary correct draft measured a 386.85 ms median for the current 1,000-row Node
 fixture; removing its remaining unconditional teardown and result allocations reduced that to
 334.29 ms (13.6%). The older tracked 59.22 ms baseline predates substantial renderer growth, so it
 is not used as an attributable before-value for this isolated change.
+
+A compact compiled-cell prototype reduced a 100,000-cell population from 53.61 MiB to 41.60 MiB
+(22.4%), but construction regressed 35.1% and DOM placement/component-root compatibility failed;
+correctness rejected it and the private subpath was removed. A shared committed-node/keyed-cache
+representation was rejected at the final profile gate because duplicate retained records were not
+a named 15% heap opportunity. A compact keyed snapshot prototype improved retained heap only 6.6%
+while render and parse medians regressed 34.4% and 54.1%; its lazy getters and backing offsets were
+removed. Public cells, snapshots, enumeration, serialization, parsing, and patches are unchanged.
 
 Test cell branding or compact records without canonical VNode padding. Add reconciliation fast
 paths before replacing the keyed cache representation, then measure stable lists, append/prepend,
@@ -824,12 +859,29 @@ generation costs.
 
 ### 12. Bound tooling and diagnostic retention
 
+Status: **implemented and accepted on 2026-08-06.** Language-service rich analyses now use an
+access-ordered LRU bounded by 128 entries and 32 MiB by default. Open overlays remain pinned, cold
+source snapshots are released, the import graph remains available, and additive statistics report
+snapshot/analysis bytes, graph entries/edges, evictions, and pinned over-budget state. In a
+160-file five-process fixture, retained heap fell from 10.93 MiB to 9.73 MiB, final-batch growth
+fell from 395,696 bytes to 24,440 bytes, and warm inspection p95 improved 5.4%.
+
+Only the process-global fallback error context is bounded to the newest 100 reports. Application
+contexts remain unbounded and application-owned. Inspection attaches without replaying history,
+detaches its sink immediately, and profile collectors remain opt-in with caller-owned retention.
+
 Add language-service telemetry for snapshot, analysis, and import-cache entry counts and estimated
 source bytes. Prototype eviction only with editor latency and affected-file correctness tests. Add
 explicit bounds to framework-owned global diagnostic buffers; application-owned histories remain
 under application policy.
 
 ### 13. Stop unless profiling finds another target
+
+Status: **completed on 2026-08-06.** Whole-framework Node and Chromium profiling was repeated after
+the accepted changes. It did not identify another named layout or retained-ownership path that
+cleared the proposal thresholds. No unnamed layout work is justified until a new profile names a
+hot call site or retained owner. Full evidence is tracked in
+[`../performance-baselines/remaining-optimizations.json`](../performance-baselines/remaining-optimizations.json).
 
 Do not currently:
 
