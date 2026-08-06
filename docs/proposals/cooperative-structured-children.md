@@ -2,7 +2,10 @@
 
 ## Status
 
-**Exploratory. This proposal is not ready for acceptance, final API selection, or implementation.**
+**Deferred and exploratory. This proposal is not ready for acceptance, final API selection, or
+implementation.** The repository queue proceeds with
+[`component-value-callback-bindings.md`](component-value-callback-bindings.md) before returning to
+this decision gate.
 
 Investigate after
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and

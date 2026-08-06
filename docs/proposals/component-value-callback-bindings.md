@@ -2,37 +2,37 @@
 
 ## Status
 
-Proposed after
-[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and before
+**Ready for implementation.** Implement after
+[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
+[`server-component-library-trust.md`](../history/server-component-library-trust.md), and before
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md). It can be implemented
-independently of
-[`server-component-library-trust.md`](../history/server-component-library-trust.md) and
-[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), but all
-three proposals precede the broader lazy-island delivery in the repository queue. Lazy eligibility
-and event replay must analyze the generated callback exactly as they analyze its explicit source
-equivalent.
+[`partial-prerender-resumption.md`](partial-prerender-resumption.md). It is independent of the
+deferred [`cooperative-structured-children.md`](cooperative-structured-children.md) decision and
+[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), so it is
+the next actionable proposal while those designs remain unresolved. Lazy eligibility and event
+replay must analyze the generated callback exactly as they analyze its explicit source equivalent.
 
-The repository's strict execution sequence schedules this proposal after internationalization even
-though there is no technical dependency between them. That ordering avoids simultaneous changes to
-the settled enhancement syntax and gives lazy islands one completed value/callback contract to
-consume.
+The syntax, duplicate-prop behavior, ordinary callback semantics, intrinsic endpoint table,
+enhancement ambiguity policy, compiler ownership, delivery order, and acceptance gates are
+decision-complete. Implementation may refine private compiler organization but must not add
+callback composition, binding-specific lifetime behavior, writable props, or a runtime binding
+abstraction.
 
 This proposal depends on the enhancement proposal's final namespaced-JSX and kebab-case resolution
 rules. A namespaced attribute that could denote either an enhancement member or a component binding
 must fail with an ambiguity diagnostic; neither feature receives silent precedence.
 
-| Area                        | Current form                                        | Proposed form                                  |
-| --------------------------- | --------------------------------------------------- | ---------------------------------------------- |
-| Component controlled value  | Explicit value prop plus mechanical change callback | `valueProp:callbackProp={statePath}`           |
-| Text-like intrinsic binding | `value:input`                                       | `value:onInput`                                |
-| Committed intrinsic binding | `value:change`                                      | `value:onChange`                               |
-| Checkbox/radio binding      | `checked:change`                                    | `checked:onChange`                             |
-| Details disclosure binding  | Explicit `open` plus `onToggle` state update        | `open:onToggle`                                |
-| Authored notification       | Intrinsic binding runs before same-event handler    | Same rule for intrinsic and component bindings |
-| Runtime abstraction         | DOM-specific compiler binding markers               | No new component runtime abstraction           |
-| State ownership             | Parent owns the writable state path                 | Unchanged                                      |
+| Area                        | Current form                                        | Proposed form                                                            |
+| --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
+| Component controlled value  | Explicit value prop plus mechanical change callback | `valueProp:callbackProp={statePath}`                                     |
+| Text-like intrinsic binding | `value:input`                                       | `value:onInput`                                                          |
+| Committed intrinsic binding | `value:change`                                      | `value:onChange`                                                         |
+| Checkbox/radio binding      | `checked:change`                                    | `checked:onChange`                                                       |
+| Details disclosure binding  | Explicit `open` plus `onToggle` state update        | `open:onToggle`                                                          |
+| Authored notification       | Intrinsic binding runs before same-event handler    | Intrinsics retain that behavior; duplicate component callback props fail |
+| Runtime abstraction         | DOM-specific compiler binding markers               | No new component runtime abstraction                                     |
+| State ownership             | Parent owns the writable state path                 | Unchanged                                                                |
 
 ## Decision
 
@@ -79,13 +79,11 @@ ordinary callback when it wants to publish a replacement.
 The lowering must also preserve the performance constraints in
 [`javascript-performance-improvements.md`](javascript-performance-improvements.md). A binding adds no
 runtime registry, subscription, channel, or per-render composition object beyond what its explicit
-value-plus-callback expansion requires. When the target path and authored callback identity are
-stable, the compiler should create one setup-owned callback per component instance rather than a
-new closure on each reactive publication. Composing an authored callback may produce one combined
-callback, but must not retain the original JSX node or a second callback wrapper chain. The value
-read and generated assignment should participate in the same compiler-known dependency slot as an
-equivalent explicit controlled prop; binding shorthand must not force the generic proxy-tracking
-path or make an otherwise lazy interaction island eager.
+value-plus-callback expansion requires. It receives exactly the callback allocation, identity,
+ownership, cleanup, and optimization behavior of the equivalent authored lambda—no stronger and no
+weaker. The value read and generated assignment should participate in the same compiler-known
+dependency slot as an equivalent explicit controlled prop; binding shorthand must not force the
+generic proxy-tracking path or make an otherwise lazy interaction island eager.
 
 The explicit spelling remains fully supported and is required whenever notification has semantics
 beyond unconditional assignment, including validation, refusal, transformation, asynchronous
@@ -109,8 +107,7 @@ callbackProp={(nextValue, ..._remainingArguments) => {
 ```
 
 The callback's first ordinary parameter is always the replacement value. Additional callback
-parameters are permitted and ignored by the synthesized assignment unless an authored callback is
-also present, in which case they are forwarded unchanged.
+parameters are permitted and ignored by the synthesized assignment.
 
 Examples include:
 
@@ -163,59 +160,42 @@ Aliases to state paths are accepted only when the existing compiler analysis pro
 writable location and generation. Dynamic computed paths retain their current client/server and
 continuation restrictions.
 
-### Authored callback composition
+### Duplicate props and explicit behavior
 
-Allow an explicit callback prop beside its binding shorthand:
-
-```tsx
-<Dialog
-	open:onOpenChanged={this.state.dialogOpen}
-	onOpenChanged={(open, reason) => {
-		this.log.info('dialog changed', { open, reason });
-	}}
-/>
-```
-
-The compiler composes one stable callback equivalent to:
-
-```tsx
-onOpenChanged={(open, reason) => {
-	this.state.dialogOpen = open;
-	this.log.info('dialog changed', { open, reason });
-}}
-```
-
-The binding write always publishes first. The authored callback then receives every original
-argument in order and runs in the same interaction or task context. If it throws, the state write
-is not automatically rolled back; ordinary error-boundary and task behavior applies. Callers that
-need validation, veto, transformation, or transactional rollback must author the complete callback
-without binding shorthand.
-
-An explicit value prop still conflicts with the shorthand because the shorthand already supplies
-that value:
+The shorthand supplies both named props. Supplying either prop explicitly in the same JSX opening
+element is an ordinary duplicate-prop compiler error:
 
 ```tsx
 // Diagnostic: `open` is supplied twice.
 <Dialog open:onOpenChanged={this.state.dialogOpen} open={true} />
 ```
 
-One callback prop cannot serve two binding shorthands at the same boundary. A finite spread proven
-to contain either generated prop is diagnosed in the first delivery; opaque spreads cannot be used
-to evade duplicate-prop or callback-composition checks. A later extension may compose a statically
-extractable callback from a finite spread only if it preserves source-order evaluation and stable
-identity.
+```tsx
+// Diagnostic: `onOpenChanged` is supplied twice.
+<Dialog
+	open:onOpenChanged={this.state.dialogOpen}
+	onOpenChanged={(open) => this.log.info('dialog changed', { open })}
+/>
+```
 
-### Generated callback ownership
+There is no automatic callback composition, ordering rule, or argument forwarding. Authors who
+need logging, validation, veto, transformation, asynchronous acceptance, or any other callback
+behavior write the complete explicit value-plus-callback form. One callback prop likewise cannot
+serve two binding shorthands at the same boundary. A finite spread statically proven to supply
+either generated prop receives the existing duplicate-prop diagnostic; opaque spreads retain the
+framework's ordinary JSX spread analysis and gain no binding-specific composition path.
 
-The generated callback belongs to the parent component and the authored JSX boundary. It must have
-stable identity across value updates, preserve keyed item and branch ownership, participate in the
-current interaction/task when invoked, and become unusable after its owning boundary generation is
-released. The compiler must not allocate a fresh function merely because the bound value changes.
+### Ordinary callback ownership
+
+The generated arrow is the ordinary lambda shown by the source expansion. Its parent closure,
+interaction/task attachment, keyed or branch ownership, allocation, identity, cleanup, and stale
+generation behavior are exactly those of that explicit lambda. The shorthand adds no callback
+resource, wrapper, lifetime fence, setup registration, or operation identity of its own.
 
 No new cross-host callback transport is introduced. If the explicit value-plus-callback expansion
 cannot cross a client/server boundary under current component continuation rules, the shorthand
-receives the same diagnostic. Generated operation identity, when current lowering already requires
-one, remains opaque and generation-fenced.
+receives the same diagnostic. Any opaque operation identity produced by ordinary callback lowering
+remains governed by that existing lowering rather than by the binding syntax.
 
 ## Intrinsic binding alignment
 
@@ -266,7 +246,12 @@ other non-editable input states cannot claim an unsupported two-way value.
 `details` is the only new non-form intrinsic in the first delivery. Setting its `open` property is
 the state-to-DOM direction; after a `toggle`, the adapter reads the resulting `open` value before an
 authored `onToggle` handler. Named exclusive details groups can close another member, and each
-affected bound member must publish the browser-selected result without a feedback loop.
+affected bound member publishes its own final `open` value from its own `toggle` event. Coalesced
+events publish the property value observed when the event is delivered. State writes that agree
+with the live property produce no DOM write, preventing a browser-selected exclusive-group result
+from feeding back into another toggle. During hydration, a pre-hydration disclosure change is
+adopted and published through the compiled binding before normal reactive property publication,
+matching dirty form-control adoption.
 
 ### Intrinsic event composition and platform behavior
 
@@ -293,10 +278,20 @@ handlers. Control-specific dirty-value preservation, number/date conversion, rad
 membership, multi-select extraction, SSR output, hydration adoption, keyed movement, Activity
 retention, and unmount cleanup remain specialized DOM responsibilities.
 
-The implementation must audit uncancelled form reset, browser-restored control state, autofill, and
-hydration-dirty controls. Platform changes that do not dispatch the selected endpoint cannot leave
-the binding silently inconsistent. The resulting policy must reuse the existing control ownership
-and adoption mechanisms rather than synthesize untrusted events.
+This event composition is intrinsic-only. A DOM handler receives an event and is not a viable
+replacement-value callback prop, so it does not create a component shorthand collision. `_target`
+always contributes to an intrinsic and already composes event handlers as independently owned
+subscriptions; it never intercepts or merges a child component's callback props. Generic component
+value/callback shorthand therefore does not apply to `_target`.
+
+The canonical intrinsic spellings preserve the existing control contract rather than expanding
+platform observation. Form reset, browser restoration, and autofill publish only when the platform
+dispatches the selected finite endpoint. The compiler and renderer do not synthesize events or add
+document-wide observers. Pre-hydration dirty controls continue through the existing adoption path,
+which restores the live value and publishes it through the compiled binding before normal reactive
+updates. A platform mutation that dispatches no selected endpoint remains browser-owned until a
+later endpoint event or application state write; this limitation must be documented rather than
+hidden behind polling or mutation observation.
 
 ### Deliberate intrinsic exclusions
 
@@ -358,6 +353,11 @@ names both candidates, their resolved prop/component identities, and their sourc
 not prefer a component prop because it starts with `on`, prefer an enhancement because its namespace
 is imported, or choose based on source order.
 
+An explicitly authored value or callback prop is not a competing interpretation: once the
+namespaced attribute resolves as a component binding, either explicit prop is simply a duplicate.
+Likewise, `_target` has only intrinsic contribution semantics and is never a generic component
+binding candidate.
+
 The diagnostic offers explicit repairs:
 
 - expand the binding into separate value and callback props; or
@@ -392,15 +392,16 @@ proxy, shared state cell, component binding registry, or callback convention is 
 The native compiler must represent the shorthand as one source binding edge with:
 
 - parent state owner and writable path;
-- JSX boundary and generation;
+- authored JSX boundary;
 - value prop and callback prop identities;
 - callback first-parameter type and additional argument contract;
-- optional authored callback composition;
 - placement and artifact targets; and
 - intrinsic adapter identity where applicable.
 
 Generated code may reuse existing prop callback and DOM binding machinery, but inspection and
-diagnostics should preserve the authored paired syntax rather than expose helper names.
+diagnostics should preserve the authored paired syntax rather than expose helper names. After
+validation, ordinary component callback analysis must consume the same lambda representation it
+would receive from the explicit expansion; the binding edge adds no separate lifecycle semantics.
 
 Language tools should:
 
@@ -416,15 +417,16 @@ Language tools should:
 ## Lazy activation, SSR, and hydration
 
 The shorthand must not broaden event replay by itself. The compiler analyzes the synthesized
-callback's state write, interaction attachment, captures, placement, and target generation exactly
-as if the explicit callback were authored. A child callback that can run before a lazy parent state
-owner exists makes the relevant boundary eager unless the preceding lazy-island proposal proves an
-equivalent restorable owner and event policy.
+callback's state write, interaction attachment, captures, placement, and ordinary boundary
+ownership exactly as if the explicit callback were authored. A child callback that can run before a
+lazy parent state owner exists makes the relevant boundary eager unless the lazy-island proposal
+proves an equivalent restorable owner and event policy.
 
 SSR emits the value prop through normal component or intrinsic rendering. Callback behavior remains
 in the artifact where the explicit callback would live. Hydration adopts dirty controls through the
-existing binding contract before publishing or overwriting user state, and component callbacks
-cannot address a stale parent generation after replacement.
+existing binding contract before publishing or overwriting user state. Component callback lifetime
+and stale-reference behavior are exactly those of explicit source; shorthand adds no separate
+guard.
 
 No public transport or hydration identity is derived from `valueProp`, `callbackProp`, intrinsic
 event names, or source spelling. Existing opaque operation and boundary identities remain
@@ -434,32 +436,32 @@ authoritative.
 
 1. Add normalized semantic analysis and diagnostics for component value/callback pairs without
    changing generated output.
-2. Lower valid component pairs to stable ordinary value and callback props with parent-owned state
-   writes.
-3. Add authored callback composition, argument forwarding, interaction/task attachment, and stale
-   generation fencing.
-4. Add completion, hover, rename, source inspection, and enhancement ambiguity diagnostics.
+2. Lower valid component pairs to ordinary value and callback props with parent-owned state writes,
+   using the exact explicit-lambda analysis path.
+3. Add duplicate-generated-prop, interaction/task, placement, and enhancement-ambiguity diagnostics.
+4. Add completion, hover, rename, and source inspection.
 5. Replace the abbreviated intrinsic spellings with canonical `value:onInput`, `value:onChange`, and
    `checked:onChange` forms over the existing adapters, then update every repository use atomically.
 6. Add `details` `open:onToggle`, exclusive-group agreement, and authored-handler ordering.
-7. Audit form reset, restoration, autofill, SSR, hydration, Activity, and lazy activation behavior.
+7. Verify the settled endpoint-only platform policy, SSR, dirty hydration adoption, Activity, and
+   lazy activation behavior.
 8. Update current references, docs-app pages, examples, package guidance, reusable skill guidance,
    and compatibility/release checks.
 
 ## Verification
 
 - Compiler fixtures prove each shorthand is semantically equivalent to its explicit value/callback
-  expansion for reads, writes, evaluation order, target aliases, branches, keyed items, and stable
-  callback identity.
+  expansion for reads, writes, evaluation order, target aliases, branches, keyed items, allocation,
+  callback identity, interaction attachment, and cleanup.
 - Type tests cover optional callbacks, additional parameters, nullable values, variance in both
   directions, overload ambiguity, invalid return contracts, non-writable targets, computed paths,
   open prop dictionaries, and duplicate generated props.
-- Callback tests prove the binding write precedes an authored handler, all arguments are forwarded,
-  errors retain the completed state write, and explicit source remains available for veto or
-  transformation semantics.
+- Duplicate-prop tests reject an explicit value prop, an explicit callback prop, two shorthands that
+  generate one callback prop, and finite spreads proven to contain either generated prop. Explicit
+  source remains available for logging, veto, transformation, or asynchronous semantics.
 - Ownership tests prove the parent remains the only state owner, child props remain immutable, and
-  stale callbacks cannot update replaced, unmounted, keyed-out, Suspense-discarded, or inactive
-  generations.
+  shorthand callback lifetime is indistinguishable from the equivalent explicit lambda across
+  replacement, unmount, keyed branches, Suspense, and Activity.
 - Placement and continuation tests compare shorthand and explicit source across client, server,
   distributed, secret, serialization, and unsupported callback boundaries.
 - Enhancement tests cover normal kebab-case/camelCase separation, true collisions, aliases,
@@ -469,12 +471,12 @@ authoritative.
   checkbox boolean, radio values, checkbox arrays, and unsupported input types.
 - Details tests cover user toggles, state-driven toggles, coalesced events, named exclusive groups,
   authored `onToggle`, hydration, Activity, and feedback-loop suppression.
-- DOM ordering tests prove intrinsic state publication occurs before authored endpoint handlers and
-  component composition follows the same ordering.
+- DOM ordering tests prove intrinsic state publication occurs before authored endpoint handlers;
+  component duplicate props never enter an ordering or composition path.
 - Reset, autofill, restoration, dirty-control, SSR, and hydration tests protect browser-owned values
   without synthesizing events or overwriting pre-hydration edits.
-- Lazy-island tests prove generated callbacks neither bypass event eligibility nor duplicate parent
-  setup and that queued activation cannot publish into a stale target.
+- Lazy-island tests prove generated callbacks have the same eligibility, captures, ownership, and
+  queued-activation behavior as explicit lambdas.
 - Repository searches and compiler fixtures prove every use has moved to the canonical intrinsic
   spellings. Negative tests exercise the ordinary unsupported namespaced-attribute path without
   asserting a legacy-specific diagnostic or migration suggestion.
@@ -485,12 +487,12 @@ authoritative.
 
 1. `valueProp:callbackProp={statePath}` is exactly equivalent to the supported explicit value prop
    plus unconditional first-parameter assignment callback.
-2. Parent state ownership, child prop immutability, inspectability, interaction/task attachment, and
-   generation fencing are unchanged.
+2. Parent state ownership, child prop immutability, inspectability, interaction/task attachment,
+   callback identity, allocation, cleanup, and lifetime are exactly those of explicit source.
 3. Components need no binding metadata, naming convention, wrapper value, setter prop, writable
    prop proxy, channel, or runtime registry beyond their existing finite prop types.
-4. An authored callback can coexist and always runs after the bound state write with its complete
-   original argument list.
+4. Supplying either generated prop explicitly is a duplicate-prop compiler error; component
+   shorthand never composes callbacks.
 5. Non-writable targets, incompatible directions, ambiguous overloads, semantic return protocols,
    and illegal placement or serialization fail with source-located diagnostics.
 6. `value:onInput`, `value:onChange`, and `checked:onChange` replace the abbreviated intrinsic
@@ -499,7 +501,7 @@ authoritative.
 7. `open:onToggle` supports `details` disclosure and exclusive groups without generalizing dialog,
    popover, media, content-editing, file, scroll, or selection state.
 8. Intrinsic bindings retain specialized conversion, dirty-control, SSR/hydration, event-ordering,
-   reset/restoration, and authored-handler behavior.
+   endpoint-only platform observation, and authored-handler behavior.
 9. Enhancement and component-binding ambiguity always fails with both interpretations and explicit
    repair options; casing heuristics never silently choose semantics.
 10. Lazy activation and distributed compilation treat generated callbacks exactly like their
