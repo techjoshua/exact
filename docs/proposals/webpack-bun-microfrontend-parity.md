@@ -16,7 +16,7 @@ resolution or explicit rejection of
 [`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md). The dependent-foundation
 experiments 2–4 and 6 in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md) are resolved by
+[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) are resolved by
 the focused prerequisites above and the implemented transport/build-host work. The trusted
 microfrontend model and Vite/Rollup producer/consumer path are implemented. Final adapter
 conformance must treat compiler-emitted enhancement catalogs and framework-plugin projections as
@@ -138,7 +138,7 @@ release checks.
 ## Performance and generation-retention constraints
 
 Adapter parity must include the lifecycle behavior in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md), not only equivalent
+[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md), not only equivalent
 output files:
 
 - prepared artifact graphs, trust provenance, virtual modules, enhancement catalogs, translation

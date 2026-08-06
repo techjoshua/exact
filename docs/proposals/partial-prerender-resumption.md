@@ -24,7 +24,7 @@ progressive SSR can emit a fallback shell and reveal settled Suspense ranges dur
 does not serialize postponed renderer/task ownership and continue it in a later request.
 
 The measurement baseline and dependent-foundation experiments 2–4 and 6 in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md) must have
+[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) must have
 recorded dispositions before implementation; those dispositions now exist. Resumption uses the
 focused render-program, deterministic async SSR, compact hydration, progressive publication, and
 fused transport contracts above and retains each bounded generic fallback rather than recreating a
@@ -184,7 +184,7 @@ fails the postponed range through the configured recovery contract.
 ## Performance and reconstructed-lifetime constraints
 
 Partial prerendering must preserve the disposal targets in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md):
+[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md):
 
 - checkpoint construction writes bounded serialized records and never retains a live component,
   VNode, mounted range, task frame, request context, or complete SSR owner graph after the prerender

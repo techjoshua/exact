@@ -1,8 +1,8 @@
 # JavaScript performance improvements
 
-Status: **implementation complete; final archival and public promotion are program-gated by stages
-5–6 and 11–15.** The measurement baseline, dependent-foundation decisions, and remaining
-optimization dispositions are complete. This document records a client/server performance audit,
+Status: **completed and archived on 2026-08-06.** The measurement baseline,
+dependent-foundation decisions, and remaining optimization dispositions are complete. This
+document records a client/server performance audit,
 directional measurements, and the work justified by them. It is not a commitment to V8-specific
 behavior or permission to trade correctness and lifecycle ownership for benchmark results.
 
@@ -63,9 +63,9 @@ counter-metric rather than replace it with proposal-local timing loops.
 
 The dependent-foundation gate was completed on 2026-08-05. Experiments 2–4 were accepted and split
 into the ordered implementation proposals
-[`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
-[`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md), and
-[`compact-hydration-publication.md`](../history/compact-hydration-publication.md). Experiment 6 removed the
+[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md), and
+[`compact-hydration-publication.md`](compact-hydration-publication.md). Experiment 6 removed the
 duplicate decoded request traversal and made independent artifact-file publication concurrent.
 Binary native framing and additional artifact workers were rejected because measured JSON framing
 was immaterial and native single-owned work dominated the profiled build path.
@@ -882,6 +882,12 @@ the accepted changes. It did not identify another named layout or retained-owner
 cleared the proposal thresholds. No unnamed layout work is justified until a new profile names a
 hot call site or retained owner. Full evidence is tracked in
 [`../performance-baselines/remaining-optimizations.json`](../performance-baselines/remaining-optimizations.json).
+
+Across the six directly comparable runtime medians, the final profile improved the geometric mean
+by 7.25%. Including fixture-build time, the seven-metric geometric-mean uplift was 6.63%. This is a
+summary of the recorded workload mix rather than a universal speedup: Node keyed rotation improved
+24.60%, Chromium keyed rotation 13.79%, Node mixed mounting 9.49%, and Node static mounting 5.19%,
+while synchronous SSR regressed 7.47% and Chromium static mounting regressed 6.19%.
 
 Do not currently:
 

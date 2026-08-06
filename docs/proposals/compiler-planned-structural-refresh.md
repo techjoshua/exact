@@ -159,7 +159,7 @@ with a partially applied sibling sequence.
 
 Structural planning should remove runtime rediscovery costs rather than add a second complete view
 of the rendered tree. It must follow
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md):
+[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md):
 
 - client contracts contain compact target, kind, containment, and generation data only; rich source
   ranges, explanations, and compiler graph objects remain in build/server inspection artifacts;

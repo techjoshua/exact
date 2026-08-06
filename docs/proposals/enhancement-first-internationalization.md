@@ -777,7 +777,7 @@ require a second global state system.
 ## Performance and artifact-memory constraints
 
 Internationalization must consume the runtime baseline established by
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md), not introduce a
+[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md), not introduce a
 parallel reactive or child-ownership system.
 
 - Compiled message descriptors are build-owned immutable data. Runtime message instances retain a

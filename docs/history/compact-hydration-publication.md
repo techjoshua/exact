@@ -6,7 +6,7 @@ Implemented after
 [`compiler-owned-render-programs.md`](compiler-owned-render-programs.md) and
 [`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md). This proposal implements
 the accepted hydration/progressive experiment in
-[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). It must land
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md). It must land
 before lazy interaction islands, structural refresh, resumption, and final adapter parity depend on
 the compact table and shared bootstrap.
 

@@ -72,7 +72,7 @@ own `this.state.dialogOpen`; the child receives an ordinary reactive `open` valu
 ordinary callback when it wants to publish a replacement.
 
 The lowering must also preserve the performance constraints in
-[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). A binding adds no
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md). A binding adds no
 runtime registry, subscription, channel, or per-render composition object beyond what its explicit
 value-plus-callback expansion requires. It receives exactly the callback allocation, identity,
 ownership, cleanup, and optimization behavior of the equivalent authored lambda—no stronger and no

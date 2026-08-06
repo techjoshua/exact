@@ -295,7 +295,7 @@ descendant coordination.
 
 A materialized `children.graph` for every component is explicitly out of scope. A viable design
 must also remain compatible with
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md) and:
+[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) and:
 
 - add no meaningful runtime cost to components that do not request structured children;
 - build or expose structured parts only for opted-in boundaries and preferably lazily;

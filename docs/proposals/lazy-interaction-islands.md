@@ -29,7 +29,7 @@ shared slot identities and compact validated rows; they do not preserve per-boun
 generic adoption scan as their normal path.
 
 Before implementation begins, experiment 1 and the dependent-foundation experiments 2–4 and 6 in
-[`javascript-performance-improvements.md`](javascript-performance-improvements.md) must have
+[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) must have
 recorded dispositions. Those dispositions now exist. This proposal begins only after the three
 accepted focused prerequisites above are implemented; their explicit generic and self-describing
 fallbacks remain available to boundaries that are not compiler-finite.
@@ -378,7 +378,7 @@ component owners required by the partition graph. Independent sibling regions ma
 ## Startup, hydration, and dormant-generation constraints
 
 Lazy activation should reduce both loaded code and live runtime state. It must remain compatible
-with [`javascript-performance-improvements.md`](javascript-performance-improvements.md):
+with [`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md):
 
 - a dormant boundary retains one compact identity/generation record and the minimum range and
   loader facts needed for activation, not a component instance, effect scope, task owner, copied

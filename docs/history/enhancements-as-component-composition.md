@@ -882,7 +882,7 @@ that enhancement mechanics never require plugin participation.
 ## Performance and allocation constraints
 
 This design must remain compatible with the ranked work in
-[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). In particular:
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md). In particular:
 
 - an unavailable enhancement adds compile-time/catalog metadata but no component instance, effect
   scope, wrapper mount, target contribution table, or reactive watcher at runtime;

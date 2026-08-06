@@ -5,7 +5,7 @@
 Implemented after
 [`compiler-owned-render-programs.md`](compiler-owned-render-programs.md). This proposal implements
 the accepted async SSR concurrency experiment in
-[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). It must land
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md). It must land
 before partial-prerender resumption and any adapter advertises concurrent sibling rendering.
 
 The request-wide FIFO scheduler, `maxAsyncSsrConcurrency` normalization, isolated renderer frames,

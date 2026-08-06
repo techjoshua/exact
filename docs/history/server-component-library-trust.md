@@ -699,7 +699,7 @@ must not make the plugin registry responsible for ordinary components.
 ## Build-performance and runtime-state constraints
 
 Authorization must remain compatible with
-[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). Resolved dependency
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md). Resolved dependency
 graphs, package manifests, source ranges, and diagnostic provenance are bundler/build inputs; paired
 runtime artifacts retain only compact authorized component/catalog identities, the decision needed
 at that boundary, and the authorization fingerprint. They must not ship or reconstruct the complete

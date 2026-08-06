@@ -11,7 +11,7 @@ structural, enhancement-routed, opaque-spread, raw-content, and otherwise unprov
 the region-local generic fallback by design; no partially supported host semantics remain.
 
 This proposal implements the accepted render-plan experiment in
-[`javascript-performance-improvements.md`](../proposals/javascript-performance-improvements.md). It follows the
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md). It follows the
 delivered component, enhancement, binding, partition, and component-library trust contracts. It
 must land before bounded async SSR, compact hydration publication, lazy interaction islands,
 structural refresh, partial-prerender resumption, or final adapter parity consumes render-slot
