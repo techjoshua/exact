@@ -87,6 +87,11 @@ lifecycle storage, task collections, and lifecycle cancellation are
 materialized when the component actually uses them. This does not make
 extracted unbound component methods valid: component methods use their
 instance receiver.
+Reactive ownership follows the same rule: effect-scope methods are shared and
+their child, reaction, cleanup, and pause-waiter collections are created on
+first use. A DOM binding that observes no reactive dependency applies its value
+once and releases its watcher and binding-table entry; reactive expressions
+continue to retain ordinary fine-grained update behavior.
 Readonly prop tracking traverses plain objects and collections. Opaque class
 instances retain their authored identity even when supplied by a reactive JSX
 expression, so resource methods may mutate their own private state without

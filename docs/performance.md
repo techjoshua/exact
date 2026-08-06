@@ -108,3 +108,10 @@ The compiled 1,000-item DOM rotation remains a coarse safety gate at a 2,000 ms 
 limit detects construction failures, runaway reconciliation, and gross regressions without
 pretending noisy local timing is a precise cross-machine budget. Add tighter release budgets only
 after repeated baselines establish normal variance on supported environments.
+
+Allocation experiments should report both their focused representation measurement and a
+production-compiled DOM fixture. Empty scope or component populations isolate baseline ownership
+cost, while static, mixed-lifecycle, and keyed-list fixtures detect work shifted into mounting,
+patching, or teardown. Do not compare a candidate directly with an older tracked scenario when
+intervening renderer features materially changed that workload; first establish a current
+same-tree baseline or describe the result as cumulative.

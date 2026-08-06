@@ -8,10 +8,10 @@ import {
 	sanitizeUrlAttribute,
 	UnsafeHtml,
 	type StopHandle,
-	unwrap,
-	watch
+	unwrap
 } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
+import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {
 	ensureDelegated,
@@ -22,7 +22,7 @@ import {
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
-import { toCssProperty } from './style.js';
+import { bindStyle } from './style.js';
 import type { Root } from './types.js';
 
 /** Applies prop changes to a DOM element, including reactive bindings and delegated events. */
@@ -139,13 +139,15 @@ function setProp(
 		if (previous !== value) {
 			(element as HTMLElement).removeAttribute('style');
 		}
-		const stop = bindStyle(element as HTMLElement, value, scope);
-		setPropBinding(element, key, stop);
+		const stop = bindStyle(element as HTMLElement, value, scope, () =>
+			releasePropBinding(element, key)
+		);
+		if (stop) setPropBinding(element, key, stop);
 		return;
 	}
 
 	clearPropBinding(element, key);
-	const stop = watch(
+	const stop = watchRetained(
 		() =>
 			preserveFocus(root, () => {
 				const actual = unwrap(value);
@@ -164,9 +166,9 @@ function setProp(
 				setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
 			}),
 		undefined,
-		{ scope }
+		{ scope, onRelease: () => releasePropBinding(element, key) }
 	);
-	setPropBinding(element, key, stop);
+	if (stop) setPropBinding(element, key, stop);
 }
 
 function setDirectEventHandler(
@@ -216,82 +218,6 @@ function eventContainerFor(root: Root, element: Element): Node {
 	if (root.container.contains(element)) return root.container;
 	for (const target of root.portalTargets) if (target.contains(element)) return target;
 	return root.container;
-}
-
-function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): StopHandle {
-	let previousNames = new Set<string>();
-	let previousCssText: string | undefined;
-	const previousValues = new Map<string, string>();
-	return watch(
-		() => {
-			const actual = unwrap(value);
-
-			if (actual === false || actual === null || actual === undefined) {
-				if (element.hasAttribute('style')) {
-					element.removeAttribute('style');
-				}
-				previousNames.clear();
-				previousCssText = undefined;
-				previousValues.clear();
-				return;
-			}
-
-			if (typeof actual === 'string') {
-				if (previousCssText !== actual || element.style.cssText !== actual) {
-					element.style.cssText = actual;
-				}
-				previousNames.clear();
-				previousCssText = actual;
-				previousValues.clear();
-				return;
-			}
-
-			if (!actual || typeof actual !== 'object') {
-				if (element.hasAttribute('style')) {
-					element.removeAttribute('style');
-				}
-				previousNames.clear();
-				previousCssText = undefined;
-				previousValues.clear();
-				return;
-			}
-
-			previousCssText = undefined;
-			// Track individual property names so removed keys from an object style are
-			// cleaned up without wiping unrelated browser-normalized style state.
-			const nextNames = new Set<string>();
-			for (const [name, rawValue] of Object.entries(actual)) {
-				const styleValue = unwrap(rawValue);
-				const property = toCssProperty(name);
-				nextNames.add(property);
-				if (styleValue === null || styleValue === undefined || styleValue === false) {
-					if (previousValues.has(property) || element.style.getPropertyValue(property)) {
-						element.style.removeProperty(property);
-					}
-					previousValues.delete(property);
-				} else {
-					const nextValue = String(styleValue);
-					if (
-						previousValues.get(property) !== nextValue ||
-						element.style.getPropertyValue(property) !== nextValue
-					) {
-						element.style.setProperty(property, nextValue);
-					}
-					previousValues.set(property, nextValue);
-				}
-			}
-
-			for (const name of previousNames) {
-				if (!nextNames.has(name)) {
-					element.style.removeProperty(name);
-					previousValues.delete(name);
-				}
-			}
-			previousNames = nextNames;
-		},
-		undefined,
-		{ scope }
-	);
 }
 
 /** Applies one non-reactive property using the same semantics as JSX bindings. */
@@ -428,6 +354,12 @@ function clearPropBinding(element: Element, key: string): void {
 	if (!stop) return;
 	stop();
 	bindings?.delete(key);
+}
+
+function releasePropBinding(element: Element, key: string): void {
+	const bindings = propBindings.get(element);
+	bindings?.delete(key);
+	if (bindings && bindings.size === 0) propBindings.delete(element);
 }
 
 function setPropBinding(element: Element, key: string, stop: StopHandle): void {

@@ -11,6 +11,10 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./framework/watch": {
+			"types": "./dist/framework/watch.d.ts",
+			"default": "./dist/framework/watch.js"
 		}
 	},
 	"main": "./dist/index.js",

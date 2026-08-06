@@ -235,13 +235,13 @@ framework performance risk.
 
 ### Mounted ownership and DOM bindings
 
-The DOM renderer currently creates a complete effect scope before it knows whether a VNode owns
-reactive work. Static text, ordinary intrinsic elements, fragments, markers, and compiled-cell
-wrappers consequently receive scopes whose child, reaction, cleanup, and resume-waiter sets are
-usually empty. Each scope also owns method closures and participates in the parent scope's child
-set. A focused Node/V8 measurement of 50,000 empty framework scopes retained approximately 1,759 B
-per scope. The number is directional, but the one-scope-per-mounted-node multiplier makes this the
-largest client-only opportunity.
+The DOM renderer creates an effect scope for every VNode so ownership remains transferable and
+iteratively disposable. That scope is now class-backed: stable lifecycle methods are shared and
+child, reaction, cleanup, and resume-waiter sets materialize only when used. Five isolated Node
+24.11.1 processes retaining 50,000 empty scopes measured a median 114.27 B per scope, down from
+1,762.35 B (93.5%), while construction plus collection fell from 78.43 ms to 10.10 ms (87.1%).
+Nested renderer trees legitimately allocate child ownership storage, so the empty-root result is
+directional rather than a whole-tree heap claim.
 
 Use a lightweight ownership node for inert mounts and promote it only when the node registers a
 reaction, cleanup, pause boundary, or transferable lifetime. Empty and singleton ownership
@@ -249,12 +249,11 @@ collections should avoid a `Set`; stable methods should be shared. The optimized
 must preserve iterative subtree stop, Activity pause/resume, parked range transfer, enhancement
 rerouting, adoption, and cleanup-error aggregation.
 
-DOM property installation independently creates a watcher for every non-event property, including
-literal attributes. Static styles additionally retain style-diff sets and maps. A focused
-measurement retained approximately 723 B per no-dependency watcher. Compiler lowering should mark
-static properties for one-shot installation. As a runtime backstop, a watcher whose initial run
-records no dependencies may retire immediately because no dependency can schedule a later run.
-Property-binding tables must not retain a no-op stop handle after that retirement.
+DOM property installation now retires a watcher after any execution that observes no reactive
+dependency. Static properties, text, unsafe HTML, and styles therefore retain neither the reaction
+nor an inert property-binding entry. Style name/value collections also materialize only for object
+styles and are released when the binding returns to string or absent output. The runtime behavior
+covers handwritten and compiler-produced values without requiring static-property metadata.
 
 ### Component baseline
 
@@ -714,6 +713,11 @@ teardown (40.1%). Five measured processes followed two warmups for each fixture.
 results clear the experiment's acceptance thresholds without replacing the broader regression
 suite or future cross-platform measurements.
 
+The subsequent lazy effect-scope implementation reduced the same component fixture again to a
+5,064.30-byte median, 24.5% below the first accepted result and 61.0% below the original baseline.
+Median construction plus collection fell again to 480.57 ms, 15.2% below the first result and
+39.3% below the original baseline.
+
 Replace the large object-literal construction internally with a
 `ComponentInstanceImpl` class or equivalent shared prototype:
 
@@ -765,6 +769,18 @@ performance is comparable.
 
 ### 9. Prototype lazy mounted ownership and static property installation
 
+Status: **implemented and accepted on 2026-08-06.** Effect scopes use shared class methods and
+first-use ownership collections while preserving the existing transferable `EffectScope`
+contract. Dependency-free watchers retire after execution and notify renderer bindings to release
+their bookkeeping; style diff collections are lazy as well. Focused reactive and DOM suites cover
+pause/resume, transfer, cleanup aggregation, reactive property updates, and static binding
+retirement.
+
+The production static-tree fixture improved from 33.02 ms to 28.83 ms median (12.7%) after these
+changes. The mixed-tree fixture held mounting neutral at 22.96 ms and improved teardown from
+6.76 ms to 5.57 ms (17.6%). These are cumulative results following the class-backed component
+work, not an attempt to attribute every millisecond to one allocation removal.
+
 Compare the current full scope with a lightweight ownership node that promotes on first reactive
 registration. Separately add a compiler-known static property path and no-dependency watcher
 retirement. Measure static trees, reactive property trees, Activity pause/resume, adoption,
@@ -787,6 +803,15 @@ savings remain attributable and independently revertible. Include `renderToStrin
 rendering, streaming, output extensions, resumable boundaries, and configured byte-limit failures.
 
 ### 11. Prototype compact cells, list state, and snapshots
+
+Status: **reconciliation fast paths implemented; compact cell, keyed-cache, and SSR snapshot
+experiments remain open.** Child normalization now uses one allocation pass. Reconciliation skips
+key maps for all-unkeyed children, avoids LIS construction for monotonic keyed order, fills the
+result array directly, and allocates unmatched-child tracking only when an old child is genuinely
+unconsumed. A preliminary correct draft measured a 386.85 ms median for the current 1,000-row Node
+fixture; removing its remaining unconditional teardown and result allocations reduced that to
+334.29 ms (13.6%). The older tracked 59.22 ms baseline predates substantial renderer growth, so it
+is not used as an attributable before-value for this isolated change.
 
 Test cell branding or compact records without canonical VNode padding. Add reconciliation fast
 paths before replacing the keyed cache representation, then measure stable lists, append/prepend,

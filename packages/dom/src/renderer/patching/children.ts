@@ -3,13 +3,12 @@ import {
 	renderInstance,
 	ServerSlot,
 	unwrap,
-	watch,
 	type Child,
-	type ComponentInstance,
-	type VNode
+	type ComponentInstance
 } from '@exactjs/core';
+import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { withEffectScope, type EffectScope } from '@exactjs/reactive';
-import { childToVNode, planChildReconciliation } from '../../children.js';
+import { childToVNode, childrenToVNodes, planChildReconciliation } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { preserveFocus } from '../../focus.js';
 import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
@@ -76,22 +75,29 @@ export function patchChildrenInner(
 	before?: Node | null,
 	structuralOwner?: Mounted
 ): Mounted[] {
-	const nextVNodes = nextChildren.map(childToVNode).filter((vnode): vnode is VNode => !!vnode);
-	const nextKeys = new Set<string>();
-	for (const vnode of nextVNodes) {
-		if (vnode.key === undefined) continue;
-		if (nextKeys.has(vnode.key))
-			throw new Error(`Duplicate key "${vnode.key}" in rendered children`);
-		nextKeys.add(vnode.key);
-	}
+	const nextVNodes = childrenToVNodes(nextChildren);
 	const plan = planChildReconciliation(oldChildren, nextVNodes);
-	const keyedOldOrder = nextVNodes.map((vnode, index) => {
-		if (vnode.key === undefined) return -1;
+	let keyedOldOrder: number[] | undefined;
+	let keyedOrderChanged = false;
+	let lastOldKeyIndex = -1;
+	for (let index = 0; index < nextVNodes.length; index++) {
+		const vnode = nextVNodes[index]!;
+		if (vnode.key === undefined) continue;
+		keyedOldOrder ??= new Array<number>(nextVNodes.length).fill(-1);
 		const previous = plan.matches[index];
-		return previous && previous.vnode.type === vnode.type ? plan.oldKeyIndices.get(vnode.key)! : -1;
-	});
-	const stableKeyedPositions = longestIncreasingSubsequencePositions(keyedOldOrder);
-	const nextMounted: Mounted[] = [];
+		const oldIndex =
+			previous && previous.vnode.type === vnode.type ? plan.oldKeyIndices.get(vnode.key)! : -1;
+		keyedOldOrder[index] = oldIndex;
+		if (oldIndex >= 0) {
+			if (oldIndex < lastOldKeyIndex) keyedOrderChanged = true;
+			lastOldKeyIndex = oldIndex;
+		}
+	}
+	const stableKeyedPositions =
+		keyedOldOrder && keyedOrderChanged
+			? longestIncreasingSubsequencePositions(keyedOldOrder)
+			: undefined;
+	const nextMounted = new Array<Mounted>(nextVNodes.length);
 	let cursor = before ?? null;
 
 	// Walk from the end so each placed node can use the already-positioned next
@@ -101,7 +107,7 @@ export function patchChildrenInner(
 		const old = plan.matches[index];
 		const patched = patch(root, parent, old, vnode, parentInstance, parentScope);
 		if (vnode.type === ServerSlot) adoptServerSlot(parent, patched);
-		nextMounted.unshift(patched);
+		nextMounted[index] = patched;
 		// Unkeyed children are reconciled positionally. A matching unkeyed mount
 		// is already in the correct relative position; moving it merely because a
 		// sibling was inserted can reorder it around fragment anchors. Apart from
@@ -110,7 +116,8 @@ export function patchChildrenInner(
 		// pass, while only genuinely new unkeyed children need placement here.
 		if (
 			vnode.key !== undefined
-				? !stableKeyedPositions.has(index) || keyedOldOrder[index] === -1
+				? keyedOldOrder![index] === -1 ||
+					(stableKeyedPositions !== undefined && !stableKeyedPositions.has(index))
 				: !old
 		) {
 			placeMountedBefore(root, parent, patched, cursor);
@@ -118,14 +125,11 @@ export function patchChildrenInner(
 		cursor = patched.dom;
 	}
 
-	const retained = new Set(nextMounted);
 	const teardown = teardownFailure();
-	for (const old of oldChildren) {
-		if (!retained.has(old)) {
-			if (!releaseMountedRange(root, parent, old, 'reconcile-removed')) {
-				attemptTeardown(teardown, () => unmountMounted(old));
-				attemptTeardown(teardown, () => removeMountedNodes(parent, old));
-			}
+	for (const old of plan.unmatched) {
+		if (!releaseMountedRange(root, parent, old, 'reconcile-removed')) {
+			attemptTeardown(teardown, () => unmountMounted(old));
+			attemptTeardown(teardown, () => removeMountedNodes(parent, old));
 		}
 	}
 	throwTeardownFailure(teardown);
@@ -179,7 +183,7 @@ export function rerenderComponent(root: Root, mounted: Mounted): void {
 export function bindText(mounted: Mounted, value: unknown): void {
 	mounted.stop?.();
 	const node = mounted.dom as CharacterData;
-	mounted.stop = watch(
+	mounted.stop = watchRetained(
 		() => {
 			const text = String(unwrap(value) ?? '');
 			if (node.data !== text) {
@@ -187,6 +191,6 @@ export function bindText(mounted: Mounted, value: unknown): void {
 			}
 		},
 		undefined,
-		{ scope: mounted.scope }
+		{ scope: mounted.scope, onRelease: () => (mounted.stop = undefined) }
 	);
 }
