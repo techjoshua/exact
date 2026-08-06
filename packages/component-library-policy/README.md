@@ -14,5 +14,6 @@ provenance, and the application's `componentLibraries` configuration. It returns
 and server-private audits; it does not sandbox authorized JavaScript or participate in eXact plugin
 lifecycle.
 
-Application authors configure this behavior through `exact.config.*`, not by importing this
-package directly.
+Application authors configure policy through `exact.config.*`. Build coordinators that produce
+paired artifacts can use `readExactComponentAuthorizationIdentity()` to read the completed server
+manifest and pass only its compact identity into hydration or a subsequent remote/client build.

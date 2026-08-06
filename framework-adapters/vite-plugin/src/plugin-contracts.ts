@@ -1,4 +1,5 @@
 import type { ExactAssetRule, TransformTarget } from '@exactjs/compiler';
+import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ReactCompatibilityOptions } from '@exactjs/react-compat/plugin';
 import type { ExactRollupOutputLike } from './artifact-isolation.js';
@@ -25,6 +26,8 @@ export type ExactPluginOptions = {
 	onProfile?: ExactProfileSink;
 	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
 	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
+	/** Compact identity from the paired server build for server-executing remote artifacts. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	/** Derives server catalog emission and compact client runtime correlation together. */
 	debug?: ExactViteDebugOptions;
 	/** @internal Execution reason supplied by eXact test integrations. */

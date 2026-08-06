@@ -99,5 +99,24 @@ buildKey, fingerprint }` identity projected from the manifest. Hydration rejects
 client/server identity, and server operations carrying a stale fingerprint follow the existing
 unsupported-build recovery path.
 
+Build the server artifact first, then project the emitted private manifest for any paired output:
+
+```ts
+import { readExactComponentAuthorizationIdentity } from '@exactjs/component-library-policy';
+import { exact } from '@exactjs/vite-plugin';
+
+const componentAuthorization = await readExactComponentAuthorizationIdentity(
+	'dist/server/.exact/component-library-authorization.json'
+);
+
+export default {
+	plugins: [exact({ componentAuthorization })]
+};
+```
+
+Pass the same identity to SSR hydration options and retained server build registration. The Vite
+option forwards it into server-executing microfrontend exposure metadata; it never forwards the
+full manifest or audit.
+
 Framework-plugin discovery remains independent. A package can separately be a component library
 and a framework plugin, but authorizing either role never authorizes the other.

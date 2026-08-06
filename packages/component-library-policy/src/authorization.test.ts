@@ -10,6 +10,7 @@ import {
 	ExactComponentAuthorizationError,
 	createExactComponentAuthorizationSession,
 	exactComponentAuthorizationIdentity,
+	readExactComponentAuthorizationIdentity,
 	normalizeExactComponentLibraryPolicy,
 	type ExactComponentAuthorizationSession,
 	type ExactResolvedComponentCandidate,
@@ -69,6 +70,13 @@ describe('@exactjs/component-library-policy', () => {
 		expect(JSON.stringify(first)).not.toContain(fixture.root);
 		expect(JSON.stringify(first)).not.toContain('sha512-secret-integrity');
 		expect(exactComponentAuthorizationIdentity(first.manifest)).toEqual({
+			protocol: 1,
+			buildKey: 'build-one',
+			fingerprint: first.manifest.fingerprint
+		});
+		const manifestPath = path.join(fixture.root, 'component-library-authorization.json');
+		writeFileSync(manifestPath, JSON.stringify(first.manifest));
+		await expect(readExactComponentAuthorizationIdentity(manifestPath)).resolves.toEqual({
 			protocol: 1,
 			buildKey: 'build-one',
 			fingerprint: first.manifest.fingerprint

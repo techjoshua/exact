@@ -72,14 +72,22 @@ describe('Vite microfrontend integration', () => {
 	it('delegates the adapter lifecycle and preserves framework resolution fallback', async () => {
 		const harness = rollupHarness();
 		const onDevelopmentEntries = vi.fn();
+		const componentAuthorization = {
+			protocol: 1 as const,
+			buildKey: 'paired-build',
+			fingerprint: 'paired-fingerprint'
+		};
 		const integration = createExactViteMicrofrontendIntegration(
-			{ onRemoteDevelopmentEntries: onDevelopmentEntries },
+			{ onRemoteDevelopmentEntries: onDevelopmentEntries, componentAuthorization },
 			harness.load
 		);
 		const emitFile = vi.fn(() => 'entry-reference');
 		await integration.buildStart(registry(), emitFile);
 
 		expect(harness.adapter.buildStart).toHaveBeenCalledWith({ emitFile });
+		expect(harness.module.prepareExactRemoteArtifactBuild).toHaveBeenCalledWith(
+			expect.objectContaining({ componentAuthorization })
+		);
 		expect(onDevelopmentEntries).toHaveBeenCalledWith({ './Area': '/area.js' });
 		expect(await integration.resolveId('source', undefined, () => 'framework')).toBe('framework');
 		harness.adapter.resolveId.mockResolvedValueOnce({ id: 'remote' });

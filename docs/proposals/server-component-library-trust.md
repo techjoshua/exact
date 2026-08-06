@@ -637,6 +637,12 @@ component-owned state compare those fields through the existing build-key compat
 a mismatch follows the existing stale/incompatible-build recovery path. Runtime code never reads
 package manifests or decides trust.
 
+Multi-pass build orchestration completes the server build first and reads its emitted manifest with
+`readExactComponentAuthorizationIdentity()`. That compact result is passed to SSR hydration options,
+retained build registration, and the paired Vite build's `componentAuthorization` option. The Vite
+microfrontend integration forwards it to `prepareExactRemoteArtifactBuild`; a differing remote
+build key fails planning. No adapter accepts a full audit or policy graph as paired-artifact input.
+
 The full provenance graph and matched-rule explanation are emitted separately as server-private
 `.exact/component-library-audit.json` and projected into build inspection when enabled. Audit paths
 are application-root-relative, dependency paths are package/logical edges rather than absolute

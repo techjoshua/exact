@@ -26,6 +26,17 @@ const markerSource = `{
   }
 }`;
 
+const pairingSource = `import { readExactComponentAuthorizationIdentity } from '@exactjs/component-library-policy';
+import { exact } from '@exactjs/vite-plugin';
+
+const componentAuthorization = await readExactComponentAuthorizationIdentity(
+  'dist/server/.exact/component-library-authorization.json'
+);
+
+export default {
+  plugins: [exact({ componentAuthorization })]
+};`;
+
 /** Explains package participation and bundler-owned server execution authorization. */
 export function ComponentLibraryTrustPage(this: Component<{}>) {
 	return () => (
@@ -64,9 +75,9 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					authorization.
 				</p>
 				<p>
-					Validated package build facts become part of the active component graph. Packaged component
-					and enhancement imports are recursively authorized even when their parent package remains
-					external to the server bundle.
+					Validated package build facts become part of the active component graph. Packaged
+					component and enhancement imports are recursively authorized even when their parent
+					package remains external to the server bundle.
 				</p>
 				<p>
 					Development revalidates the complete last-committed candidate set when policy or package
@@ -83,6 +94,7 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					key, and fingerprint. A mismatch follows the existing unsupported-build recovery path;
 					package and policy provenance stays server-private.
 				</p>
+				<CodeBlock source={pairingSource} language="ts" title="vite.config.ts" />
 				<p>
 					This authorizes ordinary in-process JavaScript; it is not a sandbox. Framework-plugin
 					discovery is a separate decision even when one package offers both roles.
