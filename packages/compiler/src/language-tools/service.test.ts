@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import type {
 	ExactNativeLanguageClient,
 	NativeCompilerRequest,
@@ -62,6 +65,110 @@ describe('ExactCompilerLanguageService', () => {
 				kind: 'convert-to-inferred-task'
 			})
 		).rejects.toThrow('Stale eXact refactor generation');
+	});
+
+	it('pins overlays while evicting cold disk analyses within count and byte budgets', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-language-cache-'));
+		try {
+			const filenames = ['First.tsx', 'Second.tsx', 'Pinned.tsx'];
+			for (const filename of filenames)
+				await writeFile(
+					path.join(root, filename),
+					`export function Page() { return () => <p>${filename}</p>; }`
+				);
+			const service = new ExactCompilerLanguageService(
+				{ root, maxCachedAnalyses: 1, maxCachedAnalysisBytes: 1_000_000 },
+				{ nativeClient: new FakeNativeClient() }
+			);
+			try {
+				for (const filename of filenames.slice(0, 2)) {
+					const source = `export function Page() { return () => <p>${filename}</p>; }`;
+					await service.synchronize([{ kind: 'upsert', filename, version: 1, source }]);
+					await service.synchronize([{ kind: 'close', filename }]);
+				}
+				const pinnedSource = 'export function Page() { return () => <p>pinned</p>; }';
+				await service.synchronize([
+					{ kind: 'upsert', filename: 'Pinned.tsx', version: 1, source: pinnedSource }
+				]);
+
+				expect(service.stats()).toMatchObject({
+					overlays: 1,
+					snapshotEntries: 1,
+					analysisEntries: 1,
+					analysisEvictions: 2,
+					cacheOverBudget: false
+				});
+				await service.inspect('First.tsx');
+				expect(service.stats().analysisEvictions).toBe(3);
+			} finally {
+				await service.dispose();
+			}
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it('rejects invalid language analysis cache limits', () => {
+		expect(
+			() =>
+				new ExactCompilerLanguageService(
+					{ root: process.cwd(), maxCachedAnalyses: 0 },
+					{ nativeClient: new FakeNativeClient() }
+				)
+		).toThrow('maxCachedAnalyses must be a positive safe integer');
+	});
+
+	it('reports pinned overlays above a byte budget and evicts by access order', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-language-lru-'));
+		const filenames = ['A.tsx', 'B.tsx', 'C.tsx'];
+		try {
+			for (const filename of filenames)
+				await writeFile(path.join(root, filename), `export const value = '${filename}';`);
+			const service = new ExactCompilerLanguageService(
+				{ root, maxCachedAnalyses: 2, maxCachedAnalysisBytes: 1_000_000 },
+				{ nativeClient: new FakeNativeClient() }
+			);
+			try {
+				for (const filename of filenames.slice(0, 2)) {
+					const source = `export const value = '${filename}';`;
+					await service.synchronize([{ kind: 'upsert', filename, version: 1, source }]);
+					await service.synchronize([{ kind: 'close', filename }]);
+				}
+				await service.inspect('A.tsx');
+				const source = `export const value = 'C.tsx';`;
+				await service.synchronize([{ kind: 'upsert', filename: 'C.tsx', version: 1, source }]);
+				await service.synchronize([{ kind: 'close', filename: 'C.tsx' }]);
+				expect(service.stats().analysisEvictions).toBe(1);
+				await service.inspect('A.tsx');
+				expect(service.stats().analysisEvictions).toBe(1);
+				await service.inspect('B.tsx');
+				expect(service.stats().analysisEvictions).toBe(2);
+			} finally {
+				await service.dispose();
+			}
+
+			const pinned = new ExactCompilerLanguageService(
+				{ root, maxCachedAnalyses: 1, maxCachedAnalysisBytes: 1 },
+				{ nativeClient: new FakeNativeClient() }
+			);
+			try {
+				await pinned.synchronize([
+					{
+						kind: 'upsert',
+						filename: 'A.tsx',
+						version: 1,
+						source: `export const value = 'pinned';`
+					}
+				]);
+				expect(pinned.stats().cacheOverBudget).toBe(true);
+				await pinned.synchronize([{ kind: 'close', filename: 'A.tsx' }]);
+				expect(pinned.stats().cacheOverBudget).toBe(false);
+			} finally {
+				await pinned.dispose();
+			}
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
 	});
 });
 

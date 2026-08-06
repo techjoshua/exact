@@ -73,6 +73,7 @@
 		"src/language-tools/refactor-equivalence.ts",
 		"src/language-tools/runtime-correlation.ts",
 		"src/language-tools/service.ts",
+		"src/language-tools/service-support.ts",
 		"src/language-tools/semantic-entities.ts",
 		"src/language-tools/source-diagnostics.ts",
 		"src/language-tools/source-inspection.ts",

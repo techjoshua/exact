@@ -28,6 +28,18 @@ import {
 } from './refactor-equivalence.js';
 import { planExactTaskRefactor } from './task-refactor.js';
 import { createExactSourceInspection } from './source-inspection.js';
+import {
+	defaultMaxCachedAnalyses,
+	defaultMaxCachedAnalysisBytes,
+	estimateAnalysisBytes,
+	isLanguageSource,
+	isProjectConfiguration,
+	positiveCacheLimit,
+	sourceBytes,
+	staleError,
+	sum,
+	throwIfAborted
+} from './service-support.js';
 
 type SourceSnapshot = Readonly<{
 	version: number;
@@ -38,6 +50,7 @@ type SourceSnapshot = Readonly<{
 type AnalysisSnapshot = Readonly<{
 	source: string;
 	response: NativeCompilerResponse;
+	estimatedBytes: number;
 }>;
 
 /** Optional ownership injection used by protocol hosts and focused tests. */
@@ -57,6 +70,8 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 	private readonly projectKind: 'configured' | 'inferred';
 	private readonly client: ExactNativeLanguageClient;
 	private readonly ownsClient: boolean;
+	private readonly maxCachedAnalyses: number;
+	private readonly maxCachedAnalysisBytes: number;
 	private readonly snapshots = new Map<string, SourceSnapshot>();
 	private readonly analyses = new Map<string, AnalysisSnapshot>();
 	private readonly imports = new Map<string, ReadonlySet<string>>();
@@ -64,6 +79,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 	private lastChangedFiles = 0;
 	private lastAffectedFiles = 0;
 	private lastSynchronizationMs = 0;
+	private analysisEvictions = 0;
 	private disposed = false;
 
 	constructor(options: ExactLanguageServiceOptions, host: ExactLanguageServiceHostOptions = {}) {
@@ -73,6 +89,16 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		this.root = path.resolve(options.root);
 		this.configFile = options.configFile ? path.resolve(this.root, options.configFile) : undefined;
 		this.projectKind = options.projectKind ?? 'configured';
+		this.maxCachedAnalyses = positiveCacheLimit(
+			options.maxCachedAnalyses,
+			defaultMaxCachedAnalyses,
+			'maxCachedAnalyses'
+		);
+		this.maxCachedAnalysisBytes = positiveCacheLimit(
+			options.maxCachedAnalysisBytes,
+			defaultMaxCachedAnalysisBytes,
+			'maxCachedAnalysisBytes'
+		);
 		this.client = host.nativeClient ?? new NativeCompilerLanguageClient();
 		this.ownsClient = host.nativeClient === undefined;
 	}
@@ -115,7 +141,12 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		}
 		if (reset) await this.client.request({ kind: 'reset' }, signal);
 		const affected = reset
-			? unique([...changedFiles, ...this.snapshots.keys(), ...this.analyses.keys()])
+			? unique([
+					...changedFiles,
+					...this.snapshots.keys(),
+					...this.analyses.keys(),
+					...this.imports.keys()
+				])
 			: this.affectedFiles(changedFiles);
 		const diagnostics: ExactSourceDiagnostic[] = [];
 		const nextGeneration = this.generation + 1;
@@ -130,7 +161,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 			const current = this.snapshots.get(filename);
 			if (!current || current.version !== snapshot.version || current.source !== snapshot.source)
 				throw staleError(filename);
-			this.analyses.set(filename, Object.freeze({ source: snapshot.source, response }));
+			this.storeAnalysis(filename, snapshot, response);
 			this.imports.set(filename, importedFiles(filename, response, this.root));
 			diagnostics.push(
 				...createExactSourceInspection(filename, snapshot.source, nextGeneration, response)
@@ -142,6 +173,8 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		this.lastChangedFiles = unique(changedFiles).length;
 		this.lastAffectedFiles = unique(affected).length;
 		this.lastSynchronizationMs = performance.now() - started;
+		this.releaseDiskSnapshots();
+		this.enforceAnalysisBudget();
 		return Object.freeze({
 			generation: this.generation,
 			changedFiles: Object.freeze(unique(changedFiles)),
@@ -153,10 +186,24 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 	/** Returns bounded project resources and the latest synchronization measurement. */
 	stats(): ExactLanguageServiceStats {
 		this.assertActive();
+		const snapshotSourceBytes = sum(
+			[...this.snapshots.values()].map((snapshot) => sourceBytes(snapshot.source))
+		);
+		const analysisEstimatedBytes = this.analysisBytes();
 		return Object.freeze({
 			generation: this.generation,
 			overlays: [...this.snapshots.values()].filter((snapshot) => snapshot.overlay).length,
 			analyzedFiles: this.analyses.size,
+			snapshotEntries: this.snapshots.size,
+			snapshotSourceBytes,
+			analysisEntries: this.analyses.size,
+			analysisEstimatedBytes,
+			importGraphEntries: this.imports.size,
+			importGraphEdges: sum([...this.imports.values()].map((imports) => imports.size)),
+			analysisEvictions: this.analysisEvictions,
+			cacheOverBudget:
+				this.analyses.size > this.maxCachedAnalyses ||
+				analysisEstimatedBytes > this.maxCachedAnalysisBytes,
 			changedFiles: this.lastChangedFiles,
 			affectedFiles: this.lastAffectedFiles,
 			lastSynchronizationMs: this.lastSynchronizationMs
@@ -174,16 +221,15 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		const normalized = this.filename(filename);
 		const snapshot = this.snapshots.get(normalized) ?? this.diskSnapshot(normalized);
 		if (!snapshot) throw new Error(`Cannot inspect missing source file ${normalized}`);
-		let analysis = this.analyses.get(normalized);
+		let analysis = this.touchAnalysis(normalized);
 		if (!analysis || analysis.source !== snapshot.source) {
 			const response = await this.analyze(normalized, snapshot.source, signal);
 			throwIfAborted(signal);
-			analysis = Object.freeze({ source: snapshot.source, response });
+			analysis = this.storeAnalysis(normalized, snapshot, response);
 			this.snapshots.set(normalized, snapshot);
-			this.analyses.set(normalized, analysis);
 			this.imports.set(normalized, importedFiles(normalized, response, this.root));
 		}
-		return this.withProject(
+		const inspection = this.withProject(
 			createExactSourceInspection(
 				normalized,
 				snapshot.source,
@@ -192,6 +238,9 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 				options.includeReasons !== false
 			)
 		);
+		this.releaseDiskSnapshots();
+		this.enforceAnalysisBudget();
+		return inspection;
 	}
 
 	/** Plans and verifies one task refactor against the current generation. */
@@ -282,6 +331,50 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		return [...affected];
 	}
 
+	private storeAnalysis(
+		filename: string,
+		snapshot: SourceSnapshot,
+		response: NativeCompilerResponse
+	): AnalysisSnapshot {
+		const analysis = Object.freeze({
+			source: snapshot.source,
+			response,
+			estimatedBytes: estimateAnalysisBytes(snapshot.source, response)
+		});
+		this.analyses.delete(filename);
+		this.analyses.set(filename, analysis);
+		return analysis;
+	}
+
+	private touchAnalysis(filename: string): AnalysisSnapshot | undefined {
+		const analysis = this.analyses.get(filename);
+		if (!analysis) return undefined;
+		this.analyses.delete(filename);
+		this.analyses.set(filename, analysis);
+		return analysis;
+	}
+
+	private releaseDiskSnapshots(): void {
+		for (const [filename, snapshot] of this.snapshots)
+			if (!snapshot.overlay) this.snapshots.delete(filename);
+	}
+
+	private enforceAnalysisBudget(): void {
+		let bytes = this.analysisBytes();
+		for (const [filename, analysis] of this.analyses) {
+			if (this.analyses.size <= this.maxCachedAnalyses && bytes <= this.maxCachedAnalysisBytes)
+				break;
+			if (this.snapshots.get(filename)?.overlay) continue;
+			this.analyses.delete(filename);
+			bytes -= analysis.estimatedBytes;
+			this.analysisEvictions++;
+		}
+	}
+
+	private analysisBytes(): number {
+		return sum([...this.analyses.values()].map((analysis) => analysis.estimatedBytes));
+	}
+
 	private diskSnapshot(filename: string): SourceSnapshot | undefined {
 		if (!existsSync(filename)) return undefined;
 		return Object.freeze({ version: -1, source: readFileSync(filename, 'utf8'), overlay: false });
@@ -340,31 +433,4 @@ function importedFiles(
 
 function unique(values: readonly string[]): string[] {
 	return [...new Set(values)];
-}
-
-function throwIfAborted(signal: AbortSignal | undefined): void {
-	if (!signal?.aborted) return;
-	const error = new Error('The eXact language request was cancelled');
-	error.name = 'AbortError';
-	throw error;
-}
-
-function staleError(filename: string): Error {
-	const error = new Error(`A newer document version superseded analysis for ${filename}`);
-	error.name = 'ExactStaleLanguageResultError';
-	return error;
-}
-
-function isProjectConfiguration(filename: string): boolean {
-	const basename = path.basename(filename).toLowerCase();
-	return (
-		/^tsconfig(?:\..+)?\.json$/.test(basename) ||
-		/^jsconfig(?:\..+)?\.json$/.test(basename) ||
-		/^exact\.config\.[cm]?[jt]s$/.test(basename) ||
-		basename === 'package.json'
-	);
-}
-
-function isLanguageSource(filename: string): boolean {
-	return /\.[cm]?[jt]sx?$/i.test(filename);
 }

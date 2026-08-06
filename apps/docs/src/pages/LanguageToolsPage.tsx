@@ -44,7 +44,9 @@ const serviceSource = `import { createExactLanguageService } from '@exactjs/comp
 
 const language = createExactLanguageService({
   root: process.cwd(),
-  noEmit: true
+  noEmit: true,
+  maxCachedAnalyses: 128,
+  maxCachedAnalysisBytes: 32 * 1024 * 1024
 });
 
 await language.synchronize([{
@@ -144,6 +146,12 @@ export function LanguageToolsPage(this: Component<{}>) {
 					before awaiting analysis, then rejects the result if another edit has arrived. Closing a
 					workspace disposes its overlays, dependency indexes, pending requests, and native compiler
 					process.
+				</p>
+				<p>
+					Cold disk analyses use an access-ordered cache bounded by count and estimated bytes. Open
+					overlays are pinned even when they exceed that budget, and <code>language.stats()</code>{' '}
+					reports snapshot, analysis, import-graph, eviction, and over-budget telemetry. Cold source
+					is reread from disk instead of being retained only as a snapshot.
 				</p>
 			</section>
 			<section>

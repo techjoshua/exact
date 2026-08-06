@@ -54,7 +54,9 @@ import { createExactLanguageService } from '@exactjs/compiler';
 
 const language = createExactLanguageService({
 	root: process.cwd(),
-	noEmit: true
+	noEmit: true,
+	maxCachedAnalyses: 128,
+	maxCachedAnalysisBytes: 32 * 1024 * 1024
 });
 
 const update = await language.synchronize([
@@ -82,6 +84,17 @@ and a result whose document was superseded is rejected before publication.
 Closing a document releases its overlay and restores the disk snapshot;
 disposing the service releases the native process and all retained project
 state.
+
+Disk-backed rich analyses use an access-ordered LRU bounded by both
+`maxCachedAnalyses` (default `128`) and `maxCachedAnalysisBytes` (default 32 MiB). Open overlays and
+their current analyses are pinned even when editor state alone exceeds those budgets. Cold source
+text is reread from disk instead of being retained as a snapshot, while the compact import graph
+remains available for affected-file calculation.
+
+`language.stats()` reports overlay count, snapshot entries and source bytes, analysis entries and
+estimated bytes, import-graph entries and edges, eviction count, and `cacheOverBudget`. The final
+flag can be true when pinned overlays alone exceed a configured limit; the service reports that
+condition rather than discarding current editor state.
 
 ## Semantic regions
 
