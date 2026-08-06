@@ -63,4 +63,23 @@ describe('@exactjs/compiler: component build facts', () => {
 			})
 		]);
 	});
+
+	it('keeps package identity hints out of generated JavaScript', () => {
+		const source = `
+			import { Card } from '@acme/cards';
+			export function Page() {
+				return () => <Card />;
+			}
+		`;
+		const ordinary = transformSource(source, { filename: '/app/Page.tsx' });
+		const packaged = transformSource(source, {
+			filename: '/app/Page.tsx',
+			packageName: '@acme/application'
+		});
+
+		expect(packaged.code).toBe(ordinary.code);
+		expect(packaged.componentBuild.packageName).toBe('@acme/application');
+		expect(ordinary.componentBuild).not.toHaveProperty('packageName');
+		expect(JSON.stringify(packaged.componentBuild)).not.toMatch(/trust|authoriz|marker/i);
+	});
 });
