@@ -77,6 +77,7 @@ class FakeLanguageService implements ExactLanguageService {
 			filename: this.filename,
 			project: { kind: this.options.projectKind ?? 'configured', root: this.options.root },
 			compiler: { typescriptVersion: '7.0.0', backendVersion: '1.26.0' },
+			partitionPlan: { version: 1, buildKey: 'fixture', roots: [], nodes: [], edges: [] },
 			components: [],
 			diagnostics: []
 		};
@@ -91,6 +92,14 @@ class FakeLanguageService implements ExactLanguageService {
 			generation: this.generation,
 			overlays: 1,
 			analyzedFiles: 1,
+			snapshotEntries: 1,
+			snapshotSourceBytes: 1,
+			analysisEntries: 1,
+			analysisEstimatedBytes: 1,
+			importGraphEntries: 1,
+			importGraphEdges: 0,
+			analysisEvictions: 0,
+			cacheOverBudget: false,
 			changedFiles: 1,
 			affectedFiles: 1,
 			lastSynchronizationMs: 0

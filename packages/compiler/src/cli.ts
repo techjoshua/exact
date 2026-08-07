@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { compileProjectArtifacts } from './compilation/compiler.js';
 import { compileProject } from './compilation/file-compilation.js';
 import { createCompilerSession } from './expression/session.js';
@@ -13,6 +15,8 @@ type CliOptions = {
 	artifacts?: boolean;
 	serverComponents?: boolean;
 	sourceMap?: boolean;
+	check?: boolean;
+	project?: string;
 };
 
 async function main(argv: string[]): Promise<void> {
@@ -27,6 +31,20 @@ async function main(argv: string[]): Promise<void> {
 	});
 
 	try {
+		if (options.check) {
+			const configFile = checkConfigFile(options.project);
+			await compileProject(options.inputs, {
+				rootDir: options.rootDir,
+				root: configFile ? path.dirname(configFile) : process.cwd(),
+				configFile,
+				target: options.target,
+				serverComponents: options.serverComponents,
+				generatedValidation: 'semantic',
+				includeAllModules: true,
+				session
+			});
+			return;
+		}
 		if (options.artifacts) {
 			if (!options.outDir) throw new Error('exactc --artifacts requires --outDir');
 			const results = await compileProjectArtifacts(options.inputs, {
@@ -81,6 +99,8 @@ function parseArgs(argv: string[]): CliOptions {
 	let artifacts = false;
 	let serverComponents = false;
 	let sourceMap = false;
+	let check = false;
+	let project: string | undefined;
 	for (let index = 0; index < argv.length; index++) {
 		const arg = argv[index]!;
 		if (arg === '--outDir') {
@@ -95,6 +115,10 @@ function parseArgs(argv: string[]): CliOptions {
 			serverComponents = true;
 		} else if (arg === '--sourceMap') {
 			sourceMap = true;
+		} else if (arg === '--check') {
+			check = true;
+		} else if (arg === '--project') {
+			project = argv[++index];
 		} else if (arg === '--help' || arg === '-h') {
 			printUsage();
 			process.exit(0);
@@ -110,14 +134,22 @@ function parseArgs(argv: string[]): CliOptions {
 		target,
 		artifacts,
 		serverComponents,
-		sourceMap
+		sourceMap,
+		check,
+		project
 	};
 }
 
 function printUsage(): void {
 	console.log(
-		'Usage: exactc [--outDir dir] [--rootDir dir] [--target default|client|server] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
+		'Usage: exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target default|client|server] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
 	);
+}
+
+function checkConfigFile(configFile: string | undefined): string | undefined {
+	if (configFile) return path.resolve(configFile);
+	const conventional = path.resolve('tsconfig.json');
+	return existsSync(conventional) ? conventional : undefined;
 }
 
 function parseTarget(value: string | undefined): TransformTarget {

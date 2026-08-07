@@ -26,6 +26,8 @@ export type NativeCompilerRenderEdge = Readonly<{
 	tag: string;
 	name: string;
 	componentId?: string;
+	moduleSpecifier?: string;
+	exportName?: string;
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
 	boundary: 'client' | 'server' | 'isomorphic' | 'unknown';
 	index: number;

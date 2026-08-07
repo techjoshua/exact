@@ -1,47 +1,61 @@
 import {
-	createLineSourceMap,
 	exactExportConditions,
 	type ExactAssetRule,
 	type ExactCompilerSession,
 	type TransformTarget
 } from '@exactjs/compiler';
-import {
-	createExactDiagnosticReporter,
-	prependExactEnhancementRegistrations,
-	transformExactAdapterModule
-} from '@exactjs/compiler/adapter-support';
+import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
+import type { ExactComponentAuthorizationAudit } from '@exactjs/component-library-policy';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
-	jsxSourceOwnership,
 	resolveReactCompatibility,
 	type ReactCompatibilityOptions
 } from '@exactjs/react-compat/plugin';
-import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { Compiler as WebpackCompiler } from 'webpack';
 import {
 	createWebpackCompilerSession,
 	clearWebpackInspectionModules,
+	authorizeWebpackResolvedComponent,
+	commitWebpackAuthorizationGeneration,
 	disposeWebpackCompilerSession,
 	replaceWebpackCompilerSession,
 	webpackCompilerSession,
 	recordWebpackInspectionModule,
+	recordWebpackComponentBuildFacts,
+	resetWebpackAuthorizationGeneration,
 	webpackInspectionCatalog
 } from './sessions.js';
-import { webpackCompatibilityEngine } from './react-compatibility.js';
-import { shouldTransformWebpackModule, webpackTransformTarget } from './transform-selection.js';
+import { webpackTransformTarget } from './transform-selection.js';
 import {
 	addWebpackConditions,
 	addWebpackEnhancementAliases,
 	addWebpackReactAliases,
 	applyExactWebpackResolver
 } from './resolver.js';
+import { resolveWebpackDebug } from './devtools.js';
+import { transformExactWebpackModule, type ExactWebpackTransformResult } from './transform.js';
 import {
-	appendWebpackDevtoolsBootstrap,
-	resolveWebpackDebug,
-	webpackDebugEnabled
-} from './devtools.js';
+	installExactWebpackLoaderBridge,
+	removeExactWebpackLoaderBridge,
+	type ExactWebpackLoaderBridgeCarrier
+} from './loader-bridge.js';
+import {
+	createWebpackPublishedComponentResolver,
+	type WebpackNormalResolver
+} from './published-component-resolver.js';
+import type {
+	WebpackAfterResolveData,
+	WebpackAliasConfiguration,
+	WebpackResolveCallback,
+	WebpackResolveRequest
+} from './resolution-contracts.js';
+import { createExactWebpackRule } from './rule.js';
+export { createExactWebpackRule } from './rule.js';
+export type * from './resolution-contracts.js';
 export {
 	addWebpackConditions,
 	addWebpackEnhancementAliases,
@@ -127,7 +141,7 @@ export type WebpackCompilerLike = {
 		watch?: boolean;
 		resolve?: {
 			conditionNames?: string[];
-			alias?: Record<string, string>;
+			alias?: WebpackAliasConfiguration;
 		};
 		module?: {
 			rules?: unknown[];
@@ -150,7 +164,14 @@ export type WebpackCompilerLike = {
 			tap?(
 				name: string,
 				handler: (factory: {
+					getResolver?(type: 'normal'): WebpackNormalResolver;
 					hooks?: {
+						afterResolve?: {
+							tapPromise?(
+								name: string,
+								handler: (data: WebpackAfterResolveData | false | undefined) => Promise<void>
+							): void;
+						};
 						resolver?: {
 							tap?(
 								name: string,
@@ -167,9 +188,11 @@ export type WebpackCompilerLike = {
 			tap?(
 				name: string,
 				handler: (compilation: {
+					fileDependencies?: { add(filename: string): unknown };
 					hooks?: {
 						processAssets?: {
 							tap?(options: { name: string }, handler: () => void): void;
+							tapPromise?(options: { name: string }, handler: () => Promise<void>): void;
 						};
 					};
 					emitAsset?(filename: string, source: { source(): string; size(): number }): void;
@@ -180,15 +203,6 @@ export type WebpackCompilerLike = {
 	getInfrastructureLogger?(name: string): { warn(message: string): void };
 };
 
-/** Defines the webpack resolve request type contract. */
-export type WebpackResolveRequest = {
-	request?: string;
-	path?: string;
-};
-
-/** Defines the webpack resolve callback type contract. */
-export type WebpackResolveCallback = (error?: Error | null, result?: unknown) => void;
-
 /** Defines the exact webpack plugin class contract. */
 export class ExactWebpackPlugin {
 	readonly options: ExactWebpackPluginOptions;
@@ -198,7 +212,10 @@ export class ExactWebpackPlugin {
 	}
 
 	/** Applies an apply to the owned runtime state for this exact webpack plugin instance. */
-	apply(compiler: WebpackCompilerLike): void {
+	apply(compiler: WebpackCompiler): void;
+	apply(compiler: WebpackCompilerLike): void;
+	apply(input: WebpackCompiler | WebpackCompilerLike): void {
+		const compiler = input as WebpackCompilerLike;
 		let diagnosticsEnabled =
 			this.options.diagnostics ?? Boolean(compiler.watchMode || compiler.options.watch);
 		const owned = createWebpackCompilerSession(diagnosticsEnabled, this.options.onProfile);
@@ -225,6 +242,19 @@ export class ExactWebpackPlugin {
 			...this.options,
 			debug: resolveWebpackDebug(this.options.debug, development)
 		};
+		const bridgeCarrier = compiler as WebpackCompilerLike & ExactWebpackLoaderBridgeCarrier;
+		installExactWebpackLoaderBridge(bridgeCarrier, {
+			get session() {
+				return compilerSession;
+			},
+			record: (filename, source, result) =>
+				recordWebpackTransformResult(
+					{ ...buildOptions, __exactSessionId: owned.id },
+					filename,
+					source,
+					result
+				)
+		});
 		if (
 			!development &&
 			(buildOptions.debug.catalog === true || buildOptions.debug.runtime === true) &&
@@ -234,12 +264,22 @@ export class ExactWebpackPlugin {
 				'eXact production DevTools output requires one explicit immutable debug.buildKey'
 			);
 		compiler.options.module.rules.push(createExactWebpackRule(buildOptions, owned.id));
+		const authorizationOptions = {
+			target: buildOptions.target,
+			applicationRoot: buildOptions.applicationRoot,
+			configPath: buildOptions.configPath,
+			buildKey: buildOptions.debug.buildKey
+		};
+		resetWebpackAuthorizationGeneration(owned.id, authorizationOptions);
+		let watchAuthorizationFile: ((filename: string) => void) | undefined;
 		if (buildOptions.target === 'server') {
 			compiler.hooks?.thisCompilation?.tap?.('ExactWebpackPlugin', (compilation) => {
-				compilation.hooks?.processAssets?.tap?.({ name: 'ExactWebpackPlugin' }, () => {
+				watchAuthorizationFile = (filename) => compilation.fileDependencies?.add(filename);
+				const emitInspection = (componentAuthorization?: ExactComponentAuthorizationAudit) => {
 					const catalog = webpackInspectionCatalog(owned.id, {
 						applicationRoot: buildOptions.applicationRoot,
-						...buildOptions.debug
+						...buildOptions.debug,
+						componentAuthorization
 					});
 					if (!catalog || !compilation.emitAsset) return;
 					const contents = `${JSON.stringify(catalog, null, 2)}\n`;
@@ -247,11 +287,34 @@ export class ExactWebpackPlugin {
 						source: () => contents,
 						size: () => Buffer.byteLength(contents)
 					});
-				});
+				};
+				const processAssets = async () => {
+					const committed = await commitWebpackAuthorizationGeneration(
+						owned.id,
+						authorizationOptions
+					);
+					emitInspection(committed?.audit);
+					if (!committed || !compilation.emitAsset) return;
+					for (const [filename, value] of [
+						['.exact/component-library-authorization.json', committed.manifest],
+						['.exact/component-library-audit.json', committed.audit]
+					] as const) {
+						const contents = `${JSON.stringify(value, null, 2)}\n`;
+						compilation.emitAsset(filename, {
+							source: () => contents,
+							size: () => Buffer.byteLength(contents)
+						});
+					}
+				};
+				if (compilation.hooks?.processAssets?.tapPromise)
+					compilation.hooks.processAssets.tapPromise({ name: 'ExactWebpackPlugin' }, processAssets);
+				else
+					compilation.hooks?.processAssets?.tap?.({ name: 'ExactWebpackPlugin' }, emitInspection);
 			});
 		}
 		compiler.hooks?.watchRun?.tap?.('ExactWebpackPlugin', (current) => {
 			clearWebpackInspectionModules(owned.id);
+			resetWebpackAuthorizationGeneration(owned.id, authorizationOptions);
 			if (this.options.diagnostics === undefined) configureDiagnostics(true);
 			const modified = [...(current.modifiedFiles ?? [])];
 			const removed = new Set(current.removedFiles ?? []);
@@ -261,31 +324,40 @@ export class ExactWebpackPlugin {
 				if (!modified.includes(file)) reporter(compilerSession.invalidate(file, true), warn);
 		});
 		compiler.hooks?.normalModuleFactory?.tap?.('ExactWebpackPlugin', (factory) => {
+			const resolvePublished = createWebpackPublishedComponentResolver(
+				factory.getResolver?.('normal')
+			);
 			factory.hooks?.resolver?.tap?.('ExactWebpackPlugin', (resolver) =>
 				applyExactWebpackResolver(resolver, this.options)
 			);
+			factory.hooks?.afterResolve?.tapPromise?.('ExactWebpackPlugin', async (data) => {
+				const request = data && (data.createData?.rawRequest ?? data.request);
+				const importer = data && data.contextInfo?.issuer;
+				const resource = data && data.createData?.resource;
+				if (request && importer && resource) {
+					const authorization = await authorizeWebpackResolvedComponent(
+						owned.id,
+						authorizationOptions,
+						request,
+						importer,
+						resource,
+						resolvePublished,
+						watchAuthorizationFile
+					);
+					if (authorization === 'omitted' && data?.createData)
+						data.createData.resource = fileURLToPath(
+							new URL('./omitted-enhancement.js', import.meta.url)
+						);
+				}
+			});
 		});
-		const dispose = (): void => disposeWebpackCompilerSession(owned.id);
+		const dispose = (): void => {
+			removeExactWebpackLoaderBridge(bridgeCarrier);
+			disposeWebpackCompilerSession(owned.id);
+		};
 		compiler.hooks?.watchClose?.tap?.('ExactWebpackPlugin', dispose);
 		compiler.hooks?.shutdown?.tap?.('ExactWebpackPlugin', dispose);
 	}
-}
-
-/** Creates the webpack pre-loader rule for eXact JSX transforms. */
-export function createExactWebpackRule(
-	options: ExactWebpackPluginOptions = {},
-	sessionId?: string
-): Record<string, unknown> {
-	return {
-		test: /\.[cm]?[jt]sx?$/,
-		enforce: 'pre',
-		use: [
-			{
-				loader: '@exactjs/webpack-plugin/loader',
-				options: { ...options, ...(sessionId ? { __exactSessionId: sessionId } : {}) }
-			}
-		]
-	};
 }
 
 /** Transforms one webpack-loaded source file when it matches eXact plugin filters. */
@@ -295,72 +367,10 @@ export function transformExactWebpackSource(
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession
 ): { code: string; map: unknown } | null {
-	if (!shouldTransformWebpackModule(filename, source, options)) return null;
-	const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
-	const compatibilityEngine = reactCompatibility
-		? webpackCompatibilityEngine(options, session, reactCompatibility.target)
-		: undefined;
-	const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
-	const output = transformExactAdapterModule({
-		source,
-		filename,
-		jsxOwnership: ownership,
-		usesReactRuntimeImports: usesReactRuntimeImports(source, filename),
-		transformReact: true,
-		shouldCompile: true,
-		invalidateCompatibility: () => compatibilityEngine?.invalidate(filename),
-		...(reactCompatibility
-			? {
-					react: () =>
-						transformReactJsx(source, {
-							filename,
-							target: reactCompatibility.target,
-							sourceMap: options.sourceMap ?? true
-						})
-				}
-			: {}),
-		compiler: {
-			options: {
-				session,
-				target: webpackTransformTarget(options),
-				serverComponents: options.serverComponents,
-				sourceMap: options.sourceMap ?? true,
-				assetRules: options.assetRules,
-				preserveClientAssetImports: true,
-				jsxInterop: compatibilityEngine?.jsxInterop,
-				emitInspection: options.target === 'server' && webpackDebugEnabled(options.debug?.catalog),
-				instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
-			},
-			finish: (result) => {
-				const enhanced = prependExactEnhancementRegistrations(
-					result.code,
-					result.rendererEnhancements
-				);
-				const code =
-					options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)
-						? appendWebpackDevtoolsBootstrap(enhanced, options.debug)
-						: enhanced;
-				return {
-					code,
-					map: options.sourceMap === false ? null : createLineSourceMap(filename, source, code)
-				};
-			},
-			inspection: (result) =>
-				result.inspectionCatalog
-					? {
-							inspection: result.inspectionCatalog,
-							redactions: result.inspectionRedactions,
-							debug: options.debug
-						}
-					: undefined
-		},
-		profile: options.onProfile
-			? { subsystem: 'webpack-plugin' as const, sink: options.onProfile }
-			: undefined
-	});
-	if (output?.inspection)
-		recordWebpackInspectionModule(options.__exactSessionId, filename, source, output.inspection);
-	return output ? { code: output.code, map: output.map } : null;
+	const result = transformExactWebpackModule(source, filename, options, session);
+	if (!result) return null;
+	recordWebpackTransformResult(options, filename, source, result);
+	return { code: result.code, map: result.map };
 }
 
 /** Prepares the application registry before invoking the synchronous webpack transform. */
@@ -368,22 +378,40 @@ export async function transformExactWebpackSourceAsync(
 	source: string,
 	filename: string,
 	options: ExactWebpackPluginOptions = {},
-	session?: ExactCompilerSession
+	session?: ExactCompilerSession,
+	record?: (result: ExactWebpackTransformResult) => void
 ): Promise<{ code: string; map: unknown } | null> {
 	const registry = await prepareExactPluginRegistry({
 		applicationRoot: options.applicationRoot ?? path.dirname(filename),
 		configPath: options.configPath,
 		hostMode: 'build'
 	});
-	return transformExactWebpackSource(
-		source,
-		filename,
-		{
-			...options,
-			debug: options.debug ?? registry.config?.debug
-		},
-		session
-	);
+	const configured = {
+		...options,
+		debug: options.debug ?? registry.config?.debug
+	};
+	const result = transformExactWebpackModule(source, filename, configured, session);
+	if (!result) return null;
+	if (record) record(result);
+	else recordWebpackTransformResult(configured, filename, source, result);
+	return { code: result.code, map: result.map };
+}
+
+function recordWebpackTransformResult(
+	options: ExactWebpackPluginOptions,
+	filename: string,
+	source: string,
+	result: ExactWebpackTransformResult
+): void {
+	if (result.componentBuild)
+		recordWebpackComponentBuildFacts(
+			options.__exactSessionId,
+			filename,
+			source,
+			result.componentBuild
+		);
+	if (result.inspection)
+		recordWebpackInspectionModule(options.__exactSessionId, filename, source, result.inspection);
 }
 
 /** Performs the compiler session for webpack loader domain operation. */

@@ -4,6 +4,7 @@ import {
 	handleComponentError,
 	observeComponentAsync,
 	runComponentInteraction,
+	unwrap,
 	type ComponentInstance
 } from '@exactjs/core';
 import { runWithPriority } from '@exactjs/reactive';
@@ -118,6 +119,56 @@ export function runEventInteraction<Result>(
 		new AbortController(),
 		() => work()
 	);
+}
+
+/**
+ * Installs one independently owned same-element subscription for a target contribution.
+ *
+ * Native listener ordering preserves `stopImmediatePropagation()`. Cleanup removes only this
+ * owner's subscription, and callback failures are attributed to the contributing component.
+ */
+export function installOwnedEventSubscription(
+	root: Root,
+	element: Element,
+	key: string,
+	source: unknown,
+	owner: ComponentInstance<any> | undefined
+): () => void {
+	const { type, capture } = eventTypeForProp(key);
+	const listener: EventListener = (event) =>
+		preserveFocus(root, () => {
+			const activeOwner = owner ?? findOwnerInstance(element);
+			try {
+				const handler = unwrap(source);
+				if (typeof handler !== 'function') return;
+				const result = runWithPriority('interactive', () =>
+					batch(() =>
+						runEventInteraction(activeOwner, () =>
+							callDelegatedHandler(handler as EventListener, element, event)
+						)
+					)
+				);
+				observeComponentAsync(activeOwner, result, 'event', type);
+			} catch (error) {
+				handleComponentError(activeOwner, createErrorReport(error, 'event', activeOwner, type));
+			}
+		});
+	element.addEventListener(type, listener, capture);
+	return () => element.removeEventListener(type, listener, capture);
+}
+
+/** Converts JSX's DOM-style handler names to platform event names and capture mode. */
+export function eventTypeForProp(key: string): { type: string; capture: boolean } {
+	// Pointer capture lifecycle events are event names, not capture-phase variants.
+	const pointerCaptureLifecycle = key === 'onLostPointerCapture' || key === 'onGotPointerCapture';
+	const capture = key.endsWith('Capture') && !pointerCaptureLifecycle;
+	const name = key.slice(2, capture ? -7 : undefined);
+	const aliases: Record<string, string> = {
+		DoubleClick: 'dblclick',
+		FocusIn: 'focusin',
+		FocusOut: 'focusout'
+	};
+	return { type: aliases[name] ?? name.toLowerCase(), capture };
 }
 
 function nextEventGeneration(owner: object): number {

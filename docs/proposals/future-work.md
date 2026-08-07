@@ -7,46 +7,6 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A candidate should move into its own decision-complete proposal before
 implementation.
 
-## JavaScript runtime object layout
-
-Investigate whether the client renderer and server runtime can reduce polymorphic
-inline caches and hidden-class transitions without increasing retained heap size.
-This is an implementation optimization, not a dependency on V8 semantics; behavior
-must remain correct and competitive in other supported JavaScript engines.
-
-The initial audit identified these candidates:
-
-- VNodes conditionally carry domain metadata and text VNodes omit fields present
-  on ordinary and cell VNodes. A canonical construction layout may make renderer
-  property access more predictable, but adding absent own properties can affect
-  reflection and must be treated as a contract decision.
-- `Mounted` records are the renderer's hottest and most polymorphic objects.
-  Host nodes, components, portals, dynamic ranges, Activity, Suspense, and raw HTML
-  add different optional fields in different orders. Compare a common fixed-layout
-  header plus variant state against the current compact representation.
-- Component instances and task registrations acquire optional controllers,
-  cleanup functions, settlements, and renderer callbacks after construction.
-  Internal lifecycle state may benefit from an eagerly initialized fixed-layout
-  record or a private sidecar, provided public component inspection remains clear.
-- Server protocol and patch objects use conditional spreads to keep wire payloads
-  minimal. Preserve the serialized format, but consider separate fixed-layout
-  internal work records where request dispatch repeatedly reads the same fields.
-- Renderer roots have several construction paths and late-added optional fields.
-  They are lower priority because roots are few and long-lived compared with
-  VNodes and mounted records.
-
-Do not pad every record speculatively. Added slots consume memory and can make
-cache locality worse even when they reduce map polymorphism. Evaluate candidates
-with representative Chrome and Node versions using allocation counts, retained
-heap, inline-cache or deoptimization evidence, and the existing reactive and DOM
-benchmarks. Accept a layout change only when repeated measurements improve a hot
-workload without materially regressing another supported engine or observable
-own-property behavior.
-
-See [`javascript-runtime-object-layout.md`](javascript-runtime-object-layout.md)
-for the initial measurements, rejected options, prioritized experiments, and
-acceptance gates.
-
 ## Progressive native forms and file transport
 
 Task-owned forms currently coordinate validation, pending UI, optimism, server invocation, and

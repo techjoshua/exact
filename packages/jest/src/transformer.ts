@@ -6,8 +6,13 @@ import {
 	type ReactCompatibilityOptions
 } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
-import { statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, statSync } from 'node:fs';
 import ts from 'typescript';
+import {
+	exactJestAuthorizationCacheEnvironment,
+	type ExactJestAuthorizationCache
+} from './authorization-cache.js';
 
 type JestTransformOptions = {
 	supportsStaticESM?: boolean;
@@ -40,6 +45,7 @@ export function createTransformer() {
 	};
 	return {
 		process(sourceText: string, sourcePath: string, options?: JestTransformOptions) {
+			verifyAuthorizedSourceVersion(sourceText, sourcePath);
 			const requestedCompatibility = options?.transformerConfig?.reactCompatibility;
 			const compatibility =
 				requestedCompatibility === undefined
@@ -96,6 +102,17 @@ export function createTransformer() {
 			return `${ts.version}\0${compatibilityFingerprint(options)}\0${sourcePath}\0${sourceText}`;
 		}
 	};
+}
+
+function verifyAuthorizedSourceVersion(source: string, sourcePath: string): void {
+	const cachePath = process.env[exactJestAuthorizationCacheEnvironment];
+	if (!cachePath) return;
+	const cache = JSON.parse(readFileSync(cachePath, 'utf8')) as ExactJestAuthorizationCache;
+	const expected = cache.sources[sourcePath];
+	if (!expected) return;
+	const actual = createHash('sha256').update(source).digest('base64url');
+	if (actual !== expected)
+		throw new Error(`eXact Jest authorization generation is stale for ${sourcePath}`);
 }
 
 function compatibilityFingerprint(options: JestTransformOptions | undefined): string {

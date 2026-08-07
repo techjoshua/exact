@@ -67,6 +67,7 @@ export function createExactRemoteBuildRegistration(
 	}
 	return Object.freeze({
 		buildKey: plan.buildKey,
+		...(plan.componentAuthorization ? { componentAuthorization: plan.componentAuthorization } : {}),
 		roots: Object.freeze(Object.fromEntries(entries))
 	});
 }

@@ -13,7 +13,8 @@ positional Hooks, or a general component rerender loop.
 > public API may still change.
 
 [Read the documentation](https://techjoshua.github.io/exact/) ·
-[Play Sudoku Atelier](https://techjoshua.github.io/exact/sudoku.html)
+[Play Sudoku Atelier](https://techjoshua.github.io/exact/sudoku.html) ·
+[Open Puzzle Foundry](https://techjoshua.github.io/exact/puzzle-foundry.html)
 
 ## A component at a glance
 
@@ -163,6 +164,7 @@ lowering for their owning JSX pipeline.
 
 - [Read the live documentation](https://techjoshua.github.io/exact/)
 - [Play the live Sudoku Atelier sample](https://techjoshua.github.io/exact/sudoku.html)
+- [Create puzzles in the live Puzzle Foundry sample](https://techjoshua.github.io/exact/puzzle-foundry.html)
 - [Browse the documentation source](apps/docs/README.md)
 - [Understand components and state](apps/docs/src/pages/ComponentsPage.tsx)
 - [Understand tasks, compiler inference, scheduling, and Suspense readiness](apps/docs/src/pages/TasksPage.tsx)
@@ -177,6 +179,7 @@ lowering for their owning JSX pipeline.
 The repository also includes complete sample applications:
 
 - [Sudoku Atelier](apps/sudoku)
+- [Puzzle Foundry](apps/puzzle-generator)
 - [Shipping Calculator](apps/shipping-calculator)
 - [Kanban](apps/kanban)
 - [Project Workbench](apps/workbench)

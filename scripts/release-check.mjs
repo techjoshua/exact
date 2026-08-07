@@ -63,6 +63,7 @@ const compilerAcceptance = task('compiler browser acceptance', [
 ]);
 const performanceChecks = [
 	task('reactive benchmarks', ['run', 'benchmark:reactive']),
+	task('framework client/server benchmarks', ['run', 'benchmark:framework']),
 	task('compiler benchmarks', ['run', 'benchmark:compiler']),
 	task('DevTools inspection benchmarks', ['run', 'benchmark:devtools']),
 	task('React compatibility benchmark', ['run', 'benchmark:react-compat'])

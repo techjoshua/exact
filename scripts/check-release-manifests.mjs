@@ -1,5 +1,6 @@
 import path from 'node:path';
 import process from 'node:process';
+import { existsSync, readFileSync } from 'node:fs';
 import { isPublishableWorkspace, readWorkspaceManifests } from './workspace-manifests.mjs';
 
 const dependencySections = Object.freeze([
@@ -52,7 +53,43 @@ for (const entry of publishable) {
 			}
 		}
 	}
+
+	if (relativePath.startsWith('component-libraries/')) {
+		if (manifest.dependencies?.['@exactjs/component-library'] !== '^0.1.0')
+			failures.push(
+				`${relativePath} must declare @exactjs/component-library in production dependencies`
+			);
+		if (
+			manifest.exactComponentLibrary?.protocol !== 1 ||
+			typeof manifest.exactComponentLibrary?.build !== 'string'
+		)
+			failures.push(`${relativePath} must declare protocol-1 exactComponentLibrary.build`);
+		else {
+			const buildFactsPath = path.resolve(
+				path.dirname(entry.filename),
+				manifest.exactComponentLibrary.build
+			);
+			if (!existsSync(buildFactsPath))
+				failures.push(`${relativePath} is missing generated component build facts`);
+			else {
+				const facts = JSON.parse(readFileSync(buildFactsPath, 'utf8'));
+				if (
+					facts.protocol !== 1 ||
+					facts.package?.name !== manifest.name ||
+					facts.package?.version !== manifest.version ||
+					!facts.exports?.length
+				)
+					failures.push(`${relativePath} has invalid or empty component build facts`);
+			}
+		}
+	}
 }
+
+const marker = byName.get('@exactjs/component-library')?.manifest;
+if (!marker || marker.exactComponentLibraryProtocol !== 1)
+	failures.push('@exactjs/component-library must publish protocol marker 1');
+else if (marker.main || marker.exports || marker.scripts)
+	failures.push('@exactjs/component-library must remain inert with no executable entry or scripts');
 
 if (failures.length) {
 	console.error('Release manifest validation failed:');

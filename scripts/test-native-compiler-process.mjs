@@ -28,7 +28,7 @@ try {
 		diagnostics: 'syntax'
 	};
 	const first = compiler.request(request);
-	assert.equal(first.protocolVersion, '1.27.0');
+	assert.equal(first.protocolVersion, '1.28.0');
 	assert.match(first.typescriptVersion, /^7\./);
 	assert.equal(first.backendVersion, first.protocolVersion);
 	assert.equal(first.cacheHit, undefined);
@@ -93,6 +93,7 @@ try {
 		stateAliases: [],
 		stateReads: [],
 		stateWrites: [],
+		valueBindings: [],
 		reactiveBindings: [],
 		callables: [],
 		tasks: [],
@@ -152,7 +153,7 @@ try {
 	assert.equal(invalid.diagnostics[0]?.code, 'TS2322');
 	assert.throws(
 		() => compiler.request({ kind: 'unsupported' }),
-		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.27\.0/
+		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.28\.0/
 	);
 } finally {
 	compiler.dispose();
@@ -250,10 +251,7 @@ try {
 		});
 		assert.match(await readFile(artifacts.clientFile, 'utf8'), /Panel_ExactClient_1/);
 		assert.match(await readFile(artifacts.serverFile, 'utf8'), /createServerBoundary/);
-		assert.equal(
-			artifacts.build.clientRegistrations.length > 0,
-			true
-		);
+		assert.equal(artifacts.build.clientRegistrations.length > 0, true);
 	} finally {
 		await rm(artifactRoot, { recursive: true, force: true });
 	}

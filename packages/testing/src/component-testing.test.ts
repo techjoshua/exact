@@ -8,6 +8,7 @@ import {
 	createErrorContext,
 	defineTask,
 	ErrorContext,
+	Target,
 	type Child,
 	type Component
 } from '@exactjs/core';
@@ -17,6 +18,21 @@ import { installVitestMatchers } from './vitest.js';
 import { createTestVNode as createVNode, markTestComponent } from './internal/fixtures.js';
 
 describe('component testing', () => {
+	it('mounts ordinary target boundaries with composed semantic properties', async () => {
+		const view = await mountTest(
+			createVNode(
+				Target,
+				{ className: 'forwarded', 'aria-describedby': 'help' },
+				createVNode('button', { className: 'authored' }, 'Save')
+			)
+		);
+
+		const button = view.getByRole('button', { name: 'Save' });
+		expect(button.element.className).toBe('authored forwarded');
+		expect(button.element.getAttribute('aria-describedby')).toBe('help');
+		view.unmount();
+	});
+
 	it('installs bundle-local enhancement components for a mounted test', async () => {
 		const identity = '@exactjs/testing:enhancement#default';
 		let setups = 0;
@@ -30,9 +46,7 @@ describe('component testing', () => {
 		const target = createVNode(
 			'button',
 			{
-				__exactEnhancements: createEnhancementMarker([
-					{ identity, props: { tone: 'quiet' } }
-				])
+				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'quiet' } }])
 			},
 			'Save'
 		);

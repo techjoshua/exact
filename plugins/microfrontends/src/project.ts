@@ -3,6 +3,7 @@ import {
 	createExactArtifactGraph,
 	type ExactArtifactGraph
 } from '@exactjs/compiler';
+import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -25,6 +26,7 @@ export async function prepareExactRemoteArtifactBuild(options: {
 	buildConfig: ExactMicrofrontendBuildConfig;
 	serverComponents?: boolean;
 	buildKey?: string;
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 }): Promise<ExactPreparedRemoteArtifactBuild> {
 	const applicationRoot = path.resolve(options.applicationRoot);
 	const packageName = await applicationPackageName(applicationRoot);
@@ -35,7 +37,10 @@ export async function prepareExactRemoteArtifactBuild(options: {
 	};
 	const basePlan = createExactRemoteArtifactPlan(config, {
 		packageName,
-		buildKey: resolveExactBuildKey({ buildKey: options.buildKey, cwd: applicationRoot })
+		buildKey: resolveExactBuildKey({ buildKey: options.buildKey, cwd: applicationRoot }),
+		...(options.componentAuthorization
+			? { componentAuthorization: options.componentAuthorization }
+			: {})
 	});
 	const plan = Object.freeze({
 		...basePlan,
@@ -59,7 +64,7 @@ export async function prepareExactRemoteArtifactBuild(options: {
 		const results = await compileProjectArtifacts(inputs, {
 			outDir: temporaryOutput,
 			rootDir: applicationRoot,
-			serverComponents: options.serverComponents,
+			serverComponents: options.serverComponents
 		});
 		const graph = createExactArtifactGraph(results, {
 			packageRoot: applicationRoot,

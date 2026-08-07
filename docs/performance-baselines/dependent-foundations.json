@@ -1,0 +1,480 @@
+{
+	"schemaVersion": 1,
+	"generatedAt": "2026-08-06T20:26:53.806Z",
+	"environment": {
+		"node": "v24.11.1",
+		"platform": "win32",
+		"arch": "x64",
+		"samples": 5
+	},
+	"results": [
+		{
+			"scenario": "render-plan",
+			"samples": 5,
+			"metrics": {
+				"genericMs": {
+					"median": 5.921299999999974,
+					"p95": 7.33299999999997,
+					"min": 5.519400000000019,
+					"max": 7.33299999999997
+				},
+				"plannedMs": {
+					"median": 0.3526999999999134,
+					"p95": 0.4088000000001557,
+					"min": 0.32579999999984466,
+					"max": 0.4088000000001557
+				},
+				"speedup": {
+					"median": 19.793756227158504,
+					"p95": 20.87391722810169,
+					"min": 17.93786692758605,
+					"max": 20.87391722810169
+				},
+				"genericPeakHeapBytes": {
+					"median": 12456752,
+					"p95": 12478752,
+					"min": 11142200,
+					"max": 12478752
+				},
+				"plannedPeakHeapBytes": {
+					"median": 115512,
+					"p95": 120024,
+					"min": 114456,
+					"max": 120024
+				},
+				"htmlBytes": {
+					"median": 9903,
+					"p95": 9903,
+					"min": 9903,
+					"max": 9903
+				},
+				"htmlGzipBytes": {
+					"median": 1150,
+					"p95": 1150,
+					"min": 1150,
+					"max": 1150
+				},
+				"htmlBrotliBytes": {
+					"median": 499,
+					"p95": 499,
+					"min": 499,
+					"max": 499
+				}
+			}
+		},
+		{
+			"scenario": "async-ssr",
+			"samples": 5,
+			"metrics": {
+				"serialMs": {
+					"median": 116.58730000000014,
+					"p95": 116.65689999999995,
+					"min": 115.75839999999971,
+					"max": 116.65689999999995
+				},
+				"serialPeakHeapBytes": {
+					"median": 647104,
+					"p95": 649072,
+					"min": 646792,
+					"max": 649072
+				},
+				"concurrency1Ms": {
+					"median": 116.5596999999998,
+					"p95": 117.05619999999999,
+					"min": 116.03060000000005,
+					"max": 117.05619999999999
+				},
+				"concurrency1PeakHeapBytes": {
+					"median": 648728,
+					"p95": 649416,
+					"min": 647720,
+					"max": 649416
+				},
+				"concurrency2Ms": {
+					"median": 54.63100000000031,
+					"p95": 55.563500000000204,
+					"min": 53.582400000000234,
+					"max": 55.563500000000204
+				},
+				"concurrency2PeakHeapBytes": {
+					"median": 688160,
+					"p95": 688384,
+					"min": 687616,
+					"max": 688384
+				},
+				"concurrency4Ms": {
+					"median": 24.422700000000077,
+					"p95": 25.38339999999971,
+					"min": 23.268299999999726,
+					"max": 25.38339999999971
+				},
+				"concurrency4PeakHeapBytes": {
+					"median": 681856,
+					"p95": 681928,
+					"min": 681784,
+					"max": 681928
+				},
+				"concurrency8Ms": {
+					"median": 9.199799999999414,
+					"p95": 9.862500000000182,
+					"min": 7.918999999999869,
+					"max": 9.862500000000182
+				},
+				"concurrency8PeakHeapBytes": {
+					"median": 665424,
+					"p95": 665936,
+					"min": 665424,
+					"max": 665936
+				},
+				"speedupAt4": {
+					"median": 4.909653810114628,
+					"p95": 5.2932480804437425,
+					"min": 4.676475180802149,
+					"max": 5.2932480804437425
+				},
+				"speedupAt8": {
+					"median": 12.582708319746851,
+					"p95": 15.045036444562106,
+					"min": 12.271316834119514,
+					"max": 15.045036444562106
+				},
+				"cpuSerialMs": {
+					"median": 66.57740000000013,
+					"p95": 66.97150000000056,
+					"min": 66.0001000000002,
+					"max": 66.97150000000056
+				},
+				"cpuConcurrency4Ms": {
+					"median": 63.350100000000566,
+					"p95": 66.13830000000053,
+					"min": 62.73019999999997,
+					"max": 66.13830000000053
+				},
+				"cpuThroughputRatio": {
+					"median": 1.053398985126382,
+					"p95": 1.0898337490703562,
+					"min": 1.02143085020329,
+					"max": 1.0898337490703562
+				},
+				"concurrentRequestsSerialMs": {
+					"median": 490.851200000001,
+					"p95": 492.7965000000004,
+					"min": 488.1138999999994,
+					"max": 492.7965000000004
+				},
+				"concurrentRequestsParallelMs": {
+					"median": 124.46380000000045,
+					"p95": 125.29899999999907,
+					"min": 124.22069999999985,
+					"max": 125.29899999999907
+				},
+				"htmlBytes": {
+					"median": 195,
+					"p95": 195,
+					"min": 195,
+					"max": 195
+				},
+				"htmlGzipBytes": {
+					"median": 51,
+					"p95": 51,
+					"min": 51,
+					"max": 51
+				},
+				"htmlBrotliBytes": {
+					"median": 33,
+					"p95": 33,
+					"min": 33,
+					"max": 33
+				}
+			}
+		},
+		{
+			"scenario": "hydration-publication",
+			"samples": 5,
+			"metrics": {
+				"applicationPayloadBytes": {
+					"median": 20404,
+					"p95": 20404,
+					"min": 20404,
+					"max": 20404
+				},
+				"applicationPayloadGzipBytes": {
+					"median": 1788,
+					"p95": 1788,
+					"min": 1788,
+					"max": 1788
+				},
+				"applicationPayloadBrotliBytes": {
+					"median": 960,
+					"p95": 960,
+					"min": 960,
+					"max": 960
+				},
+				"attributedFrameworkBytes": {
+					"median": 18866,
+					"p95": 18866,
+					"min": 18866,
+					"max": 18866
+				},
+				"attributedFrameworkGzipBytes": {
+					"median": 204,
+					"p95": 204,
+					"min": 204,
+					"max": 204
+				},
+				"attributedFrameworkBrotliBytes": {
+					"median": 92,
+					"p95": 92,
+					"min": 92,
+					"max": 92
+				},
+				"indexedFrameworkBytes": {
+					"median": 5204,
+					"p95": 5204,
+					"min": 5204,
+					"max": 5204
+				},
+				"indexedFrameworkGzipBytes": {
+					"median": 542,
+					"p95": 542,
+					"min": 542,
+					"max": 542
+				},
+				"indexedFrameworkBrotliBytes": {
+					"median": 342,
+					"p95": 342,
+					"min": 342,
+					"max": 342
+				},
+				"attributedBytes": {
+					"median": 45469,
+					"p95": 45469,
+					"min": 45469,
+					"max": 45469
+				},
+				"attributedGzipBytes": {
+					"median": 2180,
+					"p95": 2180,
+					"min": 2180,
+					"max": 2180
+				},
+				"attributedBrotliBytes": {
+					"median": 1194,
+					"p95": 1194,
+					"min": 1194,
+					"max": 1194
+				},
+				"indexedBytes": {
+					"median": 12902,
+					"p95": 12902,
+					"min": 12902,
+					"max": 12902
+				},
+				"indexedGzipBytes": {
+					"median": 2217,
+					"p95": 2217,
+					"min": 2217,
+					"max": 2217
+				},
+				"indexedBrotliBytes": {
+					"median": 1130,
+					"p95": 1130,
+					"min": 1130,
+					"max": 1130
+				},
+				"attributedParseMs": {
+					"median": 11.732600000000275,
+					"p95": 12.228800000000092,
+					"min": 10.652599999999893,
+					"max": 12.228800000000092
+				},
+				"indexedParseMs": {
+					"median": 8.72479999999996,
+					"p95": 8.98109999999997,
+					"min": 6.684900000000198,
+					"max": 8.98109999999997
+				},
+				"inlineProgressiveBytes": {
+					"median": 19692,
+					"p95": 19692,
+					"min": 19692,
+					"max": 19692
+				},
+				"inlineProgressiveGzipBytes": {
+					"median": 661,
+					"p95": 661,
+					"min": 661,
+					"max": 661
+				},
+				"inlineProgressiveBrotliBytes": {
+					"median": 448,
+					"p95": 448,
+					"min": 448,
+					"max": 448
+				},
+				"sharedProgressiveBytes": {
+					"median": 3010,
+					"p95": 3010,
+					"min": 3010,
+					"max": 3010
+				},
+				"sharedProgressiveGzipBytes": {
+					"median": 624,
+					"p95": 624,
+					"min": 624,
+					"max": 624
+				},
+				"sharedProgressiveBrotliBytes": {
+					"median": 445,
+					"p95": 445,
+					"min": 445,
+					"max": 445
+				},
+				"inlineProgressiveExecutionMs": {
+					"median": 12.25019999999995,
+					"p95": 13.145899999999983,
+					"min": 11.665700000000015,
+					"max": 13.145899999999983
+				},
+				"sharedProgressiveExecutionMs": {
+					"median": 10.56009999999992,
+					"p95": 10.80399999999986,
+					"min": 9.629999999999882,
+					"max": 10.80399999999986
+				}
+			}
+		},
+		{
+			"scenario": "transport",
+			"samples": 5,
+			"metrics": {
+				"parseMs": {
+					"median": 5.396400000000085,
+					"p95": 5.84060000000045,
+					"min": 5.334999999999582,
+					"max": 5.84060000000045
+				},
+				"encodedValidationMs": {
+					"median": 146.4412999999995,
+					"p95": 178.91200000000026,
+					"min": 136.73590000000058,
+					"max": 178.91200000000026
+				},
+				"decodeMs": {
+					"median": 14.181999999999789,
+					"p95": 17.482099999999264,
+					"min": 12.757399999999961,
+					"max": 17.482099999999264
+				},
+				"payloadValidationMs": {
+					"median": 137.4414000000006,
+					"p95": 173.69979999999987,
+					"min": 127.40029999999933,
+					"max": 173.69979999999987
+				},
+				"completeMs": {
+					"median": 335.6370000000006,
+					"p95": 393.0081,
+					"min": 326.6801999999998,
+					"max": 393.0081
+				},
+				"fusedMs": {
+					"median": 193.10900000000038,
+					"p95": 219.8763999999992,
+					"min": 176.66609999999991,
+					"max": 219.8763999999992
+				},
+				"fusedSpeedup": {
+					"median": 1.7054213918949197,
+					"p95": 1.8598041971614265,
+					"min": 1.6925600018919802,
+					"max": 1.8598041971614265
+				},
+				"validationShare": {
+					"median": 0.8379839777027901,
+					"p95": 0.8913659104419676,
+					"min": 0.8061575563977563,
+					"max": 0.8913659104419676
+				},
+				"adversarialRejectionMs": {
+					"median": 48.798499999999876,
+					"p95": 55.060199999999895,
+					"min": 46.389100000000326,
+					"max": 55.060199999999895
+				},
+				"requestBytes": {
+					"median": 769,
+					"p95": 769,
+					"min": 769,
+					"max": 769
+				},
+				"requestGzipBytes": {
+					"median": 323,
+					"p95": 323,
+					"min": 323,
+					"max": 323
+				},
+				"requestBrotliBytes": {
+					"median": 234,
+					"p95": 234,
+					"min": 234,
+					"max": 234
+				}
+			}
+		},
+		{
+			"scenario": "build-host",
+			"samples": 5,
+			"metrics": {
+				"artifactTotalMs": {
+					"median": 8.189799999999877,
+					"p95": 8.291200000000003,
+					"min": 7.905100000000061,
+					"max": 8.291200000000003
+				},
+				"artifactNativeMs": {
+					"median": 6.341599999999971,
+					"p95": 6.397799999999961,
+					"min": 6.303700000000049,
+					"max": 6.397799999999961
+				},
+				"artifactHostMs": {
+					"median": 1.7919999999999163,
+					"p95": 1.9185999999999694,
+					"min": 1.7089000000003125,
+					"max": 1.9185999999999694
+				},
+				"nativeRequestMs": {
+					"median": 1.7627999999999702,
+					"p95": 1.8752999999999247,
+					"min": 1.7306999999998425,
+					"max": 1.8752999999999247
+				},
+				"requestEncodingMs": {
+					"median": 0.006300000000010186,
+					"p95": 0.0072999999999865395,
+					"min": 0.005300000000033833,
+					"max": 0.0072999999999865395
+				},
+				"responseDecodingMs": {
+					"median": 0.03769999999997253,
+					"p95": 0.04079999999999018,
+					"min": 0.03600000000005821,
+					"max": 0.04079999999999018
+				},
+				"requestBytes": {
+					"median": 461,
+					"p95": 461,
+					"min": 461,
+					"max": 461
+				},
+				"responseBytes": {
+					"median": 12014,
+					"p95": 12014,
+					"min": 12012,
+					"max": 12014
+				}
+			}
+		}
+	]
+}

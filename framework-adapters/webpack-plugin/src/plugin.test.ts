@@ -44,7 +44,7 @@ describe('@exactjs/webpack-plugin', () => {
 	it('links attributed capabilities into the shared application-bundle catalog', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-webpack-enhancement-'));
 		const entry = path.join(root, 'entry.tsx');
-		const source = `import motion from './motion.js' with { type: 'exact-plugin' };
+		const source = `import motion from './motion.js' with { type: 'exact-enhancement' };
 			export const view = <article motion:preset="fade" />;`;
 		try {
 			writeFileSync(
@@ -61,7 +61,7 @@ describe('@exactjs/webpack-plugin', () => {
 			);
 			writeFileSync(
 				path.join(root, 'motion.ts'),
-				`export { default } from './motion-implementation.js' with { type: 'exact-plugin' };`
+				`export { default } from './motion-implementation.js' with { type: 'exact-enhancement' };`
 			);
 			writeFileSync(
 				path.join(root, 'motion-implementation.ts'),
@@ -227,6 +227,7 @@ describe('@exactjs/webpack-plugin', () => {
 	it('creates a pre-loader rule', () => {
 		expect(createExactWebpackRule({ target: 'server' })).toMatchObject({
 			enforce: 'pre',
+			type: 'javascript/auto',
 			use: [{ loader: '@exactjs/webpack-plugin/loader', options: { target: 'server' } }]
 		});
 	});

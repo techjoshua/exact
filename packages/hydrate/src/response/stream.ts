@@ -1,10 +1,9 @@
-import { decodeReactiveProtocolValue } from '@exactjs/core';
 import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult
 } from '@exactjs/server';
-import { isJsonSafe } from '../validation.js';
+import { decodeBoundedReactiveProtocolValue } from '../protocol-decoding.js';
 import {
 	isExactStreamCompleteEvent,
 	isExactStreamHtmlEvent,
@@ -43,28 +42,15 @@ export async function readExactStreamResponse(
 		response.body,
 		message,
 		(rawEvent) => {
-			if (
-				!isJsonSafe(rawEvent, {
+			const event = decodeBoundedReactiveProtocolValue(
+				rawEvent,
+				{
 					maxDepth: normalized.maxJsonDepth,
 					maxNodes: normalized.maxJsonNodes,
 					maxBytes: normalized.maxBytes
-				})
-			)
-				throw new Error(message);
-			let event: unknown;
-			try {
-				event = decodeReactiveProtocolValue(rawEvent);
-			} catch {
-				throw new Error(message);
-			}
-			if (
-				!isJsonSafe(event, {
-					maxDepth: normalized.maxJsonDepth,
-					maxNodes: normalized.maxJsonNodes,
-					maxBytes: normalized.maxBytes
-				})
-			)
-				throw new Error(message);
+				},
+				() => new Error(message)
+			);
 			if (completed) throw new Error(message);
 			if (!started) {
 				if (!isExactStreamStartEvent(event) || event.operations !== expectedOperations)

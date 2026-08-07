@@ -49,6 +49,8 @@ prefer the nearest target on a tie. Press and losing movement candidates receive
 before the winner's first sample, and pinch cancels an active single-pointer candidate.
 
 Slow move callbacks are bounded: one callback runs while only the latest pending sample is kept.
+Synchronous callback return values are ignored; a returned thenable participates in that bounded
+delivery and is awaited before the latest pending sample runs.
 Capture loss, pointer cancellation, window blur, target deactivation, disabling, policy replacement,
 and component disposal all cancel the owned session and restore inline touch and selection policy.
 
@@ -60,15 +62,15 @@ Space produce press samples; omitted callbacks fall back to the definition's dra
 callback. Hover policy treats focus as equivalent intent. Authors remain responsible for a
 focusable target, an accurate accessible name, and any control-specific role.
 
-## Plugin-owned JSX
+## Namespaced enhancement composition
 
 The canonical namespace accepts `apply`, `press`, `hover`, `drag`, `pan`, `pinch`, and `disabled`.
-The shared compiler and renderer carry grouped markers and ordinary transparent plugin components.
+The shared compiler and renderer carry grouped markers and ordinary transparent enhancement components.
 Vite includes reached attributed capabilities in its bundle-local catalog and supplies them to
 DOM, hydration, and SSR.
 
 ```tsx
-import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
+import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 
 <button onClick={() => openCard(card.id)} gesture:apply={movable}>
 	Open or move card

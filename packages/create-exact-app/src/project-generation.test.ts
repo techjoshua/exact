@@ -40,9 +40,9 @@ describe('create-exact-app', () => {
 		expect(manifest.devDependencies).toHaveProperty('@exactjs/vitest');
 		expect(manifest.devDependencies.typescript).toBe('^7.0.2');
 		expect(manifest.dependencies).not.toHaveProperty('@exactjs/compiler');
-		expect(manifest.devDependencies).not.toHaveProperty('@exactjs/compiler');
 		expect(config).not.toContain('compiler:');
-		expect(manifest.scripts.typecheck).toBe('tsc --noEmit');
+		expect(manifest.scripts.typecheck).toBe('exactc --check .');
+		expect(manifest.devDependencies).toHaveProperty('@exactjs/compiler');
 		expect(config).toContain('exactVitest');
 		expect(
 			await readFile(path.join(target, '.agents/skills/exact-web-development/SKILL.md'), 'utf8')
@@ -86,6 +86,7 @@ describe('create-exact-app', () => {
 		expect(manifest.dependencies).toHaveProperty('@exactjs/react-compat');
 		expect(manifest.devDependencies.react).toBe('^19.2.0');
 		expect(config).toContain('reactCompatibility: { target: 19 }');
+		expect(tsconfig.compilerOptions.jsx).toBe('preserve');
 		expect(tsconfig.compilerOptions.types).toContain('@exactjs/react-compat/types19');
 	});
 

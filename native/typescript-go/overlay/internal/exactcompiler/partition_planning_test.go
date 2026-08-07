@@ -3,6 +3,8 @@ package exactcompiler
 import (
 	"strings"
 	"testing"
+
+	"github.com/microsoft/typescript-go/internal/ast"
 )
 
 func TestPartitionPlanEmitsIndependentServerRangesInsideClientIsland(t *testing.T) {
@@ -633,28 +635,38 @@ func TestPartitionPlanKeepsCoTargetedEnhancementsAsOrderedComponentOwners(t *tes
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
+	parsed := parseNormalizationSource("C:/partition-enhancements.tsx", source)
+	enhancements := enhancementImports{applications: make(map[int]enhancementApplication)}
+	walkNode(parsed.AsNode(), func(node *ast.Node) bool {
+		attributes := jsxOpeningAttributes(node)
+		if attributes == nil || len(attributes.AsJsxAttributes().Properties.Nodes) != 2 {
+			return true
+		}
+		enhancements.applications[attributes.Pos()] = enhancementApplication{components: []enhancementComponent{
+			{identity: "@fixture/physics#body", canonical: "@fixture/physics#body"},
+			{identity: "@fixture/motion#layout", canonical: "@fixture/motion#layout"},
+		}}
+		return true
+	})
 	plan := createPartitionPlan(
-		parseNormalizationSource("C:/partition-enhancements.tsx", source),
+		parsed,
 		"enhancement-build",
 		response.Analysis.Components,
 		nil,
-		enhancementImports{bindings: map[string]enhancementBinding{
-			"physics": {identity: "@fixture/physics#body"},
-			"motion":  {identity: "@fixture/motion#layout"},
-		}},
+		enhancements,
 		response.Analysis.Continuations,
 		response.Analysis.Registries,
 	)
-	enhancements := []PartitionPlanNode{}
+	enhancementNodes := []PartitionPlanNode{}
 	for _, node := range plan.Nodes {
 		if node.Kind == "enhancement-component" {
-			enhancements = append(enhancements, node)
+			enhancementNodes = append(enhancementNodes, node)
 			if node.OwnerComponent != node.ID || node.ComponentContract == "" {
 				t.Fatalf("enhancement lost ordinary component ownership: %#v", node)
 			}
 		}
 	}
-	if len(enhancements) != 2 {
+	if len(enhancementNodes) != 2 {
 		t.Fatalf("expected two ordinary enhancement component nodes: %#v", plan)
 	}
 	physics := partitionNodeByContract(t, plan, "@fixture/physics#body")

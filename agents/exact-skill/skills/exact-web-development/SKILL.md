@@ -99,8 +99,11 @@ that omitted its catalog or runtime hooks.
   inspectable, and use `this.reactive()` only when another API needs a first-class reactive value.
 - Use inferred DOM event types: `onInput={(event) => event.currentTarget.value}` normally needs no
   manual `Event` annotation or element cast.
-- Use `value:input`, `value:change`, and `checked:change` for supported two-way native-control
-  bindings when the target is one writable state location.
+- Use `valueProp:callbackProp={this.state.path}` for a component's mechanical controlled-value
+  callback when both props are finite and the callback only publishes a replacement. Write both
+  props explicitly for validation, transformation, logging, async work, or callback composition.
+- Use `value:onInput`, `value:onChange`, `checked:onChange`, and `open:onToggle` for supported
+  intrinsic bindings when the target is one writable state location.
 - Use `className:token={condition}` for a static conditional class token. Use a class array or
   truthy-key object when token names are dynamic; authored class sources compose in prop order.
 - Use ordinary compiled `Array.map()` with an `@exact key` identity annotation, an explicit

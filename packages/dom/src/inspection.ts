@@ -1,5 +1,11 @@
-import { inspectExactRuntimeComponent, type ExactRuntimeInspectionOwner } from '@exactjs/core';
+import {
+	inspectExactRuntimeComponent,
+	unwrap,
+	type ComponentInstance,
+	type ExactRuntimeInspectionOwner
+} from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
+import { readExactPartitionDiscriminator } from './framework/hydration.js';
 import type {
 	ExactInspectedRuntimeComponent,
 	ExactInspectedPartitionInstance,
@@ -115,7 +121,7 @@ function partitionRoots(
 			const plan = node.getAttribute('data-exact-partition-edge');
 			const ownerComponentId = node.getAttribute('data-exact-partition-owner');
 			const generation = Number(node.getAttribute('data-exact-partition-generation'));
-			const discriminator = inspectedPartitionDiscriminator(node);
+			const discriminator = readExactPartitionDiscriminator(node);
 			if (
 				node.getAttribute('data-exact-partition-version') !== '1' ||
 				markerBuild !== buildKey ||
@@ -153,23 +159,6 @@ function partitionRoots(
 		{ maxNodes: root.maxTreeNodes }
 	);
 	return Object.freeze(roots.map(freezePartitionInspection));
-}
-
-function inspectedPartitionDiscriminator(
-	marker: Element
-): ExactInspectedPartitionInstance['discriminator'] | undefined {
-	const kind = marker.getAttribute('data-exact-partition-discriminator');
-	if (kind === 'single') return Object.freeze({ kind });
-	if (kind === 'branch') {
-		const branch = marker.getAttribute('data-exact-partition-branch');
-		return branch ? Object.freeze({ kind, branch }) : undefined;
-	}
-	if (kind === 'keyed') {
-		const list = marker.getAttribute('data-exact-partition-list');
-		const keyToken = marker.getAttribute('data-exact-partition-key');
-		return list && keyToken ? Object.freeze({ kind, list, keyToken }) : undefined;
-	}
-	return undefined;
 }
 
 function freezePartitionInspection(
@@ -214,11 +203,78 @@ function appendMounted(
 							hasCandidate: mounted.suspense.candidate !== undefined
 						})
 					}
-				: {})
+				: {}),
+			targetContributions: inspectTargetContributions(mounted, instance)
 		});
 		if (snapshot) output.push(snapshot);
 	}
 	for (const child of mounted.children) appendMounted(child, nextParent, output);
+}
+
+function inspectTargetContributions(
+	mounted: Mounted,
+	owner: ComponentInstance<any>
+): NonNullable<ExactInspectedRuntimeComponent['targetContributions']> {
+	const inspection = componentDomainInspection(owner.domain);
+	if (!inspection) return Object.freeze([]);
+	const contributions: NonNullable<
+		ExactInspectedRuntimeComponent['targetContributions']
+	>[number][] = [];
+	visitOwnedTargetBoundaries(mounted, owner, (boundary) => {
+		const selected = boundary.targetBoundary?.selected;
+		const element = selected?.dom instanceof Element ? selected.dom : undefined;
+		const effective = selected?.targetEffectiveProps;
+		contributions.push(
+			Object.freeze({
+				active: !!element,
+				...(element
+					? {
+							target: Object.freeze({
+								tagName: element.tagName.toLowerCase(),
+								connected: element.isConnected
+							})
+						}
+					: {}),
+				props: inspection.preview(snapshotTargetProps(boundary.vnode.props), [
+					'targetContributions',
+					'props'
+				]),
+				...(effective
+					? {
+							effectiveProps: inspection.preview(snapshotTargetProps(effective), [
+								'targetContributions',
+								'effectiveProps'
+							])
+						}
+					: {})
+			})
+		);
+	});
+	return Object.freeze(contributions);
+}
+
+function visitOwnedTargetBoundaries(
+	mounted: Mounted,
+	owner: ComponentInstance<any>,
+	visit: (boundary: Mounted) => void
+): void {
+	for (const child of mounted.children) {
+		if (child.instance && child.instance !== owner) continue;
+		if (child.targetBoundary?.owner === owner) visit(child);
+		visitOwnedTargetBoundaries(child, owner, visit);
+	}
+}
+
+function snapshotTargetProps(
+	props: Readonly<Record<string, unknown>>
+): Readonly<Record<string, unknown>> {
+	return Object.freeze(
+		Object.fromEntries(
+			Object.entries(props)
+				.filter(([key]) => key !== 'children' && key !== 'ref' && !/^on[A-Z]/.test(key))
+				.map(([key, value]) => [key, unwrap(value)])
+		)
+	);
 }
 
 function findMountedInstance(

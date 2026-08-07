@@ -117,6 +117,7 @@ async function startServer(workspace, port) {
 		'@exactjs/sample-shipping-calculator': path.join(root, 'apps', 'shipping-calculator')
 	}[workspace];
 	const shipping = workspace === '@exactjs/sample-shipping-calculator';
+	const hmrPort = shipping ? await availablePort() : undefined;
 	if (shipping) {
 		await runProcess(
 			npmCommand.command,
@@ -132,7 +133,11 @@ async function startServer(workspace, port) {
 			: [path.join(root, 'scripts', 'start-vite-acceptance-server.mjs'), applicationDirectory],
 		{
 			cwd: applicationDirectory,
-			env: { ...process.env, PORT: String(port) },
+			env: {
+				...process.env,
+				PORT: String(port),
+				...(hmrPort ? { HMR_PORT: String(hmrPort) } : {})
+			},
 			stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
 			windowsHide: true
 		}

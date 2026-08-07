@@ -2,7 +2,12 @@ import { cleanupReaction, getDep, runTracked, track, trigger } from './internal/
 
 import { isPlainObject } from './internal/objects.js';
 
-import { currentEffectScope, effectScopeWorkPriority } from './internal/scopes.js';
+import {
+	currentEffectScope,
+	effectScopeWorkPriority,
+	registerEffectScopeReaction,
+	releaseEffectScopeReaction
+} from './internal/scopes.js';
 
 import {
 	currentWorkPriority,
@@ -32,6 +37,14 @@ import { createReactive } from './proxy/create.js';
 import { defaultReactiveOptions, proxyRefs } from './proxy/state.js';
 
 import { hasChanged, isReactiveContainer } from './change-detection.js';
+
+const inactiveWatch: StopHandle = () => undefined;
+
+/** Configures framework ownership notification for a watcher that may retire after execution. */
+export type RetainedWatchOptions = WatchOptions & {
+	/** Runs once when the watcher releases its dependencies and scope registration. */
+	onRelease?(): void;
+};
 
 /** Creates a reactive proxy that tracks reads and notifies watchers when writable state changes. */
 export function reactive<T extends object>(
@@ -145,6 +158,20 @@ export function watch(
 	scheduler?: () => void,
 	options: WatchOptions = {}
 ): StopHandle {
+	return watchRetained(fn, scheduler, options) ?? inactiveWatch;
+}
+
+/**
+ * Runs a tracked function and returns ownership only when its execution observes dependencies.
+ *
+ * Framework bindings use the absence of a handle to avoid retaining inert DOM bookkeeping. A
+ * watcher also retires if a later execution stops observing every dependency.
+ */
+export function watchRetained(
+	fn: () => void,
+	scheduler?: () => void,
+	options: RetainedWatchOptions = {}
+): StopHandle | undefined {
 	const scope = (options.scope ?? currentEffectScope()) as EffectScopeImpl | undefined;
 	const handleError = (error: unknown): void => {
 		const onError = options.onError ?? scope?.onError;
@@ -167,6 +194,7 @@ export function watch(
 			reaction.pendingPriority = undefined;
 			try {
 				runTracked(reaction, fn);
+				if (reaction.deps.size === 0) reaction.stop();
 			} catch (error) {
 				handleError(error);
 			}
@@ -207,15 +235,17 @@ export function watch(
 			}
 		},
 		stop() {
+			if (!reaction.active) return;
 			reaction.active = false;
 			reaction.scheduled = false;
 			reaction.pendingPriority = undefined;
 			cleanupReaction(reaction);
-			reaction.scope?.reactions.delete(reaction);
+			if (reaction.scope) releaseEffectScopeReaction(reaction.scope, reaction);
+			options.onRelease?.();
 		}
 	};
 
-	scope?.reactions.add(reaction);
+	if (scope) registerEffectScopeReaction(scope, reaction);
 	try {
 		reaction.run();
 	} catch (error) {
@@ -225,7 +255,7 @@ export function watch(
 		reaction.stop();
 		throw error;
 	}
-	return reaction.stop;
+	return reaction.active ? reaction.stop : undefined;
 }
 
 /** Subscribes directly to a reactive reference without running a dependency collection pass. */
@@ -284,12 +314,12 @@ export function subscribe<T>(
 			reaction.scheduled = false;
 			reaction.pendingPriority = undefined;
 			cleanupReaction(reaction);
-			scope?.reactions.delete(reaction);
+			if (scope) releaseEffectScopeReaction(scope, reaction);
 		}
 	};
 
 	dep.add(reaction);
-	scope?.reactions.add(reaction);
+	if (scope) registerEffectScopeReaction(scope, reaction);
 	return reaction.stop;
 }
 

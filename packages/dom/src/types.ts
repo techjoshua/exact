@@ -13,6 +13,7 @@ import type {
 	UnsafeHtmlAuditEvent,
 	VNode
 } from '@exactjs/core';
+import type { ExactRenderProgramInvocation } from '@exactjs/core';
 import type { ReadinessCoordinator } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { EffectScope } from '@exactjs/reactive';
@@ -30,6 +31,14 @@ export type Mounted = {
 	range?: 'item';
 	scope: EffectScope;
 	children: Mounted[];
+	/** Invocation-local readers and resolved nodes for a compiler-owned render program. */
+	renderProgram?: {
+		invocation: ExactRenderProgramInvocation;
+		readonly slotNodes: readonly (Node | undefined)[];
+		readonly root: Root;
+		/** Last effective planned props, grouped by their target element. */
+		props?: Map<Element, Record<string, unknown>>;
+	};
 	/** Physical parent for children whose logical parent remains elsewhere. */
 	portalTarget?: Node;
 	/** Runs once the subtree's source range has a physical parent. */
@@ -39,11 +48,29 @@ export type Mounted = {
 	instance?: ComponentInstance<any>;
 	delegatedEvents?: Map<string, EventListener>;
 	stop?: StopHandle;
+	/** Semantic target exported by an ordinary `_target` boundary and its route dependencies. */
+	targetBoundary?: {
+		selected?: Mounted;
+		owner?: ComponentInstance<any>;
+		dependencies?: Set<Mounted>;
+		release?: () => void;
+	};
+	/** Target boundaries whose route currently depends on this mounted structural owner. */
+	targetDependents?: Set<Mounted>;
+	/** Independently owned `_target` property layers currently attached to this intrinsic. */
+	targetContributions?: Map<
+		Mounted,
+		Readonly<{ props: Readonly<Record<string, unknown>>; owner?: ComponentInstance<any> }>
+	>;
+	/** Last effective intrinsic props after composing authored and `_target` layers. */
+	targetEffectiveProps?: Record<string, unknown>;
+	/** Native event subscriptions installed for independently owned target layers. */
+	targetEventReleases?: Array<() => void>;
 	/** Unmanaged nodes between an opaque raw-HTML range's boundary markers. */
 	rawNodes?: Node[];
 	/** Reserved framework-owned insertion point after authored host children. */
 	childEnd?: Node;
-	/** Active plugin-component chain whose public reconciliation identity remains the authored target. */
+	/** Active enhancement-component chain whose public identity remains the authored target. */
 	enhancement?: {
 		readonly entries: readonly EnhancementEntry[];
 		readonly inheritedIdentities: ReadonlySet<string>;
@@ -98,7 +125,7 @@ export type Root = {
 	allowUnsafeHtml: boolean;
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	onProfile?: ExactProfileSink<DomProfileEvent>;
-	/** Trusted compiler-generated plugin capability catalog for this renderer root. */
+	/** Trusted compiler-generated enhancement component catalog for this renderer root. */
 	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
 	/** Canonical unavailable identities already reported by this renderer root. */
 	unavailableEnhancements?: Set<string>;
@@ -146,7 +173,7 @@ export type RenderOptions = {
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	/** Receives coarse renderer timings and traversal counts. */
 	onProfile?: ExactProfileSink<DomProfileEvent>;
-	/** Trusted compiler-generated mapping from canonical plugin identity to component implementation. */
+	/** Compiler-generated mapping from canonical enhancement identity to component implementation. */
 	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
 	/** Internal shared budget used when hydration combines DOM scans and renderer work. */
 	workBudget?: DomWorkBudget;

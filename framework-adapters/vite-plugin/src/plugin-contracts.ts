@@ -1,4 +1,5 @@
 import type { ExactAssetRule, TransformTarget } from '@exactjs/compiler';
+import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ReactCompatibilityOptions } from '@exactjs/react-compat/plugin';
 import type { ExactRollupOutputLike } from './artifact-isolation.js';
@@ -25,8 +26,12 @@ export type ExactPluginOptions = {
 	onProfile?: ExactProfileSink;
 	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
 	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
+	/** Compact identity from the paired server build for server-executing remote artifacts. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	/** Derives server catalog emission and compact client runtime correlation together. */
 	debug?: ExactViteDebugOptions;
+	/** @internal Execution reason supplied by eXact test integrations. */
+	serverExecutionReason?: 'server-test';
 };
 
 /** Higher-level build controls for server-cooperative DevTools output. */
@@ -41,6 +46,8 @@ export type ExactPlugin = {
 	enforce: 'pre';
 	warn?(message: string): void;
 	config?(): {
+		optimizeDeps?: { noDiscovery: true; include: never[] };
+		build?: { ssrEmitAssets: true };
 		resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> };
 		oxc?: {
 			jsx: {
@@ -62,6 +69,12 @@ export type ExactPlugin = {
 			preserveSignature?: 'strict';
 		}): string;
 	}): void | Promise<void>;
+	buildEnd?(
+		this: {
+			emitFile?(file: { type: 'asset'; fileName: string; source: string }): string;
+		},
+		error?: Error
+	): void | Promise<void>;
 	configureServer?(server: {
 		httpServer?: { once(event: 'close', listener: () => void): unknown };
 		watcher?: { once(event: 'close', listener: () => void): unknown };
@@ -69,6 +82,7 @@ export type ExactPlugin = {
 	resolveId?(
 		this: {
 			warn?(message: string): void;
+			addWatchFile?(file: string): void;
 			resolve?(
 				source: string,
 				importer?: string,
@@ -94,12 +108,26 @@ export type ExactPlugin = {
 		code: string,
 		id: string
 	): { code: string; map: unknown; moduleType?: 'js' } | null;
-	handleHotUpdate?(this: { warn?(message: string): void }, context: { file: string }): void;
+	handleHotUpdate?(
+		this: { warn?(message: string): void; addWatchFile?(file: string): void },
+		context: {
+			file: string;
+			read?(): Promise<string>;
+			server?: {
+				pluginContainer?: {
+					resolveId(
+						source: string,
+						importer?: string
+					): Promise<{ id: string; external?: boolean | 'absolute' | 'relative' } | null>;
+				};
+			};
+		}
+	): void | Promise<void>;
 	watchChange?(
 		this: { warn?(message: string): void },
 		id: string,
 		change: { event: 'create' | 'update' | 'delete' }
-	): void;
+	): void | Promise<void>;
 	transformIndexHtml?: {
 		order: 'pre';
 		handler(html: string): string;
@@ -110,6 +138,6 @@ export type ExactPlugin = {
 		},
 		_options: unknown,
 		bundle: Readonly<Record<string, ExactRollupOutputLike>>
-	): void;
+	): void | Promise<void>;
 	closeBundle?(): void;
 };

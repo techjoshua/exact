@@ -157,6 +157,16 @@ requires repeated component execution, hides state behind a runtime dispatcher, 
 React-derived ceremony should have a specific eXact reason rather than familiarity as its
 justification.
 
+## Run platform-boundary checks outside the Windows sandbox
+
+`npm.cmd run check:platform-boundaries` uses esbuild's JavaScript API to launch its native helper
+and bundle built package entry points. Under the Codex restricted Windows sandbox, that child
+process cannot enumerate the workspace and reports `Cannot read directory "../..": Access is
+denied`, usually followed by misleading `Could not resolve .../dist/index.js` errors even when the
+files exist. Ensure the workspace has been built, then request sandbox escalation for this check
+instead of treating those messages as missing artifacts or changing package resolution to work
+around them.
+
 ## The seat-belt rule for testing
 
 Treat tests like seat belts: add protection in proportion to the risk of the journey.

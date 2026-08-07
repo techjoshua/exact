@@ -3,6 +3,7 @@
  */
 import {
 	Fragment,
+	Target,
 	createEnhancementMarker,
 	createCompiledComponentRegistry,
 	createDynamicChild,
@@ -22,6 +23,78 @@ import { hydrate } from './index.js';
 import { noopLogger } from './test-support/responses.js';
 
 describe('@exactjs/hydrate adoption', () => {
+	it('claims the deterministic progressive helper when the root hydrates', () => {
+		const root = document.createElement('div');
+		root.id = 'page';
+		root.innerHTML = '<p>ready</p>';
+		let hash = 2166136261;
+		for (const character of root.id) {
+			hash ^= character.charCodeAt(0);
+			hash = Math.imul(hash, 16777619);
+		}
+		const helper = `__xR${(hash >>> 0).toString(36)}`;
+		(globalThis as Record<string, unknown>)[helper] = () => undefined;
+		hydrate(createVNode('p', null, 'ready'), root, {
+			allowMarkerless: true,
+			logger: noopLogger
+		});
+		expect(helper in globalThis).toBe(false);
+	});
+
+	it('adopts target-forwarded attributes without replacing the intrinsic', () => {
+		const vnode = createVNode(
+			Target,
+			{ className: 'forwarded', 'aria-describedby': 'help' },
+			createVNode('button', { className: 'authored' }, 'Save')
+		);
+		const root = document.createElement('div');
+		root.innerHTML = renderToString(vnode).html;
+		const serverButton = root.querySelector('button')!;
+
+		hydrate(vnode, root, { logger: noopLogger });
+
+		expect(root.querySelector('button')).toBe(serverButton);
+		expect(serverButton.className).toBe('authored forwarded');
+		expect(serverButton.getAttribute('aria-describedby')).toBe('help');
+	});
+
+	it('adopts nested target owners with independent refs and event subscriptions', () => {
+		const calls: string[] = [];
+		const refs: Element[] = [];
+		const ref = { fulfill: (value: unknown) => value instanceof Element && refs.push(value) };
+		const vnode = createVNode(
+			Target,
+			{ className: 'outer', ref, onClick: () => calls.push('outer') },
+			createVNode(
+				Target,
+				{ className: 'inner', ref, onClick: () => calls.push('inner') },
+				createVNode(
+					'button',
+					{
+						className: 'authored',
+						ref,
+						onClick: (event: Event) => {
+							calls.push('authored');
+							event.stopImmediatePropagation();
+						}
+					},
+					'Save'
+				)
+			)
+		);
+		const root = document.createElement('div');
+		root.innerHTML = renderToString(vnode).html;
+		const serverButton = root.querySelector('button')!;
+
+		hydrate(vnode, root, { logger: noopLogger });
+		serverButton.click();
+
+		expect(root.querySelector('button')).toBe(serverButton);
+		expect(serverButton.className).toBe('authored inner outer');
+		expect(refs).toEqual([serverButton, serverButton, serverButton]);
+		expect(calls).toEqual(['authored']);
+	});
+
 	it('activates bundle-local enhancements after adopting their authored target', () => {
 		const identity = '@exactjs/hydrate:test-enhancement#default';
 		const roots: RootLifecycle<HTMLElement>[] = [];
@@ -93,6 +166,33 @@ describe('@exactjs/hydrate adoption', () => {
 		);
 
 		expect(value).toBe('typed');
+	});
+
+	it('adopts and publishes disclosure changes made before hydration', () => {
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<!--exact:fragment:0--><details data-exact-id=more data-exact-ssr-open=false></details><!--/exact:fragment:0-->';
+		const details = container.querySelector('details')!;
+		details.open = true;
+		let open = false;
+		hydrate(
+			createVNode(
+				Fragment,
+				null,
+				createVNode('details', {
+					'data-exact-id': 'more',
+					open,
+					__exactBindToggle: (event: Event) => {
+						open = (event.currentTarget as HTMLDetailsElement).open;
+					}
+				})
+			),
+			container,
+			{ logger: noopLogger }
+		);
+
+		expect(container.querySelector('details')?.open).toBe(true);
+		expect(open).toBe(true);
 	});
 
 	it('makes hydration idempotent and exposes idempotent disposal', () => {

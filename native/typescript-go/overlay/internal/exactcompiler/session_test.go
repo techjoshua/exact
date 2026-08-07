@@ -17,6 +17,90 @@ func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 	}
 }
 
+func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			export function Planned(props: { label: string }) {
+				return () => <span>{props.label}</span>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		"createCompiledRenderProgram",
+		"version: 1",
+		"kind: \"text\"",
+		"() => __exactVNode(\"span\"",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("planned output omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-props.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			export function Planned(props: { label: string; disabled: boolean }) {
+				return () => <button className="action" disabled={props.disabled}>{props.label}</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		"createCompiledRenderProgram",
+		"kind: \"class\"",
+		"name: \"className\"",
+		"kind: \"property\"",
+		"name: \"disabled\"",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-svg.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			export function Route(props: { path?: string }) {
+				return () => <svg>{props.path ? <path className="route" d={props.path} /> : null}</svg>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `namespace: "svg", template: "<path`) ||
+		!strings.Contains(response.Code, `tag: "path", namespace: "svg"`) {
+		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
+	}
+}
+
+func TestSessionMarksOnlyProvenAsyncSiblingGroups(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "siblings.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			function Left() { return () => <span>left</span>; }
+			function Right() { return () => <span>right</span>; }
+			export function Page() { return () => <main><Left /><Right /></main>; }
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "__exactAsyncSiblings(__exactVNode(\"main\"") {
+		t.Fatalf("proven sibling group was not marked:\n%s", response.Code)
+	}
+}
+
 func TestSessionValidatesOnlyCommentDirectives(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
@@ -959,6 +1043,31 @@ func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
 	}
 }
 
+func TestSessionKeepsUnknownComponentChildrenInClientOnlyArtifacts(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "client-only.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare function External(props: { children?: unknown }): unknown;
+			export function Page() {
+				return () => <External><span>Client child</span></External>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, "__exactServerSlot") {
+		t.Fatalf("client-only compilation replaced an unknown component child with a server slot:\n%s", response.Code)
+	}
+	for _, expected := range []string{`__exactVNode(External`, `__exactVNode("span"`, `"Client child"`} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("client-only component output omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestSessionExtractsIntrinsicClientIslandFromServerArtifact(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:               "panel.tsx",
@@ -1126,7 +1235,7 @@ func TestSessionLowersFormBindingInsideGeneratedIntrinsicIsland(t *testing.T) {
 		export function Panel(this: Component<{ name: string }>) {
 			const __fixtureTask0 = async (_task: TaskContext = TaskContext.server()) => loadPanel();
 __fixtureTask0();
-			return () => <input value:input={this.state.name} />;
+			return () => <input value:onInput={this.state.name} />;
 		}
 	`
 	server := NewSession().Execute(Request{
@@ -1139,7 +1248,7 @@ __fixtureTask0();
 	if server.Error != "" {
 		t.Fatal(server.Error)
 	}
-	if strings.Contains(server.Code, "value:input") ||
+	if strings.Contains(server.Code, "value:onInput") ||
 		strings.Contains(server.Code, "__exactBindInput") ||
 		!strings.Contains(
 			server.Code,
@@ -1174,7 +1283,7 @@ __fixtureTask0();
 			)
 		}
 	}
-	if strings.Contains(client.Code, "value:input") {
+	if strings.Contains(client.Code, "value:onInput") {
 		t.Fatalf(
 			"authored form-binding namespace escaped into client output:\n%s",
 			client.Code,
@@ -1197,14 +1306,14 @@ func TestSessionLowersTypedNativeFormBindingConversions(t *testing.T) {
 			const __fixtureTask1 = async (_task: TaskContext = TaskContext.server()) => loadForm();
 __fixtureTask1();
 			return () => <>
-				<input type="number" value:change={this.state.count} />
-				<input type="checkbox" checked:change={this.state.enabled} />
-				<input type="radio" value="ground" checked:change={this.state.method} />
-				<select multiple value:change={this.state.tags}>
+				<input type="number" value:onChange={this.state.count} />
+				<input type="checkbox" checked:onChange={this.state.enabled} />
+				<input type="radio" value="ground" checked:onChange={this.state.method} />
+				<select multiple value:onChange={this.state.tags}>
 					<option value="a">A</option>
 				</select>
-				<input type="checkbox" value="2" checked:change={this.state.codes} />
-				<input type="date" value:change={this.state.birthday} />
+				<input type="checkbox" value="2" checked:onChange={this.state.codes} />
+				<input type="date" value:onChange={this.state.birthday} />
 			</>;
 		}
 	`
@@ -1239,8 +1348,8 @@ __fixtureTask1();
 		}
 	}
 	if strings.Contains(response.Code, "__exactAny") ||
-		strings.Contains(response.Code, "value:change") ||
-		strings.Contains(response.Code, "checked:change") {
+		strings.Contains(response.Code, "value:onChange") ||
+		strings.Contains(response.Code, "checked:onChange") {
 		t.Fatalf("form-binding compiler syntax escaped into output:\n%s", response.Code)
 	}
 	server := NewSession().Execute(Request{
@@ -1266,8 +1375,8 @@ __fixtureTask1();
 		}
 	}
 	if strings.Contains(server.Code, "__exactBind") ||
-		strings.Contains(server.Code, "value:change") ||
-		strings.Contains(server.Code, "checked:change") {
+		strings.Contains(server.Code, "value:onChange") ||
+		strings.Contains(server.Code, "checked:onChange") {
 		t.Fatalf("server form-binding fallback retained client behavior:\n%s", server.Code)
 	}
 }
@@ -1280,7 +1389,7 @@ func TestSessionRejectsInvalidNativeFormBindingContracts(t *testing.T) {
 			declare class Component<State> { state: State }
 			export function Form(this: Component<{ enabled: boolean }>) {
 				return () =>
-					<input type="checkbox" value:change={this.state.enabled} />;
+					<input type="checkbox" value:onChange={this.state.enabled} />;
 			}
 		`,
 	})
@@ -1290,7 +1399,7 @@ func TestSessionRejectsInvalidNativeFormBindingContracts(t *testing.T) {
 	if !containsDiagnosticCode(response.Diagnostics, "EXACT_FORM_BINDING") ||
 		!strings.Contains(
 			response.Diagnostics[0].Message,
-			"use checked:change",
+			"use checked:onChange",
 		) {
 		t.Fatalf("missing invalid form-binding diagnostic: %#v", response.Diagnostics)
 	}
@@ -5722,7 +5831,7 @@ func TestSessionResolvesImportedComponentPlacementSubgraphs(t *testing.T) {
 	}
 }
 
-func TestSessionAcceptsOpaqueRuntimeComponentImports(t *testing.T) {
+func TestSessionDescribesOpaqueRuntimeComponentImports(t *testing.T) {
 	root := t.TempDir()
 	entry := filepath.Join(root, "entry.tsx")
 	response := NewSession().Execute(Request{
@@ -5743,8 +5852,11 @@ func TestSessionAcceptsOpaqueRuntimeComponentImports(t *testing.T) {
 	if len(page.Diagnostics) != 0 {
 		t.Fatalf("opaque runtime import produced diagnostics: %#v", page.Diagnostics)
 	}
-	if len(page.RenderEdges) != 0 {
-		t.Fatalf("opaque runtime import unexpectedly produced placement edges: %#v", page.RenderEdges)
+	if len(page.RenderEdges) != 1 ||
+		page.RenderEdges[0].ModuleSpecifier != "@exactjs/microfrontends/client" ||
+		page.RenderEdges[0].ExportName != "RemoteComponent" ||
+		page.RenderEdges[0].ComponentID != "" {
+		t.Fatalf("opaque runtime import build edge was not retained: %#v", page.RenderEdges)
 	}
 	if !strings.Contains(response.Code, "__exactVNode(RemoteComponent") {
 		t.Fatalf("runtime component import was not lowered: %s", response.Code)
@@ -6200,15 +6312,15 @@ func TestSessionTreatsUnderscoreJSXAsCompilerFragment(t *testing.T) {
 	}
 }
 
-func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
+func TestSessionLowersAttributedEnhancementJSXNamespaces(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
-	entryFile := filepath.Join(root, "plugin-enhancement.tsx")
+	entryFile := filepath.Join(root, "enhancement-composition.tsx")
 	motionFile := filepath.Join(root, "motion.ts")
 	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	entrySource := `
 			import { TaskContext } from "@exactjs/core";
-			import { gravity, motion as animate } from "./motion.js" with { type: "exact-plugin" };
+			import { gravity, motion as animate } from "./motion.js" with { type: "exact-enhancement" };
 			function ServerSummary() {
 				const load = async (_task: TaskContext = TaskContext.server()) => summary();
 				load();
@@ -6231,7 +6343,7 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	for filename, source := range map[string]string{
 		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
 		entryFile:          entrySource,
-		motionFile:         `export { gravity, motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		motionFile:         `export { gravity, motion } from "./motion-implementation.js" with { type: "exact-enhancement" };`,
 		implementationFile: `export function motion(props: { preset?: string; exitDuration?: number; children?: unknown }) { return props.children; } export function gravity(props: { apply?: string; children?: unknown }) { return props.children; }`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
@@ -6250,11 +6362,11 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	}
 	for _, diagnostic := range response.Diagnostics {
 		if diagnostic.Severity == "error" {
-			t.Fatalf("plugin JSX namespace produced an error: %#v", response.Diagnostics)
+			t.Fatalf("enhancement JSX namespace produced an error: %#v", response.Diagnostics)
 		}
 	}
 	if strings.Contains(response.Code, `from "./motion.js"`) {
-		t.Fatalf("compile-only plugin import was retained:\n%s", response.Code)
+		t.Fatalf("compile-only enhancement import was retained:\n%s", response.Code)
 	}
 	for _, expected := range []string{
 		"createEnhancementMarker",
@@ -6264,11 +6376,11 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 		"root: true",
 	} {
 		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("plugin lowering omitted %q:\n%s", expected, response.Code)
+			t.Fatalf("enhancement lowering omitted %q:\n%s", expected, response.Code)
 		}
 	}
 	if strings.Count(response.Code, "__exactEnhancements:") != 1 {
-		t.Fatalf("plugin props were not emitted as one grouped marker:\n%s", response.Code)
+		t.Fatalf("enhancement props were not emitted as one grouped marker:\n%s", response.Code)
 	}
 	if len(response.Analysis.Enhancements) != 2 ||
 		response.Analysis.Enhancements[1].Identity != "./motion.js#motion" ||
@@ -6304,21 +6416,189 @@ func TestSessionLowersAttributedPluginJSXNamespaces(t *testing.T) {
 	}
 }
 
-func TestSessionRejectsPluginNamespaceImports(t *testing.T) {
+func TestSessionLowersFiniteEnhancementActivatorNamespaces(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	entrySource := `
+		import * as motion from "./motion.js" with { type: "exact-enhancement" };
+		export const view = (
+			<section motion:fade motion:slide-up={{ distance: 24 }} motion:duration={180} />
+		);
+	`
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:  entrySource,
+		filepath.Join(root, "motion.ts"): `
+			export { FadeMotion as fade, SlideUpMotion as slideUp }
+				from "./motion-implementation.js" with { type: "exact-enhancement" };
+		`,
+		filepath.Join(root, "motion-implementation.ts"): `
+			export function FadeMotion(props: { duration?: number; children?: unknown }) { return props.children; }
+			export function SlideUpMotion(props: { slideUp: true | { distance: number }; duration?: number; children?: unknown }) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	response := NewSession().Execute(Request{
-		ID:     "C:/virtual/plugin-namespace.tsx",
-		Kind:   "compile",
-		Source: `import * as motion from "@test/motion" with { type: "exact-plugin" };`,
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !containsDiagnosticCode(response.Diagnostics, "EXACT6003") {
-		t.Fatalf("plugin namespace import was accepted: %#v", response.Diagnostics)
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("finite enhancement namespace produced an error: %#v", response.Diagnostics)
+		}
+	}
+	for _, expected := range []string{
+		`identity: "./motion.js#fade"`,
+		`identity: "./motion.js#slideUp"`,
+		"slideUp:",
+		"distance: 24",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("finite enhancement lowering omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Count(response.Code, "duration: __exactExpression(() => 180)") != 2 {
+		t.Fatalf("shared enhancement prop was not distributed to both components:\n%s", response.Code)
+	}
+	if len(response.Analysis.Enhancements) != 2 {
+		t.Fatalf("finite namespace omitted renderer metadata: %#v", response.Analysis.Enhancements)
 	}
 }
 
-func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
+func TestSessionGroupsEnhancementActivatorAliasesByCanonicalComponent(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	entrySource := `
+		import * as motion from "./motion.js" with { type: "exact-enhancement" };
+		export const view = (
+			<section motion:fade={false} motion:slide-up={{ distance: 24 }} motion:duration={180} />
+		);
+	`
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:  entrySource,
+		filepath.Join(root, "motion.ts"): `
+			export { fade, slideUp } from "./motion-capability.js";
+		`,
+		filepath.Join(root, "motion-capability.ts"): `
+			export { TransitionMotion as fade, TransitionMotion as slideUp }
+				from "./motion-implementation.js" with { type: "exact-enhancement" };
+		`,
+		filepath.Join(root, "motion-implementation.ts"): `
+			export function TransitionMotion(props: {
+				fade?: boolean;
+				slideUp?: true | { distance: number };
+				duration?: number;
+				children?: unknown;
+			}) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("canonical enhancement activators produced an error: %#v", response.Diagnostics)
+		}
+	}
+	if strings.Count(response.Code, "createEnhancementMarker") != 1 {
+		t.Fatalf("canonical activator aliases did not produce one grouped marker:\n%s", response.Code)
+	}
+	for _, expected := range []string{"fade:", "slideUp:", "distance: 24", "duration:"} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("canonical activator group omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if len(response.Analysis.Enhancements) != 1 {
+		t.Fatalf("canonical activator aliases produced duplicate metadata: %#v", response.Analysis.Enhancements)
+	}
+}
+
+func TestSessionSuppressesDefaultEnhancementWhenNamedActivatorIsPresent(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	entrySource := `
+		import * as motion from "./motion.js" with { type: "exact-enhancement" };
+		export const implicit = <section motion:duration={100} />;
+		export const selected = <section motion:fade motion:duration={200} />;
+	`
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:  entrySource,
+		filepath.Join(root, "motion.ts"): `
+			export { DefaultMotion as default, FadeMotion as fade }
+				from "./motion-implementation.js" with { type: "exact-enhancement" };
+		`,
+		filepath.Join(root, "motion-implementation.ts"): `
+			export function DefaultMotion(props: { duration?: number; children?: unknown }) { return props.children; }
+			export function FadeMotion(props: { duration?: number; children?: unknown }) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("default and named enhancement selection produced an error: %#v", response.Diagnostics)
+		}
+	}
+	if strings.Count(response.Code, `identity: "./motion.js#default"`) != 1 {
+		t.Fatalf("default enhancement was not limited to the unactivated boundary:\n%s", response.Code)
+	}
+	if strings.Count(response.Code, `identity: "./motion.js#fade"`) != 1 {
+		t.Fatalf("named activator did not suppress the default enhancement:\n%s", response.Code)
+	}
+}
+
+func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) {
+	valid := NewSession().Execute(Request{
+		ID: "target.tsx", Kind: "compile",
+		Source: `export const view = <_target className="surface"><button>Save</button></_target>;`,
+	})
+	if valid.Error != "" {
+		t.Fatal(valid.Error)
+	}
+	if !strings.Contains(valid.Code, "createCompiledTarget") || strings.Contains(valid.Code, `"_target"`) {
+		t.Fatalf("_target was not lowered as a transparent target boundary:\n%s", valid.Code)
+	}
+	missing := NewSession().Execute(Request{
+		ID: "missing-target.tsx", Kind: "compile", Source: `export const view = <_target />;`,
+	})
+	if !containsDiagnosticCode(missing.Diagnostics, "EXACT6016") {
+		t.Fatalf("childless _target was accepted: %#v", missing.Diagnostics)
+	}
+	targetBinding := NewSession().Execute(Request{
+		ID: "target-binding.tsx", Kind: "compile",
+		Source: `export const view = <_target open:onOpenChanged={state.open}><button>Save</button></_target>;`,
+	})
+	if containsDiagnosticCode(targetBinding.Diagnostics, "EXACT_COMPONENT_BINDING") {
+		t.Fatalf("_target was treated as a generic component binding boundary: %#v", targetBinding.Diagnostics)
+	}
+}
+
+func TestSessionValidatesAttributedEnhancementComponentSchemas(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	componentFile := filepath.Join(root, "enhancements.ts")
@@ -6326,7 +6606,7 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 	entryFile := filepath.Join(root, "entry.tsx")
 	for filename, source := range map[string]string{
 		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
-		componentFile:      `export { motion, open, value } from "./enhancement-implementations.js" with { type: "exact-plugin" };`,
+		componentFile:      `export { motion, open, value } from "./enhancement-implementations.js" with { type: "exact-enhancement" };`,
 		implementationFile: `export function motion(props: { layoutId?: string; children?: unknown }) { return props.children; } export function open(props: { [key: string]: unknown }) { return props; } export const value = 1;`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
@@ -6345,47 +6625,174 @@ func TestSessionValidatesAttributedPluginComponentSchemas(t *testing.T) {
 		})
 	}
 
-	unknown := compile(`import { motion } from "./enhancements.js" with { type: "exact-plugin" }; export const view = <div motion:unknown />;`)
+	unknown := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div motion:unknown />;`)
 	if !containsDiagnosticCode(unknown.Diagnostics, "EXACT6007") {
-		t.Fatalf("unknown plugin prop was accepted: %#v", unknown.Diagnostics)
+		t.Fatalf("unknown enhancement prop was accepted: %#v", unknown.Diagnostics)
 	}
-	reserved := compile(`import { motion } from "./enhancements.js" with { type: "exact-plugin" }; export const view = <div motion:key="x" />;`)
+	reserved := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div motion:key="x" />;`)
 	if !containsDiagnosticCode(reserved.Diagnostics, "EXACT6006") {
-		t.Fatalf("reserved plugin prop was accepted: %#v", reserved.Diagnostics)
+		t.Fatalf("reserved enhancement prop was accepted: %#v", reserved.Diagnostics)
 	}
 	ordinary := compile(`import { motion } from "./enhancements.js"; export const view = <div motion:layout-id="x" />;`)
 	if !containsDiagnosticCode(ordinary.Diagnostics, "EXACT6005") {
-		t.Fatalf("ordinary import established a plugin prefix: %#v", ordinary.Diagnostics)
+		t.Fatalf("ordinary import established a enhancement prefix: %#v", ordinary.Diagnostics)
 	}
-	open := compile(`import { open as field } from "./enhancements.js" with { type: "exact-plugin" }; export const view = <div field:anything />;`)
+	open := compile(`import { open as field } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div field:anything />;`)
 	if !containsDiagnosticCode(open.Diagnostics, "EXACT6004") {
-		t.Fatalf("open plugin prop schema was accepted: %#v", open.Diagnostics)
+		t.Fatalf("open enhancement prop schema was accepted: %#v", open.Diagnostics)
 	}
-	nonComponent := compile(`import { value as field } from "./enhancements.js" with { type: "exact-plugin" }; export const view = <div field:anything />;`)
+	nonComponent := compile(`import { value as field } from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <div field:anything />;`)
 	if !containsDiagnosticCode(nonComponent.Diagnostics, "EXACT6004") {
 		t.Fatalf("non-component plugin capability was accepted: %#v", nonComponent.Diagnostics)
 	}
-	openSpread := compile(`import { motion } from "./enhancements.js" with { type: "exact-plugin" }; const props: Record<string, unknown> = {}; export const view = <div {...props} />;`)
+	openSpread := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; const props: Record<string, unknown> = {}; export const view = <div {...props} />;`)
 	if !containsDiagnosticCode(openSpread.Diagnostics, "EXACT6008") {
-		t.Fatalf("open plugin spread key space was accepted: %#v", openSpread.Diagnostics)
+		t.Fatalf("open enhancement spread key space was accepted: %#v", openSpread.Diagnostics)
 	}
 }
 
-func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
+func TestSessionRejectsEnhancementAndComponentBindingAmbiguity(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	enhancementFile := filepath.Join(root, "enhancement.ts")
+	implementationFile := filepath.Join(root, "enhancement-implementation.ts")
+	entrySource := `
+		import { mode } from "./enhancement.js" with { type: "exact-enhancement" };
+		type WidgetProps = { mode: boolean; toggle(next: boolean): void };
+		declare function Widget(props: WidgetProps): unknown;
+		export function View(this: Component<{ enabled: boolean }>) {
+			return () => <Widget mode:toggle={this.state.enabled} />;
+		}
+	`
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:  entrySource,
+		enhancementFile: `
+			export { mode, value } from "./enhancement-implementation.js" with { type: "exact-enhancement" };
+		`,
+		implementationFile: `
+			export function mode(props: { toggle?: boolean; children?: unknown }) { return props.children; }
+			export function value(props: { tone?: string; children?: unknown }) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
+	})
+	if !containsDiagnosticCode(response.Diagnostics, "EXACT_COMPONENT_BINDING") {
+		t.Fatalf("ambiguous enhancement and component binding was accepted: %#v", response.Diagnostics)
+	}
+	foundMessage := false
+	for _, diagnostic := range response.Diagnostics {
+		if strings.Contains(diagnostic.Message, "ambiguous between component props") {
+			foundMessage = true
+			break
+		}
+	}
+	if !foundMessage {
+		t.Fatalf("ambiguity diagnostic omitted both interpretations: %#v", response.Diagnostics)
+	}
+	for _, source := range []string{
+		`import { mode } from "./enhancement.js" with { type: "exact-enhancement" };
+		 type WidgetProps = { label: string }; declare function Widget(props: WidgetProps): unknown;
+		 export const view = <Widget mode:toggle />;`,
+		`import { value } from "./enhancement.js" with { type: "exact-enhancement" };
+		 export const view = <input value:tone="quiet" />;`,
+	} {
+		if err := os.WriteFile(entryFile, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		enhancementOnly := NewSession().Execute(Request{
+			ID: entryFile, Kind: "compile", Source: source, ConfigFile: configFile,
+		})
+		if containsDiagnosticCode(enhancementOnly.Diagnostics, "EXACT_COMPONENT_BINDING") ||
+			containsDiagnosticCode(enhancementOnly.Diagnostics, "EXACT_FORM_BINDING") {
+			t.Fatalf("valid enhancement was misclassified as a value binding: %#v", enhancementOnly.Diagnostics)
+		}
+	}
+}
+
+func TestSessionSemanticallyChecksUntransformedModulesDuringCompilation(t *testing.T) {
+	source := `export const answer: string = 42;`
+	response := NewSession().Execute(Request{
+		ID:          filepath.Join(t.TempDir(), "model.ts"),
+		Kind:        "compile",
+		Source:      source,
+		Diagnostics: "semantic",
+	})
+	if !containsDiagnosticCode(response.Diagnostics, "TS2322") {
+		t.Fatalf("semantic compilation omitted ordinary TypeScript diagnostics: %#v", response.Diagnostics)
+	}
+}
+
+func TestSessionAttributesComponentBindingWritesToCallbackCallable(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	if err := os.WriteFile(configFile, []byte(`{"compilerOptions":{"target":"es2022","jsx":"preserve"},"include":["*.tsx"]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	compile := func(body string) Response {
+		source := `
+			declare class Component<S extends object> { state: S; }
+			type DialogProps = { open: boolean; onOpenChanged(open: boolean): void };
+			declare function Dialog(props: DialogProps): unknown;
+			export function View(this: Component<{ open: boolean }>) {
+				return () => ` + body + `;
+			}
+		`
+		if err := os.WriteFile(entryFile, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return NewSession().Execute(Request{
+			ID: entryFile, Kind: "compile", Source: source, ConfigFile: configFile,
+		})
+	}
+	shorthand := compile(`<Dialog open:onOpenChanged={this.state.open} />`)
+	explicit := compile(`<Dialog open={this.state.open} onOpenChanged={(open) => { this.state.open = open; }} />`)
+	callbackShape := func(response Response) (string, string, int) {
+		for _, callable := range response.Analysis.Callables {
+			if callable.Kind != "function" || len(callable.StateWrites) != 1 ||
+				callable.StateWrites[0].Path != "open" {
+				continue
+			}
+			return callable.DirectEffect, callable.StateWrites[0].Operation, len(callable.ArtifactTargets)
+		}
+		return "missing", "missing", -1
+	}
+	shorthandEffect, shorthandOperation, shorthandTargets := callbackShape(shorthand)
+	explicitEffect, explicitOperation, explicitTargets := callbackShape(explicit)
+	if shorthandEffect == "missing" || explicitEffect == "missing" {
+		t.Fatalf("callback callable missing: shorthand=%#v explicit=%#v", shorthand.Analysis.Callables, explicit.Analysis.Callables)
+	}
+	if shorthandEffect != explicitEffect || shorthandOperation != explicitOperation || shorthandTargets != explicitTargets {
+		t.Fatalf(
+			"binding callback analysis differs from explicit lambda: shorthand=%q/%q/%d explicit=%q/%q/%d",
+			shorthandEffect, shorthandOperation, shorthandTargets,
+			explicitEffect, explicitOperation, explicitTargets,
+		)
+	}
+}
+
+func TestSessionPartitionsFiniteEnhancementSpreads(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	entryFile := filepath.Join(root, "entry.tsx")
 	componentFile := filepath.Join(root, "motion.ts")
 	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	entrySource := `
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		const effects = { "motion:layout-id": "card", "motion:disabled": false, title: "Card" };
 		export const view = <article {...effects} />;
 	`
 	for filename, source := range map[string]string{
 		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
 		entryFile:          entrySource,
-		componentFile:      `export { motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		componentFile:      `export { motion } from "./motion-implementation.js" with { type: "exact-enhancement" };`,
 		implementationFile: `export function motion(props: { layoutId?: string; disabled?: boolean; children?: unknown }) { return props.children; }`,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
@@ -6403,7 +6810,7 @@ func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
 	}
 	for _, diagnostic := range response.Diagnostics {
 		if diagnostic.Severity == "error" {
-			t.Fatalf("finite plugin spread produced an error: %#v", response.Diagnostics)
+			t.Fatalf("finite enhancement spread produced an error: %#v", response.Diagnostics)
 		}
 	}
 	for _, expected := range []string{
@@ -6414,12 +6821,12 @@ func TestSessionPartitionsFinitePluginSpreads(t *testing.T) {
 		`title: "Card"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("finite plugin spread omitted %q:\n%s", expected, response.Code)
+			t.Fatalf("finite enhancement spread omitted %q:\n%s", expected, response.Code)
 		}
 	}
 }
 
-func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
+func TestSessionChecksEnhancementPropTypesAndUnionCorrelation(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	entryFile := filepath.Join(root, "entry.tsx")
@@ -6427,7 +6834,7 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 	implementationFile := filepath.Join(root, "motion-implementation.ts")
 	for filename, source := range map[string]string{
 		configFile:    `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
-		componentFile: `export { motion } from "./motion-implementation.js" with { type: "exact-plugin" };`,
+		componentFile: `export { motion } from "./motion-implementation.js" with { type: "exact-enhancement" };`,
 		implementationFile: `
 			type MotionProps =
 				| { kind: "spring"; stiffness?: number; children?: unknown }
@@ -6448,7 +6855,7 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 		})
 	}
 	valid := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		const options:
 			| { "motion:kind": "spring"; "motion:stiffness": number }
 			| { "motion:kind": "tween"; "motion:duration": "fast" | "slow" } =
@@ -6458,31 +6865,31 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 		export const spread = <div {...options} />;
 	`)
 	if containsDiagnosticCode(valid.Diagnostics, "EXACT6011") {
-		t.Fatalf("valid discriminated plugin props were rejected: %#v", valid.Diagnostics)
+		t.Fatalf("valid discriminated enhancement props were rejected: %#v", valid.Diagnostics)
 	}
 	wrongValue := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		export const view = <div motion:kind="spring" motion:stiffness="strong" />;
 	`)
 	if !containsDiagnosticCode(wrongValue.Diagnostics, "EXACT6011") {
-		t.Fatalf("invalid plugin prop value was accepted: %#v", wrongValue.Diagnostics)
+		t.Fatalf("invalid enhancement prop value was accepted: %#v", wrongValue.Diagnostics)
 	}
 	wrongTemplate := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		export const view = <div motion:kind="tween" motion:delay="soon" />;
 	`)
 	if !containsDiagnosticCode(wrongTemplate.Diagnostics, "EXACT6011") {
-		t.Fatalf("invalid plugin template-literal prop was accepted: %#v", wrongTemplate.Diagnostics)
+		t.Fatalf("invalid enhancement template-literal prop was accepted: %#v", wrongTemplate.Diagnostics)
 	}
 	wrongCombination := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		export const view = <div motion:kind="spring" motion:duration="fast" />;
 	`)
 	if !containsDiagnosticCode(wrongCombination.Diagnostics, "EXACT6011") {
-		t.Fatalf("invalid plugin prop union combination was accepted: %#v", wrongCombination.Diagnostics)
+		t.Fatalf("invalid enhancement prop union combination was accepted: %#v", wrongCombination.Diagnostics)
 	}
 	wrongSpread := compile(`
-		import { motion } from "./motion.js" with { type: "exact-plugin" };
+		import { motion } from "./motion.js" with { type: "exact-enhancement" };
 		const options:
 			| { "motion:kind": "spring"; "motion:duration": "fast" }
 			| { "motion:kind": "tween"; "motion:duration": "fast" } =
@@ -6490,22 +6897,22 @@ func TestSessionChecksPluginPropTypesAndUnionCorrelation(t *testing.T) {
 		export const view = <div {...options} />;
 	`)
 	if !containsDiagnosticCode(wrongSpread.Diagnostics, "EXACT6011") {
-		t.Fatalf("invalid finite plugin union spread was accepted: %#v", wrongSpread.Diagnostics)
+		t.Fatalf("invalid finite enhancement union spread was accepted: %#v", wrongSpread.Diagnostics)
 	}
 }
 
-func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
+func TestSessionResolvesDefaultStarAndAmbiguousEnhancementExports(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
 	entryFile := filepath.Join(root, "entry.tsx")
 	for filename, source := range map[string]string{
 		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
 		filepath.Join(root, "default-implementation.ts"): `export default function motion(props: { preset?: "fade" | "slide"; children?: unknown }) { return props.children; }`,
-		filepath.Join(root, "default-capability.ts"):     `export { default } from "./default-implementation.js" with { type: "exact-plugin" };`,
+		filepath.Join(root, "default-capability.ts"):     `export { default } from "./default-implementation.js" with { type: "exact-enhancement" };`,
 		filepath.Join(root, "named-implementation.ts"):   `export function motion(props: { preset?: "fade" | "slide"; children?: unknown }) { return props.children; }`,
-		filepath.Join(root, "star-capability.ts"):        `export * from "./named-implementation.js" with { type: "exact-plugin" };`,
-		filepath.Join(root, "left-capability.ts"):        `export { motion } from "./named-implementation.js" with { type: "exact-plugin" };`,
-		filepath.Join(root, "right-capability.ts"):       `export { motion } from "./named-implementation.js" with { type: "exact-plugin" };`,
+		filepath.Join(root, "star-capability.ts"):        `export * from "./named-implementation.js" with { type: "exact-enhancement" };`,
+		filepath.Join(root, "left-capability.ts"):        `export { motion } from "./named-implementation.js" with { type: "exact-enhancement" };`,
+		filepath.Join(root, "right-capability.ts"):       `export { motion } from "./named-implementation.js" with { type: "exact-enhancement" };`,
 		filepath.Join(root, "ambiguous.ts"): `
 			export { motion } from "./left-capability.js";
 			export { motion } from "./right-capability.js";
@@ -6516,8 +6923,8 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 		}
 	}
 	validSource := `
-		import defaultMotion from "./default-capability.js" with { type: "exact-plugin" };
-		import { motion as starMotion } from "./star-capability.js" with { type: "exact-plugin" };
+		import defaultMotion from "./default-capability.js" with { type: "exact-enhancement" };
+		import { motion as starMotion } from "./star-capability.js" with { type: "exact-enhancement" };
 		export const view = <button defaultMotion:preset="fade" starMotion:preset="slide" />;
 	`
 	if err := os.WriteFile(entryFile, []byte(validSource), 0o600); err != nil {
@@ -6528,7 +6935,7 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 	})
 	for _, diagnostic := range valid.Diagnostics {
 		if diagnostic.Severity == "error" {
-			t.Fatalf("default or star plugin export produced an error: %#v", valid.Diagnostics)
+			t.Fatalf("default or star enhancement export produced an error: %#v", valid.Diagnostics)
 		}
 	}
 	identities := make(map[string]struct{}, len(valid.Analysis.Enhancements))
@@ -6540,12 +6947,12 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 		"./star-capability.js#motion",
 	} {
 		if _, exists := identities[identity]; !exists {
-			t.Fatalf("compiler omitted resolved plugin identity %q: %#v", identity, valid.Analysis.Enhancements)
+			t.Fatalf("compiler omitted resolved enhancement identity %q: %#v", identity, valid.Analysis.Enhancements)
 		}
 	}
 
 	ambiguousSource := `
-		import { motion } from "./ambiguous.js" with { type: "exact-plugin" };
+		import { motion } from "./ambiguous.js" with { type: "exact-enhancement" };
 		export const view = <button motion:preset="fade" />;
 	`
 	if err := os.WriteFile(entryFile, []byte(ambiguousSource), 0o600); err != nil {
@@ -6555,6 +6962,6 @@ func TestSessionResolvesDefaultStarAndAmbiguousPluginExports(t *testing.T) {
 		ID: entryFile, Kind: "compile", Source: ambiguousSource, ConfigFile: configFile,
 	})
 	if !containsDiagnosticCode(ambiguous.Diagnostics, "EXACT6010") {
-		t.Fatalf("ambiguous plugin export path was accepted: %#v", ambiguous.Diagnostics)
+		t.Fatalf("ambiguous enhancement export path was accepted: %#v", ambiguous.Diagnostics)
 	}
 }

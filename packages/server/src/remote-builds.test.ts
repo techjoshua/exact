@@ -86,6 +86,31 @@ describe('build-keyed execution-root dispatch', () => {
 		expect(response.status).toBe(404);
 		expect(JSON.parse(response.body)).toEqual({ error: 'not_found' });
 	});
+
+	it('rejects a remote whose authorization fingerprint does not match its retained build', async () => {
+		const build = {
+			...registration({ '@company/billing#./Area': 'billing' }),
+			componentAuthorization: {
+				protocol: 1 as const,
+				buildKey,
+				fingerprint: 'authorized-build'
+			}
+		};
+		const response = await handleExactRequest(
+			{
+				method: 'POST',
+				headers: {
+					'x-exact-build': buildKey,
+					'x-exact-component-authorization': 'different-build'
+				},
+				body: { type: 'invoke', root: '@company/billing#./Area', id: 'submit' }
+			},
+			context({ remoteBuilds: { [buildKey]: build } })
+		);
+
+		expect(response.status).toBe(410);
+		expect(JSON.parse(response.body)).toEqual({ error: 'exact_build_unsupported' });
+	});
 });
 
 function registration(

@@ -72,12 +72,12 @@ export function CatalogEditor(this: Component<CatalogState>) {
     <section>
       <label>
         Search
-        <input type="search" value:input={this.state.query} />
+        <input type="search" value:onInput={this.state.query} />
       </label>
 
       <label>
         Quantity
-        <input type="number" min={1} value:change={this.state.quantity} />
+        <input type="number" min={1} value:onChange={this.state.quantity} />
       </label>
 
       <output>
@@ -279,7 +279,7 @@ export const compilerTourGeneratedViewSource = `return () =>
         'data-exact-id': '<search-input>',
         type: 'search',
 
-        // value:input becomes a reactive value plus a typed write.
+        // value:onInput becomes a reactive value plus a typed write.
         value: __exactExpression(() => this.state.query ?? ''),
         __exactBindInput: (
           event: Event & { readonly currentTarget: HTMLInputElement }

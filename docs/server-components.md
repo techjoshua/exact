@@ -144,6 +144,15 @@ export const hydration = createExactHydrationConfig(executor);
 export const handle = (request: ExactRequestLike) => handleExactRequest(request, runtime);
 ```
 
+Pass `{ state, publicContexts }` as the second argument when the document carries browser-visible
+state or context. When the client entry imports the compiler-generated hydration registration, use
+`includeContinuations: false`; this keeps the authoritative continuation contracts in that client
+registration instead of transmitting a duplicate copy in the HTML.
+
+Hydration metadata uses compact defaults on the wire. Schema-defined empty arrays and objects are
+omitted and restored as shared immutable empty values by the hydration runtime. Empty arrays and
+objects inside authored state, props, or context values are data and are never removed.
+
 Adapters translate Fetch, Node, Express, Hapi, Bun, or other host requests into
 the runtime-neutral request shape. Authentication and authorization remain
 server configuration. The generated continuation never treats client context

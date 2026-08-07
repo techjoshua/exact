@@ -51,7 +51,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			eyebrow="Plugin / @exactjs/microfrontends"
 			title="Independent deployment with component-shaped integration"
 			description="The microfrontends plugin compiles named eXact component roots as remote entries and lets a host mount them through trusted bindings, without reducing the remote to an iframe or an untyped module factory."
-			previous={{ path: '/plugins/gravity', label: 'Gravity' }}
+			previous={{ path: '/plugins', label: 'Plugin system' }}
 			next={{ path: '/plugins/secrets', label: 'Secrets' }}
 		>
 			<section>
@@ -103,6 +103,12 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					module, and preserve the page-owned root around it. Cross-root structural patches rotate
 					the remote component descriptor instead of pretending two independently built trees are
 					one local bundle.
+				</p>
+				<p>
+					A server-executing remote also carries its compact component-library authorization
+					fingerprint. Operation requests must match the retained remote build before dispatch; a
+					mismatch uses the same bounded replacement flow without exposing package provenance to the
+					browser.
 				</p>
 			</section>
 			<section>

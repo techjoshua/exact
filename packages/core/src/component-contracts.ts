@@ -2,6 +2,11 @@ import type { ContextToken } from './component/contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
 import { isExactComponentBoundaryContract } from './component-contract/boundary-validation.js';
 import {
+	isExactContinuationDependency,
+	isExactContinuationInvocation,
+	isExactContinuationStatePath
+} from './component-contract/continuation-validation.js';
+import {
 	hasOnlyContractKeys as hasOnlyKeys,
 	isContractRecord as isRecord,
 	isContractString as isString,
@@ -357,33 +362,17 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		isString(value.componentId) &&
 		(value.readiness === 'blocking' || value.readiness === 'nonblocking') &&
 		Array.isArray(value.dependencies) &&
-		value.dependencies.every(isDependency) &&
+		value.dependencies.every(isExactContinuationDependency) &&
 		Array.isArray(value.stateReads) &&
-		value.stateReads.every(isStatePath) &&
+		value.stateReads.every(isExactContinuationStatePath) &&
 		Array.isArray(value.stateWrites) &&
-		value.stateWrites.every(isStatePath) &&
+		value.stateWrites.every(isExactContinuationStatePath) &&
 		isSafeStringList(value.publicContexts) &&
 		isSafeStringList(value.serverContexts) &&
 		isSafeStringList(value.contextWrites) &&
 		(value.serverContextWrites === undefined || isSafeStringList(value.serverContextWrites)) &&
 		isSafeStringList(value.boundaries) &&
-		(value.invocation === undefined || isInvocation(value.invocation))
-	);
-}
-
-/** Validates direct-invocation metadata attached to a task continuation. */
-function isInvocation(value: unknown): boolean {
-	if (!isRecord(value)) return false;
-	return (
-		hasOnlyKeys(value, ['arguments', 'concurrency']) &&
-		Array.isArray(value.arguments) &&
-		value.arguments.every(
-			(argument) =>
-				isRecord(argument) && hasOnlyKeys(argument, ['source']) && argument.source === 'argument'
-		) &&
-		(value.concurrency === 'parallel' ||
-			value.concurrency === 'latest' ||
-			value.concurrency === 'queue')
+		(value.invocation === undefined || isExactContinuationInvocation(value.invocation))
 	);
 }
 
@@ -409,34 +398,5 @@ function isResumption(value: unknown): value is ExactComponentResumptionContract
 		isSafeStringList(value.valueCaptures) &&
 		isSafeStringList(value.contexts) &&
 		isSafeStringList(value.boundaries)
-	);
-}
-
-/** Validates one transported dependency source descriptor. */
-function isDependency(value: unknown): boolean {
-	return (
-		isRecord(value) &&
-		hasOnlyKeys(value, ['source']) &&
-		(value.source === 'state' ||
-			value.source === 'props' ||
-			value.source === 'derived' ||
-			value.source === 'argument')
-	);
-}
-
-/** Validates one state effect descriptor. */
-function isStatePath(value: unknown): value is ExactContinuationStatePathContract {
-	return (
-		isRecord(value) &&
-		hasOnlyKeys(value, ['path', 'kind', 'confidence', 'operation']) &&
-		isString(value.path) &&
-		(value.kind === 'read' || value.kind === 'write') &&
-		(value.confidence === 'exact' ||
-			value.confidence === 'broad' ||
-			value.confidence === 'unknown') &&
-		(value.operation === undefined ||
-			value.operation === 'value' ||
-			value.operation === 'map' ||
-			value.operation === 'set')
 	);
 }

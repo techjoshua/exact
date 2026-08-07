@@ -31,6 +31,8 @@ export type CompileFileResult = TransformResult & {
 export type CompileProjectOptions = TransformOptions & {
 	outDir?: string;
 	rootDir?: string;
+	/** Includes non-JSX JavaScript and TypeScript modules for no-emit project checking. */
+	includeAllModules?: boolean;
 };
 
 /** Configures compile artifacts. */

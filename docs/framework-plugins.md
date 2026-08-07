@@ -89,82 +89,15 @@ ordinary task should remain application code. A framework plugin is warranted
 when the behavior must participate consistently in several build/runtime
 hosts or enforce a cross-cutting boundary.
 
-## Optional JSX enhancements
+## Enhancements are not framework plugins
 
-An attributed value import can establish a local namespaced JSX prefix for an optional ordinary
-component enhancement. The compiler resolves the imported callable's public props, requires a
-finite key space, maps kebab-case JSX members to camel-case props, reserves `children`, `key`, and
-`ref`, and emits one grouped reactive marker. The compile-only import itself is erased.
+Namespaced JSX enhancements are optional ordinary components supplied by component libraries. They
+use compiler metadata and a bundle-local enhancement catalog, not plugin discovery, configuration,
+host projections, or plugin lifecycle. A component library may independently expose a genuine host
+plugin, but the two surfaces are activated and documented separately.
 
-```tsx
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
-
-<article motion:apply={fade} motion:layout-id={card.id} />;
-```
-
-Enhancements package ordinary transparent wrapper components without making those wrappers part of
-the authored component's required design. The target continues to own its markup, state,
-accessibility, events, and fallback behavior. When the final application bundles the capability,
-the renderer mounts the package's inspectable wrapper at the resolved intrinsic root. When the
-capability is absent, the target is left unchanged:
-
-```tsx
-// Conceptual active form; the compiler does not literally emit this source tree.
-<MotionElement apply={fade}>
-	<ProductCard />
-</MotionElement>
-
-// Bundle-time fallback when motion is not included.
-<ProductCard />
-```
-
-This separates reusable functionality from design. A library can declare optional motion,
-gesture recognition, projection, or force policy without shipping that implementation as required
-component behavior or deciding whether the final application trusts and bundles its package.
-
-In VS Code, the eXact extension treats the attributed binding as a real use and completes the
-finite enhancement members after `motion:` using their kebab-case JSX spelling. The reserved
-`motion:root` selector is offered separately from the component's public props.
-
-An ordinary import cannot establish the prefix. Namespace imports, type-only bindings,
-non-component values, open prop dictionaries, unknown members, and reserved members are compiler
-diagnostics. Active renderer roots instantiate the mapped value as an ordinary inspectable
-component; unavailable capabilities leave the intrinsic target unchanged and warn once.
-
-Capability declaration and activation are separate stages. Compilation records every attributed
-import without consulting a plugin registry because a library cannot know the final application's
-bundle policy. The application build either includes that package capability or does not; bundling
-the package is the activation trust decision. Vite, Bun, and Webpack link compiler-emitted module
-fragments into an application-bundle-local catalog and redirect DOM, hydration, and SSR entry
-points through shared facades that supply ordinary render options. SSR activates available
-declarations as ordinary server component chains;
-it resolves the same logical intrinsic target through components, keyed lists, dynamic output, and
-the Suspense candidate selected by that render mode before constructing the chain. Target discovery
-reuses the materialized setup-once component instances. Absent server capabilities remain inert and
-warn once per identity. Hydration adopts the authored DOM before activating the client catalog, so
-transparent enhancements preserve server node identity. Low-level renderer and component-test
-callers can provide the bundle-local catalog explicitly.
-
-The `apps/plugin-playground` sample turns these contracts into familiar interface patterns:
-state-owned animated tabs, disclosures, and toasts; semantic press, hover, long-press, slider,
-pan, pinch, and keyboard controls; and a bounded, deliberately bouncy stage that composes motion,
-gestures, physics, and gravity on one target.
-
-Statically finite setup-derived spreads may contain namespaced keys. The compiler partitions only
-the proven keys into the grouped marker, omits those exact keys from ordinary DOM props, and keeps
-their reads reactive. Open dictionaries and effectful inline enhancement spreads are diagnostics.
-
-The reserved `namespace:root` member is a routing selector, not an enhancement prop. The first
-active matching selector in the declaration's logical subtree receives that enhancement; otherwise
-the first intrinsic target is used. Selector changes reroute only the affected declaration subtree,
-release the previous enhancement instance, and preserve the authored DOM identity.
-
-Before setup, co-targeted enhancement components are ordered from their ordinary context effects:
-providers wrap required and optional consumers, unrelated components use canonical identity, and a
-cycle fails through the normal component error boundary before any member of the cycle runs. The
-compiler projects statically known `setContext()`, `getContext()`, and `hasContext()` token
-identities into this pre-setup contract; compilerless component packages may attach the same
-generic contract explicitly.
+See [Component language](component-language.md#enhancement-composition) for attributed imports,
+finite activators, direct `_` composition, `_target`, bounded routing, SSR, and hydration.
 
 ## Current limitations
 

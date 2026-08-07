@@ -7,6 +7,7 @@ import {
 	createExactRuntimeInspectionCorrelation
 } from '../language-tools/runtime-correlation.js';
 import { createExactInspectionRedactions } from '../language-tools/build-catalog.js';
+import { createExactComponentBuildFacts } from '../compilation/component-build-facts.js';
 import type { TransformOptions, TransformResult } from '../types.js';
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import { nativeModuleAnalysis } from './module-analysis.js';
@@ -37,6 +38,7 @@ export function transformSourceWithNativeCompiler(
 		kind: 'compile',
 		source: normalized,
 		root: options.root,
+		configFile: options.configFile,
 		buildKey: options.buildKey,
 		target,
 		serverComponents: options.serverComponents,
@@ -101,6 +103,7 @@ export function transformSourceWithNativeCompiler(
 				: nativeSourceMap(response.sourceMap, filename, normalized)
 			: null,
 		filename,
+		componentBuild: createExactComponentBuildFacts(analysis),
 		...(analysis.rendererEnhancements.length
 			? { rendererEnhancements: analysis.rendererEnhancements.map((entry) => ({ ...entry })) }
 			: {}),
@@ -134,6 +137,7 @@ export function analyzeSourceWithNativeCompiler(
 		kind: 'analyze',
 		source: normalized,
 		root: options.root,
+		configFile: options.configFile,
 		buildKey: options.buildKey,
 		target: options.target ?? 'default',
 		serverComponents: options.serverComponents,

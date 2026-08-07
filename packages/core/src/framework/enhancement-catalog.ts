@@ -18,12 +18,16 @@ export function registerExactEnhancement(identity: string, component: unknown): 
 }
 
 /** Supplies the bundle catalog unless a renderer caller provided an explicit catalog. */
-export function withExactEnhancementCatalog<
-	Options extends Readonly<{ enhancementCatalog?: ReadonlyMap<string, EnhancementComponent> }>
->(options: Options | undefined): Options {
+export function withExactEnhancementCatalog<Options extends Readonly<Record<string, unknown>>>(
+	options: Options | undefined
+): Options & Readonly<{ enhancementCatalog: ReadonlyMap<string, EnhancementComponent> }> {
 	return (
-		options?.enhancementCatalog
+		(
+			options as
+				| Readonly<{ enhancementCatalog?: ReadonlyMap<string, EnhancementComponent> }>
+				| undefined
+		)?.enhancementCatalog
 			? options
 			: { ...options, enhancementCatalog: exactEnhancementCatalog }
-	) as Options;
+	) as Options & Readonly<{ enhancementCatalog: ReadonlyMap<string, EnhancementComponent> }>;
 }

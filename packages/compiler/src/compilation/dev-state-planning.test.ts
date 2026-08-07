@@ -29,6 +29,13 @@ function artifactEntry(inputFile: string, dependencies: string[]): ExactArtifact
 		clientFile: `${inputFile}.client.js`,
 		serverFile: `${inputFile}.server.js`,
 		build: {
+			componentBuild: {
+				protocol: 1,
+				filename: inputFile,
+				components: [],
+				componentImports: [],
+				rendererEnhancements: []
+			},
 			dependencies,
 			componentIds: [],
 			exposureRoots: [],

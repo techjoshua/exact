@@ -8,7 +8,7 @@ import {
 	logReject,
 	matchesConfiguredEndpoint
 } from '../operations.js';
-import { jsonResponse, parseExactRequestBody, readBody, requestPayloadSafe } from '../protocol.js';
+import { jsonResponse, parseExactRequestBody, readBody } from '../protocol.js';
 import { dispatchExactBatch, streamExactResponse, wantsStreaming } from '../streaming.js';
 import { exactServerDebugRuntime } from '../debug/runtime.js';
 import type {
@@ -66,6 +66,7 @@ export {
 	registerExactInspectionCatalog
 } from '../debug/runtime.js';
 export type * from '../types.js';
+export type * from '../hydration-types.js';
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
 export async function handleExactRequest(
@@ -123,16 +124,6 @@ async function handleExactRequestOwned(
 		return jsonResponse(400, { error: 'bad_request' });
 	}
 
-	if (
-		!requestPayloadSafe(input, {
-			maxJsonDepth: context.limits?.maxJsonDepth,
-			maxJsonNodes: context.limits?.maxJsonNodes,
-			maxRequestBytes: context.limits?.maxRequestBytes
-		})
-	) {
-		logReject(context, 'rejected non-serializable exact invocation payload');
-		return jsonResponse(400, { error: 'bad_request' });
-	}
 	const debugRuntime =
 		input.type === 'debug'
 			? (debugOwnerContext.debugRuntime ?? exactServerDebugRuntime(debugOwnerContext))
@@ -167,6 +158,12 @@ async function handleExactRequestOwned(
 	if (build === null) {
 		return withBuildHeaders(jsonResponse(410, { error: 'exact_build_unsupported' }), context);
 	}
+	const componentAuthorization = build?.componentAuthorization ?? context.componentAuthorization;
+	if (
+		componentAuthorization &&
+		requestHeader(request, 'x-exact-component-authorization') !== componentAuthorization.fingerprint
+	)
+		return withBuildHeaders(jsonResponse(410, { error: 'exact_build_unsupported' }), context);
 	const responseContext = context;
 	const dispatch = build
 		? (

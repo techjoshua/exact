@@ -10,6 +10,7 @@ import {
 	walkDomSubtree,
 	type DomWorkBudget
 } from '@exactjs/dom';
+import { readExactPartitionDiscriminator } from '@exactjs/dom/framework/hydration';
 import type { ExactPartitionAuthority, ExactPatch } from '@exactjs/server';
 import type { HydrationDiagnostic } from '../types.js';
 import { applyPatch } from './application.js';
@@ -178,7 +179,7 @@ export function partitionAuthority(
 	const root = marker.getAttribute('data-exact-partition-root');
 	const planEdgeId = marker.getAttribute('data-exact-partition-edge');
 	const ownerComponentId = marker.getAttribute('data-exact-partition-owner');
-	const discriminator = partitionMarkerDiscriminator(marker);
+	const discriminator = readExactPartitionDiscriminator(marker);
 	const generation = Number(marker.getAttribute('data-exact-partition-generation'));
 	if (
 		version !== 1 ||
@@ -202,23 +203,6 @@ export function partitionAuthority(
 		discriminator,
 		generation
 	});
-}
-
-function partitionMarkerDiscriminator(
-	marker: Element
-): ExactPartitionAuthority['discriminator'] | undefined {
-	const kind = marker.getAttribute('data-exact-partition-discriminator');
-	if (kind === 'single') return Object.freeze({ kind });
-	if (kind === 'branch') {
-		const branch = marker.getAttribute('data-exact-partition-branch');
-		return branch ? Object.freeze({ kind, branch }) : undefined;
-	}
-	if (kind === 'keyed') {
-		const list = marker.getAttribute('data-exact-partition-list');
-		const keyToken = marker.getAttribute('data-exact-partition-key');
-		return list && keyToken ? Object.freeze({ kind, list, keyToken }) : undefined;
-	}
-	return undefined;
 }
 
 /** Performs the boundary inner htmls domain operation. */

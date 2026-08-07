@@ -11,6 +11,11 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./node": {
+			"types": "./dist/node.d.ts",
+			"node": "./dist/node.js",
+			"default": "./dist/node.js"
 		}
 	},
 	"main": "./dist/index.js",
@@ -18,7 +23,8 @@
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/devtools-protocol": "^0.1.0",
-		"@exactjs/plugin-api": "^0.1.0"
+		"@exactjs/plugin-api": "^0.1.0",
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"scripts": {
 		"build": "tsc -b",

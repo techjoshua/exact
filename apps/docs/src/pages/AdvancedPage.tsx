@@ -82,6 +82,18 @@ export function AdvancedPage(this: Component<{}>) {
 					instances.
 				</p>
 				<p>
+					Compiler-owned hydration metadata omits schema-defined empty arrays and objects, then
+					restores shared immutable defaults in the browser. Authored empty state, props, and
+					context values remain application data. When a generated client registration owns
+					continuation contracts, the server can omit a duplicate document copy.
+				</p>
+				<p>
+					Document config, island props, JSON responses, and streamed events pass through the same
+					bounded reactive-protocol decoder. Static repair also uses the DOM renderer&apos;s
+					intrinsic namespace, attribute, URL, class, and unsafe-HTML contract, so eager and
+					deferred adoption do not maintain competing interpretations of server HTML.
+				</p>
+				<p>
 					The compiler recognizes client islands whose initial browser responsibility is limited to
 					supported events and reactive form bindings. SSR emits the real inert control, and the
 					generated hydration registration loads that island&apos;s chunk when its first interaction

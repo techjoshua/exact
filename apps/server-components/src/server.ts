@@ -47,7 +47,7 @@ export const exactRuntime = createExactServerRuntime({
 export async function renderProfilePage(name: string) {
 	return renderToHydratableStringAsync(createVNode(ProfilePage, { name }), {
 		markers: false,
-		...createExactHydrationConfig(exactContract, { profile: { name } })
+		...createExactHydrationConfig(exactContract, { state: { profile: { name } } })
 	});
 }
 
@@ -56,7 +56,7 @@ export function renderProfilePageResponse(name: string) {
 	return renderToHydratableProgressiveHtmlResponse(createVNode(ProfilePage, { name }), {
 		markers: false,
 		rootId: 'app',
-		...createExactHydrationConfig(exactContract, { profile: { name } })
+		...createExactHydrationConfig(exactContract, { state: { profile: { name } } })
 	});
 }
 

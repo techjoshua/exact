@@ -10,10 +10,12 @@ import {
 	normalizeActivityMode,
 	normalizeRenderResult,
 	Portal,
+	RenderProgram,
 	reparentComponentInstance,
 	renderInstance,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	unwrap,
@@ -49,10 +51,12 @@ import { bindText, patchChildren, rerenderComponent } from '../patching/children
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
 import { installActivity, prepareActivity } from '../activity.js';
+import { refreshTargetBoundary } from '../target-contributions.js';
 import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import { activateEnhancementSubtree } from '../enhancements.js';
+import { fallbackRenderProgram, mountRenderProgram } from '../render-program.js';
 import {
 	mountChildren,
 	mountDetachedChildren,
@@ -148,6 +152,13 @@ export function mountInner(
 		return mounted;
 	}
 
+	if (vnode.type === RenderProgram) {
+		return (
+			mountRenderProgram(root, vnode, scope, parentInstance) ??
+			mountInner(root, fallbackRenderProgram(vnode), scope, parentInstance, parentNode)
+		);
+	}
+
 	if (vnode.type === Text) {
 		const node = document.createTextNode('');
 		const mounted: Mounted = { vnode, dom: node, scope, children: [] };
@@ -201,6 +212,19 @@ export function mountInner(
 		return mounted;
 	}
 
+	if (vnode.type === Target) {
+		const marker = createMarker(root, 'target');
+		const mounted: Mounted = {
+			vnode,
+			dom: marker,
+			scope,
+			children: mountDetachedChildren(root, vnode.children, parentInstance, scope, parentNode),
+			targetBoundary: {}
+		};
+		refreshTargetBoundary(root, mounted, parentInstance);
+		return mounted;
+	}
+
 	if (vnode.type === Fragment) {
 		const marker = createMarker(root, 'fragment');
 		const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
@@ -227,7 +251,8 @@ export function mountInner(
 						nextChildren,
 						parentInstance,
 						mounted.scope,
-						afterMountedChildren(mounted)
+						afterMountedChildren(mounted),
+						mounted
 					);
 				},
 				undefined,
@@ -261,7 +286,8 @@ export function mountInner(
 						nextChildren,
 						parentInstance,
 						mounted.scope,
-						afterMountedChildren(mounted)
+						afterMountedChildren(mounted),
+						mounted
 					)
 				);
 			},

@@ -162,7 +162,8 @@ function validateMapEnvelope(value: Record<string, unknown>): MapEnvelope {
 		value.version !== 1 ||
 		!Array.isArray(value.entries) ||
 		!value.entries.every(
-			(entry) => Array.isArray(entry) && entry.length === 2 && isTransportableMapKey(entry[0])
+			(entry) =>
+				Array.isArray(entry) && entry.length === 2 && isTransportableReactiveMapKey(entry[0])
 		)
 	)
 		throw new TypeError('Malformed eXact Map envelope');
@@ -210,13 +211,16 @@ function validateEnvelope(value: Record<string, unknown>): KeyedCollectionEnvelo
 }
 
 function assertTransportableMapKey(value: unknown): void {
-	if (!isTransportableMapKey(value))
+	if (!isTransportableReactiveMapKey(value))
 		throw new TypeError(
 			'eXact Map protocol keys must be null, boolean, finite number, or string values'
 		);
 }
 
-function isTransportableMapKey(value: unknown): value is null | boolean | number | string {
+/** Reports whether a value can be transported as a reactive Map protocol key. */
+export function isTransportableReactiveMapKey(
+	value: unknown
+): value is null | boolean | number | string {
 	return (
 		value === null ||
 		typeof value === 'boolean' ||

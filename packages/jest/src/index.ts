@@ -14,6 +14,9 @@ export * from '@exactjs/testing';
 
 /** Defines the Jest configuration fragment created by eXact. */
 export type ExactJestConfig = {
+	globalSetup: string;
+	globalTeardown: string;
+	resolver: string;
 	setupFiles: string[];
 	setupFilesAfterEnv: string[];
 	testEnvironment?: string;
@@ -36,6 +39,9 @@ export function exactJest(options: ExactJestOptions = {}): ExactJestConfig {
 	const compatibility =
 		reactOptions === undefined ? undefined : resolveReactCompatibility(reactOptions);
 	return {
+		globalSetup: fileURLToPath(new URL('./global-setup.js', import.meta.url)),
+		globalTeardown: fileURLToPath(new URL('./global-teardown.js', import.meta.url)),
+		resolver: fileURLToPath(new URL('./resolver.js', import.meta.url)),
 		setupFiles: [fileURLToPath(new URL('./polyfills.js', import.meta.url))],
 		setupFilesAfterEnv: [fileURLToPath(new URL('./setup.js', import.meta.url))],
 		extensionsToTreatAsEsm: ['.ts', '.tsx'],

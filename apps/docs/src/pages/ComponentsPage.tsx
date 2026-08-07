@@ -90,6 +90,24 @@ export function ComponentsPage(this: Component<{}>) {
 					because the compiler has already connected consumers of that field.
 				</p>
 				<p>
+					That ownership stays inspectable without making every instance carry duplicate method
+					closures and unused collections. Stable component and logging methods are shared, while
+					refs, list caches, contexts, lifecycle storage, task collections, and cancellation are
+					created when the component uses them. Call methods through <code>this</code>; an extracted
+					unbound component method does not retain its receiver.
+				</p>
+				<p>
+					Reactive ownership is lazy too. Effect-scope lifecycle methods are shared, and their
+					child, reaction, cleanup, and pause-waiter collections appear only when used. An intrinsic
+					property or text binding that observes no reactive dependency applies once and releases
+					its watcher; reactive expressions retain the same fine-grained update behavior.
+				</p>
+				<p>
+					Application-created error contexts retain the history their owner chooses. The framework's
+					process-global fallback keeps only the newest 100 unattached reports, preventing an
+					unlimited fallback history without changing application-owned diagnostics.
+				</p>
+				<p>
 					Readonly prop tracking traverses plain objects and collections. Opaque class instances
 					retain their authored identity when passed through reactive JSX, so resource methods can
 					mutate their own private state without being treated as writes to the prop binding.

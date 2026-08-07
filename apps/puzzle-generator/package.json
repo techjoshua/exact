@@ -1,0 +1,27 @@
+{
+	"name": "@exactjs/sample-puzzle-generator",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite --host 0.0.0.0",
+		"build": "vite build",
+		"build:standalone": "node scripts/build-standalone.mjs",
+		"pretypecheck": "npm run build -w @exactjs/compiler",
+		"typecheck": "node ../../packages/compiler/dist/cli.js --check .",
+		"test": "vitest run src"
+	},
+	"dependencies": {
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/vite-plugin": "^0.1.0"
+	},
+	"devDependencies": {
+		"@exactjs/compiler": "^0.1.0",
+		"@mlc-ai/web-llm": "^0.2.84",
+		"typescript": "^7.0.2",
+		"vite": "8.1.5",
+		"vitest": "4.1.10"
+	}
+}

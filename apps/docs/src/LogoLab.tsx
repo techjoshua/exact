@@ -129,7 +129,7 @@ export function LogoLab(this: Component<LogoState>) {
 				<label>
 					Preset
 					<select
-						value:change={this.state.preset}
+						value:onChange={this.state.preset}
 						onChange={() => {
 							this.state.source = presets[this.state.preset]!;
 							compile();
@@ -169,7 +169,7 @@ export function LogoLab(this: Component<LogoState>) {
 					<textarea
 						id="logo-source"
 						spellcheck="false"
-						value:input={this.state.source}
+						value:onInput={this.state.source}
 						onInput={() => {
 							this.state.preset = '';
 							compile();

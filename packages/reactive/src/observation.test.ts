@@ -17,8 +17,31 @@ import {
 	withEffectScope,
 	writeReactive
 } from './index.js';
+import { watchRetained } from './framework/watch.js';
 
 describe('@exactjs/reactive observation', () => {
+	it('returns ownership only while a watcher observes reactive dependencies', () => {
+		const state = reactive({ value: 1 });
+		const staticScope = createEffectScope();
+		expect(watchRetained(() => undefined, undefined, { scope: staticScope })).toBeUndefined();
+
+		const reactiveScope = createEffectScope();
+		let observe = true;
+		const stop = watchRetained(
+			() => {
+				if (observe) void state.value;
+			},
+			undefined,
+			{ scope: reactiveScope }
+		);
+		expect(stop).toBeTypeOf('function');
+
+		observe = false;
+		state.value++;
+		flushSync();
+		expect((reactiveScope as unknown as { reactions: Set<unknown> }).reactions.size).toBe(0);
+	});
+
 	it('retains a locally mutated keyed item when a later server snapshot has the same hashes', () => {
 		const state = reactive({
 			records: [

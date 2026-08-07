@@ -18,6 +18,12 @@ language tools, and custom artifact pipelines.
 npx exactc --help
 ```
 
+Use `npx exactc --check .` for no-emit application checking. It validates eXact source semantics,
+lowers compiler-owned TSX such as component value/callback bindings, and runs TypeScript semantic
+checking on the resulting representation. This preserves ordinary TypeScript errors without
+requiring raw `tsc` to understand eXact syntax. Check mode uses `tsconfig.json` in the current
+directory when present; pass `--project path/to/tsconfig.json` to select another configuration.
+
 The npm package selects the native compiler binary for the current operating system and
 architecture. Application developers do not need Go installed.
 
@@ -31,6 +37,15 @@ graph consolidates distributed task operations and boundaries once while retaini
 module-local dependencies and component identity on each artifact entry. Ephemeral semantic
 analysis is compiler-owned and is not part of compilation results or artifact graphs.
 Generated component, operation, continuation, and registry identities are opaque build output.
+
+Build and test adapters can call `inspectExactComponentBuildFacts()` for the same protocol-1
+descriptive component/import projection without emitting JavaScript. The result contains no marker
+interpretation, package trust, or authorization decision; adapters must join its authored edges to
+their own resolver provenance.
+
+Published libraries can use `@exactjs/compiler/component-library-build` to normalize and write the
+static protocol-1 package facts referenced by `exactComponentLibrary.build`. This writer validates
+component/export correspondence but deliberately contains no trust policy.
 
 ```ts
 const language = createExactLanguageService({ root, noEmit: true });

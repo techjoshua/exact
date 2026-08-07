@@ -30,3 +30,5 @@ the single authoritative state publication. The router does not depend on any vi
 package.
 
 See [routing compatibility](../../docs/react-router-compatibility.md).
+The package publishes inert component build facts for the consuming server bundler's
+[component-library policy](../../docs/component-library-trust.md).

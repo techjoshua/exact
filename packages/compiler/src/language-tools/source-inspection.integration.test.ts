@@ -2,10 +2,40 @@ import { describe, expect, it } from 'vitest';
 import { createExactLanguageService, type ExactSourceEntity } from '../index.js';
 
 describe('compiler source inspection', () => {
+	it('preserves component binding ownership and endpoint metadata', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		try {
+			const source = `type DialogProps = { open: boolean; onOpenChanged(open: boolean, reason?: string): void };
+declare function Dialog(props: DialogProps): unknown;
+export function Page(this: Component<{ dialogOpen: boolean }>) {
+	return () => <Dialog open:onOpenChanged={this.state.dialogOpen} />;
+}`;
+			await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 1, source }]);
+			const inspection = await service.inspect('Page.tsx');
+			const binding = inspection.components
+				.flatMap(flatten)
+				.find((entity) => entity.kind === 'binding');
+			expect(binding).toMatchObject({
+				name: 'open:onOpenChanged',
+				classification: {
+					kind: 'binding',
+					statePath: 'state.dialogOpen',
+					valueProp: 'open',
+					callbackProp: 'onOpenChanged',
+					callbackValueType: 'boolean',
+					additionalParameters: 1,
+					additionalParameterTypes: ['string | undefined']
+				}
+			});
+		} finally {
+			await service.dispose();
+		}
+	});
+
 	it('distinguishes the complete first-release component region vocabulary', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		const source =
-			'import { TaskContext } from "@exactjs/core";\nexport function Editor(this: Component<{ name: string }>) {\n\tthis.onMount(() => focus());\n\tasync function save(_task: TaskContext = TaskContext.latest()) {\n\t\tawait submit(this.state.name);\n\t}\n\tsave();\n\tconst upper = this.state.name.toUpperCase();\n\treturn () => (\n\t\t<input value:input={this.state.name} onInput={() => save()} aria-label={upper} />\n\t);\n}';
+			'import { TaskContext } from "@exactjs/core";\nexport function Editor(this: Component<{ name: string }>) {\n\tthis.onMount(() => focus());\n\tasync function save(_task: TaskContext = TaskContext.latest()) {\n\t\tawait submit(this.state.name);\n\t}\n\tsave();\n\tconst upper = this.state.name.toUpperCase();\n\treturn () => (\n\t\t<input value:onInput={this.state.name} onInput={() => save()} aria-label={upper} />\n\t);\n}';
 		await service.synchronize([{ kind: 'upsert', filename: 'Editor.tsx', version: 1, source }]);
 		const inspection = await service.inspect('Editor.tsx');
 		const kinds = inspection.components.flatMap(flatten).map((entity) => entity.kind);

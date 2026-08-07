@@ -1,6 +1,6 @@
 import type { Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import type { MotionEffect } from '@exactjs/motion';
 import { SudokuContext } from '../context.js';
 import type { Digit, GameMove, SudokuCell } from '../types.js';

@@ -1,6 +1,10 @@
 import { batch } from './internal/deps.js';
 
-import { currentEffectScope } from './internal/scopes.js';
+import {
+	currentEffectScope,
+	registerEffectScopeCleanup,
+	releaseEffectScopeCleanup
+} from './internal/scopes.js';
 
 import type { ReactiveValue, StopHandle } from './internal/types.js';
 
@@ -77,13 +81,13 @@ export function createExternalSource<T>(options: ExternalSourceOptions<T>): Exte
 		dispose() {
 			if (disposed) return;
 			disposed = true;
-			ownerScope?.cleanups.delete(source.dispose);
+			if (ownerScope) releaseEffectScopeCleanup(ownerScope, source.dispose);
 			const unsubscribe = stop;
 			stop = undefined;
 			unsubscribe?.();
 		}
 	};
-	ownerScope?.cleanups.add(source.dispose);
+	if (ownerScope) registerEffectScopeCleanup(ownerScope, source.dispose);
 	if (options.connect ?? !serverSnapshot) source.connect();
 	return Object.freeze(source);
 }

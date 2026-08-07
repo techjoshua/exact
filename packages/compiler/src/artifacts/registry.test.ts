@@ -55,6 +55,10 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).toContain('"/remote-exact"');
 		expect(module).toContain(`${JSON.stringify(actionId)}: {`);
 		expect(module).toContain('continuations: __exactContinuations');
+		expect(module).not.toContain('"serverContexts"');
+		expect(module).not.toContain('"serverContextWrites"');
+		expect(module).not.toContain('"publicContexts": []');
+		expect(module).not.toContain('"boundaries": []');
 		expect(module).not.toContain('"stateContracts"');
 		expect(module).not.toContain('"actionBoundaries"');
 	});

@@ -26,13 +26,6 @@ export function resolveNativeCompilerExecutable(): string {
 	if (override) return requireExecutable(path.resolve(override), 'EXACT_NATIVE_COMPILER');
 
 	const filename = process.platform === 'win32' ? 'exactc-native.exe' : 'exactc-native';
-	const packageName = nativeCompilerPlatformPackage();
-	try {
-		return require.resolve(`${packageName}/${filename}`);
-	} catch {
-		// Development checkouts build outside the publishable package tree.
-	}
-
 	const repositoryCandidate = path.resolve(
 		path.dirname(fileURLToPath(import.meta.url)),
 		'../../../..',
@@ -41,6 +34,13 @@ export function resolveNativeCompilerExecutable(): string {
 		filename
 	);
 	if (fs.existsSync(repositoryCandidate)) return repositoryCandidate;
+
+	const packageName = nativeCompilerPlatformPackage();
+	try {
+		return require.resolve(`${packageName}/${filename}`);
+	} catch {
+		// The platform package is optional so package managers can select one executable.
+	}
 
 	throw new Error(
 		`The eXact native compiler for ${process.platform}-${process.arch} is not installed. ` +

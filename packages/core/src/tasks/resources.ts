@@ -8,6 +8,7 @@ import {
 } from '@exactjs/reactive';
 
 import { combineAbortSignals, isAbortSignal } from './signals.js';
+import { isPromiseLike } from '../component/async-value.js';
 
 import type {
 	ComponentInstance,
@@ -193,14 +194,6 @@ export function drainTaskCleanupPromises(
 	const pending = taskCleanupPromises.get(signal);
 	if (!pending?.size) return undefined;
 	return Promise.all([...pending]).then(() => undefined);
-}
-
-function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-	return (
-		!!value &&
-		(typeof value === 'object' || typeof value === 'function') &&
-		typeof (value as PromiseLike<void>).then === 'function'
-	);
 }
 
 /** Owns a disposable value while preserving the value and expression result. */

@@ -22,7 +22,15 @@ The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves ge
 facades, applies client or server export conditions, supports HMR, and verifies that server-only
 code does not enter the final browser graph.
 
-Attributed plugin imports reached by an application bundle populate the shared bundle-local
+For `target: 'server'`, compiler-recorded component package requests are resolved and authorized
+before Vite loads their implementations. Configure trust once through `componentLibraries` in
+`exact.config.*`; successful builds emit server-private authorization and audit manifests under
+`.exact/`. Client-only package components do not pass through this server authorization gate.
+Automatic dependency discovery is disabled for server targets so unresolved component candidates
+cannot be prebundled before that gate; authorized packages still participate in ordinary Rollup
+chunking after resolution.
+
+Attributed enhancement imports reached by an application bundle populate the shared bundle-local
 enhancement catalog. The adapter redirects DOM, hydration, and SSR entry points through the common
 renderer facades that supply that catalog;
 the compiler does not consult or maintain a plugin registry for this decision.
@@ -37,4 +45,5 @@ instrumentation. Production client and server builds should share a stable build
 Disable both controls for hardened output.
 
 See [eXact DevTools](../../docs/devtools.md) and
-[component registries](../../docs/component-registries.md).
+[component registries](../../docs/component-registries.md). Component authorization permits
+in-process server execution and is not a JavaScript sandbox.

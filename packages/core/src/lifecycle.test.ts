@@ -68,4 +68,34 @@ describe('@exactjs/core lifecycle', () => {
 
 		expect(unmountCleanup).toHaveBeenCalledTimes(1);
 	});
+
+	it('shares stable methods and allocates lifecycle cancellation only when used', () => {
+		const first = createComponentInstance(function First() {
+			return () => null;
+		}, {});
+		const second = createComponentInstance(function Second() {
+			return () => null;
+		}, {});
+
+		expect(first.onMount).toBe(second.onMount);
+		expect(first.setContext).toBe(second.setContext);
+		expect(first.log.info).toBe(second.log.info);
+		first.markMounted();
+		expect(first.mountController).toBeUndefined();
+		expect(first.activationController).toBeUndefined();
+
+		let mountSignal!: AbortSignal;
+		let activationSignal!: AbortSignal;
+		const observed = createComponentInstance(function Observed(this: Component<{}>) {
+			this.onMount(({ signal }) => (mountSignal = signal));
+			this.onActivate(({ signal }) => (activationSignal = signal));
+			return () => null;
+		}, {});
+		observed.markMounted();
+		expect(mountSignal.aborted).toBe(false);
+		expect(activationSignal.aborted).toBe(false);
+		observed.unmount();
+		expect(mountSignal.aborted).toBe(true);
+		expect(activationSignal.aborted).toBe(true);
+	});
 });

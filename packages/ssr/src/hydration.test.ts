@@ -41,6 +41,76 @@ describe('@exactjs/ssr hydration', () => {
 		expect(payload.state.records.itemHashes).toHaveLength(2);
 	});
 
+	it('serializes only the compact component authorization identity', () => {
+		const script = renderHydrationScript({
+			componentAuthorization: {
+				protocol: 1,
+				buildKey: 'build-one',
+				fingerprint: 'authorization-one'
+			}
+		});
+		const payload = JSON.parse(script.match(/>(.*)<\/script>/s)![1]) as any;
+
+		expect(payload.componentAuthorization).toEqual({
+			protocol: 1,
+			buildKey: 'build-one',
+			fingerprint: 'authorization-one'
+		});
+		expect(script).not.toContain('packages');
+	});
+
+	it('omits empty hydration metadata without removing authored empty state', () => {
+		const script = renderHydrationScript({
+			endpoints: { invocations: {}, boundaries: {} },
+			state: { items: [], selection: {} },
+			publicContexts: {},
+			continuations: {
+				refresh: {
+					id: 'refresh',
+					componentId: 'test:refresh',
+					kind: 'task',
+					readiness: 'nonblocking',
+					dependencies: [],
+					stateReads: [],
+					stateWrites: [],
+					publicContexts: [],
+					serverContexts: ['PrivateRepository'],
+					contextWrites: [],
+					serverContextWrites: ['PrivateStatus'],
+					boundaries: []
+				}
+			},
+			resumptions: [
+				{ componentId: 'test:refresh', values: {}, contexts: {}, settledContinuations: [] }
+			]
+		});
+		const payload = JSON.parse(script.match(/>(.*)<\/script>/s)![1]) as any;
+
+		expect(payload).not.toHaveProperty('endpoints');
+		expect(payload).not.toHaveProperty('publicContexts');
+		expect(payload.state).toEqual({ items: [], selection: {} });
+		expect(payload.continuations.refresh).toEqual({
+			id: 'refresh',
+			componentId: 'test:refresh',
+			kind: 'task',
+			readiness: 'nonblocking'
+		});
+		expect(payload.resumptions).toEqual([{ componentId: 'test:refresh' }]);
+	});
+
+	it('rejects component authorization prepared for another build', () => {
+		expect(() =>
+			renderHydrationScript({
+				buildKey: 'build-one',
+				componentAuthorization: {
+					protocol: 1,
+					buildKey: 'build-two',
+					fingerprint: 'authorization-two'
+				}
+			})
+		).toThrow('does not match the hydration build key');
+	});
+
 	it('renders compiled cells and dynamic children with hydration markers', () => {
 		function Panel(this: Component<{ show: boolean }>) {
 			this.state.show = true;

@@ -71,7 +71,7 @@ function activatePlannedTarget(context: SsrContext, vnode: VNode): VNode {
 	for (let index = ordered.length - 1; index >= 0; index--) {
 		const entry = ordered[index]!;
 		const component = context.enhancementCatalog!.get(entry.identity)!;
-		chain = pluginVNode(context, component, entry, chain, leaf.domain);
+		chain = enhancementVNode(context, component, entry, chain, leaf.domain);
 	}
 	return chain;
 }
@@ -91,7 +91,7 @@ function routingOnlyEntry(entry: EnhancementEntry): boolean {
 	return entry.root !== undefined && Object.keys(entry.props).length === 0;
 }
 
-function pluginVNode(
+function enhancementVNode(
 	context: SsrContext,
 	component: ComponentFunction<any, Record<string, unknown>>,
 	entry: EnhancementEntry,

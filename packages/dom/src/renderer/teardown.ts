@@ -10,6 +10,7 @@ import { clearElementProps } from '../props.js';
 import { componentMounts } from '../state.js';
 import type { Mounted } from '../types.js';
 import { disposeMountedComponentRoot } from './component-roots.js';
+import { clearTargetedIntrinsicProps } from './target-contributions.js';
 
 /** Provides the canonical teardown failure value. */
 export const teardownFailure = createCleanupFailure;
@@ -67,8 +68,11 @@ export function unmountMounted(mounted: Mounted): void {
 			attemptTeardown(failure, () => current.mounted.instance!.unmount());
 			attemptTeardown(failure, () => disposeMountedComponentRoot(current.mounted.instance!));
 		}
+		if (current.mounted.targetBoundary?.release)
+			attemptTeardown(failure, current.mounted.targetBoundary.release);
 		if (current.mounted.stop) attemptTeardown(failure, current.mounted.stop);
 		if (current.mounted.dom instanceof Element) {
+			attemptTeardown(failure, () => clearTargetedIntrinsicProps(current.mounted));
 			attemptTeardown(failure, () => clearElementProps(current.mounted.dom as Element));
 			attemptTeardown(failure, () => clearElementOwner(current.mounted.dom as Element));
 		}

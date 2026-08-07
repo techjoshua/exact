@@ -1,0 +1,34 @@
+{
+	"name": "@exactjs/component-library-policy",
+	"version": "0.1.0",
+	"description": "Shared build-time authorization policy for eXact component libraries",
+	"type": "module",
+	"files": [
+		"README.md",
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"node": "./dist/index.js",
+			"default": "./dist/index.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"dependencies": {
+		"@exactjs/compiler": "^0.1.0",
+		"@exactjs/config": "^0.1.0",
+		"semver": "^7.8.5"
+	},
+	"scripts": {
+		"build": "tsc6 -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

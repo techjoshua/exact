@@ -5,6 +5,7 @@ import {
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	createComponentInstance,
@@ -64,6 +65,12 @@ import {
 import { renderNativeSuspenseSync } from './native-boundaries.js';
 import { activateSsrEnhancements } from './enhancements.js';
 import * as syncComponents from './sync-component.js';
+import { applySsrTargetContributions } from './target-contributions.js';
+import { renderChildren } from './sync-children.js';
+import { renderSsrProgramChunks, renderSsrProgramString } from './render-program.js';
+import { createSsrChunkMarker } from './sync-markers.js';
+
+export { renderChildren } from './sync-children.js';
 
 const syncComponentOperations = {
 	renderChildren,
@@ -85,15 +92,18 @@ export function* renderVNodeChunks(
 		yield* renderVNodeChunks(context, enhanced, parent, depth);
 		return;
 	}
-	const marked = function* (id: string, content: () => Generator<string>): Generator<string> {
-		if (context.markers) yield `<!--exact:${id}-->`;
-		yield* content();
-		if (context.markers) yield `<!--/exact:${id}-->`;
-	};
+	const marked = createSsrChunkMarker(context);
 
 	if (isCellVNode(vnode)) {
 		const id = markerId(context, 'cell', undefined, vnode.key);
 		yield* marked(id, () => renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1));
+		return;
+	}
+	const programChunks = renderSsrProgramChunks(context, vnode, (fallback) =>
+		renderVNodeChunks(context, fallback, parent, depth + 1)
+	);
+	if (programChunks) {
+		yield* programChunks;
 		return;
 	}
 	if (vnode.type === Text) {
@@ -155,6 +165,15 @@ export function* renderVNodeChunks(
 					renderVNodeChunks(context, child, parent, depth + 1)
 				);
 			}
+		});
+		return;
+	}
+	if (vnode.type === Target) {
+		applySsrTargetContributions(context, vnode, parent);
+		const id = markerId(context, 'target', undefined, vnode.key);
+		yield* marked(id, function* () {
+			for (const child of vnode.children)
+				yield* renderChildChunks(context, child, parent, depth + 1);
 		});
 		return;
 	}
@@ -285,34 +304,6 @@ export function* renderChildChunks(
 	}
 }
 
-/** Transforms children into its required representation. */
-export function renderChildren(
-	context: SsrContext,
-	children: readonly Child[],
-	parent?: ComponentInstance<any>
-): string {
-	const html: string[] = [];
-	let previousWasText = false;
-	for (const child of children) {
-		let rendered: string;
-		if (isVNode(child)) rendered = renderVNode(context, child, parent);
-		else {
-			countSsrNode(context);
-			if (child === null || child === undefined || child === false || child === true) rendered = '';
-			else {
-				claimRootText(context);
-				rendered = escapeText(String(unwrap(child)));
-			}
-		}
-		const isText = !isVNode(child) && rendered !== '';
-		if (context.textSeparators && isText && previousWasText) html.push('<!-- -->');
-		if (rendered !== '') html.push(rendered);
-		if (isVNode(child)) previousWasText = false;
-		else if (isText) previousWasText = true;
-	}
-	return boundedJoin(context, html);
-}
-
 /** Transforms vnode into its required representation. */
 export function renderVNode(
 	context: SsrContext,
@@ -340,6 +331,10 @@ export function renderVNodeInner(
 			renderVNode(context, getCellVNode(vnode), parent)
 		);
 	}
+	const program = renderSsrProgramString(context, vnode, (fallback) =>
+		renderVNode(context, fallback, parent)
+	);
+	if (program !== undefined) return program;
 
 	if (vnode.type === Text) {
 		return escapeText(String(unwrap(vnode.props.value) ?? ''));
@@ -394,6 +389,13 @@ export function renderVNodeInner(
 			}
 			return boundedJoin(context, html);
 		});
+	}
+
+	if (vnode.type === Target) {
+		applySsrTargetContributions(context, vnode, parent);
+		return markerPair(context, markerId(context, 'target', undefined, vnode.key), () =>
+			renderChildren(context, vnode.children, parent)
+		);
 	}
 
 	if (vnode.type === Dynamic) {

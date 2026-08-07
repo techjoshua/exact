@@ -614,7 +614,7 @@ func (builder *partitionPlanBuilder) addEnhancementComponents(
 	components []Component,
 	enhancements enhancementImports,
 ) {
-	if len(enhancements.bindings) == 0 {
+	if len(enhancements.applications) == 0 {
 		return
 	}
 	candidates := activeComponentCandidates(sourceFile)
@@ -627,32 +627,24 @@ func (builder *partitionPlanBuilder) addEnhancementComponents(
 			continue
 		}
 		owner := builder.componentNodes[components[ownerIndex].ID]
-		seen := make(map[string]struct{})
 		parent := owner
 		priority := 1
-		for _, name := range jsxAttributeNames(element.node) {
-			separator := strings.IndexByte(name, ':')
-			if separator <= 0 {
-				continue
-			}
-			binding, exists := enhancements.bindings[name[:separator]]
-			if !exists {
-				continue
-			}
-			if _, exists := seen[binding.identity]; exists {
-				continue
-			}
-			seen[binding.identity] = struct{}{}
+		attributes := jsxOpeningAttributes(element.node)
+		if attributes == nil {
+			continue
+		}
+		application := enhancements.applications[attributes.Pos()]
+		for _, component := range application.components {
 			id := exactStableID(
 				builder.filename,
 				"partition",
-				binding.identity,
+				component.identity,
 				strconv.Itoa(element.node.Pos()),
 			)
 			builder.addNode(PartitionPlanNode{
 				ID:                id,
 				Kind:              "enhancement-component",
-				ComponentContract: binding.identity,
+				ComponentContract: component.identity,
 				OwnerComponent:    id,
 				Placement:         "either",
 				ArtifactTargets:   []string{"client", "server"},

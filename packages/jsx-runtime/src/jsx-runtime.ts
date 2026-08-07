@@ -114,6 +114,7 @@ export namespace JSX {
 	export type StyleObject = Record<string, StyleValue>;
 	export interface IntrinsicAttributes {
 		key?: string;
+		[binding: `${string}:${string}`]: unknown;
 	}
 	export interface ElementChildrenAttribute {
 		children: {};
@@ -128,9 +129,10 @@ export namespace JSX {
 		disabled?: unknown;
 		checked?: unknown;
 		value?: unknown;
-		'value:input'?: unknown;
-		'value:change'?: unknown;
-		'checked:change'?: unknown;
+		'value:onInput'?: unknown;
+		'value:onChange'?: unknown;
+		'checked:onChange'?: unknown;
+		'open:onToggle'?: unknown;
 		[attributeName: string]: unknown;
 	}
 
@@ -264,6 +266,7 @@ export namespace JSX {
 	};
 
 	export interface IntrinsicElements extends HTMLIntrinsicElements {
+		_target: IntrinsicElementProps<EventTarget> & { children: Child | Child[] };
 		[elementName: string]: IntrinsicElementProps<any>;
 	}
 }

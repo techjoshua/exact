@@ -1,0 +1,146 @@
+# JavaScript performance measurement
+
+The repository's opt-in performance profile separates correctness checks from repeatable framework
+measurements. The tracked
+[`javascript-framework.json`](performance-baselines/javascript-framework.json) baseline records the
+current client, server, wire, heap, and production-fixture build evidence. It is a comparison point,
+not a machine-independent release budget.
+
+## Commands
+
+Run the complete framework baseline after building the repository:
+
+```sh
+npm run benchmark:framework
+```
+
+The release performance profile builds the repository first and then runs the framework, reactive,
+compiler, DevTools, and React-compatibility benchmarks without competing correctness work:
+
+```sh
+npm run performance:check
+```
+
+Update the tracked framework baseline only from a complete Node and Chromium run:
+
+```sh
+node scripts/benchmark-framework-performance.mjs --output=docs/performance-baselines/javascript-framework.json
+```
+
+`EXACT_FRAMEWORK_BENCH_SAMPLES` controls independent process samples and defaults to `5`.
+`EXACT_FRAMEWORK_BENCH_WARMUPS` controls per-process warmups and defaults to `2`. `--node-only` and
+`--scenario=<name>` are diagnostic shortcuts; a run using either incomplete mode cannot write a
+tracked baseline. `--keep-temporary` retains generated fixture artifacts only for compiler-output
+diagnosis.
+
+The focused reactive command includes the repaired compiled keyed-list DOM gate:
+
+```sh
+npm run benchmark:reactive
+```
+
+Dependent-foundation candidates are measured one at a time in isolated Node processes:
+
+```sh
+npm run benchmark:performance-foundations -- --scenario=render-plan
+```
+
+The supported scenario names are `render-plan`, `async-ssr`, `hydration-publication`, `transport`,
+and `build-host`. `EXACT_PERFORMANCE_FOUNDATION_SAMPLES` controls outer process samples;
+`EXACT_PERFORMANCE_INNER_SAMPLES` controls observations inside each process. These exploratory
+measurements become tracked release evidence only when their proposal records an accepted result
+and the production implementation retains the same workload as a before/after guard.
+
+The completed dependent-foundation evidence is tracked in
+[`dependent-foundations.json`](performance-baselines/dependent-foundations.json) and can be
+reproduced after a repository build with:
+
+```sh
+node scripts/benchmark-performance-foundations.mjs --output=docs/performance-baselines/dependent-foundations.json
+```
+
+Remaining stage-16 candidates use the focused production and representation fixtures in
+`scripts/performance/remaining-optimizations.mjs`. Their five-process measurements, counter-metrics,
+environment, and accept/reject decisions are tracked in
+[`remaining-optimizations.json`](performance-baselines/remaining-optimizations.json). A measured
+rejection is final for the recorded profile; it leaves no production implementation behind.
+
+## Measurement contract
+
+The framework suite:
+
+- compiles its TSX fixtures through the production Vite adapter rather than branding a handwritten
+  benchmark component as a substitute for compiler output;
+- treats fixture compilation, component construction, scenario assertions, browser startup, and
+  missing structured output as setup failures rather than slow samples;
+- records medians, nearest-rank p95, minimum, and maximum values from fresh Node or Chromium
+  processes;
+- performs warmups inside each sample process so one sample's optimized state and garbage
+  collection cannot contaminate another sample;
+- records Node, operating system, CPU, Chromium version, sample count, and warmup count;
+- reports raw, gzip, and Brotli sizes for built artifacts and representative SSR and operation
+  payloads;
+- uses portable elapsed-time and heap measurements for release evidence; and
+- exposes garbage collection only for the repeated mount/unmount plateau scenario, without making
+  an exact engine-specific byte count a pass condition.
+
+Production fixture builds are also repeated in clean Node processes. Their emitted raw and
+compressed byte sizes must be deterministic before the suite reports a build baseline.
+
+## Scenario coverage
+
+| Area                 | Scenarios                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Startup and mounting | Static and dynamic mount, compiled module evaluation, production fixture build, and raw/gzip/Brotli artifact sizes.                                                            |
+| Hydration            | Renderer adoption of matching SSR-style root markers while retaining existing DOM identity.                                                                                    |
+| Interaction          | First delegated click, scalar publication, branch replacement, and 1,000-item keyed rotation.                                                                                  |
+| Update matrices      | Keyed unchanged/change/sparse/rotation/append/prepend/truncate/splice/replacement, mixed-priority scheduling, and a focused DOM transaction that protects focus and selection. |
+| Framework boundaries | Enhancement target reroute, Activity park/reactivate, Suspense settlement, and mixed-tree mount/teardown.                                                                      |
+| Component ownership  | Creation/disposal of 2,000 compiled instances, inspectable state/API access, and repeated DOM mount/unmount heap plateaus.                                                     |
+| SSR                  | Synchronous trees, CPU-bound async work, I/O-bound async siblings, and progressive first-chunk/completion timing.                                                              |
+| Server protocol      | Ordinary operation requests and streaming batches with representative payloads and compressed/uncompressed sizes.                                                              |
+| Browser              | Every client/component scenario above in the current Playwright Chromium build, with a new browser process per sample.                                                         |
+
+The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
+size and generation cost have their own scenarios, which keeps the two costs attributable.
+
+Hydration-publication reports separate application-payload, framework-envelope, and whole-response
+sizes. Component names, boundary identities, prop schemas, and prop values are application data;
+they are not charged to framework size merely because the compact representation stores them in a
+response table. Whole-response raw/gzip/Brotli sizes remain required transport counter-metrics so
+an envelope optimization cannot hide an application-facing network regression.
+
+The August 6, 2026 production-path run for 200 boundaries measured the framework-owned raw envelope
+falling from 18,866 to 5,204 bytes. This envelope includes generated coordinates and attribute
+delimiters but excludes the application-owned table values. Its isolated compression grew from 204
+to 542 gzip bytes and 92 to 342 Brotli bytes because unique coordinates compress less readily than
+repeated attribute names. The separately reported application payload was 20,404 raw bytes.
+Whole-response compression remains the authoritative transport counter-metric: raw and Brotli
+improved, while gzip grew by 37 bytes. Compressed category measurements are diagnostic rather than
+additive because a compressor shares its dictionary across application and framework bytes.
+
+## Baseline and regression policy
+
+The tracked JSON is authoritative measurement evidence for its recorded environment. Compare a
+candidate on the same machine and software versions when possible. Investigate changes in the
+primary metric together with bundle, payload, heap, and tail-latency counter-metrics; do not accept
+a gain that merely moves work into startup or retained state.
+
+The compiled 1,000-item DOM rotation remains a coarse safety gate at a 2,000 ms p95. That generous
+limit detects construction failures, runaway reconciliation, and gross regressions without
+pretending noisy local timing is a precise cross-machine budget. Add tighter release budgets only
+after repeated baselines establish normal variance on supported environments.
+
+Allocation experiments should report both their focused representation measurement and a
+production-compiled DOM fixture. Empty scope or component populations isolate baseline ownership
+cost, while static, mixed-lifecycle, and keyed-list fixtures detect work shifted into mounting,
+patching, or teardown. Do not compare a candidate directly with an older tracked scenario when
+intervening renderer features materially changed that workload; first establish a current
+same-tree baseline or describe the result as cumulative.
+
+For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
+target median by at least 10%, and retained or peak heap must improve by at least 15%. No
+representative counter-metric median may regress by more than 3%, p95 by more than 5%, or compressed
+emitted bytes by more than 1%. Correctness, cleanup, cancellation, security, and deterministic
+output remain unconditional gates. The dominant `Mounted` experiment instead uses its explicit 5%
+mixed-tree/keyed-workload, neutral-teardown, and at-most-10%-heap-growth gate.
