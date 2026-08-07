@@ -56,10 +56,17 @@ export function SamplesPage(this: Component<{}>) {
 				<p>
 					For word searches and crosswords, an optional WebLLM helper can turn a topic into editable
 					puzzle material. After the user opts in, the app loads a pinned WebLLM runtime from
-					jsDelivr and downloads its Qwen2.5 0.5B model from Hugging Face. The browser caches the
-					model and runs it locally through WebGPU. Generated JSON crosses the same normalization
-					and safety boundary as manually entered words, and the cached model can be removed
-					afterward.
+					jsDelivr. A selector offers 11 curated models below a 1.5 GiB download, including Gemma 3
+					1B, and shows both approximate download and GPU-memory costs. The browser downloads the
+					selected model from Hugging Face, caches it separately, and runs it locally through
+					WebGPU. Generated JSON crosses the same normalization and safety boundary as manually
+					entered words, and the selected cached model can be removed afterward.
+				</p>
+				<p>
+					Word searches and crosswords keep separate prompt templates. Authors can reveal and edit
+					the current template, place the topic with <code>{'{{topic}}'}</code>, or restore the
+					shipped version. Crossword output is rejected when a clue repeats its answer or embeds it
+					in a longer word, with one automatic local repair attempt before the error is shown.
 				</p>
 				<Callout title="One genuinely portable file">
 					The standalone artifact includes the application, styles, compiler output, and client

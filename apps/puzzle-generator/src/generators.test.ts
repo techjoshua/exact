@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
 	aiWordListPrompt,
 	aiWordListSchema,
+	defaultAiPromptTemplate,
 	formatAiWordListResponse
 } from './ai-word-list-format.js';
+import { defaultLocalAiModel, localAiModels } from './ai-models.js';
 import { generateCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
 import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
@@ -79,6 +81,14 @@ describe('crossword generation', () => {
 });
 
 describe('document and input contracts', () => {
+	it('offers distinct local chat models below the advertised download ceiling', () => {
+		expect(localAiModels).toHaveLength(11);
+		expect(new Set(localAiModels.map((model) => model.id)).size).toBe(localAiModels.length);
+		expect(localAiModels.every((model) => model.downloadMb < 1536)).toBe(true);
+		expect(localAiModels.some((model) => model.label === 'Gemma 3 1B')).toBe(true);
+		expect(localAiModels.some((model) => model.id === defaultLocalAiModel)).toBe(true);
+	});
+
 	it('validates and formats structured local-AI puzzle material', () => {
 		const wordSearch = formatAiWordListResponse(
 			JSON.stringify({
@@ -102,7 +112,15 @@ describe('document and input contracts', () => {
 			'crossword'
 		);
 		expect(crossword).toContain('ORBIT - Path around a planet');
-		expect(aiWordListPrompt('space', 'crossword')).toContain('Output JSON only');
+		const crosswordTemplate = defaultAiPromptTemplate('crossword');
+		expect(crosswordTemplate).toContain('{{topic}}');
+		expect(crosswordTemplate).toContain('conventional American-style crossword');
+		expect(crosswordTemplate).toContain('Never include the answer');
+		expect(aiWordListPrompt('space', 'crossword')).toContain('about "space"');
+		expect(aiWordListPrompt('space', 'crossword')).not.toContain('{{topic}}');
+		expect(aiWordListPrompt('space', 'crossword', 'Write short clues.')).toBe(
+			'Write short clues.\nTopic: "space"'
+		);
 		expect(JSON.parse(aiWordListSchema('crossword')).required).toEqual(['entries']);
 	});
 
@@ -114,6 +132,21 @@ describe('document and input contracts', () => {
 				'word-search'
 			)
 		).toThrow(/rejected/i);
+		expect(() =>
+			formatAiWordListResponse(
+				JSON.stringify({
+					entries: [
+						{ word: 'BREAK', clue: 'Break the habit, or so?' },
+						{ word: 'PROGRAM', clue: 'Programme your code with instructions' },
+						{ word: 'INPUT', clue: 'Information supplied to software' },
+						{ word: 'SYNTAX', clue: 'Grammar of a programming language' },
+						{ word: 'CODE', clue: 'Instructions written for a computer' },
+						{ word: 'REPEAT', clue: 'Do another time' }
+					]
+				}),
+				'crossword'
+			)
+		).toThrow(/repeated answers.*BREAK.*PROGRAM/i);
 	});
 
 	it('normalizes words, rejects blocked input, and emits separate SVG documents', () => {

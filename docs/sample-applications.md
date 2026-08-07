@@ -30,11 +30,21 @@ crossword generation reports disconnected words rather than claiming they were p
 
 Word searches and crosswords also expose an explicit local-AI opt-in. On demand, the app and its
 module worker load the pinned WebLLM 0.2.84 runtime from jsDelivr's `esm.run` endpoint rather than
-bundling it. On first use the browser downloads the approximately 290 MB quantized Qwen2.5 0.5B
-model from Hugging Face, reports progress, and caches it. Inference stays on the user's WebGPU
-device; topics and generated puzzle material are not uploaded. Generated JSON is normalized and
-safety-checked through the ordinary word-input boundary. A post-download control can remove the
-cached model, and unsupported devices retain the complete manual workflow.
+bundling it. Authors can choose among 11 curated chat/instruct models whose downloads remain below
+1.5 GiB, including Gemma 3 1B. The selector reports approximate download and GPU-memory costs;
+Qwen 2.5 0.5B remains the 276 MB default. The browser reports download progress and caches each
+model separately. Inference stays on the user's WebGPU device; topics and generated puzzle material
+are not uploaded. Generated JSON is normalized and safety-checked through the ordinary word-input
+boundary. A post-download control can remove the selected cached model, and unsupported devices
+retain the complete manual workflow.
+
+Each word-based puzzle owns an editable local-AI prompt template. Authors can reveal it with **Show
+prompt**, use `{{topic}}` to place the topic, and restore the shipped version with **Reset template**.
+The default crossword template requires short conventional clues, direct topic relevance, and an
+accurate answer/clue pairing instead of self-referential definitions. Deterministic validation
+rejects generated clues that contain their answer or a longer form containing it. One automatic
+repair pass gives the local model the rejected output and exact leaks before the helper reports a
+failure.
 
 ## Other complete samples
 

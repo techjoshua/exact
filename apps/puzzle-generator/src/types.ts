@@ -1,3 +1,5 @@
+import type { LocalAiModelId } from './ai-models.js';
+
 /** The kinds of printable puzzle supported by the application. */
 export type PuzzleKind = 'sudoku' | 'word-search' | 'crossword';
 
@@ -103,11 +105,15 @@ export type PuzzleGeneratorState = {
 	wordText: string;
 	crosswordText: string;
 	aiTopic: string;
+	aiWordSearchPrompt: string;
+	aiCrosswordPrompt: string;
+	aiPromptVisible: boolean;
 	aiSupported: boolean;
 	aiBusy: boolean;
 	aiProgress: number;
 	aiStatus: string;
 	aiError?: string;
+	aiModel: LocalAiModelId;
 	aiModelReady: boolean;
 	style: PuzzleStyle;
 	documents: PuzzleDocuments;

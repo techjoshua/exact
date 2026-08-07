@@ -1,4 +1,5 @@
 import type { Difficulty, PuzzleKind } from '../types.js';
+import type { LocalAiModelId } from '../ai-models.js';
 import { AiWordControls } from './AiWordControls.jsx';
 
 type GeneratorControlsProps = {
@@ -10,11 +11,15 @@ type GeneratorControlsProps = {
 	columns: number;
 	wordText: string;
 	aiTopic: string;
+	aiPromptTemplate: string;
+	aiDefaultPromptTemplate: string;
+	aiPromptVisible: boolean;
 	aiSupported: boolean;
 	aiBusy: boolean;
 	aiProgress: number;
 	aiStatus: string;
 	aiError?: string;
+	aiModel: LocalAiModelId;
 	aiModelReady: boolean;
 	onKind(kind: PuzzleKind): void;
 	onDifficulty(difficulty: Difficulty): void;
@@ -24,7 +29,11 @@ type GeneratorControlsProps = {
 	onColumns(columns: number): void;
 	onWordText(wordText: string): void;
 	onAiTopic(topic: string): void;
+	onAiPromptTemplate(template: string): void;
+	onAiPromptVisible(visible: boolean): void;
+	onAiResetPrompt(): void;
 	onAiGenerate(): void;
+	onAiModel(model: LocalAiModelId): void;
 	onAiCancel(): void;
 	onAiRemoveModel(): void;
 	onRandomize(): void;
@@ -135,14 +144,22 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 					<AiWordControls
 						kind={props.kind}
 						topic={props.aiTopic}
+						promptTemplate={props.aiPromptTemplate}
+						defaultPromptTemplate={props.aiDefaultPromptTemplate}
+						promptVisible={props.aiPromptVisible}
 						supported={props.aiSupported}
 						busy={props.aiBusy}
 						progress={props.aiProgress}
 						status={props.aiStatus}
 						error={props.aiError}
+						model={props.aiModel}
 						modelReady={props.aiModelReady}
 						onTopic={props.onAiTopic}
+						onPromptTemplate={props.onAiPromptTemplate}
+						onPromptVisible={props.onAiPromptVisible}
+						onResetPrompt={props.onAiResetPrompt}
 						onGenerate={props.onAiGenerate}
+						onModel={props.onAiModel}
 						onCancel={props.onAiCancel}
 						onRemoveModel={props.onAiRemoveModel}
 					/>

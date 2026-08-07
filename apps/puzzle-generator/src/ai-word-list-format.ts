@@ -4,6 +4,35 @@ import { validateWords } from './words.js';
 /** Puzzle kinds for which the local language model can author source material. */
 export type AiPuzzleKind = Exclude<PuzzleKind, 'sudoku'>;
 
+const topicToken = '{{topic}}';
+const wordSearchPromptTemplate = `Create 10 unique word-search words about "{{topic}}".
+Use familiar answers of 3-12 English letters. Remove spaces, punctuation, and accents from answers. Avoid proper nouns unless essential, offensive language, and near-duplicates.
+Return JSON with a words array of strings. Output JSON only.`;
+const crosswordPromptTemplate = `Create 10 unique conventional American-style crossword answers and clues about "{{topic}}".
+Every answer must be directly and recognizably related to the requested topic. Use familiar answers of 3-12 English letters. Remove spaces, punctuation, and accents from answers. Avoid proper nouns unless essential, offensive language, and near-duplicates. Choose answers that share letters so they can form one connected crossword.
+Write short crossword clues, not explanatory sentences or dictionary-style definitions. Each clue must be 2-8 words and accurately lead to its paired answer, not a different entry. Use a synonym, concise description, fill-in-the-blank, wordplay, or familiar association. Never include the answer, an inflected or plural form of it, a close spelling variant, or a longer word containing it. Avoid frames such as "is," "means," "something that," and "used to."
+Before responding, check that every answer belongs to the topic, every clue uniquely fits its paired answer, and no clue reveals its answer. Replace any entry that fails a check. Do not copy words or clues from these instructions.
+Return JSON with an entries array. Every entry must have a word and a concise, accurate clue. Output JSON only.`;
+
+/** Identifies otherwise structured crossword output whose clues reveal their answers. */
+export class AiClueLeakError extends Error {
+	readonly answers: readonly string[];
+
+	/** Records the normalized answers exposed by one otherwise structured model response. */
+	constructor(answers: readonly string[]) {
+		super(
+			`The local model repeated answers in their clues: ${answers.join(', ')}. Try again or edit the prompt template.`
+		);
+		this.name = 'AiClueLeakError';
+		this.answers = answers;
+	}
+}
+
+/** Returns the editable default prompt template for one local-AI puzzle kind. */
+export function defaultAiPromptTemplate(kind: AiPuzzleKind): string {
+	return kind === 'crossword' ? crosswordPromptTemplate : wordSearchPromptTemplate;
+}
+
 /** Returns the constrained JSON schema used for local model output. */
 export function aiWordListSchema(kind: AiPuzzleKind): string {
 	const items =
@@ -34,12 +63,16 @@ export function aiWordListSchema(kind: AiPuzzleKind): string {
 }
 
 /** Builds a compact instruction tuned for printable puzzle source material. */
-export function aiWordListPrompt(topic: string, kind: AiPuzzleKind): string {
-	const output =
-		kind === 'crossword'
-			? 'Return JSON with an entries array. Every entry must have a word and a concise, accurate clue.'
-			: 'Return JSON with a words array of strings.';
-	return `Create 10 unique ${kind === 'crossword' ? 'crossword answers and clues' : 'word-search words'} about "${topic.trim()}". Use familiar answers of 3-12 English letters. Remove spaces, punctuation, and accents from answers. Avoid proper nouns unless essential, offensive language, and near-duplicates. ${kind === 'crossword' ? 'Choose answers that share letters so they can form one connected crossword. Do not put the answer itself in its clue. ' : ''}${output} Output JSON only.`;
+export function aiWordListPrompt(
+	topic: string,
+	kind: AiPuzzleKind,
+	template = defaultAiPromptTemplate(kind)
+): string {
+	const normalizedTemplate = template.trim();
+	const serializedTopic = topic.trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+	return normalizedTemplate.includes(topicToken)
+		? normalizedTemplate.replaceAll(topicToken, serializedTopic)
+		: `${normalizedTemplate}\nTopic: "${serializedTopic}"`;
 }
 
 /**
@@ -66,6 +99,7 @@ export function formatAiWordListResponse(source: string, kind: AiPuzzleKind): st
 	if (!Array.isArray(parsed.entries))
 		throw new Error('The local model did not return crossword entries.');
 	const entries = new Map<string, string>();
+	const leakingAnswers: string[] = [];
 	for (const candidate of parsed.entries) {
 		if (
 			!isRecord(candidate) ||
@@ -75,7 +109,14 @@ export function formatAiWordListResponse(source: string, kind: AiPuzzleKind): st
 			continue;
 		const word = normalizeAnswer(candidate.word);
 		const clue = candidate.clue.trim().replace(/\s+/g, ' ');
+		if (word && clue && clueContainsAnswer(word, clue)) {
+			leakingAnswers.push(word);
+			continue;
+		}
 		if (word && clue && clue.length <= 160 && !entries.has(word)) entries.set(word, clue);
+	}
+	if (leakingAnswers.length) {
+		throw new AiClueLeakError([...new Set(leakingAnswers)]);
 	}
 	validateAiWords([...entries.keys()]);
 	return [...entries].map(([word, clue]) => `${word} - ${clue}`).join('\n');
@@ -105,6 +146,15 @@ function normalizeAnswer(source: string): string {
 		.normalize('NFKD')
 		.replace(/[^a-z]/gi, '')
 		.toUpperCase();
+}
+
+function clueContainsAnswer(answer: string, clue: string): boolean {
+	const normalizedAnswer = answer.toLowerCase();
+	return clue
+		.normalize('NFKD')
+		.toLowerCase()
+		.split(/[^a-z]+/)
+		.some((token) => token.includes(normalizedAnswer));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

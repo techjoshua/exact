@@ -472,6 +472,33 @@ input[type='range'] {
 	line-height: 1.45;
 }
 
+.ai-prompt-toolbar {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 10px;
+}
+
+.ai-prompt-editor {
+	display: grid;
+	gap: 6px;
+	margin-top: 10px;
+}
+
+.ai-prompt-editor textarea {
+	min-height: 210px;
+	resize: vertical;
+	font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+	font-size: 10px;
+	line-height: 1.5;
+}
+
+.ai-prompt-editor small {
+	color: #7a827d;
+	font-size: 10px;
+	line-height: 1.4;
+}
+
 .ai-progress {
 	display: grid;
 	gap: 6px;
