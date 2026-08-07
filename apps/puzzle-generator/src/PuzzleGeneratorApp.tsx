@@ -69,6 +69,8 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	this.state.aiWordSearchPrompt = defaultAiPromptTemplate('word-search');
 	this.state.aiCrosswordPrompt = defaultAiPromptTemplate('crossword');
 	this.state.aiPromptVisible = false;
+	this.state.aiResponse = '';
+	this.state.aiResponseVisible = false;
 	this.state.aiSupported =
 		typeof navigator !== 'undefined' && 'gpu' in navigator && globalThis.isSecureContext !== false;
 	this.state.aiBusy = false;
@@ -112,6 +114,8 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		this.state.aiProgress = 0;
 		this.state.aiStatus = 'Preparing local AI…';
 		this.state.aiError = undefined;
+		this.state.aiResponse = '';
+		this.state.aiResponseVisible = false;
 		try {
 			localAiModule ??= import('./local-ai.js');
 			const localAi = await localAiModule;
@@ -125,6 +129,14 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 					if (generation !== aiGeneration) return;
 					this.state.aiProgress = progress.progress;
 					this.state.aiStatus = progress.text;
+				},
+				(response) => {
+					if (generation !== aiGeneration) return;
+					const heading = response.attempt === 'initial' ? 'Initial response' : 'Repair response';
+					const section = `${heading}\n${response.content}`;
+					this.state.aiResponse = this.state.aiResponse
+						? `${this.state.aiResponse}\n\n${section}`
+						: section;
 				}
 			);
 			if (generation !== aiGeneration) return;
@@ -138,6 +150,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 			if (generation !== aiGeneration) return;
 			this.state.aiError = error instanceof Error ? error.message : String(error);
 			this.state.aiStatus = 'Local AI could not generate a list';
+			if (this.state.aiResponse) this.state.aiResponseVisible = true;
 		} finally {
 			if (generation === aiGeneration) this.state.aiBusy = false;
 		}
@@ -178,6 +191,8 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		this.state.aiModelReady = false;
 		this.state.aiStatus = 'Ready';
 		this.state.aiError = undefined;
+		this.state.aiResponse = '';
+		this.state.aiResponseVisible = false;
 	};
 
 	this.onUnmount(() => {
@@ -244,6 +259,8 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							aiPromptTemplate={aiPromptTemplate(this.state, currentAiKind(this.state.kind))}
 							aiDefaultPromptTemplate={defaultAiPromptTemplate(currentAiKind(this.state.kind))}
 							aiPromptVisible={this.state.aiPromptVisible}
+							aiResponse={this.state.aiResponse}
+							aiResponseVisible={this.state.aiResponseVisible}
 							aiSupported={this.state.aiSupported}
 							aiBusy={this.state.aiBusy}
 							aiProgress={this.state.aiProgress}
@@ -288,6 +305,9 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							}}
 							onAiPromptVisible={(visible) => {
 								this.state.aiPromptVisible = visible;
+							}}
+							onAiResponseVisible={(visible) => {
+								this.state.aiResponseVisible = visible;
 							}}
 							onAiResetPrompt={() => {
 								const kind = currentAiKind(this.state.kind);

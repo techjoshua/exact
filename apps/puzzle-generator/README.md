@@ -42,9 +42,13 @@ The helper's **Show prompt** control exposes a separate editable template for wo
 crosswords. `{{topic}}` marks where the topic is inserted, and **Reset template** restores the
 shipped prompt for the current puzzle kind. The crossword template asks for short conventional
 clues, requires topic relevance and accurate answer/clue pairing, and forbids answer variants in
-clues. Independently of the template, generated crossword material is rejected when a clue contains
-its answer or a longer word containing that answer. The helper makes one automatic repair pass with
-the rejected output and exact leaking answers before it surfaces the failure to the author.
+clues. Both templates spell out the required top-level JSON property, item count, property names,
+and prohibition on prose or Markdown fences. Independently of the template, generated crossword
+material is rejected when a clue contains its answer or a longer word containing that answer. The
+helper makes one automatic repair pass with the rejected output and exact leaking answers before it
+surfaces the failure to the author. **Show response** displays every completion exactly as received,
+including malformed output and separate initial and repair attempts; failed validation never hides
+the model's response.
 
 ## Build one portable file
 

@@ -7,6 +7,8 @@ type AiWordControlsProps = {
 	promptTemplate: string;
 	defaultPromptTemplate: string;
 	promptVisible: boolean;
+	response: string;
+	responseVisible: boolean;
 	supported: boolean;
 	busy: boolean;
 	progress: number;
@@ -17,6 +19,7 @@ type AiWordControlsProps = {
 	onTopic(topic: string): void;
 	onPromptTemplate(template: string): void;
 	onPromptVisible(visible: boolean): void;
+	onResponseVisible(visible: boolean): void;
 	onResetPrompt(): void;
 	onGenerate(): void;
 	onModel(model: LocalAiModelId): void;
@@ -60,15 +63,28 @@ export function AiWordControls(props: AiWordControlsProps) {
 				<small>{getLocalAiModel(props.model).note}</small>
 			</label>
 			<div className="ai-prompt-toolbar">
-				<button
-					type="button"
-					className="text-button"
-					aria-expanded={props.promptVisible ? 'true' : 'false'}
-					aria-controls={`ai-prompt-${props.kind}`}
-					onClick={() => props.onPromptVisible(!props.promptVisible)}
-				>
-					{props.promptVisible ? 'Hide prompt' : 'Show prompt'}
-				</button>
+				<div>
+					<button
+						type="button"
+						className="text-button"
+						aria-expanded={props.promptVisible ? 'true' : 'false'}
+						aria-controls={`ai-prompt-${props.kind}`}
+						onClick={() => props.onPromptVisible(!props.promptVisible)}
+					>
+						{props.promptVisible ? 'Hide prompt' : 'Show prompt'}
+					</button>
+					{props.response ? (
+						<button
+							type="button"
+							className="text-button"
+							aria-expanded={props.responseVisible ? 'true' : 'false'}
+							aria-controls={`ai-response-${props.kind}`}
+							onClick={() => props.onResponseVisible(!props.responseVisible)}
+						>
+							{props.responseVisible ? 'Hide response' : 'Show response'}
+						</button>
+					) : null}
+				</div>
 				{props.promptVisible ? (
 					<button
 						type="button"
@@ -96,6 +112,13 @@ export function AiWordControls(props: AiWordControlsProps) {
 						answer safety checks are enforced separately.
 					</small>
 				</label>
+			) : null}
+			{props.responseVisible && props.response ? (
+				<div className="ai-response-viewer" id={`ai-response-${props.kind}`}>
+					<span>Raw model response</span>
+					<pre>{props.response}</pre>
+					<small>Shown exactly as received, before parsing and safety checks.</small>
+				</div>
 			) : null}
 			{props.busy ? (
 				<div className="ai-progress" aria-live="polite">

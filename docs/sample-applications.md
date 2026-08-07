@@ -41,10 +41,12 @@ retain the complete manual workflow.
 Each word-based puzzle owns an editable local-AI prompt template. Authors can reveal it with **Show
 prompt**, use `{{topic}}` to place the topic, and restore the shipped version with **Reset template**.
 The default crossword template requires short conventional clues, direct topic relevance, and an
-accurate answer/clue pairing instead of self-referential definitions. Deterministic validation
-rejects generated clues that contain their answer or a longer form containing it. One automatic
-repair pass gives the local model the rejected output and exact leaks before the helper reports a
-failure.
+accurate answer/clue pairing instead of self-referential definitions. Both templates explicitly
+describe their sole top-level JSON property, array shape, item count, allowed properties, and
+JSON-only response boundary. Deterministic validation rejects generated clues that contain their
+answer or a longer form containing it. One automatic repair pass gives the local model the rejected
+output and exact leaks before the helper reports a failure. The response inspector retains the raw
+initial and repair completions before parsing, so malformed output remains visible to the author.
 
 ## Other complete samples
 

@@ -108,6 +108,8 @@ export type PuzzleGeneratorState = {
 	aiWordSearchPrompt: string;
 	aiCrosswordPrompt: string;
 	aiPromptVisible: boolean;
+	aiResponse: string;
+	aiResponseVisible: boolean;
 	aiSupported: boolean;
 	aiBusy: boolean;
 	aiProgress: number;

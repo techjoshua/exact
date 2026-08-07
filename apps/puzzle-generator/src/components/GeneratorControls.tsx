@@ -14,6 +14,8 @@ type GeneratorControlsProps = {
 	aiPromptTemplate: string;
 	aiDefaultPromptTemplate: string;
 	aiPromptVisible: boolean;
+	aiResponse: string;
+	aiResponseVisible: boolean;
 	aiSupported: boolean;
 	aiBusy: boolean;
 	aiProgress: number;
@@ -31,6 +33,7 @@ type GeneratorControlsProps = {
 	onAiTopic(topic: string): void;
 	onAiPromptTemplate(template: string): void;
 	onAiPromptVisible(visible: boolean): void;
+	onAiResponseVisible(visible: boolean): void;
 	onAiResetPrompt(): void;
 	onAiGenerate(): void;
 	onAiModel(model: LocalAiModelId): void;
@@ -147,6 +150,8 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						promptTemplate={props.aiPromptTemplate}
 						defaultPromptTemplate={props.aiDefaultPromptTemplate}
 						promptVisible={props.aiPromptVisible}
+						response={props.aiResponse}
+						responseVisible={props.aiResponseVisible}
 						supported={props.aiSupported}
 						busy={props.aiBusy}
 						progress={props.aiProgress}
@@ -157,6 +162,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						onTopic={props.onAiTopic}
 						onPromptTemplate={props.onAiPromptTemplate}
 						onPromptVisible={props.onAiPromptVisible}
+						onResponseVisible={props.onAiResponseVisible}
 						onResetPrompt={props.onAiResetPrompt}
 						onGenerate={props.onAiGenerate}
 						onModel={props.onAiModel}

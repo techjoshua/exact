@@ -479,6 +479,12 @@ input[type='range'] {
 	margin-top: 10px;
 }
 
+.ai-prompt-toolbar > div {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
 .ai-prompt-editor {
 	display: grid;
 	gap: 6px;
@@ -494,6 +500,35 @@ input[type='range'] {
 }
 
 .ai-prompt-editor small {
+	color: #7a827d;
+	font-size: 10px;
+	line-height: 1.4;
+}
+
+.ai-response-viewer {
+	display: grid;
+	gap: 6px;
+	margin-top: 10px;
+}
+
+.ai-response-viewer pre {
+	max-height: 260px;
+	margin: 0;
+	padding: 10px;
+	overflow: auto;
+	border: 1px solid #d8d5c9;
+	background: #f8f6ef;
+	font:
+		10px/1.5 ui-monospace,
+		SFMono-Regular,
+		Consolas,
+		'Liberation Mono',
+		monospace;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.ai-response-viewer small {
 	color: #7a827d;
 	font-size: 10px;
 	line-height: 1.4;

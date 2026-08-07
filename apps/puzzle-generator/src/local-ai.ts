@@ -19,6 +19,12 @@ export type LocalAiProgress = Readonly<{
 	text: string;
 }>;
 
+/** One unmodified completion received before parsing or safety validation. */
+export type LocalAiResponse = Readonly<{
+	attempt: 'initial' | 'repair';
+	content: string;
+}>;
+
 let worker: Worker | undefined;
 let workerUrl: string | undefined;
 let enginePromise: Promise<WebWorkerMLCEngine> | undefined;
@@ -40,7 +46,8 @@ export async function generateLocalAiWordList(
 	topic: string,
 	kind: AiPuzzleKind,
 	promptTemplate: string,
-	onProgress: (progress: LocalAiProgress) => void
+	onProgress: (progress: LocalAiProgress) => void,
+	onResponse: (response: LocalAiResponse) => void
 ): Promise<string> {
 	if (!supportsLocalAi())
 		throw new Error('Local AI requires a browser and device with WebGPU support.');
@@ -64,6 +71,7 @@ export async function generateLocalAiWordList(
 		});
 		const content = response.choices[0]?.message.content;
 		if (!content) throw new Error('The local model did not return any puzzle words.');
+		onResponse({ attempt: 'initial', content });
 		try {
 			return formatAiWordListResponse(content, kind);
 		} catch (error) {
@@ -87,6 +95,7 @@ export async function generateLocalAiWordList(
 			});
 			const repairedContent = repaired.choices[0]?.message.content;
 			if (!repairedContent) throw new Error('The local model did not return repaired clues.');
+			onResponse({ attempt: 'repair', content: repairedContent });
 			return formatAiWordListResponse(repairedContent, kind);
 		}
 	} finally {

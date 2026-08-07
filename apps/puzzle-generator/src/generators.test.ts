@@ -125,6 +125,11 @@ describe('document and input contracts', () => {
 		expect(crosswordTemplate).toContain('{{topic}}');
 		expect(crosswordTemplate).toContain('conventional American-style crossword');
 		expect(crosswordTemplate).toContain('Never include the answer');
+		expect(crosswordTemplate).toContain('exactly one top-level property named "entries"');
+		expect(crosswordTemplate).toContain('no introduction, explanation, markdown, or code fence');
+		expect(defaultAiPromptTemplate('word-search')).toContain(
+			'exactly one top-level property named "words"'
+		);
 		expect(aiWordListPrompt('space', 'crossword')).toContain('about "space"');
 		expect(aiWordListPrompt('space', 'crossword')).not.toContain('{{topic}}');
 		expect(aiWordListPrompt('space', 'crossword', 'Write short clues.')).toBe(
