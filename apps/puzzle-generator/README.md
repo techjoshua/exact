@@ -43,12 +43,13 @@ crosswords. `{{topic}}` marks where the topic is inserted, and **Reset template*
 shipped prompt for the current puzzle kind. The crossword template asks for short conventional
 clues, requires topic relevance and accurate answer/clue pairing, and forbids answer variants in
 clues. Both templates spell out the required top-level JSON property, item count, property names,
-prohibition on prose or Markdown fences, and a complete placeholder object demonstrating the exact
-shape. Word searches and crosswords receive separate system instructions, and structured output
-uses a lower temperature to reduce format drift. Independently of the template, generated
-crossword material is rejected when a clue contains its answer or a longer word containing that
-answer. The helper makes one automatic repair pass with the rejected output and exact leaking
-answers before it surfaces the failure to the author. **Show response** displays every completion
+prohibition on prose or Markdown fences, and required opening, item, separator, and closing syntax
+without giving the model sample values to copy. Word searches and crosswords receive separate
+system instructions, and structured output uses a lower temperature to reduce format drift.
+Independently of the template, generated crossword material is rejected when a clue contains its
+answer or a longer word containing that answer. Common scaffold placeholders are also rejected. The
+helper makes one automatic repair pass with the rejected output and exact leaking answers before it
+surfaces the failure to the author. **Show response** displays every completion
 exactly as received, including malformed output and separate initial and repair attempts. It also
 reports the model's finish reason and explains when the output limit interrupted an incomplete JSON
 object; failed validation never hides the model's response.

@@ -12,8 +12,9 @@ Output contract:
 - The object must have exactly one top-level property named "words".
 - "words" must be an array of 8-12 strings, with one normalized answer in each string.
 - Do not add any other properties.
-Required shape (replace every WORD placeholder with a real answer):
-{"words":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6","WORD7","WORD8","WORD9","WORD10"]}
+- Begin with an opening curly brace, then the quoted key "words", a colon, and an opening square bracket.
+- Write each answer as a separate quoted JSON string divided by commas.
+- After the last answer, close the square bracket and then the curly brace.
 Check the JSON syntax before responding.`;
 const crosswordPromptTemplate = `Create 10 unique conventional American-style crossword answers and clues about "{{topic}}".
 Every answer must be directly and recognizably related to the requested topic. Use familiar answers of 3-12 English letters. Remove spaces, punctuation, and accents from answers. Avoid proper nouns unless essential, offensive language, and near-duplicates. Choose answers that share letters so they can form one connected crossword.
@@ -25,8 +26,9 @@ Output contract:
 - "entries" must be an array of 8-12 objects.
 - Every entry object must have exactly two string properties: "word" and "clue".
 - Do not add any other properties.
-Required shape (replace every ANSWER and CLUE placeholder with real content):
-{"entries":[{"word":"ANSWER1","clue":"CLUE1"},{"word":"ANSWER2","clue":"CLUE2"},{"word":"ANSWER3","clue":"CLUE3"},{"word":"ANSWER4","clue":"CLUE4"},{"word":"ANSWER5","clue":"CLUE5"},{"word":"ANSWER6","clue":"CLUE6"},{"word":"ANSWER7","clue":"CLUE7"},{"word":"ANSWER8","clue":"CLUE8"},{"word":"ANSWER9","clue":"CLUE9"},{"word":"ANSWER10","clue":"CLUE10"}]}
+- Begin with an opening curly brace, then the quoted key "entries", a colon, and an opening square bracket.
+- Write each array item as an object with the quoted key "word" followed by its answer string and the quoted key "clue" followed by its clue string.
+- Divide entries with commas. After the last entry, close the square bracket and then the outer curly brace.
 Check the JSON syntax before responding.`;
 
 /** Identifies otherwise structured crossword output whose clues reveal their answers. */
@@ -155,9 +157,16 @@ function validateAiWords(words: readonly string[]): void {
 		throw new Error(
 			`The local model returned “${wrongLength}”, but answers must contain 3-12 letters.`
 		);
+	const placeholder = words.find((word) => placeholderAnswers.has(word));
+	if (placeholder)
+		throw new Error(
+			`The local model copied the placeholder “${placeholder}” instead of an answer.`
+		);
 	const issue = validateWords(words, 6);
 	if (issue) throw new Error(`The local model response was rejected: ${issue}`);
 }
+
+const placeholderAnswers = new Set(['WORD', 'ANSWER', 'CLUE', 'PLACEHOLDER']);
 
 function normalizeAnswer(source: string): string {
 	return source

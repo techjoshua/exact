@@ -127,11 +127,13 @@ describe('document and input contracts', () => {
 		expect(crosswordTemplate).toContain('Never include the answer');
 		expect(crosswordTemplate).toContain('exactly one top-level property named "entries"');
 		expect(crosswordTemplate).toContain('no introduction, explanation, markdown, or code fence');
-		expect(crosswordTemplate).toContain('{"entries":[{"word":"ANSWER1","clue":"CLUE1"}');
+		expect(crosswordTemplate).toContain('quoted key "entries"');
+		expect(crosswordTemplate).not.toContain('ANSWER1');
 		expect(defaultAiPromptTemplate('word-search')).toContain(
 			'exactly one top-level property named "words"'
 		);
-		expect(defaultAiPromptTemplate('word-search')).toContain('{"words":["WORD1","WORD2","WORD3"');
+		expect(defaultAiPromptTemplate('word-search')).toContain('quoted key "words"');
+		expect(defaultAiPromptTemplate('word-search')).not.toContain('WORD1');
 		expect(aiWordListPrompt('space', 'crossword')).toContain('about "space"');
 		expect(aiWordListPrompt('space', 'crossword')).not.toContain('{{topic}}');
 		expect(aiWordListPrompt('space', 'crossword', 'Write short clues.')).toBe(
@@ -166,6 +168,14 @@ describe('document and input contracts', () => {
 				'crossword'
 			)
 		).toThrow(/repeated answers.*BREAK.*PROGRAM/i);
+		expect(() =>
+			formatAiWordListResponse(
+				JSON.stringify({
+					words: ['WORD', 'ORBIT', 'COMET', 'PLANET', 'GALAXY', 'NEBULA']
+				}),
+				'word-search'
+			)
+		).toThrow(/placeholder/i);
 	});
 
 	it('normalizes words, rejects blocked input, and emits separate SVG documents', () => {

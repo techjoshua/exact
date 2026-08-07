@@ -65,11 +65,12 @@ export function SamplesPage(this: Component<{}>) {
 				<p>
 					Word searches and crosswords keep separate prompt templates. Authors can reveal and edit
 					the current template, place the topic with <code>{'{{topic}}'}</code>, or restore the
-					shipped version. The defaults include a complete placeholder JSON object, forbid prose or
-					Markdown wrappers, and use puzzle-specific system instructions. Crossword output is
-					rejected when a clue repeats its answer or embeds it in a longer word, with one automatic
-					local repair attempt before the error is shown. A response inspector preserves raw initial
-					and repair completions, finish reasons, and output-limit failures even when parsing fails.
+					shipped version. The defaults explain JSON syntax without copyable sample values, forbid
+					prose or Markdown wrappers, and use puzzle-specific system instructions. Crossword output
+					is rejected when a clue repeats its answer or embeds it in a longer word, with one
+					automatic local repair attempt before the error is shown. A response inspector preserves
+					raw initial and repair completions, finish reasons, and output-limit failures even when
+					parsing fails.
 				</p>
 				<Callout title="One genuinely portable file">
 					The standalone artifact includes the application, styles, compiler output, and client

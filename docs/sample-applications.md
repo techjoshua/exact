@@ -43,13 +43,14 @@ prompt**, use `{{topic}}` to place the topic, and restore the shipped version wi
 The default crossword template requires short conventional clues, direct topic relevance, and an
 accurate answer/clue pairing instead of self-referential definitions. Both templates explicitly
 describe their sole top-level JSON property, array shape, item count, allowed properties, and
-JSON-only response boundary, followed by a complete placeholder object demonstrating the shape.
-Puzzle-specific system instructions and lower-randomness structured generation further reduce
-format drift. Deterministic validation rejects generated clues that contain their answer or a
-longer form containing it. One automatic repair pass gives the local model the rejected output and
-exact leaks before the helper reports a failure. The response inspector retains the raw initial and
-repair completions before parsing, shows each finish reason, and identifies output-limit truncation,
-so malformed output remains visible to the author.
+JSON-only response boundary. They describe the required opening, item, separator, and closing syntax
+without sample values that a small model might copy. Puzzle-specific system instructions and
+lower-randomness structured generation further reduce format drift. Deterministic validation rejects
+generated clues that contain their answer or a longer form containing it, along with common scaffold
+placeholders. One automatic repair pass gives the local model the rejected output and exact leaks
+before the helper reports a failure. The response inspector retains the raw initial and repair
+completions before parsing, shows each finish reason, and identifies output-limit truncation, so
+malformed output remains visible to the author.
 
 ## Other complete samples
 
