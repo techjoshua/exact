@@ -127,15 +127,20 @@ describe('document and input contracts', () => {
 		expect(crosswordTemplate).toContain('Never include the answer');
 		expect(crosswordTemplate).toContain('exactly one top-level property named "entries"');
 		expect(crosswordTemplate).toContain('no introduction, explanation, markdown, or code fence');
+		expect(crosswordTemplate).toContain('{"entries":[{"word":"ANSWER1","clue":"CLUE1"}');
 		expect(defaultAiPromptTemplate('word-search')).toContain(
 			'exactly one top-level property named "words"'
 		);
+		expect(defaultAiPromptTemplate('word-search')).toContain('{"words":["WORD1","WORD2","WORD3"');
 		expect(aiWordListPrompt('space', 'crossword')).toContain('about "space"');
 		expect(aiWordListPrompt('space', 'crossword')).not.toContain('{{topic}}');
 		expect(aiWordListPrompt('space', 'crossword', 'Write short clues.')).toBe(
 			'Write short clues.\nTopic: "space"'
 		);
-		expect(JSON.parse(aiWordListSchema('crossword')).required).toEqual(['entries']);
+		const parsedSchema = JSON.parse(aiWordListSchema('crossword'));
+		expect(parsedSchema.required).toEqual(['entries']);
+		expect(parsedSchema.properties.entries.minItems).toBeUndefined();
+		expect(parsedSchema.properties.entries.maxItems).toBeUndefined();
 	});
 
 	it('rejects malformed or unsafe local-AI responses', () => {

@@ -23,6 +23,7 @@ export type LocalAiProgress = Readonly<{
 export type LocalAiResponse = Readonly<{
 	attempt: 'initial' | 'repair';
 	content: string;
+	finishReason: string | null;
 }>;
 
 let worker: Worker | undefined;
@@ -55,8 +56,7 @@ export async function generateLocalAiWordList(
 	const engine = await loadEngine(model);
 	onProgress({ progress: 1, text: 'Generating locally…' });
 	try {
-		const systemPrompt =
-			'You are a careful crossword editor creating safe, accurate source material for printable puzzles. Every answer must clearly belong to the requested topic and every clue must accurately identify its paired answer. Follow the requested JSON schema exactly and never reveal an answer inside its clue.';
+		const systemPrompt = systemInstruction(kind);
 		const userPrompt = aiWordListPrompt(topic, kind, promptTemplate);
 		const response = await engine.chat.completions.create({
 			messages: [
@@ -64,16 +64,17 @@ export async function generateLocalAiWordList(
 				{ role: 'user', content: userPrompt }
 			],
 			response_format: { type: 'json_object', schema: aiWordListSchema(kind) },
-			temperature: 0.7,
-			top_p: 0.9,
+			temperature: 0.3,
+			top_p: 0.85,
 			max_tokens: 900,
 			seed: Date.now() >>> 0
 		});
-		const content = response.choices[0]?.message.content;
+		const choice = response.choices[0];
+		const content = choice?.message.content;
 		if (!content) throw new Error('The local model did not return any puzzle words.');
-		onResponse({ attempt: 'initial', content });
+		onResponse({ attempt: 'initial', content, finishReason: choice.finish_reason });
 		try {
-			return formatAiWordListResponse(content, kind);
+			return formatCompletion(content, kind, choice.finish_reason);
 		} catch (error) {
 			if (kind !== 'crossword' || !(error instanceof AiClueLeakError)) throw error;
 			onProgress({ progress: 1, text: 'Rewriting answer-revealing clues…' });
@@ -93,13 +94,41 @@ export async function generateLocalAiWordList(
 				max_tokens: 900,
 				seed: (Date.now() + 1) >>> 0
 			});
-			const repairedContent = repaired.choices[0]?.message.content;
+			const repairedChoice = repaired.choices[0];
+			const repairedContent = repairedChoice?.message.content;
 			if (!repairedContent) throw new Error('The local model did not return repaired clues.');
-			onResponse({ attempt: 'repair', content: repairedContent });
-			return formatAiWordListResponse(repairedContent, kind);
+			onResponse({
+				attempt: 'repair',
+				content: repairedContent,
+				finishReason: repairedChoice.finish_reason
+			});
+			return formatCompletion(repairedContent, kind, repairedChoice.finish_reason);
 		}
 	} finally {
 		progressSubscriber = undefined;
+	}
+}
+
+function systemInstruction(kind: AiPuzzleKind): string {
+	return kind === 'crossword'
+		? 'You are a careful crossword editor creating safe, accurate source material for printable puzzles. Every answer must clearly belong to the requested topic and every clue must accurately identify its paired answer. Return only the complete JSON object required by the user, beginning with { and ending with }. Follow the requested JSON schema exactly and never reveal an answer inside its clue.'
+		: 'You are a careful word-search editor creating safe, familiar words for printable puzzles. Every answer must clearly belong to the requested topic. Return only the complete JSON object required by the user, beginning with { and ending with }. Follow the requested JSON schema exactly.';
+}
+
+function formatCompletion(
+	content: string,
+	kind: AiPuzzleKind,
+	finishReason: string | null
+): string {
+	try {
+		return formatAiWordListResponse(content, kind);
+	} catch (error) {
+		if (finishReason === 'length') {
+			throw new Error(
+				'The local model reached its output limit before completing valid JSON. Its raw response is shown above; try again or choose a larger model.'
+			);
+		}
+		throw error;
 	}
 }
 

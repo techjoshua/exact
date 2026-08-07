@@ -132,7 +132,8 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 				},
 				(response) => {
 					if (generation !== aiGeneration) return;
-					const heading = response.attempt === 'initial' ? 'Initial response' : 'Repair response';
+					const attempt = response.attempt === 'initial' ? 'Initial response' : 'Repair response';
+					const heading = `${attempt} · finish reason: ${response.finishReason ?? 'unknown'}`;
 					const section = `${heading}\n${response.content}`;
 					this.state.aiResponse = this.state.aiResponse
 						? `${this.state.aiResponse}\n\n${section}`
