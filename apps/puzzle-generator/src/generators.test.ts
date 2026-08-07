@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { prebuiltAppConfig } from '@mlc-ai/web-llm';
 import {
 	aiWordListPrompt,
 	aiWordListSchema,
@@ -82,9 +83,13 @@ describe('crossword generation', () => {
 
 describe('document and input contracts', () => {
 	it('offers distinct local chat models below the advertised download ceiling', () => {
+		const registeredModelIds = new Set(
+			prebuiltAppConfig.model_list.map((model: { model_id: string }) => model.model_id)
+		);
 		expect(localAiModels).toHaveLength(11);
 		expect(new Set(localAiModels.map((model) => model.id)).size).toBe(localAiModels.length);
 		expect(localAiModels.every((model) => model.downloadMb < 1536)).toBe(true);
+		expect(localAiModels.every((model) => registeredModelIds.has(model.id))).toBe(true);
 		expect(localAiModels.some((model) => model.label === 'Gemma 3 1B')).toBe(true);
 		expect(localAiModels.some((model) => model.id === defaultLocalAiModel)).toBe(true);
 	});

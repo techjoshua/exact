@@ -22,7 +22,7 @@ export const localAiModels = [
 		note: 'Newer compact model'
 	},
 	{
-		id: 'gemma-3-1b-it-q4f16_1-MLC',
+		id: 'gemma3-1b-it-q4f16_1-MLC',
 		label: 'Gemma 3 1B',
 		downloadMb: 574,
 		gpuMemoryMb: 711,
