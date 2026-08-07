@@ -5,25 +5,26 @@ import { validateWords } from './words.js';
 export type AiPuzzleKind = Exclude<PuzzleKind, 'sudoku'>;
 
 const topicToken = '{{topic}}';
-const wordSearchPromptTemplate = `Create 10 unique word-search words about "{{topic}}".
-Use familiar answers of 3-12 English letters. Remove spaces, punctuation, and accents from answers. Avoid proper nouns unless essential, offensive language, and near-duplicates.
+const wordSearchPromptTemplate = `Create 20 unique, individual words closely related to "{{topic}}" for a word-search puzzle.
+Use familiar words of 3-12 English letters. Do not use words that appear in the topic text. Remove spaces, punctuation, and accents. Avoid proper nouns unless essential, offensive language, and near-duplicates.
 Output contract:
 - Return one valid JSON object and nothing else: no introduction, explanation, markdown, or code fence.
 - The object must have exactly one top-level property named "words".
-- "words" must be an array of 8-12 strings, with one normalized answer in each string.
+- "words" must be an array of 20 strings, with one word in each string.
 - Do not add any other properties.
 - Begin with an opening curly brace, then the quoted key "words", a colon, and an opening square bracket.
 - Write each answer as a separate quoted JSON string divided by commas.
 - After the last answer, close the square bracket and then the curly brace.
 Check the JSON syntax before responding.`;
-const crosswordPromptTemplate = `Create 10 unique conventional American-style crossword answers and clues about "{{topic}}".
-Every answer must be directly and recognizably related to the requested topic. Use familiar answers of 3-12 English letters. Remove spaces, punctuation, and accents from answers. Avoid proper nouns unless essential, offensive language, and near-duplicates. Choose answers that share letters so they can form one connected crossword.
-Write short crossword clues, not explanatory sentences or dictionary-style definitions. Each clue must be 2-8 words and accurately lead to its paired answer, not a different entry. Use a synonym, concise description, fill-in-the-blank, wordplay, or familiar association. Never include the answer, an inflected or plural form of it, a close spelling variant, or a longer word containing it. Avoid frames such as "is," "means," "something that," and "used to."
-Before responding, check that every answer belongs to the topic, every clue uniquely fits its paired answer, and no clue reveals its answer. Replace any entry that fails a check. Do not copy words or clues from these instructions.
+const crosswordPromptTemplate = `Create 20 unique, single-word answers closely related to "{{topic}}" for a conventional American-style crossword.
+Use familiar answers of 3-12 English letters. Do not use words that appear in the topic text. Remove spaces, punctuation, and accents. Avoid proper nouns unless essential, offensive language, and near-duplicates. Favor answers that share common letters so they can form a connected grid.
+Give every answer a concise clue of 2-7 words that could appear in a published crossword. A clue may be a synonym, short descriptive phrase, familiar association, fill-in-the-blank, or simple wordplay. It must point accurately to its paired answer and not another entry.
+Never put the answer, a grammatical form of it, a close spelling variant, or a longer word containing it in the clue. Do not describe the spelling or say that the answer "is," "means," is "something that," or is "used to" do something. Do not write explanatory sentences.
+Before responding, silently check that every answer belongs to the topic, every clue fits its paired answer, and no clue reveals its answer. Replace any entry that fails a check.
 Output contract:
 - Return one valid JSON object and nothing else: no introduction, explanation, markdown, or code fence.
 - The object must have exactly one top-level property named "entries".
-- "entries" must be an array of 8-12 objects.
+- "entries" must be an array of 20 objects.
 - Every entry object must have exactly two string properties: "word" and "clue".
 - Do not add any other properties.
 - Begin with an opening curly brace, then the quoted key "entries", a colon, and an opening square bracket.

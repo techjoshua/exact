@@ -56,21 +56,22 @@ export function SamplesPage(this: Component<{}>) {
 				<p>
 					For word searches and crosswords, an optional WebLLM helper can turn a topic into editable
 					puzzle material. After the user opts in, the app loads a pinned WebLLM runtime from
-					jsDelivr. A selector offers 11 curated models below a 1.5 GiB download, including Gemma 3
-					1B, and shows both approximate download and GPU-memory costs. The browser downloads the
-					selected model from Hugging Face, caches it separately, and runs it locally through
-					WebGPU. Generated JSON crosses the same normalization and safety boundary as manually
-					entered words, and the selected cached model can be removed afterward.
+					jsDelivr. A selector offers 10 curated models below a 1.5 GiB download and shows both
+					approximate download and GPU-memory costs. Browser-tested Llama 3.2 1B is the default;
+					Gemma 3 1B is excluded while its upstream WebLLM correctness issue remains unresolved. The
+					browser downloads the selected model from Hugging Face, caches it separately, and runs it
+					locally through WebGPU. Generated JSON crosses the same normalization and safety boundary
+					as manually entered words, and the selected cached model can be removed afterward.
 				</p>
 				<p>
 					Word searches and crosswords keep separate prompt templates. Authors can reveal and edit
 					the current template, place the topic with <code>{'{{topic}}'}</code>, or restore the
-					shipped version. The defaults explain JSON syntax without copyable sample values, forbid
-					prose or Markdown wrappers, and use puzzle-specific system instructions. Crossword output
-					is rejected when a clue repeats its answer or embeds it in a longer word, with one
-					automatic local repair attempt before the error is shown. A response inspector preserves
-					raw initial and repair completions, finish reasons, and output-limit failures even when
-					parsing fails.
+					shipped version. The defaults request pools of 20 items, explain JSON syntax without
+					copyable sample values, forbid prose or Markdown wrappers, and use puzzle-specific system
+					instructions. Crossword output is rejected when a clue repeats its answer or embeds it in
+					a longer word, with one automatic local repair attempt before the error is shown. A
+					response inspector preserves raw initial and repair completions, finish reasons, and
+					output-limit failures even when parsing fails.
 				</p>
 				<Callout title="One genuinely portable file">
 					The standalone artifact includes the application, styles, compiler output, and client

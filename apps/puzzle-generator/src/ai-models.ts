@@ -12,7 +12,7 @@ export const localAiModels = [
 		label: 'Qwen 2.5 0.5B',
 		downloadMb: 276,
 		gpuMemoryMb: 945,
-		note: 'Lightweight default'
+		note: 'Lightweight option'
 	},
 	{
 		id: 'Qwen3-0.6B-q4f16_1-MLC',
@@ -20,13 +20,6 @@ export const localAiModels = [
 		downloadMb: 335,
 		gpuMemoryMb: 1403,
 		note: 'Newer compact model'
-	},
-	{
-		id: 'gemma3-1b-it-q4f16_1-MLC',
-		label: 'Gemma 3 1B',
-		downloadMb: 574,
-		gpuMemoryMb: 711,
-		note: 'Balanced and memory-efficient'
 	},
 	{
 		id: 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
@@ -40,7 +33,7 @@ export const localAiModels = [
 		label: 'Llama 3.2 1B',
 		downloadMb: 672,
 		gpuMemoryMb: 879,
-		note: 'Balanced general model'
+		note: 'Default; reliable general model'
 	},
 	{
 		id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
@@ -82,16 +75,10 @@ export const localAiModels = [
 /** Identifier accepted by the curated local-model selector. */
 export type LocalAiModelId = (typeof localAiModels)[number]['id'];
 
-/** Lightweight default retained for devices that may have limited bandwidth. */
-export const defaultLocalAiModel: LocalAiModelId = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+/** Default model verified to follow the app's local structured-generation workflow. */
+export const defaultLocalAiModel: LocalAiModelId = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
 
 /** Finds display and resource metadata for a selectable local model. */
 export function getLocalAiModel(modelId: LocalAiModelId) {
-	return localAiModels.find((model) => model.id === modelId) ?? localAiModels[1];
+	return localAiModels.find((model) => model.id === modelId) ?? localAiModels[4];
 }
-
-/** Returns load-time corrections required by a model's published chat configuration. */
-export function getLocalAiChatOptions(modelId: LocalAiModelId): ChatOptions | undefined {
-	return modelId === 'gemma3-1b-it-q4f16_1-MLC' ? { sliding_window_size: -1 } : undefined;
-}
-import type { ChatOptions } from '@mlc-ai/web-llm';

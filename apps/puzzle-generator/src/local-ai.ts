@@ -6,7 +6,7 @@ import {
 	formatAiWordListResponse,
 	type AiPuzzleKind
 } from './ai-word-list-format.js';
-import { getLocalAiChatOptions, type LocalAiModelId } from './ai-models.js';
+import type { LocalAiModelId } from './ai-models.js';
 
 /** Pinned browser runtime served only after the user opts into local AI. */
 export const webLlmCdnUrl = 'https://esm.run/@mlc-ai/web-llm@0.2.84';
@@ -166,15 +166,10 @@ function loadEngine(model: LocalAiModelId): Promise<WebWorkerMLCEngine> {
 		createdWorker = new Worker(createdWorkerUrl, { type: 'module' });
 		workerUrl = createdWorkerUrl;
 		worker = createdWorker;
-		return CreateWebWorkerMLCEngine(
-			createdWorker,
-			model,
-			{
-				initProgressCallback: reportProgress,
-				logLevel: 'WARN'
-			},
-			getLocalAiChatOptions(model)
-		);
+		return CreateWebWorkerMLCEngine(createdWorker, model, {
+			initProgressCallback: reportProgress,
+			logLevel: 'WARN'
+		});
 	});
 	const createdEngine = loadingEngine.catch((error: unknown) => {
 		if (enginePromise === createdEngine) {

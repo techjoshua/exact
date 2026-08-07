@@ -26,10 +26,11 @@ digits may also use a different font or weight.
 ## Optional local AI
 
 Word searches and crosswords include an opt-in topic helper powered by WebLLM. Its selector offers
-11 curated chat/instruct models with downloads below 1.5 GiB, including Gemma 3 1B, Llama 3.2 1B,
-and several Qwen and SmolLM sizes. It shows the approximate first-download and GPU-memory cost of
-the selected model; Qwen 2.5 0.5B remains the lightweight default at about 276 MB downloaded and
-945 MB of GPU memory. After the user opts in, the browser loads the pinned WebLLM 0.2.84 runtime
+10 curated chat/instruct models with downloads below 1.5 GiB, including Llama 3.2 1B and several
+Qwen and SmolLM sizes. It shows the approximate first-download and GPU-memory cost of the selected
+model. The browser-tested Llama 3.2 1B is the default at about 672 MB downloaded and 879 MB of GPU
+memory. Gemma 3 1B is deliberately excluded while WebLLM's upstream sliding-window correctness
+issue remains unresolved. After the user opts in, the browser loads the pinned WebLLM 0.2.84 runtime
 from jsDelivr's `esm.run` endpoint and downloads the selected artifacts from the MLC repository on
 Hugging Face. Inference runs locally in a module Web Worker; topics, generated words, and clues are
 not uploaded. Each model is cached separately, while the runtime remains a CDN dependency for each
@@ -40,12 +41,13 @@ list. After a model is ready, the helper also offers a control that removes its 
 
 The helper's **Show prompt** control exposes a separate editable template for word searches and
 crosswords. `{{topic}}` marks where the topic is inserted, and **Reset template** restores the
-shipped prompt for the current puzzle kind. The crossword template asks for short conventional
-clues, requires topic relevance and accurate answer/clue pairing, and forbids answer variants in
-clues. Both templates spell out the required top-level JSON property, item count, property names,
-prohibition on prose or Markdown fences, and required opening, item, separator, and closing syntax
-without giving the model sample values to copy. Word searches and crosswords receive separate
-system instructions, and structured output uses a lower temperature to reduce format drift.
+shipped prompt for the current puzzle kind. Both defaults request pools of 20 items. The crossword
+template asks for short conventional clues, requires topic relevance and accurate answer/clue
+pairing, and forbids answer variants in clues. Both templates spell out the required top-level JSON
+property, item count, property names, prohibition on prose or Markdown fences, and required opening,
+item, separator, and closing syntax without giving the model sample values to copy. Word searches
+and crosswords receive separate system instructions, and structured output uses a lower temperature
+to reduce format drift.
 Independently of the template, generated crossword material is rejected when a clue contains its
 answer or a longer word containing that answer. Common scaffold placeholders are also rejected. The
 helper makes one automatic repair pass with the rejected output and exact leaking answers before it

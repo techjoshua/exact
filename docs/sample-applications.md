@@ -30,21 +30,23 @@ crossword generation reports disconnected words rather than claiming they were p
 
 Word searches and crosswords also expose an explicit local-AI opt-in. On demand, the app and its
 module worker load the pinned WebLLM 0.2.84 runtime from jsDelivr's `esm.run` endpoint rather than
-bundling it. Authors can choose among 11 curated chat/instruct models whose downloads remain below
-1.5 GiB, including Gemma 3 1B. The selector reports approximate download and GPU-memory costs;
-Qwen 2.5 0.5B remains the 276 MB default. The browser reports download progress and caches each
-model separately. Inference stays on the user's WebGPU device; topics and generated puzzle material
-are not uploaded. Generated JSON is normalized and safety-checked through the ordinary word-input
-boundary. A post-download control can remove the selected cached model, and unsupported devices
-retain the complete manual workflow.
+bundling it. Authors can choose among 10 curated chat/instruct models whose downloads remain below
+1.5 GiB. The selector reports approximate download and GPU-memory costs; browser-tested Llama 3.2
+1B is the 672 MB default. Gemma 3 1B is excluded while WebLLM's upstream sliding-window correctness
+issue remains unresolved. The browser reports download progress and caches each model separately.
+Inference stays on the user's WebGPU device; topics and generated puzzle material are not uploaded.
+Generated JSON is normalized and safety-checked through the ordinary word-input boundary. A
+post-download control can remove the selected cached model, and unsupported devices retain the
+complete manual workflow.
 
 Each word-based puzzle owns an editable local-AI prompt template. Authors can reveal it with **Show
 prompt**, use `{{topic}}` to place the topic, and restore the shipped version with **Reset template**.
-The default crossword template requires short conventional clues, direct topic relevance, and an
-accurate answer/clue pairing instead of self-referential definitions. Both templates explicitly
-describe their sole top-level JSON property, array shape, item count, allowed properties, and
-JSON-only response boundary. They describe the required opening, item, separator, and closing syntax
-without sample values that a small model might copy. Puzzle-specific system instructions and
+The default prompts request pools of 20 items. The crossword template requires short conventional
+clues, direct topic relevance, and an accurate answer/clue pairing instead of self-referential
+definitions. Both templates explicitly describe their sole top-level JSON property, array shape,
+item count, allowed properties, and JSON-only response boundary. They describe the required opening,
+item, separator, and closing syntax without sample values that a small model might copy.
+Puzzle-specific system instructions and
 lower-randomness structured generation further reduce format drift. Deterministic validation rejects
 generated clues that contain their answer or a longer form containing it, along with common scaffold
 placeholders. One automatic repair pass gives the local model the rejected output and exact leaks
