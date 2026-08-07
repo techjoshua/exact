@@ -205,7 +205,15 @@ function bindRenderProgram(mounted: Mounted): boolean {
 			for (const [element, previous] of previousProps) {
 				if (!nextProps.has(element)) updateProps(state.root, element, previous, {}, mounted.scope);
 			}
-			for (const [element, next] of nextProps) {
+			// Option values must exist before a parent select receives its controlled value. Static
+			// render-program templates deliberately omit slotted values, so DOM order alone cannot
+			// provide the browser's usual option-selection initialization.
+			const orderedProps = [...nextProps].sort(([left], [right]) => {
+				const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
+				const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
+				return leftPriority - rightPriority;
+			});
+			for (const [element, next] of orderedProps) {
 				updateProps(state.root, element, previousProps.get(element) ?? {}, next, mounted.scope);
 			}
 			previousProps.clear();

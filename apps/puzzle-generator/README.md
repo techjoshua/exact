@@ -3,9 +3,12 @@
 A browser-local puzzle publishing app built with native eXact components. It creates uniquely
 solvable 4×4 and 9×9 Sudoku puzzles, rectangular word searches, and compact connected crosswords.
 Every generator is deterministic from a visible seed. Puzzle and solution artwork use the same
-print settings but export as separate SVG files. Titles are optional, align left, center, or right,
-and have font and size controls independent from puzzle content. Letter, A4, and Legal page sizes
-use configurable print margins; the preview scales the resulting fixed-size page to the screen.
+print settings but export as separate SVG files. Titles are optional, align left, center, or right.
+Titles, puzzle grids, and word-list or crossword-clue sections each have independent font and size
+controls, with expanded type-size ranges. Letter, A4, and Legal presets are joined by custom page
+width and height controls. Narrow, standard, and wide margin presets can likewise be replaced with
+a custom uniform margin. US Letter at 8.5 × 11 inches is always the initial page. The preview scales
+the resulting fixed-size page to the screen.
 
 ## Run locally
 

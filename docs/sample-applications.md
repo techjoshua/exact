@@ -8,9 +8,12 @@ updates, and the framework's normal build adapters.
 
 [`apps/puzzle-generator`](../apps/puzzle-generator) is a browser-local publishing tool for Sudoku,
 word-search, and crossword puzzles. Its algorithms are deterministic from a visible seed and its
-generated puzzle and solution are independent fixed-page SVG documents. Titles have typography
-independent from puzzle content. Letter, A4, and Legal page sizes share configurable margins, and
-content is scaled into that printable region with a visible warning when necessary. Crossword input
+generated puzzle and solution are independent fixed-page SVG documents. Titles, puzzle grids, and
+word-list or crossword-clue sections have independent typography and expanded size ranges. US
+Letter is the non-empty default; Letter, A4, and Legal presets can be replaced by a custom width and
+height. Margin presets likewise support a custom uniform value. Content is scaled into that
+printable region with a visible warning when necessary, while invalid custom dimensions surface an
+error and retain the last valid preview. Crossword input
 uses `answer - clue` lines and produces numbered Across and Down clue tables. Its grid lines, unused
 cells, and letter-cell background are separately styled; the letter-cell background does not color
 the page. Answer keys support color or puzzle-specific black-and-white rendering. Sudoku answer

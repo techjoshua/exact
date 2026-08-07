@@ -20,10 +20,11 @@ export function SamplesPage(this: Component<{}>) {
 				<p>
 					Puzzle Foundry creates Sudoku, word-search, and crossword artwork entirely in the browser.
 					A visible seed makes each result reproducible. Common print settings feed two independent
-					fixed-page SVG documents: the unsolved puzzle and its answer key. Titles have independent
-					type controls, Letter/A4/Legal pages use configurable margins, and fit warnings explain
-					when content must be reduced. Answer keys can use color or puzzle-specific black-and-white
-					rendering.
+					fixed-page SVG documents: the unsolved puzzle and its answer key. Titles, puzzle grids,
+					and word-list or clue sections have independent type controls with generous size ranges.
+					US Letter is the default; Letter/A4/Legal and margin presets can each be replaced with
+					custom inch values. Fit warnings explain when content must be reduced. Answer keys can use
+					color or puzzle-specific black-and-white rendering.
 				</p>
 				<div className="card-grid">
 					<div className="topic-card">

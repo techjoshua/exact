@@ -212,6 +212,8 @@ export function FormsPage(this: Component<{}>) {
 					dates use the date value, nullable fields return their declared empty value, radio buttons
 					compare their declared
 					<code>value</code>, and grouped checkboxes add or remove that value from the array.
+					Controlled selects apply their value after option values are mounted, including inside
+					compiler-planned static regions, so their initial selection is never lost.
 				</p>
 			</section>
 			<section>

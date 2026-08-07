@@ -440,6 +440,10 @@ input[type='range'] {
 	margin-top: 0;
 }
 
+.custom-layout-fields {
+	margin-top: 14px;
+}
+
 .crossword-colors {
 	grid-template-columns: repeat(2, 1fr);
 	margin-top: 0;

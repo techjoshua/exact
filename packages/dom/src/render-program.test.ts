@@ -67,6 +67,47 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 	expect(refValues.at(-1)).toBeUndefined();
 });
 
+it('applies a controlled select value after slotted option values', () => {
+	const state = reactive({ value: 'letter' });
+	const vnode = createCompiledRenderProgram(
+		'render-program:select-value-order',
+		() => ({
+			version: 1,
+			id: 'render-program:select-value-order',
+			namespace: 'html',
+			template:
+				'<select data-exact-id="page"><option data-exact-id="letter">Letter</option><option data-exact-id="a4">A4</option></select>',
+			parts: [
+				'<select data-exact-id="page"',
+				'><option data-exact-id="letter"',
+				'>Letter</option><option data-exact-id="a4"',
+				'>A4</option></select>'
+			],
+			slots: [
+				{ id: 'selected', kind: 'property', path: [], name: 'value' },
+				{ id: 'letter-value', kind: 'property', path: [0], name: 'value' },
+				{ id: 'a4-value', kind: 'property', path: [1], name: 'value' }
+			],
+			nodes: [
+				{ id: 'page', path: [], tag: 'select', namespace: 'html' },
+				{ id: 'letter', path: [0], tag: 'option', namespace: 'html' },
+				{ id: 'a4', path: [1], tag: 'option', namespace: 'html' }
+			]
+		}),
+		[() => state.value, () => 'letter', () => 'a4'],
+		() =>
+			createCompiledVNode(
+				'select',
+				{ value: state.value },
+				createCompiledVNode('option', { value: 'letter' }, 'Letter'),
+				createCompiledVNode('option', { value: 'a4' }, 'A4')
+			)
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	expect(container.querySelector('select')?.value).toBe('letter');
+});
+
 it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 	const values: unknown[] = [];
 	const ref = { fulfill: (value: unknown) => values.push(value) };

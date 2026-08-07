@@ -22,7 +22,12 @@ const style: PuzzleStyle = {
 	titleFontSize: 30,
 	fontFamily: 'sans',
 	fontSize: 20,
+	supplementaryFontFamily: 'mono',
+	supplementaryFontSize: 15,
 	pageSize: 'letter',
+	customPageWidth: 8.5,
+	customPageHeight: 11,
+	pageMarginPreset: 'standard',
 	pageMargin: 0.5,
 	ink: '#111111',
 	accent: '#cc3300',
@@ -215,6 +220,36 @@ describe('document and input contracts', () => {
 		expect(svg).toContain('>Across</text>');
 		expect(svg).toContain('>Down</text>');
 		for (const entry of crossword.entries) expect(svg).toContain(entry.clue);
+		expect(svg).toContain('font-family="&apos;Courier New&apos;');
+		expect(svg).toContain('font-size="15"');
+	});
+
+	it('renders custom page dimensions and margins and rejects unusable print regions', () => {
+		const puzzle = generateSudoku(2, 'easy', 7);
+		const customStyle: PuzzleStyle = {
+			...style,
+			pageSize: 'custom',
+			customPageWidth: 12.25,
+			customPageHeight: 9.5,
+			pageMarginPreset: 'custom',
+			pageMargin: 0.375
+		};
+		const svg = renderSudokuSvg(puzzle, customStyle, false);
+		expect(svg).toContain('width="1176" height="912"');
+		expect(svg).toContain('data-page-size="custom"');
+		expect(svg).toContain('data-page-margin="0.375"');
+		expect(() =>
+			createPuzzleDocuments({
+				kind: 'sudoku',
+				difficulty: 'easy',
+				seed: 7,
+				boxSize: 2,
+				rows: 8,
+				columns: 8,
+				wordText: '',
+				style: { ...customStyle, pageMargin: 5 }
+			})
+		).toThrow(/printable space/i);
 	});
 
 	it('omits an empty title and aligns a supplied title', () => {

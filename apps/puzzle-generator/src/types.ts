@@ -9,8 +9,11 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 /** Portable font stacks that do not require an external font download. */
 export type PuzzleFont = 'sans' | 'serif' | 'mono' | 'handwritten' | 'playful';
 
-/** Fixed portrait page formats available to preview and SVG export. */
-export type PageSize = 'letter' | 'a4' | 'legal';
+/** Preset or author-defined page formats available to preview and SVG export. */
+export type PageSize = 'letter' | 'a4' | 'legal' | 'custom';
+
+/** Preset or author-defined uniform page margins. */
+export type PageMarginPreset = 'narrow' | 'standard' | 'wide' | 'custom';
 
 /** Typography and page styling applied to both puzzle and solution exports. */
 export type PuzzleStyle = {
@@ -20,7 +23,12 @@ export type PuzzleStyle = {
 	titleFontSize: number;
 	fontFamily: PuzzleFont;
 	fontSize: number;
+	supplementaryFontFamily: PuzzleFont;
+	supplementaryFontSize: number;
 	pageSize: PageSize;
+	customPageWidth: number;
+	customPageHeight: number;
+	pageMarginPreset: PageMarginPreset;
 	pageMargin: number;
 	ink: string;
 	accent: string;
