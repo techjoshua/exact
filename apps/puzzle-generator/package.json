@@ -7,7 +7,8 @@
 		"dev": "vite --host 0.0.0.0",
 		"build": "vite build",
 		"build:standalone": "node scripts/build-standalone.mjs",
-		"typecheck": "exactc --check .",
+		"pretypecheck": "npm run build -w @exactjs/compiler",
+		"typecheck": "node ../../packages/compiler/dist/cli.js --check .",
 		"test": "vitest run src"
 	},
 	"dependencies": {
