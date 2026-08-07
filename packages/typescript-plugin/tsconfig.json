@@ -2,6 +2,7 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"composite": true,
+		"verbatimModuleSyntax": false,
 		"rootDir": "src",
 		"outDir": "dist",
 		"lib": ["ES2022"]

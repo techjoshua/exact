@@ -51,18 +51,20 @@ export function createExactHydrationRegistrationModule(
 	const islandsExportName = options.islandsExportName ?? 'exactClientIslands';
 	const registrationExportName = options.registrationExportName ?? 'exactHydrationRegistration';
 	const continuationsName = '__exactContinuations';
+	const islandEntries = uniqueRegistryEntries(graph.clientIslands);
 	const islandsModule = createClientDescriptorCompositionModule(
-		graph,
+		islandEntries,
+		graph.operations,
 		islandsExportName,
 		continuationsName
 	);
 	const registration = omitUndefinedProperties({
 		endpoint: options.endpoint,
-		endpoints: options.endpoints
+		endpoints: compactEndpointRoutes(options.endpoints)
 	});
 	const registrationEntries = [
-		`  islands: ${islandsExportName}`,
-		`  continuations: ${continuationsName}`,
+		...(islandEntries.length ? [`  islands: ${islandsExportName}`] : []),
+		...(graph.operations.length ? [`  continuations: ${continuationsName}`] : []),
 		...Object.entries(registration).map(
 			([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)}`
 		)
@@ -71,19 +73,21 @@ export function createExactHydrationRegistrationModule(
 }
 
 function createClientDescriptorCompositionModule(
-	graph: ExactArtifactGraph,
+	entries: readonly ClientIslandRegistryEntry[],
+	operations: ExactArtifactGraph['operations'],
 	exportName: string,
 	continuationsName: string
 ): string {
-	const entries = uniqueRegistryEntries(graph.clientIslands);
 	const islands = entries.map((entry) => {
 		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(runtimeModuleSpecifier(entry.module))}).then((module) => module[${JSON.stringify(entry.exportName)}]))`;
 	});
-	const continuationValues = graph.operations.map((continuation) => ({
-		...continuation,
-		serverContexts: [],
-		serverContextWrites: []
-	}));
+	const continuationValues = operations.map((continuation) =>
+		compactHydrationContinuation({
+			...continuation,
+			serverContexts: [],
+			serverContextWrites: []
+		})
+	);
 	const continuations: Record<string, Record<string, unknown>> = {};
 	for (const continuation of continuationValues) {
 		const id = continuation.id;
@@ -99,11 +103,62 @@ function createClientDescriptorCompositionModule(
 		`export const ${exportName} = {`,
 		...islands.map((value, index) => `${value}${index + 1 < islands.length ? ',' : ''}`),
 		'};',
-		`const ${continuationsName} = __exactDefineRegistration({`,
-		`  continuations: ${JSON.stringify(continuations, null, 2)}`,
-		'}).continuations;',
+		...(continuationValues.length
+			? [
+					`const ${continuationsName} = __exactDefineRegistration({`,
+					`  continuations: ${JSON.stringify(continuations, null, 2)}`,
+					'}).continuations;'
+				]
+			: []),
 		''
 	].join('\n');
+}
+
+function compactEndpointRoutes(
+	routes: ExactHydrationRegistrationModuleOptions['endpoints']
+): ExactHydrationRegistrationModuleOptions['endpoints'] {
+	if (!routes) return undefined;
+	const invocations = routes.invocations;
+	const boundaries = routes.boundaries;
+	const output = {
+		...(invocations && Object.keys(invocations).length ? { invocations } : {}),
+		...(boundaries && Object.keys(boundaries).length ? { boundaries } : {})
+	};
+	return Object.keys(output).length ? output : undefined;
+}
+
+function compactHydrationContinuation(
+	continuation: Record<string, unknown>
+): Record<string, unknown> {
+	const output = omitEmptyMetadataFields(continuation, [
+		'dependencies',
+		'stateReads',
+		'stateWrites',
+		'publicContexts',
+		'serverContexts',
+		'contextWrites',
+		'serverContextWrites',
+		'boundaries'
+	]);
+	const invocation = output.invocation;
+	if (invocation && typeof invocation === 'object' && !Array.isArray(invocation)) {
+		output.invocation = omitEmptyMetadataFields(invocation as Record<string, unknown>, [
+			'arguments'
+		]);
+	}
+	return output;
+}
+
+function omitEmptyMetadataFields(
+	value: Record<string, unknown>,
+	fields: readonly string[]
+): Record<string, unknown> {
+	const output = { ...value };
+	for (const field of fields) {
+		const item = output[field];
+		if (Array.isArray(item) && item.length === 0) delete output[field];
+	}
+	return output;
 }
 
 function uniqueRegistryEntries<T extends ClientIslandRegistryEntry | ServerPartRegistryEntry>(

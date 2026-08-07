@@ -2,11 +2,24 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { ExactArtifactPlanEntry } from './types.js';
 
+const ignoredInputDirectories = new Set([
+	'.build',
+	'.exact',
+	'.git',
+	'.standalone-build',
+	'coverage',
+	'dist',
+	'node_modules'
+]);
+
 /** Recursively collects transformable source files from files or directories. */
-export async function collectInputFiles(inputs: readonly string[]): Promise<string[]> {
+export async function collectInputFiles(
+	inputs: readonly string[],
+	includeAllModules = false
+): Promise<string[]> {
 	const files: string[] = [];
 	for (const input of inputs) {
-		files.push(...(await collectInput(input)));
+		files.push(...(await collectInput(input, includeAllModules)));
 	}
 	return files.sort();
 }
@@ -14,6 +27,10 @@ export async function collectInputFiles(inputs: readonly string[]): Promise<stri
 /** Returns whether a file path is a JSX/TSX input the compiler can transform. */
 export function isTransformablePath(file: string): boolean {
 	return /\.[jt]sx$/i.test(file);
+}
+
+function isCheckableModulePath(file: string): boolean {
+	return /\.[cm]?[jt]sx?$/i.test(file) && !/\.d\.[cm]?ts$/i.test(file);
 }
 
 /** Returns the single-target output path for an input file. */
@@ -89,19 +106,28 @@ export function sortPlanEntries(entries: ExactArtifactPlanEntry[]): ExactArtifac
 	return entries.sort((left, right) => left.inputFile.localeCompare(right.inputFile));
 }
 
-async function collectInput(input: string): Promise<string[]> {
+async function collectInput(input: string, includeAllModules: boolean): Promise<string[]> {
 	const fileStat = await stat(input);
-	if (!fileStat.isDirectory()) return isTransformablePath(input) ? [input] : [];
+	if (!fileStat.isDirectory())
+		return (includeAllModules ? isCheckableModulePath(input) : isTransformablePath(input))
+			? [input]
+			: [];
 
 	const files: string[] = [];
 	for (const entry of await readdir(input, { withFileTypes: true })) {
-		if (entry.name === 'node_modules' || entry.name === 'dist') continue;
+		if (ignoredInputDirectory(entry.name)) continue;
 		const fullPath = path.join(input, entry.name);
 		if (entry.isDirectory()) {
-			files.push(...(await collectInput(fullPath)));
-		} else if (isTransformablePath(fullPath)) {
+			files.push(...(await collectInput(fullPath, includeAllModules)));
+		} else if (
+			includeAllModules ? isCheckableModulePath(fullPath) : isTransformablePath(fullPath)
+		) {
 			files.push(fullPath);
 		}
 	}
 	return files;
+}
+
+function ignoredInputDirectory(name: string): boolean {
+	return ignoredInputDirectories.has(name);
 }

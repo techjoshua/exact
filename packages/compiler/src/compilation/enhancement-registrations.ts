@@ -23,7 +23,7 @@ export function prependExactEnhancementRegistrations(
 	);
 	const registrations = entries.map(
 		(entry, index) =>
-			`__exactRegisterEnhancement(${JSON.stringify(entry.identity)}, __exactEnhancement${index}[${JSON.stringify(entry.exportName)}]);`
+			`if (__exactEnhancement${index}[${JSON.stringify(entry.exportName)}] !== undefined) __exactRegisterEnhancement(${JSON.stringify(entry.identity)}, __exactEnhancement${index}[${JSON.stringify(entry.exportName)}]);`
 	);
 	return `${imports.join('\n')}
 import { registerExactEnhancement as __exactRegisterEnhancement } from '@exactjs/core/framework/enhancement-catalog';

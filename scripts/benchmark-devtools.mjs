@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
-import { createExactRuntimeInspectionOwner, createVNode } from '../packages/core/dist/index.js';
+import {
+	createExactRuntimeInspectionOwner,
+	createVNode,
+	markExactComponent
+} from '../packages/core/dist/index.js';
 import { previewExactValue } from '../packages/devtools-protocol/dist/index.js';
 import { createExactClientEventStore } from '../packages/devtools-runtime/dist/client-events.js';
 import { createExactClientInspectionQueryService } from '../packages/devtools-runtime/dist/query-service.js';
@@ -76,6 +80,7 @@ const measurements = {};
 				)
 			);
 	}
+	markExactComponent(LargeList, 'benchmark:devtools:LargeList');
 	const started = performance.now();
 	const rendered = renderToString(createVNode(LargeList, {}), { markers: false });
 	measurements.ssrMs = performance.now() - started;

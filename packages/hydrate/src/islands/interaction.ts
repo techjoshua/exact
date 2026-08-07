@@ -34,6 +34,7 @@ const activationEvents = [
 	'compositionend'
 ] as const;
 const maxQueuedInteractions = 256;
+const islandBoundarySelector = '[data-exact-client-boundary], [data-xh]';
 
 type InteractionController = {
 	activate(boundary: Element, event: Event): boolean | Promise<boolean>;
@@ -57,7 +58,7 @@ export function ensureInteractionHydration(
 	const listener = (event: Event) => {
 		if (replaying) return;
 		const target = eventTargetElement(event.target);
-		const boundary = target?.closest('[data-exact-client-boundary]');
+		const boundary = target?.closest(islandBoundarySelector);
 		if (
 			!boundary ||
 			!container.contains(boundary) ||
@@ -191,7 +192,7 @@ function captureQueuedInteraction(
 		submitterIdentity:
 			event instanceof SubmitEvent && event.submitter instanceof Element
 				? captureTargetIdentity(
-						event.submitter.closest('[data-exact-client-boundary]') ?? event.submitter,
+						event.submitter.closest(islandBoundarySelector) ?? event.submitter,
 						event.submitter
 					)
 				: undefined,

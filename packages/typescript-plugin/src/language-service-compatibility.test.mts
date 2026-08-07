@@ -45,9 +45,9 @@ export function createCounter() {
 		expect(enhanced.map((diagnostic) => diagnostic.code)).toContain(2683);
 	});
 
-	it('counts exact-plugin JSX namespaces as import usage', () => {
+	it('counts exact-enhancement JSX namespaces as import usage', () => {
 		const source = `
-import motion from './motion.js' with { type: 'exact-plugin' };
+import motion from './motion.js' with { type: 'exact-enhancement' };
 declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
 export const view = <div motion:animate="in" />;`;
 		const { original, enhanced } = diagnostics(source, 'Motion.tsx');
@@ -58,7 +58,7 @@ export const view = <div motion:animate="in" />;`;
 
 	it('completes finite enhancement props using namespaced JSX spelling', () => {
 		const source = `
-import motion from './motion.js' with { type: 'exact-plugin' };
+import motion from './motion.js' with { type: 'exact-enhancement' };
 declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
 export const view = <div motion: />;`;
 		const completions = completionNames(source, 'Motion.tsx', source.indexOf('motion:') + 7);
@@ -67,10 +67,135 @@ export const view = <div motion: />;`;
 		expect(completions).not.toContain('children');
 	});
 
+	it('completes activators and selected component props for enhancement namespaces', () => {
+		const beforeSelection = `
+import * as motion from './motion.js' with { type: 'exact-enhancement' };
+declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
+export const view = <div motion: />;`;
+		const afterSelection = `
+import * as motion from './motion.js' with { type: 'exact-enhancement' };
+declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
+export const view = <div motion:slide-up motion: />;`;
+
+		expect(
+			completionNames(beforeSelection, 'Before.tsx', beforeSelection.lastIndexOf('motion:') + 7)
+		).toEqual(expect.arrayContaining(['fade', 'slide-up', 'apply', 'layout-id', 'root']));
+		const selected = completionNames(
+			afterSelection,
+			'After.tsx',
+			afterSelection.lastIndexOf('motion:') + 7
+		);
+		expect(selected).toEqual(
+			expect.arrayContaining(['fade', 'slide-up', 'duration', 'distance', 'root'])
+		);
+		expect(selected).not.toContain('layout-id');
+	});
+
+	it('describes selector-only activators and shared prop recipients', () => {
+		const source = `
+import * as motion from './motion.js' with { type: 'exact-enhancement' };
+declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
+export const view = <div motion:fade motion:slide-up motion:duration={180} />;`;
+		const { enhanced } = languageServices(source, 'Hover.tsx');
+		const fade = enhanced.getQuickInfoAtPosition(
+			'Hover.tsx',
+			source.indexOf('motion:fade') + 'motion:'.length
+		);
+		const duration = enhanced.getQuickInfoAtPosition(
+			'Hover.tsx',
+			source.indexOf('motion:duration') + 'motion:'.length
+		);
+
+		expect(ts.displayPartsToString(fade?.displayParts)).toContain(
+			'selector-only enhancement activator FadeMotion'
+		);
+		expect(ts.displayPartsToString(duration?.displayParts)).toContain('FadeMotion: number');
+		expect(ts.displayPartsToString(duration?.displayParts)).toContain('SlideUpMotion: number');
+	});
+
+	it('completes and explains finite component and intrinsic binding endpoints', () => {
+		const componentSource = `
+declare namespace JSX { interface IntrinsicElements { input: Record<string, unknown> } }
+type DialogProps = { open: boolean; onOpenChanged(open: boolean, reason?: string): void; onCancel(): void };
+declare function Dialog(props: DialogProps): unknown;
+declare const dialogOpen: boolean;
+export const view = <Dialog open: />;`;
+		const intrinsicSource = `
+declare namespace JSX { interface IntrinsicElements { input: Record<string, unknown> } }
+export const view = <input value: />;`;
+		const componentCompletions = completionNames(
+			componentSource,
+			'Binding.tsx',
+			componentSource.lastIndexOf('open:') + 5
+		);
+		const intrinsicCompletions = completionNames(
+			intrinsicSource,
+			'Intrinsic.tsx',
+			intrinsicSource.indexOf('value:') + 6
+		);
+		expect(componentCompletions).toContain('onOpenChanged');
+		expect(componentCompletions).not.toContain('onCancel');
+		expect(intrinsicCompletions).toEqual(expect.arrayContaining(['onInput', 'onChange']));
+
+		const hoverSource = componentSource.replace(
+			'<Dialog open: />',
+			'<Dialog open:onOpenChanged={dialogOpen} />'
+		);
+		const { enhanced } = languageServices(hoverSource, 'Binding.tsx');
+		const bindingStart = hoverSource.lastIndexOf('open:onOpenChanged');
+		expect(
+			enhanced
+				.getSemanticDiagnostics('Binding.tsx')
+				.filter(
+					(diagnostic) =>
+						(diagnostic.start ?? -1) >= bindingStart &&
+						(diagnostic.start ?? -1) < bindingStart + 'open:onOpenChanged'.length
+				)
+		).toEqual([]);
+		const hover = enhanced.getQuickInfoAtPosition(
+			'Binding.tsx',
+			hoverSource.lastIndexOf('onOpenChanged') + 2
+		);
+		expect(ts.displayPartsToString(hover?.displayParts)).toContain(
+			'onOpenChanged assigns its first argument to the parent state target'
+		);
+	});
+
+	it('renames both component binding halves through their prop declarations', () => {
+		const source = `
+declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
+type DialogProps = { open: boolean; onOpenChanged(open: boolean): void };
+declare function Dialog(props: DialogProps): unknown;
+declare const dialogOpen: boolean;
+export const first = <Dialog open:onOpenChanged={dialogOpen} />;
+export const second = <Dialog open:onOpenChanged={dialogOpen} />;`;
+		const { enhanced } = languageServices(source, 'Rename.tsx');
+		const valueLocations = enhanced.findRenameLocations(
+			'Rename.tsx',
+			source.indexOf('open:onOpenChanged'),
+			false,
+			false,
+			{}
+		);
+		const callbackLocations = enhanced.findRenameLocations(
+			'Rename.tsx',
+			source.indexOf('onOpenChanged', source.indexOf('first')),
+			false,
+			false,
+			{}
+		);
+		expect(valueLocations?.filter((location) => location.fileName === 'Rename.tsx')).toHaveLength(
+			3
+		);
+		expect(
+			callbackLocations?.filter((location) => location.fileName === 'Rename.tsx')
+		).toHaveLength(3);
+	});
+
 	it('retains an unrelated unused enhancement import', () => {
 		const source = `
-import motion from './motion.js' with { type: 'exact-plugin' };
-import gravity from './gravity.js' with { type: 'exact-plugin' };
+import motion from './motion.js' with { type: 'exact-enhancement' };
+import gravity from './gravity.js' with { type: 'exact-enhancement' };
 declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
 export const view = <div motion:animate="in" />;`;
 		const { enhanced } = diagnostics(source, 'Named.tsx');
@@ -90,7 +215,7 @@ import motion from './motion.js';
 declare namespace JSX { interface IntrinsicElements { div: Record<string, unknown> } }
 export const view = <div motion:animate="in" />;`;
 		const unusedEnhancement = `
-import motion from './motion.js' with { type: 'exact-plugin' };
+import motion from './motion.js' with { type: 'exact-enhancement' };
 export const view = 1;`;
 
 		expect(diagnostics(ordinary, 'Ordinary.tsx').enhanced.map(({ code }) => code)).toContain(6133);
@@ -117,6 +242,9 @@ function languageServices(source: string, filename: string) {
 declare const motion: (props: Props) => unknown;
 declare const gravity: (props: { strength?: number }) => unknown;
 export { motion, gravity };
+export function FadeMotion(props: { duration?: number; children?: unknown }): unknown;
+export function SlideUpMotion(props: { slideUp: true | { distance: number }; duration?: number; distance?: number; children?: unknown }): unknown;
+export { FadeMotion as fade, SlideUpMotion as slideUp };
 export default motion;`
 		]
 	]);

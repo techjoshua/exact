@@ -1,9 +1,9 @@
 import type { Component } from '@exactjs/core';
 import { defineGesture, type GestureSample } from '@exactjs/gestures';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by gesture:* attributes.
-import gesture from '@exactjs/gestures' with { type: 'exact-plugin' };
+import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import { fade, pop } from '@exactjs/motion/presets';
 import { SudokuContext } from '../context.js';
 import { arePeers } from '../game-engine.js';

@@ -77,15 +77,12 @@ export function addWebpackConditions(
 export function addWebpackEnhancementAliases(compiler: WebpackCompilerLike): void {
 	compiler.options.resolve ??= {};
 	const current = compiler.options.resolve.alias ?? {};
-	compiler.options.resolve.alias = {
-		...Object.fromEntries(
-			Object.entries(exactEnhancementFacadeImports).map(([request, replacement]) => [
-				`${request}$`,
-				replacement
-			])
-		),
-		...current
-	};
+	const additions = Object.entries(exactEnhancementFacadeImports).map(
+		([request, replacement]) => [`${request}$`, replacement] as const
+	);
+	compiler.options.resolve.alias = Array.isArray(current)
+		? [...additions.map(([name, alias]) => ({ name, alias, onlyModule: true })), ...current]
+		: { ...Object.fromEntries(additions), ...current };
 }
 
 /** Adds exact React compatibility aliases without replacing user aliases. */
@@ -95,10 +92,10 @@ export function addWebpackReactAliases(
 ): void {
 	compiler.options.resolve ??= {};
 	const current = compiler.options.resolve.alias ?? {};
-	compiler.options.resolve.alias = {
-		...Object.fromEntries(
-			Object.entries(resolved.aliases).map(([request, replacement]) => [`${request}$`, replacement])
-		),
-		...current
-	};
+	const additions = Object.entries(resolved.aliases).map(
+		([request, replacement]) => [`${request}$`, replacement] as const
+	);
+	compiler.options.resolve.alias = Array.isArray(current)
+		? [...additions.map(([name, alias]) => ({ name, alias, onlyModule: true })), ...current]
+		: { ...Object.fromEntries(additions), ...current };
 }

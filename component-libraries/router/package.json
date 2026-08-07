@@ -28,7 +28,12 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
+	"exactComponentLibrary": {
+		"protocol": 1,
+		"build": "./dist/exact-component-build.json"
+	},
 	"dependencies": {
+		"@exactjs/component-library": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/request": "^0.1.0",
 		"@exactjs/react-compat-adapter-api": "^0.1.0"
@@ -1012,7 +1017,7 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc -b",
+		"build": "tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

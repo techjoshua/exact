@@ -11,7 +11,7 @@ import type { Mounted, Root } from '../types.js';
 import { createMarker } from './root-support.js';
 import { disposeMounted } from './teardown.js';
 import { releaseMountedRange } from './retained-release.js';
-import { createPluginChain, withoutEnhancements } from './enhancement-chain.js';
+import { createEnhancementChain, withoutEnhancements } from './enhancement-chain.js';
 import {
 	collectTargetEnhancements,
 	resolveEnhancementTarget,
@@ -90,7 +90,7 @@ export function activateEnhancementSubtree(
 	return result;
 }
 
-/** Patches an active plugin chain while retaining the authored target as its public identity. */
+/** Patches an active enhancement chain while retaining the authored target as its public identity. */
 export function patchEnhancementBoundary(
 	root: Root,
 	mounted: Mounted,
@@ -127,7 +127,7 @@ export function patchEnhancementBoundary(
 			parentScope,
 			patch
 		);
-	const chain = createPluginChain(root, active, withoutEnhancements(next));
+	const chain = createEnhancementChain(root, active, withoutEnhancements(next));
 	mounted.children = [patch(mounted.children[0], chain, parentInstance, mounted.scope)];
 	mounted.vnode = next;
 	state.target.vnode = next;
@@ -295,7 +295,7 @@ function wrapTarget(
 	};
 	installEnhancementRouteWatch(root, boundaries, scope);
 	const leaf = withoutEnhancements(target.mounted.vnode);
-	const chain = createPluginChain(root, entries, leaf);
+	const chain = createEnhancementChain(root, entries, leaf);
 
 	const physicalParent = target.mounted.dom.parentNode ?? document.createDocumentFragment();
 	if (!target.mounted.dom.parentNode)
@@ -311,21 +311,21 @@ function wrapTarget(
 		commits: [] as Array<() => void>
 	};
 	root.replacementParking = parking;
-	let plugin: Mounted;
+	let enhancement: Mounted;
 	try {
-		plugin = mount(chain, target.parentInstance, scope, physicalParent);
+		enhancement = mount(chain, target.parentInstance, scope, physicalParent);
 	} finally {
 		root.replacementParking = previousParking;
 	}
 	for (const commit of parking.commits) commit();
-	// Parking patches the authored target with the marker-free plugin child.
+	// Parking patches the authored target with the marker-free enhancement child.
 	// Retain the authored vnode on the logical target so reactive root routing
 	// remains discoverable without exposing the marker to component props or DOM.
 	target.mounted.vnode = wrapper.vnode;
-	placeMountedBefore(root, physicalParent, plugin, end);
+	placeMountedBefore(root, physicalParent, enhancement, end);
 	for (const remaining of parking.mounts.values())
 		for (const parked of remaining) disposeMounted(parked.parent, parked.mounted);
-	wrapper.children = [plugin];
+	wrapper.children = [enhancement];
 	return wrapper;
 }
 

@@ -6,7 +6,7 @@ TypeScript language-service compatibility for syntax owned by the eXact compiler
 
 The plugin accompanies the eXact VS Code extension. It prevents TypeScript from reporting an
 implicit-`this` error for local functions owned by a component with an authored
-`this: Component<...>` receiver, and treats an `exact-plugin` import as used when its binding is
+`this: Component<...>` receiver, and treats an `exact-enhancement` import as used when its binding is
 used as a JSX attribute namespace.
 
 It also completes members from the enclosing component receiver after `this.` in a local function.

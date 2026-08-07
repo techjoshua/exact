@@ -1,3 +1,5 @@
+import { joinTask } from '@exactjs/core';
+
 /** Defines the router operation type contract. */
 export type RouterOperation = Readonly<{ id: number; abort: AbortController }>;
 
@@ -49,4 +51,15 @@ export class RouterOperationCoordinator {
 		this.activeAbort?.abort();
 		this.revalidationAbort?.abort();
 	}
+}
+
+/** Joins router settlement to the synchronously active framework interaction. */
+export function joinRouterOperation<Result>(operation: Promise<Result>): Promise<Result> {
+	joinTask(operation);
+	return operation;
+}
+
+/** Rejects operations attempted after their owning router has been disposed. */
+export function assertRouterActive(disposed: boolean): void {
+	if (disposed) throw new Error('Cannot use a disposed router');
 }

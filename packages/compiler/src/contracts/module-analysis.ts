@@ -23,6 +23,7 @@ export type ExactModuleAnalysis = {
 	dependencies: string[];
 	assets: ExactAssetDependencyIR[];
 	semanticGraph?: ExactSemanticGraphIR;
+	/** Canonical component facts and artifact reachability; descriptive, never authorization. */
 	components: ExactComponentIR[];
 	exports: ExactExportIR[];
 	symbols: ExactSymbolIR[];
@@ -31,9 +32,11 @@ export type ExactModuleAnalysis = {
 	callables: ExactCallableSummaryIR[];
 	continuations: ExactContinuationIR[];
 	registries?: ExactComponentRegistryIR[];
+	/** Build-facing canonical imports used to assemble the bundle-local enhancement catalog. */
 	rendererEnhancements: ExactRendererEnhancementIR[];
 	resumptions: ExactComponentResumptionIR[];
 	policy: ExactPolicyAnalysisIR;
+	/** Package identity supplied by the build integration, not inferred as a trust decision. */
 	packageName?: string;
 	requiredCapabilities?: {
 		rawHtml: ExactRawHtmlCapabilityIR[];

@@ -14,6 +14,8 @@ function percentile(values, fraction) {
 
 function source(revision) {
 	return `
+    import type { Component } from '@exactjs/core';
+
     export function Benchmark(this: Component<{ count: number }>) {
       const revision = ${revision};
       return () => <button title={"revision-" + revision}>{this.state.count}</button>;

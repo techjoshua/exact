@@ -22,7 +22,12 @@ export type ExactVitestOptions = {
  * Add the returned value to `plugins`. Vite accepts nested plugin arrays.
  */
 export function exactVitest(options: ExactVitestOptions = {}): PluginOption[] {
-	const plugins: PluginOption[] = [exact(options.compiler)];
+	const plugins: PluginOption[] = [
+		exact({
+			...options.compiler,
+			...(options.compiler?.target === 'server' ? { serverExecutionReason: 'server-test' } : {})
+		})
+	];
 	if (options.matchers !== false) {
 		const setupFile = fileURLToPath(new URL('./setup.js', import.meta.url));
 		plugins.push({

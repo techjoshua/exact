@@ -376,6 +376,7 @@ function fixture(source: string): ExactSourceInspection {
 		generation: 1,
 		filename: 'Page.tsx',
 		compiler: { typescriptVersion: '7.0.0', backendVersion: '1.26.0' },
+		partitionPlan: { version: 1, buildKey: 'fixture', roots: [], nodes: [], edges: [] },
 		diagnostics: [],
 		components: [
 			{

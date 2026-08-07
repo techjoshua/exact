@@ -112,3 +112,14 @@ export function adoptStaticChildrenRange(
 	}
 	return { mounts, next: cursor };
 }
+
+/** Finds the closing comment for an authored marker range after its opening cursor. */
+export function closingMarkerIndex(
+	nodes: readonly Node[],
+	cursor: number,
+	opening: string
+): number {
+	return nodes.findIndex(
+		(node, index) => index > cursor && node instanceof Comment && node.data === `/${opening}`
+	);
+}

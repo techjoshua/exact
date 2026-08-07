@@ -3,6 +3,7 @@ import {
 	createExactInspectionBuildKey,
 	type ExactSourceInspection
 } from '@exactjs/compiler';
+import type { ExactComponentAuthorizationAudit } from '@exactjs/component-library-policy';
 import path from 'node:path';
 import type { ExactBunDebugOptions, ExactBunPluginOptions } from './plugin.js';
 
@@ -57,7 +58,8 @@ globalThis[Symbol.for('@exactjs/devtools-installation')] ??= ${local}(${JSON.str
 export function createBunInspectionCatalog(
 	options: ExactBunPluginOptions,
 	debug: ExactBunDebugOptions,
-	modules: ReadonlyMap<string, ExactBunInspectionModule>
+	modules: ReadonlyMap<string, ExactBunInspectionModule>,
+	componentAuthorization?: ExactComponentAuthorizationAudit
 ) {
 	if (!modules.size) return undefined;
 	const root = path.resolve(options.applicationRoot ?? process.cwd());
@@ -70,7 +72,7 @@ export function createBunInspectionCatalog(
 		debug.rootComponentId ?? inspections.flatMap((inspection) => inspection.components)[0]?.id;
 	if (!rootComponentId) return undefined;
 	const buildKey = debug.buildKey ?? createExactInspectionBuildKey(root, entries);
-	return createExactBuildInspectionCatalog({
+	const catalog = createExactBuildInspectionCatalog({
 		buildKey,
 		root,
 		...(debug.producer ? { producer: debug.producer } : {}),
@@ -89,6 +91,9 @@ export function createBunInspectionCatalog(
 			}
 		]
 	});
+	if (componentAuthorization && componentAuthorization.buildKey !== catalog.buildKey)
+		throw new Error('Component authorization and Bun inspection build keys do not match');
+	return componentAuthorization ? Object.freeze({ ...catalog, componentAuthorization }) : catalog;
 }
 
 function mergeInspectionRedactions(

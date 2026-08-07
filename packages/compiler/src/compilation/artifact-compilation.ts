@@ -105,34 +105,42 @@ export async function compileFileArtifacts(
 	const serverMapFile = server.map ? sourceMapPathFor(paths.serverFile) : undefined;
 
 	await mkdir(path.dirname(paths.clientFile), { recursive: true });
-	await writeFile(
-		paths.clientFile,
-		shared
-			? sharedArtifactFacade(analysis, paths.sharedFile, paths.clientFile)
-			: clientMapFile
-				? withSourceMappingUrl(client.code, path.basename(clientMapFile))
-				: client.code
-	);
-	await writeFile(
-		paths.serverFile,
-		shared
-			? sharedArtifactFacade(analysis, paths.sharedFile, paths.serverFile)
-			: serverMapFile
-				? withSourceMappingUrl(server.code, path.basename(serverMapFile))
-				: server.code
-	);
-	if (shared) await writeFile(paths.sharedFile, shared.code);
-	else await removeGeneratedArtifact(paths.sharedFile);
+	const outputWrites: Promise<void>[] = [
+		writeFile(
+			paths.clientFile,
+			shared
+				? sharedArtifactFacade(analysis, paths.sharedFile, paths.clientFile)
+				: clientMapFile
+					? withSourceMappingUrl(client.code, path.basename(clientMapFile))
+					: client.code
+		),
+		writeFile(
+			paths.serverFile,
+			shared
+				? sharedArtifactFacade(analysis, paths.sharedFile, paths.serverFile)
+				: serverMapFile
+					? withSourceMappingUrl(server.code, path.basename(serverMapFile))
+					: server.code
+		),
+		shared ? writeFile(paths.sharedFile, shared.code) : removeGeneratedArtifact(paths.sharedFile)
+	];
 	if (clientMapFile && client.map)
-		await writeFile(
-			clientMapFile,
-			`${JSON.stringify(withSourceMapFile(client.map, path.basename(paths.clientFile)), null, 2)}\n`
+		outputWrites.push(
+			writeFile(
+				clientMapFile,
+				`${JSON.stringify(withSourceMapFile(client.map, path.basename(paths.clientFile)), null, 2)}\n`
+			)
 		);
 	if (serverMapFile && server.map)
-		await writeFile(
-			serverMapFile,
-			`${JSON.stringify(withSourceMapFile(server.map, path.basename(paths.serverFile)), null, 2)}\n`
+		outputWrites.push(
+			writeFile(
+				serverMapFile,
+				`${JSON.stringify(withSourceMapFile(server.map, path.basename(paths.serverFile)), null, 2)}\n`
+			)
 		);
+	// Every path is independently owned by this artifact generation. Publish them concurrently only
+	// after analysis and transformation settle so diagnostics and artifact contents remain ordered.
+	await Promise.all(outputWrites);
 	const result: CompileArtifactsResult = retainArtifactAnalysis(
 		{
 			inputFile,

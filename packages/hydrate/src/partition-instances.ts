@@ -1,6 +1,6 @@
 import { findNodeOwnerInstance, walkDomSubtree } from '@exactjs/dom';
+import { readExactPartitionDiscriminator } from '@exactjs/dom/framework/hydration';
 import type { ExactPartitionInstance } from './types.js';
-import type { ExactPartitionDiscriminator } from '@exactjs/server';
 
 type MutablePartitionInstance = {
 	value: Omit<ExactPartitionInstance, 'children'>;
@@ -47,7 +47,7 @@ function partitionInstance(
 	const plan = marker.getAttribute('data-exact-partition-edge');
 	const ownerComponentId = marker.getAttribute('data-exact-partition-owner');
 	const generation = Number(marker.getAttribute('data-exact-partition-generation'));
-	const discriminator = partitionDiscriminator(marker);
+	const discriminator = readExactPartitionDiscriminator(marker);
 	if (
 		marker.getAttribute('data-exact-partition-version') !== '1' ||
 		markerRoot !== executionRoot ||
@@ -71,21 +71,6 @@ function partitionInstance(
 		generation,
 		host: 'server' as const
 	});
-}
-
-function partitionDiscriminator(marker: Element): ExactPartitionDiscriminator | undefined {
-	const kind = marker.getAttribute('data-exact-partition-discriminator');
-	if (kind === 'single') return Object.freeze({ kind });
-	if (kind === 'branch') {
-		const branch = marker.getAttribute('data-exact-partition-branch');
-		return branch ? Object.freeze({ kind, branch }) : undefined;
-	}
-	if (kind === 'keyed') {
-		const list = marker.getAttribute('data-exact-partition-list');
-		const keyToken = marker.getAttribute('data-exact-partition-key');
-		return list && keyToken ? Object.freeze({ kind, list, keyToken }) : undefined;
-	}
-	return undefined;
 }
 
 function freezePartitionInstance(instance: MutablePartitionInstance): ExactPartitionInstance {

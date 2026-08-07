@@ -39,6 +39,18 @@
 		"./framework/enhancement-catalog": {
 			"types": "./dist/framework/enhancement-catalog.d.ts",
 			"default": "./dist/framework/enhancement-catalog.js"
+		},
+		"./framework/async-values": {
+			"types": "./dist/framework/async-values.d.ts",
+			"default": "./dist/framework/async-values.js"
+		},
+		"./framework/component-contract-validation": {
+			"types": "./dist/framework/component-contract-validation.d.ts",
+			"default": "./dist/framework/component-contract-validation.js"
+		},
+		"./framework/error-view": {
+			"types": "./dist/framework/error-view.d.ts",
+			"default": "./dist/framework/error-view.js"
 		}
 	},
 	"main": "./dist/index.js",

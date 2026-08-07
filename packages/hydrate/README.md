@@ -26,7 +26,7 @@ immediately.
 Hydrate the same compiled application that produced the server output. Server endpoints remain
 responsible for authorization, CSRF policy, payload limits, and operation allowlists.
 
-Generated application entries pass their bundle-local plugin enhancement catalog through
+Generated application entries pass their bundle-local enhancement catalog through
 `HydrateOptions.enhancementCatalog`. Hydration adopts compatible authored DOM first, then activates
 those ordinary enhancement components against the adopted targets.
 

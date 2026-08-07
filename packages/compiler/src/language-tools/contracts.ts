@@ -164,6 +164,15 @@ export type ExactStateAssignmentClassification = Readonly<{
 export type ExactBindingClassification = Readonly<{
 	kind: 'binding';
 	dependencies: readonly ExactSourceDependency[];
+	statePath: string;
+	valueProp: string;
+	callbackProp: string;
+	callbackValueType: string;
+	additionalParameters: number;
+	additionalParameterTypes: readonly string[];
+	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
+	artifactTargets: readonly ('client' | 'server')[];
+	intrinsicAdapter?: string;
 }>;
 
 /** Component-owned lifecycle registration classification. */
@@ -249,6 +258,10 @@ export type ExactLanguageServiceOptions = Readonly<{
 	noEmit?: true;
 	/** Project ownership label used by language-server inferred workspaces. */
 	projectKind?: 'configured' | 'inferred';
+	/** Maximum cold disk-backed analyses retained by one workspace. Defaults to 128. */
+	maxCachedAnalyses?: number;
+	/** Estimated byte budget for cold disk-backed analyses. Defaults to 32 MiB. */
+	maxCachedAnalysisBytes?: number;
 }>;
 
 /** One overlay mutation synchronized into a retained compiler project. */
@@ -271,6 +284,14 @@ export type ExactLanguageServiceStats = Readonly<{
 	generation: number;
 	overlays: number;
 	analyzedFiles: number;
+	snapshotEntries: number;
+	snapshotSourceBytes: number;
+	analysisEntries: number;
+	analysisEstimatedBytes: number;
+	importGraphEntries: number;
+	importGraphEdges: number;
+	analysisEvictions: number;
+	cacheOverBudget: boolean;
 	changedFiles: number;
 	affectedFiles: number;
 	lastSynchronizationMs: number;

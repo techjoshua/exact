@@ -11,6 +11,8 @@ export function renderElement(
 	vnode: VNode,
 	parent?: ComponentInstance<any>
 ): string {
+	const contributed = context.targetContributions.get(vnode);
+	if (contributed) vnode = { ...vnode, props: contributed };
 	const host = enterHost(context, vnode);
 	const hostVNode = host.vnode;
 	const tag = host.tag;

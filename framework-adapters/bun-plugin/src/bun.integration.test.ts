@@ -1,4 +1,5 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { exact } from './plugin.js';
@@ -62,4 +63,137 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 			await rm(root, { recursive: true, force: true });
 		}
 	});
+
+	testApi.it(
+		'authorizes components and emits private artifacts in a Bun server build',
+		async () => {
+			const fixture = await createAuthorizationFixture();
+			try {
+				const bun = (
+					globalThis as unknown as {
+						Bun: {
+							build(options: Record<string, unknown>): Promise<{
+								success: boolean;
+								logs: unknown[];
+							}>;
+						};
+					}
+				).Bun;
+				const result = await bun.build({
+					entrypoints: [fixture.entry],
+					target: 'bun',
+					format: 'esm',
+					outdir: fixture.outdir,
+					external: ['@exactjs/core'],
+					plugins: [
+						exact({
+							target: 'server',
+							applicationRoot: fixture.root,
+							reactCompatibility: false
+						})
+					]
+				});
+
+				testApi.expect(result.success).toBe(true);
+				testApi.expect(result.logs).toEqual([]);
+				const manifest = JSON.parse(
+					await readFile(
+						path.join(fixture.outdir, '.exact', 'component-library-authorization.json'),
+						'utf8'
+					)
+				) as { packages: unknown[] };
+				testApi.expect(manifest.packages).toEqual([
+					testApi.expect.objectContaining({
+						name: '@acme/cards',
+						decision: 'root',
+						reasons: ['ssr']
+					})
+				]);
+			} finally {
+				await rm(fixture.root, { recursive: true, force: true });
+			}
+		}
+	);
 });
+
+async function createAuthorizationFixture() {
+	const root = await mkdtemp(path.join(os.tmpdir(), 'exact-bun-authorization-build-'));
+	const entry = path.join(root, 'src', 'Page.tsx');
+	const outdir = path.join(root, 'dist');
+	const libraryRoot = path.join(root, 'node_modules', '@acme', 'cards');
+	const markerRoot = path.join(root, 'node_modules', '@exactjs', 'component-library');
+	await mkdir(path.dirname(entry), { recursive: true });
+	await mkdir(path.join(libraryRoot, 'dist'), { recursive: true });
+	await mkdir(markerRoot, { recursive: true });
+	await writeFile(
+		path.join(root, 'package.json'),
+		JSON.stringify({
+			name: '@app/bun-authorization',
+			version: '1.0.0',
+			type: 'module',
+			dependencies: { '@acme/cards': '1.0.0' }
+		})
+	);
+	await writeFile(
+		path.join(libraryRoot, 'package.json'),
+		JSON.stringify({
+			name: '@acme/cards',
+			version: '1.0.0',
+			type: 'module',
+			exports: { '.': './dist/index.js' },
+			dependencies: { '@exactjs/component-library': '^0.1.0' },
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+		})
+	);
+	await writeFile(
+		path.join(markerRoot, 'package.json'),
+		JSON.stringify({
+			name: '@exactjs/component-library',
+			version: '0.1.0',
+			exactComponentLibraryProtocol: 1
+		})
+	);
+	await writeFile(
+		path.join(libraryRoot, 'dist', 'index.js'),
+		'export function Card() { return () => null; }\n'
+	);
+	const facts: ExactPublishedComponentBuildFacts = {
+		protocol: 1,
+		package: { name: '@acme/cards', version: '1.0.0' },
+		modules: [
+			{
+				path: 'dist/index.js',
+				facts: {
+					protocol: 1,
+					components: [
+						{
+							id: '@acme/cards:Card',
+							placement: 'isomorphic',
+							artifactTargets: ['client', 'server']
+						}
+					],
+					componentImports: [],
+					rendererEnhancements: []
+				}
+			}
+		],
+		exports: [
+			{
+				subpath: '.',
+				condition: 'default',
+				module: 'dist/index.js',
+				exportName: 'Card',
+				componentId: '@acme/cards:Card'
+			}
+		]
+	};
+	await writeFile(
+		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
+		JSON.stringify(facts)
+	);
+	await writeFile(
+		entry,
+		"import { Card } from '@acme/cards'; export function Page() { return () => <Card />; }\n"
+	);
+	return { root, entry, outdir };
+}

@@ -1,4 +1,9 @@
-import { exactComponentIdentity, readExactComponentContract, type VNode } from '@exactjs/core';
+import {
+	exactComponentIdentity,
+	isFiniteClientBoundary,
+	readExactComponentContract,
+	type VNode
+} from '@exactjs/core';
 import { isReactive, isReactiveValue, peek, unwrap } from '@exactjs/reactive';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
@@ -10,6 +15,7 @@ import type {
 	SsrContext
 } from '../types.js';
 import { renderChildrenAsync } from './async-tree.js';
+import { publishClientBoundary } from './client-boundary-publication.js';
 import { componentName } from './component-vnode.js';
 import { renderChildren } from './sync-tree.js';
 
@@ -19,6 +25,7 @@ export function renderServerBoundary(context: SsrContext, vnode: VNode): string 
 	const name = String(unwrap(vnode.props.name) ?? '');
 	const hydration = clientBoundaryHydration(vnode);
 	const props = clientBoundaryProps(context, vnode);
+	const finite = isFiniteClientBoundary(vnode);
 	const unsafePath = jsonUnsafePath(props);
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
@@ -29,7 +36,7 @@ export function renderServerBoundary(context: SsrContext, vnode: VNode): string 
 		: renderServerBoundaryChildren(context, vnode, undefined);
 	// Client boundary props are serialized into an attribute, while children are
 	// represented as server slots so the client bundle does not need server-only code.
-	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"${hydration ? ` data-exact-client-hydration="${hydration}" data-exact-client-generation="1"` : ''}>${children}</div>`;
+	const html = publishClientBoundary(context, name, id, props, hydration, finite, children);
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 
@@ -123,6 +130,7 @@ export async function renderServerBoundaryAsync(
 	const name = String(unwrap(vnode.props.name) ?? '');
 	const hydration = clientBoundaryHydration(vnode);
 	const props = clientBoundaryProps(context, vnode);
+	const finite = isFiniteClientBoundary(vnode);
 	const unsafePath = jsonUnsafePath(props);
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
@@ -136,7 +144,7 @@ export async function renderServerBoundaryAsync(
 			: vnode.children.length
 				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`
 				: '';
-	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"${hydration ? ` data-exact-client-hydration="${hydration}" data-exact-client-generation="1"` : ''}>${children}</div>`;
+	const html = publishClientBoundary(context, name, id, props, hydration, finite, children);
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 

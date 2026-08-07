@@ -3,6 +3,9 @@
 `@exactjs/compiler` is a JavaScript host for the native `exactc-native` compiler. Parsing,
 checking, eXact analysis, placement, policy enforcement, artifact partitioning, lowering,
 generated-code validation, and printing execute in one persistent TypeScript-Go process.
+After analysis and target transforms settle, the JavaScript artifact host publishes independent
+client, server, shared, and source-map files concurrently. Semantic work and deterministic
+diagnostics remain single-owned by the retained native session.
 
 There is no JavaScript compiler fallback and no public backend selector. Native failures remain
 visible instead of silently changing compiler semantics.
@@ -26,12 +29,15 @@ Language sessions are permanently `noEmit: true`: they never write JavaScript,
 target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
-Native protocol 1.27 and generated component-contract version 2 carry the normalized recursive
+Native protocol 1.28 and generated component-contract version 2 carry the normalized recursive
 partition plan, including ordinary enhancement-component owners, structural templates,
 crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains
 `setupExecution` on authored state assignments across source normalization, distinguishing
 one-time initialization from deferred reactive calculation. Analysis responses remap those
-assignment spans to the original source before returning them to the language service.
+assignment spans to the original source before returning them to the language service. Paired
+component and intrinsic bindings are preserved as authored `valueBindings` edges with their parent
+state path, endpoint props, callback value type, placement, artifact targets, and intrinsic adapter
+identity; generated helper names never replace that source-facing description.
 See [Compiler-aware language tools](language-tools.md).
 
 ## Application and compiler TypeScript versions
@@ -67,6 +73,13 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
 
+`exactc --check .` is the no-emit application type-check path. It analyzes and lowers each
+transformable project module before TypeScript semantic validation, so compiler-owned TSX is
+checked as the ordinary props and callbacks it produces. Untransformed TypeScript modules are
+still checked directly. Raw `tsc --noEmit` remains useful for packages that contain no eXact-owned
+source syntax, but it is not authoritative for an eXact application. The current directory's
+`tsconfig.json` is used automatically; `--project` selects a different configuration.
+
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
 diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share one tool-neutral
@@ -77,6 +90,22 @@ asset emission, and build-tool lifecycle behavior remain adapter-owned.
 Generated operation identifiers, ephemeral module analysis, helper imports, and lowered source
 are compiler-session details. Applications should depend on authored TypeScript behavior and
 documented executable runtime contracts rather than generated representation.
+
+### Portable build analysis
+
+Although the complete module analysis is owned by a compiler session, a stable build-facing subset
+crosses the compiler/bundler boundary. `ExactModuleAnalysis.packageName` carries the package identity
+provided by the build integration. Its `components` and `partitionPlan` entries carry canonical
+component ownership, placement, environment effects, and concrete client/server artifact
+reachability. `rendererEnhancements` carries canonical enhancement identity plus the module
+specifier and export needed to construct a bundle-local enhancement catalog.
+
+This is the sole compiler-provided seam for component-library authorization. It is deliberately
+descriptive rather than authoritative: the compiler does not read the component-library marker,
+trust configuration, lockfile, aliases, or resolved physical package graph. A server bundler must
+join these facts to its own resolved graph and enforce one policy before evaluating admitted server
+modules. Client-only component code remains distinguishable through placement and artifact targets
+without adding a compiler-side trust decision.
 
 ## Repository-only compiler corpus
 

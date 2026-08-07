@@ -5,6 +5,7 @@ import type {
 	ExactArtifactRegistryPlan,
 	ExactTaskOperationPlan
 } from '../contracts/artifacts.js';
+import { createExactComponentBuildFacts } from './component-build-facts.js';
 
 /** Projects ephemeral semantic analysis into the narrow products supported by build adapters. */
 export function createArtifactBuildProducts(
@@ -15,6 +16,7 @@ export function createArtifactBuildProducts(
 		analysis.continuations.map((continuation) => continuation.componentId)
 	);
 	return Object.freeze({
+		componentBuild: createExactComponentBuildFacts(analysis),
 		dependencies: Object.freeze([...analysis.dependencies]),
 		componentIds: Object.freeze(analysis.components.map((component) => component.id)),
 		exposureRoots: Object.freeze(

@@ -15,19 +15,23 @@ test('calculates, updates the map, and stays within the viewport', async ({ page
 	await page.goto('/');
 	await expect(page.getByRole('heading', { name: 'Find the right way to send it.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'DOOP Standard' })).toBeVisible();
+	const routeArc = page.locator('.route-arc');
+	await expect(routeArc).toBeVisible();
+	const initialArc = await routeArc.getAttribute('d');
 	const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
 	const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
 	expect(scrollWidth).toBeLessThanOrEqual(viewportWidth);
 
 	await expect.poll(() => exactResponses).toContain(200);
 	exactResponses.length = 0;
-	await page.getByLabel('To ZIP').fill('97209');
+	await page.getByLabel('To ZIP').fill('94105');
 	await expect
 		.poll(() => ({ exactResponses, pageErrors, consoleErrors }))
 		.toMatchObject({ exactResponses: [200], pageErrors: [], consoleErrors: [] });
 	expect(pageErrors).toEqual([]);
-	await expect(page.getByRole('heading', { name: 'DOOP Today' })).toBeVisible({ timeout: 5_000 });
-	await expect(page.locator('.route-arc')).toBeVisible();
+	await expect(page.getByRole('status')).toContainText('Showing rates');
+	await expect(routeArc).toBeVisible();
+	await expect(routeArc).not.toHaveAttribute('d', initialArc!);
 });
 
 test('is keyboard operable and exposes status semantics', async ({ page }) => {
@@ -42,6 +46,7 @@ test('keeps controls labeled and touch-sized and honors reduced motion', async (
 	page
 }, testInfo) => {
 	await page.goto('/');
+	await expect(page.getByRole('heading', { name: 'Find the right way to send it.' })).toBeVisible();
 	const unnamed = await page.locator('button, input, select, summary').evaluateAll(
 		(elements) =>
 			elements.filter((element) => {

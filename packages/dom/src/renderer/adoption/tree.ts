@@ -2,11 +2,12 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
+	RenderProgram,
 	isCellVNode,
 	normalizeRenderResult,
 	renderInstance,
 	Suspense,
-	Text,
+	Target,
 	UnsafeHtml,
 	unwrap,
 	watch,
@@ -18,15 +19,14 @@ import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/r
 import { getOwnedCellVNode } from '../../cells.js';
 import { getListBinding, materializeList, stopReplacedChildren } from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
-import { setElementOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
-import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
 import { patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { unmountMany, unmountMounted } from '../teardown.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
+import { refreshTargetBoundary } from '../target-contributions.js';
 import { adoptActivityBoundary, adoptSuspenseBoundary } from './mode-boundaries.js';
 import {
 	componentMarkerBoundary,
@@ -36,13 +36,14 @@ import {
 import {
 	adoptStaticChildren,
 	adoptStaticChildrenRange,
-	authoredChildNodes,
-	createRangeAnchor,
-	frameworkChildRange
+	closingMarkerIndex,
+	createRangeAnchor
 } from './boundaries.js';
 import { adoptKeyedListChildren } from './keyed.js';
 import { normalizeAdoptionVNode } from './normalization.js';
 import { constructAdoptedComponent } from './construction.js';
+import { adoptRenderProgramOrFallback } from '../render-program.js';
+import { adoptStaticLeaf } from './leaf.js';
 
 /** Performs the adopt static mounted inner domain operation. */
 export function adoptStaticMountedInner(
@@ -155,9 +156,7 @@ export function adoptStaticMountedInner(
 		const start = nodes[cursor];
 		if (!(start instanceof Comment) || !start.data.startsWith(`exact:${kind}:`))
 			return stopFailedAdoption(scope);
-		const endIndex = nodes.findIndex(
-			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-		);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
 		if (endIndex < 0) return stopFailedAdoption(scope);
 		const end = nodes[endIndex] as Comment;
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
@@ -194,7 +193,8 @@ export function adoptStaticMountedInner(
 					nextChildren,
 					parentInstance,
 					scope,
-					afterMountedChildren(mounted)
+					afterMountedChildren(mounted),
+					mounted
 				);
 			},
 			undefined,
@@ -206,14 +206,24 @@ export function adoptStaticMountedInner(
 		);
 		return { mounted, next: endIndex + 1 };
 	}
+	if (vnode.type === RenderProgram) {
+		return adoptRenderProgramOrFallback(
+			root,
+			vnode,
+			nodes,
+			cursor,
+			parentInstance,
+			parentScope,
+			scope,
+			adoptStaticMountedInner
+		);
+	}
 	if (vnode.type === UnsafeHtml) {
 		assertUnsafeHtmlAllowed(root);
 		const start = nodes[cursor];
 		if (!(start instanceof Comment) || !start.data.startsWith('exact:unsafe-html:'))
 			return stopFailedAdoption(scope);
-		const endIndex = nodes.findIndex(
-			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-		);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
 		if (endIndex < 0) return stopFailedAdoption(scope);
 		const mounted: Mounted = {
 			vnode,
@@ -250,13 +260,14 @@ export function adoptStaticMountedInner(
 			adoptStaticChildren
 		);
 	}
-	if (vnode.type === Fragment) {
+	if (vnode.type === Fragment || vnode.type === Target) {
 		const start = nodes[cursor];
-		const list = getListBinding(vnode);
+		const list = vnode.type === Fragment ? getListBinding(vnode) : undefined;
 		const isListMarker = list && start instanceof Comment && start.data.startsWith('exact:');
 		if (
 			!(start instanceof Comment) ||
-			(!start.data.startsWith('exact:fragment:') && !isListMarker)
+			(!start.data.startsWith(`exact:${vnode.type === Target ? 'target' : 'fragment'}:`) &&
+				!isListMarker)
 		) {
 			const adopted = adoptStaticChildrenRange(
 				root,
@@ -278,11 +289,17 @@ export function adoptStaticMountedInner(
 				return undefined;
 			}
 			first.parentNode.insertBefore(marker, first);
-			return { mounted: { vnode, dom: marker, scope, children }, next: cursor + adopted.next };
+			const mounted: Mounted = {
+				vnode,
+				dom: marker,
+				scope,
+				children,
+				...(vnode.type === Target ? { targetBoundary: {} } : {})
+			};
+			if (vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
+			return { mounted, next: cursor + adopted.next };
 		}
-		const endIndex = nodes.findIndex(
-			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-		);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
 		if (endIndex < 0) {
 			scope.stop();
 			return undefined;
@@ -306,7 +323,15 @@ export function adoptStaticMountedInner(
 			scope.stop();
 			return undefined;
 		}
-		const mounted: Mounted = { vnode, dom: start, end: nodes[endIndex]!, scope, children };
+		const mounted: Mounted = {
+			vnode,
+			dom: start,
+			end: nodes[endIndex]!,
+			scope,
+			children,
+			...(vnode.type === Target ? { targetBoundary: {} } : {})
+		};
+		if (vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
 		if (list) {
 			mounted.stop = watch(
 				() => {
@@ -319,7 +344,8 @@ export function adoptStaticMountedInner(
 						materializeList(list),
 						parentInstance,
 						scope,
-						afterMountedChildren(mounted)
+						afterMountedChildren(mounted),
+						mounted
 					);
 				},
 				undefined,
@@ -333,52 +359,5 @@ export function adoptStaticMountedInner(
 		scope.stop();
 		return undefined;
 	}
-	if (vnode.type === Text) {
-		if (node.nodeType !== Node.TEXT_NODE || node.textContent !== String(vnode.props.value ?? '')) {
-			scope.stop();
-			return undefined;
-		}
-		const separator =
-			root.markerlessHydration &&
-			nodes[cursor + 1] instanceof Comment &&
-			(nodes[cursor + 1] as Comment).data === ' '
-				? nodes[cursor + 1]
-				: undefined;
-		return {
-			mounted: { vnode, dom: node, ...(separator ? { end: separator } : {}), scope, children: [] },
-			next: cursor + (separator ? 2 : 1)
-		};
-	}
-	if (
-		typeof vnode.type !== 'string' ||
-		!(node instanceof Element) ||
-		node.tagName.toLowerCase() !== vnode.type.toLowerCase()
-	) {
-		scope.stop();
-		return undefined;
-	}
-	const framework = frameworkChildRange(node);
-	const children = adoptStaticChildren(
-		root,
-		vnode.children,
-		authoredChildNodes(node, framework),
-		parentInstance,
-		scope
-	);
-	if (!children) {
-		scope.stop();
-		return undefined;
-	}
-	setElementOwner(node, parentInstance);
-	updateProps(root, node, {}, vnode.props, scope);
-	return {
-		mounted: {
-			vnode,
-			dom: node,
-			scope,
-			children,
-			...(framework ? { childEnd: framework.start } : {})
-		},
-		next: cursor + 1
-	};
+	return adoptStaticLeaf(root, vnode, node, nodes, cursor, parentInstance, scope);
 }

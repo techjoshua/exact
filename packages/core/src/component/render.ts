@@ -11,6 +11,7 @@ import {
 	normalizeRenderResult
 } from './errors.js';
 import { componentDomainInspection, withComponentDomain } from './domain.js';
+import { componentRenderHandlers } from './lifecycle-handlers.js';
 
 /** Renders a component instance inside a watcher and returns normalized child output. */
 export function renderInstance(
@@ -59,7 +60,7 @@ export function renderInstance(
 	);
 
 	const duration = performanceNow() - start;
-	for (const handler of instance.renderHandlers) {
+	for (const handler of componentRenderHandlers(instance)) {
 		try {
 			const result = handler({ duration });
 			if (isPromiseLike(result))

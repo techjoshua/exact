@@ -142,8 +142,9 @@ export class NativeCompilerProcess {
 	dispose(): void {
 		if (this.disposed) return;
 		this.disposed = true;
+		const activeState = Atomics.load(this.header, 0);
 		this.worker.postMessage('close');
-		this.waitForState(Atomics.load(this.header, 0), 'close');
+		this.waitForState(activeState, 'close');
 		void this.worker.terminate();
 	}
 

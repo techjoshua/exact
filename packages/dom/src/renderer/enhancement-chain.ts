@@ -8,7 +8,7 @@ import {
 import type { Root } from '../types.js';
 
 /** Builds the context-ordered component chain around one authored target. */
-export function createPluginChain(
+export function createEnhancementChain(
 	root: Root,
 	entries: readonly EnhancementEntry[],
 	leaf: VNode
@@ -18,7 +18,7 @@ export function createPluginChain(
 	for (let index = ordered.length - 1; index >= 0; index--) {
 		const entry = ordered[index]!;
 		const component = root.enhancementCatalog!.get(entry.identity)!;
-		chain = pluginVNode(component, entry, chain, leaf.domain);
+		chain = enhancementVNode(component, entry, chain, leaf.domain);
 	}
 	return chain;
 }
@@ -80,7 +80,7 @@ function orderEnhancementEntries(
 	return result;
 }
 
-function pluginVNode(
+function enhancementVNode(
 	component: ComponentFunction<any, Record<string, unknown>>,
 	entry: EnhancementEntry,
 	child: VNode,
@@ -90,6 +90,7 @@ function pluginVNode(
 	return domain ? { ...vnode, domain } : vnode;
 }
 
+/** Returns the authored VNode identity without its compiler-owned enhancement declaration. */
 export function withoutEnhancements(vnode: VNode): VNode {
 	if (!vnode.enhancements) return vnode;
 	const { enhancements: _enhancements, ...plain } = vnode;

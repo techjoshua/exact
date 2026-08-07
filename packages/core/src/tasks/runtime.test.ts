@@ -412,4 +412,11 @@ describe('unified task runtime', () => {
 		});
 		expect(work.mock.calls.length).toBeLessThanOrEqual(1);
 	});
+
+	it('materializes an already-aborted signal when first observed after disposal', async () => {
+		const owner = createTaskOwnerRecord('lazy owner');
+		await owner[Symbol.asyncDispose]();
+		expect(owner.signal.aborted).toBe(true);
+		expect(owner.signal.reason).toBe('task-owner-disposed');
+	});
 });

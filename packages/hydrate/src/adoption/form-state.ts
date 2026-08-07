@@ -7,6 +7,7 @@ type FormState = {
 	signature: string;
 	value?: string;
 	checked?: boolean;
+	open?: boolean;
 	selected?: boolean[];
 	selection?: {
 		start: number | null;
@@ -32,7 +33,8 @@ export function captureHydrationDom(container: Element, work: DomWorkBudget): Hy
 				node instanceof HTMLInputElement ||
 				node instanceof HTMLTextAreaElement ||
 				node instanceof HTMLSelectElement ||
-				(node instanceof Element && node.getAttribute('contenteditable') === 'true')
+				(node instanceof Element && node.getAttribute('contenteditable') === 'true') ||
+				isDetailsElement(node)
 			)
 				controls.push(node);
 		},
@@ -48,7 +50,9 @@ export function captureHydrationDom(container: Element, work: DomWorkBudget): Hy
 						? Array.from(control.options).some(
 								(option) => option.selected !== option.defaultSelected
 							)
-						: control.textContent !== control.getAttribute('data-exact-ssr-text');
+						: isDetailsElement(control)
+							? control.open !== (control.getAttribute('data-exact-ssr-open') === 'true')
+							: control.textContent !== control.getAttribute('data-exact-ssr-text');
 		if (!dirty && control !== active) return [];
 		const state: FormState = {
 			node: control,
@@ -67,6 +71,8 @@ export function captureHydrationDom(container: Element, work: DomWorkBudget): Hy
 			};
 		} else if (control instanceof HTMLSelectElement) {
 			state.selected = Array.from(control.options, (option) => option.selected);
+		} else if (isDetailsElement(control)) {
+			state.open = control.open;
 		} else state.value = control.textContent ?? '';
 		return [state];
 	});
@@ -115,6 +121,8 @@ export function restoreFormState(
 				option.selected = state.selected![index] ?? false;
 			});
 			if (state.focused) control.focus({ preventScroll: true });
+		} else if (isDetailsElement(control) && state.open !== undefined) {
+			control.open = state.open;
 		} else if (state.value !== undefined) {
 			control.textContent = state.value;
 			if (state.focused && control instanceof HTMLElement) control.focus({ preventScroll: true });
@@ -129,6 +137,10 @@ function formControlIdentity(element: Element): { attribute: string; value: stri
 		if (value) return { attribute, value };
 	}
 	return undefined;
+}
+
+function isDetailsElement(value: unknown): value is HTMLDetailsElement {
+	return value instanceof Element && value.localName === 'details' && 'open' in value;
 }
 
 function formControlSignature(element: Element): string {

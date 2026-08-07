@@ -59,6 +59,14 @@ settle. An unsupported build permits one bounded coordinated recovery attempt.
 Invalid loaders, registrations, responses, or ownership metadata render the
 configured fallback rather than partially mounting a remote tree.
 
+Server-executing remote entries also carry the compact component-library
+authorization identity produced by their build: protocol, build key, and
+fingerprint. The browser forwards only the fingerprint with component
+operations. The retained component host compares it with the registered build
+before dispatch, and a mismatch uses the same bounded unsupported-build
+recovery. Package names, policy rules, integrity values, and audit provenance
+remain server-private.
+
 ## Current limitations
 
 - Complete producer/consumer support is currently the Vite/Rollup path.
@@ -66,8 +74,8 @@ configured fallback rather than partially mounting a remote tree.
   [full adapter lifecycle and heterogeneous conformance work](proposals/webpack-bun-microfrontend-parity.md).
 - Deployment discovery, signing, rollout policy, and service operation remain
   application/platform responsibilities.
-- Primary page-bundle replacement and component-authenticated protocol
-  messages remain possible future work, not current behavior.
+- Primary page-bundle replacement remains possible future work, not current
+  behavior.
 
 See the plugin package and docs-app microfrontend page for configuration
 examples.

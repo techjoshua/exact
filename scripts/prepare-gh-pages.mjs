@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 const root = process.cwd();
 const docsRoot = resolve(root, 'apps/docs/dist');
 const sudokuRoot = resolve(root, 'apps/sudoku/dist');
+const puzzleGeneratorRoot = resolve(root, 'apps/puzzle-generator/dist');
 const outputRoot = resolve(root, '.tmp/gh-pages');
 const sudokuFiles = [
 	'manifest.webmanifest',
@@ -20,8 +21,12 @@ await copyFile(resolve(docsRoot, 'index.html'), resolve(outputRoot, 'index.html'
 for (const file of sudokuFiles) {
 	await copyFile(resolve(sudokuRoot, file), resolve(outputRoot, file));
 }
+await copyFile(
+	resolve(puzzleGeneratorRoot, 'puzzle-foundry.html'),
+	resolve(outputRoot, 'puzzle-foundry.html')
+);
 
-const htmlFiles = ['index.html', 'sudoku.html'];
+const htmlFiles = ['index.html', 'sudoku.html', 'puzzle-foundry.html'];
 for (const file of htmlFiles) {
 	const html = await readFile(resolve(outputRoot, file), 'utf8');
 	if (/<script[^>]+\bsrc=/i.test(html) || /<link[^>]+\brel=["']stylesheet["']/i.test(html)) {
@@ -29,7 +34,7 @@ for (const file of htmlFiles) {
 	}
 }
 
-const expectedFiles = ['index.html', ...sudokuFiles].sort();
+const expectedFiles = ['index.html', 'puzzle-foundry.html', ...sudokuFiles].sort();
 const outputFiles = (await readdir(outputRoot)).sort();
 if (JSON.stringify(outputFiles) !== JSON.stringify(expectedFiles)) {
 	throw new Error(`Unexpected GitHub Pages files: ${outputFiles.join(', ')}`);

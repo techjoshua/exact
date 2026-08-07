@@ -14,7 +14,15 @@ describe('remote artifact planning', () => {
 				remotes: {},
 				providedPackages: ['@company/contexts']
 			},
-			{ packageName: '@company/billing', buildKey }
+			{
+				packageName: '@company/billing',
+				buildKey,
+				componentAuthorization: {
+					protocol: 1,
+					buildKey,
+					fingerprint: 'authorization-one'
+				}
+			}
 		);
 
 		expect(plan.exposures.map((value) => value.root)).toEqual([
@@ -24,10 +32,28 @@ describe('remote artifact planning', () => {
 		expect(plan.providedPackages).toContain('@exactjs/core');
 		expect(plan.providedPackages).toContain('@company/contexts');
 		expect(plan.exposures[0]?.entrySource).toContain(`buildKey: "${buildKey}"`);
+		expect(plan.exposures[0]?.entrySource).toContain('fingerprint":"authorization-one"');
 	});
 
 	it('accepts only a full Git SHA from build configuration', () => {
 		expect(resolveExactBuildKey({ buildKey: buildKey.toUpperCase() })).toBe(buildKey);
 		expect(() => resolveExactBuildKey({ buildKey: 'release-12' })).toThrow(/full Git commit SHA/);
+	});
+
+	it('rejects component authorization prepared for another build', () => {
+		expect(() =>
+			createExactRemoteArtifactPlan(
+				{ exposes: {}, remotes: {}, providedPackages: [] },
+				{
+					packageName: '@company/billing',
+					buildKey,
+					componentAuthorization: {
+						protocol: 1,
+						buildKey: '89abcdef0123456789abcdef0123456789abcdef',
+						fingerprint: 'authorization-two'
+					}
+				}
+			)
+		).toThrow('does not match its build key');
 	});
 });

@@ -29,6 +29,7 @@ describe('build adapter support', () => {
 		expect(code.match(/import \* as __exactEnhancement/g)).toHaveLength(1);
 		expect(code).toContain('@exactjs/core/framework/enhancement-catalog');
 		expect(code).toContain('__exactRegisterEnhancement("@exactjs/motion#default"');
+		expect(code).toContain('["default"] !== undefined');
 		expect(exactEnhancementFacadeImports).toEqual({
 			'@exactjs/dom': '@exactjs/dom/enhanced',
 			'@exactjs/hydrate': '@exactjs/hydrate/enhanced',

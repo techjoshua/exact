@@ -112,6 +112,8 @@ export type ExactArtifactRegistryPlan = Readonly<{
 
 /** Supported compiler products consumed by build adapters and artifact graph creation. */
 export type ExactArtifactBuildProducts = Readonly<{
+	/** Target-neutral component facts retained beside artifact-specific products. */
+	componentBuild: import('./transform.js').ExactComponentBuildFacts;
 	dependencies: readonly string[];
 	componentIds: readonly string[];
 	exposureRoots: readonly Readonly<{ componentId: string; exportName: string }>[];

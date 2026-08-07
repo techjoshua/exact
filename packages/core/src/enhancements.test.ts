@@ -46,7 +46,9 @@ describe('renderer enhancement markers', () => {
 	it('carries compilerless context effects by token identity', () => {
 		const token = createContext<string>('enhancement-test', true);
 		const component = markExactEnhancementContexts(
-			markExactComponent(function Test() {}, 'test:enhancement-contexts'),
+			markExactComponent(function Test() {
+				return () => null;
+			}, 'test:enhancement-contexts'),
 			{ provides: [token] }
 		);
 		expect(readExactEnhancementContexts(component)).toEqual({ provides: [token.id] });

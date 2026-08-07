@@ -1,4 +1,4 @@
-import type { ComponentInstance, VNode } from '@exactjs/core';
+import { unwrap, type ComponentInstance, type VNode } from '@exactjs/core';
 import { elementOwners, roots } from './state.js';
 import type { Mounted } from './types.js';
 
@@ -19,6 +19,14 @@ export type DomInspectionNode = {
 		generation: number;
 		revealed: boolean;
 		hasCandidate: boolean;
+	}>;
+	readonly target?: Readonly<{
+		selected?: Element;
+		contributions: readonly Readonly<{
+			owner?: ComponentInstance<any>;
+			props: Readonly<Record<string, unknown>>;
+		}>[];
+		effectiveProps?: Readonly<Record<string, unknown>>;
 	}>;
 	elements(): readonly Element[];
 	ownedElements(): readonly Element[];
@@ -66,6 +74,26 @@ function inspectMounted(
 					hasCandidate: mounted.suspense.candidate !== undefined
 				})
 			: undefined,
+		target:
+			mounted.targetBoundary || mounted.targetContributions?.size
+				? Object.freeze({
+						selected:
+							mounted.targetBoundary?.selected?.dom instanceof Element
+								? mounted.targetBoundary.selected.dom
+								: undefined,
+						contributions: Object.freeze(
+							[...(mounted.targetContributions?.values() ?? [])].map((contribution) =>
+								Object.freeze({
+									owner: contribution.owner,
+									props: snapshotProps(contribution.props)
+								})
+							)
+						),
+						effectiveProps: mounted.targetEffectiveProps
+							? snapshotProps(mounted.targetEffectiveProps)
+							: undefined
+					})
+				: undefined,
 		get children() {
 			return children;
 		},
@@ -74,6 +102,18 @@ function inspectMounted(
 	};
 	children = Object.freeze(mounted.children.map((child) => inspectMounted(child, node)));
 	return Object.freeze(node);
+}
+
+function snapshotProps(
+	props: Readonly<Record<string, unknown>>
+): Readonly<Record<string, unknown>> {
+	return Object.freeze(
+		Object.fromEntries(
+			Object.entries(props)
+				.filter(([key]) => key !== 'children')
+				.map(([key, value]) => [key, unwrap(value)])
+		)
+	);
 }
 
 function rootElements(mounted: Mounted): Element[] {

@@ -85,11 +85,38 @@ export type ExactInspectionRootCatalog = Readonly<{
 export type ExactBuildInspectionCatalog = Readonly<{
 	protocol: 1;
 	buildKey: string;
+	componentAuthorization?: ExactComponentAuthorizationInspection;
 	producer: Readonly<{
 		packageName?: string;
 		version?: string;
 	}>;
 	roots: Readonly<Record<string, ExactInspectionRootCatalog>>;
+}>;
+
+/** Redacted component-library authorization decision visible only through server-owned inspection. */
+export type ExactComponentAuthorizationInspection = Readonly<{
+	protocol: 1;
+	buildKey: string;
+	fingerprint: string;
+	packages: readonly Readonly<{
+		instanceId: string;
+		name: string;
+		version: string;
+		markerVersion: string;
+		decision: 'root' | 'allow' | 'scope' | 'delegated' | 'all';
+		reasons: readonly string[];
+		matchedRule?: string;
+		provenance: readonly Readonly<{
+			owner: 'application' | string;
+			specifier: string;
+			kind: 'dependency' | 'devDependency' | 'peerDependency' | 'optionalDependency';
+		}>[];
+	}>[];
+	omittedEnhancements: readonly Readonly<{
+		identity: string;
+		packageName: string;
+		reason: string;
+	}>[];
 }>;
 
 /** Structured reason why one inspection projection is unavailable. */
@@ -131,6 +158,8 @@ export function isExactBuildInspectionCatalog(
 	if (!record(value) || value.protocol !== EXACT_DEVTOOLS_PROTOCOL_VERSION) return false;
 	if (
 		!boundedString(value.buildKey, 256) ||
+		(value.componentAuthorization !== undefined &&
+			!validComponentAuthorization(value.componentAuthorization, value.buildKey)) ||
 		!validProducer(value.producer) ||
 		!record(value.roots) ||
 		Object.keys(value.roots).length > 100
@@ -140,6 +169,55 @@ export function isExactBuildInspectionCatalog(
 		if (!boundedString(key, 512) || !validRootCatalog(root, key)) return false;
 	}
 	return true;
+}
+
+function validComponentAuthorization(value: unknown, buildKey: string): boolean {
+	if (
+		!record(value) ||
+		value.protocol !== 1 ||
+		value.buildKey !== buildKey ||
+		!boundedString(value.fingerprint, 256) ||
+		!Array.isArray(value.packages) ||
+		value.packages.length > 10_000 ||
+		!Array.isArray(value.omittedEnhancements) ||
+		value.omittedEnhancements.length > 10_000
+	)
+		return false;
+	const decisions = new Set(['root', 'allow', 'scope', 'delegated', 'all']);
+	const kinds = new Set(['dependency', 'devDependency', 'peerDependency', 'optionalDependency']);
+	return (
+		value.packages.every((candidate) => {
+			if (
+				!record(candidate) ||
+				!boundedString(candidate.instanceId, 256) ||
+				!boundedString(candidate.name, 256) ||
+				!boundedString(candidate.version, 256) ||
+				!boundedString(candidate.markerVersion, 256) ||
+				!decisions.has(candidate.decision as string) ||
+				(candidate.matchedRule !== undefined && !boundedString(candidate.matchedRule, 512)) ||
+				!Array.isArray(candidate.reasons) ||
+				candidate.reasons.length > 32 ||
+				!candidate.reasons.every((reason) => boundedString(reason, 64)) ||
+				!Array.isArray(candidate.provenance) ||
+				candidate.provenance.length > 100
+			)
+				return false;
+			return candidate.provenance.every(
+				(edge) =>
+					record(edge) &&
+					boundedString(edge.owner, 256) &&
+					boundedString(edge.specifier, 512) &&
+					kinds.has(edge.kind as string)
+			);
+		}) &&
+		value.omittedEnhancements.every(
+			(candidate) =>
+				record(candidate) &&
+				boundedString(candidate.identity, 512) &&
+				boundedString(candidate.packageName, 256) &&
+				boundedString(candidate.reason, 64)
+		)
+	);
 }
 
 function validRootCatalog(value: unknown, key: string): value is ExactInspectionRootCatalog {

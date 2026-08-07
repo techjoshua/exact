@@ -56,7 +56,8 @@ export async function handleParcelLabRequest(
 
 	const configured = configuredProviderIds();
 	const hydration = createExactHydrationConfig(exactContract, {
-		configuredProviders: configured
+		state: { configuredProviders: configured },
+		includeContinuations: false
 	});
 	const rendered = await renderExactRequestToProgressiveHtmlResponse(
 		{

@@ -71,6 +71,7 @@ func collectCallableEffects(
 	components []Component,
 	stateReads []StateRead,
 	stateWrites []StateWrite,
+	componentBindings map[int]componentBinding,
 ) callableAnalysis {
 	nodes := collectCallableNodes(sourceFile)
 	facts := make([]callableFacts, 0, len(nodes))
@@ -141,6 +142,7 @@ func collectCallableEffects(
 			contextBindings,
 		)
 	}
+	facts = appendComponentBindingCallableFacts(facts, sourceFile, componentBindings)
 	resolveCallableEffects(facts)
 	applyCallableArtifactConstraints(facts)
 
@@ -252,6 +254,7 @@ func collectProjectCallableEffects(
 	components []Component,
 	stateReads []StateRead,
 	stateWrites []StateWrite,
+	componentBindings map[int]componentBinding,
 ) callableAnalysis {
 	if project.callableCache == nil {
 		project.callableCache = buildProjectCallableCache(
@@ -267,6 +270,7 @@ func collectProjectCallableEffects(
 			components,
 			stateReads,
 			stateWrites,
+			componentBindings,
 		)
 		fingerprint := callableAnalysisFingerprint(refreshed)
 		if fingerprint != cache.fingerprints[sourceFile] {
@@ -299,12 +303,19 @@ func buildProjectCallableCache(
 		}
 		components := collectComponents(sourceFile)
 		_, reads, writes := collectStateAnalysis(sourceFile, typeChecker)
+		bindings, bindingWrites, _ := analyzeComponentBindings(
+			sourceFile,
+			typeChecker,
+			collectEnhancementImports(sourceFile, typeChecker, nil),
+		)
+		writes = append(writes, bindingWrites...)
 		analysis := collectCallableEffects(
 			sourceFile,
 			typeChecker,
 			components,
 			reads,
 			writes,
+			bindings,
 		)
 		cache.bySource[sourceFile] = analysis
 		cache.fingerprints[sourceFile] = callableAnalysisFingerprint(analysis)
@@ -781,6 +792,9 @@ func collectDirectCallableEffects(
 		}
 	}
 	for _, write := range stateWrites {
+		if write.Interaction {
+			continue
+		}
 		if directlyOwnedSpan(write.Start, write.Start+write.Length, factIndex, facts) {
 			confidence := "exact"
 			if containsString(write.Path, "*") || write.Operation == "array-mutation" {
@@ -953,6 +967,54 @@ func collectDirectCallableEffects(
 	fact.summary.StateReads = append([]StateEffect(nil), fact.directReads...)
 	fact.summary.StateWrites = append([]StateEffect(nil), fact.directWrites...)
 	fact.summary.Contexts = append([]ContextEffect(nil), fact.directContext...)
+}
+
+func appendComponentBindingCallableFacts(
+	facts []callableFacts,
+	sourceFile *ast.SourceFile,
+	bindings map[int]componentBinding,
+) []callableFacts {
+	ordered := make([]componentBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		ordered = append(ordered, binding)
+	}
+	sort.Slice(ordered, func(left int, right int) bool {
+		return ordered[left].start < ordered[right].start
+	})
+	for _, binding := range ordered {
+		name := fmt.Sprintf("<anonymous@%d>", binding.start)
+		effects := []EnvironmentEffectSource{}
+		if interactiveJSXAttribute(binding.callbackProp) {
+			effects = append(
+				effects,
+				environmentSource("browser", "interactive JSX handler", name),
+			)
+		}
+		confidence := "exact"
+		if containsString(binding.write.Path, "*") || binding.write.Operation == "array-mutation" {
+			confidence = "broad"
+		}
+		write := StateEffect{
+			Path: strings.Join(binding.write.Path, "."), Kind: "write",
+			Confidence: confidence, Operation: stateEffectOperation(binding.write.Operation),
+		}
+		facts = append(facts, callableFacts{
+			node: binding.target, sourceFile: sourceFile,
+			summary: CallableSummary{
+				ID:   fmt.Sprintf("callable:%s:%d", sourceFile.FileName(), binding.start),
+				Name: name, Kind: "function",
+				ExportNames: []string{}, DirectEffectSources: effects,
+				EffectSources: append([]EnvironmentEffectSource(nil), effects...),
+				Calls:         []CallEdge{}, ArtifactTargets: []string{},
+				StateReads: []StateEffect{}, StateWrites: []StateEffect{write},
+				Contexts: []ContextEffect{},
+			},
+			directReads: []StateEffect{}, directWrites: []StateEffect{write},
+			directContext: []ContextEffect{}, callSymbols: make(map[string]ast.SymbolId),
+			callExpressions: make(map[string]*ast.Node),
+		})
+	}
+	return facts
 }
 
 func eagerCallbackCall(expression *ast.Node) bool {

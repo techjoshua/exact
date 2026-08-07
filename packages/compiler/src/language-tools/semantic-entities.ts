@@ -117,7 +117,7 @@ export function stateAssignmentEntities(
 		});
 }
 
-/** Projects native two-way control bindings with their reactive inputs. */
+/** Projects authored component and intrinsic value/callback binding edges. */
 export function bindingEntities(
 	component: NativeCompilerComponent,
 	source: string,
@@ -126,38 +126,46 @@ export function bindingEntities(
 	const componentRange = clampRange(source, component.start, component.length);
 	const entities: ExactSourceEntity[] = [];
 	let index = 0;
-	for (const element of analysis.jsx) {
-		for (const attribute of element.attributes) {
-			if (attribute.namespace !== 'value' && attribute.namespace !== 'checked') continue;
-			const range = clampRange(source, attribute.start, attribute.length);
-			if (!contains(componentRange, range)) continue;
-			const dependencies = stateDependencies(analysis, component.name, source, range);
-			entities.push(
-				Object.freeze({
-					id: `${component.id}:binding:${index++}`,
+	for (const binding of analysis.valueBindings) {
+		const range = clampRange(source, binding.start, binding.length);
+		if (binding.component !== component.name || !contains(componentRange, range)) continue;
+		const dependencies = stateDependencies(analysis, component.name, source, range);
+		entities.push(
+			Object.freeze({
+				id: `${component.id}:binding:${index++}`,
+				kind: 'binding',
+				name: `${binding.valueProp}:${binding.callbackProp}`,
+				range,
+				selectionRange: range,
+				children: Object.freeze([]),
+				classification: Object.freeze({
 					kind: 'binding',
-					name: `${attribute.namespace}:${attribute.name ?? 'change'}`,
-					range,
-					selectionRange: range,
-					children: Object.freeze([]),
-					classification: Object.freeze({
-						kind: 'binding',
-						dependencies: Object.freeze(dependencies)
-					}),
-					reasons: Object.freeze(
-						dependencies.length
-							? [
-									Object.freeze({
-										code: 'reactive-dependency' as const,
-										summary: 'The compiler binds this control to one writable reactive location.',
-										range
-									})
-								]
-							: []
-					)
-				})
-			);
-		}
+					dependencies: Object.freeze(dependencies),
+					statePath: `state.${binding.statePath.join('.')}`,
+					valueProp: binding.valueProp,
+					callbackProp: binding.callbackProp,
+					callbackValueType: binding.callbackValueType,
+					additionalParameters: binding.additionalParameters,
+					additionalParameterTypes: Object.freeze([...binding.additionalParameterTypes]),
+					placement: binding.placement,
+					artifactTargets: Object.freeze([...binding.artifactTargets]),
+					...(binding.intrinsicAdapter ? { intrinsicAdapter: binding.intrinsicAdapter } : {})
+				}),
+				reasons: Object.freeze(
+					dependencies.length
+						? [
+								Object.freeze({
+									code: 'reactive-dependency' as const,
+									summary: binding.intrinsicAdapter
+										? 'The compiler binds this intrinsic to one writable reactive location.'
+										: `The compiler supplies ${binding.valueProp} and an unconditional ${binding.callbackProp} assignment callback.`,
+									range
+								})
+							]
+						: []
+				)
+			})
+		);
 	}
 	return entities;
 }

@@ -3,6 +3,7 @@ import { observeLifecyclePromise } from './async.js';
 import type { ComponentInstance } from './contracts.js';
 import { componentDomainInspection } from './domain.js';
 import { createErrorReport, handleComponentError } from './errors.js';
+import { componentLifecycleHandlers } from './lifecycle-handlers.js';
 
 /** Controls active/deactive lifecycle transitions for one mounted component instance. */
 export type ComponentActivation = Readonly<{
@@ -16,7 +17,7 @@ export function createComponentActivation(
 	instance: ComponentInstance<any>,
 	isMounted: () => boolean,
 	isDisposed: () => boolean,
-	blockers: ReadonlySet<symbol>
+	blockerCount: () => number
 ): ComponentActivation {
 	let active = false;
 	const deactivate = (reason: string): void => {
@@ -29,7 +30,7 @@ export function createComponentActivation(
 		});
 		instance.activationController?.abort(reason);
 		instance.activationController = undefined;
-		for (const handler of instance.deactivateHandlers) {
+		for (const handler of componentLifecycleHandlers(instance, 'deactivate')) {
 			try {
 				const result = handler({ signal: AbortSignal.abort(reason), reason });
 				if (isPromiseLike(result))
@@ -47,7 +48,7 @@ export function createComponentActivation(
 			return active;
 		},
 		update(reason = 'activity') {
-			if (!isMounted() || isDisposed() || blockers.size) {
+			if (!isMounted() || isDisposed() || blockerCount()) {
 				deactivate(reason);
 				return;
 			}
@@ -58,10 +59,11 @@ export function createComponentActivation(
 				component: instance,
 				reason
 			});
-			instance.activationController = new AbortController();
-			for (const handler of instance.activateHandlers) {
+			const handlers = componentLifecycleHandlers(instance, 'activate');
+			instance.activationController = handlers.length ? new AbortController() : undefined;
+			for (const handler of handlers) {
 				try {
-					const result = handler({ signal: instance.activationController.signal });
+					const result = handler({ signal: instance.activationController!.signal });
 					if (isPromiseLike(result))
 						observeLifecyclePromise(instance, Promise.resolve(result), 'activate');
 				} catch (error) {

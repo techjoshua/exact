@@ -51,6 +51,14 @@ export type ExactSuspenseInspection = Readonly<{
 	hasCandidate: boolean;
 }>;
 
+/** Redaction-safe projection of one `_target` layer owned by a component instance. */
+export type ExactTargetContributionInspection = Readonly<{
+	active: boolean;
+	target?: Readonly<{ tagName: string; connected: boolean }>;
+	props: ExactValuePreview;
+	effectiveProps?: ExactValuePreview;
+}>;
+
 /** Redaction-safe snapshot of one durable component instance. */
 export type ExactInspectedRuntimeComponent = Readonly<{
 	id: ExactInspectionRuntimeId;
@@ -63,6 +71,7 @@ export type ExactInspectedRuntimeComponent = Readonly<{
 	tasks: readonly ExactTaskRuntimeSnapshot[];
 	activity?: ExactActivityInspection;
 	suspense?: ExactSuspenseInspection;
+	targetContributions?: readonly ExactTargetContributionInspection[];
 	ownedElements: number;
 }>;
 

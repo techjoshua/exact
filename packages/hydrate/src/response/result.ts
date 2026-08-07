@@ -4,6 +4,7 @@ import type {
 	ExactOperationResult,
 	ExactPatch
 } from '@exactjs/server';
+import { isTransportableReactiveMapKey } from '@exactjs/core';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { type ResponseLimits, parseExactInvocationResponse } from './json.js';
 import { matchesOperation } from './stream.js';
@@ -114,11 +115,14 @@ export function isCollectionMutationLike(value: unknown): value is ExactCollecti
 		case 'map-set':
 			return (
 				hasOnlyKeys(record, ['path', 'operation', 'key', 'value']) &&
-				isTransportableMapKey(record.key) &&
+				isTransportableReactiveMapKey(record.key) &&
 				'value' in record
 			);
 		case 'map-delete':
-			return hasOnlyKeys(record, ['path', 'operation', 'key']) && isTransportableMapKey(record.key);
+			return (
+				hasOnlyKeys(record, ['path', 'operation', 'key']) &&
+				isTransportableReactiveMapKey(record.key)
+			);
 		case 'map-clear':
 		case 'set-clear':
 			return hasOnlyKeys(record, ['path', 'operation']);
@@ -128,15 +132,6 @@ export function isCollectionMutationLike(value: unknown): value is ExactCollecti
 		default:
 			return false;
 	}
-}
-
-function isTransportableMapKey(value: unknown): boolean {
-	return (
-		value === null ||
-		typeof value === 'boolean' ||
-		typeof value === 'string' ||
-		(typeof value === 'number' && Number.isFinite(value))
-	);
 }
 
 /** Reports whether patch like. */

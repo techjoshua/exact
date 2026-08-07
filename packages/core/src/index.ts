@@ -4,6 +4,7 @@ export {
 	decodeReactiveProtocolValue,
 	deleteReactiveValue,
 	encodeReactiveProtocolValue,
+	isTransportableReactiveMapKey,
 	mutateReactiveArray,
 	mutateReactiveCollection,
 	peek,
@@ -26,6 +27,13 @@ export {
 	type CleanupFailure
 } from './cleanup.js';
 export { normalizeActivityMode } from './activity.js';
+export { isFiniteClientBoundary, markFiniteClientBoundary } from './hydration-boundary.js';
+export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from './ssr-independence.js';
+export {
+	isExactComponentAuthorizationIdentity,
+	sameExactComponentAuthorization,
+	type ExactComponentAuthorizationIdentity
+} from './component/authorization.js';
 export { observeComponentAsync, trackComponentAsync } from './component/async.js';
 export {
 	currentInteraction,
@@ -230,12 +238,23 @@ export {
 	Dynamic,
 	Fragment,
 	Portal,
+	RenderProgram,
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml
 } from './symbols.js';
+export {
+	createCompiledRenderProgram,
+	readRenderProgram,
+	renderProgramFallback,
+	type ExactRenderProgram,
+	type ExactRenderProgramInvocation,
+	type ExactRenderProgramNode,
+	type ExactRenderProgramSlot
+} from './render-program.js';
 export { withTaskObserver } from './tasks/observers.js';
 export {
 	markComponentContinuationTask,
@@ -268,6 +287,7 @@ export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './
 export {
 	createCellVNode,
 	createCompiledFragment,
+	createCompiledTarget,
 	createCompiledVNode,
 	createDynamicChild,
 	createExpression,

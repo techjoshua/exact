@@ -16,7 +16,13 @@ export async function readBody(request: ExactRequestLike): Promise<unknown> {
 	return undefined;
 }
 
-/** Parses and validates the top-level eXact request envelope. */
+/**
+ * Parses and validates the complete eXact request graph and its top-level envelope.
+ *
+ * The encoded graph is bounded before decoding. Reactive protocol decoding then reconstructs only
+ * plain records, arrays, and validated Map/Set/keyed-collection envelopes, so callers must not
+ * repeat a second decoded-graph safety traversal.
+ */
 export function parseExactRequestBody(
 	body: unknown,
 	options: {
@@ -35,7 +41,7 @@ export function parseExactRequestBody(
 	const encodedValue = typeof body === 'string' ? JSON.parse(body) : body;
 	const requestLimit = positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024);
 	if (
-		!isJsonSafe(encodedValue, {
+		!isEncodedRequestSafe(encodedValue, {
 			maxDepth: positiveLimit(options.maxJsonDepth, 100),
 			maxNodes: positiveLimit(options.maxJsonNodes, 100_000),
 			maxBytes: requestLimit
@@ -54,27 +60,6 @@ export function parseExactRequestBody(
 	if (record.type === 'batch')
 		return parseBatch(record, positiveLimit(options.maxBatchOperations, 100));
 	return parseInvocationRecord(record);
-}
-
-/** Returns whether a parsed request contains only JSON-safe payload, state, and context values. */
-export function requestPayloadSafe(
-	input: ExactProtocolRequest,
-	limits: { maxJsonDepth?: number; maxJsonNodes?: number; maxRequestBytes?: number } = {}
-): boolean {
-	if (input.type === 'batch') {
-		return input.operations.every((operation) => requestPayloadSafe(operation, limits));
-	}
-	if (input.type === 'debug') return true;
-	const options = {
-		maxDepth: limits.maxJsonDepth,
-		maxNodes: limits.maxJsonNodes,
-		maxBytes: limits.maxRequestBytes
-	};
-	return (
-		isJsonSafe(input.payload, options) &&
-		isJsonSafe(input.state, options) &&
-		isJsonSafe(input.publicContext, options)
-	);
 }
 
 /** Creates a no-store JSON response for the runtime-neutral handler. */
@@ -99,6 +84,23 @@ export function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly s
 export function isJsonSafe(
 	value: unknown,
 	limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number } = {}
+): boolean {
+	return jsonGraphSafe(value, limits, true);
+}
+
+/** Validates the JSON-shaped request representation before protocol envelopes are decoded. */
+function isEncodedRequestSafe(
+	value: unknown,
+	limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number }
+): boolean {
+	return jsonGraphSafe(value, limits, false);
+}
+
+/** Traverses one bounded graph without invoking accessors or accepting unknown prototypes. */
+function jsonGraphSafe(
+	value: unknown,
+	limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number },
+	allowDecodedCollections: boolean
 ): boolean {
 	const maxDepth = positiveLimit(limits.maxDepth, 100);
 	const maxNodes = positiveLimit(limits.maxNodes, 100_000);
@@ -125,14 +127,14 @@ export function isJsonSafe(
 			}
 			if (typeof item !== 'object' || seen.has(item)) return false;
 			seen.add(item);
-			if (item instanceof Map) {
+			if (allowDecodedCollections && item instanceof Map) {
 				for (const [key, entryValue] of item) {
 					if (!isTransportableMapKey(key)) return false;
 					pending.push({ value: entryValue, depth: current.depth + 1 });
 				}
 				continue;
 			}
-			if (item instanceof Set) {
+			if (allowDecodedCollections && item instanceof Set) {
 				for (const entryValue of item)
 					pending.push({ value: entryValue, depth: current.depth + 1 });
 				continue;

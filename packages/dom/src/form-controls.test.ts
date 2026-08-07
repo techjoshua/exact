@@ -8,6 +8,79 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
 describe('@exactjs/dom form-controls', () => {
+	it('publishes details openness before an authored toggle handler without feedback writes', () => {
+		let instance!: Component<{ open: boolean }>;
+		const observations: boolean[] = [];
+		function Disclosure(this: Component<{ open: boolean }>) {
+			instance = this;
+			this.state.open = false;
+			return () =>
+				createCompiledVNode('details', {
+					open: createExpression(() => this.state.open),
+					__exactBindToggle: (event: Event) => {
+						this.state.open = (event.currentTarget as HTMLDetailsElement).open;
+					},
+					onToggle: () => observations.push(this.state.open)
+				});
+		}
+		const container = document.createElement('div');
+		render(jsx(Disclosure, {}), container);
+		const details = container.querySelector('details')!;
+		const descriptor = Object.getOwnPropertyDescriptor(HTMLDetailsElement.prototype, 'open')!;
+		const writes: boolean[] = [];
+		Object.defineProperty(details, 'open', {
+			get() {
+				return descriptor.get!.call(this);
+			},
+			set(value: boolean) {
+				writes.push(value);
+				descriptor.set!.call(this, value);
+			},
+			configurable: true
+		});
+
+		descriptor.set!.call(details, true);
+		details.dispatchEvent(new Event('toggle'));
+		flushSync();
+		expect(instance.state.open).toBe(true);
+		expect(observations).toEqual([true]);
+		expect(writes).toEqual([]);
+	});
+
+	it('publishes each final value from an exclusive details group', () => {
+		let instance!: Component<{ first: boolean; second: boolean }>;
+		function DisclosureGroup(this: Component<{ first: boolean; second: boolean }>) {
+			instance = this;
+			this.state.first = true;
+			this.state.second = false;
+			const disclosure = (key: 'first' | 'second') =>
+				createCompiledVNode('details', {
+					name: 'choices',
+					open: createExpression(() => this.state[key]),
+					__exactBindToggle: (event: Event) => {
+						this.state[key] = (event.currentTarget as HTMLDetailsElement).open;
+					}
+				});
+			return () => createCompiledVNode('div', null, disclosure('first'), disclosure('second'));
+		}
+		const container = document.createElement('div');
+		render(jsx(DisclosureGroup, {}), container);
+		const [first, second] = container.querySelectorAll('details');
+		const descriptor = Object.getOwnPropertyDescriptor(HTMLDetailsElement.prototype, 'open')!;
+
+		// Simulate the browser's final exclusive-group result before its coalesced toggle delivery.
+		descriptor.set!.call(first, false);
+		descriptor.set!.call(second, false);
+		descriptor.set!.call(second, true);
+		first.dispatchEvent(new Event('toggle'));
+		second.dispatchEvent(new Event('toggle'));
+		flushSync();
+
+		expect(instance.state).toMatchObject({ first: false, second: true });
+		expect(first.getAttribute('name')).toBe('choices');
+		expect(second.getAttribute('name')).toBe('choices');
+	});
+
 	it('does not rewrite a control value after its binding copies the browser value to state', () => {
 		function BoundInput(this: Component<{ name: string }>) {
 			this.state.name = 'before';

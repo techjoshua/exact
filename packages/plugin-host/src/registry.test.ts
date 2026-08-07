@@ -128,6 +128,61 @@ describe('prepared plugin registry', () => {
 		);
 		expect(JSON.stringify(registry)).not.toContain('providers');
 	});
+
+	it('does not discover component-library enhancement metadata as a framework plugin', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-component-library-'));
+		const library: ExactPackageNode = {
+			id: '@exactjs/example-components',
+			location: path.join(root, 'node_modules', '@exactjs', 'example-components'),
+			realPath: path
+				.join(root, 'node_modules', '@exactjs', 'example-components')
+				.replaceAll('\\', '/'),
+			manifest: {
+				name: '@exactjs/example-components',
+				version: '1.0.0',
+				exports: { '.': './capability.d.ts' }
+			},
+			dependencies: new Map()
+		};
+		const rootNode = emptyFixtureGraph(root).nodes.get('root')!;
+		const graph: ExactPackageGraph = {
+			rootId: rootNode.id,
+			nodes: new Map([
+				[
+					rootNode.id,
+					{
+						...rootNode,
+						manifest: {
+							...rootNode.manifest,
+							dependencies: { '@exactjs/example-components': '^1.0.0' }
+						},
+						dependencies: new Map([
+							[
+								'@exactjs/example-components',
+								{
+									name: '@exactjs/example-components',
+									range: '^1.0.0',
+									kind: 'dependency',
+									targetId: library.id
+								}
+							]
+						])
+					}
+				],
+				[library.id, library]
+			])
+		};
+
+		const registry = await prepareExactPluginRegistry({
+			applicationRoot: root,
+			graph,
+			config: { pluginDiscovery: { mode: 'all' } },
+			syncTypes: false
+		});
+
+		expect(registry.discovery.plugins.size).toBe(0);
+		expect(registry.discovery.participants.has(library.id)).toBe(false);
+	});
 });
 
 function emptyFixtureGraph(root: string): ExactPackageGraph {

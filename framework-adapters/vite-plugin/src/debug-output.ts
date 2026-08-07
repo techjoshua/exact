@@ -4,6 +4,7 @@ import {
 	type ExactSourceInspection
 } from '@exactjs/compiler';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
+import type { ExactComponentAuthorizationAudit } from '@exactjs/component-library-policy';
 import path from 'node:path';
 
 /** Public virtual-module identifier used to install the page inspection runtime. */
@@ -78,7 +79,8 @@ export function createViteInspectionCatalog(
 	applicationRoot: string | undefined,
 	debug: ViteDebugOptions | undefined,
 	modules: ReadonlyMap<string, InspectionModule>,
-	command: 'build' | 'serve'
+	command: 'build' | 'serve',
+	componentAuthorization?: ExactComponentAuthorizationAudit
 ) {
 	if (!modules.size) return undefined;
 	const root = path.resolve(applicationRoot ?? process.cwd());
@@ -96,7 +98,7 @@ export function createViteInspectionCatalog(
 	const sources = Object.fromEntries(
 		[...modules.entries()].map(([filename, entry]) => [filename, entry.source])
 	);
-	return createExactBuildInspectionCatalog({
+	const catalog = createExactBuildInspectionCatalog({
 		buildKey,
 		root,
 		...(debug?.producer ? { producer: debug.producer } : {}),
@@ -113,6 +115,9 @@ export function createViteInspectionCatalog(
 			}
 		]
 	});
+	if (componentAuthorization && componentAuthorization.buildKey !== catalog.buildKey)
+		throw new Error('Component authorization and Vite inspection build keys do not match');
+	return componentAuthorization ? Object.freeze({ ...catalog, componentAuthorization }) : catalog;
 }
 
 function mergeInspectionRedactions(

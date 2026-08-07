@@ -48,8 +48,8 @@ retaining force history or predicates.
 Use same-target enhancements when gravity is optional policy for one existing physics body:
 
 ```tsx
-import gravity from '@exactjs/gravity' with { type: 'exact-plugin' };
-import physics from '@exactjs/physics' with { type: 'exact-plugin' };
+import gravity from '@exactjs/gravity' with { type: 'exact-enhancement' };
+import physics from '@exactjs/physics' with { type: 'exact-enhancement' };
 
 <PhysicsWorld world={world}>
 	<div physics:body={satellite} gravity:apply={planet} />

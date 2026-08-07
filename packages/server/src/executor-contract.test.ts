@@ -61,16 +61,27 @@ describe('@exactjs/server executor contracts', () => {
 			executors: { save: { componentId: 'Page', execute } },
 			boundaries: { page: { ownerComponentId: 'Page' } }
 		});
-		expect(createExactHydrationConfig(contract, { project: { id: 'p1' } })).toEqual({
+		expect(createExactHydrationConfig(contract, { state: { project: { id: 'p1' } } })).toEqual({
 			endpoint: '/__exact',
 			endpoints: { invocations: { save: 'https://executor.test/__exact' } },
 			state: { project: { id: 'p1' } },
 			continuations: {
 				save: {
 					...contract.invocations.save,
-					serverContexts: []
+					serverContexts: [],
+					serverContextWrites: []
 				}
 			}
+		});
+		expect(
+			createExactHydrationConfig(contract, {
+				state: { project: { id: 'p1' } },
+				includeContinuations: false
+			})
+		).toEqual({
+			endpoint: '/__exact',
+			endpoints: { invocations: { save: 'https://executor.test/__exact' } },
+			state: { project: { id: 'p1' } }
 		});
 	});
 

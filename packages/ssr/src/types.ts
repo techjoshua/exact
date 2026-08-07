@@ -8,6 +8,7 @@ import type {
 	ComponentInstance,
 	ComponentResumptionActivation,
 	ExactRuntimeInspectionOwner,
+	ExactComponentAuthorizationIdentity,
 	Logger,
 	TaskObserver,
 	UnsafeHtmlAuditEvent,
@@ -41,6 +42,8 @@ export type RenderToStringOptions = {
 	maxTaskPasses?: number;
 	/** Total wall-clock budget for all async component tasks in one render. Defaults to 30 seconds. */
 	maxTaskDurationMs?: number;
+	/** Request-wide limit for compiler-proven independent async SSR siblings. Defaults to 4. */
+	maxAsyncSsrConcurrency?: number;
 	/** Maximum nested vnode depth. Defaults to 512 and is capped at 1,024. */
 	maxTreeDepth?: number;
 	/** Maximum vnode and primitive child values visited by one render. Defaults to 100,000. */
@@ -83,6 +86,8 @@ export type RenderToStringResult = {
 	html: string;
 	state?: unknown;
 	resumptions?: readonly ComponentResumptionActivation[];
+	/** Internal response-local table consumed by hydratable entry points. */
+	hydrationTable?: import('./render/hydration-table.js').ExactHydrationTable;
 };
 
 /** Configures hydration script. */
@@ -94,9 +99,13 @@ export type HydrationScriptOptions = {
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
+	/** Compiler-finite client boundary rows grouped by component prop schema. */
+	hydrationTable?: import('./render/hydration-table.js').ExactHydrationTable;
 	executionRoot?: string;
 	binding?: string;
 	buildKey?: string;
+	/** Compact server-build component authorization identity checked by hydration. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	scriptId?: string;
 	nonce?: string;
 	/** Maximum hydration JSON graph depth. Defaults to 100. */
@@ -303,6 +312,12 @@ export type SsrContext = {
 	enhancementVNodes: WeakSet<VNode>;
 	/** Authored boundaries whose logical subtree has an SSR enhancement route plan. */
 	plannedEnhancementBoundaries: WeakSet<VNode>;
+	/** `_target` boundaries whose logical children have been prepared once. */
+	plannedTargetBoundaries: WeakSet<VNode>;
+	/** `_target` boundaries whose owned layer has been applied to the active target. */
+	appliedTargetBoundaries: WeakSet<VNode>;
+	/** Effective layered props contributed to resolved semantic intrinsic targets. */
+	targetContributions: WeakMap<VNode, Record<string, unknown>>;
 	/** Resolved intrinsic targets and their merged enhancement declarations. */
 	enhancementTargets: WeakMap<VNode, readonly EnhancementEntry[]>;
 	/** Component work materialized once while resolving a logical enhancement target. */
@@ -331,6 +346,12 @@ export type SsrContext = {
 	componentDomain?: ComponentDomain;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
+	/** Request-local scheduler shared by every eligible sibling group. */
+	asyncScheduler: import('./render/async-scheduler.js').AsyncSsrScheduler;
+	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */
+	asyncFrame: boolean;
+	/** Response-local compiler-finite boundary table. */
+	hydrationTable: import('./render/hydration-table.js').SsrHydrationTable;
 };
 
 export type {

@@ -33,7 +33,7 @@ export function DocsSearch(this: Component<{ query: string }>, props: { onClose(
 							autofocus
 							type="search"
 							placeholder="Search components, tasks, routing\u2026"
-							value:input={this.state.query}
+							value:onInput={this.state.query}
 						/>
 					</label>
 					<button type="button" onClick={close}>

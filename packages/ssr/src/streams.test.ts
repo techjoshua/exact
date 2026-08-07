@@ -101,7 +101,7 @@ describe('@exactjs/ssr streams', () => {
 		).getReader();
 
 		expect(await readRemainingStreamText(reader)).toBe(
-			'<header></header><aside><main></main></aside>'
+			'<aside><header></header></aside><main></main>'
 		);
 		expect(targetSetups).toBe(1);
 	});

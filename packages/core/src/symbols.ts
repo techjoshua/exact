@@ -1,5 +1,7 @@
 /** Provides the canonical fragment value. */
 export const Fragment = Symbol.for('exact.fragment');
+/** Provides the canonical semantic-target forwarding boundary. */
+export const Target = Symbol.for('exact.target');
 /** Provides the canonical text value. */
 export const Text = Symbol.for('exact.text');
 /** Provides the canonical cell value. */
@@ -18,3 +20,5 @@ export const UnsafeHtml = Symbol.for('exact.unsafe-html');
 export const Activity = Symbol.for('exact.activity');
 /** Provides the canonical native readiness boundary value. */
 export const Suspense = Symbol.for('exact.suspense');
+/** Internal vnode kind used only by compiler-emitted render programs. */
+export const RenderProgram = Symbol('exact.render-program');

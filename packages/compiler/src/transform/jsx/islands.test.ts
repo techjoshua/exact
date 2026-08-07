@@ -78,7 +78,7 @@ describe('@exactjs/compiler: islands', () => {
 
 	it('lowers namespaced form bindings inside generated client islands', () => {
 		const source =
-			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      declare class Component<S> {\n        state: S;\n        task: { server(work: () => Promise<void>): void };\n      }\n\n      export function Panel(this: Component<{ name: string }>) {\n        this.state.name = "";\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <input value:input={this.state.name} />;\n      }\n    ';
+			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n      declare class Component<S> {\n        state: S;\n        task: { server(work: () => Promise<void>): void };\n      }\n\n      export function Panel(this: Component<{ name: string }>) {\n        this.state.name = "";\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <input value:onInput={this.state.name} />;\n      }\n    ';
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
@@ -92,9 +92,9 @@ describe('@exactjs/compiler: islands', () => {
 
 		expect(client).toContain('value: __exactExpression(() => this.state.name ?? "")');
 		expect(client).toContain('__exactBindInput:');
-		expect(client).not.toContain('value:input');
+		expect(client).not.toContain('value:onInput');
 		expect(server).toContain('"__exactState": { name: this.state.name }');
-		expect(server).not.toContain('value:input');
+		expect(server).not.toContain('value:onInput');
 	});
 
 	it('bridges owner-local captures into generated client islands', () => {

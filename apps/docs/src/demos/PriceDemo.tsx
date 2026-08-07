@@ -16,14 +16,14 @@ export function PriceDemo(this: Component<PriceState>) {
 			<div className="price-controls">
 				<label>
 					Quantity <strong>{this.state.quantity}</strong>
-					<input type="range" min="1" max="8" value:input={this.state.quantity} />
+					<input type="range" min="1" max="8" value:onInput={this.state.quantity} />
 				</label>
 				<label>
 					Unit price <strong>${this.state.price}</strong>
-					<input type="range" min="8" max="60" step="2" value:input={this.state.price} />
+					<input type="range" min="8" max="60" step="2" value:onInput={this.state.price} />
 				</label>
 				<label className="check-row">
-					<input type="checkbox" checked:change={this.state.express} />
+					<input type="checkbox" checked:onChange={this.state.express} />
 					Express delivery
 				</label>
 			</div>

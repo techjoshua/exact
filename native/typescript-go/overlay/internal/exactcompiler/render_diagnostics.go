@@ -64,6 +64,9 @@ func renderDiagnostics(
 	microTargets := lexicalMicroComponentTargets(rawComponentCandidates(sourceFile), sourceFile)
 	writeStarts := make(map[int]struct{}, len(stateWrites))
 	for _, write := range stateWrites {
+		if write.Interaction {
+			continue
+		}
 		writeStarts[write.Start] = struct{}{}
 	}
 	for _, render := range resolveComponentRenders(sourceFile) {

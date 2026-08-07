@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.27.0"
+const ProtocolVersion = "1.28.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -168,7 +168,7 @@ type Component struct {
 	Diagnostics         []string                  `json:"diagnostics"`
 }
 
-// EnhancementContextEffects is the token-identity contract needed before plugin instantiation.
+// EnhancementContextEffects is the token-identity contract needed before enhancement setup.
 type EnhancementContextEffects struct {
 	Provides           []string `json:"provides"`
 	Requires           []string `json:"requires"`
@@ -177,15 +177,17 @@ type EnhancementContextEffects struct {
 
 // RenderEdge describes one local component dependency authored as a JSX tag.
 type RenderEdge struct {
-	ID          string `json:"id"`
-	NodeID      string `json:"nodeId,omitempty"`
-	Tag         string `json:"tag"`
-	Name        string `json:"name"`
-	ComponentID string `json:"componentId,omitempty"`
-	Placement   string `json:"placement"`
-	Boundary    string `json:"boundary"`
-	Index       int    `json:"index"`
-	Path        string `json:"path"`
+	ID              string `json:"id"`
+	NodeID          string `json:"nodeId,omitempty"`
+	Tag             string `json:"tag"`
+	Name            string `json:"name"`
+	ComponentID     string `json:"componentId,omitempty"`
+	ModuleSpecifier string `json:"moduleSpecifier,omitempty"`
+	ExportName      string `json:"exportName,omitempty"`
+	Placement       string `json:"placement"`
+	Boundary        string `json:"boundary"`
+	Index           int    `json:"index"`
+	Path            string `json:"path"`
 }
 
 // SymbolRecord identifies one authored or compiler-generated artifact export.
@@ -323,6 +325,24 @@ type StateWrite struct {
 	RootAlias       string            `json:"-"`
 	RootDepth       int               `json:"-"`
 	DynamicSegments map[int]*ast.Node `json:"-"`
+	Interaction     bool              `json:"-"`
+}
+
+// ValueCallbackBinding preserves one authored paired JSX binding across
+// lowering so inspection and placement tools can describe source semantics.
+type ValueCallbackBinding struct {
+	Component                string   `json:"component"`
+	StatePath                []string `json:"statePath"`
+	ValueProp                string   `json:"valueProp"`
+	CallbackProp             string   `json:"callbackProp"`
+	CallbackValueType        string   `json:"callbackValueType"`
+	AdditionalParameters     int      `json:"additionalParameters"`
+	AdditionalParameterTypes []string `json:"additionalParameterTypes"`
+	Placement                string   `json:"placement"`
+	ArtifactTargets          []string `json:"artifactTargets"`
+	IntrinsicAdapter         string   `json:"intrinsicAdapter,omitempty"`
+	Start                    int      `json:"start"`
+	Length                   int      `json:"length"`
 }
 
 // StateAlias identifies one lexical alias for a component-state path.
@@ -718,6 +738,7 @@ type Analysis struct {
 	StateAliases     []StateAlias           `json:"stateAliases"`
 	StateReads       []StateRead            `json:"stateReads"`
 	StateWrites      []StateWrite           `json:"stateWrites"`
+	ValueBindings    []ValueCallbackBinding `json:"valueBindings"`
 	ReactiveBindings []ReactiveBinding      `json:"reactiveBindings"`
 	Callables        []CallableSummary      `json:"callables"`
 	Tasks            []Task                 `json:"tasks"`
@@ -744,6 +765,7 @@ func NewAnalysis(
 	stateAliases []StateAlias,
 	stateReads []StateRead,
 	stateWrites []StateWrite,
+	valueBindings []ValueCallbackBinding,
 	reactiveBindings []ReactiveBinding,
 	callables []CallableSummary,
 	tasks []Task,
@@ -767,6 +789,7 @@ func NewAnalysis(
 		StateAliases:     nonNilSlice(stateAliases),
 		StateReads:       nonNilSlice(stateReads),
 		StateWrites:      nonNilSlice(stateWrites),
+		ValueBindings:    nonNilSlice(valueBindings),
 		ReactiveBindings: nonNilSlice(reactiveBindings),
 		Callables:        normalizedCallables(callables),
 		Tasks:            normalizedTasks(tasks),

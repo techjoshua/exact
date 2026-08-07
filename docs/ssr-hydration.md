@@ -30,11 +30,51 @@ Root-document mode accepts authored `html`, `head`, and `body` and inserts
 framework-owned hydration or progressive-stream nodes into reserved positions.
 Rendering applies output-size, task-pass, and task-duration limits.
 
+The native compiler emits branded render programs for compiler-finite intrinsic regions. HTML,
+SVG, MathML, scalar text, finite host properties and attributes, classes, styles, URLs, ordinary
+form controls, events, and refs reuse the same host operations as generic rendering. Markerless SSR
+writes escaped parts directly, client mounting clones a cached inert template, and markerless
+hydration adopts with compiler paths. Nested conditional regions retain the namespace established
+by their intrinsic JSX ancestors, and standalone SVG or MathML programs mount through a
+namespace-correct template. Structural, marker-bearing, enhancement-routed,
+opaque-spread, raw-content, and otherwise unproven regions use the lazy region-local VNode fallback.
+
+Async SSR uses a request-owned FIFO scheduler for compiler-proven local, neutral, context-free
+component sibling groups. `maxAsyncSsrConcurrency` defaults to 4, accepts 1 for serial execution,
+and is capped at 32. Child frames isolate renderer state and merge in authored order. Nested proven
+groups temporarily yield their parent permit and reuse the same request-wide scheduler, avoiding
+both multiplied concurrency and deadlock. Marker-bearing, document, inspection, React-compatible,
+callback-observed, and unproven groups remain serial.
+
 ## Hydration
 
 Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
+
+Schema-defined empty hydration metadata is omitted from compiler registrations and document
+payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with
+shared immutable empty values. This compaction never applies recursively to authored state, props,
+or public-context values, where an empty collection remains meaningful application data.
+Applications whose client entry imports a generated hydration registration should set
+`includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
+same continuation contracts.
+When a lazy island later exposes the same compiler contract, hydration canonicalizes omitted empty
+client fields before comparison. Equivalent repeat registration is idempotent; a materially
+different contract with the same continuation identity remains an error.
+
+Compiler-finite client boundaries are grouped once per response by component name and canonical
+prop schema. Each boundary carries a compact table coordinate instead of repeating its component
+name and serialized props; opaque spreads retain the self-describing representation. Hydration
+validates the table, row arity, coordinate, and boundary identity before constructing props.
+Malformed rows are isolated from valid siblings. Interaction-only compact boundaries retain the
+shared table without per-boundary props objects until activation, and the table is released after
+the final dormant coordinate is claimed.
+
+Progressive inline streams install one root-confined replacement helper on the first reveal and
+emit small ordered calls afterward. `progressiveMode: 'inert'` continues to emit non-executable
+template payloads. Root hydration derives and removes the response helper before publishing
+hydrated ownership, while any late reveal observes the hydrated root and refuses to mutate it.
 
 Component resumption records authorize state restoration only when the DOM
 renderer has matched an SSR component marker and is constructing that exact
@@ -97,6 +137,10 @@ turning inspection identities into dispatch authority.
 ## Data boundary
 
 Hydration bootstrap data and protocol values use validated JSON-safe data.
+Server requests bound and validate the complete encoded JSON graph before reactive protocol
+decoding. Decoding reconstructs only plain data and validated collection envelopes, so dispatch
+does not repeat the same graph traversal after reconstruction; operation contracts and security
+hooks remain independent authoritative checks.
 Compiler-approved `Map` and `Set` state uses tagged entries and is restored as
 real collections; continuation changes travel as ordered entry or membership
 deltas. Functions, DOM nodes, unsupported class instances, `Date`, cycles,

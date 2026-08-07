@@ -44,6 +44,7 @@ export type {
 export { isReactive, isReactiveValue, unwrap } from './internal/values.js';
 export { computed, reactive, ref, snapshot, subscribe, watch } from './observation.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from './protocol.js';
+export { isTransportableReactiveMapKey } from './internal/keyed/protocol.js';
 export { updateReactive } from './reconciliation.js';
 export {
 	deleteReactiveValue,

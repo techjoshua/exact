@@ -1,0 +1,219 @@
+{
+	"schemaVersion": 1,
+	"proposal": "javascript-performance-improvements",
+	"buildIdentity": {
+		"commit": "afc61770096373955645362a059f79c6799faf03",
+		"dirtyCandidateBuild": true
+	},
+	"environment": {
+		"node": "v24.11.1",
+		"platform": "win32 10.0.26200",
+		"cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+		"chromium": "Chromium 149.0.7827.55",
+		"samples": 5,
+		"warmups": 2
+	},
+	"thresholds": {
+		"cpuMedianImprovementPercent": 10,
+		"heapImprovementPercent": 15,
+		"counterMedianRegressionPercent": 3,
+		"counterP95RegressionPercent": 5,
+		"compressedBytesRegressionPercent": 1,
+		"mountedTargetImprovementPercent": 5,
+		"mountedMaximumHeapGrowthPercent": 10
+	},
+	"baseline": {
+		"completeFramework": "javascript-framework.json",
+		"freshRunDate": "2026-08-06",
+		"fixtureBuildMedianMs": 6978.61,
+		"nodeStaticMountMedianMs": 34.93,
+		"nodeKeyedRotationMedianMs": 12.21,
+		"nodeMixedMountMedianMs": 24.56,
+		"nodeMixedTeardownMedianMs": 5.55,
+		"nodeSyncSsrMedianMs": 17.8,
+		"chromiumStaticMountMedianMs": 9.7,
+		"chromiumKeyedRotationMedianMs": 5.8,
+		"chromiumMixedMountMedianMs": 5.9,
+		"chromiumMixedTeardownMedianMs": 3.2
+	},
+	"finalProfile": {
+		"generatedAt": "2026-08-06T23:39:18.354Z",
+		"complete": true,
+		"releaseFullPassed": true,
+		"fixtureBuildMedianMs": 6780.2254,
+		"nodeStaticMountMedianMs": 33.1163,
+		"nodeScalarUpdateMedianMs": 0.0535,
+		"nodeKeyedRotationMedianMs": 9.2068,
+		"nodeSchedulerBurstMedianMs": 10.92,
+		"nodeDomCommitMedianMs": 0.21,
+		"nodeEnhancementRerouteMedianMs": 0.12,
+		"nodeMixedMountMedianMs": 22.23,
+		"nodeSyncSsrMedianMs": 19.13,
+		"chromiumModuleEvaluationMedianMs": 8.1,
+		"chromiumStaticMountMedianMs": 10.3,
+		"chromiumKeyedRotationMedianMs": 5,
+		"additionalNamedHotPath": null
+	},
+	"candidates": {
+		"compilerDependencySlots": {
+			"experiment": 5,
+			"disposition": "rejected-at-profile-gate",
+			"targetMetric": "compiled scalar and multi-expression update median",
+			"counterMetrics": ["generic reactive median", "gzip bytes", "brotli bytes"],
+			"reason": "The final whole-framework profile did not identify generic dependency lookup as a named hot path after compiler-owned render programs. Adding a second compiler-private invalidation contract was not justified without a measured 10% target opportunity, so no production implementation remains."
+		},
+		"rendererOwnedKeyedDeltas": {
+			"experiment": 5,
+			"disposition": "rejected-at-profile-gate",
+			"targetMetric": "sparse, append, and prepend update median",
+			"controlMediansMs": {
+				"unchanged": 1.7357,
+				"oneChanged": 9.8553,
+				"sparse": 5.9898,
+				"rotation": 10.905,
+				"append": 6.9129,
+				"prepend": 7.6227,
+				"truncate": 13.9834,
+				"splice": 12.3477,
+				"replacement": 16.9683
+			},
+			"reason": "The expanded production matrix did not isolate mutation metadata as the dominant cost; renderer materialization and ordinary reconciliation remained the named work. A second delta protocol was not added without an attributable 10% end-to-end result."
+		},
+		"priorityBucketScheduler": {
+			"experiment": 5,
+			"disposition": "rejected",
+			"targetMetric": "20 mixed-priority bursts of 10000 computations, milliseconds",
+			"controlSamples": [103.3434, 83.2803, 80.3041, 86.8815, 102.8157],
+			"candidateSamples": [93.5901, 87.9855, 83.4341, 85.6984, 97.0091],
+			"controlMedian": 86.8815,
+			"candidateMedian": 87.9855,
+			"controlP95": 103.3434,
+			"candidateP95": 97.0091,
+			"reason": "The bucket candidate regressed the target median by 1.3% instead of improving it by 10%. All 108 reactive tests passed, but the production implementation was removed."
+		},
+		"rootDomCommit": {
+			"experiment": 5,
+			"disposition": "rejected-at-profile-gate",
+			"targetMetric": "batched four-binding DOM commit median",
+			"controlMedianMs": 0.3024,
+			"reason": "The compiled transaction already published once and preserved focus and selection. Final profiling did not show enough commit overhead to support a 10% architecture change."
+		},
+		"localizedEnhancementRouting": {
+			"experiment": 5,
+			"disposition": "rejected-at-profile-gate",
+			"targetMetric": "enhancement reroute median",
+			"controlMedianMs": 0.099,
+			"reason": "Existing dependent routing and bounded fallback work was below the named profile threshold; another dirty-owner subsystem was not justified."
+		},
+		"dominantMountedHeader": {
+			"experiment": 8,
+			"disposition": "rejected",
+			"targetMetric": "mixed-tree and keyed-list medians",
+			"control": {
+				"mixedMountMedianMs": 23.3088,
+				"mixedTeardownMedianMs": 5.6658,
+				"sparseMedianMs": 5.9898,
+				"appendMedianMs": 6.9129,
+				"prependMedianMs": 7.6227,
+				"peakHeapMedianBytes": 96058224,
+				"clientRawBytes": 449658,
+				"clientGzipBytes": 98524,
+				"clientBrotliBytes": 81287
+			},
+			"candidate": {
+				"mixedMountMedianMs": 20.6795,
+				"mixedTeardownMedianMs": 5.1798,
+				"sparseMedianMs": 8.6073,
+				"appendMedianMs": 7.4384,
+				"prependMedianMs": 7.9628,
+				"peakHeapMedianBytes": 96106880,
+				"clientRawBytes": 449658,
+				"clientGzipBytes": 98524,
+				"clientBrotliBytes": 81287
+			},
+			"reason": "Mixed mounting and teardown improved, but sparse updates regressed 43.7%, append 7.6%, and prepend 4.5%. The explicit keyed-workload gate failed, so the factory candidate was removed."
+		},
+		"specializedMountedPaths": {
+			"experiment": 8,
+			"disposition": "rejected",
+			"targetMetric": "250000-record access traversal median",
+			"controlSamplesMs": [38.5238, 56.8973, 45.03, 37.6162, 41.1933],
+			"candidateSamplesMs": [56.2763, 46.7552, 47.1823, 77.0626, 48.0673],
+			"controlMedianMs": 41.1933,
+			"candidateMedianMs": 48.0673,
+			"reason": "Kind-specialized traversal regressed 16.7%; current compact records remain authoritative."
+		},
+		"traversalScopedSsrOwnership": {
+			"experiment": 10,
+			"disposition": "rejected",
+			"targetMetric": "wide synchronous-tree peak heap",
+			"controlWidePeakHeapSamples": [29145456, 29159592, 29145592, 29239920, 29327680],
+			"candidateWidePeakHeapSamples": [33963672, 34010664, 33972552, 33996488, 34022904],
+			"controlWideRenderSamplesMs": [45.5748, 36.6904, 43.3108, 37.7376, 34.5759],
+			"candidateWideRenderSamplesMs": [32.0136, 33.7349, 43.5703, 35.4553, 32.3827],
+			"controlDeepPeakHeapMedianBytes": 2798616,
+			"candidateDeepPeakHeapMedianBytes": 2818200,
+			"reason": "Wide render CPU improved 10.6%, but peak heap grew 16.6% instead of improving by 20%. The ownership implementation was removed after all 142 SSR tests passed."
+		},
+		"requestWideSsrWriter": {
+			"experiment": 10,
+			"disposition": "rejected-at-profile-gate",
+			"targetMetric": "wide/deep SSR CPU and peak allocation",
+			"controlSyncSsrMedianMs": 17.8,
+			"reason": "The final profile identified traversal and component work rather than bounded string joining as the named synchronous SSR hot path. Exact output and byte-limit code remains unchanged."
+		},
+		"compactCompiledCells": {
+			"experiment": 11,
+			"disposition": "rejected",
+			"targetMetric": "100000 compiled-cell retained heap",
+			"controlRetainedHeapSamples": [53606368, 53606192, 53606200, 53605696, 53605800],
+			"candidateRetainedHeapSamples": [41603584, 41603584, 41603584, 41603584, 41603584],
+			"controlCreateMedianMs": 23.6194,
+			"candidateCreateMedianMs": 31.8995,
+			"reason": "Heap improved 22.4%, but construction regressed 35.1% and DOM placement/component-root correctness failed. The private subpath and compact representation were removed."
+		},
+		"compactCommittedNodesAndKeyedCache": {
+			"experiment": 11,
+			"disposition": "rejected-at-profile-gate",
+			"targetMetric": "stable/churned keyed-list retained heap",
+			"reason": "The current list-controller cache and renderer reconciliation did not expose duplicate retained records as a named final-profile owner. A shared cross-layer cache was not added without the required 15% retained-heap opportunity."
+		},
+		"compactKeyedSsrSnapshots": {
+			"experiment": 11,
+			"disposition": "rejected",
+			"targetMetric": "5000-item retained snapshot heap",
+			"controlRetainedHeapSamples": [6225872, 6225560, 6225952, 6225672, 6225672],
+			"candidateRetainedHeapSamples": [5812584, 5813504, 5812592, 5812400, 5812504],
+			"controlRenderMedianMs": 14.1612,
+			"candidateRenderMedianMs": 19.0327,
+			"controlParseMedianMs": 5.5346,
+			"candidateParseMedianMs": 8.5272,
+			"controlDiffMedianMs": 6.1139,
+			"candidateDiffMedianMs": 6.4952,
+			"reason": "Heap improved only 6.6% and render/parse medians regressed 34.4%/54.1%. Lazy public getters and the internal backing representation were removed."
+		},
+		"languageServiceLru": {
+			"experiment": 12,
+			"disposition": "accepted",
+			"targetMetric": "160-file retained-heap plateau and warm inspection p95",
+			"unboundedHeapSamples": [10926984, 10925456, 10925096, 10925416, 10925344],
+			"boundedHeapSamples": [9734856, 9734960, 9734104, 9734944, 9734768],
+			"unboundedPlateauGrowthMedianBytes": 395696,
+			"boundedPlateauGrowthMedianBytes": 24440,
+			"unboundedWarmInspectionP95MedianMs": 0.6344,
+			"boundedWarmInspectionP95MedianMs": 0.5999,
+			"analysisEntriesBefore": 160,
+			"analysisEntriesAfter": 32,
+			"evictions": 128,
+			"reason": "The final batch reached a stable plateau while warm inspection p95 improved 5.4%. Overlay pinning, reconstruction, limits, telemetry, and disposal tests pass."
+		},
+		"frameworkDiagnosticRetention": {
+			"experiment": 12,
+			"disposition": "accepted",
+			"targetMetric": "bounded process-global report count",
+			"maximumReports": 100,
+			"applicationContextReportsTested": 105,
+			"reason": "The global fallback atomically retains the newest 100 reports; application-created contexts remain unbounded and application-owned."
+		}
+	}
+}

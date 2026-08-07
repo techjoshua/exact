@@ -1,4 +1,5 @@
 import type { ExactPreparedPluginRegistry } from '@exactjs/plugin-host/node';
+import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -40,6 +41,7 @@ type ExactMicrofrontendsRollupModule = {
 		applicationRoot: string;
 		buildConfig: unknown;
 		serverComponents?: boolean;
+		componentAuthorization?: ExactComponentAuthorizationIdentity;
 	}): Promise<{
 		plan: { exposures: readonly unknown[] };
 		artifactGraph?: unknown;
@@ -70,6 +72,7 @@ type ExactViteResolver = (
 export type ExactViteMicrofrontendOptions = {
 	target?: string;
 	serverComponents?: boolean;
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
 	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
 };
@@ -109,7 +112,10 @@ export function createExactViteMicrofrontendIntegration(
 			const prepared = await integration.prepareExactRemoteArtifactBuild({
 				applicationRoot: registry.applicationRoot,
 				buildConfig,
-				serverComponents: options.serverComponents
+				serverComponents: options.serverComponents,
+				...(options.componentAuthorization
+					? { componentAuthorization: options.componentAuthorization }
+					: {})
 			});
 			adapter = integration.createExactRemoteRollupAdapter({
 				plan: prepared.plan,

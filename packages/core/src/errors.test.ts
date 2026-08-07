@@ -11,8 +11,25 @@ import {
 	type Component,
 	type ErrorReport
 } from './index.js';
+import { defaultErrorContext } from './component/errors.js';
 
 describe('@exactjs/core errors', () => {
+	it('bounds only the process-global fallback context to the newest one hundred reports', () => {
+		defaultErrorContext.clearAll();
+		try {
+			for (let index = 0; index < 105; index++)
+				defaultErrorContext.report(new Error(`failure-${index}`));
+			expect(defaultErrorContext.errors).toHaveLength(100);
+			expect(String(defaultErrorContext.errors[0]?.error)).toContain('failure-5');
+			expect(String(defaultErrorContext.errors.at(-1)?.error)).toContain('failure-104');
+
+			const application = createErrorContext();
+			for (let index = 0; index < 105; index++) application.report(new Error(String(index)));
+			expect(application.errors).toHaveLength(105);
+		} finally {
+			defaultErrorContext.clearAll();
+		}
+	});
 	it('routes render failures to the nearest error context', () => {
 		let instance!: Component<{ errors: ErrorReport[] }>;
 

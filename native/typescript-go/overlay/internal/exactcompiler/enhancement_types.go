@@ -36,33 +36,37 @@ func collectEnhancementTypeDiagnostics(
 		default:
 			return true
 		}
+		application := imports.applications[attributes.Pos()]
+		if len(application.components) == 0 {
+			return true
+		}
 		alternatives := []enhancementTypeAlternative{{}}
-		bindings := make(map[string]enhancementBinding)
+		components := make(map[string]enhancementComponent)
+		for _, component := range application.components {
+			components[component.identity] = component
+			alternatives[0][component.identity] = make(map[string]enhancementProvidedValue)
+		}
 		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 			if ast.IsJsxSpreadAttribute(property) {
 				expression := property.AsJsxSpreadAttribute().Expression
+				plan := imports.spreads[property.Pos()]
 				branches := make([]enhancementTypeAlternative, 0)
 				for _, memberType := range typeChecker.GetTypeAtLocation(expression).Distributed() {
 					branch := enhancementTypeAlternative{}
 					for _, symbol := range typeChecker.GetPropertiesOfType(memberType) {
 						source := ast.SymbolName(symbol)
-						prefix, member, namespaced := strings.Cut(source, ":")
-						binding, exists := imports.bindings[prefix]
-						if !namespaced || !exists || member == "root" {
-							continue
-						}
-						canonical, exists := binding.members[member]
-						if !exists {
-							continue
-						}
-						bindings[binding.identity] = binding
-						values := branch[binding.identity]
-						if values == nil {
-							values = make(map[string]enhancementProvidedValue)
-							branch[binding.identity] = values
-						}
-						values[canonical.prop] = enhancementProvidedValue{
-							valueType: typeChecker.GetTypeOfSymbolAtLocation(symbol, expression),
+						for _, member := range plan.members {
+							if member.source != source || member.prop == "__exactRoot" {
+								continue
+							}
+							values := branch[member.identity]
+							if values == nil {
+								values = make(map[string]enhancementProvidedValue)
+								branch[member.identity] = values
+							}
+							values[member.prop] = enhancementProvidedValue{
+								valueType: typeChecker.GetTypeOfSymbolAtLocation(symbol, expression),
+							}
 						}
 					}
 					branches = append(branches, branch)
@@ -74,35 +78,30 @@ func collectEnhancementTypeDiagnostics(
 			if !ast.IsJsxNamespacedName(attribute.Name()) {
 				continue
 			}
-			name := attribute.Name().AsJsxNamespacedName()
-			binding, exists := imports.bindings[name.Namespace.Text()]
-			if !exists || name.Name().Text() == "root" {
-				continue
-			}
-			canonical, exists := binding.members[name.Name().Text()]
-			if !exists {
-				continue
-			}
 			value := enhancementAttributeValue(attribute, typeChecker)
 			if value.valueType == nil {
 				continue
 			}
-			bindings[binding.identity] = binding
-			for _, alternative := range alternatives {
-				values := alternative[binding.identity]
-				if values == nil {
-					values = make(map[string]enhancementProvidedValue)
-					alternative[binding.identity] = values
+			for _, member := range application.attributes[property.Pos()] {
+				if member.prop == "__exactRoot" {
+					continue
 				}
-				values[canonical.prop] = value
+				for _, alternative := range alternatives {
+					values := alternative[member.identity]
+					if values == nil {
+						values = make(map[string]enhancementProvidedValue)
+						alternative[member.identity] = values
+					}
+					values[member.prop] = value
+				}
 			}
 		}
 
 		reported := make(map[string]struct{})
 		for _, alternative := range alternatives {
-			for identity, values := range alternative {
-				binding := bindings[identity]
-				if enhancementAlternativeMatches(binding, values, typeChecker) {
+			for identity, component := range components {
+				values := alternative[identity]
+				if enhancementAlternativeMatches(component, values, typeChecker) {
 					continue
 				}
 				if _, exists := reported[identity]; exists {
@@ -113,7 +112,7 @@ func collectEnhancementTypeDiagnostics(
 					sourceFile,
 					node,
 					"EXACT6011",
-					fmt.Sprintf("plugin props for %s do not satisfy any public prop union member", identity),
+					fmt.Sprintf("enhancement props for %s do not satisfy any public prop union member", identity),
 				))
 			}
 		}
@@ -161,17 +160,28 @@ func cloneEnhancementAlternative(source enhancementTypeAlternative) enhancementT
 }
 
 func enhancementAlternativeMatches(
-	binding enhancementBinding,
+	component enhancementComponent,
 	values map[string]enhancementProvidedValue,
 	typeChecker *checker.Checker,
 ) bool {
-	for _, variant := range binding.variants {
+	for _, variant := range component.variants {
 		matches := true
 		for prop, value := range values {
 			expected, exists := variant[prop]
 			if !exists || !enhancementValueAssignable(value, expected.valueType, typeChecker) {
 				matches = false
 				break
+			}
+		}
+		if matches {
+			for prop, expected := range variant {
+				if expected.optional {
+					continue
+				}
+				if _, provided := values[prop]; !provided {
+					matches = false
+					break
+				}
 			}
 		}
 		if matches {

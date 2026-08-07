@@ -1,25 +1,25 @@
-import { createComponentInstance, createVNode, renderInstance, type VNode } from '@exactjs/core';
+import {
+	createComponentInstance,
+	createVNode,
+	renderInstance,
+	type ComponentInstance,
+	type VNode
+} from '@exactjs/core';
 import { createEffectScope, withEffectScope } from '@exactjs/reactive';
 import { clearDelegated } from '../../events.js';
 import { roots } from '../../state.js';
 import type { Mounted, RenderOptions, Root } from '../../types.js';
-import {
-	countDomWork,
-	isDomRenderLimitError,
-	normalizeTreeDepth,
-	normalizeTreeNodes,
-	withDomWork
-} from '../limits.js';
+import { countDomWork, isDomRenderLimitError, withDomWork } from '../limits.js';
 import { rerenderComponent } from '../patching/children.js';
-import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
-import { createDomErrorContext, createRootBoundary } from '../root-support.js';
-import { unmountMounted } from '../teardown.js';
 import { activateEnhancementSubtree, installEnhancementReconciliation } from '../enhancements.js';
 import { mount } from '../mounting/root.js';
+import { createRendererRoot } from '../root-construction.js';
+import { ownMountedInstance } from '../root-lifecycle.js';
+import { unmountMounted } from '../teardown.js';
 import { adoptStaticChildren, boundaryMarkers, contentNodesBetween } from './boundaries.js';
-import { componentMarkerMatchesType } from './identity.js';
 import { constructAdoptedComponent } from './construction.js';
+import { componentMarkerMatchesType } from './identity.js';
 
 /** Performs the adopt static domain operation. */
 export function adoptStatic(
@@ -30,71 +30,18 @@ export function adoptStatic(
 	if (roots.has(container)) return true;
 	const markers = boundaryMarkers(container);
 	if (!markers) return false;
-
-	const root: Root = {
-		container,
-		delegated: new Map(),
-		errors: createDomErrorContext(options),
-		portalTargets: new Set(),
-		current: vnode,
-		version: 1,
-		boundary: undefined as never,
-		debugMarkers: false,
-		maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
-		traversalDepth: 0,
-		maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
-		traversedNodes: 0,
-		workDepth: 0,
-		workBudget: options.workBudget,
-		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
-		onUnsafeHtml: options.onUnsafeHtml,
-		logger: options.logger,
-		enhancementCatalog: options.enhancementCatalog
-	};
-	root.boundary = createRootBoundary(root);
+	const root = createRendererRoot(container, vnode, options, { version: 1 });
 	const scope = createEffectScope();
-	const boundaryVNode = createVNode(root.boundary, { version: root.version });
-	let mounted: Mounted = {
-		vnode: boundaryVNode,
+	const mounted: Mounted = {
+		vnode: createVNode(root.boundary, { version: root.version }),
 		dom: markers.start,
 		end: markers.end,
 		scope,
 		children: []
 	};
-	try {
-		return withDomWork(root, () => {
-			countDomWork(root);
-			const instance = withEffectScope(scope, () =>
-				createComponentInstance(root.boundary, { version: root.version })
-			);
-			ownMountedInstance(mounted, instance);
-			const rendered = withEffectScope(scope, () =>
-				renderInstance(instance, () => rerenderComponent(root, mounted))
-			);
-			const nodes = contentNodesBetween(markers.start, markers.end);
-			const children = adoptStaticChildren(root, rendered, nodes, instance, scope);
-			if (!children) {
-				unmountMounted(mounted);
-				clearDelegated(root);
-				return false;
-			}
-			mounted.children = children;
-			mounted = activateAdoptedEnhancements(root, mounted);
-			refreshComponentRoot(instance, true, rootIntroduction(root));
-			instance.markMounted();
-			root.mounted = mounted;
-			root.initialCommitComplete = true;
-			roots.set(container, root);
-			return true;
-		});
-	} catch (error) {
-		unmountMounted(mounted);
-		clearDelegated(root);
-		if (isDomRenderLimitError(error)) throw error;
-		return false;
-	} finally {
-		root.workBudget = undefined;
-	}
+	return completeRootAdoption(root, mounted, contentNodesBetween(markers.start, markers.end), () =>
+		createComponentInstance(root.boundary, { version: root.version })
+	);
 }
 
 /** Performs the adopt component root domain operation. */
@@ -111,69 +58,12 @@ export function adoptComponentRoot(
 		!componentMarkerMatchesType(markers.start, vnode.type)
 	)
 		return false;
-	const root: Root = {
-		container,
-		delegated: new Map(),
-		errors: createDomErrorContext(options),
-		portalTargets: new Set(),
-		current: vnode,
-		version: 1,
-		boundary: undefined as never,
-		debugMarkers: false,
-		maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
-		traversalDepth: 0,
-		maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
-		traversedNodes: 0,
-		workDepth: 0,
-		workBudget: options.workBudget,
-		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
-		onUnsafeHtml: options.onUnsafeHtml,
-		logger: options.logger,
-		enhancementCatalog: options.enhancementCatalog,
-		mode: 'hydrated'
-	};
-	root.boundary = createRootBoundary(root);
+	const root = createRendererRoot(container, vnode, options, { version: 1, mode: 'hydrated' });
 	const scope = createEffectScope();
-	let mounted: Mounted = { vnode, dom: markers.start, end: markers.end, scope, children: [] };
-	try {
-		return withDomWork(root, () => {
-			countDomWork(root);
-			const instance = withEffectScope(scope, () =>
-				constructAdoptedComponent(vnode, options.logicalParent)
-			);
-			ownMountedInstance(mounted, instance);
-			const rendered = withEffectScope(scope, () =>
-				renderInstance(instance, () => rerenderComponent(root, mounted))
-			);
-			const children = adoptStaticChildren(
-				root,
-				rendered,
-				contentNodesBetween(markers.start, markers.end),
-				instance,
-				scope
-			);
-			if (!children) {
-				unmountMounted(mounted);
-				clearDelegated(root);
-				return false;
-			}
-			mounted.children = children;
-			mounted = activateAdoptedEnhancements(root, mounted);
-			refreshComponentRoot(instance, true, rootIntroduction(root));
-			instance.markMounted();
-			root.mounted = mounted;
-			root.initialCommitComplete = true;
-			roots.set(container, root);
-			return true;
-		});
-	} catch (error) {
-		unmountMounted(mounted);
-		clearDelegated(root);
-		if (isDomRenderLimitError(error)) throw error;
-		return false;
-	} finally {
-		root.workBudget = undefined;
-	}
+	const mounted: Mounted = { vnode, dom: markers.start, end: markers.end, scope, children: [] };
+	return completeRootAdoption(root, mounted, contentNodesBetween(markers.start, markers.end), () =>
+		constructAdoptedComponent(vnode, options.logicalParent)
+	);
 }
 
 /** Performs the adopt markerless component root domain operation. */
@@ -187,69 +77,18 @@ export function adoptMarkerlessComponentRoot(
 	const end = document.createTextNode('');
 	container.insertBefore(start, container.firstChild);
 	container.appendChild(end);
-	const root: Root = {
-		container,
-		delegated: new Map(),
-		errors: createDomErrorContext(options),
-		portalTargets: new Set(),
-		current: vnode,
+	const root = createRendererRoot(container, vnode, options, {
 		version: 1,
-		boundary: undefined as never,
-		debugMarkers: false,
-		maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
-		traversalDepth: 0,
-		maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
-		traversedNodes: 0,
-		workDepth: 0,
-		workBudget: options.workBudget,
-		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
-		onUnsafeHtml: options.onUnsafeHtml,
-		logger: options.logger,
-		enhancementCatalog: options.enhancementCatalog,
 		mode: 'hydrated',
 		markerlessHydration: true
-	};
-	root.boundary = createRootBoundary(root);
+	});
 	const scope = createEffectScope();
-	let mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
+	const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
 	try {
-		return withDomWork(root, () => {
-			countDomWork(root);
-			const instance = withEffectScope(scope, () =>
-				constructAdoptedComponent(vnode, options.logicalParent)
-			);
-			ownMountedInstance(mounted, instance);
-			const rendered = withEffectScope(scope, () =>
-				renderInstance(instance, () => rerenderComponent(root, mounted))
-			);
-			const children = adoptStaticChildren(
-				root,
-				rendered,
-				contentNodesBetween(start, end),
-				instance,
-				scope
-			);
-			if (!children) {
-				unmountMounted(mounted);
-				clearDelegated(root);
-				throw new Error('markerless root children did not adopt');
-			}
-			mounted.children = children;
-			mounted = activateAdoptedEnhancements(root, mounted);
-			refreshComponentRoot(instance, true, rootIntroduction(root));
-			instance.markMounted();
-			root.mounted = mounted;
-			root.initialCommitComplete = true;
-			roots.set(container, root);
-			return true;
-		});
-	} catch (error) {
-		unmountMounted(mounted);
-		clearDelegated(root);
-		if (isDomRenderLimitError(error)) throw error;
-		return false;
+		return completeRootAdoption(root, mounted, contentNodesBetween(start, end), () =>
+			constructAdoptedComponent(vnode, options.logicalParent)
+		);
 	} finally {
-		root.workBudget = undefined;
 		if (!roots.has(container)) {
 			start.remove();
 			end.remove();
@@ -269,68 +108,66 @@ export function adoptDocumentRoot(
 	const end = documentNode.createComment('/exact:document-root');
 	documentNode.insertBefore(start, container);
 	documentNode.insertBefore(end, container.nextSibling);
-	const root: Root = {
-		container,
-		delegated: new Map(),
-		errors: createDomErrorContext(options),
-		portalTargets: new Set(),
-		current: vnode,
+	const root = createRendererRoot(container, vnode, options, {
 		version: 1,
-		boundary: undefined as never,
-		debugMarkers: false,
-		maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
-		traversalDepth: 0,
-		maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
-		traversedNodes: 0,
-		workDepth: 0,
-		workBudget: options.workBudget,
-		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
-		onUnsafeHtml: options.onUnsafeHtml,
-		logger: options.logger,
-		enhancementCatalog: options.enhancementCatalog,
 		mode: 'document',
 		markerlessHydration: true
-	};
-	root.boundary = createRootBoundary(root);
+	});
 	const scope = createEffectScope();
-	const boundaryVNode = createVNode(root.boundary, { version: root.version });
-	let mounted: Mounted = { vnode: boundaryVNode, dom: start, end, scope, children: [] };
+	const mounted: Mounted = {
+		vnode: createVNode(root.boundary, { version: root.version }),
+		dom: start,
+		end,
+		scope,
+		children: []
+	};
 	try {
-		return withDomWork(root, () => {
-			countDomWork(root);
-			const instance = withEffectScope(scope, () =>
-				createComponentInstance(root.boundary, { version: root.version })
-			);
-			ownMountedInstance(mounted, instance);
-			const rendered = withEffectScope(scope, () =>
-				renderInstance(instance, () => rerenderComponent(root, mounted))
-			);
-			const children = adoptStaticChildren(root, rendered, [container], instance, scope);
-			if (!children) {
-				unmountMounted(mounted);
-				clearDelegated(root);
-				return false;
-			}
-			mounted.children = children;
-			mounted = activateAdoptedEnhancements(root, mounted);
-			refreshComponentRoot(instance, true, rootIntroduction(root));
-			instance.markMounted();
-			root.mounted = mounted;
-			root.initialCommitComplete = true;
-			roots.set(container, root);
-			return true;
-		});
-	} catch (error) {
-		unmountMounted(mounted);
-		clearDelegated(root);
-		if (isDomRenderLimitError(error)) throw error;
-		return false;
+		return completeRootAdoption(root, mounted, [container], () =>
+			createComponentInstance(root.boundary, { version: root.version })
+		);
 	} finally {
-		root.workBudget = undefined;
 		if (!roots.has(container)) {
 			start.remove();
 			end.remove();
 		}
+	}
+}
+
+function completeRootAdoption(
+	root: Root,
+	mounted: Mounted,
+	nodes: readonly Node[],
+	construct: () => ComponentInstance<any>
+): boolean {
+	let current = mounted;
+	try {
+		return withDomWork(root, () => {
+			countDomWork(root);
+			const instance = withEffectScope(current.scope, construct);
+			ownMountedInstance(current, instance);
+			const rendered = withEffectScope(current.scope, () =>
+				renderInstance(instance, () => rerenderComponent(root, current))
+			);
+			const children = adoptStaticChildren(root, rendered, nodes, instance, current.scope);
+			if (!children) return false;
+			current.children = children;
+			current = activateAdoptedEnhancements(root, current);
+			refreshComponentRoot(instance, true, rootIntroduction(root));
+			instance.markMounted();
+			root.mounted = current;
+			root.initialCommitComplete = true;
+			roots.set(root.container, root);
+			return true;
+		});
+	} catch (error) {
+		if (isDomRenderLimitError(error)) throw error;
+		return false;
+	} finally {
+		if (!roots.has(root.container)) {
+			unmountMounted(current);
+			clearDelegated(root);
+		}
+		root.workBudget = undefined;
 	}
 }
 

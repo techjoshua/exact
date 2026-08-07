@@ -1,4 +1,8 @@
-import { decodeReactiveProtocolValue, sameJsonData } from '@exactjs/core';
+import {
+	isExactComponentAuthorizationIdentity,
+	sameExactComponentAuthorization,
+	sameJsonData
+} from '@exactjs/core';
 import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
 import type {
 	ClientIslandRegistry,
@@ -7,22 +11,36 @@ import type {
 	ExactHydrationConfig,
 	ExactHydrationConfigLimits,
 	ExactHydrationRegistration,
+	ExactHydrationRegistrationInput,
 	HydrateOptions
 } from './types.js';
-import { hasOnlyKeys, isJsonSafe } from './validation.js';
+import { hasOnlyKeys } from './validation.js';
 import {
-	isComponentResumptions,
-	isContinuationMap,
 	isEndpointRoutes,
 	isRecord,
+	normalizeComponentResumptions,
+	normalizeContinuationMap,
 	positiveLimit
 } from './config-validation.js';
+import { utf8ByteLength } from './limits.js';
+import { decodeBoundedReactiveProtocolValue } from './protocol-decoding.js';
 
 /** Contextually types a compiler-generated hydration registration without changing its value. */
 export function defineExactHydrationRegistration(
-	registration: ExactHydrationRegistration
+	registration: ExactHydrationRegistrationInput
 ): ExactHydrationRegistration {
-	return registration;
+	const continuations = normalizeContinuationMap(registration.continuations);
+	const resumptions = normalizeComponentResumptions(registration.resumptions);
+	const {
+		continuations: _serializedContinuations,
+		resumptions: _serializedResumptions,
+		...fields
+	} = registration;
+	return {
+		...fields,
+		...(continuations === undefined ? {} : { continuations }),
+		...(resumptions === undefined ? {} : { resumptions })
+	};
 }
 
 /** Reads and validates the serialized hydration configuration embedded in the document. */
@@ -50,16 +68,16 @@ function parseHydrationConfig(
 	try {
 		const source = script.textContent ?? '{}';
 		const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
-		if (source.length > maxBytes || new TextEncoder().encode(source).byteLength > maxBytes)
-			return {};
+		if (source.length > maxBytes || utf8ByteLength(source) > maxBytes) return {};
 		const encoded = JSON.parse(source);
-		if (!isJsonSafe(encoded, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes }))
-			return {};
-		const value = decodeReactiveProtocolValue(encoded);
+		const value = decodeBoundedReactiveProtocolValue(
+			encoded,
+			{ maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes },
+			() => new TypeError('Malformed eXact hydration config')
+		);
 		if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
 		const record = value as Record<string, unknown>;
 		if (
-			!isJsonSafe(record, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes }) ||
 			!hasOnlyKeys(record, [
 				'pluginRegistryFingerprint',
 				'endpoint',
@@ -68,29 +86,62 @@ function parseHydrationConfig(
 				'continuations',
 				'resumptions',
 				'publicContexts',
+				'h',
 				'executionRoot',
 				'binding',
-				'buildKey'
+				'buildKey',
+				'componentAuthorization'
 			])
 		)
 			return {};
+		const componentAuthorization = isExactComponentAuthorizationIdentity(
+			record.componentAuthorization
+		)
+			? record.componentAuthorization
+			: undefined;
+		const buildKey = typeof record.buildKey === 'string' ? record.buildKey : undefined;
+		if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
+			return {};
+		const continuations = safelyNormalizeContinuationMap(record.continuations);
+		const resumptions = safelyNormalizeComponentResumptions(record.resumptions);
+		const endpoints = isEndpointRoutes(record.endpoints)
+			? mergeEndpointRoutes(undefined, record.endpoints)
+			: undefined;
+		const hydrationTable = normalizeHydrationTable(record.h);
 		return {
-			pluginRegistryFingerprint:
-				typeof record.pluginRegistryFingerprint === 'string'
-					? record.pluginRegistryFingerprint
-					: undefined,
-			endpoint: typeof record.endpoint === 'string' ? record.endpoint : undefined,
-			endpoints: isEndpointRoutes(record.endpoints) ? record.endpoints : undefined,
+			...(typeof record.pluginRegistryFingerprint === 'string'
+				? { pluginRegistryFingerprint: record.pluginRegistryFingerprint }
+				: {}),
+			...(typeof record.endpoint === 'string' ? { endpoint: record.endpoint } : {}),
+			...(endpoints === undefined ? {} : { endpoints }),
 			...('state' in record ? { state: record.state } : {}),
-			continuations: isContinuationMap(record.continuations) ? record.continuations : undefined,
-			resumptions: isComponentResumptions(record.resumptions) ? record.resumptions : undefined,
-			publicContexts: isRecord(record.publicContexts) ? record.publicContexts : undefined,
-			executionRoot: typeof record.executionRoot === 'string' ? record.executionRoot : undefined,
-			binding: typeof record.binding === 'string' ? record.binding : undefined,
-			buildKey: typeof record.buildKey === 'string' ? record.buildKey : undefined
+			...(continuations === undefined ? {} : { continuations }),
+			...(resumptions === undefined ? {} : { resumptions }),
+			...(isRecord(record.publicContexts) ? { publicContexts: record.publicContexts } : {}),
+			...(hydrationTable ? { hydrationTable } : {}),
+			...(typeof record.executionRoot === 'string' ? { executionRoot: record.executionRoot } : {}),
+			...(typeof record.binding === 'string' ? { binding: record.binding } : {}),
+			...(buildKey === undefined ? {} : { buildKey }),
+			...(componentAuthorization === undefined ? {} : { componentAuthorization })
 		};
 	} catch {
 		return {};
+	}
+}
+
+function safelyNormalizeContinuationMap(value: unknown) {
+	try {
+		return normalizeContinuationMap(value);
+	} catch {
+		return undefined;
+	}
+}
+
+function safelyNormalizeComponentResumptions(value: unknown) {
+	try {
+		return normalizeComponentResumptions(value);
+	} catch {
+		return undefined;
 	}
 }
 
@@ -107,6 +158,16 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 	if (config.buildKey && options.buildKey && config.buildKey !== options.buildKey) {
 		throw new Error('Client and server eXact build identities do not match');
 	}
+	if (
+		config.componentAuthorization &&
+		options.componentAuthorization &&
+		!sameExactComponentAuthorization(config.componentAuthorization, options.componentAuthorization)
+	)
+		throw new Error('Client and server component authorization fingerprints do not match');
+	const componentAuthorization = options.componentAuthorization ?? config.componentAuthorization;
+	const buildKey = options.buildKey ?? config.buildKey;
+	if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
+		throw new Error('Component authorization identity does not match the hydration build key');
 	return {
 		...options,
 		endpoint: options.endpoint ?? config.endpoint,
@@ -114,16 +175,50 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 		state: options.state === undefined ? config.state : options.state,
 		continuations: mergeUniqueRecord(
 			config.continuations,
-			options.continuations,
+			normalizeContinuationMap(options.continuations),
 			'continuation',
 			sameJsonData
 		),
 		resumptions: options.resumptions ?? config.resumptions,
 		publicContexts: options.publicContexts ?? config.publicContexts,
+		hydrationTable: options.hydrationTable ?? config.hydrationTable,
 		executionRoot: options.executionRoot ?? config.executionRoot,
 		binding: options.binding ?? config.binding,
-		buildKey: options.buildKey ?? config.buildKey
+		buildKey,
+		componentAuthorization,
+		headers: componentAuthorization
+			? {
+					...options.headers,
+					'X-Exact-Component-Authorization': componentAuthorization.fingerprint
+				}
+			: options.headers
 	};
+}
+
+function normalizeHydrationTable(value: unknown): ExactHydrationConfig['hydrationTable'] {
+	if (!Array.isArray(value) || value.length !== 2 || value[0] !== 1 || !Array.isArray(value[1]))
+		return undefined;
+	const groups = value[1].map(
+		(group): NonNullable<ExactHydrationConfig['hydrationTable']>[1][number] => {
+			if (
+				!Array.isArray(group) ||
+				group.length !== 3 ||
+				typeof group[0] !== 'string' ||
+				!Array.isArray(group[1]) ||
+				!group[1].every((name) => typeof name === 'string') ||
+				new Set(group[1]).size !== group[1].length ||
+				!Array.isArray(group[2])
+			)
+				return undefined;
+			const rows = group[2].map((row) =>
+				Array.isArray(row) && row.length === group[1].length + 1 && typeof row[0] === 'string'
+					? (row as [string, ...unknown[]])
+					: undefined
+			);
+			return [group[0], group[1], rows] as const;
+		}
+	);
+	return [1, groups];
 }
 
 /** Merges a late-loaded hydration registration into an existing client runtime configuration. */
@@ -142,7 +237,7 @@ export function mergeHydrationRegistration(
 	if (registration.continuations) {
 		options.continuations = mergeUniqueRecord(
 			options.continuations,
-			registration.continuations,
+			normalizeRegistrationContinuations(registration.continuations),
 			'continuation',
 			sameJsonData
 		);
@@ -166,6 +261,20 @@ export function mergeHydrationRegistration(
 			'endpoint transport',
 			sameEndpointTransport
 		);
+	}
+}
+
+/**
+ * Canonicalizes valid compiler contracts while retaining malformed values for
+ * the existing fail-closed duplicate-conflict path.
+ */
+function normalizeRegistrationContinuations(
+	continuations: ExactHydrationRegistration['continuations']
+): ExactHydrationRegistration['continuations'] {
+	try {
+		return normalizeContinuationMap(continuations);
+	} catch {
+		return continuations;
 	}
 }
 

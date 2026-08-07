@@ -1,4 +1,4 @@
-import { Cell, Dynamic, Fragment, UnsafeHtml } from '@exactjs/core';
+import { Cell, Dynamic, Fragment, Target, UnsafeHtml } from '@exactjs/core';
 import { describeNode, domDebug } from './debug.js';
 import type { Mounted, Root } from './types.js';
 
@@ -73,6 +73,7 @@ function ownsChildDom(mounted: Mounted): boolean {
 		!!mounted.end ||
 		mounted.vnode.type === Cell ||
 		mounted.vnode.type === Fragment ||
+		mounted.vnode.type === Target ||
 		mounted.vnode.type === Dynamic ||
 		mounted.vnode.type === UnsafeHtml ||
 		typeof mounted.vnode.type === 'function'

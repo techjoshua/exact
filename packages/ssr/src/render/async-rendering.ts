@@ -39,9 +39,11 @@ export async function renderToStringAsync(
 		options.outputExtensions ?? []
 	)) as string;
 	assertOutputWithinLimit(context, html);
+	const hydrationTable = context.hydrationTable.value();
 	return {
 		html,
-		state: options.state
+		state: options.state,
+		...(hydrationTable ? { hydrationTable } : {})
 	};
 }
 
@@ -62,6 +64,7 @@ export async function renderToHydratableStringAsync(
 		continuations: options.continuations,
 		resumptions: emittedResumptions,
 		publicContexts: options.publicContexts,
+		hydrationTable: result.hydrationTable,
 		executionRoot: options.executionRoot,
 		binding: options.binding,
 		buildKey: options.buildKey,
@@ -138,6 +141,7 @@ export async function streamDocumentRender(
 					continuations: options.continuations,
 					resumptions: resumptions.length > 0 ? resumptions : options.resumptions,
 					publicContexts: options.publicContexts,
+					hydrationTable: final.hydrationTable,
 					executionRoot: options.executionRoot,
 					binding: options.binding,
 					buildKey: options.buildKey,

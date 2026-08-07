@@ -7,6 +7,8 @@
 		"lib": ["ES2022"]
 	},
 	"references": [
+		{ "path": "../../packages/component-library-policy" },
+		{ "path": "../../packages/config" },
 		{ "path": "../../packages/instrumentation" },
 		{ "path": "../../packages/plugin-api" },
 		{ "path": "../../packages/plugin-host" },

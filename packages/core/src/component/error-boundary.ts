@@ -10,7 +10,7 @@ import type {
 import { createVNode } from '../vnode.js';
 import { ErrorContext } from './contexts.js';
 import { createErrorContext } from './errors.js';
-import { formatError } from './log.js';
+import { createDefaultErrorView } from './error-view.js';
 
 /** Values supplied to a custom {@link ErrorBoundary} fallback. */
 export type ErrorBoundaryFallbackProps = {
@@ -58,19 +58,7 @@ export function ErrorBoundary(this: Component<{}>, props: ErrorBoundaryProps): R
 }
 
 function createDefaultBoundaryView(errors: readonly ErrorReport[], reset: () => void): Child {
-	return createVNode(
-		'section',
-		{ role: 'alert', className: 'exact-error-boundary' },
-		createVNode('h1', null, 'Application error'),
-		...errors.map((error) =>
-			createVNode(
-				'article',
-				{ key: error.id, className: 'exact-error' },
-				createVNode('h2', null, error.component?.name ?? 'Framework'),
-				createVNode('p', null, `${error.source}${error.phase ? `:${error.phase}` : ''}`),
-				createVNode('pre', null, formatError(error.error))
-			)
-		),
-		createVNode('button', { type: 'button', onClick: reset }, 'Try again')
-	);
+	return createDefaultErrorView(errors, {
+		actions: [createVNode('button', { type: 'button', onClick: reset }, 'Try again')]
+	});
 }

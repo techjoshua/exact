@@ -19,6 +19,10 @@
 		"./enhanced": {
 			"types": "./dist/enhanced.d.ts",
 			"default": "./dist/enhanced.js"
+		},
+		"./framework/hydration": {
+			"types": "./dist/framework/hydration.d.ts",
+			"default": "./dist/framework/hydration.js"
 		}
 	},
 	"main": "./dist/index.js",

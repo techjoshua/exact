@@ -6,6 +6,7 @@ Several eXact integrations use the word “plugin,” but they solve different p
 ## Contents
 
 - [Build-tool compiler plugins](#build-tool-compiler-plugins)
+- [Component-library server trust](#component-library-server-trust)
 - [Renderers and clients](#renderers-and-clients)
 - [Server runtime adapters](#server-runtime-adapters)
 - [eXact framework plugins](#exact-framework-plugins)
@@ -70,6 +71,27 @@ await Bun.build({
 Use Bun's `target: "bun"` with eXact's `target: "server"` for a server bundle. The build plugin
 only compiles modules that require an eXact transform; ordinary JavaScript and TypeScript continue
 through Bun's native loaders.
+
+### Component-library server trust
+
+Put component-library policy in `exact.config.*`, never in adapter-local allowlists:
+
+```ts
+export default defineConfig({
+	componentLibraries: {
+		mode: 'trusted',
+		allow: ['@acme/maps'],
+		deny: ['@unreviewed/']
+	}
+});
+```
+
+Server Vite, Webpack, Bun, Vitest, and Jest integrations authorize compiler-reached physical
+package instances before evaluation. Treat authorization as permission for in-process server code,
+not sandboxing. Do not bypass missing markers or build facts. Published libraries declare
+`@exactjs/component-library` in production dependencies and generate the static file named by
+`exactComponentLibrary.build`. Bun server `--hot` is unsupported; use watch builds so rejected
+generations cannot replace the last authorized graph.
 
 ### Optional full-stack DevTools
 

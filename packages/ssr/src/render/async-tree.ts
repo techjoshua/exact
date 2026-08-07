@@ -2,14 +2,17 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
+	RenderProgram,
 	ServerBoundary,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	createComponentInstance,
 	createReadinessCoordinator,
 	getCellVNode,
+	hasIndependentAsyncSiblings,
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
@@ -71,6 +74,9 @@ import {
 	resolveSsrFragmentChildren
 } from './logical-children.js';
 import { activateSsrEnhancementsAsync } from './enhancements.js';
+import { applySsrTargetContributionsAsync } from './target-contributions.js';
+import { renderSsrProgram } from './render-program.js';
+import { canRenderIndependentChildren, renderIndependentChildren } from './async-independent.js';
 
 /** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
@@ -135,6 +141,12 @@ export async function renderVNodeAsyncInner(
 			renderVNodeAsync(context, getCellVNode(vnode), parent, options)
 		);
 	}
+	if (vnode.type === RenderProgram) {
+		const planned = renderSsrProgram(context, vnode);
+		return planned.fallback
+			? renderVNodeAsync(context, planned.fallback, parent, options)
+			: planned.html!;
+	}
 
 	if (vnode.type === Text) {
 		return escapeText(String(unwrap(vnode.props.value) ?? ''));
@@ -193,6 +205,13 @@ export async function renderVNodeAsyncInner(
 		});
 	}
 
+	if (vnode.type === Target) {
+		await applySsrTargetContributionsAsync(context, vnode, parent, options);
+		return markerPair(context, markerId(context, 'target', undefined, vnode.key), () =>
+			renderChildrenAsync(context, vnode.children, parent, options)
+		);
+	}
+
 	if (vnode.type === Dynamic) {
 		return markDynamic(context, vnode, async () =>
 			renderChildrenAsync(context, resolveSsrDynamicChildren(context, vnode), parent, options)
@@ -212,7 +231,8 @@ export async function renderVNodeAsyncInner(
 		return renderComponentAsync(context, vnode, parent, options);
 	}
 
-	const host = enterHost(context, vnode);
+	const contributed = context.targetContributions.get(vnode);
+	const host = enterHost(context, contributed ? { ...vnode, props: contributed } : vnode);
 	const hostVNode = host.vnode;
 	const tag = host.tag;
 	try {
@@ -229,7 +249,16 @@ export async function renderVNodeAsyncInner(
 			if (context.reactMarkup && tag === 'select')
 				context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
-				content = await renderChildrenAsync(context, hostVNode.children, parent, options);
+				content =
+					hasIndependentAsyncSiblings(hostVNode) && canRenderIndependentChildren(context, options)
+						? await renderIndependentChildren(
+								context,
+								hostVNode.children,
+								parent,
+								options,
+								renderChildAsync
+							)
+						: await renderChildrenAsync(context, hostVNode.children, parent, options);
 			} finally {
 				context.reactSelectValue = previousSelect;
 			}

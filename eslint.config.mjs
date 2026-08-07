@@ -21,7 +21,8 @@ export default tseslint.config(
 			'**/.exact/**',
 			'apps/react-reconciler-reference-*/**',
 			'apps/react-reference-*/**',
-			'packages/react-dom-compat/fixtures/**'
+			'packages/react-dom-compat/fixtures/**',
+			'component-libraries/*/capability.d.ts'
 		]
 	},
 	{

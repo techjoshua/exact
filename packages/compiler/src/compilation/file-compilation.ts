@@ -23,6 +23,8 @@ export async function compileFile(
 	const source = await readFile(inputFile, 'utf8');
 	const result = transformSource(source, {
 		filename: options.filename ?? inputFile,
+		root: options.root,
+		configFile: options.configFile,
 		session: options.session,
 		target: options.target,
 		serverComponents: options.serverComponents,
@@ -75,7 +77,7 @@ export async function compileProject(
 			ownedSession.dispose();
 		}
 	}
-	const files = await collectInputFiles(inputs);
+	const files = await collectInputFiles(inputs, options.includeAllModules);
 	const rootDir = options.rootDir ?? commonRoot(files);
 	const results: CompileFileResult[] = [];
 
@@ -84,6 +86,8 @@ export async function compileProject(
 			await compileFile(file, {
 				outDir: options.outDir,
 				rootDir,
+				root: options.root,
+				configFile: options.configFile,
 				target: options.target,
 				serverComponents: options.serverComponents,
 				sourceMap: options.sourceMap,
@@ -93,6 +97,7 @@ export async function compileProject(
 				jsxInterop: options.jsxInterop,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: options.preserveClientAssetImports,
+				generatedValidation: options.generatedValidation,
 				...capabilityCompilationOptions(options)
 			})
 		);

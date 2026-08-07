@@ -17,7 +17,10 @@ export function renderAttrs(
 	tag?: string,
 	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
 ): string {
-	let attrs = '';
+	const boundDetails = !reactMarkup && tag === 'details' && '__exactBindToggle' in props;
+	let attrs = boundDetails
+		? ` data-exact-ssr-open="${unwrap(props.open) === true ? 'true' : 'false'}"`
+		: '';
 	const customElement = !!reactMarkup && !!tag?.includes('-');
 	for (const [name, rawValue] of reactMarkup
 		? reactOrderedProps(props, tag, reactMarkup)
@@ -28,11 +31,13 @@ export function renderAttrs(
 			);
 		}
 		if (
+			(boundDetails && name === 'data-exact-ssr-open') ||
 			name === 'children' ||
 			name === 'key' ||
 			name === 'ref' ||
 			name === '__exactBindInput' ||
 			name === '__exactBindChange' ||
+			name === '__exactBindToggle' ||
 			name === 'dangerouslySetInnerHTML' ||
 			/^on[A-Z]/.test(name)
 		)

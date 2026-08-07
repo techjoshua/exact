@@ -1,3 +1,4 @@
+import { isPromiseLike } from '@exactjs/core/framework/async-values';
 import type { RequestContextStorage, RequestContextValue, RequestScope } from './contracts.js';
 
 class StackStorage implements RequestContextStorage {
@@ -53,12 +54,4 @@ export function runWithRequestContext<T>(
 /** Returns the request value active in the selected or default scope. */
 export function getRequestContext(scope?: RequestScope): RequestContextValue | undefined {
 	return scope ? scope.current() : defaultStorage.getStore();
-}
-
-function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-	return (
-		!!value &&
-		(typeof value === 'object' || typeof value === 'function') &&
-		typeof (value as PromiseLike<unknown>).then === 'function'
-	);
 }

@@ -4,6 +4,9 @@ import { exactJest } from './index.js';
 describe('@exactjs/jest', () => {
 	it('provides matcher setup and a DOM-capable default environment', () => {
 		expect(exactJest()).toMatchObject({
+			globalSetup: expect.stringMatching(/global-setup\.js$/),
+			globalTeardown: expect.stringMatching(/global-teardown\.js$/),
+			resolver: expect.stringMatching(/resolver\.js$/),
 			setupFiles: [expect.stringMatching(/polyfills\.js$/)],
 			setupFilesAfterEnv: [expect.stringMatching(/setup\.js$/)],
 			testEnvironment: 'jest-environment-jsdom',

@@ -1,4 +1,16 @@
 import type * as tsModule from 'typescript/lib/tsserverlibrary';
+import {
+	componentBindingRenameTarget,
+	declarationNameNode,
+	forEachNamespacedJsx,
+	valueCallbackQuickInfo
+} from './component-binding-language.js';
+import {
+	deepestNodeAtPosition,
+	enclosingComponentReceiver,
+	isExactEnhancementImport
+} from './component-language-context.js';
+import { enhancementQuickInfo, exactCompletionEntries } from './enhancement-language.js';
 
 type TypeScript = typeof tsModule;
 
@@ -31,10 +43,12 @@ function createLanguageServiceProxy(
 	}
 	proxy.getSemanticDiagnostics = (filename) => {
 		const diagnostics = service.getSemanticDiagnostics(filename);
-		const sourceFile = service.getProgram()?.getSourceFile(filename);
-		if (!sourceFile) return diagnostics;
+		const program = service.getProgram();
+		const sourceFile = program?.getSourceFile(filename);
+		if (!program || !sourceFile) return diagnostics;
+		const checker = program.getTypeChecker();
 		return diagnostics.filter(
-			(diagnostic) => !diagnosticContradictsExactSyntax(typescript, sourceFile, diagnostic)
+			(diagnostic) => !diagnosticContradictsExactSyntax(typescript, checker, sourceFile, diagnostic)
 		);
 	};
 	proxy.getCompletionsAtPosition = (filename, position, options, formattingSettings) => {
@@ -61,161 +75,134 @@ function createLanguageServiceProxy(
 					entries
 				};
 	};
-	return proxy;
-}
-
-/** Creates type-derived completions for eXact receiver and JSX enhancement syntax. */
-function exactCompletionEntries(
-	typescript: TypeScript,
-	program: tsModule.Program,
-	sourceFile: tsModule.SourceFile,
-	position: number
-): tsModule.CompletionEntry[] {
-	const checker = program.getTypeChecker();
-	const receiver = componentReceiverAtCompletion(typescript, sourceFile, position);
-	if (receiver?.type)
-		return propertyCompletionEntries(
-			typescript,
-			checker,
-			checker.getTypeFromTypeNode(receiver.type),
-			receiver,
-			false
+	proxy.getQuickInfoAtPosition = (filename, position) => {
+		const ordinary = service.getQuickInfoAtPosition(filename, position);
+		const program = service.getProgram();
+		const sourceFile = program?.getSourceFile(filename);
+		if (!program || !sourceFile) return ordinary;
+		const checker = program.getTypeChecker();
+		const binding = valueCallbackQuickInfo(typescript, checker, sourceFile, position);
+		const enhancement = enhancementQuickInfo(typescript, checker, sourceFile, position);
+		if (!binding) return enhancement ?? ordinary;
+		if (!enhancement) return binding;
+		return {
+			...binding,
+			displayParts: [
+				...(binding.displayParts ?? []),
+				{ text: ' · ', kind: 'text' },
+				...(enhancement.displayParts ?? [])
+			]
+		};
+	};
+	proxy.getRenameInfo = (filename, position, options) => {
+		const program = service.getProgram();
+		const sourceFile = program?.getSourceFile(filename);
+		const target =
+			program && sourceFile
+				? componentBindingRenameTarget(typescript, program.getTypeChecker(), sourceFile, position)
+				: undefined;
+		if (!target) return service.getRenameInfo(filename, position, options);
+		const declaration = target.symbol.valueDeclaration ?? target.symbol.declarations?.[0];
+		if (!declaration) return service.getRenameInfo(filename, position, options);
+		const declarationName = declarationNameNode(typescript, declaration);
+		if (!declarationName) return service.getRenameInfo(filename, position, options);
+		const ordinary = service.getRenameInfo(
+			declaration.getSourceFile().fileName,
+			declarationName.getStart(),
+			options
 		);
-	const prefix = enhancementPrefixAtCompletion(typescript, sourceFile, position);
-	if (!prefix) return [];
-	const binding = enhancementImportBinding(typescript, sourceFile, prefix);
-	if (!binding) return [];
-	const componentType = checker.getTypeAtLocation(binding);
-	const props = checker.getSignaturesOfType(componentType, typescript.SignatureKind.Call)[0]
-		?.parameters[0];
-	if (!props) return [];
-	const propsType = checker.getTypeOfSymbolAtLocation(props, binding);
-	return [
-		...propertyCompletionEntries(typescript, checker, propsType, binding, true),
-		{
-			name: 'root',
-			kind: typescript.ScriptElementKind.memberVariableElement,
-			sortText: '12',
-			labelDetails: { detail: ' · enhancement target selector' }
-		}
-	];
-}
-
-/** Projects finite public properties into language-service completion entries. */
-function propertyCompletionEntries(
-	typescript: TypeScript,
-	checker: tsModule.TypeChecker,
-	type: tsModule.Type,
-	location: tsModule.Node,
-	namespaced: boolean
-): tsModule.CompletionEntry[] {
-	const entries = new Map<string, tsModule.CompletionEntry>();
-	for (const memberType of distributedTypes(typescript, type)) {
-		for (const property of checker.getPropertiesOfType(memberType)) {
-			const authoredName = property.getName();
-			if (
-				namespaced &&
-				(authoredName === 'children' || authoredName === 'key' || authoredName === 'ref')
-			)
-				continue;
-			const name = namespaced ? camelToKebab(authoredName) : authoredName;
-			if (entries.has(name)) continue;
-			const propertyType = checker.getTypeOfSymbolAtLocation(property, location);
-			entries.set(name, {
-				name,
-				kind: checker.getSignaturesOfType(propertyType, typescript.SignatureKind.Call).length
-					? typescript.ScriptElementKind.memberFunctionElement
-					: typescript.ScriptElementKind.memberVariableElement,
-				sortText: '11',
-				labelDetails: { detail: ` · ${checker.typeToString(propertyType)}` }
+		return ordinary.canRename
+			? {
+					...ordinary,
+					triggerSpan: {
+						start: target.node.getStart(sourceFile),
+						length: target.node.getWidth(sourceFile)
+					}
+				}
+			: ordinary;
+	};
+	proxy.findRenameLocations = (filename, position, findInStrings, findInComments, preferences) => {
+		const findOrdinaryRenameLocations = service.findRenameLocations as (
+			fileName: string,
+			position: number,
+			findInStrings: boolean,
+			findInComments: boolean,
+			preferences?: boolean | tsModule.UserPreferences
+		) => readonly tsModule.RenameLocation[] | undefined;
+		const program = service.getProgram();
+		const sourceFile = program?.getSourceFile(filename);
+		const checker = program?.getTypeChecker();
+		const target =
+			program && sourceFile && checker
+				? componentBindingRenameTarget(typescript, checker, sourceFile, position)
+				: undefined;
+		if (!target || !program || !checker)
+			return findOrdinaryRenameLocations(
+				filename,
+				position,
+				findInStrings,
+				findInComments,
+				preferences
+			);
+		const declaration = target.symbol.valueDeclaration ?? target.symbol.declarations?.[0];
+		const declarationName = declaration && declarationNameNode(typescript, declaration);
+		if (!declaration || !declarationName) return undefined;
+		const locations = [
+			...(findOrdinaryRenameLocations(
+				declaration.getSourceFile().fileName,
+				declarationName.getStart(),
+				findInStrings,
+				findInComments,
+				preferences
+			) ?? [])
+		];
+		for (const candidateFile of program.getSourceFiles()) {
+			if (candidateFile.isDeclarationFile) continue;
+			forEachNamespacedJsx(typescript, candidateFile, (name) => {
+				const candidate = componentBindingRenameTarget(
+					typescript,
+					checker,
+					candidateFile,
+					name.getStart(candidateFile) +
+						(target.side === 'value' ? 0 : name.namespace.getWidth(candidateFile) + 1)
+				);
+				if (!candidate || candidate.side !== target.side || candidate.symbol !== target.symbol)
+					return;
+				locations.push({
+					fileName: candidateFile.fileName,
+					textSpan: {
+						start: candidate.node.getStart(candidateFile),
+						length: candidate.node.getWidth(candidateFile)
+					}
+				});
 			});
 		}
-	}
-	return [...entries.values()];
-}
-
-/** Expands union props because each finite variant contributes valid enhancement members. */
-function distributedTypes(typescript: TypeScript, type: tsModule.Type): readonly tsModule.Type[] {
-	return type.flags & typescript.TypeFlags.Union ? (type as tsModule.UnionType).types : [type];
-}
-
-/** Converts the canonical TypeScript prop spelling to the JSX namespace spelling. */
-function camelToKebab(name: string): string {
-	return name.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
-}
-
-/** Resolves the outer component receiver for a completion immediately following local `this.`. */
-function componentReceiverAtCompletion(
-	typescript: TypeScript,
-	sourceFile: tsModule.SourceFile,
-	position: number
-): tsModule.ParameterDeclaration | undefined {
-	const match = /\bthis\.[A-Za-z_$\d]*$/.exec(sourceFile.text.slice(0, position));
-	if (!match) return undefined;
-	const receiver = deepestNodeAtPosition(sourceFile, match.index + match[0].indexOf('this'));
-	if (!receiver || receiver.kind !== typescript.SyntaxKind.ThisKeyword) return undefined;
-	return enclosingComponentReceiver(typescript, sourceFile, receiver);
-}
-
-/** Resolves the exact-plugin prefix at an incomplete namespaced JSX attribute. */
-function enhancementPrefixAtCompletion(
-	typescript: TypeScript,
-	sourceFile: tsModule.SourceFile,
-	position: number
-): string | undefined {
-	const match = /(?:^|\s)([A-Za-z_$][\w$]*):[\w-]*$/.exec(sourceFile.text.slice(0, position));
-	if (!match || !insideJsxOpening(typescript, sourceFile, position)) return undefined;
-	return match[1];
-}
-
-/** Confirms that a completion offset belongs to JSX attributes, including incomplete syntax. */
-function insideJsxOpening(
-	typescript: TypeScript,
-	sourceFile: tsModule.SourceFile,
-	position: number
-): boolean {
-	let found = false;
-	visit(sourceFile);
-	return found;
-
-	function visit(node: tsModule.Node): void {
-		if (found || position < node.getFullStart() || position > node.getEnd()) return;
-		if (typescript.isJsxOpeningLikeElement(node)) found = true;
-		typescript.forEachChild(node, visit);
-	}
-}
-
-/** Finds the attributed import binding which owns one enhancement namespace. */
-function enhancementImportBinding(
-	typescript: TypeScript,
-	sourceFile: tsModule.SourceFile,
-	prefix: string
-): tsModule.Identifier | undefined {
-	for (const statement of sourceFile.statements) {
-		if (!typescript.isImportDeclaration(statement) || !isExactPluginImport(typescript, statement))
-			continue;
-		const clause = statement.importClause;
-		if (!clause || clause.isTypeOnly) continue;
-		if (clause.name?.text === prefix) return clause.name;
-		if (clause.namedBindings && typescript.isNamedImports(clause.namedBindings)) {
-			const binding = clause.namedBindings.elements.find(
-				(element) => !element.isTypeOnly && element.name.text === prefix
-			);
-			if (binding) return binding.name;
-		}
-	}
-	return undefined;
+		const unique = new Map(
+			locations.map((location) => [
+				`${location.fileName}:${location.textSpan.start}:${location.textSpan.length}`,
+				location
+			])
+		);
+		return [...unique.values()];
+	};
+	return proxy;
 }
 
 /** Reports whether one TypeScript diagnostic describes syntax with different eXact semantics. */
 function diagnosticContradictsExactSyntax(
 	typescript: TypeScript,
+	checker: tsModule.TypeChecker,
 	sourceFile: tsModule.SourceFile,
 	diagnostic: tsModule.Diagnostic
 ): boolean {
 	if (diagnostic.start === undefined) return false;
 	if (diagnostic.code === implicitThisDiagnostic)
 		return isComponentOwnedThis(typescript, sourceFile, diagnostic.start);
+	if (
+		diagnostic.code === 2322 &&
+		componentBindingRenameTarget(typescript, checker, sourceFile, diagnostic.start)
+	)
+		return true;
 	if (
 		diagnostic.code === unusedDeclarationDiagnostic ||
 		diagnostic.code === allImportsUnusedDiagnostic
@@ -235,41 +222,7 @@ function isComponentOwnedThis(
 	return !!enclosingComponentReceiver(typescript, sourceFile, receiver);
 }
 
-/** Finds the authored component receiver outside at least one local function boundary. */
-function enclosingComponentReceiver(
-	typescript: TypeScript,
-	sourceFile: tsModule.SourceFile,
-	receiver: tsModule.Node
-): tsModule.ParameterDeclaration | undefined {
-	let current: tsModule.Node | undefined = receiver.parent;
-	let crossedLocalFunction = false;
-	while (current) {
-		if (typescript.isFunctionLike(current)) {
-			const componentReceiver = authoredComponentReceiver(typescript, sourceFile, current);
-			if (crossedLocalFunction && componentReceiver) return componentReceiver;
-			crossedLocalFunction = true;
-		}
-		current = current.parent;
-	}
-	return undefined;
-}
-
-/** Tests the same explicit receiver signal that gives an eXact component its durable instance. */
-function authoredComponentReceiver(
-	typescript: TypeScript,
-	sourceFile: tsModule.SourceFile,
-	functionLike: tsModule.SignatureDeclaration
-): tsModule.ParameterDeclaration | undefined {
-	return functionLike.parameters.find(
-		(parameter) =>
-			typescript.isIdentifier(parameter.name) &&
-			parameter.name.text === 'this' &&
-			!!parameter.type &&
-			/\bComponent\s*</.test(parameter.type.getText(sourceFile))
-	);
-}
-
-/** Recognizes an exact-plugin binding consumed as a JSX attribute namespace. */
+/** Recognizes an exact-enhancement binding consumed as a JSX attribute namespace. */
 function isUsedEnhancementImport(
 	typescript: TypeScript,
 	sourceFile: tsModule.SourceFile,
@@ -278,7 +231,7 @@ function isUsedEnhancementImport(
 ): boolean {
 	const diagnosticNode = deepestNodeAtPosition(sourceFile, position);
 	const declaration = enclosingImportDeclaration(typescript, diagnosticNode);
-	if (!declaration || !isExactPluginImport(typescript, declaration)) return false;
+	if (!declaration || !isExactEnhancementImport(typescript, declaration)) return false;
 	const bindings = importBindingNames(typescript, declaration);
 	if (!bindings.size) return false;
 	const used = new Set<string>();
@@ -308,6 +261,8 @@ function importBindingIdentifiers(
 	const clause = declaration.importClause;
 	if (!clause || clause.isTypeOnly) return result;
 	if (clause.name) result.push(clause.name);
+	if (clause.namedBindings && typescript.isNamespaceImport(clause.namedBindings))
+		result.push(clause.namedBindings.name);
 	if (clause.namedBindings && typescript.isNamedImports(clause.namedBindings)) {
 		for (const element of clause.namedBindings.elements)
 			if (!element.isTypeOnly) result.push(element.name);
@@ -325,19 +280,6 @@ function enclosingImportDeclaration(
 	return undefined;
 }
 
-/** Tests the compiler-reserved import attribute without depending on module naming conventions. */
-function isExactPluginImport(
-	typescript: TypeScript,
-	declaration: tsModule.ImportDeclaration
-): boolean {
-	return !!declaration.attributes?.elements.some(
-		(attribute) =>
-			attribute.name.text === 'type' &&
-			typescript.isStringLiteral(attribute.value) &&
-			attribute.value.text === 'exact-plugin'
-	);
-}
-
 /** Collects value bindings which can name an eXact JSX enhancement namespace. */
 function importBindingNames(
 	typescript: TypeScript,
@@ -347,27 +289,13 @@ function importBindingNames(
 	const clause = declaration.importClause;
 	if (!clause || clause.isTypeOnly) return result;
 	if (clause.name) result.add(clause.name.text);
+	if (clause.namedBindings && typescript.isNamespaceImport(clause.namedBindings))
+		result.add(clause.namedBindings.name.text);
 	if (clause.namedBindings && typescript.isNamedImports(clause.namedBindings)) {
 		for (const element of clause.namedBindings.elements)
 			if (!element.isTypeOnly) result.add(element.name.text);
 	}
 	return result;
-}
-
-/** Returns the narrowest AST node containing a diagnostic start offset. */
-function deepestNodeAtPosition(
-	sourceFile: tsModule.SourceFile,
-	position: number
-): tsModule.Node | undefined {
-	let result: tsModule.Node | undefined;
-	visit(sourceFile);
-	return result;
-
-	function visit(node: tsModule.Node): void {
-		if (position < node.getFullStart() || position >= node.getEnd()) return;
-		result = node;
-		node.forEachChild(visit);
-	}
 }
 
 export = initialize;

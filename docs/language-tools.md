@@ -54,7 +54,9 @@ import { createExactLanguageService } from '@exactjs/compiler';
 
 const language = createExactLanguageService({
 	root: process.cwd(),
-	noEmit: true
+	noEmit: true,
+	maxCachedAnalyses: 128,
+	maxCachedAnalysisBytes: 32 * 1024 * 1024
 });
 
 const update = await language.synchronize([
@@ -82,6 +84,17 @@ and a result whose document was superseded is rejected before publication.
 Closing a document releases its overlay and restores the disk snapshot;
 disposing the service releases the native process and all retained project
 state.
+
+Disk-backed rich analyses use an access-ordered LRU bounded by both
+`maxCachedAnalyses` (default `128`) and `maxCachedAnalysisBytes` (default 32 MiB). Open overlays and
+their current analyses are pinned even when editor state alone exceeds those budgets. Cold source
+text is reread from disk instead of being retained as a snapshot, while the compact import graph
+remains available for affected-file calculation.
+
+`language.stats()` reports overlay count, snapshot entries and source bytes, analysis entries and
+estimated bytes, import-graph entries and edges, eviction count, and `cacheOverBudget`. The final
+flag can be true when pinned overlays alone exceed a configured limit; the service reports that
+condition rather than discarding current editor state.
 
 ## Semantic regions
 
@@ -120,6 +133,11 @@ work. `once-per-instance` means the assignment is initialization;
 `deferred-reactive` means its right side is reevaluated from reactive inputs.
 This classification includes destructured prop bindings and is attached to the
 specific state target.
+
+Component and intrinsic value/callback shorthand remains one authored binding entity. Its
+classification names the parent state path, value and callback props, callback value type,
+additional ignored parameters, placement, artifact targets, and intrinsic adapter when present.
+Inspection does not expose generated callback or DOM-helper identifiers as authored entities.
 
 A JSX render expression that resolves to an eXact component retains the native
 render edge as `referencedComponent`, including its compiler-local identity,
@@ -173,10 +191,18 @@ diagnostics. The extension contributes a narrow TypeScript server compatibility
 plugin for syntax whose compiler meaning differs from TypeScript's default model.
 Local functions inside a component inherit the authored `this: Component<...>`
 receiver for member completion without receiving TS2683, and an attributed
-`exact-plugin` binding counts as used when it appears as a JSX namespace. Typing
+`exact-enhancement` binding counts as used when it appears as a JSX namespace. Typing
 that namespace and a colon completes the imported callable's finite public props
 in kebab-case, plus the reserved `root` target selector. Unrelated implicit-`this`
 and unused-import diagnostics remain unchanged.
+
+After a finite component value prop and colon, the plugin completes compatible notification
+callback props whose first required parameter can flow back to the value type. Intrinsics complete
+only their supported `onInput`, `onChange`, or `onToggle` endpoints. Hover explains the conceptual
+two-prop expansion and parent-owned assignment, and rename follows either namespaced half through
+the ordinary prop declaration and other paired uses. A completion or hover that is also a viable
+enhancement candidate retains both interpretations; the native compiler issues the authoritative
+ambiguity diagnostic.
 
 eXact does not publish a duplicate TypeScript error at the same range. The
 language server captures immutable URI, version, and source text

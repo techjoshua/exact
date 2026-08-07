@@ -19,6 +19,15 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 		).not.toHaveProperty('oxc');
 	});
 
+	it('keeps unresolved server component candidates out of dependency optimization', () => {
+		expect(exact({ target: 'server', reactCompatibility: false }).config?.()).toMatchObject({
+			optimizeDeps: { noDiscovery: true, include: [] }
+		});
+		expect(exact({ target: 'client', reactCompatibility: false }).config?.()).not.toHaveProperty(
+			'optimizeDeps'
+		);
+	});
+
 	it('honors include and exclude filters', () => {
 		expect(
 			exact({ include: '/src/', reactCompatibility: false }).transform(

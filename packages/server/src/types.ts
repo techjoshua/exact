@@ -5,7 +5,7 @@ import type {
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract,
 	ExactCollectionMutation,
-	ComponentResumptionActivation,
+	ExactComponentAuthorizationIdentity,
 	Logger
 } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
@@ -166,6 +166,8 @@ export type ExactServerContextAccessObservation = Readonly<{
 
 /** Configures exact server context. */
 export type ExactServerContextConfiguration = {
+	/** Compact authorization identity required from coordinated client artifacts. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	/**
 	 * Trusted externally visible application origin. A resolver is an explicit
 	 * deployment trust boundary and must apply the host server's proxy policy.
@@ -274,6 +276,7 @@ export type ExactRemoteRootDispatch = {
 /** Registers the executor artifacts retained for one immutable client build. */
 export type ExactRemoteBuildRegistration = {
 	buildKey: string;
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	roots: Readonly<Record<string, ExactRemoteRootDispatch>>;
 };
 
@@ -519,13 +522,3 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 
 /** Reports an observable server profile event. */
 export type ServerProfileEvent = ExactProfileEvent<'server', 'request'>;
-
-/** Browser-visible configuration derived from an executor contract and SSR state. */
-export type ExactHydrationConfig = {
-	endpoint?: string;
-	endpoints?: ExactEndpointRoutes;
-	state?: unknown;
-	continuations?: Record<string, ExactComponentContinuationContract>;
-	resumptions?: readonly ComponentResumptionActivation[];
-	publicContexts?: Record<string, unknown>;
-};

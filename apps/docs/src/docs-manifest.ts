@@ -5,23 +5,26 @@ import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
+import { ComponentLibraryTrustPage } from './pages/ComponentLibraryTrustPage.jsx';
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
+import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
-import { GesturesPluginPage } from './pages/GesturesPluginPage.jsx';
-import { GravityPluginPage } from './pages/GravityPluginPage.jsx';
+import { GesturesPage } from './pages/GesturesPage.jsx';
+import { GravityPage } from './pages/GravityPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
 import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
 import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
-import { MotionPluginPage } from './pages/MotionPluginPage.jsx';
-import { PhysicsPluginPage } from './pages/PhysicsPluginPage.jsx';
+import { MotionPage } from './pages/MotionPage.jsx';
+import { PhysicsPage } from './pages/PhysicsPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
 import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
 import { RoutingPage } from './pages/RoutingPage.jsx';
 import { RuntimesPage } from './pages/RuntimesPage.jsx';
+import { SamplesPage } from './pages/SamplesPage.jsx';
 import { SecretsPluginPage } from './pages/SecretsPluginPage.jsx';
 import { ServerExecutionPage } from './pages/ServerExecutionPage.jsx';
 import { StatePage } from './pages/StatePage.jsx';
@@ -76,6 +79,14 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'create exact app install scaffold vite runtime test runner agent skill native compiler platform binary TypeScript 7',
 				component: GettingStartedPage
+			},
+			{
+				path: '/samples',
+				label: 'Sample applications',
+				summary: 'Explore complete eXact applications and portable standalone builds.',
+				keywords:
+					'samples applications puzzle generator Sudoku word search crossword clues page size margins warnings local AI WebLLM Qwen WebGPU Hugging Face standalone HTML SVG shipping kanban workbench',
+				component: SamplesPage
 			},
 			{
 				path: '/runtimes',
@@ -189,8 +200,9 @@ export const docGroups: DocGroup[] = [
 				path: '/guides/forms',
 				label: 'Accessible forms',
 				summary:
-					'Bind native inputs and compose accessible validation without surrendering your data.',
-				keywords: 'form input binding value change checked field validation label accessible',
+					'Bind component callbacks and native controls while preserving explicit state ownership.',
+				keywords:
+					'form input component binding callback value change checked details toggle field validation label accessible',
 				component: FormsPage
 			},
 			{
@@ -211,6 +223,55 @@ export const docGroups: DocGroup[] = [
 		]
 	},
 	{
+		label: 'Component libraries',
+		pages: [
+			{
+				path: '/components/enhancements',
+				label: 'Enhancements',
+				summary: 'Apply optional ordinary components through finite namespaced JSX.',
+				keywords: 'enhancement component library activator target composition optional namespace',
+				component: EnhancementsPage
+			},
+			{
+				path: '/components/trust',
+				label: 'Server trust',
+				summary: 'Authorize resolved component packages before server execution.',
+				keywords:
+					'component library trust authorization marker policy allow deny server bundler supply chain',
+				component: ComponentLibraryTrustPage
+			},
+			{
+				path: '/components/motion',
+				label: 'Motion',
+				summary: 'Animate committed state with prepared definitions and task-owned playback.',
+				keywords: 'component library enhancement motion animation presets task Web Animations',
+				component: MotionPage
+			},
+			{
+				path: '/components/gestures',
+				label: 'Gestures',
+				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
+				keywords: 'component library enhancement gestures drag pan pointer keyboard accessibility',
+				component: GesturesPage
+			},
+			{
+				path: '/components/physics',
+				label: 'Physics',
+				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
+				keywords:
+					'component library enhancement physics body force collision fixed step projection',
+				component: PhysicsPage
+			},
+			{
+				path: '/components/gravity',
+				label: 'Gravity',
+				summary: 'Compose pure bounded acceleration fields through the physics force seam.',
+				keywords: 'component library enhancement gravity field force physics acceleration',
+				component: GravityPage
+			}
+		]
+	},
+	{
 		label: 'Extend eXact',
 		pages: [
 			{
@@ -219,34 +280,6 @@ export const docGroups: DocGroup[] = [
 				summary: 'Package cross-cutting behavior as a validated, multi-host extension.',
 				keywords: 'plugin compiler server render client testing configuration package',
 				component: PluginsPage
-			},
-			{
-				path: '/plugins/motion',
-				label: 'Motion',
-				summary: 'Animate committed state with prepared definitions and task-owned playback.',
-				keywords: 'plugin motion animation presets reduced motion task playback Web Animations',
-				component: MotionPluginPage
-			},
-			{
-				path: '/plugins/gestures',
-				label: 'Gestures',
-				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
-				keywords: 'plugin gestures drag pan press hover pinch pointer keyboard accessibility',
-				component: GesturesPluginPage
-			},
-			{
-				path: '/plugins/physics',
-				label: 'Physics',
-				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
-				keywords: 'plugin physics simulation body force constraint collision fixed step projection',
-				component: PhysicsPluginPage
-			},
-			{
-				path: '/plugins/gravity',
-				label: 'Gravity',
-				summary: 'Compose pure bounded acceleration fields through the physics force seam.',
-				keywords: 'plugin gravity field force uniform radial point orbit physics acceleration',
-				component: GravityPluginPage
 			},
 			{
 				path: '/plugins/microfrontends',

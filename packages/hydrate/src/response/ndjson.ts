@@ -1,4 +1,7 @@
 import { type ResponseLimits } from './json.js';
+import { positiveLimit } from '../limits.js';
+
+export { positiveLimit } from '../limits.js';
 
 /** Reads a ndjson events from its source representation. */
 export async function readNdjsonEvents(
@@ -68,17 +71,4 @@ export function parseNdjsonLine(line: string, message: string): unknown {
 	}
 }
 
-/** Performs the positive limit domain operation. */
-export function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
-}
-
-/** Reports whether abort signal. */
-export function isAbortSignal(value: unknown): value is AbortSignal {
-	return (
-		!!value &&
-		typeof value === 'object' &&
-		'aborted' in value &&
-		typeof (value as AbortSignal).addEventListener === 'function'
-	);
-}
+export { isAbortSignal } from '@exactjs/core/framework/async-values';

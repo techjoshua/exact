@@ -16,6 +16,15 @@ import {
 /** Provides the canonical default console logger value. */
 export const defaultConsoleLogger = createConsoleLogger();
 
+const noopLogMethod = () => undefined;
+const noopComponentLog: ComponentLog = Object.freeze({
+	trace: noopLogMethod,
+	debug: noopLogMethod,
+	info: noopLogMethod,
+	warn: noopLogMethod,
+	error: noopLogMethod
+});
+
 /** Emits a framework-scoped log event through the supplied or default logger. */
 export function logFrameworkEvent(
 	level: LogLevel,
@@ -41,35 +50,40 @@ export function logFrameworkEvent(
 
 /** Creates a noop component log. */
 export function createNoopComponentLog(): ComponentLog {
-	const noop = () => undefined;
-	return {
-		trace: noop,
-		debug: noop,
-		info: noop,
-		warn: noop,
-		error: noop
-	};
+	return noopComponentLog;
 }
 
 /** Creates a component log. */
 export function createComponentLog(instance: ComponentInstance<any>): ComponentLog {
-	return {
-		trace(message, data) {
-			emitComponentLog(instance, 'trace', message, data);
-		},
-		debug(message, data) {
-			emitComponentLog(instance, 'debug', message, data);
-		},
-		info(message, data) {
-			emitComponentLog(instance, 'info', message, data);
-		},
-		warn(message, data) {
-			emitComponentLog(instance, 'warn', message, data);
-		},
-		error(message, errorOrData, data) {
-			emitComponentLog(instance, 'error', message, errorOrData, data);
-		}
-	};
+	return new ComponentLogFacade(instance);
+}
+
+class ComponentLogFacade implements ComponentLog {
+	constructor(private readonly instance: ComponentInstance<any>) {}
+
+	trace(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
+		emitComponentLog(this.instance, 'trace', message, data);
+	}
+
+	debug(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
+		emitComponentLog(this.instance, 'debug', message, data);
+	}
+
+	info(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
+		emitComponentLog(this.instance, 'info', message, data);
+	}
+
+	warn(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
+		emitComponentLog(this.instance, 'warn', message, data);
+	}
+
+	error(
+		message: LazyLogValue<string>,
+		errorOrData?: LazyLogValue<unknown>,
+		data?: LazyLogValue<unknown>
+	): void {
+		emitComponentLog(this.instance, 'error', message, errorOrData, data);
+	}
 }
 
 function emitComponentLog(

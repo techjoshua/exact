@@ -2,6 +2,7 @@ import {
 	createComponentDomain,
 	createRef,
 	createVNode,
+	isExactComponentAuthorizationIdentity,
 	markExactComponent,
 	watch,
 	type Child,
@@ -168,6 +169,7 @@ export function RemoteComponent(
 			executionRoot: loaded.root,
 			binding: bindingName,
 			buildKey: loaded.buildKey,
+			componentAuthorization: loaded.componentAuthorization,
 			signal,
 			onResponse: (metadata) => nextRecovery?.response(metadata),
 			onBuildUnsupported: () => nextRecovery?.unsupported(),
@@ -250,6 +252,9 @@ function validateRemoteModule(value: unknown): ExactRemoteModule {
 	if (
 		!/^[0-9a-f]{40}$/i.test(module.buildKey ?? '') ||
 		!module.root ||
+		(module.componentAuthorization !== undefined &&
+			(!isExactComponentAuthorizationIdentity(module.componentAuthorization) ||
+				module.componentAuthorization.buildKey !== module.buildKey)) ||
 		typeof module.component !== 'function' ||
 		!module.registration ||
 		typeof module.registration !== 'object'

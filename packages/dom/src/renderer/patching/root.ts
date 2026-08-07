@@ -6,8 +6,10 @@ import {
 	normalizeDocumentVNode,
 	normalizeRenderResult,
 	Portal,
+	RenderProgram,
 	ServerSlot,
 	Suspense,
+	Target,
 	Text,
 	UnsafeHtml,
 	unwrap,
@@ -26,7 +28,6 @@ import {
 } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
-import { updateProps } from '../../props.js';
 import { mountServerSlot } from '../../server-slots.js';
 import type { Mounted, Root } from '../../types.js';
 import { countDomWork, withTreeDepth } from '../limits.js';
@@ -44,6 +45,9 @@ import { updateSuspense } from '../suspense.js';
 import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
 import { patchEnhancementBoundary } from '../enhancements.js';
+import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
+import { parkForeignMounts } from './replacement-parking.js';
+import { fallbackRenderProgram, patchRenderProgram } from '../render-program.js';
 
 /** Performs the patch domain operation. */
 export function patch(
@@ -185,6 +189,11 @@ export function patchInner(
 		return mounted;
 	}
 
+	if (next.type === RenderProgram) {
+		if (patchRenderProgram(mounted, next)) return mounted;
+		return patch(root, parent, mounted, fallbackRenderProgram(next), parentInstance, parentScope);
+	}
+
 	if (next.type === Text) {
 		mounted.vnode = next;
 		bindText(mounted, next.props.value);
@@ -212,7 +221,8 @@ export function patchInner(
 			next.children,
 			activity.owner,
 			activity.contentScope,
-			activity.retained?.detached ? null : mounted.end
+			activity.retained?.detached ? null : mounted.end,
+			mounted
 		);
 		installActivity(root, mounted);
 		return mounted;
@@ -220,6 +230,22 @@ export function patchInner(
 
 	if (next.type === Suspense) {
 		updateSuspense(root, parent, mounted, next, parentInstance);
+		return mounted;
+	}
+
+	if (next.type === Target) {
+		mounted.vnode = next;
+		mounted.children = patchChildren(
+			root,
+			parent,
+			mounted.children,
+			next.children,
+			parentInstance,
+			mounted.scope,
+			afterMountedChildren(mounted),
+			mounted
+		);
+		refreshTargetBoundary(root, mounted, parentInstance);
 		return mounted;
 	}
 
@@ -237,7 +263,8 @@ export function patchInner(
 				nextList ? materializeList(nextList) : next.children,
 				parentInstance,
 				mounted.scope,
-				afterMountedChildren(mounted)
+				afterMountedChildren(mounted),
+				mounted
 			);
 			if (nextList) {
 				mounted.stop = watch(
@@ -249,7 +276,8 @@ export function patchInner(
 							materializeList(nextList),
 							parentInstance,
 							mounted.scope,
-							afterMountedChildren(mounted)
+							afterMountedChildren(mounted),
+							mounted
 						);
 					},
 					undefined,
@@ -264,7 +292,8 @@ export function patchInner(
 				next.children,
 				parentInstance,
 				mounted.scope,
-				afterMountedChildren(mounted)
+				afterMountedChildren(mounted),
+				mounted
 			);
 		}
 		return mounted;
@@ -281,7 +310,8 @@ export function patchInner(
 			normalizeRenderResult(unwrap(value) as Child | Child[]),
 			parentInstance,
 			mounted.scope,
-			afterMountedChildren(mounted)
+			afterMountedChildren(mounted),
+			mounted
 		);
 		mounted.stop = watch(
 			() => {
@@ -293,7 +323,8 @@ export function patchInner(
 					nextChildren,
 					parentInstance,
 					mounted.scope,
-					afterMountedChildren(mounted)
+					afterMountedChildren(mounted),
+					mounted
 				);
 			},
 			undefined,
@@ -317,7 +348,9 @@ export function patchInner(
 				mounted.children,
 				[],
 				parentInstance,
-				mounted.scope
+				mounted.scope,
+				undefined,
+				mounted
 			);
 			mounted.portalTarget = nextTarget;
 			const eventContainer = portalEventContainer(root, nextTarget);
@@ -333,7 +366,9 @@ export function patchInner(
 					mounted.children,
 					next.children,
 					parentInstance,
-					mounted.scope
+					mounted.scope,
+					undefined,
+					mounted
 				)
 			);
 		}
@@ -369,37 +404,9 @@ export function patchInner(
 		next.children,
 		parentInstance,
 		mounted.scope,
-		mounted.childEnd
+		mounted.childEnd,
+		mounted
 	);
-	updateProps(root, mounted.dom as Element, previousProps, next.props, mounted.scope);
+	updateTargetedIntrinsicProps(root, mounted, previousProps, next.props);
 	return mounted;
-}
-
-function parkForeignMounts(
-	owner: Mounted,
-	replacedDomain: ComponentInstance<any>['domain'],
-	parking: Map<VNode, Array<{ mounted: Mounted; parent: Node }>>,
-	ownerSnapshots: Map<Mounted, Mounted[]>,
-	fallbackParent: Node
-): void {
-	ownerSnapshots.set(owner, owner.children);
-	const retained: Mounted[] = [];
-	for (const child of owner.children) {
-		const domain = child.instance?.domain ?? child.vnode.domain;
-		if (domain && domain !== replacedDomain) {
-			const candidates = parking.get(child.vnode) ?? [];
-			candidates.push({ mounted: child, parent: child.dom.parentNode ?? fallbackParent });
-			parking.set(child.vnode, candidates);
-			continue;
-		}
-		parkForeignMounts(
-			child,
-			replacedDomain,
-			parking,
-			ownerSnapshots,
-			child.portalTarget ?? fallbackParent
-		);
-		retained.push(child);
-	}
-	owner.children = retained;
 }

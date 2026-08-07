@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -42,7 +42,7 @@ describe('@exactjs/bun-plugin', () => {
 	it('links attributed capabilities into the shared application-bundle catalog', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-enhancement-'));
 		const entry = path.join(root, 'entry.tsx');
-		const source = `import motion from './motion.js' with { type: 'exact-plugin' };
+		const source = `import motion from './motion.js' with { type: 'exact-enhancement' };
 			export const view = <article motion:preset="fade" />;`;
 		try {
 			writeFileSync(
@@ -59,7 +59,7 @@ describe('@exactjs/bun-plugin', () => {
 			);
 			writeFileSync(
 				path.join(root, 'motion.ts'),
-				`export { default } from './motion-implementation.js' with { type: 'exact-plugin' };`
+				`export { default } from './motion-implementation.js' with { type: 'exact-enhancement' };`
 			);
 			writeFileSync(
 				path.join(root, 'motion-implementation.ts'),
@@ -165,6 +165,44 @@ describe('@exactjs/bun-plugin', () => {
 		});
 
 		await expect(start()).rejects.toThrow(/explicit immutable debug\.buildKey/);
+	});
+
+	it('rejects unsupported Bun server hot reload at startup', () => {
+		expect(() =>
+			exact({ target: 'server' }).setup({
+				config: { hot: true },
+				onResolve() {},
+				onLoad() {}
+			})
+		).toThrow(/server-hmr-unsupported/);
+	});
+
+	it('does not commit authorization artifacts for a failed watch build', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-failed-generation-'));
+		let start!: () => void | Promise<void>;
+		let end!: (result?: { success?: boolean }) => void | Promise<void>;
+		try {
+			writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));
+			exact({ target: 'server', applicationRoot: root }).setup({
+				config: { watch: true, outdir: 'dist' },
+				onResolve() {},
+				onLoad() {},
+				onStart(handler) {
+					start = handler;
+				},
+				onEnd(handler) {
+					end = handler;
+				}
+			});
+			await start();
+			await end({ success: false });
+
+			expect(
+				existsSync(path.join(root, 'dist', '.exact', 'component-library-authorization.json'))
+			).toBe(false);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	it('resolves exact facade imports through shared artifact resolution', () => {

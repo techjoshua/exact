@@ -35,7 +35,7 @@ export type {
 } from './process-task-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.27.0';
+export const nativeCompilerProtocolVersion = '1.28.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -215,6 +215,22 @@ export type NativeCompilerStateWrite = Readonly<{
 	length: number;
 }>;
 
+/** Preserves one authored component or intrinsic value/callback binding edge. */
+export type NativeCompilerValueBinding = Readonly<{
+	component: string;
+	statePath: readonly string[];
+	valueProp: string;
+	callbackProp: string;
+	callbackValueType: string;
+	additionalParameters: number;
+	additionalParameterTypes: readonly string[];
+	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
+	artifactTargets: readonly ('client' | 'server')[];
+	intrinsicAdapter?: string;
+	start: number;
+	length: number;
+}>;
+
 /** Describes one lexical alias for a component-owned state path. */
 export type NativeCompilerStateAlias = Readonly<{
 	component: string;
@@ -369,6 +385,7 @@ export type NativeCompilerAnalysis = Readonly<{
 	stateAliases: readonly NativeCompilerStateAlias[];
 	stateReads: readonly NativeCompilerStateRead[];
 	stateWrites: readonly NativeCompilerStateWrite[];
+	valueBindings: readonly NativeCompilerValueBinding[];
 	reactiveBindings: readonly NativeCompilerReactiveBinding[];
 	callables: readonly NativeCompilerCallable[];
 	tasks: readonly NativeCompilerTask[];

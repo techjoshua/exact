@@ -5,4 +5,5 @@ application.
 
 - Configure one plugin instance for each build.
 - Let the plugin compile eXact source and emit the required runtime artifacts.
+- Put component-library policy in `exact.config.*`; use watch rather than server `--hot`.
 - Enable inspection output only for environments where DevTools data is intended to be available.

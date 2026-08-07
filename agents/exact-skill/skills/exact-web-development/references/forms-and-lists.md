@@ -1,5 +1,20 @@
 # Forms and lists
 
+## Component value/callback bindings
+
+Pair a component's ordinary value and notification callback props when write-back is an
+unconditional assignment:
+
+```tsx
+<Dialog open:onOpenChanged={this.state.dialogOpen} />
+```
+
+Both prop names must exist in the component's finite public prop type. The callback's required
+first parameter must be writable to the state target and its return must be notification-only.
+Additional parameters are ignored. Keep the explicit value-plus-callback form for validation,
+transformation, refusal, logging, async acceptance, or meaningful callback results. Do not combine
+the shorthand with either explicit generated prop; component callbacks are never composed.
+
 ## Native control bindings
 
 Use `property:event={writableStateLocation}` to project state into a native DOM property and write
@@ -18,18 +33,19 @@ function Editor(
 ) {
 	return () => (
 		<form>
-			<input value:input={this.state.name} />
-			<input type="number" value:change={this.state.quantity} />
-			<input type="checkbox" checked:change={this.state.published} />
+			<input value:onInput={this.state.name} />
+			<input type="number" value:onChange={this.state.quantity} />
+			<input type="checkbox" checked:onChange={this.state.published} />
 
-			<input type="radio" value="ground" checked:change={this.state.delivery} />
+			<input type="radio" value="ground" checked:onChange={this.state.delivery} />
 
-			<input type="checkbox" value="ups" checked:change={this.state.carriers} />
+			<input type="checkbox" value="ups" checked:onChange={this.state.carriers} />
 
-			<select multiple value:change={this.state.tags}>
+			<select multiple value:onChange={this.state.tags}>
 				<option value="typescript">TypeScript</option>
 				<option value="tsx">TSX</option>
 			</select>
+			<details open:onToggle={this.state.advanced}>Advanced settings</details>
 		</form>
 	);
 }
@@ -37,9 +53,10 @@ function Editor(
 
 Supported relationships:
 
-- `value:input`: input and textarea; string, number, date, and nullable variants.
-- `value:change`: input, textarea, select, and multi-select; scalar values or compatible arrays.
-- `checked:change`: checkbox and radio input; boolean, radio value, or compatible checkbox arrays.
+- `value:onInput`: input and textarea; string, number, date, and nullable variants.
+- `value:onChange`: input, textarea, select, and multi-select; scalar values or compatible arrays.
+- `checked:onChange`: checkbox and radio input; boolean, radio value, or compatible checkbox arrays.
+- `open:onToggle`: details; boolean disclosure state.
 
 The bound state type controls conversion. Preserve nullable declarations when an empty control
 should map to `null` or `undefined`.
@@ -47,11 +64,11 @@ should map to `null` or `undefined`.
 Bind exactly one writable location:
 
 ```tsx
-<input value:input={this.state.firstName} />
+<input value:onInput={this.state.firstName} />
 ```
 
 Do not bind derived expressions, combine an explicit projected property with a binding for the same
-property, bind checkboxes through `value:change`, or omit the `value` from an array-bound checkbox.
+property, bind checkboxes through `value:onChange`, or omit the `value` from an array-bound checkbox.
 Keep explicit handlers alongside a binding when they perform additional behavior; the binding
 updates state before the same native event's JSX handler observes it.
 

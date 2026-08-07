@@ -26,9 +26,3 @@ export function describeVNodeType(type: VNode['type']): string {
 	if (typeof type === 'function') return type.name || 'anonymous';
 	return String(type.description ?? type.toString());
 }
-
-/** Formats unknown thrown values for error boundary output. */
-export function formatError(error: unknown): string {
-	if (error instanceof Error) return error.stack ?? error.message;
-	return String(error);
-}

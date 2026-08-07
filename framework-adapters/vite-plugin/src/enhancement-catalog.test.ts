@@ -34,7 +34,7 @@ describe('Vite enhancement catalog emission', () => {
 		const plugin = exact({ reactCompatibility: false });
 
 		for (const [request, facade] of Object.entries(exactEnhancementFacades)) {
-			expect(plugin.resolveId(request)).toBe(facade);
+			expect(plugin.resolveId!(request)).toBe(facade);
 		}
 	});
 
@@ -42,7 +42,7 @@ describe('Vite enhancement catalog emission', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-capability-'));
 		const entry = path.join(root, 'entry.tsx');
 		const source = `
-			import motion from './motion.js' with { type: 'exact-plugin' };
+			import motion from './motion.js' with { type: 'exact-enhancement' };
 			export const view = <article motion:preset="fade" />;
 		`;
 		writeFileSync(
@@ -59,7 +59,7 @@ describe('Vite enhancement catalog emission', () => {
 		);
 		writeFileSync(
 			path.join(root, 'motion.ts'),
-			`export { default } from './motion-implementation.js' with { type: 'exact-plugin' };`
+			`export { default } from './motion-implementation.js' with { type: 'exact-enhancement' };`
 		);
 		writeFileSync(
 			path.join(root, 'motion-implementation.ts'),

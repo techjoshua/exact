@@ -8,9 +8,9 @@ import {
 import type {
 	ComposeExactExecutorContractOptions,
 	ExactEndpointRoutes,
-	ExactExecutorContract,
-	ExactHydrationConfig
+	ExactExecutorContract
 } from './types.js';
+import type { CreateExactHydrationConfigOptions, ExactHydrationConfig } from './hydration-types.js';
 
 /**
  * Composes the immutable executor allowlist from explicitly imported artifacts.
@@ -40,23 +40,26 @@ export function composeExactExecutorContract(
 	});
 }
 
-/** Creates the browser-visible resumption configuration from the executor allowlist. */
+/** Creates browser-visible hydration configuration from the executor allowlist. */
 export function createExactHydrationConfig(
 	contract: ExactExecutorContract,
-	state?: unknown,
-	publicContexts?: Record<string, unknown>
+	options: CreateExactHydrationConfigOptions = {}
 ): ExactHydrationConfig {
 	return {
 		...(contract.endpoint === undefined ? {} : { endpoint: contract.endpoint }),
 		...(contract.endpoints === undefined ? {} : { endpoints: contract.endpoints }),
-		...(state === undefined ? {} : { state }),
-		continuations: Object.fromEntries(
-			Object.entries(contract.invocations).map(([id, invocation]) => [
-				id,
-				{ ...invocation, serverContexts: [] }
-			])
-		),
-		...(publicContexts === undefined ? {} : { publicContexts })
+		...(options.state === undefined ? {} : { state: options.state }),
+		...(options.includeContinuations === false
+			? {}
+			: {
+					continuations: Object.fromEntries(
+						Object.entries(contract.invocations).map(([id, invocation]) => [
+							id,
+							{ ...invocation, serverContexts: [], serverContextWrites: [] }
+						])
+					)
+				}),
+		...(options.publicContexts === undefined ? {} : { publicContexts: options.publicContexts })
 	};
 }
 

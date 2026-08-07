@@ -25,3 +25,6 @@ npm create @exactjs/exact-app@latest my-app -- \
 
 Run with `--help` for all flags. The target directory must be empty apart from an optional
 `.git` directory.
+
+Generated projects use `exactc --check .` for no-emit application checking. This checks ordinary
+TypeScript as well as the lowered representation of compiler-owned TSX syntax.

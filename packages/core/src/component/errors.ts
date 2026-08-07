@@ -7,27 +7,38 @@ import type {
 	ErrorSource,
 	RenderFunction,
 	RenderResult,
-	SuspensionContextValue,
-	VNode
+	SuspensionContextValue
 } from './contracts.js';
 
 import { ErrorContext, SuspensionContext } from './contexts.js';
 
-import { reactive, unwrap } from '@exactjs/reactive';
-import { createVNode, normalizeChildren } from '../vnode.js';
-import { componentLogScope, formatError, isErrorReport, logFrameworkEvent } from './log.js';
+import { batch, reactive, unwrap } from '@exactjs/reactive';
+import { normalizeChildren } from '../vnode.js';
+import { componentLogScope, isErrorReport, logFrameworkEvent } from './log.js';
+import { createDefaultErrorView } from './error-view.js';
 
 let nextErrorId = 1;
 
 /** Creates the default reactive error context used by app and framework error boundaries. */
 export function createErrorContext(errors: ErrorReport[] = []): ErrorContextValue {
+	return createErrorContextWithLimit(errors);
+}
+
+function createErrorContextWithLimit(
+	errors: ErrorReport[],
+	maxReports?: number
+): ErrorContextValue {
 	const reactiveErrors = reactive(errors);
 
 	return {
 		errors: reactiveErrors,
 		report(error, options) {
 			const report = isErrorReport(error) ? error : createErrorReportFromOptions(error, options);
-			reactiveErrors.push(report);
+			batch(() => {
+				reactiveErrors.push(report);
+				if (maxReports !== undefined && reactiveErrors.length > maxReports)
+					reactiveErrors.splice(0, reactiveErrors.length - maxReports);
+			});
 			return report;
 		},
 		clear(error) {
@@ -39,23 +50,6 @@ export function createErrorContext(errors: ErrorReport[] = []): ErrorContextValu
 			reactiveErrors.splice(0, reactiveErrors.length);
 		}
 	};
-}
-
-function createDefaultErrorView(errors: Iterable<ErrorReport>): VNode {
-	return createVNode(
-		'section',
-		{ role: 'alert', className: 'exact-error-boundary' },
-		createVNode('h1', null, 'Application error'),
-		...Array.from(errors).map((error) =>
-			createVNode(
-				'article',
-				{ key: error.id, className: 'exact-error' },
-				createVNode('h2', null, error.component?.name ?? 'Framework'),
-				createVNode('p', null, `${error.source}${error.phase ? `:${error.phase}` : ''}`),
-				createVNode('pre', null, formatError(error.error))
-			)
-		)
-	);
 }
 
 /** Creates a structured error report for component or framework failures. */
@@ -151,4 +145,4 @@ export function normalizeRenderResult(result: RenderResult): Child[] {
 }
 
 /** Provides the canonical default error context value. */
-export const defaultErrorContext = createErrorContext();
+export const defaultErrorContext = createErrorContextWithLimit([], 100);

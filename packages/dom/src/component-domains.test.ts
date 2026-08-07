@@ -6,12 +6,19 @@ import {
 	createContext,
 	createExactRuntimeInspectionOwner,
 	currentComponentDomain,
+	Target,
 	withComponentDomain,
 	type Component
 } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { describe, expect, it, vi } from 'vitest';
-import { findNodeOwnerInstance, render, unmount } from './index.js';
+import {
+	createExactDomInspectionHost,
+	findNodeOwnerInstance,
+	render,
+	setExactDomInspectionOwner,
+	unmount
+} from './index.js';
 import { inspectDomRoot } from './testing.js';
 import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 
@@ -153,5 +160,40 @@ describe('component domain rendering', () => {
 		const instance = findNodeOwnerInstance(button);
 		expect(instance && componentDomainInspection(instance.domain)).toBe(inspection);
 		unmount(container);
+	});
+
+	it('publishes redaction-safe target contribution ownership to production inspection', () => {
+		const container = document.createElement('div');
+		document.body.append(container);
+		const inspection = createExactRuntimeInspectionOwner({
+			buildKey: 'target-inspection',
+			executionRoot: 'page'
+		});
+		function Field(this: Component<{}>) {
+			return () =>
+				createVNode(
+					Target,
+					{ title: 'contributed', className: 'layer' },
+					createVNode('button', { className: 'authored' }, 'Inspect')
+				);
+		}
+
+		const restoreInspection = setExactDomInspectionOwner(inspection);
+		render(createCompiledVNode(Field, null), container);
+		const host = createExactDomInspectionHost();
+		host.attach('target-inspection-session', { publish() {} });
+		const snapshot = host.snapshot();
+		expect(snapshot.components.map((candidate) => candidate.name)).toContain('Field');
+		const component = snapshot.components.find((candidate) => candidate.name === 'Field')!;
+		const contribution = component.targetContributions?.[0];
+
+		expect(contribution?.active).toBe(true);
+		expect(contribution?.target).toEqual({ tagName: 'button', connected: true });
+		expect(contribution?.props.kind).toBe('object');
+		expect(contribution?.effectiveProps?.kind).toBe('object');
+		host.detach('target-inspection-session');
+		unmount(container);
+		container.remove();
+		restoreInspection();
 	});
 });

@@ -27,7 +27,7 @@ function Price(this: Component<PriceState>) {
           type="range"
           min="1"
           max="8"
-          value:input={this.state.quantity}
+          value:onInput={this.state.quantity}
         />
       </label>
       <label>
@@ -37,13 +37,13 @@ function Price(this: Component<PriceState>) {
           min="8"
           max="60"
           step="2"
-          value:input={this.state.price}
+          value:onInput={this.state.price}
         />
       </label>
       <label>
         <input
           type="checkbox"
-          checked:change={this.state.express}
+          checked:onChange={this.state.express}
         />
         Express delivery
       </label>

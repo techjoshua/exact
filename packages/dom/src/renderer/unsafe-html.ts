@@ -1,4 +1,5 @@
-import { unwrap, watch } from '@exactjs/core';
+import { unwrap } from '@exactjs/core';
+import { watchRetained } from '@exactjs/reactive/framework/watch';
 import type { Mounted, Root } from '../types.js';
 
 /** Validates unsafe html allowed and throws when the contract is violated. */
@@ -20,7 +21,7 @@ export function bindUnsafeHtml(
 	mounted.stop?.();
 	let first = adopted;
 	let previous = adopted ? rawHtmlForNodes(mounted.rawNodes ?? []) : undefined;
-	mounted.stop = watch(
+	mounted.stop = watchRetained(
 		() => {
 			const html = String(unwrap(value) ?? '');
 			if (first && previous === html) {
@@ -33,7 +34,7 @@ export function bindUnsafeHtml(
 			replaceUnsafeHtmlRange(mounted, html);
 		},
 		undefined,
-		{ scope: mounted.scope }
+		{ scope: mounted.scope, onRelease: () => (mounted.stop = undefined) }
 	);
 }
 

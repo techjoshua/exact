@@ -1,5 +1,20 @@
 import type { TaskFrameRecord } from './frame-runtime.js';
 
+const frameSettlements = new WeakMap<TaskFrameRecord, Promise<void>>();
+
+/** Associates a task frame with the promise representing its structural settlement. */
+export function registerTaskFrameSettlement(
+	frame: TaskFrameRecord,
+	settlement: Promise<void>
+): void {
+	frameSettlements.set(frame, settlement);
+}
+
+/** Returns the structural settlement promise retained for a task frame. */
+export function waitForTaskFrameSettlement(frame: TaskFrameRecord): Promise<void> {
+	return frameSettlements.get(frame) ?? Promise.resolve();
+}
+
 /**
  * Waits for every attached descendant, including children transferred from an
  * atomic reservation, then reports the first structural failure.

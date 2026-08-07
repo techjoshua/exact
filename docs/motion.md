@@ -40,7 +40,7 @@ remain finite. The initial preset entry exports `fade`, `scale`, `pop`, `slideUp
 Prefer the namespaced form when motion is optional visual continuity on existing design:
 
 ```tsx
-import motion from '@exactjs/motion' with { type: 'exact-plugin' };
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import { slideUp } from '@exactjs/motion/presets';
 
 <output motion:apply={slideUp}>Changes saved</output>;
@@ -84,14 +84,13 @@ An attributed `motion:change` remains subscribed on a persistent target even whe
 no enter phase, so an ordinary reactive style binding can own the destination while motion supplies
 the visual path between committed values.
 
-The main runtime uses a browser-safe Web Animations driver by default, so bundled attributed and
-explicit motion works without requiring a separate plugin host. Creating that driver does not read
-browser globals, and playback completes immediately when an element has no `animate()` capability,
-so importing the main package, definitions, or presets remains server-safe. The client plugin entry
-installs the same driver through an application-owned lease. `@exactjs/motion/testing` provides a
-deterministic injected driver whose playbacks settle only when the test advances them. Application
-driver installations are leases: nested or overlapping application lifetimes restore the latest
-still-active driver even when they dispose out of order.
+The main runtime uses a browser-safe Web Animations driver by default. Creating that driver does not
+read browser globals, and playback completes immediately when an element has no `animate()` capability,
+so importing the main package, definitions, or presets remains server-safe. The package has no
+framework-plugin lifecycle. `@exactjs/motion/testing` provides a deterministic driver and an
+ordinary `installMotionDriver()` lease; tests own and release that lease explicitly. Nested or
+overlapping installations restore the latest still-active driver even when they dispose out of
+order.
 
 ## Presence and keyed collections
 
@@ -181,7 +180,7 @@ The update callback awaits the framework commit's `rendered` receipt, while visu
 remains immediate, nonblocking task work. Unsupported browsers and reduced-motion policy publish
 immediately through the same contract. An already aborted request publishes zero times.
 
-## Plugin-owned JSX
+## Namespaced enhancement composition
 
 The shared compiler and DOM renderer carry grouped motion markers, resolve targets through native
 component output, merge nearest props, and mount `MotionElement` as an ordinary transparent

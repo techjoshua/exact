@@ -6,7 +6,12 @@
 		"outDir": "dist",
 		"lib": ["ES2022", "DOM"]
 	},
-	"references": [{ "path": "../testing" }, { "path": "../compiler" }],
+	"references": [
+		{ "path": "../testing" },
+		{ "path": "../compiler" },
+		{ "path": "../config" },
+		{ "path": "../component-library-policy" }
+	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts"]
 }
