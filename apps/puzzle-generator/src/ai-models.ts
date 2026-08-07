@@ -89,3 +89,9 @@ export const defaultLocalAiModel: LocalAiModelId = 'Qwen2.5-0.5B-Instruct-q4f16_
 export function getLocalAiModel(modelId: LocalAiModelId) {
 	return localAiModels.find((model) => model.id === modelId) ?? localAiModels[1];
 }
+
+/** Returns load-time corrections required by a model's published chat configuration. */
+export function getLocalAiChatOptions(modelId: LocalAiModelId): ChatOptions | undefined {
+	return modelId === 'gemma3-1b-it-q4f16_1-MLC' ? { sliding_window_size: -1 } : undefined;
+}
+import type { ChatOptions } from '@mlc-ai/web-llm';

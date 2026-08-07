@@ -6,7 +6,7 @@ import {
 	defaultAiPromptTemplate,
 	formatAiWordListResponse
 } from './ai-word-list-format.js';
-import { defaultLocalAiModel, localAiModels } from './ai-models.js';
+import { defaultLocalAiModel, getLocalAiChatOptions, localAiModels } from './ai-models.js';
 import { generateCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
 import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
@@ -92,6 +92,10 @@ describe('document and input contracts', () => {
 		expect(localAiModels.every((model) => registeredModelIds.has(model.id))).toBe(true);
 		expect(localAiModels.some((model) => model.label === 'Gemma 3 1B')).toBe(true);
 		expect(localAiModels.some((model) => model.id === defaultLocalAiModel)).toBe(true);
+		expect(getLocalAiChatOptions('gemma3-1b-it-q4f16_1-MLC')).toEqual({
+			sliding_window_size: -1
+		});
+		expect(getLocalAiChatOptions(defaultLocalAiModel)).toBeUndefined();
 	});
 
 	it('validates and formats structured local-AI puzzle material', () => {
