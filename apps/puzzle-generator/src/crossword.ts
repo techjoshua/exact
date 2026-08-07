@@ -1,5 +1,5 @@
 import { seededRandom, shuffled } from './random.js';
-import type { CrosswordCell, CrosswordPuzzle } from './types.js';
+import type { CrosswordCell, CrosswordClue, CrosswordPuzzle } from './types.js';
 
 type Orientation = 'across' | 'down';
 type PlacedWord = {
@@ -20,7 +20,11 @@ type Layout = {
  * Builds a connected crossword through repeated seeded greedy layouts.
  * The selected layout prioritizes placed words, overlaps, then compact area.
  */
-export function generateCrossword(words: readonly string[], seed: number): CrosswordPuzzle {
+export function generateCrossword(
+	words: readonly string[],
+	seed: number,
+	clues: readonly CrosswordClue[] = words.map((word) => ({ word, clue: 'No clue provided' }))
+): CrosswordPuzzle {
 	let best: Layout | undefined;
 	let bestScore = Number.NEGATIVE_INFINITY;
 	for (let attempt = 0; attempt < 160; attempt++) {
@@ -40,7 +44,7 @@ export function generateCrossword(words: readonly string[], seed: number): Cross
 		)
 			break;
 	}
-	return normalizeLayout(best!);
+	return normalizeLayout(best!, new Map(clues.map((entry) => [entry.word, entry.clue])));
 }
 
 function orderWords(words: readonly string[], random: () => number, attempt: number): string[] {
@@ -150,7 +154,7 @@ function placeWord(layout: Layout, placement: PlacedWord): void {
 	layout.placed.push(placement);
 }
 
-function normalizeLayout(layout: Layout): CrosswordPuzzle {
+function normalizeLayout(layout: Layout, clues: ReadonlyMap<string, string>): CrosswordPuzzle {
 	const bounds = layoutBounds(layout.letters);
 	const starts = new Map<string, number>();
 	let nextNumber = 1;
@@ -174,6 +178,17 @@ function normalizeLayout(layout: Layout): CrosswordPuzzle {
 		columns: bounds.columns,
 		cells,
 		words: layout.placed.map((placement) => placement.word).sort(),
+		entries: layout.placed
+			.map((placement) => ({
+				word: placement.word,
+				clue: clues.get(placement.word) ?? 'No clue provided',
+				number: starts.get(coordinateKey(placement.row, placement.column))!,
+				orientation: placement.orientation
+			}))
+			.sort(
+				(left, right) =>
+					left.number - right.number || left.orientation.localeCompare(right.orientation)
+			),
 		unplaced: layout.unplaced.sort()
 	};
 }

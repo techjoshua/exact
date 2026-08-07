@@ -20,8 +20,9 @@ export function SamplesPage(this: Component<{}>) {
 				<p>
 					Puzzle Foundry creates Sudoku, word-search, and crossword artwork entirely in the browser.
 					A visible seed makes each result reproducible. Common print settings feed two independent
-					SVG documents: the unsolved puzzle and its answer key. Titles are optional, font choices
-					remain portable, and answer keys can use color or puzzle-specific black-and-white
+					fixed-page SVG documents: the unsolved puzzle and its answer key. Titles have independent
+					type controls, Letter/A4/Legal pages use configurable margins, and fit warnings explain
+					when content must be reduced. Answer keys can use color or puzzle-specific black-and-white
 					rendering.
 				</p>
 				<div className="card-grid">
@@ -45,15 +46,26 @@ export function SamplesPage(this: Component<{}>) {
 						<span className="topic-index">Crossword</span>
 						<strong>Connected and compact</strong>
 						<p>
-							Repeated layouts maximize overlap. Grid and background colors are separate, and the
-							word bank is optional.
+							Repeated layouts maximize overlap. Human-readable answer-and-clue lines become
+							numbered Across and Down lists, with separate grid, unused-cell, and letter-cell
+							colors.
 						</p>
 					</div>
 				</div>
 				<CodeBlock source={standaloneCommand} language="shell" />
+				<p>
+					For word searches and crosswords, an optional WebLLM helper can turn a topic into editable
+					puzzle material. After the user opts in, the app loads a pinned WebLLM runtime from
+					jsDelivr and downloads its Qwen2.5 0.5B model from Hugging Face. The browser caches the
+					model and runs it locally through WebGPU. Generated JSON crosses the same normalization
+					and safety boundary as manually entered words, and the cached model can be removed
+					afterward.
+				</p>
 				<Callout title="One genuinely portable file">
 					The standalone artifact includes the application, styles, compiler output, and client
-					runtime. It loads from disk without external scripts, styles, fonts, images, or services.
+					runtime. Non-AI features load from disk without external scripts, styles, fonts, images,
+					or services. AI use requires HTTPS or localhost plus network access for the pinned WebLLM
+					runtime and first model download; prompts never leave the device.
 				</Callout>
 			</section>
 

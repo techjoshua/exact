@@ -1,4 +1,5 @@
 import type { Difficulty, PuzzleKind } from '../types.js';
+import { AiWordControls } from './AiWordControls.jsx';
 
 type GeneratorControlsProps = {
 	kind: PuzzleKind;
@@ -8,6 +9,13 @@ type GeneratorControlsProps = {
 	rows: number;
 	columns: number;
 	wordText: string;
+	aiTopic: string;
+	aiSupported: boolean;
+	aiBusy: boolean;
+	aiProgress: number;
+	aiStatus: string;
+	aiError?: string;
+	aiModelReady: boolean;
 	onKind(kind: PuzzleKind): void;
 	onDifficulty(difficulty: Difficulty): void;
 	onSeed(seed: number): void;
@@ -15,7 +23,10 @@ type GeneratorControlsProps = {
 	onRows(rows: number): void;
 	onColumns(columns: number): void;
 	onWordText(wordText: string): void;
-	onGenerate(): void;
+	onAiTopic(topic: string): void;
+	onAiGenerate(): void;
+	onAiCancel(): void;
+	onAiRemoveModel(): void;
 	onRandomize(): void;
 };
 
@@ -106,18 +117,36 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 			</div>
 
 			{props.kind !== 'sudoku' ? (
-				<label className="word-field">
-					<span>{props.kind === 'crossword' ? 'Crossword words' : 'Words to hide'}</span>
-					<textarea
-						rows={6}
-						value={props.wordText}
-						onInput={(event) => props.onWordText(event.currentTarget.value)}
-						spellcheck="false"
+				<>
+					<label className="word-field">
+						<span>{props.kind === 'crossword' ? 'Crossword words' : 'Words to hide'}</span>
+						<textarea
+							rows={6}
+							value={props.wordText}
+							onChange={(event) => props.onWordText(event.currentTarget.value)}
+							spellcheck="false"
+						/>
+						<small>
+							{props.kind === 'crossword'
+								? 'Enter one answer per line as “word - clue”. Lines without a clue remain usable and are labeled.'
+								: 'Separate words with spaces, commas, or new lines. Letters A–Z; duplicates are removed.'}
+						</small>
+					</label>
+					<AiWordControls
+						kind={props.kind}
+						topic={props.aiTopic}
+						supported={props.aiSupported}
+						busy={props.aiBusy}
+						progress={props.aiProgress}
+						status={props.aiStatus}
+						error={props.aiError}
+						modelReady={props.aiModelReady}
+						onTopic={props.onAiTopic}
+						onGenerate={props.onAiGenerate}
+						onCancel={props.onAiCancel}
+						onRemoveModel={props.onAiRemoveModel}
 					/>
-					<small>
-						Separate words with spaces, commas, or new lines. Letters A–Z; duplicates are removed.
-					</small>
-				</label>
+				</>
 			) : null}
 
 			<div className="seed-row">
@@ -131,15 +160,11 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						onInput={(event) => props.onSeed(Number(event.currentTarget.value) >>> 0)}
 					/>
 				</label>
-				<button type="button" className="secondary-button" onClick={props.onRandomize}>
-					New seed
+				<button type="button" className="shuffle-button" onClick={props.onRandomize}>
+					<span>Shuffle</span>
+					<span aria-hidden="true">↻</span>
 				</button>
 			</div>
-
-			<button type="button" className="generate-button" onClick={props.onGenerate}>
-				<span>Generate puzzle</span>
-				<span aria-hidden="true">→</span>
-			</button>
 		</section>
 	);
 }

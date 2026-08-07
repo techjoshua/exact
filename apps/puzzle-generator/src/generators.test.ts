@@ -1,17 +1,26 @@
 import { describe, expect, it } from 'vitest';
+import {
+	aiWordListPrompt,
+	aiWordListSchema,
+	formatAiWordListResponse
+} from './ai-word-list-format.js';
 import { generateCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
 import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
 import { generateSudoku, countSudokuSolutions } from './sudoku.js';
 import type { PuzzleStyle } from './types.js';
 import { generateWordSearch, gridContainsBlockedSequence } from './word-search.js';
-import { parseWords, validateWords } from './words.js';
+import { parseCrosswordClues, parseWords, validateWords } from './words.js';
 
 const style: PuzzleStyle = {
 	title: 'Test & Proof',
 	titleAlignment: 'left',
+	titleFontFamily: 'serif',
+	titleFontSize: 30,
 	fontFamily: 'sans',
 	fontSize: 20,
+	pageSize: 'letter',
+	pageMargin: 0.5,
 	ink: '#111111',
 	accent: '#cc3300',
 	paper: '#ffffff',
@@ -19,7 +28,6 @@ const style: PuzzleStyle = {
 	monochromeSolution: false,
 	crosswordGrid: '#111111',
 	crosswordBlocks: '#111111',
-	crosswordWordList: true,
 	sudokuSolutionFont: 'inherit',
 	sudokuSolutionBold: false
 };
@@ -71,6 +79,43 @@ describe('crossword generation', () => {
 });
 
 describe('document and input contracts', () => {
+	it('validates and formats structured local-AI puzzle material', () => {
+		const wordSearch = formatAiWordListResponse(
+			JSON.stringify({
+				words: ['coral reef', 'OCTOPUS', 'whale', 'SHARK', 'KELP', 'TURTLE', 'DOLPHIN']
+			}),
+			'word-search'
+		);
+		expect(wordSearch).toBe('CORALREEF\nOCTOPUS\nWHALE\nSHARK\nKELP\nTURTLE\nDOLPHIN');
+
+		const crossword = formatAiWordListResponse(
+			JSON.stringify({
+				entries: [
+					{ word: 'orbit', clue: 'Path around a planet' },
+					{ word: 'comet', clue: 'Icy visitor' },
+					{ word: 'lunar', clue: 'Related to the moon' },
+					{ word: 'star', clue: 'Distant point of light' },
+					{ word: 'eclipse', clue: 'Celestial shadow event' },
+					{ word: 'galaxy', clue: 'Vast collection of stars' }
+				]
+			}),
+			'crossword'
+		);
+		expect(crossword).toContain('ORBIT - Path around a planet');
+		expect(aiWordListPrompt('space', 'crossword')).toContain('Output JSON only');
+		expect(JSON.parse(aiWordListSchema('crossword')).required).toEqual(['entries']);
+	});
+
+	it('rejects malformed or unsafe local-AI responses', () => {
+		expect(() => formatAiWordListResponse('not json', 'word-search')).toThrow(/malformed/i);
+		expect(() =>
+			formatAiWordListResponse(
+				JSON.stringify({ words: ['ORBIT', 'COMET', 'PLANET', 'GALAXY', 'SHIT', 'NEBULA'] }),
+				'word-search'
+			)
+		).toThrow(/rejected/i);
+	});
+
 	it('normalizes words, rejects blocked input, and emits separate SVG documents', () => {
 		expect(parseWords('orbit, ORBIT\ncomet')).toEqual(['ORBIT', 'COMET']);
 		expect(validateWords(['NICE', 'SHIT'], 2)).toMatch(/blocked/i);
@@ -85,9 +130,30 @@ describe('document and input contracts', () => {
 			style
 		});
 		expect(documents.puzzleSvg).toContain('<svg');
+		expect(documents.puzzleSvg).toContain('width="816" height="1056"');
+		expect(documents.puzzleSvg).toContain('data-page-margin="0.5"');
 		expect(documents.puzzleSvg).toContain('Test &amp; Proof');
+		expect(documents.puzzleSvg).toContain('font-size="30"');
 		expect(documents.solutionSvg).not.toBe(documents.puzzleSvg);
 		expect(exportBaseName('My Puzzle!', 'sudoku')).toBe('my-puzzle');
+	});
+
+	it('parses human-readable crossword clues and prints a complete clue table', () => {
+		const clues = parseCrosswordClues('orbit - Path around a planet\nCOMET — Icy visitor\nmoon');
+		expect(clues).toEqual([
+			{ word: 'ORBIT', clue: 'Path around a planet' },
+			{ word: 'COMET', clue: 'Icy visitor' },
+			{ word: 'MOON', clue: 'No clue provided' }
+		]);
+		const crossword = generateCrossword(
+			clues.map((entry) => entry.word),
+			21,
+			clues
+		);
+		const svg = renderCrosswordSvg(crossword, style, false);
+		expect(svg).toContain('>Across</text>');
+		expect(svg).toContain('>Down</text>');
+		for (const entry of crossword.entries) expect(svg).toContain(entry.clue);
 	});
 
 	it('omits an empty title and aligns a supplied title', () => {
@@ -132,7 +198,6 @@ describe('document and input contracts', () => {
 				...style,
 				crosswordGrid: '#123456',
 				crosswordBlocks: '#ffffff',
-				crosswordWordList: false,
 				monochromeSolution: true
 			},
 			true
@@ -140,7 +205,7 @@ describe('document and input contracts', () => {
 		expect(crosswordSvg).toContain('stroke="#123456"');
 		expect(crosswordSvg.match(/stroke="#123456"/g)).toHaveLength(1);
 		expect(crosswordSvg).not.toMatch(/<rect[^>]+stroke=/);
-		expect(crosswordSvg).toContain('fill="#ffffff"');
+		expect(crosswordSvg).toContain('<rect width="100%" height="100%" fill="#ffffff"');
 		expect(crosswordSvg).not.toContain('>ORBIT</text>');
 		expect(crosswordSvg).toContain('fill="#000000"');
 

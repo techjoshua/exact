@@ -1,5 +1,6 @@
 import type {
 	CrosswordPuzzle,
+	PageSize,
 	PuzzleFont,
 	PuzzleStyle,
 	SudokuPuzzle,
@@ -12,6 +13,12 @@ const fontStacks: Readonly<Record<PuzzleFont, string>> = {
 	mono: "'Courier New', ui-monospace, monospace",
 	handwritten: "'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive",
 	playful: "'Trebuchet MS', 'Arial Rounded MT Bold', ui-sans-serif, sans-serif"
+};
+
+const pageSizes: Readonly<Record<PageSize, { width: number; height: number }>> = {
+	letter: { width: 816, height: 1056 },
+	a4: { width: 794, height: 1123 },
+	legal: { width: 816, height: 1344 }
 };
 
 /** Renders a complete standalone Sudoku SVG suitable for preview or download. */
@@ -134,27 +141,26 @@ export function renderCrosswordSvg(
 	const heading = titleHeight(style, margin);
 	const gridWidth = cell * puzzle.columns;
 	const gridHeight = cell * puzzle.rows;
-	const bank = style.crosswordWordList
-		? wordBank(puzzle.words, gridWidth, style)
-		: { height: 0, markup: '' };
-	const width = gridWidth + margin * 2;
-	const height = heading + gridHeight + bank.height + margin;
+	const width = Math.max(gridWidth + margin * 2, 620);
+	const gridLeft = (width - gridWidth) / 2;
+	const clues = clueTable(puzzle, width - margin * 2, style);
+	const height = heading + gridHeight + clues.height + margin;
 	const backgrounds = puzzle.cells
 		.map((entry, index) => {
 			const row = Math.floor(index / puzzle.columns);
 			const column = index % puzzle.columns;
-			const x = margin + column * cell;
+			const x = gridLeft + column * cell;
 			const y = heading + row * cell;
 			return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${xml(entry ? style.paper : style.crosswordBlocks)}"/>`;
 		})
 		.join('');
-	const grid = crosswordGridPath(puzzle, margin, heading, cell);
+	const grid = crosswordGridPath(puzzle, gridLeft, heading, cell);
 	const contents = puzzle.cells
 		.map((entry, index) => {
 			if (!entry) return '';
 			const row = Math.floor(index / puzzle.columns);
 			const column = index % puzzle.columns;
-			const x = margin + column * cell;
+			const x = gridLeft + column * cell;
 			const y = heading + row * cell;
 			return `${entry.number ? `<text x="${x + 4}" y="${y + 11}" font-size="9" fill="${xml(style.ink)}">${entry.number}</text>` : ''}${solution ? `<text x="${x + cell / 2}" y="${y + cell * 0.7}" text-anchor="middle" font-size="${style.fontSize}" font-weight="600" fill="${xml(style.monochromeSolution ? '#000000' : style.accent)}">${entry.letter}</text>` : ''}`;
 		})
@@ -163,7 +169,8 @@ export function renderCrosswordSvg(
 		width,
 		height,
 		style,
-		`${titleMarkup(style, width)}${backgrounds}<path d="${grid}" fill="none" stroke="${xml(style.crosswordGrid)}" stroke-width="${style.lineWidth}"/>${contents}${bank.markup.replaceAll('{Y}', String(heading + gridHeight + 24))}`
+		`${titleMarkup(style, width)}${backgrounds}<path d="${grid}" fill="none" stroke="${xml(style.crosswordGrid)}" stroke-width="${style.lineWidth}"/>${contents}${clues.markup.replaceAll('{Y}', String(heading + gridHeight + 26))}`,
+		'#ffffff'
 	);
 }
 
@@ -195,8 +202,21 @@ export function svgDataUrl(svg: string): string {
 	return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function svgDocument(width: number, height: number, style: PuzzleStyle, body: string): string {
-	return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${xml(style.title.trim() || 'Printable puzzle')}" style="font-family:${xml(fontStacks[style.fontFamily])}"><rect width="100%" height="100%" fill="${xml(style.paper)}"/>${body}</svg>`;
+function svgDocument(
+	contentWidth: number,
+	contentHeight: number,
+	style: PuzzleStyle,
+	body: string,
+	pageBackground = style.paper
+): string {
+	const page = pageSizes[style.pageSize];
+	const pageMargin = style.pageMargin * 96;
+	const availableWidth = Math.max(1, page.width - pageMargin * 2);
+	const availableHeight = Math.max(1, page.height - pageMargin * 2);
+	const scale = Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight);
+	const left = pageMargin + (availableWidth - contentWidth * scale) / 2;
+	const top = pageMargin + (availableHeight - contentHeight * scale) / 2;
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${page.width}" height="${page.height}" viewBox="0 0 ${page.width} ${page.height}" data-page-size="${style.pageSize}" data-page-margin="${style.pageMargin}" data-content-scale="${svgNumber(scale)}" role="img" aria-label="${xml(style.title.trim() || 'Printable puzzle')}" style="font-family:${xml(fontStacks[style.fontFamily])}"><rect width="100%" height="100%" fill="${xml(pageBackground)}"/><g transform="translate(${svgNumber(left)} ${svgNumber(top)}) scale(${svgNumber(scale)})">${body}</g></svg>`;
 }
 
 function titleMarkup(style: PuzzleStyle, width: number): string {
@@ -208,11 +228,68 @@ function titleMarkup(style: PuzzleStyle, width: number): string {
 			: style.titleAlignment === 'right'
 				? { x: width - 34, anchor: 'end' }
 				: { x: 34, anchor: 'start' };
-	return `<text x="${alignment.x}" y="42" text-anchor="${alignment.anchor}" font-size="${Math.max(22, style.fontSize * 1.35)}" font-weight="700" fill="${xml(style.ink)}">${xml(title)}</text>`;
+	return `<text x="${alignment.x}" y="${Math.max(42, style.titleFontSize * 1.35)}" text-anchor="${alignment.anchor}" font-family="${xml(fontStacks[style.titleFontFamily])}" font-size="${style.titleFontSize}" font-weight="700" fill="${xml(style.ink)}">${xml(title)}</text>`;
 }
 
 function titleHeight(style: PuzzleStyle, margin: number): number {
-	return style.title.trim() ? 74 : margin;
+	return style.title.trim() ? Math.max(74, style.titleFontSize * 2.1) : margin;
+}
+
+/** Returns a user-facing notice when page constraints reduce authored content. */
+export function pageFitWarning(svg: string): string | undefined {
+	const scale = Number(svg.match(/data-content-scale="([^"]+)"/)?.[1] ?? 1);
+	if (scale >= 0.995) return undefined;
+	return `Content was scaled to ${Math.round(scale * 100)}% to fit the selected page and margins. Reduce the grid, type size, clues, or margins if it is too small to read.`;
+}
+
+function clueTable(
+	puzzle: CrosswordPuzzle,
+	width: number,
+	style: PuzzleStyle
+): { height: number; markup: string } {
+	const columnGap = 24;
+	const columnWidth = (width - columnGap) / 2;
+	const fontSize = Math.max(10, style.fontSize * 0.64);
+	const lineHeight = fontSize * 1.35;
+	const groups = (['across', 'down'] as const).map((orientation, column) => {
+		const entries = puzzle.entries.filter((entry) => entry.orientation === orientation);
+		let line = 1;
+		const x = 34 + column * (columnWidth + columnGap);
+		const markup = [
+			`<text x="${x}" y="{Y}" font-size="${fontSize + 2}" font-weight="700" fill="${xml(style.ink)}">${orientation === 'across' ? 'Across' : 'Down'}</text>`
+		];
+		for (const entry of entries) {
+			const limit = Math.max(12, Math.floor(columnWidth / (fontSize * 0.56)));
+			const lines = wrapClue(`${entry.number}. ${entry.clue}`, limit);
+			for (const [index, text] of lines.entries()) {
+				markup.push(
+					`<text x="${x + (index ? 14 : 0)}" y="{Y}" dy="${line * lineHeight}" font-size="${fontSize}" fill="${xml(style.ink)}">${xml(text)}</text>`
+				);
+				line++;
+			}
+			line += 0.25;
+		}
+		return { lines: line, markup: markup.join('') };
+	});
+	return {
+		height: Math.max(...groups.map((group) => group.lines)) * lineHeight + 22,
+		markup: groups.map((group) => group.markup).join('')
+	};
+}
+
+function wrapClue(clue: string, limit: number): string[] {
+	const lines: string[] = [];
+	let current = '';
+	for (const word of clue.split(/\s+/)) {
+		if (!current || `${current} ${word}`.length <= limit)
+			current = current ? `${current} ${word}` : word;
+		else {
+			lines.push(current);
+			current = word;
+		}
+	}
+	if (current) lines.push(current);
+	return lines;
 }
 
 function wordBank(

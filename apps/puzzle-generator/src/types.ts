@@ -7,12 +7,19 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 /** Portable font stacks that do not require an external font download. */
 export type PuzzleFont = 'sans' | 'serif' | 'mono' | 'handwritten' | 'playful';
 
+/** Fixed portrait page formats available to preview and SVG export. */
+export type PageSize = 'letter' | 'a4' | 'legal';
+
 /** Typography and page styling applied to both puzzle and solution exports. */
 export type PuzzleStyle = {
 	title: string;
 	titleAlignment: 'left' | 'center' | 'right';
+	titleFontFamily: PuzzleFont;
+	titleFontSize: number;
 	fontFamily: PuzzleFont;
 	fontSize: number;
+	pageSize: PageSize;
+	pageMargin: number;
 	ink: string;
 	accent: string;
 	paper: string;
@@ -20,7 +27,6 @@ export type PuzzleStyle = {
 	monochromeSolution: boolean;
 	crosswordGrid: string;
 	crosswordBlocks: string;
-	crosswordWordList: boolean;
 	sudokuSolutionFont: PuzzleFont | 'inherit';
 	sudokuSolutionBold: boolean;
 };
@@ -64,12 +70,25 @@ export type CrosswordCell = {
 	number?: number;
 };
 
+/** A normalized crossword answer paired with its author-provided clue. */
+export type CrosswordClue = {
+	word: string;
+	clue: string;
+};
+
+/** Placement metadata used to label an authored crossword clue. */
+export type CrosswordEntry = CrosswordClue & {
+	number: number;
+	orientation: 'across' | 'down';
+};
+
 /** A connected crossword layout and any words the heuristic could not join. */
 export type CrosswordPuzzle = {
 	rows: number;
 	columns: number;
 	cells: Array<CrosswordCell | undefined>;
 	words: string[];
+	entries: CrosswordEntry[];
 	unplaced: string[];
 };
 
@@ -82,8 +101,17 @@ export type PuzzleGeneratorState = {
 	wordRows: number;
 	wordColumns: number;
 	wordText: string;
+	crosswordText: string;
+	aiTopic: string;
+	aiSupported: boolean;
+	aiBusy: boolean;
+	aiProgress: number;
+	aiStatus: string;
+	aiError?: string;
+	aiModelReady: boolean;
 	style: PuzzleStyle;
 	documents: PuzzleDocuments;
 	status: string;
+	error?: string;
 	previewSolution: boolean;
 };

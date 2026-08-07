@@ -24,6 +24,7 @@ await build({
 		rollupOptions: {
 			input: join(root, 'index.html'),
 			output: {
+				codeSplitting: false,
 				entryFileNames: 'assets/app.js',
 				assetFileNames: 'assets/[name][extname]'
 			}

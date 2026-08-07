@@ -8,11 +8,13 @@ updates, and the framework's normal build adapters.
 
 [`apps/puzzle-generator`](../apps/puzzle-generator) is a browser-local publishing tool for Sudoku,
 word-search, and crossword puzzles. Its algorithms are deterministic from a visible seed and its
-generated puzzle and solution are independent SVG documents. Shared title, typography, color, and
-line settings are rendered into both files. Titles may be omitted or aligned independently of the
-grid. Crossword line and unused-background colors are separate, its word bank is optional, and
-answer keys support color or puzzle-specific black-and-white rendering. Sudoku answer digits may
-use their own portable font stack and weight.
+generated puzzle and solution are independent fixed-page SVG documents. Titles have typography
+independent from puzzle content. Letter, A4, and Legal page sizes share configurable margins, and
+content is scaled into that printable region with a visible warning when necessary. Crossword input
+uses `answer - clue` lines and produces numbered Across and Down clue tables. Its grid lines, unused
+cells, and letter-cell background are separately styled; the letter-cell background does not color
+the page. Answer keys support color or puzzle-specific black-and-white rendering. Sudoku answer
+digits may use their own portable font stack and weight.
 
 The standalone build is intentionally one HTML file:
 
@@ -21,9 +23,18 @@ npm run build:puzzle-generator:standalone
 ```
 
 `apps/puzzle-generator/dist/puzzle-foundry.html` has no external scripts, stylesheets, fonts,
-images, or network services. Word input never leaves the browser. Word-search generation validates
-dimensions and blocked sequences; crossword generation reports disconnected words rather than
-claiming they were placed.
+images, or network services for its non-AI features. Word input never leaves the browser. Controls
+regenerate on change, while Shuffle deliberately chooses a new seed. Word-search generation
+validates dimensions and blocked sequences; visible errors preserve the last valid preview, and
+crossword generation reports disconnected words rather than claiming they were placed.
+
+Word searches and crosswords also expose an explicit local-AI opt-in. On demand, the app and its
+module worker load the pinned WebLLM 0.2.84 runtime from jsDelivr's `esm.run` endpoint rather than
+bundling it. On first use the browser downloads the approximately 290 MB quantized Qwen2.5 0.5B
+model from Hugging Face, reports progress, and caches it. Inference stays on the user's WebGPU
+device; topics and generated puzzle material are not uploaded. Generated JSON is normalized and
+safety-checked through the ordinary word-input boundary. A post-download control can remove the
+cached model, and unsupported devices retain the complete manual workflow.
 
 ## Other complete samples
 

@@ -85,7 +85,7 @@ export const docGroups: DocGroup[] = [
 				label: 'Sample applications',
 				summary: 'Explore complete eXact applications and portable standalone builds.',
 				keywords:
-					'samples applications puzzle generator Sudoku word search crossword standalone HTML SVG shipping kanban workbench',
+					'samples applications puzzle generator Sudoku word search crossword clues page size margins warnings local AI WebLLM Qwen WebGPU Hugging Face standalone HTML SVG shipping kanban workbench',
 				component: SamplesPage
 			},
 			{

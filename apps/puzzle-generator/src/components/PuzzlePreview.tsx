@@ -5,6 +5,7 @@ type PuzzlePreviewProps = {
 	documents: PuzzleDocuments;
 	solution: boolean;
 	status: string;
+	error?: string;
 	onSolution(solution: boolean): void;
 	onDownload(solution: boolean): void;
 };
@@ -46,6 +47,11 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 			<div className="artifact-info" aria-live="polite">
 				<div>
 					<strong>{props.status}</strong>
+					{props.error ? (
+						<p className="generation-error" role="alert">
+							{props.error}
+						</p>
+					) : null}
 					<span>{props.documents.summary}</span>
 					{props.documents.warning ? <small>{props.documents.warning}</small> : null}
 				</div>

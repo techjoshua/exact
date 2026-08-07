@@ -22,11 +22,26 @@ ECLIPSE
 ASTRONAUT
 NEBULA`;
 
+const starterCrossword = `ORBIT - Path around a planet
+COMET - Icy visitor with a tail
+LUNAR - Related to the moon
+STARLIGHT - Glow arriving from a distant sun
+PLANET - World that circles a star
+TELESCOPE - Instrument for viewing distant objects
+GALAXY - Vast system of stars
+ECLIPSE - One celestial body hides another
+ASTRONAUT - Traveler beyond Earth's atmosphere
+NEBULA - Cloud of gas and dust in space`;
+
 const initialStyle: PuzzleStyle = {
 	title: 'The Sunday Puzzle No. 1',
 	titleAlignment: 'left',
+	titleFontFamily: 'serif',
+	titleFontSize: 28,
 	fontFamily: 'sans',
 	fontSize: 20,
+	pageSize: 'letter',
+	pageMargin: 0.5,
 	ink: '#17251e',
 	accent: '#d85f3d',
 	paper: '#fffdf6',
@@ -34,7 +49,6 @@ const initialStyle: PuzzleStyle = {
 	monochromeSolution: false,
 	crosswordGrid: '#17251e',
 	crosswordBlocks: '#fffdf6',
-	crosswordWordList: false,
 	sudokuSolutionFont: 'inherit',
 	sudokuSolutionBold: false
 };
@@ -48,24 +62,101 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	this.state.wordRows = 14;
 	this.state.wordColumns = 14;
 	this.state.wordText = starterWords;
+	this.state.crosswordText = starterCrossword;
+	this.state.aiTopic = '';
+	this.state.aiSupported =
+		typeof navigator !== 'undefined' && 'gpu' in navigator && globalThis.isSecureContext !== false;
+	this.state.aiBusy = false;
+	this.state.aiProgress = 0;
+	this.state.aiStatus = 'Ready';
+	this.state.aiError = undefined;
+	this.state.aiModelReady = false;
 	this.state.style = initialStyle;
 	this.state.documents = peek(() => createPuzzleDocuments(requestFromState(this.state)));
 	this.state.status = 'Ready to export';
+	this.state.error = undefined;
 	this.state.previewSolution = false;
+	let aiGeneration = 0;
+	let localAiModule: Promise<typeof import('./local-ai.js')> | undefined;
 
-	const generate = () => {
+	const generate = (status = 'Preview updated') => {
 		try {
 			this.state.documents = peek(() => createPuzzleDocuments(requestFromState(this.state)));
-			this.state.status = 'Freshly generated';
+			this.state.status = status;
+			this.state.error = undefined;
 		} catch (error) {
-			this.state.status = error instanceof Error ? error.message : String(error);
+			this.state.status = 'Could not update puzzle · showing the last valid preview';
+			this.state.error = error instanceof Error ? error.message : String(error);
 		}
 	};
 
 	const changeKind = (kind: PuzzleKind) => {
+		if (this.state.aiBusy) cancelAiGeneration();
 		this.state.kind = kind;
 		generate();
 	};
+
+	const generateWithLocalAi = async () => {
+		const topic = this.state.aiTopic.trim();
+		const kind = this.state.kind;
+		if (!topic || kind === 'sudoku' || this.state.aiBusy) return;
+		const generation = ++aiGeneration;
+		this.state.aiBusy = true;
+		this.state.aiProgress = 0;
+		this.state.aiStatus = 'Preparing local AI…';
+		this.state.aiError = undefined;
+		try {
+			localAiModule ??= import('./local-ai.js');
+			const localAi = await localAiModule;
+			if (generation !== aiGeneration) return;
+			const wordText = await localAi.generateLocalAiWordList(topic, kind, (progress) => {
+				if (generation !== aiGeneration) return;
+				this.state.aiProgress = progress.progress;
+				this.state.aiStatus = progress.text;
+			});
+			if (generation !== aiGeneration) return;
+			if (kind === 'crossword') this.state.crosswordText = wordText;
+			else this.state.wordText = wordText;
+			this.state.aiStatus = 'Generated locally';
+			this.state.aiProgress = 1;
+			this.state.aiModelReady = true;
+			generate('Local AI word list applied');
+		} catch (error) {
+			if (generation !== aiGeneration) return;
+			this.state.aiError = error instanceof Error ? error.message : String(error);
+			this.state.aiStatus = 'Local AI could not generate a list';
+		} finally {
+			if (generation === aiGeneration) this.state.aiBusy = false;
+		}
+	};
+
+	const removeLocalAiModel = async () => {
+		try {
+			localAiModule ??= import('./local-ai.js');
+			const localAi = await localAiModule;
+			await localAi.removeLocalAiModel();
+			localAiModule = undefined;
+			this.state.aiModelReady = false;
+			this.state.aiStatus = 'Downloaded model removed';
+			this.state.aiError = undefined;
+		} catch (error) {
+			this.state.aiError = error instanceof Error ? error.message : String(error);
+		}
+	};
+
+	const cancelAiGeneration = () => {
+		aiGeneration++;
+		void localAiModule?.then((localAi) => localAi.disposeLocalAi());
+		localAiModule = undefined;
+		this.state.aiBusy = false;
+		this.state.aiProgress = 0;
+		this.state.aiStatus = 'Local AI canceled';
+	};
+
+	this.onUnmount(() => {
+		aiGeneration++;
+		void localAiModule?.then((localAi) => localAi.disposeLocalAi());
+	});
 
 	const download = (solution: boolean) => {
 		const base = exportBaseName(this.state.style.title, this.state.kind);
@@ -90,7 +181,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 				</a>
 				<div className="privacy-note">
 					<span aria-hidden="true">●</span>
-					Local only · no uploads
+					Local generation · no puzzle uploads
 				</div>
 			</header>
 
@@ -114,23 +205,57 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 					<aside className="controls-panel">
 						<GeneratorControls
 							kind={this.state.kind}
-							difficulty:onDifficulty={this.state.difficulty}
-							seed:onSeed={this.state.seed}
-							boxSize:onBoxSize={this.state.sudokuBoxSize}
+							difficulty={this.state.difficulty}
+							seed={this.state.seed}
+							boxSize={this.state.sudokuBoxSize}
 							rows={this.state.wordRows}
 							columns={this.state.wordColumns}
-							wordText:onWordText={this.state.wordText}
+							wordText={
+								this.state.kind === 'crossword' ? this.state.crosswordText : this.state.wordText
+							}
+							aiTopic={this.state.aiTopic}
+							aiSupported={this.state.aiSupported}
+							aiBusy={this.state.aiBusy}
+							aiProgress={this.state.aiProgress}
+							aiStatus={this.state.aiStatus}
+							aiError={this.state.aiError}
+							aiModelReady={this.state.aiModelReady}
 							onKind={changeKind}
+							onDifficulty={(difficulty) => {
+								this.state.difficulty = difficulty;
+								generate();
+							}}
+							onSeed={(seed) => {
+								this.state.seed = seed;
+								generate();
+							}}
+							onBoxSize={(boxSize) => {
+								this.state.sudokuBoxSize = boxSize;
+								generate();
+							}}
 							onRows={(rows: number) => {
 								this.state.wordRows = clampDimension(rows);
+								generate();
 							}}
 							onColumns={(columns: number) => {
 								this.state.wordColumns = clampDimension(columns);
+								generate();
 							}}
-							onGenerate={generate}
+							onWordText={(wordText) => {
+								if (this.state.kind === 'crossword') this.state.crosswordText = wordText;
+								else this.state.wordText = wordText;
+								generate();
+							}}
+							onAiTopic={(topic) => {
+								this.state.aiTopic = topic;
+								this.state.aiError = undefined;
+							}}
+							onAiGenerate={() => void generateWithLocalAi()}
+							onAiCancel={cancelAiGeneration}
+							onAiRemoveModel={() => void removeLocalAiModel()}
 							onRandomize={() => {
 								this.state.seed = createSeed();
-								generate();
+								generate('Puzzle shuffled');
 							}}
 						/>
 						<StyleControls
@@ -147,6 +272,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 						documents={this.state.documents}
 						solution:onSolution={this.state.previewSolution}
 						status={this.state.status}
+						error={this.state.error}
 						onDownload={download}
 					/>
 				</div>
@@ -154,7 +280,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 
 			<footer>
 				<span>Puzzle Foundry</span>
-				<span>One HTML file. Three generators. Zero network calls.</span>
+				<span>One HTML file. Three generators. Optional local AI.</span>
 			</footer>
 		</div>
 	);
@@ -168,7 +294,7 @@ function requestFromState(state: PuzzleGeneratorState): DocumentRequest {
 		boxSize: state.sudokuBoxSize,
 		rows: state.wordRows,
 		columns: state.wordColumns,
-		wordText: state.wordText,
+		wordText: state.kind === 'crossword' ? state.crosswordText : state.wordText,
 		style: state.style
 	};
 }

@@ -1,9 +1,9 @@
 import { generateCrossword } from './crossword.js';
-import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
+import { pageFitWarning, renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
 import { generateSudoku } from './sudoku.js';
 import type { Difficulty, PuzzleDocuments, PuzzleKind, PuzzleStyle } from './types.js';
 import { generateWordSearch } from './word-search.js';
-import { parseWords, validateWords } from './words.js';
+import { parseCrosswordClues, parseWords, validateWords } from './words.js';
 
 /** Input required to generate either document for the currently selected puzzle. */
 export type DocumentRequest = {
@@ -22,14 +22,21 @@ export function createPuzzleDocuments(request: DocumentRequest): PuzzleDocuments
 	if (request.kind === 'sudoku') {
 		const puzzle = generateSudoku(request.boxSize, request.difficulty, request.seed);
 		const clueCount = puzzle.givens.filter(Boolean).length;
+		const puzzleSvg = renderSudokuSvg(puzzle, request.style, false);
+		const solutionSvg = renderSudokuSvg(puzzle, request.style, true);
 		return {
-			puzzleSvg: renderSudokuSvg(puzzle, request.style, false),
-			solutionSvg: renderSudokuSvg(puzzle, request.style, true),
-			summary: `${puzzle.size}×${puzzle.size} grid · ${clueCount} clues · unique solution`
+			puzzleSvg,
+			solutionSvg,
+			summary: `${puzzle.size}×${puzzle.size} grid · ${clueCount} clues · unique solution`,
+			warning: pageFitWarning(puzzleSvg)
 		};
 	}
 
-	const words = parseWords(request.wordText);
+	const crosswordClues = request.kind === 'crossword' ? parseCrosswordClues(request.wordText) : [];
+	const words =
+		request.kind === 'crossword'
+			? crosswordClues.map((entry) => entry.word)
+			: parseWords(request.wordText);
 	const issue = validateWords(words, request.kind === 'crossword' ? 3 : 2);
 	if (issue) throw new Error(issue);
 	if (request.kind === 'word-search') {
@@ -40,24 +47,27 @@ export function createPuzzleDocuments(request: DocumentRequest): PuzzleDocuments
 			request.difficulty,
 			request.seed
 		);
+		const puzzleSvg = renderWordSearchSvg(puzzle, request.style, false);
 		return {
-			puzzleSvg: renderWordSearchSvg(puzzle, request.style, false),
+			puzzleSvg,
 			solutionSvg: renderWordSearchSvg(puzzle, request.style, true),
-			summary: `${request.rows}×${request.columns} grid · ${words.length} hidden words${request.difficulty === 'hard' ? ' · near-match decoys' : ''}`
+			summary: `${request.rows}×${request.columns} grid · ${words.length} hidden words${request.difficulty === 'hard' ? ' · near-match decoys' : ''}`,
+			warning: pageFitWarning(puzzleSvg)
 		};
 	}
 
-	const puzzle = generateCrossword(words, request.seed);
+	const puzzle = generateCrossword(words, request.seed, crosswordClues);
 	if (puzzle.words.length < 2)
 		throw new Error('The supplied words do not share enough letters to form a crossword.');
-	const warning = puzzle.unplaced.length
+	const placementWarning = puzzle.unplaced.length
 		? `Could not connect: ${puzzle.unplaced.join(', ')}. Try adding bridge words or changing the seed.`
 		: undefined;
+	const puzzleSvg = renderCrosswordSvg(puzzle, request.style, false);
 	return {
-		puzzleSvg: renderCrosswordSvg(puzzle, request.style, false),
+		puzzleSvg,
 		solutionSvg: renderCrosswordSvg(puzzle, request.style, true),
 		summary: `${puzzle.columns}×${puzzle.rows} compact grid · ${puzzle.words.length}/${words.length} words placed`,
-		warning
+		warning: [placementWarning, pageFitWarning(puzzleSvg)].filter(Boolean).join(' ') || undefined
 	};
 }
 

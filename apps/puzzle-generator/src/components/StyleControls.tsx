@@ -47,7 +47,34 @@ export function StyleControls(props: StyleControlsProps) {
 			</div>
 			<div className="field-grid">
 				<label>
-					<span>Typeface</span>
+					<span>Title typeface</span>
+					<select
+						value={props.style.titleFontFamily}
+						onChange={(event) =>
+							change('titleFontFamily', event.currentTarget.value as PuzzleStyle['titleFontFamily'])
+						}
+					>
+						<option value="sans">Modern sans</option>
+						<option value="serif">Classic serif</option>
+						<option value="mono">Editorial mono</option>
+						<option value="handwritten">Handwritten print</option>
+						<option value="playful">Playful rounded</option>
+					</select>
+				</label>
+				<label>
+					<span>Title size · {props.style.titleFontSize}px</span>
+					<input
+						type="range"
+						min="16"
+						max="54"
+						value={String(props.style.titleFontSize)}
+						onInput={(event) => change('titleFontSize', Number(event.currentTarget.value))}
+					/>
+				</label>
+			</div>
+			<div className="field-grid">
+				<label>
+					<span>Puzzle typeface</span>
 					<select
 						value={props.style.fontFamily}
 						onChange={(event) =>
@@ -62,7 +89,7 @@ export function StyleControls(props: StyleControlsProps) {
 					</select>
 				</label>
 				<label>
-					<span>Type size · {props.style.fontSize}px</span>
+					<span>Puzzle type size · {props.style.fontSize}px</span>
 					<input
 						type="range"
 						min="14"
@@ -83,6 +110,35 @@ export function StyleControls(props: StyleControlsProps) {
 					/>
 				</label>
 			</div>
+			<div className="option-box">
+				<strong>Page</strong>
+				<div className="field-grid">
+					<label>
+						<span>Page size</span>
+						<select
+							value={props.style.pageSize}
+							onChange={(event) =>
+								change('pageSize', event.currentTarget.value as PuzzleStyle['pageSize'])
+							}
+						>
+							<option value="letter">US Letter · 8.5 × 11 in</option>
+							<option value="a4">A4 · 210 × 297 mm</option>
+							<option value="legal">US Legal · 8.5 × 14 in</option>
+						</select>
+					</label>
+					<label>
+						<span>Margins · {props.style.pageMargin.toFixed(2)} in</span>
+						<input
+							type="range"
+							min="0.25"
+							max="2"
+							step="0.25"
+							value={String(props.style.pageMargin)}
+							onInput={(event) => change('pageMargin', Number(event.currentTarget.value))}
+						/>
+					</label>
+				</div>
+			</div>
 			<div className="color-grid">
 				<label>
 					<span>Ink</span>
@@ -101,7 +157,7 @@ export function StyleControls(props: StyleControlsProps) {
 					/>
 				</label>
 				<label>
-					<span>Paper</span>
+					<span>{props.kind === 'crossword' ? 'Puzzle background' : 'Paper'}</span>
 					<input
 						type="color"
 						value={props.style.paper}
@@ -175,14 +231,9 @@ export function StyleControls(props: StyleControlsProps) {
 							/>
 						</label>
 					</div>
-					<label className="check-field">
-						<input
-							type="checkbox"
-							checked={props.style.crosswordWordList}
-							onChange={(event) => change('crosswordWordList', event.currentTarget.checked)}
-						/>
-						<span>Include word list</span>
-					</label>
+					<small className="option-note">
+						The puzzle background applies only to letter cells; the page remains white.
+					</small>
 				</div>
 			) : null}
 		</section>
