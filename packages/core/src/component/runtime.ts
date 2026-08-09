@@ -52,6 +52,8 @@ import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins } from './plugins.js';
 import { componentReadinessContext } from './readiness.js';
 import { reactiveValue } from './reactive-value.js';
+import { createComponentIntlFacade } from '../localization/facade.js';
+import type { IntlFacade } from '../localization/contracts.js';
 import { createComponentRefBinding, createComponentRefRegistry } from './ref-runtime.js';
 import { applyComponentResumption } from './resumption.js';
 import { createComponentProps, createComponentState } from './state.js';
@@ -83,6 +85,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	private refsValue?: Map<symbol, RefBinding<unknown>>;
 	private refsRegistry?: RefRegistry;
 	private lists?: ReturnType<typeof createComponentListController>;
+	private intlFacade?: IntlFacade;
 	private readonly inspection;
 	private readonly taskOwner;
 	private readonly activation: ComponentActivation;
@@ -137,6 +140,10 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 
 	get refs(): RefRegistry {
 		return (this.refsRegistry ??= createComponentRefRegistry(this));
+	}
+
+	get intl(): IntlFacade {
+		return (this.intlFacade ??= createComponentIntlFacade(this));
 	}
 
 	get mountHandlers(): LifecycleHandler[] {

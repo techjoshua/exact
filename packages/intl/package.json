@@ -23,6 +23,10 @@
 		"./internal": {
 			"types": "./dist/internal.d.ts",
 			"default": "./dist/internal.js"
+		},
+		"./language": {
+			"types": "./dist/language.d.ts",
+			"node": "./dist/language.js"
 		}
 	},
 	"main": "./dist/index.js",
@@ -31,10 +35,40 @@
 		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
 	},
+	"exact": {
+		"language": {
+			"schemaVersion": 1,
+			"analyzer": {
+				"protocolVersion": "^1.0.0",
+				"subpath": "./language",
+				"capabilities": [
+					"diagnostics",
+					"completions",
+					"hover",
+					"inlayHints"
+				],
+				"projection": [
+					"sourceText",
+					"imports",
+					"enhancements",
+					"jsx"
+				]
+			}
+		}
+	},
 	"dependencies": {
 		"@exactjs/component-library": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
+		"@exactjs/language-extension-api": "^0.1.0",
 		"@exactjs/reactive": "^0.1.0"
+	},
+	"peerDependencies": {
+		"@exactjs/intl-analyzer": "^0.1.0"
+	},
+	"peerDependenciesMeta": {
+		"@exactjs/intl-analyzer": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"cldr-core": "48.2.0",

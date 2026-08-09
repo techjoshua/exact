@@ -1,12 +1,16 @@
 /** One dimensionally typed unit understood by the bounded intl runtime. */
-export interface IntlUnitDefinition {
-	readonly dimension: string;
+export interface IntlUnitDefinition<Dimension extends string = string> {
+	readonly dimension: Dimension;
 	readonly symbol: string;
 	readonly toBase: (value: number) => number;
 	readonly fromBase: (value: number) => number;
 }
 
-const scaled = (dimension: string, symbol: string, scale: number): IntlUnitDefinition =>
+const scaled = <const Dimension extends string>(
+	dimension: Dimension,
+	symbol: string,
+	scale: number
+): IntlUnitDefinition<Dimension> =>
 	Object.freeze({
 		dimension,
 		symbol,
@@ -14,7 +18,11 @@ const scaled = (dimension: string, symbol: string, scale: number): IntlUnitDefin
 		fromBase: (value: number) => value / scale
 	});
 
-const reciprocal = (dimension: string, symbol: string, factor: number): IntlUnitDefinition =>
+const reciprocal = <const Dimension extends string>(
+	dimension: Dimension,
+	symbol: string,
+	factor: number
+): IntlUnitDefinition<Dimension> =>
 	Object.freeze({
 		dimension,
 		symbol,
@@ -23,7 +31,7 @@ const reciprocal = (dimension: string, symbol: string, factor: number): IntlUnit
 	});
 
 /** Shared unit vocabulary and conversion contract used by validation and rendering. */
-export const intlUnitDefinitions: Readonly<Record<string, IntlUnitDefinition>> = Object.freeze({
+const finiteIntlUnitDefinitions = Object.freeze({
 	meter: scaled('length', 'm', 1),
 	kilometer: scaled('length', 'km', 1_000),
 	centimeter: scaled('length', 'cm', 0.01),
@@ -123,7 +131,21 @@ export const intlUnitDefinitions: Readonly<Record<string, IntlUnitDefinition>> =
 		fromBase: (value: number) => (value * 9) / 5 - 459.67
 	}),
 	kelvin: scaled('temperature', 'K', 1)
-});
+} satisfies Readonly<Record<string, IntlUnitDefinition>>);
+
+/** Canonical finite unit identifier accepted by public preference overrides. */
+export type IntlUnitName = keyof typeof finiteIntlUnitDefinitions;
+
+/** Finite unit identifiers belonging to one physical dimension. */
+export type IntlUnitForDimension<Dimension extends string> = {
+	[Unit in IntlUnitName]: (typeof finiteIntlUnitDefinitions)[Unit]['dimension'] extends Dimension
+		? Unit
+		: never;
+}[IntlUnitName];
+
+/** Runtime lookup view retaining finite public names while accepting validated protocol strings. */
+export const intlUnitDefinitions: typeof finiteIntlUnitDefinitions &
+	Readonly<Record<string, IntlUnitDefinition>> = finiteIntlUnitDefinitions;
 
 /** Canonical unit identifiers accepted by the analyzer and runtime. */
 export const intlUnitIdentifiers = Object.freeze(Object.keys(intlUnitDefinitions));

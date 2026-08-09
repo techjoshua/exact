@@ -1,3 +1,4 @@
+import { intl } from '@exactjs/core';
 import type { IntlBindingDescriptorV1 } from './contracts.js';
 
 /** Internal domain operation that require binding without publishing an application API. */
@@ -15,7 +16,7 @@ export function requireBinding(
 export function canonicalLocale(input: unknown, path: string): string {
 	const locale = requireBoundedString(input, path);
 	try {
-		const [canonical] = Intl.getCanonicalLocales(locale);
+		const [canonical] = intl.getCanonicalLocales(locale);
 		if (!canonical) throw new RangeError('missing locale');
 		return canonical;
 	} catch {

@@ -1,6 +1,8 @@
 import type { ExactCompilerSession } from '@exactjs/compiler';
 import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import type { ExactWebpackTransformResult } from './transform.js';
+import type { ExactLanguageProjectionV1 } from '@exactjs/language-extension-api';
+import type { ExactPackageEnhancementImport } from '@exactjs/config';
 
 const bridgeKey = Symbol.for('@exactjs/webpack-loader-bridge');
 
@@ -9,7 +11,9 @@ export type ExactWebpackLoaderBridge = Readonly<{
 	session: ExactCompilerSession;
 	intl: IntlBuildCoordinator;
 	intlReady(): Promise<void>;
+	packageEnhancements(): Promise<readonly ExactPackageEnhancementImport[]>;
 	record(filename: string, source: string, result: ExactWebpackTransformResult): void;
+	validate(projection: ExactLanguageProjectionV1): Promise<void>;
 }>;
 
 /** Minimal compiler carrier shared by the plugin and Webpack loader runner. */

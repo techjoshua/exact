@@ -1,4 +1,5 @@
 import { intlUnitIdentifiers } from '@exactjs/intl/internal';
+import { intl } from '@exactjs/core';
 import {
 	sourceLanguageInference,
 	type SourceOrdinalWrapper
@@ -28,7 +29,7 @@ export interface SourceLocaleProfile {
  * boundary because its `Intl` implementation is also used by application builds and previews.
  */
 export function sourceLocaleProfile(sourceLocale: string): SourceLocaleProfile {
-	const locale = new Intl.Locale(sourceLocale).toString();
+	const locale = intl.Locale(sourceLocale).toString();
 	const cached = profileCache.get(locale);
 	if (cached) return cached;
 
@@ -56,7 +57,7 @@ function mergeRecords<Value>(
 }
 
 function pluralOperands(locale: string): readonly number[] {
-	const rules = new Intl.PluralRules(locale);
+	const rules = intl.PluralRules(locale);
 	const missing = new Set(rules.resolvedOptions().pluralCategories);
 	const operands = new Set<number>(baselineOperands);
 	const candidates = [
@@ -82,7 +83,7 @@ function collectUnitLabels(
 		for (const unitDisplay of profiledUnitDisplays) {
 			let formatter: Intl.NumberFormat;
 			try {
-				formatter = new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay });
+				formatter = intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay });
 			} catch (error) {
 				if (error instanceof RangeError) continue;
 				throw error;
@@ -99,9 +100,9 @@ function collectCurrencyLabels(
 ): Readonly<Record<string, SourceCurrencyLabel>> {
 	const labels = new Map<string, SourceCurrencyLabel>();
 	const ambiguous = new Set<string>();
-	for (const currency of Intl.supportedValuesOf('currency')) {
+	for (const currency of intl.supportedValuesOf('currency')) {
 		for (const display of ['symbol', 'name'] as const) {
-			const formatter = new Intl.NumberFormat(locale, {
+			const formatter = intl.NumberFormat(locale, {
 				style: 'currency',
 				currency,
 				currencyDisplay: display

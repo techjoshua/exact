@@ -28,7 +28,9 @@ any selected component-library implementation before it enters a server-executin
 proposal adds an internationalization-owned build analyzer/linker, an official component library
 and enhancement surface, portable message and projection artifacts, and an explicit bundler option
 backed by one shared cross-host coordinator. The standard component compiler remains unaware of
-message, locale, formatter, catalog, and CLDR semantics.
+message, catalog, translation, unit-policy, and CLDR semantics. It does recognize proven native
+ECMA-402 construction and locale-string operations as a general allocation optimization, lowering
+them to core's contextual or global cache facade.
 
 | Concern                         | Owner                                                         |
 | ------------------------------- | ------------------------------------------------------------- |
@@ -39,7 +41,8 @@ message, locale, formatter, catalog, and CLDR semantics.
 | Unit conversion and preferences | Versioned `@exactjs/intl` Unicode data and application policy |
 | Package execution trust         | Bundler-enforced server component-library policy              |
 | Build analyzer execution trust  | Explicit host activation of the fixed native analyzer         |
-| Catalog identity                | Normalized semantic source message plus optional context      |
+| Translation identity            | Generic text/placeholders plus an optional readable name      |
+| Execution identity              | Separately hashed exact binding and formatter contract        |
 
 ## Decision
 
@@ -145,16 +148,16 @@ Mark a complete message on markup the component already owns:
 <p intl:message>Welcome, {this.props.name}.</p>
 ```
 
-When a short semantic context is needed to disambiguate otherwise identical source messages, the
-string value of `intl:message` supplies it directly:
+When a readable purpose makes catalogs easier to scan, the string value of `intl:message` supplies
+an optional message name directly:
 
 ```tsx
 <_ intl:message="navigation">Home</_>
 ```
 
-The string is context such as where or how the message is used, not a handwritten catalog key or a
-replacement for the source message. The analyzer still derives identity from the normalized message
-and includes this context only as an optional disambiguator.
+The string is a concise name, not a complete handwritten catalog key or replacement for the source
+message. The analyzer normalizes it as the readable key prefix and appends the full translation
+contract hash, so reusing a name for different content cannot collide.
 
 Use `_` when the message is inline, structural, or should not add an intrinsic element:
 
@@ -615,15 +618,14 @@ vocabularies as ordinary enhancements, for example `display-name:language`, `uni
 `plural:cardinal`, or `plural:ordinal`. It is inert build-time metadata, not a runtime expression
 language. A shorthand must identify exactly one analyzer-proven compatible placeholder or selector;
 ambiguous property expressions require typed values or an explicit finite options object. That
-object also carries context when disambiguation is needed without adding a separate public
-`intl:context` role:
+object also carries the optional name without adding a separate public `intl:name` role:
 
 ```tsx
 <button
 	aria-label={`Change language to ${languageCode}`}
 	intl:aria-label={{
 		format: 'display-name:language',
-		context: 'language-picker'
+		name: 'language-picker'
 	}}
 />
 ```
@@ -647,6 +649,16 @@ IDs, classes, styles, handlers, form-control state, and protocol- or identity-be
 cannot be activated. The authored intrinsic remains the same semantic host, and unrelated props,
 events, refs, ownership, and contribution layers remain unchanged.
 
+Component libraries may deliberately publish both a localized scalar fallback and a
+framework-owned accessibility relationship enhancement. The intl descriptor remains extractable
+and valid in every build, and intl continues to publish the localized scalar independently.
+`aria-labelledby` may coexist with `aria-label`, and `aria-describedby` may coexist with
+`aria-description`; the platform gives the relationship the appropriate precedence. Intl does not
+inspect accessibility, forms, or arbitrary third-party enhancement identities. The initial
+implementation performs no cross-enhancement suppression or cleanup optimization merely to remove
+the shadowed attribute. A future optimization requires measured value and a generic enhancement
+composition contract.
+
 ### Display names
 
 `display-name` formats a code through a finite locale-data domain rather than treating it as authored
@@ -669,6 +681,10 @@ code is validated during analysis; dynamic unknown values follow configured code
 A standalone currency display name is distinct from a currency quantity, whose number-sensitive
 morphology remains owned by the currency formatter.
 
+A projection containing only a display-name formatter has no linguistic source text. It retains a
+stable runtime descriptor key, but extraction omits it from XLIFF and language tooling reports
+catalog coverage as not applicable rather than zero translated locales.
+
 Property messages use the same projection:
 
 ```tsx
@@ -682,7 +698,7 @@ Every enhancement implementation remains an ordinary component and may be export
 ```tsx
 <IntlMessage>Welcome, {this.props.name}.</IntlMessage>
 
-<IntlMessage context="navigation">Home</IntlMessage>
+<IntlMessage name="navigation">Home</IntlMessage>
 
 <IntlMessage plural={this.state.messageCount}>
 	You have {this.state.messageCount} new
@@ -714,23 +730,23 @@ source should expose equivalent branded and literal-narrowed TypeScript types ra
 open records or arbitrary strings:
 
 ```ts
-type IntlContext = string;
+type IntlMessageName = string;
 type IntlExactSelector = string | number | boolean;
 
-type IntlMessageActivation = true | IntlContext;
+type IntlMessageActivation = true | IntlMessageName;
 
 type IntlPluralActivation =
 	| number
 	| Readonly<{
 			value: number;
-			context?: IntlContext;
+			name?: IntlMessageName;
 	  }>;
 
 type IntlSelectActivation<Value extends IntlExactSelector = IntlExactSelector> =
 	| Value
 	| Readonly<{
 			value: Value;
-			context?: IntlContext;
+			name?: IntlMessageName;
 	  }>;
 
 type IntlCurrencyDisplay = 'symbol' | 'narrowSymbol' | 'code' | 'name';
@@ -740,7 +756,7 @@ type IntlCurrencyActivation =
 	| Readonly<{
 			currency?: Iso4217CurrencyCode;
 			display?: IntlCurrencyDisplay;
-			context?: IntlContext;
+			name?: IntlMessageName;
 	  }>;
 
 type IntlPropertyFormat =
@@ -754,7 +770,7 @@ type IntlPropertyActivation =
 	| IntlPropertyFormat
 	| Readonly<{
 			format?: IntlPropertyFormat;
-			context?: IntlContext;
+			name?: IntlMessageName;
 	  }>;
 ```
 
@@ -767,7 +783,7 @@ keys, open dictionaries, dynamic formatter-role strings, and conflicting activat
 
 The shared `IntlMessage` component exposes a discriminated public prop union: exactly one of
 `message`, `plural`, or `select` establishes the region. The explicit component expresses the same
-choice with `context`, `plural`, or `select` props but does not require a redundant `message` prop.
+choice with `name`, `plural`, or `select` props but does not require a redundant `message` prop.
 `IntlAttributes` exposes only the allowlisted property activators, and Unit exposes exactly one of
 `unit` or `cldr` plus optional `sourceUnit` and `convertTo`. `convertTo` is a statically known
 compatible destination, never a reactive preference.
@@ -841,50 +857,27 @@ users. Strict builds may require complete catalogs for selected locales and reac
 
 ## Normalized message identity
 
-The catalog key is derived from a normalized semantic representation of the authored message, not
-from source position, filesystem path, English text alone, or a mandatory handwritten identifier.
-Normalization includes:
+Translation identity and execution identity are separate. The translator-facing key hashes a
+generic contract containing the source locale, content/property target, significant text, generic
+placeholder and structure IDs, selector cases, and a guide describing each placeholder's human
+role and copy/delete policy. It excludes source paths, runtime binding indexes, eXact formatter
+options, generated artifacts, and any contract-version prefix. Consequently, internal lowering can
+change without invalidating a translation whose visible text and placeholder guide are unchanged.
 
-- significant source text and punctuation;
-- structural branch kind and canonical case ordering;
-- placeholder occurrence and reuse;
-- formatter/projection kind, source unit/currency, semantic quantity/usage, and relevant options;
-- normalized finite projection decisions such as duration-field priority, range shape, relative-time
-  direction, ordinal kind and suffix presentation, and literal fallback leaves;
-- an intrinsic property target when the message projects to an allowlisted property;
-- safe named structural fragments; and
-- an optional authored disambiguation context.
-
-Normalization excludes:
-
-- indentation and insignificant JSX whitespace;
-- local variable paths such as `this.state.total`;
-- source locations and generated artifact paths;
-- analyzer-proven source-locale presentation inside a typed formatter projection, including unit
-  labels, currency markers and placement, range punctuation, relative-time wording, and
-  singular/plural or ordinal morphology, which is retained for direct fallback and translation
-  tooling but whose semantics come from the formatter role, source unit or currency, semantic usage,
-  value shape, display kind, and options;
-- attribute ordering where order has no semantics; and
-- runtime locale, catalog version, or translated content.
-
-Placeholder slots are alpha-normalized by first semantic occurrence so a local variable rename does
-not invalidate translations. The emitted contract retains human-readable inferred names for
-translation tools and diagnostics, but those names do not change the key unless the author explicitly
-uses a semantic placeholder name. Repeated references to the same analyzer-proven binding reuse one
-slot.
+Placeholder IDs are assigned by stable semantic position. Repeated references to one analyzed
+value retain a consistent generic role, and translation validation rejects unknown, deleted
+protected, duplicated non-copyable, or structurally changed codes.
 
 An ordinary component slot contributes its authored semantic slot name and role, never the text or
 message identities rendered by that component. Updating a descendant component therefore cannot
 invalidate the enclosing message key.
 
-The canonical normalized message is retained for diagnostics and catalog interchange. Protocol 1
-uses the exact digest construction defined in the stable-identities section below. Catalog
-ownership/provenance remains separate from the key so two packages cannot accidentally override
-each other's message merely by authoring the same source sentence.
+The canonical generic translation contract is retained for diagnostics and catalog interchange.
+Catalog ownership/provenance remains separate from the key so two packages cannot accidentally
+override each other's message merely by authoring the same source sentence.
 
-An optional context resolves genuine ambiguity. On the `message` enhancement, its string value is
-the context shorthand:
+An optional name makes a key recognizable. On the `message` enhancement, its string value is the
+name shorthand:
 
 ```tsx
 <_ intl:message="navigation">Home</_>
@@ -892,23 +885,23 @@ the context shorthand:
 <_ intl:message="property-description">Home</_>
 ```
 
-The string describes semantic use; it is not the complete catalog ID. Activators whose value already
-declares a selector or formatter carry context in their finite options object instead:
+The string describes purpose; it is not the complete catalog ID. Activators whose value already
+declares a selector or formatter carry `name` in their finite options object instead:
 
 ```tsx
-<p intl:plural={{ value: count, context: 'inbox-status' }}>
+<p intl:plural={{ value: count, name: 'inbox-status' }}>
 	You have {count} new {count === 1 ? 'message' : 'messages'}.
 </p>
 
-<p intl:select={{ value: role, context: 'account-membership' }}>
+<p intl:select={{ value: role, name: 'account-membership' }}>
 	{role === 'owner' ? 'Owner' : 'Member'}
 </p>
 ```
 
-There is no standalone `intl:context` enhancement. Context participates in normalized identity but
-does not establish a message boundary by itself. Changing source meaning, formatter semantics, or
-context intentionally creates a new key. Build tooling reports obsolete catalog entries; it does
-not preserve automatic migration aliases.
+There is no standalone `intl:name` enhancement. The normalized name prefixes the translation hash
+but does not establish a message boundary by itself. Changing visible source meaning, generic
+placeholder structure, target property, or authored name creates a new key. Build tooling removes
+obsolete catalog entries rather than preserving automatic migration aliases.
 
 ## Structural selection and pluralization
 
@@ -961,7 +954,7 @@ described above:
 ```
 
 `intl:plural` establishes the message boundary and declares its reactive numeric operand. Its common
-form takes that value directly; the finite `{ value, context }` form adds disambiguation without
+form takes that value directly; the finite `{ value, name }` form adds a readable message name without
 changing selector semantics. The displayed count and every operand-dependent source ternary refer
 to one binding. The operand is read once per reactive update; that value selects the active case and
 supplies every displayed occurrence, avoiding duplicate watchers or inconsistent reads. In an active
@@ -1003,7 +996,7 @@ The authored exact predicates describe source-locale fallback partitions, not un
 categories. The analyzer records exact cases such as `=0` and `=1`, preserves `other`, and allows a
 target catalog to replace that partition with the plural categories required by its locale.
 
-`intl:select` follows the same message-boundary, direct-value or `{ value, context }` authoring, and
+`intl:select` follows the same message-boundary, direct-value or `{ value, name }` authoring, and
 single-binding model for non-plural exact selection:
 
 ```tsx
@@ -1594,8 +1587,9 @@ interface AnalyzedMessageDescriptorV1 {
 	readonly ownerComponentId: string;
 	readonly occurrenceId: string;
 	readonly key: string;
-	readonly canonicalSource: string;
-	readonly context?: string;
+	readonly contract: string;
+	readonly canonicalTranslation: string;
+	readonly name?: string;
 	readonly sourceLocale: string;
 	readonly target:
 		| Readonly<{ kind: 'content' }>
@@ -1612,6 +1606,8 @@ type IntlRuntimeDescriptorV1 = Pick<
 	| 'owner'
 	| 'occurrenceId'
 	| 'key'
+	| 'contract'
+	| 'name'
 	| 'sourceLocale'
 	| 'target'
 	| 'bindings'
@@ -1635,13 +1631,14 @@ validation recursively enforces those rules before any plan reaches runtime.
 
 ### Stable identities and generated modules
 
-Catalog identity and build occurrence identity are deliberately separate:
+Translation identity, execution identity, and build occurrence identity are deliberately separate:
 
-- `key` is `m1_` plus the untruncated base64url SHA-256 digest of the UTF-8 canonical semantic
-  message. Canonical serialization uses Unicode NFC, normalized significant JSX whitespace, fixed
-  object-field order, canonical finite-number spelling, alpha-normalized binding indexes, and no
-  `undefined` values. Context, property target, selector structure, and formatter semantics are
-  included; paths, source ranges, local names, and source-only presentation are excluded.
+- `key` is the untruncated base64url SHA-256 digest of the UTF-8 canonical generic translation
+  contract. An optional Unicode-normalized message name and `_` prefix precede the digest. No
+  protocol or contract-version token is included.
+- `contract` is a separate untruncated base64url SHA-256 digest of exact bindings, execution source,
+  formatter options, and sorted capabilities. It detects incompatible same-build runtime plans and
+  permits one validated immutable contract representation to be reused.
 - `owner` is the canonical package name; an unnamed application root receives one build-stable
   generated application owner. Lookup always uses the pair `(owner, key)`. The resolved physical
   package instance and version remain separate provenance; incompatible duplicate versions of one
@@ -1651,9 +1648,10 @@ Catalog identity and build occurrence identity are deliberately separate:
   marked-region structural ordinal, and property target. It may change after structural source edits
   and never appears in translator-authored catalogs.
 
-Two occurrences with the same `(owner, key)` share one catalog contract only when their canonical
-descriptor schemas are identical. A digest collision or same-key schema disagreement is a fatal
-build diagnostic. Server and client artifacts from one build use the same occurrence IDs and catalog
+Two occurrences with the same `(owner, key)` share one translation only when their generic
+translation contracts agree. Their exact execution contracts may differ if both materialize that
+same generic pattern safely. A hash collision or same-hash contract disagreement is a fatal build
+diagnostic. Server and client artifacts from one build use the same occurrence IDs and catalog
 generation; HMR replacement increments a generation fence rather than aliasing stale instances.
 
 For application source, the source stage emits a source-mapped companion virtual module for each
@@ -1819,20 +1817,17 @@ A descriptor containing only formatter, scalar-value, or opaque-component placeh
 linguistic work and does not enter that set. Those placeholders remain represented when they occur
 inside translatable text or a linguistic selector, because translators may need to reorder them.
 Each requested target locale returns a bilingual XLIFF catalog. Those returned catalogs are the
-persisted, translator-owned source of truth for translated content. Source text remains ordinary XLIFF text; values and opaque
-formatter operands use `<ph>`, movable intrinsic regions and selectors use `<pc>`, and selector
-cases use `<mrk>`. XLIFF 2.1 retains the core `urn:oasis:names:tc:xliff:document:2.0` namespace;
-the `version="2.1"` attribute identifies the specification revision. Core `type` values remain
-standard, while `exact:*` identifiers are used only in the user-defined `subType` and marker `type`
-slots that XLIFF provides. Bounded binding, formatter, and selection facts live in non-translatable
-core `<originalData>` entries reached through `dataRef` or `dataRefStart`. Required inline codes set
-`canCopy="no"` and `canDelete="no"`, allowing translation tools to reorder them but not silently
-drop or duplicate them. No eXact XML namespace or foreign attribute is required, because those are
-not guaranteed to survive every translation tool. The representation must not hide a translated
-structured message in a proprietary JSON target string. Generated catalogs validate against the
-official XLIFF 2.1 core schema. Synchronization replaces analyzer-owned source plans
-while preserving translated target markup, notes, segment state, translator ordering, and removed
-units as non-translatable obsolete history.
+persisted, translator-owned source of truth for translated content. Source text remains ordinary
+XLIFF text; values and formatter results use `<ph>`, movable intrinsic regions and selectors use
+`<pc>`, and selector cases use generic `<mrk>` annotations. XLIFF 2.1 retains the core
+`urn:oasis:names:tc:xliff:document:2.0` namespace; the `version="2.1"` attribute identifies the
+specification revision. Standard `equiv`, `canCopy`, and `canDelete` fields provide the complete
+translator guide. Runtime binding indexes, formatter options, and eXact-specific metadata do not
+enter XLIFF; they remain in the separately hashed generated execution contract. The representation
+does not hide a translated structured message in a proprietary JSON target string.
+Synchronization replaces analyzer-owned source plans while preserving structurally compatible
+target markup, notes, segment state, and translator ordering, and removes units absent from the
+current generated source set.
 
 Every imported target lowers into the same validated eXact message IR. Protocol JSON remains a
 supported adapter and generated runtime representation for programmatic integrations, but it is not
@@ -1862,16 +1857,35 @@ The application resolves a complete root locale environment rather than exposing
 
 ```ts
 interface LocaleEnvironment {
-	readonly locale: string;
+	readonly locale: IntlLocaleString;
 	readonly region: string;
 	readonly direction: 'ltr' | 'rtl';
 	readonly timeZone: string;
 	readonly calendar?: string;
 	readonly numberingSystem?: string;
-	readonly unitPreferences?: Readonly<Record<string, string>>;
+	readonly unitPreferences?: IntlUnitPreferences;
 	readonly catalogFingerprint: string;
 }
 ```
+
+`IntlLocaleString` is generated from the pinned CLDR language inventory and permits BCP 47
+subtags and Unicode extensions after that known primary language. Literal attributes receive full
+native-analyzer validation; `defineIntlLocale(value)` performs the same canonical validation while
+narrowing dynamic route, request, or user input.
+
+The `locale` enhancement owns intrinsic language metadata:
+
+```tsx
+<main intl:locale>{/* inherits the nearest environment */}</main>
+<aside intl:locale="ar-EG">{/* uses or creates the Arabic locale scope */}</aside>
+```
+
+A valueless activation reuses the nearest `IntlProvider`. An explicit value asks that provider for
+a cached scope sharing descriptors, catalogs, formatter caches, missing-message policy, and unit
+policy; without a provider it creates a zero-configuration environment using generated artifacts.
+The enhancement projects reactive `lang` and `dir` through `_target`, including SSR and hydration,
+and strips Unicode extensions from the emitted `lang` value. Applications do not repeat locale
+direction or baseline unit-preference tables.
 
 Applications configure supported locales, source locale, fallback order, route/cookie/header
 negotiation, time-zone policy, catalog sources, missing-message policy, and optional user-preference
@@ -1935,10 +1949,11 @@ parallel reactive or child-ownership system.
 - Catalogs and Unicode conversion/format data are split by artifact, owner, locale, and capability.
   A process may share immutable validated generations, but caches require explicit byte/count
   bounds and generation-aware eviction.
-- Formatter instances are shared by canonical locale/options/data-version keys with a bounded,
-  lazily created cache owned by the provider's language environment. A message or unit enhancement
-  must not create a formatter per render, eagerly construct unused formatters, create process-global
-  locale state, or retain converted transient values after publication.
+- Formatter instances are shared by formatter-kind, canonical locale, and finite-option keys in a
+  bounded, lazily created realm-wide core cache. Provider environments resolve locale policy before
+  lookup; the shared pool contains no active-locale state. A message or unit enhancement must not
+  create a formatter per render, eagerly construct unused formatters, or retain converted transient
+  values after publication.
 - Repeated reads and pure derived operations in one inferred projection are coalesced. The required
   duration fixture retains one duration reader rather than one reader for every field occurrence,
   and active output does not allocate the authored temporary array or source-locale formatter on
@@ -2040,6 +2055,12 @@ and runtime boundary validation as local catalogs.
 
 ## Diagnostics and language tools
 
+Under the generic
+[trusted language-service contribution](trusted-language-service-contributions.md) proposal, an
+intl package owns the following assistance without adding an intl callback or semantic branch to
+the standard compiler. The generic language host still does not assume that an intl package exists;
+these capabilities appear only when `@exactjs/intl` is installed, selected, and trusted.
+
 Intl analyzer and language-tool support should provide:
 
 - completion and hover for finite `intl:*` activators and shared formatter props;
@@ -2059,8 +2080,13 @@ Intl analyzer and language-tool support should provide:
   `<role>:<selector>` descriptors;
 - diagnostics for messages on ordinary component invocations, unnamed component ranges,
   unconstrained `props.children`, and attempts to cross opaque component boundaries;
-- inferred placeholder names/types and normalized-key inspection;
-- source-linked missing, obsolete, incompatible, or duplicate translation diagnostics;
+- inferred placeholder names/types, optional readable message name, durable generic key, and exact
+  execution-contract inspection;
+- source-linked missing, obsolete, incompatible, duplicate, malformed-XLIFF, legacy-metadata, and
+  source-locale-mismatch diagnostics;
+- warnings for literal native formatter locales that contradict the configured authored source
+  locale inside a message, without warning about dynamic locale expressions or ordinary code
+  outside an intl region;
 - package-owned catalog provenance, coverage, override origin, and published-subpath diagnostics;
 - development-entry locale, dependency translation selection, and per-owner source fallback;
 - catalog reachability and artifact ownership inspection;
@@ -2068,6 +2094,9 @@ Intl analyzer and language-tool support should provide:
   provider provenance;
 - locale/unit preview without mutating source; and
 - pseudo-locale preview for expansion, bidi, and structural-slot stress.
+
+The implemented first slice provides diagnostics, completions, hover, and inlay hints. It does not
+provide message-to-source navigation or intl-specific code actions.
 
 The language server follows its existing workspace trust boundary. It does not contact translation
 services or execute workspace plugin code merely to provide message semantics.
@@ -2082,7 +2111,7 @@ direction without altering component identity.
 Verification must cover:
 
 - normalized identity stability across formatting, source paths, and local variable renames;
-- intentional key changes for semantic text, context, branch, formatter, currency, display, and unit
+- intentional key changes for translator-facing text, authored name, target, and generic placeholder
   changes;
 - placeholder typing, reuse, structural slots, and catalog compatibility;
 - source-local behavior with missing translations and unavailable enhancements;
@@ -2165,9 +2194,10 @@ generation fencing, joins analyzer-local ownership to public compiler component 
 watched XLIFF 2.1 or protocol-JSON catalog files without recompiling component source. Architecture fixtures prove source
 fallback, translated cardinal selection, structural identity, DOM updates, synchronous SSR,
 hydration adoption, atomic locale replacement, and removal of an unused component's message from a
-shared source module. The compiler gained only a generic pure annotation for target-local component
-brand attachment; it has no intl-specific output contract. Protocol growth remains additive or
-versioned and must continue to pass the full gate.
+shared source module. The compiler's message integration remains limited to generic component-brand
+and target contracts; separately, its ECMA-402 optimization lowers proven native formatter
+operations to core's shared cache. It emits no intl message, locale, catalog, or CLDR protocol.
+Protocol growth remains additive or versioned and must continue to pass the full gate.
 
 The implementation uses protocol 1 descriptors and prepared activations throughout. Its current
 bounded contracts are:
@@ -2190,7 +2220,8 @@ bounded contracts are:
   source-unit label/source-locale inference, fixed `convert-to`, locale/application preferences,
   mixed foot/inch presentation, and bounded multiplicative, offset, and reciprocal conversions;
 - targetless XLIFF 2.1 source-message extraction, bilingual XLIFF as the persisted translation
-  source of truth synchronized without discarding targets, notes, state, or obsolete history, and
+  source of truth synchronized without discarding compatible targets, notes, or state and without
+  retaining obsolete units, and
   one validated derived runtime IR with a protocol-JSON adapter for generated integrations;
 - DOM rendering, synchronous SSR, hydration adoption, reactive value updates, one atomic locale
   change, missing-message fallback, and source-linked diagnostics; and
@@ -2251,8 +2282,9 @@ back to source-module retention.
 If an architecture gate cannot be met, implementation stops and records the smallest missing generic build
 or compiler contract. Any proposed addition must be useful beyond intl—for example, a public
 source-transform ordering hook or stable component-identity service—and must be reviewed separately.
-The implementation must not solve failure by adding message, locale, catalog, or CLDR fields to standard
-compiler output.
+The implementation must not solve failure by adding message, catalog, translation, unit-policy, or
+CLDR fields to standard compiler output. Cache lowering may target the public core Intl facade
+because that operation is useful to ordinary compiled TypeScript independently of translation.
 
 ## Delivery order
 
@@ -2289,12 +2321,12 @@ compiler output.
    `intl:*` enhancements without manual message IDs, binding maps, or formatter calls.
 2. Authored JSX and TypeScript remain the direct local and unavailable-enhancement behavior; an
    active missing translation executes the analyzer-emitted source plan.
-3. Normalized semantic source plus optional context determines the catalog key, remains stable
-   across source relocation and local renaming, and intentionally changes with message meaning,
-   property target, value shape, or projection policy. `intl:message="context"`, finite options
-   objects on value-bearing activators, and the explicit component's `context` prop author context;
-   there is no standalone `intl:context` enhancement or mandatory handwritten message ID. Protocol 1
-   canonicalizes deterministically and uses the specified untruncated `m1_` SHA-256 key.
+3. The generic translator-facing text, target, and placeholder guide determine the catalog hash,
+   which remains stable across source relocation, local renaming, and exact execution-lowering
+   changes. `intl:message="name"`, `name` in finite value-bearing activators, and the explicit
+   component's `name` prop add a readable normalized prefix; there is no standalone `intl:name`
+   enhancement or mandatory handwritten message ID. The untruncated base64url SHA-256 key has no
+   speculative contract-version prefix. A separate hash identifies exact execution semantics.
 4. Message analysis follows locally authored intrinsic, fragment, scalar, structured-value, finite
    branch, and pure local producer graphs but never recursively expands an ordinary component
    implementation.

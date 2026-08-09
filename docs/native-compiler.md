@@ -29,7 +29,7 @@ Language sessions are permanently `noEmit: true`: they never write JavaScript,
 target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
-Native protocol 1.28 and generated component-contract version 2 carry the normalized recursive
+Native protocol 1.31 and generated component-contract version 2 carry the normalized recursive
 partition plan, including ordinary enhancement-component owners, structural templates,
 crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains
 `setupExecution` on authored state assignments across source normalization, distinguishing
@@ -99,6 +99,15 @@ provided by the build integration. Its `components` and `partitionPlan` entries 
 component ownership, placement, environment effects, and concrete client/server artifact
 reachability. `rendererEnhancements` carries canonical enhancement identity plus the module
 specifier and export needed to construct a bundle-local enhancement catalog.
+Package-scoped config bindings are appended as host-owned virtual imports after authored source;
+the protocol boundary preserves authored offsets, duplicate-identifier ownership, and demand-driven
+catalog filtering without teaching the native compiler how to execute project configuration.
+Finite enhancement props documented with `@exact analyzer-only` remain typed language-projection
+facts but do not select renderer enhancements, create activation records, or enter emitted JSX.
+Their package-specific interpretation stays outside the compiler.
+Binding analysis recognizes those declared fields as enhancement-owned syntax, while retaining the
+usual ambiguity diagnostic when the same namespaced attribute is also a valid component or form
+binding.
 
 This is the sole compiler-provided seam for component-library authorization. It is deliberately
 descriptive rather than authoritative: the compiler does not read the component-library marker,

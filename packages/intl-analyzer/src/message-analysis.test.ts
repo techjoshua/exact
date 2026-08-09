@@ -3,6 +3,21 @@ import { validateIntlRuntimeDescriptor } from '@exactjs/intl/internal';
 import { analyzeIntlSource } from './index.js';
 
 describe('analyzeIntlSource', () => {
+	it('validates literal locale-scope activations without treating them as messages', () => {
+		const valid = analyzeIntlSource(
+			'export function View() { return () => <section intl:locale="ar-EG">Text</section>; }',
+			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
+		);
+		const invalid = analyzeIntlSource(
+			'export function View() { return () => <section intl:locale="not a locale">Text</section>; }',
+			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
+		);
+
+		expect(valid.diagnostics).toEqual([]);
+		expect(valid.descriptors).toEqual([]);
+		expect(invalid.diagnostics[0]?.message).toContain('valid BCP 47 locale');
+	});
+
 	it('instruments text and scalar messages with stable descriptors', () => {
 		const result = analyzeIntlSource(
 			'export function Greeting(props: { name: string }) { return () => <p intl:message>Hello {props.name}</p>; }',
@@ -20,9 +35,8 @@ describe('analyzeIntlSource', () => {
 		]);
 		const {
 			ownerComponentId: _owner,
-			canonicalSource: _canonical,
+			canonicalTranslation: _canonical,
 			sourceRange: _range,
-			context: _context,
 			...runtime
 		} = result.descriptors[0]!;
 		expect(() => validateIntlRuntimeDescriptor(runtime)).not.toThrow();
@@ -245,6 +259,22 @@ describe('analyzeIntlSource', () => {
 		]);
 	});
 
+	it('keeps translation identity stable across exact execution-contract changes', () => {
+		const minimum = analyzeIntlSource(
+			`const View = (total: number) => <p intl:message="account-total">Total: {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(total)}</p>;`,
+			{ filename: '/src/Minimum.tsx', owner: 'example', sourceLocale: 'en-US' }
+		).descriptors[0]!;
+		const maximum = analyzeIntlSource(
+			`const View = (total: number) => <p intl:message="account-total">Total: {new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(total)}</p>;`,
+			{ filename: '/src/Maximum.tsx', owner: 'example', sourceLocale: 'en-US' }
+		).descriptors[0]!;
+
+		expect(minimum.name).toBe('account-total');
+		expect(minimum.key).toMatch(/^account-total_/u);
+		expect(minimum.key).toBe(maximum.key);
+		expect(minimum.contract).not.toBe(maximum.contract);
+	});
+
 	it('uses CLDR likely-region data for implicit source currencies', () => {
 		const german = analyzeIntlSource(
 			`export function Total(total: number) { return () => <_ intl:currency>{total}</_>; }`,
@@ -363,7 +393,7 @@ describe('analyzeIntlSource', () => {
 		const result = analyzeIntlSource(
 			`export function Search({ count }) { return () => <>
 				<input placeholder="Search messages" intl:placeholder />
-				<button aria-label={count === 1 ? \`Delete \${count} message\` : \`Delete \${count} messages\`} intl:aria-label={{ context: 'delete-control' }} />
+				<button aria-label={count === 1 ? \`Delete \${count} message\` : \`Delete \${count} messages\`} intl:aria-label={{ name: 'delete-control' }} />
 			</>; }`,
 			{ filename: '/src/Search.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
@@ -376,7 +406,7 @@ describe('analyzeIntlSource', () => {
 		});
 		expect(result.descriptors[1]).toMatchObject({
 			target: { kind: 'property', name: 'aria-label' },
-			context: 'delete-control',
+			name: 'delete-control',
 			bindings: [{ index: 0, kind: 'selector', type: 'number' }]
 		});
 		expect(result.code).toContain('placeholder="Search messages"');

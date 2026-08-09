@@ -35,10 +35,12 @@ platform does not coordinate by itself: focus scopes, focus restoration, live an
 roving focus, active-descendant navigation, input-modality observation, and modal background
 inertness. Explicit components remain available for compilerless callers and structural cases.
 
-The standard compiler adds bounded accessibility diagnostics for statically provable intrinsic,
-ARIA, enhancement, binding, and gesture relationships. The LSP exposes the same diagnostics,
-reasons, and safe code actions. Runtime packages do not load an accessibility checker and build
-hosts do not execute package-provided analysis scripts.
+Bounded accessibility diagnostics for statically provable intrinsic, ARIA, enhancement, binding,
+and gesture relationships participate through the generic
+[trusted language-service contribution](trusted-language-service-contributions.md) contract. The
+LSP and CLI expose the same diagnostics, reasons, and safe code actions. Runtime packages do not
+load an accessibility checker, the compiler registers no accessibility visitor, and executable
+analysis runs only through the independently trusted language host.
 
 Accessibility behavior required for conformance is not silently optional. The generic enhancement
 metadata contract gains a finite fallback classification:
@@ -94,8 +96,11 @@ diagnostics for relationships that are already finite in source.
 - Running an accessibility tree, browser, or screen reader inside the compiler.
 - Proving runtime-generated names, IDs, roles, child counts, focus destinations, or color contrast
   from incomplete static information.
-- Letting enhancement packages register arbitrary compiler visitors or diagnostics.
+- Letting enhancement packages register compiler visitors or bypass the generic language host for
+  package-owned diagnostics.
 - Translating strings, selecting locale, or owning bidirectional text policy.
+- Removing accessibility attributes merely because a higher-precedence name or description source
+  currently shadows them.
 - Shipping a general component suite for dialogs, menus, trees, grids, tabs, or listboxes in this
   proposal.
 
@@ -109,8 +114,8 @@ diagnostics for relationships that are already finite in source.
 | Gesture recognition                                             | `@exactjs/gestures`                             |
 | Visual response and reduced motion                              | `@exactjs/motion`                               |
 | Translation and localized ARIA text                             | `@exactjs/intl`                                 |
-| Intrinsic/ARIA correctness and finite composition checks        | Standard compiler                               |
-| Editing explanations and safe corrections                       | Language server                                 |
+| Intrinsic/ARIA correctness and finite composition checks        | Generic language host and package contribution  |
+| Editing explanations and safe corrections                       | Language server and package contribution        |
 | DOM identity, release, adoption, and physical focus application | Renderer and hydration runtime                  |
 
 An accessibility enhancement may contribute only the properties declared by its canonical
@@ -211,11 +216,56 @@ focus intent without replacing `:focus-visible`. Consumers normally use CSS; the
 for behavior that genuinely needs the current modality. Its listeners are installed only while a
 consumer exists and are released when the final lease ends.
 
-## Compiler diagnostics
+### Accessible relationships
 
-The checker owns a versioned projection of relevant HTML and ARIA role/property data. Generated
-tables must record their upstream specification version and be drift-checked; handwritten lists are
-limited to eXact composition rules. TypeScript continues to own ordinary JSX property typing.
+Relationship enhancements may publish finite ID-reference properties without forcing a reusable
+component to choose one accessible-name strategy for every consuming application:
+
+```tsx
+<button
+	aria-label={`Delete ${count} messages`}
+	intl:aria-label="plural:cardinal"
+	a11y:labelled-by={this.ref.deleteLabel}
+>
+	<TrashIcon aria-hidden="true" />
+</button>
+```
+
+This authoring is intentional. A component library may provide an ordinary or localized
+`aria-label` fallback and also offer a relationship enhancement; the consuming build decides which
+enhancement capabilities are selected. The compiler must not require the library author to erase
+one valid fallback merely because another selected build can provide a stronger relationship.
+
+Both attributes remain in the rendered target. This is valid because the W3C precedence rules give
+[`aria-labelledby` over `aria-label`](https://www.w3.org/TR/wai-aria-1.2/#aria-labelledby) and
+[`aria-describedby` over `aria-description`](https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_description).
+The relationship supplies the effective accessible name or description while the scalar remains a
+fallback if the relationship is absent, unresolved, disabled, or removed. The first delivery adds
+no cross-enhancement suppression metadata, special target arbitration, or post-creation cleanup
+merely to remove the shadowed attribute. A future optimization requires measured value and a
+generic composition justification.
+
+Refs are resolved only after their elements exist. A relationship depending on one or more DOM refs
+therefore keeps the scalar fallback emitted by SSR or initial DOM creation. After publication, the
+enhancement reads each referenced element's `id`, reuses every valid nonempty ID, and assigns a
+collision-safe enhancement-owned ID only where one is absent. It then adds the ordered, deduplicated
+relationship attribute without removing `aria-label` or `aria-description`.
+
+On disposal or rerouting, the enhancement removes only IDs that it generated, still have the exact
+owned value, and have no remaining lease. It never removes or replaces an authored ID. Generation
+fencing prevents a stale ref from publishing a relationship to a replacement target. Explicit ID
+strings may establish the relationship during SSR; DOM refs activate it after publication. Intl
+does not inspect accessibility, forms, or third-party enhancement identities and continues to own
+its scalar translation independently.
+
+## Language diagnostics
+
+The proposed package contribution owns a versioned projection of relevant HTML and ARIA
+role/property data. Generated tables must record their upstream specification version and be
+drift-checked; handwritten lists are limited to package composition rules. The language host
+supplies compiler-finite facts through its generic serialized projection; TypeScript continues to
+own ordinary JSX property typing. An enabled package-owned `error` participates in the generic
+compilation validation gate and prevents publication of that source generation.
 
 Every diagnostic has a stable code, primary source span, related reasons, and confidence class:
 
@@ -294,6 +344,12 @@ when the corresponding authored fallback property is present. It checks the fall
 shape but does not inspect catalogs. The intl analyzer remains responsible for placeholder,
 selector, locale, and catalog validation.
 
+Accessibility and forms relationship enhancements do not suppress intl properties.
+`aria-labelledby` may coexist with a localized `aria-label`, and `aria-describedby` may coexist with
+a localized `aria-description`; the browser applies the defined precedence. Intl continues to
+extract, validate, render, and reactively update its scalar property without inspecting arbitrary
+enhancement identities or attempting to reproduce the accessible-name algorithm.
+
 An intl target for a property required by the accessible-name proof must not resolve to an empty or
 whitespace-only value. Catalog validation reports the invalid target and runtime rendering retains
 the authored fallback. This rule is attached to the descriptor's semantic property role rather than
@@ -361,8 +417,9 @@ activation policy for that exact behavior.
 
 ## Language tools and DevTools
 
-The LSP presents the same diagnostic codes as the compiler and may offer code actions only when the
-edit is semantics-preserving or explicitly describes its behavioral change. Safe actions include:
+The LSP and CLI present the same package-owned diagnostic codes through the generic language host.
+The LSP may offer code actions only when the edit is semantics-preserving or explicitly describes
+its behavioral change. Safe actions include:
 
 - connecting an existing static label and control ID;
 - replacing a positive `tabIndex` with `0` when no authored order depends on it;
@@ -381,11 +438,12 @@ Protection is layered according to the boundary:
 
 - pure generated-table and diagnostic tests cover roles, properties, name sources, finite IDs,
   severity, and uncertainty fallbacks;
-- compiler/LSP parity tests prove identical diagnostic codes and reasons;
+- LSP/CLI parity tests prove identical diagnostic codes and reasons;
 - component tests cover nested focus scopes, restoration, keyed reorders, disabled items, RTL
   navigation, announcement coalescing, cancellation, and disposal;
 - DOM/SSR/hydration tests cover stable IDs, localized properties, dirty controls, passive adoption,
-  mismatch recovery, and lazy eligibility;
+  mismatch recovery, lazy eligibility, scalar/relationship coexistence, and ref-resolved
+  relationship cleanup;
 - intl integration tests switch locale while focus is inside reordered content and verify final
   accessible properties plus bounded announcement behavior;
 - browser accessibility-tree tests verify representative accessible names, descriptions, roles,
@@ -397,14 +455,16 @@ Automated accessibility scanners supplement these tests but do not replace behav
 
 ## Delivery slices
 
-1. **Compiler baseline:** generated ARIA data, intrinsic/role/property checks, accessible-name proof,
-   gesture/focusability checks, structured reasons, and LSP parity.
+1. **Language baseline:** generated ARIA data, declarative intrinsic/role/property checks,
+   accessible-name analysis, gesture/focusability checks, structured reasons, and LSP/CLI parity
+   through the generic language-extension host.
 2. **Focus and announcements:** required enhancement metadata, `FocusScope`, modal inertness,
    restoration, `LiveRegion`, explicit components, hydration behavior, and inspection.
 3. **Composite navigation:** roving focus, active descendant, keyed identity, direction-aware
    keyboard policy, and testing helpers.
 4. **Intl coordination:** neutral `LanguageContext`, localized-property nonempty contract, atomic
-   announcement coalescing, translated structural reorder coverage, and cross-package tests.
+   announcement coalescing, translated structural reorder coverage, scalar/relationship coexistence,
+   and cross-package tests.
 
 Slice 1 does not require the runtime package. Slices 2 and 3 may ship before an application uses
 intl, but slice 4 is required before the accessibility package is described as coordinated with the
@@ -418,8 +478,7 @@ internationalization enhancement.
    restoration authority on cancellation or disposal.
 4. The compiler emits no diagnostic that depends on executing application code, loading a catalog,
    or inspecting an opaque component implementation.
-5. Compiler and LSP diagnostics have stable codes, source ranges, related reasons, and matching
-   results.
+5. CLI and LSP diagnostics have stable codes, source ranges, related reasons, and matching results.
 6. Intl is the only writer of localized accessible-property text; accessibility is the only owner
    of its focus, keyboard, announcement, and relationship sessions.
 7. Localized accessible names retain source fallbacks and cannot become empty through a catalog.
@@ -429,3 +488,5 @@ internationalization enhancement.
    or announcement state.
 10. Excluding the entire package leaves no authored namespace unresolved and is permitted only when
     every reached activator has a proven native fallback or is absent.
+11. Component libraries may author both scalar and relationship accessibility fallbacks; the
+    corresponding attributes coexist and follow the platform's precedence rules.

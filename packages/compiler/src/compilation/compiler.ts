@@ -75,6 +75,7 @@ export type {
 	NativeCompilerImport,
 	NativeCompilerJSXAttribute,
 	NativeCompilerJSXElement,
+	NativeCompilerEnhancementActivation,
 	NativeCompilerReactiveBinding,
 	NativeCompilerStateAlias,
 	NativeCompilerStateRead,

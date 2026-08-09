@@ -17,6 +17,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
+		"@exactjs/core": "^0.1.0",
 		"@exactjs/intl": "^0.1.0",
 		"@exactjs/intl-analyzer": "^0.1.0",
 		"saxes": "^6.0.0"

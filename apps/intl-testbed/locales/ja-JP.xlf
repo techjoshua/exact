@@ -1,219 +1,209 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.1" srcLang="en-US" trgLang="ja-JP">
   <file id="f1" original="@exactjs/sample-intl-testbed">
-    <unit id="m1_WG3upXl4hD5ncxq34z_YctTe0G4IY4r1FgfbAS7Ou-8">
+    <unit id="lazy-idle_yms4d1R0xWX9Zbyp_IBCgFWl7V0_c3qES-9tZa2n28U">
       <segment>
         <source>Lazy locale chunk not requested.</source>
         <target>ロケールの遅延チャンクはまだ要求されていません。</target>
       </segment>
     </unit>
-    <unit id="m1_XzTt0dPcF3B-itrKN7hA0-4wsA2VP5peI4noe5b4WkY">
+    <unit id="panel-title_GA4E_gLtO0itGBqXPapuq0RuGQyLjTAM4rnJccu9yrw">
       <segment>
         <source>The same source, localized</source>
         <target>同じソースをローカライズ</target>
       </segment>
     </unit>
-    <unit id="m1__EIKrrhvUce4xXaB2927h-3AHE_YiTIyQ_cwmujxdHU">
+    <unit id="scenario-structure_9PcGjmcCg_mVz7U9eP8x18l6T_XIi5GOzj9WbYL6BAY">
       <segment>
         <source>Message structure</source>
         <target>メッセージ構造</target>
       </segment>
     </unit>
-    <unit id="m1_3iH7JWQnmmDuA58nGFr0gK1lD8m-bP64Gf2VXjI9BEk">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d2">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d3">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data></originalData>
+    <unit id="greeting_yumgKLrqc33GndjBM6roFbP9Cr_fvU0Z0Vwpw1JDbE4">
       <segment>
-        <source>Hello, <ph id="n1" type="ui" subType="exact:value" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/>. Read <pc id="n3" type="other" subType="exact:element" dataRefStart="d1" canCopy="no" canDelete="no">the catalog notes</pc>.</source>
-        <target>こんにちは、<ph id="t1" type="ui" subType="exact:value" equiv="{0}" dataRef="d2" canCopy="no" canDelete="no"/>。<pc id="t3" type="other" subType="exact:element" dataRefStart="d3" canCopy="no" canDelete="no">カタログの注記</pc>。</target>
+        <source>Hello, <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/>. Read <pc id="n3" equivStart="&lt;catalogs&gt;" equivEnd="&lt;/catalogs&gt;" canCopy="no" canDelete="no">the catalog notes</pc>.</source>
+        <target>こんにちは、<ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/>。<pc id="n3" equivStart="&lt;catalogs&gt;" equivEnd="&lt;/catalogs&gt;" canCopy="no" canDelete="no">カタログの注記</pc>。</target>
       </segment>
     </unit>
-    <unit id="m1_NZHG2jvRqPnzHyoS_fQuq8OQKfWGi9NqE1dYNjUcynM">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;opaque&quot;,&quot;binding&quot;:1,&quot;name&quot;:&quot;recipient&quot;}</data><data id="d2">{&quot;kind&quot;:&quot;opaque&quot;,&quot;binding&quot;:1,&quot;name&quot;:&quot;recipient&quot;}</data><data id="d3">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:0}</data></originalData>
+    <unit id="transfer-order_Fq8aTGS5v0mUFYjcEiXNUXjOtRMLa_fgrD8RcHGqyVU">
       <segment>
-        <source>Send <pc id="n1" type="other" subType="exact:element" dataRefStart="d0" canCopy="no" canDelete="no">the quarterly report</pc> to <ph id="n3" type="ui" subType="exact:opaque" equiv="{recipient}" dataRef="d1" canCopy="no" canDelete="no"/>.</source>
-        <target><ph id="t0" type="ui" subType="exact:opaque" equiv="{recipient}" dataRef="d2" canCopy="no" canDelete="no"/>に<pc id="t2" type="other" subType="exact:element" dataRefStart="d3" canCopy="no" canDelete="no">四半期レポート</pc>を送信してください。</target>
+        <source>Send <pc id="n1" equivStart="&lt;report&gt;" equivEnd="&lt;/report&gt;" canCopy="no" canDelete="no">the quarterly report</pc> to <ph id="n3" equiv="{recipient}" canCopy="no" canDelete="no"/>.</source>
+        <target><ph id="n3" equiv="{recipient}" canCopy="no" canDelete="no"/>に<pc id="n1" equivStart="&lt;report&gt;" equivEnd="&lt;/report&gt;" canCopy="no" canDelete="no">四半期レポート</pc>を送信してください。</target>
       </segment>
     </unit>
-    <unit id="m1_QIPQw9GQEndz3dXNIi6l78EULi0afnPtL_3T26GZzqM">
+    <unit id="reorder-note_06L1CZUZWAgZihBsog6Cik6AhvOUSMp5T-mKhHm1X4k">
       <segment>
         <source>The report and recipient are movable, but their implementations are not translated.</source>
         <target>レポートと受信者は移動できますが、その実装は翻訳されません。</target>
       </segment>
     </unit>
-    <unit id="m1_r7GR4DXfVpXwU4obEfLAmfy263JPp3Y5rE5zcCWYawU">
+    <unit id="scenario-selection_QP1K8U1VAWjNycAE8r9Nz_zq91Ba_4w4E1TZwKSLT3Y">
       <segment>
         <source>Branches and plurality</source>
         <target>分岐と複数形</target>
       </segment>
     </unit>
-    <unit id="m1_EaK7p87-ovUG3LYeQkZkd--nyKEwv07KXe1UE9O39hI">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-cardinal&quot;}</data><data id="d2">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data></originalData>
+    <unit id="inbox-count_PleJcWPj6LR6akas4U6vdHfLEqupeZ8yBDBynzbl0uw">
       <segment>
-        <source>You have <ph id="n1" type="ui" subType="exact:value" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/> new <pc id="n3" type="other" subType="exact:select" dataRefStart="d1" canCopy="no" canDelete="no"><mrk id="n3.c0" type="exact:case" value="=1">message</mrk><mrk id="n3.fallback" type="exact:fallback">messages</mrk></pc>.</source>
-        <target>新着メッセージは<ph id="t1" type="ui" subType="exact:value" equiv="{0}" dataRef="d2" canCopy="no" canDelete="no"/>件あります。</target>
+        <source>You have <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/> new <pc id="n3" equivStart="{plural-cardinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n3.case.0" type="generic" value="=1">message</mrk><mrk id="n3.fallback" type="generic">messages</mrk></pc>.</source>
+        <target>新着メッセージは<ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/>件あります。</target>
       </segment>
     </unit>
-    <unit id="m1_7Z9gQd1-8M8D9Y5TjQIsxG9pT62WKOp9l5_t1hf-hH0">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;boolean&quot;}</data><data id="d1">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:1,&quot;selection&quot;:&quot;exact&quot;}</data><data id="d2">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;boolean&quot;}</data><data id="d3">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:1,&quot;selection&quot;:&quot;exact&quot;}</data></originalData>
+    <unit id="status-selection_bL40OGY7YKXQeGgjXae6VtkEIi7Stdhwj1irm5dfipQ">
       <segment>
-        <source><pc id="n0" type="other" subType="exact:select" dataRefStart="d0" canCopy="no" canDelete="no"><mrk id="n0.c0" type="exact:case" value="true">Ready</mrk><mrk id="n0.fallback" type="exact:fallback">Waiting</mrk></pc>: <pc id="n2" type="other" subType="exact:select" dataRefStart="d1" canCopy="no" canDelete="no"><mrk id="n2.c0" type="exact:case" value="owner">Owner</mrk><mrk id="n2.fallback" type="exact:fallback">Member</mrk></pc></source>
-        <target><pc id="t0" type="other" subType="exact:select" dataRefStart="d2" canCopy="no" canDelete="no"><mrk id="t0.c0" type="exact:case" value="true">準備完了</mrk><mrk id="t0.fallback" type="exact:fallback">待機中</mrk></pc>：<pc id="t2" type="other" subType="exact:select" dataRefStart="d3" canCopy="no" canDelete="no"><mrk id="t2.c0" type="exact:case" value="owner">所有者</mrk><mrk id="t2.fallback" type="exact:fallback">メンバー</mrk></pc></target>
+        <source><pc id="n0" equivStart="{boolean}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n0.case.0" type="generic" value="true">Ready</mrk><mrk id="n0.fallback" type="generic">Waiting</mrk></pc>: <pc id="n2" equivStart="{exact}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n2.case.0" type="generic" value="owner">Owner</mrk><mrk id="n2.fallback" type="generic">Member</mrk></pc></source>
+        <target><pc id="n0" equivStart="{boolean}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n0.case.0" type="generic" value="true">準備完了</mrk><mrk id="n0.fallback" type="generic">待機中</mrk></pc>：<pc id="n2" equivStart="{exact}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n2.case.0" type="generic" value="owner">所有者</mrk><mrk id="n2.fallback" type="generic">メンバー</mrk></pc></target>
       </segment>
     </unit>
-    <unit id="m1_sb6uwNHzDHkOQMVR5OInsZOpSwoG09kC2x6WrIDS7kE">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d2">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-ordinal&quot;}</data><data id="d3">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d4">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d5">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-ordinal&quot;}</data></originalData>
+    <unit id="ordinal-position_clxl8T_LMp9L-5xOM9XxpOk0PIJDmB-CK6_R3mZFr4g">
       <segment>
-        <source>You finished <ph id="n1" type="ui" subType="exact:value" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/><pc id="n2" type="other" subType="exact:element" dataRefStart="d1" canCopy="no" canDelete="no"><pc id="n2.0" type="other" subType="exact:select" dataRefStart="d2" canCopy="no" canDelete="no"><mrk id="n2.0.c0" type="exact:case" value="zero">th</mrk><mrk id="n2.0.c1" type="exact:case" value="one">st</mrk><mrk id="n2.0.c2" type="exact:case" value="two">nd</mrk><mrk id="n2.0.c3" type="exact:case" value="few">rd</mrk><mrk id="n2.0.c4" type="exact:case" value="many">th</mrk><mrk id="n2.0.fallback" type="exact:fallback">th</mrk></pc></pc> in the review queue.</source>
-        <target>レビュー待ちの<ph id="t1" type="ui" subType="exact:value" equiv="{0}" dataRef="d3" canCopy="no" canDelete="no"/><pc id="t2" type="other" subType="exact:element" dataRefStart="d4" canCopy="no" canDelete="no"><pc id="t2.0" type="other" subType="exact:select" dataRefStart="d5" canCopy="no" canDelete="no"><mrk id="t2.0.c0" type="exact:case" value="zero">位</mrk><mrk id="t2.0.c1" type="exact:case" value="one">位</mrk><mrk id="t2.0.c2" type="exact:case" value="two">位</mrk><mrk id="t2.0.c3" type="exact:case" value="few">位</mrk><mrk id="t2.0.c4" type="exact:case" value="many">位</mrk><mrk id="t2.0.fallback" type="exact:fallback">位</mrk></pc></pc>で完了しました。</target>
+        <source>You finished <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/><pc id="n2" equivStart="&lt;sup&gt;" equivEnd="&lt;/sup&gt;" canCopy="no" canDelete="no"><pc id="n2.0" equivStart="{plural-ordinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n2.0.case.0" type="generic" value="zero">th</mrk><mrk id="n2.0.case.1" type="generic" value="one">st</mrk><mrk id="n2.0.case.2" type="generic" value="two">nd</mrk><mrk id="n2.0.case.3" type="generic" value="few">rd</mrk><mrk id="n2.0.case.4" type="generic" value="many">th</mrk><mrk id="n2.0.fallback" type="generic">th</mrk></pc></pc> in the review queue.</source>
+        <target>レビュー待ちの<ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/><pc id="n2" equivStart="&lt;sup&gt;" equivEnd="&lt;/sup&gt;" canCopy="no" canDelete="no"><pc id="n2.0" equivStart="{plural-ordinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n2.0.case.0" type="generic" value="zero">位</mrk><mrk id="n2.0.case.1" type="generic" value="one">位</mrk><mrk id="n2.0.case.2" type="generic" value="two">位</mrk><mrk id="n2.0.case.3" type="generic" value="few">位</mrk><mrk id="n2.0.case.4" type="generic" value="many">位</mrk><mrk id="n2.0.fallback" type="generic">位</mrk></pc></pc>で完了しました。</target>
       </segment>
     </unit>
-    <unit id="m1_dHOHcQW5cdiY4R9f6FLIPaAJi0mXGSiK_g-3tCouUmw">
+    <unit id="scenario-formatters_27ms8_weeXjQv9DBZmznoJk0EpUTAzH-R5z9EU7ZD34">
       <segment>
         <source>Native intent inference</source>
         <target>ネイティブな意図の推論</target>
       </segment>
     </unit>
-    <unit id="m1_1COWfALEKvzHa6xuZwI_RR0Rzp4owxqa1-NpHNvYyAU">
+    <unit id="label-currency_-60Wr66qTmij8VB_LgoZUmoV1rMqc1qlS3YjZ6REv5g">
       <segment>
         <source>Currency</source>
         <target>通貨</target>
       </segment>
     </unit>
-    <unit id="m1_K_mOacK4BJR02neFP-3KZc8o5ky31ap0mUKSaWPKJTg">
+    <unit id="label-road-range_wTdxWPONgwxI9o5smv2BYImMbne4ch9C2t5tY7jF5WQ">
       <segment>
         <source>Road range</source>
         <target>道路距離</target>
       </segment>
     </unit>
-    <unit id="m1_cYY6FmWgWrm4PLpXp0uAyDeOSFs58brCX2abIrUXZj0">
+    <unit id="label-height_OyX4cdcLQUGRQmHPvPD5wz1YZqNhwREHymL6FOq6kHo">
       <segment>
         <source>Person height</source>
         <target>身長</target>
       </segment>
     </unit>
-    <unit id="m1_1i0aFRCljxVVe10X8Juj5mYaGe6rHDpIGXqEeJDJB2M">
+    <unit id="label-temperature_ySk8XyivFza4INOtPW79B4HYUpllMEY1lEuUHDDHAPs">
       <segment>
         <source>Temperature</source>
         <target>気温</target>
       </segment>
     </unit>
-    <unit id="m1_YlJsALuDD_zho-iYkFx-Y0xmFzLOWVNDyKYfrmh3N7o">
+    <unit id="label-land-area_BaM4w-g03yEJmzxBNdKExLMK4P6v3b37YMlyGxjIWyg">
       <segment>
         <source>Land area</source>
         <target>土地面積</target>
       </segment>
     </unit>
-    <unit id="m1_wUr1bu0LJvtXl2dqHN_mMnKVzNUk0TPJVGF7-eX-RHE">
+    <unit id="label-person-mass_cklpzldPeDkkNsW5EgFwoxBY27lHFoJw5-Roup_ZJhI">
       <segment>
         <source>Person mass</source>
         <target>体重</target>
       </segment>
     </unit>
-    <unit id="m1_x_B0Dz42ueHeH7-Z4sMYkZxMBSn8zhZjaRi_x8hEqeI">
+    <unit id="label-liquid-volume_XrYbDhYOiS9gpiZDGwDtDB10W2XBDoeFpbC4V11zSCw">
       <segment>
         <source>Liquid volume</source>
         <target>液体の体積</target>
       </segment>
     </unit>
-    <unit id="m1_sDLr0tNZg7K6kleM3yhHHBt0Eb031aVITg1_dxidCOE">
+    <unit id="label-road-speed_PUfvD0KmzzSfWsL144LDH-ZxQj_Qk_rz4MtI5_KACU8">
       <segment>
         <source>Road speed</source>
         <target>走行速度</target>
       </segment>
     </unit>
-    <unit id="m1_cGeZHOJFTvM9xDLElJICWJJyAbZy3fGGuJbvf-zSgW8">
+    <unit id="label-weather-pressure_IE6C_lpLiOlW1ehnXD7daOhmwhr47gJpacWjV7pyogY">
       <segment>
         <source>Weather pressure</source>
         <target>気圧</target>
       </segment>
     </unit>
-    <unit id="m1_N5ksvkBpdWj45Hq0SRQ1_PU3-A-kvH4xxw2DXa7WPbg">
+    <unit id="label-food-energy_tad7A0XbGdeQbsE161Z7qwnXLqO0VffW-sG7ZUaxfoE">
       <segment>
         <source>Food energy</source>
         <target>食品エネルギー</target>
       </segment>
     </unit>
-    <unit id="m1_ilPElpNZs0nP7IgkoTC0lH7HyZk0LaXozZNnhb7MPQ0">
+    <unit id="label-engine-power_TsDuqt80srOz_fFWsEOU1r09O8cAZPxQYlDNoCKsnVQ">
       <segment>
         <source>Engine power</source>
         <target>エンジン出力</target>
       </segment>
     </unit>
-    <unit id="m1_As5hjWX04TInT4cCtjjeUnLNG7A9l3-qxn1kiibG_Co">
+    <unit id="label-fuel-economy_cHUT7tZvCb4Xce3pL3LXa6dzidX6Cv_5G0Xw_q3uJtc">
       <segment>
         <source>Fuel economy</source>
         <target>燃費</target>
       </segment>
     </unit>
-    <unit id="m1_NgpxchjRPDhuQTOVxlxK5iGmJ2fYKk1plG9-eN6nvmc">
+    <unit id="label-digital-storage_pr2AntMos5j6XLYxFCALEdT2jNIDbXfKozlkZe9X0Fk">
       <segment>
         <source>Digital storage</source>
         <target>デジタルストレージ</target>
       </segment>
     </unit>
-    <unit id="m1_aM9Gych4lZt9ksTmyhefVKxecQyCmhYwUzNaCg25f-0">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;kind&quot;:&quot;date-time&quot;,&quot;options&quot;:{&quot;dateStyle&quot;:&quot;long&quot;,&quot;timeStyle&quot;:&quot;short&quot;,&quot;timeZone&quot;:&quot;UTC&quot;},&quot;temporalKind&quot;:&quot;temporal-date-time&quot;}}</data><data id="d1">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;kind&quot;:&quot;date-time&quot;,&quot;options&quot;:{&quot;dateStyle&quot;:&quot;long&quot;,&quot;timeStyle&quot;:&quot;short&quot;,&quot;timeZone&quot;:&quot;UTC&quot;},&quot;temporalKind&quot;:&quot;temporal-date-time&quot;}}</data></originalData>
+    <unit id="date-time_V3HVUW4DfD_2XyZPa-pA0dPxXNBPoa-soUvGZQ6NkwQ">
       <segment>
-        <source>Published <ph id="n1" type="ui" subType="exact:format" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/>.</source>
-        <target>公開：<ph id="t1" type="ui" subType="exact:format" equiv="{0}" dataRef="d1" canCopy="no" canDelete="no"/>。</target>
+        <source>Published <ph id="n1" equiv="{date-time}" canCopy="yes" canDelete="no"/>.</source>
+        <target>公開：<ph id="n1" equiv="{date-time}" canCopy="yes" canDelete="no"/>。</target>
       </segment>
     </unit>
-    <unit id="m1_c3Dgw-d4nWETVN7cT-YIGFOLFcTI4mQPee8A1mbnIIM">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0,1],&quot;formatter&quot;:{&quot;kind&quot;:&quot;date-time&quot;,&quot;options&quot;:{&quot;dateStyle&quot;:&quot;medium&quot;,&quot;timeZone&quot;:&quot;UTC&quot;},&quot;range&quot;:true,&quot;temporalKind&quot;:&quot;temporal-date-time&quot;}}</data><data id="d1">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0,1],&quot;formatter&quot;:{&quot;kind&quot;:&quot;date-time&quot;,&quot;options&quot;:{&quot;dateStyle&quot;:&quot;medium&quot;,&quot;timeZone&quot;:&quot;UTC&quot;},&quot;range&quot;:true,&quot;temporalKind&quot;:&quot;temporal-date-time&quot;}}</data></originalData>
+    <unit id="date-range_om_djg8eJiw2j97NIOr3JCMzQL4933bym8HYG1N-FZ0">
       <segment>
-        <source>Campaign: <ph id="n1" type="ui" subType="exact:format" equiv="{0,1}" dataRef="d0" canCopy="no" canDelete="no"/>.</source>
-        <target>キャンペーン：<ph id="t1" type="ui" subType="exact:format" equiv="{0,1}" dataRef="d1" canCopy="no" canDelete="no"/>。</target>
+        <source>Campaign: <ph id="n1" equiv="{date-time}" canCopy="yes" canDelete="no"/>.</source>
+        <target>キャンペーン：<ph id="n1" equiv="{date-time}" canCopy="yes" canDelete="no"/>。</target>
       </segment>
     </unit>
-    <unit id="m1_t7fWrcFy5BbKswlWxRW8kkFfM3yZmKa1sHo8FNxJjQ0">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;fields&quot;:[&quot;years&quot;,&quot;months&quot;,&quot;weeks&quot;,&quot;days&quot;,&quot;hours&quot;,&quot;minutes&quot;,&quot;seconds&quot;],&quot;kind&quot;:&quot;relative-duration&quot;,&quot;options&quot;:{&quot;numeric&quot;:&quot;always&quot;},&quot;zero&quot;:&quot;just now&quot;}}</data><data id="d1">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;fields&quot;:[&quot;years&quot;,&quot;months&quot;,&quot;weeks&quot;,&quot;days&quot;,&quot;hours&quot;,&quot;minutes&quot;,&quot;seconds&quot;],&quot;kind&quot;:&quot;relative-duration&quot;,&quot;options&quot;:{&quot;numeric&quot;:&quot;always&quot;},&quot;zero&quot;:&quot;just now&quot;}}</data></originalData>
+    <unit id="relative-duration_WlmrcPKy_xePlHiPuUoPon0Y3ThbLX-QdznDyN4H7c8">
       <segment>
-        <source>Posted <ph id="n1" type="ui" subType="exact:format" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/>.</source>
-        <target>投稿日：<ph id="t1" type="ui" subType="exact:format" equiv="{0}" dataRef="d1" canCopy="no" canDelete="no"/>。</target>
+        <source>Posted <ph id="n1" equiv="{relative-duration}" canCopy="yes" canDelete="no"/>.</source>
+        <target>投稿日：<ph id="n1" equiv="{relative-duration}" canCopy="yes" canDelete="no"/>。</target>
       </segment>
     </unit>
-    <unit id="m1_Y1hZ7ieWHJiYvZNhmxsGaN62cJ435l5xHCAcQ8IyL3A">
-      <originalData><data id="d0">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;domain&quot;:&quot;language&quot;,&quot;kind&quot;:&quot;display-name&quot;,&quot;options&quot;:{}}}</data><data id="d1">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[1],&quot;formatter&quot;:{&quot;kind&quot;:&quot;list&quot;,&quot;options&quot;:{&quot;type&quot;:&quot;conjunction&quot;}}}</data><data id="d2">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;domain&quot;:&quot;language&quot;,&quot;kind&quot;:&quot;display-name&quot;,&quot;options&quot;:{}}}</data><data id="d3">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[1],&quot;formatter&quot;:{&quot;kind&quot;:&quot;list&quot;,&quot;options&quot;:{&quot;type&quot;:&quot;conjunction&quot;}}}</data></originalData>
+    <unit id="display-list_2VxOPoHvS8HBV8ogcX4eMqHz0daqWCDZ32FutiG8Btw">
       <segment>
-        <source>Language: <ph id="n1" type="ui" subType="exact:format" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/>. Team: <ph id="n3" type="ui" subType="exact:format" equiv="{1}" dataRef="d1" canCopy="no" canDelete="no"/>.</source>
-        <target>言語：<ph id="t1" type="ui" subType="exact:format" equiv="{0}" dataRef="d2" canCopy="no" canDelete="no"/>。チーム：<ph id="t3" type="ui" subType="exact:format" equiv="{1}" dataRef="d3" canCopy="no" canDelete="no"/>。</target>
+        <source>Language: <ph id="n1" equiv="{display-name}" canCopy="yes" canDelete="no"/>. Team: <ph id="n3" equiv="{list}" canCopy="yes" canDelete="no"/>.</source>
+        <target>言語：<ph id="n1" equiv="{display-name}" canCopy="yes" canDelete="no"/>。チーム：<ph id="n3" equiv="{list}" canCopy="yes" canDelete="no"/>。</target>
       </segment>
     </unit>
-    <unit id="m1_iVe1MQs6bcsyAA-zQ62auPYbt0i-STxu1KcbHtqFXis">
+    <unit id="scenario-properties_D8uvkgteETeOA8EfcIs-kgz5AHR49u4vbPKThlnGyjk">
       <segment>
         <source>Intrinsic properties</source>
         <target>組み込みプロパティ</target>
       </segment>
     </unit>
-    <unit id="m1_QmR3GiAPGf1qeA3zWUhyHZnr_H8sQnHqoELjjvcKWV0">
-      <segment>
-        <source>Search messages</source>
-        <target>メッセージを検索</target>
-      </segment>
-    </unit>
-    <unit id="m1_9uetvMp9mOy1qOqf0QckVWvQVsdudWrxcuqQZyr49ek">
-      <segment>
-        <source>Search the localized inbox</source>
-        <target>ローカライズ済み受信箱を検索</target>
-      </segment>
-    </unit>
-    <unit id="m1_nbpNaajXndjYYmiWEV9GcMoKvMwC17s-2dqdtMLJIM0">
+    <unit id="scenario-unenhanced_jWZ8rV67CFB8CXt90JUkOIQr4o0a871YRy2bddH4M8E">
       <segment>
         <source>Intentional non-translated content</source>
         <target>意図的に翻訳しないコンテンツ</target>
       </segment>
     </unit>
-    <unit id="m1_oEm_bc8lI-ZKgY_FcIeKccwIueAo_-c5wmh1BuBt6nI">
+    <unit id="lazy-loading_TpZJev3AeLkIt06WfRQs7Sd2dqLxdoj30S2Vf3g9eGE">
       <segment>
         <source>Loading locale chunk…</source>
         <target>ロケールチャンクを読み込んでいます…</target>
       </segment>
     </unit>
-    <unit id="m1_gFRipPKPjyV6DUH_SEdHNmClUzFflITdqvcvtaxYn5w">
+    <unit id="DHMY_Q_GWH6RL2_LNMCFHzKHZX54I92cTsmV30EUBSY">
+      <segment>
+        <source>Search messages</source>
+        <target>メッセージを検索</target>
+      </segment>
+    </unit>
+    <unit id="tddfnfYuNEGY2VgSvcJFShEE0m5RgfACpQzE-6U5qhI">
+      <segment>
+        <source>Search the localized inbox</source>
+        <target>ローカライズ済み受信箱を検索</target>
+      </segment>
+    </unit>
+    <unit id="lazy-arrival_HBAgakG10gTAlGe2d-AiAbNX5edSrPKFGOmQVrP1lJU">
       <segment>
         <source>This translated panel and its catalog arrived in a separate lazy chunk.</source>
         <target>翻訳パネルとカタログが別の遅延チャンクから読み込まれました。</target>
       </segment>
     </unit>
-    <unit id="m1_aB1OniMmVS98PV94jZscRXxgGuPqaSing6OCEb8gtD0" translate="no" type="exact:obsolete"><originalData><data id="d0">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d2">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-ordinal&quot;}</data><data id="d3">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d4">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d5">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-ordinal&quot;}</data></originalData><segment><source>You finished <ph id="n1" type="ui" subType="exact:value" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"></ph><pc id="n2" type="other" subType="exact:element" dataRefStart="d1" canCopy="no" canDelete="no"><pc id="n2.0" type="other" subType="exact:select" dataRefStart="d2" canCopy="no" canDelete="no"><mrk id="n2.0.c0" type="exact:case" value="=1">st</mrk><mrk id="n2.0.c1" type="exact:case" value="=2">nd</mrk><mrk id="n2.0.c2" type="exact:case" value="=3">rd</mrk><mrk id="n2.0.fallback" type="exact:fallback">th</mrk></pc></pc> in the review queue.</source><target>レビュー待ちの<ph id="t1" type="ui" subType="exact:value" equiv="{0}" dataRef="d3" canCopy="no" canDelete="no"></ph><pc id="t2" type="other" subType="exact:element" dataRefStart="d4" canCopy="no" canDelete="no"><pc id="t2.0" type="other" subType="exact:select" dataRefStart="d5" canCopy="no" canDelete="no"><mrk id="t2.0.c0" type="exact:case" value="=1">位</mrk><mrk id="t2.0.c1" type="exact:case" value="=2">位</mrk><mrk id="t2.0.c2" type="exact:case" value="=3">位</mrk><mrk id="t2.0.fallback" type="exact:fallback">位</mrk></pc></pc>で完了しました。</target></segment></unit>
   </file>
 </xliff>

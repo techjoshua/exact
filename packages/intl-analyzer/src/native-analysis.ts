@@ -33,7 +33,7 @@ export interface NativeIntlDescriptor {
 	readonly bindings: readonly IntlBindingDescriptorV1[];
 	readonly source: IntlPatternV1;
 	readonly capabilities: readonly string[];
-	readonly context?: string;
+	readonly name?: string;
 	readonly sourceRange: Readonly<{ file: string; start: number; length: number }>;
 }
 
@@ -52,6 +52,7 @@ export interface NativeIntlRegion {
 		attribute?: NativeIntlSpan;
 		opaque?: boolean;
 	}>[];
+	readonly evidence: readonly Readonly<NativeIntlSpan & { kind: string; detail: string }>[];
 }
 
 /** Data-only result returned by the isolated native intl operation. */
@@ -60,6 +61,7 @@ export interface NativeIntlAnalysis {
 	readonly descriptors: readonly NativeIntlDescriptor[];
 	readonly descriptorOwnerOrdinals: readonly number[];
 	readonly regions: readonly NativeIntlRegion[];
+	readonly untranslated: readonly NativeIntlSpan[];
 	readonly diagnostics: readonly Readonly<{
 		file: string;
 		start: number;
@@ -135,6 +137,7 @@ function normalizeNativeIntlAnalysis(
 			attribute: span(region.attribute),
 			content: span(region.content),
 			values: region.values.map(span),
+			evidence: region.evidence.map((item) => ({ ...item, ...span(item) })),
 			structures: region.structures.map((structure) => ({
 				...structure,
 				element: span(structure.element),
@@ -142,6 +145,7 @@ function normalizeNativeIntlAnalysis(
 				...(structure.attribute ? { attribute: span(structure.attribute) } : {})
 			}))
 		})),
+		untranslated: analysis.untranslated.map(span),
 		diagnostics: analysis.diagnostics.map((diagnostic) => ({
 			...diagnostic,
 			...span(diagnostic)
@@ -174,6 +178,7 @@ function validateNativeIntlAnalysis(value: unknown): NativeIntlAnalysis {
 		!Array.isArray(candidate.descriptors) ||
 		!Array.isArray(candidate.descriptorOwnerOrdinals) ||
 		!Array.isArray(candidate.regions) ||
+		!Array.isArray(candidate.untranslated) ||
 		!Array.isArray(candidate.diagnostics) ||
 		!Array.isArray(candidate.clientRequirements)
 	)

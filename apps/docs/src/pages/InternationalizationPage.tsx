@@ -5,8 +5,11 @@ import { Callout } from './Callout.jsx';
 import {
 	intlConfigurationSource,
 	intlCardinalSource,
+	intlCacheSource,
 	intlDurationSource,
 	intlFormattersSource,
+	intlLanguageToolsSource,
+	intlLocaleSource,
 	intlMessageSource,
 	intlOrdinalSource,
 	intlPropertiesSource,
@@ -41,6 +44,51 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>See inferred intent and translation coverage in the editor</h2>
+				<CodeBlock source={intlLanguageToolsSource} language="ts" title="exact.config.ts" />
+				<p>
+					The Node-only intl language provider reuses the native build analyzer through eXact&apos;s
+					generic trusted language-extension host. Hovering an <code>intl:*</code> activation shows
+					the durable key, source locale, target, inferred plural, formatter, temporal, currency, or
+					semantic-unit behavior, and every configured JSON or XLIFF locale containing that key.
+				</p>
+				<p>
+					The package-scoped enhancement export makes <code>intl:*</code> available without a
+					per-component import and asks the provider to inspect every compiled component for
+					linguistic content that may have been missed.
+				</p>
+				<p>
+					Invalid message shapes are editor and build errors. Required locales can produce missing
+					translation warnings, semantic unit values receive completions, and concise hints
+					summarize inference inline. Source fragments that prove an inference are underlined; hover
+					the fallback text, authored branch, Temporal value, or native <code>Intl.*</code>{' '}
+					expression to see what was recognized. The host, analyzer, and catalog reads never enter
+					the browser bundle.
+				</p>
+				<p>
+					Likely linguistic JSX text and supported intrinsic properties outside their intl
+					enhancements receive a <code>missing-intl</code> warning. The standard inherited HTML
+					<code>translate=&quot;no&quot;</code> attribute marks intentional exclusions.{' '}
+					<code>lang</code>
+					and <code>dir</code> describe content but do not opt it out of translation.
+				</p>
+			</section>
+			<section>
+				<h2>Locale scopes set language metadata correctly</h2>
+				<CodeBlock source={intlLocaleSource} language="tsx" title="LocalizedRoot.tsx" />
+				<p>
+					A valueless <code>intl:locale</code> reuses the nearest environment. A locale value reuses
+					that environment&apos;s cached locale scope or creates a zero-configuration environment
+					when there is no provider. The enhancement projects reactive <code>lang</code> and
+					<code>dir</code> attributes during SSR, hydration, and client updates.
+				</p>
+				<p>
+					Locale literals use a CLDR-backed <code>IntlLocaleString</code> type and receive exact BCP
+					47 validation from the intl language integration. Use <code>defineIntlLocale()</code> to
+					validate and narrow route, header, or user-provided strings.
+				</p>
+			</section>
+			<section>
 				<h2>Messages stay ordinary TSX</h2>
 				<CodeBlock source={intlMessageSource} language="tsx" title="Greeting.tsx" />
 				<p>
@@ -53,7 +101,8 @@ export function InternationalizationPage(this: Component<{}>) {
 				<p>
 					A component range can be wrapped in a named <code>intl:fragment</code>. Translation may
 					move that exactly-once opaque slot, while analysis leaves its component and independently
-					owned messages untouched.
+					owned messages untouched. The field is compile-time analyzer metadata, so it is validated
+					and removed without mounting another runtime enhancement.
 				</p>
 				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
 			</section>
@@ -74,7 +123,7 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 				<p>
 					Static cardinal <code>Intl.PluralRules</code> category maps are supported as well. The
-					test bed compares Arabic, Polish, French, and Hindi under one reactive count, including
+					analyzer fixtures cover Arabic, Polish, French, and Hindi source packages, including
 					Arabic&apos;s six-way and Polish&apos;s four-way cardinal systems. Currency names and
 					symbols are likewise profiled from native <code>Intl.NumberFormat.formatToParts()</code>,
 					so localized fallback labels infer currency identity and display without per-language
@@ -160,12 +209,22 @@ export function InternationalizationPage(this: Component<{}>) {
 					The intl runtime is published as a standard compiled eXact component library. Its normal
 					build facts carry component identity, and <code>@exactjs/intl/enhancements</code> exports
 					the namespaced message, selection, formatter, CLDR, and translated-property enhancements.
-					No compiler or Suspense allowlist is specific to intl.
+					No component or Suspense allowlist is specific to intl; the compiler&apos;s native
+					ECMA-402 cache lowering is independent of message and catalog analysis.
 				</p>
 				<p>
-					Native <code>Intl</code> formatter instances are reused by a bounded, lazily created cache
-					owned by each provider environment. That keeps formatter lifetime with the language
-					context, avoids unused formatter construction, and avoids process-global locale state.
+					Native <code>Intl</code> formatter instances are reused by one bounded, lazily created
+					realm-wide cache in core. Each provider resolves omitted or source-locale requests to its
+					current locale before lookup, while preserving unrelated explicit locales, so provider
+					roots share equivalent formatter objects without sharing active-locale state.
+				</p>
+				<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
+				<p>
+					The compiler lowers proven native constructor chains, finite formatter bindings, and
+					native number, bigint, and <code>Date</code> locale-string calls to <code>this.intl</code>
+					. A formatter declaration disappears when every use becomes a cached operation; escaping
+					objects remain observable but are constructed through the cache. Helpers without a
+					component owner import the public <code>intl</code> facade directly.
 				</p>
 				<p>
 					Each message is joined to a public compiler component identity after compilation. Watched
@@ -198,16 +257,15 @@ export function InternationalizationPage(this: Component<{}>) {
 					Dependencies may publish inert message contracts and selected locale catalogs through
 					fixed package metadata. The build coordinator discovers and validates those public data
 					exports without evaluating package code. XLIFF 2.1 is the persisted translation source of
-					truth: ordinary text and standard inline codes remain visible to translation tools, while
-					bounded eXact metadata preserves bindings and formatter intent. That metadata lives in
-					standard <code>originalData</code> entries referenced by <code>dataRef</code>, not in
-					foreign XML attributes. Required codes cannot be copied or deleted, but translators may
+					truth: ordinary text and generic standard inline codes remain visible to translation
+					tools. Runtime bindings and formatter intent remain in a separately hashed build contract
+					and never enter the translator file. Required codes cannot be deleted, but translators may
 					still reorder them. The files use XLIFF 2.1&apos;s unchanged 2.0 core namespace and are
-					validated against its official schema. Synchronization keeps targets, notes, review state,
-					and obsolete history. Protocol JSON is derived runtime data for generated integrations,
-					and every import lowers into the same validated message IR. Regional targets fall back
-					through matching script and language catalogs. Existing root environments also adopt
-					validated descriptor/catalog slices when a lazy component companion arrives.
+					validated structurally. Synchronization keeps compatible targets, notes, and review state,
+					and removes obsolete units. Protocol JSON is derived runtime data for generated
+					integrations, and every import lowers into the same validated message IR. Regional targets
+					fall back through matching script and language catalogs. Existing root environments also
+					adopt validated descriptor/catalog slices when a lazy component companion arrives.
 				</p>
 			</section>
 			<section>
@@ -220,9 +278,17 @@ export function InternationalizationPage(this: Component<{}>) {
 					preserves the intrinsic, events, refs, and unrelated properties.
 				</p>
 				<p>
+					Within a named content message, property keys inherit a readable message-and-property
+					prefix such as <code>account_placeholder</code>. Each property still hashes its own
+					generic text and placeholder contract, and an explicit property-level name overrides the
+					derived prefix.
+				</p>
+				<p>
 					Formatter roles use the same namespaced form. For example,
 					<code>intl:aria-label="display-name:languageCode"</code> turns a language code fallback
-					into a localized display name without a separate runtime mini-language.
+					into a localized display name without a separate runtime mini-language. This is a
+					formatter-only descriptor backed by locale data, so it needs no XLIFF unit and its editor
+					hint reports translation coverage as not applicable.
 				</p>
 			</section>
 			<section>

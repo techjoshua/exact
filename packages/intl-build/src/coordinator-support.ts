@@ -1,5 +1,6 @@
 import type { AnalyzedMessageDescriptorV1, IntlRuntimeDescriptorV1 } from '@exactjs/intl';
 import type { IntlSourceAnalysis } from '@exactjs/intl-analyzer';
+import { intl } from '@exactjs/core';
 
 /** Removes analyzer-only diagnostics and ownership facts from one runtime descriptor. */
 export function runtimeDescriptor(
@@ -7,8 +8,7 @@ export function runtimeDescriptor(
 ): IntlRuntimeDescriptorV1 {
 	const {
 		ownerComponentId: _ownerComponentId,
-		canonicalSource: _canonicalSource,
-		context: _context,
+		canonicalTranslation: _canonicalTranslation,
 		sourceRange: _sourceRange,
 		...runtime
 	} = descriptor;
@@ -43,7 +43,7 @@ export function boundedOwner(value: unknown): string {
 /** Canonicalizes one build configuration locale. */
 export function canonicalBuildLocale(value: unknown, field: string): string {
 	if (typeof value !== 'string') throw new TypeError(`Intl ${field} must be a BCP 47 locale`);
-	const locale = Intl.getCanonicalLocales(value)[0];
+	const locale = intl.getCanonicalLocales(value)[0];
 	if (!locale) throw new TypeError(`Intl ${field} must be a BCP 47 locale`);
 	return locale;
 }

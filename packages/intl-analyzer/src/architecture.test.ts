@@ -6,6 +6,7 @@ import { hydrate } from '@exactjs/hydrate';
 import {
 	createIntlEnvironment,
 	IntlAttributes,
+	IntlLocale,
 	IntlMessage,
 	IntlProvider,
 	type IntlCatalogV1,
@@ -18,6 +19,40 @@ import { describe, expect, it } from 'vitest';
 import { analyzeIntlSource } from './index.js';
 
 describe('intl architecture fixture', () => {
+	it('projects reactive lang and dir metadata through the locale enhancement', () => {
+		const environment = createIntlEnvironment({ locale: 'ar-EG', descriptors: [], catalogs: [] });
+		const enhancementIdentity = '@exactjs/intl/enhancements#locale';
+		const enhancementCatalog = new Map([[enhancementIdentity, IntlLocale]]);
+		const app = () =>
+			createVNode(
+				IntlProvider,
+				{ environment },
+				createVNode(
+					'section',
+					{
+						id: 'localized',
+						__exactEnhancements: createEnhancementMarker([
+							{ identity: enhancementIdentity, props: { locale: true } }
+						])
+					},
+					'Localized content'
+				)
+			);
+
+		const server = renderToString(app(), { enhancementCatalog }).html;
+		expect(server).toContain('lang="ar-EG"');
+		expect(server).toContain('dir="rtl"');
+		const root = document.createElement('div');
+		root.innerHTML = server;
+		hydrate(app(), root, { onMismatch: 'throw', enhancementCatalog });
+		const localized = root.querySelector('#localized')!;
+
+		environment.setLocale('en-US');
+		flushSync();
+		expect(localized.getAttribute('lang')).toBe('en-US');
+		expect(localized.getAttribute('dir')).toBe('ltr');
+	});
+
 	it('shares plural, structure, fallback, SSR, hydration, updates, and locale semantics', () => {
 		const analysis = analyzeIntlSource(
 			`const View = ({ count }) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}. Read <a href="/messages">your inbox</a>.</p>;`,
@@ -28,7 +63,9 @@ describe('intl architecture fixture', () => {
 			protocol: analyzed.protocol,
 			owner: analyzed.owner,
 			occurrenceId: analyzed.occurrenceId,
+			contract: analyzed.contract,
 			key: analyzed.key,
+			...(analyzed.name ? { name: analyzed.name } : {}),
 			sourceLocale: analyzed.sourceLocale,
 			target: analyzed.target,
 			bindings: analyzed.bindings,
@@ -42,17 +79,16 @@ describe('intl architecture fixture', () => {
 			messages: {
 				[descriptor.key]: [
 					{ kind: 'text', value: 'Vous avez ' },
-					{ kind: 'value', binding: 0 },
+					{ kind: 'placeholder', id: 'n1' },
 					{ kind: 'text', value: ' ' },
 					{
 						kind: 'select',
-						binding: 0,
-						selection: 'plural-cardinal',
+						id: 'n3',
 						cases: [{ key: 'one', value: [{ kind: 'text', value: 'nouveau message' }] }],
 						fallback: [{ kind: 'text', value: 'nouveaux messages' }]
 					},
 					{ kind: 'text', value: '. Consultez ' },
-					{ kind: 'element', binding: 1, value: [{ kind: 'text', value: 'votre boîte' }] },
+					{ kind: 'element', id: 'n5', value: [{ kind: 'text', value: 'votre boîte' }] },
 					{ kind: 'text', value: '.' }
 				]
 			}
@@ -114,7 +150,9 @@ describe('intl architecture fixture', () => {
 			protocol: analyzed.protocol,
 			owner: analyzed.owner,
 			occurrenceId: analyzed.occurrenceId,
+			contract: analyzed.contract,
 			key: analyzed.key,
+			...(analyzed.name ? { name: analyzed.name } : {}),
 			sourceLocale: analyzed.sourceLocale,
 			target: analyzed.target,
 			bindings: analyzed.bindings,
@@ -128,7 +166,7 @@ describe('intl architecture fixture', () => {
 			messages: {
 				[descriptor.key]: [
 					{ kind: 'text', value: 'Rechercher ' },
-					{ kind: 'value', binding: 0 }
+					{ kind: 'placeholder', id: 'n1' }
 				]
 			}
 		};

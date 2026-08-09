@@ -100,59 +100,59 @@
 		},
 		"semanticTokenModifiers": [
 			{
-				"id": "exact.component",
+				"id": "exactComponent",
 				"description": "eXact component"
 			},
 			{
-				"id": "exact.initializer",
+				"id": "exactInitializer",
 				"description": "Setup-once initialization"
 			},
 			{
-				"id": "exact.render",
+				"id": "exactRender",
 				"description": "Reactive render work"
 			},
 			{
-				"id": "exact.inferredTask",
+				"id": "exactInferredTask",
 				"description": "Compiler-inferred task"
 			},
 			{
-				"id": "exact.explicitTask",
+				"id": "exactExplicitTask",
 				"description": "Task with authored policy"
 			},
 			{
-				"id": "exact.derived",
+				"id": "exactDerived",
 				"description": "Derived reactive value"
 			},
 			{
-				"id": "exact.dependency",
+				"id": "exactDependency",
 				"description": "Reactive dependency"
 			},
 			{
-				"id": "exact.effect",
+				"id": "exactEffect",
 				"description": "Task effect"
 			},
 			{
-				"id": "exact.server",
+				"id": "exactServer",
 				"description": "Server placement"
 			},
 			{
-				"id": "exact.client",
+				"id": "exactClient",
 				"description": "Client placement"
 			},
 			{
-				"id": "exact.blocking",
+				"id": "exactBlocking",
 				"description": "Blocking readiness"
 			},
 			{
-				"id": "exact.deferred",
+				"id": "exactDeferred",
 				"description": "Deferred priority"
 			},
 			{
-				"id": "exact.owned",
+				"id": "exactOwned",
 				"description": "Component-owned value"
 			},
 			{
-				"id": "exact.disposable",
+				"id": "exactDisposable",
 				"description": "Automatically disposed value"
 			}
 		]

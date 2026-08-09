@@ -40,7 +40,7 @@ func (s *Session) Execute(request Request) Response {
 		Diagnostics: []Diagnostic{},
 		Analysis: NewAnalysis(
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-			nil, nil, nil, PartitionPlan{}, nil,
+			nil, nil, nil, nil, PartitionPlan{}, nil,
 			newPolicyAnalysis(),
 			CapabilityRequirements{},
 			nil,
@@ -102,13 +102,23 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	authoredSource := request.Source
-	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, request.Source)
-	normalization, err := normalizeAuthoredSource(fileName, request.Source)
+	packageEnhancementSuffix := ""
+	if request.PackageEnhancementBoundary > 0 &&
+		request.PackageEnhancementBoundary <= len(request.Source) {
+		authoredSource = request.Source[:request.PackageEnhancementBoundary]
+		packageEnhancementSuffix = request.Source[request.PackageEnhancementBoundary:]
+	}
+	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, authoredSource)
+	normalization, err := normalizeAuthoredSource(fileName, authoredSource)
 	if err != nil {
 		response.Error = err.Error()
 		return response
 	}
 	request.Source = normalization.text
+	if packageEnhancementSuffix != "" {
+		request.PackageEnhancementBoundary = len(request.Source)
+		request.Source += packageEnhancementSuffix
+	}
 	if request.ConfigFile == "" {
 		request.ConfigFile = nearestTypeScriptConfig(fileName)
 	}
@@ -206,7 +216,12 @@ func (s *Session) Execute(request Request) Response {
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
 	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
-	preliminaryEnhancements := collectEnhancementImports(sourceFile, generation.checker, nil)
+	preliminaryEnhancements := collectEnhancementImports(
+		sourceFile,
+		generation.checker,
+		nil,
+		request.PackageEnhancementBoundary,
+	)
 	componentBindings, componentBindingWrites, componentBindingDiagnostics := analyzeComponentBindings(
 		sourceFile,
 		generation.checker,
@@ -238,6 +253,7 @@ func (s *Session) Execute(request Request) Response {
 			sourceFile,
 			generation.checker,
 			skippedEnhancementAttributes,
+			request.PackageEnhancementBoundary,
 		)
 	}
 	stateWriteDiagnostics := unsupportedStateWriteDiagnostics(
@@ -408,6 +424,7 @@ func (s *Session) Execute(request Request) Response {
 		continuations,
 		registries,
 		enhancementImports.catalog,
+		enhancementImports.activations,
 		partitionPlan,
 		resumptions,
 		policy.graph,
@@ -526,6 +543,7 @@ func (s *Session) Execute(request Request) Response {
 	defer ast.SetParentInChildren(sourceFile.AsNode())
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
+	intlPlan := planIntlOperations(sourceFile, generation.checker)
 	transformed := lowerExactJSX(
 		sourceFile,
 		emitContext.Factory,
@@ -547,6 +565,11 @@ func (s *Session) Execute(request Request) Response {
 		request.JSXInterop,
 		enhancementImports,
 		partitionPlan,
+	)
+	transformed = lowerIntlOperations(
+		transformed,
+		emitContext.Factory,
+		intlPlan,
 	)
 	// Contract wrapping synthesizes nested component implementations. Retain
 	// target-local import uses observed after task lowering so wrapping

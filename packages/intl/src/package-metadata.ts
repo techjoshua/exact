@@ -1,3 +1,4 @@
+import { intl } from '@exactjs/core';
 import type { IntlPackageMetadataV1 } from './contracts.js';
 
 const metadataFields = new Set(['protocol', 'sourceLocale', 'sourceUnits', 'messages', 'catalogs']);
@@ -69,7 +70,7 @@ function exportSubpath(input: unknown, path: string): string {
 
 function canonicalLocale(input: unknown, path: string): string {
 	if (typeof input !== 'string') throw new TypeError(`${path} must be a BCP 47 locale`);
-	const [locale] = Intl.getCanonicalLocales(input);
+	const [locale] = intl.getCanonicalLocales(input);
 	if (!locale) throw new TypeError(`${path} must be a BCP 47 locale`);
 	return locale;
 }

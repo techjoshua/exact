@@ -16,6 +16,7 @@ export type ExactWebpackTransformResult = Readonly<{
 	code: string;
 	map: unknown;
 	componentBuild?: import('@exactjs/compiler').ExactComponentBuildFacts;
+	languageProjection?: import('@exactjs/language-extension-api').ExactLanguageProjectionV1;
 	inspection?: Readonly<{
 		inspection: import('@exactjs/compiler').ExactSourceInspection;
 		redactions?: import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog;
@@ -81,13 +82,16 @@ export function transformExactWebpackModule(
 		compiler: {
 			options: {
 				session,
+				packageEnhancements: options.__exactPackageEnhancements,
 				target: webpackTransformTarget(options),
 				serverComponents: options.serverComponents,
 				sourceMap: options.sourceMap ?? true,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: true,
 				jsxInterop: compatibilityEngine?.jsxInterop,
-				emitInspection: options.target === 'server' && webpackDebugEnabled(options.debug?.catalog),
+				emitInspection:
+					options.__exactLanguageValidation === true ||
+					(options.target === 'server' && webpackDebugEnabled(options.debug?.catalog)),
 				instrumentInspection: webpackDebugEnabled(options.debug?.runtime)
 			},
 			finish: (result) => {
@@ -125,6 +129,9 @@ export function transformExactWebpackModule(
 				code: output.code,
 				map: output.map,
 				...(componentBuild ? { componentBuild } : {}),
+				...(output.inspection
+					? { languageProjection: output.inspection.inspection.languageProjection }
+					: {}),
 				...(output.inspection ? { inspection: output.inspection } : {})
 			}
 		: null;

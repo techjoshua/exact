@@ -117,52 +117,6 @@ code {
 .checkbox-control input {
 	min-height: auto;
 }
-.plural-rules-showcase {
-	display: grid;
-	grid-template-columns: minmax(260px, 0.55fr) minmax(700px, 1.45fr);
-	gap: 24px;
-	max-width: 1500px;
-	margin: 0 auto 18px;
-	padding: 20px;
-	border: 1px solid #cad4cf;
-	border-radius: 16px;
-	background: #f9fbf9;
-}
-.plural-rules-showcase h2 {
-	margin: 6px 0;
-	font:
-		700 1.55rem/1.1 Georgia,
-		serif;
-}
-.plural-rules-showcase p:last-child {
-	margin: 0;
-	color: #52605d;
-	line-height: 1.5;
-}
-.plural-rules-grid {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 10px;
-}
-.plural-rules-grid article {
-	display: grid;
-	gap: 5px;
-	padding: 13px;
-	border: 1px solid #d9e2de;
-	border-radius: 11px;
-	background: white;
-}
-.plural-rules-grid article > span,
-.plural-rules-grid small {
-	color: #687671;
-	font-size: 0.72rem;
-}
-.plural-rules-grid strong {
-	font-size: 1.05rem;
-}
-.plural-rules-grid small {
-	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
 .lazy-button {
 	margin-inline-start: auto;
 	cursor: pointer;

@@ -8,6 +8,13 @@ const attributedSource = `import * as motion from '@exactjs/motion/enhancements'
 
 <ProductCard motion:fade motion:duration={180} />;`;
 
+const packageScopeSource = `export * as intl from '@exactjs/intl/enhancements' with {
+  type: 'exact-enhancement',
+  scope: 'package'
+};
+
+export default defineConfig({});`;
+
 const targetSource = `function Field(props: FieldProps) {
   return () => (
     <label className="field">
@@ -42,6 +49,25 @@ export function EnhancementsPage(this: Component<{}>) {
 				<p>
 					This catalog is not plugin discovery. A component library needs no plugin manifest,
 					configuration controller, or host lifecycle merely to provide enhancements.
+				</p>
+				<p>
+					A package can mark a finite prop as <code>@exact analyzer-only</code> when it is typed
+					source evidence rather than runtime component input. The compiler validates and projects
+					the field for trusted tooling, then removes it without selecting an enhancement component;
+					the package provider alone defines its meaning.
+				</p>
+			</section>
+			<section>
+				<h2>Package-wide availability</h2>
+				<CodeBlock source={packageScopeSource} language="ts" title="exact.config.ts" />
+				<p>
+					A package-scoped config export behaves like a virtual enhancement import in every compiled
+					component owned by the package. Its provider can therefore check every component, while
+					generated code imports the enhancement only in modules that use its namespace.
+				</p>
+				<p>
+					The configuration loader records the declaration without executing runtime enhancement
+					code. A local declaration with the same namespace is reported as a duplicate identifier.
 				</p>
 			</section>
 			<section>

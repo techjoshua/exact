@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.29.0"
+const ProtocolVersion = "1.31.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -45,6 +45,7 @@ type Request struct {
 	JSXInterop                 *JSXInterop       `json:"jsxInterop,omitempty"`
 	ModuleRewrite              *ModuleRewrite    `json:"moduleRewrite,omitempty"`
 	InstrumentInspection       bool              `json:"instrumentInspection,omitempty"`
+	PackageEnhancementBoundary int               `json:"packageEnhancementBoundary,omitempty"`
 	Extension                  *ExtensionRequest `json:"extension,omitempty"`
 }
 
@@ -152,6 +153,7 @@ type Import struct {
 	TypeOnly        bool   `json:"typeOnly"`
 	SideEffectOnly  bool   `json:"sideEffectOnly"`
 	RuntimeBinding  bool   `json:"runtimeBinding"`
+	Enhancement     bool   `json:"enhancement,omitempty"`
 	Start           int    `json:"start"`
 	Length          int    `json:"length"`
 }
@@ -680,6 +682,21 @@ type RendererEnhancement struct {
 	ExportName      string `json:"exportName"`
 }
 
+// EnhancementActivation joins one authored namespaced JSX attribute to the canonical enhancement
+// component selected by the compiler. It is descriptive input for generic build and language tools.
+type EnhancementActivation struct {
+	Namespace       string `json:"namespace"`
+	Activator       string `json:"activator"`
+	Start           int    `json:"start"`
+	Length          int    `json:"length"`
+	TargetStart     int    `json:"targetStart"`
+	TargetLength    int    `json:"targetLength"`
+	Identity        string `json:"identity"`
+	ModuleSpecifier string `json:"moduleSpecifier"`
+	ExportName      string `json:"exportName"`
+	Application     string `json:"application"`
+}
+
 // PartitionPlan is the normalized, build-local component and execution-region
 // graph used to derive recursive client/server ownership. The first delivery is
 // analysis-only; existing artifacts remain projected through Boundary records.
@@ -740,28 +757,29 @@ type PartitionPlanDataSlot struct {
 
 // Analysis contains eXact-owned semantic facts returned by the native host.
 type Analysis struct {
-	Imports          []Import               `json:"imports"`
-	Components       []Component            `json:"components"`
-	JSX              []JSXElement           `json:"jsx"`
-	StateAliases     []StateAlias           `json:"stateAliases"`
-	StateReads       []StateRead            `json:"stateReads"`
-	StateWrites      []StateWrite           `json:"stateWrites"`
-	ValueBindings    []ValueCallbackBinding `json:"valueBindings"`
-	ReactiveBindings []ReactiveBinding      `json:"reactiveBindings"`
-	Callables        []CallableSummary      `json:"callables"`
-	Tasks            []Task                 `json:"tasks"`
-	Exports          []ExportRecord         `json:"exports"`
-	Symbols          []SymbolRecord         `json:"symbols"`
-	Boundaries       []Boundary             `json:"boundaries"`
-	Continuations    []Continuation         `json:"continuations"`
-	Registries       []ComponentRegistry    `json:"registries"`
-	Enhancements     []RendererEnhancement  `json:"rendererEnhancements"`
-	PartitionPlan    PartitionPlan          `json:"partitionPlan"`
-	Resumptions      []ComponentResumption  `json:"resumptions"`
-	Policy           PolicyAnalysis         `json:"policy"`
-	Capabilities     CapabilityRequirements `json:"requiredCapabilities"`
-	Assets           []AssetDependency      `json:"assets"`
-	SemanticGraph    SemanticGraph          `json:"semanticGraph"`
+	Imports                []Import                `json:"imports"`
+	Components             []Component             `json:"components"`
+	JSX                    []JSXElement            `json:"jsx"`
+	StateAliases           []StateAlias            `json:"stateAliases"`
+	StateReads             []StateRead             `json:"stateReads"`
+	StateWrites            []StateWrite            `json:"stateWrites"`
+	ValueBindings          []ValueCallbackBinding  `json:"valueBindings"`
+	ReactiveBindings       []ReactiveBinding       `json:"reactiveBindings"`
+	Callables              []CallableSummary       `json:"callables"`
+	Tasks                  []Task                  `json:"tasks"`
+	Exports                []ExportRecord          `json:"exports"`
+	Symbols                []SymbolRecord          `json:"symbols"`
+	Boundaries             []Boundary              `json:"boundaries"`
+	Continuations          []Continuation          `json:"continuations"`
+	Registries             []ComponentRegistry     `json:"registries"`
+	Enhancements           []RendererEnhancement   `json:"rendererEnhancements"`
+	EnhancementActivations []EnhancementActivation `json:"enhancementActivations"`
+	PartitionPlan          PartitionPlan           `json:"partitionPlan"`
+	Resumptions            []ComponentResumption   `json:"resumptions"`
+	Policy                 PolicyAnalysis          `json:"policy"`
+	Capabilities           CapabilityRequirements  `json:"requiredCapabilities"`
+	Assets                 []AssetDependency       `json:"assets"`
+	SemanticGraph          SemanticGraph           `json:"semanticGraph"`
 }
 
 // NewAnalysis creates a protocol-safe result whose collections encode as JSON
@@ -783,6 +801,7 @@ func NewAnalysis(
 	continuations []Continuation,
 	registries []ComponentRegistry,
 	enhancements []RendererEnhancement,
+	enhancementActivations []EnhancementActivation,
 	partitionPlan PartitionPlan,
 	resumptions []ComponentResumption,
 	policy PolicyAnalysis,
@@ -791,25 +810,26 @@ func NewAnalysis(
 	semanticGraph SemanticGraph,
 ) Analysis {
 	return Analysis{
-		Imports:          nonNilSlice(imports),
-		Components:       normalizedComponents(components),
-		JSX:              normalizedJSX(jsx),
-		StateAliases:     nonNilSlice(stateAliases),
-		StateReads:       nonNilSlice(stateReads),
-		StateWrites:      nonNilSlice(stateWrites),
-		ValueBindings:    nonNilSlice(valueBindings),
-		ReactiveBindings: nonNilSlice(reactiveBindings),
-		Callables:        normalizedCallables(callables),
-		Tasks:            normalizedTasks(tasks),
-		Exports:          nonNilSlice(exports),
-		Symbols:          nonNilSlice(symbols),
-		Boundaries:       nonNilSlice(boundaries),
-		Continuations:    normalizedContinuations(continuations),
-		Registries:       normalizedComponentRegistries(registries),
-		Enhancements:     nonNilSlice(enhancements),
-		PartitionPlan:    normalizedPartitionPlan(partitionPlan),
-		Resumptions:      normalizedResumptions(resumptions),
-		Policy:           normalizedPolicy(policy),
+		Imports:                nonNilSlice(imports),
+		Components:             normalizedComponents(components),
+		JSX:                    normalizedJSX(jsx),
+		StateAliases:           nonNilSlice(stateAliases),
+		StateReads:             nonNilSlice(stateReads),
+		StateWrites:            nonNilSlice(stateWrites),
+		ValueBindings:          nonNilSlice(valueBindings),
+		ReactiveBindings:       nonNilSlice(reactiveBindings),
+		Callables:              normalizedCallables(callables),
+		Tasks:                  normalizedTasks(tasks),
+		Exports:                nonNilSlice(exports),
+		Symbols:                nonNilSlice(symbols),
+		Boundaries:             nonNilSlice(boundaries),
+		Continuations:          normalizedContinuations(continuations),
+		Registries:             normalizedComponentRegistries(registries),
+		Enhancements:           nonNilSlice(enhancements),
+		EnhancementActivations: nonNilSlice(enhancementActivations),
+		PartitionPlan:          normalizedPartitionPlan(partitionPlan),
+		Resumptions:            normalizedResumptions(resumptions),
+		Policy:                 normalizedPolicy(policy),
 		Capabilities: CapabilityRequirements{
 			RawHTML: nonNilSlice(capabilities.RawHTML),
 		},

@@ -1,6 +1,7 @@
 import {
 	createCompiledTarget,
 	createContext,
+	LocalizationContext,
 	markExactComponent,
 	markExactEnhancementContexts,
 	TargetOverrides,
@@ -9,7 +10,12 @@ import {
 	type Component
 } from '@exactjs/core';
 import type { IntlPropertyActivation, IntlPropertyName } from './contracts.js';
-import type { IntlEnvironment } from './environment.js';
+import type { IntlLocaleString } from './cldr-locale-types.js';
+import {
+	createDefaultIntlEnvironment,
+	intlLocaleMetadata,
+	type IntlEnvironment
+} from './environment.js';
 import { isPreparedIntlActivation, type PreparedIntlActivation } from './prepared.js';
 import { renderIntlActivation } from './render.js';
 
@@ -26,15 +32,47 @@ export interface IntlProviderProps {
 	children?: Child | Child[];
 }
 
+/** Locale scope contributed to one intrinsic target and all of its descendants. */
+export interface IntlLocaleProps {
+	locale?: true | IntlLocaleString;
+	children?: Child | Child[];
+}
+
 /** Publishes an internationalization environment to descendant enhancement components. */
 export function IntlProvider(this: Component<{}>, props: IntlProviderProps) {
-	this.setContext(IntlEnvironmentContext, unwrap(props.environment));
+	const environment = unwrap(props.environment);
+	provideIntlEnvironment(this, environment);
 	return () => props.children;
+}
+
+/** Establishes a locale scope while projecting reactive language metadata through `_target`. */
+export function IntlLocale(this: Component<{}>, props: IntlLocaleProps) {
+	const parent = this.hasContext(IntlEnvironmentContext)
+		? this.getContext(IntlEnvironmentContext)
+		: undefined;
+	const requested = unwrap(props.locale);
+	const environment =
+		typeof requested === 'string'
+			? (parent?.forLocale(requested) ?? createDefaultIntlEnvironment(requested))
+			: (parent ?? createDefaultIntlEnvironment());
+	provideIntlEnvironment(this, environment);
+	return () => {
+		const metadata = intlLocaleMetadata(environment.state.locale);
+		return createCompiledTarget(
+			{ lang: metadata.lang, dir: metadata.dir, [TargetOverrides]: ['lang', 'dir'] },
+			props.children
+		);
+	};
 }
 
 /** Internal enhancement props after generated source instrumentation. */
 export interface IntlPreparedMessageProps {
-	context?: string;
+	name?: string;
+	/**
+	 * Names one translator-movable child structure for the intl analyzer.
+	 * @exact analyzer-only
+	 */
+	fragment?: string;
 	message?: true | string | PreparedIntlActivation;
 	plural?: number | object | PreparedIntlActivation;
 	select?: string | number | boolean | object | PreparedIntlActivation;
@@ -145,19 +183,35 @@ export function IntlAttributes(this: Component<{}>, props: IntlPreparedAttribute
 }
 
 markExactComponent(IntlProvider, '@exactjs/intl:IntlProvider');
+markExactComponent(IntlLocale, '@exactjs/intl:IntlLocale');
 markExactComponent(IntlMessage, '@exactjs/intl:IntlMessage');
 markExactComponent(IntlPlural, '@exactjs/intl:IntlPlural');
 markExactComponent(IntlSelect, '@exactjs/intl:IntlSelect');
 markExactComponent(IntlCurrency, '@exactjs/intl:IntlCurrency');
 markExactComponent(IntlUnit, '@exactjs/intl:IntlUnit');
 markExactComponent(IntlAttributes, '@exactjs/intl:IntlAttributes');
-markExactEnhancementContexts(IntlProvider, { provides: [IntlEnvironmentContext] });
+markExactEnhancementContexts(IntlProvider, {
+	provides: [IntlEnvironmentContext, LocalizationContext]
+});
+markExactEnhancementContexts(IntlLocale, {
+	provides: [IntlEnvironmentContext, LocalizationContext]
+});
 markExactEnhancementContexts(IntlMessage, { requires: [IntlEnvironmentContext] });
 markExactEnhancementContexts(IntlPlural, { requires: [IntlEnvironmentContext] });
 markExactEnhancementContexts(IntlSelect, { requires: [IntlEnvironmentContext] });
 markExactEnhancementContexts(IntlCurrency, { requires: [IntlEnvironmentContext] });
 markExactEnhancementContexts(IntlUnit, { requires: [IntlEnvironmentContext] });
 markExactEnhancementContexts(IntlAttributes, { requires: [IntlEnvironmentContext] });
+
+function provideIntlEnvironment(component: Component<{}>, environment: IntlEnvironment): void {
+	component.setContext(IntlEnvironmentContext, environment);
+	component.setContext(LocalizationContext, {
+		get locale() {
+			return environment.state.locale;
+		},
+		sourceLocale: environment.sourceLocale
+	});
+}
 
 function findPreparedActivation(
 	props: IntlPreparedMessageProps

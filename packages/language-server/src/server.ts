@@ -1,31 +1,23 @@
 #!/usr/bin/env node
-import type {
-	ExactRefactorKind,
-	ExactSourceDiagnostic,
-	ExactSourceEntity,
-	ExactSourceInspection
-} from '@exactjs/compiler';
+import type { ExactRefactorKind, ExactSourceInspection } from '@exactjs/compiler';
 import {
 	CodeActionKind,
 	createConnection,
-	DiagnosticRelatedInformation,
-	DiagnosticSeverity,
 	ProposedFeatures,
-	TextDocuments,
-	TextDocumentSyncKind
+	TextDocuments
 } from 'vscode-languageserver/node.js';
 import type {
 	CodeAction,
 	CodeLens,
 	CompletionItem,
-	Diagnostic,
 	DocumentSymbol,
-	InlayHint,
+	Hover,
 	InitializeParams,
 	InitializeResult,
 	SemanticTokens,
 	WorkspaceEdit
 } from 'vscode-languageserver/node.js';
+import { MarkupKind } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { fileURLToPath } from 'node:url';
 import type {
@@ -36,19 +28,12 @@ import type {
 	ExactProjectStatusResult,
 	ExactPreviewSemanticChangeParams
 } from './contracts.js';
+import { captureDocumentSnapshot, isCurrentDocumentSnapshot } from './document-snapshots.js';
 import {
-	captureDocumentSnapshot,
-	isCurrentDocumentSnapshot,
-	type ExactDocumentSnapshot
-} from './document-snapshots.js';
-import {
-	exactSemanticTokenModifiers,
-	exactSemanticTokenTypes,
 	lspRange,
 	projectCodeLenses,
 	projectDocumentSymbols,
 	projectHover,
-	projectInlayHints,
 	projectSemanticTokens,
 	projectTaskRename,
 	projectTaskStatusCompletions,
@@ -56,39 +41,46 @@ import {
 } from './lsp-projections.js';
 import { ExactLanguageWorkspaceManager } from './workspace-manager.js';
 import { supportsExactWorkspaceFolderChanges } from './workspace-folders.js';
+import { createServerSourceAccess } from './server-source-access.js';
+import {
+	compilerSeparation,
+	flattenInspection,
+	hoverMarkdown,
+	isExpectedSupersession,
+	lspDiagnostic,
+	lspProviderDiagnostic,
+	providerWorkspaceEdit,
+	workspaceEdit,
+	workspaceRoots
+} from './server-projections.js';
+import { exactLanguageServerCapabilities } from './capabilities.js';
+import { registerInlayPresentation } from './inlay-presentation.js';
+import { ExactDocumentAnalysisState } from './document-analysis-state.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
-const activeAnalysis = new Map<string, AbortController>();
+const { sourceForUri, logRequestError } = createServerSourceAccess(documents, connection);
+const analyses = new ExactDocumentAnalysisState();
 let workspaces: ExactLanguageWorkspaceManager | undefined;
 let workspaceFolderChangesSupported = false;
+let shuttingDown = false;
+const inlayPresentation = registerInlayPresentation(
+	connection,
+	documents,
+	() => workspaces,
+	(uri) => analyses.presentationBlocked(uri, documents.get(uri)?.version)
+);
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
 	const initialization = (params.initializationOptions ??
 		{}) as ExactLanguageServerInitializationOptions;
 	workspaceFolderChangesSupported = supportsExactWorkspaceFolderChanges(params);
+	inlayPresentation.setLevel(initialization.inlayHints);
 	const roots = workspaceRoots(params);
 	workspaces = new ExactLanguageWorkspaceManager(roots, initialization.workspaceTrusted === true);
 	return {
 		serverInfo: { name: '@exactjs/language-server', version: '0.1.0' },
-		capabilities: {
-			workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
-			textDocumentSync: TextDocumentSyncKind.Incremental,
-			hoverProvider: true,
-			completionProvider: { triggerCharacters: ['.'] },
-			renameProvider: true,
-			codeLensProvider: { resolveProvider: false },
-			inlayHintProvider: true,
-			documentSymbolProvider: true,
-			codeActionProvider: { codeActionKinds: [CodeActionKind.QuickFix, CodeActionKind.Refactor] },
-			semanticTokensProvider: {
-				legend: {
-					tokenTypes: [...exactSemanticTokenTypes],
-					tokenModifiers: [...exactSemanticTokenModifiers]
-				},
-				full: { delta: true }
-			}
-		}
+		capabilities: exactLanguageServerCapabilities
 	};
 });
 
@@ -109,17 +101,69 @@ connection.onInitialized(() => {
 documents.onDidOpen((event) => void synchronize(event.document));
 documents.onDidChangeContent((event) => void synchronize(event.document));
 documents.onDidClose((event) => {
-	activeAnalysis.get(event.document.uri)?.abort();
-	activeAnalysis.delete(event.document.uri);
+	analyses.close(event.document.uri);
 	void workspaces?.closeDocument(event.document.uri).catch(logRequestError);
 	void connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
 });
 
-connection.onHover((params) => withInspection(params, projectHover));
-connection.onCompletion(
-	(params): Promise<CompletionItem[]> =>
-		withInspection(params, projectTaskStatusCompletions).then((result) => result ?? [])
-);
+connection.onHover(async (params): Promise<Hover | undefined> => {
+	const document = documents.get(params.textDocument.uri);
+	if (!document) return undefined;
+	const snapshot = captureDocumentSnapshot(document);
+	const inspection = await workspaces?.inspect(snapshot.uri);
+	if (!inspection || !isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri)))
+		return undefined;
+	const core = projectHover(inspection, snapshot.source, params.position);
+	const contributions = await workspaces?.hover(
+		snapshot.uri,
+		sourceOffset(snapshot.source, params.position)
+	);
+	if (!isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return undefined;
+	const providerMarkdown = (contributions ?? []).map(
+		({ provider, value }) => `${value.markdown}\n\n_Source: ${provider}_`
+	);
+	if (!providerMarkdown.length) return core;
+	const coreValue = hoverMarkdown(core);
+	return {
+		contents: {
+			kind: MarkupKind.Markdown,
+			value: [...(coreValue ? [coreValue] : []), ...providerMarkdown].join('\n\n---\n\n')
+		},
+		...(core?.range ? { range: core.range } : {})
+	};
+});
+connection.onCompletion(async (params): Promise<CompletionItem[]> => {
+	const document = documents.get(params.textDocument.uri);
+	if (!document) return [];
+	const snapshot = captureDocumentSnapshot(document);
+	const inspection = await workspaces?.inspect(snapshot.uri);
+	if (!inspection || !isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return [];
+	const core = projectTaskStatusCompletions(inspection, snapshot.source, params.position);
+	const contributions = await workspaces?.complete(
+		snapshot.uri,
+		sourceOffset(snapshot.source, params.position),
+		params.context?.triggerCharacter
+	);
+	if (!isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return [];
+	return [
+		...core,
+		...(contributions ?? []).map(({ provider, value }) => ({
+			label: value.label,
+			detail: value.detail ? `${value.detail} · ${provider}` : provider,
+			documentation: value.documentation,
+			insertText: value.insertText,
+			sortText: value.sortText,
+			...(value.replace
+				? {
+						textEdit: {
+							range: lspRange(snapshot.source, value.replace),
+							newText: value.insertText ?? value.label
+						}
+					}
+				: {})
+		}))
+	];
+});
 connection.onRenameRequest(async (params): Promise<WorkspaceEdit | null> => {
 	const document = documents.get(params.textDocument.uri);
 	if (!document) return null;
@@ -139,10 +183,6 @@ connection.onRenameRequest(async (params): Promise<WorkspaceEdit | null> => {
 connection.onCodeLens(
 	(params): Promise<CodeLens[]> =>
 		withInspection(params, projectCodeLenses).then((result) => result ?? [])
-);
-connection.languages.inlayHint.on(
-	(params): Promise<InlayHint[]> =>
-		withInspection(params, projectInlayHints).then((result) => result ?? [])
 );
 connection.onDocumentSymbol(
 	(params): Promise<DocumentSymbol[]> =>
@@ -173,25 +213,41 @@ connection.onCodeAction(async (params): Promise<CodeAction[]> => {
 			entity.range.start <= sourceRange.end &&
 			sourceRange.start <= entity.range.end
 	);
-	if (!task) return [];
-	const kinds: ExactRefactorKind[] =
-		task.kind === 'inferred-task'
-			? ['convert-to-explicit-task']
-			: ['convert-to-inferred-task', 'make-placement-explicit'];
 	const actions: CodeAction[] = [];
-	for (const kind of kinds) {
-		const plan = await manager.refactor(snapshot.uri, {
-			generation: inspection.generation,
-			range: task.range,
-			kind
-		});
-		if (!isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return [];
-		if (!plan) continue;
+	if (task) {
+		const kinds: ExactRefactorKind[] =
+			task.kind === 'inferred-task'
+				? ['convert-to-explicit-task']
+				: ['convert-to-inferred-task', 'make-placement-explicit'];
+		for (const kind of kinds) {
+			const plan = await manager.refactor(snapshot.uri, {
+				generation: inspection.generation,
+				range: task.range,
+				kind
+			});
+			if (!isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return [];
+			if (!plan) continue;
+			actions.push({
+				title: plan.title,
+				kind: CodeActionKind.RefactorRewrite,
+				edit: workspaceEdit(snapshot, plan.edits),
+				data: { semanticChange: plan.semanticChange, expected: plan.expected }
+			});
+		}
+	}
+	const providerActions = await manager.languageCodeActions(
+		snapshot.uri,
+		sourceRange,
+		params.context.diagnostics.flatMap((diagnostic) =>
+			typeof diagnostic.code === 'string' ? [diagnostic.code] : []
+		)
+	);
+	for (const { provider, value } of providerActions) {
 		actions.push({
-			title: plan.title,
-			kind: CodeActionKind.RefactorRewrite,
-			edit: workspaceEdit(snapshot, plan.edits),
-			data: { semanticChange: plan.semanticChange, expected: plan.expected }
+			title: value.title,
+			kind: value.kind === 'quickfix' ? CodeActionKind.QuickFix : CodeActionKind.RefactorRewrite,
+			edit: providerWorkspaceEdit(value.edits, sourceForUri),
+			data: { provider }
 		});
 	}
 	return actions;
@@ -207,7 +263,11 @@ connection.onRequest(
 		return {
 			trusted: workspaces?.isTrusted() === true,
 			...(inspection?.project ? { project: inspection.project } : {}),
-			...(inspection?.compiler ? { compiler: inspection.compiler } : {})
+			...(inspection?.compiler ? { compiler: inspection.compiler } : {}),
+			providers: await workspaces?.providerStatus(params.textDocument.uri),
+			...(workspaces?.providerFailure(params.textDocument.uri)
+				? { providerFailure: workspaces.providerFailure(params.textDocument.uri) }
+				: {})
 		};
 	}
 );
@@ -250,8 +310,8 @@ connection.onRequest(
 );
 
 connection.onShutdown(async () => {
-	for (const controller of activeAnalysis.values()) controller.abort();
-	activeAnalysis.clear();
+	shuttingDown = true;
+	analyses.dispose();
 	await workspaces?.dispose();
 });
 
@@ -262,9 +322,8 @@ async function synchronize(document: TextDocument): Promise<void> {
 	const manager = workspaces;
 	if (!manager) return;
 	const snapshot = captureDocumentSnapshot(document);
-	activeAnalysis.get(snapshot.uri)?.abort();
-	const controller = new AbortController();
-	activeAnalysis.set(snapshot.uri, controller);
+	const controller = analyses.start(snapshot.uri, snapshot.version);
+	if (!controller) return;
 	try {
 		const result = await manager.synchronizeDocument(
 			snapshot.uri,
@@ -274,26 +333,38 @@ async function synchronize(document: TextDocument): Promise<void> {
 		);
 		if (
 			!result ||
+			shuttingDown ||
 			controller.signal.aborted ||
-			activeAnalysis.get(snapshot.uri) !== controller ||
+			!analyses.isCurrent(snapshot.uri, controller) ||
 			!isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))
 		)
 			return;
+		// Publish readiness before refresh notifications so follow-up presentation requests
+		// observe the completed provider generation instead of being fenced as concurrent work.
+		if (!analyses.publish(snapshot.uri, snapshot.version, controller)) return;
 		void connection.sendDiagnostics({
 			uri: snapshot.uri,
 			version: snapshot.version,
-			diagnostics: result.inspection.diagnostics.map((diagnostic) =>
-				lspDiagnostic(snapshot, diagnostic)
-			)
+			diagnostics: [
+				...result.inspection.diagnostics.map((diagnostic) => lspDiagnostic(snapshot, diagnostic)),
+				...result.providerDiagnostics.map((diagnostic) =>
+					lspProviderDiagnostic(snapshot, diagnostic, sourceForUri)
+				)
+			]
 		});
+		void connection.sendNotification('exact/providerStatusChanged', { uri: snapshot.uri });
 		connection.languages.semanticTokens.refresh();
-		void connection.languages.inlayHint.refresh();
+		void connection.languages.inlayHint.refresh().catch(logPresentationError);
 		void connection.sendRequest('workspace/codeLens/refresh').catch(() => undefined);
 	} catch (error) {
 		if (!isExpectedSupersession(error)) logRequestError(error);
 	} finally {
-		if (activeAnalysis.get(snapshot.uri) === controller) activeAnalysis.delete(snapshot.uri);
+		analyses.finish(snapshot.uri, controller);
 	}
+}
+
+function logPresentationError(error: unknown): void {
+	if (!shuttingDown) logRequestError(error);
 }
 
 async function withInspection<TParams extends { textDocument: { uri: string } }, TResult>(
@@ -308,109 +379,4 @@ async function withInspection<TParams extends { textDocument: { uri: string } },
 		return undefined;
 	const position = 'position' in params ? params.position : undefined;
 	return project(inspection, snapshot.source, position as never);
-}
-
-function lspDiagnostic(
-	document: ExactDocumentSnapshot,
-	diagnostic: ExactSourceDiagnostic
-): Diagnostic {
-	return {
-		range: lspRange(document.source, diagnostic.range),
-		severity: diagnosticSeverity(diagnostic.severity),
-		code: diagnostic.code,
-		source: 'eXact',
-		message: `${diagnostic.summary}\n\n${diagnostic.explanation}`,
-		relatedInformation: diagnostic.related.map((related) =>
-			DiagnosticRelatedInformation.create(
-				{
-					uri: document.uri,
-					range: lspRange(document.source, related.range)
-				},
-				related.message
-			)
-		)
-	};
-}
-
-function diagnosticSeverity(severity: ExactSourceDiagnostic['severity']): DiagnosticSeverity {
-	if (severity === 'error') return DiagnosticSeverity.Error;
-	if (severity === 'warning') return DiagnosticSeverity.Warning;
-	return DiagnosticSeverity.Information;
-}
-
-function workspaceEdit(
-	document: ExactDocumentSnapshot,
-	edits: readonly Readonly<{
-		filename: string;
-		range: Readonly<{ start: number; end: number }>;
-		newText: string;
-	}>[]
-): WorkspaceEdit {
-	return {
-		documentChanges: [
-			{
-				textDocument: { uri: document.uri, version: document.version },
-				edits: edits.map((edit) => ({
-					range: lspRange(document.source, edit.range),
-					newText: edit.newText
-				}))
-			}
-		]
-	};
-}
-
-function flattenInspection(inspection: ExactSourceInspection): ExactSourceEntity[] {
-	const flatten = (entity: ExactSourceEntity): ExactSourceEntity[] => [
-		entity,
-		...entity.children.flatMap(flatten)
-	];
-	return inspection.components.flatMap(flatten);
-}
-
-function compilerSeparation(inspection: ExactSourceInspection): string {
-	const components = inspection.components.map((component) => {
-		const entities = flattenInspection({ ...inspection, components: [component] });
-		const client = entities.filter(
-			(entity) =>
-				entity.classification?.kind === 'task' && entity.classification.placement === 'client'
-		);
-		const server = entities.filter(
-			(entity) =>
-				entity.classification?.kind === 'task' && entity.classification.placement === 'server'
-		);
-		return [
-			component.name,
-			'├─ Shared setup',
-			'│  └─ initialize state and register owned work',
-			'├─ Client',
-			...(client.length
-				? client.map((entity) => `│  └─ ${entity.name ?? entity.kind}`)
-				: ['│  └─ render DOM']),
-			'└─ Server',
-			...(server.length
-				? server.map((entity) => `   └─ ${entity.name ?? entity.kind}`)
-				: ['   └─ no server-only work'])
-		].join('\n');
-	});
-	return `eXact compiler separation · generation ${inspection.generation}\n\n${components.join('\n\n')}`;
-}
-
-function workspaceRoots(params: InitializeParams): string[] {
-	const folders = params.workspaceFolders?.flatMap((folder) =>
-		folder.uri.startsWith('file:') ? [fileURLToPath(folder.uri)] : []
-	);
-	if (folders?.length) return folders;
-	if (params.rootUri?.startsWith('file:')) return [fileURLToPath(params.rootUri)];
-	return params.rootPath ? [params.rootPath] : [];
-}
-
-function isExpectedSupersession(error: unknown): boolean {
-	return (
-		error instanceof Error &&
-		(error.name === 'AbortError' || error.name === 'ExactStaleLanguageResultError')
-	);
-}
-
-function logRequestError(error: unknown): void {
-	connection.console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
 }

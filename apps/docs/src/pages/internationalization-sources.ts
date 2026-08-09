@@ -1,7 +1,7 @@
 /** Minimal provider and enhancement-authored message. */
 export const intlMessageSource = `import { createIntlEnvironment, IntlProvider } from '@exactjs/intl';
 
-const environment = createIntlEnvironment({ locale: 'en-US' });
+const environment = createIntlEnvironment({ sourceLocale: 'en-US', locale: 'fr-FR' });
 
 function Greeting(props: { name: string }) {
   return () => (
@@ -11,6 +11,18 @@ function Greeting(props: { name: string }) {
       </p>
     </IntlProvider>
   );
+}`;
+
+/** Locale scopes project document metadata and reuse or create the matching provider. */
+export const intlLocaleSource = `import { defineIntlLocale } from '@exactjs/intl';
+
+function LocalizedRoot(props: { requestedLocale: string }) {
+  const locale = defineIntlLocale(props.requestedLocale);
+  return () => <main intl:locale={locale}>{/* localized application */}</main>;
+}
+
+function InheritedLocalePanel() {
+  return () => <section intl:locale>{/* reuses the nearest IntlProvider */}</section>;
 }`;
 
 /** Message structure, finite selection, and opaque-fragment authoring. */
@@ -79,6 +91,27 @@ export const intlFormattersSource = `function Receipt(props: ReceiptProps) {
   );
 }`;
 
+/** Compiler lowering in components and explicit cache usage in ordinary helpers. */
+export const intlCacheSource = `import { intl, type Component } from '@exactjs/core';
+
+export function formatPrice(value: number, locale: string) {
+  return intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD'
+  }).format(value);
+}
+
+function Summary(this: Component<{ count: number }>, props: { published: Date }) {
+  const ordinals = new Intl.PluralRules('en-US', { type: 'ordinal' });
+
+  return () => (
+    <p>
+      Result {this.state.count} is {ordinals.select(this.state.count)};
+      published {props.published.toLocaleDateString('en-US')}.
+    </p>
+  );
+}`;
+
 /** Temporal duration projection expressed through native relative-time intent. */
 export const intlDurationSource = `const relativeTime = new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' });
 
@@ -124,15 +157,33 @@ export const intlConfigurationSource = `exact({
   }
 })`;
 
-/** Translator-facing XLIFF 2.1 extraction with standard inline-code metadata. */
+/** Language-tool policy for inference explanations and catalog coverage. */
+export const intlLanguageToolsSource = `export * as intl from '@exactjs/intl/enhancements' with {
+  type: 'exact-enhancement',
+  scope: 'package'
+};
+import { defineConfig } from '@exactjs/config';
+
+export default defineConfig({
+  languageExtensions: {
+    providers: {
+      '@exactjs/intl': {
+        sourceLocale: 'en-US',
+        catalogFiles: ['./translations/fr-FR.xlf', './translations/ja-JP.xlf'],
+        requiredLocales: ['fr-FR', 'ja-JP'],
+        catalogHygiene: true,
+        localeConsistency: true
+      }
+    }
+  }
+});`;
+
+/** Translator-facing XLIFF 2.1 extraction with generic inline-code metadata. */
 export const intlXliffSource = `<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.1" srcLang="en-US">
   <file id="example-app">
-    <unit id="greeting">
-      <originalData>
-        <data id="d1">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data>
-      </originalData>
+    <unit id="greeting_n1S7c3uY...">
       <segment>
-        <source>Hello, <ph id="name" dataRef="d1"/>.</source>
+        <source>Hello, <ph id="n1" equiv="{name}" canCopy="yes" canDelete="no"/>.</source>
       </segment>
     </unit>
   </file>

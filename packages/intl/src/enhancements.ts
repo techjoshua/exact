@@ -8,6 +8,7 @@ export {
 	IntlAttributes as title,
 	IntlCurrency as currency,
 	IntlUnit as cldr,
+	IntlLocale as locale,
 	IntlMessage as message,
 	IntlPlural as plural,
 	IntlSelect as select,

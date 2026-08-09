@@ -1,5 +1,53 @@
 # Internationalization
 
+## Editor and build validation
+
+`@exactjs/intl` publishes a Node-only analyzer through the generic eXact language-extension
+protocol. The compiler supplies canonical enhancement activations and source facts; the provider
+reuses `@exactjs/intl-analyzer`, so editor inference and build extraction use the same message
+semantics and canonical keys without adding intl rules to the compiler.
+
+Hovering an `intl:*` message shows its source locale, target, durable key, inferred plural,
+formatter, temporal, currency, or semantic-unit behavior, and every configured JSON or XLIFF locale
+that contains the exact key. Concise inference and translation-coverage inlays are enabled by
+default. Authored fragments that actually prove an inference are underlined: this may be fallback
+text such as a unit or currency label, a plural or ordinal branch, a Temporal value, or a native
+`Intl.*` expression. Hovering the underline explains the inferred behavior and its provider.
+Invalid message shapes are errors. Applications may configure required locales and receive a
+warning for missing translations, disable provider inlays and their evidence decorations, or
+complete CLDR semantic unit identifiers.
+
+When intl is enabled for a file or package, likely linguistic JSX text and supported linguistic
+intrinsic properties outside the corresponding intl enhancement receive a `missing-intl` warning.
+Use the standard inherited HTML `translate="no"` attribute for content that must intentionally
+remain untranslated. `lang` and `dir` describe the content's language and direction; neither is a
+translation opt-out.
+
+```ts
+import { defineConfig } from '@exactjs/config';
+
+export default defineConfig({
+	languageExtensions: {
+		providers: {
+			'@exactjs/intl': {
+				sourceLocale: 'en-US',
+				catalogFiles: ['locales/fr-FR.xlf', 'locales/ja-JP.xlf'],
+				requiredLocales: ['fr-FR', 'ja-JP'],
+				catalogHygiene: true,
+				localeConsistency: true
+			}
+		}
+	}
+});
+```
+
+Set the provider's `showInlayHints` to `false` for an intl-only opt-out, or set VS Code's
+`exact.languageTools.inlayHints` to `off` for all eXact inlays. VS Code's own
+`editor.inlayHints.enabled` setting must also permit inlay hints.
+
+The analyzer host, native analyzer, catalog reads, and LSP integration run only under Node during
+development and builds. None of this machinery is reachable from the browser runtime graph.
+
 `@exactjs/intl` is both an eXact plugin and an enhancement library. The plugin side coordinates
 source analysis, catalog generation and linking, client capabilities, and bundler integration. The
 application-facing side exports ordinary compiled enhancements so localization intent stays in the
@@ -129,7 +177,10 @@ opaque, exactly-once slot. The analyzer consumes the marker but never enters the
 ```
 
 Translations may move `user`, but cannot duplicate it, replace it, or translate `UserBadge` through
-the enclosing message. Any messages owned by that component remain independent.
+the enclosing message. Any messages owned by that component remain independent. `fragment` is
+declared by the package as a generic analyzer-only enhancement field: the compiler validates and
+removes it, while only the intl analyzer assigns its message-slot meaning. It never mounts an intl
+runtime component on the marked child.
 
 Finite relative-duration projections are summarized onto one reactive duration binding. Both the
 nested plain-language fallback and the equivalent source-local array/`find`/
@@ -278,7 +329,7 @@ Allowlisted human-facing intrinsic properties use the same pattern and catalog v
 <input placeholder="Search messages" intl:placeholder />
 <button
 	aria-label={count === 1 ? `Delete ${count} message` : `Delete ${count} messages`}
-	intl:aria-label={{ context: 'delete-control' }}
+	intl:aria-label={{ name: 'delete-control' }}
 />
 ```
 
@@ -290,33 +341,77 @@ unrelated properties, events, refs, and intrinsic identity remain intact.
 
 A property activator can carry the same finite formatter role, for example
 `intl:aria-label="display-name:languageCode"`. Native formatter calls, plurality, and ordinal
-branches are inferred through the same expression analysis used for content messages.
+branches are inferred through the same expression analysis used for content messages. A pure
+display-name projection is formatter-only: it uses locale data directly and therefore has a stable
+descriptor key but no XLIFF unit or translated-locale coverage requirement.
 
 After ordinary compilation, every adapter joins each analyzer-local owner ordinal to the corresponding
 public `ExactComponentBuildFacts.components` identity. A message outside a compiler-recognized
-component is a build error. The analyzer does not derive or mint compiler component IDs, and the
-compiler remains unaware of intl semantics.
+component is a build error. The analyzer does not derive or mint compiler component IDs. The
+compiler remains unaware of message, catalog, translation, and CLDR semantics; its general
+ECMA-402 lowering recognizes proven native formatter operations and routes them through core's
+cache-backed `this.intl` service.
 
 ## Provide locale and catalogs
 
 ```ts
 import { createIntlEnvironment, IntlProvider } from '@exactjs/intl';
 const environment = createIntlEnvironment({
+	sourceLocale: 'en-US',
 	locale: 'fr-FR'
 });
 
 function App() {
-	return () => <IntlProvider environment={environment}>{/* application */}</IntlProvider>;
+	return () => (
+		<IntlProvider environment={environment}>
+			<main intl:locale>{/* application */}</main>
+		</IntlProvider>
+	);
 }
 ```
+
+`intl:locale` projects reactive `lang` and `dir` attributes onto its intrinsic during SSR,
+hydration, and client updates. A valueless activation reuses the nearest `IntlProvider`; an
+explicit locale uses a cached locale scope from that provider, or creates a zero-configuration
+environment when there is no provider. Locale literals are constrained by the CLDR-backed
+`IntlLocaleString` type and validated as BCP 47 by the intl analyzer. Validate and narrow a dynamic
+route, header, or user value before use:
+
+```ts
+import { defineIntlLocale } from '@exactjs/intl';
+
+const locale = defineIntlLocale(requestedLocale);
+```
+
+Semantic unit preferences default from CLDR using the locale's likely region and Unicode `u-rg`
+or `u-ms` overrides. Applications only provide the finite, dimension-checked
+`IntlUnitPreferences` entries that intentionally override those defaults.
 
 `environment.setLocale(locale)` is reactive and atomic. Generated companions are discovered
 automatically; missing messages use the analyzed source plan. DOM, synchronous SSR, and hydration
 use the same plan and preserve direct-intrinsic identity across binding and locale changes.
 Translator data cannot provide functions, component identities, HTML, handlers, URLs, or undeclared
-bindings. Native `Intl` formatter instances live in a bounded, lazily created cache owned by each
-environment, so components under one language context reuse them without creating process-global
-locale state or eagerly constructing formatters that are never used.
+bindings. Native `Intl` formatter instances live in one bounded, lazily created realm-wide cache
+owned by `@exactjs/core`. Each localization context resolves omitted locales—and an explicit locale
+equal to its declared `sourceLocale`—to the active locale before consulting that pool. Other
+explicit locales retain their authored meaning, while independent roots reuse identical
+locale/options combinations without sharing locale state. The compiler lowers proven constructor
+chains, finite local formatter bindings, and native
+number, bigint, and `Date` locale-string methods to `this.intl`; it removes a finite formatter
+declaration when all uses become cache operations. Escaping objects retain their binding but obtain
+the formatter through the cache. Helpers outside components can import the same global facade:
+
+```ts
+import { intl } from '@exactjs/core';
+
+export function formatPrice(value: number, locale: string) {
+	return intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(value);
+}
+```
+
+Dynamic option objects with accessors or non-data prototypes deliberately bypass reuse so cache
+keying cannot change observable JavaScript behavior. A missing constructor is not cached; a
+capability polyfill may fill it once before the first successful formatter request.
 
 ## Package catalogs and interchange
 
@@ -333,7 +428,8 @@ The translation workflow has distinct authored, extraction, and translated artif
 3. That targetless file is sent to a translation platform, AI workflow, or human translator. Each
    requested locale returns a bilingual XLIFF file with `trgLang` and translated `<target>` units.
 4. Those locale XLIFF files become the persisted authority for translated content. Synchronization
-   updates their analyzer-owned sources without replacing translator-owned targets or history.
+   updates their analyzer-owned sources without replacing compatible translator-owned targets,
+   notes, or review state, and removes units no longer present in the generated source set.
 5. The bundler validates and lowers the selected translations into disposable runtime protocol
    data.
 
@@ -357,23 +453,30 @@ slice, and can render the lazy translation without recreating the root provider.
 
 `@exactjs/intl-build` exposes source extraction, XLIFF 2.1 import, export, and synchronization plus
 a protocol-JSON adapter for generated integrations. XLIFF is the human and workflow-facing format. Plain
-text remains ordinary XLIFF text; values and opaque formatter operands use `<ph>`, movable
-intrinsics and selectors use `<pc>`, and selector branches use `<mrk>`. The document declares
+text remains ordinary XLIFF text; values and formatter results use `<ph>`, movable intrinsics and
+selectors use `<pc>`, and selector branches use standard generic `<mrk>` annotations. The document declares
 `version="2.1"` in XLIFF's `urn:oasis:names:tc:xliff:document:2.0` core namespace, as required by
-XLIFF 2.1; the namespace name intentionally did not change from 2.0. Inline `type` values stay
-within the core vocabulary. User-defined `exact:*` roles appear only where XLIFF explicitly permits
-custom `subType` or marker `type` values.
+XLIFF 2.1; the namespace name intentionally did not change from 2.0. Translator files contain no
+eXact namespace, executable binding indexes, formatter options, or proprietary runtime data.
+Generic inline-code `equiv`, `canCopy`, and `canDelete` fields form the translator guide. The
+build-owned execution contract remains beside compiled descriptors and is joined to those generic
+codes only after import.
 
-The finite binding and formatter contract is non-translatable `<originalData>` referenced by the
-standard `dataRef` or `dataRefStart` attributes. Required inline codes carry `canCopy="no"` and
-`canDelete="no"`, so a conforming translation tool must retain them while remaining free to reorder
-them. eXact does not depend on foreign XML elements or attributes that a tool may legally discard,
-and the translated message is not hidden in a proprietary JSON target string. Generated catalogs
-are validated against the official XLIFF 2.1 core schema.
+Message identity hashes the source locale, target, generic text/inline-code pattern, and placeholder
+guide. It deliberately excludes eXact execution metadata, so an internal lowering change does not
+invalidate translations. `intl:message="checkout-total"` (and `name` in finite object or explicit
+component forms) prefixes that hash with a normalized readable name; the hash still prevents two
+different messages with the same name from colliding. A separate execution-contract hash validates
+the current binding and formatter plan and allows equivalent runtime contracts to be reused.
+Unless a property supplies its own explicit object-form `name`, a supported intrinsic property on
+or within a named content message derives a readable prefix from that nearest message and the
+property name: `intl:message="account"` therefore yields prefixes such as `account_placeholder`
+and `account_aria-label`. The content and placeholder contracts still contribute independent
+hashes, so the readable relationship does not weaken identity or collision resistance.
 
-Synchronization rewrites current `<source>` plans, preserves valid `<target>` markup, notes,
-segment state, and translator ordering, and retains removed units as non-translatable obsolete
-history. Import ignores untranslated targets so source fallback remains intentional. Runtime JSON
+Synchronization rewrites current `<source>` plans, preserves compatible `<target>` markup, notes,
+segment state, and translator ordering, and removes obsolete units. Import rejects stale or duplicate
+units and incompatible protected-code changes; untranslated targets intentionally use source fallback. Runtime JSON
 is derived, validated build data and should not be edited or committed as the authoritative
 translation catalog.
 

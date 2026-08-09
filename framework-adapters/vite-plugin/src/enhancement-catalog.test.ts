@@ -6,7 +6,14 @@ import {
 	exactEnhancementFacades,
 	prependViteEnhancementRegistrations
 } from './enhancement-catalog.js';
-import { exact } from './plugin.js';
+import { exact as createExact } from './plugin.js';
+
+const exact = (...args: Parameters<typeof createExact>) =>
+	createExact(...args) as Omit<ReturnType<typeof createExact>, 'transform'> & {
+		transform(
+			...values: Parameters<ReturnType<typeof createExact>['transform']>
+		): Awaited<ReturnType<ReturnType<typeof createExact>['transform']>>;
+	};
 
 describe('Vite enhancement catalog emission', () => {
 	it('registers only the capabilities emitted for a compiled application module', () => {

@@ -7,6 +7,7 @@ import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerExplanation } from './explanation.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type { ExactSourceEntityKind } from '../language-tools/contracts.js';
+import type { ExactPackageEnhancementImport } from '@exactjs/config';
 
 /** Replaces one imported or exported binding during native module lowering. */
 export interface ModuleExportReplacement {
@@ -31,6 +32,8 @@ export type TransformOptions = {
 	root?: string;
 	/** TypeScript project configuration used for semantic analysis and generated-code checking. */
 	configFile?: string;
+	/** Enhancement imports declared package-wide by the owning exact configuration. */
+	packageEnhancements?: readonly ExactPackageEnhancementImport[];
 	/** Immutable deployment namespace shared by coordinated client/server artifacts. */
 	buildKey?: string;
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */

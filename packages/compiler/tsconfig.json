@@ -7,7 +7,13 @@
 		"lib": ["ES2022"],
 		"types": ["node"]
 	},
-	"references": [{ "path": "../devtools-protocol" }, { "path": "../instrumentation" }],
+	"references": [
+		{ "path": "../devtools-protocol" },
+		{ "path": "../instrumentation" },
+		{ "path": "../language-extension-api" },
+		{ "path": "../language-extension-host" },
+		{ "path": "../config" }
+	],
 	"files": [
 		"src/adapter-support.ts",
 		"src/artifact-isolation.ts",
@@ -31,7 +37,9 @@
 		"src/compilation/dev-state.ts",
 		"src/compilation/enhancement-registrations.ts",
 		"src/compilation/file-compilation.ts",
+		"src/compilation/language-validation.ts",
 		"src/compilation/native-session.ts",
+		"src/compilation/package-enhancements.ts",
 		"src/compilation/shared-artifact.ts",
 		"src/compilation/source-analysis.ts",
 		"src/compilation/transformation.ts",
@@ -69,6 +77,8 @@
 		"src/native/process.ts",
 		"src/native/transformation.ts",
 		"src/language-tools/contracts.ts",
+		"src/language-tools/language-projection.ts",
+		"src/language-tools/imported-files.ts",
 		"src/language-tools/build-catalog.ts",
 		"src/language-tools/refactor-equivalence.ts",
 		"src/language-tools/runtime-correlation.ts",

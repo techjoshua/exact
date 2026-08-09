@@ -25,7 +25,9 @@ import {
 import { prependViteEnhancementRegistrations } from './enhancement-catalog.js';
 import { exactModuleFilename, exactTransformTarget } from './module-selection.js';
 import type { ExactPluginOptions, ExactViteDebugOptions } from './plugin-contracts.js';
+import type { ExactLanguageProjectionV1 } from '@exactjs/language-extension-api';
 import { rewriteWithCompatibility } from './react-compatibility-emission.js';
+import type { ExactPackageEnhancementImport } from '@exactjs/config';
 
 /** Mutable build-owned inspection record collected for server catalog emission. */
 export type ExactViteInspectionRecord = Readonly<{
@@ -40,9 +42,11 @@ export type TransformExactViteModuleOptions = Readonly<{
 	id: string;
 	options: ExactPluginOptions;
 	compilerSession: ExactCompilerSession;
+	packageEnhancements?: readonly ExactPackageEnhancementImport[];
 	reactCompatibility?: ResolvedReactCompatibility;
 	compatibilityEngine?: ReactCompatibilityBuildEngine;
 	configuredDebug?: ExactViteDebugOptions;
+	languageValidation: boolean;
 	viteCommand: 'build' | 'serve';
 	componentAuthorization: ExactViteComponentAuthorization;
 	inspectionModules: Map<string, ExactViteInspectionRecord>;
@@ -52,9 +56,12 @@ export type TransformExactViteModuleOptions = Readonly<{
 }>;
 
 /** Runs the compiler/compatibility transform while projecting adapter-owned build metadata. */
-export function transformExactViteModule(
-	input: TransformExactViteModuleOptions
-): { code: string; map: unknown; moduleType: 'js' } | null {
+export function transformExactViteModule(input: TransformExactViteModuleOptions): {
+	code: string;
+	map: unknown;
+	moduleType: 'js';
+	languageProjection?: ExactLanguageProjectionV1;
+} | null {
 	const { code, id, options } = input;
 	const internationalization = options.internationalization || undefined;
 	if (!isExactBuildSourceModule(id)) return null;
@@ -115,6 +122,7 @@ export function transformExactViteModule(
 		compiler: {
 			options: {
 				session: input.compilerSession,
+				packageEnhancements: input.packageEnhancements,
 				target: exactTransformTarget(options),
 				serverComponents: options.serverComponents,
 				sourceMap: false,
@@ -122,8 +130,9 @@ export function transformExactViteModule(
 				preserveClientAssetImports: true,
 				jsxInterop: input.compatibilityEngine?.jsxInterop,
 				emitInspection:
-					options.target === 'server' &&
-					inspectionCatalogEnabled(input.configuredDebug, input.viteCommand),
+					input.languageValidation ||
+					(options.target === 'server' &&
+						inspectionCatalogEnabled(input.configuredDebug, input.viteCommand)),
 				instrumentInspection: inspectionRuntimeEnabled(input.configuredDebug, input.viteCommand)
 			},
 			finish: (result) => {
@@ -155,7 +164,7 @@ export function transformExactViteModule(
 				};
 			},
 			inspection: (result) =>
-				result.inspectionCatalog && options.target === 'server'
+				result.inspectionCatalog
 					? {
 							inspection: result.inspectionCatalog,
 							redactions: result.inspectionRedactions,
@@ -181,7 +190,19 @@ export function transformExactViteModule(
 			: undefined
 	});
 	if (!output) return null;
-	if (output.inspection) input.inspectionModules.set(path.resolve(filename), output.inspection);
+	if (
+		output.inspection &&
+		options.target === 'server' &&
+		inspectionCatalogEnabled(input.configuredDebug, input.viteCommand)
+	)
+		input.inspectionModules.set(path.resolve(filename), output.inspection);
 	input.recordMicrofrontendModule(output.code, id);
-	return { code: output.code, map: output.map, moduleType: 'js' };
+	return {
+		code: output.code,
+		map: output.map,
+		moduleType: 'js',
+		...(output.inspection
+			? { languageProjection: output.inspection.inspection.languageProjection }
+			: {})
+	};
 }

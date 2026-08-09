@@ -11,3 +11,5 @@ Use this package for eXact's application-authoring primitives.
   status, or optimistic state.
 - Call function-defined tasks normally and use `createComponentRegistry()` for finite dynamic
   component selection.
+- Use `this.intl` inside components and the exported `intl` facade in ordinary helpers when an
+  application needs explicitly cache-backed native formatting.

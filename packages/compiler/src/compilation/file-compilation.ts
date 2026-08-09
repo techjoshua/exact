@@ -6,6 +6,8 @@ import type { CompileFileOptions, CompileFileResult, CompileProjectOptions } fro
 import { capabilityCompilationOptions } from './capability-options.js';
 import { transformSource } from './transformation.js';
 import { createOwnedNativeCompilationSession } from './native-session.js';
+import { validateExactLanguageProjections } from './language-validation.js';
+import { loadExactPackageEnhancements } from '@exactjs/config/node';
 
 /** Compiles one input file and optionally writes code and its source map. */
 export async function compileFile(
@@ -20,12 +22,28 @@ export async function compileFile(
 			ownedSession.dispose();
 		}
 	}
+	const prepared = await prepareFile(inputFile, options);
+	await validatePreparedFiles([prepared], options.root ?? path.dirname(inputFile), options);
+	await publishPreparedFile(prepared);
+	return publicPreparedResult(prepared, options.emitInspection);
+}
+
+async function prepareFile(
+	inputFile: string,
+	options: CompileFileOptions
+): Promise<PreparedCompileFile> {
 	const source = await readFile(inputFile, 'utf8');
+	const packageEnhancements =
+		options.packageEnhancements ??
+		loadExactPackageEnhancements({
+			applicationRoot: options.root ?? path.dirname(inputFile)
+		}).packageEnhancements;
 	const result = transformSource(source, {
 		filename: options.filename ?? inputFile,
 		root: options.root,
 		configFile: options.configFile,
 		session: options.session,
+		packageEnhancements,
 		target: options.target,
 		serverComponents: options.serverComponents,
 		sourceMap: options.sourceMap,
@@ -35,6 +53,7 @@ export async function compileFile(
 		assetRules: options.assetRules,
 		preserveClientAssetImports: options.preserveClientAssetImports,
 		generatedValidation: options.generatedValidation,
+		emitInspection: true,
 		...capabilityCompilationOptions(options)
 	});
 	const outputFile = options.outDir
@@ -42,26 +61,27 @@ export async function compileFile(
 		: undefined;
 	const sourceMapFile = outputFile && result.map ? sourceMapPathFor(outputFile) : undefined;
 
+	return Object.freeze({ ...result, source, inputFile, outputFile, sourceMapFile });
+}
+
+async function publishPreparedFile(prepared: PreparedCompileFile): Promise<void> {
+	const { outputFile, sourceMapFile, map } = prepared;
 	if (outputFile) {
 		await mkdir(path.dirname(outputFile), { recursive: true });
 		await writeFile(
 			outputFile,
-			sourceMapFile ? withSourceMappingUrl(result.code, path.basename(sourceMapFile)) : result.code
+			sourceMapFile
+				? withSourceMappingUrl(prepared.code, path.basename(sourceMapFile))
+				: prepared.code
 		);
 	}
-	if (sourceMapFile && result.map) {
+	if (sourceMapFile && map) {
 		await mkdir(path.dirname(sourceMapFile), { recursive: true });
 		await writeFile(
 			sourceMapFile,
-			`${JSON.stringify(withSourceMapFile(result.map, path.basename(outputFile!)), null, 2)}\n`
+			`${JSON.stringify(withSourceMapFile(map, path.basename(outputFile!)), null, 2)}\n`
 		);
 	}
-	return {
-		...result,
-		inputFile,
-		outputFile,
-		sourceMapFile
-	};
 }
 
 /** Compiles all transformable files found under the provided input paths. */
@@ -79,11 +99,11 @@ export async function compileProject(
 	}
 	const files = await collectInputFiles(inputs, options.includeAllModules);
 	const rootDir = options.rootDir ?? commonRoot(files);
-	const results: CompileFileResult[] = [];
+	const prepared: PreparedCompileFile[] = [];
 
 	for (const file of files) {
-		results.push(
-			await compileFile(file, {
+		prepared.push(
+			await prepareFile(file, {
 				outDir: options.outDir,
 				rootDir,
 				root: options.root,
@@ -98,10 +118,40 @@ export async function compileProject(
 				assetRules: options.assetRules,
 				preserveClientAssetImports: options.preserveClientAssetImports,
 				generatedValidation: options.generatedValidation,
+				languageExtensions: options.languageExtensions,
+				packageEnhancements: options.packageEnhancements,
 				...capabilityCompilationOptions(options)
 			})
 		);
 	}
+	await validatePreparedFiles(prepared, options.root ?? rootDir, options);
+	for (const result of prepared) await publishPreparedFile(result);
+	return prepared.map((result) => publicPreparedResult(result, options.emitInspection));
+}
 
-	return results;
+type PreparedCompileFile = CompileFileResult & Readonly<{ source: string }>;
+
+function publicPreparedResult(
+	prepared: PreparedCompileFile,
+	emitInspection: CompileFileOptions['emitInspection']
+): CompileFileResult {
+	const { source: _source, inspectionCatalog, ...result } = prepared;
+	return {
+		...result,
+		...(emitInspection === true || emitInspection === 'auto' ? { inspectionCatalog } : {})
+	};
+}
+
+async function validatePreparedFiles(
+	files: readonly PreparedCompileFile[],
+	root: string,
+	options: Readonly<{ languageExtensions?: CompileProjectOptions['languageExtensions'] }>
+): Promise<void> {
+	await validateExactLanguageProjections(
+		files.flatMap((file) =>
+			file.inspectionCatalog ? [file.inspectionCatalog.languageProjection] : []
+		),
+		root,
+		options.languageExtensions
+	);
 }

@@ -30,6 +30,8 @@ once in `exact.config.*`; successful compilations emit private authorization and
 Attributed enhancement imports populate the application-bundle enhancement catalog. The plugin aliases
 DOM, hydration, and SSR entry points to the shared facades that supply that catalog; application
 aliases remain authoritative, and the compiler does not maintain a plugin registry.
+An attributed namespace export with `scope: 'package'` in `exact.config.*` supplies a virtual namespace to
+every package component; Webpack emits its catalog registration only from modules that activate it.
 
 Optional `debug` settings control private server catalogs and compact browser instrumentation.
 Disable both for hardened output. See [eXact DevTools](../../docs/devtools.md).

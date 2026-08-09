@@ -6,6 +6,12 @@ export type {
 	ExactComponentLibraryTrustConfig,
 	ExactConfig,
 	ExactDebugBuildConfig,
+	ExactLanguageDiagnosticSelector,
+	ExactLanguageExtensionRole,
+	ExactLanguageExtensionsConfig,
+	ExactLanguageIgnoreRule,
+	ExactLanguagePackageRule,
+	ExactPackageEnhancementImport,
 	ExactPluginConfigRegistry,
 	ExactPluginDiscoveryConfig
 } from './contracts.js';

@@ -1,3 +1,4 @@
+import { intl } from '@exactjs/core';
 import { cldrUnitPreferenceData, cldrUnitSystems, intlCldrVersion } from './cldr-unit-data.js';
 import { convertIntlUnit, intlUnitDefinitions } from './unit-definitions.js';
 
@@ -53,7 +54,7 @@ export function resolveCldrUnitPreference(
 
 /** Applies CLDR region and measurement-system fallback ordering for one preference table. */
 function preferenceRegion(locale: string, preferences: CldrRegionPreferences): string {
-	const parsed = new Intl.Locale(locale);
+	const parsed = intl.Locale(locale);
 	const region = unicodeRegionOverride(parsed) ?? parsed.maximize().region ?? '001';
 	const measurementSystem = unicodeMeasurementSystem(parsed);
 	if (!measurementSystem) return region;

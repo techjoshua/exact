@@ -4,7 +4,6 @@ import {
 	localeEnvironments,
 	setComparisonUnitPolicy
 } from './locale-environments.js';
-import { PluralRulesShowcase } from './plural-rules-showcase.js';
 import { LocaleShowcase, preloadLazyShowcase, type LazyRegionKey } from './showcase.js';
 
 interface TestbedState {
@@ -147,8 +146,6 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				</button>
 			</section>
 
-			<PluralRulesShowcase count={this.state.count} />
-
 			<div className="comparison-key" id="catalogs">
 				<span>
 					<i className="key-report" /> translator-movable intrinsic
@@ -163,7 +160,6 @@ export function IntlTestbed(this: Component<TestbedState>) {
 					<LocaleShowcase
 						key={locale}
 						locale={locale}
-						direction={locale === 'ar-EG' ? 'rtl' : 'ltr'}
 						environment={localeEnvironments[locale]}
 						name={this.state.name}
 						count={this.state.count}

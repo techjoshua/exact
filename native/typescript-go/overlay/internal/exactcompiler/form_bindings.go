@@ -65,14 +65,15 @@ func analyzeFormBindings(
 				strings.HasPrefix(name, "checked:") ||
 				strings.HasPrefix(name, "open:") {
 				members := enhancements.applications[attributes.Pos()].attributes[property.Pos()]
+				analysisFields := enhancements.analysisFields[property]
 				canonical := name == "value:onInput" || name == "value:onChange" ||
 					name == "checked:onChange" || name == "open:onToggle"
-				if len(members) != 0 {
+				if len(members) != 0 || len(analysisFields) != 0 {
 					if canonical {
 						blockedEnhancements[property.Pos()] = struct{}{}
 						diagnostics = append(diagnostics, formBindingDiagnostic(
 							property,
-							name+" is ambiguous between a compiler-owned intrinsic binding and an enhancement member; rename the enhancement namespace",
+							name+" is ambiguous between a compiler-owned intrinsic binding and an enhancement field; rename the enhancement namespace",
 						))
 					}
 					continue

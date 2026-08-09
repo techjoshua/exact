@@ -34,6 +34,8 @@ preserve a last-valid authorization generation; use watch builds instead.
 Attributed enhancement imports populate the application-bundle enhancement catalog. The plugin
 redirects DOM, hydration, and SSR entry points through the shared facades that supply that catalog;
 the compiler does not decide package trust or maintain a plugin registry.
+An attributed namespace export with `scope: 'package'` in `exact.config.*` supplies a virtual namespace to
+every package component; Bun emits its catalog registration only from modules that activate it.
 
 Optional `debug` settings control private server catalogs and compact browser instrumentation.
 Disable both for hardened output. See [eXact DevTools](../../docs/devtools.md).

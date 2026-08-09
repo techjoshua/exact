@@ -40,6 +40,22 @@ re-executing the component.
 - `createComponentDomain({ executionRoot })` for integrations that establish explicit ownership
   roots without exposing framework transport or activation capabilities
 - Shared component, VNode, task, and inspection types used by framework integrations
+- A realm-wide cache-backed `intl` facade; compiled components resolve the same pool through
+  `this.intl`, with the nearest localization context supplying the active locale for omitted or
+  matching authored-source locale requests
+
+Helpers outside a component can format through the shared pool directly:
+
+```ts
+import { intl } from '@exactjs/core';
+
+const price = intl
+	.NumberFormat('en-US', {
+		style: 'currency',
+		currency: 'USD'
+	})
+	.format(42);
+```
 
 Use ordinary callbacks and inferred tasks when they are sufficient. Reach for explicit policy when
 work needs placement, scheduling, cancellation capabilities, a stable key, or a human-readable

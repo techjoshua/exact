@@ -121,7 +121,10 @@ export type ExactPlugin = {
 		this: { warn?(message: string): void },
 		code: string,
 		id: string
-	): { code: string; map: unknown; moduleType?: 'js' } | null;
+	):
+		| { code: string; map: unknown; moduleType?: 'js' }
+		| null
+		| Promise<{ code: string; map: unknown; moduleType?: 'js' } | null>;
 	handleHotUpdate?(
 		this: { warn?(message: string): void; addWatchFile?(file: string): void },
 		context: {

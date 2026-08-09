@@ -6,7 +6,7 @@ import { renderIntlActivation } from './render.js';
 import { convertIntlUnit } from './unit-definitions.js';
 import { validateIntlRuntimeDescriptor } from './validation.js';
 
-const messageKey = 'm1_47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU';
+const messageKey = '47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU';
 
 describe('expanded semantic unit conversion', () => {
 	it.each([
@@ -81,6 +81,7 @@ function measurementDescriptor(
 		protocol: 1,
 		owner: `measurements-${quantity}`,
 		occurrenceId: `${quantity}:${usage}`,
+		contract: contractFixture(`${quantity}-${usage}-${sourceUnit}`),
 		key: messageKey,
 		sourceLocale: 'en-US',
 		target: { kind: 'content' },
@@ -101,4 +102,11 @@ function measurementDescriptor(
 		],
 		capabilities: ['unit']
 	};
+}
+
+function contractFixture(value: string): string {
+	return value
+		.replace(/[^A-Za-z0-9_-]/gu, '-')
+		.padEnd(43, 'x')
+		.slice(0, 43);
 }

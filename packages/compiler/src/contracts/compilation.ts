@@ -1,4 +1,6 @@
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
+import type { ExactLanguageExtensionsConfig } from '@exactjs/config';
+import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type {
@@ -18,6 +20,8 @@ import type {
 export type CompileFileOptions = TransformOptions & {
 	outDir?: string;
 	rootDir?: string;
+	/** Shared package-language validation policy, or false to disable package validation. */
+	languageExtensions?: ExactLanguageExtensionsConfig | false;
 };
 
 /** Describes the result produced by compile file. */
@@ -33,6 +37,8 @@ export type CompileProjectOptions = TransformOptions & {
 	rootDir?: string;
 	/** Includes non-JSX JavaScript and TypeScript modules for no-emit project checking. */
 	includeAllModules?: boolean;
+	/** Shared package-language validation policy, or false to disable package validation. */
+	languageExtensions?: ExactLanguageExtensionsConfig | false;
 };
 
 /** Configures compile artifacts. */
@@ -59,6 +65,10 @@ export type CompileArtifactsOptions = {
 	instrumentInspection?: TransformOptions['instrumentInspection'];
 	/** Controls the server-only build catalog packaged from emitted module inspections. */
 	inspection?: ExactArtifactInspectionOptions;
+	/** Shared package-language validation policy, or false to disable package validation. */
+	languageExtensions?: ExactLanguageExtensionsConfig | false;
+	/** Package-wide enhancement bindings loaded from exact configuration. */
+	packageEnhancements?: readonly ExactPackageEnhancementImport[];
 };
 
 /** Configures packaging for one immutable, server-owned build inspection catalog. */
@@ -125,6 +135,8 @@ export type CompileArtifactPlanEntriesOptions = {
 	capabilityPolicy?: TransformOptions['capabilityPolicy'];
 	emitInspection?: TransformOptions['emitInspection'];
 	instrumentInspection?: TransformOptions['instrumentInspection'];
+	/** Package-wide enhancement bindings loaded from exact configuration. */
+	packageEnhancements?: readonly ExactPackageEnhancementImport[];
 };
 
 /** Configures exact artifact plan. */

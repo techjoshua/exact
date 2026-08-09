@@ -7,18 +7,17 @@ intrinsic properties, ordinary content outside the translation workload, and laz
 adoption.
 
 The lazy-region idle, loading, and loaded states are all catalog-backed. The explicitly labeled
-ordinary-content sentence is the sole untranslated control in each locale panel.
+ordinary-content sentence is the untranslated-content control in each locale panel. The opaque
+recipient component also uses standard `translate="no"` for its authored proper name.
 
 Its formatter grid exercises enhancement-first conversion and locale preference for road distance,
 temperature, land area, personal mass, liquid volume, road speed, weather pressure, food and
 electric energy, engine power, road fuel economy, and digital storage. The panels make metric,
-US-customary, RTL, and untranslated source fallback behavior directly comparable. The locale policy
-uses pinned CLDR 48 region, usage, and magnitude preferences; the metric and US controls demonstrate
-that application policy still overrides those defaults.
-
-The shared count control also drives a source-locale cardinal-rule comparison for Arabic, Polish,
-French, and Hindi. It shows the native category and authored word form side by side, matching the
-static `Intl.PluralRules` lookup shape accepted by the analyzer.
+US-customary, RTL, and untranslated source fallback behavior directly comparable. Pinned CLDR 48
+region, usage, and magnitude preferences supply the defaults; the metric and US controls apply
+standard Unicode `u-ms-metric` and `u-ms-ussystem` locale extensions without duplicating preference
+tables. Each locale panel uses `intl:locale`, so its reactive `lang` and `dir` attributes are visible
+in SSR and client output.
 
 Run `npm run dev:intl` from the repository root. The generated, checked-in
 `locales/en-US.xlf` is the targetless set of source-locale messages a developer sends for

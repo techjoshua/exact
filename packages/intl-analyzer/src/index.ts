@@ -1,6 +1,11 @@
 export { analyzeIntlSource } from './analyze-source.js';
-export { createIntlMessageKey } from './message-key.js';
+export {
+	createIntlExecutionContractHash,
+	createIntlMessageKey,
+	intlMessageNamePrefix
+} from './message-key.js';
 export { NativeIntlAnalyzer } from './native-analysis.js';
+export { finalizeNativeIntlDescriptor } from './instrumentation.js';
 export type {
 	NativeIntlAnalysis,
 	NativeIntlDescriptor,
@@ -13,3 +18,12 @@ export type {
 	IntlDescriptorCompanion,
 	IntlSourceAnalysis
 } from './analysis-contracts.js';
+export {
+	childElement,
+	childElements,
+	localName,
+	parseXml,
+	requiredAttribute,
+	requiredChild,
+	type XmlElement
+} from './xliff-xml.js';

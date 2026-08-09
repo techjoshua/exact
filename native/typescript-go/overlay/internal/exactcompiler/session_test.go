@@ -6479,6 +6479,20 @@ func TestSessionLowersAttributedEnhancementJSXNamespaces(t *testing.T) {
 		response.Analysis.Enhancements[1].ExportName != "motion" {
 		t.Fatalf("compiler omitted renderer enhancement bundle metadata: %#v", response.Analysis.Enhancements)
 	}
+	if len(response.Analysis.EnhancementActivations) != 4 {
+		t.Fatalf("compiler omitted canonical enhancement activations: %#v", response.Analysis.EnhancementActivations)
+	}
+	for _, activation := range response.Analysis.EnhancementActivations {
+		if activation.TargetStart <= 0 || activation.TargetLength <= 0 || activation.Application != "direct" {
+			t.Fatalf("compiler emitted an invalid enhancement target: %#v", activation)
+		}
+		if activation.Namespace == "animate" && activation.Identity != "./motion.js#motion" {
+			t.Fatalf("compiler lost aliased enhancement identity: %#v", activation)
+		}
+		if activation.Namespace == "gravity" && activation.Identity != "./motion.js#gravity" {
+			t.Fatalf("compiler lost named enhancement identity: %#v", activation)
+		}
+	}
 	var enhancementNode PartitionPlanNode
 	var gravityNode PartitionPlanNode
 	for _, node := range response.Analysis.PartitionPlan.Nodes {
@@ -6739,6 +6753,55 @@ func TestSessionValidatesAttributedEnhancementComponentSchemas(t *testing.T) {
 	openSpread := compile(`import { motion } from "./enhancements.js" with { type: "exact-enhancement" }; const props: Record<string, unknown> = {}; export const view = <div {...props} />;`)
 	if !containsDiagnosticCode(openSpread.Diagnostics, "EXACT6008") {
 		t.Fatalf("open enhancement spread key space was accepted: %#v", openSpread.Diagnostics)
+	}
+}
+
+func TestSessionAcceptsTypedAnalyzerOnlyEnhancementFieldsWithoutRuntimeComposition(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	capabilityFile := filepath.Join(root, "enhancements.ts")
+	implementationFile := filepath.Join(root, "enhancement-implementation.ts")
+	entryFile := filepath.Join(root, "entry.tsx")
+	for filename, source := range map[string]string{
+		configFile:     `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		capabilityFile: `export { intl as default } from "./enhancement-implementation.js" with { type: "exact-enhancement" };`,
+		implementationFile: `
+			interface IntlProps {
+				/** @exact analyzer-only */
+				fragment?: string;
+				message?: true | string;
+				children?: unknown;
+			}
+			export function intl(props: IntlProps) { return props.children; }
+		`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	compile := func(source string) Response {
+		if err := os.WriteFile(entryFile, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return NewSession().Execute(Request{
+			ID: entryFile, Kind: "compile", Source: source, ConfigFile: configFile,
+		})
+	}
+	valid := compile(`import intl from "./enhancements.js" with { type: "exact-enhancement" }; declare function Badge(): unknown; export const view = <_ intl:fragment="report"><Badge /></_>;`)
+	for _, diagnostic := range valid.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("analyzer-only enhancement field produced an error: %#v", valid.Diagnostics)
+		}
+	}
+	if strings.Contains(valid.Code, "createEnhancementMarker") || strings.Contains(valid.Code, "intl:fragment") {
+		t.Fatalf("analyzer-only enhancement field reached runtime output:\n%s", valid.Code)
+	}
+	if containsDiagnosticCode(valid.Diagnostics, "EXACT_COMPONENT_BINDING") {
+		t.Fatalf("analyzer-only enhancement field was treated as component binding shorthand: %#v", valid.Diagnostics)
+	}
+	invalid := compile(`import intl from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <strong intl:fragment={42}>Report</strong>;`)
+	if !containsDiagnosticCode(invalid.Diagnostics, "EXACT6011") {
+		t.Fatalf("invalid analyzer-only enhancement field value was accepted: %#v", invalid.Diagnostics)
 	}
 }
 

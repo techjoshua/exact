@@ -1,3 +1,4 @@
+import { intl } from '@exactjs/core';
 import type { SourceCurrencyLabel } from './source-locale-profile.js';
 
 /** Bounded shorthand that supplements native Intl data for one authored source language. */
@@ -372,6 +373,6 @@ function ordinalProfile(
 
 /** Resolves optional authored-language shorthand without coupling the native analyzer to a language. */
 export function sourceLanguageInference(locale: string): SourceLanguageInference {
-	const language = new Intl.Locale(locale).language;
+	const language = intl.Locale(locale).language;
 	return sourceLanguageInferences[language] ?? Object.freeze({});
 }

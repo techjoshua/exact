@@ -29,6 +29,7 @@ import {
 	type AuthoredTaskRegion
 } from './source-ranges.js';
 import { componentReasons, taskEntity } from './task-inspection.js';
+import { createExactLanguageProjection } from './language-projection.js';
 
 /** Projects native compiler facts into the stable editor-facing source model. */
 export function createExactSourceInspection(
@@ -50,6 +51,7 @@ export function createExactSourceInspection(
 			backendVersion: response.backendVersion
 		}),
 		partitionPlan: freezePartitionPlan(response.analysis.partitionPlan),
+		languageProjection: createExactLanguageProjection(filename, source, generation, response),
 		components: Object.freeze(components),
 		diagnostics: Object.freeze(
 			// TypeScript diagnostics remain available from the native response for builds,

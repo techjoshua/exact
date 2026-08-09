@@ -1,5 +1,6 @@
 import {
 	canonicalizeIntlValue,
+	projectIntlTranslationContract,
 	type AnalyzedMessageDescriptorV1,
 	type IntlRuntimeDescriptorV1
 } from '@exactjs/intl';
@@ -8,7 +9,7 @@ import type {
 	IntlDescriptorCompanion,
 	IntlSourceAnalysis
 } from './analysis-contracts.js';
-import { createIntlMessageKey } from './message-key.js';
+import { createIntlExecutionContractHash, createIntlMessageKey } from './message-key.js';
 import type {
 	NativeIntlAnalysis,
 	NativeIntlDescriptor,
@@ -24,7 +25,7 @@ export function instrumentNativeIntlAnalysis(
 	options: AnalyzeIntlSourceOptions,
 	native: NativeIntlAnalysis
 ): IntlSourceAnalysis {
-	const descriptors = native.descriptors.map(finalizeDescriptor);
+	const descriptors = native.descriptors.map(finalizeNativeIntlDescriptor);
 	if (descriptors.length === 0)
 		return Object.freeze({
 			code: source,
@@ -109,32 +110,37 @@ export function instrumentNativeIntlAnalysis(
 	});
 }
 
-function finalizeDescriptor(native: NativeIntlDescriptor): AnalyzedMessageDescriptorV1 {
-	const canonicalSource = canonicalizeIntlValue({
-		protocol: 1,
+/** Finalizes one native descriptor with independent translation and execution identities. */
+export function finalizeNativeIntlDescriptor(
+	native: NativeIntlDescriptor
+): AnalyzedMessageDescriptorV1 {
+	const { name, ...descriptor } = native;
+	const translation = projectIntlTranslationContract(native.bindings, native.source);
+	const canonicalTranslation = canonicalizeIntlValue({
 		sourceLocale: native.sourceLocale,
 		target: native.target,
-		...(native.context ? { context: native.context } : {}),
-		bindings: native.bindings.map(({ kind, type, name, exactlyOnce }) => ({
-			kind,
-			type,
-			...(name ? { name } : {}),
-			...(exactlyOnce ? { exactlyOnce } : {})
-		})),
-		source: native.source
+		...(name ? { name } : {}),
+		source: translation.source,
+		placeholders: translation.placeholders.map((placeholder) => ({ ...placeholder }))
+	});
+	const canonicalContract = canonicalizeIntlValue({
+		bindings: native.bindings.map(({ index: _index, ...binding }) => binding),
+		source: native.source,
+		capabilities: [...native.capabilities].sort()
 	});
 	return Object.freeze({
-		...native,
-		key: createIntlMessageKey(canonicalSource),
-		canonicalSource
+		...descriptor,
+		...(name ? { name } : {}),
+		contract: createIntlExecutionContractHash(canonicalContract),
+		key: createIntlMessageKey(canonicalTranslation, name),
+		canonicalTranslation
 	});
 }
 
 function runtimeDescriptor(descriptor: AnalyzedMessageDescriptorV1): IntlRuntimeDescriptorV1 {
 	const {
 		ownerComponentId: _ownerComponentId,
-		canonicalSource: _canonicalSource,
-		context: _context,
+		canonicalTranslation: _canonicalTranslation,
 		sourceRange: _sourceRange,
 		...runtime
 	} = descriptor;

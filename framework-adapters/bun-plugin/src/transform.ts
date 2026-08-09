@@ -41,6 +41,7 @@ export function transformExactBunSource(
 		redactions?: ExactInspectionRedactionCatalog;
 	}>;
 	componentBuild?: ExactComponentBuildFacts;
+	languageProjection?: import('@exactjs/language-extension-api').ExactLanguageProjectionV1;
 } | null {
 	const reachedPublication =
 		intl && options.internationalization ? intl.activateReachedSource(source, filename) : undefined;
@@ -91,13 +92,16 @@ export function transformExactBunSource(
 		compiler: {
 			options: {
 				session,
+				packageEnhancements: options.__exactPackageEnhancements,
 				target: targetFor(options),
 				serverComponents: options.serverComponents,
 				sourceMap: options.sourceMap ?? true,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: true,
 				jsxInterop: compatibilityEngine?.jsxInterop,
-				emitInspection: options.target === 'server' && bunDebugEnabled(options.debug?.catalog),
+				emitInspection:
+					options.__exactLanguageValidation === true ||
+					(options.target === 'server' && bunDebugEnabled(options.debug?.catalog)),
 				instrumentInspection: bunDebugEnabled(options.debug?.runtime)
 			},
 			finish: (result) => {
@@ -134,6 +138,9 @@ export function transformExactBunSource(
 				code: output.code,
 				map: output.map,
 				inspection: output.inspection,
+				...(output.inspection
+					? { languageProjection: output.inspection.inspection.languageProjection }
+					: {}),
 				...(componentBuild ? { componentBuild } : {})
 			}
 		: null;

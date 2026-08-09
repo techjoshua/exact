@@ -6,7 +6,11 @@
 		"outDir": "dist",
 		"lib": ["ES2022", "DOM"]
 	},
-	"references": [{ "path": "../core" }, { "path": "../reactive" }],
+	"references": [
+		{ "path": "../core" },
+		{ "path": "../reactive" },
+		{ "path": "../language-extension-api" }
+	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

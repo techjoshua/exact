@@ -20,7 +20,8 @@ export function renderIntlActivation(
 	environment: IntlEnvironment
 ): Child[] {
 	const { descriptor } = activation;
-	const pattern = environment.find(descriptor.owner, descriptor.key) ?? descriptor.source;
+	const pattern =
+		environment.find(descriptor.owner, descriptor.key, descriptor) ?? descriptor.source;
 	const usedStructures = new Set<number>();
 	const output = renderPattern(pattern, activation, environment, usedStructures);
 	for (const binding of descriptor.bindings)
@@ -194,7 +195,9 @@ function formatUnitRange(
 ): string {
 	const preference =
 		formatter.convertTo ??
-		environment.unitPreferences[`${formatter.quantity}/${formatter.usage}`] ??
+		environment.unitPreferences[
+			`${formatter.quantity}/${formatter.usage}` as keyof typeof environment.unitPreferences
+		] ??
 		resolveCldrUnitPreference(
 			environment.state.locale,
 			formatter.quantity,

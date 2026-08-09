@@ -133,9 +133,16 @@ func (builder *partitionPlanBuilder) addExternalComponent(edge RenderEdge) strin
 	placement, conservative, reason := partitionPlacement(edge.Placement)
 	if edge.ComponentID == "" {
 		conservative = true
-		reason = "render edge has no compiler-branded native component contract"
+		if edge.ModuleSpecifier != "" {
+			// Static package edges are deliberately opaque to the per-module compiler.
+			// The shared build host validates their published component catalogs before
+			// execution, so absence of an in-module contract is not itself actionable.
+			reason = "external render edge awaits build-host component catalog resolution"
+		} else {
+			reason = "render edge has no compiler-branded native component contract"
+		}
 	}
-	if conservative {
+	if conservative && edge.ModuleSpecifier == "" {
 		reason = "unresolved foreign render edge " + edge.Name + ": " + reason
 	}
 	id := exactStableID(builder.filename, "partition", contract, "component")

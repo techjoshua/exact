@@ -586,6 +586,39 @@ into the application bundle's enhancement catalog. An available entry mounts as 
 inspectable component; an unavailable entry leaves the authored output unchanged. Enhancement
 metadata and the bundle-local catalog are not framework-plugin discovery or lifecycle.
 
+An enhancement prop documented with `@exact analyzer-only` is a finite, typed source field for a
+trusted analyzer rather than component input. The compiler accepts and type-checks the namespaced
+field, exposes it through the ordinary language projection, and removes it from emitted JSX without
+selecting or mounting an enhancement component. This generic contract is appropriate for structural
+labels and similar compile-time evidence whose meaning belongs to the package analyzer.
+It is not reinterpreted as component or intrinsic binding shorthand merely because both features
+use namespaced JSX; a genuine collision with an otherwise valid binding receives the ordinary
+ambiguity diagnostic.
+
+Ordinary component imports from packages are also resolved at this shared build-host boundary. The
+per-module compiler keeps an opaque imported edge conservative until the host validates the
+package's inert published component catalog; it does not report the temporary absence of an
+in-module contract as a source error. Truly unresolvable local or dynamic component values still
+receive an actionable compiler diagnostic.
+
+An attributed namespace export in `exact.config.*` can make the same namespace available to every compiled
+component owned by that package:
+
+```ts
+export * as intl from '@exactjs/intl/enhancements' with { type: 'exact-enhancement', scope: 'package' };
+
+export default defineConfig({});
+```
+
+The namespace export states package-wide availability without pretending the config consumes a
+file-local binding, so ordinary unused-import rules need no exception. The configuration loader
+records it statically and never executes the enhancement module.
+The compiler treats `intl` as a virtual import in each package component, but emits a catalog import
+only for modules that actually activate `intl:*`. A top-level declaration or explicit import using
+the same local name is a duplicate identifier; rename it or remove the redundant declaration.
+`scope: 'package'` is rejected outside `exact.config.*`, and package bindings do not leak into
+dependencies or consuming packages.
+
 An enhancement module may attribute named re-exports as finite activators:
 
 ```ts

@@ -1,5 +1,5 @@
 import type { IntlRuntimeDescriptorV1 } from '@exactjs/intl';
-import { createIntlMessageKey } from '@exactjs/intl-analyzer';
+import { createIntlExecutionContractHash, createIntlMessageKey } from '@exactjs/intl-analyzer';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -201,6 +201,7 @@ function publishedDescriptor(owner: string): IntlRuntimeDescriptorV1 {
 		protocol: 1,
 		owner,
 		occurrenceId: 'Card:0',
+		contract: createIntlExecutionContractHash('card execution'),
 		key: createIntlMessageKey('card greeting'),
 		sourceLocale: 'en-US',
 		target: { kind: 'content' },

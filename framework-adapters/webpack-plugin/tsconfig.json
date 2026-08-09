@@ -11,6 +11,8 @@
 		{ "path": "../../packages/config" },
 		{ "path": "../../packages/instrumentation" },
 		{ "path": "../../packages/intl-build" },
+		{ "path": "../../packages/language-extension-api" },
+		{ "path": "../../packages/language-extension-host" },
 		{ "path": "../../packages/plugin-api" },
 		{ "path": "../../packages/plugin-host" },
 		{ "path": "../../packages/compiler" },

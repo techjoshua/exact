@@ -3,7 +3,14 @@ import { analyzeIntlSource } from '@exactjs/intl-analyzer';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { exact } from './index.js';
+import { exact as createExact } from './index.js';
+
+const exact = (...args: Parameters<typeof createExact>) =>
+	createExact(...args) as Omit<ReturnType<typeof createExact>, 'transform'> & {
+		transform(
+			...values: Parameters<ReturnType<typeof createExact>['transform']>
+		): Awaited<ReturnType<ReturnType<typeof createExact>['transform']>>;
+	};
 
 describe('@exactjs/vite-plugin: transform', () => {
 	it('rejects server artifact reachability in final client chunks', () => {
@@ -264,7 +271,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 			});
 			plugin.configResolved?.({ command: 'serve' });
 			await plugin.buildStart?.call({ addWatchFile: (file) => watched.push(file) });
-			const transformed = plugin.transform(source, filename);
+			const transformed = await plugin.transform(source, filename);
 			const request = transformed?.code.match(
 				/from "(virtual:exact-intl\/descriptor\/[^"]+)"/
 			)?.[1];

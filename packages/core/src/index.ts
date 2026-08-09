@@ -27,6 +27,13 @@ export {
 	type CleanupFailure
 } from './cleanup.js';
 export { normalizeActivityMode } from './activity.js';
+export { LocalizationContext } from './localization/context.js';
+export { intl } from './localization/facade.js';
+export type {
+	IntlDurationFormatter,
+	IntlFacade,
+	LocalizationContextValue
+} from './localization/contracts.js';
 export { isFiniteClientBoundary, markFiniteClientBoundary } from './hydration-boundary.js';
 export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from './ssr-independence.js';
 export {

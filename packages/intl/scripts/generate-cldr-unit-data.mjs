@@ -11,10 +11,16 @@ const preferencePath = path.join(
 );
 const unitsPath = path.join(workspaceRoot, 'node_modules/cldr-core/supplemental/units.json');
 const outputPath = path.join(packageRoot, 'src/cldr-unit-data.ts');
+const availableLocalesPath = path.join(
+	workspaceRoot,
+	'node_modules/cldr-core/availableLocales.json'
+);
+const localeTypesPath = path.join(packageRoot, 'src/cldr-locale-types.ts');
 const check = process.argv.includes('--check');
 
 const preferenceDocument = JSON.parse(await readFile(preferencePath, 'utf8'));
 const unitsDocument = JSON.parse(await readFile(unitsPath, 'utf8'));
+const availableLocalesDocument = JSON.parse(await readFile(availableLocalesPath, 'utf8'));
 const preferences = preferenceDocument.supplemental.unitPreferenceData;
 const conversions = unitsDocument.supplemental.convertUnits;
 const prefixes = Object.keys(unitsDocument.supplemental.unitPrefixes).sort(
@@ -76,14 +82,38 @@ export const cldrUnitSystems = ${compactSystems} as const;
 `;
 const prettierConfig = (await resolveConfig(outputPath)) ?? {};
 const generated = await format(raw, { ...prettierConfig, filepath: outputPath });
+const localeLanguages = [
+	...new Set(
+		availableLocalesDocument.availableLocales.full
+			.map((locale) => locale.split('-')[0])
+			.filter((language) => /^[a-z]{2,8}$/u.test(language))
+	)
+].sort();
+const localeTypesRaw = `// Generated from cldr-core ${preferenceDocument.supplemental.version._cldrVersion}; do not edit.
+
+/** Primary BCP 47 language subtags represented by the bundled CLDR release. */
+export type IntlLocaleLanguage = ${localeLanguages.map(JSON.stringify).join(' | ')};
+
+/** A locale identifier whose primary language is represented by the bundled CLDR release. */
+export type IntlLocaleString = IntlLocaleLanguage | \`${'${IntlLocaleLanguage}'}-${'${string}'}\`;
+`;
+const localeTypesConfig = (await resolveConfig(localeTypesPath)) ?? {};
+const generatedLocaleTypes = await format(localeTypesRaw, {
+	...localeTypesConfig,
+	filepath: localeTypesPath
+});
 
 if (check) {
 	const current = await readFile(outputPath, 'utf8').catch(() => '');
-	if (current !== generated) {
-		console.error('Generated CLDR unit preference data is stale. Run npm run generate:cldr.');
+	const currentLocaleTypes = await readFile(localeTypesPath, 'utf8').catch(() => '');
+	if (current !== generated || currentLocaleTypes !== generatedLocaleTypes) {
+		console.error('Generated CLDR intl data is stale. Run npm run generate:cldr.');
 		process.exitCode = 1;
 	}
-} else await writeFile(outputPath, generated, 'utf8');
+} else {
+	await writeFile(outputPath, generated, 'utf8');
+	await writeFile(localeTypesPath, generatedLocaleTypes, 'utf8');
+}
 
 function serializeRecord(record) {
 	const entries = Object.entries(record).map(

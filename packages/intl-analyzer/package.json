@@ -12,13 +12,19 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./xliff": {
+			"types": "./dist/xliff-xml.d.ts",
+			"default": "./dist/xliff-xml.js"
 		}
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/compiler": "^0.1.0",
-		"@exactjs/intl": "^0.1.0"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/intl": "^0.1.0",
+		"saxes": "^6.0.0"
 	},
 	"devDependencies": {
 		"@exactjs/core": "^0.1.0",

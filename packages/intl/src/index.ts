@@ -2,12 +2,14 @@ export {
 	IntlAttributes,
 	IntlCurrency,
 	IntlEnvironmentContext,
+	IntlLocale,
 	IntlMessage,
 	IntlPlural,
 	IntlProvider,
 	IntlSelect,
 	IntlUnit,
 	type IntlCurrencyProps,
+	type IntlLocaleProps,
 	type IntlPreparedAttributesProps,
 	type IntlPreparedMessageProps,
 	type IntlPluralProps,
@@ -41,15 +43,32 @@ export type {
 	IntlRuntimeDescriptorV1,
 	IntlSelectActivation,
 	IntlStructureFactory,
+	IntlTranslationPatternNodeV1,
+	IntlTranslationPatternV1,
+	IntlTranslationPlaceholderV1,
 	IntlUnitActivation
 } from './contracts.js';
 export { canonicalizeIntlValue, type IntlCanonicalValue } from './canonical.js';
 export {
+	createDefaultIntlEnvironment,
 	createIntlEnvironment,
+	defineIntlLocale,
+	intlLocaleMetadata,
 	type IntlCatalogLayer,
 	type IntlEnvironment,
 	type IntlEnvironmentOptions,
 	type IntlEnvironmentState,
-	type IntlMissingMessage
+	type IntlLocaleMetadata,
+	type IntlMissingMessage,
+	type IntlUnitPreferences
 } from './environment.js';
+export type { IntlLocaleLanguage, IntlLocaleString } from './cldr-locale-types.js';
+export type { IntlUnitForDimension, IntlUnitName } from './unit-definitions.js';
 export { validateIntlPackageMetadata } from './package-metadata.js';
+export {
+	materializeIntlTranslation,
+	projectLegacyIntlTranslation,
+	projectIntlTranslationContract,
+	type IntlTranslationContractProjection
+} from './translation-contract.js';
+export type { ExactIntlLanguageConfiguration } from './language/config.js';

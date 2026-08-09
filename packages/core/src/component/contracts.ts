@@ -346,6 +346,8 @@ export type RenderEventHandler = (event: { duration: number; dependencies?: unkn
 export interface Component<State extends object> {
 	state: Reactive<State>;
 	log: ComponentLog;
+	/** Cache-backed Intl facade resolved through the nearest localization provider. */
+	readonly intl: import('../localization/contracts.js').IntlFacade;
 	/** Reports whether a context lookup would resolve without reading its value. */
 	hasContext(token: ContextToken<unknown>): boolean;
 	getContext<T>(token: ContextToken<T>): Reactive<T>;

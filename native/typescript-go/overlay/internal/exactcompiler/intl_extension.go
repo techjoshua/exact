@@ -45,6 +45,7 @@ type intlAnalysis struct {
 	Descriptors             []intlDescriptor `json:"descriptors"`
 	DescriptorOwnerOrdinals []int            `json:"descriptorOwnerOrdinals"`
 	Regions                 []intlRegion     `json:"regions"`
+	Untranslated            []intlSpan       `json:"untranslated"`
 	Diagnostics             []intlDiagnostic `json:"diagnostics"`
 	ClientRequirements      []string         `json:"clientRequirements"`
 }
@@ -59,7 +60,7 @@ type intlDescriptor struct {
 	Bindings         []intlBinding     `json:"bindings"`
 	Source           []intlPatternNode `json:"source"`
 	Capabilities     []string          `json:"capabilities"`
-	Context          string            `json:"context,omitempty"`
+	Name             string            `json:"name,omitempty"`
 	SourceRange      intlSourceRange   `json:"sourceRange"`
 }
 
@@ -146,14 +147,22 @@ type intlSourceRange struct {
 }
 
 type intlRegion struct {
-	DescriptorIndex int                   `json:"descriptorIndex"`
-	ActivationName  string                `json:"activationName"`
-	Explicit        bool                  `json:"explicit,omitempty"`
-	Element         intlSpan              `json:"element"`
-	Attribute       intlSpan              `json:"attribute"`
-	Content         intlSpan              `json:"content"`
-	Values          []intlSpan            `json:"values"`
-	Structures      []intlStructureRegion `json:"structures"`
+	DescriptorIndex int                     `json:"descriptorIndex"`
+	ActivationName  string                  `json:"activationName"`
+	Explicit        bool                    `json:"explicit,omitempty"`
+	Element         intlSpan                `json:"element"`
+	Attribute       intlSpan                `json:"attribute"`
+	Content         intlSpan                `json:"content"`
+	Values          []intlSpan              `json:"values"`
+	Structures      []intlStructureRegion   `json:"structures"`
+	Evidence        []intlInferenceEvidence `json:"evidence"`
+}
+
+type intlInferenceEvidence struct {
+	Start  int    `json:"start"`
+	Length int    `json:"length"`
+	Kind   string `json:"kind"`
+	Detail string `json:"detail"`
 }
 
 type intlStructureRegion struct {
@@ -179,6 +188,7 @@ type intlPatternBuild struct {
 	bindings        []intlBinding
 	values          []intlSpan
 	structures      []intlStructureRegion
+	evidence        []intlInferenceEvidence
 	identities      map[string]int
 	ordinalMarkers  map[string]struct{}
 	ordinalWrappers []intlOrdinalWrapper
@@ -260,6 +270,7 @@ func analyzeIntlSourceNative(
 		Descriptors:             []intlDescriptor{},
 		DescriptorOwnerOrdinals: []int{},
 		Regions:                 []intlRegion{},
+		Untranslated:            []intlSpan{},
 		Diagnostics:             []intlDiagnostic{},
 		ClientRequirements:      []string{},
 	}
@@ -278,6 +289,9 @@ func analyzeIntlSourceNative(
 			return true
 		}
 		tag := sourceText(sourceFile, opening.TagName())
+		if activation := intlJSXAttribute(opening.Attributes(), "locale"); activation != nil {
+			intlAppendLocaleActivationDiagnostic(&result, request.ID, sourceFile, activation)
+		}
 		if intlHasActivation(tag, opening.Attributes()) {
 			intlAppendLocaleDiagnostics(
 				&result, request.ID, sourceFile, typeChecker, node, options.SourceLocale, localeDiagnosticSpans,
@@ -313,13 +327,13 @@ func analyzeIntlSourceNative(
 				})
 				return false
 			}
-			context := ""
-			if contextAttribute := jsxAttribute(opening.Attributes(), "", "context"); contextAttribute != nil {
-				context = intlStaticAttributeString(contextAttribute)
+			name := ""
+			if nameAttribute := jsxAttribute(opening.Attributes(), "", "name"); nameAttribute != nil {
+				name = intlStaticAttributeString(nameAttribute)
 			}
 			appendNativeIntlDescriptor(
 				&result, request, options, sourceFile, node, activation, nil,
-				ownerOrdinal, ownerID, occurrence, intlTarget{Kind: "content"}, pattern, build, context,
+				ownerOrdinal, ownerID, occurrence, intlTarget{Kind: "content"}, pattern, build, name,
 				activationName, true,
 			)
 			occurrence++
@@ -337,29 +351,6 @@ func analyzeIntlSourceNative(
 			return true
 		}
 		ownerOrdinal, ownerID := intlOwner(node, components)
-		for _, activation := range intlPropertyAttributes(opening.Attributes()) {
-			name := activation.AsJsxAttribute().Name().AsJsxNamespacedName().Name().Text()
-			fallback := jsxAttribute(opening.Attributes(), "", name)
-			pattern, build, supported := buildIntlProperty(
-				sourceFile, typeChecker, fallback, activation,
-				options.OrdinalMarkers, options.OrdinalWrappers,
-			)
-			if !supported {
-				result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
-					File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), activation.Pos()),
-					Length:  activation.End() - scanner.SkipTrivia(sourceFile.Text(), activation.Pos()),
-					Message: fmt.Sprintf("intl:%s requires a supported authored %s fallback on the same intrinsic", name, name),
-				})
-				continue
-			}
-			appendNativeIntlDescriptor(
-				&result, request, options, sourceFile, node, activation, fallback,
-				ownerOrdinal, ownerID, occurrence, intlTarget{Kind: "property", Name: name},
-				pattern, build, intlStaticObjectContext(activation),
-				"", false,
-			)
-			occurrence++
-		}
 		if !ast.IsJsxElement(node) {
 			return true
 		}
@@ -417,21 +408,203 @@ func analyzeIntlSourceNative(
 			})
 			return true
 		}
-		context := intlStaticAttributeString(attribute)
+		name := intlStaticAttributeString(attribute)
 		appendNativeIntlDescriptor(
 			&result, request, options, sourceFile, node, attribute, nil,
 			ownerOrdinal, ownerID, occurrence, intlTarget{Kind: "content"},
-			pattern, build, context,
+			pattern, build, name,
 			"", false,
 		)
 		occurrence++
 		return false
 	})
+	_ = appendNativeIntlPropertyDescriptors(
+		&result, request, options, sourceFile, typeChecker, components, occurrence,
+	)
 	sort.Slice(result.Regions, func(left, right int) bool {
 		return result.Regions[left].Attribute.Start < result.Regions[right].Attribute.Start
 	})
+	result.Untranslated = intlUntranslatedSpans(sourceFile, result)
 	result.ClientRequirements = intlClientRequirements(sourceFile, result.Descriptors)
 	return result, nil
+}
+
+func appendNativeIntlPropertyDescriptors(
+	result *intlAnalysis,
+	request Request,
+	options intlAnalyzeOptions,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	components []Component,
+	occurrence int,
+) int {
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		opening, intrinsic := intlIntrinsicOpening(node, sourceFile)
+		if !intrinsic {
+			return true
+		}
+		ownerOrdinal, ownerID := intlOwner(node, components)
+		for _, activation := range intlPropertyAttributes(opening.Attributes()) {
+			name := activation.AsJsxAttribute().Name().AsJsxNamespacedName().Name().Text()
+			fallback := jsxAttribute(opening.Attributes(), "", name)
+			pattern, build, supported := buildIntlProperty(
+				sourceFile, typeChecker, fallback, activation,
+				options.OrdinalMarkers, options.OrdinalWrappers,
+			)
+			if !supported {
+				start := scanner.SkipTrivia(sourceFile.Text(), activation.Pos())
+				result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
+					File: request.ID, Start: start, Length: activation.End() - start,
+					Message: fmt.Sprintf("intl:%s requires a supported authored %s fallback on the same intrinsic", name, name),
+				})
+				continue
+			}
+			appendNativeIntlDescriptor(
+				result, request, options, sourceFile, node, activation, fallback,
+				ownerOrdinal, ownerID, occurrence, intlTarget{Kind: "property", Name: name},
+				pattern, build, intlPropertyDescriptorName(node, sourceFile, activation, name),
+				"", false,
+			)
+			occurrence++
+		}
+		return true
+	})
+	return occurrence
+}
+
+// intlUntranslatedSpans finds authored linguistic JSX text and supported intrinsic
+// property fallbacks that are neither owned by descriptors nor explicitly excluded
+// through HTML's inherited translate="no" contract.
+func intlUntranslatedSpans(sourceFile *ast.SourceFile, analysis intlAnalysis) []intlSpan {
+	result := []intlSpan{}
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if ast.IsJsxText(node) && !intlTextCovered(node, analysis) && !intlTranslationDisabled(node) {
+			raw := sourceText(sourceFile, node)
+			trimmed := strings.TrimSpace(raw)
+			if trimmed != "" && strings.ContainsFunc(trimmed, unicode.IsLetter) {
+				leading := strings.Index(raw, trimmed)
+				result = append(result, intlSpan{Start: node.Pos() + leading, Length: len(trimmed)})
+			}
+			return true
+		}
+		opening, intrinsic := intlIntrinsicOpening(node, sourceFile)
+		if !intrinsic || intlTranslationDisabled(node) {
+			return true
+		}
+		names := make([]string, 0, len(intlPropertyNames))
+		for name := range intlPropertyNames {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			fallback := jsxAttribute(opening.Attributes(), "", name)
+			if fallback == nil || intlJSXAttribute(opening.Attributes(), name) != nil {
+				continue
+			}
+			initializer := fallback.AsJsxAttribute().Initializer
+			if initializer == nil {
+				continue
+			}
+			if ast.IsStringLiteral(initializer) {
+				value := initializer.AsStringLiteral().Text
+				if value != "" && strings.ContainsFunc(value, unicode.IsLetter) {
+					result = append(result, intlSpan{Start: initializer.Pos() + 1, Length: len(value)})
+				}
+				continue
+			}
+			if ast.IsJsxExpression(initializer) && initializer.AsJsxExpression().Expression != nil {
+				expression := initializer.AsJsxExpression().Expression
+				start := scanner.SkipTrivia(sourceFile.Text(), expression.Pos())
+				result = append(result, intlSpan{Start: start, Length: expression.End() - start})
+			}
+		}
+		return true
+	})
+	return result
+}
+
+func intlIntrinsicOpening(node *ast.Node, sourceFile *ast.SourceFile) (*ast.Node, bool) {
+	var opening *ast.Node
+	switch {
+	case ast.IsJsxElement(node):
+		opening = node.AsJsxElement().OpeningElement.AsNode()
+	case ast.IsJsxSelfClosingElement(node):
+		opening = node
+	default:
+		return nil, false
+	}
+	return opening, jsxIntrinsic(sourceText(sourceFile, opening.TagName()))
+}
+
+func intlTextCovered(node *ast.Node, analysis intlAnalysis) bool {
+	for _, region := range analysis.Regions {
+		if region.DescriptorIndex < 0 || region.DescriptorIndex >= len(analysis.Descriptors) ||
+			analysis.Descriptors[region.DescriptorIndex].Target.Kind != "content" {
+			continue
+		}
+		if node.Pos() >= region.Element.Start && node.End() <= region.Element.Start+region.Element.Length {
+			return true
+		}
+	}
+	return false
+}
+
+func intlTranslationDisabled(node *ast.Node) bool {
+	for current := node; current != nil; current = current.Parent {
+		var attributes *ast.Node
+		switch {
+		case ast.IsJsxElement(current):
+			attributes = current.AsJsxElement().OpeningElement.Attributes()
+		case ast.IsJsxSelfClosingElement(current):
+			attributes = current.Attributes()
+		default:
+			continue
+		}
+		attribute := jsxAttribute(attributes, "", "translate")
+		if attribute == nil {
+			continue
+		}
+		initializer := attribute.AsJsxAttribute().Initializer
+		if initializer == nil {
+			return false
+		}
+		if !ast.IsStringLiteral(initializer) {
+			continue
+		}
+		switch strings.ToLower(initializer.AsStringLiteral().Text) {
+		case "no":
+			return true
+		case "", "yes":
+			return false
+		}
+	}
+	return false
+}
+
+func intlAppendLocaleActivationDiagnostic(
+	result *intlAnalysis,
+	file string,
+	sourceFile *ast.SourceFile,
+	attribute *ast.Node,
+) {
+	initializer := attribute.AsJsxAttribute().Initializer
+	if initializer == nil {
+		return
+	}
+	if ast.IsJsxExpression(initializer) {
+		initializer = unwrapRenderExpression(initializer.AsJsxExpression().Expression)
+	}
+	if initializer == nil || (!ast.IsStringLiteral(initializer) && !ast.IsNoSubstitutionTemplateLiteral(initializer)) {
+		return
+	}
+	if _, err := language.Parse(initializer.Text()); err == nil {
+		return
+	}
+	start := scanner.SkipTrivia(sourceFile.Text(), initializer.Pos())
+	result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
+		File: file, Start: start, Length: initializer.End() - start,
+		Message: fmt.Sprintf("intl:locale value %q is not a valid BCP 47 locale", initializer.Text()),
+	})
 }
 
 func intlHasActivation(tag string, attributes *ast.Node) bool {
@@ -568,7 +741,7 @@ func buildIntlCurrency(
 		return nil, build, false
 	}
 	authoredCurrency := intlStaticAttributeString(activation)
-	inferredCurrency, inferredDisplay := intlCurrencyEvidence(
+	inferredCurrency, inferredDisplay, label := intlCurrencyEvidence(
 		text, sourceLocale, currencyLabels, defaultCurrencyLabels,
 	)
 	if authoredCurrency != "" && inferredCurrency != "" && authoredCurrency != inferredCurrency {
@@ -594,6 +767,9 @@ func buildIntlCurrency(
 	}
 	if display == "" {
 		display = "symbol"
+	}
+	if authoredCurrency == "" && label != "" {
+		recordIntlTextInference(sourceFile, children, label, "currency", fmt.Sprintf("%s currency with %s display inferred from authored fallback", currency, display), build)
 	}
 	binding := registerIntlTypedScalar(sourceFile, expressions[0], "monetary", build)
 	return []intlPatternNode{{
@@ -644,6 +820,9 @@ func buildIntlUnit(
 	}
 	if sourceUnit == "" {
 		return nil, build, false
+	}
+	if explicitSourceUnit == "" && inferredSourceUnit != "" && label != "" {
+		recordIntlTextInference(sourceFile, children, label, "unit", fmt.Sprintf("%s source unit inferred from authored fallback", sourceUnit), build)
 	}
 	convertTo := intlStaticNamedAttribute(attributes, "convert-to")
 	if convertTo != "" && !intlCompatibleUnit(quantity, convertTo) {
@@ -727,28 +906,28 @@ func intlCurrencyEvidence(
 	locale string,
 	localized map[string]intlCurrencyLabel,
 	defaultLabels []string,
-) (string, string) {
+) (string, string, string) {
 	code := regexp.MustCompile(`\b[A-Z]{3}\b`).FindString(text)
 	if code != "" {
-		return code, "code"
+		return code, "code", code
 	}
-	if evidence, matched := intlLocalizedCurrencyEvidence(text, localized); matched {
-		return evidence.Currency, evidence.Display
+	if evidence, label, matched := intlLocalizedCurrencyEvidence(text, localized); matched {
+		return evidence.Currency, evidence.Display, label
 	}
 	defaults := make(map[string]intlCurrencyLabel, len(defaultLabels))
 	for _, label := range defaultLabels {
 		defaults[label] = intlCurrencyLabel{Currency: intlDefaultCurrency(locale), Display: "symbol"}
 	}
-	if evidence, matched := intlLocalizedCurrencyEvidence(text, defaults); matched {
-		return evidence.Currency, evidence.Display
+	if evidence, label, matched := intlLocalizedCurrencyEvidence(text, defaults); matched {
+		return evidence.Currency, evidence.Display, label
 	}
-	return "", ""
+	return "", "", ""
 }
 
 func intlLocalizedCurrencyEvidence(
 	text string,
 	localized map[string]intlCurrencyLabel,
-) (intlCurrencyLabel, bool) {
+) (intlCurrencyLabel, string, bool) {
 	input := strings.ToLower(norm.NFKC.String(text))
 	matchedLabel := ""
 	matched := intlCurrencyLabel{}
@@ -785,7 +964,7 @@ func intlLocalizedCurrencyEvidence(
 			offset = start + len(candidate)
 		}
 	}
-	return matched, matchedLabel != ""
+	return matched, matchedLabel, matchedLabel != ""
 }
 
 func intlSourceUnitFromFallback(text string, localized map[string]string) (string, string) {
@@ -977,7 +1156,7 @@ func appendNativeIntlDescriptor(
 	target intlTarget,
 	pattern []intlPatternNode,
 	build *intlPatternBuild,
-	context string,
+	name string,
 	activationName string,
 	explicit bool,
 ) {
@@ -1011,7 +1190,7 @@ func appendNativeIntlDescriptor(
 		Protocol: 1, Owner: options.Owner, OwnerComponentID: ownerID,
 		OccurrenceID: fmt.Sprintf("%s:%d", request.ID, occurrence), SourceLocale: options.SourceLocale,
 		Target: target, Bindings: build.bindings, Source: pattern,
-		Capabilities: intlPatternCapabilities(pattern), Context: context,
+		Capabilities: intlPatternCapabilities(pattern), Name: name,
 		SourceRange: intlSourceRange{File: request.ID, Start: rangeStart, Length: rangeLength},
 	})
 	result.DescriptorOwnerOrdinals = append(result.DescriptorOwnerOrdinals, ownerOrdinal)
@@ -1031,6 +1210,7 @@ func appendNativeIntlDescriptor(
 		Attribute:       intlSpan{Start: attributeStart, Length: attributeLength},
 		Content:         intlSpan{Start: contentStart + positionDelta, Length: contentEnd - contentStart},
 		Values:          offsetIntlSpans(build.values, positionDelta), Structures: offsetIntlStructures(build.structures, positionDelta),
+		Evidence: offsetIntlEvidence(build.evidence, positionDelta),
 	})
 }
 
@@ -1088,6 +1268,65 @@ func offsetIntlSpans(spans []intlSpan, delta int) []intlSpan {
 		result[index] = intlSpan{Start: span.Start + delta, Length: span.Length}
 	}
 	return result
+}
+
+func offsetIntlEvidence(evidence []intlInferenceEvidence, delta int) []intlInferenceEvidence {
+	result := make([]intlInferenceEvidence, len(evidence))
+	for index, item := range evidence {
+		result[index] = intlInferenceEvidence{
+			Start: item.Start + delta, Length: item.Length, Kind: item.Kind, Detail: item.Detail,
+		}
+	}
+	return result
+}
+
+func recordIntlExpressionInference(
+	sourceFile *ast.SourceFile,
+	expression *ast.Node,
+	kind string,
+	detail string,
+	build *intlPatternBuild,
+) {
+	start := scanner.SkipTrivia(sourceFile.Text(), expression.Pos())
+	recordIntlInference(start, expression.End()-start, kind, detail, build)
+}
+
+func recordIntlTextInference(
+	sourceFile *ast.SourceFile,
+	children []*ast.Node,
+	label string,
+	kind string,
+	detail string,
+	build *intlPatternBuild,
+) {
+	needle := strings.ToLower(label)
+	semantic := ast.GetSemanticJsxChildren(children)
+	for index := len(semantic) - 1; index >= 0; index-- {
+		child := semantic[index]
+		if !ast.IsJsxText(child) {
+			continue
+		}
+		text := sourceText(sourceFile, child)
+		offset := strings.LastIndex(strings.ToLower(text), needle)
+		if offset >= 0 {
+			recordIntlInference(child.Pos()+offset, len(label), kind, detail, build)
+			return
+		}
+	}
+}
+
+func recordIntlInference(start int, length int, kind string, detail string, build *intlPatternBuild) {
+	if length <= 0 || kind == "" {
+		return
+	}
+	for _, existing := range build.evidence {
+		if existing.Start == start && existing.Length == length && existing.Kind == kind {
+			return
+		}
+	}
+	build.evidence = append(build.evidence, intlInferenceEvidence{
+		Start: start, Length: length, Kind: kind, Detail: detail,
+	})
 }
 
 func offsetIntlStructures(structures []intlStructureRegion, delta int) []intlStructureRegion {
@@ -1231,7 +1470,7 @@ func newIntlPatternBuild(
 	}
 	return &intlPatternBuild{
 		bindings: []intlBinding{}, values: []intlSpan{},
-		structures: []intlStructureRegion{}, identities: map[string]int{},
+		structures: []intlStructureRegion{}, evidence: []intlInferenceEvidence{}, identities: map[string]int{},
 		ordinalMarkers: markers, ordinalWrappers: append([]intlOrdinalWrapper(nil), ordinalWrappers...),
 	}
 }
@@ -1247,7 +1486,7 @@ func intlStaticAttributeString(attribute *ast.Node) string {
 	return ""
 }
 
-func intlStaticObjectContext(attribute *ast.Node) string {
+func intlStaticObjectName(attribute *ast.Node) string {
 	initializer := attribute.AsJsxAttribute().Initializer
 	if initializer == nil || !ast.IsJsxExpression(initializer) {
 		return ""
@@ -1256,8 +1495,51 @@ func intlStaticObjectContext(attribute *ast.Node) string {
 	if !supported {
 		return ""
 	}
-	context, _ := options["context"].(string)
-	return context
+	name, _ := options["name"].(string)
+	return name
+}
+
+func intlPropertyDescriptorName(
+	node *ast.Node,
+	sourceFile *ast.SourceFile,
+	activation *ast.Node,
+	propertyName string,
+) string {
+	if explicit := intlStaticObjectName(activation); explicit != "" {
+		return explicit
+	}
+	if parent := intlNearestContentMessageName(node, sourceFile); parent != "" {
+		return parent + "_" + propertyName
+	}
+	return ""
+}
+
+func intlNearestContentMessageName(node *ast.Node, sourceFile *ast.SourceFile) string {
+	for current := node; current != nil; current = current.Parent {
+		var opening *ast.Node
+		switch {
+		case ast.IsJsxElement(current):
+			opening = current.AsJsxElement().OpeningElement.AsNode()
+		case ast.IsJsxSelfClosingElement(current):
+			opening = current
+		default:
+			continue
+		}
+		tag := sourceText(sourceFile, opening.TagName())
+		if intlExplicitComponent(tag) {
+			name := intlStaticAttributeString(jsxAttribute(opening.Attributes(), "", "name"))
+			if name != "" {
+				return name
+			}
+			return ""
+		}
+		message := intlJSXAttribute(opening.Attributes(), "message")
+		if message == nil {
+			continue
+		}
+		return intlStaticAttributeString(message)
+	}
+	return ""
 }
 
 func intlPatternCapabilities(pattern []intlPatternNode) []string {
@@ -1502,6 +1784,7 @@ func buildIntlExpression(
 		return result, true
 	}
 	if relative, supported := analyzeIntlRelativeDuration(sourceFile, expression); supported {
+		recordIntlExpressionInference(sourceFile, expression, "relative-duration", "Relative duration projection inferred from authored branches", build)
 		binding := registerIntlTypedScalar(sourceFile, relative.value, "temporal-duration", build)
 		return []intlPatternNode{{
 			Kind: "format", Bindings: []int{binding},
@@ -1512,6 +1795,7 @@ func buildIntlExpression(
 		}}, true
 	}
 	if relative, supported := analyzeIntlLocalRelativeDuration(sourceFile, expression); supported {
+		recordIntlExpressionInference(sourceFile, expression, "relative-duration", "Relative duration projection inferred from helper implementation", build)
 		binding := registerIntlTypedScalar(sourceFile, relative.value, "temporal-duration", build)
 		return []intlPatternNode{{
 			Kind: "format", Bindings: []int{binding},
@@ -1522,6 +1806,7 @@ func buildIntlExpression(
 		}}, true
 	}
 	if plural, supported := analyzeIntlPluralRuleLookup(typeChecker, expression); supported {
+		recordIntlExpressionInference(sourceFile, expression, plural.selection, "Plural selection inferred from Intl.PluralRules", build)
 		binding := registerIntlSelector(sourceFile, plural.selectors[0], "number", build)
 		node := intlPatternNode{
 			Kind: "select", Binding: binding, Selection: plural.selection,
@@ -1534,6 +1819,7 @@ func buildIntlExpression(
 		return []intlPatternNode{node}, true
 	}
 	if ordinal, supported := analyzeIntlOrdinalMarker(sourceFile, expression, build.ordinalMarkers); supported {
+		recordIntlExpressionInference(sourceFile, expression, "plural-ordinal", "Ordinal selection inferred from authored suffix branches", build)
 		binding := registerIntlSelector(sourceFile, ordinal.selector, "number", build)
 		return []intlPatternNode{{
 			Kind: "select", Binding: binding, Selection: "plural-ordinal",
@@ -1551,6 +1837,7 @@ func buildIntlExpression(
 		if !trueSupported || !falseSupported {
 			return nil, false
 		}
+		recordIntlExpressionInference(sourceFile, conditional.Condition, selection.selection, "Selection inferred from authored fallback condition", build)
 		binding := registerIntlSelector(sourceFile, selection.selector, selection.bindingType, build)
 		return []intlPatternNode{{
 			Kind: "select", Binding: binding, Selection: selection.selection,
@@ -1558,6 +1845,7 @@ func buildIntlExpression(
 		}}, true
 	}
 	if value, unit, options, supported := analyzeIntlRelativeTime(expression); supported {
+		recordIntlExpressionInference(sourceFile, expression, "relative-time", "Relative-time formatting inferred from Intl.RelativeTimeFormat", build)
 		binding := registerIntlTypedScalar(sourceFile, value, "number", build)
 		unitBinding := registerIntlTypedScalar(sourceFile, unit, "string", build)
 		return []intlPatternNode{{
@@ -1568,6 +1856,8 @@ func buildIntlExpression(
 		}}, true
 	}
 	if values, bindingType, formatter, supported := analyzeNativeIntlFormatter(expression, typeChecker); supported {
+		kind, _ := formatter["kind"].(string)
+		recordIntlExpressionInference(sourceFile, expression, kind, "Formatting inferred from the native Intl expression", build)
 		bindings := make([]int, 0, len(values))
 		for _, value := range values {
 			bindings = append(bindings, registerIntlTypedScalar(sourceFile, value, bindingType, build))
@@ -1575,6 +1865,7 @@ func buildIntlExpression(
 		return []intlPatternNode{{Kind: "format", Bindings: bindings, Formatter: formatter}}, true
 	}
 	if intlTemporalExpressionKind(expression, typeChecker) == "temporal-duration" {
+		recordIntlExpressionInference(sourceFile, expression, "duration", "Duration formatting inferred from the Temporal.Duration value", build)
 		binding := registerIntlTypedScalar(sourceFile, expression, "temporal-duration", build)
 		return []intlPatternNode{{
 			Kind: "format", Bindings: []int{binding},

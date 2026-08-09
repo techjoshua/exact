@@ -35,7 +35,7 @@ export type {
 } from './process-task-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.29.0';
+export const nativeCompilerProtocolVersion = '1.31.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -60,6 +60,8 @@ export type NativeCompilerRequest = Readonly<{
 	moduleRewrite?: NativeCompilerModuleRewrite;
 	/** Adds compact source identity markers without retaining rich inspection metadata. */
 	instrumentInspection?: boolean;
+	/** First virtual package-enhancement offset appended after authored source. */
+	packageEnhancementBoundary?: number;
 	/** Namespaced native frontend operation isolated from standard compiler semantics. */
 	extension?: Readonly<{ namespace: string; payload?: unknown }>;
 }>;
@@ -117,6 +119,7 @@ export type NativeCompilerImport = Readonly<{
 	typeOnly: boolean;
 	sideEffectOnly: boolean;
 	runtimeBinding: boolean;
+	enhancement?: boolean;
 	start: number;
 	length: number;
 }>;
@@ -205,6 +208,20 @@ export type NativeCompilerJSXElement = Readonly<{
 	start: number;
 	length: number;
 	attributes: readonly NativeCompilerJSXAttribute[];
+}>;
+
+/** Canonical enhancement selection joined to one authored JSX activation. */
+export type NativeCompilerEnhancementActivation = Readonly<{
+	namespace: string;
+	activator: string;
+	start: number;
+	length: number;
+	targetStart: number;
+	targetLength: number;
+	identity: string;
+	moduleSpecifier: string;
+	exportName: string;
+	application: 'direct' | 'enhancement-target' | 'target-intrinsic' | 'propagated';
 }>;
 
 /** Describes one direct component-state mutation discovered natively. */
@@ -402,6 +419,7 @@ export type NativeCompilerAnalysis = Readonly<{
 		moduleSpecifier: string;
 		exportName: string;
 	}>[];
+	enhancementActivations?: readonly NativeCompilerEnhancementActivation[];
 	resumptions: readonly NativeCompilerComponentResumption[];
 	policy: NativeCompilerPolicyAnalysis;
 	requiredCapabilities: NativeCompilerCapabilityRequirements;

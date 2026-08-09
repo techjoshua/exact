@@ -5,7 +5,7 @@ import {
 	type Component,
 	type KeyOf
 } from '@exactjs/core';
-import { IntlProvider, type IntlEnvironment } from '@exactjs/intl';
+import { intlLocaleMetadata, IntlProvider, type IntlEnvironment } from '@exactjs/intl';
 import { _ } from '@exactjs/jsx';
 
 const englishOrdinalRules = new Intl.PluralRules('en-US', { type: 'ordinal' });
@@ -56,13 +56,16 @@ export interface ShowcaseValues {
 /** Props for one independently localized rendering of the shared values. */
 export interface LocaleShowcaseProps extends ShowcaseValues {
 	locale: string;
-	direction: 'ltr' | 'rtl';
 	environment: IntlEnvironment;
 }
 
 /** A deliberately ordinary component used only through an opaque named fragment. */
 function RecipientBadge(this: Component<Record<string, never>>) {
-	return () => <span className="person-badge">Mina</span>;
+	return () => (
+		<span className="person-badge" translate="no">
+			Mina
+		</span>
+	);
 }
 
 /** Empty eager registry entry shown before the lazy example is requested. */
@@ -83,18 +86,15 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 
 	return () => (
 		<IntlProvider environment={props.environment}>
-			<article
-				className="locale-panel"
-				lang={props.locale}
-				dir={props.direction}
-				data-locale={props.locale}
-			>
+			<article className="locale-panel" intl:locale data-locale={props.locale}>
 				<header className="locale-heading">
 					<div>
 						<span className="locale-code">{props.locale}</span>
 						<h2 intl:message="panel-title">The same source, localized</h2>
 					</div>
-					<span className="direction-chip">{props.direction.toUpperCase()}</span>
+					<span className="direction-chip">
+						{intlLocaleMetadata(props.environment.state.locale).dir.toUpperCase()}
+					</span>
 				</header>
 
 				<section className="scenario" data-scenario="message-structure">
@@ -291,7 +291,7 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 					<p className="scenario-label" intl:message="scenario-unenhanced">
 						Intentional non-translated content
 					</p>
-					<p lang="en-US" dir="ltr">
+					<p lang="en-US" dir="ltr" translate="no">
 						This sentence is ordinary authored content and is intentionally not translated.
 					</p>
 				</section>

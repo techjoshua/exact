@@ -1,4 +1,5 @@
 import type { IntlRuntimeDescriptorV1 } from '@exactjs/intl';
+import { validateIntlCatalog } from '@exactjs/intl/internal';
 import { describe, expect, it } from 'vitest';
 import { exactJsonCatalogInterchange, xliff21CatalogInterchange } from './catalog-interchange.js';
 import { exportXliff21SourceCatalog, synchronizeXliff21Catalog } from './xliff-interchange.js';
@@ -7,7 +8,8 @@ const descriptor: IntlRuntimeDescriptorV1 = {
 	protocol: 1,
 	owner: '@acme/card',
 	occurrenceId: 'Card:0',
-	key: 'm1_example',
+	contract: 'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
+	key: 'example_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
 	sourceLocale: 'en-US',
 	target: { kind: 'content' },
 	bindings: [],
@@ -35,10 +37,10 @@ describe('intl catalog interchange', () => {
 		expect(xliff21CatalogInterchange.importCatalog(encoded, [descriptor])).toMatchObject(catalog);
 	});
 
-	it('round-trips plural-range selector metadata through XLIFF original data', () => {
+	it('round-trips plural-range translations without exposing execution metadata', () => {
 		const rangeDescriptor: IntlRuntimeDescriptorV1 = {
 			...descriptor,
-			key: 'm1_range',
+			key: 'range_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
 			bindings: [
 				{ index: 0, kind: 'selector', type: 'number' },
 				{ index: 1, kind: 'selector', type: 'number' }
@@ -63,16 +65,18 @@ describe('intl catalog interchange', () => {
 		};
 
 		const encoded = xliff21CatalogInterchange.exportCatalog(translated, [rangeDescriptor]);
-		expect(encoded).toContain('&quot;rangeBinding&quot;:1');
-		expect(xliff21CatalogInterchange.importCatalog(encoded, [rangeDescriptor])).toMatchObject(
-			translated
+		expect(encoded).toContain('equivStart="{plural-range-cardinal}"');
+		expect(encoded).not.toContain('rangeBinding');
+		expect(encoded).not.toContain('<originalData>');
+		expect(xliff21CatalogInterchange.importCatalog(encoded, [rangeDescriptor])).toEqual(
+			validateIntlCatalog(translated, [rangeDescriptor])
 		);
 	});
 
 	it('lets a fixed source ordinal wrapper gain target-locale category branches', () => {
 		const ordinalDescriptor: IntlRuntimeDescriptorV1 = {
 			...descriptor,
-			key: 'm1_ordinal_wrapper',
+			key: 'ordinal_DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
 			sourceLocale: 'ja-JP',
 			bindings: [{ index: 0, kind: 'selector', type: 'number' }],
 			source: [
@@ -120,15 +124,15 @@ describe('intl catalog interchange', () => {
 
 		const encoded = xliff21CatalogInterchange.exportCatalog(translated, [ordinalDescriptor]);
 		expect(encoded).toContain('value="one"');
-		expect(xliff21CatalogInterchange.importCatalog(encoded, [ordinalDescriptor])).toMatchObject(
-			translated
+		expect(xliff21CatalogInterchange.importCatalog(encoded, [ordinalDescriptor])).toEqual(
+			validateIntlCatalog(translated, [ordinalDescriptor])
 		);
 	});
 
 	it('extracts a source-only XLIFF translation request without inventing a target', () => {
 		const formatterOnly: IntlRuntimeDescriptorV1 = {
 			...descriptor,
-			key: 'm1_formatter_only',
+			key: 'formatter_EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
 			bindings: [{ index: 0, kind: 'value', type: 'number' }],
 			capabilities: ['currency'],
 			source: [
@@ -167,7 +171,7 @@ describe('intl catalog interchange', () => {
 	it('round-trips translator-visible values, elements, selectors, and formatter placeholders', () => {
 		const structured: IntlRuntimeDescriptorV1 = {
 			...descriptor,
-			key: 'm1_structured',
+			key: 'structured_FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
 			bindings: [
 				{ index: 0, kind: 'selector', type: 'number' },
 				{ index: 1, kind: 'element', type: 'structure', name: 'link', exactlyOnce: true },
@@ -208,19 +212,20 @@ describe('intl catalog interchange', () => {
 		};
 		const encoded = xliff21CatalogInterchange.exportCatalog(translated, [structured]);
 		expect(encoded).toContain('<file id="f1" original="@acme/card">');
-		expect(encoded).toContain('<ph id="n1" type="ui" subType="exact:value"');
-		expect(encoded).toContain('<pc id="n2" type="other" subType="exact:select"');
-		expect(encoded).toContain('<pc id="n3" type="other" subType="exact:element"');
-		expect(encoded).toContain('<originalData><data id="d0">');
-		expect(encoded).toContain('dataRef="d0" canCopy="no" canDelete="no"');
+		expect(encoded).toContain('<ph id="n1" equiv="{value-0}"');
+		expect(encoded).toContain('<pc id="n2" equivStart="{plural-cardinal}"');
+		expect(encoded).toContain('<pc id="n3" equivStart="&lt;link&gt;"');
+		expect(encoded).not.toContain('<originalData>');
+		expect(encoded).not.toContain('dataRef=');
+		expect(encoded).not.toContain('subType=');
 		expect(encoded).not.toContain('xmlns:exact');
 		expect(encoded).not.toMatch(/\sexact:[\w-]+=/u);
-		expect(xliff21CatalogInterchange.importCatalog(encoded, [structured])).toMatchObject(
-			translated
+		expect(xliff21CatalogInterchange.importCatalog(encoded, [structured])).toEqual(
+			validateIntlCatalog(translated, [structured])
 		);
 	});
 
-	it('synchronizes current sources while preserving targets, notes, and obsolete units', () => {
+	it('preserves current targets and removes units absent from current source', () => {
 		const initial = xliff21CatalogInterchange
 			.exportCatalog(catalog, [descriptor])
 			.replace(
@@ -235,14 +240,19 @@ describe('intl catalog interchange', () => {
 		expect(retained).toContain('<target>Bonjour &lt;ami&gt;</target>');
 		expect(retained).toContain('Reviewed by Mina');
 
-		const next: IntlRuntimeDescriptorV1 = { ...descriptor, key: 'm1_next', occurrenceId: 'Card:1' };
+		const next: IntlRuntimeDescriptorV1 = {
+			...descriptor,
+			key: 'next_GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+			occurrenceId: 'Card:1'
+		};
 		const synchronized = synchronizeXliff21Catalog(retained, [next], {
 			owner: descriptor.owner,
 			locale: 'fr'
 		});
-		expect(synchronized).toContain('id="m1_next"');
-		expect(synchronized).toContain('translate="no" type="exact:obsolete"');
-		expect(synchronized).toContain('Reviewed by Mina');
+		expect(synchronized).toContain(`id="${next.key}"`);
+		expect(synchronized).not.toContain(descriptor.key);
+		expect(synchronized).not.toContain('exact:obsolete');
+		expect(synchronized).not.toContain('Reviewed by Mina');
 		expect(
 			synchronizeXliff21Catalog(synchronized, [next], {
 				owner: descriptor.owner,
@@ -251,7 +261,7 @@ describe('intl catalog interchange', () => {
 		).toBe(synchronized);
 	});
 
-	it('rewrites retained legacy metadata into conformant obsolete XLIFF codes', () => {
+	it('drops obsolete legacy units and emits only generic current source', () => {
 		const legacy = `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" xmlns:exact="https://exactjs.dev/intl/xliff/1" version="2.1" srcLang="en-US" trgLang="fr">
   <file id="@acme/card">
@@ -264,9 +274,10 @@ describe('intl catalog interchange', () => {
 			owner: descriptor.owner,
 			locale: 'fr'
 		});
-		expect(synchronized).toContain('type="ui"');
-		expect(synchronized).toContain('subType="exact:value"');
-		expect(synchronized).toContain('translate="no" type="exact:obsolete"');
+		expect(synchronized).toContain(`id="${descriptor.key}"`);
+		expect(synchronized).not.toContain('m1_legacy');
+		expect(synchronized).not.toContain('subType=');
+		expect(synchronized).not.toContain('exact:obsolete');
 		expect(synchronized).not.toContain('xmlns:exact');
 		expect(synchronized).not.toMatch(/\sexact:[\w-]+=/u);
 		expect(() => xliff21CatalogInterchange.importCatalog(synchronized, [descriptor])).not.toThrow();

@@ -73,6 +73,20 @@ const extensionLauncherSource = `npm run dev:vscode-extension
 # VS Code Insiders or a focused sample workspace
 npm run dev:vscode-extension -- --code code-insiders --workspace apps/kanban`;
 
+const languageExtensionConfig = `import { defineConfig } from '@exactjs/config';
+
+export default defineConfig({
+  languageExtensions: {
+    analyzers: {
+      mode: 'trusted',
+      allow: ['@company/design-system']
+    },
+    ignore: [
+      { provider: '@company/design-system', roles: ['inlayHints'] }
+    ]
+  }
+});`;
+
 /** Documents compiler-owned editor semantics, diagnostics, and task refactors. */
 export function LanguageToolsPage(this: Component<{}>) {
 	return () => (
@@ -214,6 +228,13 @@ export function LanguageToolsPage(this: Component<{}>) {
 					sessions.
 				</p>
 				<p>
+					In a monorepo, every document belongs to the nearest <code>exact.config.*</code> beneath
+					its containing workspace folder. Nested applications therefore receive their own
+					package-scoped enhancements and language providers even when the repository root is open
+					in VS Code. The status tooltip shows that resolved project root and each provider&apos;s
+					health; startup failures produce a visible warning and explanation.
+				</p>
+				<p>
 					eXact semantic tokens preserve TypeScript's standard syntax classes: components and local
 					task functions remain functions, while derived names remain variables. Keywords such as
 					<code>return</code>, inferred <code>await</code> sites, JSX tags, and surrounding
@@ -224,6 +245,32 @@ export function LanguageToolsPage(this: Component<{}>) {
 					Presentation choices never change compiler semantics. In untrusted workspaces the
 					extension does not execute workspace binaries, configuration modules, or plugins. Source,
 					diagnostics, and inspection facts remain local.
+				</p>
+			</section>
+			<section>
+				<h2>Package-owned assistance</h2>
+				<p>
+					The generic language-extension contract lets enhancement libraries and framework plugins
+					contribute bounded diagnostics, completions, hovers, hints, and safe edits. Routine rules
+					remain inert package metadata; deeper analysis runs only from an independently trusted
+					provider behind a cancellable, failure-isolated protocol.
+				</p>
+				<CodeBlock source={languageExtensionConfig} language="ts" title="exact.config.ts" />
+				<p>
+					Language-provider trust and ignore rules are separate from plugin discovery and runtime
+					activation, including per-role controls for diagnostics, completion, hover, hints, and
+					code actions. Enabled provider errors participate in compilation and reject an invalid
+					output generation without letting the provider transform compiler output. The compiler,
+					Vite, Webpack, and Bun all use the same Node-only validation host.
+				</p>
+				<p>
+					The <code>@exactjs/intl</code> provider shows the practical result: hover explains
+					inferred message behavior, optional name, durable key, and placeholder guide, then lists
+					the configured JSON or XLIFF locales that already contain that exact message. It also
+					diagnoses invalid messages and missing required locales, malformed or stale catalogs,
+					protected-placeholder damage, and literal locale contradictions. It completes semantic and
+					concrete units, currencies, display styles, and property formatter roles, and can add
+					compact inference hints. This tooling never ships in the browser application.
 				</p>
 			</section>
 			<section>
@@ -247,6 +294,12 @@ export function LanguageToolsPage(this: Component<{}>) {
 					The extension and language server contain no second eXact classifier. The pinned native
 					compiler owns placement, scheduling, effects, diagnostics, and refactors, so the
 					explanation you read is the behavior that will build.
+				</p>
+				<p>
+					Static component imports remain conservative during per-module analysis until the shared
+					build host validates their published component catalog. That temporary state is not shown
+					as an unresolved-foreign-component warning; genuinely unresolvable local or dynamic values
+					still receive a compiler diagnostic.
 				</p>
 			</Callout>
 		</Article>

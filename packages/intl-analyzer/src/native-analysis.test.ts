@@ -19,6 +19,19 @@ describe('native intl analyzer', () => {
 		expect(result.code).toContain(`Published {new Intl.DateTimeFormat('en-US').format(date)}.`);
 	});
 
+	it('identifies untranslated text and supported intrinsic properties with inherited opt-outs', () => {
+		const source = `export function Page(description: string) { return () => <section title="Dashboard" aria-description={description}><p lang="en-US" dir="ltr">Translate me</p><div translate="no"><span title="Product name">Brand name</span><em translate="yes" title="Override">Translate again</em></div><img alt="Portrait" intl:alt /></section>; }`;
+		const native = analyzer.analyze(source, {
+			filename: 'C:/app/src/Page.tsx',
+			owner: '@app/example',
+			sourceLocale: 'en-US'
+		});
+
+		expect(
+			native.untranslated.map((span) => source.slice(span.start, span.start + span.length))
+		).toEqual(['description', 'Dashboard', 'Translate me', 'Override', 'Translate again']);
+	});
+
 	it('returns scalar and intrinsic structure message facts from native analysis', () => {
 		const source = `export function Greeting(props: { name: string }) {
 			return () => <p intl:message="welcome">Hello, {props.name}. <strong>Welcome!</strong></p>;
@@ -42,7 +55,7 @@ describe('native intl analyzer', () => {
 				{ index: 0, kind: 'value', type: 'string' },
 				{ index: 1, kind: 'element', type: 'structure', name: 'strong', exactlyOnce: true }
 			],
-			context: 'welcome'
+			name: 'welcome'
 		});
 		expect(native.descriptors[0]?.source).toEqual([
 			{ kind: 'text', value: 'Hello, ' },
@@ -52,6 +65,24 @@ describe('native intl analyzer', () => {
 		]);
 		expect(native.regions[0]?.values).toHaveLength(1);
 		expect(native.regions[0]?.structures).toHaveLength(1);
+	});
+
+	it('derives property message names from the nearest named content message', () => {
+		const source = `export function Account() { return () => <section intl:message="account" title="Summary" intl:title>Hello</section>; }`;
+		const native = analyzer.analyzeSource(source, {
+			filename: 'C:/app/src/Account.tsx',
+			owner: '@app/example',
+			sourceLocale: 'en-US'
+		});
+
+		expect(native.descriptors.map((descriptor) => descriptor.name)).toEqual([
+			'account',
+			'account_title'
+		]);
+		expect(native.descriptors.map((descriptor) => descriptor.key)).toEqual([
+			expect.stringMatching(/^account_/u),
+			expect.stringMatching(/^account_title_/u)
+		]);
 	});
 
 	it('matches finite boolean, exact, and cardinal branch projections', () => {
@@ -70,7 +101,7 @@ describe('native intl analyzer', () => {
 
 	it('matches independent intrinsic property message facts', () => {
 		expectNativeDescriptors(
-			`export function Search({ count }) { return () => <><input placeholder="Search messages" intl:placeholder /><button aria-label={count === 1 ? \`Delete \${count} message\` : \`Delete \${count} messages\`} intl:aria-label={{ context: 'delete-control' }} /></>; }`,
+			`export function Search({ count }) { return () => <><input placeholder="Search messages" intl:placeholder /><button aria-label={count === 1 ? \`Delete \${count} message\` : \`Delete \${count} messages\`} intl:aria-label={{ name: 'delete-control' }} /></>; }`,
 			'C:/app/src/Search.tsx'
 		);
 	});
@@ -184,7 +215,7 @@ describe('native intl analyzer', () => {
 
 	it('analyzes explicit intl-role components through the same prepared message IR', () => {
 		const source = `import { IntlMessage, IntlUnit } from '@exactjs/intl';
-		export function View(name: string, distance: number) { return () => <><IntlMessage context="navigation">Hello {name}</IntlMessage><IntlUnit unit="distance-road">{distance} miles</IntlUnit></>; }`;
+		export function View(name: string, distance: number) { return () => <><IntlMessage name="navigation">Hello {name}</IntlMessage><IntlUnit unit="distance-road">{distance} miles</IntlUnit></>; }`;
 		const result = analyzer.analyzeSource(source, {
 			filename: 'C:/app/src/Explicit.tsx',
 			owner: '@app/example',

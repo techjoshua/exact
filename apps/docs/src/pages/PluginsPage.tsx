@@ -76,6 +76,17 @@ export function PluginsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Language participation is independent</h2>
+				<p>
+					A proposed language-extension role would allow trusted plugins and enhancement libraries
+					to contribute package-specific editor and compilation validation without compiler
+					callbacks. Enabled provider errors would reject the invalid build generation while
+					remaining unable to transform compiler output. Language trust and per-role ignores would
+					remain independent from plugin runtime discovery, so an application could keep a plugin
+					enabled while declining its analyzer or code actions.
+				</p>
+			</section>
+			<section>
 				<h2>Framework plugins in this repository</h2>
 				<p>
 					Component-library enhancements are also documented under

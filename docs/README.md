@@ -90,6 +90,7 @@ The active and gated documents are:
 | [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)               | Proposed     | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                        |
 | [Accessibility enhancements and compiler diagnostics](proposals/accessibility-enhancements-and-diagnostics.md) | Proposed     | Add required accessibility enhancements, bounded compiler/LSP checks, and coordinated localized ARIA behavior.  |
 | [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)                    | Exploratory  | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.     |
+| [Trusted language-service contributions](proposals/trusted-language-service-contributions.md)                  | Proposed     | Let trusted plugins and enhancements contribute bounded LSP and CLI assistance without compiler callbacks.      |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
 proposal:

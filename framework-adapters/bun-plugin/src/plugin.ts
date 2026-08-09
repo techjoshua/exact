@@ -3,13 +3,12 @@ import {
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
 	type ExactAssetRule,
-	type ExactComponentBuildFacts,
 	type ExactCompilerSession,
-	type ExactSourceInspection,
 	type TransformTarget
 } from '@exactjs/compiler';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { loadExactConfig } from '@exactjs/config/node';
+import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import {
 	createExactDiagnosticReporter,
 	exactEnhancementFacadeImports
@@ -35,6 +34,10 @@ import {
 } from './component-authorization.js';
 import { mergeConditions, resolveExactBunRequest, targetFor } from './selection.js';
 import { transformExactBunSource as transformExactBunSourceImpl } from './transform.js';
+import {
+	createExactLanguageValidationSession,
+	type ExactLanguageValidationSession
+} from '@exactjs/language-extension-host';
 export { mergeConditions, resolveExactBunRequest } from './selection.js';
 
 /** Configures exact bun plugin. */
@@ -53,6 +56,10 @@ export type ExactBunPluginOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
+	/** @internal Collects the language projection for the shared validation session. */
+	__exactLanguageValidation?: boolean;
+	/** @internal Package-wide bindings loaded once by the owning build generation. */
+	__exactPackageEnhancements?: readonly ExactPackageEnhancementImport[];
 	/** Enables shared intl analysis, linking, catalogs, and generated descriptor modules. */
 	internationalization?: false | Readonly<IntlBuildConfiguration>;
 	/** Independent server catalog and compact runtime controls. */
@@ -149,6 +156,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 		target: options.target === 'server' ? 'server' : 'client'
 	});
 	let componentAuthorization: ExactBunComponentAuthorization | undefined;
+	let languageValidation: ExactLanguageValidationSession | undefined;
 	return {
 		name: 'exact',
 		setup(build) {
@@ -174,6 +182,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
 			let registryPrepared = false;
 			let configuredDebug = options.debug;
+			let packageEnhancements: readonly ExactPackageEnhancementImport[] = [];
 			build.config ??= {};
 			build.config.conditions = mergeConditions(
 				normalizeConditions(build.config.conditions),
@@ -190,6 +199,12 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				const loadedConfig = await loadExactConfig({
 					applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
 					configPath: options.configPath
+				});
+				packageEnhancements = loadedConfig.packageEnhancements;
+				await languageValidation?.dispose();
+				languageValidation = createExactLanguageValidationSession({
+					workspaceRoot: path.resolve(options.applicationRoot ?? process.cwd()),
+					config: loadedConfig.config?.languageExtensions
 				});
 				componentAuthorization?.startLoaded(loadedConfig);
 				if (!registryPrepared) {
@@ -310,6 +325,8 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					args.path,
 					{
 						...options,
+						__exactPackageEnhancements: packageEnhancements,
+						__exactLanguageValidation: Boolean(languageValidation),
 						debug: resolveBunDebug(configuredDebug, automaticDevelopment)
 					},
 					compilerSession,
@@ -317,6 +334,8 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					(message) => console.warn(message)
 				);
 				if (!result) return undefined;
+				if (result.languageProjection)
+					await languageValidation?.validate([result.languageProjection]);
 				if (result.componentBuild)
 					componentAuthorization?.record(args.path, source, result.componentBuild);
 				if (result.inspection)
@@ -382,14 +401,6 @@ export function transformExactBunSource(
 	session?: ExactCompilerSession,
 	intl?: IntlBuildCoordinator,
 	warn?: (message: string) => void
-): {
-	code: string;
-	map: unknown;
-	inspection?: Readonly<{
-		inspection: ExactSourceInspection;
-		redactions?: ExactInspectionRedactionCatalog;
-	}>;
-	componentBuild?: ExactComponentBuildFacts;
-} | null {
+): ReturnType<typeof transformExactBunSourceImpl> {
 	return transformExactBunSourceImpl(source, filename, options, session, intl, warn);
 }

@@ -5,6 +5,7 @@ import {
 	type IntlPublishedMessagesV1,
 	type IntlRuntimeDescriptorV1
 } from '@exactjs/intl';
+import { intl } from '@exactjs/core';
 import { validateIntlCatalog, validateIntlRuntimeDescriptor } from '@exactjs/intl/internal';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -66,7 +67,7 @@ function validatePublishedMessages(
 	if (record.protocol !== 1) throw new TypeError('Published messages protocol must be 1');
 	if (record.owner !== packageName)
 		throw new TypeError(`Published messages must be owned by ${packageName}`);
-	const [sourceLocale] = Intl.getCanonicalLocales(
+	const [sourceLocale] = intl.getCanonicalLocales(
 		boundedString(record.sourceLocale, 'sourceLocale')
 	);
 	if (sourceLocale !== metadata.sourceLocale)
@@ -109,9 +110,9 @@ function exportTarget(input: unknown): string | undefined {
 }
 
 function localeFallbackChain(locale: string): string[] {
-	const canonical = Intl.getCanonicalLocales(locale)[0];
+	const canonical = intl.getCanonicalLocales(locale)[0];
 	if (!canonical) return [];
-	const language = new Intl.Locale(canonical).language;
+	const language = intl.Locale(canonical).language;
 	return canonical === language ? [canonical] : [canonical, language];
 }
 

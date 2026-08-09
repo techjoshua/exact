@@ -306,7 +306,7 @@ func buildProjectCallableCache(
 		bindings, bindingWrites, _ := analyzeComponentBindings(
 			sourceFile,
 			typeChecker,
-			collectEnhancementImports(sourceFile, typeChecker, nil),
+			collectEnhancementImports(sourceFile, typeChecker, nil, 0),
 		)
 		writes = append(writes, bindingWrites...)
 		analysis := collectCallableEffects(

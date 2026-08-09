@@ -83,6 +83,31 @@ export type IntlClientRequirement = 'temporal' | 'intl-duration-format';
 /** Ordered message plan rendered as the source fallback or a validated translation. */
 export type IntlPatternV1 = readonly IntlPatternNodeV1[];
 
+/** Translator-authored pattern containing only stable, generic placeholder references. */
+export type IntlTranslationPatternV1 = readonly IntlTranslationPatternNodeV1[];
+
+/** One translator-visible operation, intentionally free of eXact execution metadata. */
+export type IntlTranslationPatternNodeV1 =
+	| Readonly<{ kind: 'text'; value: string }>
+	| Readonly<{ kind: 'placeholder'; id: string }>
+	| Readonly<{ kind: 'element'; id: string; value: IntlTranslationPatternV1 }>
+	| Readonly<{
+			kind: 'select';
+			id: string;
+			cases: readonly Readonly<{ key: string; value: IntlTranslationPatternV1 }>[];
+			fallback: IntlTranslationPatternV1;
+	  }>;
+
+/** Translator-facing description for one generic placeholder identifier. */
+export interface IntlTranslationPlaceholderV1 {
+	readonly id: string;
+	readonly kind: 'value' | 'format' | 'select' | 'element' | 'opaque';
+	readonly role: string;
+	readonly name: string;
+	readonly canCopy: boolean;
+	readonly canDelete: boolean;
+}
+
 /** Finite branch selectors supported by protocol-1 message plans. */
 export type IntlSelectionV1 =
 	| 'boolean'
@@ -124,7 +149,11 @@ export interface IntlRuntimeDescriptorV1 {
 	readonly protocol: 1;
 	readonly owner: string;
 	readonly occurrenceId: string;
+	/** Hash of the reusable eXact execution contract, independent from translation identity. */
+	readonly contract: string;
 	readonly key: string;
+	/** Optional authored semantic name used as the readable key prefix and translator context. */
+	readonly name?: string;
 	readonly sourceLocale: string;
 	readonly target:
 		| Readonly<{ kind: 'content' }>
@@ -137,8 +166,7 @@ export interface IntlRuntimeDescriptorV1 {
 /** Analyzer-only descriptor with source ownership and diagnostic provenance. */
 export interface AnalyzedMessageDescriptorV1 extends IntlRuntimeDescriptorV1 {
 	readonly ownerComponentId: string;
-	readonly canonicalSource: string;
-	readonly context?: string;
+	readonly canonicalTranslation: string;
 	readonly sourceRange: Readonly<{
 		readonly file: string;
 		readonly start: number;
@@ -151,7 +179,7 @@ export interface IntlCatalogV1 {
 	readonly protocol: 1;
 	readonly locale: string;
 	readonly owner: string;
-	readonly messages: Readonly<Record<string, IntlPatternV1>>;
+	readonly messages: Readonly<Record<string, IntlTranslationPatternV1>>;
 }
 
 /** Static package.json declaration for published protocol-1 message contracts and catalogs. */
@@ -180,21 +208,18 @@ export type IntlOpaqueFactory = (values: readonly unknown[]) => Child;
 /** Structure factories supplied beside evaluated scalar values. */
 export type IntlStructureFactory = IntlElementFactory | IntlOpaqueFactory;
 
-/** Author-facing message context shorthand. */
+/** Author-facing optional message name shorthand. */
 export type IntlMessageActivation = true | string;
 
 /** Author-facing property-message activation and optional finite formatter shorthand. */
-export type IntlPropertyActivation =
-	| true
-	| string
-	| Readonly<{ format?: string; context?: string }>;
+export type IntlPropertyActivation = true | string | Readonly<{ format?: string; name?: string }>;
 
 /** Author-facing cardinal plural activation. */
 export type IntlPluralActivation =
 	| number
 	| Readonly<{
 			value: number;
-			context?: string;
+			name?: string;
 	  }>;
 
 /** Values accepted by exact message selection. */
@@ -203,7 +228,7 @@ export type IntlExactSelector = string | number | boolean;
 /** Author-facing exact selection activation. */
 export type IntlSelectActivation<Value extends IntlExactSelector = IntlExactSelector> =
 	| Value
-	| Readonly<{ value: Value; context?: string }>;
+	| Readonly<{ value: Value; name?: string }>;
 
 /** Currency display forms preserved as semantic formatter policy. */
 export type IntlCurrencyDisplay = 'symbol' | 'narrowSymbol' | 'code' | 'name';
@@ -212,7 +237,7 @@ export type IntlCurrencyDisplay = 'symbol' | 'narrowSymbol' | 'code' | 'name';
 export type IntlCurrencyActivation =
 	| true
 	| string
-	| Readonly<{ currency?: string; display?: IntlCurrencyDisplay; context?: string }>;
+	| Readonly<{ currency?: string; display?: IntlCurrencyDisplay; name?: string }>;
 
 /** Author-facing semantic-unit activation before analyzer preparation. */
 export type IntlUnitActivation =
@@ -221,5 +246,5 @@ export type IntlUnitActivation =
 			unit: string;
 			sourceUnit?: string;
 			convertTo?: string;
-			context?: string;
+			name?: string;
 	  }>;

@@ -81,38 +81,12 @@ export function requiredAttribute(element: XmlElement, name: string): string {
 	return value;
 }
 
-/** Reads a required attribute as a nonnegative safe binding index. */
-export function numericAttribute(element: XmlElement, name: string): number {
-	const value = Number(requiredAttribute(element, name));
-	if (!Number.isSafeInteger(value) || value < 0)
-		throw new TypeError(`XLIFF ${name} must be a binding index`);
-	return value;
-}
-
 /** Serializes a bounded XML element tree with all authored values escaped. */
 export function serializeElement(element: XmlElement): string {
 	const attributes = Object.entries(element.attributes)
 		.map(([name, value]) => ` ${name}="${escapeXml(value)}"`)
 		.join('');
 	return `<${element.name}${attributes}>${serializeChildren(element.children)}</${element.name}>`;
-}
-
-/** Removes formatting-only text from XLIFF structural containers before serialization. */
-export function compactStructuralWhitespace(element: XmlElement): XmlElement {
-	const structuralContainer = [
-		'xliff',
-		'file',
-		'unit',
-		'notes',
-		'originalData',
-		'segment'
-	].includes(localName(element.name));
-	return {
-		...element,
-		children: element.children
-			.filter((child) => !structuralContainer || typeof child !== 'string' || /\S/u.test(child))
-			.map((child) => (typeof child === 'string' ? child : compactStructuralWhitespace(child)))
-	};
 }
 
 /** Removes an optional XML namespace prefix for core-element comparisons. */

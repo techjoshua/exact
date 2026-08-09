@@ -8,12 +8,14 @@ import { renderIntlActivation } from './render.js';
 import { registerIntlArtifacts } from './artifacts.js';
 import { validateIntlCatalog, validateIntlRuntimeDescriptor } from './validation.js';
 import { validateIntlPackageMetadata } from './package-metadata.js';
+import { measurementDescriptor } from './test-support/measurement-descriptor.js';
 
-const messageKey = 'm1_47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU';
+const messageKey = '47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU';
 const descriptor: IntlRuntimeDescriptorV1 = {
 	protocol: 1,
 	owner: 'example',
 	occurrenceId: 'Greeting:0',
+	contract: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
 	key: messageKey,
 	sourceLocale: 'en-US',
 	target: { kind: 'content' },
@@ -102,7 +104,7 @@ describe('intl protocol', () => {
 				},
 				[scalarDescriptor]
 			)
-		).toThrow('undeclared capability number');
+		).toThrow('operation absent from its source');
 	});
 
 	it('uses a selected language catalog for a regional target locale', () => {
@@ -345,6 +347,7 @@ describe('intl protocol', () => {
 			protocol: 1,
 			owner: 'generated-example',
 			occurrenceId: 'Generated:0',
+			contract: 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
 			key: messageKey,
 			sourceLocale: 'en-US',
 			target: { kind: 'content' },
@@ -370,6 +373,7 @@ describe('intl protocol', () => {
 			protocol: 1,
 			owner: 'timing',
 			occurrenceId: 'Timing:0',
+			contract: 'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
 			key: messageKey,
 			sourceLocale: 'en-US',
 			target: { kind: 'content' },
@@ -413,6 +417,7 @@ describe('intl protocol', () => {
 			protocol: 1,
 			owner: 'measurements',
 			occurrenceId: 'Distance:0',
+			contract: 'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
 			key: messageKey,
 			sourceLocale: 'en-US',
 			target: { kind: 'content' },
@@ -558,11 +563,20 @@ describe('intl protocol', () => {
 			protocol: 1,
 			owner: 'placement',
 			occurrenceId: 'Placement:0',
+			contract: 'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
 			key: messageKey,
 			sourceLocale: 'en-US',
 			target: { kind: 'content' },
 			bindings: [{ index: 0, kind: 'selector', type: 'number' }],
-			source: [{ kind: 'text', value: 'th' }],
+			source: [
+				{
+					kind: 'select',
+					binding: 0,
+					selection: 'plural-ordinal',
+					cases: [],
+					fallback: [{ kind: 'text', value: 'th' }]
+				}
+			],
 			capabilities: ['plural-ordinal']
 		};
 		const catalog = {
@@ -596,28 +610,3 @@ describe('intl protocol', () => {
 		).toEqual(['st']);
 	});
 });
-
-function measurementDescriptor(
-	quantity: string,
-	usage: string,
-	sourceUnit: string,
-	options: Readonly<Record<string, string | number | boolean>>
-): IntlRuntimeDescriptorV1 {
-	return {
-		protocol: 1,
-		owner: `measurements-${quantity}-${usage}`,
-		occurrenceId: `${quantity}:${usage}`,
-		key: messageKey,
-		sourceLocale: 'en-US',
-		target: { kind: 'content' },
-		bindings: [{ index: 0, kind: 'value', type: 'measurement' }],
-		source: [
-			{
-				kind: 'format',
-				bindings: [0],
-				formatter: { kind: 'unit', quantity, usage, sourceUnit, precision: 'source', options }
-			}
-		],
-		capabilities: ['unit']
-	};
-}
