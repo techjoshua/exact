@@ -59,6 +59,12 @@ malformed output remains visible to the author.
 
 ## Other complete samples
 
+- [`apps/intl-testbed`](../apps/intl-testbed) renders one reactive enhancement-authored scenario
+  in English, French, Japanese, and Arabic at the same time. Named intrinsic and opaque fragments
+  are outlined so catalog-driven structural reordering is visible side by side; the same surface
+  also covers branches, plural and ordinal projections, semantic units, native formatter intent,
+  intrinsic properties, missing-message fallback, and lazy catalog adoption. Run it with
+  `npm run dev:intl`; its checked-in catalogs are generated from the real TSX analyzer output.
 - [`apps/sudoku`](../apps/sudoku) is an installable, interactive Sudoku game with persistence,
   optional enhancements, and a standalone build.
 - [`apps/shipping-calculator`](../apps/shipping-calculator) demonstrates native SSR, hydration,

@@ -13,6 +13,7 @@ import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
 import { GesturesPage } from './pages/GesturesPage.jsx';
 import { GravityPage } from './pages/GravityPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
+import { InternationalizationPage } from './pages/InternationalizationPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
 import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
@@ -280,6 +281,15 @@ export const docGroups: DocGroup[] = [
 				summary: 'Package cross-cutting behavior as a validated, multi-host extension.',
 				keywords: 'plugin compiler server render client testing configuration package',
 				component: PluginsPage
+			},
+			{
+				path: '/plugins/internationalization',
+				label: 'Internationalization',
+				summary:
+					'Localize enhancement-authored messages with semantic inference and XLIFF catalogs.',
+				keywords:
+					'plugin internationalization intl i18n locale translation catalog XLIFF extraction source message plural ordinal currency unit CLDR date time Temporal analyzer enhancement Vite Bun Webpack test bed reorder fragments',
+				component: InternationalizationPage
 			},
 			{
 				path: '/plugins/microfrontends',

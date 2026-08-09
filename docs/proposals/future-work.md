@@ -38,6 +38,12 @@ task ownership, and the physics force seam. Consider convenience adapters only w
 application code demonstrates a stable cross-package contract. Keep each base package independently
 usable and avoid introducing a required dependency cycle.
 
+The focused
+[`exploratory-motion-values-and-orchestration.md`](exploratory-motion-values-and-orchestration.md)
+proposal now owns investigation of finite spring timing, interpolation helpers, reactive motion
+values, gesture handoff, timelines, shared elements, and scroll/view motion. In particular, it does
+not select a general component-resource API merely for motion ergonomics.
+
 Related experiments may evaluate shared-layout coordination across independently updated roots and
 worker-oriented physics helpers. They must preserve renderer-owned DOM identity, deterministic
 simulation, generation fencing, cancellation, and bounded inspection.

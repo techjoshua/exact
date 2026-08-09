@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.28.0"
+const ProtocolVersion = "1.29.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -26,25 +26,33 @@ const (
 
 // Request is one newline-delimited command accepted by a Session.
 type Request struct {
-	ID                         string           `json:"id,omitempty"`
-	Kind                       string           `json:"kind"`
-	Source                     string           `json:"source,omitempty"`
-	Root                       string           `json:"root,omitempty"`
-	BuildKey                   string           `json:"buildKey,omitempty"`
-	ConfigFile                 string           `json:"configFile,omitempty"`
-	Target                     Target           `json:"target,omitempty"`
-	ServerComponents           bool             `json:"serverComponents,omitempty"`
-	PreserveComponentHoisting  bool             `json:"preserveComponentHoisting,omitempty"`
-	Diagnostics                string           `json:"diagnostics,omitempty"`
-	SourceMap                  bool             `json:"sourceMap,omitempty"`
-	PackageType                string           `json:"packageType,omitempty"`
-	PackageName                string           `json:"packageName,omitempty"`
-	Capabilities               CapabilityPolicy `json:"capabilities,omitempty"`
-	AssetRules                 []AssetRule      `json:"assetRules,omitempty"`
-	PreserveClientAssetImports bool             `json:"preserveClientAssetImports,omitempty"`
-	JSXInterop                 *JSXInterop      `json:"jsxInterop,omitempty"`
-	ModuleRewrite              *ModuleRewrite   `json:"moduleRewrite,omitempty"`
-	InstrumentInspection       bool             `json:"instrumentInspection,omitempty"`
+	ID                         string            `json:"id,omitempty"`
+	Kind                       string            `json:"kind"`
+	Source                     string            `json:"source,omitempty"`
+	Root                       string            `json:"root,omitempty"`
+	BuildKey                   string            `json:"buildKey,omitempty"`
+	ConfigFile                 string            `json:"configFile,omitempty"`
+	Target                     Target            `json:"target,omitempty"`
+	ServerComponents           bool              `json:"serverComponents,omitempty"`
+	PreserveComponentHoisting  bool              `json:"preserveComponentHoisting,omitempty"`
+	Diagnostics                string            `json:"diagnostics,omitempty"`
+	SourceMap                  bool              `json:"sourceMap,omitempty"`
+	PackageType                string            `json:"packageType,omitempty"`
+	PackageName                string            `json:"packageName,omitempty"`
+	Capabilities               CapabilityPolicy  `json:"capabilities,omitempty"`
+	AssetRules                 []AssetRule       `json:"assetRules,omitempty"`
+	PreserveClientAssetImports bool              `json:"preserveClientAssetImports,omitempty"`
+	JSXInterop                 *JSXInterop       `json:"jsxInterop,omitempty"`
+	ModuleRewrite              *ModuleRewrite    `json:"moduleRewrite,omitempty"`
+	InstrumentInspection       bool              `json:"instrumentInspection,omitempty"`
+	Extension                  *ExtensionRequest `json:"extension,omitempty"`
+}
+
+// ExtensionRequest selects an isolated native frontend operation without adding
+// its domain semantics to the standard compiler request contract.
+type ExtensionRequest struct {
+	Namespace string `json:"namespace"`
+	Payload   any    `json:"payload,omitempty"`
 }
 
 // ModuleRewrite contains host-planned aliases applied before native printing.
@@ -1005,6 +1013,7 @@ type Response struct {
 	Timings           Timings                 `json:"timings"`
 	CacheHit          bool                    `json:"cacheHit,omitempty"`
 	Error             string                  `json:"error,omitempty"`
+	Extension         any                     `json:"extension,omitempty"`
 }
 
 // NewResponseVersionFields returns the versions required on every response,

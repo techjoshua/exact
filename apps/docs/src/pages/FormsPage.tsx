@@ -126,7 +126,7 @@ export function FormsPage(this: Component<{}>) {
 			<section>
 				<h2>Start with native DOM controls</h2>
 				<p>
-					The lowercase <code>{'<input>'}</code>, <code>{'<textarea>'}</code>,{' '}
+					The lowercase <code>{'<input>'}</code>, <code>{'<textarea>'}</code>,
 					<code>{'<select>'}</code>, and <code>{'<details>'}</code> elements in the following
 					sections are ordinary browser elements, not eXact components. A controlled input normally
 					repeats the same state path twice: once to project state into a DOM property and once to
@@ -135,7 +135,7 @@ export function FormsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={manualInputSource} language="tsx" title="Equivalent input code" />
 				<p>
-					The compiler still emits a reactive <code>value</code>, <code>checked</code>, or{' '}
+					The compiler still emits a reactive <code>value</code>, <code>checked</code>, or
 					<code>open</code> property and a lifecycle-owned native listener. The notation removes
 					mechanical code; it does not introduce a general directive or event system.
 				</p>
@@ -147,7 +147,7 @@ export function FormsPage(this: Component<{}>) {
 					For a capitalized eXact component, both sides of the colon are ordinary props from the
 					component&apos;s finite prop type. The compiler supplies the reactive value and an
 					ordinary callback that assigns its first argument to the parent-owned state path. There is
-					no writable prop, channel, or component runtime binding object. Run{' '}
+					no writable prop, channel, or component runtime binding object. Run
 					<code>exactc --check</code> for application type checking: it validates the finite pair
 					and checks the compiler-lowered TypeScript representation rather than asking raw
 					TypeScript to interpret compiler-owned TSX syntax.
@@ -226,7 +226,7 @@ export function FormsPage(this: Component<{}>) {
 					the element is removed.
 				</p>
 				<p>
-					A bound <code>{'<details>'}</code> reads its final <code>open</code> property on each{' '}
+					A bound <code>{'<details>'}</code> reads its final <code>open</code> property on each
 					<code>toggle</code>, including browser changes within a named exclusive group. Hydration
 					preserves and publishes a disclosure changed before the app starts. Bindings otherwise
 					observe only their declared endpoint: eXact does not poll controls or synthesize events
@@ -241,7 +241,7 @@ export function FormsPage(this: Component<{}>) {
 					rejects derived expressions, the wrong DOM property or event for a control, conflicting
 					explicit
 					<code>value</code> or <code>checked</code> props, checkbox arrays without an option value,
-					unsupported state types, and a union containing both <code>null</code> and{' '}
+					unsupported state types, and a union containing both <code>null</code> and
 					<code>undefined</code>
 					where the empty representation would be ambiguous.
 				</p>
@@ -249,7 +249,7 @@ export function FormsPage(this: Component<{}>) {
 			<section>
 				<h2>Add accessible field composition with @exactjs/forms</h2>
 				<p>
-					This is the point where the page switches from native JSX elements to components from{' '}
+					This is the point where the page switches from native JSX elements to components from
 					<code>@exactjs/forms</code>. Capitalized <code>{'<Form>'}</code>, <code>{'<Field>'}</code>
 					, <code>{'<Label>'}</code>, and <code>{'<Input>'}</code> are eXact components. In
 					particular, <code>{'<Input>'}</code> is not JSX spelling for a DOM input: it renders a
@@ -266,8 +266,8 @@ export function FormsPage(this: Component<{}>) {
 				<h2>Composition preserves native behavior</h2>
 				<p>
 					Although the capitalized names are eXact components, they render native form elements:
-					<code>{'<Label>'}</code> renders <code>{'<label>'}</code>, <code>{'<Input>'}</code>{' '}
-					renders <code>{'<input>'}</code>, and <code>{'<Form>'}</code> renders{' '}
+					<code>{'<Label>'}</code> renders <code>{'<label>'}</code>, <code>{'<Input>'}</code>
+					renders <code>{'<input>'}</code>, and <code>{'<Form>'}</code> renders
 					<code>{'<form>'}</code>. The browser still participates in validation. Form context
 					coordinates IDs, names, descriptions, errors, and events rather than replacing native
 					behavior with a proprietary field model.
@@ -276,7 +276,7 @@ export function FormsPage(this: Component<{}>) {
 			<section>
 				<h2>Submission coordinates the complete interaction</h2>
 				<p>
-					<code>{'<Form>'}</code> drops duplicate submissions while one is active. Its{' '}
+					<code>{'<Form>'}</code> drops duplicate submissions while one is active. Its
 					<code>aria-busy</code> state and the <code>{'<Submit>'}</code> pending label and disabled
 					state remain active until validation, the submission callback, placed server work, and
 					router operations started by that callback settle.

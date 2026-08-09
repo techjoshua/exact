@@ -5,8 +5,6 @@
 Ready for implementation after
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](../history/server-component-library-trust.md),
-resolution or explicit rejection of the exploratory
-[`cooperative-structured-children.md`](cooperative-structured-children.md) design,
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), and
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md). Recursive
 server/client graph partitioning and binding edges are implemented in native protocol 1.28, while
@@ -16,8 +14,8 @@ The trust contract ensures that bundlers authorize the resolved package graph be
 nodes enter a server-executing artifact, without adding policy to compiler eligibility analysis.
 The implemented binding contract makes generated value/change callbacks and intrinsic adapters
 enter the same state-effect, ownership, and placement analysis as their explicit source
-expansions. The internationalization proposal adds message-plan,
-locale-catalog, formatter, and Unicode-data requirements that must travel with a deferred artifact.
+expansions. The internationalization proposal adds lexically owned message-plan, locale-catalog,
+formatter, and Unicode-data requirements that must travel with a deferred artifact.
 This proposal defines the first broader lazy-island delivery over that resulting partition and
 authorized bundle model.
 

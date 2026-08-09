@@ -143,7 +143,7 @@ export function IntroductionPage(this: Component<{}>) {
 						<span className="topic-index">Svelte</span>
 						<strong>Compilation, with a framework dialect</strong>
 						<p>
-							Svelte avoids a virtual DOM, but runes such as <code>$state</code>,{' '}
+							Svelte avoids a virtual DOM, but runes such as <code>$state</code>,
 							<code>$derived</code>, and <code>$effect</code> make reactivity a distinct syntax to
 							learn and recognize.
 						</p>

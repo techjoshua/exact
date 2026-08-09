@@ -23,6 +23,7 @@
 		"@exactjs/devtools-protocol": "^0.1.0",
 		"@exactjs/devtools-runtime": "^0.1.0",
 		"@exactjs/instrumentation": "^0.1.0",
+		"@exactjs/intl-build": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",
 		"@exactjs/plugin-host": "^0.1.0",
 		"@exactjs/react-compat": "^0.1.0",

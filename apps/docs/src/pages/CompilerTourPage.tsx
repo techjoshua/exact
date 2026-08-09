@@ -114,7 +114,7 @@ export function CompilerTourPage(this: Component<{}>) {
 					</p>
 					<code>Client task</code>
 					<p>
-						The title effect remains entirely in the browser artifact. Its use of{' '}
+						The title effect remains entirely in the browser artifact. Its use of
 						<code>document</code> determines placement, while the compiler infers selected product
 						name as its only dependency.
 					</p>

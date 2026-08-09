@@ -1,0 +1,20 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"noEmit": true,
+		"lib": ["ES2022", "DOM"],
+		"types": ["node"],
+		"jsx": "preserve",
+		"jsxImportSource": "@exactjs/jsx"
+	},
+	"references": [
+		{ "path": "../../packages/core" },
+		{ "path": "../../packages/dom" },
+		{ "path": "../../packages/intl" },
+		{ "path": "../../packages/intl-analyzer" },
+		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../framework-adapters/vite-plugin" }
+	],
+	"include": ["src", "vite.config.ts"]
+}

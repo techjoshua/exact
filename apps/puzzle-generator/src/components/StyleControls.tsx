@@ -149,7 +149,7 @@ export function StyleControls(props: StyleControlsProps) {
 						</label>
 						<label>
 							<span>
-								{props.kind === 'crossword' ? 'Clue' : 'List'} size ·{' '}
+								{props.kind === 'crossword' ? 'Clue' : 'List'} size ·
 								{props.style.supplementaryFontSize}px
 							</span>
 							<input

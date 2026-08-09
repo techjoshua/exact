@@ -6,8 +6,6 @@ Proposed after
 [`recursive-server-client-graph-partitioning.md`](../history/recursive-server-client-graph-partitioning.md),
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](../history/server-component-library-trust.md),
-resolution or explicit rejection of
-[`cooperative-structured-children.md`](cooperative-structured-children.md),
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md), and
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md). Structural plans must consume the
@@ -15,7 +13,7 @@ settled activator-selected enhancement component groups, bundler-authorized serv
 bounded root-bearing frames, target generations, and activation containment rather than encode the
 current unrestricted enhancement target walk. The compiler emits structural facts for all reachable
 components without making trust decisions; bundlers admit only authorized server implementations.
-Translated message branches and structural slots must remain within their compiler-emitted message
+Translated message branches and structural slots must remain within their analyzer-emitted message
 plans and active locale/catalog generation.
 The accepted
 [`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),

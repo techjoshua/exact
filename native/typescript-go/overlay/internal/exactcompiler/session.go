@@ -55,8 +55,12 @@ func (s *Session) Execute(request Request) Response {
 		s.projects = make(map[string]*projectState)
 		return response
 	}
-	if request.Kind != "compile" && request.Kind != "analyze" && request.Kind != "diagnose" {
+	if request.Kind != "compile" && request.Kind != "analyze" && request.Kind != "diagnose" && request.Kind != "extension" {
 		response.Error = fmt.Sprintf("unsupported native compiler request kind %q", request.Kind)
+		return response
+	}
+	if request.Kind == "extension" && (request.Extension == nil || request.Extension.Namespace == "") {
+		response.Error = "native extension requests require a namespace"
 		return response
 	}
 	if request.Target == "" {
@@ -140,6 +144,22 @@ func (s *Session) Execute(request Request) Response {
 	defer generation.release()
 	response.CacheHit = generation.reused
 	sourceFile := generation.sourceFile
+	if request.Kind == "extension" {
+		extensionStarted := time.Now()
+		extensionRequest := request
+		extensionRequest.Source = authoredSource
+		response.Extension, err = executeNativeExtension(
+			extensionRequest,
+			sourceFile,
+			generation.checker,
+		)
+		response.Timings.AnalysisMicroseconds = time.Since(extensionStarted).Microseconds()
+		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
+		if err != nil {
+			response.Error = err.Error()
+		}
+		return response
+	}
 	if request.Kind == "diagnose" {
 		checkStarted := time.Now()
 		for _, projectSource := range generation.program.GetSourceFiles() {

@@ -84,7 +84,7 @@ export function TestingPage(this: Component<{}>) {
 				<h2>Settling is explicit</h2>
 				<p>
 					State changes and event interactions flush reactive rendering and wait for observed
-					component tasks. Long-lived work can opt out, while <code>view.flush()</code> and{' '}
+					component tasks. Long-lived work can opt out, while <code>view.flush()</code> and
 					<code>view.settle()</code> keep timing choices visible.
 				</p>
 			</section>

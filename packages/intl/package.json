@@ -1,0 +1,53 @@
+{
+	"name": "@exactjs/intl",
+	"version": "0.1.0",
+	"description": "Enhancement-first internationalization contracts and runtime for eXact",
+	"type": "module",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"LICENSE.cldr",
+		"capability.d.ts",
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./enhancements": {
+			"types": "./capability.d.ts",
+			"default": "./dist/enhancements.js"
+		},
+		"./internal": {
+			"types": "./dist/internal.d.ts",
+			"default": "./dist/internal.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exactComponentLibrary": {
+		"protocol": 1,
+		"build": "./dist/exact-component-build.json"
+	},
+	"dependencies": {
+		"@exactjs/component-library": "^0.1.0",
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/reactive": "^0.1.0"
+	},
+	"devDependencies": {
+		"cldr-core": "48.2.0",
+		"prettier": "^3.6.2"
+	},
+	"scripts": {
+		"generate:cldr": "node scripts/generate-cldr-unit-data.mjs",
+		"check:cldr": "node scripts/generate-cldr-unit-data.mjs --check",
+		"build": "npm run check:cldr && tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"test": "npm run check:cldr && vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

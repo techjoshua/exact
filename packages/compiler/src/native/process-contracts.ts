@@ -35,12 +35,12 @@ export type {
 } from './process-task-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.28.0';
+export const nativeCompilerProtocolVersion = '1.29.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
 	id?: string;
-	kind: 'version' | 'reset' | 'diagnose' | 'analyze' | 'compile';
+	kind: 'version' | 'reset' | 'diagnose' | 'analyze' | 'compile' | 'extension';
 	source?: string;
 	root?: string;
 	/** Immutable deployment namespace shared by every artifact in one partition graph. */
@@ -60,6 +60,8 @@ export type NativeCompilerRequest = Readonly<{
 	moduleRewrite?: NativeCompilerModuleRewrite;
 	/** Adds compact source identity markers without retaining rich inspection metadata. */
 	instrumentInspection?: boolean;
+	/** Namespaced native frontend operation isolated from standard compiler semantics. */
+	extension?: Readonly<{ namespace: string; payload?: unknown }>;
 }>;
 
 /** Host-owned runtime brand adapter used for unproven JSX component values. */
@@ -437,4 +439,6 @@ export type NativeCompilerResponse = Readonly<{
 	timings: NativeCompilerTimings;
 	cacheHit?: boolean;
 	error?: string;
+	/** Namespaced response returned only for an extension request. */
+	extension?: unknown;
 }>;

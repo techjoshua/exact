@@ -15,6 +15,7 @@ import {
 	exactEnhancementFacadeImports
 } from '@exactjs/compiler/adapter-support';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
+import { IntlBuildCoordinator, type IntlBuildConfiguration } from '@exactjs/intl-build';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
 	resolveReactCompatibility,
@@ -52,6 +53,8 @@ export type ExactBunPluginOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
+	/** Enables shared intl analysis, linking, catalogs, and generated descriptor modules. */
+	internationalization?: false | Readonly<IntlBuildConfiguration>;
 	/** Independent server catalog and compact runtime controls. */
 	debug?: ExactBunDebugOptions;
 };
@@ -140,6 +143,11 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 	});
 	const reportDiagnostics = createExactDiagnosticReporter();
 	const inspectionModules = new Map<string, ExactBunInspectionModule>();
+	const intl = new IntlBuildCoordinator({
+		applicationRoot: options.applicationRoot,
+		configuration: options.internationalization || undefined,
+		target: options.target === 'server' ? 'server' : 'client'
+	});
 	let componentAuthorization: ExactBunComponentAuthorization | undefined;
 	return {
 		name: 'exact',
@@ -178,6 +186,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				});
 			build.onStart?.(async () => {
 				inspectionModules.clear();
+				await intl.beginBuild();
 				const loadedConfig = await loadExactConfig({
 					applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
 					configPath: options.configPath
@@ -207,6 +216,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					componentAuthorization?.reject();
 					return;
 				}
+				intl.validateCatalogs();
 				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
 				if (options.target !== 'server') return;
 				const outputRoot = path.resolve(
@@ -245,6 +255,15 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			build.onResolve({ filter: /\.exact$/ }, (args) => {
 				const resolved = resolveExactBunRequest(args.path, args.importer, options);
 				return resolved ? { path: resolved } : undefined;
+			});
+			build.onResolve({ filter: /^virtual:exact-intl\/descriptor\// }, (args) => ({
+				path: args.path,
+				namespace: 'exact-intl'
+			}));
+			build.onLoad({ filter: /.*/, namespace: 'exact-intl' }, (args) => {
+				const module = intl.loadRequest(args.path);
+				if (!module) throw new Error(`Unknown generated intl descriptor module ${args.path}`);
+				return { contents: module.code, loader: 'js' };
 			});
 			build.onResolve({ filter: /^@exactjs\/(?:dom|hydrate|ssr)$/ }, (args) => ({
 				path: exactEnhancementFacadeImports[args.path as keyof typeof exactEnhancementFacadeImports]
@@ -293,7 +312,9 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 						...options,
 						debug: resolveBunDebug(configuredDebug, automaticDevelopment)
 					},
-					compilerSession
+					compilerSession,
+					intl,
+					(message) => console.warn(message)
 				);
 				if (!result) return undefined;
 				if (result.componentBuild)
@@ -313,6 +334,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 }
 
 function bunLoadFilter(options: ExactBunPluginOptions): RegExp {
+	if (options.internationalization) return /\.[cm]?[jt]sx?$/i;
 	if (!options.include && !options.exclude && options.compileTestModules !== true) {
 		return /^(?!.*[\\/](?:node_modules|dist)[\\/])(?!.*\.(?:test|spec|jest)\.[cm]?[jt]sx?$).*\.[cm]?[jt]sx?$/i;
 	}
@@ -357,7 +379,9 @@ export function transformExactBunSource(
 	source: string,
 	filename: string,
 	options: ExactBunPluginOptions = {},
-	session?: ExactCompilerSession
+	session?: ExactCompilerSession,
+	intl?: IntlBuildCoordinator,
+	warn?: (message: string) => void
 ): {
 	code: string;
 	map: unknown;
@@ -367,5 +391,5 @@ export function transformExactBunSource(
 	}>;
 	componentBuild?: ExactComponentBuildFacts;
 } | null {
-	return transformExactBunSourceImpl(source, filename, options, session);
+	return transformExactBunSourceImpl(source, filename, options, session, intl, warn);
 }

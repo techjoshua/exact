@@ -168,7 +168,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 				</p>
 				<p>
 					Independent local, context-free component siblings may settle concurrently during
-					markerless async SSR. <code>maxAsyncSsrConcurrency</code> defaults to <code>4</code>,{' '}
+					markerless async SSR. <code>maxAsyncSsrConcurrency</code> defaults to <code>4</code>,
 					<code>1</code>
 					forces serial work, and the renderer caps the value at <code>32</code>. Results still
 					publish in source order. Nested proven groups share the same request-wide bound;

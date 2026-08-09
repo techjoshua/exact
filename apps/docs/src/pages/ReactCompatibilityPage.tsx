@@ -170,7 +170,7 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					The matching <code>types18</code> or <code>types19</code> facade also lets React-owned
 					source render a compiled eXact component directly. The compatible React element pipeline
 					checks its compiler-emitted brand before mounting it natively. The live stepper above
-					includes an eXact-owned child through exactly that path.{' '}
+					includes an eXact-owned child through exactly that path.
 					<code>exposeExactComponent()</code>
 					remains useful for stock React builds outside eXact compatibility and explicit
 					ref-property bridges.

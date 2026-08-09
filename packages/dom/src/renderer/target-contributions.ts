@@ -1,5 +1,6 @@
 import {
 	Target,
+	TargetOverrides,
 	normalizeClassValue,
 	unwrap,
 	type ComponentInstance,
@@ -177,6 +178,16 @@ function composeTargetProps(
 	for (const layer of innerToOuter) for (const key of Object.keys(layer.props)) keys.add(key);
 	const result: Record<string, unknown> = {};
 	const events: TargetPropPlan['events'][number][] = [];
+	const overrides = new Set(
+		innerToOuter.flatMap((layer) => {
+			const value = unwrap(
+				(layer.props as Readonly<Record<PropertyKey, unknown>>)[TargetOverrides]
+			);
+			return Array.isArray(value)
+				? value.filter((key): key is string => typeof key === 'string')
+				: [];
+		})
+	);
 	for (const key of keys) {
 		if (key === 'children' || key === 'key') continue;
 		if (key === 'ref') {
@@ -194,7 +205,9 @@ function composeTargetProps(
 				events.push({ key, source: layer.props[key], owner: layer.owner });
 			continue;
 		}
-		const values = [authored[key], ...innerToOuter.map((layer) => layer.props[key])];
+		const values = overrides.has(key)
+			? [...innerToOuter.map((layer) => layer.props[key]), authored[key]]
+			: [authored[key], ...innerToOuter.map((layer) => layer.props[key])];
 		if (key === 'class' || key === 'className') result[key] = computed(() => mergeClasses(values));
 		else if (key === 'style')
 			result[key] = computed(() =>

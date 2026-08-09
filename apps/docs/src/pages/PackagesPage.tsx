@@ -40,6 +40,11 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/testing',
 				purpose: 'Component mounting, accessible queries, events, state, and runner adapters.'
+			},
+			{
+				name: '@exactjs/intl',
+				purpose:
+					'Experimental validated message plans, locale environment, and enhancement runtime.'
 			}
 		]
 	},
@@ -63,6 +68,10 @@ const packageGroups: PackageGroup[] = [
 					'VS Code startup, trust, semantic presentation, region markers, and component views.'
 			},
 			{ name: '@exactjs/vite-plugin', purpose: 'Vite integration over the shared compiler.' },
+			{
+				name: '@exactjs/intl-analyzer',
+				purpose: 'Experimental build-only lexical message extraction and source instrumentation.'
+			},
 			{
 				name: '@exactjs/webpack-plugin',
 				purpose: 'Webpack resolution, conditions, and transform integration.'

@@ -1,0 +1,29 @@
+{
+	"name": "@exactjs/sample-intl-testbed",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"generate": "node scripts/generate-catalogs.mjs",
+		"predev": "npm run generate",
+		"dev": "vite --host 0.0.0.0",
+		"prebuild": "npm run generate",
+		"build": "vite build",
+		"test": "node scripts/generate-catalogs.mjs --check",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/intl": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/vite-plugin": "^0.1.0"
+	},
+	"devDependencies": {
+		"@exactjs/intl-analyzer": "^0.1.0",
+		"@exactjs/intl-build": "^0.1.0",
+		"prettier": "^3.6.2",
+		"typescript": "^7.0.2",
+		"vite": "^8.1.5"
+	}
+}

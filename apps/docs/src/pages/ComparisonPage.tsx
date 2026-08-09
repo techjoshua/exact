@@ -148,11 +148,11 @@ export function ComparisonPage(this: Component<{}>) {
 					measured with a real vertical slice.
 				</p>
 				<p>
-					Primary references:{' '}
+					Primary references:
 					<a href="https://react.dev/learn/render-and-commit" target="_blank" rel="noreferrer">
 						React render and commit
 					</a>
-					,{' '}
+					,
 					<a
 						href="https://vuejs.org/guide/extras/reactivity-in-depth.html"
 						target="_blank"
@@ -160,7 +160,7 @@ export function ComparisonPage(this: Component<{}>) {
 					>
 						Vue reactivity
 					</a>
-					, and{' '}
+					, and
 					<a href="https://svelte.dev/docs/svelte/overview" target="_blank" rel="noreferrer">
 						Svelte overview
 					</a>

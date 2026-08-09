@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.1" srcLang="en-US" trgLang="fr-FR">
+  <file id="f1" original="@exactjs/sample-intl-testbed">
+    <unit id="m1_WG3upXl4hD5ncxq34z_YctTe0G4IY4r1FgfbAS7Ou-8">
+      <segment>
+        <source>Lazy locale chunk not requested.</source>
+        <target>Le segment de langue différé n’a pas été demandé.</target>
+      </segment>
+    </unit>
+    <unit id="m1_XzTt0dPcF3B-itrKN7hA0-4wsA2VP5peI4noe5b4WkY">
+      <segment>
+        <source>The same source, localized</source>
+        <target>La même source, localisée</target>
+      </segment>
+    </unit>
+    <unit id="m1__EIKrrhvUce4xXaB2927h-3AHE_YiTIyQ_cwmujxdHU">
+      <segment>
+        <source>Message structure</source>
+        <target>Structure du message</target>
+      </segment>
+    </unit>
+    <unit id="m1_3iH7JWQnmmDuA58nGFr0gK1lD8m-bP64Gf2VXjI9BEk">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d2">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d3">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data></originalData>
+      <segment>
+        <source>Hello, <ph id="n1" type="ui" subType="exact:value" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/>. Read <pc id="n3" type="other" subType="exact:element" dataRefStart="d1" canCopy="no" canDelete="no">the catalog notes</pc>.</source>
+        <target>Bonjour, <ph id="t1" type="ui" subType="exact:value" equiv="{0}" dataRef="d2" canCopy="no" canDelete="no"/>. Consultez <pc id="t3" type="other" subType="exact:element" dataRefStart="d3" canCopy="no" canDelete="no">les notes du catalogue</pc>.</target>
+      </segment>
+    </unit>
+    <unit id="m1_NZHG2jvRqPnzHyoS_fQuq8OQKfWGi9NqE1dYNjUcynM">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;opaque&quot;,&quot;binding&quot;:1,&quot;name&quot;:&quot;recipient&quot;}</data><data id="d2">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:0}</data><data id="d3">{&quot;kind&quot;:&quot;opaque&quot;,&quot;binding&quot;:1,&quot;name&quot;:&quot;recipient&quot;}</data></originalData>
+      <segment>
+        <source>Send <pc id="n1" type="other" subType="exact:element" dataRefStart="d0" canCopy="no" canDelete="no">the quarterly report</pc> to <ph id="n3" type="ui" subType="exact:opaque" equiv="{recipient}" dataRef="d1" canCopy="no" canDelete="no"/>.</source>
+        <target>Envoyez <pc id="t1" type="other" subType="exact:element" dataRefStart="d2" canCopy="no" canDelete="no">le rapport trimestriel</pc> à <ph id="t3" type="ui" subType="exact:opaque" equiv="{recipient}" dataRef="d3" canCopy="no" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="m1_QIPQw9GQEndz3dXNIi6l78EULi0afnPtL_3T26GZzqM">
+      <segment>
+        <source>The report and recipient are movable, but their implementations are not translated.</source>
+        <target>Le rapport et le destinataire peuvent être déplacés, mais leurs implémentations ne sont pas traduites.</target>
+      </segment>
+    </unit>
+    <unit id="m1_r7GR4DXfVpXwU4obEfLAmfy263JPp3Y5rE5zcCWYawU">
+      <segment>
+        <source>Branches and plurality</source>
+        <target>Branches et pluralité</target>
+      </segment>
+    </unit>
+    <unit id="m1_EaK7p87-ovUG3LYeQkZkd--nyKEwv07KXe1UE9O39hI">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-cardinal&quot;}</data><data id="d2">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d3">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-cardinal&quot;}</data></originalData>
+      <segment>
+        <source>You have <ph id="n1" type="ui" subType="exact:value" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/> new <pc id="n3" type="other" subType="exact:select" dataRefStart="d1" canCopy="no" canDelete="no"><mrk id="n3.c0" type="exact:case" value="=1">message</mrk><mrk id="n3.fallback" type="exact:fallback">messages</mrk></pc>.</source>
+        <target>Vous avez <ph id="t1" type="ui" subType="exact:value" equiv="{0}" dataRef="d2" canCopy="no" canDelete="no"/><pc id="t2" type="other" subType="exact:select" dataRefStart="d3" canCopy="no" canDelete="no"><mrk id="t2.c0" type="exact:case" value="=1"> nouveau message</mrk><mrk id="t2.fallback" type="exact:fallback"> nouveaux messages</mrk></pc>.</target>
+      </segment>
+    </unit>
+    <unit id="m1_7Z9gQd1-8M8D9Y5TjQIsxG9pT62WKOp9l5_t1hf-hH0">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;boolean&quot;}</data><data id="d1">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:1,&quot;selection&quot;:&quot;exact&quot;}</data><data id="d2">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;boolean&quot;}</data><data id="d3">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:1,&quot;selection&quot;:&quot;exact&quot;}</data></originalData>
+      <segment>
+        <source><pc id="n0" type="other" subType="exact:select" dataRefStart="d0" canCopy="no" canDelete="no"><mrk id="n0.c0" type="exact:case" value="true">Ready</mrk><mrk id="n0.fallback" type="exact:fallback">Waiting</mrk></pc>: <pc id="n2" type="other" subType="exact:select" dataRefStart="d1" canCopy="no" canDelete="no"><mrk id="n2.c0" type="exact:case" value="owner">Owner</mrk><mrk id="n2.fallback" type="exact:fallback">Member</mrk></pc></source>
+        <target><pc id="t0" type="other" subType="exact:select" dataRefStart="d2" canCopy="no" canDelete="no"><mrk id="t0.c0" type="exact:case" value="true">Prêt</mrk><mrk id="t0.fallback" type="exact:fallback">En attente</mrk></pc> : <pc id="t2" type="other" subType="exact:select" dataRefStart="d3" canCopy="no" canDelete="no"><mrk id="t2.c0" type="exact:case" value="owner">Propriétaire</mrk><mrk id="t2.fallback" type="exact:fallback">Membre</mrk></pc></target>
+      </segment>
+    </unit>
+    <unit id="m1_sb6uwNHzDHkOQMVR5OInsZOpSwoG09kC2x6WrIDS7kE">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d2">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-ordinal&quot;}</data><data id="d3">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d4">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d5">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-ordinal&quot;}</data></originalData>
+      <segment>
+        <source>You finished <ph id="n1" type="ui" subType="exact:value" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/><pc id="n2" type="other" subType="exact:element" dataRefStart="d1" canCopy="no" canDelete="no"><pc id="n2.0" type="other" subType="exact:select" dataRefStart="d2" canCopy="no" canDelete="no"><mrk id="n2.0.c0" type="exact:case" value="zero">th</mrk><mrk id="n2.0.c1" type="exact:case" value="one">st</mrk><mrk id="n2.0.c2" type="exact:case" value="two">nd</mrk><mrk id="n2.0.c3" type="exact:case" value="few">rd</mrk><mrk id="n2.0.c4" type="exact:case" value="many">th</mrk><mrk id="n2.0.fallback" type="exact:fallback">th</mrk></pc></pc> in the review queue.</source>
+        <target>Vous avez terminé <ph id="t1" type="ui" subType="exact:value" equiv="{0}" dataRef="d3" canCopy="no" canDelete="no"/><pc id="t2" type="other" subType="exact:element" dataRefStart="d4" canCopy="no" canDelete="no"><pc id="t2.0" type="other" subType="exact:select" dataRefStart="d5" canCopy="no" canDelete="no"><mrk id="t2.0.c0" type="exact:case" value="zero">e</mrk><mrk id="t2.0.c1" type="exact:case" value="one">er</mrk><mrk id="t2.0.c2" type="exact:case" value="two">e</mrk><mrk id="t2.0.c3" type="exact:case" value="few">e</mrk><mrk id="t2.0.c4" type="exact:case" value="many">e</mrk><mrk id="t2.0.fallback" type="exact:fallback">e</mrk></pc></pc> dans la file de révision.</target>
+      </segment>
+    </unit>
+    <unit id="m1_dHOHcQW5cdiY4R9f6FLIPaAJi0mXGSiK_g-3tCouUmw">
+      <segment>
+        <source>Native intent inference</source>
+        <target>Déduction native de l’intention</target>
+      </segment>
+    </unit>
+    <unit id="m1_1COWfALEKvzHa6xuZwI_RR0Rzp4owxqa1-NpHNvYyAU">
+      <segment>
+        <source>Currency</source>
+        <target>Devise</target>
+      </segment>
+    </unit>
+    <unit id="m1_K_mOacK4BJR02neFP-3KZc8o5ky31ap0mUKSaWPKJTg">
+      <segment>
+        <source>Road range</source>
+        <target>Distance routière</target>
+      </segment>
+    </unit>
+    <unit id="m1_cYY6FmWgWrm4PLpXp0uAyDeOSFs58brCX2abIrUXZj0">
+      <segment>
+        <source>Person height</source>
+        <target>Taille</target>
+      </segment>
+    </unit>
+    <unit id="m1_1i0aFRCljxVVe10X8Juj5mYaGe6rHDpIGXqEeJDJB2M">
+      <segment>
+        <source>Temperature</source>
+        <target>Température</target>
+      </segment>
+    </unit>
+    <unit id="m1_YlJsALuDD_zho-iYkFx-Y0xmFzLOWVNDyKYfrmh3N7o">
+      <segment>
+        <source>Land area</source>
+        <target>Superficie du terrain</target>
+      </segment>
+    </unit>
+    <unit id="m1_wUr1bu0LJvtXl2dqHN_mMnKVzNUk0TPJVGF7-eX-RHE">
+      <segment>
+        <source>Person mass</source>
+        <target>Masse corporelle</target>
+      </segment>
+    </unit>
+    <unit id="m1_x_B0Dz42ueHeH7-Z4sMYkZxMBSn8zhZjaRi_x8hEqeI">
+      <segment>
+        <source>Liquid volume</source>
+        <target>Volume liquide</target>
+      </segment>
+    </unit>
+    <unit id="m1_sDLr0tNZg7K6kleM3yhHHBt0Eb031aVITg1_dxidCOE">
+      <segment>
+        <source>Road speed</source>
+        <target>Vitesse routière</target>
+      </segment>
+    </unit>
+    <unit id="m1_cGeZHOJFTvM9xDLElJICWJJyAbZy3fGGuJbvf-zSgW8">
+      <segment>
+        <source>Weather pressure</source>
+        <target>Pression atmosphérique</target>
+      </segment>
+    </unit>
+    <unit id="m1_N5ksvkBpdWj45Hq0SRQ1_PU3-A-kvH4xxw2DXa7WPbg">
+      <segment>
+        <source>Food energy</source>
+        <target>Énergie alimentaire</target>
+      </segment>
+    </unit>
+    <unit id="m1_ilPElpNZs0nP7IgkoTC0lH7HyZk0LaXozZNnhb7MPQ0">
+      <segment>
+        <source>Engine power</source>
+        <target>Puissance du moteur</target>
+      </segment>
+    </unit>
+    <unit id="m1_As5hjWX04TInT4cCtjjeUnLNG7A9l3-qxn1kiibG_Co">
+      <segment>
+        <source>Fuel economy</source>
+        <target>Consommation de carburant</target>
+      </segment>
+    </unit>
+    <unit id="m1_NgpxchjRPDhuQTOVxlxK5iGmJ2fYKk1plG9-eN6nvmc">
+      <segment>
+        <source>Digital storage</source>
+        <target>Stockage numérique</target>
+      </segment>
+    </unit>
+    <unit id="m1_aM9Gych4lZt9ksTmyhefVKxecQyCmhYwUzNaCg25f-0">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;kind&quot;:&quot;date-time&quot;,&quot;options&quot;:{&quot;dateStyle&quot;:&quot;long&quot;,&quot;timeStyle&quot;:&quot;short&quot;,&quot;timeZone&quot;:&quot;UTC&quot;},&quot;temporalKind&quot;:&quot;temporal-date-time&quot;}}</data><data id="d1">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;kind&quot;:&quot;date-time&quot;,&quot;options&quot;:{&quot;dateStyle&quot;:&quot;long&quot;,&quot;timeStyle&quot;:&quot;short&quot;,&quot;timeZone&quot;:&quot;UTC&quot;},&quot;temporalKind&quot;:&quot;temporal-date-time&quot;}}</data></originalData>
+      <segment>
+        <source>Published <ph id="n1" type="ui" subType="exact:format" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/>.</source>
+        <target>Publié <ph id="t1" type="ui" subType="exact:format" equiv="{0}" dataRef="d1" canCopy="no" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="m1_c3Dgw-d4nWETVN7cT-YIGFOLFcTI4mQPee8A1mbnIIM">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0,1],&quot;formatter&quot;:{&quot;kind&quot;:&quot;date-time&quot;,&quot;options&quot;:{&quot;dateStyle&quot;:&quot;medium&quot;,&quot;timeZone&quot;:&quot;UTC&quot;},&quot;range&quot;:true,&quot;temporalKind&quot;:&quot;temporal-date-time&quot;}}</data><data id="d1">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0,1],&quot;formatter&quot;:{&quot;kind&quot;:&quot;date-time&quot;,&quot;options&quot;:{&quot;dateStyle&quot;:&quot;medium&quot;,&quot;timeZone&quot;:&quot;UTC&quot;},&quot;range&quot;:true,&quot;temporalKind&quot;:&quot;temporal-date-time&quot;}}</data></originalData>
+      <segment>
+        <source>Campaign: <ph id="n1" type="ui" subType="exact:format" equiv="{0,1}" dataRef="d0" canCopy="no" canDelete="no"/>.</source>
+        <target>Campagne : <ph id="t1" type="ui" subType="exact:format" equiv="{0,1}" dataRef="d1" canCopy="no" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="m1_t7fWrcFy5BbKswlWxRW8kkFfM3yZmKa1sHo8FNxJjQ0">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;fields&quot;:[&quot;years&quot;,&quot;months&quot;,&quot;weeks&quot;,&quot;days&quot;,&quot;hours&quot;,&quot;minutes&quot;,&quot;seconds&quot;],&quot;kind&quot;:&quot;relative-duration&quot;,&quot;options&quot;:{&quot;numeric&quot;:&quot;always&quot;},&quot;zero&quot;:&quot;just now&quot;}}</data><data id="d1">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;fields&quot;:[&quot;years&quot;,&quot;months&quot;,&quot;weeks&quot;,&quot;days&quot;,&quot;hours&quot;,&quot;minutes&quot;,&quot;seconds&quot;],&quot;kind&quot;:&quot;relative-duration&quot;,&quot;options&quot;:{&quot;numeric&quot;:&quot;always&quot;},&quot;zero&quot;:&quot;just now&quot;}}</data></originalData>
+      <segment>
+        <source>Posted <ph id="n1" type="ui" subType="exact:format" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/>.</source>
+        <target>Publié <ph id="t1" type="ui" subType="exact:format" equiv="{0}" dataRef="d1" canCopy="no" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="m1_Y1hZ7ieWHJiYvZNhmxsGaN62cJ435l5xHCAcQ8IyL3A">
+      <originalData><data id="d0">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;domain&quot;:&quot;language&quot;,&quot;kind&quot;:&quot;display-name&quot;,&quot;options&quot;:{}}}</data><data id="d1">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[1],&quot;formatter&quot;:{&quot;kind&quot;:&quot;list&quot;,&quot;options&quot;:{&quot;type&quot;:&quot;conjunction&quot;}}}</data><data id="d2">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[0],&quot;formatter&quot;:{&quot;domain&quot;:&quot;language&quot;,&quot;kind&quot;:&quot;display-name&quot;,&quot;options&quot;:{}}}</data><data id="d3">{&quot;kind&quot;:&quot;format&quot;,&quot;bindings&quot;:[1],&quot;formatter&quot;:{&quot;kind&quot;:&quot;list&quot;,&quot;options&quot;:{&quot;type&quot;:&quot;conjunction&quot;}}}</data></originalData>
+      <segment>
+        <source>Language: <ph id="n1" type="ui" subType="exact:format" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"/>. Team: <ph id="n3" type="ui" subType="exact:format" equiv="{1}" dataRef="d1" canCopy="no" canDelete="no"/>.</source>
+        <target>Langue : <ph id="t1" type="ui" subType="exact:format" equiv="{0}" dataRef="d2" canCopy="no" canDelete="no"/>. Équipe : <ph id="t3" type="ui" subType="exact:format" equiv="{1}" dataRef="d3" canCopy="no" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="m1_iVe1MQs6bcsyAA-zQ62auPYbt0i-STxu1KcbHtqFXis">
+      <segment>
+        <source>Intrinsic properties</source>
+        <target>Propriétés intrinsèques</target>
+      </segment>
+    </unit>
+    <unit id="m1_QmR3GiAPGf1qeA3zWUhyHZnr_H8sQnHqoELjjvcKWV0">
+      <segment>
+        <source>Search messages</source>
+        <target>Rechercher des messages</target>
+      </segment>
+    </unit>
+    <unit id="m1_9uetvMp9mOy1qOqf0QckVWvQVsdudWrxcuqQZyr49ek">
+      <segment>
+        <source>Search the localized inbox</source>
+        <target>Rechercher dans la boîte localisée</target>
+      </segment>
+    </unit>
+    <unit id="m1_nbpNaajXndjYYmiWEV9GcMoKvMwC17s-2dqdtMLJIM0">
+      <segment>
+        <source>Intentional non-translated content</source>
+        <target>Contenu intentionnellement non traduit</target>
+      </segment>
+    </unit>
+    <unit id="m1_oEm_bc8lI-ZKgY_FcIeKccwIueAo_-c5wmh1BuBt6nI">
+      <segment>
+        <source>Loading locale chunk…</source>
+        <target>Chargement du segment de langue…</target>
+      </segment>
+    </unit>
+    <unit id="m1_gFRipPKPjyV6DUH_SEdHNmClUzFflITdqvcvtaxYn5w">
+      <segment>
+        <source>This translated panel and its catalog arrived in a separate lazy chunk.</source>
+        <target>Ce panneau traduit et son catalogue sont arrivés dans un segment chargé à la demande.</target>
+      </segment>
+    </unit>
+    <unit id="m1_aB1OniMmVS98PV94jZscRXxgGuPqaSing6OCEb8gtD0" translate="no" type="exact:obsolete"><originalData><data id="d0">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d1">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d2">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-ordinal&quot;}</data><data id="d3">{&quot;kind&quot;:&quot;value&quot;,&quot;binding&quot;:0}</data><data id="d4">{&quot;kind&quot;:&quot;element&quot;,&quot;binding&quot;:1}</data><data id="d5">{&quot;kind&quot;:&quot;select&quot;,&quot;binding&quot;:0,&quot;selection&quot;:&quot;plural-ordinal&quot;}</data></originalData><segment><source>You finished <ph id="n1" type="ui" subType="exact:value" equiv="{0}" dataRef="d0" canCopy="no" canDelete="no"></ph><pc id="n2" type="other" subType="exact:element" dataRefStart="d1" canCopy="no" canDelete="no"><pc id="n2.0" type="other" subType="exact:select" dataRefStart="d2" canCopy="no" canDelete="no"><mrk id="n2.0.c0" type="exact:case" value="=1">st</mrk><mrk id="n2.0.c1" type="exact:case" value="=2">nd</mrk><mrk id="n2.0.c2" type="exact:case" value="=3">rd</mrk><mrk id="n2.0.fallback" type="exact:fallback">th</mrk></pc></pc> in the review queue.</source><target>Vous avez terminé <ph id="t1" type="ui" subType="exact:value" equiv="{0}" dataRef="d3" canCopy="no" canDelete="no"></ph><pc id="t2" type="other" subType="exact:element" dataRefStart="d4" canCopy="no" canDelete="no"><pc id="t2.0" type="other" subType="exact:select" dataRefStart="d5" canCopy="no" canDelete="no"><mrk id="t2.0.c0" type="exact:case" value="=1">er</mrk><mrk id="t2.0.c1" type="exact:case" value="=2">e</mrk><mrk id="t2.0.c2" type="exact:case" value="=3">e</mrk><mrk id="t2.0.fallback" type="exact:fallback">e</mrk></pc></pc> dans la file de révision.</target></segment></unit>
+  </file>
+</xliff>

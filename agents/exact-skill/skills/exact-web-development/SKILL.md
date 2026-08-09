@@ -1,6 +1,6 @@
 ---
 name: exact-web-development
-description: Build, modify, debug, review, configure, and test web applications that use the eXact framework and @exactjs packages. Use when the user asks to create an eXact project or component, when package.json contains @exactjs/* dependencies, when TSX uses eXact Component instances or reactive this.state, or when working with eXact forms, tasks, routing, rendering, SSR, hydration, server components, build plugins, runtime adapters, framework plugins, or server/client placement.
+description: Build, modify, debug, review, configure, and test web applications that use the eXact framework and @exactjs packages. Use when the user asks to create an eXact project or component, when package.json contains @exactjs/* dependencies, when TSX uses eXact Component instances or reactive this.state, or when working with eXact forms, tasks, routing, rendering, internationalization, SSR, hydration, server components, build plugins, runtime adapters, framework plugins, or server/client placement.
 ---
 
 # eXact web development
@@ -110,6 +110,11 @@ that omitted its catalog or runtime hooks.
   `key={...}` prop, or `this.map()` when an explicit selector is clearer.
 - Use native-looking reactive `Map` and `Set` operations. Let compiler-generated continuations
   transport collection deltas instead of cloning or manually serializing whole collections.
+- When `@exactjs/intl` is installed, keep authored TSX as the source-locale fallback and mark only
+  lexical message regions, formatter values, or allowlisted human-facing intrinsic properties.
+  Do not recursively absorb ordinary component output into an enclosing message; use a named
+  `intl:fragment` when a component-owned range must move as an opaque exactly-once slot. Read the
+  installed package's `AGENTS.md` and `README.md` before configuring catalogs or unit policy.
 - Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
   product-specific presentation; build directly on `ErrorContext` only for different capture or
   reset semantics.

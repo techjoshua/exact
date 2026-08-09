@@ -70,7 +70,9 @@ describe('@exactjs/compiler: island boundaries', () => {
 			{ filename: 'ClientWidget.tsx', target: 'server' }
 		);
 
-		expect(server).toContain('export function ClientWidget(props = {})');
+		expect(server).toContain(
+			'export const ClientWidget = /* @__PURE__ */ Object.assign(function ClientWidget(props = {})'
+		);
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('"ClientWidget"');
 		expect(server).not.toContain('window.innerWidth');
@@ -265,7 +267,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 		);
 
 		expect(server).toContain('__exactBoundary');
-		expect(server).toContain('children: ["Issue", this.state.title, "#", this.state.count]');
+		expect(server).toContain('children: ["Issue ", this.state.title, " #", this.state.count]');
 		expect(server).not.toContain('window.innerWidth');
 	});
 

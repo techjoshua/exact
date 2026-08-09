@@ -72,8 +72,8 @@ export function PhysicsPage(this: Component<{}>) {
 			<section>
 				<h2>Compose visual channels safely</h2>
 				<p>
-					Position and angle use the individual CSS <code>translate</code> and <code>rotate</code>{' '}
-					properties. Authored values are never silently overwritten, and <code>stateOnly</code>{' '}
+					Position and angle use the individual CSS <code>translate</code> and <code>rotate</code>
+					properties. Authored values are never silently overwritten, and <code>stateOnly</code>
 					leaves projection to canvas, SVG, or ordinary reactive bindings.
 				</p>
 			</section>

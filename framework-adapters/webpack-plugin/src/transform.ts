@@ -3,6 +3,7 @@ import {
 	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
+import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import { jsxSourceOwnership, resolveReactCompatibility } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import { appendWebpackDevtoolsBootstrap, webpackDebugEnabled } from './devtools.js';
@@ -27,27 +28,50 @@ export function transformExactWebpackModule(
 	source: string,
 	filename: string,
 	options: ExactWebpackPluginOptions = {},
-	session?: ExactCompilerSession
+	session?: ExactCompilerSession,
+	intl?: IntlBuildCoordinator,
+	warn?: (message: string) => void
 ): ExactWebpackTransformResult | null {
-	if (!shouldTransformWebpackModule(filename, source, options)) return null;
+	const reachedPublication =
+		intl && options.internationalization ? intl.activateReachedSource(source, filename) : undefined;
+	if (!shouldTransformWebpackModule(filename, source, options))
+		return reachedPublication
+			? {
+					code: reachedPublication.code,
+					map:
+						options.sourceMap === false
+							? null
+							: createLineSourceMap(filename, source, reachedPublication.code)
+				}
+			: null;
 	let componentBuild: ExactWebpackTransformResult['componentBuild'] | undefined;
 	const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
 	const compatibilityEngine = reactCompatibility
 		? webpackCompatibilityEngine(options, session, reactCompatibility.target)
 		: undefined;
-	const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
+	const authoredOwnership = jsxSourceOwnership(filename, source, reactCompatibility);
+	const intlAnalysis =
+		intl && options.internationalization && authoredOwnership !== 'react'
+			? intl.analyzeConfiguredSource(source, filename)
+			: undefined;
+	for (const diagnostic of intlAnalysis?.diagnostics ?? [])
+		warn?.(`${diagnostic.file}:${diagnostic.start}: ${diagnostic.message}`);
+	const analyzedSource = intlAnalysis?.code ?? source;
+	const ownership = intlAnalysis
+		? jsxSourceOwnership(filename, analyzedSource, reactCompatibility)
+		: authoredOwnership;
 	const output = transformExactAdapterModule({
-		source,
+		source: analyzedSource,
 		filename,
 		jsxOwnership: ownership,
-		usesReactRuntimeImports: usesReactRuntimeImports(source, filename),
+		usesReactRuntimeImports: usesReactRuntimeImports(analyzedSource, filename),
 		transformReact: true,
 		shouldCompile: true,
 		invalidateCompatibility: () => compatibilityEngine?.invalidate(filename),
 		...(reactCompatibility
 			? {
 					react: () =>
-						transformReactJsx(source, {
+						transformReactJsx(analyzedSource, {
 							filename,
 							target: reactCompatibility.target,
 							sourceMap: options.sourceMap ?? true
@@ -68,6 +92,8 @@ export function transformExactWebpackModule(
 			},
 			finish: (result) => {
 				componentBuild = result.componentBuild;
+				if (intlAnalysis?.descriptors.length)
+					intl?.linkDescriptorOwners(intlAnalysis, result.componentBuild.components, filename);
 				const enhanced = prependExactEnhancementRegistrations(
 					result.code,
 					result.rendererEnhancements

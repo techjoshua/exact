@@ -22,7 +22,7 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					There is no task registration API in this example. The compiler sees the browser storage
 					effect and classifies <code>persistDraft</code> as client work. Its setup-scope call is
-					both an initial activation and a reactive declaration. Reading{' '}
+					both an initial activation and a reactive declaration. Reading
 					<code>this.state.draft</code> while evaluating the argument makes that state the
 					activation dependency.
 				</p>
@@ -66,7 +66,7 @@ export function TasksPage(this: Component<{}>) {
 					Every generation already has an <code>AbortSignal</code>. When a call&apos;s TypeScript
 					signature exposes an optional direct <code>AbortSignal</code> parameter or an options
 					parameter with <code>signal?: AbortSignal</code>, the compiler can supply the generation
-					signal automatically. Built-in <code>fetch()</code> and <code>addEventListener()</code>{' '}
+					signal automatically. Built-in <code>fetch()</code> and <code>addEventListener()</code>
 					are recognized directly. If source already provides a signal or event options, eXact
 					combines or extends them rather than silently replacing them.
 				</p>
@@ -90,8 +90,8 @@ export function TasksPage(this: Component<{}>) {
 				</p>
 				<Callout title="Use TaskContext at opaque boundaries">
 					<p>
-						Pass <code>task.signal</code> when a wrapper hides its cancellable signature. Use{' '}
-						<code>task.cleanup()</code> for an opaque cleanup callback and <code>task.own()</code>{' '}
+						Pass <code>task.signal</code> when a wrapper hides its cancellable signature. Use
+						<code>task.cleanup()</code> for an opaque cleanup callback and <code>task.own()</code>
 						for a disposable value the compiler cannot associate safely. The language tools show
 						recognized signal injection and owned resources, so inferred lifetime is inspectable.
 					</p>
@@ -100,7 +100,7 @@ export function TasksPage(this: Component<{}>) {
 			<section>
 				<h2>TaskContext makes policy and capabilities explicit</h2>
 				<p>
-					Most tasks should begin without an explicit context. Add a final <code>TaskContext</code>{' '}
+					Most tasks should begin without an explicit context. Add a final <code>TaskContext</code>
 					parameter when the compiler cannot infer an architectural choice, when you want to
 					override a default, or when the body needs a generation capability such as cancellation,
 					optimistic state, cleanup, owned disposal, or an untracked read.
@@ -108,8 +108,8 @@ export function TasksPage(this: Component<{}>) {
 				<CodeBlock source={taskSources.reactiveTaskSource} language="tsx" title="Search.tsx" />
 				<p>
 					The final declaration has two distinct jobs. Inside the function, <code>task</code> is the
-					real context for the current generation, which is why the request can use{' '}
-					<code>task.signal</code>. In the parameter default, the chain rooted at the imported{' '}
+					real context for the current generation, which is why the request can use
+					<code>task.signal</code>. In the parameter default, the chain rooted at the imported
 					<code>TaskContext</code> value is <strong>declarative compiler syntax</strong>. Here it
 					states that the work belongs on the client.
 				</p>
@@ -125,7 +125,7 @@ export function TasksPage(this: Component<{}>) {
 						Use <code>client()</code> or <code>server()</code> when placement should be explicit.
 					</li>
 					<li>
-						Use <code>parallel()</code>, <code>latest()</code>, <code>queue()</code>, or{' '}
+						Use <code>parallel()</code>, <code>latest()</code>, <code>queue()</code>, or
 						<code>key(value)</code> to control invoked concurrency.
 					</li>
 					<li>
@@ -179,10 +179,10 @@ export function TasksPage(this: Component<{}>) {
 					title="captured-task-input.tsx"
 				/>
 				<p>
-					Changing <code>draft</code> alone does not reactivate this task. When{' '}
+					Changing <code>draft</code> alone does not reactivate this task. When
 					<code>revision</code> changes, the next generation captures the latest draft. An explicit
 					argument remains normally tracked and replaces the default. Server tasks resolve the
-					capture before dispatch and apply the usual serialization and data-policy checks. Use{' '}
+					capture before dispatch and apply the usual serialization and data-policy checks. Use
 					<code>task.peek()</code> for conditional or mid-body snapshots.
 				</p>
 			</section>
@@ -207,13 +207,13 @@ export function TasksPage(this: Component<{}>) {
 				/>
 				<ul>
 					<li>
-						<strong>Concurrency:</strong> <code>parallel()</code> overlaps invoked generations,{' '}
+						<strong>Concurrency:</strong> <code>parallel()</code> overlaps invoked generations,
 						<code>latest()</code> supersedes the previous one, and <code>queue()</code> preserves
 						order. <code>key(value)</code> creates an independent lane per key. Reactive activations
 						always supersede their prior generation.
 					</li>
 					<li>
-						<strong>Priority:</strong> <code>immediate()</code>, <code>normal()</code>, and{' '}
+						<strong>Priority:</strong> <code>immediate()</code>, <code>normal()</code>, and
 						<code>deferred()</code> determine when eligible work runs. DOM interactions begin at
 						interactive priority.
 					</li>
@@ -222,13 +222,13 @@ export function TasksPage(this: Component<{}>) {
 						boundary; <code>nonblocking()</code> remains owned without holding that boundary.
 					</li>
 					<li>
-						<strong>Placement and lifetime:</strong> <code>client()</code> and <code>server()</code>{' '}
+						<strong>Placement and lifetime:</strong> <code>client()</code> and <code>server()</code>
 						constrain execution. Children attach structurally unless <code>detached()</code> is
 						deliberate.
 					</li>
 				</ul>
 				<p>
-					The callable facade&apos;s status is aggregate. With keyed concurrency,{' '}
+					The callable facade&apos;s status is aggregate. With keyed concurrency,
 					<code>saveDocument.pending</code> is true when any foreground lane owned by this component
 					is pending, and <code>pendingCount</code> is the total across those lanes. That makes the
 					example&apos;s message a task-wide indicator rather than status for the currently selected
@@ -257,10 +257,10 @@ export function TasksPage(this: Component<{}>) {
 				/>
 				<Callout title="The async-component shorthand">
 					<p>
-						When an <code>async</code> component directly awaits a value into{' '}
+						When an <code>async</code> component directly awaits a value into
 						<code>this.state</code>, eXact lowers that setup continuation into inferred blocking
 						work. That is a compiler convenience for component readiness—not a rule that every async
-						function suspends every boundary. Use a task function with an explicit{' '}
+						function suspends every boundary. Use a task function with an explicit
 						<code>TaskContext</code> policy when readiness, placement, or scheduling should be
 						visible in source.
 					</p>
@@ -275,8 +275,8 @@ export function TasksPage(this: Component<{}>) {
 				/>
 				<p>
 					Direct calls use ordinary function syntax. When status is observed, the compiler
-					materializes an owner-bound facade with <code>pending</code>, <code>pendingCount</code>,{' '}
-					<code>generation</code>, <code>result</code>, <code>error</code>, and{' '}
+					materializes an owner-bound facade with <code>pending</code>, <code>pendingCount</code>,
+					<code>generation</code>, <code>result</code>, <code>error</code>, and
 					<code>cancel()</code>. Optimistic mutation is synchronous and rolls back if its generation
 					fails or is superseded.
 				</p>
@@ -287,14 +287,14 @@ export function TasksPage(this: Component<{}>) {
 				/>
 				<p>
 					Use <code>taskStatus(task, {'{ key }'})</code> during setup when the UI needs one lane.
-					Its <code>pending</code>, <code>pendingCount</code>, <code>generation</code>,{' '}
+					Its <code>pending</code>, <code>pendingCount</code>, <code>generation</code>,
 					<code>result</code>, <code>error</code>, and <code>cancel()</code> are scoped to that key.
 					The key must match the value produced by the task&apos;s <code>key(...)</code> policy.
 				</p>
 				<p>
 					A status view captures its key when setup creates it; it is not a dynamic “most recently
 					invoked key” selector. For a dynamic list, prefer defining the save task inside each keyed
-					row component so the durable component owner naturally gives every row its own{' '}
+					row component so the durable component owner naturally gives every row its own
 					<code>save.pending</code>. Use keyed lanes when one owner genuinely coordinates work for
 					several stable keys.
 				</p>
@@ -328,7 +328,7 @@ export function TasksPage(this: Component<{}>) {
 				<Callout title="Await does not authorize effects or control Suspense">
 					<p>
 						The compiler fences staged framework effects so cancelled or stale generations cannot
-						publish them. External effects cannot be rolled back automatically, so pass{' '}
+						publish them. External effects cannot be rolled back automatically, so pass
 						<code>task.signal</code> and register cleanup where appropriate. Separately, a
 						task&apos;s <code>blocking()</code> or <code>nonblocking()</code> readiness policy—not
 						whether a caller awaits its result—determines whether Suspense waits.
@@ -360,7 +360,7 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					When concurrent branches publish component state, define them as child task functions and
 					await the external result inside each child. Compiler-lowered awaits and staged writes
-					already fence superseded generations, so component revision comparisons and post-await{' '}
+					already fence superseded generations, so component revision comparisons and post-await
 					<code>task.signal.aborted</code> checks only duplicate framework behavior.
 				</p>
 				<CodeBlock
@@ -369,7 +369,7 @@ export function TasksPage(this: Component<{}>) {
 					title="socket-task.ts"
 				/>
 				<p>
-					Server continuations run through the same frame contract. Their trusted{' '}
+					Server continuations run through the same frame contract. Their trusted
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
 					attached-child settlement without serializing task authority through the browser.
 				</p>
@@ -377,15 +377,15 @@ export function TasksPage(this: Component<{}>) {
 			<section>
 				<h2>Compilerless libraries use the same runtime</h2>
 				<p>
-					Published libraries and adapters can import the versioned{' '}
+					Published libraries and adapters can import the versioned
 					<code>@exactjs/core/tasks/v1</code> ABI. <code>defineTask()</code> creates a stable
-					definition, <code>bindTask()</code> captures durable ownership, and{' '}
+					definition, <code>bindTask()</code> captures durable ownership, and
 					<code>createTaskOwner()</code> makes an explicit lifetime for cross-root concurrency.
 				</p>
 				<CodeBlock source={taskSources.librarySource} language="ts" title="catalog-task.ts" />
 				<p>
 					Explicit owners are async-disposable: disposal cancels their queued and active generations
-					and waits for structural cleanup. Framework packages use the narrower opaque frame SPI at{' '}
+					and waits for structural cleanup. Framework packages use the narrower opaque frame SPI at
 					<code>@exactjs/core/framework/task-frames</code>. Its executions are cancelable:
 					cancellation aborts attached descendants and reports completion only after their
 					cooperative cleanup. Structural finalizers remain attached to the parent task, while

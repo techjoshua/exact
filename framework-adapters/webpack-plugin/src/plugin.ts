@@ -7,6 +7,7 @@ import {
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import type { ExactComponentAuthorizationAudit } from '@exactjs/component-library-policy';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
+import { IntlBuildCoordinator, type IntlBuildConfiguration } from '@exactjs/intl-build';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
@@ -29,6 +30,7 @@ import {
 	resetWebpackAuthorizationGeneration,
 	webpackInspectionCatalog
 } from './sessions.js';
+import { installWebpackIntlModules } from './intl-modules.js';
 import { webpackTransformTarget } from './transform-selection.js';
 import {
 	addWebpackConditions,
@@ -50,8 +52,7 @@ import {
 import type {
 	WebpackAfterResolveData,
 	WebpackAliasConfiguration,
-	WebpackResolveCallback,
-	WebpackResolveRequest
+	WebpackResolverLike
 } from './resolution-contracts.js';
 import { createExactWebpackRule } from './rule.js';
 export { createExactWebpackRule } from './rule.js';
@@ -79,6 +80,8 @@ export type ExactWebpackPluginOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
+	/** Enables shared intl analysis, linking, catalogs, and generated descriptor modules. */
+	internationalization?: false | Readonly<IntlBuildConfiguration>;
 	/** Independent server catalog and compact runtime controls. */
 	debug?: ExactWebpackDebugOptions;
 	/** @internal Loader-owned compiler session identity. */
@@ -100,40 +103,6 @@ export type ExactWebpackDebugOptions = {
 export type ExactWebpackProfileEvent = ExactProfileEvent<'webpack-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
-
-/** Defines the webpack resolver like type contract. */
-export type WebpackResolverLike = {
-	hooks?: {
-		resolve?: {
-			tapAsync?(
-				name: string,
-				handler: (
-					request: WebpackResolveRequest,
-					context: unknown,
-					callback: WebpackResolveCallback
-				) => void
-			): void;
-		};
-	};
-	ensureHook?(name: string): unknown;
-	getHook?(name: string): {
-		tapAsync?(
-			name: string,
-			handler: (
-				request: WebpackResolveRequest,
-				context: unknown,
-				callback: WebpackResolveCallback
-			) => void
-		): void;
-	};
-	doResolve?(
-		hook: unknown,
-		request: WebpackResolveRequest,
-		message: string,
-		context: unknown,
-		callback: WebpackResolveCallback
-	): void;
-};
 
 /** Defines the webpack compiler like type contract. */
 export type WebpackCompilerLike = {
@@ -228,6 +197,12 @@ export class ExactWebpackPlugin {
 		const reporter = createExactDiagnosticReporter();
 		const warn = (message: string): void =>
 			compiler.getInfrastructureLogger?.('ExactWebpackPlugin').warn(message);
+		const intl = new IntlBuildCoordinator({
+			applicationRoot: this.options.applicationRoot,
+			configuration: this.options.internationalization || undefined,
+			target: this.options.target === 'server' ? 'server' : 'client'
+		});
+		let intlReady = intl.beginBuild();
 		addWebpackConditions(
 			compiler,
 			exactExportConditions(webpackTransformTarget(this.options), this.options)
@@ -247,6 +222,8 @@ export class ExactWebpackPlugin {
 			get session() {
 				return compilerSession;
 			},
+			intl,
+			intlReady: () => intlReady,
 			record: (filename, source, result) =>
 				recordWebpackTransformResult(
 					{ ...buildOptions, __exactSessionId: owned.id },
@@ -289,6 +266,9 @@ export class ExactWebpackPlugin {
 					});
 				};
 				const processAssets = async () => {
+					await intlReady;
+					intl.validateCatalogs();
+					for (const file of intl.catalogFiles) compilation.fileDependencies?.add(file);
 					const committed = await commitWebpackAuthorizationGeneration(
 						owned.id,
 						authorizationOptions
@@ -313,6 +293,7 @@ export class ExactWebpackPlugin {
 			});
 		}
 		compiler.hooks?.watchRun?.tap?.('ExactWebpackPlugin', (current) => {
+			intlReady = intl.beginBuild();
 			clearWebpackInspectionModules(owned.id);
 			resetWebpackAuthorizationGeneration(owned.id, authorizationOptions);
 			if (this.options.diagnostics === undefined) configureDiagnostics(true);
@@ -351,9 +332,11 @@ export class ExactWebpackPlugin {
 				}
 			});
 		});
+		installWebpackIntlModules(input as WebpackCompiler, intl);
 		const dispose = (): void => {
 			removeExactWebpackLoaderBridge(bridgeCarrier);
 			disposeWebpackCompilerSession(owned.id);
+			intl.dispose();
 		};
 		compiler.hooks?.watchClose?.tap?.('ExactWebpackPlugin', dispose);
 		compiler.hooks?.shutdown?.tap?.('ExactWebpackPlugin', dispose);
@@ -379,8 +362,11 @@ export async function transformExactWebpackSourceAsync(
 	filename: string,
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession,
-	record?: (result: ExactWebpackTransformResult) => void
+	record?: (result: ExactWebpackTransformResult) => void,
+	intl?: IntlBuildCoordinator,
+	intlReady?: Promise<void>
 ): Promise<{ code: string; map: unknown } | null> {
+	await intlReady;
 	const registry = await prepareExactPluginRegistry({
 		applicationRoot: options.applicationRoot ?? path.dirname(filename),
 		configPath: options.configPath,
@@ -390,7 +376,7 @@ export async function transformExactWebpackSourceAsync(
 		...options,
 		debug: options.debug ?? registry.config?.debug
 	};
-	const result = transformExactWebpackModule(source, filename, configured, session);
+	const result = transformExactWebpackModule(source, filename, configured, session, intl);
 	if (!result) return null;
 	if (record) record(result);
 	else recordWebpackTransformResult(configured, filename, source, result);

@@ -1,11 +1,15 @@
 import type { ExactAssetRule, TransformTarget } from '@exactjs/compiler';
 import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
+import type { IntlBuildConfiguration } from '@exactjs/intl-build';
 import type { ReactCompatibilityOptions } from '@exactjs/react-compat/plugin';
 import type { ExactRollupOutputLike } from './artifact-isolation.js';
 import type { ViteDebugOptions } from './debug-output.js';
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
+
+/** Build-local internationalization analysis and extraction controls. */
+export type ExactViteInternationalizationOptions = IntlBuildConfiguration;
 
 /** Configures the eXact Vite plugin and its compiler integrations. */
 export type ExactPluginOptions = {
@@ -22,6 +26,8 @@ export type ExactPluginOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	configureJsxRuntime?: boolean;
+	/** Enables build-local intl source analysis before the ordinary eXact compiler pass. */
+	internationalization?: false | Readonly<ExactViteInternationalizationOptions>;
 	compileTestModules?: boolean;
 	onProfile?: ExactProfileSink;
 	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
@@ -93,9 +99,17 @@ export type ExactPlugin = {
 		importer?: string
 	):
 		| string
-		| { id: string; external?: boolean | 'absolute' | 'relative' }
+		| { id: string; external?: boolean | 'absolute' | 'relative'; moduleSideEffects?: boolean }
 		| null
-		| Promise<string | { id: string; external?: boolean | 'absolute' | 'relative' } | null>;
+		| Promise<
+				| string
+				| {
+						id: string;
+						external?: boolean | 'absolute' | 'relative';
+						moduleSideEffects?: boolean;
+				  }
+				| null
+		  >;
 	load?(
 		id: string
 	):
@@ -114,6 +128,10 @@ export type ExactPlugin = {
 			file: string;
 			read?(): Promise<string>;
 			server?: {
+				moduleGraph?: {
+					getModuleById(id: string): unknown;
+					invalidateModule(module: unknown): void;
+				};
 				pluginContainer?: {
 					resolveId(
 						source: string,
@@ -122,7 +140,7 @@ export type ExactPlugin = {
 				};
 			};
 		}
-	): void | Promise<void>;
+	): void | readonly unknown[] | Promise<void | readonly unknown[]>;
 	watchChange?(
 		this: { warn?(message: string): void },
 		id: string,

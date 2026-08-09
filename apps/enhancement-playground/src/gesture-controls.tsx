@@ -166,7 +166,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 							className={this.state.presses ? 'applause-icon is-active' : 'applause-icon'}
 						>
 							👏
-						</span>{' '}
+						</span>
 						Applaud <strong>{this.state.presses}</strong>
 					</button>
 					<small aria-live="polite">

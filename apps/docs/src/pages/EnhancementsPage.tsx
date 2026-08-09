@@ -76,6 +76,14 @@ export function EnhancementsPage(this: Component<{}>) {
 			<section>
 				<h2>Component libraries in this repository</h2>
 				<div className="card-grid">
+					<Link className="topic-card" to="/plugins/internationalization">
+						<span className="topic-index">Language + build integration</span>
+						<strong>Internationalization</strong>
+						<p>
+							Author messages and formatter intent as lightweight namespaced enhancements while the
+							intl plugin coordinates extraction and catalogs.
+						</p>
+					</Link>
 					<Link className="topic-card" to="/components/motion">
 						<span className="topic-index">Visual behavior</span>
 						<strong>Motion</strong>

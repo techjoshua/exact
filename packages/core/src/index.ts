@@ -243,6 +243,7 @@ export {
 	ServerSlot,
 	Suspense,
 	Target,
+	TargetOverrides,
 	Text,
 	UnsafeHtml
 } from './symbols.js';

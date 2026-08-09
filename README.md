@@ -185,6 +185,7 @@ The repository also includes complete sample applications:
 - [Project Workbench](apps/workbench)
 - [Microfrontend Portal](apps/microfrontend-portal)
 - [Server Components](apps/server-components)
+- [Internationalization Test Bed](apps/intl-testbed)
 
 The native samples follow the setup-once component model: state stays directly inspectable,
 reactive calls define task dependencies and latest-wins activation, concurrent work attaches as

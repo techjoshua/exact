@@ -28,7 +28,7 @@ try {
 		diagnostics: 'syntax'
 	};
 	const first = compiler.request(request);
-	assert.equal(first.protocolVersion, '1.28.0');
+	assert.equal(first.protocolVersion, '1.29.0');
 	assert.match(first.typescriptVersion, /^7\./);
 	assert.equal(first.backendVersion, first.protocolVersion);
 	assert.equal(first.cacheHit, undefined);
@@ -153,7 +153,7 @@ try {
 	assert.equal(invalid.diagnostics[0]?.code, 'TS2322');
 	assert.throws(
 		() => compiler.request({ kind: 'unsupported' }),
-		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.28\.0/
+		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.29\.0/
 	);
 } finally {
 	compiler.dispose();

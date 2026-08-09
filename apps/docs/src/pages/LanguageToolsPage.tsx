@@ -96,7 +96,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					A compact component CodeLens reports <code>eXact · 1 task</code>. The badge beside the
 					awaited assignment carries the detailed task facts; hover adds the native compiler
-					reasons: the repository context selects server placement, the initial view consumes{' '}
+					reasons: the repository context selects server placement, the initial view consumes
 					<code>state.product</code>, and the task generation owns cancellation and staged
 					publication.
 				</p>
@@ -124,7 +124,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 			<section>
 				<h2>Author inferred policy—and reverse it safely</h2>
 				<p>
-					For a simple inferred task, the compiler can plan a named task function whose final{' '}
+					For a simple inferred task, the compiler can plan a named task function whose final
 					<code>TaskContext</code> parameter spells out the normalized policy:
 				</p>
 				<CodeBlock source={policyTaskSource} language="tsx" title="Compiler-planned refactor" />
@@ -149,7 +149,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Cold disk analyses use an access-ordered cache bounded by count and estimated bytes. Open
-					overlays are pinned even when they exceed that budget, and <code>language.stats()</code>{' '}
+					overlays are pinned even when they exceed that budget, and <code>language.stats()</code>
 					reports snapshot, analysis, import-graph, eviction, and over-budget telemetry. Cold source
 					is reread from disk instead of being retained only as a snapshot.
 				</p>
@@ -161,8 +161,8 @@ export function LanguageToolsPage(this: Component<{}>) {
 					formatting, and ordinary type diagnostics. A narrow bundled TypeScript plugin gives local
 					component functions the enclosing authored receiver for <code>this.</code> completion and
 					removes the corresponding implicit-<code>this</code> false positive. Attributed
-					enhancement imports count as used, and typing a prefix such as <code>motion:</code>{' '}
-					completes the callable&apos;s finite public props in kebab-case plus the reserved{' '}
+					enhancement imports count as used, and typing a prefix such as <code>motion:</code>
+					completes the callable&apos;s finite public props in kebab-case plus the reserved
 					<code>root</code> selector. Unrelated TypeScript diagnostics remain unchanged.
 				</p>
 				<p>
@@ -172,14 +172,14 @@ export function LanguageToolsPage(this: Component<{}>) {
 					refactors do not leave a duplicate squiggle behind.
 				</p>
 				<p>
-					Task diagnostics describe local task functions, activation sites, and final{' '}
+					Task diagnostics describe local task functions, activation sites, and final
 					<code>TaskContext</code> policy. Removed component registration APIs receive no special
 					parsing, classification, diagnostics, or migration behavior.
 				</p>
 				<p>
 					Badges sit at token boundaries: before an assignment or immediately after a call's opening
-					parenthesis. <code>⚙</code> marks a specific one-time state initialization;{' '}
-					<code>⚡</code> on an assignment marks a deferred reactive calculation. Task badges use{' '}
+					parenthesis. <code>⚙</code> marks a specific one-time state initialization;
+					<code>⚡</code> on an assignment marks a deferred reactive calculation. Task badges use
 					<code>📋</code>, <code>🖥</code> or <code>📱</code> for placement, <code>⏳</code> for
 					deferred priority, and <code>🚨</code> for immediate publication.
 				</p>
@@ -215,7 +215,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					eXact semantic tokens preserve TypeScript's standard syntax classes: components and local
-					task functions remain functions, while derived names remain variables. Keywords such as{' '}
+					task functions remain functions, while derived names remain variables. Keywords such as
 					<code>return</code>, inferred <code>await</code> sites, JSX tags, and surrounding
 					property-access syntax stay entirely under TypeScript and the active theme.
 				</p>
@@ -237,7 +237,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 					The launcher builds the language server and bundles the VS Code client beneath its
 					registered extension path, leaving only VS Code&apos;s host API external. It prefers the
 					freshly built sibling server over any installed dependency copy and opens a fresh
-					development host. Use <code>--skip-build</code> when reusing current output or{' '}
+					development host. Use <code>--skip-build</code> when reusing current output or
 					<code>--dry-run</code> to inspect the launch plan. Trust the opened workspace and open a
 					TypeScript or TSX file to activate eXact Language Tools.
 				</p>

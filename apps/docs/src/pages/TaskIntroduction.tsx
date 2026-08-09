@@ -8,7 +8,7 @@ export function TaskIntroduction(this: Component<{}>) {
 			<p>
 				An eXact component is a durable instance whose setup runs once. Some work associated with
 				that instance must run again when an input changes, wait for asynchronous operations,
-				publish state safely, respond to an interaction, or own a resource. A <strong>task</strong>{' '}
+				publish state safely, respond to an interaction, or own a resource. A <strong>task</strong>
 				is the framework&apos;s model for that coordinated work.
 			</p>
 			<p>

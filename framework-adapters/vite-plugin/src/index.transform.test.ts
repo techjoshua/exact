@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { analyzeIntlSource } from '@exactjs/intl-analyzer';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { exact } from './index.js';
 
 describe('@exactjs/vite-plugin: transform', () => {
@@ -72,6 +76,263 @@ describe('@exactjs/vite-plugin: transform', () => {
 			sources: ['/src/view.tsx'],
 			sourcesContent: ['const view = <span />;']
 		});
+	});
+
+	it('runs optional intl analysis before ordinary compilation and extracts descriptors', async () => {
+		const extracted: unknown[] = [];
+		const clientRequirements: unknown[] = [];
+		const source =
+			'export function Greeting(props: { name: string }) { return () => <p intl:message>Hello {props.name}</p>; }';
+		const key = analyzeIntlSource(source, {
+			filename: `${process.cwd()}/src/Greeting.tsx`,
+			owner: 'example',
+			sourceLocale: 'en-US'
+		}).descriptors[0]!.key;
+		const catalog = {
+			protocol: 1,
+			locale: 'fr-FR',
+			owner: 'example',
+			messages: {
+				[key]: [
+					{ kind: 'text', value: 'Bonjour ' },
+					{ kind: 'value', binding: 0 }
+				]
+			}
+		};
+		const plugin = exact({
+			reactCompatibility: false,
+			internationalization: {
+				owner: 'example',
+				sourceLocale: 'en-US',
+				catalogs: [catalog],
+				onDescriptors: (descriptors) => extracted.push(...descriptors),
+				onClientRequirements: (requirements, moduleId) =>
+					clientRequirements.push([requirements, moduleId])
+			}
+		});
+		const result = plugin.transform(source, `${process.cwd()}/src/Greeting.tsx`);
+
+		expect(extracted).toHaveLength(1);
+		expect(clientRequirements).toEqual([[[], `${process.cwd()}/src/Greeting.tsx`]]);
+		expect(extracted[0]).toMatchObject({
+			owner: 'example',
+			sourceLocale: 'en-US',
+			ownerComponentId: expect.stringMatching(/^x[A-Za-z0-9_-]{22}$/)
+		});
+		expect(result?.code).toContain('@exactjs/intl/internal');
+		expect(result?.code).toContain('@exactjs/intl/enhancements');
+		const request = result?.code.match(/from "(virtual:exact-intl\/descriptor\/[^"]+)"/)?.[1];
+		expect(request).toBeDefined();
+		const resolution = await plugin.resolveId!(request!);
+		expect(resolution).toMatchObject({
+			id: expect.stringMatching(/^\0virtual:exact-intl\/descriptor\//),
+			moduleSideEffects: false
+		});
+		const resolved = typeof resolution === 'string' ? resolution : resolution!.id;
+		expect(plugin.load!(resolved)).toMatchObject({
+			code: expect.stringContaining('export const descriptors = Object.freeze')
+		});
+		expect(plugin.load!(resolved)).toMatchObject({
+			code: expect.stringContaining('"locale":"fr-FR"')
+		});
+		expect(plugin.load!(resolved)).toMatchObject({
+			code: expect.stringContaining('__exactRegisterIntlArtifacts')
+		});
+		expect(plugin.load!(resolved)).toMatchObject({
+			code: expect.stringContaining('export const clientRequirements = Object.freeze([])')
+		});
+		await plugin.buildEnd?.call({}, undefined);
+		plugin.watchChange?.(`${process.cwd()}/src/Greeting.tsx`, { event: 'delete' });
+		expect(await plugin.load!(resolved)).toBeNull();
+	});
+
+	it('rejects intl messages outside compiler-recognized components', () => {
+		const plugin = exact({
+			reactCompatibility: false,
+			internationalization: { owner: 'example', sourceLocale: 'en-US' }
+		});
+
+		expect(() =>
+			plugin.transform(
+				'export const content = <p intl:message>Hello</p>;',
+				`${process.cwd()}/src/content.tsx`
+			)
+		).toThrow('not owned by a compiler-recognized component');
+	});
+
+	it('lowers intrinsic property messages through the IntlAttributes enhancement', () => {
+		const plugin = exact({
+			reactCompatibility: false,
+			internationalization: { owner: 'example', sourceLocale: 'en-US' }
+		});
+		const result = plugin.transform(
+			`export function Search({ query }) {
+				return () => <input placeholder={\`Search \${query}\`} intl:placeholder />;
+			}`,
+			`${process.cwd()}/src/Search.tsx`
+		);
+
+		expect(result?.code).toContain('@exactjs/intl/enhancements#');
+		expect(result?.code).toContain('props: { placeholder:');
+		expect(result?.code).toContain('__exactPrepareIntl(__exactIntlDescriptor0, [query], [])');
+	});
+
+	it('compiles semantic unit ranges through the ordinary enhancement path', () => {
+		const plugin = exact({
+			reactCompatibility: false,
+			internationalization: { owner: 'example', sourceLocale: 'en-US' }
+		});
+		const result = plugin.transform(
+			`export function Distance({ minimum, maximum }) {
+				return () => <_ intl:unit="distance-road">{minimum}-{maximum} miles</_>;
+			}`,
+			`${process.cwd()}/src/Distance.tsx`
+		);
+
+		expect(result?.code).toContain('@exactjs/intl/enhancements#');
+		expect(result?.code).toContain('props: { unit:');
+		expect(result?.code).toContain('__exactPrepareIntl(__exactIntlDescriptor0, [minimum, maximum]');
+	});
+
+	it('compiles inferred currency through the ordinary enhancement path', () => {
+		const plugin = exact({
+			reactCompatibility: false,
+			internationalization: { owner: 'example', sourceLocale: 'en-US' }
+		});
+		const result = plugin.transform(
+			`export function Total({ total }) { return () => <_ intl:currency>{total}</_>; }`,
+			`${process.cwd()}/src/Total.tsx`
+		);
+
+		expect(result?.code).toContain('@exactjs/intl/enhancements#');
+		expect(result?.code).toContain('props: { currency:');
+	});
+
+	it('rejects catalog keys not produced by the completed analysis generation', async () => {
+		const plugin = exact({
+			reactCompatibility: false,
+			internationalization: {
+				owner: 'example',
+				sourceLocale: 'en-US',
+				catalogs: [
+					{
+						protocol: 1,
+						locale: 'fr',
+						owner: 'example',
+						messages: { m1_0000000000000000000000000000000000000000000: [] }
+					}
+				]
+			}
+		});
+		plugin.transform(
+			'const View = ({ name }) => <p intl:message>Hello {name}</p>;',
+			`${process.cwd()}/src/View.tsx`
+		);
+		await expect(plugin.buildEnd?.call({}, undefined)).rejects.toThrow('unknown message');
+	});
+
+	it('relinks watched catalog files without recompiling component source', async () => {
+		const temporary = mkdtempSync(path.join(tmpdir(), 'exact-intl-catalog-'));
+		try {
+			const filename = `${process.cwd()}/src/RelinkedView.tsx`;
+			const source = 'export function View() { return () => <p intl:message>Hello</p>; }';
+			const key = analyzeIntlSource(source, {
+				filename,
+				owner: 'example',
+				sourceLocale: 'en-US'
+			}).descriptors[0]!.key;
+			const catalogFile = path.join(temporary, 'fr.json');
+			const writeCatalog = (message: string) =>
+				writeFileSync(
+					catalogFile,
+					JSON.stringify({
+						protocol: 1,
+						locale: 'fr',
+						owner: 'example',
+						messages: { [key]: [{ kind: 'text', value: message }] }
+					})
+				);
+			writeCatalog('Bonjour');
+			const watched: string[] = [];
+			const plugin = exact({
+				reactCompatibility: false,
+				internationalization: {
+					owner: 'example',
+					sourceLocale: 'en-US',
+					catalogFiles: [catalogFile]
+				}
+			});
+			plugin.configResolved?.({ command: 'serve' });
+			await plugin.buildStart?.call({ addWatchFile: (file) => watched.push(file) });
+			const transformed = plugin.transform(source, filename);
+			const request = transformed?.code.match(
+				/from "(virtual:exact-intl\/descriptor\/[^"]+)"/
+			)?.[1];
+			const resolution = await plugin.resolveId!(request!);
+			const resolved = typeof resolution === 'string' ? resolution : resolution!.id;
+			expect(watched).toContain(path.resolve(catalogFile));
+			expect(plugin.load!(resolved)).toMatchObject({
+				code: expect.stringContaining('Bonjour')
+			});
+
+			writeCatalog('Salut');
+			const moduleNode = { id: resolved };
+			const invalidated: unknown[] = [];
+			const affected = await plugin.handleHotUpdate?.call(
+				{},
+				{
+					file: catalogFile,
+					server: {
+						moduleGraph: {
+							getModuleById: (id) => (id === resolved ? moduleNode : undefined),
+							invalidateModule: (module) => invalidated.push(module)
+						}
+					}
+				}
+			);
+			expect(affected).toEqual([moduleNode]);
+			expect(invalidated).toEqual([moduleNode]);
+			expect(plugin.load!(resolved)).toMatchObject({
+				code: expect.stringContaining('Salut')
+			});
+
+			writeFileSync(
+				catalogFile,
+				JSON.stringify({
+					protocol: 1,
+					locale: 'fr',
+					owner: 'example',
+					messages: { m1_0000000000000000000000000000000000000000000: [] }
+				})
+			);
+			await expect(plugin.handleHotUpdate?.call({}, { file: catalogFile })).rejects.toThrow(
+				'unknown message'
+			);
+			expect(plugin.load!(resolved)).toMatchObject({
+				code: expect.stringContaining('Salut')
+			});
+		} finally {
+			rmSync(temporary, { recursive: true, force: true });
+		}
+	});
+
+	it('does not run intl analysis over React-owned JSX', () => {
+		const extracted: unknown[] = [];
+		const plugin = exact({
+			reactCompatibility: true,
+			internationalization: {
+				owner: 'example',
+				sourceLocale: 'en-US',
+				onDescriptors: (descriptors) => extracted.push(...descriptors)
+			}
+		});
+		const result = plugin.transform(
+			'/** @jsxImportSource react */\nexport const Greeting = ({ name }) => <p intl:message>Hello {name}</p>;',
+			`${process.cwd()}/src/ReactGreeting.tsx`
+		);
+
+		expect(extracted).toEqual([]);
+		expect(result?.code).not.toContain('@exactjs/intl');
 	});
 
 	it('passes compiler targets through to transformed files', () => {

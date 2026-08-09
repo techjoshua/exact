@@ -23,7 +23,7 @@ export function PluginsPage(this: Component<{}>) {
 			title="Plugins carry cross-cutting concerns through the whole system"
 			description="An eXact plugin is a package contract, not a bag of component hooks. It can contribute typed configuration and validated behavior to build, server, render, client, or testing hosts."
 			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
-			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
+			next={{ path: '/plugins/internationalization', label: 'Internationalization' }}
 		>
 			<section>
 				<h2>Why plugins exist</h2>
@@ -71,18 +71,28 @@ export function PluginsPage(this: Component<{}>) {
 				<CodeBlock source={pluginConfigSource} language="ts" title="exact.config.ts" />
 				<p>
 					Configuration transforms may mutate the provided value or return a replacement. Generated
-					type augmentation makes installed plugin keys available through{' '}
+					type augmentation makes installed plugin keys available through
 					<code>@exactjs/config</code>.
 				</p>
 			</section>
 			<section>
 				<h2>Framework plugins in this repository</h2>
 				<p>
-					Component-library enhancements are documented separately under{' '}
-					<Link to="/components/enhancements">Enhancements</Link>. The packages below participate in
-					validated build or server host lifecycles.
+					Component-library enhancements are also documented under
+					<Link to="/components/enhancements">Enhancements</Link>. Internationalization spans both
+					models: authors use an ordinary enhancement surface, while the plugin owns extraction,
+					catalog linking, and adapter coordination. The packages below participate in validated
+					build or server host lifecycles.
 				</p>
 				<div className="card-grid">
+					<Link className="topic-card" to="/plugins/internationalization">
+						<span className="topic-index">Build + enhancement</span>
+						<strong>Internationalization</strong>
+						<p>
+							Extract enhancement-authored messages, exchange XLIFF catalogs, infer semantic
+							formatters, and load only reachable locale data.
+						</p>
+					</Link>
 					<Link className="topic-card" to="/plugins/microfrontends">
 						<span className="topic-index">Build + runtime</span>
 						<strong>Microfrontends</strong>

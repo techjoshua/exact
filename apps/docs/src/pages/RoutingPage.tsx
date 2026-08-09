@@ -39,7 +39,7 @@ export function RoutingPage(this: Component<{}>) {
 		>
 			<Callout title="You are looking at it" tone="tip">
 				<p>
-					This documentation shell uses <code>Router</code>, nested <code>Route</code> components,{' '}
+					This documentation shell uses <code>Router</code>, nested <code>Route</code> components,
 					<code>Outlet</code>, <code>Link</code>, and <code>NavLink</code>.
 				</p>
 			</Callout>

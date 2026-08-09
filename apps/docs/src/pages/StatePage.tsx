@@ -163,7 +163,7 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<p>
 					Choose setup when several consumers should observe one result, when non-view work needs
-					the value, or when an allocated result must retain one identity for all consumers. The{' '}
+					the value, or when an allocated result must retain one identity for all consumers. The
 					<code>subtotal</code>, <code>shipping</code>, and <code>total</code> declarations in the
 					demo form a component-owned graph rather than three pieces of render syntax.
 				</p>
@@ -228,7 +228,7 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={derivedAssignmentSource} language="tsx" title="Summary.tsx" />
 				<p>
-					An assignment with no reactive inputs remains ordinary one-time initialization. Use{' '}
+					An assignment with no reactive inputs remains ordinary one-time initialization. Use
 					<code>peek()</code> when initialization intentionally snapshots a reactive input. Reading
 					the same state target on the right would create a feedback cycle, so the compiler asks you
 					to choose a <code>peek()</code> snapshot or a local task function instead.

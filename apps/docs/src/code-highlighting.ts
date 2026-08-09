@@ -1,5 +1,5 @@
 /** Languages whose source tokens the documentation renderer can classify. */
-export type CodeLanguage = 'tsx' | 'ts' | 'csharp' | 'json' | 'css' | 'shell' | 'logo';
+export type CodeLanguage = 'tsx' | 'ts' | 'csharp' | 'json' | 'css' | 'xml' | 'shell' | 'logo';
 
 type TokenKind =
 	| 'plain'
@@ -28,6 +28,11 @@ type CodeLine = {
 	id: string;
 	number: number;
 	tokens: CodeToken[];
+};
+
+type MarkupState = {
+	tagOpen: boolean;
+	expressionDepth: number;
 };
 
 const keywords = new Set([
@@ -129,20 +134,26 @@ const logoCommands = new Set([
  * @exact pure
  */
 export function tokenize(source: string, language: CodeLanguage): CodeLine[] {
+	const markupState: MarkupState = { tagOpen: false, expressionDepth: 0 };
 	return source.split('\n').map((line, lineIndex) => ({
 		id: `line-${lineIndex}`,
 		number: lineIndex + 1,
-		tokens: tokenizeLine(line, language, lineIndex)
+		tokens: tokenizeLine(line, language, lineIndex, markupState)
 	}));
 }
 
-function tokenizeLine(line: string, language: CodeLanguage, lineIndex: number): CodeToken[] {
+function tokenizeLine(
+	line: string,
+	language: CodeLanguage,
+	lineIndex: number,
+	markupState: MarkupState
+): CodeToken[] {
 	if (language === 'logo') return tokenizeLogo(line, lineIndex);
 	if (language === 'shell') return tokenizeShell(line, lineIndex);
 
 	const tokens: CodeToken[] = [];
 	const expression =
-		/(\/\/.*|\/\*.*?\*\/|<!--[\s\S]*?-->|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?\b|[A-Za-z_$][\w$]*|<\/?[A-Za-z][\w.-]*|\/?\>|=>|===|!==|==|!=|<=|>=|&&|\|\||\+\+|--|\*\*|[{}()[\].,:;?+\-*/%=<>!&|])/g;
+		/(\/\/.*|\/\*.*?\*\/|<!--[\s\S]*?-->|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?\b|[A-Za-z_$][\w$]*|<\/?[A-Za-z][\w.-]*|<\/?>|\/?\>|=>|===|!==|==|!=|<=|>=|&&|\|\||\+\+|--|\*\*|[{}()[\].,:;?+\-*/%=<>!&|])/g;
 	let cursor = 0;
 	let match: RegExpExecArray | null;
 	let tokenIndex = 0;
@@ -155,8 +166,22 @@ function tokenizeLine(line: string, language: CodeLanguage, lineIndex: number): 
 		if (text.startsWith('//') || text.startsWith('/*') || text.startsWith('<!--')) kind = 'comment';
 		else if (/^["'`]/.test(text)) kind = 'string';
 		else if (/^\d/.test(text)) kind = 'number';
-		else if (text.startsWith('<')) kind = 'tag';
-		else if (keywords.has(text)) kind = 'keyword';
+		else if (text === '<>' || text === '</>') kind = 'tag';
+		else if (/^<\/?[A-Za-z]/u.test(text)) {
+			kind = 'tag';
+			if (language === 'tsx' || language === 'xml') {
+				markupState.tagOpen = true;
+				markupState.expressionDepth = 0;
+			}
+		} else if (
+			(language === 'tsx' || language === 'xml') &&
+			(text === '>' || text === '/>') &&
+			markupState.tagOpen &&
+			markupState.expressionDepth === 0
+		) {
+			kind = 'tag';
+			markupState.tagOpen = false;
+		} else if (keywords.has(text)) kind = 'keyword';
 		else if (typeWords.has(text) || /^[A-Z]/.test(text)) kind = 'type';
 		else if (/^[A-Za-z_$]/.test(text)) {
 			const after = line.slice(expression.lastIndex);
@@ -167,6 +192,9 @@ function tokenizeLine(line: string, language: CodeLanguage, lineIndex: number): 
 					? 'property'
 					: 'plain';
 		}
+		if (markupState.tagOpen && text === '{') markupState.expressionDepth++;
+		else if (markupState.tagOpen && text === '}' && markupState.expressionDepth > 0)
+			markupState.expressionDepth--;
 		tokens.push(token(text, kind, lineIndex, tokenIndex++));
 		cursor = expression.lastIndex;
 	}

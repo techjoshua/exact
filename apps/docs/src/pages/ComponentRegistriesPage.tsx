@@ -51,7 +51,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 			<section>
 				<h2>Declare the whole choice once</h2>
 				<p>
-					<code>createComponentRegistry()</code> accepts a finite object in a named module-level{' '}
+					<code>createComponentRegistry()</code> accepts a finite object in a named module-level
 					<code>const</code>. Entries may be eager components or scoped lazy imports. The registry
 					is immutable so the compiler can prove every key, import, placement, and output target.
 				</p>
@@ -60,7 +60,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 			<section>
 				<h2>Keys remain ordinary TypeScript</h2>
 				<p>
-					<code>KeyOf&lt;typeof Widget&gt;</code> derives the exact key union. Use{' '}
+					<code>KeyOf&lt;typeof Widget&gt;</code> derives the exact key union. Use
 					<code>hasComponent()</code> to narrow an untrusted string before indexing instead of
 					casting or maintaining a second allowlist.
 				</p>

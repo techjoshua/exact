@@ -113,7 +113,7 @@ export function ComponentsPage(this: Component<{}>) {
 					mutate their own private state without being treated as writes to the prop binding.
 				</p>
 				<p>
-					The compiler also stores an opaque stable ID under{' '}
+					The compiler also stores an opaque stable ID under
 					<code>Symbol.for('@exactjs/component')</code>. Native renderers use that brand instead of
 					guessing from a function name or shape; unbranded React, Preact, and other foreign
 					components stay owned by their explicit compatibility layer.
@@ -125,10 +125,17 @@ export function ComponentsPage(this: Component<{}>) {
 					and known DOM or storage effects belong in setup, a task, or an interaction callback.
 				</p>
 				<p>
-					For a static conditional token on an intrinsic element, <code>className:name</code>{' '}
+					For a static conditional token on an intrinsic element, <code>className:name</code>
 					appends the token when its value is truthy. Contributions keep prop order and become one
 					DOM <code>class</code> value; arrays and maps remain useful when the token name itself is
 					dynamic.
+				</p>
+				<p>
+					Multiline JSX text collapses indentation and line breaks to one HTML-like space between
+					meaningful children. Boundary indentation is discarded, so prose can use ordinary source
+					spaces around elements and expressions without awkward
+					<code>&#123;&apos; &apos;&#125;</code> expressions. Single-line authored text remains
+					unchanged, and indentation before closing punctuation does not introduce a visible space.
 				</p>
 				<CodeBlock source={microComponentSource} language="tsx" title="Lexical micro-components" />
 				<p>
@@ -158,9 +165,9 @@ export function ComponentsPage(this: Component<{}>) {
 					can be used as a JSX tag. A reactive choice is mounted through a slot, so changing the
 					selected component replaces only that subtree. Keep the choice as a setup-derived value;
 					the compiler observes its dependencies while the returned view stays one expression. When
-					the choice comes from a reusable named collection, declare its complete key set with{' '}
+					the choice comes from a reusable named collection, declare its complete key set with
 					<code>createComponentRegistry()</code>. Open-ended object lookup remains a compiler error
-					because the compiler cannot determine its complete client/server placement graph.{' '}
+					because the compiler cannot determine its complete client/server placement graph.
 					<Link to="/learn/component-registries">Read the component registry guide.</Link>
 				</p>
 				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
@@ -177,7 +184,7 @@ export function ComponentsPage(this: Component<{}>) {
 					The compiler also analyzes environment usage. Browser globals imply client placement,
 					server-only imports imply server placement, and state-writing work with neither can be
 					isomorphic. If an opaque call makes placement unknowable, or intent matters more than
-					inference, add a final <code>TaskContext</code> parameter with{' '}
+					inference, add a final <code>TaskContext</code> parameter with
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code>. Contradictory
 					placement is a compile error rather than a runtime surprise.
 				</p>
@@ -189,7 +196,7 @@ export function ComponentsPage(this: Component<{}>) {
 				<h2>The instance surface, after the model</h2>
 				<p>
 					Calling <code>this.ref(key)</code> returns the same component-owned binding for that key.
-					Its reactive <code>current</code> value is also available through{' '}
+					Its reactive <code>current</code> value is also available through
 					<code>this.refs.get(key)</code>, so tasks and derived work can observe fulfillment and
 					removal without polling.
 				</p>

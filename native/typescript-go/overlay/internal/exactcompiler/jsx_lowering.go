@@ -1031,7 +1031,9 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
 	} else {
 		emittedTag = lowering.visitor.VisitNode(tag)
-		if lowering.interop != nil && !lowering.localExactComponentTag(tag) {
+		if lowering.interop != nil &&
+			!lowering.localExactComponentTag(tag) &&
+			!lowering.exactCoreVNodeTag(tag) {
 			emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
 		}
 	}
@@ -1212,11 +1214,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if children != nil {
 		semantic = ast.GetSemanticJsxChildren(children.Nodes)
 	}
-	for _, child := range semantic {
+	for childIndex, child := range semantic {
 		childPath := append(append([]int(nil), path...), domIndex)
 		switch {
 		case ast.IsJsxText(child):
-			text := normalizeJSXText(child.AsJsxText().Text)
+			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
 			if text == "" {
 				continue
 			}
@@ -1579,6 +1581,23 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 	return resolvesToComponent(symbol)
 }
 
+func (lowering *jsxLowering) exactCoreVNodeTag(tag *ast.Node) bool {
+	if !ast.IsIdentifier(tag) || lowering.checker == nil {
+		return false
+	}
+	bindings := collectExternalImportBindings(lowering.sourceFile, lowering.checker)
+	reference, exists := bindings.byName[tag.Text()]
+	if !exists || reference.moduleSpecifier != "@exactjs/core" {
+		return false
+	}
+	switch reference.exportName {
+	case "Activity", "Cell", "Dynamic", "Fragment", "Portal", "RenderProgram", "ServerBoundary", "ServerSlot", "Suspense", "Target", "Text", "UnsafeHtml":
+		return true
+	default:
+		return false
+	}
+}
+
 func (lowering *jsxLowering) clientComponentBoundary(
 	opening *ast.Node,
 	children *ast.NodeList,
@@ -1765,7 +1784,8 @@ func (lowering *jsxLowering) partitionSlotIDs(children *ast.NodeList) []string {
 		return nil
 	}
 	result := []string{}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for _, child := range semantic {
 		start, end := child.Pos(), child.End()
 		switch {
 		case ast.IsJsxText(child):
@@ -1814,13 +1834,11 @@ func (lowering *jsxLowering) clientBoundaryChildren(
 		return nil, true
 	}
 	values := []*ast.Node{}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for childIndex, child := range semantic {
 		switch {
 		case ast.IsJsxText(child):
-			text := strings.Join(
-				strings.Fields(child.AsJsxText().Text),
-				" ",
-			)
+			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
 			if text != "" {
 				values = append(
 					values,
@@ -1851,7 +1869,8 @@ func jsxChildrenRequireServerSlot(children *ast.NodeList) bool {
 	if children == nil {
 		return false
 	}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for _, child := range semantic {
 		if ast.IsJsxText(child) {
 			continue
 		}
@@ -2676,10 +2695,11 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 		return nil
 	}
 	result := []*ast.Node{}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for childIndex, child := range semantic {
 		switch {
 		case ast.IsJsxText(child):
-			text := normalizeJSXText(child.AsJsxText().Text)
+			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
 			if text != "" {
 				result = append(
 					result,
@@ -6803,28 +6823,41 @@ func jsxCallbackExpression(node *ast.Node) bool {
 func normalizeJSXText(value string) string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
 	value = strings.ReplaceAll(value, "\r", "\n")
-	lines := strings.Split(value, "\n")
-	result := make([]string, 0, len(lines))
-	for index, line := range lines {
-		switch {
-		case len(lines) == 1:
-		case index == 0:
-			line = strings.TrimRightFunc(line, unicode.IsSpace)
-		case index == len(lines)-1:
-			line = strings.TrimLeftFunc(line, unicode.IsSpace)
-		default:
-			line = strings.TrimSpace(line)
-		}
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		result = append(result, html.UnescapeString(line))
+	if !strings.Contains(value, "\n") {
+		return html.UnescapeString(value)
 	}
-	if len(result) == 0 {
+	characters := []rune(value)
+	content := strings.Join(strings.Fields(value), " ")
+	if content == "" {
 		return ""
 	}
-	if len(lines) == 1 {
-		return result[0]
+	if unicode.IsSpace(characters[0]) {
+		content = " " + content
 	}
-	return strings.Join(result, " ")
+	if unicode.IsSpace(characters[len(characters)-1]) {
+		content += " "
+	}
+	return html.UnescapeString(content)
+}
+
+func normalizeJSXChildText(value string, index int, count int) string {
+	text := normalizeJSXText(value)
+	if strings.ContainsAny(value, "\r\n") {
+		if index == 0 {
+			text = strings.TrimLeftFunc(text, unicode.IsSpace)
+		}
+		if index == count-1 {
+			text = strings.TrimRightFunc(text, unicode.IsSpace)
+		}
+		if strings.HasPrefix(text, " ") {
+			trimmed := strings.TrimLeftFunc(text, unicode.IsSpace)
+			for _, first := range trimmed {
+				if strings.ContainsRune(".,;:!?%)]}»›。，、；：！？％）］｝", first) {
+					text = trimmed
+				}
+				break
+			}
+		}
+	}
+	return text
 }

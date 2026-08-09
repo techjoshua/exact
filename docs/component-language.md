@@ -49,6 +49,24 @@ import {
 Renderer and application packages may expose additional APIs, but they do not
 change the component language described here.
 
+### JSX text whitespace
+
+Multiline JSX text follows HTML-like authoring whitespace. Line breaks and surrounding indentation
+collapse to a single space between meaningful text, elements, and expressions; whitespace at the
+start or end of a child list is discarded, and indentation before closing punctuation does not
+create a visible space. Single-line authored text is preserved. Write ordinary spaces in prose
+instead of inserting explicit one-space expressions between children:
+
+```tsx
+<p>
+	Hello <strong>{props.name}</strong>, your report is ready.
+</p>
+```
+
+This produces the same text boundaries as `Hello <strong>…</strong>, your report is ready.` without
+creating reactive space expressions. Explicit string expressions remain appropriate only when the
+exact whitespace itself is dynamic or intentionally significant.
+
 ## Component declarations
 
 An eXact component is a function that establishes one durable component
@@ -178,6 +196,10 @@ range, while same-key prop updates retain the instance. Lazy entries deduplicate
 participate in `Suspense`; `preloadComponent()` starts loading without constructing an instance.
 Use `renderComponent()` with `ComponentSelection<typeof Widget>` when heterogeneous entries need
 correlated key-specific props.
+
+Target-specific compiler brands are emitted as pure attachments. A production bundler may therefore
+remove an unreachable component and its brand together; referenced components retain the same
+runtime identity and ownership contract.
 
 Mutable dictionaries, reassigned component variables, and unproven string lookups remain
 diagnostics because they do not provide a finite component, placement, or artifact graph.
@@ -616,6 +638,9 @@ Authored singular props take precedence, followed by the nearest contribution; `
 through and `null` explicitly suppresses a lower value. Classes and token-list attributes are
 deduplicated, styles merge per property, refs fan out, and event subscriptions preserve intrinsic
 then inner-to-outer ordering. Reactive contributions update without changing the authored VNode.
+Framework-owned projections may explicitly mark a finite scalar contribution as replacing its
+authored fallback while that projection is active. This marker is runtime metadata, not `_target`
+authoring syntax; ordinary authored target layers retain the precedence above.
 
 ### Bounded target routing
 

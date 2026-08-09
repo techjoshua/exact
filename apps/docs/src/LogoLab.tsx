@@ -189,8 +189,8 @@ export function LogoLab(this: Component<LogoState>) {
 					>
 						<title id="turtle-title">Logo turtle drawing</title>
 						<desc id="turtle-description">
-							{this.state.segments.length} drawn segments. Turtle at {Math.round(this.state.x)},{' '}
-							{Math.round(this.state.y)} heading {Math.round(normalizeHeading(this.state.heading))}{' '}
+							{this.state.segments.length} drawn segments. Turtle at {Math.round(this.state.x)},
+							{Math.round(this.state.y)} heading {Math.round(normalizeHeading(this.state.heading))}
 							degrees.
 						</desc>
 						<g className="stage-grid" aria-hidden="true">
@@ -227,7 +227,7 @@ export function LogoLab(this: Component<LogoState>) {
 							heading <strong>{Math.round(normalizeHeading(this.state.heading))}°</strong>
 						</span>
 						<span>
-							command{' '}
+							command
 							<strong>
 								{this.state.cursor}/{this.state.instructions.length}
 							</strong>

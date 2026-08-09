@@ -1,4 +1,5 @@
 import type { ExactCompilerSession } from '@exactjs/compiler';
+import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import type { ExactWebpackTransformResult } from './transform.js';
 
 const bridgeKey = Symbol.for('@exactjs/webpack-loader-bridge');
@@ -6,6 +7,8 @@ const bridgeKey = Symbol.for('@exactjs/webpack-loader-bridge');
 /** Cross-module-instance state installed on Webpack's compiler and consumed by its loader context. */
 export type ExactWebpackLoaderBridge = Readonly<{
 	session: ExactCompilerSession;
+	intl: IntlBuildCoordinator;
+	intlReady(): Promise<void>;
 	record(filename: string, source: string, result: ExactWebpackTransformResult): void;
 }>;
 

@@ -99,9 +99,9 @@ export function MotionPage(this: Component<{}>) {
 				<h2>Coordinate conditional presence</h2>
 				<CodeBlock source={componentSource} language="tsx" title="Dialog.tsx" />
 				<p>
-					Use explicit components when a compilerless caller needs motion or when components such as{' '}
+					Use explicit components when a compilerless caller needs motion or when components such as
 					<code>Presence</code>, <code>MotionConfig</code>, and <code>MotionList</code> own
-					structural coordination rather than decorating one existing target. <code>Motion</code>{' '}
+					structural coordination rather than decorating one existing target. <code>Motion</code>
 					renders one real intrinsic selected by <code>as</code>. <code>MotionConfig</code> inherits
 					enabled, transition, appear, and reduced-motion policy through the logical component tree,
 					including portals. <code>Presence</code> makes leaving content inert, returns focus, and

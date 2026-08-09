@@ -237,7 +237,9 @@ describe('@exactjs/compiler: registries', () => {
 		expect(client).not.toContain('export function Panel_ExactClient_1');
 		expect(client).not.toContain('export function Panel_ExactClient_2');
 		expect(server).toContain('createServerBoundary as');
-		expect(server).toContain('export function Panel(props = {})');
+		expect(server).toContain(
+			'export const Panel = /* @__PURE__ */ Object.assign(function Panel(props = {})'
+		);
 		expect(server).not.toContain('Panel_ExactServer_1');
 		expect(server).toContain('"Panel"');
 		expect(server).not.toContain('Panel_ExactClient_1');

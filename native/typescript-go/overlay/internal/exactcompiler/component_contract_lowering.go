@@ -77,6 +77,14 @@ func lowerComponentContracts(
 					continue
 				}
 				if component, attach := eligible[name.Text()]; attach {
+					if !preserveComponentHoisting &&
+						!componentFunctionReferencedEarlier(sourceFile, statement, name.Text()) {
+						statements = append(
+							statements,
+							brandComponentFunctionValue(emitContext, statement.AsFunctionDeclaration(), component)...,
+						)
+						continue
+					}
 					statements = append(
 						statements,
 						statement,
@@ -106,7 +114,7 @@ func lowerComponentContracts(
 				continue
 			}
 			updated, changed := brandComponentVariables(
-				factory,
+				emitContext,
 				statement,
 				eligible,
 			)
@@ -178,6 +186,104 @@ func lowerComponentContracts(
 	return result
 }
 
+func componentFunctionReferencedEarlier(
+	sourceFile *ast.SourceFile,
+	declaration *ast.Node,
+	name string,
+) bool {
+	for _, statement := range sourceFile.Statements.Nodes {
+		if statement == declaration {
+			return false
+		}
+		found := false
+		walkNode(statement, func(node *ast.Node) bool {
+			if ast.IsIdentifier(node) && node.Text() == name {
+				found = true
+				return false
+			}
+			return !found
+		})
+		if found {
+			return true
+		}
+	}
+	return false
+}
+
+// brandComponentFunctionValue makes the brand part of the declaration's owned value. Bundlers
+// therefore retain the brand whenever the component is reachable and remove both together when it
+// is not. This lowering is used only when preserving function-declaration hoisting was not
+// requested.
+func brandComponentFunctionValue(
+	emitContext *printer.EmitContext,
+	declaration *ast.FunctionDeclaration,
+	component Component,
+) []*ast.Node {
+	factory := emitContext.Factory
+	name := declaration.Name()
+	functionModifiers := []*ast.Node{}
+	if modifiers := declaration.Modifiers(); modifiers != nil {
+		for _, modifier := range modifiers.Nodes {
+			if modifier.Kind != ast.KindExportKeyword &&
+				modifier.Kind != ast.KindDefaultKeyword {
+				functionModifiers = append(functionModifiers, modifier)
+			}
+		}
+	}
+	var implementationModifiers *ast.ModifierList
+	if len(functionModifiers) != 0 {
+		implementationModifiers = factory.NewModifierList(functionModifiers)
+	}
+	implementation := factory.NewFunctionExpression(
+		implementationModifiers,
+		declaration.AsteriskToken,
+		factory.NewIdentifier(name.Text()),
+		declaration.TypeParameters,
+		declaration.Parameters,
+		declaration.Type,
+		declaration.FullSignature,
+		declaration.Body,
+	)
+	defaultExport := ast.HasSyntacticModifier(
+		declaration.AsNode(),
+		ast.ModifierFlagsDefault,
+	)
+	var publicModifiers *ast.ModifierList
+	if ast.HasSyntacticModifier(declaration.AsNode(), ast.ModifierFlagsExport) &&
+		!defaultExport {
+		publicModifiers = factory.NewModifierList([]*ast.Node{
+			factory.NewModifier(ast.KindExportKeyword),
+		})
+	}
+	publicDeclaration := factory.NewVariableStatement(
+		publicModifiers,
+		factory.NewVariableDeclarationList(
+			factory.NewNodeList([]*ast.Node{
+				factory.NewVariableDeclaration(
+					factory.NewIdentifier(name.Text()),
+					nil,
+					nil,
+					pureComponentBrandAttachment(emitContext, implementation, component.ID),
+				),
+			}),
+			ast.NodeFlagsConst,
+		),
+	)
+	result := []*ast.Node{publicDeclaration}
+	if defaultExport {
+		result = append(
+			result,
+			factory.NewExportAssignment(
+				nil,
+				false,
+				nil,
+				factory.NewIdentifier(name.Text()),
+			),
+		)
+	}
+	return result
+}
+
 func componentRootContract(
 	component Component,
 	target Target,
@@ -217,10 +323,11 @@ func componentRootContract(
 }
 
 func brandComponentVariables(
-	factory *printer.NodeFactory,
+	emitContext *printer.EmitContext,
 	statement *ast.Node,
 	eligible map[string]Component,
 ) (*ast.Node, bool) {
+	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
 	list := variable.DeclarationList.AsVariableDeclarationList()
 	declarations := append([]*ast.Node(nil), list.Declarations.Nodes...)
@@ -245,7 +352,7 @@ func brandComponentVariables(
 			name,
 			declaration.ExclamationToken,
 			declaration.Type,
-			componentBrandAttachment(factory, declaration.Initializer, component.ID),
+			pureComponentBrandAttachment(emitContext, declaration.Initializer, component.ID),
 		)
 		changed = true
 	}
@@ -262,6 +369,21 @@ func brandComponentVariables(
 		variable.Modifiers(),
 		declarationList,
 	), true
+}
+
+// pureComponentBrandAttachment permits a bundler to remove an unreachable
+// variable component together with the initializer that owns its brand.
+func pureComponentBrandAttachment(
+	emitContext *printer.EmitContext,
+	component *ast.Node,
+	identity string,
+) *ast.Node {
+	return emitContext.AddSyntheticLeadingComment(
+		componentBrandAttachment(emitContext.Factory, component, identity),
+		ast.KindMultiLineCommentTrivia,
+		" @__PURE__ ",
+		false,
+	)
 }
 
 func componentBrandAttachment(

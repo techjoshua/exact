@@ -51,7 +51,7 @@ export function SecretsPluginPage(this: Component<{}>) {
 				<h2>Configure providers and policy once</h2>
 				<CodeBlock source={secretsConfigSource} language="ts" title="exact.config.ts" />
 				<p>
-					The built-in environment provider reads process environment values and optional{' '}
+					The built-in environment provider reads process environment values and optional
 					<code>.env</code>
 					files. Applications can add providers implementing the same async interface. Later
 					providers replace earlier values with the same name, and startup fails when a required

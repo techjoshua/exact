@@ -1,5 +1,6 @@
 import {
 	Target,
+	TargetOverrides,
 	getCellVNode,
 	isCellVNode,
 	isVNode,
@@ -75,10 +76,21 @@ function composeTargetProps(
 	layer: Readonly<Record<string, unknown>>
 ): Record<string, unknown> {
 	const result: Record<string, unknown> = { ...base };
+	delete (result as Record<PropertyKey, unknown>)[TargetOverrides];
+	const overrideValue = unwrap((layer as Readonly<Record<PropertyKey, unknown>>)[TargetOverrides]);
+	const overrides = new Set(
+		Array.isArray(overrideValue)
+			? overrideValue.filter((key): key is string => typeof key === 'string')
+			: []
+	);
 	for (const key of new Set([...Object.keys(base), ...Object.keys(layer)])) {
 		if (key === 'children' || key === 'key' || key === 'ref' || /^on[A-Z]/.test(key)) continue;
 		const authored = unwrap(base[key]);
 		const contributed = unwrap(layer[key]);
+		if (overrides.has(key)) {
+			result[key] = contributed;
+			continue;
+		}
 		if (key === 'class' || key === 'className') {
 			const tokens = `${authored == null ? '' : normalizeClassValue(authored)} ${
 				contributed == null ? '' : normalizeClassValue(contributed)

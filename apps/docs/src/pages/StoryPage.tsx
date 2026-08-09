@@ -156,7 +156,7 @@ export function StoryPage(this: Component<{}>) {
 				</p>
 				<p>
 					After several trips down the rabbit hole, I built a small package that expressed
-					asynchronous operations with iterator blocks. I had to write <code>yield return</code>{' '}
+					asynchronous operations with iterator blocks. I had to write <code>yield return</code>
 					instead of <code>await</code>, but an iterator runner could feed each completed result
 					back into the suspended function. Extension methods wrapped the runner and preserved typed
 					results with generics.
@@ -190,7 +190,7 @@ export function StoryPage(this: Component<{}>) {
 					title="A generator-shaped JavaScript lowering"
 				/>
 				<p>
-					That distinction matters. The gift of compilation is not a particular <code>switch</code>{' '}
+					That distinction matters. The gift of compilation is not a particular <code>switch</code>
 					statement hidden in generated output. It is the freedom to separate an expressive source
 					model from the detailed mechanism that makes the model work.
 				</p>

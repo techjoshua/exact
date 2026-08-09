@@ -75,7 +75,7 @@ function Feature(this: Component<{}>, props: { feature: ExtraService }) {
 				? '✓'
 				: props.feature.availability === 'available'
 					? '+'
-					: '×'}{' '}
+					: '×'}
 			{props.feature.name}
 			{props.feature.selected &&
 			props.feature.availability === 'available' &&

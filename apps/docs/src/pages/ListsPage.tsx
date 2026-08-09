@@ -88,8 +88,8 @@ export function ListsPage(this: Component<{}>) {
 				<CodeBlock source={explicitJsxKeySource} language="tsx" title="Explicit JSX key" />
 				<p>
 					Use <code>{'this.map(collection, item => item.id, render)'}</code> when the selector
-					belongs next to the view, when the data type cannot carry an <code>@exact key</code>{' '}
-					annotation, or when you need the distinction between eXact's keyed rendering and native{' '}
+					belongs next to the view, when the data type cannot carry an <code>@exact key</code>
+					annotation, or when you need the distinction between eXact's keyed rendering and native
 					<code>Array.map()</code> to be obvious.
 				</p>
 				<CodeBlock source={explicitMapSource} language="tsx" title="Explicit keyed rendering" />

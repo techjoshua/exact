@@ -3,6 +3,7 @@ import {
 	Fragment,
 	Suspense,
 	Target as TargetBoundary,
+	TargetOverrides,
 	activateTaskForHost,
 	createEnhancementMarker,
 	createContext,
@@ -143,6 +144,19 @@ describe('@exactjs/ssr rendering', () => {
 			'<button class="authored shared inner outer" style="color: green; margin-top: 2px; padding-top: 4px;" aria-describedby="authored shared inner outer" data-tone="inner"></button>'
 		);
 		expect(asyncOutput.html).toBe(output.html);
+	});
+
+	it('serializes framework-owned target fallback overrides', () => {
+		const output = renderToString(
+			createVNode(
+				TargetBoundary,
+				{ placeholder: 'Translated', [TargetOverrides]: ['placeholder'] },
+				createVNode('input', { placeholder: 'Fallback', id: 'search' })
+			),
+			{ markers: false }
+		);
+
+		expect(output.html).toBe('<input placeholder="Translated" id="search">');
 	});
 
 	it('leaves unavailable server enhancements inert and warns once per identity', () => {

@@ -582,8 +582,9 @@ func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
 		panel := findComponent(t, response.Analysis.Components, "Panel")
 		inline := findComponent(t, response.Analysis.Components, "Inline")
 		for _, expected := range []string{
-			`Object.assign(Panel, { [Symbol.for("@exactjs/component")]: "` + panel.ID + `" })`,
-			`const Inline = Object.assign(() =>`,
+			`const Panel = /* @__PURE__ */ Object.assign(function Panel()`,
+			`[Symbol.for("@exactjs/component")]: "` + panel.ID + `"`,
+			`const Inline = /* @__PURE__ */ Object.assign(() =>`,
 			`[Symbol.for("@exactjs/component")]: "` + inline.ID + `"`,
 		} {
 			if !strings.Contains(response.Code, expected) {
@@ -606,6 +607,33 @@ func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
 			"default compilation unexpectedly attached a target contract:\n%s",
 			defaultResponse.Code,
 		)
+	}
+}
+
+func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			const entries = { ready: Ready };
+			function Ready() {
+				return () => <p>Ready</p>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	ready := findComponent(t, response.Analysis.Components, "Ready")
+	for _, expected := range []string{
+		`const entries = { ready: Ready }`,
+		`function Ready()`,
+		`Object.assign(Ready, { [Symbol.for("@exactjs/component")]: "` + ready.ID + `" })`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("hoisted component output is missing %q:\n%s", expected, response.Code)
+		}
 	}
 }
 
@@ -655,9 +683,12 @@ func TestSessionBrandsComponentsWithProjectResolvedPlacement(t *testing.T) {
 		if card.Placement != "unknown" {
 			t.Fatalf("expected project-resolved placement fixture, got %#v", card)
 		}
-		expected := `Object.assign(Card, { [Symbol.for("@exactjs/component")]: "` + card.ID + `" })`
+		expected := `export const Card = /* @__PURE__ */ Object.assign(function Card(`
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("%s component brand output is missing %q:\n%s", target, expected, response.Code)
+		}
+		if !strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: "`+card.ID+`"`) {
+			t.Fatalf("%s component identity is missing:\n%s", target, response.Code)
 		}
 	}
 }
@@ -691,6 +722,32 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native JSX interop output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+}
+
+func TestSessionDoesNotAdaptCoreVNodeSymbolsAsReactComponents(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "suspense.tsx",
+		Kind: "compile",
+		Source: `
+			import { Suspense } from "@exactjs/core";
+			export function Panel() {
+				return () => <Suspense fallback="wait"><main /></Suspense>;
+			}
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat",
+			AdapterExport: "adaptComponent",
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, `__exactInteropComponent(Suspense)`) {
+		t.Fatalf("core Suspense symbol was incorrectly lowered through React interop:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `__exactVNode(Suspense,`) {
+		t.Fatalf("core Suspense symbol was not retained as an eXact VNode type:\n%s", response.Code)
 	}
 }
 
@@ -946,7 +1003,7 @@ func TestSessionSerializesPlainClientBoundaryChildrenAsProps(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`createServerBoundary as __exactBoundary`,
-		`"ClientShell", { children: ["Issue", this.state.title, "#", this.state.count] }`,
+		`"ClientShell", { children: ["Issue ", this.state.title, " #", this.state.count] }`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -1760,7 +1817,7 @@ __fixtureTask4();
 		}
 	}
 	for _, expected := range []string{
-		"export function ServerOnly",
+		"export const ServerOnly",
 		"export const ServerValue",
 		"createServerBoundary",
 	} {
@@ -2591,6 +2648,40 @@ func TestSessionLowersJSXInsideNativeProcess(t *testing.T) {
 	}
 	if strings.Contains(response.Code, "createCompiledFragment") {
 		t.Fatalf("unused fragment helper escaped into native output:\n%s", response.Code)
+	}
+}
+
+func TestSessionPreservesCollapsedMultilineJSXTextBoundaries(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "C:/tmp/multiline-whitespace.tsx",
+		Kind: "compile",
+		Source: `function Notice(this: Component<{ date: string }>) {
+			return () => <>
+				<p>
+					Published
+					{this.state.date}
+					today.
+				</p>
+				<p>
+					Published {this.state.date}
+					.
+				</p>
+			</>;
+		}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{`"Published "`, `" today."`} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("multiline JSX output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `" ",`) {
+		t.Fatalf("indentation-only JSX text escaped into output:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `" ."`) {
+		t.Fatalf("multiline punctuation retained indentation whitespace:\n%s", response.Code)
 	}
 }
 
@@ -3671,7 +3762,7 @@ __fixtureTask7();
 	if client.Error != "" {
 		t.Fatal(client.Error)
 	}
-	if !strings.Contains(client.Code, "export function Loader") ||
+	if !strings.Contains(client.Code, "export const Loader") ||
 		!strings.Contains(client.Code, "createServerBoundary") ||
 		strings.Contains(client.Code, "this.state.count++") {
 		t.Fatalf(

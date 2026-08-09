@@ -183,7 +183,7 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				<CodeBlock source={policyTaskSource} language="tsx" title="Task with authored readiness" />
 				<Callout title="Why some awaited forms are compiler errors">
 					<p>
-						Values needed by the returned render function must be assigned to{' '}
+						Values needed by the returned render function must be assigned to
 						<code>this.state</code>; a local created inside the asynchronous continuation is not
 						published state. Native array and object destructuring—including defaults, rest targets,
 						and computed property keys—may publish several writable state locations atomically. A
@@ -218,8 +218,8 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					but allows preparation at deferred priority.
 				</p>
 				<p>
-					Parking is not unmounting. Use <code>this.onDeactivate()</code> and{' '}
-					<code>this.onActivate()</code> for reconnect behavior; final ownership cleanup remains in{' '}
+					Parking is not unmounting. Use <code>this.onDeactivate()</code> and
+					<code>this.onActivate()</code> for reconnect behavior; final ownership cleanup remains in
 					<code>this.onUnmount()</code>. Nested Activity boundaries retain their own authored mode,
 					and portal output parks with its logical owner.
 				</p>
