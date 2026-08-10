@@ -96,4 +96,18 @@ describe('safe eXact value previews', () => {
 			new TextEncoder().encode((preview as { value: string }).value).byteLength
 		).toBeLessThanOrEqual(8);
 	});
+
+	it('captures own Error details without invoking inherited accessors', () => {
+		const error = new TypeError('invalid shipment');
+		Object.defineProperty(error, 'cause', { value: { code: 'RATE_MISSING' } });
+
+		expect(previewExactValue(error)).toMatchObject({
+			kind: 'object',
+			type: 'TypeError',
+			entries: [
+				{ key: 'message', value: { kind: 'scalar', value: 'invalid shipment' } },
+				{ key: 'cause', value: { kind: 'object' } }
+			]
+		});
+	});
 });

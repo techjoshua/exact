@@ -179,6 +179,16 @@ already-redacted bounded preview without expanding unrelated values. Expanded ro
 content-sized key column and compact indentation, so each nested level does not reserve another
 large fraction of the remaining width. Value disclosure state and panel scroll positions survive
 live refreshes for the same selected component.
+
+The Tasks section separates execution history from live scheduler frames. Starting a task records
+its placement, generation, timing, and bounded argument preview; settlement updates that record
+with its final status and a bounded result or error preview. Each execution remains collapsed until
+opened. The runtime never retains the original argument, result, or error objects for inspection.
+History exists only while an inspection session is attached, defaults to the 200 most recently
+started executions across that runtime owner, and is released on detach. Runtime integrations may
+set `maxTaskExecutions` when creating the inspection owner; late completion of an older task cannot
+evict a newer execution from the bounded history.
+
 The DevTools entry registers `dist/panel.html` from the extension root; generated document paths
 are not resolved relative to `dist/devtools.html`.
 

@@ -25,6 +25,7 @@ export function executeScheduledTaskGeneration<Args extends unknown[], Result>(
 				sourceEntityId,
 				placement: options.placement,
 				concurrency: options.concurrency,
+				inspectionArguments: record.args,
 				detached: options.detached,
 				priority: record.priority,
 				readiness: record.readiness,

@@ -183,7 +183,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Inspect durable browser and server components across authorized microfrontend roots.',
 				keywords:
-					'DevTools Chromium component inspection state contexts tasks invocations timeline server cooperation allowDebug catalog redaction secrets microfrontend federation CDP agent',
+					'DevTools Chromium component inspection state contexts tasks invocations arguments results errors execution history timeline server cooperation allowDebug catalog redaction secrets microfrontend federation CDP agent',
 				component: DevtoolsPage
 			}
 		]

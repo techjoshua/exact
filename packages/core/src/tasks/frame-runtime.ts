@@ -145,7 +145,10 @@ export function executeTaskFrame<T>(
 	registerTaskFrameSettlement(frame, settlement);
 	owner.frames.add(frame);
 	publishTaskFrameEvent(frame, 'task.frame.enter');
-	publishTaskFrameEvent(frame, 'task.start');
+	publishTaskFrameEvent(frame, 'task.start', undefined, {
+		kind: 'start',
+		arguments: options.inspectionArguments
+	});
 	if (structuralParent) {
 		structuralParent.children.add(settlement);
 		void settlement
@@ -231,7 +234,11 @@ export function executeTaskFrame<T>(
 			resolveSettlement();
 			publishTaskFrameEvent(frame, 'task.frame.exit');
 			publishTaskFrameEvent(frame, 'task.structural-settle');
-			publishTaskFrameEvent(frame, 'task.settle');
+			publishTaskFrameEvent(frame, 'task.settle', undefined, {
+				kind: 'outcome',
+				status: 'settled',
+				value
+			});
 			return value;
 		},
 		(error) => {
@@ -241,11 +248,12 @@ export function executeTaskFrame<T>(
 			if (options.propagateFailure?.() === false) resolveSettlement();
 			else rejectSettlement(error);
 			publishTaskFrameEvent(frame, 'task.frame.exit');
-			publishTaskFrameEvent(
-				frame,
-				error instanceof TaskCancellation ? 'task.cancel' : 'task.fail',
-				error
-			);
+			const cancelled = error instanceof TaskCancellation;
+			publishTaskFrameEvent(frame, cancelled ? 'task.cancel' : 'task.fail', error, {
+				kind: 'outcome',
+				status: cancelled ? 'cancelled' : 'failed',
+				value: error
+			});
 			throw error;
 		}
 	);

@@ -33,6 +33,9 @@ export type ExactTaskRuntimeSnapshot = Readonly<{
 	cancellationReason?: string;
 	startedAt?: number;
 	settledAt?: number;
+	arguments?: ExactValuePreview;
+	result?: ExactValuePreview;
+	error?: ExactValuePreview;
 }>;
 
 /** Activity ownership and readiness status for a retained component range. */

@@ -351,6 +351,30 @@ main {
 	color: var(--muted);
 }
 
+.task-execution > summary {
+	cursor: pointer;
+}
+
+.task-execution > summary::marker {
+	color: var(--muted);
+}
+
+.task-value {
+	display: grid;
+	grid-template-columns: minmax(64px, max-content) minmax(0, 1fr);
+	align-items: start;
+	gap: 8px;
+	padding: 4px 12px 6px 28px;
+}
+
+.task-value:last-child {
+	padding-bottom: 10px;
+}
+
+.task-value-label {
+	color: var(--muted);
+}
+
 .labeled-value {
 	display: flex;
 	justify-content: space-between;

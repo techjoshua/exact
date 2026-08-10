@@ -77,6 +77,8 @@ export type InternalTaskFrameOptions = {
 	readonly sourceEntityId?: string;
 	readonly placement?: 'current' | 'client' | 'server';
 	readonly concurrency?: 'parallel' | 'latest' | 'queue';
+	/** Invocation arguments exposed only as a bounded preview while inspection is attached. */
+	readonly inspectionArguments?: readonly unknown[];
 	/** Whether a failed child contributes structural failure to its parent. */
 	readonly propagateFailure?: () => boolean;
 	/** Confirms that the caller atomically reserved this parent before scheduling. */

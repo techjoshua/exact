@@ -86,6 +86,14 @@ export function DevtoolsPage(this: Component<{}>) {
 					the same timeline vocabulary. Compiler-marked task IDs travel with each function
 					definition, so the inspector never guesses identity from array order.
 				</p>
+				<p>
+					Completed, failed, and cancelled tasks remain visible as a bounded execution history for
+					the attached inspection session. Each row starts collapsed and exposes redacted previews
+					of its invocation arguments and result or error on demand. The scheduler still releases
+					its live frame and the runtime never retains the original application values. By default,
+					the 200 most recently started executions are shared across a runtime owner; integrations
+					can tune the cap with <code>maxTaskExecutions</code>.
+				</p>
 			</section>
 			<section>
 				<h2>Microfrontends authorize independently</h2>
