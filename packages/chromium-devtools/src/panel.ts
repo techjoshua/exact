@@ -3,6 +3,7 @@ import type {
 	ExactRuntimeInspectionEvent,
 	ExactRuntimeSourceLocation
 } from '@exactjs/devtools-protocol';
+import type { ExactExtensionBridgeStatus } from './messages.js';
 import { loadExactProfilerCapture, type ExactDevtoolsPanelModel } from './panel/model.js';
 import {
 	renderExactComponentsView,
@@ -33,8 +34,12 @@ let profileStartCursor: string | undefined;
 let capturedEvents: ExactRuntimeInspectionEvent[] = [];
 const capturedCursors = new Set<string>();
 let refreshQueued = false;
+let activeRefreshes = 0;
+let connectionWasReady = false;
+let connectionWasInterrupted = false;
 const navigationButtons = new Map<PanelView, HTMLButtonElement>();
 const panelSession = createExactDevtoolsPanelSession(client, receiveEvent);
+const removeStatusListener = client.onStatus(updateConnectionStatus);
 
 for (const view of ['Components', 'Profiler', 'Microfrontends'] as const) {
 	const button = document.createElement('button');
@@ -66,11 +71,13 @@ clear.addEventListener('click', () => {
 });
 openSource.addEventListener('click', () => void openSelectedSource());
 window.addEventListener('unload', () => {
+	removeStatusListener();
 	void panelSession.dispose();
 });
 void refresh();
 
 async function refresh(): Promise<void> {
+	activeRefreshes++;
 	status.textContent = 'Connecting…';
 	try {
 		const model = await panelSession.load(selected);
@@ -84,9 +91,32 @@ async function refresh(): Promise<void> {
 	} catch (error) {
 		status.textContent = error instanceof Error ? error.message : 'Inspection unavailable';
 		output.replaceChildren(
-			message('Inspection unavailable', 'Reload the page with runtime inspection enabled.')
+			message('Inspection unavailable', 'The bridge will keep reconnecting automatically.')
 		);
+	} finally {
+		activeRefreshes--;
 	}
+}
+
+function updateConnectionStatus(next: ExactExtensionBridgeStatus): void {
+	if (next === 'ready') {
+		if (connectionWasInterrupted) {
+			connectionWasInterrupted = false;
+			panelSession.reset();
+			if (!activeRefreshes) void refresh();
+		}
+		connectionWasReady = true;
+		return;
+	}
+	if (connectionWasReady) connectionWasInterrupted = true;
+	status.textContent =
+		next === 'waiting-for-runtime'
+			? 'Waiting for eXact runtime instrumentation…'
+			: next === 'waiting-for-page'
+				? 'Waiting for inspected page bridge…'
+				: next === 'reconnecting'
+					? 'Reconnecting to inspected page…'
+					: 'Connecting…';
 }
 
 function renderCurrentView(): void {

@@ -18,6 +18,7 @@ describe('Chromium panel session ownership', () => {
 			return { close };
 		});
 		const client: ExactExtensionQueryClient = {
+			onStatus: () => () => {},
 			connect: async () => ({ id: 'session' }),
 			request: async (request) => response(request),
 			subscribe,
@@ -30,6 +31,9 @@ describe('Chromium panel session ownership', () => {
 		expect(subscribe).toHaveBeenCalledWith('session', 'm2:timeline', expect.any(Function));
 		listener?.(event());
 		expect(onEvent).toHaveBeenCalledOnce();
+		session.reset();
+		await session.load();
+		expect(subscribe).toHaveBeenCalledTimes(2);
 
 		await session.dispose();
 		expect(close).toHaveBeenCalledOnce();

@@ -151,13 +151,21 @@ Load `packages/chromium-devtools` in Chromium's extension page, open DevTools, a
 package root and references the generated assets. The build bundles both Manifest V3 content
 entries as classic scripts for Chromium and makes every extension-page entry self-contained.
 The extension's main-world bridge is installed at document start, while the inspection hook
-becomes active only when a consumer connects. Closing the panel closes live subscriptions and
-releases highlights and bridges. Reloading or disconnecting the extension fences the old content
-port before page-hook teardown, so late acknowledgements are not forwarded into a closed channel.
-Panel requests that arrive before the inspected page's content port are retained in a bounded
-per-tab queue and flushed in order when that port connects. A disconnected panel releases its
-queued ownership, queue overflow returns an explicit failure, and the panel rejects any request
-that receives no bridge response within five seconds instead of remaining in `Connecting` state.
+becomes active only when the application runtime loads. The isolated content script repeatedly
+greets the main-world bridge until it receives a document- and bridge-generation acknowledgement;
+that acknowledgement separately reports whether runtime instrumentation is ready. The background
+worker releases inspection requests only after both layers are ready, eliminating the lossy
+document-start ordering race.
+
+Panel and content-script ports reconnect after Manifest V3 worker replacement. The background owns
+each unresolved read-only request until its correlated response arrives, requeues in-flight work
+when a content generation disappears, and rejects responses from superseded ports. A panel request
+therefore survives worker restart, target navigation, and page restoration without requiring a
+manual reload. Response timeouts run only while the runtime is known to be ready; one silent ready
+connection is replaced and replayed before an unresponsive-runtime error is reported. Closing the
+panel releases its queued ownership, subscriptions, highlights, and bridge session, and the bounded
+per-tab request limit still prevents unbounded recovery queues. The panel exposes `waiting for page
+bridge`, `waiting for runtime instrumentation`, and `reconnecting` states while recovery proceeds.
 Component and partition trees provide an independent disclosure control for every branch and retain
 collapsed branches across live updates. State, prop, and context sections show nested arrays and
 objects as bounded JSON-like own-property summaries by default; expanding one value reveals its

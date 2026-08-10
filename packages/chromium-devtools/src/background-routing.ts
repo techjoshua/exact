@@ -1,20 +1,38 @@
-import type { ExactExtensionRequest, ExactExtensionResponse } from './messages.js';
+import type {
+	ExactExtensionBridgeStatus,
+	ExactExtensionControlMessage,
+	ExactExtensionRequest,
+	ExactExtensionResponse
+} from './messages.js';
 
-const maximumQueuedRequestsPerTab = 32;
+const maximumPendingRequestsPerTab = 32;
 
-type QueuedPanelRequest = Readonly<{
+type RoutedRequest = {
 	panel: chrome.runtime.Port;
 	message: ExactExtensionRequest;
-}>;
+	state: 'queued' | 'inflight';
+};
 
-/** Installs bounded, connection-order-independent routing between panels and inspected pages. */
+type TabTransport = {
+	content?: chrome.runtime.Port;
+	panels: Set<chrome.runtime.Port>;
+	requests: Map<string, RoutedRequest>;
+	status: ExactExtensionBridgeStatus;
+	documentId?: string;
+	bridgeId?: string;
+};
+
+/**
+ * Installs generation-aware routing between replaceable extension ports.
+ *
+ * Requests remain background-owned until their correlated response arrives. A content-port loss
+ * moves in-flight requests back to the queue so reconnecting endpoints can safely replay the
+ * read-only inspection operation.
+ */
 export function installExactExtensionBackgroundRouting(
 	runtime: Pick<typeof chrome.runtime, 'onConnect'>
 ): void {
-	const contentPorts = new Map<number, chrome.runtime.Port>();
-	const panelPorts = new Map<number, Set<chrome.runtime.Port>>();
-	const queuedRequests = new Map<number, QueuedPanelRequest[]>();
-
+	const tabs = new Map<number, TabTransport>();
 	runtime.onConnect.addListener((port) => {
 		const contentTab = port.sender?.tab?.id;
 		const panelTab = panelTabId(port.name);
@@ -22,88 +40,144 @@ export function installExactExtensionBackgroundRouting(
 			connectContentPort(contentTab, port);
 			return;
 		}
-		if (panelTab === undefined) return;
-		connectPanelPort(panelTab, port);
+		if (panelTab !== undefined) connectPanelPort(panelTab, port);
 	});
 
-	function connectContentPort(tabId: number, port: chrome.runtime.Port): void {
-		try {
-			contentPorts.get(tabId)?.disconnect();
-		} catch {
-			// Replacing an already-invalid port is safe; identity fencing protects the new connection.
+	function transport(tabId: number): TabTransport {
+		let state = tabs.get(tabId);
+		if (!state) {
+			state = {
+				panels: new Set(),
+				requests: new Map(),
+				status: 'waiting-for-page'
+			};
+			tabs.set(tabId, state);
 		}
-		contentPorts.set(tabId, port);
-		port.onMessage.addListener((message) => {
-			const panels = panelPorts.get(tabId);
-			if (!panels) return;
-			for (const panel of panels) {
-				try {
-					panel.postMessage(message);
-				} catch {
-					panels.delete(panel);
-					removeQueuedPanelRequests(tabId, panel);
-				}
-			}
-			if (!panels.size) panelPorts.delete(tabId);
-		});
-		port.onDisconnect.addListener(() => {
-			if (contentPorts.get(tabId) === port) contentPorts.delete(tabId);
-		});
-		const queued = queuedRequests.get(tabId);
-		if (!queued) return;
-		queuedRequests.delete(tabId);
-		for (const request of queued) forwardOrReject(tabId, request);
+		return state;
+	}
+
+	function connectContentPort(tabId: number, port: chrome.runtime.Port): void {
+		const state = transport(tabId);
+		const previous = state.content;
+		state.content = port;
+		state.status = 'waiting-for-page';
+		state.documentId = undefined;
+		state.bridgeId = undefined;
+		requeueInflight(state);
+		broadcastStatus(state);
+		if (previous && previous !== port) safelyDisconnect(previous);
+		port.onMessage.addListener((message) => receiveContentMessage(state, port, message));
+		port.onDisconnect.addListener(() => disconnectContentPort(tabId, state, port));
+	}
+
+	function receiveContentMessage(
+		state: TabTransport,
+		port: chrome.runtime.Port,
+		message: ExactExtensionControlMessage | ExactExtensionResponse
+	): void {
+		if (state.content !== port) return;
+		if (isControlMessage(message)) {
+			const documentChanged =
+				state.documentId !== undefined && state.documentId !== message.documentId;
+			const bridgeChanged = state.bridgeId !== undefined && state.bridgeId !== message.bridgeId;
+			if (documentChanged || bridgeChanged) requeueInflight(state);
+			state.status = message.status;
+			state.documentId = message.documentId;
+			state.bridgeId = message.bridgeId;
+			broadcastStatus(state);
+			if (message.status === 'ready') flushRequests(state);
+			return;
+		}
+		if ('id' in message) {
+			const request = state.requests.get(message.id);
+			if (!request) return;
+			state.requests.delete(message.id);
+			safelyPost(request.panel, message);
+			return;
+		}
+		for (const panel of state.panels) safelyPost(panel, message);
+	}
+
+	function disconnectContentPort(
+		tabId: number,
+		state: TabTransport,
+		port: chrome.runtime.Port
+	): void {
+		if (state.content !== port) return;
+		state.content = undefined;
+		state.status = 'reconnecting';
+		state.documentId = undefined;
+		state.bridgeId = undefined;
+		requeueInflight(state);
+		broadcastStatus(state);
+		if (!state.panels.size && !state.requests.size) tabs.delete(tabId);
 	}
 
 	function connectPanelPort(tabId: number, port: chrome.runtime.Port): void {
-		let panels = panelPorts.get(tabId);
-		if (!panels) panelPorts.set(tabId, (panels = new Set()));
-		panels.add(port);
+		const state = transport(tabId);
+		state.panels.add(port);
+		postStatus(port, state);
 		port.onMessage.addListener((message: ExactExtensionRequest) => {
-			const request = { panel: port, message };
-			if (!forwardToContent(tabId, message)) enqueue(tabId, request);
+			const existing = state.requests.get(message.id);
+			if (!existing && state.requests.size >= maximumPendingRequestsPerTab) {
+				rejectPanelRequest(port, message, 'page-bridge-queue-full');
+				return;
+			}
+			state.requests.set(message.id, { panel: port, message, state: 'queued' });
+			flushRequests(state);
 		});
 		port.onDisconnect.addListener(() => {
-			panels!.delete(port);
-			if (!panels!.size) panelPorts.delete(tabId);
-			removeQueuedPanelRequests(tabId, port);
+			state.panels.delete(port);
+			for (const [id, request] of state.requests) {
+				if (request.panel === port) state.requests.delete(id);
+			}
+			if (!state.content && !state.panels.size && !state.requests.size) tabs.delete(tabId);
 		});
 	}
 
-	function enqueue(tabId: number, request: QueuedPanelRequest): void {
-		let queued = queuedRequests.get(tabId);
-		if (!queued) queuedRequests.set(tabId, (queued = []));
-		if (queued.length >= maximumQueuedRequestsPerTab) {
-			rejectPanelRequest(request, 'page-bridge-queue-full');
-			return;
-		}
-		queued.push(request);
-	}
-
-	function forwardOrReject(tabId: number, request: QueuedPanelRequest): void {
-		if (!forwardToContent(tabId, request.message))
-			rejectPanelRequest(request, 'page-bridge-unavailable');
-	}
-
-	function forwardToContent(tabId: number, message: ExactExtensionRequest): boolean {
-		const content = contentPorts.get(tabId);
-		if (!content) return false;
-		try {
-			content.postMessage(message);
-			return true;
-		} catch {
-			if (contentPorts.get(tabId) === content) contentPorts.delete(tabId);
-			return false;
+	function flushRequests(state: TabTransport): void {
+		if (state.status !== 'ready' || !state.content) return;
+		for (const request of state.requests.values()) {
+			if (request.state !== 'queued') continue;
+			try {
+				state.content.postMessage(request.message);
+				request.state = 'inflight';
+			} catch {
+				state.content = undefined;
+				state.status = 'reconnecting';
+				requeueInflight(state);
+				broadcastStatus(state);
+				return;
+			}
 		}
 	}
+}
 
-	function removeQueuedPanelRequests(tabId: number, panel: chrome.runtime.Port): void {
-		const queued = queuedRequests.get(tabId);
-		if (!queued) return;
-		const retained = queued.filter((request) => request.panel !== panel);
-		if (retained.length) queuedRequests.set(tabId, retained);
-		else queuedRequests.delete(tabId);
-	}
+function requeueInflight(state: TabTransport): void {
+	for (const request of state.requests.values()) request.state = 'queued';
+}
+
+function broadcastStatus(state: TabTransport): void {
+	for (const panel of state.panels) postStatus(panel, state);
+}
+
+function postStatus(port: chrome.runtime.Port, state: TabTransport): void {
+	const message: ExactExtensionControlMessage = {
+		channel: 'exact-devtools-control',
+		type: 'status',
+		status: state.status,
+		...(state.documentId ? { documentId: state.documentId } : {}),
+		...(state.bridgeId ? { bridgeId: state.bridgeId } : {})
+	};
+	safelyPost(port, message);
+}
+
+function isControlMessage(message: unknown): message is ExactExtensionControlMessage {
+	return (
+		typeof message === 'object' &&
+		message !== null &&
+		(message as ExactExtensionControlMessage).channel === 'exact-devtools-control'
+	);
 }
 
 function panelTabId(name: string): number | undefined {
@@ -112,11 +186,26 @@ function panelTabId(name: string): number | undefined {
 	return Number.isSafeInteger(tabId) && tabId >= 0 ? tabId : undefined;
 }
 
-function rejectPanelRequest(request: QueuedPanelRequest, error: string): void {
-	const response: ExactExtensionResponse = { id: request.message.id, ok: false, error };
+function rejectPanelRequest(
+	panel: chrome.runtime.Port,
+	message: ExactExtensionRequest,
+	error: string
+): void {
+	safelyPost(panel, { id: message.id, ok: false, error } satisfies ExactExtensionResponse);
+}
+
+function safelyPost(port: chrome.runtime.Port, message: unknown): void {
 	try {
-		request.panel.postMessage(response);
+		port.postMessage(message);
 	} catch {
-		// The panel owns request timeout and disconnect cleanup; a closed port needs no response.
+		// The owning disconnect listener performs lifecycle cleanup when Chromium reports closure.
+	}
+}
+
+function safelyDisconnect(port: chrome.runtime.Port): void {
+	try {
+		port.disconnect();
+	} catch {
+		// A superseded port may already be invalidated by Chromium.
 	}
 }

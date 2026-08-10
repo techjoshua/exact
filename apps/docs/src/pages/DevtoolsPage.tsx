@@ -124,12 +124,14 @@ export function DevtoolsPage(this: Component<{}>) {
 					For local use, build the Chromium package and load its package directory as an unpacked
 					extension. Its manifest points to generated assets and the Manifest V3 content entries are
 					emitted as classic scripts. The panel and worker entries are self-contained bundles, so
-					extension pages do not resolve packages through the application. If the panel opens before
-					the inspected page bridge, its requests wait in a bounded per-tab queue and flush when the
-					bridge connects. Closed panels release queued work, and a missing response fails after
-					five seconds instead of leaving the panel stuck on Connecting. Reloading the extension
-					also fences its old content port before the page bridge disconnects, and panel
-					registration points at the generated document from the extension root.
+					extension pages do not resolve packages through the application. The content script keeps
+					handshaking until both the document bridge and runtime instrumentation acknowledge
+					readiness. Only then does the worker release its bounded request queue. Panel and content
+					ports reconnect automatically after worker replacement, navigation, or page restoration;
+					unresolved read-only work is replayed against the new generation and stale responses are
+					fenced. The panel shows whether it is waiting for the page bridge, waiting for runtime
+					instrumentation, or reconnecting, so target-page reload is not the normal recovery
+					mechanism.
 				</p>
 				<p>
 					Source navigation opens only exact SHA-256 matches, checking source-mapped resources, then
