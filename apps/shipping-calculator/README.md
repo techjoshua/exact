@@ -9,7 +9,9 @@ npm run dev:shipping
 ```
 
 Open `http://localhost:4175`. The deterministic fictional DOOP carrier works without environment
-configuration. Copy `.env.example` to an untracked `.env` to enable supported live carriers.
+configuration. Copy `.env.example` to an untracked `.env` to enable supported live carriers. The
+development server installs the eXact Vite integration, so the Chromium DevTools extension can
+inspect the live component tree without additional configuration.
 
 ## Build and test
 

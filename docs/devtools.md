@@ -37,6 +37,12 @@ bootstrap remains a fallback for pages without transformed native roots. Compile
 reactive cells are transparent at that boundary: a root inspection domain continues into the
 authored component tree when the renderer unwraps the compiled root.
 
+Vite development mode enables those defaults through `@exactjs/vite-plugin`, not through Vite
+itself. Custom middleware servers must include `exact()` in the Vite configuration they load;
+calling `createServer()` or `transformIndexHtml()` without the plugin cannot install runtime
+inspection. In that case the Chromium panel remains in `Waiting for eXact runtime
+instrumentation…` and continues discovery until an instrumented document is loaded.
+
 Runtime authorization is separate:
 
 ```ts

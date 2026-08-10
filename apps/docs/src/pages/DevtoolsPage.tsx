@@ -54,7 +54,9 @@ export function DevtoolsPage(this: Component<{}>) {
 					Vite instrumented modules establish a runtime import barrier before application
 					evaluation, so the first native client root is inspection-owned rather than racing a
 					sibling bootstrap script. Compiler-generated reactive root cells preserve that ownership
-					when the renderer enters the authored component tree.
+					when the renderer enters the authored component tree. This behavior belongs to the eXact
+					Vite integration rather than Vite itself: custom middleware servers must include
+					<code>exact()</code> in the Vite configuration they load.
 				</p>
 			</section>
 			<section>
