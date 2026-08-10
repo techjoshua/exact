@@ -154,6 +154,10 @@ The extension's main-world bridge is installed at document start, while the insp
 becomes active only when a consumer connects. Closing the panel closes live subscriptions and
 releases highlights and bridges. Reloading or disconnecting the extension fences the old content
 port before page-hook teardown, so late acknowledgements are not forwarded into a closed channel.
+Panel requests that arrive before the inspected page's content port are retained in a bounded
+per-tab queue and flushed in order when that port connects. A disconnected panel releases its
+queued ownership, queue overflow returns an explicit failure, and the panel rejects any request
+that receives no bridge response within five seconds instead of remaining in `Connecting` state.
 The DevTools entry registers `dist/panel.html` from the extension root; generated document paths
 are not resolved relative to `dist/devtools.html`.
 

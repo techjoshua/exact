@@ -16,11 +16,23 @@ type ExactExtensionRequestWithoutId = ExactExtensionRequest extends infer Reques
 		: never
 	: never;
 
+type PendingRequest = {
+	resolve(value: any): void;
+	reject(error: unknown): void;
+	timeout: ReturnType<typeof setTimeout>;
+};
+
+const defaultResponseTimeoutMs = 5_000;
+
 /** Creates request/response ownership over the inspected tab's extension port. */
-export function createExactExtensionQueryClient(tabId: number): ExactExtensionQueryClient {
+export function createExactExtensionQueryClient(
+	tabId: number,
+	responseTimeoutMs = defaultResponseTimeoutMs
+): ExactExtensionQueryClient {
 	const port = chrome.runtime.connect({ name: `exact-devtools-panel:${tabId}` });
-	const pending = new Map<string, { resolve(value: any): void; reject(error: unknown): void }>();
+	const pending = new Map<string, PendingRequest>();
 	const subscriptions = new Map<string, (event: ExactRuntimeInspectionEvent) => void>();
+	const requestPrefix = crypto.randomUUID();
 	let nextId = 1;
 	port.onMessage.addListener((message: ExactExtensionResponse) => {
 		if (!('id' in message)) {
@@ -31,12 +43,18 @@ export function createExactExtensionQueryClient(tabId: number): ExactExtensionQu
 		const request = pending.get(message.id);
 		if (!request) return;
 		pending.delete(message.id);
+		clearTimeout(request.timeout);
 		if (message.ok) request.resolve(message.result);
 		else request.reject(new Error(message.error));
 	});
 	port.onDisconnect.addListener(() => {
-		for (const request of pending.values()) request.reject(new Error('DevTools port disconnected'));
+		void chrome.runtime.lastError;
+		for (const request of pending.values()) {
+			clearTimeout(request.timeout);
+			request.reject(new Error('DevTools port disconnected'));
+		}
 		pending.clear();
+		subscriptions.clear();
 	});
 	const client: ExactExtensionQueryClient = {
 		connect: () => send({ type: 'connect' }) as Promise<{ id: string }>,
@@ -74,10 +92,20 @@ export function createExactExtensionQueryClient(tabId: number): ExactExtensionQu
 	return Object.freeze(client);
 
 	function send(message: ExactExtensionRequestWithoutId): Promise<unknown> {
-		const id = `panel-${nextId++}`;
+		const id = `panel-${requestPrefix}-${nextId++}`;
 		return new Promise((resolve, reject) => {
-			pending.set(id, { resolve, reject });
-			port.postMessage({ id, ...message });
+			const timeout = setTimeout(() => {
+				if (!pending.delete(id)) return;
+				reject(new Error('DevTools page bridge did not respond; reload the inspected page'));
+			}, responseTimeoutMs);
+			pending.set(id, { resolve, reject, timeout });
+			try {
+				port.postMessage({ id, ...message });
+			} catch (error) {
+				pending.delete(id);
+				clearTimeout(timeout);
+				reject(error);
+			}
 		});
 	}
 }
