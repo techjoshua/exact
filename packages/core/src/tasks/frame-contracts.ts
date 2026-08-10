@@ -26,6 +26,7 @@ export type TaskOwnerRecord = TaskOwner & {
 	readonly controller: AbortController;
 	host?: object;
 	observeSettlement?: (settlement: Promise<unknown>) => void;
+	runTask?: <T>(work: () => Promise<T>) => Promise<T>;
 	registerReadiness?: (
 		taskGeneration: number,
 		settlement: PromiseLike<unknown>,

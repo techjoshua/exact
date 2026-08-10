@@ -67,6 +67,13 @@ For each cross-runtime continuation, the compiler records:
 - SSR resumption liveness; and
 - reachable client, render, and executor artifacts.
 
+It also derives one component-local execution subgraph from the same analysis. Indexed ports join
+a continuation's declared inputs and outputs; transitions retain setup versus interaction
+activation, placement, readiness, and concurrency. Server and client artifacts receive compact
+target projections of that record. Structural child calls remain in the compiled render program,
+so selecting a static, conditional, keyed, registry, lazy, or recursive child instantiates that
+child's attached subgraph without consulting a central dispatch or planning module.
+
 Async setup becomes synchronous component construction plus restartable owned
 work. Sequential awaits preserve source order. State writes are staged and
 publish together after the generation and its `finally` block complete.
@@ -87,6 +94,12 @@ SSR is the first transition between the machines. The server:
 3. settles relevant blocking work;
 4. emits the initial HTML and deterministic ownership markers; and
 5. emits the minimum public resumption record needed by the browser.
+
+Construction installs availability-aware watchers for setup transitions. A watcher issues only
+after every input is available and captures one atomic versioned snapshot. Generation-bound output
+slots connect predecessor work directly to downstream continuations and forwarded child props.
+Async SSR wires reachable compiled children before it waits for parent setup work, allowing
+independent nested operations to enter the shared bounded request scheduler immediately.
 
 Hydration reconstructs the durable client instance, adopts the existing DOM,
 restores public component state/context, and arms future task generations.

@@ -139,8 +139,11 @@ function taskOperationPlan(
 		id: continuation.id,
 		componentId: continuation.componentId,
 		readiness: continuation.readiness,
+		concurrency: continuation.concurrency,
 		dependencies: Object.freeze(
-			continuation.activation.dependencies.map(({ source }) => Object.freeze({ source }))
+			continuation.activation.dependencies.map(({ index, source, path }) =>
+				Object.freeze({ index, source, ...(path ? { path } : {}) })
+			)
 		),
 		stateReads: Object.freeze(
 			continuation.activation.stateReads.map(({ path, kind, confidence }) =>
@@ -169,8 +172,8 @@ function taskOperationPlan(
 			? {
 					invocation: Object.freeze({
 						arguments: Object.freeze(
-							continuation.invocation.arguments.map(() =>
-								Object.freeze({ source: 'argument' as const })
+							continuation.invocation.arguments.map(({ index, source, path }) =>
+								Object.freeze({ index, source, ...(path ? { path } : {}) })
 							)
 						),
 						concurrency: continuation.invocation.concurrency

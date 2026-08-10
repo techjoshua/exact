@@ -6,6 +6,7 @@ import {
 	type ReactiveRef,
 	type ReactiveValue
 } from '@exactjs/reactive';
+import { continuationDependencyForValue } from './dependency-provenance.js';
 
 /** A dependency value together with the generation and publication version that produced it. */
 export type ContinuationDependencySnapshot<T> =
@@ -60,9 +61,18 @@ export function constantContinuationDependency<T>(value: T): ContinuationDepende
 export function activationInputDependency<T>(
 	input: T | ReactiveValue<T>
 ): ContinuationDependencySource<T> {
+	const planned = continuationDependencyForValue(input);
+	if (planned) return planned as ContinuationDependencySource<T>;
 	const source = reactiveRef(input);
 	if (!source) return constantContinuationDependency(input as T);
 	return reactiveContinuationDependency(input, source);
+}
+
+/** Returns only a compiler-propagated dependency source without evaluating an ordinary value. */
+export function plannedContinuationDependency<T>(
+	input: T
+): ContinuationDependencySource<unknown> | undefined {
+	return continuationDependencyForValue(input);
 }
 
 /** Creates a pending output slot whose generations are explicitly published by a producer. */

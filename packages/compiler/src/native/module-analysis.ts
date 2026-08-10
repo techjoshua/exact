@@ -177,7 +177,20 @@ function nativeComponent(
 		splitBoundaries: [...component.splitBoundaries],
 		diagnostics: [...component.diagnostics],
 		environmentEffect: component.environmentEffect,
-		artifactTargets: [...component.artifactTargets]
+		artifactTargets: [...component.artifactTargets],
+		execution: {
+			version: 1,
+			ports: component.execution.ports.map((port) => ({ ...port })),
+			transitions: component.execution.transitions.map((transition) => ({
+				...transition,
+				inputs: [...transition.inputs],
+				outputs: [...transition.outputs]
+			})),
+			reactive: component.execution.reactive.map((binding) => ({
+				...binding,
+				dependencies: [...binding.dependencies]
+			}))
+		}
 	};
 }
 

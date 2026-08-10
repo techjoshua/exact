@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.31.0"
+const ProtocolVersion = "1.32.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -176,6 +176,7 @@ type Component struct {
 	EnhancementContexts EnhancementContextEffects `json:"enhancementContexts"`
 	SplitBoundaries     []string                  `json:"splitBoundaries"`
 	Diagnostics         []string                  `json:"diagnostics"`
+	Execution           ComponentExecution        `json:"execution"`
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.
@@ -572,6 +573,7 @@ type Continuation struct {
 	TaskID       string                  `json:"taskId"`
 	Placement    string                  `json:"placement"`
 	Readiness    string                  `json:"readiness"`
+	Concurrency  string                  `json:"concurrency"`
 	Async        bool                    `json:"async"`
 	Activation   ContinuationActivation  `json:"activation"`
 	Effects      ContinuationEffects     `json:"effects"`

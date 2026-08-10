@@ -1,7 +1,4 @@
-import {
-	peek,
-	type ReactiveValue
-} from '@exactjs/reactive';
+import { peek, type ReactiveValue } from '@exactjs/reactive';
 
 import type { TaskFunction } from './contracts.js';
 import {
@@ -12,6 +9,10 @@ import {
 } from './frame-runtime.js';
 import { taskOwnerForHost } from './owner-hosts.js';
 import { bindTask, invokeTaskForActivation } from './runtime.js';
+import {
+	beginComponentContinuationOutputs,
+	componentContinuationDependencies
+} from './component-execution.js';
 import {
 	activationInputDependency,
 	type ContinuationDependencySource
@@ -88,15 +89,29 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 	dependencies: { [Index in keyof Args]: ContinuationDependencySource<Args[Index]> }
 ): Disposable {
 	const bound = bindTask(task, { owner });
+	dependencies = componentContinuationDependencies(owner, task, dependencies);
 	let watcher: ContinuationDependencyWatcher | undefined;
+	let releaseDependencyWait: (() => void) | undefined;
 	const registration: TaskActivationRegistration = {
 		task,
 		settled: false,
 		start(skipInitial) {
 			if (watcher) return;
 			let initial = true;
+			const settleDependencyWait = () => {
+				releaseDependencyWait?.();
+				releaseDependencyWait = undefined;
+			};
+			const retainDependencyWait = () => {
+				if (releaseDependencyWait || !owner.observeSettlement) return;
+				let release!: () => void;
+				const settlement = new Promise<void>((resolve) => (release = resolve));
+				releaseDependencyWait = release;
+				owner.observeSettlement(settlement);
+			};
 			watcher = watchContinuationDependencies(dependencies, {
 				onReady(vector) {
+					settleDependencyWait();
 					if (skipInitial && initial) {
 						initial = false;
 						registration.settled = true;
@@ -105,20 +120,25 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 					const activation = initial ? 'initialization' : 'reactive';
 					initial = false;
 					const args = vector.values as Args;
-				registration.settled = false;
-				const invocation = peek(() => invokeTaskForActivation(task, owner, activation, args));
-				void Promise.resolve(invocation).then(
-					() => {
-						registration.settled = true;
-					},
-					() => {
-						registration.settled = false;
-					}
-				);
+					registration.settled = false;
+					const outputs = beginComponentContinuationOutputs(owner, task);
+					const invocation = peek(() => invokeTaskForActivation(task, owner, activation, args));
+					void Promise.resolve(invocation).then(
+						() => {
+							outputs?.publish();
+							registration.settled = true;
+						},
+						(error) => {
+							outputs?.settleFailure(error);
+							registration.settled = false;
+						}
+					);
 				},
-				onUnavailable() {
+				onUnavailable(state) {
 					registration.settled = false;
 					bound.cancel('task-activation-dependency-unavailable');
+					if (state === 'pending') retainDependencyWait();
+					else settleDependencyWait();
 				}
 			});
 			watcher.evaluate();
@@ -132,6 +152,8 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 			if (disposed) return;
 			disposed = true;
 			watcher?.[Symbol.dispose]();
+			releaseDependencyWait?.();
+			releaseDependencyWait = undefined;
 			bound.cancel('task-activation-disposed');
 			owner.activationRegistrations.delete(registration);
 			owner.ownerCleanups.delete(cleanup);

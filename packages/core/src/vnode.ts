@@ -1,4 +1,4 @@
-import { computed, unwrap } from '@exactjs/reactive';
+import { computed, isReactiveValue, peek, unwrap, type ReactiveValue } from '@exactjs/reactive';
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import { encodeExactMarkerPart } from './protocol.js';
@@ -93,6 +93,15 @@ export function createCompiledTarget(
 /** Creates a reactive expression wrapper for compiler-generated expression boundaries. */
 export function createExpression<T>(compute: () => T) {
 	return computed(compute);
+}
+
+/**
+ * Reuses a compiler-proven reactive value forwarded through component props.
+ * Non-reactive initial values retain computed semantics so later prop replacement stays observable.
+ */
+export function createForwardedExpression<T>(compute: () => T): T | ReactiveValue<T> {
+	const value = peek(compute);
+	return isReactiveValue(value) ? value : computed(compute);
 }
 
 /** Creates a dynamic child vnode whose render result is computed reactively. */

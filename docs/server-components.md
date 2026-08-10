@@ -90,6 +90,13 @@ appropriate `.exact.shared` artifacts. Generated component contracts are
 attached privately to the artifacts that own them. Runtime composition reads
 those contracts; applications do not invent generated operation IDs.
 
+Each attached contract also carries that component's compact execution subgraph: indexed value
+ports, setup or interaction transitions, placement, readiness, concurrency, and reactive-allocation
+decisions. The compiler derives client and server projections from one target-neutral analysis and
+removes opposite-environment transitions before emission. A module may still contain and export
+several components, and ordinary named barrel exports remain tree-shakeable because there is no
+eager process-wide dispatch registration.
+
 Imports used exclusively by server continuations remain unreachable from
 client runtime output. This includes transitive dependencies, re-exports,
 dynamic imports, CSS, workers, schemas, and WASM assets. A component can use
@@ -176,6 +183,19 @@ server-resident context writes remain server-only.
 Use request-aware SSR entrypoints when rendering with server contexts. SSR can
 settle server tasks, capture the permitted state and shared context needed by
 the browser, and mark those continuations as settled.
+
+Compiled component setup installs dependency watchers before task activation. Constants and live
+values are immediately available; predecessor outputs are generation-bound slots. A dependent
+continuation receives one complete snapshot only after every slot is available. Starting a newer
+producer generation makes its current output pending, and stale, failed, or cancelled settlement
+cannot publish into downstream work. Interaction-only outputs retain their current visible value
+until the interaction actually begins.
+
+Async SSR invokes reachable compiled children before draining compiler-planned parent work. Each
+child therefore wires and offers its independent ready continuations to the same request-owned
+bounded scheduler without a startup graph-flattening pass. Conditional, keyed, registry, lazy, and
+recursive children continue to use normal render-program reachability, so inactive alternatives do
+not execute merely because their component contracts exist.
 
 Hydration then:
 

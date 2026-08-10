@@ -7,6 +7,9 @@ import type {
 } from '@exactjs/reactive';
 
 import type { ComponentLog } from '../logging.js';
+import type { ComponentReactiveValue, IterableItem } from './value-contracts.js';
+export type { TaskObserver } from './task-observer.js';
+export type * from './value-contracts.js';
 import type {
 	Activity,
 	Cell,
@@ -312,27 +315,6 @@ export type RefRegistry = {
 	/** Selects an element ref as the component root and observes its lifecycle. */
 	root<T extends object>(binding: RefBinding<T>): RootBinding<T>;
 };
-
-/** Defines the task resource disposal type contract. */
-export type TaskResourceDisposal = string;
-/** Defines the task cleanup type contract. */
-export type TaskCleanup = (reason?: unknown) => void | Promise<void>;
-/** Defines the task idle deadline type contract. */
-export type TaskIdleDeadline = { readonly didTimeout: boolean; timeRemaining(): number };
-/** Configures task idle. */
-export type TaskIdleOptions = { timeout?: number };
-
-/** Defines the task observer type contract. */
-export type TaskObserver = {
-	register(promise: Promise<unknown>, instance: ComponentInstance<any>): void;
-	/** Retains a constructed component for the lifetime of an owning renderer. */
-	retain?(instance: ComponentInstance<any>): void;
-};
-
-/** Defines the component reactive value type contract. */
-export type ComponentReactiveValue<T> = ReactiveValue<T>;
-/** Defines the iterable item type contract. */
-export type IterableItem<T> = T extends Iterable<infer Item> ? Item : never;
 
 // Callback return values are intentionally permissive: concise callbacks often
 // return values such as Array#push's number. Promise-like values are observed at

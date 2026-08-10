@@ -18,7 +18,10 @@ describe('continuation dependency watcher', () => {
 
 		watcher.evaluate();
 		expect(ready).not.toHaveBeenCalled();
-		expect(unavailable).toHaveBeenCalledWith('pending', expect.objectContaining({ status: 'pending' }));
+		expect(unavailable).toHaveBeenCalledWith(
+			'pending',
+			expect.objectContaining({ status: 'pending' })
+		);
 
 		const generation = slot.beginGeneration();
 		slot.publish(generation, undefined);

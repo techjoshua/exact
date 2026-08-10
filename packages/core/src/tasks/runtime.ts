@@ -2,6 +2,7 @@ import { peek, reactive, rollbackReactiveMutationJournals, scheduleWork } from '
 
 import { TaskCancellation } from './cancellation.js';
 import { inheritComponentContinuationIdentity } from './component-continuation.js';
+import { taskDefinitionBrand, type TaskDefinition } from './definition-record.js';
 import { discardTaskMutations, publishTaskMutations } from './resources.js';
 import { readExactInspectionSource } from '../component/inspection-source.js';
 import type {
@@ -19,7 +20,6 @@ import {
 	createTaskOwnerRecord,
 	currentTaskFrameRecord,
 	currentTaskOwnerRecord,
-	executeTaskFrame,
 	frameForTaskContext,
 	taskOwnerRecord,
 	type TaskOwnerRecord
@@ -27,8 +27,8 @@ import {
 import { taskOwnerForHost } from './owner-hosts.js';
 import { TaskInvocationValue } from './invocation.js';
 import { validateTaskOptions } from './options.js';
-import { applyTaskOptimistic } from './optimism.js';
 import { donateTaskPriority, taskWorkPriority } from './priority.js';
+import { executeScheduledTaskGeneration } from './generation-execution.js';
 import { createTaskStatus, defineTaskStatusProperties } from './status.js';
 import type {
 	InternalTaskGeneration,
@@ -36,22 +36,7 @@ import type {
 	InternalTaskOwnerState
 } from './runtime-types.js';
 
-export type {
-	InternalTaskGeneration,
-	InternalTaskLane,
-	InternalTaskOwnerState
-} from './runtime-types.js';
-
-const taskDefinitionBrand = Symbol('exact.task-definition');
 const defaultLaneKey = Symbol('exact.default-task-lane');
-
-type TaskDefinition<Args extends unknown[], Result> = {
-	readonly [taskDefinitionBrand]: true;
-	readonly options: RuntimeTaskOptions<Args>;
-	readonly implementation: (...args: [...Args, TaskContext]) => Result | Promise<Result>;
-	readonly sourceEntityId?: string;
-	readonly owners: WeakMap<TaskOwnerRecord, InternalTaskOwnerState<Result>>;
-};
 
 /**
  * Defines one stable compilerless task using the same owner, lane, generation,
@@ -263,28 +248,12 @@ function startGeneration<Args extends unknown[], Result>(
 	const execution = new Promise<Result>((resolveExecution, rejectExecution) => {
 		const scheduledWork = () => {
 			record.executing = true;
-			const frameExecution = executeTaskFrame(
-				{
-					parent: record.parent,
-					parentReserved: record.releaseReservation !== undefined,
-					owner,
-					controller: record.controller,
-					generation: record.generation,
-					activation: record.activation,
-					label: definition.options.label,
-					sourceEntityId: definition.sourceEntityId,
-					placement: definition.options.placement,
-					concurrency: definition.options.concurrency,
-					detached: definition.options.detached,
-					priority: record.priority,
-					readiness: record.readiness,
-					optimistic: (work) => applyTaskOptimistic(record, definition.options.concurrency, work),
-					propagateFailure: () => !record.observed
-				},
-				(context) =>
-					definition.implementation(
-						...([...record.args, context] as unknown as [...Args, TaskContext])
-					)
+			const frameExecution = executeScheduledTaskGeneration(
+				owner,
+				record,
+				definition.options,
+				definition.sourceEntityId,
+				definition.implementation
 			);
 			record.releaseReservation?.();
 			void frameExecution.then(resolveExecution, rejectExecution);

@@ -10,8 +10,7 @@ import {
 import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks/activation.js';
 import { componentContinuationTaskId } from '../tasks/component-continuation.js';
 import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
-import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../tasks/observers.js';
-import { registerTaskOwnerHost } from '../tasks/owner-hosts.js';
+import { releaseTaskObserver, retainTaskObserver } from '../tasks/observers.js';
 import { createComponentActivation, type ComponentActivation } from './activation.js';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
@@ -50,7 +49,7 @@ import {
 import { createComponentListController } from './list-controller.js';
 import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins } from './plugins.js';
-import { componentReadinessContext } from './readiness.js';
+import { configureComponentTaskOwner } from './task-owner-integration.js';
 import { reactiveValue } from './reactive-value.js';
 import { createComponentIntlFacade } from '../localization/facade.js';
 import type { IntlFacade } from '../localization/contracts.js';
@@ -340,14 +339,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 			deferTaskOwnerActivations(this.taskOwner);
 		}
-		registerTaskOwnerHost(this, this.taskOwner);
-		const readiness = componentReadinessContext(this);
-		if (readiness)
-			this.taskOwner.registerReadiness = (taskGeneration, settlement, commit, discard) =>
-				readiness.register({ owner: this, taskGeneration, settlement, commit, discard });
-		const taskObserver = taskObserverFor(this);
-		if (taskObserver)
-			this.taskOwner.observeSettlement = (settlement) => taskObserver.register(settlement, this);
+		const taskObserver = configureComponentTaskOwner(this, this.taskOwner);
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });

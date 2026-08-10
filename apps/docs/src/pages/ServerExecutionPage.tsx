@@ -159,6 +159,22 @@ export function ServerExecutionPage(this: Component<{}>) {
 					of repeating the initial query just to rediscover the same state.
 				</p>
 				<p>
+					The compiler attaches a small execution subgraph to each generated component: indexed
+					value ports, setup and interaction transitions, placement, readiness, and concurrency.
+					Setup continuations wait until every constant, reactive input, or predecessor output is
+					available. A completed output wakes only its direct consumers; a newer generation makes
+					that output pending and fences stale completion. Available <code>undefined</code> remains
+					a real value rather than being confused with an unresolved slot.
+				</p>
+				<p>
+					Rendering the selected root wires each reachable compiled child before waiting for parent
+					work. Independent nested continuations can therefore enter the same request-wide bounded
+					scheduler immediately, with no startup planner or flattened application graph. Conditional
+					branches, keyed lists, registries, and lazy components still follow normal render
+					reachability, so unselected work stays inactive. Client-only async tasks reuse the same
+					dependency watcher but never create a server transition.
+				</p>
+				<p>
 					For compiler-proven intrinsic regions, eXact can skip generic VNode traversal: the server
 					writes escaped text and finite host slots directly, the browser clones a cached HTML, SVG,
 					or MathML template, and hydration adopts with compiler paths. Properties, styles, URLs,

@@ -1,6 +1,7 @@
 import { reactive, type Reactive } from '@exactjs/reactive';
 import type { ComponentDomain, ComponentInstance } from './contracts.js';
 import { componentDomainInspection } from './domain.js';
+import { continuationDependencyForValue } from '../tasks/dependency-provenance.js';
 
 /** Creates inspectable component state before the final instance reference is assigned. */
 export function createComponentState<State extends object>(
@@ -25,9 +26,13 @@ export function createComponentState<State extends object>(
 export function createComponentProps<Props extends Record<string, unknown>>(
 	rawProps: Props
 ): Reactive<Record<string, unknown>> {
+	const passthroughKeys: PropertyKey[] = ['children'];
+	for (const key of Reflect.ownKeys(rawProps)) {
+		if (continuationDependencyForValue(rawProps[key as keyof Props])) passthroughKeys.push(key);
+	}
 	return reactive(rawProps, {
 		readonly: true,
-		passthroughKeys: ['children'],
+		passthroughKeys,
 		onReadonlyWrite(key) {
 			throw new TypeError(`Cannot write to readonly props.${String(key)}`);
 		}

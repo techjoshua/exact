@@ -28,7 +28,10 @@ export function isExactComponentBoundaryContract(
 			'generation'
 		]) &&
 		isContractString(value.id) &&
-		isContractString(value.componentId) &&
+		typeof value.componentId === 'string' &&
+		(value.componentId.length > 0 ||
+			value.kind === 'client-island' ||
+			value.kind === 'server-slot') &&
 		isContractString(value.ownerComponentId) &&
 		isContractString(value.kind) &&
 		(value.planVersion === undefined ||

@@ -81,6 +81,7 @@ export type ExactTaskIR = {
 	dependencies: Array<{
 		index: number;
 		source: 'state' | 'props' | 'context' | 'derived';
+		path?: string;
 		contextToken?: string;
 	}>;
 	/** Reactive reads sampled without becoming activation dependencies. */
@@ -129,6 +130,44 @@ export type ExactComponentIR = {
 	diagnostics: string[];
 	environmentEffect?: ExactEnvironmentEffect;
 	artifactTargets?: ExactArtifactTarget[];
+	/** Canonical target-neutral execution wiring consumed by server and client lowering. */
+	execution: ExactComponentExecutionIR;
+};
+
+/** Defines one compact value port in a component-local execution subgraph. */
+export type ExactComponentExecutionPortIR = {
+	index: number;
+	kind: 'state' | 'props' | 'context' | 'derived' | 'argument';
+	path: string;
+	direction: 'input' | 'output' | 'inout';
+};
+
+/** Defines one authored continuation invocation in a component-local execution subgraph. */
+export type ExactComponentTransitionIR = {
+	id: string;
+	taskId: string;
+	activation: 'setup' | 'interaction';
+	placement: Extract<ExactPlacement, 'client' | 'server' | 'isomorphic'>;
+	readiness: 'blocking' | 'nonblocking';
+	concurrency: 'parallel' | 'latest' | 'queue';
+	inputs: number[];
+	outputs: number[];
+};
+
+/** Records the compiler-selected allocation for one reactive lexical value. */
+export type ExactReactiveAllocationIR = {
+	name: string;
+	provenance: 'state' | 'props' | 'context' | 'derived' | 'cell' | 'snapshot' | 'unknown';
+	allocation: 'constant' | 'live-slot' | 'inline' | 'computed' | 'snapshot' | 'structural';
+	dependencies: string[];
+};
+
+/** Canonical component-local execution structure projected into each physical target artifact. */
+export type ExactComponentExecutionIR = {
+	version: 1;
+	ports: ExactComponentExecutionPortIR[];
+	transitions: ExactComponentTransitionIR[];
+	reactive: ExactReactiveAllocationIR[];
 };
 
 /** Defines the exact export ir type contract. */

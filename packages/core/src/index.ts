@@ -184,12 +184,14 @@ export {
 } from './tasks/activation.js';
 export {
 	activationInputDependency,
+	plannedContinuationDependency,
 	constantContinuationDependency,
 	createContinuationDependencySlot,
 	type ContinuationDependencySlot,
 	type ContinuationDependencySnapshot,
 	type ContinuationDependencySource
 } from './tasks/dependency-source.js';
+export { componentExecutionValueForHost } from './tasks/component-execution.js';
 export { createTaskOwner } from './tasks/owners.js';
 export {
 	bindTaskCallback,
@@ -237,6 +239,7 @@ export {
 	type ExactComponentContinuationExecutionResult,
 	type ExactComponentContinuationExecutorContract,
 	type ExactComponentContract,
+	type ExactComponentExecutionContract,
 	type ExactComponentImplementationContract,
 	type ExactComponentResumptionContract,
 	type ExactComposedComponentContracts,
@@ -319,6 +322,7 @@ export {
 	createCompiledVNode,
 	createDynamicChild,
 	createExpression,
+	createForwardedExpression,
 	createPortal,
 	createServerBoundary,
 	createServerSlot,

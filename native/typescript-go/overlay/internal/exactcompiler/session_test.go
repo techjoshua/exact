@@ -1950,7 +1950,7 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 	for _, expected := range []string{
 		`className: [`,
 		`{ "active": __exactExpression(() => this.state.active) }`,
-		`__exactExpression(() => props.className)`,
+		`__exactForwardedExpression(() => props.className)`,
 		`{ "disabled": __exactExpression(() => !this.state.disabled) }`,
 	} {
 		if !strings.Contains(response.Code, expected) {

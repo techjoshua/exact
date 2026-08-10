@@ -154,7 +154,7 @@ try {
 	assert.equal(invalid.diagnostics[0]?.code, 'TS2322');
 	assert.throws(
 		() => compiler.request({ kind: 'unsupported' }),
-		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.31\.0/
+		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.32\.0/
 	);
 } finally {
 	compiler.dispose();

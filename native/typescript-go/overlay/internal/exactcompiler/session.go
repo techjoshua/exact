@@ -404,6 +404,7 @@ func (s *Session) Execute(request Request) Response {
 	partitionBoundaries := partitionBoundaryRecords(partitionPlan)
 	boundaries = append(boundaries, partitionBoundaries...)
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
+	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()

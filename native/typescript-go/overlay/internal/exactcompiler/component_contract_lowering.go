@@ -297,8 +297,17 @@ func componentRootContract(
 	if target == TargetClient && component.Placement == "client" {
 		return true
 	}
+	if target == TargetServer && component.Placement == "server" {
+		return true
+	}
 	if component.Placement != "isomorphic" {
 		return false
+	}
+	for _, transition := range component.Execution.Transitions {
+		if (target == TargetClient && transition.Placement != "server") ||
+			(target == TargetServer && transition.Placement != "client") {
+			return true
+		}
 	}
 	for _, continuation := range continuations {
 		if continuation.ComponentID == component.ID {
@@ -644,17 +653,11 @@ func rootComponentContractAttachment(
 			used,
 		)
 	}
-	resumption := componentResumptionMetadata(
-		factory,
-		component,
-		resumptions,
-		boundaries,
-	)
 	role := "executor"
 	if target == TargetClient {
 		role = "client"
 	}
-	contract := contractObject(factory, true,
+	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
 			"version",
@@ -686,8 +689,20 @@ func rootComponentContractAttachment(
 			"boundaries",
 			componentBoundaryMetadata(factory, component, boundaries),
 		),
-		contractProperty(factory, "resumption", resumption),
-	)
+		contractProperty(
+			factory,
+			"execution",
+			componentExecutionMetadata(factory, projectComponentExecution(component.Execution, target)),
+		),
+	}
+	if component.Placement != "server" {
+		contractProperties = append(contractProperties, contractProperty(
+			factory,
+			"resumption",
+			componentResumptionMetadata(factory, component, resumptions, boundaries),
+		))
+	}
+	contract := contractObject(factory, true, contractProperties...)
 	brandSymbol := factory.NewComputedPropertyName(
 		factory.NewCallExpression(
 			factory.NewPropertyAccessExpression(
@@ -938,6 +953,7 @@ func continuationExecutorMetadata(
 ) *ast.Node {
 	workByID := continuationWorkByID(componentFunction, continuations)
 	aliases := componentContextAliases(componentFunction)
+	stateType := continuationExecutorStateType(factory, componentFunction)
 	values := make([]*ast.Node, 0, len(continuations))
 	for _, continuation := range continuations {
 		work := workByID[continuation.ID]
@@ -949,6 +965,7 @@ func continuationExecutorMetadata(
 			work,
 			continuation,
 			aliases,
+			stateType,
 			used,
 		)
 		values = append(values, contractObject(factory, true,
@@ -1015,6 +1032,7 @@ func continuationExecutor(
 	work *ast.Node,
 	continuation Continuation,
 	aliases []continuationContextAlias,
+	stateType *ast.Node,
 	used map[string]struct{},
 ) *ast.Node {
 	activationName := allocateGeneratedName(used, "__exactActivation")
@@ -1183,18 +1201,7 @@ func continuationExecutor(
 		constStatement(
 			factory,
 			component,
-			contractObject(factory, false,
-				contractProperty(
-					factory,
-					"state",
-					factory.NewPropertyAccessExpression(
-						activation,
-						nil,
-						factory.NewIdentifier("state"),
-						ast.NodeFlagsNone,
-					),
-				),
-			),
+			continuationComponentValue(factory, activation, stateType),
 		),
 		constStatement(
 			factory,
@@ -1303,21 +1310,10 @@ func continuationMetadata(
 ) *ast.Node {
 	values := make([]*ast.Node, 0, len(continuations))
 	for _, continuation := range continuations {
-		dependencies := make([]*ast.Node, 0, len(continuation.Activation.Dependencies))
-		for _, dependency := range continuation.Activation.Dependencies {
-			dependencies = append(
-				dependencies,
-				contractObject(
-					factory,
-					true,
-					contractProperty(
-						factory,
-						"source",
-						contractString(factory, dependency.Source),
-					),
-				),
-			)
-		}
+		dependencies := continuationDependencyMetadata(
+			factory,
+			continuation.Activation.Dependencies,
+		)
 		serverContexts := []string{}
 		if !client {
 			for _, context := range continuation.Activation.ServerContexts {
@@ -1361,6 +1357,11 @@ func continuationMetadata(
 				factory,
 				"readiness",
 				contractString(factory, continuation.Readiness),
+			),
+			contractProperty(
+				factory,
+				"concurrency",
+				contractString(factory, continuation.Concurrency),
 			),
 			contractProperty(
 				factory,
@@ -1420,15 +1421,16 @@ func continuationInvocationMetadata(
 	}
 	arguments := make([]*ast.Node, 0, len(continuation.Invocation.Arguments))
 	for _, argument := range continuation.Invocation.Arguments {
-		arguments = append(arguments, contractObject(
-			factory,
-			true,
-			contractProperty(
-				factory,
-				"source",
-				contractString(factory, argument.Source),
-			),
-		))
+		properties := []*ast.Node{
+			contractProperty(factory, "index", contractNumber(factory, argument.Index)),
+			contractProperty(factory, "source", contractString(factory, argument.Source)),
+		}
+		if argument.Path != "" {
+			properties = append(properties,
+				contractProperty(factory, "path", contractString(factory, argument.Path)),
+			)
+		}
+		arguments = append(arguments, contractObject(factory, true, properties...))
 	}
 	return contractProperty(
 		factory,

@@ -71,7 +71,12 @@ export type ExactTaskOperationPlan = Readonly<{
 	id: string;
 	componentId: string;
 	readiness: 'blocking' | 'nonblocking';
-	dependencies: readonly Readonly<{ source: 'state' | 'props' | 'derived' | 'argument' }>[];
+	concurrency: 'parallel' | 'latest' | 'queue';
+	dependencies: readonly Readonly<{
+		index: number;
+		source: 'state' | 'props' | 'derived' | 'argument';
+		path?: string;
+	}>[];
 	stateReads: readonly ExactTaskStatePathPlan[];
 	stateWrites: readonly ExactTaskStatePathPlan[];
 	publicContexts: readonly string[];
@@ -80,7 +85,7 @@ export type ExactTaskOperationPlan = Readonly<{
 	serverContextWrites: readonly string[];
 	boundaries: readonly string[];
 	invocation?: Readonly<{
-		arguments: readonly Readonly<{ source: 'argument' }>[];
+		arguments: readonly Readonly<{ index: number; source: 'argument'; path?: string }>[];
 		concurrency: 'parallel' | 'latest' | 'queue';
 	}>;
 }>;

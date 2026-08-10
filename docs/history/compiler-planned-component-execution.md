@@ -2,26 +2,21 @@
 
 ## Status
 
-Ready for phased implementation after
-[`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md) and
-[`compact-hydration-publication.md`](../history/compact-hydration-publication.md). Those completed
-proposals supply the bounded scheduler, deterministic publication, compiled render programs,
-stable slots, and compact hydration rows required here.
+Implemented after
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md) and
+[`compact-hydration-publication.md`](compact-hydration-publication.md). The native
+compiler now emits one canonical component execution subgraph and target-specific projections.
+The core runtime instantiates availability-aware dependency watchers and generation-bound output
+slots on each durable component instance. Async SSR wires reachable compiled children before it
+drains their work and schedules root task generations through the request-wide bounded scheduler.
 
-The compiler already emits individual continuation activation, effect, ownership, resumption, and
-render-program contracts. It does not yet emit the complete component-local invocation,
-reachability, value-flow, child-call, and render-consumer wiring needed to issue those contracts
-without discovering them through asynchronous recursive rendering.
-
-The core task runtime already activates setup-owned tasks from compiler-supplied reactive inputs,
-subscribes for later changes, and applies task concurrency, cancellation, staged publication, and
-generation fencing. This proposal generalizes that existing activation into an availability-aware
-dependency watcher that can also consume initially empty SSR slots and predecessor outputs.
-
-This proposal must be implemented before
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md) persists postponed work.
-Resumption should preserve one settled component-plan and execution-frame contract rather than add
-a second model for discovering and restarting server work.
+Implementation deliberately keeps structural child calls and render consumers in the existing
+compiled render program. Duplicating them into a second runtime graph would add a planner and two
+sources of reachability truth. The execution contract therefore contains only the information the
+ordinary component/task runtime did not already have: indexed value ports, continuation
+transitions, and reactive-allocation decisions. Static, conditional, keyed, registry, lazy, and
+recursive child selection retain their established render-program ownership and automatically
+instantiate the selected child's attached local subgraph.
 
 ## Decision
 
@@ -75,38 +70,32 @@ work and creates a new generation with new concrete slot versions.
 
 ## Canonical compiled component
 
-The exact public-free representation may evolve, but the canonical compiler IR is conceptually:
+The private canonical compiler IR is:
 
 ```ts
-type CompiledComponentPlan = {
-	readonly id: OpaqueComponentPlanId;
-	readonly inputs: readonly ComponentInputPort[];
-	readonly outputs: readonly ComponentOutputPort[];
-	readonly reactiveUses: readonly ReactiveUsePlan[];
-	readonly children: readonly ChildPlanEdge[];
-
-	readonly server?: ServerComponentFacet;
-	readonly client?: ClientComponentFacet;
-
-	readonly fallback: ComponentFallbackPlan;
-};
-```
-
-The facets are independent because source-level placement is not always binary:
-
-```ts
-type ServerComponentFacet = {
-	readonly initialize: OpaqueInitializationProgram;
-	readonly transitions: readonly ServerTransitionNode[];
-	readonly renderRegions: readonly ServerRenderRegion[];
-	readonly executors: readonly ServerExecutorPlan[];
+type ComponentExecution = {
+	readonly version: 1;
+	readonly ports: readonly ComponentPort[];
+	readonly transitions: readonly ComponentTransition[];
+	readonly reactive: readonly ReactiveAllocation[];
 };
 
-type ClientComponentFacet = {
-	readonly initialize: OpaqueInitializationProgram;
-	readonly computations: readonly ClientComputationNode[];
-	readonly renderRegions: readonly ClientRenderRegion[];
-	readonly resumption: OpaqueResumptionContract;
+type ComponentPort = {
+	readonly index: number;
+	readonly kind: 'state' | 'props' | 'derived' | 'argument' | 'context';
+	readonly path: string;
+	readonly direction: 'input' | 'output' | 'inout';
+};
+
+type ComponentTransition = {
+	readonly id: OpaqueOperationId;
+	readonly taskId: OpaqueTaskId;
+	readonly activation: 'setup' | 'interaction';
+	readonly placement: 'server' | 'client' | 'isomorphic';
+	readonly readiness: 'blocking' | 'nonblocking';
+	readonly concurrency: 'parallel' | 'latest' | 'queue';
+	readonly inputs: readonly number[];
+	readonly outputs: readonly number[];
 };
 ```
 
@@ -115,17 +104,17 @@ type ClientComponentFacet = {
 - An isomorphic component may emit specialized server and client facets from the same semantic IR.
 - A distributed component may emit a client machine plus one server facet containing initial
   server-render transitions and later interaction-triggered executors.
-- A client-only boundary may still carry compiler-extracted child edges to independently
-  server-renderable descendants. The server does not execute the client component to discover
-  those descendants.
+- A selected dynamic child brings its own target-matched attached contract. A client-only
+  component has no server transition projection and cannot start server work merely by existing.
 
 The compiler must not clone semantic decisions independently into these facets. Slot provenance,
 placement, reachability, effects, and ownership are decided in the canonical IR and projected into
 each environment-specific artifact.
 
-The combined structure above exists only inside the compiler. It is not emitted as one JavaScript
-object or one runtime module: importing such an object could retain server and client code together
-and make tree shaking depend on property-level analysis.
+The target-neutral structure exists inside compiler analysis. Emission projects out transitions
+for the opposite environment, compacts the remaining port indexes, and attaches only that local
+projection to the matching generated component export. It is never emitted as a combined
+server/client runtime object.
 
 ## Physical artifacts and minimal exports
 
@@ -713,104 +702,60 @@ Expected conservative fallback and retained reactive allocation are inspection i
 author warnings. Diagnostics are reserved for contradictory placement, invalid task contracts,
 unsafe transport, or plan invariants that cannot preserve correct ordinary execution.
 
-## Implementation order
+## Implemented shape
 
-1. Extend the canonical compiler IR with component ports, invocation sites, control gates,
-   producer/consumer slots, child edges, render consumers, and reactive-use summaries.
-2. Generalize setup task activation into an availability-aware, transaction-coalesced dependency
-   watcher while retaining the existing task generation, concurrency, cancellation, staging, and
-   ownership runtime.
-3. Emit inspection-only component-local wiring facts and compare them with ordinary SSR and client
-   execution without changing scheduling or allocation.
-4. Generate separate server and client projections for each source/build module plus non-runtime
-   inspection products from the same plan IR. Attach each component-local plan and its executors to
-   that component's generated server render value, make unused attachment scaffolding removable,
-   and reject any artifact mismatch in tests and development validation.
-5. Generate target-specific root entries and authorized dynamic loader indexes, then register,
-   authorize, and validate eager or selected package-local facet modules for one build generation.
-6. Invoke the generated root render function while retaining ordinary execution fallback, and prove
-   component instance, unresolved-slot forwarding, branch, key, registry, lazy, context, and cleanup
-   ownership.
-7. Let generated component functions issue statically reachable initial server transitions from
-   request/application context, constants, direct props, and predecessor outputs; join at authored
-   transitions exactly once.
-8. Let settled local gates invoke conditional, keyed-item, finite-registry, lazy, and recursively
-   instantiated child render functions.
-9. Execute server render regions from settled slots and integrate progressive publication.
-10. Use the same plan to fuse safe client computations and forward live component ports while
-    retaining explicit identity, equality, task/event, and structural allocations.
-11. Integrate the settled component-plan and execution-frame format with partial-prerender
-    resumption.
+1. Native analysis creates the target-neutral ports, transitions, and reactive-allocation records
+   after task placement and continuation effect analysis.
+2. Client and server lowering independently project the canonical record and compact its ports.
+3. Component construction validates and instantiates local generation-bound output slots before
+   authored setup runs.
+4. Setup activation creates an availability-aware watcher. A predecessor output replaces the
+   authored reactive source only when the plan proves that local edge.
+5. Issuing a generation makes its outputs pending; successful settlement publishes current state,
+   while failure and cancellation terminate the matching generation and fence stale publication.
+6. Generated JSX forwards direct state outputs and live props through the existing reactive value.
+   Structural or computed expressions keep the existing allocation path.
+7. Async SSR constructs reachable compiled children before draining compiler-planned parent work.
+   Root task generations enter the shared request scheduler; nested task frames retain their
+   existing structural permit and cannot deadlock by reacquiring it.
+8. Existing target modules, component-attached contracts, registries, lazy loaders, hydration
+   records, render programs, and bundler reachability remain the structural and authority layers.
 
-Dense arrays, compact opcodes, interval labels, and other representation optimizations follow
-profiles. The semantic component-plan IR and differential execution evidence precede compression.
+The compact record can adopt denser opcodes after profiling without changing this contract.
 
 ## Verification
 
-- Compiler tests assert semantic ports, slot edges, invocation sites, gates, child references,
-  placement facets, reactive allocation decisions, and source-located fallback reasons rather than
-  exact generated text.
-- Plan/executable consistency tests prove that generated server and client code consume precisely
-  the dependencies and produce only the effects declared by the canonical IR.
-- Differential SSR tests compare plan scheduling, scheduler concurrency one, and ordinary recursive
-  discovery across settlement orders.
-- Differential client tests compare client-only mount and update behavior with and without
-  computation fusion and prop-port forwarding.
-- Async client-chain tests cover initially unavailable task outputs, parallel independent work,
-  downstream continuation activation, region-local readiness, dependency changes during execution,
-  stale-result fencing, task status, Suspense, Activity, and owner disposal without rerunning
-  component setup.
-- Lifecycle tests cover setup-once behavior, exactly-once transition invocation, branch withdrawal,
-  keyed replacement, recursion, registry changes, lazy generations, cancellation, deadlines,
-  errors, unmount, and cleanup.
-- Dependency-watcher tests cover pending versus available `undefined`, constants, initially
-  pending slots, atomic multi-source snapshots, equality-suppressed publication, transaction
-  coalescing, retained old output versus pending current-generation output, changes during
-  execution, upstream failure, replacement and terminal cancellation, every concurrency policy,
-  gate withdrawal, disposal, and downstream output propagation.
-- Identity tests cover explicit reactive values, fresh objects and collections, equality barriers,
-  readonly props, shared consumers, task/event sampling, context identity, and forwarding through
-  several components.
-- Mixed-placement tests cover server descendants extracted through client-only boundaries and prove
-  that browser-only code is never evaluated by SSR.
-- Security tests prove that inactive branches, unauthorized packages, client work, secret contexts,
-  malformed opaque IDs, and forged slot edges cannot execute through plan metadata.
-- Nested scheduling tests prove one request-wide concurrency bound, no deadlock with existing
-  sibling groups, immediate issuance of independent deeply nested work, and no global plan build or
-  repeated full-graph scan after settlement.
-- Artifact tests prove server executors and private plan data are unreachable from client bundles,
-  client implementations are absent from server-only roots, a named import through a
-  side-effect-free multi-component library barrel excludes unused sibling components,
-  target-specific facet barrels exclude opposite-environment code, allowed module evaluation side
-  effects remain observable, and lazy facet files retain their intended chunk boundaries.
-- Dynamic-authority tests prove a statically imported, route-loaded, lazy, registry-selected,
-  remote, or recursively reached server component exposes the same attached plan/executor contract;
-  later endpoint invocation can reacquire it from an authorized build/root loader without relying
-  on prior SSR process state.
-- Benchmarks include deep nested I/O waterfalls, many static components, branch-heavy pages,
-  repeated keyed instances, client-only mount/update work, allocation counts, retained heap, time
-  to first byte, complete-render latency, hydration, and concurrent requests.
+- Native compiler tests cover shared producer/consumer ports, setup versus interaction activation,
+  client-only tasks, environment projection, state-output propagation, and live prop forwarding.
+- Contract tests reject malformed indexes, paths, placements, transition references, and reactive
+  allocation records before execution.
+- Dependency-source and watcher tests cover pending versus available `undefined`, atomic snapshots,
+  transaction coalescing, equal publication, replacement generations, terminal sources, disposal,
+  and stale-producer fencing.
+- Component runtime tests cover initially unavailable predecessor output, downstream activation,
+  generation publication, and interaction-only visible values.
+- SSR tests cover early reachable-child wiring, unresolved parent-to-child output forwarding,
+  ordinary fallback behavior, and request concurrency one.
+- Existing registry, lazy, hydration, task-policy, artifact-isolation, and ownership suites remain
+  the regression boundary for the unchanged structural layers.
 
 ## Acceptance criteria
 
-1. The compiler emits one canonical component-plan IR from which executable facets, metadata,
-   validation contracts, and inspection facts are derived, while projecting every source/build
-   module into separate server and client files as needed and attaching each server-local plan and
-   executor set to the matching generated component/render value.
+1. The compiler emits one canonical component execution IR and attaches a compact target projection
+   to each generated component contract in the existing separate server and client artifacts.
 2. Invoking a selected generated root synchronously calls every currently reachable generated child
    function and issues ready continuations without a separate server planning or graph-flattening
    pass.
-3. Eligible transitions start when ownership, reachability, and explicit input slots are ready,
-   and their outputs make downstream continuations and render regions ready without a recursive
-   discovery waterfall.
+3. Eligible setup transitions start only when every explicit dependency source is available, and
+   their outputs make downstream transitions and existing reactive render regions ready.
 4. A continuation watcher never issues a partial dependency set, issues at most once for one
    published dependency-version vector, captures one atomic input snapshot per generation, and
    delegates reissuance, cancellation, and stale settlement to the existing task policies.
 5. A new upstream generation makes its generation-bound outputs pending without erasing an
    independently retained visible value; success publishes current outputs, while failure or
    terminal cancellation settles and cancels downstream ownership without leaving blocked watchers.
-6. Inactive branches, unselected registry entries, unavailable list items, and interaction-only
-   tasks never execute merely because their plans exist.
+6. Existing structural rendering instantiates only active branch, list, registry, lazy, and
+   recursive children; interaction-only tasks never execute merely because their plans exist.
 7. Server-only, client-only, isomorphic, and distributed component facets preserve placement,
    artifact isolation, authorization, and hydration behavior.
 8. Server execution uses bounded request-owned slots and the existing scheduler; client execution
@@ -818,16 +763,15 @@ profiles. The semantic component-plan IR and differential execution evidence pre
    observable semantics.
 9. Client-only async continuation chains issue from the same availability-aware watchers, publish
    only current generations, and advance affected DOM regions without rerunning component setup.
-10. Safe forwarding and fusion remove redundant reactive allocations without changing readonly prop
-    ownership, reactive identity, equality barriers, task/event sampling, structure, or cleanup.
+10. Safe direct prop forwarding reuses an existing reactive identity, while compiler allocation
+    records preserve computed, snapshot, structural, and explicit live allocations.
 11. Output, side records, errors, DOM identity, state/context publication, and cleanup are equivalent
     to ordinary authored execution across concurrency settings and settlement orders.
 12. Every instantiated node is owned, bounded, cancellable, generation-fenced, and observable.
 13. Production execution requires no compiler process, source text, application closure metadata,
     secret value, or public module path.
 14. Dynamically selected server components carry their own matching plan and executor authority;
-    an authorized build/root loader can reacquire that authority for a later endpoint request
-    without prior render-local registration.
+    existing authorized build/root loaders reacquire that authority without render-local planning.
 15. Target-specific roots and ordinary bundler reachability exclude unused component facets and
     opposite-environment implementations. A side-effect-free file containing several components can
     drop unused component exports while authored evaluation side effects, component-library barrels,

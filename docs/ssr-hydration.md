@@ -46,6 +46,13 @@ groups temporarily yield their parent permit and reuse the same request-wide sch
 both multiplied concurrency and deadlock. Marker-bearing, document, inspection, React-compatible,
 callback-observed, and unproven groups remain serial.
 
+Components with compiler-attached execution subgraphs wire reachable child components before
+waiting for their own setup continuations. Ready root task generations enter that same request
+scheduler, while nested task frames retain the parent's permit. This removes the recursive async
+discovery waterfall without building or flattening a request-wide plan. Uncompiled components keep
+the ordinary drain-before-render path, and structural render reachability still prevents inactive
+branches or unselected dynamic components from starting work.
+
 ## Hydration
 
 Hydration adopts matching server nodes rather than recreating them. It

@@ -56,6 +56,12 @@ describe('@exactjs/core component contracts', () => {
 						componentId: 'component:Page',
 						ownerComponentId: 'component:Page',
 						kind: 'client-island'
+					},
+					{
+						id: 'boundary:Page:children',
+						componentId: '',
+						ownerComponentId: 'component:Page',
+						kind: 'server-slot'
 					}
 				],
 				resumption: {
@@ -64,6 +70,30 @@ describe('@exactjs/core component contracts', () => {
 					valueCaptures: [],
 					contexts: [],
 					boundaries: ['boundary:Page']
+				},
+				execution: {
+					version: 1 as const,
+					ports: [{ index: 0, kind: 'state' as const, path: 'count', direction: 'inout' as const }],
+					transitions: [
+						{
+							id: 'task:Page:1',
+							taskId: 'task:Page:1',
+							activation: 'setup' as const,
+							placement: 'server' as const,
+							readiness: 'blocking' as const,
+							concurrency: 'latest' as const,
+							inputs: [0],
+							outputs: [0]
+						}
+					],
+					reactive: [
+						{
+							name: 'count',
+							provenance: 'state' as const,
+							allocation: 'live-slot' as const,
+							dependencies: []
+						}
+					]
 				}
 			}
 		});
@@ -75,8 +105,12 @@ describe('@exactjs/core component contracts', () => {
 			implementationsById: { 'island:Page:1': island },
 			continuations: { 'task:Page:1': { componentId: 'component:Page' } },
 			executors: {},
-			boundaries: { 'boundary:Page': { kind: 'client-island' } },
-			resumptions: { 'component:Page': { statePaths: ['count'] } }
+			boundaries: {
+				'boundary:Page': { kind: 'client-island' },
+				'boundary:Page:children': { kind: 'server-slot' }
+			},
+			resumptions: { 'component:Page': { statePaths: ['count'] } },
+			executions: { 'component:Page': { version: 1 } }
 		});
 	});
 

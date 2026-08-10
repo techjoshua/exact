@@ -25,6 +25,8 @@ type jsxRuntimeNames struct {
 	fragment               string
 	target                 string
 	expression             string
+	forwardedExpression    string
+	componentOutput        string
 	dynamic                string
 	boundary               string
 	finiteBoundary         string
@@ -2947,10 +2949,76 @@ func (lowering *jsxLowering) reactiveExpression(
 	if closure == nil {
 		closure = lowering.arrow(expression)
 	}
-	return lowering.call(
-		lowering.names.expression,
+	helper := lowering.names.expression
+	if lowering.liveSlotForwarding(source) {
+		helper = lowering.names.forwardedExpression
+	}
+	value := lowering.call(
+		helper,
 		[]*ast.Node{closure},
 	)
+	if path := lowering.componentExecutionOutputPath(source); path != "" {
+		return lowering.call(lowering.names.componentOutput, []*ast.Node{
+			lowering.factory.NewThisExpression(),
+			lowering.factory.NewStringLiteral(path, ast.TokenFlagsNone),
+			value,
+		})
+	}
+	return value
+}
+
+func (lowering *jsxLowering) liveSlotForwarding(source *ast.Node) bool {
+	root := source
+	for ast.IsPropertyAccessExpression(root) {
+		root = root.AsPropertyAccessExpression().Expression
+	}
+	for ast.IsElementAccessExpression(root) {
+		root = root.AsElementAccessExpression().Expression
+	}
+	if !ast.IsIdentifier(root) || lowering.checker == nil || ast.GetSourceFileOfNode(root) == nil {
+		return false
+	}
+	symbol := lowering.checker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		name := declaration.Name()
+		if name == nil {
+			continue
+		}
+		for _, binding := range lowering.bindings {
+			if binding.Start == name.Pos() &&
+				(binding.Provenance == "props" || binding.Provenance == "cell") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// componentExecutionOutputPath recognizes direct state values whose pending
+// generation must remain attached when the value is forwarded to a child.
+func (lowering *jsxLowering) componentExecutionOutputPath(source *ast.Node) string {
+	for _, read := range lowering.stateReads {
+		if read.Start != source.Pos() || read.Length != source.End()-source.Pos() ||
+			read.Confidence != "exact" {
+			continue
+		}
+		component, exists := lowering.components[read.Component]
+		if !exists {
+			return ""
+		}
+		path := strings.Join(read.Path, ".")
+		for _, port := range component.Execution.Ports {
+			if port.Kind == "state" && port.Path == path &&
+				(port.Direction == "output" || port.Direction == "inout") {
+				return path
+			}
+		}
+		return ""
+	}
+	return ""
 }
 
 type materializedRenderLocal struct {
@@ -6489,6 +6557,8 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		{"createCompiledFragment", lowering.names.fragment},
 		{"createCompiledTarget", lowering.names.target},
 		{"createExpression", lowering.names.expression},
+		{"createForwardedExpression", lowering.names.forwardedExpression},
+		{"componentExecutionValueForHost", lowering.names.componentOutput},
 		{"createDynamicChild", lowering.names.dynamic},
 		{"createServerBoundary", lowering.names.boundary},
 		{"markFiniteClientBoundary", lowering.names.finiteBoundary},
@@ -6670,6 +6740,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		fragment:               allocate("__exactFragment"),
 		target:                 allocate("__exactTarget"),
 		expression:             allocate("__exactExpression"),
+		forwardedExpression:    allocate("__exactForwardedExpression"),
+		componentOutput:        allocate("__exactComponentOutput"),
 		dynamic:                allocate("__exactDynamic"),
 		boundary:               allocate("__exactBoundary"),
 		finiteBoundary:         allocate("__exactFiniteBoundary"),

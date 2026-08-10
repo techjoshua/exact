@@ -76,6 +76,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).not.toContain('window.innerWidth');
 		expect(server).toContain('export const Page');
 		expect(result.build.operations).toHaveLength(1);
+		expect(result.build.operations[0]).toMatchObject({ concurrency: 'latest' });
 		expect(result.build).not.toHaveProperty('continuations');
 		expect(result.build).not.toHaveProperty('execution');
 		expect(analysis).not.toHaveProperty('serverActions');

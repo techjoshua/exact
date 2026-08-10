@@ -99,6 +99,15 @@ the retained context and the public task ABI to restore the same relationship.
 Synchronous setup activations through normal priority settle before the first
 render so their state output is available to the component and its children.
 
+For compiled components, setup activation is backed by an availability-aware dependency watcher.
+It distinguishes an available `undefined` from an unresolved predecessor slot, snapshots all
+inputs atomically, and coalesces several publications from one reactive transaction. A successful
+generation publishes its declared state outputs to downstream watchers; replacement, failure,
+cancellation, and owner disposal use the existing task generation and structural lifetime rules.
+The same path applies to client-only asynchronous tasks. An interaction task appears in the local
+execution contract for placement and output validation but still requires its authored event or
+explicit invocation before it can run.
+
 A setup expression that consumes a call's value synchronously remains ordinary
 initialization. Factory calls, context lookups, and other helpers used to
 initialize local values must return their JavaScript value directly; inferred
