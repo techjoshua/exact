@@ -158,6 +158,11 @@ Panel requests that arrive before the inspected page's content port are retained
 per-tab queue and flushed in order when that port connects. A disconnected panel releases its
 queued ownership, queue overflow returns an explicit failure, and the panel rejects any request
 that receives no bridge response within five seconds instead of remaining in `Connecting` state.
+Component and partition trees provide an independent disclosure control for every branch and retain
+collapsed branches across live updates. State, prop, and context sections show nested arrays and
+objects as bounded JSON-like own-property summaries by default; expanding one value reveals its
+already-redacted bounded preview without expanding unrelated values. Value disclosure state and
+panel scroll positions survive live refreshes for the same selected component.
 The DevTools entry registers `dist/panel.html` from the extension root; generated document paths
 are not resolved relative to `dist/devtools.html`.
 

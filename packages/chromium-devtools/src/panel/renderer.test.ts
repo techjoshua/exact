@@ -24,6 +24,63 @@ describe('Chromium panel presentation', () => {
 		expect(selectComponent).toHaveBeenCalledWith(second.id);
 	});
 
+	it('collapses component branches independently and preserves them across updates', () => {
+		const parent = component('parent');
+		const child = { ...component('child'), parent: parent.id };
+		const container = document.createElement('main');
+		const actions = { selectComponent: vi.fn() };
+		renderExactComponentsView(container, panelModel([parent, child], parent), actions);
+
+		const branch = container.querySelector<HTMLElement>('[data-panel-collapse-key]')!;
+		const toggle = branch.querySelector<HTMLButtonElement>('[data-tree-disclosure]')!;
+		const children = branch.querySelector<HTMLElement>(':scope > .tree-children')!;
+		expect(toggle.getAttribute('aria-expanded')).toBe('true');
+		toggle.click();
+		expect(children.hidden).toBe(true);
+		expect(toggle.getAttribute('aria-label')).toContain('Expand');
+
+		renderExactComponentsView(container, panelModel([parent, child], parent), actions);
+		const updatedBranch = container.querySelector<HTMLElement>('[data-panel-collapse-key]')!;
+		expect(updatedBranch.dataset.panelExpanded).toBe('false');
+		expect(updatedBranch.querySelector<HTMLElement>(':scope > .tree-children')?.hidden).toBe(true);
+	});
+
+	it('summarizes nested own properties and preserves explicit value expansion', () => {
+		const selected = {
+			...component('first'),
+			state: {
+				kind: 'object',
+				type: 'Object',
+				entries: [
+					{
+						key: 'profile',
+						value: {
+							kind: 'object',
+							type: 'Object',
+							entries: [
+								{ key: 'name', value: { kind: 'scalar', value: 'Ada' } },
+								{ key: 'active', value: { kind: 'scalar', value: true } }
+							],
+							truncated: false
+						}
+					}
+				],
+				truncated: false
+			}
+		} satisfies ExactInspectedRuntimeComponent;
+		const container = document.createElement('main');
+		const actions = { selectComponent: vi.fn() };
+		renderExactComponentsView(container, panelModel([selected], selected), actions);
+
+		const profile = container.querySelector<HTMLDetailsElement>('.preview-complex')!;
+		expect(profile.open).toBe(false);
+		expect(profile.querySelector('summary')?.textContent).toBe('{"name": "Ada", "active": true}');
+		profile.open = true;
+
+		renderExactComponentsView(container, panelModel([selected], selected), actions);
+		expect(container.querySelector<HTMLDetailsElement>('.preview-complex')?.open).toBe(true);
+	});
+
 	it('preserves component view position and disclosures across live updates', () => {
 		const first = component('first');
 		const container = document.createElement('main');

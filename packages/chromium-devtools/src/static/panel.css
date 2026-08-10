@@ -100,7 +100,7 @@ button {
 }
 
 .toolbar-button:hover,
-.tree-node:hover,
+.tree-row:hover,
 .waterfall-row:hover {
 	background: var(--surface-hover);
 }
@@ -180,6 +180,11 @@ main {
 	border-left: 1px solid var(--border);
 }
 
+.tree-row {
+	display: flex;
+	align-items: center;
+}
+
 .tree-node {
 	display: flex;
 	align-items: center;
@@ -192,14 +197,30 @@ main {
 	text-align: left;
 }
 
+.tree-row > .tree-node {
+	width: auto;
+	flex: 1;
+}
+
 .tree-node.selected {
 	background: var(--accent-soft);
 	color: light-dark(#075d79, #b9edff);
 }
 
 .tree-disclosure {
-	width: 9px;
+	display: grid;
+	place-items: center;
+	width: 22px;
+	min-height: 27px;
+	padding: 0;
+	border: 0;
+	background: transparent;
 	color: var(--muted);
+}
+
+.tree-disclosure-placeholder {
+	width: 22px;
+	flex: 0 0 22px;
 }
 
 .tree-name {
@@ -270,6 +291,31 @@ main {
 
 .preview-scalar {
 	color: light-dark(#0550ae, #79c0ff);
+}
+
+.preview-complex {
+	min-width: 0;
+}
+
+.preview-complex > summary {
+	cursor: pointer;
+}
+
+.preview-complex-summary {
+	display: inline-block;
+	max-width: min(100%, 620px);
+	overflow: hidden;
+	color: var(--muted);
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	text-overflow: ellipsis;
+	vertical-align: bottom;
+	white-space: nowrap;
+}
+
+.preview-complex > .preview-object {
+	margin-top: 4px;
+	padding: 4px 0 4px 10px;
+	border-left: 1px solid var(--border);
 }
 
 .preview-redacted,

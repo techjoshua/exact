@@ -1,4 +1,5 @@
 import type { ExactInspectedPartitionInstance } from '@exactjs/devtools-protocol';
+import { createTreeDisclosure, setTreeBranchExpanded } from './tree-disclosure.js';
 
 /** Renders the live partition-range section shown beside the component tree. */
 export function renderPartitionTree(
@@ -11,7 +12,8 @@ export function renderPartitionTree(
 	count.textContent = `${partitionCount(instances)} ranges`;
 	heading.append(title, count);
 	const tree = element('div', 'component-tree');
-	for (const instance of instances) tree.append(renderPartitionNode(instance));
+	for (let index = 0; index < instances.length; index++)
+		tree.append(renderPartitionNode(instances[index]!, String(index)));
 	if (!instances.length) {
 		const empty = element('div', 'empty-state');
 		const emptyTitle = element('strong');
@@ -24,22 +26,27 @@ export function renderPartitionTree(
 	return [heading, tree];
 }
 
-function renderPartitionNode(instance: ExactInspectedPartitionInstance): HTMLElement {
+function renderPartitionNode(instance: ExactInspectedPartitionInstance, path: string): HTMLElement {
 	const branch = element('div', 'tree-branch');
 	const row = element('div', 'tree-node');
-	const disclosure = element('span', 'tree-disclosure');
-	disclosure.textContent = instance.children.length ? '▾' : '';
+	row.classList.add('tree-row');
 	const status = element('span', 'status-dot status-mounted');
 	const name = element('span', 'tree-name');
 	name.textContent = `${instance.host} range`;
 	row.title = `${instance.plan} · ${instance.ownerComponentId}`;
-	row.append(disclosure, status, name, partitionBadge(instance.discriminator.kind, 'neutral'));
+	if (instance.children.length) {
+		branch.setAttribute('data-panel-collapse-key', `partition:${path}`);
+		row.append(createTreeDisclosure(branch, `${instance.host} range`));
+	} else row.append(element('span', 'tree-disclosure-placeholder'));
+	row.append(status, name, partitionBadge(instance.discriminator.kind, 'neutral'));
 	if (instance.generation > 1) row.append(partitionBadge(`g${instance.generation}`, 'busy'));
 	branch.append(row);
 	if (instance.children.length) {
 		const children = element('div', 'tree-children');
-		for (const child of instance.children) children.append(renderPartitionNode(child));
+		for (let index = 0; index < instance.children.length; index++)
+			children.append(renderPartitionNode(instance.children[index]!, `${path}.${index}`));
 		branch.append(children);
+		setTreeBranchExpanded(branch, true);
 	}
 	return branch;
 }
