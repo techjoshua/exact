@@ -28,6 +28,8 @@ not part of normal connection recovery.
 
 Live inspection updates preserve each view's scroll position and disclosure state. Selecting a
 different component keeps the tree position while starting the new instance's details at the top.
+Nested value rows size their key column to bounded content instead of repeatedly reserving a fixed
+share of the remaining width, keeping deeply expanded arrays and objects compact.
 
 ## Requirements
 

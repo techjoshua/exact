@@ -107,10 +107,11 @@ export function DevtoolsPage(this: Component<{}>) {
 					parent/child hierarchy. Selecting an instance opens its state, props, context, task, and
 					dependency details. Every component and partition branch can be collapsed independently.
 					Nested arrays and objects begin as bounded JSON-like summaries of their own properties and
-					expand only when requested, keeping large state graphs manageable. The tree and details
-					panes scroll independently, and live updates preserve their positions, collapsed branches,
-					and expanded values. Selecting another component keeps the tree position while opening its
-					details from the top.
+					expand only when requested, keeping large state graphs manageable. Expanded levels use
+					content-sized key columns and compact indentation instead of recursively reserving a large
+					share of the remaining width. The tree and details panes scroll independently, and live
+					updates preserve their positions, collapsed branches, and expanded values. Selecting
+					another component keeps the tree position while opening its details from the top.
 				</p>
 				<p>
 					The Profiler records an explicit interaction window, groups events into causal framework,

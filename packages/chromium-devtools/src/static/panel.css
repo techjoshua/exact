@@ -273,7 +273,7 @@ main {
 
 .preview-object {
 	display: grid;
-	grid-template-columns: minmax(90px, auto) 1fr;
+	grid-template-columns: fit-content(140px) minmax(0, 1fr);
 	margin: 0;
 	padding: 8px 12px 12px;
 }
@@ -286,7 +286,15 @@ main {
 }
 
 .preview-object dt {
+	max-width: 140px;
+	overflow: hidden;
 	color: var(--muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.preview-object dd {
+	min-width: 0;
 }
 
 .preview-scalar {
@@ -313,9 +321,14 @@ main {
 }
 
 .preview-complex > .preview-object {
-	margin-top: 4px;
-	padding: 4px 0 4px 10px;
+	margin-top: 2px;
+	padding: 2px 0 2px 8px;
 	border-left: 1px solid var(--border);
+}
+
+.preview-complex > .preview-object > dt,
+.preview-complex > .preview-object > dd {
+	padding: 3px 4px;
 }
 
 .preview-redacted,

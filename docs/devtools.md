@@ -175,8 +175,10 @@ bridge`, `waiting for runtime instrumentation`, and `reconnecting` states while 
 Component and partition trees provide an independent disclosure control for every branch and retain
 collapsed branches across live updates. State, prop, and context sections show nested arrays and
 objects as bounded JSON-like own-property summaries by default; expanding one value reveals its
-already-redacted bounded preview without expanding unrelated values. Value disclosure state and
-panel scroll positions survive live refreshes for the same selected component.
+already-redacted bounded preview without expanding unrelated values. Expanded rows use a bounded
+content-sized key column and compact indentation, so each nested level does not reserve another
+large fraction of the remaining width. Value disclosure state and panel scroll positions survive
+live refreshes for the same selected component.
 The DevTools entry registers `dist/panel.html` from the extension root; generated document paths
 are not resolved relative to `dist/devtools.html`.
 
