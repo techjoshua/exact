@@ -177,7 +177,19 @@ export {
 	type EnhancementContextContract
 } from './enhancements.js';
 export { bindTask, bindTaskForHost, defineTask, invokeTask, taskStatus } from './tasks/runtime.js';
-export { activateTask, activateTaskForHost } from './tasks/activation.js';
+export {
+	activateTask,
+	activateTaskForHost,
+	activateTaskFromDependenciesForHost
+} from './tasks/activation.js';
+export {
+	activationInputDependency,
+	constantContinuationDependency,
+	createContinuationDependencySlot,
+	type ContinuationDependencySlot,
+	type ContinuationDependencySnapshot,
+	type ContinuationDependencySource
+} from './tasks/dependency-source.js';
 export { createTaskOwner } from './tasks/owners.js';
 export {
 	bindTaskCallback,
