@@ -58,6 +58,8 @@ export function createReactive(
 				});
 			}
 			const current = Reflect.get(target, key, receiver);
+			if (current && typeof current === 'object' && requiresExactProxyValue(target, key))
+				return current;
 			if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {
 				return (...args: unknown[]) =>
 					mutateArray(target, String(key), current, args, receiver, options);
@@ -207,6 +209,12 @@ export function createReactive(
 		registerProxySource(proxy, parentSource);
 	}
 	return proxy;
+}
+
+/** Preserves ECMAScript invariants for frozen object-valued data properties. */
+function requiresExactProxyValue(target: object, key: PropertyKey): boolean {
+	const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+	return !!descriptor && 'value' in descriptor && !descriptor.configurable && !descriptor.writable;
 }
 
 function createParentSource(

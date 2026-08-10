@@ -111,6 +111,9 @@ export function ComponentsPage(this: Component<{}>) {
 					Readonly prop tracking traverses plain objects and collections. Opaque class instances
 					retain their authored identity when passed through reactive JSX, so resource methods can
 					mutate their own private state without being treated as writes to the prop binding.
+					Frozen, non-writable object properties also retain their exact values as JavaScript proxy
+					invariants require; an explicitly reactive value stored there remains observable through
+					its own identity.
 				</p>
 				<p>
 					A prop read always returns its authored value, including booleans used by view control

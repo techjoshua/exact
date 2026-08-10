@@ -113,7 +113,10 @@ continue to retain ordinary fine-grained update behavior.
 Readonly prop tracking traverses plain objects and collections. Opaque class
 instances retain their authored identity even when supplied by a reactive JSX
 expression, so resource methods may mutate their own private state without
-being mistaken for writes to the parent-owned prop binding.
+being mistaken for writes to the parent-owned prop binding. Frozen,
+non-writable object properties likewise retain their exact authored values as
+required by JavaScript proxy invariants. An explicitly reactive value stored in
+such a property remains reactive through its own identity.
 Component prop reads always return the authored value, including primitive
 values used by control flow. When a compiled server or isomorphic task also
 depends on that prop, the runtime retains its readiness, generation, and
