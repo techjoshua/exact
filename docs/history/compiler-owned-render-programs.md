@@ -196,6 +196,12 @@ finite synchronous branch fast path reduced sampled transient allocation from ap
 MB to 3.92 MB per request while retaining production markers. The opt-in fixture guard uses a
 broader 5.5 MiB ceiling because allocation sampling varies by engine and environment.
 
+The subsequent Node transport pass made the settled response body single-consumer and its Web
+stream representation lazy. A production-shaped 200-request sample after 100 warmups, using the
+direct Node writer, measured 3.48 MB per request. That removed another approximately 413 KB per
+request relative to the preceding 3.89 MB same-machine sample while preserving native
+backpressure and Fetch-compatible stream access.
+
 ## Acceptance criteria
 
 1. Planned and generic execution are observably equivalent for every eligible construct.
