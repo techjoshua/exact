@@ -119,7 +119,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			() => this.disposedValue,
 			() => this.activityBlockers?.size ?? 0
 		);
-		this.initialize(execution);
+		this.initialize(execution, rawProps);
 	}
 
 	get contexts(): Map<symbol, unknown> {
@@ -325,13 +325,13 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		if (failed) throw firstError;
 	}
 
-	private initialize(execution?: PreparedComponentExecution): void {
+	private initialize(execution: PreparedComponentExecution | undefined, rawProps: Props): void {
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 			deferTaskOwnerActivations(this.taskOwner);
 		}
-		const taskObserver = configureComponentTaskOwner(this, this.taskOwner, execution);
+		const taskObserver = configureComponentTaskOwner(this, this.taskOwner, execution, rawProps);
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });

@@ -26,6 +26,26 @@ describe('SudokuApp runtime', () => {
 		}
 	});
 
+	it('keeps the theme menu hidden until the trigger opens it', () => {
+		const container = document.createElement('div');
+
+		try {
+			render(<SudokuApp />, container);
+			const trigger = container.querySelector<HTMLButtonElement>('.theme-trigger');
+			expect(trigger).toBeTruthy();
+			expect(container.querySelector('.theme-menu')).toBeNull();
+
+			trigger!.click();
+			flushSync();
+			expect(
+				container.querySelector<HTMLButtonElement>('.theme-trigger')!.getAttribute('aria-expanded')
+			).toBe('true');
+			expect(container.querySelector('.theme-menu')).toBeTruthy();
+		} finally {
+			unmount(container);
+		}
+	});
+
 	it('owns an inferred keyboard listener without authored signal plumbing', async () => {
 		const container = document.createElement('div');
 
@@ -53,7 +73,7 @@ describe('SudokuApp runtime', () => {
 			buildKey: 'sudoku-transaction',
 			executionRoot: 'page'
 		});
-		const events: Array<{ kind: string; id: { componentTypeId: string } }> = [];
+		const events: Array<{ kind: string; id: { instanceId?: string } }> = [];
 		inspection.attach('session', { publish: (event) => events.push(event) });
 
 		try {
@@ -72,15 +92,14 @@ describe('SudokuApp runtime', () => {
 				{ timeout: 5_000 }
 			);
 
-			const changesByType = new Map<string, number>();
+			const changesByInstance = new Map<string, number>();
 			for (const event of events) {
 				if (event.kind !== 'props.change') continue;
-				const type = event.id.componentTypeId;
-				changesByType.set(type, (changesByType.get(type) ?? 0) + 1);
+				const instance = event.id.instanceId;
+				if (!instance) continue;
+				changesByInstance.set(instance, (changesByInstance.get(instance) ?? 0) + 1);
 			}
-			for (const [type, changes] of changesByType) {
-				expect(changes).toBeLessThanOrEqual(type.includes('CellButton') ? 81 : 1);
-			}
+			for (const changes of changesByInstance.values()) expect(changes).toBe(1);
 		} finally {
 			inspection.detach();
 			unmount(container);

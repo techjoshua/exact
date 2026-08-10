@@ -113,6 +113,12 @@ export function ComponentsPage(this: Component<{}>) {
 					mutate their own private state without being treated as writes to the prop binding.
 				</p>
 				<p>
+					A prop read always returns its authored value, including booleans used by view control
+					flow. If a compiled task also depends on that input, eXact keeps readiness, generation,
+					and cancellation metadata in hidden execution-plan wiring instead of exposing a wrapper to
+					the component.
+				</p>
+				<p>
 					The compiler also stores an opaque stable ID under
 					<code>Symbol.for('@exactjs/component')</code>. Native renderers use that brand instead of
 					guessing from a function name or shape; unbranded React, Preact, and other foreign

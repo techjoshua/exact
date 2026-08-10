@@ -114,6 +114,11 @@ Readonly prop tracking traverses plain objects and collections. Opaque class
 instances retain their authored identity even when supplied by a reactive JSX
 expression, so resource methods may mutate their own private state without
 being mistaken for writes to the parent-owned prop binding.
+Component prop reads always return the authored value, including primitive
+values used by control flow. When a compiled server or isomorphic task also
+depends on that prop, the runtime retains its readiness, generation, and
+cancellation source as hidden execution-plan wiring rather than exposing the
+reactive or continuation wrapper to component code.
 
 Every component accepted by the native renderer is compiler-branded. The key
 `Symbol.for('@exactjs/component')` stores the component's opaque stable ID; a

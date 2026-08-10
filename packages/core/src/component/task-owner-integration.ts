@@ -12,13 +12,15 @@ import type { PreparedComponentExecution } from '../tasks/component-execution-pl
 export function configureComponentTaskOwner(
 	instance: ComponentInstance<any>,
 	owner: TaskOwnerRecord,
-	execution?: PreparedComponentExecution
+	execution: PreparedComponentExecution | undefined,
+	props: Record<string, unknown>
 ): TaskObserver | undefined {
 	registerTaskOwnerHost(instance, owner);
 	initializeComponentExecution(
 		owner,
 		instance,
-		execution?.plan ?? readExactComponentContract(instance.type)?.execution
+		execution?.plan ?? readExactComponentContract(instance.type)?.execution,
+		props
 	);
 	const readiness = componentReadinessContext(instance);
 	if (readiness)

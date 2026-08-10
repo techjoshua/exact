@@ -13,6 +13,8 @@ import {
 	type TaskContext
 } from '../index.js';
 import { markComponentContinuationTask } from './component-continuation.js';
+import { createContinuationDependencySlot } from './dependency-source.js';
+import { markContinuationDependencyValue } from './dependency-provenance.js';
 import { prepareComponentExecution } from './component-execution-plan.js';
 
 describe('compiler-planned component execution', () => {
@@ -41,9 +43,10 @@ describe('compiler-planned component execution', () => {
 		const first = prepareComponentExecution(plan);
 		expect(prepareComponentExecution(plan)).toBe(first);
 		expect(first.statePortsByPath.get('result')).toBe(1);
+		expect(first.propPorts).toEqual([{ portIndex: 0, path: ['query'] }]);
 		expect(first.setupPropNames).toEqual(new Set(['query']));
 		expect(first.transitionsById.get('load')).toMatchObject({
-			dependencyPorts: [-1],
+			dependencyPorts: [0],
 			outputs: [{ portIndex: 1, path: ['result'] }]
 		});
 	});
@@ -94,6 +97,74 @@ describe('compiler-planned component execution', () => {
 
 		const instance = createComponentInstance(CompiledEditor, {});
 		expect(initialStatus).toBe('available');
+		instance.unmount();
+	});
+
+	it('hides prop dependency sources from component reads while retaining task readiness', async () => {
+		const source = createContinuationDependencySlot<{ label: string }>();
+		const generation = source.beginGeneration();
+		const observedProps: unknown[] = [];
+		const taskValues: string[] = [];
+
+		function Consumer(this: Component<{}>, props: { value: { label: string } }) {
+			observedProps.push(props.value.label);
+			activateTask(
+				defineTask(
+					{},
+					markComponentContinuationTask('consume-prop', (value: string, _task: TaskContext) => {
+						taskValues.push(value);
+					})
+				),
+				props.value.label
+			);
+			return () => props.value.label;
+		}
+		const CompiledConsumer = Object.assign(Consumer, {
+			[exactComponentType]: 'component:PropConsumer',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'isomorphic' as const,
+				role: 'executor' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				execution: {
+					version: 1 as const,
+					ports: [
+						{ index: 0, kind: 'props' as const, path: 'value.label', direction: 'input' as const }
+					],
+					transitions: [
+						{
+							id: 'consume-prop',
+							taskId: 'consume-prop',
+							activation: 'setup' as const,
+							placement: 'isomorphic' as const,
+							readiness: 'blocking' as const,
+							concurrency: 'parallel' as const,
+							inputs: [0],
+							outputs: []
+						}
+					],
+					reactive: []
+				}
+			}
+		});
+
+		const forwarded = markContinuationDependencyValue(
+			createExpression(() => ({ label: 'fallback' })),
+			source
+		);
+		const instance = createComponentInstance(CompiledConsumer, {
+			value: forwarded as unknown as { label: string }
+		});
+		expect(observedProps).toEqual(['fallback']);
+		expect(taskValues).toEqual([]);
+
+		source.publish(generation, { label: 'ready' });
+		flushSync();
+		await Promise.resolve();
+		expect(taskValues).toEqual(['ready']);
 		instance.unmount();
 	});
 

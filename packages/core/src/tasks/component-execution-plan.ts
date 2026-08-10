@@ -8,6 +8,12 @@ export type PreparedComponentOutput = Readonly<{
 	path: readonly string[];
 }>;
 
+/** Precomputed prop dependency descriptor shared by every instance of one component plan. */
+export type PreparedComponentProp = Readonly<{
+	portIndex: number;
+	path: readonly string[];
+}>;
+
 /** Precomputed transition wiring shared by every instance of one component plan. */
 export type PreparedComponentTransition = Readonly<{
 	contract: ExecutionTransition;
@@ -21,6 +27,7 @@ export type PreparedComponentExecution = Readonly<{
 	statePortsByPath: ReadonlyMap<string, number>;
 	transitionsById: ReadonlyMap<string, PreparedComponentTransition>;
 	outputPortIndexes: readonly number[];
+	propPorts: readonly PreparedComponentProp[];
 	setupOutputs: readonly boolean[];
 	setupPropNames: ReadonlySet<string>;
 }>;
@@ -35,11 +42,16 @@ export function prepareComponentExecution(
 	if (cached) return cached;
 	const producers = producerIdsByPort(plan);
 	const outputPortIndexes: number[] = [];
+	const propPorts: PreparedComponentProp[] = [];
 	const setupOutputs = Array<boolean>(plan.ports.length).fill(false);
 	const statePortsByPath = new Map<string, number>();
 	const setupInputPorts = new Set<number>();
 	for (const port of plan.ports) {
 		if (port.kind === 'state') statePortsByPath.set(port.path, port.index);
+		if (port.kind === 'props') {
+			const path = port.path.startsWith('props.') ? port.path.slice(6) : port.path;
+			propPorts.push({ portIndex: port.index, path: Object.freeze(path.split('.')) });
+		}
 		if (producers[port.index]?.size) outputPortIndexes.push(port.index);
 	}
 	for (const transition of plan.transitions) {
@@ -52,7 +64,10 @@ export function prepareComponentExecution(
 		transitionsById.set(transition.id, {
 			contract: transition,
 			dependencyPorts: transition.inputs.map((portIndex) =>
-				hasPredecessor(producers[portIndex], transition.id) ? portIndex : -1
+				hasPredecessor(producers[portIndex], transition.id) ||
+				plan.ports[portIndex]?.kind === 'props'
+					? portIndex
+					: -1
 			),
 			outputs: transition.outputs.flatMap((portIndex) => {
 				const port = plan.ports[portIndex];
@@ -75,6 +90,7 @@ export function prepareComponentExecution(
 		statePortsByPath,
 		transitionsById,
 		outputPortIndexes: Object.freeze(outputPortIndexes),
+		propPorts: Object.freeze(propPorts),
 		setupOutputs: Object.freeze(setupOutputs),
 		setupPropNames
 	});
