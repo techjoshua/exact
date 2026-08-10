@@ -33,11 +33,33 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 		"createCompiledRenderProgram",
 		"version: 1",
 		"kind: \"text\"",
+		"ssrParts:",
+		"kind: \"node-open\"",
+		"kind: \"node-close\"",
 		"() => __exactVNode(\"span\"",
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned output omitted %q:\n%s", expected, response.Code)
 		}
+	}
+}
+
+func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-client.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			export function Planned(props: { label: string }) {
+				return () => <span>{props.label}</span>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "createCompiledRenderProgram") ||
+		strings.Contains(response.Code, "ssrParts:") ||
+		strings.Contains(response.Code, "ssrOperations:") {
+		t.Fatalf("client render program retained server marker metadata:\n%s", response.Code)
 	}
 }
 
@@ -4590,6 +4612,31 @@ func TestSessionLowersKeyedMapsInsideMaterializedReactiveClosures(t *testing.T) 
 	}
 	if !strings.Contains(response.Code, "this.map(") {
 		t.Fatalf("keyed map was not lowered inside reactive closure: %s", response.Code)
+	}
+}
+
+func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			const rows = [{ id: "first" }] as const;
+			export function List() {
+				return () => <ul>{rows.map((row) => <li title={row.id}>{row.id}</li>)}</ul>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "rows.map((row) => __exactRenderProgram") ||
+		!strings.Contains(response.Code, "[() => row.id, () => row.id]") ||
+		!strings.Contains(response.Code, "title: row.id }, row.id") {
+		t.Fatalf("declarative collection did not preserve direct values: %s", response.Code)
+	}
+	if strings.Contains(response.Code, "__exactExpression(() => row.id)") ||
+		strings.Contains(response.Code, "__exactDynamic(() => row.id") {
+		t.Fatalf("declarative collection allocated reactive wrappers: %s", response.Code)
 	}
 }
 

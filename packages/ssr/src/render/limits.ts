@@ -70,15 +70,25 @@ export function countSsrNode(context: SsrContext): void {
  */
 export function boundedJoin(context: SsrContext, chunks: readonly string[]): string {
 	let characters = 0;
+	let html = '';
 	for (const chunk of chunks) {
 		characters += chunk.length;
 		if (characters > context.maxOutputBytes) {
 			throw new SsrOutputLimitError(context.maxOutputBytes);
 		}
+		// Preserve nested output as an engine rope until the adapter performs the
+		// one unavoidable UTF-8 encoding, instead of flattening every subtree.
+		html += chunk;
 	}
-	const html = chunks.join('');
 	assertOutputCharacterBound(context, html);
 	return html;
+}
+
+/** Appends one output chunk while retaining the request's conservative character ceiling. */
+export function appendBoundedHtml(context: SsrContext, html: string, chunk: string): string {
+	const appended = html + chunk;
+	assertOutputCharacterBound(context, appended);
+	return appended;
 }
 
 /**
@@ -97,11 +107,18 @@ export function assertOutputCharacterBound(context: SsrContext, html: string): v
 export function assertOutputWithinLimit(context: SsrContext, html: string): void {
 	assertOutputCharacterBound(context, html);
 	if (
-		/[^\x00-\x7f]/.test(html) &&
+		containsNonAscii(html) &&
 		new TextEncoder().encode(html).byteLength > context.maxOutputBytes
 	) {
 		throw new SsrOutputLimitError(context.maxOutputBytes);
 	}
+}
+
+function containsNonAscii(value: string): boolean {
+	for (let index = 0; index < value.length; index++) {
+		if (value.charCodeAt(index) > 0x7f) return true;
+	}
+	return false;
 }
 
 /** Runs a synchronous nested traversal while restoring depth on every exit. */

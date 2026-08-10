@@ -74,6 +74,16 @@ export function AdvancedPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>SSR uses the host&apos;s cheapest body path</h2>
+				<p>
+					A settled SSR response carries a single-consumer buffered body. The Node adapter writes it
+					directly with native backpressure, avoiding an extra UTF-8 buffer and Web stream.
+					Fetch-style adapters create the equivalent <code>ReadableStream</code> only when their
+					host requests it. Because rendering has already settled, request-scoped resources can be
+					released before the transport finishes sending those bytes.
+				</p>
+			</section>
+			<section>
 				<h2>Interactive HTML does not have to hydrate eagerly</h2>
 				<p>
 					SSR resumption records apply only when a component&apos;s compiler identity matches its
@@ -86,6 +96,12 @@ export function AdvancedPage(this: Component<{}>) {
 					restores shared immutable defaults in the browser. Authored empty state, props, and
 					context values remain application data. When a generated client registration owns
 					continuation contracts, the server can omit a duplicate document copy.
+				</p>
+				<p>
+					Eligible intrinsic regions write their compiler-owned hydration markers directly during
+					SSR instead of constructing a temporary fallback tree. Finite synchronous branches inside
+					an async page also avoid per-node promise work, while unsupported structures retain the
+					same local fallback and ownership behavior.
 				</p>
 				<p>
 					Document config, island props, JSON responses, and streamed events pass through the same

@@ -44,6 +44,14 @@ export {
 	runWithExactRequestScope
 } from '../context.js';
 export {
+	createExactBufferedResponse,
+	exactResponseBody,
+	exactResponseBodyOf,
+	type ExactResponseBody,
+	type ExactResponseBodyWriter,
+	type ExactResponseWithBody
+} from '../response-body.js';
+export {
 	composeExactExecutorContract,
 	createExactHydrationConfig,
 	defineExactBoundaryContract,

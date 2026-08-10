@@ -1,17 +1,19 @@
 import {
 	activateTaskForHost,
 	createCompiledRenderProgram,
+	createDynamicChild,
 	createCompiledVNode,
 	defineTask,
 	markIndependentAsyncSiblings,
 	type Component,
 	type TaskContext
 } from '@exactjs/core';
+import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
 
-it('writes compiler-owned scalar programs directly and retains marker-mode fallback', () => {
+it('writes compiler-owned scalar programs directly with hydration markers', () => {
 	let constructions = 0;
 	const program = createCompiledRenderProgram(
 		'render-program:ssr',
@@ -24,16 +26,29 @@ it('writes compiler-owned scalar programs directly and retains marker-mode fallb
 				template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 				parts: ['<span data-exact-id="planned">', '</span>'],
 				slots: [{ id: 'value', kind: 'text', path: [0] }],
-				nodes: [{ id: 'planned', path: [], tag: 'span', namespace: 'html' }]
+				nodes: [{ id: 'planned', path: [], tag: 'span', namespace: 'html' }],
+				ssrParts: ['', '<span data-exact-id="planned">', '', '</span>', ''],
+				ssrOperations: [
+					{ kind: 'node-open', index: 0 },
+					{ kind: 'slot', index: 0 },
+					{ kind: 'node-close', index: 0 }
+				]
 			};
 		},
 		[() => '<safe>'],
-		() => createCompiledVNode('span', { 'data-exact-id': 'planned' }, '<safe>')
+		() =>
+			createCompiledVNode(
+				'span',
+				{ 'data-exact-id': 'planned' },
+				createDynamicChild(() => '<safe>', 'value')
+			)
 	);
 	expect(renderToString(program, { markers: false }).html).toBe(
 		'<span data-exact-id="planned">&lt;safe&gt;</span>'
 	);
-	expect(renderToString(program).html).toContain('<!--exact:cell:');
+	expect(renderToString(program).html).toBe(
+		'<!--exact:cell:0--><span data-exact-id="planned"><!--exact:dynamic:value-->&lt;safe&gt;<!--/exact:dynamic:value--></span><!--/exact:cell:0-->'
+	);
 	createCompiledRenderProgram(
 		'render-program:ssr',
 		() => {
@@ -67,6 +82,35 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 	expect(renderToString(program, { markers: false }).html).toBe(
 		'<button data-exact-id="planned" class="primary active" disabled>Save</button>'
 	);
+});
+
+it('materializes marker-mode program fallbacks inside their component scope', async () => {
+	let fallbackScope: EffectScope | undefined;
+	function ProgramOwner() {
+		return () =>
+			createCompiledRenderProgram(
+				'render-program:ssr-owned-fallback',
+				() => ({
+					version: 1,
+					id: 'render-program:ssr-owned-fallback',
+					namespace: 'html',
+					template: '<span>owned</span>',
+					parts: ['<span>owned</span>'],
+					slots: [],
+					nodes: [{ id: 'owned', path: [], tag: 'span', namespace: 'html' }]
+				}),
+				[],
+				() => {
+					fallbackScope = createEffectScope();
+					return createCompiledVNode('span', null, 'owned');
+				}
+			);
+	}
+
+	const rendered = await renderToStringAsync(createVNode(ProgramOwner, {}));
+
+	expect(rendered.html).toContain('owned');
+	expect(fallbackScope?.active).toBe(false);
 });
 
 it('bounds compiler-proven sibling work while preserving source order', async () => {

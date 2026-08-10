@@ -1,4 +1,5 @@
 import {
+	exactResponseBodyOf,
 	handleExactRequest,
 	type ExactResponseLike,
 	type ExactServerContext
@@ -103,11 +104,51 @@ export async function writeNodeResponse(
 ): Promise<void> {
 	response.statusCode = result.status;
 	for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
+	if (!exactResponseBodyOf(result) && !result.stream) {
+		throwIfAborted(signal);
+		response.end(result.body ?? '');
+		return;
+	}
+	try {
+		await writeNodeResponseBody(response, result, signal);
+		throwIfAborted(signal);
+		response.end();
+	} catch (error) {
+		await cancelNodeResponseBody(result, error);
+		if (!response.destroyed) response.destroy(error as Error);
+	}
+}
+
+/** Writes only an eXact response body, preserving Node backpressure without Web-stream allocation. */
+export async function writeNodeResponseBody(
+	response: ServerResponse,
+	result: ExactResponseLike,
+	signal?: AbortSignal
+): Promise<void> {
+	const body = exactResponseBodyOf(result);
+	if (body) {
+		await body.writeTo(async (chunk) => {
+			throwIfAborted(signal);
+			if (!response.write(chunk)) await waitForDrain(response, signal);
+		});
+		return;
+	}
 	if (result.stream) {
 		await pipeReadableStream(result.stream, response, signal);
-	} else {
-		response.end(result.body ?? '');
+		return;
 	}
+	throwIfAborted(signal);
+	response.write(result.body ?? '');
+}
+
+/** Cancels an unconsumed eXact response body without forcing lazy stream construction. */
+export async function cancelNodeResponseBody(
+	result: ExactResponseLike,
+	reason?: unknown
+): Promise<void> {
+	const body = exactResponseBodyOf(result);
+	if (body) await body.cancel(reason);
+	else if (result.stream) await result.stream.cancel(reason);
 }
 
 function writeNodeError(response: ServerResponse, error: unknown): void {
@@ -131,15 +172,13 @@ async function pipeReadableStream(
 			throwIfAborted(signal);
 			if (!response.write(next.value)) await waitForDrain(response, signal);
 		}
-		throwIfAborted(signal);
-		response.end();
 	} catch (error) {
 		try {
 			await reader.cancel(error);
 		} catch {
 			/* preserve the transport failure */
 		}
-		if (!response.destroyed) response.destroy(error as Error);
+		throw error;
 	} finally {
 		try {
 			reader.releaseLock();

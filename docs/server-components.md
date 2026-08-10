@@ -15,6 +15,14 @@ This is similar to the syntactic sugar C# applies to an `async` method. Authored
 linear code becomes explicit continuation and state-management machinery.
 eXact distributes that generated machinery across the browser and server.
 
+Each SSR component instance owns every reactive cell allocated while materializing its compiled
+view. Eligible server render programs emit their nested cell and dynamic hydration markers
+directly; an unsupported or malformed program alone materializes its marker-compatible fallback
+inside that owner. Completing or cancelling the request stops the scope before the instance
+becomes unreachable, so component graphs do not accumulate across requests. Process RSS may remain
+above live heap after a burst because the JavaScript engine and native allocator retain reusable
+pages.
+
 For the full architecture and disclosure model, see
 [distributed-component-continuations.md](distributed-component-continuations.md).
 For production runtime and adapter concerns, see
@@ -196,6 +204,12 @@ child therefore wires and offers its independent ready continuations to the same
 bounded scheduler without a startup graph-flattening pass. Conditional, keyed, registry, lazy, and
 recursive children continue to use normal render-program reachability, so inactive alternatives do
 not execute merely because their component contracts exist.
+
+Within that async render, finite intrinsic branches with no component, structural, enhancement, or
+server boundary use the synchronous walker. Compiler-proven module collections also keep ordinary
+per-render mapping semantics while omitting reactive wrappers around item values that cannot
+invalidate. Output remains as bounded engine ropes until its final adapter encoding, avoiding a
+flat string copy at every nested element.
 
 SSR caches the immutable preparation work by the selected root function. Component contracts,
 transition and port indexes, output paths, and setup-prop selection are reused across requests;

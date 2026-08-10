@@ -62,6 +62,8 @@ import { applySsrTargetContributionsAsync } from './target-contributions.js';
 import { renderSsrProgram } from './render-program.js';
 import { canRenderIndependentChildren, renderIndependentChildren } from './async-independent.js';
 import { renderComponentAsync } from './component-async.js';
+import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
+import { renderVNode } from './sync-tree.js';
 
 /** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
@@ -104,6 +106,7 @@ export async function renderVNodeAsync(
 	parent: ComponentInstance<any> | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
+	if (canRenderSsrSubtreeSynchronously(context, vnode)) return renderVNode(context, vnode, parent);
 	enterSsrTreeDepth(context);
 	try {
 		countSsrNode(context);
@@ -130,7 +133,7 @@ export async function renderVNodeAsyncInner(
 		);
 	}
 	if (vnode.type === RenderProgram) {
-		const planned = renderSsrProgram(context, vnode);
+		const planned = renderSsrProgram(context, vnode, parent);
 		return planned.fallback
 			? renderVNodeAsync(context, planned.fallback, parent, options)
 			: planned.html!;

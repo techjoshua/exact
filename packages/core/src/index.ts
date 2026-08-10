@@ -284,7 +284,8 @@ export {
 	type ExactRenderProgram,
 	type ExactRenderProgramInvocation,
 	type ExactRenderProgramNode,
-	type ExactRenderProgramSlot
+	type ExactRenderProgramSlot,
+	type ExactRenderProgramSsrOperation
 } from './render-program.js';
 export { withTaskObserver } from './tasks/observers.js';
 export {

@@ -39,6 +39,26 @@ The focused reactive command includes the repaired compiled keyed-list DOM gate:
 npm run benchmark:reactive
 ```
 
+The shipping fixture also has a manually invoked retained-heap regression test. It warms the
+compiler-generated hydratable SSR root with production marker behavior, forces full collections,
+and verifies across 1,000 measured requests that each batch plateaus with zero surviving component
+instances or effect scopes. A separate retained-heap ceiling catches unowned retained values:
+
+```sh
+npm run test:heap -w @exactjs/sample-shipping-calculator
+```
+
+This guard is intentionally excluded from ordinary correctness runs because exposed garbage
+collection and process heap measurements are diagnostic, environment-sensitive operations.
+
+The paired allocation-sampling guard profiles collected as well as surviving objects after warmup.
+It detects regressions that restore marker-mode VNode fallbacks, reactive wrappers for declarative
+module collections, or nested subtree flattening:
+
+```sh
+npm run test:allocation -w @exactjs/sample-shipping-calculator
+```
+
 Dependent-foundation candidates are measured one at a time in isolated Node processes:
 
 ```sh

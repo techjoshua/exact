@@ -19,6 +19,14 @@
 		{ "path": "../../framework-adapters/node-adapter" },
 		{ "path": "../../framework-adapters/vite-plugin" }
 	],
-	"include": ["src", ".exact/**/*", "vite.config.ts", "vite.server.config.ts", "vitest.config.ts"],
+	"include": [
+		"src",
+		"manual",
+		".exact/**/*",
+		"vite.config.ts",
+		"vite.server.config.ts",
+		"vitest.config.ts",
+		"vitest.heap.config.ts"
+	],
 	"exclude": ["dist", "e2e", "playwright.config.ts"]
 }

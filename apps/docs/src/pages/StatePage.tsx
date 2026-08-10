@@ -140,7 +140,8 @@ export function StatePage(this: Component<{}>) {
 				<p>
 					This is how direct TypeScript stays precise. The compiler keeps source expressions intact
 					long enough to turn them into lazy reactive cells, while the runtime tracks which fields
-					each cell actually reads.
+					each cell actually reads. Cells created by the compiled view belong to the durable
+					component instance and are released with it after client unmount or server rendering.
 				</p>
 			</section>
 			<PriceDemo />
@@ -173,6 +174,11 @@ export function StatePage(this: Component<{}>) {
 					narrowing such as <code>point ? point.x : &quot;unavailable&quot;</code> therefore remains
 					valid without assertions, while deferred handlers still read the current value when they
 					run.
+				</p>
+				<p>
+					A module-level declarative collection still maps once for each component render, so normal
+					JavaScript visibility is preserved. Inside that map, compiler-proven item values that
+					cannot invalidate are passed directly instead of receiving disposable reactive wrappers.
 				</p>
 			</section>
 			<section>

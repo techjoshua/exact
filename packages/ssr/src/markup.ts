@@ -10,6 +10,7 @@ import {
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
 import { escapeAttr, escapeAttrName } from './html.js';
+import { reactOrderedProps } from './react-attribute-order.js';
 import type { SsrContext } from './types.js';
 import type { RefBinding } from '@exactjs/core';
 
@@ -31,9 +32,12 @@ export function renderAttrs(
 		else attrs += ` id="${escapeAttr(reserveElementId(binding))}"`;
 	}
 	const customElement = !!reactMarkup && !!tag?.includes('-');
-	for (const [name, rawValue] of reactMarkup
-		? reactOrderedProps(props, tag, reactMarkup)
-		: Object.entries(props)) {
+	const ordered = reactMarkup ? reactOrderedProps(props, tag, reactMarkup) : undefined;
+	const names = ordered ? undefined : Object.keys(props);
+	const count = ordered?.length ?? names!.length;
+	for (let index = 0; index < count; index++) {
+		const name = ordered ? ordered[index]![0] : names![index]!;
+		const rawValue = ordered ? ordered[index]![1] : props[name];
 		if (!reactMarkup && name === 'dangerouslySetInnerHTML') {
 			throw new Error(
 				'Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.'
@@ -358,40 +362,4 @@ const reactUnitlessStyles = new Set([
 for (const prefix of ['Webkit', 'Moz', 'ms', 'O']) {
 	for (const name of [...reactUnitlessStyles])
 		reactUnitlessStyles.add(`${prefix}${name[0]!.toUpperCase()}${name.slice(1)}`);
-}
-
-function reactOrderedProps(
-	props: Record<string, unknown>,
-	tag: string | undefined,
-	version: boolean | 18 | 19
-): Array<[string, unknown]> {
-	const entries = Object.entries(props);
-	if (tag === 'input') {
-		const ordered = deferProps(entries, ['checked', 'defaultChecked', 'value', 'defaultValue']);
-		return version === 19 ? prioritizeProps(ordered, ['type', 'disabled', 'name']) : ordered;
-	}
-	if (tag === 'option') return deferProps(entries, ['value', 'selected']);
-	return entries;
-}
-
-function prioritizeProps(
-	entries: Array<[string, unknown]>,
-	names: readonly string[]
-): Array<[string, unknown]> {
-	const prioritized = new Set(names);
-	return [
-		...names.flatMap((name) => entries.filter(([entry]) => entry === name)),
-		...entries.filter(([name]) => !prioritized.has(name))
-	];
-}
-
-function deferProps(
-	entries: Array<[string, unknown]>,
-	names: readonly string[]
-): Array<[string, unknown]> {
-	const deferred = new Set(names);
-	return [
-		...entries.filter(([name]) => !deferred.has(name)),
-		...names.flatMap((name) => entries.filter(([entry]) => entry === name))
-	];
 }

@@ -102,7 +102,7 @@ export function* renderVNodeChunks(
 		yield* marked(id, () => renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1));
 		return;
 	}
-	const programChunks = renderSsrProgramChunks(context, vnode, (fallback) =>
+	const programChunks = renderSsrProgramChunks(context, vnode, parent, (fallback) =>
 		renderVNodeChunks(context, fallback, parent, depth + 1)
 	);
 	if (programChunks) {
@@ -332,7 +332,7 @@ export function renderVNodeInner(
 			renderVNode(context, getCellVNode(vnode), parent)
 		);
 	}
-	const program = renderSsrProgramString(context, vnode, (fallback) =>
+	const program = renderSsrProgramString(context, vnode, parent, (fallback) =>
 		renderVNode(context, fallback, parent)
 	);
 	if (program !== undefined) return program;

@@ -137,7 +137,9 @@ describe('@exactjs/ssr request-context', () => {
 		expect(rendered).toBe(true);
 		expect(response.status).toBe(206);
 		expect(response.headers['x-precommit']).toBe('settled');
-		expect(disposed).toEqual([]);
+		// Buffered progressive responses no longer retain request resources merely
+		// to support an adapter's optional Web-stream representation.
+		expect(disposed).toEqual(['ready']);
 		expect(await readStreamText(response.stream!)).toBe(
 			'<div id="exact-root"><p>settled</p></div>'
 		);

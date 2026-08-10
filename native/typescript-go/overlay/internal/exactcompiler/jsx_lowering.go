@@ -71,44 +71,45 @@ type jsxRuntimeNames struct {
 }
 
 type jsxLowering struct {
-	sourceFile            *ast.SourceFile
-	factory               *printer.NodeFactory
-	visitor               *ast.NodeVisitor
-	names                 jsxRuntimeNames
-	nodeIDs               map[*ast.Node]string
-	writes                map[string]StateWrite
-	tasks                 map[string]Task
-	invokedTasks          map[int]Task
-	functionTasks         map[int]Task
-	taskDefinitions       map[ast.SymbolId]Task
-	taskDefinitionNames   map[string]Task
-	operations            map[string]InvokedTaskOperation
-	stateReads            []StateRead
-	bindings              []ReactiveBinding
-	formBindings          map[int]formBinding
-	componentBindings     map[int]componentBinding
-	checker               *checker.Checker
-	taskHelpers           map[string]string
-	derived               map[int]ReactiveBinding
-	elidedDerived         map[int]ReactiveBinding
-	target                Target
-	serverComponents      bool
-	instrumentInspection  bool
-	components            map[string]Component
-	microComponents       map[ast.SymbolId]struct{}
-	renderEdges           map[string]RenderEdge
-	clientIslands         map[*ast.Node]clientElementIsland
-	clientDefinitions     []*ast.Node
-	captureValues         map[ast.SymbolId]string
-	interop               *JSXInterop
-	materializedNames     map[int]string
-	cachedDerivedNames    map[int]string
-	contextWrites         map[string][]string
-	collectionMaps        map[string]collectionMapPlan
-	enhancementImports    enhancementImports
-	partitionPlan         PartitionPlan
-	renderProgramFallback bool
-	renderProgramContexts map[int]renderProgramContext
+	sourceFile             *ast.SourceFile
+	factory                *printer.NodeFactory
+	visitor                *ast.NodeVisitor
+	names                  jsxRuntimeNames
+	nodeIDs                map[*ast.Node]string
+	writes                 map[string]StateWrite
+	tasks                  map[string]Task
+	invokedTasks           map[int]Task
+	functionTasks          map[int]Task
+	taskDefinitions        map[ast.SymbolId]Task
+	taskDefinitionNames    map[string]Task
+	operations             map[string]InvokedTaskOperation
+	stateReads             []StateRead
+	bindings               []ReactiveBinding
+	formBindings           map[int]formBinding
+	componentBindings      map[int]componentBinding
+	checker                *checker.Checker
+	taskHelpers            map[string]string
+	derived                map[int]ReactiveBinding
+	elidedDerived          map[int]ReactiveBinding
+	target                 Target
+	serverComponents       bool
+	instrumentInspection   bool
+	components             map[string]Component
+	microComponents        map[ast.SymbolId]struct{}
+	renderEdges            map[string]RenderEdge
+	clientIslands          map[*ast.Node]clientElementIsland
+	clientDefinitions      []*ast.Node
+	captureValues          map[ast.SymbolId]string
+	interop                *JSXInterop
+	materializedNames      map[int]string
+	cachedDerivedNames     map[int]string
+	contextWrites          map[string][]string
+	collectionMaps         map[string]collectionMapPlan
+	enhancementImports     enhancementImports
+	partitionPlan          PartitionPlan
+	renderProgramFallback  bool
+	renderProgramContexts  map[int]renderProgramContext
+	declarativeRenderDepth int
 }
 
 type renderProgramContext struct {
@@ -131,18 +132,33 @@ type renderProgramNode struct {
 	namespace string
 }
 
+type renderProgramSsrOperation struct {
+	kind  string
+	index int
+}
+
 type renderProgramBuild struct {
-	template  strings.Builder
-	part      strings.Builder
-	parts     []string
-	slots     []renderProgramSlot
-	nodes     []renderProgramNode
-	namespace string
+	template      strings.Builder
+	part          strings.Builder
+	parts         []string
+	ssrPart       strings.Builder
+	ssrParts      []string
+	ssrOperations []renderProgramSsrOperation
+	slots         []renderProgramSlot
+	nodes         []renderProgramNode
+	namespace     string
 }
 
 func (build *renderProgramBuild) write(value string) {
 	build.template.WriteString(value)
 	build.part.WriteString(value)
+	build.ssrPart.WriteString(value)
+}
+
+func (build *renderProgramBuild) ssrOperation(kind string, index int) {
+	build.ssrParts = append(build.ssrParts, build.ssrPart.String())
+	build.ssrPart.Reset()
+	build.ssrOperations = append(build.ssrOperations, renderProgramSsrOperation{kind: kind, index: index})
 }
 
 func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Node) {
@@ -150,12 +166,15 @@ func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Nod
 	build.template.WriteString(fmt.Sprintf("\ue000exact:%d\ue001", index))
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
+	build.ssrOperation("slot", index)
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: append([]int(nil), path...), reader: reader})
 }
 
 func (build *renderProgramBuild) propertySlot(id string, path []int, name string, reader *ast.Node) {
+	index := len(build.slots)
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
+	build.ssrOperation("slot", index)
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), name: name, reader: reader})
 }
 
@@ -1117,6 +1136,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		return nil
 	}
 	build.parts = append(build.parts, build.part.String())
+	build.ssrParts = append(build.ssrParts, build.ssrPart.String())
 	programID := exactStableID(
 		lowering.sourceFile.FileName(),
 		"render-program",
@@ -1203,9 +1223,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if len(path) == 0 {
 		build.namespace = namespace
 	}
+	nodeIndex := len(build.nodes)
 	build.nodes = append(build.nodes, renderProgramNode{
 		id: lowering.elementID(identityNode), path: append([]int(nil), path...), tag: tag, namespace: namespace,
 	})
+	build.ssrOperation("node-open", nodeIndex)
 	build.write("<" + tag + ` data-exact-id="` + html.EscapeString(lowering.elementID(identityNode)) + `"`)
 	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path) {
 		return false
@@ -1258,6 +1280,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if !voidElement(tag) {
 		build.write("</" + tag + ">")
 	}
+	build.ssrOperation("node-close", nodeIndex)
 	return true
 }
 
@@ -1402,13 +1425,28 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			property("namespace", lowering.factory.NewStringLiteral(node.namespace, ast.TokenFlagsNone)),
 		}), false)
 	}
-	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+	members := []*ast.Node{
 		property("version", lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
 		property("parts", array(parts)), property("slots", array(slots)), property("nodes", array(nodes)),
-	}), false)
+	}
+	if lowering.target == TargetServer {
+		ssrParts := make([]*ast.Node, len(build.ssrParts))
+		for index, value := range build.ssrParts {
+			ssrParts[index] = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)
+		}
+		ssrOperations := make([]*ast.Node, len(build.ssrOperations))
+		for index, operation := range build.ssrOperations {
+			ssrOperations[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+				property("kind", lowering.factory.NewStringLiteral(operation.kind, ast.TokenFlagsNone)),
+				property("index", lowering.factory.NewNumericLiteral(strconv.Itoa(operation.index), ast.TokenFlagsNone)),
+			}), false)
+		}
+		members = append(members, property("ssrParts", array(ssrParts)), property("ssrOperations", array(ssrOperations)))
+	}
+	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
 }
 
 func (lowering *jsxLowering) serverPartitionRangeEdge(start int) (PartitionPlanEdge, bool) {
@@ -2714,8 +2752,15 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 			if expression == nil {
 				continue
 			}
-			emitted := lowering.visitor.VisitNode(expression)
 			if lowering.moduleDeclarativeCollection(expression) {
+				lowering.declarativeRenderDepth++
+				emitted := lowering.visitor.VisitNode(expression)
+				lowering.declarativeRenderDepth--
+				result = append(result, emitted)
+				continue
+			}
+			emitted := lowering.visitor.VisitNode(expression)
+			if lowering.declarativeRenderDepth > 0 {
 				result = append(result, emitted)
 				continue
 			}
@@ -2926,6 +2971,9 @@ func (lowering *jsxLowering) moduleDeclarativeCollection(
 	if symbol == nil {
 		return false
 	}
+	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		symbol = lowering.checker.GetAliasedSymbol(symbol)
+	}
 	for _, declaration := range symbol.Declarations {
 		if !ast.IsVariableDeclaration(declaration) ||
 			declaration.Parent == nil ||
@@ -2934,7 +2982,7 @@ func (lowering *jsxLowering) moduleDeclarativeCollection(
 			continue
 		}
 		statement := declaration.Parent.Parent
-		if statement != nil && statement.Parent == lowering.sourceFile.AsNode() {
+		if statement != nil && statement.Parent != nil && ast.IsSourceFile(statement.Parent) {
 			return true
 		}
 	}
@@ -2945,6 +2993,9 @@ func (lowering *jsxLowering) reactiveExpression(
 	source *ast.Node,
 	expression *ast.Node,
 ) *ast.Node {
+	if lowering.declarativeRenderDepth > 0 {
+		return expression
+	}
 	closure := lowering.reactiveClosure(source)
 	if closure == nil {
 		closure = lowering.arrow(expression)

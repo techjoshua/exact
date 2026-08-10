@@ -13,6 +13,8 @@
 		"start": "node dist/server/start.js",
 		"typecheck": "npm run generate && tsc --noEmit",
 		"test": "npm run generate && vitest run --config vitest.config.ts",
+		"test:heap": "npm run build -w @exactjs/core -w @exactjs/ssr && npm run generate && node --expose-gc ../../node_modules/vitest/vitest.mjs run --config vitest.heap.config.ts",
+		"test:allocation": "npm run build -w @exactjs/core -w @exactjs/ssr && npm run generate && node ../../node_modules/vitest/vitest.mjs run --config vitest.allocation.config.ts",
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {

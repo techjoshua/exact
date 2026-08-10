@@ -1,6 +1,10 @@
 import { logFrameworkEvent, withTaskObserver, type VNode } from '@exactjs/core';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
-import { exactServerDebugRuntime, runWithExactRequestScope } from '@exactjs/server';
+import {
+	createExactBufferedResponse,
+	exactServerDebugRuntime,
+	runWithExactRequestScope
+} from '@exactjs/server';
 import { augmentDocumentBody } from '../document.js';
 import { escapeAttr } from '../html.js';
 import { renderHydrationScript } from '../hydration.js';
@@ -316,15 +320,14 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 					? rendered.htmlWithHydration
 					: `${progressiveRoot(rendered.html, options.rootId)}${rendered.hydrationScript}`;
 			}
-			return {
-				status: options.status ?? 200,
-				headers: {
+			return createExactBufferedResponse(
+				options.status ?? 200,
+				{
 					'content-type': options.contentType ?? 'text/html; charset=utf-8',
 					...(options.headers ?? {})
 				},
-				body: '',
-				stream: stringStream(body)
-			};
+				body
+			);
 		},
 		request.platformRequest ?? request
 	);
