@@ -175,6 +175,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 					dependency watcher but never create a server transition.
 				</p>
 				<p>
+					The server reuses an immutable execution blueprint for each selected root. Validated
+					contracts and port, transition, output-path, and setup-prop indexes are prepared once;
+					dynamic components join that root&apos;s blueprint only when rendering reaches them. Weak
+					keys permit replaced components to be collected, and changed compiler metadata is
+					revalidated. Props, state, contexts, task generations, cancellation, and dependency
+					watchers remain request-owned, so the cache cannot leak one request into another.
+				</p>
+				<p>
 					For compiler-proven intrinsic regions, eXact can skip generic VNode traversal: the server
 					writes escaped text and finite host slots directly, the browser clones a cached HTML, SVG,
 					or MathML template, and hydration adopts with compiler paths. Properties, styles, URLs,

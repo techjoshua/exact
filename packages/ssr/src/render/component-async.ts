@@ -1,11 +1,4 @@
-import {
-	createComponentInstance,
-	readExactComponentContract,
-	renderInstance,
-	withTaskObserver,
-	normalizeRenderResult,
-	type VNode
-} from '@exactjs/core';
+import { renderInstance, withTaskObserver, normalizeRenderResult, type VNode } from '@exactjs/core';
 import { flushSync } from '@exactjs/reactive';
 import type { ComponentFunction, ComponentInstance, SsrContext, TaskObserver } from '../types.js';
 import { isSsrRenderInterruption } from './limits.js';
@@ -19,6 +12,12 @@ import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderChildrenAsync } from './async-tree.js';
 import { markerPair } from '../markup.js';
 import { resetDocumentProbe } from './host.js';
+import {
+	createSsrComponentInstance,
+	resolveSsrComponentExecution
+} from './root-execution-cache.js';
+
+const retainSsrComponent = (): void => {};
 
 /** Renders one component while its compiler-planned dependencies issue under durable ownership. */
 export async function renderComponentAsync(
@@ -49,12 +48,13 @@ export async function renderComponentAsync(
 					documentProbe
 				});
 			}
-			const pending = new Set<Promise<unknown>>();
+			let pending: Set<Promise<unknown>> | undefined;
 			const observer: TaskObserver = {
 				register: (promise) => {
-					const observed = promise.finally(() => pending.delete(observed));
+					const tasks = (pending ??= new Set());
+					const observed = promise.finally(() => tasks.delete(observed));
 					void observed.catch(() => undefined);
-					pending.add(observed);
+					tasks.add(observed);
 				},
 				...(context.asyncFrame
 					? {}
@@ -62,25 +62,25 @@ export async function renderComponentAsync(
 							runTask: <T>(work: () => Promise<T>) =>
 								context.asyncScheduler.run(work, options.signal)
 						}),
-				retain() {}
+				retain: retainSsrComponent
 			};
-			const contract = readExactComponentContract(vnode.type as ComponentFunction<any>);
+			const blueprint = resolveSsrComponentExecution(context, vnode.type as ComponentFunction<any>);
 			const componentProps = await prepareComponentProps(
 				getComponentProps(vnode),
-				contract?.execution,
+				blueprint.execution,
 				options.signal
 			);
 			instance = withTaskObserver(observer, () =>
-				createComponentInstance(
+				createSsrComponentInstance(
+					context,
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					componentProps,
 					parent,
-					context.componentContexts,
-					context.componentDomain
+					blueprint
 				)
 			);
 			options.onComponentCreated?.(instance);
-			if (!contract?.execution)
+			if (!blueprint.execution && pending)
 				await drainTasks(
 					pending,
 					options.maxTaskPasses ?? 10,
@@ -96,7 +96,7 @@ export async function renderComponentAsync(
 					invalidated = true;
 				});
 				const html = await renderChildrenAsync(context, children, instance, options);
-				await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
+				if (pending) await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
 				flushSync();
 				if (!invalidated)
 					return componentHtml(context, vnode, parent, componentId, html, componentProps, {

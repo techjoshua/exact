@@ -18,6 +18,7 @@ import { createSsrContext, drainTasks } from './context.js';
 import { renderToStringOwned } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
+import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
 
 /** Transforms to string async into its required representation. */
 export async function renderToStringAsync(
@@ -25,13 +26,13 @@ export async function renderToStringAsync(
 	options: RenderToStringOptions = {}
 ): Promise<RenderToStringResult> {
 	const renderOptions = withTaskDeadline(options);
-	const context = createSsrContext(renderOptions);
-
 	const validatedVNode = (await processExactOutput(
 		vnode,
 		{ kind: 'vnode', signal: options.signal },
 		options.outputExtensions ?? []
 	)) as VNode;
+	const context = createSsrContext(renderOptions);
+	attachSsrRootExecutionBlueprint(context, validatedVNode);
 	const body = await renderVNodeAsync(context, validatedVNode, undefined, renderOptions);
 	const html = (await processExactOutput(
 		boundedJoin(context, [...context.reactResourceHints, body]),

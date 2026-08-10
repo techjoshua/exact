@@ -137,4 +137,27 @@ describe('continuation dependency watcher', () => {
 			value: 'current'
 		});
 	});
+
+	it('keeps allocation-free subscriber traversal stable during subscription changes', () => {
+		const slot = createContinuationDependencySlot<number>();
+		const generation = slot.beginGeneration();
+		const calls: string[] = [];
+		let later: Disposable | undefined;
+		const first = slot.subscribe(() => {
+			calls.push('first');
+			later ??= slot.subscribe(() => calls.push('later'));
+		});
+		const removed = slot.subscribe(() => calls.push('removed'));
+		const remover = slot.subscribe(() => {
+			calls.push('remover');
+			removed[Symbol.dispose]();
+		});
+		slot.publish(generation, 1);
+		slot.publish(generation, 2);
+
+		expect(calls).toEqual(['first', 'removed', 'remover', 'first', 'remover', 'later']);
+		first[Symbol.dispose]();
+		remover[Symbol.dispose]();
+		later?.[Symbol.dispose]();
+	});
 });

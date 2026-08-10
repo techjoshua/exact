@@ -1,7 +1,5 @@
 import {
-	computed,
 	createEffectScope,
-	unwrap,
 	updateReactive,
 	withEffectScope,
 	type Reactive,
@@ -30,7 +28,7 @@ import type {
 	RenderFunction,
 	VNode
 } from './contracts.js';
-import { cleanupFailedComponentConstruction, isTemplateStringsArray } from './construction.js';
+import { cleanupFailedComponentConstruction } from './construction.js';
 import { ErrorContext } from './contexts.js';
 import {
 	componentDomainInspection,
@@ -54,8 +52,10 @@ import { reactiveValue } from './reactive-value.js';
 import { createComponentIntlFacade } from '../localization/facade.js';
 import type { IntlFacade } from '../localization/contracts.js';
 import { createComponentRefBinding, createComponentRefRegistry } from './ref-runtime.js';
+import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
 import { createComponentProps, createComponentState } from './state.js';
+import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
@@ -98,7 +98,8 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		rawProps: Props,
 		parent: ComponentInstance<any> | undefined,
 		ambientContexts: ComponentContextValues | undefined,
-		domain: ComponentInstance<State>['domain']
+		domain: ComponentInstance<State>['domain'],
+		execution?: PreparedComponentExecution
 	) {
 		this.type = type;
 		this.parent = parent;
@@ -118,7 +119,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			() => this.disposedValue,
 			() => this.activityBlockers?.size ?? 0
 		);
-		this.initialize();
+		this.initialize(execution);
 	}
 
 	get contexts(): Map<symbol, unknown> {
@@ -195,16 +196,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		input: TemplateStringsArray | (() => T) | T,
 		...values: unknown[]
 	): ReactiveValue<string> | ReactiveValue<T> {
-		if (typeof input === 'function') return computed(input as () => T);
-		if (!isTemplateStringsArray(input)) return computed(() => input);
-		return computed(() => {
-			let result = '';
-			for (let index = 0; index < input.length; index++) {
-				result += input[index];
-				if (index < values.length) result += String(unwrap(values[index]) ?? '');
-			}
-			return result;
-		});
+		return createComponentReactive(input, values);
 	}
 
 	ref<T>(key: RefKey<T>): RefBinding<T> {
@@ -333,13 +325,13 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		if (failed) throw firstError;
 	}
 
-	private initialize(): void {
+	private initialize(execution?: PreparedComponentExecution): void {
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 			deferTaskOwnerActivations(this.taskOwner);
 		}
-		const taskObserver = configureComponentTaskOwner(this, this.taskOwner);
+		const taskObserver = configureComponentTaskOwner(this, this.taskOwner, execution);
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });
@@ -392,4 +384,19 @@ export function createComponentInstance<
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
 	return new ComponentInstanceImpl(type, rawProps, parent, ambientContexts, domain);
+}
+
+/** Creates an instance using a previously validated and indexed compiler execution plan. */
+export function createPreparedComponentInstance<
+	State extends object,
+	Props extends Record<string, unknown>
+>(
+	type: ComponentFunction<State, Props>,
+	rawProps: Props,
+	execution: PreparedComponentExecution | undefined,
+	parent?: ComponentInstance<any>,
+	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
+	domain = parent?.domain ?? pageComponentDomain
+): ComponentInstance<State> {
+	return new ComponentInstanceImpl(type, rawProps, parent, ambientContexts, domain, execution);
 }

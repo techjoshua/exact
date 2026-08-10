@@ -1,6 +1,6 @@
 import type { ContextToken } from './component/contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
-import { isExactComponentContract } from './component-contract/contract-validation.js';
+import { validatedComponentContract } from './component-contract/contract-cache.js';
 
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
@@ -204,9 +204,7 @@ export function readExactComponentContract(
 	const contract = (component as ContractComponent)[exactComponentContract];
 	if (!contract) return undefined;
 	const componentId = exactComponentIdentity(component);
-	if (!isExactComponentContract(contract, componentId))
-		throw new Error('Unsupported eXact component contract');
-	return contract;
+	return validatedComponentContract(component, contract, componentId);
 }
 
 /** Returns the stable compiler identity used to pair SSR and client component boundaries. */

@@ -20,7 +20,7 @@ export async function drainTasks(
 	for (let pass = 0; pending.size && pass < maxPasses; pass++) {
 		if (signal?.aborted)
 			throw signal.reason ?? new DOMException('SSR render aborted', 'AbortError');
-		await awaitWithAbort(Promise.all([...pending]), signal, deadline);
+		await awaitWithAbort(Promise.all(pending), signal, deadline);
 	}
 	if (pending.size) {
 		throw new Error(`SSR task drain exceeded ${maxPasses} passes`);
@@ -34,6 +34,7 @@ export async function awaitWithAbort<T>(
 	deadline?: number
 ): Promise<T> {
 	if (signal?.aborted) throw signal.reason ?? new DOMException('SSR render aborted', 'AbortError');
+	if (!signal && deadline === undefined) return promise;
 	const remaining = deadline === undefined ? undefined : deadline - Date.now();
 	if (remaining !== undefined && remaining <= 0) throw new SsrTaskDeadlineError();
 	let abort!: () => void;

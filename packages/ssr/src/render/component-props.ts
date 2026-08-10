@@ -1,15 +1,18 @@
-import { plannedContinuationDependency, type ExactComponentExecutionContract } from '@exactjs/core';
+import { plannedContinuationDependency } from '@exactjs/core';
+import type { PreparedComponentExecution } from '@exactjs/core/framework/component-execution';
+
+const noPlannedInputs: ReadonlySet<string> = new Set();
 
 /** Resolves pending values needed by authored setup while preserving planned task-input sources. */
 export async function prepareComponentProps(
 	props: Record<string, unknown>,
-	execution: ExactComponentExecutionContract | undefined,
+	execution: PreparedComponentExecution | undefined,
 	signal: AbortSignal | undefined
 ): Promise<Record<string, unknown>> {
-	const plannedInputs = setupPropInputs(execution);
+	const plannedInputs = execution?.setupPropNames ?? noPlannedInputs;
 	let resolved: Record<string, unknown> | undefined;
-	for (const key of Reflect.ownKeys(props)) {
-		if (typeof key !== 'string' || plannedInputs.has(key)) continue;
+	for (const key in props) {
+		if (!Object.hasOwn(props, key) || plannedInputs.has(key)) continue;
 		const source = plannedContinuationDependency(props[key]);
 		if (!source) continue;
 		let snapshot = source.read();
@@ -22,19 +25,6 @@ export async function prepareComponentProps(
 		resolved[key] = snapshot.value;
 	}
 	return resolved ?? props;
-}
-
-function setupPropInputs(execution: ExactComponentExecutionContract | undefined): Set<string> {
-	const indexes = new Set(
-		execution?.transitions
-			.filter((transition) => transition.activation === 'setup')
-			.flatMap((transition) => transition.inputs) ?? []
-	);
-	return new Set(
-		(execution?.ports ?? [])
-			.filter((port) => port.kind === 'props' && indexes.has(port.index))
-			.map((port) => port.path.replace(/^props\./, '').split('.')[0]!)
-	);
 }
 
 function availableSnapshot(

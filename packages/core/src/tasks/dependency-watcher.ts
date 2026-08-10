@@ -5,10 +5,11 @@ import type {
 	ContinuationDependencySource
 } from './dependency-source.js';
 
+const noDependencyValues: readonly unknown[] = Object.freeze([]);
+
 /** Values and publication identities captured atomically for one continuation issue. */
 export type ContinuationDependencyVector = Readonly<{
 	values: readonly unknown[];
-	publications: readonly Readonly<{ generation: number; version: number }>[];
 }>;
 
 /** Observes all dependencies for one authored continuation invocation. */
@@ -35,28 +36,38 @@ export function watchContinuationDependencies(
 ): ContinuationDependencyWatcher {
 	let disposed = false;
 	let scheduled = false;
-	let lastPublications: readonly Readonly<{ generation: number; version: number }>[] | undefined;
+	let ready = false;
+	const generations = Array<number>(sources.length).fill(-1);
+	const versions = Array<number>(sources.length).fill(-1);
+	const nextGenerations = Array<number>(sources.length);
+	const nextVersions = Array<number>(sources.length);
+	const nextValues = Array<unknown>(sources.length);
 	const evaluate = (): void => {
 		scheduled = false;
 		if (disposed) return;
-		const snapshots = sources.map((source) => source.read());
-		const unavailable = snapshots.find((snapshot) => snapshot.status !== 'available');
-		if (unavailable) {
-			lastPublications = undefined;
-			callbacks.onUnavailable(unavailable.status, unavailable);
-			return;
+		let changed = !ready;
+		for (let index = 0; index < sources.length; index++) {
+			const snapshot = sources[index]!.read();
+			if (snapshot.status !== 'available') {
+				ready = false;
+				callbacks.onUnavailable(snapshot.status, snapshot);
+				return;
+			}
+			nextGenerations[index] = snapshot.generation;
+			nextVersions[index] = snapshot.version;
+			nextValues[index] = snapshot.value;
+			if (snapshot.generation !== generations[index] || snapshot.version !== versions[index])
+				changed = true;
 		}
-		const available = snapshots as Extract<
-			ContinuationDependencySnapshot<unknown>,
-			{ status: 'available' }
-		>[];
-		const publications = available.map(({ generation, version }) => ({ generation, version }));
-		if (samePublications(lastPublications, publications)) return;
-		lastPublications = publications;
-		callbacks.onReady({
-			values: available.map((snapshot) => snapshot.value),
-			publications
-		});
+		if (!changed) return;
+		ready = true;
+		const values = sources.length ? new Array<unknown>(sources.length) : undefined;
+		for (let index = 0; index < sources.length; index++) {
+			generations[index] = nextGenerations[index]!;
+			versions[index] = nextVersions[index]!;
+			values![index] = nextValues[index];
+		}
+		callbacks.onReady({ values: values ?? noDependencyValues });
 	};
 	const schedule = (): void => {
 		if (disposed || scheduled) return;
@@ -66,7 +77,9 @@ export function watchContinuationDependencies(
 		scheduleWork(evaluate);
 	};
 	// Subscribe before the first read so a source cannot publish between observation and ownership.
-	const subscriptions = sources.map((source) => source.subscribe(schedule));
+	const subscriptions = new Array<Disposable>(sources.length);
+	for (let index = 0; index < sources.length; index++)
+		subscriptions[index] = sources[index]!.subscribe(schedule);
 	return {
 		evaluate,
 		[Symbol.dispose]() {
@@ -75,18 +88,4 @@ export function watchContinuationDependencies(
 			for (const subscription of subscriptions) subscription[Symbol.dispose]();
 		}
 	};
-}
-
-function samePublications(
-	left: readonly Readonly<{ generation: number; version: number }>[] | undefined,
-	right: readonly Readonly<{ generation: number; version: number }>[]
-): boolean {
-	return (
-		left?.length === right.length &&
-		right.every(
-			(publication, index) =>
-				publication.generation === left[index]!.generation &&
-				publication.version === left[index]!.version
-		)
-	);
 }

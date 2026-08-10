@@ -48,6 +48,10 @@
 			"types": "./dist/framework/component-contract-validation.d.ts",
 			"default": "./dist/framework/component-contract-validation.js"
 		},
+		"./framework/component-execution": {
+			"types": "./dist/framework/component-execution.d.ts",
+			"default": "./dist/framework/component-execution.js"
+		},
 		"./framework/error-view": {
 			"types": "./dist/framework/error-view.d.ts",
 			"default": "./dist/framework/error-view.js"

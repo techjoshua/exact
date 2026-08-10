@@ -30,7 +30,8 @@ import {
 	assertOutputCharacterBound,
 	boundedJoin,
 	countSsrNode,
-	withSsrTreeDepthAsync
+	enterSsrTreeDepth,
+	leaveSsrTreeDepth
 } from '../render/limits.js';
 import type { Child, ComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
 import {
@@ -103,12 +104,15 @@ export async function renderVNodeAsync(
 	parent: ComponentInstance<any> | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
-	return withSsrTreeDepthAsync(context, async () => {
+	enterSsrTreeDepth(context);
+	try {
 		countSsrNode(context);
 		const html = await renderVNodeAsyncInner(context, vnode, parent, options);
 		assertOutputCharacterBound(context, html);
 		return html;
-	});
+	} finally {
+		leaveSsrTreeDepth(context);
+	}
 }
 
 /** Transforms vnode async inner into its required representation. */

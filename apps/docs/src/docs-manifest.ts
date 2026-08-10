@@ -165,7 +165,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Understand distributed continuations, dependency-driven SSR execution, and server-only isolation.',
 				keywords:
-					'server task continuation dependency watcher component execution subgraph slot state machine C# async SSR scheduler hydration context Apollo TanStack bundle shared secret',
+					'server task continuation dependency watcher component execution subgraph root blueprint cache slot state machine C# async SSR scheduler hydration context Apollo TanStack bundle shared secret',
 				component: ServerExecutionPage
 			},
 			{

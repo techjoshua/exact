@@ -197,6 +197,13 @@ bounded scheduler without a startup graph-flattening pass. Conditional, keyed, r
 recursive children continue to use normal render-program reachability, so inactive alternatives do
 not execute merely because their component contracts exist.
 
+SSR caches the immutable preparation work by the selected root function. Component contracts,
+transition and port indexes, output paths, and setup-prop selection are reused across requests;
+dynamic components join the root blueprint only when reached. Entries are weakly keyed and checked
+against the current compiler identity and attached contract, while values, ownership, watchers,
+generations, cancellation, and request contexts remain per render. This removes repeated validation
+and graph-index construction without turning the cache into shared application state.
+
 Hydration then:
 
 1. validates the emitted activation against the generated client contract;

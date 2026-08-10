@@ -10,13 +10,16 @@ import {
 import type { TaskOwnerRecord } from './frame-contracts.js';
 import { taskOwnerForHost } from './owner-hosts.js';
 import { markContinuationDependencyValue } from './dependency-provenance.js';
+import {
+	prepareComponentExecution,
+	type PreparedComponentExecution,
+	type PreparedComponentTransition
+} from './component-execution-plan.js';
 
 type ComponentExecutionRuntime = Readonly<{
 	host: { readonly state?: object };
-	plan: ExactComponentExecutionContract;
-	slots: ReadonlyMap<number, ContinuationDependencySlot<unknown>>;
-	producers: ReadonlyMap<number, ReadonlySet<string>>;
-	setupOutputs: ReadonlySet<number>;
+	prepared: PreparedComponentExecution;
+	slots: readonly (ContinuationDependencySlot<unknown> | undefined)[];
 }>;
 
 /** Output generations reserved immediately before one continuation is issued. */
@@ -33,20 +36,12 @@ export function initializeComponentExecution(
 	host: { readonly state?: object },
 	plan: ExactComponentExecutionContract | undefined
 ): void {
-	if (!plan) return;
-	const slots = new Map<number, ContinuationDependencySlot<unknown>>();
-	const producers = new Map<number, Set<string>>();
-	const setupOutputs = new Set<number>();
-	for (const transition of plan.transitions) {
-		for (const output of transition.outputs) {
-			slots.set(output, slots.get(output) ?? createContinuationDependencySlot());
-			if (transition.activation === 'setup') setupOutputs.add(output);
-			let ids = producers.get(output);
-			if (!ids) producers.set(output, (ids = new Set()));
-			ids.add(transition.id);
-		}
-	}
-	runtimes.set(owner, { host, plan, slots, producers, setupOutputs });
+	if (!plan?.transitions.length) return;
+	const prepared = prepareComponentExecution(plan);
+	const slots = new Array<ContinuationDependencySlot<unknown> | undefined>(plan.ports.length);
+	for (const output of prepared.outputPortIndexes)
+		slots[output] = createContinuationDependencySlot();
+	runtimes.set(owner, { host, prepared, slots });
 }
 
 /** Propagates a state output's pending/available source through an unchanged reactive value. */
@@ -54,12 +49,10 @@ export function componentExecutionValueForHost<T>(host: object, path: string, va
 	const owner = taskOwnerForHost(host);
 	const runtime = owner ? runtimes.get(owner) : undefined;
 	if (!runtime) return value;
-	path = path.replace(/^this\.state\./, '');
-	const port = runtime.plan.ports.find(
-		(candidate) => candidate.kind === 'state' && candidate.path === path
-	);
-	const source = port ? runtime.slots.get(port.index) : undefined;
-	if (!source || (!runtime.setupOutputs.has(port!.index) && source.read().generation === 0))
+	if (path.startsWith('this.state.')) path = path.slice(11);
+	const portIndex = runtime.prepared.statePortsByPath.get(path);
+	const source = portIndex === undefined ? undefined : runtime.slots[portIndex];
+	if (!source || (!runtime.prepared.setupOutputs[portIndex!] && source.read().generation === 0))
 		return value;
 	return markContinuationDependencyValue(value, source);
 }
@@ -73,13 +66,14 @@ export function componentContinuationDependencies<Args extends unknown[]>(
 	const runtime = runtimes.get(owner);
 	const transition = componentTransition(runtime, task);
 	if (!runtime || !transition) return authored;
-	return authored.map((source, index) => {
-		const port = transition.inputs[index];
-		if (port === undefined) return source;
-		const producers = runtime.producers.get(port);
-		if (!producers || (producers.size === 1 && producers.has(transition.id))) return source;
-		return runtime.slots.get(port) ?? source;
-	}) as { [Index in keyof Args]: ContinuationDependencySource<Args[Index]> };
+	let resolved = authored;
+	for (let index = 0; index < transition.dependencyPorts.length; index++) {
+		const port = transition.dependencyPorts[index]!;
+		if (port < 0 || !runtime.slots[port]) continue;
+		if (resolved === authored) resolved = authored.slice() as typeof authored;
+		(resolved as ContinuationDependencySource<unknown>[])[index] = runtime.slots[port]!;
+	}
+	return resolved;
 }
 
 /** Reserves and later publishes every state output owned by one issued continuation generation. */
@@ -89,43 +83,64 @@ export function beginComponentContinuationOutputs<Args extends unknown[]>(
 ): ComponentContinuationOutputs | undefined {
 	const runtime = runtimes.get(owner);
 	const transition = componentTransition(runtime, task);
-	if (!runtime || !transition) return undefined;
-	const publications = transition.outputs.flatMap((portIndex) => {
-		const port = runtime.plan.ports[portIndex];
-		const slot = runtime.slots.get(portIndex);
-		if (!port || !slot || port.kind !== 'state') return [];
-		return [{ slot, generation: slot.beginGeneration(), path: port.path }];
-	});
-	if (!publications.length) return undefined;
-	return {
-		publish() {
-			for (const publication of publications) {
-				publication.slot.publish(
-					publication.generation,
-					readStatePath(runtime.host.state, publication.path)
-				);
-			}
-		},
-		settleFailure(error) {
-			for (const publication of publications) {
-				if (isTaskCancellation(error)) publication.slot.cancel(publication.generation, error);
-				else publication.slot.fail(publication.generation, error);
-			}
-		}
-	};
+	return runtime && transition?.outputs.length
+		? new ComponentContinuationOutputBatch(runtime, transition)
+		: undefined;
 }
 
 function componentTransition<Args extends unknown[]>(
 	runtime: ComponentExecutionRuntime | undefined,
 	task: TaskFunction<Args, unknown>
-): ExactComponentExecutionContract['transitions'][number] | undefined {
+): PreparedComponentTransition | undefined {
 	const id = componentContinuationTaskId(task);
-	return id ? runtime?.plan.transitions.find((transition) => transition.id === id) : undefined;
+	return id ? runtime?.prepared.transitionsById.get(id) : undefined;
 }
 
-function readStatePath(state: object | undefined, path: string): unknown {
+class ComponentContinuationOutputBatch implements ComponentContinuationOutputs {
+	readonly #generations: number | number[];
+
+	constructor(
+		private readonly runtime: ComponentExecutionRuntime,
+		private readonly transition: PreparedComponentTransition
+	) {
+		if (transition.outputs.length === 1)
+			this.#generations = runtime.slots[transition.outputs[0]!.portIndex]!.beginGeneration();
+		else {
+			const generations = new Array<number>(transition.outputs.length);
+			for (let index = 0; index < transition.outputs.length; index++)
+				generations[index] = runtime.slots[transition.outputs[index]!.portIndex]!.beginGeneration();
+			this.#generations = generations;
+		}
+	}
+
+	publish(): void {
+		for (let index = 0; index < this.transition.outputs.length; index++) {
+			const output = this.transition.outputs[index]!;
+			this.runtime.slots[output.portIndex]!.publish(
+				this.#generation(index),
+				readStatePath(this.runtime.host.state, output.path)
+			);
+		}
+	}
+
+	settleFailure(error: unknown): void {
+		for (let index = 0; index < this.transition.outputs.length; index++) {
+			const output = this.transition.outputs[index]!;
+			const slot = this.runtime.slots[output.portIndex]!;
+			const generation = this.#generation(index);
+			if (isTaskCancellation(error)) slot.cancel(generation, error);
+			else slot.fail(generation, error);
+		}
+	}
+
+	#generation(index: number): number {
+		return typeof this.#generations === 'number' ? this.#generations : this.#generations[index]!;
+	}
+}
+
+function readStatePath(state: object | undefined, path: readonly string[]): unknown {
 	let value: unknown = state;
-	for (const segment of path.split('.')) {
+	for (const segment of path) {
 		if (!value || typeof value !== 'object') return undefined;
 		value = (value as Record<string, unknown>)[segment];
 	}

@@ -33,6 +33,7 @@ import {
 	streamDocumentRender
 } from './async-rendering.js';
 import { createSsrContext } from './context.js';
+import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderVNode, renderVNodeChunks } from './sync-tree.js';
 
@@ -71,12 +72,13 @@ export function renderToStringOwned(
 	vnode: VNode,
 	options: RenderToStringOptions
 ): RenderToStringResult {
-	const context = createSsrContext(options);
 	const validatedVNode = processExactOutputSync(
 		vnode,
 		{ kind: 'vnode', signal: options.signal },
 		options.outputExtensions ?? []
 	) as VNode;
+	const context = createSsrContext(options);
+	attachSsrRootExecutionBlueprint(context, validatedVNode);
 	const body = renderVNode(context, validatedVNode, undefined);
 	const html = processExactOutputSync(
 		boundedJoin(context, [...context.reactResourceHints, body]),
@@ -134,13 +136,14 @@ export function renderToStream(
 	options: RenderToStringOptions = {}
 ): ReadableStream<Uint8Array> {
 	const profileStarted = options.onProfile ? performance.now() : undefined;
-	const context = createSsrContext(options);
 	const owner = createSsrOwner();
 	const validatedVNode = processExactOutputSync(
 		vnode,
 		{ kind: 'vnode', signal: options.signal },
 		options.outputExtensions ?? []
 	) as VNode;
+	const context = createSsrContext(options);
+	attachSsrRootExecutionBlueprint(context, validatedVNode);
 	const rendered = renderVNodeChunks(context, validatedVNode, undefined, 1);
 	const observed: Iterable<string> = {
 		[Symbol.iterator]() {

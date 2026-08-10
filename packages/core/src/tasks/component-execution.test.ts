@@ -13,8 +13,41 @@ import {
 	type TaskContext
 } from '../index.js';
 import { markComponentContinuationTask } from './component-continuation.js';
+import { prepareComponentExecution } from './component-execution-plan.js';
 
 describe('compiler-planned component execution', () => {
+	it('prepares immutable lookup indexes once for every compiled plan', () => {
+		const plan = {
+			version: 1 as const,
+			ports: [
+				{ index: 0, kind: 'props' as const, path: 'props.query', direction: 'input' as const },
+				{ index: 1, kind: 'state' as const, path: 'result', direction: 'output' as const }
+			],
+			transitions: [
+				{
+					id: 'load',
+					taskId: 'load',
+					activation: 'setup' as const,
+					placement: 'server' as const,
+					readiness: 'blocking' as const,
+					concurrency: 'latest' as const,
+					inputs: [0],
+					outputs: [1]
+				}
+			],
+			reactive: []
+		};
+
+		const first = prepareComponentExecution(plan);
+		expect(prepareComponentExecution(plan)).toBe(first);
+		expect(first.statePortsByPath.get('result')).toBe(1);
+		expect(first.setupPropNames).toEqual(new Set(['query']));
+		expect(first.transitionsById.get('load')).toMatchObject({
+			dependencyPorts: [-1],
+			outputs: [{ portIndex: 1, path: ['result'] }]
+		});
+	});
+
 	it('keeps an interaction-only output available until its first generation starts', () => {
 		let initialStatus: string | undefined;
 		function Editor(this: Component<{ result: string }>) {

@@ -80,16 +80,15 @@ export function createContinuationDependencySlot<T>(): ContinuationDependencySlo
 	let generation = 0;
 	let version = 0;
 	let snapshot: ContinuationDependencySnapshot<T> = { status: 'pending', generation, version };
-	const subscribers = new Set<() => void>();
+	const subscribers = new DependencySubscribers();
 	const publishSnapshot = (next: ContinuationDependencySnapshot<T>): void => {
 		snapshot = next;
-		for (const subscriber of [...subscribers]) subscriber();
+		subscribers.notify();
 	};
 	return {
 		read: () => snapshot,
 		subscribe(notify) {
-			subscribers.add(notify);
-			return disposable(() => subscribers.delete(notify));
+			return subscribers.subscribe(notify);
 		},
 		beginGeneration() {
 			generation++;
@@ -121,17 +120,26 @@ function reactiveContinuationDependency<T>(
 	source: ReactiveRef
 ): ContinuationDependencySource<T> {
 	let version = 0;
+	let dirty = true;
+	let snapshot: ContinuationDependencySnapshot<T>;
 	return {
-		read: () => ({
-			status: 'available',
-			generation: 0,
-			version,
-			value: (isReactiveValue(input) ? unwrap(input) : input) as T
-		}),
+		read() {
+			if (dirty) {
+				snapshot = {
+					status: 'available',
+					generation: 0,
+					version,
+					value: (isReactiveValue(input) ? unwrap(input) : input) as T
+				};
+				dirty = false;
+			}
+			return snapshot;
+		},
 		subscribe(notify) {
 			return disposable(
 				subscribe(source, () => {
 					version++;
+					dirty = true;
 					notify();
 				})
 			);
@@ -143,4 +151,48 @@ const inertDisposable: Disposable = { [Symbol.dispose]() {} };
 
 function disposable(dispose: () => void): Disposable {
 	return { [Symbol.dispose]: dispose };
+}
+
+type DependencySubscriber = {
+	readonly notify: () => void;
+	active: boolean;
+	previous?: DependencySubscriber;
+	next?: DependencySubscriber;
+};
+
+class DependencySubscribers {
+	#first?: DependencySubscriber;
+	#last?: DependencySubscriber;
+
+	subscribe(notify: () => void): Disposable {
+		const subscriber: DependencySubscriber = {
+			notify,
+			active: true,
+			previous: this.#last
+		};
+		if (this.#last) this.#last.next = subscriber;
+		else this.#first = subscriber;
+		this.#last = subscriber;
+		return disposable(() => this.#remove(subscriber));
+	}
+
+	notify(): void {
+		const last = this.#last;
+		let subscriber = this.#first;
+		while (subscriber) {
+			const next = subscriber.next;
+			if (subscriber.active) subscriber.notify();
+			if (subscriber === last) return;
+			subscriber = next;
+		}
+	}
+
+	#remove(subscriber: DependencySubscriber): void {
+		if (!subscriber.active) return;
+		subscriber.active = false;
+		if (subscriber.previous) subscriber.previous.next = subscriber.next;
+		else this.#first = subscriber.next;
+		if (subscriber.next) subscriber.next.previous = subscriber.previous;
+		else this.#last = subscriber.previous;
+	}
 }

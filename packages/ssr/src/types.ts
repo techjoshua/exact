@@ -352,6 +352,8 @@ export type SsrContext = {
 	asyncFrame: boolean;
 	/** Response-local compiler-finite boundary table. */
 	hydrationTable: import('./render/hydration-table.js').SsrHydrationTable;
+	/** Reusable immutable plan cache selected by the rendered root component. */
+	rootExecutionBlueprint?: import('./render/root-execution-cache.js').SsrRootExecutionBlueprint;
 };
 
 export type {

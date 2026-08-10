@@ -99,7 +99,11 @@ describe('@exactjs/core component contracts', () => {
 		});
 
 		expect(exactComponentIdentity(component)).toBe('component:Page');
-		expect(readExactComponentContract(component)?.role).toBe('client');
+		const validated = readExactComponentContract(component)!;
+		expect(validated.role).toBe('client');
+		expect(Object.isFrozen(validated)).toBe(true);
+		expect(Object.isFrozen(validated.execution?.transitions)).toBe(true);
+		expect(readExactComponentContract(component)).toBe(validated);
 		expect(composeExactComponentContracts([component], 'client')).toMatchObject({
 			implementations: { Page_ExactClient_1: island },
 			implementationsById: { 'island:Page:1': island },
@@ -253,5 +257,29 @@ describe('@exactjs/core component contracts', () => {
 		expect(() => readExactComponentContract(component)).toThrow(
 			'Unsupported eXact component contract'
 		);
+	});
+
+	it('revalidates a replaced contract attachment while reusing an unchanged frozen contract', () => {
+		const contract = (placement: 'client' | 'server') => ({
+			version: 2 as const,
+			placement,
+			role: 'client' as const,
+			implementations: [],
+			continuations: [],
+			executors: [],
+			boundaries: []
+		});
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:Replaceable',
+			[exactComponentContract]: contract('client')
+		});
+
+		const first = readExactComponentContract(component)!;
+		expect(readExactComponentContract(component)).toBe(first);
+		component[exactComponentContract] = contract('server');
+		const second = readExactComponentContract(component)!;
+		expect(second).not.toBe(first);
+		expect(second.placement).toBe('server');
+		expect(Object.isFrozen(second)).toBe(true);
 	});
 });

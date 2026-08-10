@@ -53,6 +53,14 @@ discovery waterfall without building or flattening a request-wide plan. Uncompil
 the ordinary drain-before-render path, and structural render reachability still prevents inactive
 branches or unselected dynamic components from starting work.
 
+After output extensions choose the rendered root, SSR reuses a root-keyed immutable execution
+blueprint. It caches validated contracts and prepared lookup indexes for components reached beneath
+that root, including dynamic components on first use. Weak keys avoid retaining replaced dynamic
+components, and an attachment or compiler-identity change forces validation and preparation again.
+The cache contains no props, contexts, state, task generations, cancellation, or other request data.
+Per request, components allocate only their compact value slots and the watchers required by actual
+transitions; components without transitions skip continuation-frame allocation entirely.
+
 ## Hydration
 
 Hydration adopts matching server nodes rather than recreating them. It

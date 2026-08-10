@@ -542,6 +542,21 @@ and any connected child-input slots rather than rescanning a global plan. The un
 frames is the request dependency graph, but the runtime never materializes or flattens it as a
 separate planning artifact.
 
+The renderer caches an immutable execution blueprint by selected root component function. That
+blueprint retains validated component contracts and precomputed port, transition, output-path, and
+setup-prop indexes. Dynamic, registry-selected, lazy, and recursive components expand the blueprint
+only when normal rendering first reaches them; those expansion entries use weak component keys so
+the cache does not keep replaceable component functions alive. A changed attached contract or
+compiler component identity invalidates that component's cached entry before it can execute.
+Request values, generations, ownership, cancellation, contexts, and watcher state never enter the
+blueprint and remain isolated in request-owned frames.
+
+Preparation therefore runs once for a stable root/component pair instead of once per request or
+component instance. Instances use compact indexed arrays, cached path segments, and allocation-free
+subscriber traversal. Components with no transitions allocate no continuation frame. A watcher
+allocates a dependency vector only when all inputs are ready and the vector actually changes, while
+zero-input setup work reuses a shared immutable vector.
+
 SSR dependency watchers are request-owned and ephemeral. Blocking transitions and render-region
 dependencies participate in structural settlement. Nonblocking or indefinitely renewable sources
 do not keep the response open forever: existing readiness, deadline, maximum-pass, cancellation,

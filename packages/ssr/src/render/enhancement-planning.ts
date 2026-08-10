@@ -24,6 +24,7 @@ import { chargeEnhancementPlanning } from './enhancement-limits.js';
 import { collectSsrEnhancementRoutes } from './enhancement-routing.js';
 import { resolveSsrLogicalChildren } from './logical-children.js';
 import { SsrReadinessOwner } from './readiness-owner.js';
+import { createSsrComponentInstance } from './root-execution-cache.js';
 
 type SsrAsyncOptions = RenderToStringOptions & { taskDeadline?: number };
 
@@ -138,12 +139,11 @@ function materializeSync(
 		let children: readonly Child[] = [];
 		let failed = false;
 		try {
-			instance = createComponentInstance(
+			instance = createSsrComponentInstance(
+				context,
 				vnode.type as ComponentFunction<any, Record<string, unknown>>,
 				props,
-				parent,
-				context.componentContexts,
-				context.componentDomain
+				parent
 			);
 			context.onComponentCreated?.(instance);
 			let stabilized = false;
@@ -236,27 +236,27 @@ async function materializeAsync(
 		let children: readonly Child[] = [];
 		let failed = false;
 		try {
-			const pending = new Set<Promise<unknown>>();
+			let pending: Set<Promise<unknown>> | undefined;
 			const observer: TaskObserver = {
 				register: (promise) => {
-					const observed = promise.finally(() => pending.delete(observed));
+					const tasks = (pending ??= new Set());
+					const observed = promise.finally(() => tasks.delete(observed));
 					void observed.catch(() => undefined);
-					pending.add(observed);
+					tasks.add(observed);
 				},
 				retain() {}
 			};
 			instance = withTaskObserver(observer, () =>
-				createComponentInstance(
+				createSsrComponentInstance(
+					context,
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					props,
-					parent,
-					context.componentContexts,
-					context.componentDomain
+					parent
 				)
 			);
 			context.onComponentCreated?.(instance);
 			const maxPasses = options.maxTaskPasses ?? 10;
-			await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
+			if (pending) await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
 			let stabilized = false;
 			for (let pass = 0; pass < maxPasses; pass++) {
 				let invalidated = false;
@@ -267,7 +267,7 @@ async function materializeAsync(
 					if (isVNode(child))
 						await materializeAsync(context, child, instance, options, depth + 1, budget);
 				}
-				await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
+				if (pending) await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
 				flushSync();
 				if (!invalidated) {
 					stabilized = true;
