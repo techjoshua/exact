@@ -35,7 +35,7 @@ export function EnhancementsPage(this: Component<{}>) {
 			title="Compose optional behavior from ordinary components"
 			description="Enhancements are component-library components selected through namespaced JSX. They keep their existing compiler metadata and optional bundle-time activation without becoming framework plugins."
 			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
-			next={{ path: '/components/trust', label: 'Server trust' }}
+			next={{ path: '/components/accessibility', label: 'Accessibility' }}
 		>
 			<section>
 				<h2>A namespaced component call</h2>
@@ -102,6 +102,11 @@ export function EnhancementsPage(this: Component<{}>) {
 			<section>
 				<h2>Component libraries in this repository</h2>
 				<div className="card-grid">
+					<Link className="topic-card" to="/components/accessibility">
+						<span className="topic-index">Native semantics + guidance</span>
+						<strong>Accessibility</strong>
+						<p>Connect refs, coordinate focus, and navigate complete custom composites.</p>
+					</Link>
 					<Link className="topic-card" to="/plugins/internationalization">
 						<span className="topic-index">Language + build integration</span>
 						<strong>Internationalization</strong>

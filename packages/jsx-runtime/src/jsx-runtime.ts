@@ -133,6 +133,15 @@ export namespace JSX {
 		'value:onChange'?: unknown;
 		'checked:onChange'?: unknown;
 		'open:onToggle'?: unknown;
+		'modal:isOpen'?: unknown;
+		command?:
+			| 'show-modal'
+			| 'close'
+			| 'request-close'
+			| 'show-popover'
+			| 'hide-popover'
+			| 'toggle-popover';
+		commandFor?: string;
 		[attributeName: string]: unknown;
 	}
 

@@ -339,6 +339,12 @@ same direct intrinsic. Property plans accept scalar values and finite branches b
 slots. Active translations replace only that fallback through a framework-owned target layer;
 unrelated properties, events, refs, and intrinsic identity remain intact.
 
+These localized scalar fallbacks may coexist with `@exactjs/accessibility` ref relationships such
+as `a11y:labelledBy` and `a11y:describedBy`. Intl remains the only translation writer;
+accessibility publishes stable ID references and validates the semantic shape. Neither enhancement
+suppresses the other, and the browser's standard accessible-name precedence selects the effective
+source.
+
 A property activator can carry the same finite formatter role, for example
 `intl:aria-label="display-name:languageCode"`. Native formatter calls, plurality, and ordinal
 branches are inferred through the same expression analysis used for content messages. A pure

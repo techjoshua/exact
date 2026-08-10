@@ -61,14 +61,14 @@ export function InternationalizationPage(this: Component<{}>) {
 					Invalid message shapes are editor and build errors. Required locales can produce missing
 					translation warnings, semantic unit values receive completions, and concise hints
 					summarize inference inline. Source fragments that prove an inference are underlined; hover
-					the fallback text, authored branch, Temporal value, or native <code>Intl.*</code>{' '}
+					the fallback text, authored branch, Temporal value, or native <code>Intl.*</code>
 					expression to see what was recognized. The host, analyzer, and catalog reads never enter
 					the browser bundle.
 				</p>
 				<p>
 					Likely linguistic JSX text and supported intrinsic properties outside their intl
 					enhancements receive a <code>missing-intl</code> warning. The standard inherited HTML
-					<code>translate=&quot;no&quot;</code> attribute marks intentional exclusions.{' '}
+					<code>translate=&quot;no&quot;</code> attribute marks intentional exclusions.
 					<code>lang</code>
 					and <code>dir</code> describe content but do not opt it out of translation.
 				</p>

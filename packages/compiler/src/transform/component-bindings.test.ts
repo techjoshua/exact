@@ -82,6 +82,66 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		expect(result.code).toContain('onToggle: () => { }');
 	});
 
+	it('lowers modal dialog state through native method ownership without serializing open', () => {
+		const source = `
+				export function Modal(this: Component<{ open: boolean }>) {
+					return () => <dialog modal:isOpen={this.state.open}>Settings</dialog>;
+				}
+			`;
+		const result = transformSource(source, { filename: '/app/Modal.tsx' });
+		const server = transformSource(source, { filename: '/app/Modal.tsx', target: 'server' });
+
+		expect(result.code).not.toContain('modal:isOpen');
+		expect(result.code).toContain(
+			'__exactModalOpen: __exactExpression(() => this.state.open ?? false)'
+		);
+		expect(result.code).toContain('__exactBindModalToggle:');
+		expect(result.code).toContain('__exactBindModalClose:');
+		expect(result.code).toContain('event.currentTarget.matches(":modal")');
+		expect(server.code).not.toContain('modal:isOpen');
+		expect(server.code).not.toContain('__exactModalOpen');
+		expect(server.code).not.toMatch(/\bopen:/);
+	});
+
+	it('rejects invalid or multiply owned modal dialog bindings', () => {
+		expect(() =>
+			transformSource(
+				`export function Modal(this: Component<{ open: boolean }>) {
+					return () => <section modal:isOpen={this.state.open}>Settings</section>;
+				}`,
+				{ filename: '/app/Modal.tsx' }
+			)
+		).toThrow(/modal:isOpen.*supported only.*dialog/);
+
+		expect(() =>
+			transformSource(
+				`export function Modal(this: Component<{ open: boolean }>) {
+					return () => <dialog open modal:isOpen={this.state.open}>Settings</dialog>;
+				}`,
+				{ filename: '/app/Modal.tsx' }
+			)
+		).toThrow(/modal:isOpen cannot be combined with an explicit open prop/);
+
+		expect(() =>
+			transformSource(
+				`declare class Component<S extends object> { state: S; }
+				export function Modal(this: Component<{ open: string }>) {
+					return () => <dialog modal:isOpen={this.state.open}>Settings</dialog>;
+				}`,
+				{ filename: '/app/Modal.tsx', generatedValidation: 'semantic' }
+			)
+		).toThrow(/modal:isOpen requires a boolean state location/);
+
+		expect(() =>
+			transformSource(
+				`export function Modal(props: { open: boolean }) {
+					return () => <dialog modal:isOpen={props.open}>Settings</dialog>;
+				}`,
+				{ filename: '/app/Modal.tsx' }
+			)
+		).toThrow(/writable component state location/);
+	});
+
 	it('requires a writable state target and notification-only callback contract', () => {
 		expect(() =>
 			transformSource(

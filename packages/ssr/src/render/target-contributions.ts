@@ -19,6 +19,7 @@ const tokenListProps = new Set([
 	'aria-labelledby',
 	'aria-controls',
 	'aria-owns',
+	'aria-flowto',
 	'rel'
 ]);
 

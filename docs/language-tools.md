@@ -82,7 +82,7 @@ retaining package identity and version. Source-located provider errors reject co
 adapter candidate generations before files or HMR output are published. Provider failures do not
 hide TypeScript or core eXact editor diagnostics.
 
-`@exactjs/intl` is the first production provider. Hovering an `intl:*` activation shows the exact
+`@exactjs/intl` is a production provider. Hovering an `intl:*` activation shows the exact
 native analyzer inference, optional message name, durable message key, placeholder guide, source
 locale, target property or content, and the locales whose configured JSON or XLIFF catalogs contain
 that key. It also reports invalid messages, configured missing locales, malformed XLIFF, duplicate
@@ -91,6 +91,15 @@ locales that contradict the source locale. Completions cover semantic and concre
 currencies, display styles, and translated-property formatter roles; compact inlay hints summarize
 inference and coverage. The analyzer and its host are Node-only build tooling and never enter a
 browser bundle.
+
+`@exactjs/accessibility` uses the same generic host for finite ARIA names and values, IDs and
+relationships, native labels and commands, accessible-name evidence, focus order, modal-dialog
+usage, custom interaction parity, live-region conflicts, and the complete composite policies the
+package actually ships. It contributes ARIA, role, command, and enhancement completions;
+evidence-aware hovers; navigation-policy inlays; and bounded safe edits. Dynamic text, opaque
+component output, and runtime-only identity remain explicitly unproven rather than becoming
+speculative errors. No accessibility rule or package identity is built into the language server or
+compiler.
 
 ## Run the VS Code extension from a checkout
 

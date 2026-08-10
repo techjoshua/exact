@@ -547,7 +547,7 @@ func jsxAttributeNames(node *ast.Node) []string {
 
 func interactiveJSXAttribute(name string) bool {
 	if name == "ref" || name == "value:onInput" || name == "value:onChange" ||
-		name == "checked:onChange" || name == "open:onToggle" {
+		name == "checked:onChange" || name == "open:onToggle" || name == "modal:isOpen" {
 		return true
 	}
 	if separator := strings.IndexByte(name, ':'); separator >= 0 {

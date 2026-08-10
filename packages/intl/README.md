@@ -1,14 +1,12 @@
 # @exactjs/intl
 
-Enhancement-first internationalization plugin and runtime for eXact. The package keeps authored
-TSX as the unavailable-capability fallback while analyzed builds use validated, data-only message
-plans and ordinary eXact component ownership.
+Enhancement-first internationalization for eXact. Authored TSX remains the unavailable-capability
+fallback while analyzed builds use validated, data-only plans and ordinary component ownership.
 
 `@exactjs/intl` combines a cross-build plugin with a standard eXact component library. Shared
 adapter integration coordinates extraction and catalogs, while ordinary component branding covers
-`IntlProvider` and explicit intl components. The `@exactjs/intl/enhancements` entry exports:
-`message`, `plural`, `select`, `currency`, `unit`, `cldr`, and the supported translated-property
-names.
+`IntlProvider` and explicit intl components. The enhancement entry exports `message`, `plural`,
+`select`, `currency`, `unit`, `cldr`, and supported translated properties.
 
 ## Usage
 
@@ -54,9 +52,9 @@ Formatter instances are supplied by `@exactjs/core`'s bounded realm-wide cache. 
 publishes the active and authored source locales to the component `this.intl` facade. Omitted locale
 arguments and explicit requests matching `sourceLocale` use the active locale; unrelated explicit
 locales remain explicit. Equivalent formatter requests from different provider roots share the same
-immutable native object. The compiler lowers proven native
-constructor operations and number, bigint, and `Date` locale-string calls automatically. Ordinary
-helpers can import `intl` from `@exactjs/core` to use the same pool directly.
+immutable native object. The compiler lowers proven native constructor operations and number,
+bigint, and `Date` locale-string calls automatically. Helpers can import `intl` from `@exactjs/core`
+to use the same pool directly.
 
 Message keys hash a generic translator-facing text and placeholder contract. An optional authored
 message name becomes a readable prefix; exact bindings and formatter options use a separate

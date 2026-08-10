@@ -821,7 +821,7 @@ and is therefore not the application type-check command for compiler-owned TSX s
 
 ### Intrinsic bindings
 
-Four compiler-owned namespaced props provide two-way bindings to one writable
+Five compiler-owned namespaced props provide two-way bindings to one writable
 reactive location:
 
 ```tsx
@@ -833,6 +833,7 @@ reactive location:
 <input type="checkbox" value="ups" checked:onChange={this.state.carriers} />
 <select multiple value:onChange={this.state.tags}>...</select>
 <details open:onToggle={this.state.advanced}>Advanced settings</details>
+<dialog modal:isOpen={this.state.settingsOpen}>Settings</dialog>
 ```
 
 The supported combinations are:
@@ -843,6 +844,7 @@ The supported combinations are:
 | `value:onChange`   | `input`, `textarea`, `select`, `select multiple` | scalar value, or a homogeneous string/number array for multi-select |
 | `checked:onChange` | checkbox or radio `input`                        | boolean, the radio value, or a homogeneous string/number array      |
 | `open:onToggle`    | `details`                                        | boolean disclosure state                                            |
+| `modal:isOpen`     | `dialog`                                         | boolean native modal state                                          |
 
 Select controls always commit on `change`. Boolean state requires
 `type="checkbox"`. A `Date` requires `type="date"`. An array-bound checkbox
@@ -865,6 +867,26 @@ allowed and runs after state has been updated:
 each member that the browser changes publishes its own final value, and an agreeing state update
 does not write the property back. A disclosure changed before hydration is treated like a dirty
 form control: hydration preserves the live value and publishes it before normal reactive updates.
+
+`modal:isOpen` owns only native modal state. A committed true value calls `showModal()`, false calls
+`close()`, and native `toggle` or `close` completion publishes the final `:modal` state. It cannot
+be combined with `open`: serialized `open` is nonmodal and cannot represent browser top-layer
+state. SSR therefore omits modal state, while hydration adopts a dialog opened before hydration
+and publishes that state before normal writes. Disposal removes binding listeners without closing
+the dialog. An already-open nonmodal dialog is an ownership conflict rather than something the
+binding silently converts.
+
+JSX also types the native button command surface used with dialogs and popovers:
+
+```tsx
+<button commandFor="settings" command="show-modal">Settings</button>
+<button commandFor="settings" command="request-close">Cancel</button>
+```
+
+The finite values are `show-modal`, `close`, `request-close`, `show-popover`, `hide-popover`, and
+`toggle-popover`. These are native attributes, not eXact event aliases. A package language provider
+such as `@exactjs/accessibility` may validate statically resolvable command targets without adding
+package semantics to the compiler.
 
 Bindings observe only their declared browser endpoint. Reset, autofill, restoration, or another
 platform mutation updates state when the browser dispatches that endpoint; eXact does not synthesize

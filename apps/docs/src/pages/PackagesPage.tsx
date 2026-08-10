@@ -29,6 +29,11 @@ const packageGroups: PackageGroup[] = [
 		intro: 'Common application structure without a second component model.',
 		packages: [
 			{
+				name: '@exactjs/accessibility',
+				purpose:
+					'Native-first ARIA relationships, focus lifecycle, composite navigation, and trusted accessibility diagnostics.'
+			},
+			{
 				name: '@exactjs/router',
 				purpose:
 					'Nested routing, links, outlets, data operations, and interaction-coordinated navigation.'

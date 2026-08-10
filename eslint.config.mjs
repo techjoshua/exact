@@ -23,7 +23,7 @@ export default tseslint.config(
 			'apps/react-reference-*/**',
 			'packages/react-dom-compat/fixtures/**',
 			'component-libraries/*/capability.d.ts',
-			'packages/intl/capability.d.ts'
+			'packages/*/capability.d.ts'
 		]
 	},
 	{

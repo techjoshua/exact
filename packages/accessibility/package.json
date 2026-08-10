@@ -1,0 +1,75 @@
+{
+	"name": "@exactjs/accessibility",
+	"version": "0.1.0",
+	"description": "Native-first accessibility enhancements and diagnostics for eXact",
+	"type": "module",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"capability.d.ts",
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./enhancements": {
+			"types": "./capability.d.ts",
+			"default": "./dist/enhancements.js"
+		},
+		"./language": {
+			"types": "./dist/language.d.ts",
+			"node": "./dist/language.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exactComponentLibrary": {
+		"protocol": 1,
+		"build": "./dist/exact-component-build.json"
+	},
+	"exact": {
+		"language": {
+			"schemaVersion": 1,
+			"analyzer": {
+				"protocolVersion": "^1.0.0",
+				"subpath": "./language",
+				"capabilities": [
+					"diagnostics",
+					"completions",
+					"hover",
+					"inlayHints",
+					"codeActions"
+				],
+				"projection": [
+					"sourceText",
+					"imports",
+					"enhancements",
+					"jsx",
+					"types"
+				]
+			}
+		}
+	},
+	"dependencies": {
+		"@exactjs/component-library": "^0.1.0",
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/language-extension-api": "^0.1.0",
+		"@exactjs/reactive": "^0.1.0"
+	},
+	"devDependencies": {
+		"prettier": "^3.6.2"
+	},
+	"scripts": {
+		"generate:aria": "node scripts/generate-aria-data.mjs",
+		"check:aria": "node scripts/generate-aria-data.mjs --check",
+		"build": "npm run check:aria && tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"test": "npm run check:aria && vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

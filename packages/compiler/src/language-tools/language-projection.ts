@@ -184,7 +184,11 @@ function attributeFact(
 	const valueRange =
 		equals < 0 ? undefined : Object.freeze({ start: range.start + equals + 1, end: range.end });
 	const constant =
-		attribute.valueKind === 'string' ? stringAttributeValue(authored.slice(equals + 1)) : undefined;
+		attribute.valueKind === 'string'
+			? stringAttributeValue(authored.slice(equals + 1))
+			: attribute.valueKind === 'expression'
+				? literalExpressionValue(authored.slice(equals + 1))
+				: undefined;
 	return Object.freeze({
 		name: authoredName,
 		...(attribute.namespace ? { namespace: attribute.namespace } : {}),
@@ -198,6 +202,27 @@ function attributeFact(
 			? { expressionId: `expression:${attribute.start}:${index}` }
 			: {})
 	});
+}
+
+function literalExpressionValue(authored: string): string | number | boolean | null | undefined {
+	const match = /^\{\s*(.*?)\s*\}$/su.exec(authored.trim());
+	if (!match) return undefined;
+	const expression = match[1]!;
+	if (expression === 'true') return true;
+	if (expression === 'false') return false;
+	if (expression === 'null') return null;
+	if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/u.test(expression)) {
+		const value = Number(expression);
+		return Number.isFinite(value) ? value : undefined;
+	}
+	if (/^"(?:[^"\\]|\\.)*"$/su.test(expression)) {
+		try {
+			return JSON.parse(expression) as string;
+		} catch {
+			return undefined;
+		}
+	}
+	return undefined;
 }
 
 function packageFact(specifier: string): Readonly<{ name: string; subpath?: string }> | undefined {

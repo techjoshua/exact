@@ -11,6 +11,7 @@ These documents describe behavior that exists in the repository today:
 | Document                                                                         | Subject                                                                                                                |
 | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | [actions-and-forms.md](actions-and-forms.md)                                     | Task interactions, optimism, forms, and router coordination.                                                           |
+| [accessibility.md](accessibility.md)                                             | Native-first accessibility enhancements, modal binding, relationships, navigation, and diagnostics.                    |
 | [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                                                              |
 | [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                                                                 |
 | [component-library-trust.md](component-library-trust.md)                         | Bundler-enforced server component package authorization.                                                               |
@@ -79,18 +80,17 @@ indefinite exploratory pause.
 
 The active and gated documents are:
 
-| Proposal                                                                                                       | Status       | Scope                                                                                                           |
-| -------------------------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------- |
-| [Cooperative structured children](proposals/cooperative-structured-children.md)                                | Exploratory  | Independent compound-component coordination research; it no longer blocks internationalization.                 |
-| [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)                  | Experimental | Protocol-1 lexical messages and shared native analyzer/runtime/bundler architecture pass their acceptance gate. |
-| [Compiler-planned server execution graphs](proposals/compiler-planned-server-execution-graphs.md)              | Proposed     | Start eligible render-data tasks from compiler-proven request reachability and dependency readiness.            |
-| [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)                           | Gated        | Defer more statically safe client regions after the accepted performance foundations are implemented.           |
-| [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)                        | Proposed     | Emit source-informed refresh plans while retaining validated boundary replacement.                              |
-| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)                         | Proposed     | Persist authenticated postponed renderer/task state and resume it in a later request.                           |
-| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)               | Proposed     | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                        |
-| [Accessibility enhancements and compiler diagnostics](proposals/accessibility-enhancements-and-diagnostics.md) | Proposed     | Add required accessibility enhancements, bounded compiler/LSP checks, and coordinated localized ARIA behavior.  |
-| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)                    | Exploratory  | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.     |
-| [Trusted language-service contributions](proposals/trusted-language-service-contributions.md)                  | Proposed     | Let trusted plugins and enhancements contribute bounded LSP and CLI assistance without compiler callbacks.      |
+| Proposal                                                                                          | Status       | Scope                                                                                                           |
+| ------------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------- |
+| [Cooperative structured children](proposals/cooperative-structured-children.md)                   | Exploratory  | Independent compound-component coordination research; it no longer blocks internationalization.                 |
+| [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)     | Experimental | Protocol-1 lexical messages and shared native analyzer/runtime/bundler architecture pass their acceptance gate. |
+| [Compiler-planned server execution graphs](proposals/compiler-planned-server-execution-graphs.md) | Proposed     | Start eligible render-data tasks from compiler-proven request reachability and dependency readiness.            |
+| [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)              | Gated        | Defer more statically safe client regions after the accepted performance foundations are implemented.           |
+| [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)           | Proposed     | Emit source-informed refresh plans while retaining validated boundary replacement.                              |
+| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)            | Proposed     | Persist authenticated postponed renderer/task state and resume it in a later request.                           |
+| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)  | Proposed     | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                        |
+| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)       | Exploratory  | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.     |
+| [Trusted language-service contributions](proposals/trusted-language-service-contributions.md)     | Implemented  | Let trusted plugins and enhancements contribute bounded LSP and CLI assistance without compiler callbacks.      |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
 proposal:
@@ -121,6 +121,7 @@ Completed proposal records:
 | [Bounded deterministic async SSR](history/bounded-deterministic-async-ssr.md)                       | Compiler-proven sibling concurrency with one nested-safe request scheduler, ordered merging, cancellation, and serial fallback.       |
 | [Compact hydration and progressive publication](history/compact-hydration-publication.md)           | Grouped finite rows, deferred activation ownership, row-local recovery, and deterministic progressive-helper handoff.                 |
 | [JavaScript performance improvements](history/javascript-performance-improvements.md)               | Measured client/server baselines, accepted tooling and diagnostic bounds, and recorded rejections for unqualified runtime candidates. |
+| [Accessibility enhancements and diagnostics](history/accessibility-enhancements-and-diagnostics.md) | Native modal binding, ref relationships, focus lifecycle, composite navigation, and package-owned trusted diagnostics.                |
 
 The current repository-wide implementation review is recorded in
 [`history/repository-code-review-2026-07.md`](history/repository-code-review-2026-07.md).

@@ -20,13 +20,22 @@ export const dialogMotion = defineMotion({
   reduced: 'skip'
 });`;
 
-const componentSource = `<MotionConfig reducedMotion="system" transition={{ duration: 160 }}>
-  <Presence when={this.state.open} returnFocus={this.ref.openButton} mode="out-in">
-    <Motion as="dialog" motion={dialogMotion} appear className="dialog">
-      <DialogContents />
-    </Motion>
-  </Presence>
-</MotionConfig>`;
+const componentSource = `const openButtonRef = createRef<HTMLButtonElement>('open dialog button');
+
+function DialogExample(this: Component<{ open: boolean }>) {
+  const openButton = this.ref(openButtonRef);
+
+  return () => <>
+    <button ref={openButton}>Open</button>
+    <MotionConfig reducedMotion="system" transition={{ duration: 160 }}>
+      <Presence when={this.state.open} returnFocus={openButton} mode="out-in">
+        <Motion as="dialog" motion={dialogMotion} appear className="dialog">
+          <DialogContents />
+        </Motion>
+      </Presence>
+    </MotionConfig>
+  </>;
+}`;
 
 const enhancementSource = `import motion from '@exactjs/motion'
   with { type: 'exact-enhancement' };

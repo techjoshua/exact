@@ -1,14 +1,17 @@
 import {
 	UnsafeHtml,
+	adoptElementId,
 	decodeExactMarkerPart,
 	encodeExactMarkerPart,
 	isVNode,
 	normalizeClassValue,
+	reserveElementId,
 	sanitizeUrlAttribute
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
 import { escapeAttr, escapeAttrName } from './html.js';
 import type { SsrContext } from './types.js';
+import type { RefBinding } from '@exactjs/core';
 
 /** Renders vnode props into escaped HTML attributes, skipping event and framework-only props. */
 export function renderAttrs(
@@ -21,6 +24,12 @@ export function renderAttrs(
 	let attrs = boundDetails
 		? ` data-exact-ssr-open="${unwrap(props.open) === true ? 'true' : 'false'}"`
 		: '';
+	if (!reactMarkup && props.ref) {
+		const binding = unwrap(props.ref) as RefBinding<{ id: string }>;
+		const authoredId = unwrap(props.id);
+		if (authoredId !== undefined) adoptElementId(binding, authoredId);
+		else attrs += ` id="${escapeAttr(reserveElementId(binding))}"`;
+	}
 	const customElement = !!reactMarkup && !!tag?.includes('-');
 	for (const [name, rawValue] of reactMarkup
 		? reactOrderedProps(props, tag, reactMarkup)
@@ -38,6 +47,9 @@ export function renderAttrs(
 			name === '__exactBindInput' ||
 			name === '__exactBindChange' ||
 			name === '__exactBindToggle' ||
+			name === '__exactModalOpen' ||
+			name === '__exactBindModalToggle' ||
+			name === '__exactBindModalClose' ||
 			name === 'dangerouslySetInnerHTML' ||
 			/^on[A-Z]/.test(name)
 		)
@@ -109,6 +121,7 @@ function unsafeHtmlAttribute(
 
 function nativeAttributeName(name: string, tag: string | undefined): string {
 	if (name === 'className') return 'class';
+	if (name === 'commandFor') return 'commandfor';
 	if (tag !== 'script') return name;
 	switch (name) {
 		case 'crossOrigin':

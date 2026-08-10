@@ -1,5 +1,6 @@
 import type { ComponentFunction } from '@exactjs/core';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
+import { AccessibilityPage } from './pages/AccessibilityPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
 import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
@@ -232,6 +233,15 @@ export const docGroups: DocGroup[] = [
 				summary: 'Apply optional ordinary components through finite namespaced JSX.',
 				keywords: 'enhancement component library activator target composition optional namespace',
 				component: EnhancementsPage
+			},
+			{
+				path: '/components/accessibility',
+				label: 'Accessibility',
+				summary:
+					'Add ref relationships, bounded focus lifecycle, composite navigation, and package-owned guidance while preserving native HTML behavior.',
+				keywords:
+					'accessibility a11y ARIA label description relationship ref focus dialog modal command keyboard navigation roving tabindex active descendant listbox tablist radiogroup toolbar grid LSP diagnostics enhancement',
+				component: AccessibilityPage
 			},
 			{
 				path: '/components/trust',

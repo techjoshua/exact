@@ -2663,7 +2663,8 @@ func (lowering *jsxLowering) formBindingProperties(
 	attributes *ast.Node,
 ) []*ast.Node {
 	if name != "value:onInput" && name != "value:onChange" &&
-		name != "checked:onChange" && name != "open:onToggle" {
+		name != "checked:onChange" && name != "open:onToggle" &&
+		name != "modal:isOpen" {
 		return nil
 	}
 	if initializer == nil || !ast.IsJsxExpression(initializer) {

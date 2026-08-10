@@ -790,7 +790,7 @@ second combined-overlap check.
 
 A hypothetical accessibility enhancement library could declare, without executable code:
 
-- `a11y:focus-scope`, `a11y:labelled-by`, and other finite activators;
+- `a11y:focusScope`, `a11y:labelledBy`, and other finite activators;
 - applicable intrinsic/role families;
 - required companion options and mutually exclusive navigation modes;
 - static ARIA token and ID-list shapes;

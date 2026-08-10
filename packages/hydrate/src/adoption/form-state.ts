@@ -8,6 +8,7 @@ type FormState = {
 	value?: string;
 	checked?: boolean;
 	open?: boolean;
+	modal?: boolean;
 	selected?: boolean[];
 	selection?: {
 		start: number | null;
@@ -34,7 +35,8 @@ export function captureHydrationDom(container: Element, work: DomWorkBudget): Hy
 				node instanceof HTMLTextAreaElement ||
 				node instanceof HTMLSelectElement ||
 				(node instanceof Element && node.getAttribute('contenteditable') === 'true') ||
-				isDetailsElement(node)
+				isDetailsElement(node) ||
+				isDialogElement(node)
 			)
 				controls.push(node);
 		},
@@ -52,7 +54,9 @@ export function captureHydrationDom(container: Element, work: DomWorkBudget): Hy
 							)
 						: isDetailsElement(control)
 							? control.open !== (control.getAttribute('data-exact-ssr-open') === 'true')
-							: control.textContent !== control.getAttribute('data-exact-ssr-text');
+							: isDialogElement(control)
+								? control.open
+								: control.textContent !== control.getAttribute('data-exact-ssr-text');
 		if (!dirty && control !== active) return [];
 		const state: FormState = {
 			node: control,
@@ -73,6 +77,8 @@ export function captureHydrationDom(container: Element, work: DomWorkBudget): Hy
 			state.selected = Array.from(control.options, (option) => option.selected);
 		} else if (isDetailsElement(control)) {
 			state.open = control.open;
+		} else if (isDialogElement(control)) {
+			state.modal = control.matches(':modal');
 		} else state.value = control.textContent ?? '';
 		return [state];
 	});
@@ -123,6 +129,11 @@ export function restoreFormState(
 			if (state.focused) control.focus({ preventScroll: true });
 		} else if (isDetailsElement(control) && state.open !== undefined) {
 			control.open = state.open;
+		} else if (isDialogElement(control) && state.modal !== undefined) {
+			if (state.modal && !control.matches(':modal')) {
+				if (control.open) control.close();
+				control.showModal();
+			} else if (!state.modal && control.matches(':modal')) control.close();
 		} else if (state.value !== undefined) {
 			control.textContent = state.value;
 			if (state.focused && control instanceof HTMLElement) control.focus({ preventScroll: true });
@@ -141,6 +152,15 @@ function formControlIdentity(element: Element): { attribute: string; value: stri
 
 function isDetailsElement(value: unknown): value is HTMLDetailsElement {
 	return value instanceof Element && value.localName === 'details' && 'open' in value;
+}
+
+function isDialogElement(value: unknown): value is HTMLDialogElement {
+	return (
+		value instanceof Element &&
+		value.localName === 'dialog' &&
+		'open' in value &&
+		typeof (value as HTMLDialogElement).showModal === 'function'
+	);
 }
 
 function formControlSignature(element: Element): string {

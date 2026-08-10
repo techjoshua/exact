@@ -63,11 +63,13 @@ func analyzeFormBindings(
 			}
 			if strings.HasPrefix(name, "value:") ||
 				strings.HasPrefix(name, "checked:") ||
-				strings.HasPrefix(name, "open:") {
+				strings.HasPrefix(name, "open:") ||
+				strings.HasPrefix(name, "modal:") {
 				members := enhancements.applications[attributes.Pos()].attributes[property.Pos()]
 				analysisFields := enhancements.analysisFields[property]
 				canonical := name == "value:onInput" || name == "value:onChange" ||
-					name == "checked:onChange" || name == "open:onToggle"
+					name == "checked:onChange" || name == "open:onToggle" ||
+					name == "modal:isOpen"
 				if len(members) != 0 || len(analysisFields) != 0 {
 					if canonical {
 						blockedEnhancements[property.Pos()] = struct{}{}
@@ -97,12 +99,13 @@ func analyzeFormBindings(
 		attribute := binders[0].AsJsxAttribute()
 		name := jsxAttributeText(attribute.Name())
 		if name != "value:onInput" && name != "value:onChange" &&
-			name != "checked:onChange" && name != "open:onToggle" {
+			name != "checked:onChange" && name != "open:onToggle" &&
+			name != "modal:isOpen" {
 			diagnostics = append(
 				diagnostics,
 				formBindingDiagnostic(
 					binders[0],
-					"supported intrinsic bindings are value:onInput, value:onChange, checked:onChange, and open:onToggle",
+					"supported intrinsic bindings are value:onInput, value:onChange, checked:onChange, open:onToggle, and modal:isOpen",
 				),
 			)
 			return true
@@ -136,7 +139,7 @@ func analyzeFormBindings(
 		if valueKind == "" && targetType != nil &&
 			targetType.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
 			valueKind = "string"
-			if name == "checked:onChange" || name == "open:onToggle" {
+			if name == "checked:onChange" || name == "open:onToggle" || name == "modal:isOpen" {
 				valueKind = "boolean"
 			}
 			empty = "value"
@@ -155,6 +158,8 @@ func analyzeFormBindings(
 		multiple := jsxHasAttribute(attributes, "multiple")
 		control := "value"
 		switch {
+		case tag == "dialog" && name == "modal:isOpen":
+			control = "modal"
 		case tag == "details":
 			control = "open"
 		case tag == "select" && multiple:
@@ -166,12 +171,13 @@ func analyzeFormBindings(
 		case staticType == "radio":
 			control = "radio"
 		}
-		if tag != "input" && tag != "textarea" && tag != "select" && tag != "details" {
+		if tag != "input" && tag != "textarea" && tag != "select" && tag != "details" &&
+			tag != "dialog" {
 			diagnostics = append(
 				diagnostics,
 				formBindingDiagnostic(
 					binders[0],
-					name+" is supported only on input, textarea, select, and details",
+					name+" is supported only on input, textarea, select, details, and dialog",
 				),
 			)
 			return true
@@ -182,6 +188,8 @@ func analyzeFormBindings(
 			generatedProp = "checked"
 		} else if control == "open" {
 			generatedProp = "open"
+		} else if control == "modal" {
+			generatedProp = "__exactModalOpen"
 		}
 		requiredEvent := "input"
 		if name != "value:onInput" {
@@ -194,6 +202,9 @@ func analyzeFormBindings(
 			requiredEvent = "toggle"
 		}
 		expectedName := generatedProp + ":on" + strings.ToUpper(requiredEvent[:1]) + requiredEvent[1:]
+		if control == "modal" {
+			expectedName = "modal:isOpen"
+		}
 		if name != expectedName {
 			diagnostics = append(
 				diagnostics,
@@ -206,7 +217,7 @@ func analyzeFormBindings(
 			return true
 		}
 		if valueKind == "boolean" && control != "checked" {
-			if control == "open" {
+			if control == "open" || control == "modal" {
 				// Details openness is the one non-form boolean intrinsic binding.
 			} else {
 				diagnostics = append(
@@ -223,6 +234,28 @@ func analyzeFormBindings(
 			diagnostics = append(diagnostics, formBindingDiagnostic(
 				binders[0],
 				"open:onToggle requires a boolean state location",
+			))
+			return true
+		}
+		if control == "modal" && valueKind != "boolean" {
+			diagnostics = append(diagnostics, formBindingDiagnostic(
+				binders[0],
+				"modal:isOpen requires a boolean state location",
+			))
+			return true
+		}
+		path := exactStatePathAt(target, stateReads)
+		if control == "modal" && len(path) == 0 {
+			diagnostics = append(diagnostics, formBindingDiagnostic(
+				binders[0],
+				"modal:isOpen requires one compiler-proven writable component state location",
+			))
+			return true
+		}
+		if control == "modal" && jsxHasAttribute(attributes, "open") {
+			diagnostics = append(diagnostics, formBindingDiagnostic(
+				binders[0],
+				"modal:isOpen cannot be combined with an explicit open prop",
 			))
 			return true
 		}
@@ -268,7 +301,7 @@ func analyzeFormBindings(
 			)
 			return true
 		}
-		if jsxHasAttribute(attributes, generatedProp) {
+		if generatedProp != "__exactModalOpen" && jsxHasAttribute(attributes, generatedProp) {
 			diagnostics = append(
 				diagnostics,
 				formBindingDiagnostic(
@@ -279,7 +312,6 @@ func analyzeFormBindings(
 			)
 			return true
 		}
-		path := exactStatePathAt(target, stateReads)
 		result[target.Pos()] = formBinding{
 			name:       name,
 			valueKind:  valueKind,
@@ -455,6 +487,8 @@ func (lowering *jsxLowering) lowerFormBinding(
 		property = "checked"
 	} else if binding.control == "open" {
 		property = "open"
+	} else if binding.control == "modal" {
+		property = "__exactModalOpen"
 	}
 	eventProperty := "__exactBindChange"
 	if binding.event == "input" {
@@ -462,7 +496,7 @@ func (lowering *jsxLowering) lowerFormBinding(
 	} else if binding.event == "toggle" {
 		eventProperty = "__exactBindToggle"
 	}
-	return []*ast.Node{
+	properties := []*ast.Node{
 		lowering.property(
 			lowering.factory.NewIdentifier(property),
 			lowering.reactiveExpression(binding.target, projection),
@@ -472,6 +506,17 @@ func (lowering *jsxLowering) lowerFormBinding(
 			lowering.formBindingHandler(binding, target, attributes),
 		),
 	}
+	if binding.control == "modal" {
+		properties[1] = lowering.property(
+			lowering.factory.NewIdentifier("__exactBindModalToggle"),
+			lowering.formBindingHandler(binding, target, attributes),
+		)
+		properties = append(properties, lowering.property(
+			lowering.factory.NewIdentifier("__exactBindModalClose"),
+			lowering.formBindingHandler(binding, target, attributes),
+		))
+	}
+	return properties
 }
 
 func (lowering *jsxLowering) serverFormBindingProperty(
@@ -487,6 +532,9 @@ func (lowering *jsxLowering) serverFormBindingProperty(
 	}
 	binding, exists := lowering.formBindings[target.Pos()]
 	if !exists || binding.name != name {
+		return nil
+	}
+	if binding.control == "modal" {
 		return nil
 	}
 	property := "value"
@@ -532,7 +580,7 @@ func (lowering *jsxLowering) formBindingProjection(
 				false,
 			),
 		)
-	case "checked", "open":
+	case "checked", "open", "modal":
 		return lowering.binary(
 			target,
 			ast.KindQuestionQuestionToken,
@@ -593,6 +641,12 @@ func (lowering *jsxLowering) formBindingHandler(
 		next = lowering.propertyAccess(current, "checked")
 	case "open":
 		next = lowering.propertyAccess(current, "open")
+	case "modal":
+		next = lowering.memberCall(
+			current,
+			"matches",
+			lowering.factory.NewStringLiteral(":modal", ast.TokenFlagsNone),
+		)
 	case "radio":
 		next = lowering.convertFormBindingValue(
 			binding,
@@ -775,6 +829,8 @@ func (lowering *jsxLowering) formBindingEventType(binding formBinding) *ast.Node
 		element = "HTMLTextAreaElement"
 	} else if binding.element == "details" {
 		element = "HTMLDetailsElement"
+	} else if binding.element == "dialog" {
+		element = "HTMLDialogElement"
 	}
 	currentTarget := lowering.factory.NewPropertySignatureDeclaration(
 		lowering.factory.NewModifierList([]*ast.Node{

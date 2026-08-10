@@ -1,4 +1,12 @@
 export {
+	adoptElementId,
+	attachElementIdentity,
+	ensureElementId,
+	reserveElementId,
+	reservedElementId,
+	resolveElementId
+} from './component/element-identity.js';
+export {
 	batch,
 	computed,
 	decodeReactiveProtocolValue,

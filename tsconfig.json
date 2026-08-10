@@ -19,6 +19,7 @@
 		{ "path": "./packages/module-rewrite" },
 		{ "path": "./packages/reactive" },
 		{ "path": "./packages/core" },
+		{ "path": "./packages/accessibility" },
 		{ "path": "./packages/intl" },
 		{ "path": "./packages/intl-analyzer" },
 		{ "path": "./packages/intl-build" },

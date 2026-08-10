@@ -104,6 +104,8 @@ that omitted its catalog or runtime hooks.
   props explicitly for validation, transformation, logging, async work, or callback composition.
 - Use `value:onInput`, `value:onChange`, `checked:onChange`, and `open:onToggle` for supported
   intrinsic bindings when the target is one writable state location.
+- Use `modal:isOpen` for writable native dialog modality. Do not combine it with the nonmodal
+  `open` attribute or recreate browser top-layer and inertness behavior.
 - Use `className:token={condition}` for a static conditional class token. Use a class array or
   truthy-key object when token names are dynamic; authored class sources compose in prop order.
 - Use ordinary compiled `Array.map()` with an `@exact key` identity annotation, an explicit
@@ -143,6 +145,8 @@ that omitted its catalog or runtime hooks.
 
 Read [forms-and-lists.md](references/forms-and-lists.md) for controls, conversions, nullable
 bindings, radio groups, multi-selects, checkbox groups, and list identity. Read
+[accessibility.md](references/accessibility.md) before adding ARIA relationship enhancements,
+focus scopes, modal bindings, or custom composite keyboard navigation. Read
 [tasks-and-placement.md](references/tasks-and-placement.md) for asynchronous work and split builds.
 Read [distributed-execution.md](references/distributed-execution.md) before creating or changing
 server tasks, server context, SSR resumption, or client/server protocol tests.

@@ -1,6 +1,7 @@
 import {
 	Target,
 	TargetOverrides,
+	attachElementIdentity,
 	normalizeClassValue,
 	unwrap,
 	type ComponentInstance,
@@ -17,6 +18,7 @@ const tokenListProps = new Set([
 	'aria-labelledby',
 	'aria-controls',
 	'aria-owns',
+	'aria-flowto',
 	'rel'
 ]);
 const scheduledBoundaries = new WeakSet<Mounted>();
@@ -119,6 +121,7 @@ function installTargetRef(boundary: Mounted, element: Element, source: unknown):
 			if (next === current) return;
 			current?.fulfill(undefined);
 			current = next ?? undefined;
+			if (current) attachElementIdentity(current, element);
 			current?.fulfill(element);
 		},
 		undefined,

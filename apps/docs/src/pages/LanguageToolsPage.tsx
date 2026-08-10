@@ -272,6 +272,13 @@ export function LanguageToolsPage(this: Component<{}>) {
 					concrete units, currencies, display styles, and property formatter roles, and can add
 					compact inference hints. This tooling never ships in the browser application.
 				</p>
+				<p>
+					The <code>@exactjs/accessibility</code> provider applies the same model to finite ARIA,
+					accessible-name evidence, native commands, labels and IDs, focus order, dialogs, custom
+					interactions, and complete composite structure. It adds role and property completions,
+					evidence-aware hovers, inferred keyboard-policy hints, and safe bounded edits without
+					teaching the compiler or language server accessibility rules.
+				</p>
 			</section>
 			<section>
 				<h2>Run the extension from a checkout</h2>

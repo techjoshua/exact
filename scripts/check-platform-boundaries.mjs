@@ -5,6 +5,11 @@ const root = process.cwd();
 const entries = [
 	{ name: '@exactjs/plugin-host', file: 'packages/plugin-host/dist/index.js', platform: 'browser' },
 	{ name: '@exactjs/intl', file: 'packages/intl/dist/index.js', platform: 'browser' },
+	{
+		name: '@exactjs/accessibility',
+		file: 'packages/accessibility/dist/index.js',
+		platform: 'browser'
+	},
 	{ name: '@exactjs/server', file: 'packages/server/dist/index.js', platform: 'neutral' },
 	{ name: '@exactjs/ssr', file: 'packages/ssr/dist/index.js', platform: 'neutral' }
 ];

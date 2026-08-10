@@ -7,6 +7,8 @@ import {
 	observeComponentAsync,
 	sanitizeUrlAttribute,
 	UnsafeHtml,
+	attachElementIdentity,
+	type RefBinding,
 	type StopHandle,
 	unwrap
 } from '@exactjs/core';
@@ -20,6 +22,7 @@ import {
 	runEventInteraction
 } from './events.js';
 import { preserveFocus } from './focus.js';
+import { bindModalOpen } from './modal-binding.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
 import { bindStyle } from './style.js';
@@ -66,7 +69,9 @@ export function synchronizeFormBinding(element: Element): boolean {
 	const entry =
 		entries?.get('__exactBindInput') ??
 		entries?.get('__exactBindChange') ??
-		entries?.get('__exactBindToggle');
+		entries?.get('__exactBindToggle') ??
+		entries?.get('__exactBindModalToggle') ??
+		entries?.get('__exactBindModalClose');
 	if (!entry) return false;
 	const event = new Event(entry.type, { bubbles: false, cancelable: false });
 	Object.defineProperties(event, {
@@ -98,19 +103,39 @@ function setProp(
 		if (previous && previous !== value) {
 			(previous as { fulfill(value: unknown): void }).fulfill(undefined);
 		}
+		if (value) attachElementIdentity(value as RefBinding<unknown>, element);
 		(value as { fulfill(value: unknown): void } | undefined)?.fulfill(element);
 		return;
 	}
 
-	if (key === '__exactBindInput' || key === '__exactBindChange' || key === '__exactBindToggle') {
+	if (
+		key === '__exactBindInput' ||
+		key === '__exactBindChange' ||
+		key === '__exactBindToggle' ||
+		key === '__exactBindModalToggle' ||
+		key === '__exactBindModalClose'
+	) {
 		setDirectEventHandler(
 			root,
 			element,
 			key,
-			key === '__exactBindInput' ? 'input' : key === '__exactBindToggle' ? 'toggle' : 'change',
+			key === '__exactBindInput'
+				? 'input'
+				: key === '__exactBindToggle' || key === '__exactBindModalToggle'
+					? 'toggle'
+					: key === '__exactBindModalClose'
+						? 'close'
+						: 'change',
 			value,
 			false
 		);
+		return;
+	}
+
+	if (key === '__exactModalOpen') {
+		if (value === undefined) return;
+		const stop = bindModalOpen(element, value, scope, () => releasePropBinding(element, key));
+		if (stop) setPropBinding(element, key, stop);
 		return;
 	}
 
@@ -338,7 +363,9 @@ function clearDomProp(element: Element, key: string): void {
 }
 
 function normalizePropName(key: string): string {
-	return key === 'className' ? 'class' : key;
+	if (key === 'className') return 'class';
+	if (key === 'commandFor') return 'commandfor';
+	return key;
 }
 
 function isFocusedTextControl(element: Element): boolean {

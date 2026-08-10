@@ -30,6 +30,7 @@
 		"@exactjs/server": "^0.1.0"
 	},
 	"devDependencies": {
+		"@exactjs/accessibility": "^0.1.0",
 		"@exactjs/testing": "^0.1.0"
 	},
 	"scripts": {
