@@ -202,6 +202,13 @@ direct Node writer, measured 3.48 MB per request. That removed another approxima
 request relative to the preceding 3.89 MB same-machine sample while preserving native
 backpressure and Fetch-compatible stream access.
 
+The follow-up completion retained ordered renderer chunks through the Node handoff, made public
+string materialization lazy, replaced final `TextEncoder` validation with incremental exact UTF-8
+accounting, and removed request-time key/entry/pair arrays from native and React-compatible
+attribute and style traversal. The same shipping allocation fixture measured approximately 3.45
+MB per request during the initial pass and 3.43 MB after eliminating per-chunk promise creation on
+the normal Node write path.
+
 ## Acceptance criteria
 
 1. Planned and generic execution are observably equivalent for every eligible construct.

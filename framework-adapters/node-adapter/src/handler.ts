@@ -127,9 +127,9 @@ export async function writeNodeResponseBody(
 ): Promise<void> {
 	const body = exactResponseBodyOf(result);
 	if (body) {
-		await body.writeTo(async (chunk) => {
+		await body.writeTo((chunk) => {
 			throwIfAborted(signal);
-			if (!response.write(chunk)) await waitForDrain(response, signal);
+			if (!response.write(chunk)) return waitForDrain(response, signal);
 		});
 		return;
 	}

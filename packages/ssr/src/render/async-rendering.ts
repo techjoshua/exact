@@ -1,9 +1,8 @@
 import { withTaskObserver, type VNode } from '@exactjs/core';
 import { processExactOutput } from '@exactjs/plugin-host/runtime';
-import { augmentDocumentBody } from '../document.js';
 import { renderHydrationScript } from '../hydration.js';
 import { createSsrResumptionCapture } from '../resumption.js';
-import { assertOutputWithinLimit, boundedJoin, withTaskDeadline } from '../render/limits.js';
+import { assertOutputWithinLimit, withTaskDeadline } from '../render/limits.js';
 import type {
 	ExactDocumentStreamEvent,
 	HydratableStringResult,
@@ -19,6 +18,10 @@ import { renderToStringOwned } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
 import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
+import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
+import { renderVNodeChunks } from './sync-tree.js';
+import { SsrOutputBuffer } from './output-buffer.js';
+import { createChunkedHydratableResult, createChunkedStringResult } from './output-result.js';
 
 /** Transforms to string async into its required representation. */
 export async function renderToStringAsync(
@@ -33,19 +36,24 @@ export async function renderToStringAsync(
 	)) as VNode;
 	const context = createSsrContext(renderOptions);
 	attachSsrRootExecutionBlueprint(context, validatedVNode);
-	const body = await renderVNodeAsync(context, validatedVNode, undefined, renderOptions);
-	const html = (await processExactOutput(
-		boundedJoin(context, [...context.reactResourceHints, body]),
-		{ kind: 'html', signal: options.signal },
-		options.outputExtensions ?? []
-	)) as string;
-	assertOutputWithinLimit(context, html);
+	const output = new SsrOutputBuffer(context.maxOutputBytes);
+	if (canRenderSsrSubtreeSynchronously(context, validatedVNode)) {
+		for (const chunk of renderVNodeChunks(context, validatedVNode, undefined, 1))
+			output.append(chunk);
+	} else output.append(await renderVNodeAsync(context, validatedVNode, undefined, renderOptions));
+	output.prepend(context.reactResourceHints);
+	let chunks = output.finish();
+	if (options.outputExtensions?.length) {
+		const html = (await processExactOutput(
+			chunks.length === 1 ? chunks[0]! : chunks.join(''),
+			{ kind: 'html', signal: options.signal },
+			options.outputExtensions
+		)) as string;
+		assertOutputWithinLimit(context, html);
+		chunks = [html];
+	}
 	const hydrationTable = context.hydrationTable.value();
-	return {
-		html,
-		state: options.state,
-		...(hydrationTable ? { hydrationTable } : {})
-	};
+	return createChunkedStringResult(chunks, options.state, hydrationTable);
 }
 
 /** Transforms to hydratable string async into its required representation. */
@@ -76,12 +84,7 @@ export async function renderToHydratableStringAsync(
 		maxHydrationBytes: options.maxHydrationBytes,
 		outputExtensions: options.outputExtensions
 	});
-	return {
-		...result,
-		resumptions: emittedResumptions,
-		hydrationScript,
-		htmlWithHydration: augmentDocumentBody(result.html, hydrationScript)
-	};
+	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
 
 /** Performs the stream document render domain operation. */

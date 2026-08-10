@@ -27,7 +27,7 @@ export type ExactResponseWithBody = ExactResponseLike & {
 export function createExactBufferedResponse(
 	status: number,
 	headers: Record<string, string>,
-	body: string
+	body: string | readonly string[]
 ): ExactResponseWithBody {
 	const source = new BufferedResponseBody(body);
 	const response = {
@@ -49,31 +49,41 @@ export function exactResponseBodyOf(response: ExactResponseLike): ExactResponseB
 }
 
 class BufferedResponseBody implements ExactResponseBody {
-	private body: string | undefined;
+	private body: string | readonly string[] | undefined;
 	private stream: ReadableStream<Uint8Array> | undefined;
 
-	constructor(body: string) {
+	constructor(body: string | readonly string[]) {
 		this.body = body;
 	}
 
 	async writeTo(write: ExactResponseBodyWriter): Promise<void> {
 		const body = this.claim();
-		await write(body);
+		if (typeof body === 'string') {
+			const pending = write(body);
+			if (pending) await pending;
+			return;
+		}
+		for (const chunk of body) {
+			const pending = write(chunk);
+			if (pending) await pending;
+		}
 	}
 
 	toReadableStream(): ReadableStream<Uint8Array> {
 		if (this.stream) return this.stream;
 		const body = this.claim();
-		let emitted = false;
+		const chunks = typeof body === 'string' ? undefined : body;
+		let index = 0;
 		this.stream = new ReadableStream<Uint8Array>(
 			{
 				pull(controller) {
-					if (emitted) {
+					if (chunks ? index >= chunks.length : index > 0) {
 						controller.close();
 						return;
 					}
-					emitted = true;
-					controller.enqueue(utf8Encoder.encode(body));
+					const chunk = chunks ? chunks[index++]! : (body as string);
+					if (!chunks) index++;
+					controller.enqueue(utf8Encoder.encode(chunk));
 				}
 			},
 			{ highWaterMark: 0 }
@@ -89,7 +99,7 @@ class BufferedResponseBody implements ExactResponseBody {
 		this.body = undefined;
 	}
 
-	private claim(): string {
+	private claim(): string | readonly string[] {
 		if (this.body === undefined) throw new TypeError('eXact response body was already claimed');
 		const body = this.body;
 		this.body = undefined;

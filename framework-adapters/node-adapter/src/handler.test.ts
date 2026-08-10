@@ -220,6 +220,43 @@ describe('@exactjs/node-adapter', () => {
 		expect(() => result.stream).toThrow('already claimed');
 	});
 
+	it('resumes ordered buffered chunks only after Node backpressure clears', async () => {
+		const events = new EventEmitter();
+		let writes = 0;
+		const response = Object.assign(events, {
+			statusCode: 0,
+			destroyed: false,
+			body: '',
+			setHeader() {
+				return this;
+			},
+			write(chunk: string) {
+				this.body += chunk;
+				writes++;
+				if (writes === 1) {
+					queueMicrotask(() => events.emit('drain'));
+					return false;
+				}
+				return true;
+			},
+			end() {
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & { body: string };
+
+		await writeNodeResponse(
+			response,
+			createExactBufferedResponse(200, {}, ['first', 'second', 'third'])
+		);
+
+		expect(response.body).toBe('firstsecondthird');
+		expect(writes).toBe(3);
+	});
+
 	it('cancels a backpressured stream when the client disconnects', async () => {
 		const disconnect = new AbortController();
 		let cancelled: unknown;

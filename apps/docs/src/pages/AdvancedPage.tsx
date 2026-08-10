@@ -76,11 +76,17 @@ export function AdvancedPage(this: Component<{}>) {
 			<section>
 				<h2>SSR uses the host&apos;s cheapest body path</h2>
 				<p>
-					A settled SSR response carries a single-consumer buffered body. The Node adapter writes it
-					directly with native backpressure, avoiding an extra UTF-8 buffer and Web stream.
-					Fetch-style adapters create the equivalent <code>ReadableStream</code> only when their
-					host requests it. Because rendering has already settled, request-scoped resources can be
-					released before the transport finishes sending those bytes.
+					A settled SSR response carries a single-consumer ordered chunk body. The Node adapter
+					writes those chunks directly with native backpressure, avoiding a final join, extra UTF-8
+					buffer, and Web stream. Fetch-style adapters create the equivalent{' '}
+					<code>ReadableStream</code> only when their host requests it. Because rendering has
+					already settled, request-scoped resources can be released before the transport finishes
+					sending those bytes.
+				</p>
+				<p>
+					Checked output counts UTF-8 bytes incrementally, and attribute serialization walks owned
+					properties directly. String APIs still behave normally; their one final join happens only
+					when application code reads the complete HTML value.
 				</p>
 			</section>
 			<section>

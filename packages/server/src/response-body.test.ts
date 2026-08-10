@@ -12,14 +12,14 @@ describe('buffered eXact response bodies', () => {
 	});
 
 	it('enforces one transport claim', async () => {
-		const response = createExactBufferedResponse(200, {}, 'rendered');
+		const response = createExactBufferedResponse(200, {}, ['<main>', 'rendered', '</main>']);
 		const chunks: string[] = [];
 
 		await exactResponseBodyOf(response)?.writeTo((chunk) => {
 			chunks.push(chunk);
 		});
 
-		expect(chunks).toEqual(['rendered']);
+		expect(chunks).toEqual(['<main>', 'rendered', '</main>']);
 		expect(() => response.stream).toThrow('already claimed');
 	});
 

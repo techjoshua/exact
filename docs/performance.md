@@ -53,7 +53,8 @@ collection and process heap measurements are diagnostic, environment-sensitive o
 
 The paired allocation-sampling guard profiles collected as well as surviving objects after warmup.
 It detects regressions that restore marker-mode VNode fallbacks, reactive wrappers for declarative
-module collections, or nested subtree flattening:
+module collections, nested subtree flattening, eager response-stream encoding, allocation-backed
+UTF-8 validation, or key/entry arrays during attribute traversal:
 
 ```sh
 npm run test:allocation -w @exactjs/sample-shipping-calculator

@@ -1,4 +1,5 @@
 import type { RenderToStringOptions, SsrContext } from '../types.js';
+import { utf8ByteLength } from './utf8.js';
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
@@ -106,19 +107,9 @@ export function assertOutputCharacterBound(context: SsrContext, html: string): v
 /** Verifies the exact UTF-8 byte length when non-ASCII output requires it. */
 export function assertOutputWithinLimit(context: SsrContext, html: string): void {
 	assertOutputCharacterBound(context, html);
-	if (
-		containsNonAscii(html) &&
-		new TextEncoder().encode(html).byteLength > context.maxOutputBytes
-	) {
+	if (utf8ByteLength(html) > context.maxOutputBytes) {
 		throw new SsrOutputLimitError(context.maxOutputBytes);
 	}
-}
-
-function containsNonAscii(value: string): boolean {
-	for (let index = 0; index < value.length; index++) {
-		if (value.charCodeAt(index) > 0x7f) return true;
-	}
-	return false;
 }
 
 /** Runs a synchronous nested traversal while restoring depth on every exit. */
