@@ -131,10 +131,11 @@ export function taskStatus<Args extends unknown[], Result>(
 export function invokeTaskForActivation<Args extends unknown[], Result>(
 	task: TaskFunction<Args, Result>,
 	owner: TaskOwnerRecord,
+	activationSite: object,
 	activation: 'initialization' | 'reactive',
 	args: Args
 ): TaskInvocation<Result> {
-	return invokeDefinition(readDefinition(task), owner, undefined, args, activation);
+	return invokeDefinition(readDefinition(task), owner, undefined, args, activation, activationSite);
 }
 
 function invokeDefinition<Args extends unknown[], Result>(
@@ -142,7 +143,8 @@ function invokeDefinition<Args extends unknown[], Result>(
 	explicitOwner: TaskOwnerRecord | undefined,
 	explicitParent: ReturnType<typeof currentTaskFrameRecord>,
 	args: Args,
-	activation: TaskActivation = 'invoked'
+	activation: TaskActivation = 'invoked',
+	activationSite?: object
 ): TaskInvocation<Result> {
 	const capturedArgs = definition.options.captureArguments
 		? peek(() => definition.options.captureArguments!(args))
@@ -159,9 +161,12 @@ function invokeDefinition<Args extends unknown[], Result>(
 			? taskOwnerRecord(definition.options.owner)
 			: createTaskOwnerRecord(definition.options.label));
 	const state = ownerState(definition, owner);
-	const key = definition.options.concurrencyKey?.(...resolvedArgs) ?? defaultLaneKey;
+	const dependencyDriven = activation !== 'invoked';
+	const key = dependencyDriven
+		? (activationSite ?? defaultLaneKey)
+		: (definition.options.concurrencyKey?.(...resolvedArgs) ?? defaultLaneKey);
 	const lane = taskLane(state, key);
-	const concurrency = definition.options.concurrency ?? 'parallel';
+	const concurrency = dependencyDriven ? 'latest' : (definition.options.concurrency ?? 'parallel');
 	if (concurrency === 'latest') cancelLane(lane, 'superseded');
 	const generation = ++state.nextGeneration;
 	const controller = new AbortController();
@@ -198,6 +203,7 @@ function invokeDefinition<Args extends unknown[], Result>(
 		releaseReservation,
 		foreground,
 		activation,
+		concurrency,
 		readiness,
 		priority,
 		observed: false,
@@ -306,7 +312,7 @@ function finishGeneration<Args extends unknown[], Result>(
 	lane.active.delete(record);
 	if (record.foreground) state.pendingCount = Math.max(0, state.pendingCount - 1);
 	if (record.foreground) lane.pendingCount = Math.max(0, lane.pendingCount - 1);
-	if ((definition.options.concurrency ?? 'parallel') === 'queue') {
+	if (record.concurrency === 'queue') {
 		const next = lane.queue.shift();
 		if (next) {
 			startGeneration(definition, owner, state, lane, next);

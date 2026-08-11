@@ -221,6 +221,75 @@ describe('unified task runtime', () => {
 		await owner[Symbol.asyncDispose]();
 	});
 
+	it('supersedes reactive generations independently of invoked concurrency policy', async () => {
+		const owner = createTaskOwnerRecord('reactive supersession test');
+		const state = reactive({ value: 1 });
+		const started: number[] = [];
+		const aborted: number[] = [];
+		const task = defineTask(
+			{ concurrency: 'parallel' },
+			(value: number, context: TaskContext) =>
+				new Promise<number>((resolve, reject) => {
+					started.push(value);
+					if (value === 2) resolve(value);
+					context.signal.addEventListener('abort', () => {
+						aborted.push(value);
+						reject(context.signal.reason);
+					});
+				})
+		);
+		const activation = withTaskOwnerRecord(owner, () =>
+			activateTask(
+				task,
+				computed(() => state.value)
+			)
+		);
+		flushSync();
+		await Promise.resolve();
+
+		state.value = 2;
+		flushSync();
+		await Promise.resolve();
+		flushSync();
+		await Promise.resolve();
+
+		expect(started).toEqual([1, 2]);
+		expect(aborted).toEqual([1]);
+		activation[Symbol.dispose]();
+		await owner[Symbol.asyncDispose]();
+	});
+
+	it('isolates dependency-driven concurrency by activation site', async () => {
+		const owner = createTaskOwnerRecord('activation site test');
+		const state = reactive({ left: 1, right: 2 });
+		const signals: AbortSignal[] = [];
+		const task = defineTask(
+			{ concurrency: 'latest' },
+			(_value: number, context: TaskContext) =>
+				new Promise<void>((_resolve, reject) => {
+					signals.push(context.signal);
+					context.signal.addEventListener('abort', () => reject(context.signal.reason));
+				})
+		);
+		const activations = withTaskOwnerRecord(owner, () => [
+			activateTask(
+				task,
+				computed(() => state.left)
+			),
+			activateTask(
+				task,
+				computed(() => state.right)
+			)
+		]);
+		flushSync();
+		await Promise.resolve();
+
+		expect(signals).toHaveLength(2);
+		expect(signals.every((signal) => !signal.aborted)).toBe(true);
+		for (const activation of activations) activation[Symbol.dispose]();
+		await owner[Symbol.asyncDispose]();
+	});
+
 	it('captures omitted task arguments once per generation without subscribing to them', async () => {
 		const owner = createTaskOwnerRecord('captured argument test');
 		const state = reactive({ trigger: 1, snapshot: 'first' });

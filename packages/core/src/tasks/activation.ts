@@ -90,6 +90,7 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 	dependencies: { [Index in keyof Args]: ContinuationDependencySource<Args[Index]> }
 ): Disposable {
 	const bound = bindTask(task, { owner });
+	const activationSite = {};
 	dependencies = componentContinuationDependencies(owner, task, dependencies);
 	let watcher: ContinuationDependencyWatcher | undefined;
 	let releaseDependencyWait: (() => void) | undefined;
@@ -123,7 +124,9 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 					const args = vector.values as Args;
 					registration.settled = false;
 					const outputs = beginComponentContinuationOutputs(owner, task);
-					const invocation = peek(() => invokeTaskForActivation(task, owner, activation, args));
+					const invocation = peek(() =>
+						invokeTaskForActivation(task, owner, activationSite, activation, args)
+					);
 					void Promise.resolve(invocation).then(
 						() => {
 							outputs?.publish();

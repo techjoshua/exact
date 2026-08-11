@@ -16,6 +16,8 @@ export type InternalTaskGeneration<Result> = {
 	readonly releaseReservation?: () => void;
 	readonly foreground: boolean;
 	readonly activation: TaskActivation;
+	/** Effective lane policy; dependency-driven activation always uses latest-wins. */
+	readonly concurrency: 'parallel' | 'latest' | 'queue';
 	readonly readiness: 'blocking' | 'nonblocking';
 	readinessRegistration?: { cancel(): void };
 	priority: 'immediate' | 'normal' | 'deferred';
