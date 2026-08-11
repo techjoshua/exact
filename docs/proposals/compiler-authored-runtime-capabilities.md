@@ -11,7 +11,7 @@ prerequisites, describing current behavior, or establishing a release commitment
 
 This proposal generalizes the capability-split client-runtime direction carried by
 [`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) and
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md). The lazy-island stage retains ownership
+[`lazy-interaction-islands.md`](../history/lazy-interaction-islands.md). The lazy-island stage retains ownership
 of the capability splitting required for its delivery. If this broader proposal is implemented
 later, it must generalize those boundaries rather than introduce a second capability mechanism.
 

@@ -117,16 +117,20 @@ export function AdvancedPage(this: Component<{}>) {
 				</p>
 				<p>
 					The compiler recognizes client islands whose initial browser responsibility is limited to
-					supported events and reactive form bindings. SSR emits the real inert control, and the
-					generated hydration registration loads that island&apos;s chunk when its first interaction
-					reaches the document. Islands with refs, initial client work, unsupported events, opaque
-					prop spreads, or server-only child graphs remain eager automatically.
+					bounded click, submit, input, change, or focus handling and reactive form bindings. SSR
+					emits the real inert control, and the generated hydration registration loads that
+					island&apos;s chunk when its first interaction reaches the document. Finite immutable prop
+					spreads retain source overwrite order, while refs, initial client work, unsupported events
+					or event data, and opaque spreads remain eager with a source-located explanation.
+					Independently planned server child ranges stay inert and refreshable inside a dormant
+					island instead of forcing its client code eager.
 				</p>
 				<p>
-					Activation events are queued in order while code loads, repeated input/change events
-					coalesce to the latest value per target, and generated identity prevents replay into a
-					stale replacement. A dirty input keeps its live browser value during adoption and flows
-					through the same compiled binding used after hydration.
+					Activation records are queued in order while code loads without retaining native event
+					objects. Repeated input/change events coalesce to the latest value per target, submit
+					records are never displaced by lower-value records, and generated identity prevents replay
+					into a stale replacement. A dirty input keeps its live browser value during adoption and
+					flows through the same compiled binding used after hydration.
 				</p>
 				<Callout title="Framework-owned, not cooperative">
 					<p>

@@ -6440,11 +6440,16 @@ func planDerivedBindings(
 			continue
 		}
 		candidates[symbol] = &derivedElisionCandidate{
-			binding:        binding,
-			declaration:    declaration,
-			reference:      reference,
-			component:      component,
-			renderConsumer: eagerRenderReference(reference, component),
+			binding:     binding,
+			declaration: declaration,
+			reference:   reference,
+			component:   component,
+			renderConsumer: eagerRenderReference(
+				reference,
+				component,
+				sourceFile,
+				typeChecker,
+			),
 		}
 	}
 	for _, candidate := range candidates {

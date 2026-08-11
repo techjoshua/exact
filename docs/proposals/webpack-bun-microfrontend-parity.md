@@ -10,7 +10,7 @@ Proposed after the higher-leverage compiler and SSR boundary work, including
 [`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
 [`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md),
 [`compact-hydration-publication.md`](../history/compact-hydration-publication.md),
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md), and
+[`lazy-interaction-islands.md`](../history/lazy-interaction-islands.md), and
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md). The dependent-foundation
 experiments 2–4 and 6 in
 [`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) are resolved by

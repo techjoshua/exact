@@ -9,6 +9,7 @@ import type { NativeCompilerPartitionPlan } from './process-partition-contracts.
 import type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 import type { NativeCompilerTask } from './process-task-contracts.js';
 import type { NativeCompilerContinuation } from './process-continuation-contracts.js';
+import type { ExactActivationDecision } from './process-activation-contracts.js';
 import type {
 	NativeCompilerStateAlias,
 	NativeCompilerStateEffect,
@@ -44,10 +45,11 @@ export type {
 	NativeCompilerTaskSignalCall
 } from './process-task-contracts.js';
 export type { NativeCompilerContinuation } from './process-continuation-contracts.js';
+export type * from './process-activation-contracts.js';
 export type * from './process-state-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.32.0';
+export const nativeCompilerProtocolVersion = '1.33.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -202,6 +204,7 @@ export type NativeCompilerBoundary = Readonly<{
 	discriminatorKind?: 'single' | 'branch' | 'keyed';
 	discriminatorValues?: string[];
 	generation?: number;
+	activation?: ExactActivationDecision;
 }>;
 
 /** Describes one JSX attribute discovered inside the native process. */

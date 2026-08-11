@@ -1,5 +1,5 @@
 import type { ExactPlacement } from './policy.js';
-import type { ExactPartitionPlanIR } from './analysis.js';
+import type { ExactActivationDecision, ExactPartitionPlanIR } from './analysis.js';
 
 /** Configures package export map. */
 export type PackageExportMapOptions = {
@@ -113,6 +113,7 @@ export type ExactArtifactRegistryPlan = Readonly<{
 	name: string;
 	exportName: string;
 	componentId?: string;
+	activation?: ExactActivationDecision;
 }>;
 
 /** Supported compiler products consumed by build adapters and artifact graph creation. */
@@ -168,6 +169,7 @@ export type ExactComponentRegistryEntry = {
 	exportName: string;
 	module: string;
 	componentId?: string;
+	activation?: ExactActivationDecision;
 };
 
 /** Defines the client island registry entry type contract. */

@@ -48,6 +48,8 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).toContain('lazyClientIsland as __exactLazyIsland');
 		expect(module).toContain('import("./dist/panel.exact.client.js")');
 		expect(module).toContain('.then((module) => module["Panel_ExactClient_1"])');
+		expect(module).toContain('"mode":"interaction"');
+		expect(module).toContain('"replay":"native-click"');
 		expect(module).not.toContain('import { Panel');
 		expect(module).toContain('export const registration');
 		expect(module).toContain('islands: islands');

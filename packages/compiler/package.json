@@ -29,6 +29,7 @@
 		"dist/native/async-language-client.*",
 		"dist/native/module-analysis.*",
 		"dist/native/process.*",
+		"dist/native/process-activation-contracts.*",
 		"dist/native/process-continuation-contracts.*",
 		"dist/native/process-contracts.*",
 		"dist/native/process-diagnostic-contracts.*",

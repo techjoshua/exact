@@ -14,7 +14,7 @@ The normative contracts now live in
 [component-language.md](../component-language.md), [language-tools.md](../language-tools.md), and
 [native-compiler.md](../native-compiler.md). This record preserves the implemented design and its
 acceptance rationale. Later work builds on it through
-[lazy interaction islands](../proposals/lazy-interaction-islands.md),
+[lazy interaction islands](lazy-interaction-islands.md),
 [optional structural render-program refresh extensions](../proposals/compiler-planned-structural-refresh.md), and
 [partial-prerender resumption](../proposals/partial-prerender-resumption.md).
 

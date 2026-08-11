@@ -33,11 +33,12 @@ export function nativeModuleAnalysis(
 		exports,
 		symbols,
 		boundaries: response.analysis.boundaries.map((boundary) => {
-			const { patchTargets, discriminatorValues, ...record } = boundary;
+			const { patchTargets, discriminatorValues, activation, ...record } = boundary;
 			return {
 				...record,
 				...(patchTargets ? { patchTargets: [...patchTargets] } : {}),
-				...(discriminatorValues ? { discriminatorValues: [...discriminatorValues] } : {})
+				...(discriminatorValues ? { discriminatorValues: [...discriminatorValues] } : {}),
+				...(activation ? { activation: cloneActivationDecision(activation) } : {})
 			};
 		}),
 		partitionPlan: {
@@ -46,6 +47,9 @@ export function nativeModuleAnalysis(
 			roots: [...response.analysis.partitionPlan.roots],
 			nodes: response.analysis.partitionPlan.nodes.map((node) => ({
 				...node,
+				...(node.activationDecision
+					? { activationDecision: cloneActivationDecision(node.activationDecision) }
+					: {}),
 				artifactTargets: [...node.artifactTargets],
 				renderPath: [...node.renderPath],
 				childEdges: [...node.childEdges]
@@ -151,6 +155,23 @@ export function nativeModuleAnalysis(
 			...components.flatMap((component) => component.diagnostics)
 		]
 	};
+}
+
+function cloneActivationDecision<
+	T extends {
+		mode: string;
+		reasons: readonly Record<string, unknown>[];
+		targets: readonly (Record<string, unknown> & { events: readonly Record<string, unknown>[] })[];
+	}
+>(decision: T): T {
+	return {
+		...decision,
+		reasons: decision.reasons.map((reason) => ({ ...reason })),
+		targets: decision.targets.map((target) => ({
+			...target,
+			events: target.events.map((event) => ({ ...event }))
+		}))
+	} as T;
 }
 
 function nativeComponent(

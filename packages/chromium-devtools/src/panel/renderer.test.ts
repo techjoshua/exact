@@ -46,6 +46,46 @@ describe('Chromium panel presentation', () => {
 		expect(updatedBranch.querySelector<HTMLElement>(':scope > .tree-children')?.hidden).toBe(true);
 	});
 
+	it('shows compiler activation mode and fallback reasons for live partition ranges', () => {
+		const selected = component('first');
+		const container = document.createElement('main');
+		const model: ExactDevtoolsPanelModel = {
+			...panelModel([selected], selected),
+			partitions: [
+				{
+					executionRoot: 'page',
+					buildKey: 'build',
+					plan: 'edge',
+					ownerComponentId: 'component:Card',
+					discriminator: { kind: 'single' },
+					generation: 1,
+					host: 'server',
+					children: []
+				}
+			],
+			partitionPlans: [
+				{
+					version: 1,
+					buildKey: 'build',
+					roots: ['root'],
+					edges: [{ id: 'edge', child: 'region' }],
+					nodes: [
+						{
+							id: 'region',
+							activation: 'eager',
+							activationDecision: { reasons: [{ code: 'opaque-spread' }] }
+						}
+					]
+				}
+			]
+		};
+
+		renderExactComponentsView(container, model, { selectComponent: vi.fn() });
+		const partition = [...container.querySelectorAll('.tree-node')].at(-1)!;
+		expect(partition.textContent).toContain('eager');
+		expect(partition.getAttribute('title')).toContain('opaque-spread');
+	});
+
 	it('summarizes nested own properties and preserves explicit value expansion', () => {
 		const selected = {
 			...component('first'),
@@ -244,6 +284,7 @@ function panelModel(
 		sessionId: 'session',
 		components,
 		partitions: [],
+		partitionPlans: [],
 		selected,
 		state: { state: selected.state, props: selected.props },
 		contexts: [],

@@ -215,7 +215,48 @@ export type ExactBoundaryIR = {
 	discriminatorKind?: 'single' | 'branch' | 'keyed';
 	discriminatorValues?: string[];
 	generation?: number;
+	activation?: ExactActivationDecision;
 };
+
+/** Structured compiler explanation for activation eligibility. */
+export type ExactActivationDecision = Readonly<{
+	mode: 'server-only' | 'eager' | 'interaction' | 'inert';
+	reasons: readonly ExactActivationReason[];
+	targets: readonly ExactActivationTarget[];
+}>;
+
+/** One stable conservative fallback reason and its authored source range. */
+export type ExactActivationReason = Readonly<{
+	code:
+		| 'initial-client-work'
+		| 'ref'
+		| 'owned-resource'
+		| 'eager-task'
+		| 'required-context'
+		| 'unsafe-capture'
+		| 'opaque-spread'
+		| 'unsupported-event'
+		| 'unsupported-event-data'
+		| 'unsplittable-owner'
+		| 'enhancement-setup'
+		| 'enhancement-target'
+		| 'unresolved-effect';
+	start: number;
+	length: number;
+	detail?: string;
+}>;
+
+/** One adopted DOM identity and the events authorized to activate it. */
+export type ExactActivationTarget = Readonly<{
+	id: string;
+	events: readonly ExactLazyEventPolicy[];
+}>;
+
+/** One bounded event replay operation authorized by compiler analysis. */
+export type ExactLazyEventPolicy = Readonly<{
+	type: 'click' | 'submit' | 'input' | 'change' | 'focus' | 'blur' | 'focusin' | 'focusout';
+	replay: 'native-click' | 'request-submit' | 'latest-value' | 'notification';
+}>;
 
 /** Defines the normalized build-scoped recursive client/server partition plan. */
 export type ExactPartitionPlanIR = {
@@ -250,6 +291,7 @@ export type ExactPartitionPlanNodeIR = {
 	optional?: boolean;
 	conservative?: boolean;
 	reason?: string;
+	activationDecision?: ExactActivationDecision;
 };
 
 /** Defines one finite edge in a recursive partition plan. */

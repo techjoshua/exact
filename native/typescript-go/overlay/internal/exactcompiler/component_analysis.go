@@ -33,7 +33,7 @@ func analyzeComponents(
 	if len(candidates) != len(components) {
 		return components
 	}
-	elements := collectComponentElements(sourceFile)
+	elements := collectComponentElements(sourceFile, typeChecker)
 	contextRoots := moduleContextTokenRoots(sourceFile)
 
 	for index := range components {
@@ -481,7 +481,7 @@ func activeComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate 
 	return result
 }
 
-func collectComponentElements(sourceFile *ast.SourceFile) []componentElement {
+func collectComponentElements(sourceFile *ast.SourceFile, typeChecker *checker.Checker) []componentElement {
 	result := []componentElement{}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		var tag *ast.Node
@@ -499,10 +499,7 @@ func collectComponentElements(sourceFile *ast.SourceFile) []componentElement {
 			ast.IsJsxElement(node.Parent) {
 			full = node.Parent
 		}
-		interactive := false
-		for _, name := range jsxAttributeNames(node) {
-			interactive = interactive || interactiveJSXAttribute(name)
-		}
+		interactive := elementHasInteractiveWork(sourceFile, node, typeChecker)
 		result = append(result, componentElement{
 			node:        node,
 			tag:         tagText,

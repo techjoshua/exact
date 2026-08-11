@@ -45,7 +45,7 @@ export function renderExactComponentsView(
 			emptyState('No inspectable components', 'Reload the page with runtime inspection enabled.')
 		);
 	sidebar.append(tree);
-	sidebar.append(...renderPartitionTree(model.partitions));
+	sidebar.append(...renderPartitionTree(model.partitions, model.partitionPlans));
 	layout.append(sidebar, renderComponentDetails(model));
 	replacePanelView(container, layout, 'components');
 }

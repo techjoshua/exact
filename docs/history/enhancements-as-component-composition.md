@@ -14,7 +14,7 @@ contract and before
 [`cooperative-structured-children.md`](../proposals/cooperative-structured-children.md),
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](component-value-callback-bindings.md),
-[`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
+[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md). Those proposals must consume
 the component groups, `_target` exports and contribution ownership, root-bearing frames, and target

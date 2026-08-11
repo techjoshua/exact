@@ -146,8 +146,18 @@ Boundary replacement remains the correctness fallback.
 
 Runtime inspection exposes the same retained ranges through `partitions.tree`.
 The Chromium DevTools component view shows their host, opaque plan identity,
-component owner, discriminator kind, generation, and nested range ancestry without
+component owner, activation mode and fallback reason, discriminator kind, generation, and nested range ancestry without
 turning inspection identities into dispatch authority.
+
+Compiler-proven interaction islands install only the delegated listeners named by their generated
+registry policy. `click` and `submit` resume through native `click()` and `requestSubmit()`;
+`input` and `change` preserve the browser's already-applied control mutation and coalesce to the
+latest value; focus events replay notification only. Queues retain identities and policy fields,
+never native `Event` objects, and are generation-fenced and bounded. Refs, unsupported events or
+event data, observable initial work, and non-finite spreads produce source-located eager reasons.
+Finite immutable object spreads are expanded in source overwrite order, leaving handlers in the
+client artifact and sending only fallback values through SSR. Independently planned server ranges
+remain inert inside a dormant client island and retain their own refresh generation.
 
 ## Data boundary
 
@@ -166,8 +176,6 @@ server contexts, and secret-qualified values are rejected.
 - Measured [structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)
   may add proven patch fast paths, but current range and boundary replacement is already the
   correctness contract and does not block later SSR work.
-- [Broader lazy-island classification](proposals/lazy-interaction-islands.md) where source remains
-  statically safe.
 - [Full Webpack and Bun microfrontend production conformance](proposals/webpack-bun-microfrontend-parity.md).
 - [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md); current
   progressive rendering does not persist opaque postponed renderer state.

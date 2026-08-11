@@ -2,11 +2,11 @@
 
 ## Status
 
-Partially implemented, with the remaining broader eligibility work ready for implementation after
-[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
-[`server-component-library-trust.md`](../history/server-component-library-trust.md),
-[`enhancement-first-internationalization.md`](../history/enhancement-first-internationalization.md), and
-[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md). Recursive
+Implemented and archived. The completed delivery builds on
+[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md),
+[`server-component-library-trust.md`](server-component-library-trust.md),
+[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), and
+[`component-value-callback-bindings.md`](component-value-callback-bindings.md). Recursive
 server/client graph partitioning and binding edges are implemented in the current native compiler
 protocol, while generated component contracts remain version 2. The implemented enhancement contract allows one
 namespace to select several ordinary component nodes and uses bounded root-bearing output frames.
@@ -16,29 +16,29 @@ The implemented binding contract makes generated value/change callbacks and intr
 enter the same state-effect, ownership, and placement analysis as their explicit source
 expansions. The internationalization proposal adds lexically owned message-plan, locale-catalog,
 formatter, and Unicode-data requirements that must travel with a deferred artifact.
-This proposal defines the remaining broader lazy-island delivery over that resulting partition and
-authorized bundle model. The repository already contains interaction hydration markers, compact
+This record defines the broader lazy-island delivery over that resulting partition and authorized
+bundle model. The repository contains interaction hydration markers, compact
 dormant rows, dynamic island loaders, delegated capture, queued event replay, generation fencing,
 DOM adoption, and failure fallback. Those are current foundations, not work to recreate here.
 
 It also follows the accepted performance foundations
-[`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
-[`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md), and
-[`compact-hydration-publication.md`](../history/compact-hydration-publication.md). Lazy boundaries consume the
+[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md), and
+[`compact-hydration-publication.md`](compact-hydration-publication.md). Lazy boundaries consume the
 shared slot identities and compact validated rows; they do not preserve per-boundary JSON or a
 generic adoption scan as their normal path.
 
-Before implementation begins, experiment 1 and the dependent-foundation experiments 2–4 and 6 in
-[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) must have
-recorded dispositions. Those dispositions now exist. This proposal begins only after the three
-accepted focused prerequisites above are implemented; their explicit generic and self-describing
-fallbacks remain available to boundaries that are not compiler-finite.
+Experiment 1 and the dependent-foundation experiments 2–4 and 6 in
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md) received their
+required dispositions before this work landed. The three accepted focused prerequisites above are
+also implemented; their explicit generic and self-describing fallbacks remain available to
+boundaries that are not compiler-finite.
 
-The remaining delivery includes independent server ranges, checker-proven finite spreads, localized
+The completed delivery includes independent server ranges, checker-proven finite spreads, localized
 eager descendants, structured fallback explanations, and the event policies defined below. New
 event families and an authored prepared-activation policy require a later proposal amendment.
 
-| Delivery area                | Implemented baseline                                                            | Remaining-delivery contract                                         |
+| Delivery area                | Earlier baseline                                                                | Delivered contract                                                  |
 | ---------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Server descendants           | Extracted server slots force their containing element island eager              | Independent server ranges remain inert inside an interaction island |
 | Prop spreads                 | Inline object-literal spreads may remain lazy; opaque spreads are eager         | Finite immutable checker-proven spreads may remain lazy             |
@@ -71,9 +71,9 @@ compiler may extract a generated island implementation only when doing so does n
 observable setup, state, contexts, tasks, refs, resources, or cleanup. Otherwise it marks the
 narrowest region requiring that component instance eager.
 
-## Remaining delivery scope
+## Delivered scope
 
-The implementation order for the remaining work is normative:
+The implementation landed in this order:
 
 1. Permit interaction regions containing independent inert server ranges.
 2. Accept finite checker-proven spreads without relaxing effect, capture, or serialization rules.
@@ -225,7 +225,7 @@ cannot broaden or invalidate an ancestor island.
 
 The implemented partition node already carries `activation`, component ownership, placement,
 artifact targets, refresh authority, source range, child edges, and conservative fallback. The
-remaining delivery extends native analysis with structured activation details equivalent to:
+delivered implementation extends native analysis with structured activation details equivalent to:
 
 ```ts
 type ExactActivationDecision = Readonly<{
@@ -301,7 +301,7 @@ absent from every client entry and lazy chunk.
 
 Deferral is permitted only when the runtime can preserve the relevant native transition:
 
-| Event family                           | Remaining-delivery behavior                                                             |
+| Event family                           | Delivered behavior                                                                      |
 | -------------------------------------- | --------------------------------------------------------------------------------------- |
 | `click`                                | Cancel once, load, resolve the fenced target, and call its native `click()` once        |
 | `submit`                               | Cancel once, retain submitter identity, then call `requestSubmit()` once                |
@@ -314,10 +314,10 @@ Component value/callback shorthand contributes the same callback state write, ca
 invocation event as its explicit value-plus-callback expansion; it does not make the callback lazy
 by declaration. Canonical intrinsic `value:onInput`, `value:onChange`, and `checked:onChange`
 bindings use the existing `input`/`change` policies. The new `details` `open:onToggle` binding
-remains eager in this remaining delivery because `toggle` is not an approved replay family.
+remains eager because `toggle` is not an approved replay family.
 
 Event-family eligibility also proves how the handler uses its event parameter. An ignored event
-parameter is safe. The remaining delivery otherwise permits only:
+parameter is safe. The delivered proof otherwise permits only:
 
 - `type`, `target`, and `currentTarget` for every approved family;
 - target control `value`, `checked`, and selected-option state for `input` and `change`; and
@@ -380,7 +380,7 @@ component owners required by the partition graph. Independent sibling regions ma
 ## Startup, hydration, and dormant-generation constraints
 
 Lazy activation should reduce both loaded code and live runtime state. It must remain compatible
-with [`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md):
+with [`javascript-performance-improvements.md`](javascript-performance-improvements.md):
 
 - a dormant boundary retains one compact identity/generation record and the minimum range and
   loader facts needed for activation, not a component instance, effect scope, task owner, copied

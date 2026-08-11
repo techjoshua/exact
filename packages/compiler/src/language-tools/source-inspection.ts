@@ -74,6 +74,9 @@ function freezePartitionPlan(
 			plan.nodes.map((node) =>
 				Object.freeze({
 					...node,
+					...(node.activationDecision
+						? { activationDecision: freezeActivationDecision(node.activationDecision) }
+						: {}),
 					artifactTargets: Object.freeze([...node.artifactTargets]),
 					renderPath: Object.freeze([...node.renderPath]),
 					childEdges: Object.freeze([...node.childEdges])
@@ -90,6 +93,27 @@ function freezePartitionPlan(
 			)
 		)
 	});
+}
+
+function freezeActivationDecision<
+	T extends {
+		mode: string;
+		reasons: readonly Record<string, unknown>[];
+		targets: readonly (Record<string, unknown> & { events: readonly Record<string, unknown>[] })[];
+	}
+>(decision: T): T {
+	return Object.freeze({
+		...decision,
+		reasons: Object.freeze(decision.reasons.map((reason) => Object.freeze({ ...reason }))),
+		targets: Object.freeze(
+			decision.targets.map((target) =>
+				Object.freeze({
+					...target,
+					events: Object.freeze(target.events.map((event) => Object.freeze({ ...event })))
+				})
+			)
+		)
+	}) as T;
 }
 
 function inspectComponent(

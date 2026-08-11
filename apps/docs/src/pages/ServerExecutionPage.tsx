@@ -202,7 +202,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					Finite client islands share one grouped hydration table instead of repeating their
 					component name and props on every boundary. Opaque spreads keep the self-describing
 					fallback. Compact interaction islands keep no decoded prop shell while dormant and release
-					the shared table after final activation. Progressive inline responses install one
+					the shared table after final activation. Their generated registry carries bounded target
+					and event policies rather than publishing event names in HTML; inert server ranges inside
+					them keep independent refresh ownership. Progressive inline responses install one
 					root-confined reveal helper and use compact calls afterward; hydration claims that helper,
 					and inert mode remains available when policy forbids inline code.
 				</p>

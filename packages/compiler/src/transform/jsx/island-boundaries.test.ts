@@ -175,7 +175,12 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(serverRanges[0]!.child).not.toBe(serverRanges[1]!.child);
 		expect(
 			analysis.partitionPlan.nodes.find((node) => node.id === serverRanges[0]!.parent)
-		).toMatchObject({ kind: 'region', placement: 'client', activation: 'eager' });
+		).toMatchObject({
+			kind: 'region',
+			placement: 'client',
+			activation: 'interaction',
+			activationDecision: { mode: 'interaction', reasons: [] }
+		});
 	});
 
 	it('uses distinct boundaries for repeated client component tag instances', () => {

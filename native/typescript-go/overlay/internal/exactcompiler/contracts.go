@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.32.0"
+const ProtocolVersion = "1.33.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -227,23 +227,51 @@ type ExportRecord struct {
 
 // Boundary identifies one runtime split owned by a durable component.
 type Boundary struct {
-	ID                  string   `json:"id"`
-	Name                string   `json:"name"`
-	ComponentID         string   `json:"componentId,omitempty"`
-	OwnerComponentID    string   `json:"ownerComponentId,omitempty"`
-	RenderEdgeID        string   `json:"renderEdgeId,omitempty"`
-	RenderEdgeIndex     int      `json:"renderEdgeIndex,omitempty"`
-	RenderPath          string   `json:"renderPath,omitempty"`
-	Kind                string   `json:"kind"`
-	PlanVersion         int      `json:"planVersion,omitempty"`
-	BuildKey            string   `json:"buildKey,omitempty"`
-	PlanEdgeID          string   `json:"planEdgeId,omitempty"`
-	ParentPlanID        string   `json:"parentPlanId,omitempty"`
-	FallbackPlanID      string   `json:"fallbackPlanId,omitempty"`
-	PatchTargets        []string `json:"patchTargets,omitempty"`
-	DiscriminatorKind   string   `json:"discriminatorKind,omitempty"`
-	DiscriminatorValues []string `json:"discriminatorValues,omitempty"`
-	Generation          int      `json:"generation,omitempty"`
+	ID                  string              `json:"id"`
+	Name                string              `json:"name"`
+	ComponentID         string              `json:"componentId,omitempty"`
+	OwnerComponentID    string              `json:"ownerComponentId,omitempty"`
+	RenderEdgeID        string              `json:"renderEdgeId,omitempty"`
+	RenderEdgeIndex     int                 `json:"renderEdgeIndex,omitempty"`
+	RenderPath          string              `json:"renderPath,omitempty"`
+	Kind                string              `json:"kind"`
+	PlanVersion         int                 `json:"planVersion,omitempty"`
+	BuildKey            string              `json:"buildKey,omitempty"`
+	PlanEdgeID          string              `json:"planEdgeId,omitempty"`
+	ParentPlanID        string              `json:"parentPlanId,omitempty"`
+	FallbackPlanID      string              `json:"fallbackPlanId,omitempty"`
+	PatchTargets        []string            `json:"patchTargets,omitempty"`
+	DiscriminatorKind   string              `json:"discriminatorKind,omitempty"`
+	DiscriminatorValues []string            `json:"discriminatorValues,omitempty"`
+	Generation          int                 `json:"generation,omitempty"`
+	Activation          *ActivationDecision `json:"activation,omitempty"`
+}
+
+// ActivationDecision explains when one compiler-owned client range may activate.
+type ActivationDecision struct {
+	Mode    string             `json:"mode"`
+	Reasons []ActivationReason `json:"reasons"`
+	Targets []ActivationTarget `json:"targets"`
+}
+
+// ActivationReason identifies one conservative fallback and its authored range.
+type ActivationReason struct {
+	Code   string `json:"code"`
+	Start  int    `json:"start"`
+	Length int    `json:"length"`
+	Detail string `json:"detail,omitempty"`
+}
+
+// ActivationTarget identifies an adopted DOM target and its approved event policies.
+type ActivationTarget struct {
+	ID     string            `json:"id"`
+	Events []LazyEventPolicy `json:"events"`
+}
+
+// LazyEventPolicy describes the bounded replay operation for one event family.
+type LazyEventPolicy struct {
+	Type   string `json:"type"`
+	Replay string `json:"replay"`
 }
 
 // DataPolicy is the normalized residency and secrecy contract for one value.
@@ -714,21 +742,22 @@ type PartitionPlan struct {
 // template. Component nodes retain durable ownership while region nodes carry
 // only execution, hydration, and refresh authority.
 type PartitionPlanNode struct {
-	ID                string   `json:"id"`
-	Kind              string   `json:"kind"`
-	ComponentContract string   `json:"componentContract,omitempty"`
-	OwnerComponent    string   `json:"ownerComponent"`
-	Placement         string   `json:"placement"`
-	ArtifactTargets   []string `json:"artifactTargets"`
-	Activation        string   `json:"activation"`
-	RefreshAuthority  string   `json:"refreshAuthority"`
-	Start             int      `json:"start"`
-	Length            int      `json:"length"`
-	RenderPath        []string `json:"renderPath"`
-	ChildEdges        []string `json:"childEdges"`
-	Optional          bool     `json:"optional,omitempty"`
-	Conservative      bool     `json:"conservative,omitempty"`
-	Reason            string   `json:"reason,omitempty"`
+	ID                 string              `json:"id"`
+	Kind               string              `json:"kind"`
+	ComponentContract  string              `json:"componentContract,omitempty"`
+	OwnerComponent     string              `json:"ownerComponent"`
+	Placement          string              `json:"placement"`
+	ArtifactTargets    []string            `json:"artifactTargets"`
+	Activation         string              `json:"activation"`
+	RefreshAuthority   string              `json:"refreshAuthority"`
+	Start              int                 `json:"start"`
+	Length             int                 `json:"length"`
+	RenderPath         []string            `json:"renderPath"`
+	ChildEdges         []string            `json:"childEdges"`
+	Optional           bool                `json:"optional,omitempty"`
+	Conservative       bool                `json:"conservative,omitempty"`
+	Reason             string              `json:"reason,omitempty"`
+	ActivationDecision *ActivationDecision `json:"activationDecision,omitempty"`
 }
 
 // PartitionPlanEdge connects reusable plan templates. Runtime branches and

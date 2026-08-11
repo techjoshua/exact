@@ -29,7 +29,7 @@ proposal rather than an implementation-local approximation.
 | Enhancements                           | Ordinary component nodes in every partition projection    |
 
 This proposal is the prerequisite for
-[`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
+[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md), and
 [`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md).
 

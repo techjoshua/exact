@@ -361,12 +361,6 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		request.ID,
 	)
-	symbols, boundaries := createArtifactRecords(
-		sourceFile,
-		components,
-		callables.summaries,
-		exports,
-	)
 	clientIslands := indexClientElementIslands(
 		sourceFile,
 		components,
@@ -375,6 +369,13 @@ func (s *Session) Execute(request Request) Response {
 		stateWrites,
 		reactiveBindings,
 		generation.checker,
+	)
+	symbols, boundaries := createArtifactRecords(
+		sourceFile,
+		components,
+		callables.summaries,
+		exports,
+		clientIslands,
 	)
 	continuations, resumptions := createContinuationContracts(
 		components,

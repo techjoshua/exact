@@ -238,6 +238,34 @@ export type ExactEndpointRoutes = {
 /** Defers loading one generated client-island implementation until activation. */
 export type ClientIslandLoader = Readonly<{
 	load(): Promise<ComponentFunction<any, any>>;
+	activation?: ExactActivationDecision;
+}>;
+
+/** Compiler-proven bounded activation behavior for one lazy island. */
+export type ExactActivationDecision = Readonly<{
+	mode: 'server-only' | 'eager' | 'interaction' | 'inert';
+	reasons: readonly ExactActivationReason[];
+	targets: readonly ExactActivationTarget[];
+}>;
+
+/** One source-located reason an island cannot remain dormant. */
+export type ExactActivationReason = Readonly<{
+	code: string;
+	start: number;
+	length: number;
+	detail?: string;
+}>;
+
+/** One adopted DOM target and its compiler-authorized event policies. */
+export type ExactActivationTarget = Readonly<{
+	id: string;
+	events: readonly ExactLazyEventPolicy[];
+}>;
+
+/** One bounded replay operation retained without a native Event object. */
+export type ExactLazyEventPolicy = Readonly<{
+	type: 'click' | 'submit' | 'input' | 'change' | 'focus' | 'blur' | 'focusin' | 'focusout';
+	replay: 'native-click' | 'request-submit' | 'latest-value' | 'notification';
 }>;
 
 /** One eager or compiler-generated lazy client-island implementation. */

@@ -17,6 +17,7 @@ import {
 import { captureHydrationDom, restoreFormState } from './adoption/form-state.js';
 import { disposeInteractionHydration, ensureInteractionHydration } from './islands/interaction.js';
 import { isClientIslandLoader, loadClientIsland } from './islands/loading.js';
+import { interactionEventTypes, interactionPolicyForEntry } from './islands/policies.js';
 import { revivePartitionServerSlots } from './islands/partition-slots.js';
 import { positiveLimit, utf8ByteLength } from './limits.js';
 import { decodeBoundedReactiveProtocolValue } from './protocol-decoding.js';
@@ -117,6 +118,9 @@ export function hydrateClientIslands(
 				if (result) releaseHydrationTableIfUnused(container, options);
 				return result;
 			},
+			interactionEventTypes(registry),
+			(boundary, target, type) =>
+				interactionPolicyForBoundary(boundary, target, type, registry, options),
 			options
 		);
 	else {
@@ -157,6 +161,7 @@ function hydrateIslandBoundary(
 	activationEvent?: Event
 ): boolean | Promise<boolean> {
 	if (boundary.getAttribute('data-exact-client-hydrated') === 'true') return true;
+	const generation = boundary.getAttribute('data-exact-client-generation');
 	const compact = compactBoundaryProps(boundary, options);
 	const name = boundary.getAttribute('data-exact-client-name') ?? compact?.name ?? null;
 	if (!name) return false;
@@ -176,8 +181,12 @@ function hydrateIslandBoundary(
 		boundary.setAttribute('data-exact-client-boundary', compact.id);
 	if (isClientIslandLoader(entry))
 		return loadClientIsland(entry, options).then((component) => {
-			registry[name] = component;
-			if (!boundary.isConnected && !boundary.parentNode) return false;
+			if (
+				options.signal?.aborted ||
+				boundary.getAttribute('data-exact-client-generation') !== generation ||
+				(!boundary.isConnected && !boundary.parentNode)
+			)
+				return false;
 			return mountIslandBoundary(
 				boundary,
 				name,
@@ -199,6 +208,20 @@ function hydrateIslandBoundary(
 		activationEvent,
 		compact?.props
 	);
+}
+
+function interactionPolicyForBoundary(
+	boundary: Element,
+	target: Element,
+	type: string,
+	registry: ClientIslandRegistry,
+	options: HydrateOptions
+) {
+	const compact = compactBoundaryProps(boundary, options);
+	const name = boundary.getAttribute('data-exact-client-name') ?? compact?.name;
+	const entry = name ? registry[name] : undefined;
+	if (!entry) return undefined;
+	return interactionPolicyForEntry(boundary, target, type, entry);
 }
 
 function mountIslandBoundary(

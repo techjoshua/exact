@@ -12,7 +12,7 @@ Proposed after
 [`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md),
 [`compact-hydration-publication.md`](../history/compact-hydration-publication.md),
 [`compiler-planned-component-execution.md`](../history/compiler-planned-component-execution.md), and
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md). Resumption must
+[`lazy-interaction-islands.md`](../history/lazy-interaction-islands.md). Resumption must
 persist the settled activator-selected enhancement ownership, bundler authorization fingerprint,
 and bounded root-bearing-frame authority rather than reconstruct trust or the current unrestricted
 target search. It must also retain opaque locale, catalog, formatter-data, and message-plan

@@ -1,14 +1,67 @@
 import { composeExactComponentContracts, type ComponentFunction } from '@exactjs/core';
 import { mergeHydrationRegistration } from '../config.js';
-import type { ClientIslandLoader, HydrateOptions } from '../types.js';
+import type { ClientIslandLoader, ExactActivationDecision, HydrateOptions } from '../types.js';
 
 const pendingLoads = new WeakMap<ClientIslandLoader, Promise<ComponentFunction<any, any>>>();
+const loadedContracts = new WeakMap<
+	ComponentFunction<any, any>,
+	ReturnType<typeof composeExactComponentContracts>
+>();
 
 /** Creates a compiler-facing lazy island registry entry without conflating loaders and components. */
 export function lazyClientIsland(
-	load: () => Promise<ComponentFunction<any, any>>
+	load: () => Promise<ComponentFunction<any, any>>,
+	activation?: ExactActivationDecision
 ): ClientIslandLoader {
-	return Object.freeze({ load });
+	return Object.freeze({
+		load,
+		...(activation ? { activation: freezeActivation(activation) } : {})
+	});
+}
+
+function freezeActivation(activation: ExactActivationDecision): ExactActivationDecision {
+	if (activation.mode !== 'interaction' || activation.reasons.length !== 0)
+		throw new TypeError('A lazy client island activation policy must be an interaction decision');
+	if (!activation.targets.length)
+		throw new TypeError('A lazy client island activation policy requires at least one target');
+	const replayByType = {
+		click: 'native-click',
+		submit: 'request-submit',
+		input: 'latest-value',
+		change: 'latest-value',
+		focus: 'notification',
+		blur: 'notification',
+		focusin: 'notification',
+		focusout: 'notification'
+	} as const;
+	const identities = new Set<string>();
+	return Object.freeze({
+		mode: activation.mode,
+		reasons: Object.freeze([]),
+		targets: Object.freeze(
+			activation.targets.map((target) => {
+				if (!target.id || target.id.length > 256 || identities.has(target.id))
+					throw new TypeError(
+						'A lazy client island activation target must have a unique bounded id'
+					);
+				identities.add(target.id);
+				const events = new Set<string>();
+				return Object.freeze({
+					id: target.id,
+					events: Object.freeze(
+						target.events.map((event) => {
+							if (replayByType[event.type] !== event.replay || events.has(event.type))
+								throw new TypeError(
+									'A lazy client island event must use its bounded replay policy'
+								);
+							events.add(event.type);
+							return Object.freeze({ ...event });
+						})
+					)
+				});
+			})
+		)
+	});
 }
 
 /** Resolves and registers one lazy component exactly once for every shared loader entry. */
@@ -18,18 +71,32 @@ export function loadClientIsland(
 ): Promise<ComponentFunction<any, any>> {
 	let pending = pendingLoads.get(entry);
 	if (!pending) {
-		pending = entry.load().then((component) => {
-			if (typeof component !== 'function')
-				throw new TypeError('An eXact client island loader must resolve to a component function');
-			const contracts = composeExactComponentContracts([component], 'client');
-			mergeHydrationRegistration(options, {
-				continuations: contracts.continuations
+		pending = entry
+			.load()
+			.then((component) => {
+				if (typeof component !== 'function')
+					throw new TypeError('An eXact client island loader must resolve to a component function');
+				return component;
+			})
+			.catch((error) => {
+				pendingLoads.delete(entry);
+				throw error;
 			});
-			return component;
-		});
 		pendingLoads.set(entry, pending);
 	}
-	return pending;
+	return pending.then((component) => {
+		// The module promise is shared, but continuation registration belongs to
+		// each hydration root that activates the shared artifact.
+		let contracts = loadedContracts.get(component);
+		if (!contracts) {
+			contracts = composeExactComponentContracts([component], 'client');
+			loadedContracts.set(component, contracts);
+		}
+		mergeHydrationRegistration(options, {
+			continuations: contracts.continuations
+		});
+		return component;
+	});
 }
 
 /** Reports whether one registry value is an unambiguous lazy island loader. */

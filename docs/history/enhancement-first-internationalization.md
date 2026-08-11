@@ -16,7 +16,7 @@ but ordinary component invocations remain opaque unless source marks them as str
 they publish a finite internationalization role. That boundary removes the need for general
 runtime child inspection, child capability injection, or application-wide component expansion.
 This implemented contract remains a settled input to
-[`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
+[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md), and
 [`webpack-bun-microfrontend-parity.md`](../proposals/webpack-bun-microfrontend-parity.md). The implemented
 [`component-value-callback-bindings.md`](component-value-callback-bindings.md) contract is

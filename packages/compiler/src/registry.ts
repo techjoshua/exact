@@ -79,7 +79,9 @@ function createClientDescriptorCompositionModule(
 	continuationsName: string
 ): string {
 	const islands = entries.map((entry) => {
-		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(runtimeModuleSpecifier(entry.module))}).then((module) => module[${JSON.stringify(entry.exportName)}]))`;
+		const activation =
+			entry.activation?.mode === 'interaction' ? `, ${JSON.stringify(entry.activation)}` : '';
+		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(runtimeModuleSpecifier(entry.module))}).then((module) => module[${JSON.stringify(entry.exportName)}])${activation})`;
 	});
 	const continuationValues = operations.map((continuation) =>
 		compactHydrationContinuation({

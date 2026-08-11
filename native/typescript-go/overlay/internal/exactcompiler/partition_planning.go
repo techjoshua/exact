@@ -189,16 +189,17 @@ func (builder *partitionPlanBuilder) addClientIslands(
 		}
 		id := exactStableID(builder.filename, "partition", island.id, "client-region")
 		builder.addNode(PartitionPlanNode{
-			ID:               id,
-			Kind:             "region",
-			OwnerComponent:   owner,
-			Placement:        "client",
-			ArtifactTargets:  []string{"client"},
-			Activation:       activation,
-			RefreshAuthority: "client",
-			Start:            island.node.Pos(),
-			Length:           island.node.End() - island.node.Pos(),
-			RenderPath:       []string{strconv.Itoa(island.node.Pos())},
+			ID:                 id,
+			Kind:               "region",
+			OwnerComponent:     owner,
+			Placement:          "client",
+			ArtifactTargets:    []string{"client"},
+			Activation:         activation,
+			RefreshAuthority:   "client",
+			Start:              island.node.Pos(),
+			Length:             island.node.End() - island.node.Pos(),
+			RenderPath:         []string{strconv.Itoa(island.node.Pos())},
+			ActivationDecision: &island.activation,
 		})
 		builder.addEdge(partitionEdgeInput{
 			parent: owner, child: id, kind: "client-range", cardinality: "one",
@@ -628,7 +629,7 @@ func (builder *partitionPlanBuilder) addEnhancementComponents(
 	if len(candidates) != len(components) {
 		return
 	}
-	for _, element := range collectComponentElements(sourceFile) {
+	for _, element := range collectComponentElements(sourceFile, nil) {
 		ownerIndex := componentOwnerIndex(element.node, candidates)
 		if ownerIndex < 0 || ownerIndex >= len(components) {
 			continue
@@ -661,6 +662,14 @@ func (builder *partitionPlanBuilder) addEnhancementComponents(
 				Length:            element.fullEnd - element.fullStart,
 				RenderPath:        []string{strconv.Itoa(element.node.Pos())},
 				Optional:          true,
+				ActivationDecision: &ActivationDecision{
+					Mode: "eager",
+					Reasons: []ActivationReason{{
+						Code: "enhancement-setup", Start: element.fullStart,
+						Length: element.fullEnd - element.fullStart,
+					}},
+					Targets: []ActivationTarget{},
+				},
 			})
 			builder.addEdge(partitionEdgeInput{
 				parent: parent, child: id, kind: "enhancement", cardinality: "optional",

@@ -50,14 +50,18 @@ export function createArtifactBuildProducts(
 		),
 		clientRegistrations: Object.freeze(
 			analysis.symbols.flatMap((symbol) =>
-				clientRegistrySymbol(symbol, continuationComponents) ? [registryPlan(symbol)] : []
+				clientRegistrySymbol(symbol, continuationComponents)
+					? [registryPlan(symbol, analysis.boundaries)]
+					: []
 			)
 		),
 		serverRegistrations: Object.freeze(
 			analysis.symbols.flatMap((symbol) => {
 				if (symbol.role !== 'server-part' || symbol.target !== 'server' || !symbol.exportName)
 					return [];
-				return [registryPlan(symbol as typeof symbol & { exportName: string })];
+				return [
+					registryPlan(symbol as typeof symbol & { exportName: string }, analysis.boundaries)
+				];
 			})
 		),
 		operations: Object.freeze(analysis.continuations.map(taskOperationPlan)),
@@ -71,6 +75,9 @@ export function createArtifactBuildProducts(
 							: {}),
 						...(boundary.discriminatorValues
 							? { discriminatorValues: Object.freeze([...boundary.discriminatorValues]) }
+							: {}),
+						...(boundary.activation
+							? { activation: freezeActivationDecision(boundary.activation) }
 							: {})
 					})
 			)
@@ -82,6 +89,9 @@ export function createArtifactBuildProducts(
 				analysis.partitionPlan.nodes.map((node) =>
 					Object.freeze({
 						...node,
+						...(node.activationDecision
+							? { activationDecision: freezeActivationDecision(node.activationDecision) }
+							: {}),
 						artifactTargets: Object.freeze([...node.artifactTargets]),
 						renderPath: Object.freeze([...node.renderPath]),
 						childEdges: Object.freeze([...node.childEdges])
@@ -102,13 +112,37 @@ export function createArtifactBuildProducts(
 }
 
 function registryPlan(
-	symbol: ExactModuleAnalysis['symbols'][number] & { exportName: string }
+	symbol: ExactModuleAnalysis['symbols'][number] & { exportName: string },
+	boundaries: ExactModuleAnalysis['boundaries']
 ): ExactArtifactRegistryPlan {
+	const activation = boundaries.find(
+		(boundary) =>
+			boundary.kind === 'client-island' &&
+			(boundary.id === symbol.id || boundary.name === symbol.generatedName)
+	)?.activation;
 	return Object.freeze({
 		id: symbol.id,
 		name: symbol.generatedName,
 		exportName: symbol.exportName,
-		...(symbol.componentId ? { componentId: symbol.componentId } : {})
+		...(symbol.componentId ? { componentId: symbol.componentId } : {}),
+		...(activation ? { activation: freezeActivationDecision(activation) } : {})
+	});
+}
+
+function freezeActivationDecision(
+	activation: NonNullable<ExactModuleAnalysis['boundaries'][number]['activation']>
+) {
+	return Object.freeze({
+		...activation,
+		reasons: Object.freeze(activation.reasons.map((reason) => Object.freeze({ ...reason }))),
+		targets: Object.freeze(
+			activation.targets.map((target) =>
+				Object.freeze({
+					...target,
+					events: Object.freeze(target.events.map((event) => Object.freeze({ ...event })))
+				})
+			)
+		)
 	});
 }
 
