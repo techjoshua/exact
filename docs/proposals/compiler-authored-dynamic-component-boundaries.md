@@ -55,6 +55,8 @@ planning.
   ownership.
 - Preserve deterministic component identity, replacement, cleanup, and stale-result fencing.
 - Keep unknown implementations out of SSR and out of server-operation authority.
+- Preload a selected client artifact when SSR can derive its authorized immutable URL without
+  resolving or executing the component.
 - Support synchronous values, already-loaded indexed values, lazy client chunks, and authorized
   client-only remote component contracts through one availability model.
 - Make the boundary and its resolution state visible in DevTools even before a component exists.
@@ -266,6 +268,53 @@ Partial-prerender checkpoints may retain an unresolved dynamic boundary as clien
 only. They do not persist its loader, promise, candidate, or possible implementation graph, and
 resumption never resolves it on the server.
 
+### SSR module-preload hints
+
+SSR may discover enough safe information to identify the client artifact even though it cannot
+render or execute the component. In that case, the request accumulates a preload hint for the exact
+artifact generation. For an ESM component chunk, the preferred representation is a
+`modulepreload` link because it populates the browser's module map without evaluating the module:
+
+```http
+Link: </assets/account-panel.7f31.mjs>; rel=modulepreload
+```
+
+This follows the HTML Standard's
+[`modulepreload` and response `Link` processing model](https://html.spec.whatwg.org/multipage/links.html#link-type-modulepreload).
+Adapters that emit an informational response follow
+[RFC 8297](https://www.rfc-editor.org/rfc/rfc8297.html) rather than treating early hints as the
+final response metadata.
+
+This optimization is permitted only when the compiler/build host can map a compiler-proven
+selection fact to an authorized, immutable client artifact. The server may evaluate a separate pure
+selection projection over already-authorized serializable inputs; it does not evaluate the
+candidate component value, import its module, inspect its exports, or accept a URL supplied by the
+browser. An opaque or arbitrary URL produces no hint unless an existing trusted provider contract
+has validated that exact URL, generation, credentials mode, and integrity metadata.
+
+The renderer contributes hints to one request-owned accumulator rather than mutating response
+headers from a component frame. The response adapter deduplicates them and emits them, in preferred
+order, through:
+
+1. a `103 Early Hints` response when the adapter and deployment support it and the selection is
+   known early enough;
+2. the final response's `Link` header before headers commit; or
+3. an equivalent `<link rel="modulepreload">` in the earliest safe shell chunk when streaming has
+   already committed the headers.
+
+Preload discovery does not activate the boundary, create a component owner, run setup, issue a
+task, grant a server operation, or alter fallback output. A preload is generation-fenced advisory
+fetch work only. The eventual dynamic import must use the same canonical URL, CORS/credentials,
+integrity, and referrer policy so the browser does not fetch the resource twice or consume a stale
+service-worker entry.
+
+Hints are bounded and prioritized. SSR emits only the selected implementation for a boundary in
+the active rendered branch, never every possible implementation. A dormant interaction island does
+not receive an eager preload by default because that would defeat its loading policy. Applications
+or adapters may apply an explicit preload budget or priority policy, but cannot widen compiler
+reachability or authorize another artifact. Cross-origin and user-specific selections retain the
+existing privacy, CSP, CORS, integrity, and component-library trust policies.
+
 ## Build-host and loading contract
 
 The compiler describes the loading form it can prove; adapters do not invent reachability:
@@ -321,6 +370,8 @@ exists, and neither introduces a universal runtime provider registry.
   settle or dispose.
 - SSR allocates no candidate loader, dynamic child component, task owner, or package-resolution
   state per request.
+- SSR preload collection uses the request's existing bounded response-hint accumulator and cached
+  artifact plan; it performs no package resolution and retains no request values after completion.
 
 Benchmarks must compare a static component, finite registry selection, synchronous dynamic value,
 pending lazy value, and repeated selection replacement. Report client bundle bytes, module
@@ -334,12 +385,13 @@ evaluation, mount and replacement CPU, allocation and retained heap, and stale-l
 4. Implement owned-range adoption, replacement, branding validation, disposal, and DevTools state.
 5. Add asynchronous provider availability, cancellation, Suspense/error integration, and caching.
 6. Emit SSR fallback/activation markers and verify hydration plus client-only rendering.
-7. Extract the shared conditional-implementation kernel from enhancement resolution without
+7. Add request-owned, bounded module-preload hints over authorized artifact selections.
+8. Extract the shared conditional-implementation kernel from enhancement resolution without
    changing enhancement behavior.
-8. Add Vite, Webpack, Bun, component-test, and native Node SSR conformance.
-9. Integrate authorized client-only microfrontend values through the existing remote artifact
-   contract and reject every server-capable candidate before setup or mounting.
-10. Record bundle, CPU, cancellation, and retained-heap measurements before marking complete.
+9. Add Vite, Webpack, Bun, component-test, and native Node SSR conformance.
+10. Integrate authorized client-only microfrontend values through the existing remote artifact
+    contract and reject every server-capable candidate before setup or mounting.
+11. Record bundle, CPU, cancellation, and retained-heap measurements before marking complete.
 
 ## Verification
 
@@ -355,6 +407,9 @@ evaluation, mount and replacement CPU, allocation and retained heap, and stale-l
   HMR, remote upgrade, and root replacement.
 - SSR tests proving candidate expressions, imports, component setup, tasks, and child graphs never
   execute while fallback and activation markers remain deterministic.
+- Response tests for deduplicated `103`, final-header, and streamed-shell module-preload hints,
+  including header-commit timing, exact URL/credentials/integrity agreement, budgets, inactive
+  branches, dormant islands, cross-origin policy, and stale artifact generations.
 - Hydration and client-only tests proving range-local mount without sibling replacement.
 - Security tests proving arbitrary functions, strings, module objects, paths, source text, and
   browser-observed server operations cannot become executable authority.
@@ -379,17 +434,19 @@ evaluation, mount and replacement CPU, allocation and retained heap, and stale-l
    tree-shaking, and lifecycle behavior.
 5. SSR never resolves or executes the dynamic candidate, and resolution rejects every candidate
    with eXact server execution capability before setup or mounting.
-6. The client accepts only compiler-branded, explicitly adapted, or independently authorized
+6. When SSR can derive one authorized immutable client artifact, it emits a bounded generation-safe
+   module-preload hint without resolving the component or widening active render reachability.
+7. The client accepts only compiler-branded, explicitly adapted, or independently authorized
    implementations.
-7. Selection and provider changes are cancellation-aware, generation-fenced, range-local, and
+8. Selection and provider changes are cancellation-aware, generation-fenced, range-local, and
    deterministically dispose replaced owners.
-8. Enhancements and dynamic components share resolution mechanics without sharing fallback,
+9. Enhancements and dynamic components share resolution mechanics without sharing fallback,
    composition, component ownership, or renderer semantics.
-9. Vite, Webpack, Bun, component tests, native Node SSR, hydration, and client-only rendering agree
-   on the same compiler-authored node and supported loading forms.
-10. DevTools exposes the synthetic boundary and current resolution state without fabricating a
+10. Vite, Webpack, Bun, component tests, native Node SSR, hydration, and client-only rendering agree
+    on the same compiler-authored node and supported loading forms.
+11. DevTools exposes the synthetic boundary and current resolution state without fabricating a
     component instance.
-11. Dynamic runtime bytes and allocations are absent from artifacts and instances that cannot use
+12. Dynamic runtime bytes and allocations are absent from artifacts and instances that cannot use
     the feature.
-12. Long-running cancellation and replacement tests show no retained component, loader, request,
+13. Long-running cancellation and replacement tests show no retained component, loader, request,
     subscription, or obsolete artifact generation.
