@@ -10,6 +10,7 @@ import { appendWebpackDevtoolsBootstrap, webpackDebugEnabled } from './devtools.
 import type { ExactWebpackPluginOptions } from './plugin.js';
 import { webpackCompatibilityEngine } from './react-compatibility.js';
 import { shouldTransformWebpackModule, webpackTransformTarget } from './transform-selection.js';
+import { materializeWebpackEnhancementFacades } from './enhancement-facades.js';
 
 /** Compiler output retained for the owning plugin or cross-module loader bridge. */
 export type ExactWebpackTransformResult = Readonly<{
@@ -98,9 +99,15 @@ export function transformExactWebpackModule(
 				componentBuild = result.componentBuild;
 				if (intlAnalysis?.descriptors.length)
 					intl?.linkDescriptorOwners(intlAnalysis, result.componentBuild.components, filename);
-				const enhanced = prependExactEnhancementRegistrations(
+				const registered = prependExactEnhancementRegistrations(
 					result.code,
 					result.rendererEnhancements
+				);
+				const enhanced = materializeWebpackEnhancementFacades(
+					registered,
+					result.rendererEnhancements,
+					filename,
+					options.applicationRoot
 				);
 				const code =
 					options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)

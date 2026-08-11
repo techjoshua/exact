@@ -32,7 +32,7 @@ export function createVNode(
 		props: normalizedProps,
 		children: normalizeChildren(children),
 		key,
-		...(enhancements ? { enhancements: enhancements as VNode['enhancements'] } : {}),
+		...(enhancements ? { enhancement: enhancements as VNode['enhancement'] } : {}),
 		...(domain ? { domain } : {})
 	};
 }

@@ -6507,7 +6507,7 @@ func TestSessionLowersAttributedEnhancementJSXNamespaces(t *testing.T) {
 		t.Fatalf("compile-only enhancement import was retained:\n%s", response.Code)
 	}
 	for _, expected := range []string{
-		"createEnhancementMarker",
+		"createEnhancementNode",
 		`identity: "./motion.js#motion"`,
 		`preset: "fade"`,
 		"exitDuration:",
@@ -6667,7 +6667,7 @@ func TestSessionGroupsEnhancementActivatorAliasesByCanonicalComponent(t *testing
 			t.Fatalf("canonical enhancement activators produced an error: %#v", response.Diagnostics)
 		}
 	}
-	if strings.Count(response.Code, "createEnhancementMarker") != 1 {
+	if strings.Count(response.Code, "createEnhancementNode") != 1 {
 		t.Fatalf("canonical activator aliases did not produce one grouped marker:\n%s", response.Code)
 	}
 	for _, expected := range []string{"fade:", "slideUp:", "distance: 24", "duration:"} {
@@ -6840,7 +6840,7 @@ func TestSessionAcceptsTypedAnalyzerOnlyEnhancementFieldsWithoutRuntimeCompositi
 			t.Fatalf("analyzer-only enhancement field produced an error: %#v", valid.Diagnostics)
 		}
 	}
-	if strings.Contains(valid.Code, "createEnhancementMarker") || strings.Contains(valid.Code, "intl:fragment") {
+	if strings.Contains(valid.Code, "createEnhancementNode") || strings.Contains(valid.Code, "intl:fragment") {
 		t.Fatalf("analyzer-only enhancement field reached runtime output:\n%s", valid.Code)
 	}
 	if containsDiagnosticCode(valid.Diagnostics, "EXACT_COMPONENT_BINDING") {
@@ -7016,7 +7016,7 @@ func TestSessionPartitionsFiniteEnhancementSpreads(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"omitKnownProps",
-		"createEnhancementMarker",
+		"createEnhancementNode",
 		"layoutId:",
 		"disabled:",
 		`title: "Card"`,

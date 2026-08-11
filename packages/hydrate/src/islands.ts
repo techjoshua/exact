@@ -23,6 +23,8 @@ import { positiveLimit, utf8ByteLength } from './limits.js';
 import { decodeBoundedReactiveProtocolValue } from './protocol-decoding.js';
 import type { ClientIslandRegistry, HydrateOptions } from './types.js';
 import { inspectExactPartitionInstances } from './partition-instances.js';
+import { withComponentExecutionSlice } from '@exactjs/core/framework/component-execution';
+import { prepareClientIslandExecutionSlice } from './islands/execution-slice.js';
 import { roots } from './runtime/state.js';
 import {
 	checkpointComponentResumptions,
@@ -225,6 +227,30 @@ function interactionPolicyForBoundary(
 }
 
 function mountIslandBoundary(
+	boundary: Element,
+	name: string,
+	component: ComponentFunction<any, any>,
+	options: HydrateOptions,
+	work: ReturnType<typeof createDomWorkBudget>,
+	domain: ReturnType<typeof createComponentDomain>,
+	activationEvent?: Event,
+	compactProps?: Record<string, unknown>
+): boolean {
+	return withComponentExecutionSlice(prepareClientIslandExecutionSlice(component), () =>
+		mountIslandBoundaryInSlice(
+			boundary,
+			name,
+			component,
+			options,
+			work,
+			domain,
+			activationEvent,
+			compactProps
+		)
+	);
+}
+
+function mountIslandBoundaryInSlice(
 	boundary: Element,
 	name: string,
 	component: ComponentFunction<any, any>,

@@ -78,7 +78,7 @@ function activatePlannedTarget(context: SsrContext, vnode: VNode): VNode {
 }
 
 function localDeclarations(vnode: VNode): EnhancementEntry[] {
-	return (vnode.enhancements?.entries ?? []).filter((entry) => !routingOnlyEntry(entry));
+	return (vnode.enhancement?.entries ?? []).filter((entry) => !routingOnlyEntry(entry));
 }
 
 function reportUnavailableEntries(context: SsrContext, entries: readonly EnhancementEntry[]): void {
@@ -105,7 +105,7 @@ function enhancementVNode(
 }
 
 function withoutEnhancements(vnode: VNode): VNode {
-	const { enhancements: _enhancements, ...plain } = vnode;
+	const { enhancement: _enhancement, ...plain } = vnode;
 	return plain;
 }
 

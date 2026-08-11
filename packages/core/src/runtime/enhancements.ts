@@ -1,4 +1,5 @@
 export {
+	createEnhancementNode,
 	createEnhancementMarker,
 	exactEnhancementPassThrough,
 	isExactEnhancementPassThrough,

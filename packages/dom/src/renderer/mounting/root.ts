@@ -79,7 +79,7 @@ export function mount(
 		const parked = takeParkedMount(root, vnode, parentInstance, parentScope);
 		if (parked) return parked;
 		const scope = createEffectScope(parentScope);
-		const hasEnhancements = !!vnode.enhancements?.entries.length;
+		const hasEnhancements = !!vnode.enhancement?.entries.length;
 		const nesting = root.enhancementNesting ?? 0;
 		if (hasEnhancements) root.enhancementNesting = nesting + 1;
 		try {

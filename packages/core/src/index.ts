@@ -131,6 +131,7 @@ export type {
 	ComponentDomainIdentity,
 	DirectComponentFunction,
 	ComponentFunction,
+	CompiledEnhancementNode,
 	EnhancementEntry,
 	EnhancementMarker,
 	ComponentInstance,
@@ -169,6 +170,7 @@ export type {
 	VNodeType
 } from './component/contracts.js';
 export {
+	createEnhancementNode,
 	createEnhancementMarker,
 	exactEnhancementPassThrough,
 	exactEnhancementContexts,

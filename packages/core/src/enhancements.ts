@@ -1,5 +1,6 @@
 import type {
 	ComponentFunction,
+	CompiledEnhancementNode,
 	ContextToken,
 	EnhancementEntry,
 	EnhancementMarker
@@ -46,7 +47,9 @@ export interface EnhancementContextContract {
 }
 
 /** Creates the opaque grouped marker used by compiler-owned JSX enhancement lowering. */
-export function createEnhancementMarker(entries: readonly EnhancementEntry[]): EnhancementMarker {
+export function createEnhancementNode(
+	entries: readonly EnhancementEntry[]
+): CompiledEnhancementNode {
 	const identities = new Set<string>();
 	const normalized = entries.map((entry) => {
 		if (!entry.identity) throw new TypeError('An enhancement entry requires a canonical identity');
@@ -59,8 +62,17 @@ export function createEnhancementMarker(entries: readonly EnhancementEntry[]): E
 			...(entry.root === undefined ? {} : { root: entry.root })
 		});
 	});
-	return Object.freeze({ entries: Object.freeze(normalized) });
+	return Object.freeze({
+		kind: 'enhancement' as const,
+		entries: Object.freeze(normalized),
+		fallback: 'preserve-target' as const
+	});
 }
+
+/** @deprecated Compiler output now calls createEnhancementNode. */
+export const createEnhancementMarker: (
+	entries: readonly EnhancementEntry[]
+) => EnhancementMarker = createEnhancementNode;
 
 /** Copies an object while omitting a compiler-proven finite set of namespaced enhancement keys. */
 export function omitKnownProps(

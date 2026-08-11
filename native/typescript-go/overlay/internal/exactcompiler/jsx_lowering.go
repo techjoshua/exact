@@ -6663,7 +6663,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"mutateReactiveArray", lowering.names.arrayMutation, 1},
 		{"mutateReactiveCollection", lowering.names.collectionMutation, 1},
 		{"createCompiledComponentRegistry", lowering.names.componentRegistry, 4},
-		{"createEnhancementMarker", lowering.names.enhancements, 5},
+		{"createEnhancementNode", lowering.names.enhancements, 5},
 		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
 	}
 	for _, helper := range helpers {

@@ -15,7 +15,7 @@ import type { SsrContext } from '../types.js';
  * duplicate authored work or hide a promise-producing boundary.
  */
 export function canRenderSsrSubtreeSynchronously(context: SsrContext, vnode: VNode): boolean {
-	if (context.enhancementCatalog || vnode.enhancements?.entries.length) return false;
+	if (context.enhancementCatalog || vnode.enhancement?.entries.length) return false;
 	if (isCellVNode(vnode)) return canRenderSsrSubtreeSynchronously(context, getCellVNode(vnode));
 	if (vnode.type === RenderProgram) return false;
 	if (vnode.type === Text || vnode.type === UnsafeHtml) return true;

@@ -108,7 +108,7 @@ export function patchEnhancementBoundary(
 ): Mounted {
 	const state = mounted.enhancement!;
 	const local = new Map(
-		(next.enhancements?.entries ?? []).map((entry) => [entry.identity, entry] as const)
+		(next.enhancement?.entries ?? []).map((entry) => [entry.identity, entry] as const)
 	);
 	const entries = state.entries
 		.filter((entry) => state.inheritedIdentities.has(entry.identity) || local.has(entry.identity))
@@ -347,7 +347,7 @@ function installEnhancementRouteWatch(
 			for (const [identity, values] of boundaries) {
 				for (const boundary of values) {
 					walkLogicalMounted(boundary, undefined, undefined, 0, (current) => {
-						for (const entry of current.vnode.enhancements?.entries ?? []) {
+						for (const entry of current.vnode.enhancement?.entries ?? []) {
 							if (entry.identity === identity && entry.root !== undefined) unwrap(entry.root);
 						}
 					});
@@ -396,7 +396,7 @@ function detachMounted(owner: Mounted | undefined, target: Mounted): boolean {
 
 function reportUnavailableDeclarations(root: Root, mounted: Mounted): void {
 	walkMounted(mounted, undefined, undefined, 0, (current) => {
-		for (const entry of current.vnode.enhancements?.entries ?? [])
+		for (const entry of current.vnode.enhancement?.entries ?? [])
 			reportUnavailable(root, entry.identity);
 	});
 }

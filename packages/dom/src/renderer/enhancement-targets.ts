@@ -34,7 +34,7 @@ export function collectTargetEnhancements(
 	const orders = new Map<Mounted, Map<string, number>>();
 	let order = 0;
 	walkMounted(boundary, undefined, parentInstance, 0, (mounted, owner, instance, depth) => {
-		for (const entry of mounted.vnode.enhancements?.entries ?? []) {
+		for (const entry of mounted.vnode.enhancement?.entries ?? []) {
 			if (isRoutingOnlyEntry(entry)) continue;
 			const target = resolveEnhancementTarget(mounted, entry.identity, instance, owner, depth);
 			if (!target) continue;
@@ -275,7 +275,7 @@ function findExplicitInTransparentOutput(
 		);
 	if (typeof mounted.vnode.type === 'function') return undefined;
 	if (typeof mounted.vnode.type === 'string') {
-		const selector = mounted.vnode.enhancements?.entries.find(
+		const selector = mounted.vnode.enhancement?.entries.find(
 			(entry) => entry.identity === identity && entry.root !== undefined
 		);
 		if (selector && unwrap(selector.root)) return { mounted, owner, parentInstance, depth };

@@ -58,6 +58,7 @@ import {
 	configuredExactWebpackTransformOptions,
 	createExactWebpackLanguageIntegration
 } from './language-integration.js';
+import { webpackEnhancementFacadeProvenance } from './enhancement-facades.js';
 export { createExactWebpackRule } from './rule.js';
 export type * from './resolution-contracts.js';
 export {
@@ -324,9 +325,14 @@ export class ExactWebpackPlugin {
 				applyExactWebpackResolver(resolver, this.options)
 			);
 			factory.hooks?.afterResolve?.tapPromise?.('ExactWebpackPlugin', async (data) => {
-				const request = data && (data.createData?.rawRequest ?? data.request);
-				const importer = data && data.contextInfo?.issuer;
+				let request = data ? (data.createData?.rawRequest ?? data.request) : undefined;
+				let importer = data ? data.contextInfo?.issuer : undefined;
 				const resource = data && data.createData?.resource;
+				const facade = webpackEnhancementFacadeProvenance(importer);
+				if (facade) {
+					request = facade.request;
+					importer = facade.importer;
+				}
 				if (request && importer && resource) {
 					const authorization = await authorizeWebpackResolvedComponent(
 						owned.id,

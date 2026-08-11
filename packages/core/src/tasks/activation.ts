@@ -21,6 +21,7 @@ import {
 	watchContinuationDependencies,
 	type ContinuationDependencyWatcher
 } from './dependency-watcher.js';
+import { componentExecutionSliceAllows } from './component-execution-slice.js';
 
 type ActivationInput<T> = T | ReactiveValue<T>;
 
@@ -89,6 +90,7 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 	task: TaskFunction<Args, Result>,
 	dependencies: { [Index in keyof Args]: ContinuationDependencySource<Args[Index]> }
 ): Disposable {
+	if (!componentExecutionSliceAllows(owner, task)) return inertActivation;
 	const bound = bindTask(task, { owner });
 	const activationSite = {};
 	dependencies = componentContinuationDependencies(owner, task, dependencies);
@@ -167,6 +169,8 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 	registerTaskOwnerCleanup(owner, cleanup);
 	return activation;
 }
+
+const inertActivation: Disposable = Object.freeze({ [Symbol.dispose]() {} });
 
 /** Defers setup activations until a framework host has restored resumable state. */
 export function deferTaskOwnerActivations(owner: TaskOwnerRecord): void {
