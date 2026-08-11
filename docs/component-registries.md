@@ -91,8 +91,7 @@ cross the existing explicit React compatibility adapter when their ownership
 is not already compiler-branded. Automatic React ownership inference is not
 part of this delivery.
 
-Remote, open-ended runtime registries are a separate trust and deployment
-problem. This API deliberately stays finite. The proposed
-[compiler-authored dynamic component boundary](proposals/compiler-authored-dynamic-component-boundaries.md)
-would provide a warned, explicitly acknowledged client-only escape hatch without weakening registry
-identity, SSR guarantees, or the prohibition on server calls from open dynamic components.
+This API deliberately stays finite. Use the implemented
+[open dynamic component boundary](dynamic-components.md) only when the candidate set truly cannot
+be known during compilation. It is a warned, explicitly acknowledged client-only escape hatch and
+does not retain registry SSR guarantees or permit server calls.

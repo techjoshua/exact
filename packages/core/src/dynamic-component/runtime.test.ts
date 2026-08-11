@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createEffectScope, flushSync, reactive, unwrap, withEffectScope } from '@exactjs/reactive';
-import { markExactComponent } from '../component-contracts.js';
+import {
+	exactComponentContract,
+	exactComponentType,
+	markExactComponent
+} from '../component-contracts.js';
 import { pageComponentDomain, withComponentDomain } from '../component/domain.js';
 import type { Component } from '../component/contracts.js';
 import { createDynamicComponent, dynamicComponentResolverFor } from './creation.js';
@@ -70,6 +74,32 @@ describe('dynamic component boundaries', () => {
 		expect(signals[1]?.aborted).toBe(true);
 	});
 
+	it('releases every superseded resolver generation during sustained replacement', () => {
+		const selection = reactive({ value: 0 });
+		const signals: AbortSignal[] = [];
+		const scope = createEffectScope();
+		withEffectScope(scope, () =>
+			createCompiledDynamicComponent({
+				id: 'fixture:replacement-churn',
+				source: (signal) => {
+					signals.push(signal);
+					void selection.value;
+					return Panel;
+				},
+				props: {}
+			})
+		);
+		for (let generation = 1; generation <= 512; generation++) {
+			selection.value = generation;
+			flushSync();
+		}
+		expect(signals).toHaveLength(513);
+		expect(signals.slice(0, -1).every((signal) => signal.aborted)).toBe(true);
+		expect(signals.at(-1)?.aborted).toBe(false);
+		scope.stop();
+		expect(signals.at(-1)?.aborted).toBe(true);
+	});
+
 	it('keeps server projections inert', () => {
 		const vnode = createServerDynamicComponent('fixture:server');
 		expect(vnode.props.__exactDynamicComponent).toMatchObject({
@@ -77,6 +107,36 @@ describe('dynamic component boundaries', () => {
 			status: 'unassigned'
 		});
 		expect(() => unwrap(vnode.props.value)).toThrow('cannot resolve');
+	});
+
+	it('rejects candidates that carry any server execution authority', () => {
+		const ServerPanel = Object.assign(function ServerPanel() {
+			return () => 'server';
+		}, {
+			[exactComponentType]: 'fixture:server-panel',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'server' as const,
+				role: 'executor' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: []
+			}
+		});
+		const scope = createEffectScope();
+		const vnode = withEffectScope(scope, () =>
+			createCompiledDynamicComponent({
+				id: 'fixture:server-rejected',
+				source: () => ServerPanel,
+				props: {}
+			})
+		);
+		expect(vnode.props.__exactDynamicComponent).toMatchObject({
+			status: 'failed',
+			error: expect.objectContaining({ message: expect.stringContaining('server execution') })
+		});
+		scope.stop();
 	});
 
 	it('unwraps compiler-observed annotated values', () => {

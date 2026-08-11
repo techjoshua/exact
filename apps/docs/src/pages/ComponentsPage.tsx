@@ -192,9 +192,12 @@ export function ComponentsPage(this: Component<{}>) {
 					initialization-derived value; the compiler observes its dependencies while the returned
 					view stays one expression. When the choice comes from a reusable named collection, declare
 					its complete key set with
-					<code>createComponentRegistry()</code>. Open-ended object lookup remains a compiler error
-					because the compiler cannot determine its complete client/server placement graph.
-					<Link to="/learn/component-registries">Read the component registry guide.</Link>
+					<code>createComponentRegistry()</code>. A valid open-ended lookup becomes a warned,
+					client-only dynamic boundary because it cannot join the static client/server graph. Use it
+					only intentionally with <code>createDynamicComponent()</code> or a narrow
+					<code>@exact dynamic</code> annotation. Invalid component values remain errors.
+					<Link to="/learn/component-registries">Read the registry guide</Link> or
+					<Link to="/learn/dynamic-components">the open dynamic boundary guide.</Link>
 				</p>
 				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
 			</section>

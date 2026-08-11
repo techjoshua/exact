@@ -129,6 +129,23 @@ func TestDynamicComponentAnnotationCannotMakeScalarValueExecutable(t *testing.T)
 	}
 }
 
+func TestStaticComponentsDoNotImportDynamicRuntimeCapability(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "static-component.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			function Panel() { return () => <p>static</p>; }
+			export function Page() { return () => <Panel />; }
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, "runtime/dynamic-components") ||
+		strings.Contains(response.Code, `"dynamic-components"`) {
+		t.Fatalf("static component retained dynamic runtime capability:\n%s", response.Code)
+	}
+}
+
 func hasDiagnosticCode(diagnostics []Diagnostic, code string) bool {
 	for _, diagnostic := range diagnostics {
 		if diagnostic.Code == code {

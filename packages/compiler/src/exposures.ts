@@ -130,8 +130,11 @@ export function exactExposureRootComponentId(
 /** Remaps selected client-island imports to authored modules for bundler composition. */
 export function withExactAuthoredClientModules(graph: ExactArtifactGraph): ExactArtifactGraph {
 	const moduleByComponent = new Map<string, string>();
+	const moduleByClientArtifact = new Map<string, string>();
 	for (const artifact of graph.artifacts) {
 		const authoredModule = slashPath(path.resolve(artifact.inputFile));
+		moduleByClientArtifact.set(slashPath(path.resolve(artifact.clientFile)), authoredModule);
+		moduleByClientArtifact.set(authoredModule.replace(/\.[^.\/]+$/, '.js'), authoredModule);
 		for (const componentId of artifact.componentIds)
 			moduleByComponent.set(componentId, authoredModule);
 	}
@@ -139,9 +142,10 @@ export function withExactAuthoredClientModules(graph: ExactArtifactGraph): Exact
 		...graph,
 		clientIslands: graph.clientIslands.map((entry) => ({
 			...entry,
-			module: entry.componentId
-				? (moduleByComponent.get(entry.componentId) ?? entry.module)
-				: entry.module
+			module:
+				(entry.componentId ? moduleByComponent.get(entry.componentId) : undefined) ??
+				moduleByClientArtifact.get(slashPath(path.resolve(entry.module))) ??
+				entry.module
 		})),
 		artifacts: graph.artifacts.map((artifact) => ({
 			...artifact,

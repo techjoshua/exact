@@ -6,6 +6,7 @@ import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
+import { DynamicComponentsPage } from './pages/DynamicComponentsPage.jsx';
 import { ComponentLibraryTrustPage } from './pages/ComponentLibraryTrustPage.jsx';
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
@@ -149,6 +150,14 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'component registry dynamic lazy eager key identity preload SSR hydration placement bundle',
 				component: ComponentRegistriesPage
+			},
+			{
+				path: '/learn/dynamic-components',
+				label: 'Open dynamic components',
+				summary: 'Resolve intentionally unknown client-only component values safely.',
+				keywords:
+					'dynamic component createDynamicComponent @exact dynamic provider client only SSR preload warning EXACT2213 cancellation generation',
+				component: DynamicComponentsPage
 			},
 			{
 				path: '/learn/async-interfaces',

@@ -31,7 +31,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 			title="Finite component registries"
 			description="Select eager or lazy components dynamically while keeping keys, identity, placement, bundles, SSR, and hydration visible to the compiler."
 			previous={{ path: '/learn/lists', label: 'Keyed lists' }}
-			next={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
+			next={{ path: '/learn/dynamic-components', label: 'Open dynamic components' }}
 		>
 			<section>
 				<h2>Dynamic selection needs a finite ownership boundary</h2>
@@ -96,8 +96,8 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<h2>The boundary is intentionally finite</h2>
 				<p>
 					React-owned values still use the explicit compatibility adapter when ownership is not
-					compiler-branded. Open-ended remote registries and additional production graph enforcement
-					remain separate trust and deployment work.
+					compiler-branded. When the candidate set truly cannot be known at compile time, use the
+					separate client-only open dynamic component boundary.
 				</p>
 			</section>
 		</Article>

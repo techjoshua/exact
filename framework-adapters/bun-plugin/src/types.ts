@@ -1,5 +1,6 @@
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import type { ExactAssetRule, TransformTarget } from '@exactjs/compiler';
+import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { IntlBuildConfiguration } from '@exactjs/intl-build';
@@ -35,6 +36,8 @@ export type ExactBunPluginOptions = {
 	debug?: ExactBunDebugOptions;
 	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
 	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
+	/** Compact identity from the paired server build for server-executing remote artifacts. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	/** @internal Prepared only by exactBuild(). */
 	__exactRemoteBuild?: ExactPreparedBunRemoteBuild;
 };

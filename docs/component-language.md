@@ -627,8 +627,10 @@ ambiguity diagnostic.
 Ordinary component imports from packages are also resolved at this shared build-host boundary. The
 per-module compiler keeps an opaque imported edge conservative until the host validates the
 package's inert published component catalog; it does not report the temporary absence of an
-in-module contract as a source error. Truly unresolvable local or dynamic component values still
-receive an actionable compiler diagnostic.
+in-module contract as a source error. A valid but opaque component-position value lowers to the
+[open client-only dynamic boundary](dynamic-components.md) and receives `EXACT2213` unless its
+owning declaration uses `@exact dynamic`. Provably invalid values remain errors; the annotation
+cannot make them executable.
 
 An attributed namespace export in `exact.config.*` can make the same namespace available to every compiled
 component owned by that package:

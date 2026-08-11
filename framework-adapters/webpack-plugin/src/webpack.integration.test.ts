@@ -73,7 +73,13 @@ it('emits and publishes a real client remote exposure generation', async () => {
 	writeFileSync(
 		path.join(root, 'tsconfig.json'),
 		JSON.stringify({
-			compilerOptions: { jsx: 'preserve', target: 'ES2022', module: 'ESNext' },
+			compilerOptions: {
+				jsx: 'preserve',
+				jsxImportSource: '@exactjs/jsx',
+				lib: ['ES2022', 'DOM', 'ESNext.Disposable'],
+				target: 'ES2022',
+				module: 'ESNext'
+			},
 			include: ['src']
 		})
 	);
@@ -84,7 +90,19 @@ it('emits and publishes a real client remote exposure generation', async () => {
 	writeFileSync(path.join(root, 'src', 'page.ts'), 'export const page = true;\n');
 	writeFileSync(
 		path.join(root, 'src', 'Area.tsx'),
-		`export default function Area() { return () => <section>webpack remote</section>; }\n`
+		`import './Area.css';
+		import icon from './icon.svg';
+		export default function Area() {
+			const load = () => import('./lazy');
+			return () => <section data-icon={icon} onClick={load}>webpack remote</section>;
+		}\n`
+	);
+	writeFileSync(path.join(root, 'src', 'Area.css'), '.remote-area { color: rebeccapurple; }\n');
+	writeFileSync(path.join(root, 'src', 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>\n');
+	writeFileSync(path.join(root, 'src', 'lazy.ts'), 'export const lazyValue = "lazy";\n');
+	writeFileSync(
+		path.join(root, 'src', 'assets.d.ts'),
+		'declare module "*.css"; declare module "*.svg" { const url: string; export default url; }\n'
 	);
 	const previousBuildKey = process.env.EXACT_BUILD_KEY;
 	process.env.EXACT_BUILD_KEY = '0123456789abcdef0123456789abcdef01234567';
@@ -104,7 +122,8 @@ it('emits and publishes a real client remote exposure generation', async () => {
 				module: true,
 				publicPath: '/assets/'
 			},
-			experiments: { outputModule: true },
+			experiments: { outputModule: true, css: true },
+			module: { rules: [{ test: /\.svg$/, type: 'asset/resource' }] },
 			resolve: {
 				extensions: ['.tsx', '.ts', '.js'],
 				modules: [path.join(root, 'node_modules'), path.resolve(repositoryRoot, 'node_modules')]
@@ -130,6 +149,13 @@ it('emits and publishes a real client remote exposure generation', async () => {
 	expect(development?.['./Area']).toContain('virtual:exact-remote-entry');
 	const files = readDirectory(path.join(root, 'dist'));
 	expect(files.some((file) => /^exact-remote-Area\..+\.mjs$/.test(file))).toBe(true);
+	expect(files.some((file) => file.endsWith('.css'))).toBe(true);
+	expect(files.some((file) => file.endsWith('.svg'))).toBe(true);
+	expect(files.filter((file) => file.endsWith('.mjs')).length).toBeGreaterThan(2);
+	const remoteEntry = files.find((file) => /^exact-remote-Area\..+\.mjs$/.test(file))!;
+	expect(readFileSync(path.join(root, 'dist', remoteEntry), 'utf8')).toContain(
+		"Symbol.for('@exactjs/provided-packages')"
+	);
 });
 
 async function compile(applicationRoot: string): Promise<Stats> {

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createExactRemoteArtifactPlan } from './build.js';
-import { createExactBunFeasibilityMapping } from './bun-feasibility.js';
-import { createExactWebpackFeasibilityMapping } from './webpack-feasibility.js';
+import { createExactRemoteBunAdapter } from './bun-feasibility.js';
+import { createExactRemoteWebpackAdapter } from './webpack-feasibility.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
 
 describe('Webpack and Bun remote artifact adapters', () => {
 	it('maps the common artifact plan to Webpack entries, ESM chunks, and provider modules', () => {
 		const plan = fixturePlan();
-		const mapping = createExactWebpackFeasibilityMapping({
+		const mapping = createExactRemoteWebpackAdapter({
 			plan,
 			applicationRoot: '/workspace/remote',
 			registrationModules: registration()
@@ -33,7 +33,7 @@ describe('Webpack and Bun remote artifact adapters', () => {
 
 	it('maps the same plan to Bun entrypoints and onResolve/onLoad modules', () => {
 		const plan = fixturePlan();
-		const mapping = createExactBunFeasibilityMapping({
+		const mapping = createExactRemoteBunAdapter({
 			plan,
 			applicationRoot: '/workspace/remote',
 			registrationModules: registration()
@@ -57,7 +57,7 @@ describe('Webpack and Bun remote artifact adapters', () => {
 	it('publishes only complete current generations and retains the last accepted build on failure', () => {
 		const plan = fixturePlan();
 		const entries: Readonly<Record<string, string>>[] = [];
-		const webpack = createExactWebpackFeasibilityMapping({
+		const webpack = createExactRemoteWebpackAdapter({
 			plan,
 			applicationRoot: '/workspace/remote',
 			registrationModules: registration(),
@@ -86,7 +86,7 @@ describe('Webpack and Bun remote artifact adapters', () => {
 
 	it('indexes Bun outputs by actual entrypoint instead of predicted filenames', () => {
 		const plan = fixturePlan();
-		const bun = createExactBunFeasibilityMapping({
+		const bun = createExactRemoteBunAdapter({
 			plan,
 			applicationRoot: '/workspace/remote',
 			registrationModules: registration(),
@@ -103,6 +103,43 @@ describe('Webpack and Bun remote artifact adapters', () => {
 		expect(accepted.entries['./Area']).toBe(
 			'https://cdn.example.test/v1/chunks/unpredicted-9f.mjs'
 		);
+	});
+
+	it('keeps accepted metadata equivalent and bounded through repeated bundler churn', () => {
+		const plan = fixturePlan();
+		const webpack = createExactRemoteWebpackAdapter({
+			plan,
+			applicationRoot: '/workspace/remote',
+			registrationModules: registration(),
+			publicPath: '/assets'
+		});
+		const bun = createExactRemoteBunAdapter({
+			plan,
+			applicationRoot: '/workspace/remote',
+			registrationModules: registration(),
+			publicPath: '/assets'
+		});
+		for (let generation = 0; generation < 512; generation++) {
+			const webpackToken = webpack.beginGeneration();
+			const bunToken = bun.beginGeneration();
+			if (generation % 3 === 0) {
+				webpack.rejectGeneration(webpackToken);
+				bun.rejectGeneration(bunToken);
+				continue;
+			}
+			const filename = `area.${generation}.mjs`;
+			webpack.acceptGeneration(webpackToken, [
+				{ name: 'exact-remote-Area', fileName: filename, type: 'entry' }
+			]);
+			bun.acceptGeneration(bunToken, [
+				{ entrypoint: bun.entrypoints[0]!, path: filename, kind: 'entry' }
+			]);
+		}
+		expect(bun.acceptedGeneration()).toEqual(webpack.acceptedGeneration());
+		webpack.dispose();
+		bun.dispose();
+		expect(webpack.acceptedGeneration()).toBeUndefined();
+		expect(bun.acceptedGeneration()).toBeUndefined();
 	});
 });
 

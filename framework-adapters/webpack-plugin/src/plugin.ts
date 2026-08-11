@@ -6,6 +6,7 @@ import {
 } from '@exactjs/compiler';
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import type { ExactComponentAuthorizationAudit } from '@exactjs/component-library-policy';
+import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
 import { IntlBuildCoordinator, type IntlBuildConfiguration } from '@exactjs/intl-build';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
@@ -91,6 +92,8 @@ export type ExactWebpackPluginOptions = {
 	debug?: ExactWebpackDebugOptions;
 	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
 	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
+	/** Compact identity from the paired server build for server-executing remote artifacts. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	/** @internal Loader-owned compiler session identity. */
 	__exactSessionId?: string;
 	/** @internal Collects the language projection for the shared validation session. */

@@ -18,6 +18,7 @@ export class ExactWebpackMicrofrontendIntegration {
 	private virtualSources = new Map<string, string>();
 	private scopes = new Map<string, string>();
 	private internalIds: string[] = [];
+	private watchFiles = new Set<string>();
 	private generation?: number;
 	private pendingOutputs?: Parameters<RemoteAdapter['acceptGeneration']>[1];
 	private preparation?: Promise<void>;
@@ -81,6 +82,7 @@ export class ExactWebpackMicrofrontendIntegration {
 		this.adapter = undefined;
 		this.virtualSources.clear();
 		this.scopes.clear();
+		this.watchFiles.clear();
 	}
 
 	private async prepare(): Promise<void> {
@@ -103,12 +105,13 @@ export class ExactWebpackMicrofrontendIntegration {
 		const prepared = await prepareExactRemoteArtifactBuild({
 			applicationRoot,
 			buildConfig: readExactMicrofrontendBuildConfig(value as never),
-			serverComponents: this.options.serverComponents
+			serverComponents: this.options.serverComponents,
+			componentAuthorization: this.options.componentAuthorization
 		});
 		const registrationModules = prepared.artifactGraph
 			? api.createExactExposureRegistrationModules(prepared.plan, prepared.artifactGraph, { applicationRoot })
 			: {};
-		this.adapter = integration.createExactRemoteWebpackAdapter({
+		const nextAdapter = integration.createExactRemoteWebpackAdapter({
 			plan: prepared.plan,
 			applicationRoot,
 			registrationModules,
@@ -116,6 +119,17 @@ export class ExactWebpackMicrofrontendIntegration {
 			onEntries: this.options.onRemoteEntries,
 			onDevelopmentEntries: this.options.onRemoteDevelopmentEntries
 		});
+		this.adapter?.dispose();
+		this.adapter = nextAdapter;
+		this.virtualSources.clear();
+		this.scopes.clear();
+		this.watchFiles = new Set([
+			...loadedConfig.watchFiles,
+			...prepared.plan.exposures.map((exposure) =>
+				path.resolve(applicationRoot, exposure.component)
+			),
+			...(prepared.artifactGraph?.artifacts.map((artifact) => artifact.inputFile) ?? [])
+		]);
 		this.remoteBindings = prepared.hasRemoteBindings;
 		this.internalIds = prepared.plan.exposures.flatMap((exposure) => [
 			exposure.entryId,
@@ -137,6 +151,7 @@ export class ExactWebpackMicrofrontendIntegration {
 	}
 
 	private installVirtualModules(compilation: Compilation): void {
+		for (const filename of this.watchFiles) compilation.fileDependencies.add(filename);
 		this.compiler.webpack.NormalModule.getCompilationHooks(compilation).readResourceForScheme
 			.for('exact-remote')
 			.tap('ExactWebpackMicrofrontends', (resource) => this.virtualSources.get(resource) ?? null);

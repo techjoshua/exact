@@ -52,7 +52,8 @@ export async function exactBuild(options: ExactBunBuildOptions): Promise<unknown
 		const prepared = await prepareExactRemoteArtifactBuild({
 			applicationRoot,
 			buildConfig,
-			serverComponents: options.exact?.serverComponents
+			serverComponents: options.exact?.serverComponents,
+			componentAuthorization: options.exact?.componentAuthorization
 		});
 		const { createExactExposureRegistrationModules } = await import('@exactjs/microfrontends');
 		const registrationModules = prepared.artifactGraph

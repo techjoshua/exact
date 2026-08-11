@@ -63,6 +63,11 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).not.toContain('"boundaries": []');
 		expect(module).not.toContain('"stateContracts"');
 		expect(module).not.toContain('"actionBoundaries"');
+		expect(
+			createExactHydrationRegistrationModule(graph, {
+				preserveAuthoredModuleExtensions: true
+			})
+		).toContain('import("./dist/panel.exact.client.ts")');
 	});
 
 	it('registers continuation-owning dual-root components for client hydration', async () => {

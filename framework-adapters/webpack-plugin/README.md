@@ -35,3 +35,13 @@ every package component; Webpack emits its catalog registration only from module
 
 Optional `debug` settings control private server catalogs and compact browser instrumentation.
 Disable both for hardened output. See [eXact DevTools](../../docs/devtools.md).
+
+## Microfrontends
+
+When `exact.config.*` enables `@exactjs/microfrontends`, the client plugin emits each configured
+exposure as an independent ESM entry and preserves its CSS, assets, lazy chunks, hydration
+registration, and provided-package identity. No additional Webpack plugin is required.
+
+Use `onRemoteEntries` to publish successful production entries and
+`onRemoteDevelopmentEntries` to expose stable development module IDs. Failed watch compilations do
+not publish a partial map; the previous successful deployment map remains valid.

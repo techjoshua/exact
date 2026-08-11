@@ -17,6 +17,26 @@ const result = await Bun.build({
 });
 ```
 
+When the eXact configuration declares microfrontend exposures, use the asynchronous coordinator so
+the artifact plan can add its entrypoints before `Bun.build` begins:
+
+```ts
+import { exactBuild } from '@exactjs/bun-plugin';
+
+await exactBuild({
+	entrypoints: ['./src/client.tsx'],
+	outdir: './dist',
+	target: 'browser',
+	format: 'esm',
+	splitting: true
+});
+```
+
+`exactBuild()` installs `exact()` automatically. It emits actual exposure entry URLs through
+`onRemoteEntries` only after a complete successful generation and offers stable development IDs
+through `onRemoteDevelopmentEntries`. Direct `Bun.build({ plugins: [exact()] })` remains supported
+for ordinary builds and reports an actionable error if exposures require the coordinator.
+
 Use `target: 'server'` with Bun's server target for the matching server build. Keep
 `serverComponents`, React compatibility, and build identity consistent across paired outputs.
 

@@ -44,6 +44,16 @@ function BillingSlot(this: Component<{}>) {
   );
 }`;
 
+const bunProducerSource = `import { exactBuild } from '@exactjs/bun-plugin';
+
+await exactBuild({
+  entrypoints: ['./src/page.ts'],
+  outdir: './dist',
+  target: 'browser',
+  format: 'esm',
+  splitting: true
+});`;
+
 /** Documents microfrontend exposure, consumption, development, and recovery contracts. */
 export function MicrofrontendsPluginPage(this: Component<{}>) {
 	return () => (
@@ -112,12 +122,18 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Current host support is deliberately explicit</h2>
+				<h2>Vite, Webpack, and Bun share one artifact contract</h2>
 				<p>
-					The complete producer/consumer reference path is Vite/Rollup. Webpack and Bun currently
-					have focused mappings that prove the common artifact plan can fit their native hooks, but
-					they are not yet advertised as complete microfrontend hosts. The normal compiler and
-					server adapters for those tools are a separate capability.
+					Vite/Rollup, Webpack 5, and Bun 1.3 or newer emit and consume the same exposure,
+					registration, provided-package, build, and recovery records. Webpack prepares entries from
+					<code>ExactWebpackPlugin</code>. Bun producers use <code>exactBuild()</code> because its
+					asynchronous plan must add entrypoints before <code>Bun.build</code> starts.
+				</p>
+				<CodeBlock source={bunProducerSource} language="ts" title="build.ts" />
+				<p>
+					Both adapters publish only complete successful entry maps and preserve reachable CSS,
+					assets, and lazy chunks. Bun server <code>--hot</code> remains unsupported; use watch or a
+					coordinated rebuild so the last authorized generation remains unambiguous.
 				</p>
 			</section>
 			<Callout title="Trust boundary" tone="warning">

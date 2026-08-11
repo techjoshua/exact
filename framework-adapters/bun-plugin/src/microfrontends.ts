@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { existsSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import type { ExactPreparedBunRemoteBuild } from './build.js';
 import type { BunBuildLike } from './plugin.js';
 
@@ -28,9 +30,19 @@ export class ExactBunMicrofrontendIntegration {
 		build.onLoad({ filter: /.*/, namespace: this.#remote.namespace }, (args) =>
 			this.#remote.onLoad(args.path)
 		);
-		build.onResolve({ filter: /^(?:@[^/]+\/[^/]+|[^./][^:]*)/ }, (args) => {
+		build.onResolve({ filter: /^\.{1,2}[\\/]/ }, (args) => {
+			const scope = this.scope(args.importer);
+			if (!scope) return undefined;
+			const importer = normalizeRemotePath(args.importer ?? '');
+			const resolved = resolveRemoteImport(args.path, importer);
+			if (!resolved) return undefined;
+			this.#paths.set(normalizeRemotePath(resolved), scope);
+			return { path: resolved };
+		});
+		build.onResolve({ filter: /^(?:@[^/]+\/[^/]+|[^./][^:]*)/ }, async (args) => {
 			const importer = args.importer ?? '';
-			if (!this.#remote.ownsRemoteModule(importer) && !this.includes(importer)) return undefined;
+			const scope = this.scope(importer);
+			if (!this.#remote.ownsRemoteModule(importer) && !scope) return undefined;
 			try {
 				const source =
 					this.#remote.onLoad(importer)?.contents ??
@@ -40,7 +52,11 @@ export class ExactBunMicrofrontendIntegration {
 					bunImportUsages(source, args.path)
 				);
 			} catch {
-				return undefined;
+				if (!scope) return undefined;
+				const resolved = resolveRemoteImport(args.path, normalizeRemotePath(importer));
+				if (!resolved) return undefined;
+				this.#paths.set(normalizeRemotePath(resolved), scope);
+				return { path: resolved };
 			}
 		});
 	}
@@ -62,11 +78,16 @@ export class ExactBunMicrofrontendIntegration {
 	}
 
 	includes(filename: string): boolean {
-		return Boolean(remoteScope(filename) ?? this.#paths.get(normalizeRemotePath(filename)));
+		return this.scope(filename) !== undefined;
 	}
 
 	recordSource(filename: string, source: string): void {
 		if (this.includes(filename)) this.#sources.set(normalizeRemotePath(filename), source);
+	}
+
+	private scope(filename: string | undefined): string | undefined {
+		return remoteScope(filename) ??
+			(filename ? this.#paths.get(normalizeRemotePath(filename)) : undefined);
 	}
 }
 
@@ -133,6 +154,32 @@ function remoteScope(id: string | undefined): string | undefined {
 
 function normalizeRemotePath(value: string): string {
 	return value.replaceAll('\\', '/').split('?', 1)[0]!;
+}
+
+function resolveRemoteImport(request: string, importer: string): string | undefined {
+	if (!importer) return undefined;
+	if (!request.startsWith('.')) {
+		try {
+			return createRequire(importer).resolve(request);
+		} catch {
+			return undefined;
+		}
+	}
+	const base = path.resolve(path.dirname(importer), request);
+	for (const candidate of remoteCandidates(base)) {
+		try {
+			if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+		} catch {
+			// The candidate disappeared during a watch rebuild; let Bun report normal resolution.
+		}
+	}
+	return undefined;
+}
+
+function remoteCandidates(base: string): string[] {
+	if (path.extname(base)) return [base];
+	const extensions = ['.tsx', '.ts', '.jsx', '.js', '.mts', '.mjs', '.cts', '.cjs', '.json'];
+	return [base, ...extensions.map((extension) => `${base}${extension}`), ...extensions.map((extension) => path.join(base, `index${extension}`))];
 }
 
 function bunImportUsages(

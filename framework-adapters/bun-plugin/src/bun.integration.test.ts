@@ -1,5 +1,5 @@
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +53,19 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 			await writeFile(page, 'export const page = true;\n');
 			await writeFile(
 				path.join(root, 'src', 'Area.tsx'),
-				`export default function Area() { return () => <section>bun remote</section>; }\n`
+				`import './Area.css';
+				import icon from './icon.svg';
+				export default function Area() {
+					const load = () => import('./lazy');
+					return () => <section data-icon={icon} onClick={load}>bun remote</section>;
+				}\n`
+			);
+			await writeFile(path.join(root, 'src', 'Area.css'), '.remote-area { color: teal; }\n');
+			await writeFile(path.join(root, 'src', 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>\n');
+			await writeFile(path.join(root, 'src', 'lazy.ts'), 'export const lazyValue = "lazy";\n');
+			await writeFile(
+				path.join(root, 'src', 'assets.d.ts'),
+				'declare module "*.css"; declare module "*.svg" { const url: string; export default url; }\n'
 			);
 			const previousBuildKey = process.env.EXACT_BUILD_KEY;
 			process.env.EXACT_BUILD_KEY = '0123456789abcdef0123456789abcdef01234567';
@@ -79,6 +91,10 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 				else process.env.EXACT_BUILD_KEY = previousBuildKey;
 			}
 			testApi.expect(entries?.['./Area']).toMatch(/^\/assets\/.+\.js$/);
+			const emitted = await readdir(path.join(root, 'dist'));
+			testApi.expect(emitted.some((file) => file.endsWith('.css'))).toBe(true);
+			testApi.expect(emitted.some((file) => file.endsWith('.svg'))).toBe(true);
+			testApi.expect(emitted.filter((file) => file.endsWith('.js')).length).toBeGreaterThan(2);
 		} finally {
 			await rm(root, { recursive: true, force: true });
 		}

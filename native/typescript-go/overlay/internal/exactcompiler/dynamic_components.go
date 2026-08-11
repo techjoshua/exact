@@ -31,6 +31,7 @@ func analyzeDynamicComponents(
 ) dynamicComponentAnalysis {
 	result := dynamicComponentAnalysis{uses: make(map[int]dynamicComponentUseKind)}
 	componentNames := componentIndexByName(components)
+	registryNames := dynamicComponentRegistryNames(sourceFile)
 	claimed := make(map[int]struct{})
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		var opening *ast.Node
@@ -52,6 +53,7 @@ func analyzeDynamicComponents(
 			typeChecker,
 			directives,
 			componentNames,
+			registryNames,
 			make(map[ast.SymbolId]struct{}),
 		)
 		if kind == "" {
@@ -110,8 +112,15 @@ func classifyDynamicComponentTag(
 	typeChecker *checker.Checker,
 	directives []Directive,
 	components map[string]Component,
+	registries map[string]struct{},
 	visited map[ast.SymbolId]struct{},
 ) (dynamicComponentUseKind, *Directive, *ast.Node) {
+	text := strings.TrimSpace(sourceText(sourceFile, tag))
+	for name := range registries {
+		if strings.HasPrefix(text, name+".") || strings.HasPrefix(text, name+"[") {
+			return "", nil, nil
+		}
+	}
 	if ast.IsIdentifier(tag) {
 		if _, local := components[tag.Text()]; local {
 			return "", nil, nil
@@ -134,10 +143,33 @@ func classifyDynamicComponentTag(
 	if dynamicComponentHelperSymbol(symbol, sourceFile, typeChecker, visited) {
 		return dynamicComponentHelper, nil, nil
 	}
+	if dynamicComponentRegistrySelection(tag, sourceFile, typeChecker) {
+		return "", nil, nil
+	}
 	if dynamicComponentStaticSymbol(symbol, sourceFile, typeChecker, components, visited) {
 		return "", nil, nil
 	}
 	return dynamicComponentUnannotated, nil, dynamicComponentOwningDeclaration(symbol)
+}
+
+func dynamicComponentRegistryNames(sourceFile *ast.SourceFile) map[string]struct{} {
+	result := make(map[string]struct{})
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsVariableDeclaration(node) {
+			return true
+		}
+		declaration := node.AsVariableDeclaration()
+		initializer := declaration.Initializer
+		if initializer == nil || !ast.IsCallExpression(initializer) {
+			return true
+		}
+		call := initializer.AsCallExpression()
+		if strings.TrimSpace(sourceText(sourceFile, call.Expression)) == "createComponentRegistry" {
+			result[declaration.Name().Text()] = struct{}{}
+		}
+		return true
+	})
+	return result
 }
 
 func dynamicComponentOwningDeclaration(symbol *ast.Symbol) *ast.Node {
@@ -264,6 +296,9 @@ func dynamicComponentStaticSymbol(
 			if componentRegistryDefinition(initializer, sourceFile, typeChecker) != nil {
 				return true
 			}
+			if dynamicComponentRegistrySelection(initializer, sourceFile, typeChecker) {
+				return true
+			}
 			if ast.IsIdentifier(initializer) {
 				if _, local := components[initializer.Text()]; local {
 					return true
@@ -278,4 +313,24 @@ func dynamicComponentStaticSymbol(
 		}
 	}
 	return false
+}
+
+func dynamicComponentRegistrySelection(
+	expression *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	if expression == nil {
+		return false
+	}
+	var registry *ast.Node
+	switch {
+	case ast.IsPropertyAccessExpression(expression):
+		registry = expression.AsPropertyAccessExpression().Expression
+	case ast.IsElementAccessExpression(expression):
+		registry = expression.AsElementAccessExpression().Expression
+	default:
+		return false
+	}
+	return componentRegistryDefinition(registry, sourceFile, typeChecker) != nil
 }

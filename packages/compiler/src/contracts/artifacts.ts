@@ -189,6 +189,8 @@ export type ExactHydrationRegistrationModuleOptions = {
 	endpoints?: ExactHydrationEndpointRoutes;
 	islandsExportName?: string;
 	registrationExportName?: string;
+	/** Keeps source extensions when a bundler, rather than Node, resolves authored modules. */
+	preserveAuthoredModuleExtensions?: boolean;
 };
 
 /** Defines the exact hydration endpoint routes type contract. */

@@ -26,6 +26,7 @@ These documents describe behavior that exists in the repository today:
 | [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                                                       |
 | [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.                                  |
 | [microfrontends.md](microfrontends.md)                                           | Implemented trusted microfrontend scope and remaining adapter work.                                       |
+| [dynamic-components.md](dynamic-components.md)                                   | Client-only open component selection, diagnostics, ownership, and SSR behavior.                            |
 | [motion.md](motion.md)                                                           | Prepared motion definitions, finite playback, configuration, and current limits.                          |
 | [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.                                 |
 | [native-ssr-production-guide.md](native-ssr-production-guide.md)                 | Production SSR, request, response, security, and deployment contracts.                                    |
