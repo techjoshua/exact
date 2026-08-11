@@ -23,7 +23,7 @@ export function InternationalizationPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Plugin + enhancement / @exactjs/intl"
-			title="Localize ordinary TSX with semantic intent"
+			title="Localize with intent"
 			description="The intl plugin coordinates analysis, XLIFF catalogs, bundlers, and runtime locale data; its enhancement surface keeps that machinery nearly invisible in application components."
 			previous={{ path: '/plugins', label: 'Plugin system' }}
 			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}

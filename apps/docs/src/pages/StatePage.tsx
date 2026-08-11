@@ -14,7 +14,7 @@ function Price(this: Component<PriceState>) {
   this.state.price = 24;
   this.state.express = false;
 
-  // These pure setup expressions become shared, lazy derived values.
+  // These state-dependent expressions become shared, lazy derived values.
   const subtotal = this.state.quantity * this.state.price;
   const shipping = this.state.express ? 14 : subtotal >= 75 ? 0 : 6;
   const total = subtotal + shipping;
@@ -23,28 +23,14 @@ function Price(this: Component<PriceState>) {
     <section>
       <label>
         Quantity: {this.state.quantity}
-        <input
-          type="range"
-          min="1"
-          max="8"
-          value:onInput={this.state.quantity}
-        />
+        <input type="range" min="1" max="8" value:onInput={this.state.quantity} />
       </label>
       <label>
         Unit price: \${this.state.price}
-        <input
-          type="range"
-          min="8"
-          max="60"
-          step="2"
-          value:onInput={this.state.price}
-        />
+        <input type="range" min="8" max="60" step="2" value:onInput={this.state.price} />
       </label>
       <label>
-        <input
-          type="checkbox"
-          checked:onChange={this.state.express}
-        />
+        <input type="checkbox" checked:onChange={this.state.express} />
         Express delivery
       </label>
 
@@ -157,13 +143,19 @@ export function StatePage(this: Component<{}>) {
 			<section>
 				<h2>Initialization-derived values are shared component relationships</h2>
 				<p>
-					A safe derived declaration in the outer component definition normally describes a
-					relationship owned by the component instance. The compiler can give it one lazy, cached
-					derived cell, share its result across several DOM expressions, child props, lists, and
-					task inputs, and stop propagation when recomputation produces the same value.
+					A state-dependent declaration in the component body normally describes a relationship
+					owned by the component instance. The compiler can give it one lazy, cached derived cell,
+					share its result across several DOM expressions, child props, lists, and task inputs, and
+					stop propagation when recomputation produces the same value.
 				</p>
 				<p>
-					Keep the declaration in the outer definition when several consumers should observe one
+					The compiler infers a derived value when it can prove the initializer is safe to
+					reevaluate. Effectful work belongs in an interaction or task; an opaque helper must expose
+					a valid pure-call contract before the compiler can use it in an inferred derived
+					relationship.
+				</p>
+				<p>
+					Keep the declaration in the component body when several consumers should observe one
 					result, when non-view work needs the value, or when an allocated result must retain one
 					identity for all consumers. The
 					<code>subtotal</code>, <code>shipping</code>, and <code>total</code> declarations in the
@@ -186,9 +178,9 @@ export function StatePage(this: Component<{}>) {
 				<h2>Keep the returned view declarative</h2>
 				<p>
 					eXact does not rerun the whole view function when its inputs change. Keep declarations and
-					source control flow in the outer component definition, then return the JSX expression
-					directly. This gives a derived relationship one clear owner and lets every generated DOM
-					or component-prop boundary reuse its cached result.
+					source control flow in the component body, then return the JSX expression directly. This
+					gives a derived relationship one clear owner and lets every generated DOM or
+					component-prop boundary reuse its cached result.
 				</p>
 				<CodeBlock source={viewDerivedSource} language="tsx" title="AccountBadge.tsx" />
 				<p>
@@ -229,9 +221,9 @@ export function StatePage(this: Component<{}>) {
 			<section>
 				<h2>Assign derived results directly to state</h2>
 				<p>
-					When a setup assignment reads reactive state, props, or shared context, the compiler
-					treats the right side as a repeatable calculation and the state target as its output.
-					There is no need to wrap an assignment-only calculation in a task function.
+					When an assignment in the component body reads reactive state, props, or shared context,
+					the compiler treats the right side as a repeatable calculation and the state target as its
+					output. There is no need to wrap an assignment-only calculation in a task function.
 				</p>
 				<CodeBlock source={derivedAssignmentSource} language="tsx" title="Summary.tsx" />
 				<p>

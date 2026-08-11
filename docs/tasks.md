@@ -91,7 +91,7 @@ lookalike values do not receive this treatment. Recognized policy facets are:
 - readiness: `blocking()` or `nonblocking()`; and
 - lifetime: attached by default or explicitly `detached()`.
 
-In the outer component definition, a call to a classified function declares initialization
+In the component body, a call to a classified function declares initialization
 and reactive activation. Its argument expressions are observed inputs. A call
 from an event or other active host creates an invoked generation. A call under
 an active task attaches a child frame; after an `await`, compiler output uses

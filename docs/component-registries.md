@@ -1,6 +1,13 @@
-# Finite component registries
+# Dynamic component selection
 
-This document describes the implemented native component-registry contract.
+Use an ordinary TypeScript branch when a component chooses between a few locally known views. Use
+`createComponentRegistry()` when a finite choice is reusable, keyed, or lazy. Only use an open
+dynamic boundary when the candidate set genuinely cannot be known during compilation.
+
+```tsx
+const CurrentPanel = this.state.mode === 'edit' ? Editor : Preview;
+return () => <CurrentPanel document={this.state.document} />;
+```
 
 ## Declare a finite registry
 
@@ -91,7 +98,57 @@ cross the existing explicit React compatibility adapter when their ownership
 is not already compiler-branded. Automatic React ownership inference is not
 part of this delivery.
 
-This API deliberately stays finite. Use the implemented
-[open dynamic component boundary](dynamic-components.md) only when the candidate set truly cannot
-be known during compilation. It is a warned, explicitly acknowledged client-only escape hatch and
-does not retain registry SSR guarantees or permit server calls.
+This API deliberately stays finite. The following open boundary is a warned, explicitly
+acknowledged client-only escape hatch. It does not retain registry SSR guarantees or permit server
+calls.
+
+## Open dynamic fallback
+
+`createDynamicComponent()` creates a stable component facade during component setup. Its resolver
+may synchronously return a compiler-branded component, report absence with `null` or `undefined`,
+or asynchronously load a component:
+
+```tsx
+const Panel = createDynamicComponent<PanelProps>((signal) =>
+	extensionProvider.resolve(this.state.panelName, { signal })
+);
+
+return () => (
+	<Suspense fallback={<LoadingPanel />}>
+		<Panel account={this.state.account} />
+	</Suspense>
+);
+```
+
+The compiler observes resolver dependencies. A dependency change aborts the current generation,
+starts the newest one, and prevents stale settlement from mounting. Replacing a selected component
+disposes its instance rather than retaining an inactive instance for possible reuse.
+
+An ordinary TypeScript value used in component position becomes the same dynamic boundary when its
+identity cannot be proven statically. The compiler emits `EXACT2213` so an accidental open lookup
+does not silently lose static guarantees. A narrow declaration annotation acknowledges the choice:
+
+```tsx
+/** @exact dynamic */
+const Panel = installedPanels[this.state.panelName];
+
+return () => <Panel />;
+```
+
+The annotation is not a type cast or diagnostic suppression. Invalid or foreign component values
+remain invalid; React-owned values still use the compatibility boundary.
+
+The client renderer gives every dynamic boundary an owned child range. Pending work uses the
+nearest Suspense policy, absence leaves the range empty, and resolution accepts only a native
+compiler-branded component or explicitly adapted foreign component. DevTools exposes the boundary,
+availability, generation, and adopted component.
+
+SSR never evaluates the candidate, imports its module, runs setup, or follows its task graph. It
+emits an inert range and any static fallback; hydration adopts that range and begins client
+resolution. An open dynamic component cannot carry a continuation, server task, action, refresh,
+server-homed dependency, or executor. Use a trusted microfrontend or statically authorized
+component boundary when independently delivered code needs server execution.
+
+When the build host can map a selection to an authorized immutable artifact without evaluating the
+component, SSR may emit a bounded `modulepreload` hint. Arbitrary or client-supplied URLs are never
+accepted, and preloading does not activate the boundary or grant authority.

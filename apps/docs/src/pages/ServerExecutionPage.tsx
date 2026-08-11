@@ -70,7 +70,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="One component, two cooperating state machines"
+			title="One component across runtimes"
 			description="Server work remains ordinary component code. The compiler separates the client and server transitions, carries only required public values, and keeps server libraries and resources out of the browser."
 			previous={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
 			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}

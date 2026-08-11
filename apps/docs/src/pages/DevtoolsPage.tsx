@@ -25,7 +25,7 @@ export function DevtoolsPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="Inspect the running component model"
+			title="Inspect the running system"
 			description="eXact DevTools joins durable browser instances, compiler explanations, server continuations, and microfrontend roots through one bounded read-only protocol."
 			previous={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
 			next={{ path: '/guides/routing', label: 'Routing' }}

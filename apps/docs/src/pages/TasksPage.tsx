@@ -10,7 +10,7 @@ export function TasksPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="Tasks: dependencies, scheduling, and Suspense"
+			title="Tasks, scheduling, and Suspense"
 			description="Understand how eXact turns ordinary functions into owned, scheduled work—then control activation, dependencies, concurrency, priority, placement, and Suspense readiness."
 			previous={{ path: '/learn/state', label: 'State & derived values' }}
 			next={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
@@ -41,10 +41,10 @@ export function TasksPage(this: Component<{}>) {
 					an opaque capability the compiler cannot discover.
 				</p>
 				<p>
-					A setup call whose value initializes a local synchronously remains ordinary JavaScript.
-					Factories, context lookups, and similar helpers must return that value directly, so the
-					compiler does not reinterpret them as inferred task activations. Awaited work can still be
-					a task, and an authored final <code>TaskContext</code> remains explicit.
+					A synchronous function call used as a local initializer remains an ordinary JavaScript
+					expression rather than an inferred task activation. This keeps factories, context lookups,
+					and other value-producing helpers behaving normally. Awaited work may still become a task,
+					and a final <code>TaskContext</code> parameter makes task intent explicit.
 				</p>
 				<p>
 					When one synchronous task transition invalidates many reactive bindings, those reactions
@@ -74,6 +74,16 @@ export function TasksPage(this: Component<{}>) {
 					source={taskSources.inferredLifetimeSource}
 					language="tsx"
 					title="FeedConnection.tsx"
+				/>
+				<p>
+					Conceptually, the generated task generation supplies its abort signal to recognized
+					listener options and owns the socket&apos;s cleanup. The names below are explanatory
+					placeholders, not public APIs or emitted-code guarantees.
+				</p>
+				<CodeBlock
+					source={taskSources.inferredLifetimeWiringSource}
+					language="ts"
+					title="Conceptual generated lifetime wiring"
 				/>
 				<p>
 					The compiler also owns resources whose cleanup protocol and lifetime are visible. This
@@ -286,10 +296,9 @@ export function TasksPage(this: Component<{}>) {
 					title="Status for one keyed lane"
 				/>
 				<p>
-					Use <code>taskStatus(task, {'{ key }'})</code> in the outer component definition when the
-					UI needs one lane. Its <code>pending</code>, <code>pendingCount</code>,
-					<code>generation</code>, <code>result</code>, <code>error</code>, and{' '}
-					<code>cancel()</code>
+					Use <code>taskStatus(task, {'{ key }'})</code> in the component body when the UI needs one
+					lane. Its <code>pending</code>, <code>pendingCount</code>,<code>generation</code>,{' '}
+					<code>result</code>, <code>error</code>, and <code>cancel()</code>
 					are scoped to that key. The key must match the value produced by the task&apos;s
 					<code>key(...)</code> policy.
 				</p>

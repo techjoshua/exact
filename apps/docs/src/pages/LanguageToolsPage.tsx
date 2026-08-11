@@ -1,27 +1,9 @@
 import type { Component } from '@exactjs/core';
+import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
+import languageToolsIntlScreenshot from '../assets/language-tools-intl.png?inline';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
-
-const inferredTaskSource = `export async function ProductPage(
-  this: Component<ProductState>,
-  props: { productId: string }
-) {
-  const products = this.getContext(Products);
-
-  this.state.product = await products.find(props.productId);
-
-  const displayPrice = this.reactive(() =>
-    this.state.product ? formatPrice(this.state.product.price) : ''
-  );
-
-  return () => (
-    <main>
-      <h1>{this.state.product?.name ?? 'Product'}</h1>
-      <p>{displayPrice}</p>
-    </main>
-  );
-}`;
 
 const policyTaskSource = `export function ProductPage(
   this: Component<ProductState>,
@@ -93,48 +75,37 @@ export function LanguageToolsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="See what the compiler sees"
-			description="eXact Language Tools explains initialization declarations, render work, tasks, placement, dependencies, effects, and ownership while you edit—using the same native analysis that builds the application."
+			description="eXact Language Tools places compiler-owned information beside the source that produced it: task placement, dependencies, effects, ownership, reactive boundaries, and the reasons behind each inference."
 			previous={{ path: '/learn/server-execution', label: 'Server execution' }}
 			next={{ path: '/learn/devtools', label: 'Full-stack DevTools' }}
 		>
 			<section>
-				<h2>Compiler meaning at the source</h2>
+				<h2>Compiler meaning inside VS Code</h2>
 				<p>
-					The outer component function is a compiler-analyzed initialization definition rather than
-					a linear callback. The returned function is reactive render work. Awaited state production
-					becomes an inferred task. An ordinary local function with a final <code>TaskContext</code>
-					parameter is the same task model with authored policy and access to its generation
-					context. The language server presents both as compiler regions instead of asking you to
-					inspect generated JavaScript.
+					CodeLens, operation badges, hovers, diagnostics, and region decorations explain the
+					compiler&apos;s conclusions without replacing TypeScript&apos;s ordinary editor behavior.
+					An awaited state assignment can show its inferred placement and readiness; a task call can
+					show its activation inputs; and a derived declaration can lead directly to every connected
+					consumer.
 				</p>
-				<CodeBlock source={inferredTaskSource} language="tsx" title="ProductPage.tsx" />
 				<p>
-					A compact component CodeLens reports <code>eXact · 1 task</code>. The badge beside the
-					awaited assignment carries the detailed task facts; hover adds the native compiler
-					reasons: the repository context selects server placement, the initial view consumes
-					<code>state.product</code>, and the task generation owns cancellation and staged
-					publication.
+					The Component Semantics view organizes those facts by authored ownership: initialization,
+					tasks, derived values, and render boundaries. Selecting an entry reveals its source range,
+					dependencies, captures, effects, supplied signal, resources, cleanup, and typed inference
+					reasons. Broad and unknown paths remain visibly qualified.
 				</p>
-			</section>
-			<section>
-				<h2>A component-shaped outline</h2>
-				<p>The Component Semantics view organizes facts around authored ownership:</p>
-				<pre>
-					<code>{`ProductPage
-├─ Initialization
-├─ Tasks
-│  └─ Product lookup — inferred, server, blocking
-├─ Derived values
-│  └─ displayPrice — state.product.price
-└─ Render
-   ├─ heading text — state.product.name
-   └─ price text — displayPrice`}</code>
-				</pre>
-				<p>
-					Selecting a fact reveals its authored range, dependencies, captured parameter inputs,
-					effects, supplied signal, resources, cleanup, and typed inference reasons. Broad and
-					unknown paths stay visibly qualified; the editor never invents false precision.
-				</p>
+				<figure className="editor-capture">
+					<img
+						src={languageToolsIntlScreenshot}
+						alt="VS Code showing eXact internationalization enhancement attributes, message and unit inlay hints, and a hover listing Arabic, French, and Japanese translations."
+						loading="lazy"
+						decoding="async"
+					/>
+					<figcaption>
+						The intl enhancement contributes inference hints and translation coverage through the
+						same language-service contract used by eXact&apos;s core tooling.
+					</figcaption>
+				</figure>
 			</section>
 			<section>
 				<h2>Author inferred policy—and reverse it safely</h2>
@@ -251,10 +222,11 @@ export function LanguageToolsPage(this: Component<{}>) {
 			<section>
 				<h2>Package-owned assistance</h2>
 				<p>
-					The generic language-extension contract lets enhancement libraries and framework plugins
-					contribute bounded diagnostics, completions, hovers, hints, and safe edits. Routine rules
-					remain inert package metadata; deeper analysis runs only from an independently trusted
-					provider behind a cancellable, failure-isolated protocol.
+					<Link to="/components/enhancements">Enhancement libraries</Link> and framework plugins can
+					use the generic language-extension contract to contribute bounded diagnostics,
+					completions, hovers, hints, and safe edits. Routine rules remain inert package metadata;
+					deeper analysis runs only from an independently trusted provider behind a cancellable,
+					failure-isolated protocol.
 				</p>
 				<CodeBlock source={languageExtensionConfig} language="ts" title="exact.config.ts" />
 				<p>
@@ -280,6 +252,17 @@ export function LanguageToolsPage(this: Component<{}>) {
 					evidence-aware hovers, inferred keyboard-policy hints, and safe bounded edits without
 					teaching the compiler or language server accessibility rules.
 				</p>
+			</section>
+			<section>
+				<h2>From source insight to runtime inspection</h2>
+				<p>
+					Language Tools explains the static program while you author it. The Chromium DevTools
+					extension inspects the live side of the same model: durable component instances, state,
+					tasks, reactive dependencies, client/server work, and microfrontend ownership.
+				</p>
+				<Link className="secondary-link" to="/learn/devtools">
+					Inspect a running eXact application
+				</Link>
 			</section>
 			<section>
 				<h2>Run the extension from a checkout</h2>

@@ -18,7 +18,7 @@ export function AccessibilityPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Component library / @exactjs/accessibility"
-			title="Let the browser lead, then add the missing coordination"
+			title="Let the browser lead"
 			description="Use ordinary semantic HTML first. The accessibility enhancement adds stable ref relationships, bounded focus lifecycle, complete custom-composite navigation, and package-owned guidance without replacing browser accessibility systems."
 			previous={{ path: '/components/enhancements', label: 'Enhancements' }}
 			next={{ path: '/components/trust', label: 'Server trust' }}
@@ -49,10 +49,15 @@ export function AccessibilityPage(this: Component<{}>) {
 				<h2>Use the native modal state machine</h2>
 				<CodeBlock source={accessibilityModalSource} language="tsx" title="Settings.tsx" />
 				<p>
-					<code>modal:isOpen</code> calls <code>showModal()</code> and <code>close()</code>, then
-					publishes native close/toggle state back to the writable boolean. It never substitutes the
-					nonmodal <code>open</code> attribute. Native commands avoid event boilerplate; the
-					provider checks finite targets, command compatibility, and dialog naming.
+					<code>modal:isOpen</code> bidirectionally binds a writable reactive boolean to the
+					dialog&apos;s native modal state. Opening or closing the dialog updates the boolean, and
+					changing the boolean opens or closes the dialog with <code>showModal()</code> or
+					<code>close()</code>. It does not use the nonmodal <code>open</code> attribute.
+				</p>
+				<p>
+					Native <code>commandFor</code> controls can open, request-close, or close the dialog
+					without authored event handlers. The accessibility enhancement validates target
+					references, command compatibility, and accessible dialog naming.
 				</p>
 				<Callout title="Native modality stays native" tone="tip">
 					<p>

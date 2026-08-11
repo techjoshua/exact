@@ -15,7 +15,7 @@ These documents describe behavior that exists in the repository today:
 | [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                                                 |
 | [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                                                    |
 | [component-library-trust.md](component-library-trust.md)                         | Bundler-enforced server component package authorization.                                                  |
-| [component-registries.md](component-registries.md)                               | Finite eager/lazy component selection, identity, SSR, and hydration.                                      |
+| [component-registries.md](component-registries.md)                               | Branched, finite-registry, and open dynamic component selection.                                          |
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.                                              |
 | [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.                                  |
 | [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.                                              |
@@ -26,7 +26,6 @@ These documents describe behavior that exists in the repository today:
 | [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                                                       |
 | [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.                                  |
 | [microfrontends.md](microfrontends.md)                                           | Implemented trusted microfrontend scope and remaining adapter work.                                       |
-| [dynamic-components.md](dynamic-components.md)                                   | Client-only open component selection, diagnostics, ownership, and SSR behavior.                           |
 | [motion.md](motion.md)                                                           | Prepared motion definitions, finite playback, configuration, and current limits.                          |
 | [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.                                 |
 | [native-ssr-production-guide.md](native-ssr-production-guide.md)                 | Production SSR, request, response, security, and deployment contracts.                                    |

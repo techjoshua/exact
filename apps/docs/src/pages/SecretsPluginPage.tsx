@@ -33,7 +33,7 @@ export function SecretsPluginPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Plugin / @exactjs/secrets"
-			title="Make secret handling visible to both server and compiler"
+			title="Make secrets explicit"
 			description="The secrets plugin loads values through application-owned providers, validates required names at startup, and gives secret data a compiler-visible qualification that persists until trusted code explicitly consumes it."
 			previous={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
 			next={{ path: '/examples/logo-lab', label: 'Logo lab' }}

@@ -6,24 +6,21 @@ import {
 	getCellVNode,
 	isCellVNode,
 	markExactComponent,
-	observeComponentAsync,
 	unwrap,
 	type Child,
 	type Component,
 	type AuthoredComponentFunction,
 	type ComponentFunction,
-	type ComponentInstance,
 	type InteractionHandler,
 	type VNode
 } from '@exactjs/core';
+import { reactive } from '@exactjs/reactive';
 import { getRequestContext, RequestContext, type RequestContextValue } from '@exactjs/request';
 import { RouterControllerContext } from './context.js';
 import {
 	createBrowserLocationSource,
 	createExactRouter,
 	normalizeBasename,
-	normalizePath,
-	stripBasename,
 	type ExactRouteDefinition,
 	type ExactRouter,
 	type LocationSource,
@@ -32,6 +29,7 @@ import {
 	type RouteMatch,
 	type RouterMode
 } from './core.js';
+import { createLinkClickHandler, navLinkActive } from './link-behavior.js';
 
 export { RouterControllerContext } from './context.js';
 export {
@@ -116,9 +114,14 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 		);
 	const routes = routeChildren(props.children);
 	const controller = createExactRouter({ source, routes, basename, mode });
-	const owner = this;
+	const routeContext = reactive(routeContextValue(controller, basename));
+	this.setContext(RouteContext, routeContext);
+	this.setContext(RouterControllerContext, controller);
 
 	const refresh = () => {
+		// Publish the accepted snapshot through the reactive context before rendering the new
+		// branch. Long-lived consumers such as navigation shells then update with that branch.
+		routeContext.version++;
 		this.state.version++;
 	};
 	let unsubscribe: (() => void) | undefined;
@@ -130,18 +133,27 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 		controller.dispose();
 	});
 
-	const routeContext: RouteContextValue = {
+	return () => routerBranch(controller, routeContext, this.state.version);
+}
+
+/** Creates a reactive route context whose public getters follow the accepted router snapshot. */
+function routeContextValue(
+	controller: ExactRouter<RouteRecord>,
+	basename: string
+): RouteContextValue & { version: number } {
+	return {
+		version: 0,
 		router: controller,
 		get location() {
-			void owner.state.version;
+			void this.version;
 			return controller.getSnapshot().location;
 		},
 		get params() {
-			void owner.state.version;
+			void this.version;
 			return controller.getSnapshot().params;
 		},
 		get matches() {
-			void owner.state.version;
+			void this.version;
 			return controller.getSnapshot().matches;
 		},
 		basename,
@@ -149,12 +161,8 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 			void controller.navigate(to, options);
 		},
 		href: (to) => controller.createHref(to),
-		searchParams: () => new URLSearchParams(routeContext.location.search)
+		searchParams: () => new URLSearchParams(controller.getSnapshot().location.search)
 	};
-	this.setContext(RouteContext, routeContext);
-	this.setContext(RouterControllerContext, controller);
-
-	return () => routerBranch(controller, routeContext, this.state.version);
 }
 
 /** Defines the properties accepted by route. */
@@ -306,39 +314,7 @@ export type LinkProps = Record<string, unknown> & {
 /** Performs the link domain operation. */
 export function Link(this: Component<{}>, props: LinkProps) {
 	const route = this.getContext(RouteContext);
-	const click = (event: MouseEvent) => {
-		let result = props.onClick?.(event);
-		if (
-			result !== null &&
-			(typeof result === 'object' || typeof result === 'function') &&
-			typeof (result as PromiseLike<unknown>).then === 'function'
-		) {
-			// The link may unmount as navigation commits. Observe the consumer callback against
-			// the durable Link owner before that unmount cancels the surrounding interaction.
-			observeComponentAsync(this as ComponentInstance<{}>, result, 'event', 'click');
-			result = Promise.resolve(result).catch(() => undefined);
-		}
-		if (
-			event.defaultPrevented ||
-			event.button !== 0 ||
-			event.metaKey ||
-			event.ctrlKey ||
-			event.shiftKey ||
-			event.altKey
-		)
-			return result;
-		const anchor = (event.target as Element | null)?.closest('a');
-		if (!anchor || anchor.tagName.toLowerCase() !== 'a') return result;
-		if ((anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download'))
-			return result;
-		const location = anchor.ownerDocument.defaultView?.location;
-		if (!location) return result;
-		const destination = new URL((anchor as HTMLAnchorElement).href, location.href);
-		if (destination.origin !== location.origin) return result;
-		event.preventDefault();
-		route.navigate(props.to, { replace: props.replace, state: props.state });
-		return result;
-	};
+	const click = createLinkClickHandler(this, route, props);
 	const { to, replace: _replace, state: _state, children, onClick: _onClick, ...rest } = props;
 	return () =>
 		createVNode(
@@ -356,29 +332,34 @@ export type NavLinkProps = LinkProps & {
 /** Performs the nav link domain operation. */
 export function NavLink(this: Component<{}>, props: NavLinkProps) {
 	const route = this.getContext(RouteContext);
-	return () => createVNode(Link, { ...props, ...navLinkPresentation(route, props) });
-}
-
-/**
- * Derives active-link presentation from the current route snapshot.
- * @exact pure
- */
-function navLinkPresentation(
-	route: RouteContextValue,
-	props: NavLinkProps
-): Pick<NavLinkProps, 'className'> & { 'aria-current': 'page' | undefined } {
-	const href = route.href(props.to);
-	const publicPath = href.startsWith('#')
-		? (href.slice(1).split(/[?#]/)[0] ?? '/')
-		: new URL(href, 'http://exact.local').pathname;
-	const target = stripBasename(normalizePath(publicPath), route.basename);
-	const current = route.location.pathname;
-	const active = props.end
-		? current === target
-		: current === target || current.startsWith(`${target.replace(/\/$/, '')}/`);
-	const className =
-		typeof props.className === 'function' ? props.className(active) : props.className;
-	return { className, 'aria-current': active ? 'page' : undefined };
+	const click = createLinkClickHandler(this, route, props);
+	const active = this.reactive(() => navLinkActive(route, props));
+	const className = this.reactive(() =>
+		typeof props.className === 'function' ? props.className(active.get()) : props.className
+	);
+	const ariaCurrent = this.reactive(() => (active.get() ? ('page' as const) : undefined));
+	const {
+		to,
+		end: _end,
+		className: _className,
+		replace: _replace,
+		state: _state,
+		children,
+		onClick: _onClick,
+		...rest
+	} = props;
+	return () =>
+		createVNode(
+			'a',
+			{
+				...rest,
+				href: route.href(to),
+				onClick: click,
+				className,
+				'aria-current': ariaCurrent
+			},
+			...(Array.isArray(children) ? children : children === undefined ? [] : [children])
+		);
 }
 
 /** Performs the navigate domain operation. */

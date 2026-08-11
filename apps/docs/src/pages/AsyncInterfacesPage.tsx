@@ -102,9 +102,9 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="Async components as ordinary value flow"
+			title="Async values, ordinary flow"
 			description="Await ordinary operations into state, coordinate readiness with Suspense, retain inactive mounted trees with Activity, and choose lower-priority work without introducing a rerender loop."
-			previous={{ path: '/learn/dynamic-components', label: 'Open dynamic components' }}
+			previous={{ path: '/learn/component-registries', label: 'Dynamic components' }}
 			next={{ path: '/learn/server-execution', label: 'Server execution' }}
 		>
 			<section>

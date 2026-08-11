@@ -191,7 +191,7 @@ function Results(this: Component<{ layout: 'grid' | 'list' }>) {
 ```
 
 A reactive choice owns a dynamic slot and replaces only that subtree. Keep a
-choice in the outer component definition as an ordinary compiler-observed derived value. The returned
+choice in the component body as an ordinary compiler-observed derived value. The returned
 view remains one expression regardless of how many consumers share it.
 
 ```tsx
@@ -228,17 +228,17 @@ diagnostics because they do not provide a finite component, placement, or artifa
 
 Source belongs to one of three important semantic regions:
 
-- the outer definition supplies state defaults, tasks, reactive relationships, and render preparation;
+- the component body supplies state defaults, tasks, reactive relationships, and render preparation;
 - the returned view expression establishes compiler-owned reactive regions; and
 - event, task, lifecycle, timer, and other callbacks execute when activated later.
 
-The outer definition may initialize state, create derived values, declare tasks and lifecycle work,
+The component body may initialize state, create derived values, declare tasks and lifecycle work,
 publish context, and create refs. Do not reason about it as an imperative callback that the runtime
 walks from top to bottom: the compiler may emit independent states, transitions, dependencies, and
 render regions while preserving their documented dependencies and observable ordering.
 The returned render function
 contains only its view expression. Put declarations and imperative control flow
-in the outer definition; keep conditional tree logic and keyed iteration in JSX:
+in the component body; keep conditional tree logic and keyed iteration in JSX:
 
 ```tsx
 function Summary(this: Component<SummaryState>) {
@@ -265,7 +265,7 @@ deferred work and may mutate state normally.
 
 ### Lexical micro-components
 
-The outer component definition may name small view-only arrows and compose them as JSX tags:
+The component body may name small view-only arrows and compose them as JSX tags:
 
 ```tsx
 function Article(this: Component<ArticleState>) {
@@ -292,7 +292,7 @@ other micro-components in scope. The compiler lowers their JSX tags to
 owner-local view calls, attributes their reactive expressions to `Article`,
 and gives them no component identity, state, lifecycle, tasks, refs, or
 registry entry. A micro-component is an immutable, PascalCase, synchronous
-arrow declared in the outer component definition and contains one view expression. It cannot
+arrow declared in the component body and contains one view expression. It cannot
 escape its owner. The component definition returns a component-local view arrow;
 module-level shared or bound render callables are not supported.
 
@@ -414,10 +414,14 @@ const total = subtotal + (props.express ? 14 : 0);
 return () => <strong>{total}</strong>;
 ```
 
-Its outer-definition location describes a component-owned relationship. A derived cell caches
+The compiler must be able to prove that the initializer is safe to reevaluate. Effectful work
+belongs in an interaction or task; an opaque helper needs a valid pure-call contract before it can
+participate in an inferred derived relationship.
+
+Its component-body location describes a component-owned relationship. A derived cell caches
 one result for all of its DOM, component-prop, list, and task consumers and
 uses result equality to stop unchanged values from propagating farther through
-the graph. Keep a derived declaration in the outer definition when several consumers should
+the graph. Keep a derived declaration in the component body when several consumers should
 share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
 
@@ -436,7 +440,7 @@ return () => <strong>{label}</strong>;
 ```
 
 The returned view does not rerun as a unit, so declarations and imperative
-control flow belong in the outer component definition. Conditional expressions in JSX and
+control flow belong in the component body. Conditional expressions in JSX and
 callbacks owned by keyed branches or items remain region-local and update only
 their structural range. This keeps authored ownership unambiguous and prevents
 the same view-local calculation from being duplicated across generated
@@ -593,6 +597,10 @@ return () => (
 
 ## Enhancement composition
 
+An enhancement is an optional ordinary component around authored output. Namespaced JSX selects a
+finite enhancement component, which may wrap, observe, or contribute properties and behavior to
+that output. The authored output remains the fallback when the provider is unavailable.
+
 An attributed enhancement is compiled into an explicit `kind: "enhancement"` render-program node
 with a preserve-target fallback. The authored namespace is classified once; DOM, SSR, hydration,
 and component tests consume that node and never reinterpret the original attribute. Provider
@@ -615,6 +623,18 @@ into the application bundle's enhancement catalog. An available entry mounts as 
 inspectable component; an unavailable entry leaves the authored output unchanged. Enhancement
 metadata and the bundle-local catalog are not framework-plugin discovery or lifecycle.
 
+Component libraries author the option, while consuming applications decide which providers their
+builds use. Enabling a provider constructs the selected enhancement as a normal component. Omitting
+or disabling it keeps the authored output and adds no enhancement instance or provider runtime on
+that path. Libraries cannot force activation in consuming applications.
+
+The contract is open to third-party packages. Any package can publish ordinary components through
+finite `exact-enhancement` exports without a plugin, central registry, special base class, or private
+compiler API. Enhancement packages may also contribute bounded language-service completions,
+hovers, hints, diagnostics, and safe edits. The intl and accessibility packages use this seam to
+explain valid authoring and warn about invalid messages, placeholders, catalogs, ARIA relationships,
+focus, names, and composite structure.
+
 An enhancement prop documented with `@exact analyzer-only` is a finite, typed source field for a
 trusted analyzer rather than component input. The compiler accepts and type-checks the namespaced
 field, exposes it through the ordinary language projection, and removes it from emitted JSX without
@@ -628,7 +648,7 @@ Ordinary component imports from packages are also resolved at this shared build-
 per-module compiler keeps an opaque imported edge conservative until the host validates the
 package's inert published component catalog; it does not report the temporary absence of an
 in-module contract as a source error. A valid but opaque component-position value lowers to the
-[open client-only dynamic boundary](dynamic-components.md) and receives `EXACT2213` unless its
+[open client-only dynamic boundary](component-registries.md#open-dynamic-fallback) and receives `EXACT2213` unless its
 owning declaration uses `@exact dynamic`. Provably invalid values remain errors; the annotation
 cannot make them executable.
 
@@ -774,6 +794,9 @@ boundary.
 or reactive values:
 
 ```tsx
+<article className="card featured" />
+<article className={`card featured theme-${props.theme}`} />
+
 <div
 	className={[
 		'card',
@@ -828,13 +851,14 @@ A component can pair an ordinary value prop with an ordinary notification callba
 callback's first argument is a replacement value:
 
 ```tsx
-<Dialog open:onOpenChanged={this.state.dialogOpen} />
+<SettingsPanel expanded:onExpandedChanged={this.state.settingsExpanded} />
 ```
 
-This is exactly shorthand for a reactive `open` prop and an ordinary callback that assigns its
-first argument to `this.state.dialogOpen`. Both names must exist in the component's finite prop
-type, the callback must return only `void` or `undefined`, and the target must be one writable state
-location. Additional callback arguments are allowed and ignored.
+This is exactly shorthand for a reactive `expanded` prop and an ordinary `onExpandedChanged`
+callback prop that assigns its first argument to `this.state.settingsExpanded`. Both sides of the
+colon are ordinary names from the child component's finite prop type. The parent retains ownership
+of the writable state location; the child receives an immutable value and a callback. The callback
+must return only `void` or `undefined`. Additional callback arguments are allowed and ignored.
 
 The parent remains the state owner and the child still receives immutable props. Write the two
 props explicitly when the callback must validate, refuse, transform, log, await, or return a
@@ -939,7 +963,7 @@ complex:
 ### Refs
 
 Create a typed key outside the component, create an instance-owned binding
-in the outer component definition, and attach it with `ref`:
+in the component body, and attach it with `ref`:
 
 ```tsx
 const searchInput = createRef<HTMLInputElement>('search input');
@@ -1069,7 +1093,7 @@ with `allowUnsafeHtml: true`. `dangerouslySetInnerHTML` is not supported.
 
 An ordinary local function becomes a task when the compiler finds task policy,
 task capabilities, placement-sensitive effects, or a known activation host.
-Calling it in the outer component definition declares component-owned work:
+Calling it in the component body declares component-owned work:
 
 ```tsx
 function Search(this: Component<SearchState>) {
@@ -1187,7 +1211,7 @@ boundary. Placement, concurrency, priority, readiness, and attachment are
 independent. Contradictory or repeated policy is an error. Explicit placement
 may not contradict known browser-only or server-only effects.
 
-Call initialization-activated tasks directly in the outer component definition, not inside render functions.
+Call initialization-activated tasks directly in the component body, not inside render functions.
 Calls inside other task functions are invoked child generations and attach to
 the active task frame automatically. Use task policy for external effects,
 cleanup, nonblocking work, manual scheduling/readiness, concurrency, or opaque
@@ -1448,7 +1472,7 @@ promote a value to application or request lifetime.
 
 ## Lifecycle, refs, and logging
 
-Lifecycle handlers are declared in the outer component definition:
+Lifecycle handlers are declared in the component body:
 
 ```tsx
 this.onMount(({ signal }) => {

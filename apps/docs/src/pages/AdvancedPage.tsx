@@ -43,7 +43,7 @@ export function AdvancedPage(this: Component<{}>) {
 			eyebrow="Explore"
 			title="Beyond the browser"
 			description="The same component model extends through SSR, progressive readiness, selective hydration, server execution, React compatibility, and trusted microfrontends."
-			previous={{ path: '/compare', label: 'Framework comparison' }}
+			previous={{ path: '/examples/logo-lab', label: 'Logo lab' }}
 			next={{ path: '/packages', label: 'Package map' }}
 		>
 			<Callout title="Implemented does not mean unlimited" tone="warning">

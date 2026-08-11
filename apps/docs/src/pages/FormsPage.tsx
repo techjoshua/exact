@@ -81,20 +81,20 @@ const bindingEffectsSource = `<input
   }}
 />`;
 
-const componentBindingSource = `type DialogProps = {
-  open: boolean;
-  onOpenChanged?(open: boolean, reason?: string): void;
+const componentBindingSource = `type SettingsPanelProps = {
+  expanded: boolean;
+  onExpandedChanged?(expanded: boolean, reason?: string): void;
 };
 
-// Exact shorthand for a reactive open prop plus an assignment callback.
-<Dialog open:onOpenChanged={this.state.dialogOpen} />
+// eXact shorthand for an ordinary value prop plus an assignment callback prop.
+<SettingsPanel expanded:onExpandedChanged={this.state.settingsExpanded} />
 
 // Write the full form when notification does more than assign.
-<Dialog
-  open={this.state.dialogOpen}
-  onOpenChanged={(open, reason) => {
-    this.log.info('dialog changed', { open, reason });
-    this.state.dialogOpen = open;
+<SettingsPanel
+  expanded={this.state.settingsExpanded}
+  onExpandedChanged={(expanded, reason) => {
+    this.log.info('panel changed', { expanded, reason });
+    this.state.settingsExpanded = expanded;
   }}
 />`;
 
@@ -118,7 +118,7 @@ export function FormsPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Build for the web"
-			title="Reactive inputs and accessible fields"
+			title="Reactive, accessible forms"
 			description="Connect native controls to component state without repetitive assignment handlers, then compose labels, help, errors, and validation without surrendering ownership of the data."
 			previous={{ path: '/guides/routing', label: 'Routing' }}
 			next={{ path: '/guides/testing', label: 'Testing' }}
@@ -142,7 +142,11 @@ export function FormsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Bind controlled components without inventing a protocol</h2>
-				<CodeBlock source={componentBindingSource} language="tsx" title="DialogBinding.tsx" />
+				<CodeBlock
+					source={componentBindingSource}
+					language="tsx"
+					title="SettingsPanelBinding.tsx"
+				/>
 				<p>
 					For a capitalized eXact component, both sides of the colon are ordinary props from the
 					component&apos;s finite prop type. The compiler supplies the reactive value and an

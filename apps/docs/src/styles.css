@@ -505,6 +505,7 @@ h1 {
 }
 
 .article code:not(.code-block code) {
+	overflow-wrap: anywhere;
 	padding: 0.12em 0.35em;
 	border: 1px solid var(--border);
 	border-radius: 0.3rem;
@@ -960,7 +961,7 @@ a.topic-card:hover {
 
 .code-block pre {
 	margin: 0;
-	overflow-x: auto;
+	overflow-x: hidden;
 	padding: 1rem 0 1.15rem;
 	color: var(--code-text);
 	font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
@@ -971,8 +972,8 @@ a.topic-card:hover {
 
 .code-line {
 	display: grid;
-	grid-template-columns: 3rem 1fr;
-	min-width: max-content;
+	grid-template-columns: 3rem minmax(0, 1fr);
+	min-width: 0;
 	padding-right: 1.2rem;
 }
 
@@ -990,7 +991,8 @@ a.topic-card:hover {
 }
 
 .line-source {
-	white-space: pre;
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
 }
 
 .copy-status {
@@ -1050,20 +1052,44 @@ a.topic-card:hover {
 	grid-template-columns: 2.5rem 1fr;
 }
 
+.editor-capture {
+	margin: 1.5rem 0;
+	overflow: hidden;
+	border: 1px solid var(--border);
+	border-radius: 0.65rem;
+	background: #111213;
+	box-shadow: 0 12px 32px rgb(0 0 0 / 0.12);
+}
+
+.editor-capture img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.editor-capture figcaption {
+	padding: 0.8rem 1rem;
+	border-top: 1px solid var(--border);
+	color: var(--text-muted);
+	font-size: 0.78rem;
+	line-height: 1.5;
+}
+
 table {
 	width: 100%;
+	table-layout: fixed;
 	border-collapse: collapse;
 	border: 1px solid var(--border);
 	font-size: 0.82rem;
 }
 
 .table-scroll {
-	overflow-x: auto;
+	overflow-x: visible;
 	border-radius: 0.55rem;
 }
 
 .table-scroll table {
-	min-width: 58rem;
+	min-width: 0;
 }
 
 th,
@@ -1081,6 +1107,68 @@ th {
 
 td {
 	color: var(--text-soft);
+	overflow-wrap: anywhere;
+}
+
+.integration-table {
+	container-type: inline-size;
+}
+
+.integration-table th:nth-child(1) {
+	width: 16%;
+}
+
+.integration-table th:nth-child(2) {
+	width: 22%;
+}
+
+.integration-table th:nth-child(3) {
+	width: 29%;
+}
+
+.integration-table th:nth-child(4) {
+	width: 33%;
+}
+
+@container (max-width: 46rem) {
+	.integration-table table,
+	.integration-table tbody,
+	.integration-table tr,
+	.integration-table td {
+		display: block;
+		width: 100%;
+	}
+
+	.integration-table table {
+		border: 0;
+	}
+
+	.integration-table thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+	}
+
+	.integration-table tr {
+		margin-bottom: 1rem;
+		border: 1px solid var(--border);
+		border-radius: 0.55rem;
+		overflow: hidden;
+	}
+
+	.integration-table td {
+		display: grid;
+		grid-template-columns: minmax(8rem, 0.35fr) minmax(0, 1fr);
+		gap: 0.75rem;
+	}
+
+	.integration-table td::before {
+		color: var(--text);
+		content: attr(data-label);
+		font-weight: 700;
+	}
 }
 
 .page-navigation {

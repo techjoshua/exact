@@ -83,7 +83,7 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Build for the web"
-			title="Use React components inside an eXact application"
+			title="Bring React with you"
 			description="Supported React 18 and 19 components can appear directly in native eXact JSX. The compiler inserts the compatibility boundary while eXact state and precise reactive updates remain in control."
 			previous={{ path: '/guides/testing', label: 'Testing' }}
 			next={{ path: '/plugins', label: 'Plugin system' }}

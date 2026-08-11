@@ -32,17 +32,33 @@ than a shadowing override.
 Core owns the writable modal binding because it is an intrinsic browser endpoint:
 
 ```tsx
-<button commandFor="settings" command="show-modal">Settings</button>
-<dialog id="settings" modal:isOpen={this.state.settingsOpen}>
-	<button commandFor="settings" command="request-close">Cancel</button>
-	<button commandFor="settings" command="close">Save</button>
-</dialog>
+function Settings(this: Component<{ open: boolean }>) {
+	this.state.open = false;
+	this.log.info(`Settings dialog ${this.state.open ? 'opened' : 'closed'}`);
+
+	return () => (
+		<>
+			<button commandFor="settings" command="show-modal">
+				Settings
+			</button>
+			<dialog id="settings" modal:isOpen={this.state.open}>
+				<button commandFor="settings" command="request-close">
+					Cancel
+				</button>
+				<button commandFor="settings" command="close">
+					Save
+				</button>
+			</dialog>
+		</>
+	);
+}
 ```
 
-`modal:isOpen` accepts one writable boolean state location on `dialog`. True calls `showModal()`,
-false calls `close()`, and native `toggle`/`close` completion writes the final `:modal` state back.
-It cannot be combined with `open`, which is nonmodal HTML state. SSR never serializes modal state as
-`open`; hydration adopts a dialog opened before hydration and then resumes normal binding.
+`modal:isOpen` bidirectionally binds one writable reactive boolean to the dialog's native modal
+state. Changing the boolean opens or closes the dialog with `showModal()` or `close()`, while native
+`toggle` and `close` completion writes the final `:modal` state back. It cannot be combined with
+`open`, which is nonmodal HTML state. SSR never serializes modal state as `open`; hydration adopts a
+dialog opened before hydration and then resumes normal binding.
 
 The accessibility analyzer checks finite command targets, command/target compatibility, dialog
 labelling, and custom modal substitutes. The enhancement package does not implement focus trapping,

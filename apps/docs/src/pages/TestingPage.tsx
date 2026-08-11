@@ -67,7 +67,7 @@ export function TestingPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Build for the web"
-			title="Test behavior through the real component"
+			title="Test the real component"
 			description="Mount the DOM-rendered component, find controls the way a user does, and inspect framework state only when the test truly needs it."
 			previous={{ path: '/guides/forms', label: 'Accessible forms' }}
 			next={{ path: '/guides/react-compatibility', label: 'React compatibility' }}

@@ -20,7 +20,7 @@ export function PluginsPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Extend eXact"
-			title="Plugins carry cross-cutting concerns through the whole system"
+			title="Plugins across every layer"
 			description="An eXact plugin is a package contract, not a bag of component hooks. It can contribute typed configuration and validated behavior to build, server, render, client, or testing hosts."
 			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
 			next={{ path: '/plugins/internationalization', label: 'Internationalization' }}

@@ -14,22 +14,17 @@ const asyncSource = `async function loadProfile(id: string) {
   }
 }`;
 
-const csharpIteratorSource = `static IEnumerable<Task> LoadProfile(
-    string id,
-    AsyncResult<Profile> output)
+const csharpIteratorSource = `static IEnumerable<Task> LoadProfile(string id, AsyncResult<Profile> output)
 {
-    Task<HttpResponseMessage> response =
-        client.GetAsync($"/api/profiles/{id}");
+    Task<HttpResponseMessage> response = client.GetAsync($"/api/profiles/{id}");
     yield return response;
 
     response.Result.EnsureSuccessStatusCode();
 
-    Task<string> json =
-        response.Result.Content.ReadAsStringAsync();
+    Task<string> json = response.Result.Content.ReadAsStringAsync();
     yield return json;
 
-    output.Value =
-        JsonSerializer.Deserialize<Profile>(json.Result);
+    output.Value = JsonSerializer.Deserialize<Profile>(json.Result);
 }
 
 // The runner awaits Current, then calls MoveNext() again.
@@ -74,16 +69,14 @@ const reactCounterSource = `function Counter() {
 }`;
 
 const distributedSource = `type Product = { id: string; name: string };
+type ProductState = { product?: Product; saves: number };
 
 interface ProductRepository {
   /** @exact shared */
   find(id: string): Promise<Product>;
 }
 
-async function ProductPage(
-  this: Component<{ product?: Product; saves: number }>,
-  props: { productId: string }
-) {
+async function ProductPage(this: Component<ProductState>, props: { productId: string }) {
   const products = this.getContext(ProductRepositoryContext);
   this.state.saves = 0;
 
@@ -122,7 +115,7 @@ export function StoryPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="The story behind eXact"
-			title="What async/await taught me about web frameworks"
+			title="From async/await to eXact"
 			description="Clear source code and sophisticated runtime machinery do not have to be enemies. Sometimes the compiler can carry the complexity so the programmer does not have to."
 			previous={{ path: '/', label: 'Introduction' }}
 			next={{ path: '/getting-started', label: 'Quick start' }}
@@ -229,8 +222,8 @@ export function StoryPage(this: Component<{}>) {
 			<section>
 				<h2>Describe once... update only what depends on state</h2>
 				<p>
-					In eXact, the outer component function is a compiler-analyzed definition of initial state,
-					tasks, reactive relationships, and view preparation—not a callback executed linearly. The
+					In eXact, the component body is a compiler-analyzed definition of initial state, tasks,
+					reactive relationships, and view preparation—not a callback executed linearly. The
 					compiler turns that description into a reactive state machine, and each mounted component
 					owns one durable instance. Every state read connects to the DOM expression, derived value,
 					task, or server operation that consumes it.
@@ -242,12 +235,12 @@ export function StoryPage(this: Component<{}>) {
 					reactive expressions. The runtime updates the affected DOM ranges while the component, its
 					state, its tasks, and its owned resources remain in place.
 				</p>
-				<Callout title="Where the state-machine analogy fits" tone="note">
+				<Callout title="How the pieces fit" tone="note">
 					<p>
-						It is useful, but it is not the whole architecture. eXact compiles synchronous reads
-						into a graph of targeted reactive work. Async initialization and distributed server work
-						are lowered into resumable continuations. Together they provide the same larger lesson
-						as async/await: generated complexity can protect simple, linear source.
+						eXact uses the right compiled representation for each kind of work. Synchronous state
+						reads become a graph of targeted reactive updates, while async initialization and
+						distributed server work become resumable continuations. In both cases, the compiler
+						manages complexity that would otherwise spill into component code.
 					</p>
 				</Callout>
 			</section>
@@ -326,7 +319,7 @@ export function StoryPage(this: Component<{}>) {
 					The goal is straightforward: make eXact the framework people want to build with, while
 					giving existing applications a practical path to get there. We are still at the beginning,
 					but the direction is the same one that fascinated me years ago: write the clearest version
-					of the program, then let the compiler carry the machinery.
+					of the program, then let the compiler manage the machinery.
 				</p>
 				<div className="hero-actions">
 					<Link className="primary-link" to="/getting-started">

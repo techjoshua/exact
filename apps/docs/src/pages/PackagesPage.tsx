@@ -149,7 +149,7 @@ export function PackagesPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Explore"
-			title="Find the package that owns the job"
+			title="Find the right owner"
 			description="The package surface is broad because platform boundaries are explicit. Most browser applications begin with only core, DOM, JSX, and the compiler integration."
 			previous={{ path: '/advanced', label: 'Beyond the browser' }}
 		>

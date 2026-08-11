@@ -27,6 +27,27 @@ const publicationSource = `const publication = createViewTransitionCoordinator({
 
 const router = createExactRouter({ source, routes, publication });`;
 
+const routeContextSource = `import type { Component } from '@exactjs/core';
+import { RouteContext } from '@exactjs/router';
+
+function UserPage(this: Component<{}>) {
+  const route = this.getContext(RouteContext);
+  const userId = route.params.id;
+  const tab = route.searchParams().get('tab') ?? 'profile';
+
+  const showHistory = () => {
+    route.navigate('?tab=history', { replace: true });
+  };
+
+  return () => (
+    <section>
+      <h1>User {userId}</h1>
+      <p>Current tab: {tab}</p>
+      <button onClick={showHistory}>Show history</button>
+    </section>
+  );
+}`;
+
 /** Documents nested routing, navigation, data loading, and server coordination. */
 export function RoutingPage(this: Component<{}>) {
 	return () => (
@@ -40,12 +61,53 @@ export function RoutingPage(this: Component<{}>) {
 			<Callout title="You are looking at it" tone="tip">
 				<p>
 					This documentation shell uses <code>Router</code>, nested <code>Route</code> components,
-					<code>Outlet</code>, <code>Link</code>, and <code>NavLink</code>.
+					<code>Outlet</code>, <code>Link</code>, and <code>NavLink</code>. Active links follow each
+					accepted location and expose <code>aria-current="page"</code> without remounting the
+					shell.
 				</p>
 			</Callout>
 			<section>
 				<h2>A nested application shell</h2>
 				<CodeBlock source={routerSource} language="tsx" title="main.tsx" />
+			</section>
+			<section>
+				<h2>Read the current route from context</h2>
+				<p>
+					A routed component reads the nearest reactive <code>RouteContext</code>. Route parameters,
+					location, query values, matches, href creation, and imperative navigation stay attached to
+					the durable component instance rather than relying on positional hooks.
+				</p>
+				<CodeBlock source={routeContextSource} language="tsx" title="UserPage.tsx" />
+				<div className="definition-grid">
+					<code>useParams()</code>
+					<p>
+						<code>route.params</code>
+					</p>
+					<code>useLocation()</code>
+					<p>
+						<code>route.location</code>
+					</p>
+					<code>useSearchParams()</code>
+					<p>
+						<code>route.searchParams()</code>
+					</p>
+					<code>useNavigate()</code>
+					<p>
+						<code>route.navigate()</code>
+					</p>
+					<code>useHref()</code>
+					<p>
+						<code>route.href()</code>
+					</p>
+					<code>useMatches()</code>
+					<p>
+						<code>route.matches</code>
+					</p>
+				</div>
+				<p>
+					Prefer <code>Link</code> and <code>NavLink</code> for navigation controls. Use
+					<code>route.navigate()</code> when an interaction or task needs to navigate imperatively.
+				</p>
 			</section>
 			<section>
 				<h2>Choose a location source deliberately</h2>

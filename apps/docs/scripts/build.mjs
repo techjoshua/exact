@@ -36,7 +36,13 @@ const clientHtml = await readFile(join(clientRoot, 'index.html'), 'utf8');
 const assets = await readdir(join(clientRoot, 'assets'));
 const scriptName = assets.find((name) => name.endsWith('.js'));
 const styleNames = assets.filter((name) => name.endsWith('.css'));
+const externalAssets = assets.filter((name) => !name.endsWith('.js') && !name.endsWith('.css'));
 if (!scriptName) throw new Error('The documentation client build did not emit JavaScript.');
+if (externalAssets.length > 0) {
+	throw new Error(
+		`Standalone documentation assets must be inlined, found: ${externalAssets.join(', ')}`
+	);
+}
 
 const script = (await readFile(join(clientRoot, 'assets', scriptName), 'utf8')).replace(
 	/<\/script/gi,
@@ -76,5 +82,11 @@ if (
 }
 if (!documentHtml.includes('<div id="app"></div>') || documentHtml.includes('exact:component:'))
 	throw new Error('The standalone documentation must start from an empty client-only root.');
+if (
+	!documentHtml.includes('data:image/png;base64,') ||
+	!documentHtml.includes('VS Code showing eXact internationalization enhancement attributes')
+) {
+	throw new Error('The standalone documentation must embed the Language Tools screenshot.');
+}
 
 console.log(`Built standalone documentation: dist/index.html (${documentHtml.length} bytes)`);

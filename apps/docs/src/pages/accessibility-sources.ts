@@ -22,6 +22,11 @@ function Password(this: Component<{}>) {
 /** Native modal binding, commands, naming, and focus-scope example. */
 export const accessibilityModalSource = `function Settings(this: Component<{ open: boolean }>) {
   this.state.open = false;
+
+  this.log.info(
+    \`Settings dialog \${this.state.open ? 'opened' : 'closed'}\`
+  );
+
   return () => (
     <>
       <button commandFor="settings" command="show-modal">Settings</button>

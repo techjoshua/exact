@@ -1,7 +1,11 @@
 /** Server-only context contract used by the compiler tour component. */
 export const compilerTourContextSource = `import { createContext } from '@exactjs/core';
 
-export type Product = { id: string; name: string; price: number };
+export type Product = {
+  /** @exact key */ id: string;
+  name: string;
+  price: number;
+};
 
 export interface CatalogRepository {
   /**
@@ -46,13 +50,13 @@ export function CatalogEditor(this: Component<CatalogState>) {
 
   async function searchCatalog(
     query: string,
-    task: TaskContext = TaskContext.server().latest().deferred()
+    _task: TaskContext = TaskContext.server().latest().deferred()
   ) {
     // This request-scoped context contains the database/API client.
     // Its use makes this continuation server-only.
     const catalog = this.getContext(CatalogRepositoryContext);
     const products = query
-      ? await catalog.search(query, { signal: task.signal })
+      ? await catalog.search(query)
       : [];
 
     this.state.products = products;
@@ -81,9 +85,7 @@ export function CatalogEditor(this: Component<CatalogState>) {
       </label>
 
       <output>
-        {this.state.quantity} × {this.state.selected?.price ?? 0}
-        {' = '}
-        {this.state.subtotal}
+        {this.state.quantity} × {this.state.selected?.price ?? 0} = {this.state.subtotal}
       </output>
 
       {this.state.query &&
@@ -92,8 +94,8 @@ export function CatalogEditor(this: Component<CatalogState>) {
         )}
 
       <ul>
-        {this.map(this.state.products, (product) => (
-          <li key={product.id}>
+        {this.state.products.map((product) => (
+          <li>
             <button
               aria-pressed={this.state.selected?.id === product.id}
               onClick={() => {
@@ -330,10 +332,7 @@ export const compilerTourGeneratedViewSource = `return () =>
         () => this.state.selected?.price ?? 0,
         '<price-range>'
       ),
-      __exactDynamic(
-        () => ' = ',
-        '<equals-range>'
-      ),
+      ' = ',
       __exactDynamic(
         () => this.state.subtotal,
         '<subtotal-range>'
@@ -357,18 +356,20 @@ export const compilerTourGeneratedViewSource = `return () =>
       'ul',
       { 'data-exact-id': '<product-list>' },
 
-      // this.map retains keyed item identity. Expressions inside an item
-      // remain independently reactive.
+      // The @exact key annotation lowers ordinary map syntax to keyed
+      // reconciliation. Expressions inside an item remain reactive.
       __exactDynamic(
         () =>
-          this.map(this.state.products, (product) =>
-            __exactVNode(
-              'li',
-              {
-                'data-exact-id': '<product-row>',
-                key: product.id
-              },
+          this.map(
+            this.state.products,
+            (product) => product.id,
+            (product) =>
               __exactVNode(
+				'li',
+				{
+				  'data-exact-id': '<product-row>'
+				},
+				__exactVNode(
                 'button',
                 {
                   'data-exact-id': '<product-button>',

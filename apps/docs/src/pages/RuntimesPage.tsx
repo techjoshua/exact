@@ -2,165 +2,148 @@ import type { Component } from '@exactjs/core';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
 
-type IntegrationStatus = {
+type Integration = {
 	/** @exact key */
 	name: string;
-	status: string;
 	package: string;
 	coverage: string;
-	boundary: string;
+	application: string;
 };
 
-const buildIntegrations: IntegrationStatus[] = [
+const buildIntegrations: Integration[] = [
 	{
 		name: 'Vite 5–8',
-		status: 'First-class',
 		package: '@exactjs/vite-plugin',
 		coverage:
 			'Compiler transforms, HMR, JSX configuration, target conditions, and plugin integration.',
-		boundary: 'The recommended default and the most complete development-server integration.'
+		application: 'Configure the Vite development server, assets, and application entry points.'
 	},
 	{
 		name: 'Webpack 5',
-		status: 'Supported',
 		package: '@exactjs/webpack-plugin',
 		coverage:
 			'Compiler loader, source maps, resolver conditions, diagnostics, and React compatibility.',
-		boundary: 'Webpack configuration continues to own serving and the surrounding asset pipeline.'
+		application: 'Configure serving and the surrounding Webpack asset pipeline.'
 	},
 	{
 		name: 'Bun 1.3+',
-		status: 'Native and tested',
 		package: '@exactjs/bun-plugin',
 		coverage:
 			'Native Bun.build transforms, target conditions, source maps, and plugin composition.',
-		boundary: 'Build integration is separate from the Bun.serve runtime adapter.'
+		application: 'Add @exactjs/bun-adapter separately when Bun also serves the application.'
 	},
 	{
 		name: 'Precompiled output',
-		status: 'Supported',
 		package: '@exactjs/compiler',
 		coverage: 'The native exactc CLI emits compiled JavaScript before another tool consumes it.',
-		boundary:
+		application:
 			'The surrounding pipeline must configure asset handling, export conditions, and client/server entrypoints.'
 	}
 ];
 
-const runtimeIntegrations: IntegrationStatus[] = [
+const runtimeIntegrations: Integration[] = [
 	{
 		name: 'Browser only',
-		status: 'First-class',
 		package: '@exactjs/dom',
 		coverage:
 			'Client rendering, routing, forms, tasks, and component testing need no server adapter.',
-		boundary: 'Server rendering, server task invocations, and refreshes are unavailable.'
+		application: 'Use a server adapter when the application needs SSR, server tasks, or refreshes.'
 	},
 	{
 		name: 'Fetch API',
-		status: 'Portable foundation',
 		package: '@exactjs/fetch-adapter',
 		coverage: 'Standard Request-to-Response handler used by Fetch-compatible hosts.',
-		boundary:
+		application:
 			'The host still owns routing, deployment hooks, document responses, and static assets.'
 	},
 	{
 		name: 'Node HTTP',
-		status: 'Supported',
 		package: '@exactjs/node-adapter',
 		coverage: 'Normalizes node:http requests, responses, streaming, and disconnect cancellation.',
-		boundary: 'A low-level endpoint handler rather than an application server.'
+		application:
+			'Register the endpoint and provide document routes, assets, and application policy.'
 	},
 	{
 		name: 'Express',
-		status: 'Supported',
 		package: '@exactjs/express-adapter',
 		coverage: 'Middleware bridge for parsed requests and Express response methods.',
-		boundary: 'The application owns body parsing and route registration.'
+		application: 'Configure body parsing and register the eXact route.'
 	},
 	{
 		name: 'Fastify',
-		status: 'Supported',
 		package: '@exactjs/fastify-adapter',
 		coverage: 'Route handler bridge for Fastify requests and replies.',
-		boundary: 'The application owns JSON parsing and route registration.'
+		application: 'Configure JSON parsing and register the eXact route.'
 	},
 	{
 		name: 'Koa',
-		status: 'Supported',
 		package: '@exactjs/koa-adapter',
 		coverage: 'Middleware bridge that delegates unmatched requests to downstream middleware.',
-		boundary: 'The application owns route ordering, document rendering, and assets.'
+		application: 'Own route ordering, document rendering, and static assets.'
 	},
 	{
 		name: 'Hapi 21',
-		status: 'Native plugin and tested',
 		package: '@exactjs/hapi-adapter',
 		coverage:
 			'Real Hapi registration tests, route limits, streaming conversion, and disconnect handling.',
-		boundary:
+		application:
 			'The plugin mounts the eXact endpoint; application GET routes and assets remain yours.'
 	},
 	{
 		name: 'Bun 1.3+',
-		status: 'Native and tested',
 		package: '@exactjs/bun-adapter',
 		coverage: 'Bun.serve handler with integration coverage in the Bun runtime.',
-		boundary: 'Use @exactjs/bun-plugin separately when Bun also performs the build.'
+		application: 'Add @exactjs/bun-plugin separately when Bun also performs the build.'
 	},
 	{
 		name: 'Deno',
-		status: 'Adapter available',
 		package: '@exactjs/deno-adapter',
 		coverage: 'Deno.serve signature over the portable Fetch handler.',
-		boundary:
+		application:
 			'The contract is tested outside Deno; a Deno-native integration suite is still missing.'
 	},
 	{
 		name: 'Cloudflare Workers',
-		status: 'Adapter available',
 		package: '@exactjs/cloudflare-adapter',
 		coverage: 'Worker fetch signature with env and execution context forwarded to server work.',
-		boundary: 'A Workers-native deployment or Miniflare integration suite is still missing.'
+		application: 'Provide deployment configuration; native Workers integration coverage is pending.'
 	},
 	{
 		name: 'Generic serverless',
-		status: 'Adapter available',
 		package: '@exactjs/serverless-adapter',
 		coverage: 'AWS Lambda/API Gateway-style event and response conversion.',
-		boundary:
+		application:
 			'Responses are buffered; provider-specific streaming and lifecycle APIs are not abstracted.'
 	}
 ];
 
-function StatusTable(
+function IntegrationTable(
 	this: Component<{}>,
-	props: { caption: string; integrations: IntegrationStatus[] }
+	props: { caption: string; integrations: Integration[] }
 ) {
 	return () => (
-		<div className="table-scroll">
+		<div className="integration-table">
 			<table>
 				<caption>{props.caption}</caption>
 				<thead>
 					<tr>
 						<th>Host</th>
-						<th>Status</th>
 						<th>Package</th>
-						<th>What is covered</th>
-						<th>Current boundary</th>
+						<th>What it handles</th>
+						<th>What you provide</th>
 					</tr>
 				</thead>
 				<tbody>
 					{props.integrations.map((integration) => (
 						<tr>
-							<td>
+							<td data-label="Host">
 								<strong>{integration.name}</strong>
 							</td>
-							<td>{integration.status}</td>
-							<td>
+							<td data-label="Package">
 								<code>{integration.package}</code>
 							</td>
-							<td>{integration.coverage}</td>
-							<td>{integration.boundary}</td>
+							<td data-label="What it handles">{integration.coverage}</td>
+							<td data-label="What you provide">{integration.application}</td>
 						</tr>
 					))}
 				</tbody>
@@ -174,8 +157,8 @@ export function RuntimesPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Start here"
-			title="Choose a supported build and runtime"
-			description="eXact separates the tool that compiles components from the host that serves them. This matrix shows what is available today, how deeply each integration is exercised, and where application-owned wiring begins."
+			title="Build and run eXact your way"
+			description="Choose the compiler integration that fits your toolchain and the runtime adapter that fits your host. The two decisions remain independent."
 			previous={{ path: '/getting-started', label: 'Quick start' }}
 			next={{ path: '/learn/components', label: 'Components' }}
 		>
@@ -195,7 +178,7 @@ export function RuntimesPage(this: Component<{}>) {
 					in the host build; <code>exactc</code> remains the escape hatch for other pipelines. All
 					four routes use the same persistent native compiler and expose no alternate backend.
 				</p>
-				<StatusTable caption="Build integration status" integrations={buildIntegrations} />
+				<IntegrationTable caption="Build integrations" integrations={buildIntegrations} />
 			</section>
 
 			<section>
@@ -205,18 +188,7 @@ export function RuntimesPage(this: Component<{}>) {
 					dispatch, refresh handling, and request limits stay centralized in
 					<code>@exactjs/server</code> instead of being reimplemented by every framework.
 				</p>
-				<StatusTable caption="Runtime integration status" integrations={runtimeIntegrations} />
-			</section>
-
-			<section>
-				<h2>What “supported” means here</h2>
-				<p>
-					Every listed package has a public API, TypeScript declarations, focused tests, and a
-					scaffolder option where applicable. “Native and tested” additionally means the repository
-					exercises the real host runtime or framework. “Adapter available” means the platform
-					signature is implemented over a shared standards contract, but native-host integration
-					coverage is still a known gap.
-				</p>
+				<IntegrationTable caption="Runtime integrations" integrations={runtimeIntegrations} />
 			</section>
 
 			<section>
@@ -228,6 +200,14 @@ export function RuntimesPage(this: Component<{}>) {
 					Provider-specific adapters for platforms such as Vercel Functions, Netlify Functions, and
 					individual AWS streaming modes are also future integration work; use the Fetch or generic
 					serverless adapter only when its documented request and response model fits.
+				</p>
+				<p>
+					Runtime support is designed to be extended. <code>@exactjs/server</code> handles the eXact
+					protocol, validation, dispatch, refreshes, and request lifecycle. Each adapter translates
+					its host&apos;s request, response, streaming, and cancellation conventions into that
+					shared contract. Fetch-compatible environments require especially little adaptation, so
+					adding support for another runtime generally means building and testing a small host
+					bridge rather than reimplementing eXact&apos;s server behavior.
 				</p>
 			</section>
 		</Article>

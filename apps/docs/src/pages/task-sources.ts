@@ -11,17 +11,41 @@ const inferredTaskSource = `function DraftEditor(this: Component<DraftState>) {
   return () => <DraftForm value={this.state.draft} />;
 }`;
 
-const inferredLifetimeSource = `async function watchFeed(url: string) {
-  const socket = new WebSocket(url);
+const inferredLifetimeSource = `function FeedConnection(this: Component<FeedState>) {
+  this.state.feedUrl = '/api/feed';
+  this.state.connected = false;
 
-  socket.addEventListener('message', receiveMessage);
-  await new Promise<void>((resolve) => {
-    socket.addEventListener('close', () => resolve(), { once: true });
+  async function watchFeed(url: string) {
+    const socket = new WebSocket(url);
+    socket.addEventListener('open', () => this.state.connected = true);
+    socket.addEventListener('message', receiveMessage);
+    await new Promise<void>((resolve) => {
+      socket.addEventListener('close', () => resolve(), { once: true });
+    });
+    this.state.connected = false;
+  }
+
+  // No authored signal or cleanup is needed for these discoverable APIs.
+  watchFeed(this.state.feedUrl);
+
+  return () => (
+    <p role="status">{this.state.connected ? 'Connected' : 'Connecting…'}</p>
+  );
+}`;
+
+const inferredLifetimeWiringSource = `// Conceptual compiler wiring—not authored or public runtime API.
+async function watchFeed(url: string, generation: GeneratedTaskContext) {
+  const socket = ownForGeneration(
+    new WebSocket(url),
+    generation,
+    (ownedSocket) => ownedSocket.close()
+  );
+
+  socket.addEventListener('message', receiveMessage, {
+    signal: generation.signal
   });
-}
-
-// No authored signal or cleanup is needed for these discoverable APIs.
-watchFeed(this.state.feedUrl);`;
+  // Other recognized listeners receive the same generation signal.
+}`;
 
 const reactiveTaskSource = `import { TaskContext } from '@exactjs/core';
 
@@ -86,7 +110,7 @@ return () => (
 
 const keyedStatusSource = `import { taskStatus } from '@exactjs/core';
 
-// Declare a status view in the outer component definition for a durable lane key.
+// Declare a status view in the component body for a durable lane key.
 const invoiceSave = taskStatus(saveDocument, { key: 'invoice' });
 
 return () => (
@@ -190,6 +214,7 @@ export const taskSources = Object.freeze({
 	capturedInputSource,
 	effectsAndResultsSource,
 	inferredLifetimeSource,
+	inferredLifetimeWiringSource,
 	inferredTaskSource,
 	invokedTaskSource,
 	keyedStatusSource,

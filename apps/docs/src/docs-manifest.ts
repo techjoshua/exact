@@ -2,11 +2,9 @@ import type { ComponentFunction } from '@exactjs/core';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
 import { AccessibilityPage } from './pages/AccessibilityPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
-import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
-import { DynamicComponentsPage } from './pages/DynamicComponentsPage.jsx';
 import { ComponentLibraryTrustPage } from './pages/ComponentLibraryTrustPage.jsx';
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
@@ -63,7 +61,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'How eXact compiles ordinary TypeScript components into inspectable reactive state machines spanning client and server.',
 				keywords:
-					'overview component compiler reactive TypeScript JSX React Vue Svelte comparison state virtual DOM',
+					'overview component compiler reactive TypeScript JSX state precise updates client server',
 				component: IntroductionPage
 			},
 			{
@@ -86,9 +84,9 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/samples',
 				label: 'Sample applications',
-				summary: 'Explore complete eXact applications and portable standalone builds.',
+				summary: 'Explore the hosted Sudoku demo and complete repository applications.',
 				keywords:
-					'samples applications puzzle generator Sudoku word search crossword clues prompt templates JSON output format raw model response malformed response inspector page size margins warnings local AI model selector WebLLM Qwen Gemma Llama SmolLM WebGPU GPU memory download size Hugging Face standalone HTML SVG shipping kanban workbench',
+					'samples applications Sudoku shipping calculator kanban workbench microfrontend server components hosted GitHub Pages',
 				component: SamplesPage
 			},
 			{
@@ -145,19 +143,11 @@ export const docGroups: DocGroup[] = [
 			},
 			{
 				path: '/learn/component-registries',
-				label: 'Component registries',
-				summary: 'Select finite eager and lazy components without losing identity or safety.',
+				label: 'Dynamic components',
+				summary: 'Choose components through branches, finite registries, or an open fallback.',
 				keywords:
-					'component registry dynamic lazy eager key identity preload SSR hydration placement bundle',
+					'component registry dynamic lazy eager key identity preload SSR hydration placement bundle createDynamicComponent provider client only',
 				component: ComponentRegistriesPage
-			},
-			{
-				path: '/learn/dynamic-components',
-				label: 'Open dynamic components',
-				summary: 'Resolve intentionally unknown client-only component values safely.',
-				keywords:
-					'dynamic component createDynamicComponent @exact dynamic provider client only SSR preload warning EXACT2213 cancellation generation',
-				component: DynamicComponentsPage
 			},
 			{
 				path: '/learn/async-interfaces',
@@ -179,7 +169,7 @@ export const docGroups: DocGroup[] = [
 			},
 			{
 				path: '/learn/language-tools',
-				label: 'Compiler-aware language tools',
+				label: 'Language tools',
 				summary:
 					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
 				keywords:
@@ -335,13 +325,6 @@ export const docGroups: DocGroup[] = [
 				summary: 'Program a turtle and watch eXact coordinate the work.',
 				keywords: 'logo turtle interpreter canvas demo playground',
 				component: LogoLabPage
-			},
-			{
-				path: '/compare',
-				label: 'Framework comparison',
-				summary: 'Compare eXact with React, Vue, and Svelte without a winner-takes-all scorecard.',
-				keywords: 'compare React Vue Svelte reactivity compiler components ecosystem',
-				component: ComparisonPage
 			},
 			{
 				path: '/advanced',
