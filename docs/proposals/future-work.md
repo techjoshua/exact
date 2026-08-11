@@ -22,14 +22,12 @@ that the generated server artifact cannot actually provide.
 ## Registry scope beyond finite local graphs
 
 Native component registries intentionally describe a finite, immutable set of compiler-visible
-components. Possible later work includes stronger production-graph verification, signed remote
-entry installation, inactive-instance caching, standalone lazy components, and preload heuristics.
-
-Any remote or runtime-extensible design must define deployment trust, version and artifact
-identity, placement, SSR and hydration authority, stale-load fencing, and cleanup. It must not
-weaken `createComponentRegistry()` by treating arbitrary authored strings as component or protocol
-identity. React-owned values should continue to cross the explicit compatibility boundary unless
-a future compiler-owned contract can prove ownership.
+components. The focused
+[`compiler-authored-dynamic-component-boundaries.md`](compiler-authored-dynamic-component-boundaries.md)
+proposal now owns intentionally opaque local, lazy, and authorized client-only remote component
+selection, including its warning annotation, server-call prohibition, generation fencing, and
+cleanup. Possible later registry-specific work remains limited to preload heuristics or explicitly
+measured inactive-instance caching; it must not weaken registry identity or SSR guarantees.
 
 ## Optional visual and simulation adapters
 

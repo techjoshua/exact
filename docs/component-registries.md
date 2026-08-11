@@ -92,5 +92,7 @@ is not already compiler-branded. Automatic React ownership inference is not
 part of this delivery.
 
 Remote, open-ended runtime registries are a separate trust and deployment
-problem. This API deliberately stays finite. Additional production graph
-verification and remote-registry design remain deferred proposal work.
+problem. This API deliberately stays finite. The proposed
+[compiler-authored dynamic component boundary](proposals/compiler-authored-dynamic-component-boundaries.md)
+would provide a warned, explicitly acknowledged client-only escape hatch without weakening registry
+identity, SSR guarantees, or the prohibition on server calls from open dynamic components.
