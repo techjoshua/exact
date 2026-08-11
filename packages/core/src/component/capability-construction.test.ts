@@ -44,4 +44,36 @@ describe('compiled component capability construction', () => {
 		expect(taskOwnerForHost(instance)).toBeDefined();
 		instance.unmount();
 	});
+
+	it('allocates ownership when the canonical definition declares task capability', () => {
+		const implementation = function TaskPanel(this: Component<{}>) {
+			return () => null;
+		};
+		const TaskPanel = Object.assign(implementation, {
+			[exactComponentType]: 'component:TaskPanel',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
+				definition: {
+					version: 1 as const,
+					instantiate: implementation,
+					state: [],
+					tasks: ['setup'],
+					reactive: [],
+					render: 'returned-function' as const,
+					capabilities: ['tasks'] as const
+				}
+			}
+		}) as ComponentFunction<{}, Record<string, unknown>>;
+
+		const instance = createComponentInstance(TaskPanel, {});
+		expect(taskOwnerForHost(instance)).toBeDefined();
+		instance.unmount();
+	});
 });

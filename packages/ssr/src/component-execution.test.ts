@@ -37,7 +37,12 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 			);
 			return () => createVNode('strong', null, this.state.ready ? 'child' : 'waiting');
 		}
-		const CompiledChild = compiledComponent(Child, 'component:ConcurrentChild', emptyExecution());
+		const CompiledChild = compiledComponent(
+			Child,
+			'component:ConcurrentChild',
+			emptyExecution(),
+			true
+		);
 
 		function Parent(this: Component<{ ready: boolean }>) {
 			this.state.ready = false;
@@ -60,7 +65,8 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 		const CompiledParent = compiledComponent(
 			Parent,
 			'component:ConcurrentParent',
-			emptyExecution()
+			emptyExecution(),
+			true
 		);
 
 		const rendering = renderToStringAsync(createVNode(CompiledParent, {}), { markers: false });
@@ -235,7 +241,12 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 			);
 			return () => createVNode('span', null, 'child');
 		}
-		const CompiledChild = compiledComponent(Child, 'component:BoundedChild', emptyExecution());
+		const CompiledChild = compiledComponent(
+			Child,
+			'component:BoundedChild',
+			emptyExecution(),
+			true
+		);
 		function Parent(this: Component<{}>) {
 			activateTaskForHost(
 				this,
@@ -246,7 +257,12 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 			);
 			return () => createVNode(CompiledChild, {});
 		}
-		const CompiledParent = compiledComponent(Parent, 'component:BoundedParent', emptyExecution());
+		const CompiledParent = compiledComponent(
+			Parent,
+			'component:BoundedParent',
+			emptyExecution(),
+			true
+		);
 
 		const rendering = renderToStringAsync(createVNode(CompiledParent, {}), {
 			markers: false,
@@ -265,7 +281,8 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 function compiledComponent<T extends (...args: any[]) => any>(
 	component: T,
 	id: string,
-	execution: ExactComponentExecutionContract
+	execution: ExactComponentExecutionContract,
+	hasSetupTask = false
 ): T {
 	return Object.assign(component, {
 		[exactComponentType]: id,
@@ -277,7 +294,20 @@ function compiledComponent<T extends (...args: any[]) => any>(
 			continuations: [],
 			executors: [],
 			boundaries: [],
-			execution
+			execution,
+			...(hasSetupTask
+				? {
+						definition: {
+							version: 1 as const,
+							instantiate: component,
+							state: [],
+							tasks: ['setup'],
+							reactive: execution.reactive,
+							render: 'returned-function' as const,
+							capabilities: ['tasks'] as const
+						}
+					}
+				: {})
 		}
 	});
 }

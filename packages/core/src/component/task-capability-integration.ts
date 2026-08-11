@@ -16,6 +16,7 @@ const taskCapability: ComponentTaskCapability = Object.freeze({
 			contract === undefined ||
 			contract.continuations.length !== 0 ||
 			(contract.execution?.transitions.length ?? 0) !== 0 ||
+			contract.definition?.capabilities.includes('tasks') === true ||
 			contract.definition?.capabilities.includes('compatibility') === true;
 		if (!required) return undefined;
 		const owner = createTaskOwnerRecord(instance.id);
