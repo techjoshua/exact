@@ -2,24 +2,19 @@ import {
 	createCompilerSession,
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
-	type ExactAssetRule,
-	type ExactCompilerSession,
-	type TransformTarget
+	type ExactCompilerSession
 } from '@exactjs/compiler';
-import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { loadExactConfig } from '@exactjs/config/node';
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import {
 	createExactDiagnosticReporter,
 	exactEnhancementFacadeImports
 } from '@exactjs/compiler/adapter-support';
-import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
-import { IntlBuildCoordinator, type IntlBuildConfiguration } from '@exactjs/intl-build';
+import { IntlBuildCoordinator } from '@exactjs/intl-build';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
 	resolveReactCompatibility,
-	validateInstalledReactReconciler,
-	type ReactCompatibilityOptions
+	validateInstalledReactReconciler
 } from '@exactjs/react-compat/plugin';
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -28,10 +23,7 @@ import {
 	resolveBunDebug,
 	type ExactBunInspectionModule
 } from './devtools.js';
-import {
-	ExactBunComponentAuthorization,
-	type ExactBunResolver
-} from './component-authorization.js';
+import { ExactBunComponentAuthorization } from './component-authorization.js';
 import { mergeConditions, resolveExactBunRequest, targetFor } from './selection.js';
 import { transformExactBunSource as transformExactBunSourceImpl } from './transform.js';
 import { ExactBunEnhancementFacadeCatalog } from './enhancement-catalog.js';
@@ -39,108 +31,23 @@ import {
 	createExactLanguageValidationSession,
 	type ExactLanguageValidationSession
 } from '@exactjs/language-extension-host';
+import { ExactBunMicrofrontendIntegration } from './microfrontends.js';
+import {
+	bunLoadFilter,
+	bunLoader,
+	bunSourceWithMap,
+	normalizeConditions,
+	readBunLoadSource
+} from './source-loading.js';
 export { mergeConditions, resolveExactBunRequest } from './selection.js';
-
-/** Configures exact bun plugin. */
-export type ExactBunPluginOptions = {
-	target?: TransformTarget;
-	clientCondition?: string;
-	serverCondition?: string;
-	include?: FilterPattern;
-	exclude?: FilterPattern;
-	compileTestModules?: boolean;
-	serverComponents?: boolean;
-	sourceMap?: boolean;
-	reactCompatibility?: boolean | ReactCompatibilityOptions;
-	applicationRoot?: string;
-	configPath?: string;
-	assetRules?: readonly ExactAssetRule[];
-	diagnostics?: boolean;
-	onProfile?: ExactProfileSink;
-	/** @internal Collects the language projection for the shared validation session. */
-	__exactLanguageValidation?: boolean;
-	/** @internal Package-wide bindings loaded once by the owning build generation. */
-	__exactPackageEnhancements?: readonly ExactPackageEnhancementImport[];
-	/** Enables shared intl analysis, linking, catalogs, and generated descriptor modules. */
-	internationalization?: false | Readonly<IntlBuildConfiguration>;
-	/** Independent server catalog and compact runtime controls. */
-	debug?: ExactBunDebugOptions;
-};
-
-/** Higher-level Bun controls for server-cooperative DevTools output. */
-export type ExactBunDebugOptions = {
-	catalog?: boolean | 'auto';
-	runtime?: boolean | 'auto';
-	buildKey?: string;
-	executionRoot?: string;
-	rootComponentId?: string;
-	producer?: Readonly<{ packageName?: string; version?: string }>;
-	redactions?: Partial<ExactInspectionRedactionCatalog>;
-};
-
-/** Reports an observable exact bun profile event. */
-export type ExactBunProfileEvent = ExactProfileEvent<'bun-plugin', 'transform'>;
-
-type FilterPattern = string | RegExp | readonly (string | RegExp)[];
-
-/** Defines the bun build like type contract. */
-export type BunBuildLike = {
-	config?: {
-		alias?: Readonly<Record<string, string>>;
-		conditions?: string | string[];
-		watch?: boolean;
-		hot?: boolean;
-		outdir?: string;
-	};
-	resolve?: ExactBunResolver;
-	onResolve(
-		options: { filter: RegExp },
-		handler: (
-			args: BunResolveArgs
-		) => BunResolveResult | undefined | Promise<BunResolveResult | undefined>
-	): void;
-	onLoad(
-		options: { filter: RegExp; namespace?: string },
-		handler: (args: BunLoadArgs) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>
-	): void;
-	onStart?(handler: () => void | Promise<void>): void;
-	onEnd?(
-		handler: (
-			result?: Readonly<{ success?: boolean; logs?: readonly unknown[] }>
-		) => void | Promise<void>
-	): void;
-};
-
-/** Defines the bun resolve args type contract. */
-export type BunResolveArgs = {
-	path: string;
-	importer?: string;
-};
-
-/** Describes the result produced by bun resolve. */
-export type BunResolveResult = {
-	path: string;
-	external?: boolean;
-	namespace?: string;
-};
-
-/** Defines the bun load args type contract. */
-export type BunLoadArgs = {
-	path: string;
-	text?(): Promise<string>;
-};
-
-/** Describes the result produced by bun load. */
-export type BunLoadResult = {
-	contents: string;
-	loader?: 'js' | 'jsx' | 'ts' | 'tsx';
-};
-
-/** Defines the bun plugin like type contract. */
-export type BunPluginLike = {
-	name: string;
-	setup(build: BunBuildLike): void;
-};
+import type {
+	BunBuildLike,
+	BunLoadArgs,
+	BunLoadResult,
+	BunPluginLike,
+	ExactBunPluginOptions
+} from './types.js';
+export type * from './types.js';
 
 /** Creates the Bun plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
@@ -161,6 +68,10 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 	return {
 		name: 'exact',
 		setup(build) {
+			const remote = options.__exactRemoteBuild?.adapter;
+			const remoteIntegration = remote
+				? new ExactBunMicrofrontendIntegration(remote)
+				: undefined;
 			const enhancementFacades = new ExactBunEnhancementFacadeCatalog();
 			if (options.target === 'server' && (build.config?.hot || process.argv.includes('--hot')))
 				throw new Error(
@@ -196,6 +107,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					buildKey: options.debug?.buildKey ?? (automaticDevelopment ? 'development' : undefined)
 				});
 			build.onStart?.(async () => {
+				remoteIntegration?.begin();
 				inspectionModules.clear();
 				enhancementFacades.clear();
 				await intl.beginBuild();
@@ -218,6 +130,13 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					});
 					registryPrepared = true;
 					configuredDebug ??= prepared.config?.debug;
+					const microfrontends = prepared.build.get('@exactjs/microfrontends') as
+						| { exposes?: readonly unknown[] }
+						| undefined;
+					if (!remote && microfrontends?.exposes?.length)
+						throw new Error(
+							'Bun builds with eXact remote exposures must use exactBuild() so entrypoints can be prepared before Bun.build()'
+						);
 				}
 				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
 				if (
@@ -231,9 +150,11 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			});
 			build.onEnd?.(async (result) => {
 				if (result?.success === false) {
+					remoteIntegration?.finish(build, result);
 					componentAuthorization?.reject();
 					return;
 				}
+				remoteIntegration?.finish(build, result);
 				intl.validateCatalogs();
 				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
 				if (options.target !== 'server') return;
@@ -270,6 +191,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					]);
 				}
 			});
+			remoteIntegration?.install(build);
 			build.onResolve({ filter: /\.exact$/ }, (args) => {
 				const resolved = resolveExactBunRequest(args.path, args.importer, options);
 				return resolved ? { path: resolved } : undefined;
@@ -333,6 +255,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			// invalidate their transitive expression consumers before compilation.
 			build.onLoad({ filter: bunLoadFilter(options) }, async (args) => {
 				const source = await readBunLoadSource(args);
+				remoteIntegration?.recordSource(args.path, source);
 				reportDiagnostics(compilerSession.invalidate(args.path), console.warn);
 				const result = transformExactBunSource(
 					source,
@@ -348,6 +271,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					(message) => console.warn(message)
 				);
 				if (!result) return undefined;
+				remoteIntegration?.recordSource(args.path, result.code);
 				if (result.languageProjection)
 					await languageValidation?.validate([result.languageProjection]);
 				if (result.componentBuild)
@@ -364,47 +288,6 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			});
 		}
 	};
-}
-
-function bunLoadFilter(options: ExactBunPluginOptions): RegExp {
-	if (options.internationalization) return /\.[cm]?[jt]sx?$/i;
-	if (!options.include && !options.exclude && options.compileTestModules !== true) {
-		return /^(?!.*[\\/](?:node_modules|dist)[\\/])(?!.*\.(?:test|spec|jest)\.[cm]?[jt]sx?$).*\.[cm]?[jt]sx?$/i;
-	}
-	return /\.[cm]?[jt]sx?$/;
-}
-
-function normalizeConditions(conditions: string | readonly string[] | undefined): string[] {
-	if (!conditions) return [];
-	return typeof conditions === 'string' ? [conditions] : [...conditions];
-}
-
-function bunSourceWithMap(code: string, map: unknown): string {
-	if (!map) return code;
-	const encoded = Buffer.from(typeof map === 'string' ? map : JSON.stringify(map)).toString(
-		'base64'
-	);
-	return `${code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${encoded}`;
-}
-
-function bunLoader(filename: string): NonNullable<BunLoadResult['loader']> {
-	const extension = path.extname(filename.split('?', 1)[0] ?? '').toLowerCase();
-	if (extension === '.tsx') return 'tsx';
-	if (extension === '.ts' || extension === '.mts' || extension === '.cts') return 'ts';
-	if (extension === '.jsx') return 'jsx';
-	return 'js';
-}
-
-async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
-	if (args.text) return args.text();
-	const runtime = globalThis as typeof globalThis & {
-		Bun?: {
-			file(path: string): { text(): Promise<string> };
-		};
-	};
-	if (!runtime.Bun)
-		throw new Error('Bun runtime is required to load files through @exactjs/bun-plugin');
-	return runtime.Bun.file(args.path).text();
 }
 
 /** Transforms one Bun-loaded source file when it matches eXact plugin filters. */

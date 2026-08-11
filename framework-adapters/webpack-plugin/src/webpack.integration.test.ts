@@ -1,8 +1,19 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import webpack, { type Configuration, type Stats } from 'webpack';
 import { expect, it, onTestFinished } from 'vitest';
+import { fileURLToPath } from 'node:url';
+
+const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
 
 it('gates a real Webpack server compilation before building a denied component module', async () => {
 	const fixture = createFixture(true);
@@ -45,6 +56,82 @@ it('emits authorization artifacts from a real authorized Webpack server compilat
 	});
 });
 
+it('emits and publishes a real client remote exposure generation', async () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'exact-webpack-remote-'));
+	onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+	mkdirSync(path.join(root, 'src'), { recursive: true });
+	linkExactPackages(root);
+	writeFileSync(
+		path.join(root, 'package.json'),
+		JSON.stringify({
+			name: '@fixture/webpack-remote',
+			private: true,
+			type: 'module',
+			dependencies: { '@exactjs/microfrontends': '^0.1.0' }
+		})
+	);
+	writeFileSync(
+		path.join(root, 'tsconfig.json'),
+		JSON.stringify({
+			compilerOptions: { jsx: 'preserve', target: 'ES2022', module: 'ESNext' },
+			include: ['src']
+		})
+	);
+	writeFileSync(
+		path.join(root, 'exact.config.mjs'),
+		`export default { plugins: { microfrontends(config) { config.exposes['./Area'] = { component: './src/Area.tsx' }; } } };\n`
+	);
+	writeFileSync(path.join(root, 'src', 'page.ts'), 'export const page = true;\n');
+	writeFileSync(
+		path.join(root, 'src', 'Area.tsx'),
+		`export default function Area() { return () => <section>webpack remote</section>; }\n`
+	);
+	const previousBuildKey = process.env.EXACT_BUILD_KEY;
+	process.env.EXACT_BUILD_KEY = '0123456789abcdef0123456789abcdef01234567';
+	let entries: Readonly<Record<string, string>> | undefined;
+	let development: Readonly<Record<string, string>> | undefined;
+	try {
+		const { ExactWebpackPlugin } = await import('../dist/index.js');
+		const stats = await compileConfiguration({
+			mode: 'development',
+			target: 'web',
+			context: root,
+			entry: './src/page.ts',
+			output: {
+				path: path.join(root, 'dist'),
+				filename: '[name].[contenthash].mjs',
+				chunkFilename: '[name].[contenthash].mjs',
+				module: true,
+				publicPath: '/assets/'
+			},
+			experiments: { outputModule: true },
+			resolve: {
+				extensions: ['.tsx', '.ts', '.js'],
+				modules: [path.join(root, 'node_modules'), path.resolve(repositoryRoot, 'node_modules')]
+			},
+			resolveLoader: { modules: [path.resolve(repositoryRoot, 'node_modules'), 'node_modules'] },
+			plugins: [
+				new ExactWebpackPlugin({
+					target: 'client',
+					applicationRoot: root,
+					reactCompatibility: false,
+					sourceMap: false,
+					onRemoteEntries: (value) => (entries = value),
+					onRemoteDevelopmentEntries: (value) => (development = value)
+				})
+			]
+		});
+		expect(stats.hasErrors(), stats.toString({ all: false, errors: true })).toBe(false);
+	} finally {
+		if (previousBuildKey === undefined) delete process.env.EXACT_BUILD_KEY;
+		else process.env.EXACT_BUILD_KEY = previousBuildKey;
+	}
+	expect(entries?.['./Area']).toMatch(/^\/assets\/exact-remote-Area\..+\.mjs$/);
+	expect(development?.['./Area']).toContain('virtual:exact-remote-entry');
+	const files = readDirectory(path.join(root, 'dist'));
+	expect(files.some((file) => /^exact-remote-Area\..+\.mjs$/.test(file))).toBe(true);
+});
+
 async function compile(applicationRoot: string): Promise<Stats> {
 	const { ExactWebpackPlugin } = await import('../dist/index.js');
 	const repoModules = path.resolve(import.meta.dirname, '../../../node_modules');
@@ -76,6 +163,40 @@ async function compile(applicationRoot: string): Promise<Stats> {
 			else resolve(stats);
 		});
 	});
+}
+
+function compileConfiguration(config: Configuration): Promise<Stats> {
+	return new Promise((resolve, reject) => {
+		webpack(config, (error, stats) => {
+			if (error) reject(error);
+			else if (!stats) reject(new Error('Webpack did not return compilation stats'));
+			else resolve(stats);
+		});
+	});
+}
+
+function linkExactPackages(root: string): void {
+	const scope = path.join(root, 'node_modules', '@exactjs');
+	mkdirSync(scope, { recursive: true });
+	for (const [name, relative] of [
+		['microfrontends', 'plugins/microfrontends'],
+		['core', 'packages/core'],
+		['dom', 'packages/dom'],
+		['hydrate', 'packages/hydrate'],
+		['reactive', 'packages/reactive'],
+		['jsx', 'packages/jsx-runtime']
+	] as const)
+		symlinkSync(path.join(repositoryRoot, relative), path.join(scope, name), 'junction');
+}
+
+function readDirectory(root: string, relative = ''): string[] {
+	const files: string[] = [];
+	for (const entry of readdirSync(path.join(root, relative), { withFileTypes: true })) {
+		const next = path.join(relative, entry.name);
+		if (entry.isDirectory()) files.push(...readDirectory(root, next));
+		else files.push(next.replaceAll('\\', '/'));
+	}
+	return files;
 }
 
 function createFixture(denied: boolean): { root: string } {

@@ -59,6 +59,7 @@ import {
 	createExactWebpackLanguageIntegration
 } from './language-integration.js';
 import { webpackEnhancementFacadeProvenance } from './enhancement-facades.js';
+import { ExactWebpackMicrofrontendIntegration } from './microfrontends.js';
 export { createExactWebpackRule } from './rule.js';
 export type * from './resolution-contracts.js';
 export {
@@ -88,6 +89,8 @@ export type ExactWebpackPluginOptions = {
 	internationalization?: false | Readonly<IntlBuildConfiguration>;
 	/** Independent server catalog and compact runtime controls. */
 	debug?: ExactWebpackDebugOptions;
+	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
+	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
 	/** @internal Loader-owned compiler session identity. */
 	__exactSessionId?: string;
 	/** @internal Collects the language projection for the shared validation session. */
@@ -193,6 +196,11 @@ export class ExactWebpackPlugin {
 	apply(compiler: WebpackCompilerLike): void;
 	apply(input: WebpackCompiler | WebpackCompilerLike): void {
 		const compiler = input as WebpackCompilerLike;
+		if ('webpack' in input)
+			new ExactWebpackMicrofrontendIntegration(
+				input as WebpackCompiler,
+				this.options
+			).install();
 		let diagnosticsEnabled =
 			this.options.diagnostics ?? Boolean(compiler.watchMode || compiler.options.watch);
 		const owned = createWebpackCompilerSession(diagnosticsEnabled, this.options.onProfile);
