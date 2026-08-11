@@ -169,6 +169,14 @@ export type {
 	VNodeCell,
 	VNodeType
 } from './component/contracts.js';
+export { createDynamicComponent } from './dynamic-component/creation.js';
+export type {
+	DynamicComponentCandidate,
+	DynamicComponentInspection,
+	DynamicComponentResolution,
+	DynamicComponentResolver,
+	DynamicComponentStatus
+} from './dynamic-component/contracts.js';
 export {
 	createEnhancementNode,
 	createEnhancementMarker,

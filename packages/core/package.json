@@ -79,6 +79,10 @@
 		"./runtime/enhancements": {
 			"types": "./dist/runtime/enhancements.d.ts",
 			"default": "./dist/runtime/enhancements.js"
+		},
+		"./runtime/dynamic-components": {
+			"types": "./dist/runtime/dynamic-components.d.ts",
+			"default": "./dist/runtime/dynamic-components.js"
 		}
 	},
 	"main": "./dist/index.js",

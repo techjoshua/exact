@@ -39,6 +39,9 @@ export function resolveSsrDynamicChildren(
 	vnode: VNode,
 	cache = false
 ): readonly Child[] {
+	// Open dynamic components are client-only. Reading their value would run the
+	// resolver during SSR and could turn a browser-observed module into server authority.
+	if (vnode.props.__exactDynamicComponent) return [];
 	const prepared = context.preparedEnhancementChildren.get(vnode);
 	if (prepared) return prepared;
 	const children = normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]);
