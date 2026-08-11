@@ -732,8 +732,10 @@ unsafe transport, or plan invariants that cannot preserve correct ordinary execu
    authored reactive source only when the plan proves that local edge.
 5. Issuing a generation makes its outputs pending; successful settlement publishes current state,
    while failure and cancellation terminate the matching generation and fence stale publication.
-6. Generated JSX forwards direct state outputs and live props through the existing reactive value.
-   Structural or computed expressions keep the existing allocation path.
+6. Generated JSX forwards direct and aggregate state outputs through the existing reactive value.
+   An aggregate carries the finite set of contributing output paths and becomes available only
+   after every source settles; ordinary structural or computed expressions without planned
+   outputs keep the existing allocation path. Live props preserve their existing identity.
 7. Async SSR constructs reachable compiled children before draining compiler-planned parent work.
    Root task generations enter the shared request scheduler; nested task frames retain their
    existing structural permit and cannot deadlock by reacquiring it.
@@ -745,14 +747,15 @@ The compact record can adopt denser opcodes after profiling without changing thi
 ## Verification
 
 - Native compiler tests cover shared producer/consumer ports, setup versus interaction activation,
-  client-only tasks, environment projection, state-output propagation, and live prop forwarding.
+  client-only tasks, environment projection, direct and aggregate state-output propagation, and
+  live prop forwarding.
 - Contract tests reject malformed indexes, paths, placements, transition references, and reactive
   allocation records before execution.
 - Dependency-source and watcher tests cover pending versus available `undefined`, atomic snapshots,
   transaction coalescing, equal publication, replacement generations, terminal sources, disposal,
   and stale-producer fencing.
-- Component runtime tests cover initially unavailable predecessor output, downstream activation,
-  generation publication, and interaction-only visible values.
+- Component runtime tests cover initially unavailable predecessor output, aggregate-output
+  settlement, downstream activation, generation publication, and interaction-only visible values.
 - SSR tests cover early reachable-child wiring, unresolved parent-to-child output forwarding,
   ordinary fallback behavior, and request concurrency one.
 - Existing registry, lazy, hydration, task-policy, artifact-isolation, and ownership suites remain

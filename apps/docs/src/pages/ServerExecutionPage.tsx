@@ -167,6 +167,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 					a real value rather than being confused with an unresolved slot.
 				</p>
 				<p>
+					A child prop may combine several planned outputs into one object. The generated reactive
+					value carries every contributing output path, so server rendering waits for the complete
+					aggregate before child setup instead of initializing the child from a partially populated
+					object.
+				</p>
+				<p>
 					Rendering the selected root wires each reachable compiled child before waiting for parent
 					work. Independent nested continuations can therefore enter the same request-wide bounded
 					scheduler immediately, with no startup planner or flattened application graph. Conditional

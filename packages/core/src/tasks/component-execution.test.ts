@@ -100,6 +100,75 @@ describe('compiler-planned component execution', () => {
 		instance.unmount();
 	});
 
+	it('projects aggregate setup outputs only after every contributing path settles', async () => {
+		let projected!: ReturnType<typeof activationInputDependency>;
+		function Projection(this: Component<{ name: string; accent: string }>) {
+			this.state.name = '';
+			this.state.accent = '';
+			activateTask(
+				defineTask(
+					{},
+					markComponentContinuationTask('project', async (_task: TaskContext) => {
+						await Promise.resolve();
+						this.state.name = 'Northwind';
+						this.state.accent = '#2255aa';
+					})
+				)
+			);
+			const value = componentExecutionValueForHost(
+				this,
+				['name', 'accent'],
+				createExpression(() => ({ name: this.state.name, accent: this.state.accent }))
+			);
+			projected = activationInputDependency(value);
+			return () => value;
+		}
+		const CompiledProjection = Object.assign(Projection, {
+			[exactComponentType]: 'component:Projection',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'server' as const,
+				role: 'executor' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				execution: {
+					version: 1 as const,
+					ports: [
+						{ index: 0, kind: 'state' as const, path: 'name', direction: 'output' as const },
+						{ index: 1, kind: 'state' as const, path: 'accent', direction: 'output' as const }
+					],
+					transitions: [
+						{
+							id: 'project',
+							taskId: 'project',
+							activation: 'setup' as const,
+							placement: 'server' as const,
+							readiness: 'nonblocking' as const,
+							concurrency: 'latest' as const,
+							inputs: [],
+							outputs: [0, 1]
+						}
+					],
+					reactive: []
+				}
+			}
+		});
+
+		const instance = createComponentInstance(CompiledProjection, {});
+		expect(projected.read().status).toBe('pending');
+		for (let pass = 0; pass < 50 && projected.read().status === 'pending'; pass++) {
+			flushSync();
+			await Promise.resolve();
+		}
+		expect(projected.read()).toMatchObject({
+			status: 'available',
+			value: { name: 'Northwind', accent: '#2255aa' }
+		});
+		instance.unmount();
+	});
+
 	it('hides prop dependency sources from component reads while retaining task readiness', async () => {
 		const source = createContinuationDependencySlot<{ label: string }>();
 		const generation = source.beginGeneration();

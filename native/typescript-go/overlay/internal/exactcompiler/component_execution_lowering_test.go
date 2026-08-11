@@ -44,6 +44,40 @@ func TestComponentExecutionPropagatesOutputSourcesThroughChildProps(t *testing.T
 	}
 }
 
+func TestComponentExecutionPropagatesAggregateOutputSourcesThroughChildProps(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "projection.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Child(props: { value: { name: string; accent: string } }) {
+				return () => <strong>{props.value.name}</strong>;
+			}
+			export function Parent(this: Component<{ name: string; accent: string }>) {
+				async function load(_task: TaskContext = TaskContext.server()) {
+					this.state.name = await Promise.resolve("Northwind");
+					this.state.accent = "blue";
+				}
+				load();
+				return () => <Child value={{ name: this.state.name, accent: this.state.accent }} />;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		"componentExecutionValueForHost as __exactComponentOutput",
+		`__exactComponentOutput(this, ["name", "accent"], __exactExpression(() => ({`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("compiled aggregate output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestComponentExecutionProjectsOppositeTargetTransitions(t *testing.T) {
 	execution := ComponentExecution{
 		Version: 1,

@@ -1,3 +1,4 @@
+import { unwrap } from '@exactjs/reactive';
 import type { ExactComponentExecutionContract } from '../component-contracts.js';
 import { isTaskCancellation } from './cancellation.js';
 import { componentContinuationTaskId } from './component-continuation.js';
@@ -55,17 +56,38 @@ export function initializeComponentExecution(
 	runtimes.set(owner, { host, prepared, sources });
 }
 
-/** Propagates a state output's pending/available source through an unchanged reactive value. */
-export function componentExecutionValueForHost<T>(host: object, path: string, value: T): T {
+/** Propagates state-output readiness through an unchanged scalar or aggregate reactive value. */
+export function componentExecutionValueForHost<T>(
+	host: object,
+	path: string | readonly string[],
+	value: T
+): T {
 	const owner = taskOwnerForHost(host);
 	const runtime = owner ? runtimes.get(owner) : undefined;
 	if (!runtime) return value;
-	if (path.startsWith('this.state.')) path = path.slice(11);
-	const portIndex = runtime.prepared.statePortsByPath.get(path);
-	const source = portIndex === undefined ? undefined : runtime.sources[portIndex];
-	if (!source || (!runtime.prepared.setupOutputs[portIndex!] && source.read().generation === 0))
-		return value;
-	return markContinuationDependencyValue(value, source);
+	if (typeof path === 'string') {
+		if (path.startsWith('this.state.')) path = path.slice(11);
+		const portIndex = runtime.prepared.statePortsByPath.get(path);
+		const source = portIndex === undefined ? undefined : runtime.sources[portIndex];
+		return source && (runtime.prepared.setupOutputs[portIndex!] || source.read().generation !== 0)
+			? markContinuationDependencyValue(value, source)
+			: value;
+	}
+	const sources: ContinuationDependencySource<unknown>[] = [];
+	for (let candidate of path) {
+		if (candidate.startsWith('this.state.')) candidate = candidate.slice(11);
+		const portIndex = runtime.prepared.statePortsByPath.get(candidate);
+		const source = portIndex === undefined ? undefined : runtime.sources[portIndex];
+		if (
+			source &&
+			(runtime.prepared.setupOutputs[portIndex!] || source.read().generation !== 0) &&
+			!sources.includes(source)
+		)
+			sources.push(source);
+	}
+	return sources.length
+		? markContinuationDependencyValue(value, projectExecutionValue(sources, value))
+		: value;
 }
 
 /** Replaces authored inputs with planned predecessor or prop sources when the plan owns the port. */
@@ -177,6 +199,58 @@ function projectDependency(
 			return projected;
 		},
 		subscribe: (notify) => source.subscribe(notify)
+	};
+}
+
+/** Mirrors several output lifecycles while projecting their settled aggregate expression. */
+function projectExecutionValue<T>(
+	sources: readonly ContinuationDependencySource<unknown>[],
+	value: T
+): ContinuationDependencySource<T> {
+	const prior = new Array<ReturnType<ContinuationDependencySource['read']> | undefined>(
+		sources.length
+	);
+	let version = 0;
+	return {
+		read() {
+			let generation = 0;
+			let changed = false;
+			let unavailable: ReturnType<ContinuationDependencySource['read']> | undefined;
+			for (let index = 0; index < sources.length; index++) {
+				const snapshot = sources[index]!.read();
+				generation = Math.max(generation, snapshot.generation);
+				if (snapshot !== prior[index]) {
+					prior[index] = snapshot;
+					changed = true;
+				}
+				if (
+					snapshot.status === 'failed' ||
+					(snapshot.status === 'cancelled' && unavailable?.status !== 'failed') ||
+					(snapshot.status === 'pending' && !unavailable)
+				)
+					unavailable = snapshot;
+			}
+			if (changed) version++;
+			if (unavailable) {
+				switch (unavailable.status) {
+					case 'pending':
+						return { status: 'pending', generation, version };
+					case 'failed':
+						return { status: 'failed', generation, version, error: unavailable.error };
+					case 'cancelled':
+						return { status: 'cancelled', generation, version, reason: unavailable.reason };
+				}
+			}
+			return { status: 'available', generation, version, value: unwrap(value) as T };
+		},
+		subscribe(notify) {
+			const subscriptions = sources.map((source) => source.subscribe(notify));
+			return {
+				[Symbol.dispose]() {
+					for (const subscription of subscriptions) subscription[Symbol.dispose]();
+				}
+			};
+		}
 	};
 }
 

@@ -198,6 +198,10 @@ continuation receives one complete snapshot only after every slot is available. 
 producer generation makes its current output pending, and stale, failed, or cancelled settlement
 cannot publish into downstream work. Interaction-only outputs retain their current visible value
 until the interaction actually begins.
+When one child prop aggregates several planned state outputs, the compiler carries every
+contributing path on that single reactive value. SSR exposes the aggregate to child setup only
+after all of those outputs settle, then samples the complete expression once; it cannot initialize
+the child from a partially populated object merely because the prop is not a direct state read.
 
 Async SSR invokes reachable compiled children before draining compiler-planned parent work. Each
 child therefore wires and offers its independent ready continuations to the same request-owned

@@ -3008,10 +3008,21 @@ func (lowering *jsxLowering) reactiveExpression(
 		helper,
 		[]*ast.Node{closure},
 	)
-	if path := lowering.componentExecutionOutputPath(source); path != "" {
+	if paths, direct := lowering.componentExecutionOutputPaths(source); len(paths) != 0 {
+		pathValue := lowering.factory.NewStringLiteral(paths[0], ast.TokenFlagsNone)
+		if !direct {
+			values := make([]*ast.Node, len(paths))
+			for index, path := range paths {
+				values[index] = lowering.factory.NewStringLiteral(path, ast.TokenFlagsNone)
+			}
+			pathValue = lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(values),
+				false,
+			)
+		}
 		return lowering.call(lowering.names.componentOutput, []*ast.Node{
 			lowering.factory.NewThisExpression(),
-			lowering.factory.NewStringLiteral(path, ast.TokenFlagsNone),
+			pathValue,
 			value,
 		})
 	}
@@ -3048,28 +3059,35 @@ func (lowering *jsxLowering) liveSlotForwarding(source *ast.Node) bool {
 	return false
 }
 
-// componentExecutionOutputPath recognizes direct state values whose pending
-// generation must remain attached when the value is forwarded to a child.
-func (lowering *jsxLowering) componentExecutionOutputPath(source *ast.Node) string {
+// componentExecutionOutputPaths recognizes state values whose pending
+// generations must remain attached when a scalar or aggregate value is forwarded.
+func (lowering *jsxLowering) componentExecutionOutputPaths(source *ast.Node) ([]string, bool) {
+	paths := []string{}
+	seen := make(map[string]bool)
+	direct := false
 	for _, read := range lowering.stateReads {
-		if read.Start != source.Pos() || read.Length != source.End()-source.Pos() ||
+		if read.Start < source.Pos() || read.Start+read.Length > source.End() ||
 			read.Confidence != "exact" {
 			continue
 		}
 		component, exists := lowering.components[read.Component]
 		if !exists {
-			return ""
+			continue
 		}
 		path := strings.Join(read.Path, ".")
 		for _, port := range component.Execution.Ports {
 			if port.Kind == "state" && port.Path == path &&
 				(port.Direction == "output" || port.Direction == "inout") {
-				return path
+				if !seen[path] {
+					seen[path] = true
+					paths = append(paths, path)
+					direct = read.Start == source.Pos() && read.Length == source.End()-source.Pos()
+				}
+				break
 			}
 		}
-		return ""
 	}
-	return ""
+	return paths, len(paths) == 1 && direct
 }
 
 type materializedRenderLocal struct {
