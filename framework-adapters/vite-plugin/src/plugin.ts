@@ -21,19 +21,17 @@ import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 import { exactModuleFilename, exactTransformTarget } from './module-selection.js';
 import { exactViteConfig } from './vite-config.js';
 import {
-	createViteInspectionCatalog,
 	exactDevtoolsRuntimeBootstrap,
 	exactDevtoolsRuntimeModule,
 	injectModuleBootstrap,
-	inspectionCatalogEnabled,
 	inspectionRuntimeEnabled,
 	resolvedExactDevtoolsRuntimeModule,
 	validateViteDebugIdentity
 } from './debug-output.js';
 import type { ExactPlugin, ExactPluginOptions } from './plugin-contracts.js';
 import {
-	exactEnhancementFacades,
-	ExactViteEnhancementFacadeCatalog
+	ExactViteEnhancementFacadeCatalog,
+	resolveExactViteEnhancementRequest
 } from './enhancement-catalog.js';
 import { IntlBuildCoordinator } from '@exactjs/intl-build';
 import {
@@ -46,6 +44,7 @@ import {
 	type ExactLanguageValidationSession
 } from '@exactjs/language-extension-host';
 import { ExactViteCompilerSession } from './compiler-session.js';
+import { emitExactViteServerArtifacts } from './server-artifacts.js';
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
@@ -163,73 +162,34 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				throw new Error('Vite/Rollup emitFile is unavailable for component authorization');
 			const committed = await componentAuthorization.commit();
 			if (!committed) throw new Error('Vite component authorization generation is unavailable');
-			if (inspectionCatalogEnabled(configuredDebug, viteCommand)) {
-				const catalog = createViteInspectionCatalog(
-					options.applicationRoot,
-					configuredDebug,
-					inspectionModules,
-					viteCommand,
-					committed.audit
-				);
-				if (catalog)
-					this.emitFile({
-						type: 'asset',
-						fileName: `.exact-inspection/${catalog.buildKey}.json`,
-						source: `${JSON.stringify(catalog, null, 2)}\n`
-					});
-			}
-			this.emitFile({
-				type: 'asset',
-				fileName: '.exact/component-library-authorization.json',
-				source: `${JSON.stringify(committed.manifest, null, 2)}\n`
-			});
-			this.emitFile({
-				type: 'asset',
-				fileName: '.exact/component-library-audit.json',
-				source: `${JSON.stringify(committed.audit, null, 2)}\n`
+			emitExactViteServerArtifacts({
+				applicationRoot: options.applicationRoot,
+				debug: configuredDebug,
+				command: viteCommand,
+				inspections: inspectionModules,
+				authorization: committed,
+				emit: (file) => this.emitFile!(file)
 			});
 		},
 		async resolveId(source, importer) {
 			const intlModule = intl.resolve(source);
 			if (intlModule) return { id: intlModule, moduleSideEffects: false };
-			const enhancementFacade = await enhancementFacadeCatalog.resolve(
+			const enhancement = await resolveExactViteEnhancementRequest({
+				catalog: enhancementFacadeCatalog,
 				source,
 				importer,
-				async (request, owner) => {
-					try {
-						const value = this.resolve
-							? await this.resolve(request, owner, { skipSelf: true })
-							: null;
-						return typeof value === 'string' ? value : (value?.id ?? null);
-					} catch (error) {
-						if (isMissingOptionalEnhancement(error, request)) return null;
-						throw error;
-					}
-				},
-				async (resolved, request, owner) => {
-					const value = await componentAuthorization.authorize(resolved, request, owner, {
+				resolve: async (request, owner) =>
+					this.resolve ? this.resolve(request, owner, { skipSelf: true }) : null,
+				authorize: (resolved, request, owner) =>
+					componentAuthorization.authorize(resolved, request, owner, {
 						applicationRoot:
 							preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
 						executionReason: options.serverExecutionReason,
 						watch: (file) => this.addWatchFile?.(file)
-					});
-					return typeof value === 'string' ? value : (value?.id ?? resolved);
-				}
-			);
-			if (enhancementFacade) return { id: enhancementFacade, moduleSideEffects: false };
-			if (source in exactEnhancementFacades) {
-				const facade = exactEnhancementFacades[source as keyof typeof exactEnhancementFacades];
-				const resolved = this.resolve ? this.resolve(facade, importer, { skipSelf: true }) : facade;
-				if (!componentAuthorization.requires(source, importer)) return resolved;
-				return Promise.resolve(resolved).then((value) =>
-					componentAuthorization.authorize(value, source, importer, {
-						applicationRoot:
-							preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
-						executionReason: options.serverExecutionReason,
-						watch: (file) => this.addWatchFile?.(file)
-					})
-				);
-			}
+					}),
+				requires: (request, owner) => componentAuthorization.requires(request, owner)
+			});
+			if (enhancement.matched) return enhancement.resolution ?? null;
 			if (
 				source === exactDevtoolsRuntimeModule &&
 				options.target !== 'server' &&
@@ -432,13 +392,4 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				: result;
 		}
 	};
-}
-
-function isMissingOptionalEnhancement(error: unknown, request: string): boolean {
-	if (!(error instanceof Error)) return false;
-	const code = (error as Error & { code?: string }).code;
-	return (
-		(code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') &&
-		(error.message.includes(request) || error.message.includes('Could not resolve'))
-	);
 }

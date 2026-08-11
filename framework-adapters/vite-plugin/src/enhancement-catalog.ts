@@ -6,7 +6,10 @@ import {
 	prependExactEnhancementRegistrations
 } from '@exactjs/compiler/adapter-support';
 import type { ExactRendererEnhancementIR } from '@exactjs/compiler';
-import { isExactViteOmittedEnhancement } from './component-authorization.js';
+import {
+	isExactViteOmittedEnhancement,
+	type ExactViteResolution
+} from './component-authorization.js';
 
 const resolvedFacadePrefix = '\0exact:optional-enhancement:';
 
@@ -24,7 +27,13 @@ export class ExactViteEnhancementFacadeCatalog {
 	): Promise<string | undefined> {
 		const request = parseExactEnhancementFacadeRequest(source);
 		if (!request) return undefined;
-		const resolved = await resolveProvider(request.moduleSpecifier, importer);
+		let resolved: string | null;
+		try {
+			resolved = await resolveProvider(request.moduleSpecifier, importer);
+		} catch (error) {
+			if (!isMissingOptionalEnhancement(error, request.moduleSpecifier)) throw error;
+			resolved = null;
+		}
 		let facadeSource = exactUnavailableEnhancementFacadeSource();
 		if (resolved) {
 			const authorized = await authorize(resolved, request.moduleSpecifier, importer);
@@ -51,6 +60,44 @@ export class ExactViteEnhancementFacadeCatalog {
 	}
 }
 
+/** Result that distinguishes an enhancement request from an unrelated module request. */
+export type ExactViteEnhancementResolution = Readonly<{
+	matched: boolean;
+	resolution?: ExactViteResolution | Readonly<{ id: string; moduleSideEffects: boolean }>;
+}>;
+
+/** Resolves optional and renderer enhancement facades through one authorization boundary. */
+export async function resolveExactViteEnhancementRequest(
+	options: Readonly<{
+		catalog: ExactViteEnhancementFacadeCatalog;
+		source: string;
+		importer: string | undefined;
+		resolve(source: string, importer: string | undefined): Promise<ExactViteResolution>;
+		authorize(
+			resolved: ExactViteResolution,
+			source: string,
+			importer: string | undefined
+		): Promise<ExactViteResolution>;
+		requires(source: string, importer: string | undefined): boolean;
+	}>
+): Promise<ExactViteEnhancementResolution> {
+	const facade = await options.catalog.resolve(
+		options.source,
+		options.importer,
+		async (source, importer) => resolutionId(await options.resolve(source, importer)),
+		async (resolved, source, importer) =>
+			resolutionId(await options.authorize(resolved, source, importer)) ?? resolved
+	);
+	if (facade) return { matched: true, resolution: { id: facade, moduleSideEffects: false } };
+	if (!(options.source in exactEnhancementFacades)) return { matched: false };
+	const request = exactEnhancementFacades[options.source as keyof typeof exactEnhancementFacades];
+	let resolution: ExactViteResolution =
+		(await options.resolve(request, options.importer)) ?? request;
+	if (options.requires(options.source, options.importer))
+		resolution = await options.authorize(resolution, options.source, options.importer);
+	return { matched: true, resolution };
+}
+
 /** Runtime facades that supply the shared application-bundle enhancement catalog. */
 export const exactEnhancementFacades = exactEnhancementFacadeImports;
 
@@ -60,4 +107,19 @@ export function prependViteEnhancementRegistrations(
 	enhancements: readonly ExactRendererEnhancementIR[] | undefined
 ): string {
 	return prependExactEnhancementRegistrations(code, enhancements);
+}
+
+/** Returns the bundler module identifier without discarding the surrounding resolution. */
+function resolutionId(resolution: ExactViteResolution): string | null {
+	return typeof resolution === 'string' ? resolution : (resolution?.id ?? null);
+}
+
+/** Identifies a package-resolution failure for the requested optional provider. */
+function isMissingOptionalEnhancement(error: unknown, request: string): boolean {
+	if (!(error instanceof Error)) return false;
+	const code = (error as Error & { code?: string }).code;
+	return (
+		(code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') &&
+		(error.message.includes(request) || error.message.includes('Could not resolve'))
+	);
 }
