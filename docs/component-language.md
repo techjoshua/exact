@@ -593,6 +593,12 @@ return () => (
 
 ## Enhancement composition
 
+An attributed enhancement is compiled into an explicit `kind: "enhancement"` render-program node
+with a preserve-target fallback. The authored namespace is classified once; DOM, SSR, hydration,
+and component tests consume that node and never reinterpret the original attribute. Provider
+availability belongs to the consuming artifact, so a published component continues to render when
+its optional provider package is absent. Installed provider defects are not treated as absence.
+
 An attributed import establishes a local JSX namespace for optional ordinary components supplied
 by a component library:
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed and ready for implementation. It is informed by
+Implemented in August 2026. It is informed by
 [`compiler-planned-component-execution.md`](../history/compiler-planned-component-execution.md),
 [`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md), and
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md).
@@ -682,9 +682,6 @@ representation.
 
 ## Documentation impact on implementation
 
-When implementation lands, update the current compiler, component-language, performance,
-enhancement, SSR/hydration, React compatibility, task, and adapter references. Public docs should
-describe observable optional-provider behavior and bundle explanations only after every advertised
-host meets the conformance contract. Move this proposal to `docs/history` once those current
-references become authoritative. Rejected portable-host alternatives remain recorded in
+Current compiler, component-language, performance, enhancement, SSR/hydration, task, and adapter
+references now describe the resulting contract. Rejected portable-host alternatives remain recorded in
 [`compiler-authored-runtime-capabilities-adapters.md`](compiler-authored-runtime-capabilities-adapters.md).

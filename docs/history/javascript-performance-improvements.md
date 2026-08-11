@@ -394,7 +394,7 @@ and inert-mode equivalence.
 ## Client startup, hydration, and lazy capability loading
 
 The deferred, unsequenced
-[`compiler-authored-runtime-capabilities.md`](../proposals/compiler-authored-runtime-capabilities.md)
+[`compiler-authored-runtime-capabilities.md`](compiler-authored-runtime-capabilities.md)
 proposal preserves the broader required-import, instance-level omission, portable optional
 enhancement facade, and cross-target bundle-accounting direction described by this investigation.
 It does not replace or precede the capability-splitting delivery already owned by the lazy-island

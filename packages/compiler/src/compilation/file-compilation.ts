@@ -8,6 +8,8 @@ import { transformSource } from './transformation.js';
 import { createOwnedNativeCompilationSession } from './native-session.js';
 import { validateExactLanguageProjections } from './language-validation.js';
 import { loadExactPackageEnhancements } from '@exactjs/config/node';
+import { prependExactEnhancementRegistrations } from './enhancement-registrations.js';
+import { materializeExactPhysicalEnhancementFacades } from './physical-enhancement-facades.js';
 
 /** Compiles one input file and optionally writes code and its source map. */
 export async function compileFile(
@@ -61,7 +63,24 @@ async function prepareFile(
 		: undefined;
 	const sourceMapFile = outputFile && result.map ? sourceMapPathFor(outputFile) : undefined;
 
-	return Object.freeze({ ...result, source, inputFile, outputFile, sourceMapFile });
+	const rendererEnhancements = result.rendererEnhancements ?? [];
+	const executable =
+		outputFile && rendererEnhancements.length
+			? materializeExactPhysicalEnhancementFacades(
+					prependExactEnhancementRegistrations(result.code, rendererEnhancements),
+					rendererEnhancements,
+					inputFile,
+					path.dirname(outputFile)
+				).code
+			: result.code;
+	return Object.freeze({
+		...result,
+		code: executable,
+		source,
+		inputFile,
+		outputFile,
+		sourceMapFile
+	});
 }
 
 async function publishPreparedFile(prepared: PreparedCompileFile): Promise<void> {

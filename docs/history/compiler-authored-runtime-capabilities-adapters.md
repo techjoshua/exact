@@ -2,9 +2,9 @@
 
 ## Status and ownership
 
-This is the normative cross-host appendix to
+This is the implemented cross-host appendix to
 [`compiler-authored-runtime-capabilities.md`](compiler-authored-runtime-capabilities.md). It is part
-of that proposal, not a separate implementation stage or current framework contract.
+of that completed proposal, not a separate implementation stage.
 
 The main proposal owns component state-machine, continuation-readiness, and lazy-island dependency
 semantics. This appendix defines how build and server hosts preserve those decisions. An adapter may

@@ -3,7 +3,7 @@
 ## Scope
 
 This record supports
-[`compiler-authored-runtime-capabilities.md`](../proposals/compiler-authored-runtime-capabilities.md).
+[`compiler-authored-runtime-capabilities.md`](../history/compiler-authored-runtime-capabilities.md).
 It preserves directional measurements and estimates from the motivating client-bundle audit. It is
 not a permanent release budget or a statement of current package ownership.
 

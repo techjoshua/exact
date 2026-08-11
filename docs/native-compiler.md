@@ -68,6 +68,13 @@ provide an explicit executable.
 
 ## Public integration
 
+When emitted code reaches an optional enhancement, file and project compilation prepend its
+artifact-local registration and materialize a provider facade under the output's
+`.exact/enhancements` directory. Emitted modules import that ordinary ESM file, never an `exact:`
+scheme, so unbundled Node SSR needs no custom loader. Provider resolution happens during
+compilation, not per request; absence selects the shared pass-through, while malformed installed
+exports fail when the generated module is linked.
+
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from

@@ -92,6 +92,13 @@ export function ComponentsPage(this: Component<{}>) {
 					machine and connected every consumer of that field.
 				</p>
 				<p>
+					Generated artifacts carry that state-machine description as one immutable component
+					definition: state slots, task transitions, reactive allocations, render preparation, and the
+					capabilities the artifact can reach. Task-free components neither import the task runtime nor
+					allocate an empty task owner; public barrel imports remain valid because generated imports use
+					focused internal runtime entries.
+				</p>
+				<p>
 					That ownership stays inspectable without making every instance carry duplicate method
 					closures and unused collections. Stable component and logging methods are shared, while
 					refs, list caches, contexts, lifecycle storage, task collections, and cancellation are

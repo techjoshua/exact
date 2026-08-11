@@ -44,7 +44,10 @@ export function EnhancementsPage(this: Component<{}>) {
 					The attributed import is compile-only. Finite activators select ordinary components,
 					shared props are sent to every selected component that declares them, and aliases of one
 					canonical component still create one instance. The application bundle may include each
-					identity in its enhancement catalog; missing entries leave the authored output unchanged.
+					identity through a compiler-authored provider facade. Missing or disabled providers select a
+					shared pass-through and leave the authored output unchanged without constructing a component.
+					An installed provider with an invalid export, failed evaluation, or denied server policy still
+					fails contextually.
 				</p>
 				<p>
 					This catalog is not plugin discovery. A component library needs no plugin manifest,
@@ -55,6 +58,15 @@ export function EnhancementsPage(this: Component<{}>) {
 					source evidence rather than runtime component input. The compiler validates and projects
 					the field for trusted tooling, then removes it without selecting an enhancement component;
 					the package provider alone defines its meaning.
+				</p>
+			</section>
+			<section>
+				<h2>Portable optional providers</h2>
+				<p>
+					The compiler emits a canonical enhancement render node and a target-local facade import. Vite
+					and Bun may keep the facade virtual; Webpack and native Node use ordinary generated ESM files
+					under <code>.exact/enhancements</code>. Lazy component artifacts bring only their own reachable
+					facades, so an optional provider does not leak into the eager page bundle.
 				</p>
 			</section>
 			<section>

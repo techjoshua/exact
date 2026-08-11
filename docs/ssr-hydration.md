@@ -159,6 +159,15 @@ Finite immutable object spreads are expanded in source overwrite order, leaving 
 client artifact and sending only fallback values through SSR. Independently planned server ranges
 remain inert inside a dormant client island and retain their own refresh generation.
 
+When an interaction island loads, hydration prepares its immutable component execution slice from
+the compiled definition and caches it by component artifact. Adoption installs only the root's
+authorized setup-transition watchers; already-resumed continuations suppress their initial
+generation, while unresolved live-ins use the declared predecessor slots. Dependency cycles fail
+the activation instead of leaving it indefinitely loading. The slice exists only while the island
+region is constructed, so it cannot suppress or activate unrelated dormant components. Boundary
+generation replacement, abort, or unmount continues to fence loader completion, queued events, and
+task publications.
+
 ## Data boundary
 
 Hydration bootstrap data and protocol values use validated JSON-safe data.

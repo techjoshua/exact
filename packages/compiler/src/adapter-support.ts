@@ -10,6 +10,10 @@ export {
 	parseExactEnhancementFacadeRequest,
 	type ExactEnhancementFacadeRequest
 } from './compilation/enhancement-facades.js';
+export {
+	materializeExactPhysicalEnhancementFacades,
+	type ExactPhysicalEnhancementFacade
+} from './compilation/physical-enhancement-facades.js';
 
 /** A compiler diagnostic shape that build-tool integrations can report. */
 export type ExactBuildDiagnostic = Readonly<{
