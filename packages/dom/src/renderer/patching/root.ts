@@ -48,6 +48,7 @@ import { patchEnhancementBoundary } from '../enhancements.js';
 import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
 import { parkForeignMounts } from './replacement-parking.js';
 import { fallbackRenderProgram, patchRenderProgram } from '../render-program.js';
+import { patchDynamic } from '../dynamic.js';
 
 /** Performs the patch domain operation. */
 export function patch(
@@ -299,43 +300,8 @@ export function patchInner(
 		return mounted;
 	}
 
-	if (next.type === Dynamic) {
-		mounted.vnode = next;
-		const value = next.props.value;
-		mounted.stop?.();
-		mounted.children = patchChildren(
-			root,
-			parent,
-			mounted.children,
-			normalizeRenderResult(unwrap(value) as Child | Child[]),
-			parentInstance,
-			mounted.scope,
-			afterMountedChildren(mounted),
-			mounted
-		);
-		mounted.stop = watch(
-			() => {
-				const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
-				mounted.children = patchChildren(
-					root,
-					mounted.dom.parentNode ?? parent,
-					mounted.children,
-					nextChildren,
-					parentInstance,
-					mounted.scope,
-					afterMountedChildren(mounted),
-					mounted
-				);
-			},
-			undefined,
-			{
-				scope: mounted.scope,
-				onSchedule: () =>
-					stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[]))
-			}
-		);
-		return mounted;
-	}
+	if (next.type === Dynamic)
+		return patchDynamic(root, parent, mounted, next, parentInstance);
 
 	if (next.type === Portal) {
 		const previousTarget = mounted.portalTarget ?? portalTarget(mounted.vnode);

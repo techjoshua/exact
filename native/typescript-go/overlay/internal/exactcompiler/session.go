@@ -270,6 +270,21 @@ func (s *Session) Execute(request Request) Response {
 		sourceFile,
 		generation.checker,
 	)
+	dynamicComponents := analyzeDynamicComponents(
+		sourceFile,
+		generation.checker,
+		directives,
+		components,
+	)
+	for index := range components {
+		component := &components[index]
+		for position := range dynamicComponents.uses {
+			if position >= component.Start && position < component.Start+component.Length {
+				component.DynamicComponents = true
+				break
+			}
+		}
+	}
 	reactiveBindings := collectReactiveBindings(
 		sourceFile,
 		generation.checker,
@@ -484,6 +499,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, dynamicComponents.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, partitionPlanDiagnostics(partitionPlan)...)
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
@@ -567,6 +583,7 @@ func (s *Session) Execute(request Request) Response {
 		request.JSXInterop,
 		enhancementImports,
 		partitionPlan,
+		dynamicComponents.uses,
 	)
 	transformed = lowerIntlOperations(
 		transformed,

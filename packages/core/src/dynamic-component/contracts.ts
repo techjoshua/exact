@@ -28,3 +28,20 @@ export type DynamicComponentInspection = Readonly<{
 	readonly componentId?: string;
 	readonly error?: unknown;
 }>;
+
+/** Build-authorized immutable client artifact eligible for an SSR module-preload hint. */
+export type DynamicComponentArtifact = Readonly<{
+	url: string;
+	authorized: true;
+	immutable: true;
+	integrity?: string;
+	crossOrigin?: 'anonymous' | 'use-credentials';
+	referrerPolicy?:
+		| 'no-referrer'
+		| 'no-referrer-when-downgrade'
+		| 'origin'
+		| 'origin-when-cross-origin'
+		| 'same-origin'
+		| 'strict-origin'
+		| 'strict-origin-when-cross-origin';
+}>;

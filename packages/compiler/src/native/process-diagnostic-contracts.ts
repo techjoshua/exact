@@ -6,4 +6,6 @@ export type NativeCompilerDiagnostic = Readonly<{
 	filename?: string;
 	start?: number;
 	length?: number;
+	fixStart?: number;
+	fixText?: string;
 }>;

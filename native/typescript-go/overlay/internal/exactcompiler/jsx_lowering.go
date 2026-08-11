@@ -28,6 +28,9 @@ type jsxRuntimeNames struct {
 	forwardedExpression    string
 	componentOutput        string
 	dynamic                string
+	dynamicComponent       string
+	serverDynamicComponent string
+	dynamicComponentValue  string
 	boundary               string
 	finiteBoundary         string
 	asyncSiblings          string
@@ -107,6 +110,7 @@ type jsxLowering struct {
 	collectionMaps         map[string]collectionMapPlan
 	enhancementImports     enhancementImports
 	partitionPlan          PartitionPlan
+	dynamicComponents      map[int]dynamicComponentUseKind
 	renderProgramFallback  bool
 	renderProgramContexts  map[int]renderProgramContext
 	declarativeRenderDepth int
@@ -209,6 +213,7 @@ func lowerExactJSX(
 	interop *JSXInterop,
 	enhancementImports enhancementImports,
 	partitionPlan PartitionPlan,
+	dynamicComponents map[int]dynamicComponentUseKind,
 ) *ast.SourceFile {
 	hasJSX := sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0
 	hasReactiveCapture := strings.Contains(sourceFile.Text(), ".reactive")
@@ -254,6 +259,7 @@ func lowerExactJSX(
 		collectionMaps:       make(map[string]collectionMapPlan),
 		enhancementImports:   enhancementImports,
 		partitionPlan:        partitionPlan,
+		dynamicComponents:    dynamicComponents,
 		clientIslands:        clientIslands,
 	}
 	lowering.indexCollectionMaps()
@@ -1011,6 +1017,9 @@ func (lowering *jsxLowering) lowerOpeningLike(
 			),
 		)
 	}
+	if kind, exists := lowering.dynamicComponents[tag.Pos()]; exists {
+		return lowering.lowerDynamicComponent(identityNode, tag, opening, children, kind)
+	}
 	if lowering.microComponentTag(tag) {
 		return lowering.lowerMicroComponent(tag, opening, children)
 	}
@@ -1083,6 +1092,59 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		}
 	}
 	return element
+}
+
+func (lowering *jsxLowering) lowerDynamicComponent(
+	identityNode *ast.Node,
+	tag *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+	kind dynamicComponentUseKind,
+) *ast.Node {
+	id := lowering.factory.NewStringLiteral(
+		exactStableID(
+			normalizedIdentityFilename(lowering.sourceFile.FileName()),
+			"dynamic-component",
+			lowering.nodeIDs[identityNode],
+		),
+		ast.TokenFlagsNone,
+	)
+	if lowering.target == TargetServer {
+		return lowering.call(lowering.names.serverDynamicComponent, []*ast.Node{id})
+	}
+	props := lowering.props(opening.Attributes(), "", false, "")
+	values := lowering.children(children)
+	if len(values) != 0 {
+		var childrenValue *ast.Node
+		if len(values) == 1 {
+			childrenValue = values[0]
+		} else {
+			childrenValue = lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(values),
+				false,
+			)
+		}
+		props = lowering.appendObjectProperty(props, "children", childrenValue)
+	}
+	source := lowering.visitor.VisitNode(tag)
+	if kind != dynamicComponentHelper {
+		source = lowering.call(
+			lowering.names.dynamicComponentValue,
+			[]*ast.Node{lowering.arrow(source)},
+		)
+	}
+	property := func(name string, value *ast.Node) *ast.Node {
+		return lowering.property(lowering.factory.NewIdentifier(name), value)
+	}
+	options := lowering.factory.NewObjectLiteralExpression(
+		lowering.factory.NewNodeList([]*ast.Node{
+			property("id", id),
+			property("source", source),
+			property("props", props),
+		}),
+		false,
+	)
+	return lowering.call(lowering.names.dynamicComponent, []*ast.Node{options})
 }
 
 func (lowering *jsxLowering) independentAsyncSiblings(children *ast.NodeList) bool {
@@ -6639,6 +6701,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/inspection"},
 		{module: "@exactjs/core/runtime/registry"},
 		{module: "@exactjs/core/runtime/enhancements"},
+		{module: "@exactjs/core/runtime/dynamic-components"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -6659,6 +6722,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
 		{"componentExecutionValueForHost", lowering.names.componentOutput, 2},
 		{"createDynamicChild", lowering.names.dynamic, 0},
+		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, 6},
+		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, 6},
+		{"dynamicComponentValue", lowering.names.dynamicComponentValue, 6},
 		{"createServerBoundary", lowering.names.boundary, 0},
 		{"markFiniteClientBoundary", lowering.names.finiteBoundary, 0},
 		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings, 0},
@@ -6873,6 +6939,9 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		forwardedExpression:    allocate("__exactForwardedExpression"),
 		componentOutput:        allocate("__exactComponentOutput"),
 		dynamic:                allocate("__exactDynamic"),
+		dynamicComponent:       allocate("__exactDynamicComponent"),
+		serverDynamicComponent: allocate("__exactServerDynamicComponent"),
+		dynamicComponentValue:  allocate("__exactDynamicComponentValue"),
 		boundary:               allocate("__exactBoundary"),
 		finiteBoundary:         allocate("__exactFiniteBoundary"),
 		asyncSiblings:          allocate("__exactAsyncSiblings"),

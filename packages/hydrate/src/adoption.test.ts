@@ -14,6 +14,10 @@ import {
 	type Component,
 	type RootLifecycle
 } from '@exactjs/core';
+import {
+	createCompiledDynamicComponent,
+	createServerDynamicComponent
+} from '@exactjs/core/runtime/dynamic-components';
 import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 import { render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
@@ -354,6 +358,48 @@ describe('@exactjs/hydrate adoption', () => {
 		flushSync();
 		expect(root.querySelector('p')).toBe(serverNode);
 		expect(root.querySelector('p')?.textContent).toBe('client');
+	});
+
+	it('activates a client-only dynamic component inside its SSR-owned range', () => {
+		const root = document.createElement('div');
+		let serverPhase = true;
+		function ClientPanel() {
+			return () => createVNode('strong', null, 'activated');
+		}
+		function Page() {
+			const dynamic = serverPhase
+				? createServerDynamicComponent('fixture:hydrated-dynamic')
+				: createCompiledDynamicComponent({
+						id: 'fixture:hydrated-dynamic',
+						source: () => ClientPanel,
+						props: {}
+					});
+			return () =>
+				createVNode(
+					'div',
+					null,
+					createVNode('span', null, 'before'),
+					dynamic,
+					createVNode('span', null, 'after')
+				);
+		}
+		markExactComponent(ClientPanel, 'fixture:hydrated-dynamic-panel');
+		markExactComponent(Page, 'fixture:hydrated-dynamic-page');
+		root.innerHTML = renderToString(createVNode(Page, null)).html;
+		const siblings = root.querySelectorAll('span');
+		const before = siblings[0];
+		const after = siblings[1];
+		serverPhase = false;
+
+		const diagnostics: string[] = [];
+		hydrate(createVNode(Page, null), root, {
+			logger: noopLogger,
+			onDiagnostic: (diagnostic) => diagnostics.push(`${diagnostic.code}:${diagnostic.message}`)
+		});
+		expect(root.textContent).toBe('beforeactivatedafter');
+		expect(diagnostics).toEqual([]);
+		expect(root.querySelectorAll('span')[0]).toBe(before);
+		expect(root.querySelectorAll('span')[1]).toBe(after);
 	});
 
 	it('attaches JSX events while adopting a component root', () => {

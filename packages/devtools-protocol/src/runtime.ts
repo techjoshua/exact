@@ -76,6 +76,14 @@ export type ExactInspectedRuntimeComponent = Readonly<{
 	suspense?: ExactSuspenseInspection;
 	targetContributions?: readonly ExactTargetContributionInspection[];
 	ownedElements: number;
+	/** Compiler-owned renderer node that is inspectable but is not a component instance. */
+	synthetic?: Readonly<{
+		kind: 'dynamic-component';
+		boundaryId: string;
+		availability: 'unassigned' | 'pending' | 'absent' | 'available' | 'failed';
+		generation: number;
+		adoptedComponentId?: string;
+	}>;
 }>;
 
 /** One active client or server execution root. */

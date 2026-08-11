@@ -113,10 +113,6 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 	const vnode = createDynamicChild(() => {
 		void state.revision;
 		switch (state.status) {
-			case 'pending':
-				throw state.pending;
-			case 'failed':
-				throw state.error;
 			case 'available':
 				return createVNode(state.candidate! as ComponentFunction<any, Props>, {
 					...options.props,
@@ -130,7 +126,9 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 		...vnode,
 		props: {
 			...vnode.props,
-			__exactDynamicComponent: inspection
+			__exactDynamicComponent: inspection,
+			__exactDynamicComponentProps: options.props,
+			__exactDynamicComponentReadiness: () => state.pending
 		}
 	};
 }

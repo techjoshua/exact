@@ -108,7 +108,7 @@ export function renderToStringOwned(
 		chunks = [html];
 	}
 	const hydrationTable = context.hydrationTable.value();
-	return createChunkedStringResult(chunks, options.state, hydrationTable);
+	return createChunkedStringResult(chunks, options.state, hydrationTable, context.resourceLinkHeaders);
 }
 
 /** Transforms to hydratable string into its required representation. */
@@ -279,16 +279,23 @@ export async function renderExactRequestToHtmlResponse(
 				contexts: context.contexts?.componentValues,
 				signal: options.signal ?? context.signal
 			};
-			const body =
-				options.hydration === false
-					? (await renderToStringAsync(vnode, renderOptions)).html
-					: (await renderToHydratableStringAsync(vnode, renderOptions)).htmlWithHydration;
+			let body: string;
+			let preloadLinks: readonly string[] | undefined;
+			if (options.hydration === false) {
+				const rendered = await renderToStringAsync(vnode, renderOptions);
+				body = rendered.html;
+				preloadLinks = rendered.preloadLinks;
+			} else {
+				const rendered = await renderToHydratableStringAsync(vnode, renderOptions);
+				body = rendered.htmlWithHydration;
+				preloadLinks = rendered.preloadLinks;
+			}
 			return {
 				status: options.status ?? 200,
-				headers: {
+				headers: withPreloadLinks({
 					'content-type': options.contentType ?? 'text/html; charset=utf-8',
 					...(options.headers ?? {})
-				},
+				}, preloadLinks),
 				body
 			};
 		},
@@ -319,14 +326,17 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 			// response; lower-level progressive APIs remain available when an
 			// application can prove its provisional shell has no pre-commit effects.
 			let body: readonly string[];
+			let preloadLinks: readonly string[] | undefined;
 			if (options.hydration === false) {
 				const rendered = await renderToStringAsync(vnode, renderOptions);
+				preloadLinks = rendered.preloadLinks;
 				const chunks = htmlChunksOf(rendered) ?? [rendered.html];
 				body = startsExactDocument(chunks)
 					? chunks
 					: [`<div id="${escapeAttr(options.rootId ?? 'exact-root')}">`, ...chunks, '</div>'];
 			} else {
 				const rendered = await renderToHydratableStringAsync(vnode, renderOptions);
+				preloadLinks = rendered.preloadLinks;
 				const htmlChunks = htmlChunksOf(rendered) ?? [rendered.html];
 				body = isExactDocumentResult(rendered)
 					? (hydratableChunksOf(rendered) ?? [rendered.htmlWithHydration])
@@ -339,15 +349,26 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 			}
 			return createExactBufferedResponse(
 				options.status ?? 200,
-				{
+				withPreloadLinks({
 					'content-type': options.contentType ?? 'text/html; charset=utf-8',
 					...(options.headers ?? {})
-				},
+				}, preloadLinks),
 				body
 			);
 		},
 		request.platformRequest ?? request
 	);
+}
+
+function withPreloadLinks(
+	headers: Record<string, string>,
+	links: readonly string[] | undefined
+): Record<string, string> {
+	if (!links?.length) return headers;
+	const existingKey = Object.keys(headers).find((key) => key.toLowerCase() === 'link');
+	const key = existingKey ?? 'link';
+	headers[key] = [headers[key], ...links].filter(Boolean).join(', ');
+	return headers;
 }
 
 function requestInspectionOptions(

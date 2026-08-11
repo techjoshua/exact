@@ -40,7 +40,22 @@ export function sourceDiagnostic(
 		range,
 		related: Object.freeze(related),
 		fixes: Object.freeze(
-			placementConflict
+			diagnostic.code === 'EXACT2213' && diagnostic.fixText !== undefined
+				? [
+						Object.freeze({
+							kind: 'acknowledge-dynamic-component' as const,
+							title: 'Acknowledge client-only dynamic component',
+							edit: Object.freeze({
+								filename,
+								range: Object.freeze({
+									start: diagnostic.fixStart ?? 0,
+									end: diagnostic.fixStart ?? 0
+								}),
+								newText: diagnostic.fixText
+							})
+						})
+					]
+				: placementConflict
 				? [
 						Object.freeze({
 							kind: 'split-placement-conflict' as const,

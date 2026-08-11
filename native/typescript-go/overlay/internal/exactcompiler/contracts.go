@@ -135,6 +135,8 @@ type Diagnostic struct {
 	FileName string `json:"filename,omitempty"`
 	Start    int    `json:"start,omitempty"`
 	Length   int    `json:"length,omitempty"`
+	FixStart int    `json:"fixStart,omitempty"`
+	FixText  string `json:"fixText,omitempty"`
 }
 
 // Directive is one compiler directive found in source trivia.
@@ -178,6 +180,7 @@ type Component struct {
 	Diagnostics         []string                  `json:"diagnostics"`
 	Execution           ComponentExecution        `json:"execution"`
 	Interactions        bool                      `json:"-"`
+	DynamicComponents   bool                      `json:"-"`
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.

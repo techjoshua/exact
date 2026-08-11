@@ -171,6 +171,7 @@ export type {
 } from './component/contracts.js';
 export { createDynamicComponent } from './dynamic-component/creation.js';
 export type {
+	DynamicComponentArtifact,
 	DynamicComponentCandidate,
 	DynamicComponentInspection,
 	DynamicComponentResolution,

@@ -216,6 +216,7 @@ export type ExactInspectedComponent = ExactSourceEntity &
 export type ExactDiagnosticFixSummary = Readonly<{
 	kind: ExactRefactorKind;
 	title: string;
+	edit?: ExactSourceEdit;
 }>;
 
 /** Rich eXact diagnostic projected from the same facts used by builds. */
@@ -317,7 +318,8 @@ export type ExactRefactorKind =
 	| 'remove-redundant-placement'
 	| 'make-blocking'
 	| 'make-nonblocking'
-	| 'split-placement-conflict';
+	| 'split-placement-conflict'
+	| 'acknowledge-dynamic-component';
 
 /** Version-bound request for a compiler-planned source transformation. */
 export type ExactRefactorRequest = Readonly<{

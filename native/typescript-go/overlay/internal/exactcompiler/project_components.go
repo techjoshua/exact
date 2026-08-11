@@ -168,12 +168,9 @@ func linkProjectComponents(
 						}
 						return true
 					}
-					appendComponentDiagnostic(
-						&record.component,
-						"error: JSX tag "+
-							strings.TrimSpace(sourceText(record.sourceFile, tag))+
-							" resolves to variable, not a runtime component",
-					)
+					// A TypeScript-valid local value in component position is an open
+					// dynamic boundary. The shared dynamic-component analysis reports
+					// acknowledgement diagnostics and lowering owns runtime validation.
 					return true
 				}
 				bindings := importBindingsBySource[record.sourceFile]

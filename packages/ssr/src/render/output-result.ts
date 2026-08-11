@@ -11,12 +11,14 @@ import {
 export function createChunkedStringResult(
 	chunks: readonly string[],
 	state: unknown,
-	hydrationTable?: RenderToStringResult['hydrationTable']
+	hydrationTable?: RenderToStringResult['hydrationTable'],
+	preloadLinks?: readonly string[]
 ): RenderToStringResult {
 	let materialized: string | undefined;
 	const result = {
 		state,
-		...(hydrationTable ? { hydrationTable } : {})
+		...(hydrationTable ? { hydrationTable } : {}),
+		...(preloadLinks?.length ? { preloadLinks: Object.freeze([...preloadLinks]) } : {})
 	} as RenderToStringResult & SsrChunkedResult;
 	Object.defineProperty(result, 'html', {
 		enumerable: true,
@@ -45,6 +47,7 @@ export function createChunkedHydratableResult(
 		},
 		state: result.state,
 		...(result.hydrationTable ? { hydrationTable: result.hydrationTable } : {}),
+		...(result.preloadLinks ? { preloadLinks: result.preloadLinks } : {}),
 		resumptions,
 		hydrationScript
 	} as HydratableStringResult & SsrChunkedResult;

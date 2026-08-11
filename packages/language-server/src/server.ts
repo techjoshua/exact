@@ -214,6 +214,22 @@ connection.onCodeAction(async (params): Promise<CodeAction[]> => {
 			sourceRange.start <= entity.range.end
 	);
 	const actions: CodeAction[] = [];
+	for (const diagnostic of inspection.diagnostics) {
+		if (diagnostic.range.end < sourceRange.start || sourceRange.end < diagnostic.range.start)
+			continue;
+		for (const fix of diagnostic.fixes) {
+			if (!fix.edit) continue;
+			actions.push({
+				title: fix.title,
+				kind: CodeActionKind.QuickFix,
+				diagnostics: params.context.diagnostics.filter(
+					(candidate) => candidate.code === diagnostic.code
+				),
+				edit: workspaceEdit(snapshot, [fix.edit]),
+				isPreferred: fix.kind === 'acknowledge-dynamic-component'
+			});
+		}
+	}
 	if (task) {
 		const kinds: ExactRefactorKind[] =
 			task.kind === 'inferred-task'

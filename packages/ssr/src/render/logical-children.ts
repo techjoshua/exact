@@ -12,6 +12,7 @@ import {
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
 import type { SsrContext } from '../types.js';
+import { registerDynamicComponentPreload } from './resource-hints.js';
 
 /** Finite Fragment children and whether each child owns an authored list marker. */
 export type SsrFragmentChildren = Readonly<{
@@ -41,7 +42,13 @@ export function resolveSsrDynamicChildren(
 ): readonly Child[] {
 	// Open dynamic components are client-only. Reading their value would run the
 	// resolver during SSR and could turn a browser-observed module into server authority.
-	if (vnode.props.__exactDynamicComponent) return [];
+	if (vnode.props.__exactDynamicComponent) {
+		registerDynamicComponentPreload(
+			context,
+			(vnode.props.__exactDynamicComponent as { id?: string }).id ?? ''
+		);
+		return [];
+	}
 	const prepared = context.preparedEnhancementChildren.get(vnode);
 	if (prepared) return prepared;
 	const children = normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]);

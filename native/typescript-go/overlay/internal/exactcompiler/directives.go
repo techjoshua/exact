@@ -23,6 +23,7 @@ var exactCoreDirectives = map[string]struct{}{
 	"shared":  {},
 	"keep":    {},
 	"pure":    {},
+	"dynamic": {},
 }
 
 func collectDirectives(source string) []Directive {
@@ -76,7 +77,7 @@ func validateCoreDirectives(directives []Directive) []Diagnostic {
 			diagnostics = append(diagnostics, directiveDiagnostic(
 				directive,
 				fmt.Sprintf(
-					"unknown @exact directive '%s'; supported directives are key, cleanup, own, track, client, server, shared, keep, and pure",
+					"unknown @exact directive '%s'; supported directives are key, cleanup, own, track, client, server, shared, keep, pure, and dynamic",
 					directive.Name,
 				),
 			))
@@ -101,7 +102,7 @@ func validateCoreDirectives(directives []Directive) []Diagnostic {
 				}
 				diagnostics = append(diagnostics, directiveDiagnostic(directive, message))
 			}
-		case "own", "track", "client", "server", "shared", "pure":
+		case "own", "track", "client", "server", "shared", "pure", "dynamic":
 			if directive.HasArgument {
 				diagnostics = append(diagnostics, directiveDiagnostic(
 					directive,

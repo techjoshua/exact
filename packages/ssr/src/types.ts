@@ -1,6 +1,7 @@
 import type {
 	Child,
 	ComponentDomain,
+	DynamicComponentArtifact,
 	ComponentContextValues,
 	ExactComponentContinuationContract,
 	EnhancementEntry,
@@ -76,6 +77,14 @@ export type RenderToStringOptions = {
 	onProfile?: ExactProfileSink;
 	/** Internal request-owned observation boundary; omitted in hardened server output. */
 	inspection?: ExactRuntimeInspectionOwner;
+	/** Build-authorized immutable artifacts keyed by compiler dynamic-boundary identity. */
+	dynamicComponentArtifacts?:
+		| ReadonlyMap<string, DynamicComponentArtifact>
+		| Readonly<Record<string, DynamicComponentArtifact>>;
+	/** Maximum selected dynamic artifacts hinted by one request. Defaults to 16. */
+	maxDynamicComponentPreloads?: number;
+	/** Receives validated Link values early enough for a capable adapter to emit HTTP 103. */
+	onEarlyHints?: (links: readonly string[]) => void;
 };
 
 /** Reports an observable ssr profile event. */
@@ -88,6 +97,8 @@ export type RenderToStringResult = {
 	resumptions?: readonly ComponentResumptionActivation[];
 	/** Internal response-local table consumed by hydratable entry points. */
 	hydrationTable?: import('./render/hydration-table.js').ExactHydrationTable;
+	/** Deduplicated final-header Link values discovered while rendering. */
+	preloadLinks?: readonly string[];
 };
 
 /** Configures hydration script. */
@@ -297,6 +308,11 @@ export type SsrContext = {
 	maxOutputBytes: number;
 	reactResourceHints: string[];
 	reactResourceKeys: Set<string>;
+	dynamicComponentArtifacts?: RenderToStringOptions['dynamicComponentArtifacts'];
+	maxDynamicComponentPreloads: number;
+	dynamicComponentPreloads: number;
+	resourceLinkHeaders: string[];
+	onEarlyHints?: RenderToStringOptions['onEarlyHints'];
 	reactSelectValue?: unknown;
 	allowUnsafeHtml: boolean;
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;

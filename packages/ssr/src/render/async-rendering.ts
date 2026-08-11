@@ -53,7 +53,7 @@ export async function renderToStringAsync(
 		chunks = [html];
 	}
 	const hydrationTable = context.hydrationTable.value();
-	return createChunkedStringResult(chunks, options.state, hydrationTable);
+	return createChunkedStringResult(chunks, options.state, hydrationTable, context.resourceLinkHeaders);
 }
 
 /** Transforms to hydratable string async into its required representation. */

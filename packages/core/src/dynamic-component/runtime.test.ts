@@ -56,7 +56,7 @@ describe('dynamic component boundaries', () => {
 				props: {}
 			})
 		);
-		expect(() => unwrap(vnode.props.value)).toThrow(Promise);
+		expect(unwrap(vnode.props.value)).toEqual([]);
 		selection.value = 'second';
 		flushSync();
 		expect(signals[0]?.aborted).toBe(true);

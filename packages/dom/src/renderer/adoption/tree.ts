@@ -43,6 +43,7 @@ import { adoptKeyedListChildren } from './keyed.js';
 import { normalizeAdoptionVNode } from './normalization.js';
 import { constructAdoptedComponent } from './construction.js';
 import { adoptRenderProgramOrFallback } from '../render-program.js';
+import { dynamicChildren } from '../dynamic.js';
 import { adoptStaticLeaf } from './leaf.js';
 
 /** Performs the adopt static mounted inner domain operation. */
@@ -162,7 +163,9 @@ export function adoptStaticMountedInner(
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
 		const initial = isCellVNode(vnode)
 			? [getOwnedCellVNode(vnode)]
-			: normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]);
+			: vnode.props.__exactDynamicComponent
+				? []
+				: dynamicChildren(vnode, parentInstance);
 		const children = adoptStaticChildren(
 			root,
 			initial,
@@ -180,10 +183,9 @@ export function adoptStaticMountedInner(
 			// still provides stable DOM ownership during hydration.
 			return { mounted, next: endIndex + 1 };
 		}
-		const value = vnode.props.value;
 		mounted.stop = watch(
 			() => {
-				const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
+				const nextChildren = dynamicChildren(vnode, parentInstance);
 				const parent = start.parentNode;
 				if (!parent) return;
 				mounted.children = patchChildren(
@@ -201,7 +203,7 @@ export function adoptStaticMountedInner(
 			{
 				scope,
 				onSchedule: () =>
-					stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[]))
+					stopReplacedChildren(mounted, dynamicChildren(vnode, parentInstance))
 			}
 		);
 		return { mounted, next: endIndex + 1 };

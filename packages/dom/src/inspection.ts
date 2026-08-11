@@ -179,7 +179,7 @@ function appendMounted(
 	const identity = instance
 		? componentDomainInspection(instance.domain)?.identity(instance)
 		: undefined;
-	const nextParent = identity ?? parent;
+	let nextParent = identity ?? parent;
 	if (instance && identity) {
 		const snapshot = inspectExactRuntimeComponent(instance, {
 			parent,
@@ -207,6 +207,63 @@ function appendMounted(
 			targetContributions: inspectTargetContributions(mounted, instance)
 		});
 		if (snapshot) output.push(snapshot);
+	}
+	const dynamic = mounted.vnode.props.__exactDynamicComponent as
+		| Readonly<{
+				id: string;
+				status: 'unassigned' | 'pending' | 'absent' | 'available' | 'failed';
+				generation: number;
+				componentId?: string;
+				error?: unknown;
+		  }>
+		| undefined;
+	if (dynamic && nextParent) {
+		const owner = mounted.vnode.domain
+			? componentDomainInspection(mounted.vnode.domain)
+			: instance
+				? componentDomainInspection(instance.domain)
+				: undefined;
+		if (owner) {
+			const syntheticId: ExactInspectionRuntimeId = Object.freeze({
+				...nextParent,
+				componentTypeId: `dynamic:${dynamic.id}`,
+				instanceId: `dynamic:${dynamic.id}`,
+				sourceEntityId: dynamic.id,
+				generation: dynamic.generation
+			});
+			output.push(
+				Object.freeze({
+					id: syntheticId,
+					parent: nextParent,
+					name: 'DynamicComponent',
+					status: 'mounted',
+					props: owner.preview(
+						mounted.vnode.props.__exactDynamicComponentProps ?? {},
+						['dynamicComponent', dynamic.id, 'props']
+					),
+					state: owner.preview(
+						{
+							status: dynamic.status,
+							generation: dynamic.generation,
+							...(dynamic.componentId ? { componentId: dynamic.componentId } : {}),
+							...(dynamic.error === undefined ? {} : { error: dynamic.error })
+						},
+						['dynamicComponent', dynamic.id, 'state']
+					),
+					contexts: Object.freeze([]),
+					tasks: Object.freeze([]),
+					ownedElements: ownedElements(mounted).length,
+					synthetic: Object.freeze({
+						kind: 'dynamic-component',
+						boundaryId: dynamic.id,
+						availability: dynamic.status,
+						generation: dynamic.generation,
+						...(dynamic.componentId ? { adoptedComponentId: dynamic.componentId } : {})
+					})
+				})
+			);
+			nextParent = syntheticId;
+		}
 	}
 	for (const child of mounted.children) appendMounted(child, nextParent, output);
 }

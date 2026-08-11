@@ -57,6 +57,7 @@ import { createElement, createMarker } from '../root-support.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import { activateEnhancementSubtree } from '../enhancements.js';
 import { fallbackRenderProgram, mountRenderProgram } from '../render-program.js';
+import { mountDynamic } from '../dynamic.js';
 import {
 	mountChildren,
 	mountDetachedChildren,
@@ -262,44 +263,8 @@ export function mountInner(
 		return mounted;
 	}
 
-	if (vnode.type === Dynamic) {
-		const marker = createMarker(root, 'dynamic');
-		const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
-		const value = vnode.props.value;
-		mounted.children = mountDetachedChildren(
-			root,
-			normalizeRenderResult(unwrap(value) as Child | Child[]),
-			parentInstance,
-			mounted.scope,
-			parentNode
-		);
-		mounted.stop = watch(
-			() => {
-				const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
-				const parent = marker.parentNode;
-				if (!parent) return;
-				mounted.children = peek(() =>
-					patchChildren(
-						root,
-						parent,
-						mounted.children,
-						nextChildren,
-						parentInstance,
-						mounted.scope,
-						afterMountedChildren(mounted),
-						mounted
-					)
-				);
-			},
-			undefined,
-			{
-				scope: mounted.scope,
-				onSchedule: () =>
-					stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[]))
-			}
-		);
-		return mounted;
-	}
+	if (vnode.type === Dynamic)
+		return mountDynamic(root, vnode, scope, parentInstance, parentNode);
 
 	if (vnode.type === Portal) {
 		const marker = createMarker(root, 'portal');

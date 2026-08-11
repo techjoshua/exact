@@ -162,6 +162,7 @@ export type ExactCompiledComponentDefinitionContract = Readonly<{
 		| 'enhancements'
 		| 'interactions'
 		| 'compatibility'
+		| 'dynamic-components'
 	)[];
 }>;
 
