@@ -2,16 +2,15 @@
 
 ## Status
 
-Proposed after the higher-leverage compiler and SSR boundary work, including
+Implementation-ready after the implemented compiler and SSR boundary work, including
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](../history/server-component-library-trust.md),
 [`enhancement-first-internationalization.md`](../history/enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
 [`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
 [`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md),
-[`compact-hydration-publication.md`](../history/compact-hydration-publication.md),
-[`lazy-interaction-islands.md`](../history/lazy-interaction-islands.md), and
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md). The dependent-foundation
+[`compact-hydration-publication.md`](../history/compact-hydration-publication.md), and
+[`lazy-interaction-islands.md`](../history/lazy-interaction-islands.md). The dependent-foundation
 experiments 2–4 and 6 in
 [`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) are resolved by
 the focused prerequisites above and the implemented transport/build-host work. The trusted
@@ -28,8 +27,12 @@ The architecture review confirms this remains a real adapter gap rather than com
 Webpack and Bun plugins already compile ordinary applications, resolve target facades, enforce
 component-library authorization, and share Intl coordination. What remains here is specifically
 microfrontend producer/consumer lifecycle integration and the heterogeneous production matrix.
-Deferred structural render-program extensions and the broader runtime-capability proposal are not
-prerequisites.
+Deferred structural render-program extensions and partial-prerender resumption are not
+prerequisites. Compiler-authored runtime capabilities and optional facades are implemented
+foundations. The remote-candidate slice of
+[`compiler-authored-dynamic-component-boundaries.md`](compiler-authored-dynamic-component-boundaries.md)
+consumes the artifacts produced here, but base dynamic components do not block this work. There are
+no remaining architecture decisions before implementation.
 
 | Delivery area          | Vite/Rollup                | Webpack and Bun current state | Proposed state                         |
 | ---------------------- | -------------------------- | ----------------------------- | -------------------------------------- |
@@ -46,6 +49,33 @@ Implement Webpack and Bun as adapters over the existing tool-neutral microfronte
 exposure registration, provided-package bridge, execution-root identity, gateway transport,
 hydration ownership, generation fencing, and recovery policy. Do not fork the microfrontend runtime
 or create bundler-specific public contracts.
+
+## Public and package contract
+
+`@exactjs/microfrontends` remains the sole owner of `ExactRemoteArtifactPlan`, exposure and
+provided-package source generation, registration records, manifest schema, and conformance
+fixtures. No microfrontend configuration key changes. Webpack and Bun add the same optional
+`onRemoteEntries(entries)` and `onRemoteDevelopmentEntries(entries)` callbacks already exposed by
+the Vite plugin. The callbacks publish immutable exposure-to-client-entry maps only after a valid
+generation; they are build integration hooks, not protocol identity.
+
+`@exactjs/webpack-plugin` and `@exactjs/bun-plugin` dynamically import the focused
+microfrontend integration only when the loaded eXact configuration contains exposures, remotes, or
+provided packages. Ordinary applications retain their current dependency and bundle closure.
+Adapter-owned module IDs, entry names, output paths, and hook carriers stay private.
+
+The Bun package additionally exports `exactBuild(options)`, a thin coordinator around `Bun.build`.
+It prepares the neutral artifact plan before the build, appends its exposure entrypoints, installs
+`exact()` plus generated-module resolution, and publishes a generation only after `onEnd`
+validation. Bun permits synchronous `build.config` changes during plugin setup, but the shared
+configuration and artifact preparation is asynchronous and `onStart` cannot modify that config.
+Consequently, direct `Bun.build({ plugins: [exact()] })` remains supported for ordinary builds but rejects a
+configuration containing remote exposures with an actionable instruction to use `exactBuild()`.
+This limitation is build-time API shape only and does not create a different runtime contract.
+
+Webpack needs no wrapper: its plugin prepares the plan and adds entry dependencies through the
+compilation lifecycle before module graph construction. Page-host-only remote consumption that has
+no local exposures continues to use the ordinary plugin on both bundlers.
 
 ## Goals
 
@@ -95,12 +125,39 @@ must implement bundler-native equivalents for:
 Generated module IDs and output paths remain adapter details. Runtime registration uses the existing
 opaque build, execution-root, exposure, and component contracts.
 
+An accepted exposure record also carries its canonical immutable client artifact URL plus integrity,
+credentials/CORS, and referrer-policy metadata when the deployment supplies them. That metadata is
+the only input made available to SSR preload planning or a compiler-authored dynamic boundary. It
+does not authorize a generic dynamic component to use server operations, and this proposal does not
+add a dynamic-component resolver. Partial-prerendering, when implemented, reacquires the accepted
+record by opaque build/exposure identity and never stores bundler paths in its artifact.
+
+## Ownership boundaries
+
+- `@exactjs/microfrontends` owns preparation, generated sources, manifest validation, runtime
+  registration contracts, and the adapter-neutral fixture oracle.
+- Vite/Rollup remains the reference adapter, not a separate semantic authority.
+- `@exactjs/webpack-plugin` owns Webpack hooks, virtual module plumbing, emitted-output indexing,
+  cache dependencies, and generation disposal.
+- `@exactjs/bun-plugin` owns `exactBuild()`, Bun hooks, emitted-output indexing, watch coordination,
+  and generation disposal.
+- Existing component-library policy, Intl build, enhancement catalogs, gateway, server, hydration,
+  and runtime packages retain their present authority. Adapters pass their results through and do
+  not reimplement them.
+
 ## Webpack integration
 
-The Webpack adapter should use explicit entry dependencies and virtual-module resolution compatible
-with persistent caching. Chunk and asset discovery occurs after compilation sealing through supported
-compilation hooks. Provided-package bootstrap must precede page entry evaluation without relying on
-incidental chunk ordering.
+Using Webpack's documented
+[`beforeCompile`, `make`, and completion hooks](https://webpack.js.org/api/compiler-hooks/), the
+adapter prepares one immutable plan, registers explicit entry
+dependencies, and installs generated entry/facade/registration/bridge modules through normal module
+resolution compatible with persistent caching. `processAssets` records actual entry chunks, CSS,
+assets, and transitive dynamic chunks after sealing. `done` publishes callbacks and the accepted
+generation only after compilation succeeds. `invalid`, `failed`, and `shutdown` discard or dispose
+the pending generation; a failed watch build leaves the last accepted development generation
+active rather than partially replacing it. Provided-package bootstrap is an explicit dependency of
+configured page entries and precedes their evaluation without relying on incidental chunk order or
+an HTML plugin.
 
 Watch invalidation must cover exposure components, enhancement export/activator maps, enhancement
 catalog inclusion policy, component-library trust configuration and marker dependencies, exact
@@ -112,13 +169,20 @@ not be evaluated.
 
 ## Bun integration
 
-The Bun adapter should register exposure entrypoints and generated modules through its plugin
-resolution/load hooks while respecting the configured output directory and public path. It must
-record dynamic chunks, CSS, and assets from actual build outputs rather than predict filenames.
+`exactBuild()` prepares exposure entrypoints before calling `Bun.build`. The installed plugin uses
+`onStart` to open the generation, `onResolve`/`onLoad` for generated modules and provided bridges,
+and `onEnd` to validate actual build outputs, record dynamic chunks/CSS/assets, and publish the
+accepted entry map. Output URLs derive from actual outputs plus configured public path, never from
+predicted filenames. Failure disposes the pending plan and retains the preceding accepted
+development registration. These are the documented
+[`BunPlugin` lifecycle hooks](https://bun.sh/reference/bun/BunPlugin); preparation does not depend on
+an adapter-private Bun patch.
 
-Development mode needs stable entry discovery and invalidation despite Bun's different watch/server
-lifecycle. If Bun lacks a required lifecycle hook, the adapter should fail explicitly or document a
-narrower mode instead of approximating stale production behavior.
+In watch mode, the coordinator tracks eXact config, exposure components, generated sources, trust
+markers, catalogs, and compiler graph inputs. A relevant change starts a fresh coordinated build;
+it never mutates the active plan. Bun server `--hot` remains unsupported because it cannot preserve
+the required last-valid authorization and registration generation. The adapter rejects that mode
+instead of approximating stale production behavior.
 
 ## Conformance matrix
 
@@ -171,9 +235,11 @@ latency materially.
 
 ## Delivery order
 
-1. Stabilize shared adapter conformance helpers around the existing Vite path.
-2. Complete Webpack production entry, virtual-module, asset, and manifest lifecycle.
-3. Complete Bun production entry, virtual-module, asset, and manifest lifecycle.
+1. Promote feasibility mappings into shared adapter conformance helpers and ratify the callbacks,
+   accepted-generation record, immutable artifact metadata, and Bun `exactBuild()` contract.
+2. Complete Webpack production entry, generated-module, output-index, callback, and lifecycle work.
+3. Complete Bun coordinator, production entry, generated-module, output-index, callback, and
+   lifecycle work.
 4. Add watch/development discovery and invalidation for each adapter.
 5. Add provided-package bootstrap ordering and SSR/client agreement tests.
 6. Run the heterogeneous fixture matrix and add it to affected/full release profiles.
@@ -182,6 +248,8 @@ latency materially.
 ## Verification
 
 - Focused adapter tests for hooks, virtual modules, entry naming, invalidation, and disposal.
+- Public contract tests for callback parity, Bun coordinator entry merging, direct-build rejection
+  with exposures, and zero microfrontend imports for ordinary builds.
 - Real production builds proving CSS, asset, and dynamic chunk URL reachability.
 - SSR/client artifact comparisons for exact build and exposure identities.
 - Enhancement artifact comparisons for activator-resolved canonical identities, inclusion-policy
@@ -204,3 +272,9 @@ latency materially.
 7. No bundler-specific path, module ID, or lifecycle detail becomes public protocol identity.
 8. Enhancement catalog construction remains independent of framework-plugin discovery and produces
    matching authorized component identities in every advertised server/client bundler pairing.
+9. Failed or invalidated builds never publish partial entry maps and retain at most the last
+   accepted development generation with bounded disposal.
+10. Webpack and Bun publish the same immutable client artifact metadata for preload/dynamic
+    consumers without granting generic dynamic components server authority.
+11. The Bun exposure path has one supported, fully named build coordinator; unsupported `--hot` and
+    direct-build exposure modes fail before producing ambiguous artifacts.

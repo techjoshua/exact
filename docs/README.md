@@ -75,7 +75,7 @@ indefinite exploratory pause.
 |    12 | [Broader lazy interaction-island eligibility](history/lazy-interaction-islands.md)                  | **Completed and archived:** independent server ranges, finite spread proof, bounded policy replay, generated activation metadata, and inspection explanations are implemented.                                       |
 |    13 | [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)    | **Removed as a standalone gate:** retain only measured, incremental render-program extensions; current authorized range and boundary replacement is sufficient for later stages.                                     |
 |    14 | [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)              | Implement authenticated reconstruction from attached component contracts and cached execution blueprints; do not serialize a second task graph or require a parallel structural plan.                                |
-|    15 | [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)    | Complete heterogeneous adapter conformance over the settled artifact, trust, locale, activation, refresh, and resumption contracts.                                                                                  |
+|    15 | [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)    | Complete heterogeneous adapter conformance over the settled artifact, trust, locale, activation, refresh, and generation contracts; it can proceed independently of partial prerendering.                            |
 |    16 | [Remaining JavaScript performance experiments](history/javascript-performance-improvements.md)      | **Completed and archived:** accepted bounded tooling/diagnostics, recorded measured rejections, and stopped after final profiles found no unnamed target.                                                            |
 
 The active and gated documents are:
@@ -84,9 +84,9 @@ The active and gated documents are:
 | ------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------ |
 | [Cooperative structured children](proposals/cooperative-structured-children.md)                               | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.              |
 | [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)              | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.       |
-| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)                        | Proposed    | Persist authenticated postponed slots and ownership, then reacquire the compiled root blueprint later.       |
-| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)              | Proposed    | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                     |
-| [Compiler-authored dynamic component boundaries](proposals/compiler-authored-dynamic-component-boundaries.md) | Proposed    | Add a warned, acknowledged client-only boundary for component values whose identity is intentionally opaque. |
+| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)                        | Ready       | Persist authenticated postponed slots and ownership, then reacquire the compiled root blueprint later.       |
+| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)              | Ready       | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                     |
+| [Compiler-authored dynamic component boundaries](proposals/compiler-authored-dynamic-component-boundaries.md) | Ready       | Add a warned, acknowledged client-only boundary for component values whose identity is intentionally opaque. |
 | [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)                   | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.  |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
@@ -98,8 +98,10 @@ proposal:
 
 Archived implementations, independent exploratory designs, and deferred optimizations do not
 create hidden prerequisites for the sequential program. Structural render-program extensions and
-dynamic component boundaries remain independent. Compiler-authored runtime capabilities and their
-optional-provider adapter matrix are implemented foundations rather than pending gates.
+partial prerendering remain independent. Dynamic component boundaries are independently ready;
+only their remote-candidate conformance consumes Webpack/Bun parity. Compiler-authored runtime
+capabilities and their optional-provider adapter matrix are implemented foundations rather than
+pending gates.
 
 The August 2026 architecture reevaluation compared every active document with the implemented
 compiler, renderer, SSR, hydration, task, and adapter contracts. Enhancement-first

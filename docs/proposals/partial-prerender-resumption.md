@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed after
+Implementation-ready after the implemented
 [`recursive-server-client-graph-partitioning.md`](../history/recursive-server-client-graph-partitioning.md),
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](../history/server-component-library-trust.md),
@@ -84,28 +84,53 @@ later request
 
 ## Authoring surface
 
-Names remain provisional, but the public shape should be adapter-neutral and keep the artifact
-opaque:
+`@exactjs/ssr/prerender` owns the ratified `prerender()` and `resumePrerender()` APIs. The focused
+server-only subpath keeps checkpoint codecs and cryptography out of ordinary SSR consumers. The
+artifact remains opaque:
 
 ```ts
 const result = await prerender(<Page />, {
 	contexts,
+	identity: { applicationId, buildKey, executionRoot },
+	protection,
 	signal
 });
 
 result.html;
 result.postponed;
 
-const response = await resumePrerender(result.postponed, {
-	request,
-	contexts,
-	signal
-});
+if (result.postponed !== null) {
+	const response = await resumePrerender(result, {
+		request,
+		contexts,
+		identity: { applicationId, buildKey, executionRoot },
+		protection,
+		replayStore,
+		signal
+	});
+}
 ```
 
-`postponed` is a branded framework value suitable for an application-selected storage layer. The
-framework may encode and authenticate it directly or expose a storage envelope, but application
-code cannot inspect or construct its executable identities.
+The public `ExactPrerenderResult` is a readonly discriminated union of `{ html, postponed: null }`
+and `{ html, postponed: ExactPostponedArtifact }`. The artifact is an authenticated-encrypted,
+branded string suitable for application-selected storage. `resumePrerender()` accepts only the
+non-null member so it can verify the stored HTML digest before emitting that prelude, then returns
+the existing adapter-neutral
+`ExactResponseLike` with progressive resumed output. Patch-only client resumption is not part of
+the initial API.
+
+`ExactPrerenderProtection` is a public sealing/opening interface. The subpath supplies
+`createPrerenderKeyringProtection()` using Web Crypto AES-256-GCM with an active key identifier and
+retained read keys for rotation. Applications may supply an equivalent implementation, but
+plaintext and authentication-only artifacts are rejected. Both phases require the same
+application/build/root identity rather than deriving authority from the artifact.
+
+`ExactPrerenderReplayStore` exposes one atomic `consume(artifactId, expiresAt, signal)` operation.
+It is required for every non-null resume and must return false for an already consumed artifact.
+The framework supplies an explicitly development-only bounded in-memory implementation; production
+adapters require application-owned durable or distributed storage. All artifacts are single-use in
+this delivery. A future compiler proof may introduce a separate replay-safe format, but resume must
+not infer read-only safety from runtime observations.
 
 ## Artifact contents
 
@@ -162,16 +187,25 @@ saved generation cannot be partially reconstructed.
 
 ## Authentication, storage, and expiry
 
-An artifact is authenticated and bound to its build, application, execution root, issued-at time,
-expiry, and optional deployment generation. Encryption is required when authorized public values
-are not safe for application-visible storage. Integrity verification occurs before operation lookup
-or context acquisition.
+Every artifact is authenticated-encrypted and bound as associated data to its schema, application,
+build, execution root, issued-at time, expiry, key identifier, stored-HTML digest, and optional
+deployment generation. Opening, identity comparison, expiry validation, HTML-digest validation,
+and atomic replay consumption all occur before operation lookup, context acquisition, response
+headers, or prelude bytes. A failure throws a typed prerender validation error so the application
+may perform an ordinary full render without having partially committed stale output.
 
 The application owns storage location, retention, routing, and deployment rollout. The framework
-owns size limits, schema validation, authentication hooks, replay policy, and disposal of any
-framework-side retained record. Default artifacts should be single-use when resumed work can cause
-effects; explicitly replay-safe read-only checkpoints may permit bounded reuse under a separate
-policy.
+owns schema validation, cryptographic interface, resource limits, replay protocol, and disposal of
+framework-side scratch state. The application stores the opaque artifact with its HTML record; the
+framework does not introduce an application-global checkpoint store or an indirect token service.
+
+Defaults are a five-minute lifetime, 1 MiB encoded artifact, 1,024 postponed partitions, depth 100,
+and 100,000 decoded records. Configurable limits may only narrow or raise these within documented
+hard maxima; the encoded artifact hard maximum is 16 MiB and expiry hard maximum is 24 hours.
+Decode and reconstruction budgets are checked independently of encoded size. Rejection releases
+decoded buffers and never marks an artifact consumed until cryptographic, identity, digest, schema,
+and resource validation have succeeded; replay consumption still occurs before any executable
+contract or context is acquired.
 
 ## Resume execution
 
@@ -191,6 +225,36 @@ policy.
 The resume request cannot access completed sibling partitions merely because they shared the
 original component. Context lookup failure, retired build identity, or invalid operation identity
 fails the postponed range through the configured recovery contract.
+
+`prerender()` buffers the storage prelude intentionally. Resume validates that prelude, writes it
+once through the existing request chunk writer, and then writes authorized progressive patches
+without repeated string joining. The Node adapter uses `ExactResponseBody.writeToNode()` directly;
+a Web `ReadableStream` is constructed lazily only for consumers requesting that interface. A
+boundary failure after output begins follows ordinary progressive SSR error/fallback publication;
+all envelope and reconstruction failures that can be known earlier fail before output begins.
+
+An unresolved compiler-authored dynamic component contributes only its client activation identity
+and an authorized immutable preload-selection fact. Its resolver, promise, candidate, URL, and
+possible implementation graph never enter the artifact, and resume never resolves it on the
+server. The retained build plan reacquires any current canonical preload URL after validation.
+
+## Package ownership and implementation boundary
+
+- The native compiler emits checkpoint eligibility, serializable-slot schemas, partition
+  containment, and reconstruction identities in attached component contracts.
+- `@exactjs/ssr/prerender` owns the public APIs, opaque codec, protection/keyring helper, limits,
+  reconstruction, and typed validation errors. It reuses the existing SSR renderer and plans.
+- `@exactjs/server` owns request/context reacquisition, replay-store contracts, build retention,
+  cancellation, and direct response-body transport.
+- Node, Fetch, and serverless adapters map `ExactResponseLike` to their response lifecycle. They do
+  not own artifact schema, resumption semantics, or application storage.
+- Hydration and progressive publication consume the existing range/boundary patch protocol; no new
+  client resumption runtime is introduced.
+
+There are no provisional public names or unresolved security modes. Structural refresh extensions,
+Webpack/Bun microfrontend parity, and dynamic component boundaries are not implementation
+prerequisites. Each feature must merely preserve the opaque identities and containment rules above
+when present.
 
 ## Performance and reconstructed-lifetime constraints
 
@@ -223,23 +287,27 @@ traded silently for one checkpoint's latency.
 
 ## Delivery order
 
-1. Define a versioned internal checkpoint schema and round-trip it entirely in memory.
-2. Reconstruct one postponed Suspense boundary with no external context.
+1. Add the focused public subpath, ratified types, limits, versioned checkpoint schema, keyring
+   protection, and replay-store contract; round-trip only inert records in memory.
+2. Reconstruct one postponed Suspense boundary with no external context after full preflight.
 3. Reacquire named request/application contexts and protect secret/residency boundaries.
-4. Resume nested partitions by restoring validated slot availability and letting the attached
+4. Resume nested partitions by restoring validated slot availability and letting attached
    component transitions recreate their ordinary request-owned task relationships.
-5. Add authenticated serialization, expiry, size limits, and single-use replay protection.
-6. Integrate adapter-neutral response and streaming contracts.
-7. Add deployment retention and stale-build recovery guidance.
+5. Integrate atomic replay consumption and adapter-neutral direct response-body streaming.
+6. Add deployment retention and stale-build recovery guidance.
 
 ## Verification
 
 - Schema and property tests for deterministic encoding, malformed values, size limits, and version
   rejection.
+- Cryptographic contract tests for key rotation, associated-data mismatch, ciphertext tampering,
+  HTML substitution, expiry, and failure before response commitment.
 - Security tests proving secrets, contexts, callbacks, request objects, source text, and module paths
   cannot enter artifacts.
 - Integration tests that prerender, destroy all runtime state, then resume in a fresh server host.
 - Cancellation, expiry, replay, stale-build, missing-context, and retired-operation tests.
+- Concurrent replay tests proving exactly one process may consume an artifact and the development
+  in-memory replay store is bounded and never advertised for production.
 - Nested Suspense, Activity, server slot, task-ownership, range-replacement, and boundary-fallback
   tests.
 - Transparent and structural enhancement tests covering activator groups, shared props,
@@ -262,3 +330,7 @@ traded silently for one checkpoint's latency.
 8. Active enhancement components resume through ordinary component ownership and retain their
    activator grouping, shared props, context order, task tree, bounded root-frame authority, target
    generation, Activity, and lifecycle guarantees.
+9. The public record, protection, replay, limit, error, and response contracts are fully named and
+   adapters require no private SSR representation.
+10. Resume validates the stored HTML and all artifact authority before emitting bytes, then uses
+    the existing chunk-native response path without a mandatory Web stream or second client model.

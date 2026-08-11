@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed after the implemented
+Implementation-ready after the implemented
 [`compiler-authored-runtime-capabilities.md`](../history/compiler-authored-runtime-capabilities.md),
 [`compiler-authored-runtime-capabilities-adapters.md`](../history/compiler-authored-runtime-capabilities-adapters.md),
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
@@ -14,8 +14,8 @@ Local and application-bundled dynamic components do not depend on broader microf
 parity. Loading an independently deployed remote component does depend on the existing
 microfrontend trust and artifact contracts and on the applicable host adapter supporting them.
 
-The annotation spelling `@exact dynamic` is provisional until implementation begins. Its semantics
-and attachment rules are part of this proposal even if the final spelling changes.
+The public helper name `createDynamicComponent()` and annotation spelling `@exact dynamic` are
+ratified by this proposal. There are no remaining design decisions that block implementation.
 
 ## Decision
 
@@ -112,6 +112,30 @@ const ExtensionPanel = extensionEntry;
 return () => <ExtensionPanel />;
 ```
 
+The preferred form for a provider that may publish synchronously or asynchronously is the typed
+helper exported by `@exactjs/core`:
+
+```tsx
+const Panel = createDynamicComponent<PanelProps>(() =>
+	extensionProvider.resolve(this.state.panelName)
+);
+
+return () => (
+	<Suspense fallback={<LoadingPanel />}>
+		<Panel account={this.state.account} />
+	</Suspense>
+);
+```
+
+`createDynamicComponent<Props>(resolve)` is called during component setup and returns a stable,
+JSX-valid `AuthoredComponentFunction<Record<string, unknown>, Props>` facade. Its resolver may
+return a branded authored component with compatible props, `null`, `undefined`, or a promise of one
+of those outcomes. The compiler recognizes the facade and lowers each JSX use to the canonical
+dynamic node; the facade is never invoked as an
+ordinary setup function. Resolver reads become the boundary's reactive selection dependencies, so
+dependency changes cancel and replace the current generation. Calling the helper outside component
+setup is an error because there would be no durable owner for its watcher and cancellation root.
+
 The initial annotation attachment set is deliberately narrow:
 
 - a variable declaration;
@@ -128,9 +152,10 @@ If the annotation is present but its binding is never eligible for component pos
 tooling reports an unnecessary or misplaced annotation. The annotation does not suppress ordinary
 TypeScript JSX diagnostics. A value that TypeScript proves cannot be a component remains an error.
 
-The compiler may recognize a future typed dynamic-provider result without warning, but that type
-must describe the same runtime boundary contract. It cannot become a second component registry or
-grant server authority. No public provider helper is required by this proposal's first delivery.
+The typed helper needs no annotation and never grants server authority. `@exact dynamic` is the
+escape hatch for an already TypeScript-valid opaque binding where introducing a provider would add
+no value. It does not broaden `JSX.ElementType`, suppress TypeScript diagnostics, or turn arbitrary
+values into components.
 
 ## Classification and diagnostics
 
@@ -377,10 +402,43 @@ Benchmarks must compare a static component, finite registry selection, synchrono
 pending lazy value, and repeated selection replacement. Report client bundle bytes, module
 evaluation, mount and replacement CPU, allocation and retained heap, and stale-load cancellation.
 
+## Package ownership and implementation boundary
+
+- `@exactjs/core` exports `createDynamicComponent()`, its resolver/result types, and the focused
+  owner-scoped availability state machine from a tree-shakeable dynamic-component module.
+- The native compiler owns `@exact dynamic`, classification, diagnostics, reactive dependency
+  extraction, helper recognition, canonical-node lowering, and capability imports. The LSP consumes
+  that same classification result.
+- `@exactjs/dom` owns the child range, candidate adoption, replacement, prop forwarding, and
+  disposal. `@exactjs/hydrate` adopts the SSR marker and starts client resolution.
+- `@exactjs/ssr` owns fallback output, activation metadata, and request-owned preload contributions;
+  it never imports or resolves the candidate.
+- `@exactjs/server` rejects attached dynamic contracts containing server operations or server-homed
+  dependencies before dispatch authority can be installed.
+- DevTools exposes the synthetic boundary and availability generation without manufacturing a
+  component owner.
+- Build adapters map compiler-proven chunks and authorized remote exposure identities to client
+  artifacts. The microfrontend plugin remains the owner of remote trust and artifact lifecycle.
+
+The authored helper and generated renderer capability are imported only by modules that use them.
+No package adds dynamic resolution to the unconditional core, DOM, hydration, or SSR startup path.
+
+## Dependency and compatibility boundary
+
+Local imports, in-memory values, and bundler-supported lazy chunks can be implemented on every
+existing client build host. Independently deployed remote candidates require that host's production
+microfrontend lifecycle; Webpack and Bun gain it through
+[`webpack-bun-microfrontend-parity.md`](webpack-bun-microfrontend-parity.md). This is a scoped
+adapter dependency, not a prerequisite for the base boundary.
+
+Partial-prerender resumption may serialize only activation identity and an authorized preload fact.
+It cannot serialize or restore the resolver, promise, candidate, or adopted owner. The
+partial-prerender proposal consumes this rule without blocking either implementation.
+
 ## Delivery order
 
 1. Add the shared compiler classification and diagnostic fact consumed by build and language tools.
-2. Ratify the annotation spelling and implement narrow symbol attachment plus LSP quick fixes.
+2. Implement the ratified annotation's narrow symbol attachment plus LSP quick fixes.
 3. Emit the canonical dynamic node and focused client runtime capability for synchronous values.
 4. Implement owned-range adoption, replacement, branding validation, disposal, and DevTools state.
 5. Add asynchronous provider availability, cancellation, Suspense/error integration, and caching.
@@ -397,6 +455,8 @@ evaluation, mount and replacement CPU, allocation and retained heap, and stale-l
 
 - Compiler tests for static, registry, adapted, annotated dynamic, unannotated dynamic, and invalid
   JSX values.
+- Type and compiler tests proving `createDynamicComponent()` is JSX-valid, recognizes synchronous
+  and asynchronous providers, owns resolver dependencies, and fails outside component setup.
 - Exact-output tests proving only dynamic modules import the focused runtime capability.
 - Shared compiler/LSP diagnostic identity, source range, hover explanation, and safe quick fixes.
 - Tests proving annotations do not suppress TypeScript errors, placement errors, unsupported import
@@ -450,3 +510,5 @@ evaluation, mount and replacement CPU, allocation and retained heap, and stale-l
     the feature.
 13. Long-running cancellation and replacement tests show no retained component, loader, request,
     subscription, or obsolete artifact generation.
+14. `createDynamicComponent()` and `@exact dynamic` share one compiler classification and canonical
+    boundary without weakening ordinary TypeScript JSX validity.
