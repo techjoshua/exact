@@ -10,6 +10,7 @@ import {
 	exactUnavailableEnhancementFacadeSource
 } from './enhancement-facades.js';
 
+/** Records one generated provider facade and the authored import edge whose availability it masks. */
 export type ExactPhysicalEnhancementFacade = Readonly<{
 	filename: string;
 	importer: string;

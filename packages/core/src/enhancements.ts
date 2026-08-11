@@ -69,7 +69,10 @@ export function createEnhancementNode(
 	});
 }
 
-/** @deprecated Compiler output now calls createEnhancementNode. */
+/**
+ * Creates the legacy marker shape while preserving the canonical enhancement-node semantics.
+ * @deprecated Compiler output now calls createEnhancementNode.
+ */
 export const createEnhancementMarker: (entries: readonly EnhancementEntry[]) => EnhancementMarker =
 	createEnhancementNode;
 
