@@ -145,6 +145,24 @@ export type ExactComponentExecutionContract = Readonly<{
 	}>[];
 }>;
 
+/** Canonical compiler description from which one durable state-machine instance is created. */
+export type ExactCompiledComponentDefinitionContract = Readonly<{
+	version: 1;
+	instantiate: (...args: any[]) => any;
+	state: readonly string[];
+	tasks: readonly string[];
+	reactive: ExactComponentExecutionContract['reactive'];
+	render: 'returned-function';
+	capabilities: readonly (
+		| 'tasks'
+		| 'continuations'
+		| 'resumption'
+		| 'inspection'
+		| 'registry'
+		| 'enhancements'
+	)[];
+}>;
+
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{
 	/** Partition-aware component artifact contract. Version 1 artifacts are not adopted. */
@@ -157,6 +175,7 @@ export type ExactComponentContract = Readonly<{
 	boundaries: readonly ExactComponentBoundaryContract[];
 	resumption?: ExactComponentResumptionContract;
 	execution?: ExactComponentExecutionContract;
+	definition?: ExactCompiledComponentDefinitionContract;
 }>;
 
 /** Composed target-local contracts indexed for runtime use. */
@@ -168,6 +187,7 @@ export type ExactComposedComponentContracts = Readonly<{
 	boundaries: Record<string, ExactComponentBoundaryContract>;
 	resumptions: Record<string, ExactComponentResumptionContract>;
 	executions: Record<string, ExactComponentExecutionContract>;
+	definitions: Record<string, ExactCompiledComponentDefinitionContract>;
 }>;
 
 type ContractComponent = ((...args: any[]) => any) & {
@@ -231,6 +251,7 @@ export function composeExactComponentContracts(
 	const boundaries: Record<string, ExactComponentBoundaryContract> = {};
 	const resumptions: Record<string, ExactComponentResumptionContract> = {};
 	const executions: Record<string, ExactComponentExecutionContract> = {};
+	const definitions: Record<string, ExactCompiledComponentDefinitionContract> = {};
 
 	for (const component of components) {
 		const contract = readExactComponentContract(component);
@@ -262,6 +283,7 @@ export function composeExactComponentContracts(
 			);
 		if (contract.execution)
 			addUniqueJson(executions, componentId, contract.execution, 'execution plan');
+		if (contract.definition) definitions[componentId] = contract.definition;
 	}
 
 	return Object.freeze({
@@ -271,7 +293,8 @@ export function composeExactComponentContracts(
 		executors,
 		boundaries,
 		resumptions,
-		executions
+		executions,
+		definitions
 	});
 }
 

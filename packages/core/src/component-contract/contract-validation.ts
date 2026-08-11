@@ -34,7 +34,8 @@ export function isExactComponentContract(
 			'executors',
 			'boundaries',
 			'resumption',
-			'execution'
+			'execution',
+			'definition'
 		]) &&
 		value.version === 2 &&
 		(value.placement === 'client' ||
@@ -59,7 +60,36 @@ export function isExactComponentContract(
 		) &&
 		(value.resumption === undefined ||
 			(isResumption(value.resumption) && value.resumption.componentId === componentId)) &&
-		(value.execution === undefined || isExecution(value.execution))
+		(value.execution === undefined || isExecution(value.execution)) &&
+		(value.definition === undefined || isDefinition(value.definition))
+	);
+}
+
+function isDefinition(value: unknown): boolean {
+	return (
+		isContractRecord(value) &&
+		hasOnlyContractKeys(value, [
+			'version',
+			'instantiate',
+			'state',
+			'tasks',
+			'reactive',
+			'render',
+			'capabilities'
+		]) &&
+		value.version === 1 &&
+		typeof value.instantiate === 'function' &&
+		isSafeContractStringList(value.state) &&
+		isSafeContractStringList(value.tasks) &&
+		Array.isArray(value.reactive) &&
+		value.reactive.every(isReactiveAllocation) &&
+		value.render === 'returned-function' &&
+		Array.isArray(value.capabilities) &&
+		value.capabilities.every((capability) =>
+			['tasks', 'continuations', 'resumption', 'inspection', 'registry', 'enhancements'].includes(
+				capability
+			)
+		)
 	);
 }
 

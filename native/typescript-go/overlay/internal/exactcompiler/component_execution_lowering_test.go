@@ -34,6 +34,10 @@ func TestComponentExecutionPropagatesOutputSourcesThroughChildProps(t *testing.T
 		`__exactComponentOutput(this, "result", __exactExpression(() => this.state.result))`,
 		"execution:",
 		`direction: "output"`,
+		"definition:",
+		`render: "returned-function"`,
+		`"tasks"`,
+		`"continuations"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("compiled output is missing %q:\n%s", expected, response.Code)
@@ -41,6 +45,26 @@ func TestComponentExecutionPropagatesOutputSourcesThroughChildProps(t *testing.T
 	}
 	if strings.Contains(response.Code, "resumption:") {
 		t.Fatalf("server-only execution contract must not publish client resumption metadata:\n%s", response.Code)
+	}
+}
+
+func TestTaskFreeExportCarriesCanonicalDefinitionWithoutTaskCapability(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "static.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `export function StaticPanel() { return () => <p>ready</p>; }`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{"definition:", "state: []", "tasks: []", "capabilities: []"} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("task-free definition is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `from "@exactjs/core/runtime/tasks"`) {
+		t.Fatalf("task-free component imported the task runtime:\n%s", response.Code)
 	}
 }
 

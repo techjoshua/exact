@@ -287,9 +287,9 @@ func brandComponentFunctionValue(
 func componentRootContract(
 	component Component,
 	target Target,
-	continuations []Continuation,
-	resumptions []ComponentResumption,
-	boundaries []Boundary,
+	_ []Continuation,
+	_ []ComponentResumption,
+	_ []Boundary,
 ) bool {
 	if !component.Exported {
 		return false
@@ -303,32 +303,9 @@ func componentRootContract(
 	if component.Placement != "isomorphic" {
 		return false
 	}
-	for _, transition := range component.Execution.Transitions {
-		if (target == TargetClient && transition.Placement != "server") ||
-			(target == TargetServer && transition.Placement != "client") {
-			return true
-		}
-	}
-	for _, continuation := range continuations {
-		if continuation.ComponentID == component.ID {
-			return target == TargetClient || target == TargetServer
-		}
-	}
-	for _, resumption := range resumptions {
-		if resumption.ComponentID == component.ID &&
-			(len(resumption.Client.StatePaths) != 0 ||
-				len(resumption.Client.ValueCaptures) != 0 ||
-				len(resumption.Client.Contexts) != 0 ||
-				len(resumption.Client.Boundaries) != 0) {
-			return target == TargetClient || target == TargetServer
-		}
-	}
-	for _, boundary := range boundaries {
-		if boundary.OwnerComponentID == component.ID {
-			return target == TargetClient || target == TargetServer
-		}
-	}
-	return false
+	// Every exported isomorphic component carries the same canonical definition,
+	// including task-free components whose target-local execution graph is empty.
+	return true
 }
 
 func brandComponentVariables(
@@ -657,6 +634,7 @@ func rootComponentContractAttachment(
 	if target == TargetClient {
 		role = "client"
 	}
+	projectedExecution := projectComponentExecution(component.Execution, target)
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
@@ -692,7 +670,18 @@ func rootComponentContractAttachment(
 		contractProperty(
 			factory,
 			"execution",
-			componentExecutionMetadata(factory, projectComponentExecution(component.Execution, target)),
+			componentExecutionMetadata(factory, projectedExecution),
+		),
+		contractProperty(
+			factory,
+			"definition",
+			componentDefinitionMetadata(
+				factory,
+				implementation,
+				projectedExecution,
+				componentContinuations,
+				componentHasResumption(component.ID, resumptions),
+			),
 		),
 	}
 	if component.Placement != "server" {
@@ -778,6 +767,19 @@ func rootComponentContractAttachment(
 		" @__PURE__ ",
 		false,
 	)
+}
+
+func componentHasResumption(componentID string, resumptions []ComponentResumption) bool {
+	for _, resumption := range resumptions {
+		if resumption.ComponentID == componentID &&
+			(len(resumption.Client.StatePaths) != 0 ||
+				len(resumption.Client.ValueCaptures) != 0 ||
+				len(resumption.Client.Contexts) != 0 ||
+				len(resumption.Client.Boundaries) != 0) {
+			return true
+		}
+	}
+	return false
 }
 
 func wrapRootComponentVariables(

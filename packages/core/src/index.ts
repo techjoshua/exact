@@ -234,6 +234,7 @@ export {
 	markExactComponent,
 	readExactComponentContract,
 	type ExactComponentBoundaryContract,
+	type ExactCompiledComponentDefinitionContract,
 	type ExactCollectionMutation,
 	type ExactComponentContinuationActivation,
 	type ExactComponentContinuationContract,

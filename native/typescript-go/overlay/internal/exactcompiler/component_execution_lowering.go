@@ -52,6 +52,55 @@ func componentExecutionMetadata(
 	)
 }
 
+// componentDefinitionMetadata emits the single compiler-owned description
+// interpreted to create each durable state-machine instance.
+func componentDefinitionMetadata(
+	factory *printer.NodeFactory,
+	instantiate *ast.Node,
+	execution ComponentExecution,
+	continuations []Continuation,
+	hasResumption bool,
+) *ast.Node {
+	state := []string{}
+	tasks := []string{}
+	capabilities := []string{}
+	for _, port := range execution.Ports {
+		if port.Kind == "state" {
+			state = append(state, port.Path)
+		}
+	}
+	for _, transition := range execution.Transitions {
+		tasks = append(tasks, transition.ID)
+	}
+	if len(tasks) != 0 {
+		capabilities = append(capabilities, "tasks")
+	}
+	if len(continuations) != 0 {
+		capabilities = append(capabilities, "continuations")
+	}
+	if hasResumption {
+		capabilities = append(capabilities, "resumption")
+	}
+	reactive := make([]*ast.Node, 0, len(execution.Reactive))
+	for _, binding := range execution.Reactive {
+		reactive = append(reactive, contractObject(factory, true,
+			contractProperty(factory, "name", contractString(factory, binding.Name)),
+			contractProperty(factory, "provenance", contractString(factory, binding.Provenance)),
+			contractProperty(factory, "allocation", contractString(factory, binding.Allocation)),
+			contractProperty(factory, "dependencies", stringMetadata(factory, binding.Dependencies)),
+		))
+	}
+	return contractObject(factory, true,
+		contractProperty(factory, "version", contractNumber(factory, 1)),
+		contractProperty(factory, "instantiate", instantiate),
+		contractProperty(factory, "state", stringMetadata(factory, state)),
+		contractProperty(factory, "tasks", stringMetadata(factory, tasks)),
+		contractProperty(factory, "reactive", contractArray(factory, reactive...)),
+		contractProperty(factory, "render", contractString(factory, "returned-function")),
+		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
+	)
+}
+
 // projectComponentExecution removes opposite-target transitions and compacts
 // their now-unreachable ports before metadata reaches a physical artifact.
 func projectComponentExecution(execution ComponentExecution, target Target) ComponentExecution {

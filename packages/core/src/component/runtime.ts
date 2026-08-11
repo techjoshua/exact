@@ -5,10 +5,6 @@ import {
 	type Reactive,
 	type ReactiveValue
 } from '@exactjs/reactive';
-import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks/activation.js';
-import { componentContinuationTaskId } from '../tasks/component-continuation.js';
-import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
-import { releaseTaskObserver, retainTaskObserver } from '../tasks/observers.js';
 import { createComponentActivation, type ComponentActivation } from './activation.js';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
@@ -47,7 +43,7 @@ import {
 import { createComponentListController } from './list-controller.js';
 import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins } from './plugins.js';
-import { configureComponentTaskOwner } from './task-owner-integration.js';
+import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
 import { reactiveValue } from './reactive-value.js';
 import { createComponentIntlFacade } from '../localization/facade.js';
 import type { IntlFacade } from '../localization/contracts.js';
@@ -87,7 +83,8 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	private lists?: ReturnType<typeof createComponentListController>;
 	private intlFacade?: IntlFacade;
 	private readonly inspection;
-	private readonly taskOwner;
+	private readonly taskCapability = componentTaskCapability();
+	private taskState?: ComponentTaskCapabilityState;
 	private readonly activation: ComponentActivation;
 	private activityBlockers?: Set<symbol>;
 	private mountedValue = false;
@@ -113,13 +110,6 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		});
 		this.state = createComponentState<State>(domain, () => this);
 		this.props = createComponentProps(rawProps);
-		const contract = readExactComponentContract(type);
-		this.taskOwner =
-			contract === undefined ||
-			contract.continuations.length !== 0 ||
-			(contract.execution?.transitions.length ?? 0) !== 0
-				? createTaskOwnerRecord(this.id)
-				: undefined;
 		this.activation = createComponentActivation(
 			this,
 			() => this.mountedValue,
@@ -315,7 +305,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		teardown(() => this.scope.stop());
 		if (this.lists) teardown(() => this.lists!.dispose());
 		if (this.mountController) teardown(() => this.mountController!.abort(reason));
-		if (this.taskOwner) teardown(() => void this.taskOwner![Symbol.asyncDispose]());
+		if (this.taskState) teardown(() => this.taskCapability?.release(this.taskState, this));
 		for (const handler of componentLifecycleHandlers(this, 'unmount')) {
 			try {
 				const result = handler({ signal: AbortSignal.abort(reason), reason });
@@ -328,7 +318,6 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			}
 		}
 		clearComponentLifecycleHandlers(this);
-		releaseTaskObserver(this);
 		if (failed) throw firstError;
 	}
 
@@ -336,11 +325,16 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
-			if (this.taskOwner) deferTaskOwnerActivations(this.taskOwner);
 		}
-		const taskObserver = this.taskOwner
-			? configureComponentTaskOwner(this, this.taskOwner, execution, rawProps)
-			: undefined;
+		const contract = readExactComponentContract(this.type);
+		this.taskState = this.taskCapability?.create(
+			this,
+			this.type,
+			contract,
+			execution,
+			rawProps,
+			Boolean(resumption)
+		);
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });
@@ -349,12 +343,15 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		if (resumption) prepareComponentContextResumption(this, resumption);
 
 		let result: RenderFunction;
+		const instantiate = contract?.definition?.instantiate ?? this.type;
 		try {
 			result = withEffectScope(this.scope, () =>
 				withComponentDomain(this.domain, () =>
-					this.taskOwner
-						? withTaskOwnerRecord(this.taskOwner, () => this.type.call(this, this.props as Props))
-						: this.type.call(this, this.props as Props)
+					this.taskCapability
+						? this.taskCapability.run(this.taskState, () =>
+								instantiate.call(this, this.props as Props)
+							)
+						: instantiate.call(this, this.props as Props)
 				)
 			);
 		} catch (error) {
@@ -365,11 +362,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 			this.inspection?.publish({ kind: 'resumption.activate', component: this });
 			const settledContinuations = new Set(resumption.settledContinuations);
-			if (this.taskOwner)
-				releaseTaskOwnerActivations(this.taskOwner, (task) => {
-					const continuationId = componentContinuationTaskId(task);
-					return continuationId !== undefined && settledContinuations.has(continuationId);
-				});
+			this.taskCapability?.resume(this.taskState, settledContinuations);
 		}
 		if (typeof result !== 'function') {
 			const error = new TypeError(
@@ -379,8 +372,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			throw error;
 		}
 		this.renderFunctionValue = result;
-		taskObserver?.retain?.(this);
-		if (taskObserver?.retain) retainTaskObserver(this, taskObserver);
+		this.taskCapability?.retain(this.taskState, this);
 	}
 }
 

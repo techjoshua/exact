@@ -399,3 +399,4 @@ function resolveBoundOwner(owner?: TaskOwner): TaskOwnerRecord {
 		throw new Error('Binding task status requires an explicit owner outside a durable task host');
 	return ownerRecord;
 }
+import '../component/task-capability-integration.js';

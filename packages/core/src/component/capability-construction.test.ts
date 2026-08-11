@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { exactComponentContract, exactComponentType } from '../component-contracts.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
+import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
 import { createComponentInstance } from './runtime.js';
 
