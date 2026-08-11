@@ -20,7 +20,6 @@ import {
 	UnsafeHtml,
 	unwrap,
 	watch,
-	type Child,
 	type ComponentFunction,
 	type ComponentInstance,
 	type VNode
@@ -28,18 +27,12 @@ import {
 import {
 	createEffectScope,
 	flushSync,
-	peek,
 	transferEffectScope,
 	withEffectScope,
 	type EffectScope
 } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import {
-	getComponentProps,
-	getListBinding,
-	materializeList,
-	stopReplacedChildren
-} from '../../children.js';
+import { getComponentProps, getListBinding, materializeList } from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
 import { setElementOwner, setNodeOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
@@ -263,8 +256,7 @@ export function mountInner(
 		return mounted;
 	}
 
-	if (vnode.type === Dynamic)
-		return mountDynamic(root, vnode, scope, parentInstance, parentNode);
+	if (vnode.type === Dynamic) return mountDynamic(root, vnode, scope, parentInstance, parentNode);
 
 	if (vnode.type === Portal) {
 		const marker = createMarker(root, 'portal');

@@ -35,14 +35,21 @@ function artifactFor(
 		: (artifacts as Readonly<Record<string, DynamicComponentArtifact>>)[id];
 }
 
-function validArtifact(value: DynamicComponentArtifact | undefined): value is DynamicComponentArtifact {
+function validArtifact(
+	value: DynamicComponentArtifact | undefined
+): value is DynamicComponentArtifact {
 	if (!value?.authorized || !value.immutable || !safeUrl(value.url)) return false;
-	return value.integrity === undefined || /^[A-Za-z0-9-]+-[A-Za-z0-9+/=]+(?:\s+[A-Za-z0-9-]+-[A-Za-z0-9+/=]+)*$/.test(value.integrity);
+	return (
+		value.integrity === undefined ||
+		/^[A-Za-z0-9-]+-[A-Za-z0-9+/=]+(?:\s+[A-Za-z0-9-]+-[A-Za-z0-9+/=]+)*$/.test(value.integrity)
+	);
 }
 
 function safeUrl(url: string): boolean {
-	return !/[\u0000-\u0020\u007f]/.test(url) &&
-		((url.startsWith('/') && !url.startsWith('//')) || url.startsWith('https://'));
+	return (
+		!/[\u0000-\u0020\u007f]/.test(url) &&
+		((url.startsWith('/') && !url.startsWith('//')) || url.startsWith('https://'))
+	);
 }
 
 function htmlAttributes(artifact: DynamicComponentArtifact): string {

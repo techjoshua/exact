@@ -137,6 +137,9 @@ func classifyDynamicComponentTag(
 	if scalarDerivedType(typeChecker.GetTypeAtLocation(tag)) {
 		return dynamicComponentInvalid, directive, dynamicComponentOwningDeclaration(symbol)
 	}
+	if _, finite := resolveJSXComponentValue(tag, sourceFile, typeChecker); finite {
+		return "", nil, nil
+	}
 	if directive != nil {
 		return dynamicComponentAnnotated, directive, nil
 	}

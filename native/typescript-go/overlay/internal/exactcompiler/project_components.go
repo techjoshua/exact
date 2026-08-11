@@ -168,9 +168,14 @@ func linkProjectComponents(
 						}
 						return true
 					}
-					// A TypeScript-valid local value in component position is an open
-					// dynamic boundary. The shared dynamic-component analysis reports
-					// acknowledgement diagnostics and lowering owns runtime validation.
+					if scalarDerivedType(typeChecker.GetTypeAtLocation(tag)) {
+						appendComponentDiagnostic(
+							&record.component,
+							"error: JSX component-position value is not callable or constructable and cannot be a dynamic component",
+						)
+					}
+					// Other TypeScript-valid local values are open dynamic boundaries.
+					// Shared analysis reports their acknowledgement warning.
 					return true
 				}
 				bindings := importBindingsBySource[record.sourceFile]

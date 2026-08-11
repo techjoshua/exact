@@ -40,13 +40,7 @@ import {
 	readBunLoadSource
 } from './source-loading.js';
 export { mergeConditions, resolveExactBunRequest } from './selection.js';
-import type {
-	BunBuildLike,
-	BunLoadArgs,
-	BunLoadResult,
-	BunPluginLike,
-	ExactBunPluginOptions
-} from './types.js';
+import type { BunPluginLike, ExactBunPluginOptions } from './types.js';
 export type * from './types.js';
 
 /** Creates the Bun plugin that transforms eXact JSX and resolves .exact facade imports. */
@@ -69,9 +63,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 		name: 'exact',
 		setup(build) {
 			const remote = options.__exactRemoteBuild?.adapter;
-			const remoteIntegration = remote
-				? new ExactBunMicrofrontendIntegration(remote)
-				: undefined;
+			const remoteIntegration = remote ? new ExactBunMicrofrontendIntegration(remote) : undefined;
 			const enhancementFacades = new ExactBunEnhancementFacadeCatalog();
 			if (options.target === 'server' && (build.config?.hot || process.argv.includes('--hot')))
 				throw new Error(

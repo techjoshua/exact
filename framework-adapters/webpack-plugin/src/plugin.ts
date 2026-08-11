@@ -200,10 +200,7 @@ export class ExactWebpackPlugin {
 	apply(input: WebpackCompiler | WebpackCompilerLike): void {
 		const compiler = input as WebpackCompilerLike;
 		if ('webpack' in input)
-			new ExactWebpackMicrofrontendIntegration(
-				input as WebpackCompiler,
-				this.options
-			).install();
+			new ExactWebpackMicrofrontendIntegration(input as WebpackCompiler, this.options).install();
 		let diagnosticsEnabled =
 			this.options.diagnostics ?? Boolean(compiler.watchMode || compiler.options.watch);
 		const owned = createWebpackCompilerSession(diagnosticsEnabled, this.options.onProfile);

@@ -52,28 +52,26 @@ describe('@exactjs/compiler: component values', () => {
 		expect(app?.renderEdges.map((edge) => edge.tag)).toEqual(['Grid', 'List']);
 	});
 
-	it('rejects reassigned and arbitrary registry-selected component values', () => {
-		expect(() =>
-			transform(
-				`function App() {
+	it('warns and lowers reassigned or otherwise opaque component values', () => {
+		const reassigned = transform(
+			`function App() {
           let View = Grid;
           View = List;
           return () => <View />;
         }`,
-				{ filename: 'App.tsx' }
-			)
-		).toThrow(/JSX tag View resolves to variable, not a runtime component/);
+			{ filename: 'App.tsx' }
+		);
+		expect(reassigned).toContain('createCompiledDynamicComponent');
 
-		expect(() =>
-			transform(
-				`function App(this: Component<{ kind: string }>) {
+		const indexed = transform(
+			`function App(this: Component<{ kind: string }>) {
           const views = { grid: Grid, list: List };
           const View = views[this.state.kind];
           return () => <View />;
         }`,
-				{ filename: 'App.tsx' }
-			)
-		).toThrow(/JSX tag View resolves to variable, not a runtime component/);
+			{ filename: 'App.tsx' }
+		);
+		expect(indexed).toContain('createCompiledDynamicComponent');
 	});
 
 	it('attaches target descriptors to top-level function-valued components', () => {

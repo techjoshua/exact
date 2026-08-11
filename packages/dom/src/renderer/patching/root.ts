@@ -4,7 +4,6 @@ import {
 	Fragment,
 	isCellVNode,
 	normalizeDocumentVNode,
-	normalizeRenderResult,
 	Portal,
 	RenderProgram,
 	ServerSlot,
@@ -12,20 +11,13 @@ import {
 	Target,
 	Text,
 	UnsafeHtml,
-	unwrap,
 	watch,
-	type Child,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import {
-	getComponentProps,
-	getListBinding,
-	materializeList,
-	stopReplacedChildren
-} from '../../children.js';
+import { getComponentProps, getListBinding, materializeList } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
 import { mountServerSlot } from '../../server-slots.js';
@@ -300,8 +292,7 @@ export function patchInner(
 		return mounted;
 	}
 
-	if (next.type === Dynamic)
-		return patchDynamic(root, parent, mounted, next, parentInstance);
+	if (next.type === Dynamic) return patchDynamic(root, parent, mounted, next, parentInstance);
 
 	if (next.type === Portal) {
 		const previousTarget = mounted.portalTarget ?? portalTarget(mounted.vnode);

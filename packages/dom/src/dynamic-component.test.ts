@@ -28,8 +28,7 @@ describe('@exactjs/dom dynamic components', () => {
 				source: () => pending,
 				props: { label: 'ready' }
 			});
-			return () =>
-				createVNode(Suspense, { fallback: createVNode('span', null, 'loading') }, child);
+			return () => createVNode(Suspense, { fallback: createVNode('span', null, 'loading') }, child);
 		}
 		markExactComponent(Host, 'fixture:dynamic-host');
 
@@ -50,7 +49,7 @@ describe('@exactjs/dom dynamic components', () => {
 		function Host(this: Component<{}>) {
 			const child = createCompiledDynamicComponent({
 				id: 'fixture:replace-panel',
-				source: (signal) => {
+				source: (signal: AbortSignal) => {
 					signals.push(signal);
 					return selection.value === 0 ? LoadedPanel : undefined;
 				},

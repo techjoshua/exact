@@ -2,7 +2,7 @@ import type { AuthoredComponentFunction } from '../component/contracts.js';
 import { currentComponentDomain } from '../component/domain.js';
 import type { DynamicComponentResolver } from './contracts.js';
 
-const definitions = new WeakMap<Function, DynamicComponentResolver<any>>();
+const definitions = new WeakMap<(...args: never[]) => unknown, DynamicComponentResolver<any>>();
 
 /**
  * Declares a stable JSX component facade whose implementation is selected at runtime on the client.
@@ -31,6 +31,8 @@ export function dynamicComponentResolverFor<Props extends Record<string, unknown
 	value: unknown
 ): DynamicComponentResolver<Props> | undefined {
 	return typeof value === 'function'
-		? (definitions.get(value) as DynamicComponentResolver<Props> | undefined)
+		? (definitions.get(value as (...args: never[]) => unknown) as
+				| DynamicComponentResolver<Props>
+				| undefined)
 		: undefined;
 }

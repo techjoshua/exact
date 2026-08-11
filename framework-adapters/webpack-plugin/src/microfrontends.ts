@@ -1,5 +1,8 @@
 import { loadExactConfig } from '@exactjs/config/node';
-import { prepareExactPluginRegistry, invalidateExactPluginRegistry } from '@exactjs/plugin-host/node';
+import {
+	prepareExactPluginRegistry,
+	invalidateExactPluginRegistry
+} from '@exactjs/plugin-host/node';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Compiler, Compilation } from 'webpack';
@@ -7,7 +10,7 @@ import type { ExactWebpackPluginOptions } from './plugin.js';
 import type { ExactProvidedPackageImportUsage } from '@exactjs/microfrontends/artifacts';
 
 type RemoteAdapter = ReturnType<
-	typeof import('@exactjs/microfrontends/webpack')['createExactRemoteWebpackAdapter']
+	(typeof import('@exactjs/microfrontends/webpack'))['createExactRemoteWebpackAdapter']
 >;
 
 const virtualScheme = 'exact-remote:';
@@ -40,7 +43,10 @@ export class ExactWebpackMicrofrontendIntegration {
 			this.installVirtualModules(compilation);
 			this.installRemoteResolution(params.normalModuleFactory as any);
 			compilation.hooks.processAssets.tap(
-				{ name: 'ExactWebpackMicrofrontends', stage: this.compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_REPORT },
+				{
+					name: 'ExactWebpackMicrofrontends',
+					stage: this.compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_REPORT
+				},
 				() => (this.pendingOutputs = this.indexOutputs(compilation))
 			);
 		});
@@ -59,8 +65,7 @@ export class ExactWebpackMicrofrontendIntegration {
 		});
 		hooks.done.tap('ExactWebpackMicrofrontends', (stats) => {
 			if (!this.adapter || this.generation === undefined) return;
-			if (stats.hasErrors() || !this.pendingOutputs)
-				this.adapter.rejectGeneration(this.generation);
+			if (stats.hasErrors() || !this.pendingOutputs) this.adapter.rejectGeneration(this.generation);
 			else this.adapter.acceptGeneration(this.generation, this.pendingOutputs);
 			this.pendingOutputs = undefined;
 		});
@@ -70,12 +75,14 @@ export class ExactWebpackMicrofrontendIntegration {
 		hooks.shutdown.tap('ExactWebpackMicrofrontends', () => this.dispose());
 	}
 
+	/** Rejects the current generation and reloads optional remote configuration on the next build. */
 	invalidate(): void {
 		this.reject();
 		this.preparation = undefined;
 		invalidateExactPluginRegistry(this.applicationRoot());
 	}
 
+	/** Releases accepted generations, cached virtual modules, and build-scope ownership. */
 	dispose(): void {
 		this.reject();
 		this.adapter?.dispose();
@@ -92,16 +99,26 @@ export class ExactWebpackMicrofrontendIntegration {
 	private async prepareOnce(): Promise<void> {
 		if (this.options.target === 'server') return;
 		const applicationRoot = this.applicationRoot();
-		const loadedConfig = await loadExactConfig({ applicationRoot, configPath: this.options.configPath });
-		const registry = await prepareExactPluginRegistry({ applicationRoot, loadedConfig, hostMode: 'build' });
+		const loadedConfig = await loadExactConfig({
+			applicationRoot,
+			configPath: this.options.configPath
+		});
+		const registry = await prepareExactPluginRegistry({
+			applicationRoot,
+			loadedConfig,
+			hostMode: 'build'
+		});
 		const value = registry.build.get('@exactjs/microfrontends');
 		if (!value) return;
-		const [{ readExactMicrofrontendBuildConfig, prepareExactRemoteArtifactBuild }, integration, api] =
-			await Promise.all([
-				import('@exactjs/microfrontends/rollup'),
-				import('@exactjs/microfrontends/webpack'),
-				import('@exactjs/microfrontends')
-			]);
+		const [
+			{ readExactMicrofrontendBuildConfig, prepareExactRemoteArtifactBuild },
+			integration,
+			api
+		] = await Promise.all([
+			import('@exactjs/microfrontends/rollup'),
+			import('@exactjs/microfrontends/webpack'),
+			import('@exactjs/microfrontends')
+		]);
 		const prepared = await prepareExactRemoteArtifactBuild({
 			applicationRoot,
 			buildConfig: readExactMicrofrontendBuildConfig(value as never),
@@ -109,7 +126,9 @@ export class ExactWebpackMicrofrontendIntegration {
 			componentAuthorization: this.options.componentAuthorization
 		});
 		const registrationModules = prepared.artifactGraph
-			? api.createExactExposureRegistrationModules(prepared.plan, prepared.artifactGraph, { applicationRoot })
+			? api.createExactExposureRegistrationModules(prepared.plan, prepared.artifactGraph, {
+					applicationRoot
+				})
 			: {};
 		const nextAdapter = integration.createExactRemoteWebpackAdapter({
 			plan: prepared.plan,
@@ -140,20 +159,22 @@ export class ExactWebpackMicrofrontendIntegration {
 			for (const id of [exposure.entryId, exposure.componentFacadeId, exposure.registrationId]) {
 				const virtual = this.virtualId(id);
 				const source = this.adapter.loadVirtualModule(id);
-				if (source !== undefined) this.virtualSources.set(virtual, this.rewriteVirtualImports(source));
+				if (source !== undefined)
+					this.virtualSources.set(virtual, this.rewriteVirtualImports(source));
 				this.scopes.set(virtual, exposure.root);
 			}
 		}
 		this.virtualSources.set(
 			this.virtualId('\0exact:provided/bootstrap'),
-			this.adapter.loadVirtualModule('\0exact:provided/bootstrap') ?? prepared.plan.providedBootstrapSource
+			this.adapter.loadVirtualModule('\0exact:provided/bootstrap') ??
+				prepared.plan.providedBootstrapSource
 		);
 	}
 
 	private installVirtualModules(compilation: Compilation): void {
 		for (const filename of this.watchFiles) compilation.fileDependencies.add(filename);
-		this.compiler.webpack.NormalModule.getCompilationHooks(compilation).readResourceForScheme
-			.for('exact-remote')
+		this.compiler.webpack.NormalModule.getCompilationHooks(compilation)
+			.readResourceForScheme.for('exact-remote')
 			.tap('ExactWebpackMicrofrontends', (resource) => this.virtualSources.get(resource) ?? null);
 	}
 
@@ -183,7 +204,11 @@ export class ExactWebpackMicrofrontendIntegration {
 	}
 
 	private indexOutputs(compilation: Compilation): Parameters<RemoteAdapter['acceptGeneration']>[1] {
-		const outputs: Array<{ name?: string; fileName: string; type: 'entry' | 'chunk' | 'css' | 'asset' }> = [];
+		const outputs: Array<{
+			name?: string;
+			fileName: string;
+			type: 'entry' | 'chunk' | 'css' | 'asset';
+		}> = [];
 		const remoteNames = new Set(Object.keys(this.adapter?.entries ?? {}));
 		for (const [name, entrypoint] of compilation.entrypoints) {
 			if (!remoteNames.has(name)) continue;
@@ -193,7 +218,10 @@ export class ExactWebpackMicrofrontendIntegration {
 		}
 		for (const filename of Object.keys(compilation.assets)) {
 			if (outputs.some((value) => value.fileName === filename)) continue;
-			outputs.push({ fileName: filename, type: /\.[cm]?js$/i.test(filename) ? 'chunk' : /\.css$/i.test(filename) ? 'css' : 'asset' });
+			outputs.push({
+				fileName: filename,
+				type: /\.[cm]?js$/i.test(filename) ? 'chunk' : /\.css$/i.test(filename) ? 'css' : 'asset'
+			});
 		}
 		return outputs;
 	}
@@ -211,14 +239,22 @@ export class ExactWebpackMicrofrontendIntegration {
 
 	private scopeFor(issuer: string | undefined): string | undefined {
 		if (!issuer) return undefined;
-		return this.scopes.get(issuer) ?? new URLSearchParams(issuer.split('?')[1] ?? '').get('exact-remote-scope') ?? undefined;
+		return (
+			this.scopes.get(issuer) ??
+			new URLSearchParams(issuer.split('?')[1] ?? '').get('exact-remote-scope') ??
+			undefined
+		);
 	}
 
 	private sourceFor(issuer: string | undefined): string | undefined {
 		if (!issuer) return undefined;
 		const virtual = this.virtualSources.get(issuer);
 		if (virtual !== undefined) return virtual;
-		try { return readFileSync(issuer.split('?', 1)[0]!, 'utf8'); } catch { return undefined; }
+		try {
+			return readFileSync(issuer.split('?', 1)[0]!, 'utf8');
+		} catch {
+			return undefined;
+		}
 	}
 
 	private hasRemoteBindings(): boolean {
@@ -226,7 +262,8 @@ export class ExactWebpackMicrofrontendIntegration {
 	}
 
 	private reject(): void {
-		if (this.adapter && this.generation !== undefined) this.adapter.rejectGeneration(this.generation);
+		if (this.adapter && this.generation !== undefined)
+			this.adapter.rejectGeneration(this.generation);
 		this.generation = undefined;
 		this.pendingOutputs = undefined;
 	}
@@ -236,7 +273,12 @@ export class ExactWebpackMicrofrontendIntegration {
 	}
 }
 
-function addEntry(compiler: Compiler, compilation: Compilation, name: string, request: string): Promise<void> {
+function addEntry(
+	compiler: Compiler,
+	compilation: Compilation,
+	name: string,
+	request: string
+): Promise<void> {
 	return new Promise((resolve, reject) =>
 		compilation.addEntry(
 			compiler.context,
@@ -257,7 +299,12 @@ function addScope(resource: string, scope: string): string {
 }
 
 function isProvidedRequest(request: string, adapter: RemoteAdapter): boolean {
-	try { adapter.providedBridge(request, [{ kind: 'namespace', exportNames: [] }]); return true; } catch { return false; }
+	try {
+		adapter.providedBridge(request, [{ kind: 'namespace', exportNames: [] }]);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 function importUsages(source: string, request: string): ExactProvidedPackageImportUsage[] {
@@ -268,7 +315,9 @@ function importUsages(source: string, request: string): ExactProvidedPackageImpo
 	if (clause.startsWith('*')) {
 		const local = clause.match(/^\*\s+as\s+(\w+)/)?.[1];
 		const exportNames = local
-			? [...source.matchAll(new RegExp(`\\b${local}\\.([A-Za-z_$][\\w$]*)`, 'g'))].map((value) => value[1]!)
+			? [...source.matchAll(new RegExp(`\\b${local}\\.([A-Za-z_$][\\w$]*)`, 'g'))].map(
+					(value) => value[1]!
+				)
 			: [];
 		return [{ kind: 'namespace', exportNames: [...new Set(exportNames)] }];
 	}

@@ -108,7 +108,12 @@ export function renderToStringOwned(
 		chunks = [html];
 	}
 	const hydrationTable = context.hydrationTable.value();
-	return createChunkedStringResult(chunks, options.state, hydrationTable, context.resourceLinkHeaders);
+	return createChunkedStringResult(
+		chunks,
+		options.state,
+		hydrationTable,
+		context.resourceLinkHeaders
+	);
 }
 
 /** Transforms to hydratable string into its required representation. */
@@ -292,10 +297,13 @@ export async function renderExactRequestToHtmlResponse(
 			}
 			return {
 				status: options.status ?? 200,
-				headers: withPreloadLinks({
-					'content-type': options.contentType ?? 'text/html; charset=utf-8',
-					...(options.headers ?? {})
-				}, preloadLinks),
+				headers: withPreloadLinks(
+					{
+						'content-type': options.contentType ?? 'text/html; charset=utf-8',
+						...(options.headers ?? {})
+					},
+					preloadLinks
+				),
 				body
 			};
 		},
@@ -349,10 +357,13 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 			}
 			return createExactBufferedResponse(
 				options.status ?? 200,
-				withPreloadLinks({
-					'content-type': options.contentType ?? 'text/html; charset=utf-8',
-					...(options.headers ?? {})
-				}, preloadLinks),
+				withPreloadLinks(
+					{
+						'content-type': options.contentType ?? 'text/html; charset=utf-8',
+						...(options.headers ?? {})
+					},
+					preloadLinks
+				),
 				body
 			);
 		},

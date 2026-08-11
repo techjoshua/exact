@@ -17,6 +17,7 @@ export class ExactBunMicrofrontendIntegration {
 		this.#remote = remote;
 	}
 
+	/** Installs remote resolution, loading, and provided-package bridge hooks on one Bun build. */
 	install(build: BunBuildLike): void {
 		build.onResolve({ filter: /exact-remote-scope=/ }, (args) => {
 			const scope = remoteScope(args.path);
@@ -47,10 +48,7 @@ export class ExactBunMicrofrontendIntegration {
 				const source =
 					this.#remote.onLoad(importer)?.contents ??
 					this.#sources.get(normalizeRemotePath(importer));
-				return this.#remote.registerProvidedBridge(
-					args.path,
-					bunImportUsages(source, args.path)
-				);
+				return this.#remote.registerProvidedBridge(args.path, bunImportUsages(source, args.path));
 			} catch {
 				if (!scope) return undefined;
 				const resolved = resolveRemoteImport(args.path, normalizeRemotePath(importer));
@@ -61,33 +59,36 @@ export class ExactBunMicrofrontendIntegration {
 		});
 	}
 
+	/** Begins a candidate remote artifact generation for the next build. */
 	begin(): void {
 		this.#generation = this.#remote.beginGeneration();
 	}
 
+	/** Accepts successful output metadata or rejects the current failed generation. */
 	finish(build: BunBuildLike, result: BunBuildResult | undefined): void {
 		if (this.#generation === undefined) return;
 		if (result?.success === false) {
 			this.#remote.rejectGeneration(this.#generation);
 			return;
 		}
-		this.#remote.acceptGeneration(
-			this.#generation,
-			bunRemoteOutputs(result, build.config?.outdir)
-		);
+		this.#remote.acceptGeneration(this.#generation, bunRemoteOutputs(result, build.config?.outdir));
 	}
 
+	/** Reports whether a source file belongs to the remote build scope. */
 	includes(filename: string): boolean {
 		return this.scope(filename) !== undefined;
 	}
 
+	/** Retains scoped source text long enough to derive its provided-package import usage. */
 	recordSource(filename: string, source: string): void {
 		if (this.includes(filename)) this.#sources.set(normalizeRemotePath(filename), source);
 	}
 
 	private scope(filename: string | undefined): string | undefined {
-		return remoteScope(filename) ??
-			(filename ? this.#paths.get(normalizeRemotePath(filename)) : undefined);
+		return (
+			remoteScope(filename) ??
+			(filename ? this.#paths.get(normalizeRemotePath(filename)) : undefined)
+		);
 	}
 }
 
@@ -179,7 +180,11 @@ function resolveRemoteImport(request: string, importer: string): string | undefi
 function remoteCandidates(base: string): string[] {
 	if (path.extname(base)) return [base];
 	const extensions = ['.tsx', '.ts', '.jsx', '.js', '.mts', '.mjs', '.cts', '.cjs', '.json'];
-	return [base, ...extensions.map((extension) => `${base}${extension}`), ...extensions.map((extension) => path.join(base, `index${extension}`))];
+	return [
+		base,
+		...extensions.map((extension) => `${base}${extension}`),
+		...extensions.map((extension) => path.join(base, `index${extension}`))
+	];
 }
 
 function bunImportUsages(

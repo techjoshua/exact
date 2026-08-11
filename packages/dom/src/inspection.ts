@@ -237,10 +237,11 @@ function appendMounted(
 					parent: nextParent,
 					name: 'DynamicComponent',
 					status: 'mounted',
-					props: owner.preview(
-						mounted.vnode.props.__exactDynamicComponentProps ?? {},
-						['dynamicComponent', dynamic.id, 'props']
-					),
+					props: owner.preview(mounted.vnode.props.__exactDynamicComponentProps ?? {}, [
+						'dynamicComponent',
+						dynamic.id,
+						'props'
+					]),
 					state: owner.preview(
 						{
 							status: dynamic.status,

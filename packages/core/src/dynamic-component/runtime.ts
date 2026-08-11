@@ -1,4 +1,4 @@
-import { computed, peek, reactive, unwrap } from '@exactjs/reactive';
+import { peek, reactive, unwrap } from '@exactjs/reactive';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import {
 	exactComponentIdentity,

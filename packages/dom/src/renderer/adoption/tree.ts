@@ -4,14 +4,11 @@ import {
 	Fragment,
 	RenderProgram,
 	isCellVNode,
-	normalizeRenderResult,
 	renderInstance,
 	Suspense,
 	Target,
 	UnsafeHtml,
-	unwrap,
 	watch,
-	type Child,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
@@ -202,8 +199,7 @@ export function adoptStaticMountedInner(
 			undefined,
 			{
 				scope,
-				onSchedule: () =>
-					stopReplacedChildren(mounted, dynamicChildren(vnode, parentInstance))
+				onSchedule: () => stopReplacedChildren(mounted, dynamicChildren(vnode, parentInstance))
 			}
 		);
 		return { mounted, next: endIndex + 1 };

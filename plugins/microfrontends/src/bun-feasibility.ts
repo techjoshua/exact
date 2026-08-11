@@ -5,7 +5,10 @@ import {
 	type ExactProvidedPackageImportUsage
 } from './artifacts.js';
 import type { ExactRemoteArtifactPlan } from './build.js';
-import { acceptExactRemoteArtifactGeneration, type ExactRemoteAcceptedGeneration } from './build.js';
+import {
+	acceptExactRemoteArtifactGeneration,
+	type ExactRemoteAcceptedGeneration
+} from './build.js';
 
 /**
  * Maps the neutral artifact plan into Bun entry, generated-module, and accepted-generation state.
@@ -56,7 +59,9 @@ export function createExactRemoteBunAdapter(options: {
 	let accepted: ExactRemoteAcceptedGeneration | undefined;
 	let disposed = false;
 	const developmentEntries = Object.freeze(
-		Object.fromEntries(options.plan.exposures.map((value) => [value.exposure, bunVirtualId(value.entryId)]))
+		Object.fromEntries(
+			options.plan.exposures.map((value) => [value.exposure, bunVirtualId(value.entryId)])
+		)
 	);
 	options.onDevelopmentEntries?.(developmentEntries);
 	return Object.freeze({
@@ -84,9 +89,14 @@ export function createExactRemoteBunAdapter(options: {
 		},
 		acceptGeneration(
 			token: number,
-			outputs: readonly Readonly<{ entrypoint?: string; path: string; kind: 'entry' | 'chunk' | 'css' | 'asset' }>[]
+			outputs: readonly Readonly<{
+				entrypoint?: string;
+				path: string;
+				kind: 'entry' | 'chunk' | 'css' | 'asset';
+			}>[]
 		): ExactRemoteAcceptedGeneration {
-			if (disposed || token !== generation) throw new Error('Cannot accept a stale Bun remote generation');
+			if (disposed || token !== generation)
+				throw new Error('Cannot accept a stale Bun remote generation');
 			const emitted: Record<string, string> = {};
 			for (const output of outputs) {
 				const exposure = output.entrypoint ? exposureByEntry.get(output.entrypoint) : undefined;
@@ -131,7 +141,9 @@ export function createExactRemoteBunAdapter(options: {
 			usages: readonly ExactProvidedPackageImportUsage[]
 		): { path: string; namespace: string } {
 			const bridge = this.providedBridge(key, usages);
-			const id = bunVirtualId(`provided:${Buffer.from(JSON.stringify({ key, usages })).toString('base64url')}`);
+			const id = bunVirtualId(
+				`provided:${Buffer.from(JSON.stringify({ key, usages })).toString('base64url')}`
+			);
 			modules.set(id, bridge.contents);
 			return { path: id, namespace: 'exact-remote-artifact' };
 		}
@@ -146,5 +158,9 @@ function bunVirtualId(id: string): string {
 	return `exact-remote:${Buffer.from(id).toString('base64url')}`;
 }
 
-/** @deprecated Use createExactRemoteBunAdapter. */
+/**
+ * Maps the neutral artifact plan to Bun using the former feasibility API name.
+ *
+ * @deprecated Use createExactRemoteBunAdapter; retained as a source-compatible migration alias.
+ */
 export const createExactBunFeasibilityMapping = createExactRemoteBunAdapter;

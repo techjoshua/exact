@@ -52,7 +52,7 @@ describe('dynamic component boundaries', () => {
 		const vnode = withEffectScope(scope, () =>
 			createCompiledDynamicComponent({
 				id: 'fixture:async',
-				source: (signal) => {
+				source: (signal: AbortSignal) => {
 					signals.push(signal);
 					const key = selection.value;
 					return new Promise<typeof Panel>((resolve) => settlements.set(key, resolve));
@@ -81,7 +81,7 @@ describe('dynamic component boundaries', () => {
 		withEffectScope(scope, () =>
 			createCompiledDynamicComponent({
 				id: 'fixture:replacement-churn',
-				source: (signal) => {
+				source: (signal: AbortSignal) => {
 					signals.push(signal);
 					void selection.value;
 					return Panel;
@@ -110,20 +110,23 @@ describe('dynamic component boundaries', () => {
 	});
 
 	it('rejects candidates that carry any server execution authority', () => {
-		const ServerPanel = Object.assign(function ServerPanel() {
-			return () => 'server';
-		}, {
-			[exactComponentType]: 'fixture:server-panel',
-			[exactComponentContract]: {
-				version: 2 as const,
-				placement: 'server' as const,
-				role: 'executor' as const,
-				implementations: [],
-				continuations: [],
-				executors: [],
-				boundaries: []
+		const ServerPanel = Object.assign(
+			function ServerPanel() {
+				return () => 'server';
+			},
+			{
+				[exactComponentType]: 'fixture:server-panel',
+				[exactComponentContract]: {
+					version: 2 as const,
+					placement: 'server' as const,
+					role: 'executor' as const,
+					implementations: [],
+					continuations: [],
+					executors: [],
+					boundaries: []
+				}
 			}
-		});
+		);
 		const scope = createEffectScope();
 		const vnode = withEffectScope(scope, () =>
 			createCompiledDynamicComponent({

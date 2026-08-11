@@ -14,30 +14,27 @@ describe('@exactjs/ssr dynamic component boundaries', () => {
 	});
 
 	it('emits only authorized immutable selected-artifact hints with a request bound', () => {
-		const early: readonly string[][] = [];
+		const early: (readonly string[])[] = [];
 		const first = createServerDynamicComponent('fixture:first');
 		const second = createServerDynamicComponent('fixture:second');
-		const result = renderToString(
-			createVNode(Fragment, null, first, first, second),
-			{
-				maxDynamicComponentPreloads: 1,
-				dynamicComponentArtifacts: {
-					'fixture:first': {
-						url: '/assets/first.abc.mjs',
-						authorized: true,
-						immutable: true,
-						integrity: 'sha384-YWJj',
-						crossOrigin: 'anonymous'
-					},
-					'fixture:second': {
-						url: 'javascript:alert(1)',
-						authorized: true,
-						immutable: true
-					}
+		const result = renderToString(createVNode(Fragment, null, first, first, second), {
+			maxDynamicComponentPreloads: 1,
+			dynamicComponentArtifacts: {
+				'fixture:first': {
+					url: '/assets/first.abc.mjs',
+					authorized: true,
+					immutable: true,
+					integrity: 'sha384-YWJj',
+					crossOrigin: 'anonymous'
 				},
-				onEarlyHints: (links) => early.push(links)
-			}
-		);
+				'fixture:second': {
+					url: 'javascript:alert(1)',
+					authorized: true,
+					immutable: true
+				}
+			},
+			onEarlyHints: (links) => early.push(links)
+		});
 		expect(result.preloadLinks).toEqual([
 			'</assets/first.abc.mjs>; rel=modulepreload; integrity="sha384-YWJj"; crossorigin=anonymous'
 		]);

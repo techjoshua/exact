@@ -105,7 +105,7 @@ export function dynamicChildren(
 		| undefined;
 	if (inspection?.status === 'pending') {
 		const pending = (
-			vnode.props.__exactDynamicComponentReadiness as (() => PromiseLike<unknown> | undefined)
+			vnode.props.__exactDynamicComponentReadiness as () => PromiseLike<unknown> | undefined
 		)();
 		if (pending) handleComponentSuspension(parentInstance, pending);
 		return [];

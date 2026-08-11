@@ -89,9 +89,13 @@ export type BunBuildLike = {
 	): void;
 };
 
+/** Minimal Bun resolver input consumed by the adapter. */
 export type BunResolveArgs = { path: string; importer?: string };
+/** Minimal Bun resolver result produced by the adapter. */
 export type BunResolveResult = { path: string; external?: boolean; namespace?: string };
+/** Minimal Bun loader input consumed by the adapter. */
 export type BunLoadArgs = { path: string; text?(): Promise<string> };
+/** Minimal Bun loader result produced by the adapter. */
 export type BunLoadResult = { contents: string; loader?: 'js' | 'jsx' | 'ts' | 'tsx' };
 
 /** Defines the Bun plugin contract without requiring Bun's ambient types. */

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { exact, type BunPluginLike, type ExactBunPluginOptions } from './plugin.js';
 
 type RemoteAdapter = ReturnType<
-	typeof import('@exactjs/microfrontends/bun')['createExactRemoteBunAdapter']
+	(typeof import('@exactjs/microfrontends/bun'))['createExactRemoteBunAdapter']
 >;
 
 /** Internal remote generation passed from exactBuild() into the Bun plugin lifecycle. */
@@ -28,7 +28,9 @@ export async function exactBuild(options: ExactBunBuildOptions): Promise<unknown
 		Bun?: { build(options: Record<string, unknown>): Promise<unknown> };
 	};
 	if (!runtime.Bun) throw new Error('exactBuild() requires the Bun runtime');
-	const applicationRoot = path.resolve(options.exact?.applicationRoot ?? options.root ?? process.cwd());
+	const applicationRoot = path.resolve(
+		options.exact?.applicationRoot ?? options.root ?? process.cwd()
+	);
 	const loadedConfig = await loadExactConfig({
 		applicationRoot,
 		configPath: options.exact?.configPath
@@ -72,7 +74,10 @@ export async function exactBuild(options: ExactBunBuildOptions): Promise<unknown
 		remote = Object.freeze({ adapter, hasRemoteBindings: prepared.hasRemoteBindings });
 		remoteEntrypoints = adapter.entrypoints;
 		if (prepared.hasRemoteBindings)
-			banner = prependJavascriptBanner(banner, `import ${JSON.stringify(adapter.pageBootstrapImport)};`);
+			banner = prependJavascriptBanner(
+				banner,
+				`import ${JSON.stringify(adapter.pageBootstrapImport)};`
+			);
 	}
 
 	const { exact: _exactOptions, plugins = [], entrypoints = [], ...buildOptions } = options;

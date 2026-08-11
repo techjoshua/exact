@@ -18,87 +18,94 @@ const testApi = (
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-plugin with Bun.build', () => {
-	testApi.it('coordinates and publishes a production remote exposure', async () => {
-		const root = await mkdtemp(path.join(os.tmpdir(), 'exact-bun-remote-build-'));
-		try {
-			await mkdir(path.join(root, 'src'), { recursive: true });
-			await linkExactPackages(root);
-			await writeFile(
-				path.join(root, 'package.json'),
-				JSON.stringify({
-					name: '@fixture/bun-remote',
-					private: true,
-					type: 'module',
-					dependencies: { '@exactjs/microfrontends': '^0.1.0' }
-				})
-			);
-			await writeFile(
-				path.join(root, 'tsconfig.json'),
-				JSON.stringify({
-					compilerOptions: {
-						jsx: 'preserve',
-						jsxImportSource: '@exactjs/jsx',
-						lib: ['ES2022', 'DOM', 'ESNext.Disposable'],
-						target: 'ES2022',
-						module: 'ESNext'
-					},
-					include: ['src']
-				})
-			);
-			await writeFile(
-				path.join(root, 'exact.config.mjs'),
-				`export default { plugins: { microfrontends(config) { config.exposes['./Area'] = { component: './src/Area.tsx' }; } } };\n`
-			);
-			const page = path.join(root, 'src', 'page.ts');
-			await writeFile(page, 'export const page = true;\n');
-			await writeFile(
-				path.join(root, 'src', 'Area.tsx'),
-				`import './Area.css';
+	testApi.it(
+		'coordinates and publishes a production remote exposure',
+		async () => {
+			const root = await mkdtemp(path.join(os.tmpdir(), 'exact-bun-remote-build-'));
+			try {
+				await mkdir(path.join(root, 'src'), { recursive: true });
+				await linkExactPackages(root);
+				await writeFile(
+					path.join(root, 'package.json'),
+					JSON.stringify({
+						name: '@fixture/bun-remote',
+						private: true,
+						type: 'module',
+						dependencies: { '@exactjs/microfrontends': '^0.1.0' }
+					})
+				);
+				await writeFile(
+					path.join(root, 'tsconfig.json'),
+					JSON.stringify({
+						compilerOptions: {
+							jsx: 'preserve',
+							jsxImportSource: '@exactjs/jsx',
+							lib: ['ES2022', 'DOM', 'ESNext.Disposable'],
+							target: 'ES2022',
+							module: 'ESNext'
+						},
+						include: ['src']
+					})
+				);
+				await writeFile(
+					path.join(root, 'exact.config.mjs'),
+					`export default { plugins: { microfrontends(config) { config.exposes['./Area'] = { component: './src/Area.tsx' }; } } };\n`
+				);
+				const page = path.join(root, 'src', 'page.ts');
+				await writeFile(page, 'export const page = true;\n');
+				await writeFile(
+					path.join(root, 'src', 'Area.tsx'),
+					`import './Area.css';
 				import icon from './icon.svg';
 				export default function Area() {
 					const load = () => import('./lazy');
 					return () => <section data-icon={icon} onClick={load}>bun remote</section>;
 				}\n`
-			);
-			await writeFile(path.join(root, 'src', 'Area.css'), '.remote-area { color: teal; }\n');
-			await writeFile(path.join(root, 'src', 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>\n');
-			await writeFile(path.join(root, 'src', 'lazy.ts'), 'export const lazyValue = "lazy";\n');
-			await writeFile(
-				path.join(root, 'src', 'assets.d.ts'),
-				'declare module "*.css"; declare module "*.svg" { const url: string; export default url; }\n'
-			);
-			const previousBuildKey = process.env.EXACT_BUILD_KEY;
-			process.env.EXACT_BUILD_KEY = '0123456789abcdef0123456789abcdef01234567';
-			let entries: Readonly<Record<string, string>> | undefined;
-			try {
-				const result = (await exactBuild({
-					entrypoints: [page],
-					outdir: path.join(root, 'dist'),
-					target: 'browser',
-					format: 'esm',
-					splitting: true,
-					metafile: true,
-					publicPath: '/assets',
-					exact: {
-						applicationRoot: root,
-						reactCompatibility: false,
-						onRemoteEntries: (value) => (entries = value)
-					}
-				})) as { success: boolean; logs: unknown[] };
-				testApi.expect(result.success, JSON.stringify(result.logs)).toBe(true);
+				);
+				await writeFile(path.join(root, 'src', 'Area.css'), '.remote-area { color: teal; }\n');
+				await writeFile(
+					path.join(root, 'src', 'icon.svg'),
+					'<svg xmlns="http://www.w3.org/2000/svg"/>\n'
+				);
+				await writeFile(path.join(root, 'src', 'lazy.ts'), 'export const lazyValue = "lazy";\n');
+				await writeFile(
+					path.join(root, 'src', 'assets.d.ts'),
+					'declare module "*.css"; declare module "*.svg" { const url: string; export default url; }\n'
+				);
+				const previousBuildKey = process.env.EXACT_BUILD_KEY;
+				process.env.EXACT_BUILD_KEY = '0123456789abcdef0123456789abcdef01234567';
+				let entries: Readonly<Record<string, string>> | undefined;
+				try {
+					const result = (await exactBuild({
+						entrypoints: [page],
+						outdir: path.join(root, 'dist'),
+						target: 'browser',
+						format: 'esm',
+						splitting: true,
+						metafile: true,
+						publicPath: '/assets',
+						exact: {
+							applicationRoot: root,
+							reactCompatibility: false,
+							onRemoteEntries: (value) => (entries = value)
+						}
+					})) as { success: boolean; logs: unknown[] };
+					testApi.expect(result.success, JSON.stringify(result.logs)).toBe(true);
+				} finally {
+					if (previousBuildKey === undefined) delete process.env.EXACT_BUILD_KEY;
+					else process.env.EXACT_BUILD_KEY = previousBuildKey;
+				}
+				testApi.expect(entries?.['./Area']).toMatch(/^\/assets\/.+\.js$/);
+				const emitted = await readdir(path.join(root, 'dist'));
+				testApi.expect(emitted.some((file) => file.endsWith('.css'))).toBe(true);
+				testApi.expect(emitted.some((file) => file.endsWith('.svg'))).toBe(true);
+				testApi.expect(emitted.filter((file) => file.endsWith('.js')).length).toBeGreaterThan(2);
 			} finally {
-				if (previousBuildKey === undefined) delete process.env.EXACT_BUILD_KEY;
-				else process.env.EXACT_BUILD_KEY = previousBuildKey;
+				await rm(root, { recursive: true, force: true });
 			}
-			testApi.expect(entries?.['./Area']).toMatch(/^\/assets\/.+\.js$/);
-			const emitted = await readdir(path.join(root, 'dist'));
-			testApi.expect(emitted.some((file) => file.endsWith('.css'))).toBe(true);
-			testApi.expect(emitted.some((file) => file.endsWith('.svg'))).toBe(true);
-			testApi.expect(emitted.filter((file) => file.endsWith('.js')).length).toBeGreaterThan(2);
-		} finally {
-			await rm(root, { recursive: true, force: true });
-		}
-	}, 60_000);
+		},
+		60_000
+	);
 	testApi.it('builds eXact TSX while leaving ordinary TypeScript to Bun', async () => {
 		const root = await mkdtemp(path.join(os.tmpdir(), 'exact-bun-plugin-'));
 		try {

@@ -5,7 +5,10 @@ import {
 	type ExactProvidedPackageImportUsage
 } from './artifacts.js';
 import type { ExactRemoteArtifactPlan } from './build.js';
-import { acceptExactRemoteArtifactGeneration, type ExactRemoteAcceptedGeneration } from './build.js';
+import {
+	acceptExactRemoteArtifactGeneration,
+	type ExactRemoteAcceptedGeneration
+} from './build.js';
 
 /**
  * Maps the neutral artifact plan into Webpack entry, virtual-module, and accepted-generation state.
@@ -75,9 +78,14 @@ export function createExactRemoteWebpackAdapter(options: {
 		},
 		acceptGeneration(
 			token: number,
-			outputs: readonly Readonly<{ name?: string; fileName: string; type: 'entry' | 'chunk' | 'css' | 'asset' }>[]
+			outputs: readonly Readonly<{
+				name?: string;
+				fileName: string;
+				type: 'entry' | 'chunk' | 'css' | 'asset';
+			}>[]
 		): ExactRemoteAcceptedGeneration {
-			if (disposed || token !== generation) throw new Error('Cannot accept a stale Webpack remote generation');
+			if (disposed || token !== generation)
+				throw new Error('Cannot accept a stale Webpack remote generation');
 			const emitted: Record<string, string> = {};
 			for (const output of outputs) {
 				const exposure = output.name ? exposureByEntry.get(output.name) : undefined;
@@ -118,5 +126,9 @@ function scopedComponent(root: string, component: string, scope: string): string
 	return `${path.resolve(root, component)}?exact-remote-scope=${encodeURIComponent(scope)}`;
 }
 
-/** @deprecated Use createExactRemoteWebpackAdapter. */
+/**
+ * Maps the neutral artifact plan to Webpack using the former feasibility API name.
+ *
+ * @deprecated Use createExactRemoteWebpackAdapter; retained as a source-compatible migration alias.
+ */
 export const createExactWebpackFeasibilityMapping = createExactRemoteWebpackAdapter;

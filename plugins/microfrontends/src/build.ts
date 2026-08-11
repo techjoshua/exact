@@ -59,7 +59,10 @@ export function acceptExactRemoteArtifactGeneration(
 	const artifacts: Record<string, DynamicComponentArtifact> = {};
 	for (const exposure of plan.exposures) {
 		const emitted = output.entries[exposure.exposure];
-		if (!emitted) throw new Error(`Missing emitted entry for remote exposure ${JSON.stringify(exposure.exposure)}`);
+		if (!emitted)
+			throw new Error(
+				`Missing emitted entry for remote exposure ${JSON.stringify(exposure.exposure)}`
+			);
 		const url = publicArtifactUrl(output.publicPath, emitted);
 		entries[exposure.exposure] = url;
 		if (output.immutable) {

@@ -56,13 +56,13 @@ export function sourceDiagnostic(
 						})
 					]
 				: placementConflict
-				? [
-						Object.freeze({
-							kind: 'split-placement-conflict' as const,
-							title: 'Split client and server work'
-						})
-					]
-				: []
+					? [
+							Object.freeze({
+								kind: 'split-placement-conflict' as const,
+								title: 'Split client and server work'
+							})
+						]
+					: []
 		)
 	});
 }
