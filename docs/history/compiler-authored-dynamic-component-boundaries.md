@@ -2,12 +2,18 @@
 
 ## Status
 
-Implementation-ready after the implemented
-[`compiler-authored-runtime-capabilities.md`](../history/compiler-authored-runtime-capabilities.md),
-[`compiler-authored-runtime-capabilities-adapters.md`](../history/compiler-authored-runtime-capabilities-adapters.md),
-[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
-[`lazy-interaction-islands.md`](../history/lazy-interaction-islands.md), and
-[`compiler-planned-component-execution.md`](../history/compiler-planned-component-execution.md).
+Implemented and archived in August 2026. The native compiler and language service share the
+`@exact dynamic` classification and diagnostics; generated client artifacts use the focused
+runtime capability; DOM, hydration, SSR resource hints, DevTools inspection, server-authority
+rejection, and bounded generation cleanup are covered by the framework suites. Finite registries
+retain their distinct static lowering.
+
+The implementation followed the completed
+[`compiler-authored-runtime-capabilities.md`](compiler-authored-runtime-capabilities.md),
+[`compiler-authored-runtime-capabilities-adapters.md`](compiler-authored-runtime-capabilities-adapters.md),
+[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md),
+[`lazy-interaction-islands.md`](lazy-interaction-islands.md), and
+[`compiler-planned-component-execution.md`](compiler-planned-component-execution.md).
 
 This work is independent of structural-refresh optimization. Local and application-bundled dynamic
 components do not depend on broader microfrontend adapter

@@ -17,7 +17,7 @@ they publish a finite internationalization role. That boundary removes the need 
 runtime child inspection, child capability injection, or application-wide component expansion.
 This implemented contract remains a settled input to
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
-[`webpack-bun-microfrontend-parity.md`](../proposals/webpack-bun-microfrontend-parity.md). The implemented
+[`webpack-bun-microfrontend-parity.md`](webpack-bun-microfrontend-parity.md). The implemented
 [`component-value-callback-bindings.md`](component-value-callback-bindings.md) contract is
 not an internationalization prerequisite, but its callback and intrinsic-adapter analysis is now
 part of the settled compiler baseline that precedes broader lazy-island delivery.

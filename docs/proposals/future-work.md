@@ -23,8 +23,8 @@ that the generated server artifact cannot actually provide.
 
 Native component registries intentionally describe a finite, immutable set of compiler-visible
 components. The focused
-[`compiler-authored-dynamic-component-boundaries.md`](compiler-authored-dynamic-component-boundaries.md)
-proposal now owns intentionally opaque local, lazy, and authorized client-only remote component
+implemented [compiler-authored dynamic component boundary](../history/compiler-authored-dynamic-component-boundaries.md)
+now owns intentionally opaque local, lazy, and authorized client-only remote component
 selection, including its warning annotation, server-call prohibition, generation fencing, and
 cleanup. Possible later registry-specific work remains limited to preload heuristics or explicitly
 measured inactive-instance caching; it must not weaken registry identity or SSR guarantees.

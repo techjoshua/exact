@@ -8,7 +8,7 @@ Implemented on 2026-08-05 after
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md),
-[`webpack-bun-microfrontend-parity.md`](../proposals/webpack-bun-microfrontend-parity.md). Those proposals must
+[`webpack-bun-microfrontend-parity.md`](webpack-bun-microfrontend-parity.md). Those proposals must
 operate on the component graph authorized for each server-executing artifact and preserve its
 authorization fingerprint across development, SSR, hydration, refresh, resumption, and remote
 boundaries.

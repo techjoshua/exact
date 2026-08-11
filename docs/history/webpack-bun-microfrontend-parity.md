@@ -2,20 +2,27 @@
 
 ## Status
 
-Implementation-ready after the implemented compiler and SSR boundary work, including
-[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
-[`server-component-library-trust.md`](../history/server-component-library-trust.md),
-[`enhancement-first-internationalization.md`](../history/enhancement-first-internationalization.md),
-[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
-[`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
-[`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md),
-[`compact-hydration-publication.md`](../history/compact-hydration-publication.md), and
-[`lazy-interaction-islands.md`](../history/lazy-interaction-islands.md). The dependent-foundation
+Implemented and archived in August 2026. Webpack 5 and Bun 1.3+ now consume the shared artifact
+plan, emit actual exposure entries and reachable resources, preserve provided-package identity,
+publish only accepted generations, enforce paired authorization identity, expose stable
+development entries, and release replaced build state. Real production fixtures cover CSS,
+assets, lazy chunks, output-derived URLs, coordinator enforcement, and failure retention alongside
+the bundler-neutral and portal runtime conformance suites.
+
+The implementation followed the completed compiler and SSR boundary work, including
+[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md),
+[`server-component-library-trust.md`](server-component-library-trust.md),
+[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
+[`component-value-callback-bindings.md`](component-value-callback-bindings.md),
+[`compiler-owned-render-programs.md`](compiler-owned-render-programs.md),
+[`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md),
+[`compact-hydration-publication.md`](compact-hydration-publication.md), and
+[`lazy-interaction-islands.md`](lazy-interaction-islands.md). The dependent-foundation
 experiments 2–4 and 6 in
-[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) are resolved by
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md) are resolved by
 the focused prerequisites above and the implemented transport/build-host work. The trusted
-microfrontend model and Vite/Rollup producer/consumer path are implemented. Final adapter
-conformance must treat compiler-emitted enhancement catalogs and framework-plugin projections as
+microfrontend model and Vite/Rollup producer/consumer path are implemented. The completed adapter
+conformance treats compiler-emitted enhancement catalogs and framework-plugin projections as
 separate inputs, preserve activator-resolved canonical component identities, and apply the shared
 bundler component-library trust policy before server evaluation and consistently across paired
 server/client artifacts. Adapters must also emit reachable package/application locale catalogs and
@@ -205,7 +212,7 @@ release checks.
 ## Performance and generation-retention constraints
 
 Adapter parity must include the lifecycle behavior in
-[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md), not only equivalent
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md), not only equivalent
 output files:
 
 - prepared artifact graphs, trust provenance, virtual modules, enhancement catalogs, translation

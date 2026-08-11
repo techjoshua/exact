@@ -1,7 +1,7 @@
 # Using `@exactjs/core`
 
-See the [README](./README.md) for component, state, context, task, interaction, and registry examples.
-Use this package for eXact's application-authoring primitives.
+Use this package for eXact's application-authoring primitives; see the [README](./README.md) for
+component, state, context, task, interaction, and registry examples.
 
 - Treat the regular or async outer component function as a compiler-analyzed component definition,
   not a linearly executed callback. The compiler turns that description into the component's
@@ -17,5 +17,4 @@ Use this package for eXact's application-authoring primitives.
   component selection.
 - Use `createDynamicComponent()` only for intentionally open client-only providers. It cannot own
   eXact server continuations, actions, refreshes, executors, or server-homed dependencies.
-- Use `this.intl` inside components and the exported `intl` facade in ordinary helpers when an
-  application needs explicitly cache-backed native formatting.
+- Use `this.intl` inside components and the exported `intl` facade in ordinary helpers for explicitly cache-backed native formatting.

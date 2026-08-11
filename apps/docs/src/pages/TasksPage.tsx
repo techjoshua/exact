@@ -288,7 +288,8 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					Use <code>taskStatus(task, {'{ key }'})</code> in the outer component definition when the
 					UI needs one lane. Its <code>pending</code>, <code>pendingCount</code>,
-					<code>generation</code>, <code>result</code>, <code>error</code>, and <code>cancel()</code>
+					<code>generation</code>, <code>result</code>, <code>error</code>, and{' '}
+					<code>cancel()</code>
 					are scoped to that key. The key must match the value produced by the task&apos;s
 					<code>key(...)</code> policy.
 				</p>

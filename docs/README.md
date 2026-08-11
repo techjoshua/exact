@@ -26,7 +26,7 @@ These documents describe behavior that exists in the repository today:
 | [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                                                       |
 | [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.                                  |
 | [microfrontends.md](microfrontends.md)                                           | Implemented trusted microfrontend scope and remaining adapter work.                                       |
-| [dynamic-components.md](dynamic-components.md)                                   | Client-only open component selection, diagnostics, ownership, and SSR behavior.                            |
+| [dynamic-components.md](dynamic-components.md)                                   | Client-only open component selection, diagnostics, ownership, and SSR behavior.                           |
 | [motion.md](motion.md)                                                           | Prepared motion definitions, finite playback, configuration, and current limits.                          |
 | [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.                                 |
 | [native-ssr-production-guide.md](native-ssr-production-guide.md)                 | Production SSR, request, response, security, and deployment contracts.                                    |
@@ -76,18 +76,16 @@ indefinite exploratory pause.
 |    12 | [Broader lazy interaction-island eligibility](history/lazy-interaction-islands.md)                  | **Completed and archived:** independent server ranges, finite spread proof, bounded policy replay, generated activation metadata, and inspection explanations are implemented.                                         |
 |    13 | [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)    | **Removed as a standalone gate:** retain only measured, incremental render-program extensions; current authorized range and boundary replacement is sufficient for later stages.                                       |
 |    14 | Serializable partial-prerender resumption                                                           | **Rejected:** ordinary Suspense with progressive SSR already provides the useful behavior; avoiding shell rendering does not justify persistent checkpoints, replay coordination, build retention, and reconstruction. |
-|    15 | [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)    | Complete heterogeneous adapter conformance over the settled artifact, trust, locale, activation, refresh, and generation contracts.                                                                                    |
+|    15 | [Webpack and Bun microfrontend production parity](history/webpack-bun-microfrontend-parity.md)      | **Completed and archived:** Webpack and Bun share production artifact, generation, resource, trust, bootstrap, and recovery contracts with Vite/Rollup.                                                                |
 |    16 | [Remaining JavaScript performance experiments](history/javascript-performance-improvements.md)      | **Completed and archived:** accepted bounded tooling/diagnostics, recorded measured rejections, and stopped after final profiles found no unnamed target.                                                              |
 
 The active and gated documents are:
 
-| Proposal                                                                                                      | Status      | Scope                                                                                                        |
-| ------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------ |
-| [Cooperative structured children](proposals/cooperative-structured-children.md)                               | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.              |
-| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)              | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.       |
-| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)              | Ready       | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                     |
-| [Compiler-authored dynamic component boundaries](proposals/compiler-authored-dynamic-component-boundaries.md) | Ready       | Add a warned, acknowledged client-only boundary for component values whose identity is intentionally opaque. |
-| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)                   | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.  |
+| Proposal                                                                                         | Status      | Scope                                                                                                       |
+| ------------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.             |
+| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md) | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.      |
+| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)      | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements. |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
 proposal:
@@ -97,9 +95,9 @@ proposal:
 | [Candidate future work](proposals/future-work.md) | Uncommitted framework, integration, sample, and optimization candidates. |
 
 Archived implementations, independent exploratory designs, and deferred optimizations do not
-create hidden prerequisites for the sequential program. Structural render-program extensions and
-dynamic component boundaries are independently ready; only remote dynamic-candidate conformance
-consumes Webpack/Bun parity. Persisted partial-prerender resumption is intentionally not planned.
+create hidden prerequisites for the sequential program. Dynamic component boundaries and
+Webpack/Bun microfrontend parity are implemented foundations. Persisted partial-prerender
+resumption is intentionally not planned.
 Compiler-authored runtime capabilities and their optional-provider adapter matrix are implemented
 foundations rather than pending gates.
 

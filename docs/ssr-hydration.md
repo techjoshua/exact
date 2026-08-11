@@ -185,7 +185,7 @@ server contexts, and secret-qualified values are rejected.
 - Measured [structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)
   may add proven patch fast paths, but current range and boundary replacement is already the
   correctness contract and does not block later SSR work.
-- [Full Webpack and Bun microfrontend production conformance](proposals/webpack-bun-microfrontend-parity.md).
+- Webpack, Bun, and Vite/Rollup now share the production microfrontend artifact and recovery contract.
 - Persisting postponed renderer state across requests is intentionally not planned: ordinary
   Suspense and progressive SSR provide the useful behavior without checkpoint reconstruction and
   distributed replay coordination.
