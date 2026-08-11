@@ -277,18 +277,16 @@ func lowerExactJSX(
 		).AsSourceFile()
 		ast.SetParentInChildren(transformed.AsNode())
 	}
-	runtimeImport := lowering.runtimeImport(transformed.AsNode())
+	runtimeImports := lowering.runtimeImports(transformed.AsNode())
 	interopImport := lowering.interopImport(transformed.AsNode())
-	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+2)
+	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+1)
 	insertion := 0
 	for insertion < len(transformed.Statements.Nodes) &&
 		isDirectiveStatement(transformed.Statements.Nodes[insertion]) {
 		statements = append(statements, transformed.Statements.Nodes[insertion])
 		insertion++
 	}
-	if runtimeImport != nil {
-		statements = append(statements, runtimeImport)
-	}
+	statements = append(statements, runtimeImports...)
 	if interopImport != nil {
 		statements = append(statements, interopImport)
 	}
@@ -6620,35 +6618,53 @@ func nodeSpanKey(node *ast.Node) string {
 	return fmt.Sprintf("%d:%d", node.Pos(), node.End()-node.Pos())
 }
 
-func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
-	specifiers := []*ast.Node{}
+func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
+	type importGroup struct {
+		module     string
+		specifiers []*ast.Node
+	}
+	groups := []importGroup{
+		{module: "@exactjs/core/runtime/render"},
+		{module: "@exactjs/core/runtime/reactivity"},
+		{module: "@exactjs/core/runtime/tasks"},
+		{module: "@exactjs/core/runtime/inspection"},
+		{module: "@exactjs/core/runtime/registry"},
+		{module: "@exactjs/core/runtime/enhancements"},
+	}
+	add := func(group int, imported string, local string) {
+		groups[group].specifiers = append(
+			groups[group].specifiers,
+			lowering.importSpecifier(imported, local),
+		)
+	}
 	helpers := []struct {
 		imported string
 		local    string
+		group    int
 	}{
-		{"createCompiledVNode", lowering.names.element},
-		{"createCompiledRenderProgram", lowering.names.renderProgram},
-		{"createCompiledFragment", lowering.names.fragment},
-		{"createCompiledTarget", lowering.names.target},
-		{"createExpression", lowering.names.expression},
-		{"createForwardedExpression", lowering.names.forwardedExpression},
-		{"componentExecutionValueForHost", lowering.names.componentOutput},
-		{"createDynamicChild", lowering.names.dynamic},
-		{"createServerBoundary", lowering.names.boundary},
-		{"markFiniteClientBoundary", lowering.names.finiteBoundary},
-		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings},
-		{"createServerSlot", lowering.names.serverSlot},
-		{"createKeyedServerSlot", lowering.names.keyedServerSlot},
-		{"createDerived", lowering.names.derived},
-		{"writeReactiveLazy", lowering.names.write},
-		{"updateReactiveValue", lowering.names.update},
-		{"updateReactiveValueWithResult", lowering.names.updateResult},
-		{"deleteReactiveValue", lowering.names.delete},
-		{"mutateReactiveArray", lowering.names.arrayMutation},
-		{"mutateReactiveCollection", lowering.names.collectionMutation},
-		{"createCompiledComponentRegistry", lowering.names.componentRegistry},
-		{"createEnhancementMarker", lowering.names.enhancements},
-		{"omitKnownProps", lowering.names.omitEnhancementProps},
+		{"createCompiledVNode", lowering.names.element, 0},
+		{"createCompiledRenderProgram", lowering.names.renderProgram, 0},
+		{"createCompiledFragment", lowering.names.fragment, 0},
+		{"createCompiledTarget", lowering.names.target, 0},
+		{"createExpression", lowering.names.expression, 0},
+		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
+		{"componentExecutionValueForHost", lowering.names.componentOutput, 2},
+		{"createDynamicChild", lowering.names.dynamic, 0},
+		{"createServerBoundary", lowering.names.boundary, 0},
+		{"markFiniteClientBoundary", lowering.names.finiteBoundary, 0},
+		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings, 0},
+		{"createServerSlot", lowering.names.serverSlot, 0},
+		{"createKeyedServerSlot", lowering.names.keyedServerSlot, 0},
+		{"createDerived", lowering.names.derived, 1},
+		{"writeReactiveLazy", lowering.names.write, 1},
+		{"updateReactiveValue", lowering.names.update, 1},
+		{"updateReactiveValueWithResult", lowering.names.updateResult, 1},
+		{"deleteReactiveValue", lowering.names.delete, 1},
+		{"mutateReactiveArray", lowering.names.arrayMutation, 1},
+		{"mutateReactiveCollection", lowering.names.collectionMutation, 1},
+		{"createCompiledComponentRegistry", lowering.names.componentRegistry, 4},
+		{"createEnhancementMarker", lowering.names.enhancements, 5},
+		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -6657,10 +6673,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 			used = true
 		}
 		if used {
-			specifiers = append(
-				specifiers,
-				lowering.importSpecifier(helper.imported, helper.local),
-			)
+			add(helper.group, helper.imported, helper.local)
 		}
 	}
 	taskHelperOrder := []string{
@@ -6692,28 +6705,33 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 			if !containsIdentifier(root, local) {
 				continue
 			}
-			specifiers = append(
-				specifiers,
-				lowering.importSpecifier(imported, local),
-			)
+			group := 2
+			if imported == "markExactInspectionSource" {
+				group = 3
+			}
+			add(group, imported, local)
 		}
 	}
-	if len(specifiers) == 0 {
-		return nil
-	}
-	result := lowering.factory.NewImportDeclaration(
-		nil,
-		lowering.factory.NewImportClause(
-			ast.KindUnknown,
+	result := make([]*ast.Node, 0, len(groups))
+	for _, group := range groups {
+		if len(group.specifiers) == 0 {
+			continue
+		}
+		declaration := lowering.factory.NewImportDeclaration(
 			nil,
-			lowering.factory.NewNamedImports(
-				lowering.factory.NewNodeList(specifiers),
+			lowering.factory.NewImportClause(
+				ast.KindUnknown,
+				nil,
+				lowering.factory.NewNamedImports(
+					lowering.factory.NewNodeList(group.specifiers),
+				),
 			),
-		),
-		lowering.factory.NewStringLiteral("@exactjs/core", ast.TokenFlagsNone),
-		nil,
-	)
-	ast.SetParentInChildren(result)
+			lowering.factory.NewStringLiteral(group.module, ast.TokenFlagsNone),
+			nil,
+		)
+		ast.SetParentInChildren(declaration)
+		result = append(result, declaration)
+	}
 	return result
 }
 

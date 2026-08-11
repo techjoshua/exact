@@ -3,6 +3,33 @@ import { transform, transformSource } from '../index.js';
 import { analyzeSource } from '../compilation/source-analysis.js';
 
 describe('@exactjs/compiler component computations', () => {
+	it('imports generated runtime capabilities only from focused entries', () => {
+		const staticOutput = transform(
+			`function Greeting(this: Component<{}>, props: { name: string }) {
+				return () => <p>Hello {props.name}</p>;
+			}`,
+			{ filename: 'Greeting.tsx' }
+		);
+		expect(staticOutput).toContain('from "@exactjs/core/runtime/render"');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/tasks');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/inspection');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/registry');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/enhancements');
+
+		const taskOutput = transform(
+			`function Search(this: Component<{ query: string; result?: string }>) {
+				async function load(query: string) {
+					this.state.result = await Promise.resolve(query);
+				}
+				load(this.state.query);
+				return () => <p>{this.state.result}</p>;
+			}`,
+			{ filename: 'Search.tsx' }
+		);
+		expect(taskOutput).toContain('from "@exactjs/core/runtime/tasks"');
+		expect(taskOutput).toContain('from "@exactjs/core/runtime/reactivity"');
+	});
+
 	it('keeps nullish component-state initialization in setup', () => {
 		const output = transform(
 			`function Greeting(this: Component<{ name: string }>, props: { initial?: string }) {

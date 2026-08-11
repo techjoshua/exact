@@ -1,11 +1,4 @@
-import {
-	batch,
-	computed,
-	mutateReactiveCollection,
-	unwrap,
-	whenEffectScopeResumed,
-	type ReactiveValue
-} from '@exactjs/reactive';
+import { batch, mutateReactiveCollection, unwrap, whenEffectScopeResumed } from '@exactjs/reactive';
 
 import { combineAbortSignals, isAbortSignal } from './signals.js';
 import { isPromiseLike } from '../component/async-value.js';
@@ -383,9 +376,4 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 			}
 		);
 	});
-}
-
-/** Compiler runtime hook for a shared, lazily evaluated derived component value. */
-export function createDerived<T>(compute: () => T): ReactiveValue<T> {
-	return computed(compute);
 }

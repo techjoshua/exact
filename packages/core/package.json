@@ -55,6 +55,30 @@
 		"./framework/error-view": {
 			"types": "./dist/framework/error-view.d.ts",
 			"default": "./dist/framework/error-view.js"
+		},
+		"./runtime/render": {
+			"types": "./dist/runtime/render.d.ts",
+			"default": "./dist/runtime/render.js"
+		},
+		"./runtime/reactivity": {
+			"types": "./dist/runtime/reactivity.d.ts",
+			"default": "./dist/runtime/reactivity.js"
+		},
+		"./runtime/tasks": {
+			"types": "./dist/runtime/tasks.d.ts",
+			"default": "./dist/runtime/tasks.js"
+		},
+		"./runtime/inspection": {
+			"types": "./dist/runtime/inspection.d.ts",
+			"default": "./dist/runtime/inspection.js"
+		},
+		"./runtime/registry": {
+			"types": "./dist/runtime/registry.d.ts",
+			"default": "./dist/runtime/registry.js"
+		},
+		"./runtime/enhancements": {
+			"types": "./dist/runtime/enhancements.d.ts",
+			"default": "./dist/runtime/enhancements.js"
 		}
 	},
 	"main": "./dist/index.js",

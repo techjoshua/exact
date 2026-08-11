@@ -293,7 +293,6 @@ export {
 	settledComponentContinuationIds
 } from './tasks/component-continuation.js';
 export {
-	createDerived,
 	discardTaskMutations,
 	mutateTaskCollection,
 	ownTaskResource,
@@ -309,6 +308,7 @@ export {
 	taskObserver,
 	taskTimeout
 } from './tasks/resources.js';
+export { createDerived } from './component/derived.js';
 export {
 	combineTaskSignal,
 	withAbortSignal,

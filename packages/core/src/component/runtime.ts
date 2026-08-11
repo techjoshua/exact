@@ -56,6 +56,7 @@ import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
 import { createComponentProps, createComponentState } from './state.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
+import { readExactComponentContract } from '../component-contracts.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
@@ -112,7 +113,13 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		});
 		this.state = createComponentState<State>(domain, () => this);
 		this.props = createComponentProps(rawProps);
-		this.taskOwner = createTaskOwnerRecord(this.id);
+		const contract = readExactComponentContract(type);
+		this.taskOwner =
+			contract === undefined ||
+			contract.continuations.length !== 0 ||
+			(contract.execution?.transitions.length ?? 0) !== 0
+				? createTaskOwnerRecord(this.id)
+				: undefined;
 		this.activation = createComponentActivation(
 			this,
 			() => this.mountedValue,
@@ -308,7 +315,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		teardown(() => this.scope.stop());
 		if (this.lists) teardown(() => this.lists!.dispose());
 		if (this.mountController) teardown(() => this.mountController!.abort(reason));
-		teardown(() => void this.taskOwner[Symbol.asyncDispose]());
+		if (this.taskOwner) teardown(() => void this.taskOwner![Symbol.asyncDispose]());
 		for (const handler of componentLifecycleHandlers(this, 'unmount')) {
 			try {
 				const result = handler({ signal: AbortSignal.abort(reason), reason });
@@ -329,9 +336,11 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
-			deferTaskOwnerActivations(this.taskOwner);
+			if (this.taskOwner) deferTaskOwnerActivations(this.taskOwner);
 		}
-		const taskObserver = configureComponentTaskOwner(this, this.taskOwner, execution, rawProps);
+		const taskObserver = this.taskOwner
+			? configureComponentTaskOwner(this, this.taskOwner, execution, rawProps)
+			: undefined;
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });
@@ -343,7 +352,9 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		try {
 			result = withEffectScope(this.scope, () =>
 				withComponentDomain(this.domain, () =>
-					withTaskOwnerRecord(this.taskOwner, () => this.type.call(this, this.props as Props))
+					this.taskOwner
+						? withTaskOwnerRecord(this.taskOwner, () => this.type.call(this, this.props as Props))
+						: this.type.call(this, this.props as Props)
 				)
 			);
 		} catch (error) {
@@ -354,10 +365,11 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 			this.inspection?.publish({ kind: 'resumption.activate', component: this });
 			const settledContinuations = new Set(resumption.settledContinuations);
-			releaseTaskOwnerActivations(this.taskOwner, (task) => {
-				const continuationId = componentContinuationTaskId(task);
-				return continuationId !== undefined && settledContinuations.has(continuationId);
-			});
+			if (this.taskOwner)
+				releaseTaskOwnerActivations(this.taskOwner, (task) => {
+					const continuationId = componentContinuationTaskId(task);
+					return continuationId !== undefined && settledContinuations.has(continuationId);
+				});
 		}
 		if (typeof result !== 'function') {
 			const error = new TypeError(
