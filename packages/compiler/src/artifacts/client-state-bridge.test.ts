@@ -34,9 +34,7 @@ describe('@exactjs/compiler: client state bridges', () => {
 		);
 
 		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(output).toMatch(
-			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
-		);
+		expect(output).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(output).toContain('__exactBoundary(');
 		expect(output).not.toContain('node:fs/promises');
 		expect(output).not.toContain('readFile');
@@ -60,9 +58,7 @@ describe('@exactjs/compiler: client state bridges', () => {
 		);
 
 		expect(output).toContain('function ClientWidget()');
-		expect(output).toMatch(
-			/export const Page: typeof __exactImplementation_Page_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
-		);
+		expect(output).toMatch(/export const Page = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(output).toContain('onClick: () => save()');
 	});
 });

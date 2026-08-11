@@ -384,22 +384,22 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(result?.code).not.toContain('export function Page(');
 	});
 
-	it('resolves exact facade imports to target artifacts', () => {
+	it('resolves exact facade imports to target artifacts', async () => {
 		expect(
 			exact({ target: 'client', reactCompatibility: false }).resolveId?.(
 				'./Panel.exact',
 				'/app/src/main.ts'
 			)
-		).toMatch(/Panel\.exact\.client\.ts$/);
+		).resolves.toMatch(/Panel\.exact\.client\.ts$/);
 		expect(
 			exact({ target: 'server', reactCompatibility: false }).resolveId?.(
 				'./Panel.exact',
 				'/app/src/main.ts'
 			)
-		).toMatch(/Panel\.exact\.server\.ts$/);
+		).resolves.toMatch(/Panel\.exact\.server\.ts$/);
 		expect(
 			exact({ reactCompatibility: false }).resolveId?.('./Panel', '/app/src/main.ts')
-		).toBeNull();
+		).resolves.toBeNull();
 	});
 
 	it('adds target export conditions for packaged exact artifacts', () => {
@@ -480,7 +480,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(output?.code).not.toContain('virtual:exact/devtools-runtime');
 	});
 
-	it('injects the page-world runtime before application modules only when instrumented', () => {
+	it('injects the page-world runtime before application modules only when instrumented', async () => {
 		const development = exact({
 			target: 'client',
 			debug: { runtime: true, buildKey: 'build-client', executionRoot: 'page' }
@@ -492,7 +492,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(html.indexOf('virtual:exact/devtools-runtime')).toBeLessThan(
 			html.indexOf('/src/main.ts')
 		);
-		expect(development.resolveId?.('virtual:exact/devtools-runtime')).toBe(
+		expect(await development.resolveId?.('virtual:exact/devtools-runtime')).toBe(
 			'\0virtual:exact/devtools-runtime'
 		);
 		expect(development.load?.('\0virtual:exact/devtools-runtime')).toMatchObject({

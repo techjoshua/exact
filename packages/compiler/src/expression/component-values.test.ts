@@ -103,6 +103,8 @@ describe('@exactjs/compiler: component values', () => {
 
 		expect(output).toContain('@exactjs/component');
 		expect(output).toContain('Object.assign');
-		expect(output).toContain('export const Badge = /* @__PURE__ */ Object.assign(function Badge');
+		expect(output).toContain('definition:');
+		expect(output).toContain('tasks: []');
+		expect(output).not.toContain('@exactjs/core/runtime/tasks');
 	});
 });

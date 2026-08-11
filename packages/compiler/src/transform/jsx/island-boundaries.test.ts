@@ -35,7 +35,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 		const server = await readFile(result.serverFile, 'utf8');
 
 		expect(client).toMatch(
-			/export const ClientWidget: typeof __exactImplementation_ClientWidget_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
+			/export const ClientWidget = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
 		);
 		expect(client).toMatch(
 			/\{ id: "[^"]+", name: "ClientWidget", role: "root", implementation: __exactImplementation_ClientWidget_\d+ \}/

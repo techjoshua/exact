@@ -12,10 +12,7 @@ describe('lazy island execution slices', () => {
 		const component = compiledIsland({
 			version: 1,
 			ports: [],
-			transitions: [
-				transition('setup', 'setup'),
-				transition('interaction', 'interaction')
-			],
+			transitions: [transition('setup', 'setup'), transition('interaction', 'interaction')],
 			reactive: []
 		});
 		const slice = prepareClientIslandExecutionSlice(component);

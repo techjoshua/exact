@@ -233,9 +233,7 @@ describe('@exactjs/compiler: registries', () => {
 			target: 'client',
 			placement: 'client'
 		});
-		expect(client).toMatch(
-			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
-		);
+		expect(client).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(client).not.toContain('export function Panel_ExactClient_1');
 		expect(client).not.toContain('export function Panel_ExactClient_2');
 		expect(server).toContain('createServerBoundary as');

@@ -70,9 +70,8 @@ export function createEnhancementNode(
 }
 
 /** @deprecated Compiler output now calls createEnhancementNode. */
-export const createEnhancementMarker: (
-	entries: readonly EnhancementEntry[]
-) => EnhancementMarker = createEnhancementNode;
+export const createEnhancementMarker: (entries: readonly EnhancementEntry[]) => EnhancementMarker =
+	createEnhancementNode;
 
 /** Copies an object while omitting a compiler-proven finite set of namespaced enhancement keys. */
 export function omitKnownProps(

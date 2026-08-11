@@ -1,7 +1,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { collectInputFiles, commonRoot, outputPathFor } from '../paths.js';
-import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
+import {
+	createLineSourceMap,
+	sourceMapPathFor,
+	withSourceMapFile,
+	withSourceMappingUrl
+} from '../source-maps.js';
 import type { CompileFileOptions, CompileFileResult, CompileProjectOptions } from '../types.js';
 import { capabilityCompilationOptions } from './capability-options.js';
 import { transformSource } from './transformation.js';
@@ -70,12 +75,16 @@ async function prepareFile(
 					prependExactEnhancementRegistrations(result.code, rendererEnhancements),
 					rendererEnhancements,
 					inputFile,
-					path.dirname(outputFile)
+					options.outDir ?? path.dirname(outputFile)
 				).code
 			: result.code;
 	return Object.freeze({
 		...result,
 		code: executable,
+		map:
+			result.map && executable !== result.code
+				? createLineSourceMap(options.filename ?? inputFile, source, executable)
+				: result.map,
 		source,
 		inputFile,
 		outputFile,

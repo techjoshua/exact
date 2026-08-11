@@ -588,6 +588,7 @@ func (s *Session) Execute(request Request) Response {
 		request.Target,
 		sourceFile.FileName(),
 		request.PreserveComponentHoisting,
+		request.JSXInterop != nil,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,

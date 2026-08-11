@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/printer"
@@ -22,6 +23,7 @@ func lowerComponentContracts(
 	target Target,
 	identityFilename string,
 	preserveComponentHoisting bool,
+	compatibility bool,
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -72,6 +74,7 @@ func lowerComponentContracts(
 							target,
 							used,
 							preserveComponentHoisting,
+							compatibility,
 						)...,
 					)
 					continue
@@ -108,6 +111,7 @@ func lowerComponentContracts(
 				boundaries,
 				target,
 				used,
+				compatibility,
 			)
 			if rootChanged {
 				statements = append(statements, updatedRoot)
@@ -429,6 +433,7 @@ func wrapRootComponentFunction(
 	target Target,
 	used map[string]struct{},
 	preserveComponentHoisting bool,
+	compatibility bool,
 ) []*ast.Node {
 	if !preserveComponentHoisting {
 		return wrapRootComponentFunctionValue(
@@ -442,6 +447,7 @@ func wrapRootComponentFunction(
 			boundaries,
 			target,
 			used,
+			compatibility,
 		)
 	}
 	factory := emitContext.Factory
@@ -460,6 +466,7 @@ func wrapRootComponentFunction(
 		declaration.AsNode(),
 		used,
 		false,
+		compatibility,
 	)
 	attachmentStatement := factory.NewExpressionStatement(attachment)
 	return []*ast.Node{declaration.AsNode(), attachmentStatement}
@@ -476,6 +483,7 @@ func wrapRootComponentFunctionValue(
 	boundaries []Boundary,
 	target Target,
 	used map[string]struct{},
+	compatibility bool,
 ) []*ast.Node {
 	factory := emitContext.Factory
 	name := declaration.Name()
@@ -518,6 +526,7 @@ func wrapRootComponentFunctionValue(
 		implementation,
 		used,
 		true,
+		compatibility,
 	)
 	implementationDeclaration := factory.NewVariableStatement(
 		nil,
@@ -551,7 +560,7 @@ func wrapRootComponentFunctionValue(
 				factory.NewVariableDeclaration(
 					factory.NewIdentifier(name.Text()),
 					nil,
-					factory.NewTypeQueryNode(implementationIdentifier, nil),
+					nil,
 					attachment,
 				),
 			}),
@@ -586,6 +595,7 @@ func rootComponentContractAttachment(
 	componentFunction *ast.Node,
 	used map[string]struct{},
 	wrapIIFE bool,
+	compatibility bool,
 ) *ast.Node {
 	factory := emitContext.Factory
 	implementationName := component.Name
@@ -635,6 +645,7 @@ func rootComponentContractAttachment(
 		role = "client"
 	}
 	projectedExecution := projectComponentExecution(component.Execution, target)
+	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
@@ -681,6 +692,7 @@ func rootComponentContractAttachment(
 				projectedExecution,
 				componentContinuations,
 				componentHasResumption(component.ID, resumptions),
+				usesCompatibility,
 			),
 		),
 	}
@@ -769,6 +781,24 @@ func rootComponentContractAttachment(
 	)
 }
 
+func componentUsesJSXInterop(component Component, componentFunction *ast.Node) bool {
+	for _, edge := range component.RenderEdges {
+		if edge.ModuleSpecifier != "" && edge.ComponentID == "" {
+			return true
+		}
+	}
+	used := false
+	walkNode(componentFunction, func(node *ast.Node) bool {
+		if !ast.IsIdentifier(node) {
+			return true
+		}
+		name := node.Text()
+		used = name == "__exactInteropComponent" || strings.HasPrefix(name, "__exactInteropComponent_")
+		return !used
+	})
+	return used
+}
+
 func componentHasResumption(componentID string, resumptions []ComponentResumption) bool {
 	for _, resumption := range resumptions {
 		if resumption.ComponentID == componentID &&
@@ -793,6 +823,7 @@ func wrapRootComponentVariables(
 	boundaries []Boundary,
 	target Target,
 	used map[string]struct{},
+	compatibility bool,
 ) (*ast.Node, bool) {
 	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
@@ -844,6 +875,7 @@ func wrapRootComponentVariables(
 			declaration.Initializer,
 			used,
 			false,
+			compatibility,
 		)
 		body := factory.NewBlock(
 			factory.NewNodeList([]*ast.Node{

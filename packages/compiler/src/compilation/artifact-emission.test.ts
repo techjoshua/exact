@@ -200,18 +200,14 @@ describe('@exactjs/compiler: artifacts', () => {
 				`id: "${rootSymbol.id}"[\\s\\S]*name: "${rootSymbol.generatedName}"[\\s\\S]*role: "root"[\\s\\S]*implementation: __exactImplementation_Panel_`
 			)
 		);
-		expect(client).toMatch(
-			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
-		);
+		expect(client).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(server).toContain('Symbol.for("@exactjs/component-contract")');
 		expect(server).toMatch(
 			new RegExp(
 				`id: "${serverPartSymbol.id}"[\\s\\S]*name: "${serverPartSymbol.generatedName}"[\\s\\S]*role: "server-part"[\\s\\S]*implementation: __exactImplementation_Panel_`
 			)
 		);
-		expect(server).toMatch(
-			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
-		);
+		expect(server).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(client).not.toContain('parts:');
 		expect(server).not.toContain('parts:');
 		expect(client).toContain('executors: []');

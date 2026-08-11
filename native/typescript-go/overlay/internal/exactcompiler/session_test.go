@@ -802,7 +802,7 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 	for _, expected := range []string{
 		`const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract")`,
 		`const __exactImplementation_Button_1 = function Button()`,
-		`export const Button: typeof __exactImplementation_Button_1`,
+		`export const Button =`,
 		`Object.assign(__exactImplementation_Button_1, {`,
 		`[Symbol.for("@exactjs/component")]: "` + component.ID + `"`,
 		`[__exactComponentContract_1]:`,
@@ -826,6 +826,34 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 			"fully client-owned component retained redundant nested island metadata:\n%s",
 			response.Code,
 		)
+	}
+}
+
+func TestSessionEmitsCompatibilityCapabilityOnlyForAdaptedComponentRoots(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "button.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `import { Widget } from "foreign-ui";
+		export function Button() {
+			return () => <button onClick={() => alert(1)}><Widget /></button>;
+		}`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat",
+			AdapterExport: "adaptComponent",
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`import "@exactjs/core/runtime/tasks"`,
+		`__exactInteropComponent(Widget)`,
+		`"compatibility"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("native compatibility contract is missing %q:\n%s", expected, response.Code)
+		}
 	}
 }
 
@@ -3839,7 +3867,7 @@ __fixtureTask24();
 			taskID +
 			`", __exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation);`,
 		`const __exactImplementation_Loader_1 = function Loader(`,
-		`export const Loader: typeof __exactImplementation_Loader_1`,
+		`export const Loader =`,
 		`Object.assign(__exactImplementation_Loader_1, {`,
 		`continuations: [`,
 		`id: "` + taskID + `"`,

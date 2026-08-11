@@ -160,6 +160,7 @@ export type ExactCompiledComponentDefinitionContract = Readonly<{
 		| 'inspection'
 		| 'registry'
 		| 'enhancements'
+		| 'compatibility'
 	)[];
 }>;
 

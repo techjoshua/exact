@@ -72,7 +72,7 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 		await client.buildStart?.call({ addWatchFile() {} });
 		client.transform(fixture.pageSource, fixture.pageFile);
 		expect(
-			client.resolveId?.call(
+			await client.resolveId?.call(
 				{ resolve: async () => ({ id: fixture.libraryModule }) },
 				'@acme/cards',
 				fixture.pageFile

@@ -6712,9 +6712,20 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			add(group, imported, local)
 		}
 	}
+	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
 	result := make([]*ast.Node, 0, len(groups))
-	for _, group := range groups {
+	for index, group := range groups {
 		if len(group.specifiers) == 0 {
+			if index == 2 && interopUsed {
+				declaration := lowering.factory.NewImportDeclaration(
+					nil,
+					nil,
+					lowering.factory.NewStringLiteral(group.module, ast.TokenFlagsNone),
+					nil,
+				)
+				ast.SetParentInChildren(declaration)
+				result = append(result, declaration)
+			}
 			continue
 		}
 		declaration := lowering.factory.NewImportDeclaration(

@@ -175,7 +175,15 @@ describe('installed eXact component package artifacts', () => {
 					name: '@exactjs/core',
 					version: '0.0.0-fixture',
 					type: 'module',
-					exports: './index.js'
+					exports: {
+						'.': './index.js',
+						'./runtime/render': './index.js',
+						'./runtime/reactivity': './index.js',
+						'./runtime/tasks': './index.js',
+						'./runtime/inspection': './index.js',
+						'./runtime/registry': './index.js',
+						'./runtime/enhancements': './index.js'
+					}
 				})}\n`
 			);
 			await writeFile(

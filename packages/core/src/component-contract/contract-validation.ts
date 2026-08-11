@@ -86,9 +86,15 @@ function isDefinition(value: unknown): boolean {
 		value.render === 'returned-function' &&
 		Array.isArray(value.capabilities) &&
 		value.capabilities.every((capability) =>
-			['tasks', 'continuations', 'resumption', 'inspection', 'registry', 'enhancements'].includes(
-				capability
-			)
+			[
+				'tasks',
+				'continuations',
+				'resumption',
+				'inspection',
+				'registry',
+				'enhancements',
+				'compatibility'
+			].includes(capability)
 		)
 	);
 }
