@@ -275,6 +275,21 @@ describe('@exactjs/reactive scopes', () => {
 		});
 	});
 
+	it('does not let first-use scope teardown own a computed created outside that scope', () => {
+		const state = reactive({ value: 0 });
+		const derived = computed(() => state.value * 2);
+		const serverScope = createEffectScope();
+		withEffectScope(serverScope, () => watch(() => void derived.get()));
+		serverScope.stop();
+
+		let hydrated = -1;
+		watch(() => (hydrated = derived.get()));
+		state.value = 2;
+		flushSync();
+
+		expect(hydrated).toBe(4);
+	});
+
 	it('inherits ancestor pauses while preserving a child own pause', () => {
 		const parent = createEffectScope();
 		const child = createEffectScope(parent);

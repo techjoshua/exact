@@ -103,6 +103,11 @@ export function ComponentsPage(this: Component<{}>) {
 					its watcher; reactive expressions retain the same fine-grained update behavior.
 				</p>
 				<p>
+					A computed expression captures ownership where it is created, not where its lazy first
+					read occurs. An expression first sampled during server rendering therefore remains
+					available to the later hydration owner.
+				</p>
+				<p>
 					Application-created error contexts retain the history their owner chooses. The framework's
 					process-global fallback keeps only the newest 100 unattached reports, preventing an
 					unlimited fallback history without changing application-owned diagnostics.

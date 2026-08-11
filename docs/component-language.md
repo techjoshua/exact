@@ -110,6 +110,10 @@ their child, reaction, cleanup, and pause-waiter collections are created on
 first use. A DOM binding that observes no reactive dependency applies its value
 once and releases its watcher and binding-table entry; reactive expressions
 continue to retain ordinary fine-grained update behavior.
+A computed expression captures reactive ownership where it is created, not
+where its lazy first read happens. Consequently, a reusable expression sampled
+during SSR remains live for a later hydration owner instead of being disposed
+with the completed server render.
 Readonly prop tracking traverses plain objects and collections. Opaque class
 instances retain their authored identity even when supplied by a reactive JSX
 expression, so resource methods may mutate their own private state without

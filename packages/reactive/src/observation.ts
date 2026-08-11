@@ -1,7 +1,5 @@
 import { cleanupReaction, getDep, runTracked, track, trigger } from './internal/deps.js';
 
-import { isPlainObject } from './internal/objects.js';
-
 import {
 	currentEffectScope,
 	effectScopeWorkPriority,
@@ -172,7 +170,7 @@ export function watchRetained(
 	scheduler?: () => void,
 	options: RetainedWatchOptions = {}
 ): StopHandle | undefined {
-	const scope = (options.scope ?? currentEffectScope()) as EffectScopeImpl | undefined;
+	const scope = resolveObservationScope(options);
 	const handleError = (error: unknown): void => {
 		const onError = options.onError ?? scope?.onError;
 		if (!onError) throw error;
@@ -264,7 +262,7 @@ export function subscribe<T>(
 	callback: () => void,
 	options: WatchOptions = {}
 ): StopHandle {
-	const scope = (options.scope ?? currentEffectScope()) as EffectScopeImpl | undefined;
+	const scope = resolveObservationScope(options);
 	const handleError = (error: unknown): void => {
 		const onError = options.onError ?? scope?.onError;
 		if (!onError) throw error;
@@ -323,6 +321,13 @@ export function subscribe<T>(
 	return reaction.stop;
 }
 
+/** Inherits ownership only when the caller did not explicitly capture an unowned scope. */
+function resolveObservationScope(options: WatchOptions): EffectScopeImpl | undefined {
+	return (
+		Object.prototype.hasOwnProperty.call(options, 'scope') ? options.scope : currentEffectScope()
+	) as EffectScopeImpl | undefined;
+}
+
 /** Returns the reactive reference that drives a reactive value or proxied object, when available. */
 export function ref<T>(value: ReactiveValue<T>): ReactiveRef<T>;
 export function ref<T>(value: T): ReactiveRef<T> | undefined;
@@ -337,72 +342,4 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
 	}
 
 	return undefined;
-}
-
-/** Creates a plain recursive snapshot of reactive state for serialization or comparison. */
-export function snapshot<T>(value: T): T {
-	const root = unwrap(value);
-	if (
-		!root ||
-		typeof root !== 'object' ||
-		(!Array.isArray(root) &&
-			!(root instanceof Map) &&
-			!(root instanceof Set) &&
-			!isPlainObject(root))
-	)
-		return root;
-	const output: any = createSnapshotContainer(root);
-	const seen = new WeakMap<object, unknown>([[root, output]]);
-	const pending: Array<{ source: any; target: any }> = [{ source: root, target: output }];
-	while (pending.length) {
-		const { source, target } = pending.pop()!;
-		if (source instanceof Map) {
-			for (const [key, child] of source) target.set(key, snapshotChild(child, seen, pending));
-			continue;
-		}
-		if (source instanceof Set) {
-			for (const child of source) target.add(snapshotChild(child, seen, pending));
-			continue;
-		}
-		if (Array.isArray(source)) target.length = source.length;
-		const keys: PropertyKey[] = Array.isArray(source)
-			? Array.from({ length: source.length }, (_, index) => index).filter((index) =>
-					Reflect.has(source, index)
-				)
-			: Reflect.ownKeys(source);
-		for (const key of keys) {
-			target[key] = snapshotChild(source[key], seen, pending);
-		}
-	}
-	return output as T;
-}
-
-function snapshotChild(
-	value: unknown,
-	seen: WeakMap<object, unknown>,
-	pending: Array<{ source: any; target: any }>
-): unknown {
-	const child = unwrap(value);
-	if (
-		!child ||
-		typeof child !== 'object' ||
-		(!Array.isArray(child) &&
-			!(child instanceof Map) &&
-			!(child instanceof Set) &&
-			!isPlainObject(child))
-	)
-		return child;
-	const prior = seen.get(child);
-	if (prior) return prior;
-	const clone = createSnapshotContainer(child);
-	seen.set(child, clone);
-	pending.push({ source: child, target: clone });
-	return clone;
-}
-
-function createSnapshotContainer(value: object): any {
-	if (Array.isArray(value)) return [];
-	if (value instanceof Map) return new Map();
-	if (value instanceof Set) return new Set();
-	return Object.create(Object.getPrototypeOf(value));
 }
