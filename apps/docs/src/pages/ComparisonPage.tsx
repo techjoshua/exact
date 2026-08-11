@@ -123,13 +123,14 @@ export function ComparisonPage(this: Component<{}>) {
 					React remains more permissive when a component type comes from an opaque runtime registry.
 					eXact deliberately requires a finite registry contract so placement, lazy imports, SSR,
 					hydration, and component identity remain provable. React also exposes View Transitions,
-					resource hints, file-upload and no-JavaScript action paths, and partial-prerender resume
-					primitives that eXact does not yet match with native contracts.
+					resource hints and file-upload and no-JavaScript action paths that eXact does not yet
+					match with native contracts. React also exposes persisted partial-prerender resumption;
+					eXact intentionally relies on Suspense and progressive SSR because they provide the useful
+					behavior without cross-request checkpoint reconstruction.
 				</p>
 				<p>
-					eXact&apos;s progressive renderer does not serialize postponed renderer state for a later
-					resume request. Some complicated server-child graphs still fall back to broader splitting
-					or boundary replacement. These are specific remaining gaps, not a missing component model.
+					Some complicated server-child graphs still fall back to broader splitting or boundary
+					replacement. These are specific remaining gaps, not a missing component model.
 				</p>
 			</section>
 			<section>

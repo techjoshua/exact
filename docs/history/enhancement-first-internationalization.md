@@ -17,7 +17,6 @@ they publish a finite internationalization role. That boundary removes the need 
 runtime child inspection, child capability injection, or application-wide component expansion.
 This implemented contract remains a settled input to
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
-[`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md), and
 [`webpack-bun-microfrontend-parity.md`](../proposals/webpack-bun-microfrontend-parity.md). The implemented
 [`component-value-callback-bindings.md`](component-value-callback-bindings.md) contract is
 not an internationalization prerequisite, but its callback and intrinsic-adapter analysis is now
@@ -2018,10 +2017,6 @@ text or reorder authorized slots only within the message plan; it cannot patch t
 ownership or inject translator-defined markup. The current safe range and boundary replacement
 paths already preserve this rule without requiring that optional optimization.
 
-Partial-prerender checkpoints retain opaque locale/catalog/data fingerprints and active message-plan
-identities, not translated strings as durable operation identity. Resume reacquires the exact
-authorized catalog generation or fails closed to the nearest safe rerender boundary.
-
 Microfrontend exposures publish message/catalog requirements through the shared artifact plan.
 Page and component hosts agree on locale, catalog protocol, owner identity, Unicode-data version,
 and provided `@exactjs/intl` instance before hydration. Remote catalogs cannot override unrelated
@@ -2313,8 +2308,8 @@ because that operation is useful to ordinary compiled TypeScript independently o
 9. Coordinate development-entry locale selection, dependency translation lookup, runtime locale
    negotiation, SSR, hydration, reactive locale changes, lazy catalog fragments, and generation
    fencing.
-10. Integrate partial-prerender resumption and microfrontend artifact contracts; expose the same
-    facts to any later measured structural render-program extension.
+10. Integrate microfrontend artifact contracts and expose the same facts to any later measured
+    structural render-program extension.
 11. Add current engineering references, package READMEs/local agent guidance, docs-app pages,
     examples, and translation-tool adapter documentation when implementation lands.
 

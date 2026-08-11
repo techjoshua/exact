@@ -18,9 +18,7 @@ The current framework already has:
 
 The remaining opportunity is an optimization: some structural refreshes still serialize complete
 HTML and let the safe differ rediscover branch or sibling shape. A measured extension may let an
-existing render program emit a typed structural result directly. This work does not block
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md), whose correctness baseline can
-use the existing authorized range or boundary replacement.
+existing render program emit a typed structural result directly.
 
 | Area                | Implemented contract                                       | Possible measured extension                  |
 | ------------------- | ---------------------------------------------------------- | -------------------------------------------- |
@@ -63,7 +61,8 @@ serializable copy of the component tree.
 
 - Planning the whole component tree a second time.
 - Replacing the component execution subgraph, root blueprint cache, or request scheduler.
-- Making fine-grained structural patches a prerequisite for partial prerendering.
+- Supporting persisted cross-request renderer reconstruction; that work is intentionally not
+  planned.
 - Sending compiler IR, source text, closures, component instances, or bundler paths to clients.
 - Removing the HTML differ or boundary replacement correctness paths.
 - Adding a broad public structural-patch API before a concrete operation needs one.

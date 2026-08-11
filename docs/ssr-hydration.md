@@ -186,8 +186,9 @@ server contexts, and secret-qualified values are rejected.
   may add proven patch fast paths, but current range and boundary replacement is already the
   correctness contract and does not block later SSR work.
 - [Full Webpack and Bun microfrontend production conformance](proposals/webpack-bun-microfrontend-parity.md).
-- [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md); current
-  progressive rendering does not persist opaque postponed renderer state.
+- Persisting postponed renderer state across requests is intentionally not planned: ordinary
+  Suspense and progressive SSR provide the useful behavior without checkpoint reconstruction and
+  distributed replay coordination.
 
 See [server-components.md](server-components.md) for authoring and
 [component-registries.md](component-registries.md) for finite dynamic

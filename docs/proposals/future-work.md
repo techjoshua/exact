@@ -29,6 +29,16 @@ selection, including its warning annotation, server-call prohibition, generation
 cleanup. Possible later registry-specific work remains limited to preload heuristics or explicitly
 measured inactive-instance caching; it must not weaken registry identity or SSR guarantees.
 
+## Not planned: persisted partial-prerender resumption
+
+Do not implement cross-request serialization and reconstruction of postponed SSR work without new,
+production-scale evidence. Static Suspense fallbacks and the existing progressive renderer already
+provide immediate shells, concurrent dynamic regions, cancellation, and same-response publication.
+Persisting the shell would usually save only its already-small render cost while requiring encrypted
+checkpoints, replay coordination, retained builds, context reacquisition, and a second reconstructed
+lifetime. Reconsider only if a future contributor demonstrates a representative workload where
+that measured gain materially exceeds the simpler current path.
+
 ## Optional visual and simulation adapters
 
 Motion, gestures, physics, and gravity compose today through ordinary state, callbacks, contexts,

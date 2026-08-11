@@ -8,7 +8,6 @@ Implemented on 2026-08-05 after
 [`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`lazy-interaction-islands.md`](lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md),
-[`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md), and
 [`webpack-bun-microfrontend-parity.md`](../proposals/webpack-bun-microfrontend-parity.md). Those proposals must
 operate on the component graph authorized for each server-executing artifact and preserve its
 authorization fingerprint across development, SSR, hydration, refresh, resumption, and remote
@@ -353,7 +352,7 @@ on the server. This includes:
 - server components and server-owned continuation regions;
 - server-side enhancement components;
 - server task or operation code owned by a packaged component;
-- refresh and partial-prerender resumption entries; and
+- refresh and generated resumption entries; and
 - server-side component tests or generated server facades that execute package code.
 
 The shared session normalizes those cases to the closed reason set `ssr`, `server-component`,

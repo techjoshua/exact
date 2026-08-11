@@ -545,10 +545,10 @@ remain binding, must treat this plan as a constraint rather than wait for a late
   standalone gate. A measured extension may replace full HTML parse trees and duplicated snapshots
   for one proven form, but must reuse render-slot identities and partition authority rather than
   define a parallel mutation model.
-- **Partial-prerender resumption:** checkpoints serialize compact identities, never live component
-  or VNode graphs. Resumed request ownership must use traversal-scoped SSR disposal and release
-  reconstructed generations deterministically. Resumed independent siblings may use the same
-  bounded deterministic SSR concurrency contract.
+- **Persisted partial-prerender resumption:** rejected after architecture review. Static Suspense
+  fallbacks and progressive SSR already provide the useful response behavior; avoiding the shell's
+  render cost does not justify checkpoint security, replay coordination, build retention, and
+  reconstructed request ownership without new production-scale evidence.
 - **Server component-library trust:** bundler authorization should make one package decision per
   graph generation and reuse it across target emission and HMR invalidation. It must not duplicate
   compiler placement analysis, retain stale generations, or add runtime checks to already-authorized

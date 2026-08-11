@@ -9,8 +9,8 @@ Implementation-ready after the implemented
 [`lazy-interaction-islands.md`](../history/lazy-interaction-islands.md), and
 [`compiler-planned-component-execution.md`](../history/compiler-planned-component-execution.md).
 
-This work is independent of partial-prerender resumption and structural-refresh optimization.
-Local and application-bundled dynamic components do not depend on broader microfrontend adapter
+This work is independent of structural-refresh optimization. Local and application-bundled dynamic
+components do not depend on broader microfrontend adapter
 parity. Loading an independently deployed remote component does depend on the existing
 microfrontend trust and artifact contracts and on the applicable host adapter supporting them.
 
@@ -289,10 +289,6 @@ can still use browser APIs such as `fetch` unless the application executes it in
 sandboxed environment. The dynamic-component runtime itself supplies no eXact server transport,
 operation identity, or dispatch capability.
 
-Partial-prerender checkpoints may retain an unresolved dynamic boundary as client activation data
-only. They do not persist its loader, promise, candidate, or possible implementation graph, and
-resumption never resolves it on the server.
-
 ### SSR module-preload hints
 
 SSR may discover enough safe information to identify the client artifact even though it cannot
@@ -430,10 +426,6 @@ existing client build host. Independently deployed remote candidates require tha
 microfrontend lifecycle; Webpack and Bun gain it through
 [`webpack-bun-microfrontend-parity.md`](webpack-bun-microfrontend-parity.md). This is a scoped
 adapter dependency, not a prerequisite for the base boundary.
-
-Partial-prerender resumption may serialize only activation identity and an authorized preload fact.
-It cannot serialize or restore the resolver, promise, candidate, or adopted owner. The
-partial-prerender proposal consumes this rule without blocking either implementation.
 
 ## Delivery order
 

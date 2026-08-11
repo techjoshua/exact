@@ -27,8 +27,8 @@ The architecture review confirms this remains a real adapter gap rather than com
 Webpack and Bun plugins already compile ordinary applications, resolve target facades, enforce
 component-library authorization, and share Intl coordination. What remains here is specifically
 microfrontend producer/consumer lifecycle integration and the heterogeneous production matrix.
-Deferred structural render-program extensions and partial-prerender resumption are not
-prerequisites. Compiler-authored runtime capabilities and optional facades are implemented
+Deferred structural render-program extensions are not prerequisites. Compiler-authored runtime
+capabilities and optional facades are implemented
 foundations. The remote-candidate slice of
 [`compiler-authored-dynamic-component-boundaries.md`](compiler-authored-dynamic-component-boundaries.md)
 consumes the artifacts produced here, but base dynamic components do not block this work. There are
@@ -129,8 +129,7 @@ An accepted exposure record also carries its canonical immutable client artifact
 credentials/CORS, and referrer-policy metadata when the deployment supplies them. That metadata is
 the only input made available to SSR preload planning or a compiler-authored dynamic boundary. It
 does not authorize a generic dynamic component to use server operations, and this proposal does not
-add a dynamic-component resolver. Partial-prerendering, when implemented, reacquires the accepted
-record by opaque build/exposure identity and never stores bundler paths in its artifact.
+add a dynamic-component resolver.
 
 ## Ownership boundaries
 
