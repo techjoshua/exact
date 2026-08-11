@@ -1,10 +1,12 @@
 # eXact
 
-**Reactive TypeScript without rerunning your components.**
+**Ordinary TypeScript components, compiled into reactive state machines across client and server.**
 
-eXact is an experimental, compiler-led web framework for building interfaces with familiar
-TypeScript and JSX. A component is a long-lived instance: setup runs once, state lives directly on
-the instance, and the compiler connects each state read to the DOM or work that depends on it.
+eXact is an experimental, compiler-led web framework that lets you describe a component using
+ordinary TypeScript and JSX, then compiles that description into a reactive state machine with
+seamless client and server execution defined in the same component. Each mounted component is one
+durable instance of that machine: state lives directly on it, and each state read remains connected
+to the DOM or work that depends on it.
 
 The result is ordinary-looking application code with precise updates—without a virtual DOM,
 positional Hooks, or a general component rerender loop.
@@ -26,7 +28,7 @@ type CounterState = {
 };
 
 export function Counter(this: Component<CounterState>) {
-	// Setup runs once for this component instance.
+	// Default state for each new component instance.
 	this.state.count = 0;
 
 	// This remains connected to count; it is not a one-time snapshot.
@@ -42,9 +44,9 @@ export function Counter(this: Component<CounterState>) {
 }
 ```
 
-Clicking the button mutates normal instance state. The component function does not execute again.
-The compiler has already identified the two expressions that read `count`, so only their DOM work
-is scheduled.
+Clicking the button mutates normal instance state and advances the compiled state machine. The
+component is not called again to redescribe its interface. The compiler has already identified the
+two expressions that read `count`, so only their DOM work is scheduled.
 
 There is no setter to call, dependency array to maintain, or component tree to redescribe.
 
@@ -57,9 +59,11 @@ explicit compatibility layer.
 
 ### Components are durable instances
 
-The outer component function is setup, not a render callback. State, tasks, refs, contexts, owned
-resources, and lifecycle registrations all belong to one inspectable instance. The returned
-function describes its view.
+The outer component function is a compiler-analyzed component definition, not a render callback or
+a linearly executed setup routine. It declares initial state, tasks, reactive relationships, and
+view preparation for one inspectable instance. The returned function contains the view expression.
+Mounting creates one durable instance of the compiled state machine; later updates execute only the
+affected reactive work.
 
 ### Reactivity follows ordinary expressions
 
@@ -67,8 +71,8 @@ Read and write `this.state` directly. Derived values can remain normal TypeScrip
 compiler preserves the relationships between state and text, attributes, styles, branches,
 component props, and keyed collections.
 
-Setup-derived values can share one lazy result across the component. The returned view stays a
-direct JSX expression: put component-owned declarations and control flow in setup, and keep
+Initialization-derived values can share one lazy result across the component. The returned view stays a
+direct JSX expression: put component-owned declarations and control flow in the outer definition, and keep
 conditional or keyed-item view logic in JSX. The compiler elides an otherwise unnecessary setup
 cell for safe single-consumer calculations that produce a scalar or forward an existing identity.
 Explicit `this.reactive()` values remain durable first-class boundaries.
@@ -113,7 +117,7 @@ mismatch replacements and components mounted later by client routing start norma
 
 eXact deliberately uses familiar TSX without adopting React's runtime architecture. React
 compatibility is available for React-owned libraries and migration boundaries, while native eXact
-components keep the setup-once model.
+components retain durable state-machine identity and fine-grained updates.
 
 ## Create an app
 
@@ -187,7 +191,7 @@ The repository also includes complete sample applications:
 - [Server Components](apps/server-components)
 - [Internationalization Test Bed](apps/intl-testbed)
 
-The native samples follow the setup-once component model: state stays directly inspectable,
+The native samples follow the durable compiled-state-machine model: state stays directly inspectable,
 reactive calls define task dependencies and latest-wins activation, concurrent work attaches as
 default-parallel child tasks, and known browser APIs infer placement and generation-owned
 cancellation. They author `TaskContext` only for boundaries or policy the compiler cannot infer.

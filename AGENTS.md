@@ -73,8 +73,10 @@ description with the previous one.
 
 An eXact component is a long-lived, inspectable component instance:
 
-- The outer component function is setup. It normally runs once for each instance and returns the
-  render function containing JSX.
+- The outer component function is a compiler-analyzed definition, not a linearly executed setup
+  callback. It supplies state defaults, task definitions, reactive relationships, and preparation
+  of the returned render function. The compiler turns that description into a reactive state
+  machine, and each mounted component owns one durable instance of it.
 - State belongs directly to the instance as `this.state`. Read and mutate it normally instead of
   introducing setters, reducers, dispatchers, or immutable replacement by habit.
 - The compiler connects state reads to the specific DOM expressions, derived values, tasks, or
@@ -135,6 +137,9 @@ Familiar JSX should make eXact easy to read without importing React's semantics:
   component.
 - Prefer eXact's compiler-supported bindings, event typing, list identity, tasks, and placement
   features when they remove real source ceremony.
+- Use ordinary spaces in JSX prose. eXact applies HTML-like whitespace collapsing across multiline
+  text, elements, and expressions, so do not insert `{' '}` merely to separate children. Use an
+  explicit string expression only when the exact whitespace is dynamic or intentionally significant.
 - Keep generated complexity in the compiler and runtime when that leaves application source
   ordinary, explicit, and maintainable.
 - Treat React compatibility as an adoption boundary for React-owned code. It is not the design
@@ -151,7 +156,7 @@ around React Server Component assumptions or require application authors to manu
 transport plumbing that the compiler can safely generate.
 
 When choosing between designs, favor the one that advances eXact's central goals: ordinary
-TypeScript and TSX, setup-once inspectable components, precise reactive work, deterministic
+TypeScript and TSX, durable inspectable component state machines, precise reactive work, deterministic
 ownership and cleanup, and understandable automatic client/server coordination. A design that
 requires repeated component execution, hides state behind a runtime dispatcher, or adds
 React-derived ceremony should have a specific eXact reason rather than familiarity as its

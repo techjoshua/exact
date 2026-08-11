@@ -76,7 +76,7 @@ func analyzeComponents(
 					indivisible = setup.Effect
 					diagnostics = append(
 						diagnostics,
-						"error: component setup has mixed placement effects ("+
+						"error: component initialization has mixed placement effects ("+
 							effectSourcePath(setup.EffectSources)+")",
 					)
 				case "unknown":
@@ -86,7 +86,7 @@ func analyzeComponents(
 						indivisible = "mixed"
 						diagnostics = append(
 							diagnostics,
-							"error: component setup has mixed placement effects ("+
+							"error: component initialization has mixed placement effects ("+
 								effectSourcePath(setup.EffectSources)+")",
 						)
 					case knownBrowser:

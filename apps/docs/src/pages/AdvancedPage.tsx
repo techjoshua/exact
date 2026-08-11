@@ -78,7 +78,7 @@ export function AdvancedPage(this: Component<{}>) {
 				<p>
 					A settled SSR response carries a single-consumer ordered chunk body. The Node adapter
 					writes those chunks directly with native backpressure, avoiding a final join, extra UTF-8
-					buffer, and Web stream. Fetch-style adapters create the equivalent{' '}
+					buffer, and Web stream. Fetch-style adapters create the equivalent
 					<code>ReadableStream</code> only when their host requests it. Because rendering has
 					already settled, request-scoped resources can be released before the transport finishes
 					sending those bytes.

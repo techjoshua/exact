@@ -9,9 +9,12 @@ Suspense, function-defined tasks, interactions, and finite component registries.
 `@exactjs/jsx`, an eXact compiler integration, and a renderer such as `@exactjs/dom` or
 `@exactjs/ssr`.
 
-An eXact component is a durable instance. Its outer function performs setup once, local mutable
-data lives in `this.state`, and the returned function contains one JSX view expression. Async
-outer functions are compiler shorthand for an owned blocking initializer task. Setup-local
+An eXact component is a durable instance. Its outer function is a compiler-analyzed definition of
+state defaults, tasks, reactive relationships, and render preparation—not a linearly executed
+setup callback. The compiler turns that description into a reactive state machine; each mounted
+component owns one durable instance. Local mutable data lives in `this.state`, and the returned
+function contains one JSX view expression. Async outer functions are
+compiler shorthand for an owned blocking initializer task. Outer-definition-local
 PascalCase view arrows are lexical micro-components and share their owner rather than creating
 another instance.
 

@@ -64,7 +64,7 @@ export function prepareSsrTargetBoundary(
 	context.plannedTargetBoundaries.add(boundary);
 }
 
-/** Asynchronously prepares one `_target` subtree and its setup-once component instances. */
+/** Asynchronously prepares one `_target` subtree and its durable state-machine instances. */
 export async function prepareSsrTargetBoundaryAsync(
 	context: SsrContext,
 	boundary: VNode,
@@ -77,7 +77,7 @@ export async function prepareSsrTargetBoundaryAsync(
 }
 
 /**
- * Executes setup once for the logical component subtree needed by target discovery.
+ * Constructs the state-machine instances for the logical subtree needed by target discovery.
  * The prepared instances and finite expansions are transferred to the normal renderer.
  */
 function materializeSync(

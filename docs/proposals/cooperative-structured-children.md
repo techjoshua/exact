@@ -90,17 +90,17 @@ children.connect(slot, TabsItemCapability, tabsContext.forChild(slot));
 This syntax is illustrative, not accepted API. The unresolved implementation question is whether
 immutable ordinary VNode composition can provide the capability safely or whether the renderer
 needs a construction overlay that preserves keys, compiled cells, domains, enhancement markers,
-and setup-once ownership.
+and durable compiled component ownership.
 
 ## Responsibility constraints
 
-| Layer             | Candidate responsibility                                                               |
-| ----------------- | -------------------------------------------------------------------------------------- |
-| Compiler          | Preserve generic child facts only for opted-in contracts; never run package callbacks. |
-| Core runtime      | Expose stable ordered parts and apply declared capabilities before child setup.        |
-| Component library | Interpret its own direct child roles and scoped capabilities.                          |
-| Renderer          | Preserve range identity, generations, hydration, and deterministic cleanup.            |
-| DevTools          | Explain declared relationships without exposing private values or protocol identities. |
+| Layer             | Candidate responsibility                                                                |
+| ----------------- | --------------------------------------------------------------------------------------- |
+| Compiler          | Preserve generic child facts only for opted-in contracts; never run package callbacks.  |
+| Core runtime      | Expose stable ordered parts and apply capabilities before child state-machine creation. |
+| Component library | Interpret its own direct child roles and scoped capabilities.                           |
+| Renderer          | Preserve range identity, generations, hydration, and deterministic cleanup.             |
+| DevTools          | Explain declared relationships without exposing private values or protocol identities.  |
 
 No component may use this capability to inspect through an opaque descendant component, take over
 another component's state, or treat authored names as renderer identity.

@@ -26,7 +26,7 @@ cannot promote a value into request or application lifetime.
 
 The portable `RequestContext` exposes normalized URL, method, headers, abort
 signal, response status/headers, and redirect control. Adapters establish it
-before root component setup.
+before instantiating the root component state machine.
 
 The application may configure a trusted `publicOrigin` on its server context.
 eXact combines that origin with the incoming path and query, but never infers

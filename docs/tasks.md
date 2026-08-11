@@ -91,15 +91,15 @@ lookalike values do not receive this treatment. Recognized policy facets are:
 - readiness: `blocking()` or `nonblocking()`; and
 - lifetime: attached by default or explicitly `detached()`.
 
-At component setup, a call to a classified function declares initialization
+In the outer component definition, a call to a classified function declares initialization
 and reactive activation. Its argument expressions are observed inputs. A call
 from an event or other active host creates an invoked generation. A call under
 an active task attaches a child frame; after an `await`, compiler output uses
 the retained context and the public task ABI to restore the same relationship.
-Synchronous setup activations through normal priority settle before the first
+Synchronous initialization activations through normal priority settle before the first
 render so their state output is available to the component and its children.
 
-For compiled components, setup activation is backed by an availability-aware dependency watcher.
+For compiled components, initialization activation is backed by an availability-aware dependency watcher.
 It distinguishes an available `undefined` from an unresolved predecessor slot, snapshots all
 inputs atomically, and coalesces several publications from one reactive transaction. A successful
 generation publishes its declared state outputs to downstream watchers; replacement, failure,
@@ -108,7 +108,7 @@ The same path applies to client-only asynchronous tasks. An interaction task app
 execution contract for placement and output validation but still requires its authored event or
 explicit invocation before it can run.
 
-A setup expression that consumes a call's value synchronously remains ordinary
+An initialization expression that consumes a call's value synchronously remains ordinary
 initialization. Factory calls, context lookups, and other helpers used to
 initialize local values must return their JavaScript value directly; inferred
 task activation cannot provide that value synchronously. An awaited call can

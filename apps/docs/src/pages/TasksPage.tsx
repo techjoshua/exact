@@ -286,15 +286,16 @@ export function TasksPage(this: Component<{}>) {
 					title="Status for one keyed lane"
 				/>
 				<p>
-					Use <code>taskStatus(task, {'{ key }'})</code> during setup when the UI needs one lane.
-					Its <code>pending</code>, <code>pendingCount</code>, <code>generation</code>,
-					<code>result</code>, <code>error</code>, and <code>cancel()</code> are scoped to that key.
-					The key must match the value produced by the task&apos;s <code>key(...)</code> policy.
+					Use <code>taskStatus(task, {'{ key }'})</code> in the outer component definition when the
+					UI needs one lane. Its <code>pending</code>, <code>pendingCount</code>,{' '}
+					<code>generation</code>,<code>result</code>, <code>error</code>, and <code>cancel()</code>{' '}
+					are scoped to that key. The key must match the value produced by the task&apos;s{' '}
+					<code>key(...)</code> policy.
 				</p>
 				<p>
-					A status view captures its key when setup creates it; it is not a dynamic “most recently
-					invoked key” selector. For a dynamic list, prefer defining the save task inside each keyed
-					row component so the durable component owner naturally gives every row its own
+					A status view captures its key when initialization creates it; it is not a dynamic “most
+					recently invoked key” selector. For a dynamic list, prefer defining the save task inside
+					each keyed row component so the durable component owner naturally gives every row its own
 					<code>save.pending</code>. Use keyed lanes when one owner genuinely coordinates work for
 					several stable keys.
 				</p>

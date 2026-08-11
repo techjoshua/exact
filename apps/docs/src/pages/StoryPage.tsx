@@ -51,7 +51,7 @@ const javascriptGeneratorSource = `function* loadProfile(id: string) {
 const exactCounterSource = `import type { Component } from '@exactjs/core';
 
 function Counter(this: Component<{ count: number }>) {
-  // Setup runs once for this component instance.
+  // Default state for each new component instance.
   this.state.count = 0;
   const doubled = this.state.count * 2;
 
@@ -227,16 +227,17 @@ export function StoryPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Setup once... update only what depends on state</h2>
+				<h2>Describe once... update only what depends on state</h2>
 				<p>
-					In eXact, the outer component function is setup. It normally runs once for each instance
-					and returns the function that describes the view. State belongs directly to that durable
-					instance. The compiler connects each state read to the DOM expression, derived value,
+					In eXact, the outer component function is a compiler-analyzed definition of initial state,
+					tasks, reactive relationships, and view preparation—not a callback executed linearly. The
+					compiler turns that description into a reactive state machine, and each mounted component
+					owns one durable instance. Every state read connects to the DOM expression, derived value,
 					task, or server operation that consumes it.
 				</p>
 				<CodeBlock source={exactCounterSource} language="tsx" title="The same idea in eXact" />
 				<p>
-					When <code>count</code> changes, the component function does not run again and there is no
+					When <code>count</code> changes, the existing state machine transitions and there is no
 					virtual tree to diff. The count text and the derived value are invalidated as precise
 					reactive expressions. The runtime updates the affected DOM ranges while the component, its
 					state, its tasks, and its owned resources remain in place.
@@ -244,9 +245,9 @@ export function StoryPage(this: Component<{}>) {
 				<Callout title="Where the state-machine analogy fits" tone="note">
 					<p>
 						It is useful, but it is not the whole architecture. eXact compiles synchronous reads
-						into a graph of targeted reactive work. Async setup and distributed server work are
-						lowered into resumable continuations. Together they provide the same larger lesson as
-						async/await: generated complexity can protect simple, linear source.
+						into a graph of targeted reactive work. Async initialization and distributed server work
+						are lowered into resumable continuations. Together they provide the same larger lesson
+						as async/await: generated complexity can protect simple, linear source.
 					</p>
 				</Callout>
 			</section>

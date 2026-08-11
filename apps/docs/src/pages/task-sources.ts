@@ -86,7 +86,7 @@ return () => (
 
 const keyedStatusSource = `import { taskStatus } from '@exactjs/core';
 
-// Create a status view during setup for a durable lane key.
+// Declare a status view in the outer component definition for a durable lane key.
 const invoiceSave = taskStatus(saveDocument, { key: 'invoice' });
 
 return () => (

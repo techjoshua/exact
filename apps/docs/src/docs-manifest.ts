@@ -60,7 +60,7 @@ export const docGroups: DocGroup[] = [
 				path: '/',
 				label: 'Introduction',
 				summary:
-					'Why eXact runs component setup once, keeps state inspectable, and compiles precise client/server updates.',
+					'How eXact compiles ordinary TypeScript components into inspectable reactive state machines spanning client and server.',
 				keywords:
 					'overview component compiler reactive TypeScript JSX React Vue Svelte comparison state virtual DOM',
 				component: IntroductionPage

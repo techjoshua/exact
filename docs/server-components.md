@@ -192,7 +192,7 @@ Use request-aware SSR entrypoints when rendering with server contexts. SSR can
 settle server tasks, capture the permitted state and shared context needed by
 the browser, and mark those continuations as settled.
 
-Compiled component setup installs dependency watchers before task activation. Constants and live
+Instantiating a compiled component state machine installs dependency watchers before task activation. Constants and live
 values are immediately available; predecessor outputs are generation-bound slots. A dependent
 continuation receives one complete snapshot only after every slot is available. Starting a newer
 producer generation makes its current output pending, and stale, failed, or cancelled settlement

@@ -13,7 +13,7 @@ type CounterState = {
 };
 
 export function CounterDemo(this: Component<CounterState>) {
-  // Setup runs once for this component instance.
+  // Default state for each new component instance.
   this.state.count = 0;
   this.state.lastChanged = 'Nothing has changed yet.';
 
@@ -55,13 +55,13 @@ export function CounterDemo(this: Component<CounterState>) {
   );
 }`;
 
-/** Introduces eXact's setup-once, compiler-led reactive web framework model. */
+/** Introduces eXact's ordinary-TypeScript-to-reactive-state-machine component model. */
 export function IntroductionPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Welcome to eXact"
-			title="Write the component. Do not rerun it."
-			description="eXact is a compiler-led web framework built around long-lived TypeScript components, precise reactive updates, and automatic client/server coordination. Component setup runs once; the expressions that depend on changing state stay connected."
+			title="Describe the component. Compile the state machine."
+			description="eXact lets you describe a component using ordinary TypeScript, then compiles it into a reactive state machine with seamless client and server execution defined in the same component."
 			next={{ path: '/story', label: 'The story behind eXact' }}
 		>
 			<section className="sudoku-showcase">
@@ -163,11 +163,11 @@ export function IntroductionPage(this: Component<{}>) {
 			<section className="hero-grid">
 				<div className="hero-copy">
 					<p className="demo-kicker">See the model</p>
-					<h2>One setup, precise updates</h2>
+					<h2>One instance, precise updates</h2>
 					<p>
 						Use the controls to change one state field. The displayed count and doubled value are
 						separate reactive expressions. The component remains alive, its state remains
-						inspectable, and its function does not run again after a click.
+						inspectable, and only the affected transitions run after a click.
 					</p>
 					<div className="hero-actions">
 						<Link className="primary-link" to="/learn/components">
@@ -184,10 +184,10 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>Here is the whole component</h2>
 				<p>
-					The component body is setup: initialize state, define derived values, register tasks, and
-					assemble services. The returned function describes the view. State reads look like
-					ordinary property access, but the compiler preserves them as independently connected
-					update boundaries.
+					The outer component function is a compiler-analyzed definition: it supplies state
+					defaults, task definitions, reactive relationships, and view preparation. It is not a
+					linearly executed setup callback. The returned function contains the view expression, and
+					the compiler preserves its state reads as independently connected update boundaries.
 				</p>
 				<CodeBlock source={counterSource} language="tsx" title="CounterDemo.tsx" />
 			</section>
@@ -249,7 +249,10 @@ export function IntroductionPage(this: Component<{}>) {
 					<Link className="topic-card" to="/learn/components">
 						<span className="topic-index">01</span>
 						<strong>Understand components</strong>
-						<p>See setup, views, props, context, tasks, refs, and the complete instance surface.</p>
+						<p>
+							See initialization, views, props, context, tasks, refs, and the complete instance
+							surface.
+						</p>
 					</Link>
 					<Link className="topic-card" to="/learn/state">
 						<span className="topic-index">02</span>

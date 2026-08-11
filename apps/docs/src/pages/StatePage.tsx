@@ -155,16 +155,17 @@ export function StatePage(this: Component<{}>) {
 				<CodeBlock source={derivedSource} language="tsx" title="Price.tsx" />
 			</section>
 			<section>
-				<h2>Setup-derived values are shared component relationships</h2>
+				<h2>Initialization-derived values are shared component relationships</h2>
 				<p>
-					A safe derived declaration in setup normally describes a relationship owned by the
-					component instance. The compiler can give it one lazy, cached derived cell, share its
-					result across several DOM expressions, child props, lists, and task inputs, and stop
-					propagation when recomputation produces the same value.
+					A safe derived declaration in the outer component definition normally describes a
+					relationship owned by the component instance. The compiler can give it one lazy, cached
+					derived cell, share its result across several DOM expressions, child props, lists, and
+					task inputs, and stop propagation when recomputation produces the same value.
 				</p>
 				<p>
-					Choose setup when several consumers should observe one result, when non-view work needs
-					the value, or when an allocated result must retain one identity for all consumers. The
+					Keep the declaration in the outer definition when several consumers should observe one
+					result, when non-view work needs the value, or when an allocated result must retain one
+					identity for all consumers. The
 					<code>subtotal</code>, <code>shipping</code>, and <code>total</code> declarations in the
 					demo form a component-owned graph rather than three pieces of render syntax.
 				</p>
@@ -185,9 +186,9 @@ export function StatePage(this: Component<{}>) {
 				<h2>Keep the returned view declarative</h2>
 				<p>
 					eXact does not rerun the whole view function when its inputs change. Keep declarations and
-					imperative control flow in component setup, then return the JSX expression directly. This
-					gives a derived relationship one clear owner and lets every generated DOM or
-					component-prop boundary reuse its cached result.
+					source control flow in the outer component definition, then return the JSX expression
+					directly. This gives a derived relationship one clear owner and lets every generated DOM
+					or component-prop boundary reuse its cached result.
 				</p>
 				<CodeBlock source={viewDerivedSource} language="tsx" title="AccountBadge.tsx" />
 				<p>
@@ -197,12 +198,12 @@ export function StatePage(this: Component<{}>) {
 					body.
 				</p>
 				<p>
-					For an ordinary setup declaration whose safe result has only one view consumer, the
-					compiler may elide the standalone derived cell when the result is scalar or merely
-					forwards an existing identity. This is an emitted-code optimization: the authored setup
-					declaration remains its source definition for inspection. Shared values, fresh identity
-					allocations, event or task consumers, and explicit reactive values keep their durable
-					cells.
+					For an ordinary initialization declaration whose safe result has only one view consumer,
+					the compiler may elide the standalone derived cell when the result is scalar or merely
+					forwards an existing identity. This is an emitted-code optimization: the authored
+					initialization declaration remains its source definition for inspection. Shared values,
+					fresh identity allocations, event or task consumers, and explicit reactive values keep
+					their durable cells.
 				</p>
 			</section>
 			<section>
@@ -216,8 +217,8 @@ export function StatePage(this: Component<{}>) {
 				<CodeBlock source={explicitDerivedSource} language="tsx" title="Explicit derived value" />
 				<p>
 					A task function can accept the derived value as an ordinary argument. Calling it during
-					setup records that argument expression as the activation dependency without another
-					registration API.
+					initialization records that argument expression as the activation dependency without
+					another registration API.
 				</p>
 				<p>
 					The explicit form is not “more reactive” than the inferred form. It commits to a

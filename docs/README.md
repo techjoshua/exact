@@ -80,14 +80,14 @@ indefinite exploratory pause.
 
 The active and gated documents are:
 
-| Proposal                                                                                         | Status      | Scope                                                                                                       |
-| ------------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- |
-| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.             |
-| [Compiler-authored runtime capabilities](proposals/compiler-authored-runtime-capabilities.md)    | Deferred    | Unsequenced generalization of capability imports and portable optional-enhancement provider facades.        |
-| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md) | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.      |
-| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)           | Proposed    | Persist authenticated postponed slots and ownership, then reacquire the compiled root blueprint later.      |
-| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md) | Proposed    | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                    |
-| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)      | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements. |
+| Proposal                                                                                         | Status      | Scope                                                                                                        |
+| ------------------------------------------------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------ |
+| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.              |
+| [Compiler-authored runtime capabilities](proposals/compiler-authored-runtime-capabilities.md)    | Ready       | Emit capability-focused component definitions and explicit enhancement nodes with portable optional facades. |
+| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md) | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.       |
+| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)           | Proposed    | Persist authenticated postponed slots and ownership, then reacquire the compiled root blueprint later.       |
+| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md) | Proposed    | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                     |
+| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)      | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.  |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
 proposal:
@@ -97,10 +97,10 @@ proposal:
 | [Candidate future work](proposals/future-work.md) | Uncommitted framework, integration, sample, and optimization candidates. |
 
 Archived implementations, independent exploratory designs, and deferred optimizations do not
-create hidden prerequisites for the sequential program. In particular, structural
-render-program extensions and the broader runtime-capability proposal may be measured or developed
-independently, but neither blocks lazy-island completion, partial-prerender resumption, or adapter
-parity.
+create hidden prerequisites for the sequential program. Structural render-program extensions
+remain independent. Runtime capabilities are implementation-ready and may proceed without blocking
+partial-prerender resumption or microfrontend adapter parity; its optional-provider adapter matrix
+is owned by that proposal.
 
 The August 2026 architecture reevaluation compared every active document with the implemented
 compiler, renderer, SSR, hydration, task, and adapter contracts. Enhancement-first

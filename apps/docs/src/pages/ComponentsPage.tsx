@@ -8,7 +8,7 @@ const componentSource = `type CardState = { open: boolean };
 type CardProps = { name: string; children?: Child };
 
 function ProfileCard(this: Component<CardState>, props: CardProps) {
-  // Setup: this code runs once for each mounted ProfileCard instance.
+  // Per-instance declarations: a state default and mounted work.
   this.state.open = false;
   this.onMount(() => this.log.info('Profile mounted'));
 
@@ -65,29 +65,31 @@ const componentValueSource = `function Results(this: Component<{ layout: 'grid' 
   return () => <View />;
 }`;
 
-/** Explains setup-once components, component values, context, and owned task behavior. */
+/** Explains compiled component state machines, component values, context, and owned tasks. */
 export function ComponentsPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
 			title="Components are long-lived instances"
-			description="A component function is setup, not a rerender loop. It initializes state and services once, then returns the view that stays connected to them."
+			description="A component function defines per-instance initialization and a connected view; it is neither a rerender loop nor a linearly executed setup callback."
 			previous={{ path: '/runtimes', label: 'Runtimes & integrations' }}
 			next={{ path: '/learn/state', label: 'State & derived values' }}
 		>
 			<section>
 				<h2>Read a component in two passes</h2>
 				<p>
-					First read the outer function as construction. eXact supplies a component instance as
-					<code>this</code> and reactive props as the second argument. Then read the returned
-					function as the view: expressions inside it stay attached to the DOM boundaries created by
-					the compiler.
+					First read the outer function as a compiler-analyzed component definition. It supplies
+					state defaults, task and lifecycle declarations, reactive relationships, and view
+					preparation for the instance available as <code>this</code>. Do not read those
+					declarations as a callback that executes linearly. Then read the returned function as the
+					view: expressions inside it stay attached to compiler-created DOM boundaries.
 				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
 				<p>
 					Each mounted <code>ProfileCard</code> gets its own state, task scope, context boundary,
 					refs, and lifecycle. Props remain parent-owned input. An event can assign state directly
-					because the compiler has already connected consumers of that field.
+					because the compiler has already turned the component description into a reactive state
+					machine and connected every consumer of that field.
 				</p>
 				<p>
 					That ownership stays inspectable without making every instance carry duplicate method
@@ -134,9 +136,10 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 				<p>
 					The returned function is synchronous and contains one view expression. Put declarations
-					and control flow in setup; compiled reactive regions update independently instead of
-					rerunning arbitrary view code. State writes, task or lifecycle registration, scheduling,
-					and known DOM or storage effects belong in setup, a task, or an interaction callback.
+					and source control flow in the outer definition; compiled reactive regions update
+					independently instead of rerunning arbitrary view code. State writes, task or lifecycle
+					declarations, scheduling, and known DOM or storage effects belong in the outer definition,
+					a task, or an interaction callback according to their documented semantics.
 				</p>
 				<p>
 					For a static conditional token on an intrinsic element, <code>className:name</code>
@@ -153,9 +156,9 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={microComponentSource} language="tsx" title="Lexical micro-components" />
 				<p>
-					A setup-local, PascalCase view arrow is a micro-component. It captures the owning
-					component&apos;s <code>this</code>, may compose other micro-components in scope, and
-					receives no separate component identity, state, lifecycle, or task scope. Module-level
+					An outer-definition-local, PascalCase view arrow is a micro-component. It captures the
+					owning component&apos;s <code>this</code>, may compose other micro-components in scope,
+					and receives no separate component identity, state, lifecycle, or task scope. Module-level
 					shared or bound render callables are not component views.
 				</p>
 			</section>
@@ -177,9 +180,10 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					An immutable local function, an alias to a known component, or a finite conditional choice
 					can be used as a JSX tag. A reactive choice is mounted through a slot, so changing the
-					selected component replaces only that subtree. Keep the choice as a setup-derived value;
-					the compiler observes its dependencies while the returned view stays one expression. When
-					the choice comes from a reusable named collection, declare its complete key set with
+					selected component replaces only that subtree. Keep the choice as an
+					initialization-derived value; the compiler observes its dependencies while the returned
+					view stays one expression. When the choice comes from a reusable named collection, declare
+					its complete key set with
 					<code>createComponentRegistry()</code>. Open-ended object lookup remains a compiler error
 					because the compiler cannot determine its complete client/server placement graph.
 					<Link to="/learn/component-registries">Read the component registry guide.</Link>
@@ -189,9 +193,9 @@ export function ComponentsPage(this: Component<{}>) {
 			<section>
 				<h2>Tasks make work part of the component</h2>
 				<p>
-					A task is not an after-render callback. It is a setup declaration for work owned by this
-					instance. State, prop, and reactive context reads are inferred as dependencies; when one
-					changes, eXact aborts the old generation and starts the next.
+					A task is not an after-render callback. It is a compiler-recognized definition for work
+					owned by this instance. State, prop, and reactive context reads are inferred as
+					dependencies; when one changes, eXact aborts the old generation and starts the next.
 				</p>
 				<CodeBlock source={componentTaskSource} language="tsx" title="Presence.tsx" />
 				<p>
@@ -251,8 +255,8 @@ export function ComponentsPage(this: Component<{}>) {
 			</section>
 			<Callout title="A useful dividing line">
 				<p>
-					Initialize capabilities during setup. Read reactive values in the returned view. Change
-					them in events, tasks, or services.
+					Declare per-instance capabilities in the outer component definition. Read reactive values
+					in the returned view. Change them in events, tasks, or services.
 				</p>
 			</Callout>
 		</Article>

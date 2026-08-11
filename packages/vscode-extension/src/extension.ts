@@ -320,7 +320,7 @@ function entityDescription(entity: ExactSourceEntity): string | undefined {
 	const classification = entity.classification;
 	if (classification?.kind === 'task')
 		return `${classification.origin}, ${classification.placement}, ${classification.readiness}`;
-	if (classification?.kind === 'initializer') return 'runs once per instance';
+	if (classification?.kind === 'initializer') return 'initializes state-machine instance';
 	if (classification?.kind === 'state-assignment')
 		return classification.execution === 'once-per-instance'
 			? 'initializes once'

@@ -23,20 +23,24 @@ When creating or repairing compiler configuration, read
 ## Preserve the component model
 
 - Define an eXact component as a function whose typed `this` is `Component<State>`.
-- Initialize state, context, refs, lifecycle, and task activation in the outer setup function.
+- Declare state defaults, context, refs, lifecycle, and task activation in the outer component
+  definition. The compiler turns that description into a reactive state machine; do not treat the
+  definition as an ordinary linearly executed callback.
 - Return a render function whose body is the view expression. Keep declarations and imperative
-  control flow in setup; use conditional JSX and keyed callbacks for view-local branching.
+  source control flow in the outer definition; use conditional JSX and keyed callbacks for
+  view-local branching.
 - Mutate `this.state` directly. Do not use `useState`, reducers, setter wrappers, or immutable
   replacement merely because the file contains JSX.
 - Keep props parent-owned. Store local mutable data in `this.state`.
-- Write ordinary safe derived setup expressions. Let the compiler preserve and cache their
+- Write ordinary safe initialization-derived expressions. Let the compiler preserve and cache their
   reactive dependencies; use `this.reactive()` only when an explicit reactive value is useful.
 - Assign derived results directly to `this.state`. Reactive reads on the right become dependencies;
   use `peek(() => ...)` when an assignment intentionally captures a one-time snapshot.
 - In an async component, await ordinary operations into state. Sequential awaits and
   `try`/`catch`/`finally` remain ordinary TypeScript while the compiler owns cancellation and
   atomic publication.
-- Assume the outer component function runs once per instance, not once per update.
+- Assume each mounted component owns one durable compiled state-machine instance; an update runs
+  affected transitions rather than calling the component again.
 
 Read [components-and-reactivity.md](references/components-and-reactivity.md) before creating
 nontrivial components or translating code from another framework.
@@ -50,7 +54,7 @@ expression boundaries and is not an equivalent application runtime.
 Use the package scope `@exactjs`, not the former `@exact` scope.
 
 When the installed project provides eXact Language Tools, use its
-compiler-backed diagnostics and Component Semantics view to inspect setup,
+compiler-backed diagnostics and Component Semantics view to inspect initialization,
 render, inferred and explicit tasks, placement, readiness, dependencies,
 effects, signal injection, and cleanup. Treat those facts as compiler
 authority. Do not infer eXact behavior from generated JavaScript or reproduce a
@@ -99,6 +103,9 @@ that omitted its catalog or runtime hooks.
   inspectable, and use `this.reactive()` only when another API needs a first-class reactive value.
 - Use inferred DOM event types: `onInput={(event) => event.currentTarget.value}` normally needs no
   manual `Event` annotation or element cast.
+- Write ordinary spaces in JSX prose. eXact follows HTML-like whitespace collapsing across
+  multiline text, elements, and expressions; do not add `{' '}` merely to separate children. Use
+  an explicit string expression only for dynamic or intentionally exact whitespace.
 - Use `valueProp:callbackProp={this.state.path}` for a component's mechanical controlled-value
   callback when both props are finite and the callback only publishes a replacement. Write both
   props explicitly for validation, transformation, logging, async work, or callback composition.
@@ -120,14 +127,14 @@ that omitted its catalog or runtime hooks.
 - Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
   product-specific presentation; build directly on `ErrorContext` only for different capture or
   reset semantics.
-- Define coordinated work as an ordinary local function. Call it during setup
+- Define coordinated work as an ordinary local function. Call it in the outer definition
   for initialization/reactive activation or from an event, form, lifecycle,
   router, or another task for invoked activation. Use an optional final
   `TaskContext = TaskContext...` default for placement, concurrency, priority,
   readiness, detachment, cancellation, cleanup, ownership, or optimism.
 - Use a defaulted non-context task parameter to capture an unconditional reactive
   input once per generation without making it an activation dependency. Keep
-  explicit setup-call arguments for tracked inputs and reserve `task.peek()` for
+  explicit initialization-call arguments for tracked inputs and reserve `task.peek()` for
   conditional or mid-body snapshots.
 - Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Use
   a function-defined task when code needs reactive status, direct invocation,
@@ -135,7 +142,7 @@ that omitted its catalog or runtime hooks.
 - Use `createComponentRegistry()` for finite runtime component selection. Derive keys with
   `KeyOf<typeof Registry>` or narrow untrusted strings with `hasComponent()`; do not replace it
   with a mutable component dictionary or an untyped `createVNode()` escape.
-  Pass reactive dependencies as ordinary setup-call arguments; use parameter
+  Pass reactive dependencies as ordinary initialization-call arguments; use parameter
   defaults for generation-stable untracked captures.
 - Use `TaskContext.client()` or `TaskContext.server()` policy only when
   placement is architectural or cannot be inferred from browser/server usage.

@@ -33,7 +33,8 @@ export function activateTask<Args extends unknown[], Result>(
 	...inputs: { [Index in keyof Args]: ActivationInput<Args[Index]> }
 ): Disposable {
 	const owner = currentTaskOwnerRecord();
-	if (!owner) throw new Error('activateTask() requires a durable task host during setup');
+	if (!owner)
+		throw new Error('activateTask() requires a durable task host during component initialization');
 	return activateOwnedTask(owner, task, inputs);
 }
 

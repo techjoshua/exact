@@ -12,7 +12,7 @@ export function SamplesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Complete applications"
 			title="Explore eXact beyond a counter."
-			description="The repository samples are product-shaped applications built with native setup-once components, direct state, and compiler-owned updates."
+			description="The repository samples use ordinary TypeScript components compiled into durable reactive state machines, with direct state and compiler-owned updates."
 			next={{ path: '/getting-started', label: 'Create an eXact app' }}
 		>
 			<section>

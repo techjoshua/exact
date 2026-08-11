@@ -5,13 +5,18 @@ TypeScript and TSX forms that the compiler gives framework meaning to. Ordinary
 TypeScript keeps its ordinary JavaScript semantics unless this document says
 otherwise.
 
+eXact lets you describe a component using ordinary TypeScript, then compiles that description into
+a reactive state machine with seamless client and server execution defined in the same component.
+This reference explains how source declarations become state, transitions, dependencies, tasks,
+and connected render regions in that machine.
+
 The reference describes source code, not generated `.exact.client`,
 `.exact.server`, or `.exact.shared` artifacts. Those files are build output and
 are not an application authoring surface.
 
 Compiler-aware editor support exposes the same language model without requiring
-generated-code inspection. eXact Language Tools identifies setup-once
-initializers, reactive render regions, inferred and explicit tasks, interactions,
+generated-code inspection. eXact Language Tools identifies component initialization
+declarations, reactive render regions, inferred and explicit tasks, interactions,
 derived values, bindings, and lifecycle registrations; each classification
 links to the compiler-owned source evidence behind it. See
 [Compiler-aware language tools](language-tools.md).
@@ -69,7 +74,7 @@ exact whitespace itself is dynamic or intentionally significant.
 
 ## Component declarations
 
-An eXact component is a function that establishes one durable component
+An eXact component function is a compiler-analyzed definition for one durable component
 instance. The usual declaration gives `this` a state type and gives the second
 parameter a props type:
 
@@ -95,9 +100,12 @@ export function Counter(this: Component<CounterState>, props: CounterProps) {
 }
 ```
 
-The outer function is setup. It normally executes once for each mounted
-instance. Props are parent-owned reactive inputs. State, tasks, contexts,
-refs, lifecycle registrations, and logging belong to the durable instance.
+The outer function is not an ordinary linearly executed setup callback. It describes default state,
+task definitions, reactive task relationships, and preparation of the returned render function.
+The compiler preserves ordinary TypeScript evaluation semantics while turning those facts into a
+reactive state machine. Each mounted component owns one durable instance of that machine. Props are
+parent-owned reactive inputs. State, tasks, contexts, refs, lifecycle registrations, and logging
+belong to that durable instance.
 The runtime keeps that ownership inspectable without allocating a separate
 method closure or empty collection for every capability on every instance.
 Stable component and logging methods are shared. Refs, list caches, contexts,
@@ -183,7 +191,7 @@ function Results(this: Component<{ layout: 'grid' | 'list' }>) {
 ```
 
 A reactive choice owns a dynamic slot and replaces only that subtree. Keep a
-choice in setup as an ordinary compiler-observed derived value. The returned
+choice in the outer component definition as an ordinary compiler-observed derived value. The returned
 view remains one expression regardless of how many consumers share it.
 
 ```tsx
@@ -216,18 +224,21 @@ runtime identity and ownership contract.
 Mutable dictionaries, reassigned component variables, and unproven string lookups remain
 diagnostics because they do not provide a finite component, placement, or artifact graph.
 
-## Setup, render, and deferred callbacks
+## Component definition, render, and deferred callbacks
 
-Code belongs to one of three important execution regions:
+Source belongs to one of three important semantic regions:
 
-- setup runs when the durable instance is constructed;
-- the returned view expression establishes compiler-owned reactive regions;
-- event, task, lifecycle, timer, and other callbacks run later.
+- the outer definition supplies state defaults, tasks, reactive relationships, and render preparation;
+- the returned view expression establishes compiler-owned reactive regions; and
+- event, task, lifecycle, timer, and other callbacks execute when activated later.
 
-Setup may initialize state, create derived values, register tasks and
-lifecycle work, publish context, and create refs. The returned render function
+The outer definition may initialize state, create derived values, declare tasks and lifecycle work,
+publish context, and create refs. Do not reason about it as an imperative callback that the runtime
+walks from top to bottom: the compiler may emit independent states, transitions, dependencies, and
+render regions while preserving their documented dependencies and observable ordering.
+The returned render function
 contains only its view expression. Put declarations and imperative control flow
-in setup; keep conditional tree logic and keyed iteration in JSX:
+in the outer definition; keep conditional tree logic and keyed iteration in JSX:
 
 ```tsx
 function Summary(this: Component<SummaryState>) {
@@ -254,7 +265,7 @@ deferred work and may mutate state normally.
 
 ### Lexical micro-components
 
-Setup may name small view-only arrows and compose them as JSX tags:
+The outer component definition may name small view-only arrows and compose them as JSX tags:
 
 ```tsx
 function Article(this: Component<ArticleState>) {
@@ -281,8 +292,8 @@ other micro-components in scope. The compiler lowers their JSX tags to
 owner-local view calls, attributes their reactive expressions to `Article`,
 and gives them no component identity, state, lifecycle, tasks, refs, or
 registry entry. A micro-component is an immutable, PascalCase, synchronous
-arrow declared in component setup and contains one view expression. It cannot
-escape its owner. Component setup itself returns a component-local view arrow;
+arrow declared in the outer component definition and contains one view expression. It cannot
+escape its owner. The component definition returns a component-local view arrow;
 module-level shared or bound render callables are not supported.
 
 ## State
@@ -297,8 +308,8 @@ this.state.profile.tags.push('compiler');
 ```
 
 Reads connect the current compiler-owned expression, task, list, or derived
-value to the path it consumes. Writes invalidate those consumers; they do not
-rerun the outer component function.
+value to the path it consumes. Writes transition the existing component state machine rather than
+calling the component again to redescribe its interface.
 
 ### Supported writes
 
@@ -393,7 +404,7 @@ this.state.page = 1;
 this.state.rows = [];
 ```
 
-A safe setup expression that reads state, props, or reactive context becomes a
+A safe initialization expression that reads state, props, or reactive context becomes a
 shared, lazy derived value:
 
 ```tsx
@@ -403,10 +414,10 @@ const total = subtotal + (props.express ? 14 : 0);
 return () => <strong>{total}</strong>;
 ```
 
-Setup location describes a component-owned relationship. A derived cell caches
+Its outer-definition location describes a component-owned relationship. A derived cell caches
 one result for all of its DOM, component-prop, list, and task consumers and
 uses result equality to stop unchanged values from propagating farther through
-the graph. Keep a derived declaration in setup when several consumers should
+the graph. Keep a derived declaration in the outer definition when several consumers should
 share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
 
@@ -425,13 +436,13 @@ return () => <strong>{label}</strong>;
 ```
 
 The returned view does not rerun as a unit, so declarations and imperative
-control flow belong in component setup. Conditional expressions in JSX and
+control flow belong in the outer component definition. Conditional expressions in JSX and
 callbacks owned by keyed branches or items remain region-local and update only
 their structural range. This keeps authored ownership unambiguous and prevents
 the same view-local calculation from being duplicated across generated
 reactive boundaries.
 
-The compiler may elide the runtime cell for an ordinary setup-derived value
+The compiler may elide the runtime cell for an ordinary initialization-derived value
 when it is safe to reevaluate, has exactly one eager view consumer, and either
 produces a scalar or forwards an existing identity without allocating a new
 one. The calculation is fused into that consumer's reactive closure while its
@@ -447,7 +458,7 @@ this.state.subtotal = this.state.quantity * this.state.price;
 [this.state.tax, this.state.total] = calculateTotals(this.state.subtotal, props.taxRate);
 ```
 
-Every target in setup-time reactive destructuring must be a writable state
+Every target in initialization-time reactive destructuring must be a writable state
 location so the results can publish as one derived-state transaction. A read
 of the same output path would form a feedback cycle and is rejected.
 
@@ -920,7 +931,7 @@ complex:
 ### Refs
 
 Create a typed key outside the component, create an instance-owned binding
-during setup, and attach it with `ref`:
+in the outer component definition, and attach it with `ref`:
 
 ```tsx
 const searchInput = createRef<HTMLInputElement>('search input');
@@ -1050,7 +1061,7 @@ with `allowUnsafeHtml: true`. `dangerouslySetInnerHTML` is not supported.
 
 An ordinary local function becomes a task when the compiler finds task policy,
 task capabilities, placement-sensitive effects, or a known activation host.
-Calling it during setup declares component-owned work:
+Calling it in the outer component definition declares component-owned work:
 
 ```tsx
 function Search(this: Component<SearchState>) {
@@ -1168,7 +1179,7 @@ boundary. Placement, concurrency, priority, readiness, and attachment are
 independent. Contradictory or repeated policy is an error. Explicit placement
 may not contradict known browser-only or server-only effects.
 
-Call setup-activated tasks directly during setup, not inside render functions.
+Call initialization-activated tasks directly in the outer component definition, not inside render functions.
 Calls inside other task functions are invoked child generations and attach to
 the active task frame automatically. Use task policy for external effects,
 cleanup, nonblocking work, manual scheduling/readiness, concurrency, or opaque
@@ -1429,7 +1440,7 @@ promote a value to application or request lifetime.
 
 ## Lifecycle, refs, and logging
 
-Lifecycle handlers are registered during setup:
+Lifecycle handlers are declared in the outer component definition:
 
 ```tsx
 this.onMount(({ signal }) => {

@@ -1,7 +1,7 @@
 # Sample applications
 
 The repository's native applications exercise eXact as complete products rather than isolated API
-examples. They use setup-once components, direct observable state, compiler-owned fine-grained
+examples. They use components compiled into durable reactive state machines, direct observable state, compiler-owned fine-grained
 updates, and the framework's normal build adapters.
 
 ## Puzzle Foundry

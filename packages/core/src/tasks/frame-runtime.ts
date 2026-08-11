@@ -61,7 +61,7 @@ export function currentTaskOwnerRecord(): TaskOwnerRecord | undefined {
 	return currentFrame?.owner ?? currentOwner;
 }
 
-/** Establishes a durable host owner while component or adapter setup runs. */
+/** Establishes a durable host owner during component state-machine construction or adapter setup. */
 export function withTaskOwnerRecord<T>(owner: TaskOwnerRecord, work: () => T): T {
 	const previous = currentOwner;
 	currentOwner = owner;

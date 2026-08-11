@@ -3,7 +3,7 @@ import type { PreparedComponentExecution } from '@exactjs/core/framework/compone
 
 const noPlannedInputs: ReadonlySet<string> = new Set();
 
-/** Resolves pending values needed by authored setup while preserving planned task-input sources. */
+/** Resolves pending values needed by component initialization while preserving planned task-input sources. */
 export async function prepareComponentProps(
 	props: Record<string, unknown>,
 	execution: PreparedComponentExecution | undefined,

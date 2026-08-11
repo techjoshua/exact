@@ -15,7 +15,7 @@ a core lifetime primitive solely to make a motion API look concise would be the 
 Which missing motion and interaction capabilities can eXact add while preserving these properties?
 
 - application state remains the semantic source of truth;
-- component setup still runs once;
+- each mounted component retains one compiled state-machine instance;
 - renderer-owned DOM identity is not replaced by a shadow visual tree;
 - finite visual work participates in task cancellation and structural settlement;
 - gestures recognize input without becoming a second application-state store;

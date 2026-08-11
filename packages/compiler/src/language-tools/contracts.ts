@@ -97,7 +97,7 @@ export type ExactOwnedResource = Readonly<{
 	description?: string;
 }>;
 
-/** Setup-once component classification. */
+/** Component state-machine initialization classification. */
 export type ExactInitializerClassification = Readonly<{
 	kind: 'initializer';
 	execution: 'once-per-instance';

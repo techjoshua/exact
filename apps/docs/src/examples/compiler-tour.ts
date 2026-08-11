@@ -129,7 +129,7 @@ import type { Component } from '@exactjs/core';
 // The repository value and its implementation dependency graph are absent.
 
 export function CatalogEditor(this: Component<CatalogState>) {
-  // These writes still run once during component setup.
+  // These writes define default state for each generated state-machine instance.
   __exactWrite(this.state, ['query'], () => '');
   __exactWrite(this.state, ['quantity'], () => 1);
   __exactWrite(this.state, ['products'], () => []);

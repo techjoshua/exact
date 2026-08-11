@@ -93,18 +93,19 @@ export function LanguageToolsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="See what the compiler sees"
-			description="eXact Language Tools explains setup, render work, tasks, placement, dependencies, effects, and ownership while you edit—using the same native analysis that builds the application."
+			description="eXact Language Tools explains initialization declarations, render work, tasks, placement, dependencies, effects, and ownership while you edit—using the same native analysis that builds the application."
 			previous={{ path: '/learn/server-execution', label: 'Server execution' }}
 			next={{ path: '/learn/devtools', label: 'Full-stack DevTools' }}
 		>
 			<section>
 				<h2>Compiler meaning at the source</h2>
 				<p>
-					The outer component function is setup-once initialization. The returned function is
-					reactive render work. Awaited state production becomes an inferred task. An ordinary local
-					function with a final <code>TaskContext</code> parameter is the same task model with
-					authored policy and access to its generation context. The language server presents both as
-					compiler regions instead of asking you to inspect generated JavaScript.
+					The outer component function is a compiler-analyzed initialization definition rather than
+					a linear callback. The returned function is reactive render work. Awaited state production
+					becomes an inferred task. An ordinary local function with a final <code>TaskContext</code>
+					parameter is the same task model with authored policy and access to its generation
+					context. The language server presents both as compiler regions instead of asking you to
+					inspect generated JavaScript.
 				</p>
 				<CodeBlock source={inferredTaskSource} language="tsx" title="ProductPage.tsx" />
 				<p>

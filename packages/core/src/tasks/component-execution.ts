@@ -34,7 +34,7 @@ export type ComponentContinuationOutputs = Readonly<{
 
 const runtimes = new WeakMap<TaskOwnerRecord, ComponentExecutionRuntime>();
 
-/** Installs compiler-planned local slots and hidden prop sources before component setup begins. */
+/** Installs compiler-planned local slots and hidden prop sources before state-machine construction. */
 export function initializeComponentExecution(
 	owner: TaskOwnerRecord,
 	host: { readonly state?: object },
