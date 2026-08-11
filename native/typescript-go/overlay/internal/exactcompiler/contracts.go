@@ -177,6 +177,7 @@ type Component struct {
 	SplitBoundaries     []string                  `json:"splitBoundaries"`
 	Diagnostics         []string                  `json:"diagnostics"`
 	Execution           ComponentExecution        `json:"execution"`
+	Interactions        bool                      `json:"-"`
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.

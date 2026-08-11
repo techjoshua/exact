@@ -294,6 +294,7 @@ The compiler derives capabilities from its existing component, effect, placement
 render-program, and artifact analyses. Initial categories include:
 
 - task definition and invocation;
+- DOM event and form interaction roots, even when they invoke no authored task;
 - task concurrency, priority, optimism, and retained resources;
 - server continuation dispatch and dependency watching;
 - resumption and hydration ownership;
@@ -343,8 +344,11 @@ interfaces, but it must not introduce a universal registry whose module imports 
 Registration functions are useful only when their own import graph remains capability-local.
 
 The compiled component descriptor distinguishes absent capability state from empty capability
-state. For example, a component with no tasks has no task integration and no task owner. It does
-not allocate an empty owner, empty frame set, status cell, continuation set, or inspection history.
+state. For example, a component with neither authored tasks nor event/form interaction roots has no
+task integration and no task owner. It does not allocate an empty owner, empty frame set, status
+cell, continuation set, or inspection history. An event-owning component retains the integration
+because the event itself is a cancellable interaction task and may attach navigation or descendant
+work.
 
 ## Canonical enhancement render nodes
 
@@ -610,7 +614,8 @@ representation.
   nonblocking readiness, event replay ordering, concurrent islands with shared and distinct owners,
   static and opaque dependency cycles, import and prerequisite failure, replacement, abort,
   unmount, stale server results, output-range authority, and retained-heap release.
-- Negative fixtures prove task-free components import no task runtime and allocate no task owner.
+- Negative fixtures prove noninteractive task-free components import no task runtime and allocate no
+  task owner, while event-owning components declare interaction capability.
 - Bundle fixtures inspect final module graphs and minified/gzip/Brotli output for isolated and
   combined capabilities.
 - Vite, Webpack, Bun, and native Node SSR fixtures cover present, absent, target-pass-through,
@@ -649,7 +654,8 @@ representation.
 4. Lazy-island activation adopts and installs watchers before settling blocking prerequisites and
    replaying its event. Changes, replacement, cancellation, failure, and concurrent activation obey
    one generation fence; sharing occurs only for the same owner/site/key/input generation.
-5. A compiled component with no tasks neither imports task runtime code nor constructs a task owner.
+5. A compiled component with no tasks or interaction roots neither imports task runtime code nor
+   constructs a task owner; event and form roots declare interaction capability.
 6. Required capabilities enter generated artifacts through direct static imports at their proven
    ownership boundary.
 7. No base runtime module retains optional implementations through an aggregate registry or reverse

@@ -692,6 +692,7 @@ func rootComponentContractAttachment(
 				projectedExecution,
 				componentContinuations,
 				componentHasResumption(component.ID, resumptions),
+				target == TargetClient && component.Interactions,
 				usesCompatibility,
 			),
 		),

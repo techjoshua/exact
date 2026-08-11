@@ -132,8 +132,8 @@ func TestComponentExecutionForwardsReactivePropIdentity(t *testing.T) {
 		Kind: "compile",
 		Source: `
 			declare function Child(props: { value: string }): unknown;
-			export function Wrapper(props: { value: string }) {
-				return () => <Child value={props.value} />;
+			export function Wrapper(props: { value: string; open: boolean }) {
+				return () => <section aria-expanded={props.open}><Child value={props.value} /></section>;
 			}
 		`,
 	})
@@ -143,6 +143,9 @@ func TestComponentExecutionForwardsReactivePropIdentity(t *testing.T) {
 	if !strings.Contains(response.Code, "createForwardedExpression as __exactForwardedExpression") ||
 		!strings.Contains(response.Code, "__exactForwardedExpression(() => props.value)") {
 		t.Fatalf("prop forwarding allocated a redundant reactive value:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, "__exactExpression(() => props.open)") {
+		t.Fatalf("host attribute incorrectly retained replaceable forwarded identity:\n%s", response.Code)
 	}
 }
 

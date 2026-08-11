@@ -93,6 +93,7 @@ function isDefinition(value: unknown): boolean {
 				'inspection',
 				'registry',
 				'enhancements',
+				'interactions',
 				'compatibility'
 			].includes(capability)
 		)

@@ -1,12 +1,12 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { exactVitest } from '@exactjs/vitest';
 import { defineConfig } from 'vitest/config';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-	// These integration fixtures deliberately load three source roots through the raw
-	// automatic runtime. Ordinary application tests should use @exactjs/vitest instead.
+	plugins: [exactVitest({ compiler: { include: /[\\/]src[\\/].*\.tsx$/ } })],
 	oxc: {
 		jsx: {
 			runtime: 'automatic',

@@ -6,6 +6,7 @@ import { render, unmount } from '@exactjs/dom';
 import { createExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
 import { registerExactRemoteClientBindings } from '@exactjs/microfrontends/client';
+import { flushSync } from '@exactjs/reactive';
 import { handleExactRequest, type ExactRequestLike, type ExactResponseLike } from '@exactjs/server';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Billing from './billing/src/Billing.js';
@@ -251,6 +252,7 @@ function text(testId: string): string {
 
 function click(testId: string): void {
 	(document.querySelector(`[data-testid="${testId}"]`) as HTMLElement | null)?.click();
+	flushSync();
 }
 
 function clickButton(label: string): void {
@@ -259,6 +261,7 @@ function clickButton(label: string): void {
 	);
 	if (!button) throw new Error(`Missing button ${JSON.stringify(label)}`);
 	button.click();
+	flushSync();
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {

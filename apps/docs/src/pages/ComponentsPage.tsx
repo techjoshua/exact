@@ -94,9 +94,10 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					Generated artifacts carry that state-machine description as one immutable component
 					definition: state slots, task transitions, reactive allocations, render preparation, and
-					the capabilities the artifact can reach. Task-free components neither import the task
-					runtime nor allocate an empty task owner; public barrel imports remain valid because
-					generated imports use focused internal runtime entries.
+					the capabilities the artifact can reach. Components with neither tasks nor interaction
+					roots omit the task runtime and its owner; event-owning components import that runtime
+					because each event executes as a cancellable interaction task. Public barrel imports
+					remain valid because generated imports use focused internal runtime entries.
 				</p>
 				<p>
 					That ownership stays inspectable without making every instance carry duplicate method

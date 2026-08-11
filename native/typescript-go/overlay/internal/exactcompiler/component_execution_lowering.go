@@ -60,6 +60,7 @@ func componentDefinitionMetadata(
 	execution ComponentExecution,
 	continuations []Continuation,
 	hasResumption bool,
+	hasInteractions bool,
 	compatibility bool,
 ) *ast.Node {
 	state := []string{}
@@ -81,6 +82,9 @@ func componentDefinitionMetadata(
 	}
 	if hasResumption {
 		capabilities = append(capabilities, "resumption")
+	}
+	if hasInteractions {
+		capabilities = append(capabilities, "interactions")
 	}
 	if compatibility {
 		capabilities = append(capabilities, "compatibility")

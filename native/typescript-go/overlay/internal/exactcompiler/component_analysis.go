@@ -114,6 +114,7 @@ func analyzeComponents(
 					if attribute == "ref" {
 						splitBoundaries["ref"] = struct{}{}
 					} else if interactiveJSXAttribute(attribute) {
+						component.Interactions = true
 						splitBoundaries["event-handler"] = struct{}{}
 					}
 				}

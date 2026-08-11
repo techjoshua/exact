@@ -2188,9 +2188,10 @@ func (lowering *jsxLowering) propsWithReactivity(
 				if reactive && !jsxCallbackExpression(expression) &&
 					!jsxEventAttribute(name) &&
 					name != "key" && name != "ref" {
-					initializer = lowering.reactiveExpression(
+					initializer = lowering.reactiveExpressionMode(
 						expression,
 						initializer,
+						!intrinsic,
 					)
 				}
 			default:
@@ -2991,6 +2992,14 @@ func (lowering *jsxLowering) reactiveExpression(
 	source *ast.Node,
 	expression *ast.Node,
 ) *ast.Node {
+	return lowering.reactiveExpressionMode(source, expression, false)
+}
+
+func (lowering *jsxLowering) reactiveExpressionMode(
+	source *ast.Node,
+	expression *ast.Node,
+	forwardLiveSlot bool,
+) *ast.Node {
 	if lowering.declarativeRenderDepth > 0 {
 		return expression
 	}
@@ -2999,7 +3008,7 @@ func (lowering *jsxLowering) reactiveExpression(
 		closure = lowering.arrow(expression)
 	}
 	helper := lowering.names.expression
-	if lowering.liveSlotForwarding(source) {
+	if forwardLiveSlot && lowering.liveSlotForwarding(source) {
 		helper = lowering.names.forwardedExpression
 	}
 	value := lowering.call(
@@ -6713,10 +6722,11 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		}
 	}
 	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
+	interactionUsed := containsInteractionRuntimeUse(root)
 	result := make([]*ast.Node, 0, len(groups))
 	for index, group := range groups {
 		if len(group.specifiers) == 0 {
-			if index == 2 && interopUsed {
+			if index == 2 && (interopUsed || interactionUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,
@@ -6744,6 +6754,23 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		result = append(result, declaration)
 	}
 	return result
+}
+
+func containsInteractionRuntimeUse(root *ast.Node) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsPropertyAssignment(node) {
+			return true
+		}
+		propertyName := node.AsPropertyAssignment().Name()
+		if !ast.IsIdentifier(propertyName) && !ast.IsStringLiteral(propertyName) {
+			return true
+		}
+		name := propertyName.Text()
+		found = jsxEventAttribute(name) || strings.HasPrefix(name, "__exactBind")
+		return !found
+	})
+	return found
 }
 
 func (lowering *jsxLowering) interopImport(root *ast.Node) *ast.Node {

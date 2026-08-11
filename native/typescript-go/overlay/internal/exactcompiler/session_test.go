@@ -800,6 +800,7 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		t.Fatalf("client component has no root symbol: %#v", response.Analysis.Symbols)
 	}
 	for _, expected := range []string{
+		`import "@exactjs/core/runtime/tasks"`,
 		`const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract")`,
 		`const __exactImplementation_Button_1 = function Button()`,
 		`export const Button =`,
@@ -812,6 +813,7 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		`role: "root"`,
 		`implementation: __exactImplementation_Button_1`,
 		`resumption:`,
+		`"interactions"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -2000,7 +2002,7 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 	for _, expected := range []string{
 		`className: [`,
 		`{ "active": __exactExpression(() => this.state.active) }`,
-		`__exactForwardedExpression(() => props.className)`,
+		`__exactExpression(() => props.className)`,
 		`{ "disabled": __exactExpression(() => !this.state.disabled) }`,
 	} {
 		if !strings.Contains(response.Code, expected) {

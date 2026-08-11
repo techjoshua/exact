@@ -13,8 +13,9 @@ close the delivered execution model's performance criterion.
 
 Compiled modules now import focused render, reactivity, task, inspection, registry, and enhancement
 facades. The base component constructor has no reverse import to the task implementation: task code
-installs its integration only when reachable, and a compiler-proven task-free component allocates no
-task owner. Each exported component carries one immutable compiled definition; execution-plan and
+installs its integration only when reachable, and a compiler-proven component with neither tasks
+nor interaction roots allocates no task owner. Event-owning components retain one because event
+callbacks execute as cancellable interaction tasks. Each exported component carries one immutable compiled definition; execution-plan and
 lazy-island slice indexes are cached by definition rather than rebuilt per instance or request.
 Optional enhancement implementations remain outside the core and basic-renderer ledgers.
 
