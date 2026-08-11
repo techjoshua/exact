@@ -1,4 +1,10 @@
-import { unwrap, type ComponentInstance, type EnhancementEntry, type VNode } from '@exactjs/core';
+import {
+	isExactEnhancementPassThrough,
+	unwrap,
+	type ComponentInstance,
+	type EnhancementEntry,
+	type VNode
+} from '@exactjs/core';
 import {
 	createEffectScope,
 	scheduleWork,
@@ -66,7 +72,7 @@ export function activateEnhancementSubtree(
 		(left, right) => right.target.depth - left.target.depth
 	)) {
 		const active = group.entries.filter((entry) => {
-			if (root.enhancementCatalog?.has(entry.identity)) return true;
+			if (activeEnhancement(root, entry.identity)) return true;
 			reportUnavailable(root, entry.identity);
 			return false;
 		});
@@ -116,7 +122,7 @@ export function patchEnhancementBoundary(
 					})
 				: entry;
 		});
-	const active = entries.filter((entry) => root.enhancementCatalog?.has(entry.identity));
+	const active = entries.filter((entry) => activeEnhancement(root, entry.identity));
 	if (!active.length)
 		return deactivateEnhancementBoundary(
 			root,
@@ -396,6 +402,7 @@ function reportUnavailableDeclarations(root: Root, mounted: Mounted): void {
 }
 
 function reportUnavailable(root: Root, identity: string): void {
+	if (isExactEnhancementPassThrough(root.enhancementCatalog?.get(identity))) return;
 	root.unavailableEnhancements ??= new Set();
 	if (root.unavailableEnhancements.has(identity)) return;
 	root.unavailableEnhancements.add(identity);
@@ -404,4 +411,9 @@ function reportUnavailable(root: Root, identity: string): void {
 		message: `Optional renderer enhancement "${identity}" is unavailable`,
 		scope: { source: 'framework', packageName: '@exactjs/dom', category: 'enhancement' }
 	});
+}
+
+function activeEnhancement(root: Root, identity: string): boolean {
+	const component = root.enhancementCatalog?.get(identity);
+	return component !== undefined && !isExactEnhancementPassThrough(component);
 }

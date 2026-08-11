@@ -11,7 +11,10 @@ import { loadExactConfig } from '@exactjs/config/node';
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import {
 	createExactDiagnosticReporter,
-	exactEnhancementFacadeImports
+	exactAvailableEnhancementFacadeSource,
+	exactEnhancementFacadeImports,
+	exactUnavailableEnhancementFacadeSource,
+	parseExactEnhancementFacadeRequest
 } from '@exactjs/compiler/adapter-support';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
 import { IntlBuildCoordinator, type IntlBuildConfiguration } from '@exactjs/intl-build';
@@ -160,6 +163,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 	return {
 		name: 'exact',
 		setup(build) {
+			const enhancementFacadeSources = new Map<string, string>();
 			if (options.target === 'server' && (build.config?.hot || process.argv.includes('--hot')))
 				throw new Error(
 					'[server-hmr-unsupported] Bun server --hot cannot preserve the last authorized component graph; use --watch instead'
@@ -195,6 +199,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				});
 			build.onStart?.(async () => {
 				inspectionModules.clear();
+				enhancementFacadeSources.clear();
 				await intl.beginBuild();
 				const loadedConfig = await loadExactConfig({
 					applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
@@ -283,6 +288,42 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			build.onResolve({ filter: /^@exactjs\/(?:dom|hydrate|ssr)$/ }, (args) => ({
 				path: exactEnhancementFacadeImports[args.path as keyof typeof exactEnhancementFacadeImports]
 			}));
+			build.onResolve({ filter: /^exact:optional-enhancement\// }, async (args) => {
+				const request = parseExactEnhancementFacadeRequest(args.path);
+				if (!request) return undefined;
+				let source = exactUnavailableEnhancementFacadeSource();
+				try {
+					const authorized = await componentAuthorization?.authorize(
+						request.moduleSpecifier,
+						args.importer ?? '',
+						build.resolve,
+						build.config?.alias
+					);
+					if (authorized?.namespace !== 'exact-omitted-enhancement') {
+						const resolved =
+							authorized ??
+							(await build.resolve?.(request.moduleSpecifier, {
+								kind: 'import-statement',
+								resolveDir: args.importer ? path.dirname(args.importer) : process.cwd()
+							}));
+						if (resolved?.path)
+							source = exactAvailableEnhancementFacadeSource({
+								...request,
+								moduleSpecifier: resolved.path
+							});
+					}
+				} catch (error) {
+					if (!isMissingOptionalEnhancement(error, request.moduleSpecifier)) throw error;
+				}
+				const id = Buffer.from(`${args.path}\0${args.importer ?? ''}`).toString('base64url');
+				enhancementFacadeSources.set(id, source);
+				return { path: id, namespace: 'exact-enhancement-facade' };
+			});
+			build.onLoad({ filter: /.*/, namespace: 'exact-enhancement-facade' }, (args) => ({
+				contents:
+					enhancementFacadeSources.get(args.path) ?? exactUnavailableEnhancementFacadeSource(),
+				loader: 'js'
+			}));
 			if (reactCompatibility) {
 				build.onResolve({ filter: /^react-reconciler$/ }, (args) => {
 					validateInstalledReactReconciler(
@@ -350,6 +391,16 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			});
 		}
 	};
+}
+
+function isMissingOptionalEnhancement(error: unknown, request: string): boolean {
+	if (!(error instanceof Error)) return false;
+	const code = (error as Error & { code?: string }).code;
+	return (
+		code === 'MODULE_NOT_FOUND' ||
+		code === 'ERR_MODULE_NOT_FOUND' ||
+		error.message.includes(`Could not resolve: ${request}`)
+	);
 }
 
 function bunLoadFilter(options: ExactBunPluginOptions): RegExp {

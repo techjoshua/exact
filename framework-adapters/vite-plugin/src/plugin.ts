@@ -31,7 +31,10 @@ import {
 	validateViteDebugIdentity
 } from './debug-output.js';
 import type { ExactPlugin, ExactPluginOptions } from './plugin-contracts.js';
-import { exactEnhancementFacades } from './enhancement-catalog.js';
+import {
+	exactEnhancementFacades,
+	ExactViteEnhancementFacadeCatalog
+} from './enhancement-catalog.js';
 import { IntlBuildCoordinator } from '@exactjs/intl-build';
 import {
 	ExactViteComponentAuthorization,
@@ -67,6 +70,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	let loadedConfig: ExactLoadedConfig | undefined;
 	let languageValidation: ExactLanguageValidationSession | undefined;
 	const componentAuthorization = new ExactViteComponentAuthorization();
+	const enhancementFacadeCatalog = new ExactViteEnhancementFacadeCatalog();
 	let viteCommand: 'build' | 'serve' = 'build';
 	let configuredDebug = options.debug;
 	const inspectionModules = new Map<string, ExactViteInspectionRecord>();
@@ -185,9 +189,34 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				source: `${JSON.stringify(committed.audit, null, 2)}\n`
 			});
 		},
-		resolveId(source, importer) {
+		async resolveId(source, importer) {
 			const intlModule = intl.resolve(source);
 			if (intlModule) return { id: intlModule, moduleSideEffects: false };
+			const enhancementFacade = await enhancementFacadeCatalog.resolve(
+				source,
+				importer,
+				async (request, owner) => {
+					try {
+						const value = this.resolve
+							? await this.resolve(request, owner, { skipSelf: true })
+							: null;
+						return typeof value === 'string' ? value : (value?.id ?? null);
+					} catch (error) {
+						if (isMissingOptionalEnhancement(error, request)) return null;
+						throw error;
+					}
+				},
+				async (resolved, request, owner) => {
+					const value = await componentAuthorization.authorize(resolved, request, owner, {
+						applicationRoot:
+							preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+						executionReason: options.serverExecutionReason,
+						watch: (file) => this.addWatchFile?.(file)
+					});
+					return typeof value === 'string' ? value : (value?.id ?? resolved);
+				}
+			);
+			if (enhancementFacade) return { id: enhancementFacade, moduleSideEffects: false };
 			if (source in exactEnhancementFacades) {
 				const facade = exactEnhancementFacades[source as keyof typeof exactEnhancementFacades];
 				const resolved = this.resolve ? this.resolve(facade, importer, { skipSelf: true }) : facade;
@@ -248,6 +277,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		load(id) {
 			const intlModule = intl.load(id);
 			if (intlModule) return { code: intlModule.code, moduleType: 'js' };
+			const enhancementFacade = enhancementFacadeCatalog.load(id);
+			if (enhancementFacade) return { code: enhancementFacade, moduleType: 'js' };
 			if (isExactViteOmittedEnhancement(id)) return { code: 'export {};\n', moduleType: 'js' };
 			if (id === resolvedExactDevtoolsRuntimeModule)
 				return {
@@ -275,6 +306,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		async handleHotUpdate(context) {
 			intl.advanceGeneration();
+			enhancementFacadeCatalog.advanceGeneration();
 			if (intl.isCatalogFile(context.file)) {
 				await intl.refreshCatalogGeneration();
 				const affected: unknown[] = [];
@@ -400,4 +432,13 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				: result;
 		}
 	};
+}
+
+function isMissingOptionalEnhancement(error: unknown, request: string): boolean {
+	if (!(error instanceof Error)) return false;
+	const code = (error as Error & { code?: string }).code;
+	return (
+		(code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') &&
+		(error.message.includes(request) || error.message.includes('Could not resolve'))
+	);
 }

@@ -170,7 +170,9 @@ export type {
 } from './component/contracts.js';
 export {
 	createEnhancementMarker,
+	exactEnhancementPassThrough,
 	exactEnhancementContexts,
+	isExactEnhancementPassThrough,
 	markExactEnhancementContexts,
 	omitKnownProps,
 	readExactEnhancementContexts,

@@ -1,1 +1,6 @@
-export { createEnhancementMarker, omitKnownProps } from '../enhancements.js';
+export {
+	createEnhancementMarker,
+	exactEnhancementPassThrough,
+	isExactEnhancementPassThrough,
+	omitKnownProps
+} from '../enhancements.js';

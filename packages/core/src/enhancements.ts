@@ -7,6 +7,36 @@ import type {
 
 /** Global property carrying compiler-derived context effects needed before enhancement activation. */
 export const exactEnhancementContexts = Symbol.for('@exactjs/enhancement-contexts');
+const exactEnhancementPassThroughBrand = Symbol.for('@exactjs/enhancement-pass-through');
+
+type BrandedEnhancementComponent = ComponentFunction<any, Record<string, unknown>> & {
+	[exactEnhancementPassThroughBrand]?: true;
+};
+
+/**
+ * Shared stateless provider used when an optional enhancement implementation is unavailable.
+ *
+ * Enhanced renderers recognize its brand before component construction, so this function is an
+ * ordinary facade value without creating an instance, scope, wrapper, marker, or inspection event.
+ */
+export const exactEnhancementPassThrough: ComponentFunction<
+	any,
+	Record<string, unknown>
+> = Object.defineProperty(
+	function ExactEnhancementPassThrough(_props: Record<string, unknown>) {
+		return () => _props.children as any;
+	},
+	exactEnhancementPassThroughBrand,
+	{ value: true }
+) as ComponentFunction<any, Record<string, unknown>>;
+
+/** Reports whether a generated facade selected the shared zero-instance pass-through provider. */
+export function isExactEnhancementPassThrough(value: unknown): boolean {
+	return (
+		typeof value === 'function' &&
+		(value as BrandedEnhancementComponent)[exactEnhancementPassThroughBrand] === true
+	);
+}
 
 /** Minimal context effects used to order co-targeted ordinary components. */
 export interface EnhancementContextContract {

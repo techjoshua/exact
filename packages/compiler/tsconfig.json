@@ -36,6 +36,7 @@
 		"src/compilation/dev-state-planning.ts",
 		"src/compilation/dev-state.ts",
 		"src/compilation/enhancement-registrations.ts",
+		"src/compilation/enhancement-facades.ts",
 		"src/compilation/file-compilation.ts",
 		"src/compilation/language-validation.ts",
 		"src/compilation/native-session.ts",
