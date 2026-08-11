@@ -16,8 +16,8 @@ This proposal implements the accepted render-plan experiment in
 [`javascript-performance-improvements.md`](javascript-performance-improvements.md). It follows the
 delivered component, enhancement, binding, partition, and component-library trust contracts. It
 must land before bounded async SSR, compact hydration publication, lazy interaction islands,
-structural refresh, partial-prerender resumption, or final adapter parity consumes render-slot
-identity.
+partial-prerender resumption, final adapter parity, or any measured structural refresh extension
+consumes render-slot identity.
 
 ## Decision
 

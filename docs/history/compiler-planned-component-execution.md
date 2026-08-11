@@ -9,6 +9,10 @@ compiler now emits one canonical component execution subgraph and target-specifi
 The core runtime instantiates availability-aware dependency watchers and generation-bound output
 slots on each durable component instance. Async SSR wires reachable compiled children before it
 drains their work and schedules root task generations through the request-wide bounded scheduler.
+The dated
+[`compiler-planned-component-execution-2026-08-10.md`](../performance-baselines/compiler-planned-component-execution-2026-08-10.md)
+record closes the performance criterion against the final model, including its root-plan cache,
+allocation reductions, streaming paths, static-server hoisting, and behavioral corrections.
 
 Implementation deliberately keeps structural child calls and render consumers in the existing
 compiled render program. Duplicating them into a second runtime graph would add a planner and two
@@ -793,4 +797,6 @@ The compact record can adopt denser opcodes after profiling without changing thi
     and optional target-specific facet barrels retain ordinary ESM behavior.
 16. Representative nested server workloads improve materially, and representative client-only
     workloads reduce avoidable allocation or update work, without unacceptable CPU, heap,
-    compressed-byte, startup, hydration, or concurrent-request regression.
+    compressed-byte, startup, hydration, or concurrent-request regression. The current complete
+    framework baseline and shipping heap/allocation guards are recorded in
+    [`compiler-planned-component-execution-2026-08-10.md`](../performance-baselines/compiler-planned-component-execution-2026-08-10.md).

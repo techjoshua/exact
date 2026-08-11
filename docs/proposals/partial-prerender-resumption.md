@@ -6,20 +6,24 @@ Proposed after
 [`recursive-server-client-graph-partitioning.md`](../history/recursive-server-client-graph-partitioning.md),
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](../history/server-component-library-trust.md),
-[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
+[`enhancement-first-internationalization.md`](../history/enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
 [`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
 [`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md),
 [`compact-hydration-publication.md`](../history/compact-hydration-publication.md),
-[`compiler-planned-component-execution.md`](../history/compiler-planned-component-execution.md),
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md), and
-[`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md). Resumption must
+[`compiler-planned-component-execution.md`](../history/compiler-planned-component-execution.md), and
+[`lazy-interaction-islands.md`](lazy-interaction-islands.md). Resumption must
 persist the settled activator-selected enhancement ownership, bundler authorization fingerprint,
 and bounded root-bearing-frame authority rather than reconstruct trust or the current unrestricted
 target search. It must also retain opaque locale, catalog, formatter-data, and message-plan
 identities without treating translated strings as durable operations. Current
 progressive SSR can emit a fallback shell and reveal settled Suspense ranges during one render. It
 does not serialize postponed renderer/task ownership and continue it in a later request.
+
+The current range, nested-element, and authoritative boundary replacement contracts are sufficient
+for correct resumed publication. The deferred
+[`structural render-program extensions`](compiler-planned-structural-refresh.md) may reduce resumed
+CPU or patch size when measurements justify them, but are not a prerequisite.
 
 The measurement baseline and dependent-foundation experiments 2–4 and 6 in
 [`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) must have
@@ -33,14 +37,15 @@ parallel representation.
 | Progressive SSR        | One live render/stream lifetime           | Persist HTML plus an opaque postponed artifact         |
 | Later request          | Starts a new render                       | Reconstructs authorized postponed boundaries and tasks |
 | Context                | Live request/application context          | Reacquired by compiler-known public context name       |
-| Continuations          | Browser/server component transitions      | Reused for server-to-later-server resumption           |
-| Structural publication | Progressive range reveal or root fallback | Partition- and plan-authorized resumed patches         |
+| Continuations          | Attached component transitions            | Reacquired from the retained build and root blueprint  |
+| Structural publication | Progressive range reveal or root fallback | Existing partition-authorized range/boundary patches   |
 
 ## Decision
 
-Add partial prerendering as persistence around the existing compiler continuation, partition,
-task-tree, Suspense, and refresh models. Do not create a second component execution model or
-serialize JavaScript runtime objects.
+Add partial prerendering as persistence around the existing attached component contracts,
+root-keyed execution blueprints, partition ownership, Suspense, and refresh models. Do not create a
+second component execution model, serialize the request-local execution graph, or serialize
+JavaScript runtime objects.
 
 The lifecycle is:
 
@@ -113,7 +118,8 @@ The artifact may contain only validated framework-owned data:
 - partition, boundary, range, and generation identities;
 - opaque continuation and operation identities;
 - authorized serialized dependency and capture slots;
-- pending task relationships, readiness, priority, and cancellation state;
+- available dependency/output slot values and versions required by postponed work;
+- opaque identities for pending transitions plus their ownership, priority, and generation facts;
 - Suspense and Activity ownership needed to reconstruct postponed ranges;
 - active enhancement component contracts, activator-selected canonical groups, target or direct `_`
   boundary generations, first-root-path and root-bearing-frame authority where applicable, context
@@ -121,6 +127,11 @@ The artifact may contain only validated framework-owned data:
   than serialized instances;
 - required public context snapshots when their declaration permits serialization; and
 - names and residency requirements for server contexts that must be reacquired.
+
+The artifact does not copy the root execution blueprint or flatten the request graph. The retained
+build and execution-root identity reacquire the immutable blueprint at resume time. Serialized slot
+and transition indexes are meaningful only after validation against that exact attached component
+contract.
 
 It must not contain:
 
@@ -167,12 +178,14 @@ policy.
 1. Validate envelope size, schema, authentication, expiry, build, and execution root.
 2. Resolve only allowlisted continuation contracts from the exact retained build.
 3. Reacquire named application/request contexts and verify residency and serialization policy.
-4. Reconstruct ephemeral renderer partitions, postponed ranges, task frames, and readiness owners.
+4. Reacquire the retained root component and its immutable execution blueprint, then instantiate
+   request-local value slots, postponed partitions, and readiness watchers only for selected work.
 5. Reconstruct enhancement root-bearing frames only from saved compiler-authorized ownership and
    the currently validated branch/Suspense selection.
 6. Resume generations with a new request cancellation root while preserving compiler-owned
    generation fencing.
-7. Publish only patches authorized by the saved partition and structural plans.
+7. Publish only patches authorized by the saved partition containment and retained boundary or
+   range contracts; use the nearest authoritative replacement when a narrower patch is unavailable.
 8. Settle, cancel, or fail every reconstructed frame and release all acquired resources.
 
 The resume request cannot access completed sibling partitions merely because they shared the
@@ -213,7 +226,8 @@ traded silently for one checkpoint's latency.
 1. Define a versioned internal checkpoint schema and round-trip it entirely in memory.
 2. Reconstruct one postponed Suspense boundary with no external context.
 3. Reacquire named request/application contexts and protect secret/residency boundaries.
-4. Resume nested partitions and structured task relationships.
+4. Resume nested partitions by restoring validated slot availability and letting the attached
+   component transitions recreate their ordinary request-owned task relationships.
 5. Add authenticated serialization, expiry, size limits, and single-use replay protection.
 6. Integrate adapter-neutral response and streaming contracts.
 7. Add deployment retention and stale-build recovery guidance.
@@ -226,7 +240,8 @@ traded silently for one checkpoint's latency.
   cannot enter artifacts.
 - Integration tests that prerender, destroy all runtime state, then resume in a fresh server host.
 - Cancellation, expiry, replay, stale-build, missing-context, and retired-operation tests.
-- Nested Suspense, Activity, server slot, task-tree, and structural-patch tests.
+- Nested Suspense, Activity, server slot, task-ownership, range-replacement, and boundary-fallback
+  tests.
 - Transparent and structural enhancement tests covering activator groups, shared props,
   root-bearing frames, conditional/Suspense selection, target generations, contexts, tasks,
   Activity, catalog absence or exclusion, cancellation, and cleanup after process loss.

@@ -163,8 +163,9 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
-- [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md) for
-  additional proven patch forms.
+- Measured [structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)
+  may add proven patch fast paths, but current range and boundary replacement is already the
+  correctness contract and does not block later SSR work.
 - [Broader lazy-island classification](proposals/lazy-interaction-islands.md) where source remains
   statically safe.
 - [Full Webpack and Bun microfrontend production conformance](proposals/webpack-bun-microfrontend-parity.md).

@@ -2,23 +2,24 @@
 
 ## Status
 
-**Implemented as an experimental protocol-1 feature. The native analyzer, runtime, shared host
+**Implemented and archived in August 2026.** The native analyzer, runtime, shared host
 coordination, published catalogs, interchange, capability providers, locale fallback/lazy
 generation adoption, and bounded unit policy are executable and pass the architecture gate, but
-remain pre-stable public APIs.** It follows
-[`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md) and
-[`server-component-library-trust.md`](../history/server-component-library-trust.md). It no longer
-depends on [`cooperative-structured-children.md`](cooperative-structured-children.md). Messages are
+their internal protocol-1 artifacts remain versioned build contracts rather than application APIs.
+Current behavior is authoritative in
+[`internationalization.md`](../internationalization.md). This record follows
+[`enhancements-as-component-composition.md`](enhancements-as-component-composition.md) and
+[`server-component-library-trust.md`](server-component-library-trust.md). It no longer depends on
+[`cooperative-structured-children.md`](../proposals/cooperative-structured-children.md). Messages are
 lexically owned regions: analysis follows locally authored intrinsic and finite branch structure,
 but ordinary component invocations remain opaque unless source marks them as structural slots or
 they publish a finite internationalization role. That boundary removes the need for general
 runtime child inspection, child capability injection, or application-wide component expansion.
-This proposal remains before
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
-[`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md),
-[`partial-prerender-resumption.md`](partial-prerender-resumption.md), and
-[`webpack-bun-microfrontend-parity.md`](webpack-bun-microfrontend-parity.md). The implemented
-[`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md) contract is
+This implemented contract remains a settled input to
+[`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
+[`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md), and
+[`webpack-bun-microfrontend-parity.md`](../proposals/webpack-bun-microfrontend-parity.md). The implemented
+[`component-value-callback-bindings.md`](component-value-callback-bindings.md) contract is
 not an internationalization prerequisite, but its callback and intrinsic-adapter analysis is now
 part of the settled compiler baseline that precedes broader lazy-island delivery.
 
@@ -105,8 +106,7 @@ identifiers for ordinary messages.
 - Treating `_target` as authority to inspect or rewrite an opaque component's internal content.
 - Inferring currency exchange rates or converting monetary value between currencies.
 - Making locale the owner of application data, component state, routing, or user preferences.
-- Hiding source-message changes behind compatibility keys or migration aliases in this pre-stable
-  framework.
+- Hiding source-message changes behind compatibility keys or migration aliases.
 
 ## Package and host boundaries
 
@@ -1940,7 +1940,7 @@ require a second global state system.
 ## Performance and artifact-memory constraints
 
 Internationalization must consume the runtime baseline established by
-[`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md), not introduce a
+[`javascript-performance-improvements.md`](javascript-performance-improvements.md), not introduce a
 parallel reactive or child-ownership system.
 
 - Analyzed message descriptors are build-owned immutable data. Runtime message instances retain a
@@ -2012,9 +2012,11 @@ artifact. Loading a lazy component under an existing locale fetches its matching
 locale invalidates or reloads only active catalog consumers and preserves component/DOM identity
 when the translated structural-slot contract permits an in-place update.
 
-Structural refresh plans treat translated branch selection and structural-slot ordering as
-analyzer-declared, renderer-owned range structure. A refresh may update text or reorder authorized slots only within
-the message plan; it cannot patch through component ownership or inject translator-defined markup.
+Any measured structural render-program extension treats translated branch selection and
+structural-slot ordering as analyzer-declared, renderer-owned range structure. A refresh may update
+text or reorder authorized slots only within the message plan; it cannot patch through component
+ownership or inject translator-defined markup. The current safe range and boundary replacement
+paths already preserve this rule without requiring that optional optimization.
 
 Partial-prerender checkpoints retain opaque locale/catalog/data fingerprints and active message-plan
 identities, not translated strings as durable operation identity. Resume reacquires the exact
@@ -2056,7 +2058,7 @@ and runtime boundary validation as local catalogs.
 ## Diagnostics and language tools
 
 Under the generic
-[trusted language-service contribution](trusted-language-service-contributions.md) proposal, an
+[trusted language-service contribution](trusted-language-service-contributions.md) contract, an
 intl package owns the following assistance without adding an intl callback or semantic branch to
 the standard compiler. The generic language host still does not assume that an intl package exists;
 these capabilities appear only when `@exactjs/intl` is installed, selected, and trusted.
@@ -2311,7 +2313,8 @@ because that operation is useful to ordinary compiled TypeScript independently o
 9. Coordinate development-entry locale selection, dependency translation lookup, runtime locale
    negotiation, SSR, hydration, reactive locale changes, lazy catalog fragments, and generation
    fencing.
-10. Integrate structural refresh, partial-prerender resumption, and microfrontend artifact contracts.
+10. Integrate partial-prerender resumption and microfrontend artifact contracts; expose the same
+    facts to any later measured structural render-program extension.
 11. Add current engineering references, package READMEs/local agent guidance, docs-app pages,
     examples, and translation-tool adapter documentation when implementation lands.
 

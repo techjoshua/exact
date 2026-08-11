@@ -54,7 +54,7 @@ application-facing side exports ordinary compiled enhancements so localization i
 TSX that owns the fallback content.
 
 `@exactjs/intl`, the native `@exactjs/intl-analyzer`, and the shared `@exactjs/intl-build`
-coordinator implement enhancement-first internationalization as experimental framework behavior.
+coordinator implement enhancement-first internationalization through one versioned build contract.
 
 The runnable [`apps/intl-testbed`](../apps/intl-testbed) keeps English, French, Japanese, and
 Arabic renderings side by side under shared reactive controls. It deliberately reorders named
@@ -503,5 +503,5 @@ the configured URL. Server builds emit no provider because the supported Node ba
 these features. Source analysis records only the capability identifier and never embeds a provider
 or URL.
 
-See the [full proposal](proposals/enhancement-first-internationalization.md) for the intended design
+See the [implementation record](history/enhancement-first-internationalization.md) for the delivered design
 and acceptance gates.

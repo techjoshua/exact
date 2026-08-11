@@ -18,7 +18,7 @@ import {
 	intlXliffSource
 } from './internationalization-sources.js';
 
-/** Documents the experimental enhancement-first internationalization implementation. */
+/** Documents the enhancement-first internationalization implementation. */
 export function InternationalizationPage(this: Component<{}>) {
 	return () => (
 		<Article
@@ -28,9 +28,10 @@ export function InternationalizationPage(this: Component<{}>) {
 			previous={{ path: '/plugins', label: 'Plugin system' }}
 			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
 		>
-			<Callout tone="warning" title="Experimental API">
-				The implementation is still pre-stable. Message IR and catalog inputs are validated build
-				contracts; application code should use the public components, enhancements, and environment.
+			<Callout title="Build-owned contracts">
+				Message IR and prepared catalog inputs are versioned build contracts, not application APIs.
+				Application code should use the public components, enhancements, environment, and adapter
+				configuration described here.
 			</Callout>
 			<section>
 				<h2>Compare locale structure side by side</h2>

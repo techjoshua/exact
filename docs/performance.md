@@ -6,6 +6,11 @@ measurements. The tracked
 current client, server, wire, heap, and production-fixture build evidence. It is a comparison point,
 not a machine-independent release budget.
 
+The dated
+[`compiler-planned component execution record`](performance-baselines/compiler-planned-component-execution-2026-08-10.md)
+interprets the current planned-SSR, root-cache, shipping retained-heap, and allocation results that
+close the delivered execution model's performance criterion.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:

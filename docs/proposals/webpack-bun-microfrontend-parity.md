@@ -5,13 +5,12 @@
 Proposed after the higher-leverage compiler and SSR boundary work, including
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](../history/server-component-library-trust.md),
-[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
+[`enhancement-first-internationalization.md`](../history/enhancement-first-internationalization.md),
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md),
 [`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
 [`bounded-deterministic-async-ssr.md`](../history/bounded-deterministic-async-ssr.md),
 [`compact-hydration-publication.md`](../history/compact-hydration-publication.md),
-[`lazy-interaction-islands.md`](lazy-interaction-islands.md),
-[`compiler-planned-structural-refresh.md`](compiler-planned-structural-refresh.md), and
+[`lazy-interaction-islands.md`](lazy-interaction-islands.md), and
 [`partial-prerender-resumption.md`](partial-prerender-resumption.md). The dependent-foundation
 experiments 2–4 and 6 in
 [`javascript-performance-improvements.md`](../history/javascript-performance-improvements.md) are resolved by
@@ -24,6 +23,13 @@ server/client artifacts. Adapters must also emit reachable package/application l
 Unicode formatter data under the shared artifact contract. Webpack and Bun
 currently have focused artifact-mapping feasibility proofs, not complete lifecycle integration or
 heterogeneous production conformance.
+
+The architecture review confirms this remains a real adapter gap rather than compiler work. The
+Webpack and Bun plugins already compile ordinary applications, resolve target facades, enforce
+component-library authorization, and share Intl coordination. What remains here is specifically
+microfrontend producer/consumer lifecycle integration and the heterogeneous production matrix.
+Deferred structural render-program extensions and the broader runtime-capability proposal are not
+prerequisites.
 
 | Delivery area          | Vite/Rollup                | Webpack and Bun current state | Proposed state                         |
 | ---------------------- | -------------------------- | ----------------------------- | -------------------------------------- |

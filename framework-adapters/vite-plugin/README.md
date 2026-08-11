@@ -37,7 +37,7 @@ the compiler does not consult or maintain a plugin registry for this decision.
 An attributed namespace export with `scope: 'package'` in `exact.config.*` supplies a virtual namespace to
 every package component; Vite emits its catalog registration only from modules that activate it.
 
-The experimental `internationalization` option runs `@exactjs/intl-analyzer` over original TSX
+The `internationalization` option runs `@exactjs/intl-analyzer` over original TSX
 before this ordinary compiler transform. It accepts generated data-only `catalogs` or watched
 XLIFF 2.1/protocol-JSON `catalogFiles` and generates validated per-source companion modules with
 generation fencing. XLIFF is the recommended persisted translation source; runtime protocol JSON

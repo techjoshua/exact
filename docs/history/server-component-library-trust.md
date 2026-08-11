@@ -5,7 +5,7 @@
 Implemented on 2026-08-05 after
 [`enhancements-as-component-composition.md`](enhancements-as-component-composition.md) and before
 [`cooperative-structured-children.md`](../proposals/cooperative-structured-children.md),
-[`enhancement-first-internationalization.md`](../proposals/enhancement-first-internationalization.md),
+[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md),
 [`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
 [`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md),
 [`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md), and

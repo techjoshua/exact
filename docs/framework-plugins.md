@@ -96,7 +96,7 @@ use compiler metadata and a bundle-local enhancement catalog, not plugin discove
 host projections, or plugin lifecycle. A component library may independently expose a genuine host
 plugin, but the two surfaces are activated and documented separately.
 
-The proposed [trusted language-service contribution](proposals/trusted-language-service-contributions.md)
+The implemented [trusted language-service contribution](history/trusted-language-service-contributions.md)
 role is independent again: a plugin or enhancement library may publish inert editor metadata or an
 explicitly trusted analyzer without receiving compiler callbacks. Enabled provider errors join the
 compilation validation gate but cannot transform output. Language-role trust and ignores do not

@@ -11,7 +11,7 @@ compiler component IDs.
 ## Integration
 
 The analyzer is intended for framework build adapters. Application code imports `@exactjs/intl`, not
-this package. Vite, Bun, and Webpack applications enable it through the eXact adapter's experimental
+this package. Vite, Bun, and Webpack applications enable it through the eXact adapter's
 `internationalization` option. Build hosts reuse one persistent `NativeIntlAnalyzer`; the ordinary
 compiler pass remains free of intl semantics.
 

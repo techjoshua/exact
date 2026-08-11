@@ -1,4 +1,4 @@
-import { defineTask, type Component } from '@exactjs/core';
+import { activateTaskForHost, defineTask, TaskContext, type Component } from '@exactjs/core';
 import { renderToProgressiveHtmlStream, renderToString, renderToStringAsync } from '@exactjs/ssr';
 import {
 	defineExactBoundaryContract,
@@ -71,14 +71,13 @@ function ServerTree(_props: { count: number }) {
 
 function CpuPanel(this: Component<{ value: number }>, props: { iterations: number }) {
 	this.state.value = 0;
-	activateTaskForHost(
-		this,
-		defineTask({ readiness: 'blocking' }, async (_task: TaskContext) => {
-			let value = 0;
-			for (let index = 0; index < props.iterations; index++) value = (value + index) % 1_000_003;
-			this.state.value = value;
-		})
-	);
+	const calculate = async (iterations: number, _task: TaskContext = TaskContext.blocking()) => {
+		await Promise.resolve();
+		let value = 0;
+		for (let index = 0; index < iterations; index++) value = (value + index) % 1_000_003;
+		this.state.value = value;
+	};
+	void calculate(props.iterations);
 	return () => <output>{this.state.value}</output>;
 }
 
@@ -127,8 +126,9 @@ async function asynchronousCpuSsr(iterations: number): Promise<ServerScenarioRes
 		markers: false
 	});
 	const elapsed = performance.now() - started;
+	const expected = ((iterations * (iterations - 1)) / 2) % 1_000_003;
 	assert(
-		result.html.includes('<output'),
+		result.html.includes(`>${expected}</output>`),
 		`asynchronous CPU SSR did not publish component output: ${result.html}`
 	);
 	return {

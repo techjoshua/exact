@@ -7,8 +7,8 @@ Implemented after
 [`bounded-deterministic-async-ssr.md`](bounded-deterministic-async-ssr.md). This proposal implements
 the accepted hydration/progressive experiment in
 [`javascript-performance-improvements.md`](javascript-performance-improvements.md). It must land
-before lazy interaction islands, structural refresh, resumption, and final adapter parity depend on
-the compact table and shared bootstrap.
+before lazy interaction islands, resumption, final adapter parity, or an optional structural refresh
+extension depends on the compact table and shared bootstrap.
 
 The grouped table, private compiler-finite boundary proof, compact coordinate, bootstrap
 validation, deferred island lookup without dormant prop shells, row-local corruption confinement,

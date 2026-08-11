@@ -2,7 +2,7 @@
 
 Package-provided diagnostics and editor features use the generic trusted language-extension
 protocol documented in
-[Trusted language-service contributions](proposals/trusted-language-service-contributions.md).
+[Trusted language-service contributions](history/trusted-language-service-contributions.md).
 Inert declarations cover finite rules. Trusted executable analyzers run in bounded child Node
 processes and receive compiler-owned serialized projections, never compiler or LSP objects.
 

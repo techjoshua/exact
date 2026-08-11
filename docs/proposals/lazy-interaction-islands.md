@@ -2,13 +2,13 @@
 
 ## Status
 
-Ready for implementation after
+Partially implemented, with the remaining broader eligibility work ready for implementation after
 [`enhancements-as-component-composition.md`](../history/enhancements-as-component-composition.md),
 [`server-component-library-trust.md`](../history/server-component-library-trust.md),
-[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md), and
+[`enhancement-first-internationalization.md`](../history/enhancement-first-internationalization.md), and
 [`component-value-callback-bindings.md`](../history/component-value-callback-bindings.md). Recursive
-server/client graph partitioning and binding edges are implemented in native protocol 1.28, while
-generated component contracts remain version 2. The implemented enhancement contract allows one
+server/client graph partitioning and binding edges are implemented in the current native compiler
+protocol, while generated component contracts remain version 2. The implemented enhancement contract allows one
 namespace to select several ordinary component nodes and uses bounded root-bearing output frames.
 The trust contract ensures that bundlers authorize the resolved package graph before any of those
 nodes enter a server-executing artifact, without adding policy to compiler eligibility analysis.
@@ -16,8 +16,10 @@ The implemented binding contract makes generated value/change callbacks and intr
 enter the same state-effect, ownership, and placement analysis as their explicit source
 expansions. The internationalization proposal adds lexically owned message-plan, locale-catalog,
 formatter, and Unicode-data requirements that must travel with a deferred artifact.
-This proposal defines the first broader lazy-island delivery over that resulting partition and
-authorized bundle model.
+This proposal defines the remaining broader lazy-island delivery over that resulting partition and
+authorized bundle model. The repository already contains interaction hydration markers, compact
+dormant rows, dynamic island loaders, delegated capture, queued event replay, generation fencing,
+DOM adoption, and failure fallback. Those are current foundations, not work to recreate here.
 
 It also follows the accepted performance foundations
 [`compiler-owned-render-programs.md`](../history/compiler-owned-render-programs.md),
@@ -32,11 +34,11 @@ recorded dispositions. Those dispositions now exist. This proposal begins only a
 accepted focused prerequisites above are implemented; their explicit generic and self-describing
 fallbacks remain available to boundaries that are not compiler-finite.
 
-The first delivery includes independent server ranges, checker-proven finite spreads, localized
+The remaining delivery includes independent server ranges, checker-proven finite spreads, localized
 eager descendants, structured fallback explanations, and the event policies defined below. New
 event families and an authored prepared-activation policy require a later proposal amendment.
 
-| Delivery area                | Implemented baseline                                                            | First-delivery contract                                             |
+| Delivery area                | Implemented baseline                                                            | Remaining-delivery contract                                         |
 | ---------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Server descendants           | Extracted server slots force their containing element island eager              | Independent server ranges remain inert inside an interaction island |
 | Prop spreads                 | Inline object-literal spreads may remain lazy; opaque spreads are eager         | Finite immutable checker-proven spreads may remain lazy             |
@@ -69,16 +71,17 @@ compiler may extract a generated island implementation only when doing so does n
 observable setup, state, contexts, tasks, refs, resources, or cleanup. Otherwise it marks the
 narrowest region requiring that component instance eager.
 
-## First-delivery scope
+## Remaining delivery scope
 
-The implementation order is normative:
+The implementation order for the remaining work is normative:
 
 1. Permit interaction regions containing independent inert server ranges.
 2. Accept finite checker-proven spreads without relaxing effect, capture, or serialization rules.
 3. Split independently owned eager descendants from otherwise lazy interaction regions.
 4. Emit structured activation decisions and expose them through language tools, build inspection,
    and DevTools.
-5. Narrow compiler and hydration event eligibility to the replay policies in this proposal.
+5. Replace the current broad event-object replay with the bounded policy records in this proposal
+   and narrow compiler and hydration eligibility accordingly.
 
 Prepared activation policies and additional event families are not acceptance requirements for
 this delivery.
@@ -222,7 +225,7 @@ cannot broaden or invalidate an ancestor island.
 
 The implemented partition node already carries `activation`, component ownership, placement,
 artifact targets, refresh authority, source range, child edges, and conservative fallback. The
-first delivery extends native analysis with structured activation details equivalent to:
+remaining delivery extends native analysis with structured activation details equivalent to:
 
 ```ts
 type ExactActivationDecision = Readonly<{
@@ -263,9 +266,10 @@ type ExactLazyEventPolicy = Readonly<{
 ```
 
 These fields are compiler analysis and generated hydration-registration data, not application
-syntax or durable transport identity. Their addition advances the native compiler protocol to
-1.28. Generated component-contract version 2 remains sufficient because component implementations,
-boundaries, resumptions, and ordinary ownership do not change shape.
+syntax or durable transport identity. Their addition increments the native compiler protocol from
+the version current when implementation begins; the proposal does not reserve a version number in
+advance. Generated component-contract version 2 remains sufficient because component
+implementations, boundaries, resumptions, and ordinary ownership do not change shape.
 
 Generated lazy registry entries carry the activation targets and policies beside their dynamic
 loader. SSR continues to emit the existing client-boundary, server-range, target identity, and
@@ -280,7 +284,7 @@ absent from every client entry and lazy chunk.
 
 - The native TypeScript-Go overlay is the single source of truth for eligibility, spread proof,
   activation targets, reason codes, and partition activation. The JavaScript compiler facade
-  validates and projects native protocol 1.28; it does not reclassify source.
+  validates and projects the matching incremented native protocol; it does not reclassify source.
 - `@exactjs/compiler` emits target-specific artifacts, lazy registry metadata, build inspection,
   and language-tool projections from that analysis.
 - `@exactjs/ssr` renders the already planned client and server ranges and existing markers. It does
@@ -297,7 +301,7 @@ absent from every client entry and lazy chunk.
 
 Deferral is permitted only when the runtime can preserve the relevant native transition:
 
-| Event family                           | First-delivery behavior                                                                 |
+| Event family                           | Remaining-delivery behavior                                                             |
 | -------------------------------------- | --------------------------------------------------------------------------------------- |
 | `click`                                | Cancel once, load, resolve the fenced target, and call its native `click()` once        |
 | `submit`                               | Cancel once, retain submitter identity, then call `requestSubmit()` once                |
@@ -310,10 +314,10 @@ Component value/callback shorthand contributes the same callback state write, ca
 invocation event as its explicit value-plus-callback expansion; it does not make the callback lazy
 by declaration. Canonical intrinsic `value:onInput`, `value:onChange`, and `checked:onChange`
 bindings use the existing `input`/`change` policies. The new `details` `open:onToggle` binding
-remains eager in this first delivery because `toggle` is not an approved replay family.
+remains eager in this remaining delivery because `toggle` is not an approved replay family.
 
 Event-family eligibility also proves how the handler uses its event parameter. An ignored event
-parameter is safe. The first delivery otherwise permits only:
+parameter is safe. The remaining delivery otherwise permits only:
 
 - `type`, `target`, and `currentTarget` for every approved family;
 - target control `value`, `checked`, and selected-option state for `input` and `change`; and
@@ -398,10 +402,12 @@ JSON props graph on every boundary. Activation decodes its indexed record lazily
 compiler-guided adoption cursor for proven static structure, while malformed records recover at
 their own boundary.
 
-Preload policy should distinguish immediately visible, likely interaction, and cold boundaries;
-independent likely boundaries may load concurrently under a host limit. Explanations must attribute
-initial and lazy bytes to source capabilities so a developer can see why a root retained a task,
-enhancement, refresh, compatibility, or other runtime feature.
+Preload tuning is optional deployment guidance, not an acceptance requirement. A host may
+distinguish immediately visible, likely-interaction, and cold boundaries or preload independent
+likely boundaries concurrently under its own limit. This proposal adds no preload API or required
+heuristic. Build explanations must still attribute initial and lazy bytes to source capabilities so
+a developer can see why a root retained a task, enhancement, refresh, compatibility, or other
+runtime feature.
 
 Verification must include retained-heap plateaus for repeated dormant-create/release cycles,
 bounded event floods, failed imports, refresh-before-activation, and activation/unmount churn. It
@@ -457,8 +463,8 @@ reported without event payloads or captured values.
 7. Active enhancement components remain ordinary component instances with preserved setup, context
    ordering, task ownership, activator grouping, shared props, root-bearing frame, target generation,
    inspection, and cleanup.
-8. The protocol version allocated after the enhancement prerequisite rejects incompatible analysis
-   clients; component-contract version 2 remains valid only if the prerequisite requires no schema
-   change.
+8. Implementation increments the then-current native compiler protocol, and the compiler facade
+   rejects incompatible analysis clients; component-contract version 2 remains valid because this
+   delivery adds no component-contract field.
 9. This proposal adds no authoring syntax or transport identity beyond the preceding enhancement
    and component value/callback binding contracts.

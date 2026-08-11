@@ -7,7 +7,7 @@ any current implementation stage, is not ready for API selection, and has no sch
 implementation work.**
 
 The revised
-[`enhancement-first-internationalization.md`](enhancement-first-internationalization.md) proposal
+[`enhancement-first-internationalization.md`](../history/enhancement-first-internationalization.md) record
 uses lexically owned message regions, finite local branch analysis, and opaque component slots. It
 does not inspect runtime children or propagate cooperative capabilities through component trees.
 This document now considers only component-library use cases that genuinely require ordered,
