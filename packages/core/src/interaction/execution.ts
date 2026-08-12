@@ -1,7 +1,7 @@
 import type { ComponentInstance } from '../component/contracts.js';
 import {
 	markComponentTrace,
-	startComponentTrace,
+	componentTraceStarter,
 	type ComponentTraceAttributes,
 	type ComponentTraceSpan
 } from '../component/performance-trace.js';
@@ -30,7 +30,7 @@ export type InteractionScope = {
 
 let nextInteractionId = 1;
 const interactionsByFrame = new WeakMap<TaskFrameRecord, InteractionScope>();
-const interactionTraces = new WeakMap<InteractionScope, ComponentTraceSpan>();
+let interactionTraces: WeakMap<InteractionScope, ComponentTraceSpan> | undefined;
 
 /** Returns metadata for the synchronously active interaction-root task. */
 export function currentInteraction(): InteractionScope | undefined {
@@ -49,7 +49,7 @@ export function traceInteractionPhase(
 	attributes?: ComponentTraceAttributes
 ): void {
 	if (!interaction) return;
-	markComponentTrace(interaction.owner, interactionTraces.get(interaction), phase, attributes);
+	markComponentTrace(interaction.owner, interactionTraces?.get(interaction), phase, attributes);
 }
 
 /**
@@ -93,25 +93,31 @@ export function runComponentInteraction<Result>(
 			});
 			interactionScope = scope;
 			interactionsByFrame.set(frame, scope);
-			const trace = startComponentTrace(owner, 'interaction', `interaction:${scope.id}`, {
+			const trace = componentTraceStarter(owner)?.('interaction', `interaction:${scope.id}`, {
 				source,
 				priority,
 				generation
 			});
-			if (trace) interactionTraces.set(scope, trace);
+			if (trace) (interactionTraces ??= new WeakMap()).set(scope, trace);
 			return work(scope);
 		}
 	);
 	const synchronousError = taskFrameSynchronousError(execution);
 	if (synchronousError) {
-		traceInteractionPhase(interactionScope, 'settled', { outcome: 'error' });
+		if (interactionScope && interactionTraces?.has(interactionScope))
+			finishInteractionTrace(interactionScope, 'error');
 		throw synchronousError.error;
 	}
-	if (interactionScope && interactionTraces.has(interactionScope)) {
+	if (interactionScope && interactionTraces?.has(interactionScope)) {
 		void execution.then(
-			() => traceInteractionPhase(interactionScope, 'settled', { outcome: 'success' }),
-			() => traceInteractionPhase(interactionScope, 'settled', { outcome: 'error' })
+			() => finishInteractionTrace(interactionScope!, 'success'),
+			() => finishInteractionTrace(interactionScope!, 'error')
 		);
 	}
 	return execution;
+}
+
+function finishInteractionTrace(interaction: InteractionScope, outcome: 'success' | 'error'): void {
+	traceInteractionPhase(interaction, 'settled', { outcome });
+	interactionTraces?.delete(interaction);
 }

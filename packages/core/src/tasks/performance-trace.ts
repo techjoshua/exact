@@ -1,4 +1,4 @@
-import { markComponentTrace, startComponentTrace } from '../component/performance-trace.js';
+import { componentTraceStarter, markComponentTrace } from '../component/performance-trace.js';
 import type { ComponentInstance } from '../component/contracts.js';
 import { currentInteraction } from '../interaction/execution.js';
 import type { TaskOwnerRecord } from './frame-contracts.js';
@@ -14,8 +14,7 @@ export function startTaskPerformanceTrace<Result>(
 	const traceOwner = componentTraceOwner(owner);
 	if (!traceOwner) return;
 	const interaction = currentInteraction();
-	const span = startComponentTrace(
-		traceOwner,
+	const span = componentTraceStarter(traceOwner)?.(
 		'task',
 		`task:${sourceEntityId ?? label ?? 'anonymous'}:${record.generation}`,
 		{
@@ -34,7 +33,9 @@ export function markTaskPerformanceTrace<Result>(
 	phase: string,
 	attributes?: Readonly<Record<string, string | number | boolean | null>>
 ): void {
-	if (record.trace) markComponentTrace(record.trace.owner, record.trace.span, phase, attributes);
+	if (!record.trace) return;
+	markComponentTrace(record.trace.owner, record.trace.span, phase, attributes);
+	if (phase === 'settled') delete record.trace;
 }
 
 function componentTraceOwner(owner: TaskOwnerRecord): ComponentInstance<any> | undefined {

@@ -11,30 +11,36 @@ export type ComponentTraceSpan = Readonly<{
 	startedAt: number;
 }>;
 
+/** Enabled-only constructor for one component performance span. */
+export type ComponentTraceStarter = (
+	operation: string,
+	operationId: string,
+	attributes?: ComponentTraceAttributes
+) => ComponentTraceSpan;
+
 /**
  * Begins a component performance span only when trace logging is currently enabled.
  * Disabled tracing performs no timestamp read and allocates no span or log arguments.
  */
-export function startComponentTrace(
-	instance: ComponentInstance<any>,
-	operation: string,
-	operationId: string,
-	attributes?: ComponentTraceAttributes
-): ComponentTraceSpan | undefined {
+export function componentTraceStarter(
+	instance: ComponentInstance<any>
+): ComponentTraceStarter | undefined {
 	const trace = componentLogMethod(instance, 'trace');
 	if (!trace) return undefined;
-	const span = Object.freeze({ operation, operationId, startedAt: traceTimestamp() });
-	trace(() => [
-		`performance ${operation} started`,
-		{
-			operation,
-			operationId,
-			phase: 'started',
-			elapsedMs: 0,
-			...(attributes ? { attributes } : {})
-		}
-	]);
-	return span;
+	return (operation, operationId, attributes) => {
+		const span = Object.freeze({ operation, operationId, startedAt: traceTimestamp() });
+		trace(() => [
+			`performance ${operation} started`,
+			{
+				operation,
+				operationId,
+				phase: 'started',
+				elapsedMs: 0,
+				...(attributes ? { attributes } : {})
+			}
+		]);
+		return span;
+	};
 }
 
 /** Emits one runtime-rechecked timing mark for an enabled component trace span. */

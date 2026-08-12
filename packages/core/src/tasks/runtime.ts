@@ -283,7 +283,7 @@ function startGeneration<Args extends unknown[], Result>(
 				lane.error = undefined;
 				lane.generation = record.generation;
 			}
-			markTaskPerformanceTrace(record, 'settled', { outcome: 'success' });
+			if (record.trace) markTaskPerformanceTrace(record, 'settled', { outcome: 'success' });
 			finishGeneration(definition, owner, state, lane, record);
 			record.resolve(value);
 		},
@@ -299,9 +299,10 @@ function startGeneration<Args extends unknown[], Result>(
 				lane.generation = record.generation;
 				if (!(error instanceof TaskCancellation)) lane.error = error;
 			}
-			markTaskPerformanceTrace(record, 'settled', {
-				outcome: error instanceof TaskCancellation ? 'cancelled' : 'error'
-			});
+			if (record.trace)
+				markTaskPerformanceTrace(record, 'settled', {
+					outcome: error instanceof TaskCancellation ? 'cancelled' : 'error'
+				});
 			finishGeneration(definition, owner, state, lane, record);
 			record.reject(error);
 		}
