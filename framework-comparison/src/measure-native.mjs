@@ -84,6 +84,7 @@ try {
 async function measureBrowser(browserInstance, participant) {
 	const samples = [];
 	for (let index = 0; index < sampleCount; index += 1) {
+		console.log(`Measuring ${participant.id} browser sample ${index + 1}/${sampleCount}`);
 		await reset(participant.url);
 		const context = await browserInstance.newContext();
 		const page = await context.newPage();
