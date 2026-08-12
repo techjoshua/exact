@@ -327,7 +327,10 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.onRender()</code>
 					<p>Observes render timing and dependencies.</p>
 					<code>this.log</code>
-					<p>A component-scoped logger.</p>
+					<p>
+						A component-scoped, runtime-configurable logger. Canonical level calls defer all
+						argument evaluation until that level is enabled; builds never erase them.
+					</p>
 				</div>
 			</section>
 			<Callout title="The working model">

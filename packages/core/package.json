@@ -83,6 +83,10 @@
 		"./runtime/dynamic-components": {
 			"types": "./dist/runtime/dynamic-components.d.ts",
 			"default": "./dist/runtime/dynamic-components.js"
+		},
+		"./runtime/logging": {
+			"types": "./dist/runtime/logging.d.ts",
+			"default": "./dist/runtime/logging.js"
 		}
 	},
 	"main": "./dist/index.js",

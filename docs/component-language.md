@@ -1528,7 +1528,18 @@ are observed when promise-like; ordinary return values are ignored.
 Task cleanup remains the preferred owner for resources acquired by a task.
 
 `this.log` is the component-scoped logger. It follows the nearest logger
-context and adds component identity to structured log records.
+context and adds component identity to structured log records. Write ordinary
+calls such as `this.log.debug('loaded', { id, record })`: the compiler lowers
+canonical `this.log.trace()`, `debug()`, `info()`, `warn()`, and `error()` calls
+so the logger's runtime enablement check happens before any argument expression
+is evaluated. Disabled calls therefore do not build message templates, payload
+objects, or errors, and do not require authored lazy callbacks.
+
+Logging is never erased according to build mode. The same artifact can enable a
+level later through its logger context, and the next call observes that change.
+Calls through aliases, computed properties, or another object's logger are left
+as ordinary TypeScript; use lazy log values there when deferred evaluation is
+required.
 
 ## Placement and data-policy annotations
 

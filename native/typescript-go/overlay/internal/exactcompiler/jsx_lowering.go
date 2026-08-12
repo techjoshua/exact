@@ -71,6 +71,7 @@ type jsxRuntimeNames struct {
 	componentRegistry      string
 	enhancements           string
 	omitEnhancementProps   string
+	componentLog           string
 	interop                string
 }
 
@@ -411,6 +412,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if compiled := lowering.lowerComponentRegistryCreation(node); compiled != nil {
 		return compiled
 	}
+	if compiled := lowering.lowerComponentLogCall(node); compiled != nil {
+		return compiled
+	}
 	if ast.IsCallExpression(node) && isComponentMapCall(node) {
 		return lowering.lowerComponentMapCall(node)
 	}
@@ -607,6 +611,67 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	default:
 		return lowering.visitor.VisitEachChild(node)
 	}
+}
+
+// lowerComponentLogCall preserves the ordinary ComponentLog authoring surface while
+// moving its runtime enablement check ahead of argument evaluation. Optional-call
+// semantics are the important part of this ABI: when the helper returns undefined,
+// JavaScript does not evaluate or allocate any of the authored arguments.
+func (lowering *jsxLowering) lowerComponentLogCall(node *ast.Node) *ast.Node {
+	if !ast.IsCallExpression(node) || !lowering.insideComponent(node) {
+		return nil
+	}
+	call := node.AsCallExpression()
+	if call.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(call.Expression) {
+		return nil
+	}
+	method := call.Expression.AsPropertyAccessExpression()
+	level := method.Name().Text()
+	switch level {
+	case "trace", "debug", "info", "warn", "error":
+	default:
+		return nil
+	}
+	if method.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(method.Expression) {
+		return nil
+	}
+	log := method.Expression.AsPropertyAccessExpression()
+	if log.QuestionDotToken != nil || log.Name().Text() != "log" ||
+		log.Expression.Kind != ast.KindThisKeyword {
+		return nil
+	}
+	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes))
+	for _, argument := range call.Arguments.Nodes {
+		arguments = append(arguments, lowering.visitor.VisitNode(argument))
+	}
+	methodLookup := lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(lowering.names.componentLog),
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewThisExpression(),
+			lowering.factory.NewStringLiteral(level, ast.TokenFlagsNone),
+		}),
+		ast.NodeFlagsNone,
+	)
+	return lowering.factory.NewCallExpression(
+		methodLookup,
+		lowering.factory.NewToken(ast.KindQuestionDotToken),
+		call.TypeArguments,
+		lowering.factory.NewNodeList(arguments),
+		call.Flags,
+	)
+}
+
+// insideComponent prevents the logging ABI from rewriting unrelated objects which
+// happen to expose a this.log property in the same TypeScript project.
+func (lowering *jsxLowering) insideComponent(node *ast.Node) bool {
+	for _, component := range lowering.components {
+		if node.Pos() >= component.Start && node.End() <= component.Start+component.Length {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) lowerComponentRegistryCreation(
@@ -6729,6 +6794,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/registry"},
 		{module: "@exactjs/core/runtime/enhancements"},
 		{module: "@exactjs/core/runtime/dynamic-components"},
+		{module: "@exactjs/core/runtime/logging"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -6768,6 +6834,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createCompiledComponentRegistry", lowering.names.componentRegistry, 4},
 		{"createEnhancementNode", lowering.names.enhancements, 5},
 		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
+		{"componentLogMethod", lowering.names.componentLog, 7},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -7010,6 +7077,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		componentRegistry:      allocate("__exactComponentRegistry"),
 		enhancements:           allocate("__exactEnhancements"),
 		omitEnhancementProps:   allocate("__exactOmitEnhancementProps"),
+		componentLog:           allocate("__exactComponentLog"),
 		interop:                allocate("__exactInteropComponent"),
 	}
 }

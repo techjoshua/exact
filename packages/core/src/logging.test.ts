@@ -7,6 +7,7 @@ import {
 	type LogEvent,
 	type Logger
 } from './index.js';
+import { componentLogMethod } from './runtime/logging.js';
 
 describe('@exactjs/core logging', () => {
 	it('provides a default component logger', () => {
@@ -109,6 +110,39 @@ describe('@exactjs/core logging', () => {
 		expect(firstEvents).toHaveLength(0);
 		expect(secondEvents).toHaveLength(1);
 		expect(secondEvents[0]!.message).toBe('later');
+	});
+
+	it('prepares compiler log calls from the currently enabled runtime level', () => {
+		const events: LogEvent[] = [];
+		let debugEnabled = false;
+		const logger: Logger = {
+			isEnabled: (level) => level !== 'debug' || debugEnabled,
+			log: (event) => events.push(event)
+		};
+		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+			this.setContext(LoggerContext, logger);
+			return () => null;
+		}, {});
+		const child = createComponentInstance(
+			function Child(this: Component<{}>) {
+				return () => null;
+			},
+			{},
+			parent
+		);
+
+		expect(componentLogMethod(child, 'debug')).toBeUndefined();
+		debugEnabled = true;
+		componentLogMethod(child, 'debug')?.('enabled without rebuilding', { version: 2 });
+		debugEnabled = false;
+		expect(componentLogMethod(child, 'debug')).toBeUndefined();
+
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			level: 'debug',
+			message: 'enabled without rebuilding',
+			data: { version: 2 }
+		});
 	});
 
 	it('emits framework-scoped logs through the console logger contract', () => {

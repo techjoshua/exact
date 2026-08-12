@@ -58,23 +58,51 @@ export function createComponentLog(instance: ComponentInstance<any>): ComponentL
 	return new ComponentLogFacade(instance);
 }
 
+/**
+ * Represents an enabled component-log invocation prepared for an immediate call.
+ * Compiler output uses the optional presence of this function to defer authored
+ * argument evaluation until after the logger's runtime level check.
+ */
+export type ComponentLogMethod = (
+	message: LazyLogValue<string>,
+	errorOrData?: LazyLogValue<unknown>,
+	data?: LazyLogValue<unknown>
+) => void;
+
+/**
+ * Resolves an enabled component-log method without evaluating authored log arguments.
+ * The result is intentionally decided at call time so a running application can change
+ * logger contexts or enabled levels without rebuilding its artifact.
+ */
+export function componentLogMethod(
+	instance: ComponentInstance<any>,
+	level: LogLevel
+): ComponentLogMethod | undefined {
+	const log = instance.log;
+	return log instanceof ComponentLogFacade ? log.method(level) : undefined;
+}
+
 class ComponentLogFacade implements ComponentLog {
-	constructor(private readonly instance: ComponentInstance<any>) {}
+	private readonly scope: LogScope;
+
+	constructor(private readonly instance: ComponentInstance<any>) {
+		this.scope = componentLogScope(instance);
+	}
 
 	trace(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
-		emitComponentLog(this.instance, 'trace', message, data);
+		this.method('trace')?.(message, data);
 	}
 
 	debug(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
-		emitComponentLog(this.instance, 'debug', message, data);
+		this.method('debug')?.(message, data);
 	}
 
 	info(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
-		emitComponentLog(this.instance, 'info', message, data);
+		this.method('info')?.(message, data);
 	}
 
 	warn(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
-		emitComponentLog(this.instance, 'warn', message, data);
+		this.method('warn')?.(message, data);
 	}
 
 	error(
@@ -82,21 +110,31 @@ class ComponentLogFacade implements ComponentLog {
 		errorOrData?: LazyLogValue<unknown>,
 		data?: LazyLogValue<unknown>
 	): void {
-		emitComponentLog(this.instance, 'error', message, errorOrData, data);
+		this.method('error')?.(message, errorOrData, data);
+	}
+
+	/**
+	 * Prepares one immediate invocation against the current logger and component scope.
+	 * The cached scope keeps the disabled path allocation-free after component creation;
+	 * mounted state is refreshed because the facade outlives activation transitions.
+	 */
+	method(level: LogLevel): ComponentLogMethod | undefined {
+		if (this.scope.component) this.scope.component.mounted = this.instance.mounted;
+		const logger = resolveLogger(this.instance);
+		if (!isLogEnabled(logger, level, this.scope)) return undefined;
+		return (message, errorOrData, data) =>
+			emitPreparedComponentLog(logger, this.scope, level, message, errorOrData, data);
 	}
 }
 
-function emitComponentLog(
-	instance: ComponentInstance<any>,
+function emitPreparedComponentLog(
+	logger: Logger,
+	scope: LogScope,
 	level: LogLevel,
 	message: LazyLogValue<string>,
 	errorOrData?: LazyLogValue<unknown>,
 	data?: LazyLogValue<unknown>
 ): void {
-	const scope = componentLogScope(instance);
-	const logger = resolveLogger(instance);
-	if (!isLogEnabled(logger, level, scope)) return;
-
 	const evaluatedMessage = evaluateLogValue(message);
 	let evaluatedError: unknown;
 	let evaluatedData: unknown;
