@@ -20,3 +20,16 @@ test('the root build prepares package-export prerequisites before building depen
 	);
 	assert.equal(manifest.devDependencies['@typescript/native'], 'npm:typescript@^7.0.2');
 });
+
+test('the root build includes the enhancement playground and its component libraries', async () => {
+	const config = JSON.parse(await readFile(path.resolve('tsconfig.json'), 'utf8'));
+	const references = new Set(config.references.map((reference) => reference.path));
+
+	for (const project of [
+		'./component-libraries/physics',
+		'./component-libraries/gravity',
+		'./apps/enhancement-playground'
+	]) {
+		assert.ok(references.has(project), `missing root TypeScript project reference: ${project}`);
+	}
+});

@@ -6,6 +6,7 @@ import {
 	getCellVNode,
 	isCellVNode,
 	markExactComponent,
+	peek,
 	unwrap,
 	type Child,
 	type Component,
@@ -114,7 +115,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 		);
 	const routes = routeChildren(props.children);
 	const controller = createExactRouter({ source, routes, basename, mode });
-	const routeContext = reactive(routeContextValue(controller, basename));
+	const routeContext = peek(() => reactive(routeContextValue(controller, basename)));
 	this.setContext(RouteContext, routeContext);
 	this.setContext(RouterControllerContext, controller);
 
@@ -314,7 +315,7 @@ export type LinkProps = Record<string, unknown> & {
 /** Performs the link domain operation. */
 export function Link(this: Component<{}>, props: LinkProps) {
 	const route = this.getContext(RouteContext);
-	const click = createLinkClickHandler(this, route, props);
+	const click = peek(() => createLinkClickHandler(this, route, props));
 	const { to, replace: _replace, state: _state, children, onClick: _onClick, ...rest } = props;
 	return () =>
 		createVNode(
@@ -332,8 +333,13 @@ export type NavLinkProps = LinkProps & {
 /** Performs the nav link domain operation. */
 export function NavLink(this: Component<{}>, props: NavLinkProps) {
 	const route = this.getContext(RouteContext);
-	const click = createLinkClickHandler(this, route, props);
-	const active = this.reactive(() => navLinkActive(route, props));
+	const click = peek(() => createLinkClickHandler(this, route, props));
+	const active = this.reactive(() => {
+		void route.location;
+		void props.to;
+		void props.end;
+		return peek(() => navLinkActive(route, props));
+	});
 	const className = this.reactive(() =>
 		typeof props.className === 'function' ? props.className(active.get()) : props.className
 	);
