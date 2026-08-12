@@ -2760,11 +2760,11 @@ func TestSessionDefersCanonicalComponentLogArgumentsUntilRuntimeEnablement(t *te
 	for _, expected := range []string{
 		`componentLogMethod as __exactComponentLog`,
 		`from "@exactjs/core/runtime/logging"`,
-		`__exactComponentLog(this, "trace")?.("trace", { count: this.state.count })`,
-		`__exactComponentLog(this, "debug")?.("debug", { count: this.state.count })`,
-		`__exactComponentLog(this, "info")?.("info")`,
-		`__exactComponentLog(this, "warn")?.("warn")`,
-		`__exactComponentLog(this, "error")?.("error", new Error("failure"))`,
+		`__exactComponentLog(this, "trace")?.(() => ["trace", { count: this.state.count }])`,
+		`__exactComponentLog(this, "debug")?.(() => ["debug", { count: this.state.count }])`,
+		`__exactComponentLog(this, "info")?.(() => ["info"])`,
+		`__exactComponentLog(this, "warn")?.(() => ["warn"])`,
+		`__exactComponentLog(this, "error")?.(() => ["error", new Error("failure")])`,
 		`audit.log.debug("external", { count: this.state.count })`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2782,12 +2782,17 @@ func TestSessionKeepsLoweredLogWorkInsideRenderAndVariableBoundaries(t *testing.
 		Kind: "compile",
 		Source: `
 			declare function inspect(value: number): { value: number };
-			export function Panel(this: Component<{ count: number }>) {
+				export function Panel(this: Component<{ count: number }>) {
 				const authoredEager = inspect(1);
+				const reactiveLabel = ` + "`label:${this.state.count}`" + `;
+				const observation = (this.log.debug(
+					` + "`observed:${this.state.count}`" + `
+				), "logged");
+				this.onRender(() => this.log.info(reactiveLabel));
 				return () => <button onClick={() => this.log.debug(
 					` + "`count:${this.state.count}`" + `,
 					{ current: this.state.count, nested: inspect(this.state.count) }
-				)}>{authoredEager.value}</button>;
+				)}>{authoredEager.value}{observation}</button>;
 			}
 		`,
 	})
@@ -2795,14 +2800,32 @@ func TestSessionKeepsLoweredLogWorkInsideRenderAndVariableBoundaries(t *testing.
 		t.Fatal(response.Error)
 	}
 	code := strings.Join(strings.Fields(response.Code), " ")
-	deferredCall := `__exactComponentLog(this, "debug")?.(` +
+	deferredCall := `__exactComponentLog(this, "debug")?.(() => [` +
 		"`count:${this.state.count}`" +
-		`, { current: this.state.count, nested: inspect(this.state.count) })`
+		`, { current: this.state.count, nested: inspect(this.state.count) }])`
 	if !strings.Contains(code, deferredCall) {
 		t.Fatalf("log argument work escaped its optional-call boundary; missing %q:\n%s", deferredCall, response.Code)
 	}
 	if !strings.Contains(code, `const authoredEager = inspect(1)`) {
 		t.Fatalf("an explicitly eager authored variable changed evaluation boundaries:\n%s", response.Code)
+	}
+	for _, expected := range []string{
+		"const reactiveLabel = __exactDerived(() => `label:${this.state.count}`)",
+		`__exactComponentLog(this, "info")?.(() => [reactiveLabel.get()])`,
+	} {
+		if !strings.Contains(code, expected) {
+			t.Fatalf("derived log value did not retain its single reactive owner; missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(code, `__exactDerived(() => __exactComponentLog`) {
+		t.Fatalf("the logging expression became a derived computation:\n%s", response.Code)
+	}
+	if strings.Contains(code, `const observation = __exactDerived`) ||
+		!strings.Contains(
+			code,
+			"const observation = (__exactComponentLog(this, \"debug\")?.(() => [`observed:${this.state.count}`]), \"logged\")",
+		) {
+		t.Fatalf("a log-only reactive read changed the surrounding variable into derived state:\n%s", response.Code)
 	}
 }
 

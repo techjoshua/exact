@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { flushSync, reactive, watch } from '@exactjs/reactive';
 import {
 	LoggerContext,
 	createComponentInstance,
@@ -131,9 +132,17 @@ describe('@exactjs/core logging', () => {
 			parent
 		);
 
-		expect(componentLogMethod(child, 'debug')).toBeUndefined();
+		let argumentReads = 0;
+		componentLogMethod(
+			child,
+			'debug'
+		)?.(() => {
+			argumentReads++;
+			return ['disabled'];
+		});
+		expect(argumentReads).toBe(0);
 		debugEnabled = true;
-		componentLogMethod(child, 'debug')?.('enabled without rebuilding', { version: 2 });
+		componentLogMethod(child, 'debug')?.(() => ['enabled without rebuilding', { version: 2 }]);
 		debugEnabled = false;
 		expect(componentLogMethod(child, 'debug')).toBeUndefined();
 
@@ -143,6 +152,36 @@ describe('@exactjs/core logging', () => {
 			message: 'enabled without rebuilding',
 			data: { version: 2 }
 		});
+	});
+
+	it('peeks compiler log arguments without subscribing the caller', () => {
+		const events: LogEvent[] = [];
+		const logger: Logger = { log: (event) => events.push(event) };
+		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+			this.setContext(LoggerContext, logger);
+			return () => null;
+		}, {});
+		const child = createComponentInstance(
+			function Child(this: Component<{}>) {
+				return () => null;
+			},
+			{},
+			parent
+		);
+		const state = reactive({ count: 1 });
+		let runs = 0;
+		const stop = watch(() => {
+			runs++;
+			componentLogMethod(child, 'debug')?.(() => ['current count', { count: state.count }]);
+		});
+
+		state.count = 2;
+		flushSync();
+		stop();
+
+		expect(runs).toBe(1);
+		expect(events).toHaveLength(1);
+		expect(events[0]!.data).toEqual({ count: 1 });
 	});
 
 	it('emits framework-scoped logs through the console logger contract', () => {

@@ -329,7 +329,8 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.log</code>
 					<p>
 						A component-scoped, runtime-configurable logger. Canonical level calls defer all
-						argument evaluation until that level is enabled; builds never erase them.
+						argument evaluation until that level is enabled, and read reactive values through
+						<code>peek()</code> so diagnostics do not create dependencies. Builds never erase them.
 					</p>
 				</div>
 			</section>

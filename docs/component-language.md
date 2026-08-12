@@ -1535,6 +1535,13 @@ so the logger's runtime enablement check happens before any argument expression
 is evaluated. Disabled calls therefore do not build message templates, payload
 objects, or errors, and do not require authored lazy callbacks.
 
+When the level is enabled, the runtime evaluates the complete argument list
+inside `peek()`. Reactive values are read at the time of the log call without
+turning diagnostic observation into a render, effect, or task dependency. The
+compiler treats that complete argument region as the same observational
+boundary; it does not synthesize a derived computation for the logging
+expression.
+
 Logging is never erased according to build mode. The same artifact can enable a
 level later through its logger context, and the next call observes that change.
 Calls through aliases, computed properties, or another object's logger are left

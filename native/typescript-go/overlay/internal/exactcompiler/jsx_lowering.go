@@ -622,22 +622,8 @@ func (lowering *jsxLowering) lowerComponentLogCall(node *ast.Node) *ast.Node {
 		return nil
 	}
 	call := node.AsCallExpression()
-	if call.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(call.Expression) {
-		return nil
-	}
-	method := call.Expression.AsPropertyAccessExpression()
-	level := method.Name().Text()
-	switch level {
-	case "trace", "debug", "info", "warn", "error":
-	default:
-		return nil
-	}
-	if method.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(method.Expression) {
-		return nil
-	}
-	log := method.Expression.AsPropertyAccessExpression()
-	if log.QuestionDotToken != nil || log.Name().Text() != "log" ||
-		log.Expression.Kind != ast.KindThisKeyword {
+	level, canonical := canonicalComponentLogLevel(node)
+	if !canonical {
 		return nil
 	}
 	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes))
@@ -658,9 +644,45 @@ func (lowering *jsxLowering) lowerComponentLogCall(node *ast.Node) *ast.Node {
 		methodLookup,
 		lowering.factory.NewToken(ast.KindQuestionDotToken),
 		call.TypeArguments,
-		lowering.factory.NewNodeList(arguments),
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.arrow(
+				lowering.factory.NewArrayLiteralExpression(
+					lowering.factory.NewNodeList(arguments),
+					false,
+				),
+			),
+		}),
 		call.Flags,
 	)
+}
+
+// canonicalComponentLogLevel recognizes only the framework-owned authored surface.
+// Analysis uses the same predicate as emission so dependency planning and runtime
+// lowering cannot disagree about which calls are observational boundaries.
+func canonicalComponentLogLevel(node *ast.Node) (string, bool) {
+	if !ast.IsCallExpression(node) {
+		return "", false
+	}
+	call := node.AsCallExpression()
+	if call.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(call.Expression) {
+		return "", false
+	}
+	method := call.Expression.AsPropertyAccessExpression()
+	level := method.Name().Text()
+	switch level {
+	case "trace", "debug", "info", "warn", "error":
+	default:
+		return "", false
+	}
+	if method.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(method.Expression) {
+		return "", false
+	}
+	log := method.Expression.AsPropertyAccessExpression()
+	if log.QuestionDotToken != nil || log.Name().Text() != "log" ||
+		log.Expression.Kind != ast.KindThisKeyword {
+		return "", false
+	}
+	return level, true
 }
 
 // insideComponent prevents the logging ABI from rewriting unrelated objects which

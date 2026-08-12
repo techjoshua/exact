@@ -1,4 +1,4 @@
-import { unwrap } from '@exactjs/reactive';
+import { peek, unwrap } from '@exactjs/reactive';
 import type { ComponentInstance, ErrorReport } from './contracts.js';
 
 import { LoggerContext } from './contexts.js';
@@ -61,12 +61,15 @@ export function createComponentLog(instance: ComponentInstance<any>): ComponentL
 /**
  * Represents an enabled component-log invocation prepared for an immediate call.
  * Compiler output uses the optional presence of this function to defer authored
- * argument evaluation until after the logger's runtime level check.
+ * argument evaluation until after the logger's runtime level check. The supplied
+ * reader runs exactly once inside a reactive `peek()` boundary.
  */
 export type ComponentLogMethod = (
-	message: LazyLogValue<string>,
-	errorOrData?: LazyLogValue<unknown>,
-	data?: LazyLogValue<unknown>
+	readArguments: () => readonly [
+		message: LazyLogValue<string>,
+		errorOrData?: LazyLogValue<unknown>,
+		data?: LazyLogValue<unknown>
+	]
 ) => void;
 
 /**
@@ -90,19 +93,19 @@ class ComponentLogFacade implements ComponentLog {
 	}
 
 	trace(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
-		this.method('trace')?.(message, data);
+		this.method('trace')?.(() => [message, data]);
 	}
 
 	debug(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
-		this.method('debug')?.(message, data);
+		this.method('debug')?.(() => [message, data]);
 	}
 
 	info(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
-		this.method('info')?.(message, data);
+		this.method('info')?.(() => [message, data]);
 	}
 
 	warn(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void {
-		this.method('warn')?.(message, data);
+		this.method('warn')?.(() => [message, data]);
 	}
 
 	error(
@@ -110,7 +113,7 @@ class ComponentLogFacade implements ComponentLog {
 		errorOrData?: LazyLogValue<unknown>,
 		data?: LazyLogValue<unknown>
 	): void {
-		this.method('error')?.(message, errorOrData, data);
+		this.method('error')?.(() => [message, errorOrData, data]);
 	}
 
 	/**
@@ -122,8 +125,12 @@ class ComponentLogFacade implements ComponentLog {
 		if (this.scope.component) this.scope.component.mounted = this.instance.mounted;
 		const logger = resolveLogger(this.instance);
 		if (!isLogEnabled(logger, level, this.scope)) return undefined;
-		return (message, errorOrData, data) =>
-			emitPreparedComponentLog(logger, this.scope, level, message, errorOrData, data);
+		return (readArguments) => {
+			peek(() => {
+				const [message, errorOrData, data] = readArguments();
+				emitPreparedComponentLog(logger, this.scope, level, message, errorOrData, data);
+			});
+		};
 	}
 }
 
