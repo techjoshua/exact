@@ -27,9 +27,11 @@ export function mountDynamic(
 ): Mounted {
 	const marker = createMarker(root, 'dynamic');
 	const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
+	const initialChildren = dynamicChildren(vnode, parentInstance);
+	mounted.dynamicChildren = initialChildren;
 	mounted.children = mountDetachedChildren(
 		root,
-		dynamicChildren(vnode, parentInstance),
+		initialChildren,
 		parentInstance,
 		scope,
 		parentNode
@@ -48,11 +50,13 @@ export function patchDynamic(
 ): Mounted {
 	mounted.vnode = next;
 	mounted.stop?.();
+	const nextChildren = dynamicChildren(next, parentInstance);
+	mounted.dynamicChildren = nextChildren;
 	mounted.children = patchChildren(
 		root,
 		parent,
 		mounted.children,
-		dynamicChildren(next, parentInstance),
+		nextChildren,
 		parentInstance,
 		mounted.scope,
 		afterMountedChildren(mounted),
@@ -72,8 +76,10 @@ function installDynamicWatch(
 	mounted.stop = watch(
 		() => {
 			const nextChildren = dynamicChildren(vnode, parentInstance);
+			if (sameDynamicChildren(mounted.dynamicChildren, nextChildren)) return;
 			const parent = mounted.dom.parentNode ?? fallbackParent;
 			if (!parent) return;
+			mounted.dynamicChildren = nextChildren;
 			mounted.children = peek(() =>
 				patchChildren(
 					root,
@@ -90,9 +96,24 @@ function installDynamicWatch(
 		undefined,
 		{
 			scope: mounted.scope,
-			onSchedule: () => stopReplacedChildren(mounted, dynamicChildren(vnode, parentInstance))
+			onSchedule:
+				vnode.props.__exactScalarDynamic === true
+					? undefined
+					: () => stopReplacedChildren(mounted, dynamicChildren(vnode, parentInstance))
 		}
 	);
+}
+
+/** Avoids reconciliation when a dependency changed without changing a range's normalized output. */
+function sameDynamicChildren(
+	previous: readonly Child[] | undefined,
+	next: readonly Child[]
+): boolean {
+	if (!previous || previous.length !== next.length) return false;
+	for (let index = 0; index < next.length; index++) {
+		if (!Object.is(previous[index], next[index])) return false;
+	}
+	return true;
 }
 
 /** Reads a compiler-authored dynamic range through native readiness and error ownership. */

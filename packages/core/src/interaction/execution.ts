@@ -2,7 +2,7 @@ import type { ComponentInstance } from '../component/contracts.js';
 import {
 	markComponentTrace,
 	componentTraceStarter,
-	type ComponentTraceAttributes,
+	type LazyComponentTraceAttributes,
 	type ComponentTraceSpan
 } from '../component/performance-trace.js';
 import {
@@ -46,7 +46,7 @@ export function currentInteraction(): InteractionScope | undefined {
 export function traceInteractionPhase(
 	interaction: InteractionScope | undefined,
 	phase: string,
-	attributes?: ComponentTraceAttributes
+	attributes?: LazyComponentTraceAttributes
 ): void {
 	if (!interaction) return;
 	markComponentTrace(interaction.owner, interactionTraces?.get(interaction), phase, attributes);

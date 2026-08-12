@@ -1029,7 +1029,8 @@ never acquire structural retention.
 ### Keyed collections
 
 An ordinary reactive `Array.map()` is compiled as a keyed collection when
-identity is available from a type annotation:
+identity is available from a type annotation. The annotation may live beside
+the component or on an item type imported from another module:
 
 ```tsx
 type Todo = {
@@ -1075,7 +1076,9 @@ return () =>
 Keys must be stable and unique among siblings. They preserve component
 instances, DOM nodes, form values, refs, and local state across insertion,
 removal, and reordering. Array indexes are appropriate only when position
-really is the item's identity.
+really is the item's identity. Inferred keyed lowering applies only when the
+map produces JSX children; ordinary data transformations keep native
+`Array.map()` semantics even when their item type has an `@exact key` field.
 
 ### Portals
 

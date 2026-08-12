@@ -275,7 +275,8 @@ export function patchRenderProgram(mounted: Mounted, vnode: VNode): boolean {
 		return false;
 	mounted.vnode = vnode;
 	mounted.renderProgram.invocation = invocation;
-	return bindRenderProgram(mounted);
+	mounted.renderProgram.refresh?.();
+	return true;
 }
 
 /** Returns the lazy fallback without exposing its compiler-owned brand. */
@@ -301,61 +302,60 @@ function bindRenderProgram(mounted: Mounted): boolean {
 		}
 		previousProps.clear();
 		mounted.stop = undefined;
+		state.refresh = undefined;
 	};
-	const stop = watchRetained(
-		() => {
-			const nextProps = new Map<Element, Record<string, unknown>>();
-			for (let index = 0; index < state.slotNodes.length; index++) {
-				const value = unwrap(state.invocation.readers[index]!());
-				const slot = state.invocation.program.slots[index]!;
-				const target = state.slotNodes[index];
-				if (slot.kind !== 'text') {
-					const element = target as Element;
-					let props = nextProps.get(element);
-					if (!props) nextProps.set(element, (props = {}));
-					props[slot.name!] = value;
-					continue;
-				}
-				if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
-					valid = false;
-					return;
-				}
-				const text =
-					value === null || value === undefined || value === false || value === true
-						? ''
-						: String(value);
-				const node = target as Text;
-				if (node.data !== text) node.data = text;
+	const apply = () => {
+		const nextProps = new Map<Element, Record<string, unknown>>();
+		for (let index = 0; index < state.slotNodes.length; index++) {
+			const value = unwrap(state.invocation.readers[index]!());
+			const slot = state.invocation.program.slots[index]!;
+			const target = state.slotNodes[index];
+			if (slot.kind !== 'text') {
+				const element = target as Element;
+				let props = nextProps.get(element);
+				if (!props) nextProps.set(element, (props = {}));
+				props[slot.name!] = value;
+				continue;
 			}
-			for (const [element, previous] of previousProps) {
-				if (!nextProps.has(element))
-					updateProps(state.root, element, previous, {}, mounted.scope, !initialBinding);
+			if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
+				valid = false;
+				return;
 			}
-			// Option values must exist before a parent select receives its controlled value. Static
-			// render-program templates deliberately omit slotted values, so DOM order alone cannot
-			// provide the browser's usual option-selection initialization.
-			const orderedProps = [...nextProps].sort(([left], [right]) => {
-				const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
-				const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
-				return leftPriority - rightPriority;
-			});
-			for (const [element, next] of orderedProps) {
-				updateProps(
-					state.root,
-					element,
-					previousProps.get(element) ?? {},
-					next,
-					mounted.scope,
-					!initialBinding
-				);
-			}
-			previousProps.clear();
-			for (const [element, props] of nextProps) previousProps.set(element, props);
-			initialBinding = false;
-		},
-		undefined,
-		{ scope: mounted.scope }
-	);
+			const text =
+				value === null || value === undefined || value === false || value === true
+					? ''
+					: String(value);
+			const node = target as Text;
+			if (node.data !== text) node.data = text;
+		}
+		for (const [element, previous] of previousProps) {
+			if (!nextProps.has(element))
+				updateProps(state.root, element, previous, {}, mounted.scope, !initialBinding);
+		}
+		// Option values must exist before a parent select receives its controlled value. Static
+		// render-program templates deliberately omit slotted values, so DOM order alone cannot
+		// provide the browser's usual option-selection initialization.
+		const orderedProps = [...nextProps].sort(([left], [right]) => {
+			const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
+			const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
+			return leftPriority - rightPriority;
+		});
+		for (const [element, next] of orderedProps) {
+			updateProps(
+				state.root,
+				element,
+				previousProps.get(element) ?? {},
+				next,
+				mounted.scope,
+				!initialBinding
+			);
+		}
+		previousProps.clear();
+		for (const [element, props] of nextProps) previousProps.set(element, props);
+		initialBinding = false;
+	};
+	state.refresh = apply;
+	const stop = watchRetained(apply, undefined, { scope: mounted.scope });
 	mounted.stop = () => {
 		stop?.();
 		release();

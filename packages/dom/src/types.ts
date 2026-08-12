@@ -1,5 +1,7 @@
 import type {
 	EnhancementEntry,
+	Child,
+	ComponentContextValues,
 	ComponentFunction,
 	ComponentInstance,
 	ExactRuntimeInspectionOwner,
@@ -31,6 +33,8 @@ export type Mounted = {
 	range?: 'item';
 	scope: EffectScope;
 	children: Mounted[];
+	/** Last normalized output of a compiler-owned dynamic range. */
+	dynamicChildren?: readonly Child[];
 	/** Invocation-local readers and resolved nodes for a compiler-owned render program. */
 	renderProgram?: {
 		invocation: ExactRenderProgramInvocation;
@@ -40,6 +44,8 @@ export type Mounted = {
 		readonly root: Root;
 		/** Last effective planned props, grouped by their target element. */
 		props?: Map<Element, Record<string, unknown>>;
+		/** Applies replacement readers without recreating the retained slot watcher. */
+		refresh?: () => void;
 	};
 	/** Physical parent for children whose logical parent remains elsewhere. */
 	portalTarget?: Node;
@@ -122,12 +128,16 @@ export type Root = {
 	version: number;
 	boundary: ComponentFunction<{}, { version: number }>;
 	logger?: Logger;
+	/** Root-provided contexts inherited by components without a logical parent. */
+	ambientContexts?: ComponentContextValues;
 	debugMarkers: boolean;
 	maxTreeDepth: number;
 	traversalDepth: number;
 	maxTreeNodes: number;
 	traversedNodes: number;
 	workDepth: number;
+	/** Interaction-local reconciliation work collected only while an event is active. */
+	interactionWork?: { reconciliations: number; traversedNodes: number };
 	workBudget?: DomWorkBudget;
 	allowUnsafeHtml: boolean;
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;

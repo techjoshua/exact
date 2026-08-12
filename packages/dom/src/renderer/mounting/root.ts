@@ -300,7 +300,7 @@ export function mountInner(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					getComponentProps(vnode),
 					parentInstance,
-					undefined,
+					parentInstance?.ambientContexts ?? root.ambientContexts,
 					vnode.domain ?? parentInstance?.domain
 				)
 			);

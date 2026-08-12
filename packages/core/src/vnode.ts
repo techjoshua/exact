@@ -114,9 +114,14 @@ export function createForwardedExpression<T>(compute: () => T): T | ReactiveValu
 }
 
 /** Creates a dynamic child vnode whose render result is computed reactively. */
-export function createDynamicChild(compute: () => RenderResult, markerId?: string): VNode {
+export function createDynamicChild(
+	compute: () => RenderResult,
+	markerId?: string,
+	mayReplaceSubtree = true
+): VNode {
 	return createVNode(Dynamic, {
 		value: computed(compute),
+		...(mayReplaceSubtree ? {} : { __exactScalarDynamic: true }),
 		...(markerId ? { __exactMarkerId: markerId } : {})
 	});
 }

@@ -42,7 +42,12 @@ export function adoptStatic(
 		children: []
 	};
 	return completeRootAdoption(root, mounted, contentNodesBetween(markers.start, markers.end), () =>
-		createComponentInstance(root.boundary, { version: root.version })
+		createComponentInstance(
+			root.boundary,
+			{ version: root.version },
+			undefined,
+			root.ambientContexts
+		)
 	);
 }
 
@@ -68,7 +73,13 @@ export function adoptCellRoot(
 		root,
 		mounted,
 		contentNodesBetween(markers.start, markers.end),
-		() => createComponentInstance(root.boundary, { version: root.version }),
+		() =>
+			createComponentInstance(
+				root.boundary,
+				{ version: root.version },
+				undefined,
+				root.ambientContexts
+			),
 		(instance, rootScope, nodes) => {
 			const cellScope = createEffectScope(rootScope);
 			const cell: Mounted = {
@@ -113,7 +124,7 @@ export function adoptComponentRoot(
 	const scope = createEffectScope();
 	const mounted: Mounted = { vnode, dom: markers.start, end: markers.end, scope, children: [] };
 	return completeRootAdoption(root, mounted, contentNodesBetween(markers.start, markers.end), () =>
-		constructAdoptedComponent(vnode, options.logicalParent)
+		constructAdoptedComponent(vnode, options.logicalParent, root.ambientContexts)
 	);
 }
 
@@ -137,7 +148,7 @@ export function adoptMarkerlessComponentRoot(
 	const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
 	try {
 		return completeRootAdoption(root, mounted, contentNodesBetween(start, end), () =>
-			constructAdoptedComponent(vnode, options.logicalParent)
+			constructAdoptedComponent(vnode, options.logicalParent, root.ambientContexts)
 		);
 	} finally {
 		if (!roots.has(container)) {
@@ -174,7 +185,12 @@ export function adoptDocumentRoot(
 	};
 	try {
 		return completeRootAdoption(root, mounted, [container], () =>
-			createComponentInstance(root.boundary, { version: root.version })
+			createComponentInstance(
+				root.boundary,
+				{ version: root.version },
+				undefined,
+				root.ambientContexts
+			)
 		);
 	} finally {
 		if (!roots.has(container)) {

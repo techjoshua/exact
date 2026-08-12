@@ -331,8 +331,10 @@ export function ComponentsPage(this: Component<{}>) {
 						A component-scoped, runtime-configurable logger. Canonical level calls defer all
 						argument evaluation until that level is enabled, and read reactive values through
 						<code>peek()</code> so diagnostics do not create dependencies. Builds never erase them.
-						Enabling <code>trace</code> also exposes correlated interaction start, feedback commit,
-						optimistic task, and structural-settlement timings.
+						Enabling <code>trace</code> also exposes correlated interaction start, synchronous
+						handler completion, feedback commit, reconciliation work, optimistic task, and
+						structural-settlement timings. A logger passed to a render or hydration root is
+						inherited by its component tree.
 					</p>
 				</div>
 			</section>

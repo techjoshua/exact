@@ -211,6 +211,9 @@ function resolveLogger(instance: ComponentInstance<any>): Logger {
 		}
 		cursor = cursor.parent;
 	}
+	if (instance.ambientContexts?.has(LoggerContext.id)) {
+		return unwrap(instance.ambientContexts.get(LoggerContext.id)) as Logger;
+	}
 
 	return defaultConsoleLogger;
 }

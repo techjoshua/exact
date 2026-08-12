@@ -60,7 +60,7 @@ export function adoptStaticMountedInner(
 			const mounted: Mounted = { vnode, dom: undefined as never, scope, children: [] };
 			try {
 				const instance = withEffectScope(scope, () =>
-					constructAdoptedComponent(vnode, parentInstance)
+					constructAdoptedComponent(vnode, parentInstance, root.ambientContexts)
 				);
 				ownMountedInstance(mounted, instance);
 				const rendered = withEffectScope(scope, () =>
@@ -126,7 +126,7 @@ export function adoptStaticMountedInner(
 		const mounted: Mounted = { vnode, dom: start, end: nodes[endIndex]!, scope, children: [] };
 		try {
 			const instance = withEffectScope(scope, () =>
-				constructAdoptedComponent(vnode, parentInstance)
+				constructAdoptedComponent(vnode, parentInstance, root.ambientContexts)
 			);
 			ownMountedInstance(mounted, instance);
 			const rendered = withEffectScope(scope, () =>
@@ -206,7 +206,10 @@ export function adoptStaticMountedInner(
 			undefined,
 			{
 				scope,
-				onSchedule: () => stopReplacedChildren(mounted, dynamicChildren(vnode, parentInstance))
+				onSchedule:
+					vnode.props.__exactScalarDynamic === true
+						? undefined
+						: () => stopReplacedChildren(mounted, dynamicChildren(vnode, parentInstance))
 			}
 		);
 		return { mounted, next: endIndex + 1 };

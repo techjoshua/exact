@@ -4771,6 +4771,51 @@ func TestSessionLowersKeyedMapsInsideMaterializedReactiveClosures(t *testing.T) 
 	}
 }
 
+func TestSessionLowersKeyedMapsDeclaredInImportedTypes(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	modelFile := filepath.Join(root, "model.ts")
+	componentFile := filepath.Join(root, "component.tsx")
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"esnext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		modelFile: `export interface Item {
+			/** @exact key */
+			id: string;
+			visible: boolean;
+		}`,
+		componentFile: `import type { Item } from "./model.js";
+			export function List(props: { items: Item[] }) {
+				const visible = props.items.filter((item) => item.visible);
+				const copy = () => props.items.map((item) => ({ ...item }));
+				return () => <ul>{visible.map((item) => <li>{item.id}</li>)}</ul>;
+			}`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	response := NewSession().Execute(Request{
+		ID: componentFile, Kind: "compile", Target: TargetClient,
+		Source: `import type { Item } from "./model.js";
+			export function List(props: { items: Item[] }) {
+				const visible = props.items.filter((item) => item.visible);
+				const copy = () => props.items.map((item) => ({ ...item }));
+				return () => <ul>{visible.map((item) => <li>{item.id}</li>)}</ul>;
+			}`,
+		ConfigFile: configFile,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "this.map(") {
+		t.Fatalf("imported keyed item type was not lowered: %s", response.Code)
+	}
+	if strings.Contains(response.Code, "const copy = () => this.map(") {
+		t.Fatalf("ordinary data mapping was lowered as a rendered list: %s", response.Code)
+	}
+}
+
 func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",

@@ -154,6 +154,7 @@ async function measureBrowserSample(browserInstance, participant) {
 			};
 		});
 		navigation.firstContentfulPaintMs = firstContentfulPaintMs;
+		await page.locator('.connection').getByText('Live service', { exact: true }).waitFor();
 		await page.getByRole('button', { name: 'Claim incident' }).click();
 		await page.getByText('Alex Chen', { exact: true }).waitFor();
 		await page.getByText('Version 2', { exact: true }).waitFor();

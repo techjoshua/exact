@@ -72,6 +72,7 @@ for (const participant of participants) {
 		test('recovers from a stale optimistic claim', async ({ page, request }) => {
 			await page.goto(`${participant.url}/incidents/inc-100`);
 			await expect(page.getByRole('button', { name: 'Claim incident' })).toBeVisible();
+			await expect(page.locator('.connection')).toHaveText('Live service');
 			const competingClaim = await request.post(`${serviceUrl}/api/incidents/inc-100/claim`, {
 				data: { actorId: 'user-riley', expectedVersion: 1 }
 			});

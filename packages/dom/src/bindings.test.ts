@@ -74,6 +74,37 @@ describe('@exactjs/dom bindings', () => {
 		expect(rendered).toHaveBeenCalledTimes(1);
 	});
 
+	it('skips dynamic reconciliation when a dependency preserves the normalized output', () => {
+		let instance!: Component<{ count: number }>;
+		const events: Array<{ message: string }> = [];
+
+		function Counter(this: Component<{ count: number }>) {
+			instance = this;
+			this.state.count = 1;
+			return () =>
+				createCompiledVNode(
+					'p',
+					{},
+					createDynamicChild(() => (this.state.count > 0 ? 'positive' : 'nonpositive'))
+				);
+		}
+
+		const container = document.createElement('div');
+		render(createCompiledVNode(Counter, {}), container, {
+			logger: {
+				isEnabled: (level) => level === 'trace',
+				log: (event) => events.push(event)
+			}
+		});
+		events.length = 0;
+
+		instance.state.count = 2;
+		flushSync();
+
+		expect(container.textContent).toBe('positive');
+		expect(events.filter((event) => event.message === 'patch children')).toHaveLength(0);
+	});
+
 	it('does not update reactive DOM bindings for structurally identical reloads', () => {
 		let instance!: Component<{ user: { name: string; roles: string[] } }>;
 		const rendered = vi.fn();

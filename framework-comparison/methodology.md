@@ -39,6 +39,8 @@ incident settles after the server accepts or rejects the expected version and th
 owner and status. Optimistic feedback latency is recorded independently from settlement latency. Both interaction
 durations use browser event and mutation timestamps, so test-driver actionability checks and polling intervals do
 not become framework latency. An activation performed in response to the click remains inside the measurement.
+Before dispatching the measured interaction, the harness waits for the shared `Live service` state so
+SSR-visible controls cannot be clicked before a participant has hydrated and attached its client behavior.
 The harness observes the existing owner and version elements rather than serializing the document body. It
 records request dispatch, HTTP headers, JSON decoding, incident-stream receipt, and the two visible DOM mutations
 from outside participant code. These diagnostic phases do not add callbacks, attributes, state, or scheduling

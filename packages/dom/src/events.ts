@@ -81,7 +81,7 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 				preserveFocus(root, () => {
 					try {
 						const owner = findOwnerInstance(current);
-						const result = runInteractiveEvent(owner, () =>
+						const result = runInteractiveEvent(root, owner, () =>
 							callDelegatedHandler(handler, current, event)
 						);
 						observeComponentAsync(owner, result, 'event', type);
@@ -125,18 +125,32 @@ export function runEventInteraction<Result>(
 
 /** Publishes one event transaction and applies its interactive consequences before returning. */
 function runInteractiveEvent<Result>(
+	root: Root,
 	owner: ComponentInstance<any> | undefined,
 	work: () => Result | PromiseLike<Result>
 ): Result | PromiseLike<Result> {
 	let interaction: InteractionScope | undefined;
-	const result = runWithPriority('interactive', () =>
-		batch(() => runEventInteraction(owner, work, (scope) => (interaction = scope)))
-	);
-	// Discrete feedback should not wait behind a scheduler microtask. The priority boundary keeps
-	// normal and deferred consequences queued for their ordinary host turns.
-	flushSync('interactive');
-	traceInteractionPhase(interaction, 'feedback-committed');
-	return result;
+	root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
+	try {
+		const result = runWithPriority('interactive', () =>
+			batch(() =>
+				runEventInteraction(owner, work, (scope) => {
+					interaction = scope;
+				})
+			)
+		);
+		traceInteractionPhase(interaction, 'handler-complete');
+		// Discrete feedback should not wait behind a scheduler microtask. The priority boundary keeps
+		// normal and deferred consequences queued for their ordinary host turns.
+		flushSync('interactive');
+		traceInteractionPhase(interaction, 'feedback-committed', () => ({
+			reconciliations: root.interactionWork!.reconciliations,
+			traversedNodes: root.interactionWork!.traversedNodes
+		}));
+		return result;
+	} finally {
+		root.interactionWork = undefined;
+	}
 }
 
 /**
@@ -159,7 +173,7 @@ export function installOwnedEventSubscription(
 			try {
 				const handler = unwrap(source);
 				if (typeof handler !== 'function') return;
-				const result = runInteractiveEvent(activeOwner, () =>
+				const result = runInteractiveEvent(root, activeOwner, () =>
 					callDelegatedHandler(handler as EventListener, element, event)
 				);
 				observeComponentAsync(activeOwner, result, 'event', type);

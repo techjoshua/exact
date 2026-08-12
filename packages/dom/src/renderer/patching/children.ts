@@ -39,16 +39,25 @@ export function patchChildren(
 	before?: Node | null,
 	structuralOwner?: Mounted
 ): Mounted[] {
-	domDebug(root, 'patch children', {
+	if (root.interactionWork) root.interactionWork.reconciliations++;
+	domDebug(root, 'patch children', () => ({
 		parent: describeNode(parent),
 		oldCount: oldChildren.length,
 		nextCount: nextChildren.length,
 		before: describeNode(before)
-	});
+	}));
 	// DOM writes for form controls can disturb the active element; patch inside the
 	// focus-preservation helper so reorders and reactive updates stay ergonomic.
 	return withDomWork(root, () =>
 		preserveFocus(root, () => {
+			if (oldChildren.length === 1 && nextChildren.length === 1) {
+				const next = childToVNode(nextChildren[0]!);
+				if (next) {
+					const patched = patch(root, parent, oldChildren[0], next, parentInstance, parentScope);
+					completeChildReconciliation(root, parentInstance, structuralOwner);
+					return [patched];
+				}
+			}
 			for (const child of nextChildren) if (!childToVNode(child)) countDomWork(root);
 			return patchChildrenInner(
 				root,
@@ -133,13 +142,20 @@ export function patchChildrenInner(
 		}
 	}
 	throwTeardownFailure(teardown);
-	if (structuralOwner) refreshTargetDependents(root, structuralOwner);
-	if (parentInstance) refreshComponentRoot(parentInstance);
-	if (!root.enhancementReconciliationDepth) {
-		root.reconcileEnhancements?.();
-	}
+	completeChildReconciliation(root, parentInstance, structuralOwner);
 
 	return nextMounted;
+}
+
+/** Publishes the ownership-dependent work shared by general and scalar reconciliation. */
+function completeChildReconciliation(
+	root: Root,
+	parentInstance: ComponentInstance<any> | undefined,
+	structuralOwner: Mounted | undefined
+): void {
+	if (structuralOwner) refreshTargetDependents(root, structuralOwner);
+	if (parentInstance) refreshComponentRoot(parentInstance);
+	if (!root.enhancementReconciliationDepth) root.reconcileEnhancements?.();
 }
 
 /** Performs the rerender component domain operation. */
@@ -154,10 +170,10 @@ export function rerenderComponent(root: Root, mounted: Mounted): void {
 	try {
 		do {
 			mounted.rerenderPending = false;
-			domDebug(root, 'rerender component', {
+			domDebug(root, 'rerender component', () => ({
 				type: describeVNodeType(mounted.vnode.type),
 				key: mounted.vnode.key ?? 'none'
-			});
+			}));
 			const nextChildren = withEffectScope(mounted.scope, () =>
 				normalizeRenderResult(
 					renderInstance(mounted.instance!, () => rerenderComponent(root, mounted))

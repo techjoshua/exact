@@ -4,6 +4,11 @@ import { componentLogMethod } from './log.js';
 /** Scalar attributes retained by a component performance trace. */
 export type ComponentTraceAttributes = Readonly<Record<string, string | number | boolean | null>>;
 
+/** Defers diagnostic attribute construction until a trace mark is emitted. */
+export type LazyComponentTraceAttributes =
+	| ComponentTraceAttributes
+	| (() => ComponentTraceAttributes);
+
 /** Correlates allocation-on-demand timing marks for one component-owned operation. */
 export type ComponentTraceSpan = Readonly<{
 	operation: string;
@@ -48,7 +53,7 @@ export function markComponentTrace(
 	instance: ComponentInstance<any>,
 	span: ComponentTraceSpan | undefined,
 	phase: string,
-	attributes?: ComponentTraceAttributes
+	attributes?: LazyComponentTraceAttributes
 ): void {
 	if (!span) return;
 	componentLogMethod(
@@ -61,7 +66,9 @@ export function markComponentTrace(
 			operationId: span.operationId,
 			phase,
 			elapsedMs: traceTimestamp() - span.startedAt,
-			...(attributes ? { attributes } : {})
+			...(attributes
+				? { attributes: typeof attributes === 'function' ? attributes() : attributes }
+				: {})
 		}
 	]);
 }

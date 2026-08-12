@@ -51,6 +51,10 @@ export function patch(
 	parentInstance?: ComponentInstance<any>,
 	parentScope?: EffectScope
 ): Mounted {
+	// Compiler-owned keyed-list caches return the exact retained VNode when an
+	// item is unchanged. Its live readers already own subsequent updates, so
+	// descending into that subtree can neither rebind nor improve its output.
+	if (mounted?.vnode === next && mounted.scope.active) return mounted;
 	return withTreeDepth(root, () => {
 		countDomWork(root);
 		return patchInner(root, parent, mounted, next, parentInstance, parentScope);
@@ -114,13 +118,13 @@ export function patchInner(
 		mounted.vnode.key !== next.key ||
 		mounted.vnode.domain !== next.domain
 	) {
-		domDebug(root, 'replace node', {
+		domDebug(root, 'replace node', () => ({
 			previousType: describeVNodeType(mounted.vnode.type),
 			previousKey: mounted.vnode.key ?? 'none',
 			nextType: describeVNodeType(next.type),
 			nextKey: next.key ?? 'none',
 			parent: describeNode(parent)
-		});
+		}));
 		const previousParking = root.replacementParking;
 		const parking = {
 			mounts: new Map<VNode, Array<{ mounted: Mounted; parent: Node }>>(),

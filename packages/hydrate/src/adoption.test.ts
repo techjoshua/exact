@@ -12,6 +12,8 @@ import {
 	unsafeHtml,
 	type Child,
 	type Component,
+	type LogEvent,
+	type Logger,
 	type RootLifecycle
 } from '@exactjs/core';
 import {
@@ -22,7 +24,7 @@ import { createCompiledVNode, createVNode } from './test-support/native-vnode.js
 import { render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import { renderToString } from '@exactjs/ssr';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
 import { hydrate as hydrateEnhanced } from './enhanced.js';
 import { noopLogger } from './test-support/responses.js';
@@ -439,6 +441,27 @@ describe('@exactjs/hydrate adoption', () => {
 		button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		flushSync();
 		expect(button.textContent).toBe('1');
+	});
+
+	it('propagates the hydration logger into adopted component interactions', async () => {
+		const root = document.createElement('div');
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'trace',
+			log: (event) => events.push(event)
+		};
+		function Counter(this: Component<{ count: number }>) {
+			this.state.count = 0;
+			return () =>
+				createVNode('button', { onClick: () => this.state.count++ }, String(this.state.count));
+		}
+		root.innerHTML = renderToString(createVNode(Counter, null)).html;
+		hydrate(createVNode(Counter, null), root, { logger });
+
+		root.querySelector('button')!.click();
+		await vi.waitFor(() =>
+			expect(events.some((event) => event.message === 'performance interaction settled')).toBe(true)
+		);
 	});
 
 	it('fulfills component refs while adopting existing elements', () => {

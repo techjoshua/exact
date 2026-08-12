@@ -2,10 +2,17 @@
 export type User = { id: string; name: string };
 
 /** Comment attached to an incident. */
-export type IncidentComment = { id: string; authorId: string; body: string; createdAt: string };
+export type IncidentComment = {
+	/** @exact key */
+	id: string;
+	authorId: string;
+	body: string;
+	createdAt: string;
+};
 
 /** Authoritative incident resource used by the comparison experience. */
 export type Incident = {
+	/** @exact key */
 	id: string;
 	title: string;
 	severity: 'critical' | 'high' | 'medium' | 'low';

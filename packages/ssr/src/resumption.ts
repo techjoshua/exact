@@ -25,6 +25,10 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 	return {
 		options: {
 			...options,
+			onComponentAttemptCheckpoint: () => records.length,
+			onComponentAttemptRollback(checkpoint) {
+				if (typeof checkpoint === 'number') records.splice(checkpoint);
+			},
 			onComponentCreated(instance) {
 				const contract = readExactComponentContract(instance.type);
 				if (contract?.resumption) {

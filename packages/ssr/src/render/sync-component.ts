@@ -84,13 +84,23 @@ export function renderSyncComponent(
 		let stabilized = false;
 		for (let pass = 0; pass < 25; pass++) {
 			if (documentProbe) resetDocumentProbe(context);
+			const checkpoint = context.onComponentAttemptCheckpoint?.();
 			let invalidated = false;
-			const children = renderInstance(instance, () => {
-				invalidated = true;
-			});
-			const html = operations.renderChildren(context, children, instance);
+			let html: string;
+			try {
+				const children = renderInstance(instance, () => {
+					invalidated = true;
+				});
+				html = operations.renderChildren(context, children, instance);
+			} catch (error) {
+				context.onComponentAttemptRollback?.(checkpoint);
+				throw error;
+			}
 			flushSync();
-			if (invalidated) continue;
+			if (invalidated) {
+				context.onComponentAttemptRollback?.(checkpoint);
+				continue;
+			}
 			output = componentOutput(
 				context,
 				vnode,

@@ -210,6 +210,43 @@ describe('@exactjs/dom events-errors', () => {
 		);
 	});
 
+	it('inherits the root logger for component interaction performance traces', async () => {
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'trace',
+			log: (event) => events.push(event)
+		};
+		function Counter(this: Component<{ count: number }>) {
+			this.state.count = 0;
+			return () =>
+				jsx('button', {
+					onClick: () => this.state.count++,
+					children: this.state.count
+				});
+		}
+		const container = document.createElement('div');
+		render(jsx(Counter, {}), container, { logger });
+
+		container.querySelector('button')!.click();
+		await vi.waitFor(() =>
+			expect(events.some((event) => event.message === 'performance interaction settled')).toBe(true)
+		);
+
+		const traces = events
+			.filter((event) => event.message.startsWith('performance interaction'))
+			.map((event) => event.data as Record<string, unknown>);
+		expect(traces.map((trace) => trace.phase)).toEqual([
+			'started',
+			'handler-complete',
+			'feedback-committed',
+			'settled'
+		]);
+		expect(traces[2]!.attributes).toEqual({
+			reconciliations: expect.any(Number),
+			traversedNodes: expect.any(Number)
+		});
+	});
+
 	it('does not retain delegated event handlers after DOM replacement', () => {
 		let instance!: Component<{ asButton: boolean }>;
 		const clicked = vi.fn();

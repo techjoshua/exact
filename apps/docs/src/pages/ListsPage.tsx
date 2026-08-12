@@ -88,7 +88,8 @@ export function ListsPage(this: Component<{}>) {
 				<p>
 					The framework owns list identity. Duplicate keys fail deterministically rather than
 					falling back to position and risking state corruption. String arrays use the string value
-					as their key.
+					as their key. The annotated item type may be declared in this file or imported from a
+					shared model module.
 				</p>
 			</section>
 			<section>
@@ -110,7 +111,8 @@ export function ListsPage(this: Component<{}>) {
 					Use <code>{'this.map(collection, item => item.id, render)'}</code> when the selector
 					belongs next to the view, when the data type cannot carry an <code>@exact key</code>
 					annotation, or when you need the distinction between eXact's keyed rendering and native
-					<code>Array.map()</code> to be obvious.
+					<code>Array.map()</code> to be obvious. Automatic keyed lowering is limited to maps that
+					produce JSX children, so ordinary data-copy and transformation maps remain native arrays.
 				</p>
 				<CodeBlock source={explicitMapSource} language="tsx" title="Explicit keyed rendering" />
 			</section>

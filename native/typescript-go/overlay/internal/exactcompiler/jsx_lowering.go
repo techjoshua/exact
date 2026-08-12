@@ -2937,18 +2937,25 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 			if closure == nil {
 				closure = lowering.arrow(emitted)
 			}
+			arguments := []*ast.Node{
+				closure,
+				lowering.factory.NewStringLiteral(
+					lowering.dynamicID(child),
+					ast.TokenFlagsNone,
+				),
+			}
+			if lowering.checker != nil &&
+				!ast.NodeIsSynthesized(expression) &&
+				ast.GetSourceFileOfNode(expression) != nil &&
+				scalarDerivedType(lowering.checker.GetTypeAtLocation(expression)) {
+				arguments = append(
+					arguments,
+					lowering.factory.NewKeywordExpression(ast.KindFalseKeyword),
+				)
+			}
 			result = append(
 				result,
-				lowering.call(
-					lowering.names.dynamic,
-					[]*ast.Node{
-						closure,
-						lowering.factory.NewStringLiteral(
-							lowering.dynamicID(child),
-							ast.TokenFlagsNone,
-						),
-					},
-				),
+				lowering.call(lowering.names.dynamic, arguments),
 			)
 		default:
 			result = append(result, lowering.visitor.VisitNode(child))
@@ -2962,7 +2969,7 @@ var exactKeyArgument = regexp.MustCompile(
 )
 
 func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
-	if lowering.checker == nil {
+	if lowering.checker == nil || !insideJSXChildExpression(node) {
 		return nil
 	}
 	call := node.AsCallExpression()
@@ -3024,6 +3031,19 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	)
 }
 
+// Key inference removes authored list ceremony only for maps that produce JSX
+// children. Ordinary data transforms must retain Array.prototype.map semantics.
+func insideJSXChildExpression(node *ast.Node) bool {
+	for current := node.Parent; current != nil; current = current.Parent {
+		if !ast.IsJsxExpression(current) {
+			continue
+		}
+		parent := current.Parent
+		return parent != nil && (ast.IsJsxElement(parent) || ast.IsJsxFragment(parent))
+	}
+	return false
+}
+
 func (lowering *jsxLowering) indexCollectionMaps() {
 	if lowering.checker == nil {
 		return
@@ -3076,7 +3096,11 @@ func (lowering *jsxLowering) collectionKey(
 				if !ast.IsVariableDeclaration(declaration) {
 					continue
 				}
-				text := sourceText(lowering.sourceFile, declaration)
+				declarationSource := ast.GetSourceFileOfNode(declaration)
+				if declarationSource == nil {
+					continue
+				}
+				text := sourceText(declarationSource, declaration)
 				if match := exactKeyArgument.FindStringSubmatch(text); match != nil &&
 					match[1] != "" {
 					return match[1], false, true
@@ -3095,13 +3119,17 @@ func (lowering *jsxLowering) collectionKey(
 	}
 	for _, property := range lowering.checker.GetPropertiesOfType(elementType) {
 		for _, declaration := range property.Declarations {
+			declarationSource := ast.GetSourceFileOfNode(declaration)
+			if declarationSource == nil {
+				continue
+			}
 			start := declaration.Pos()
 			end := declaration.End()
-			if start < 0 || end > len(lowering.sourceFile.Text()) || start >= end {
+			if start < 0 || end > len(declarationSource.Text()) || start >= end {
 				continue
 			}
 			if exactKeyArgument.MatchString(
-				lowering.sourceFile.Text()[start:end],
+				declarationSource.Text()[start:end],
 			) {
 				return ast.SymbolName(property), false, true
 			}

@@ -1,4 +1,10 @@
-import { createVNode, Text, type ComponentInstance, type VNode } from '@exactjs/core';
+import {
+	createVNode,
+	LoggerContext,
+	Text,
+	type ComponentInstance,
+	type VNode
+} from '@exactjs/core';
 import {
 	componentDomainInspection,
 	createFrameworkComponentDomain
@@ -83,6 +89,13 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	root.version++;
 	root.logger = options.logger;
+	if (options.logger) {
+		const contexts = root.ambientContexts as Map<symbol, unknown> | undefined;
+		if (contexts) contexts.set(LoggerContext.id, options.logger);
+		else root.ambientContexts = new Map([[LoggerContext.id, options.logger]]);
+	} else {
+		(root.ambientContexts as Map<symbol, unknown> | undefined)?.delete(LoggerContext.id);
+	}
 	root.debugMarkers = options.debugMarkers ?? false;
 	root.maxTreeDepth = normalizeTreeDepth(options.maxTreeDepth);
 	root.maxTreeNodes = normalizeTreeNodes(options.maxTreeNodes);

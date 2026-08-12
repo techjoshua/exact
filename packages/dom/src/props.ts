@@ -301,10 +301,10 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 
 	if (property === 'defaultValue' && isFocusedTextControl(element)) {
 		if (root)
-			domDebug(root, 'skip focused defaultValue', {
+			domDebug(root, 'skip focused defaultValue', () => ({
 				element: describeNode(element),
 				value
-			});
+			}));
 		return;
 	}
 
@@ -333,12 +333,12 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 
 			if (property === 'value' || property === 'defaultValue') {
 				if (root)
-					domDebug(root, 'set form value prop', {
+					domDebug(root, 'set form value prop', () => ({
 						element: describeNode(element),
 						property,
 						active: describeNode(document.activeElement),
 						value
-					});
+					}));
 			}
 			record[property] = value;
 			syncBooleanAttribute(element, property, value);

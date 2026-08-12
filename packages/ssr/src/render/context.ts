@@ -106,6 +106,8 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 			: {}),
 		onComponentCreated: options.onComponentCreated,
 		onComponentRendered: options.onComponentRendered,
+		onComponentAttemptCheckpoint: options.onComponentAttemptCheckpoint,
+		onComponentAttemptRollback: options.onComponentAttemptRollback,
 		asyncScheduler: new AsyncSsrScheduler(options.maxAsyncSsrConcurrency),
 		asyncFrame: false,
 		hydrationTable: new SsrHydrationTable()

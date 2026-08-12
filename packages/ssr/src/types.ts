@@ -73,6 +73,10 @@ export type RenderToStringOptions = {
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
 	/** Observes deterministic component construction order before descendants render. */
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
+	/** @internal Checkpoints speculative descendant observations during sync stabilization. */
+	onComponentAttemptCheckpoint?: () => unknown;
+	/** @internal Discards observations produced by an invalidated sync render attempt. */
+	onComponentAttemptRollback?: (checkpoint: unknown) => void;
 	/** Receives SSR rendering profiling observations. */
 	onProfile?: ExactProfileSink;
 	/** Internal request-owned observation boundary; omitted in hardened server output. */
@@ -362,6 +366,8 @@ export type SsrContext = {
 	componentDomain?: ComponentDomain;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
+	onComponentAttemptCheckpoint?: () => unknown;
+	onComponentAttemptRollback?: (checkpoint: unknown) => void;
 	/** Request-local scheduler shared by every eligible sibling group. */
 	asyncScheduler: import('./render/async-scheduler.js').AsyncSsrScheduler;
 	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */

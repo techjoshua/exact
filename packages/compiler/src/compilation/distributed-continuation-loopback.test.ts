@@ -136,6 +136,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 			[billing.root, remoteServer(billing, buildKey)],
 			[branding.root, remoteServer(branding, buildKey)]
 		]);
+		let holdResponsesUntilAbort = false;
 		const fetch: FetchLike = async (input, init) => {
 			const body = JSON.parse(init.body) as ExactInvocationRequest;
 			const headers = new Headers(init.headers);
@@ -159,6 +160,11 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 				},
 				server
 			);
+			const signal = init.signal;
+			if (holdResponsesUntilAbort && signal && !signal.aborted)
+				await new Promise<void>((resolve) =>
+					signal.addEventListener('abort', () => resolve(), { once: true })
+				);
 			return responseLike(response);
 		};
 		const originalFetch = globalThis.fetch;
@@ -199,6 +205,13 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 					{ root: branding.root, binding: 'branding', build: buildKey }
 				])
 			);
+			// Exercise disposal while the requests are still owned. Settled task frames deliberately
+			// release their controllers so completed requests do not remain retained until unmount.
+			unmount(container);
+			holdResponsesUntilAbort = true;
+			exchanges.length = 0;
+			render(createTestVNode(HiddenRootTasks, null), container);
+			await vi.waitFor(() => expect(exchanges).toHaveLength(2));
 			const signals = exchanges.map((exchange) => exchange.signal);
 			unmount(container);
 			expect(signals.every((signal) => signal?.aborted)).toBe(true);
