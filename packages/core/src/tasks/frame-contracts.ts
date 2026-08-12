@@ -44,9 +44,9 @@ export type TaskFrameRecord = {
 	readonly owner: TaskOwnerRecord;
 	readonly parent?: TaskFrameRecord;
 	readonly controller: AbortController;
-	readonly children: Set<Promise<void>>;
-	readonly cleanups: TaskFrameCleanup[];
-	readonly context: TaskContext;
+	children?: Set<Promise<void>>;
+	cleanups?: TaskFrameCleanup[];
+	readonly context?: TaskContext;
 	readonly kind: string;
 	readonly label?: string;
 	readonly sourceEntityId?: string;
@@ -83,4 +83,6 @@ export type InternalTaskFrameOptions = {
 	readonly propagateFailure?: () => boolean;
 	/** Confirms that the caller atomically reserved this parent before scheduling. */
 	readonly parentReserved?: boolean;
+	/** Omits the public TaskContext for internal hosts whose callback cannot observe it. */
+	readonly publicContext?: false;
 };

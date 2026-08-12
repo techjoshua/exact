@@ -2,7 +2,8 @@
 	import { onMount } from 'svelte';
 	import IncidentDetail from '$lib/IncidentDetail.svelte';
 	import IncidentQueue from '$lib/IncidentQueue.svelte';
-	import { loadIncidentData, serviceUrl } from '$lib/service-client.js';
+	import { subscribeLiveService } from '$lib/live-service.js';
+	import { loadIncidentData } from '$lib/service-client.js';
 	import type { Incident, InitialData, User } from '$lib/contracts.js';
 	import './styles.css';
 
@@ -19,9 +20,34 @@
 	let connection = $state('Connecting');
 	let selected = $derived(incidents.find((incident: Incident) => incident.id === selectedId));
 
-	function replaceIncident(incident: Incident) {
+	function replaceIncident(
+		incident: Incident,
+		mode: 'optimistic' | 'authoritative' = 'authoritative'
+	) {
 		incidents = incidents.map((current: Incident) =>
-			current.id === incident.id ? incident : current
+			current.id !== incident.id ||
+			(mode === 'authoritative' &&
+				(current.version > incident.version || sameIncidentResource(current, incident)))
+				? current
+				: incident
+		);
+	}
+	/** Distinguishes a duplicate transport delivery from an equal-version optimistic projection. */
+	function sameIncidentResource(left: Incident, right: Incident) {
+		return (
+			left.version === right.version &&
+			left.ownerId === right.ownerId &&
+			left.status === right.status &&
+			left.comments.length === right.comments.length &&
+			left.comments.every((comment, index) => {
+				const candidate = right.comments[index];
+				return (
+					candidate?.id === comment.id &&
+					candidate.authorId === comment.authorId &&
+					candidate.body === comment.body &&
+					candidate.createdAt === comment.createdAt
+				);
+			})
 		);
 	}
 	function selectIncident(id: string) {
@@ -43,16 +69,14 @@
 		}
 	}
 	onMount(() => {
-		const events = new EventSource(`${serviceUrl}/api/events`);
-		events.onopen = () => (connection = 'Live service');
-		events.onerror = () => (connection = 'Reconnecting');
-		events.addEventListener('incident', (event) =>
-			replaceIncident(JSON.parse((event as MessageEvent<string>).data))
-		);
+		const releaseLiveService = subscribeLiveService({
+			onConnection: (status) => (connection = status),
+			onIncident: (incident) => replaceIncident(incident, 'authoritative')
+		});
 		const followLocation = () => (selectedId = pathIncident());
 		window.addEventListener('popstate', followLocation);
 		return () => {
-			events.close();
+			releaseLiveService();
 			window.removeEventListener('popstate', followLocation);
 		};
 	});

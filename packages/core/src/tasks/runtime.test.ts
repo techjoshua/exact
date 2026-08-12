@@ -105,9 +105,10 @@ describe('unified task runtime', () => {
 		stop();
 	});
 
-	it('shares one child frame across a broad reactive invalidation wave', async () => {
+	it('shares one lightweight frame across a broad synchronous reactive invalidation wave', async () => {
 		const state = reactive({ value: 0 });
 		const scheduledFrameIds = new Set<number>();
+		let parentFrameId: number | undefined;
 		const stops = Array.from({ length: 100 }, () =>
 			watch(() => {
 				void state.value;
@@ -116,13 +117,35 @@ describe('unified task runtime', () => {
 			})
 		);
 		const task = defineTask({}, () => {
+			parentFrameId = currentTaskFrameRecord()?.id;
 			state.value++;
 		});
 
 		await task();
 
 		expect(scheduledFrameIds.size).toBe(1);
+		expect([...scheduledFrameIds]).not.toEqual([parentFrameId]);
 		for (const stop of stops) stop();
+	});
+
+	it('reuses the open producer for an interactive consequence wave', async () => {
+		const state = reactive({ value: 0 });
+		let parentFrameId: number | undefined;
+		let consequenceFrameId: number | undefined;
+		const stop = watch(() => {
+			void state.value;
+			consequenceFrameId = currentTaskFrameRecord()?.id;
+		});
+		const task = defineTask({ priority: 'immediate' }, () => {
+			parentFrameId = currentTaskFrameRecord()?.id;
+			state.value++;
+			flushSync('interactive');
+		});
+
+		await task();
+
+		expect(consequenceFrameId).toBe(parentFrameId);
+		stop();
 	});
 
 	it('keeps presence work independently attached beneath the shared reactive frame', async () => {

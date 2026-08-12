@@ -60,7 +60,9 @@ export function runComponentInteraction<Result>(
 			label: `${source} interaction`,
 			concurrency: 'latest',
 			priority: priority === 'interactive' ? 'immediate' : priority,
-			readiness: priority === 'deferred' ? 'nonblocking' : 'blocking'
+			readiness: priority === 'deferred' ? 'nonblocking' : 'blocking',
+			// Interaction hosts receive InteractionScope rather than the public task context.
+			publicContext: false
 		},
 		() => {
 			const frame = currentTaskFrameRecord()!;

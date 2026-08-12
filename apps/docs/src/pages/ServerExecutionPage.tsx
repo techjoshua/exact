@@ -166,10 +166,15 @@ export function ServerExecutionPage(this: Component<{}>) {
 					must import the main hydration entry.
 				</p>
 				<p>
-					Its <code>hydrateAfterNavigation()</code> form schedules user-blocking activation after
-					<code>DOMContentLoaded</code>. A pointer, keyboard, input, change, or submit event arriving
-					first activates synchronously from capture, so deferring adoption does not create an inert
-					interaction window.
+					Its <code>hydrateAfterNavigation()</code> form gives visible SSR content one rendering
+					opportunity after <code>DOMContentLoaded</code>, then schedules user-visible activation. A
+					pointer, keyboard, input, change, or submit event arriving first activates synchronously
+					from capture, so deferring adoption does not create an inert interaction window. Hidden
+					documents activate from a task because animation frames may be throttled indefinitely.
+				</p>
+				<p>
+					An opt-in hydration profile reports DOM capture, adoption, form-control restoration, and
+					total hydration independently, making scheduling delay distinguishable from adoption work.
 				</p>
 				<p>
 					The compiler attaches a small execution subgraph to each generated component: indexed
@@ -212,9 +217,10 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					When marked SSR is required, hydration addresses the same planned intrinsic nodes and
 					scalar slots by their compiler identities. It retains the server DOM and marker protocol
-					without constructing an equivalent generic cell tree, while one root-level snapshot protects
-					focus and form state during activation. Completed nested components also publish cached target
-					and host candidates so parent root discovery does not repeat their traversal.
+					without constructing an equivalent generic cell tree, while one root-level snapshot
+					protects focus and form state during activation. Completed nested components also publish
+					cached target and host candidates so parent root discovery does not repeat their
+					traversal.
 				</p>
 				<p>
 					Independent local, context-free component siblings may settle concurrently during

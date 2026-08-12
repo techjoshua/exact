@@ -11,9 +11,12 @@ Status: implemented foundation with the explicit limits listed below.
 - `@exactjs/hydrate/root` is the statically selectable hydration-only facade for applications
   without compiler-generated server operations, response patches, or client islands. Its root
   owns adoption and disposal but does not retain those optional modules in the browser graph.
-  Its `hydrateAfterNavigation()` entry schedules user-blocking adoption outside the
-  DOMContentLoaded critical path and uses an interaction-capture fallback so an earlier user action
-  activates the root first.
+  Its `hydrateAfterNavigation()` entry gives visible SSR content one rendering opportunity before
+  scheduling user-visible adoption outside the DOMContentLoaded critical path. An
+  interaction-capture fallback still activates the root synchronously when a user acts first, and
+  hidden documents use a task fallback because animation frames may be throttled indefinitely.
+  An opt-in hydration profile reports DOM capture, adoption, control restoration, and total
+  hydration separately so applications can distinguish scheduling delay from adoption work.
 - `@exactjs/server` owns allowlisted invocation/refresh dispatch, request
   validation, authorization hooks, limits, and runtime-neutral adapters.
 - `@exactjs/compiler` owns placement, artifact generation, operation

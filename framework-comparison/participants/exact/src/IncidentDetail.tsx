@@ -1,6 +1,7 @@
 import { peek, type Component } from '@exactjs/core';
 import { SeverityBadge } from './IncidentQueue.jsx';
-import { claimIncident, requestAnalysis, serviceUrl, submitComment } from './service-client.js';
+import { subscribeLiveService } from './live-service.js';
+import { claimIncident, requestAnalysis, submitComment } from './service-client.js';
 import type { AnalysisJob, Incident, User } from './types.js';
 
 type DetailState = {
@@ -17,7 +18,7 @@ type DetailProps = {
 	incident?: Incident;
 	users: User[];
 	sessionUserId: string;
-	onIncident(incident: Incident): void;
+	onIncident(incident: Incident, mode?: 'optimistic' | 'authoritative'): void;
 };
 
 /** Owns one durable detail surface, including optimistic work and its stale-view version fence. */
@@ -39,7 +40,10 @@ export function IncidentDetail(this: Component<DetailState>, props: DetailProps)
 			state.viewedVersion = props.incident.version;
 		}
 		const original = copyIncident(props.incident);
-		props.onIncident({ ...original, ownerId: props.sessionUserId, status: 'investigating' });
+		props.onIncident(
+			{ ...props.incident, ownerId: props.sessionUserId, status: 'investigating' },
+			'optimistic'
+		);
 		state.conflict = '';
 		state.error = '';
 		try {
@@ -50,16 +54,16 @@ export function IncidentDetail(this: Component<DetailState>, props: DetailProps)
 				undefined
 			);
 			if (payload.status === 409 && payload.error?.current) {
-				props.onIncident(payload.error.current);
+				props.onIncident(payload.error.current, 'authoritative');
 				state.viewedVersion = payload.error.current.version;
 				state.conflict =
 					'This incident changed while you were viewing it. The latest owner is shown.';
 			} else if (payload.incident) {
-				props.onIncident(payload.incident);
+				props.onIncident(payload.incident, 'authoritative');
 				state.viewedVersion = payload.incident.version;
-			} else props.onIncident(original);
+			} else props.onIncident(original, 'optimistic');
 		} catch (caught) {
-			props.onIncident(original);
+			props.onIncident(original, 'optimistic');
 			state.error = caught instanceof Error ? caught.message : 'Unable to claim incident';
 		}
 	}
@@ -78,7 +82,7 @@ export function IncidentDetail(this: Component<DetailState>, props: DetailProps)
 			body,
 			createdAt: new Date().toISOString()
 		};
-		props.onIncident({ ...original, comments: [...original.comments, temporary] });
+		props.onIncident({ ...original, comments: [...original.comments, temporary] }, 'optimistic');
 		state.draft = '';
 		state.error = '';
 		try {
@@ -89,10 +93,10 @@ export function IncidentDetail(this: Component<DetailState>, props: DetailProps)
 				crypto.randomUUID(),
 				undefined
 			);
-			props.onIncident(payload.incident);
+			props.onIncident(payload.incident, 'authoritative');
 			state.viewedVersion = payload.incident.version;
 		} catch (caught) {
-			props.onIncident(original);
+			props.onIncident(original, 'optimistic');
 			state.draft = body;
 			state.error = caught instanceof Error ? caught.message : 'Unable to add comment';
 		}
@@ -113,12 +117,7 @@ export function IncidentDetail(this: Component<DetailState>, props: DetailProps)
 	}
 
 	this.onMount(({ signal }) => {
-		const events = new EventSource(`${serviceUrl}/api/events`);
-		events.addEventListener('job', (event) => {
-			const job = JSON.parse((event as MessageEvent<string>).data) as AnalysisJob;
-			if (job.id === state.job?.id) state.job = job;
-		});
-		signal.addEventListener('abort', () => events.close(), { once: true });
+		subscribeLiveService({ onJob: (job) => job.id === state.job?.id && (state.job = job) }, signal);
 	});
 
 	const ownerName =

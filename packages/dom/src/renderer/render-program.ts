@@ -14,8 +14,8 @@ import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { countDomWork } from './limits.js';
+import { programTemplate } from './render-program-template.js';
 
-const templateCaches = new WeakMap<Document, WeakMap<ExactRenderProgram, HTMLTemplateElement>>();
 const elementNode = 1;
 const textNode = 3;
 
@@ -127,15 +127,7 @@ export function adoptRenderProgramOrFallback(
 		end?: number
 	) => { mounted: Mounted; next: number } | undefined
 ): { mounted: Mounted; next: number } | undefined {
-	const marked = adoptMarkedRenderProgram(
-		root,
-		vnode,
-		nodes,
-		cursor,
-		end,
-		scope,
-		parentInstance
-	);
+	const marked = adoptMarkedRenderProgram(root, vnode, nodes, cursor, end, scope, parentInstance);
 	if (marked) return marked;
 	const adopted = nodes[cursor]
 		? adoptRenderProgram(root, vnode, nodes[cursor]!, scope, parentInstance)
@@ -164,7 +156,6 @@ function adoptMarkedRenderProgram(
 	parentInstance: ComponentInstance<any>
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(vnode);
-	const start = nodes[cursor];
 	if (!invocation) return undefined;
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
@@ -185,7 +176,8 @@ function adoptMarkedRenderProgram(
 	const indexedElements = indexProgramElements(programRoot);
 	for (const planned of invocation.program.nodes) {
 		const element = indexedElements.get(planned.id);
-		if (!matchesProgramElement(element, planned.id, planned.tag, planned.namespace)) return undefined;
+		if (!matchesProgramElement(element, planned.id, planned.tag, planned.namespace))
+			return undefined;
 	}
 	const textSlots = indexProgramTextSlots(programRoot);
 	const slotNodes = invocation.program.slots.map((slot) => {
@@ -384,34 +376,6 @@ function validSlotNodes(
 			? node?.nodeType === textNode
 			: node?.nodeType === elementNode
 	);
-}
-
-function programTemplate(
-	program: ExactRenderProgram,
-	ownerDocument: Document
-): HTMLTemplateElement {
-	let cache = templateCaches.get(ownerDocument);
-	if (!cache) templateCaches.set(ownerDocument, (cache = new WeakMap()));
-	let template = cache.get(program);
-	if (!template) {
-		template = ownerDocument.createElement('template');
-		if (program.namespace === 'html') {
-			template.innerHTML = program.template;
-		} else {
-			const namespace =
-				program.namespace === 'svg'
-					? 'http://www.w3.org/2000/svg'
-					: 'http://www.w3.org/1998/Math/MathML';
-			const wrapper = ownerDocument.createElementNS(
-				namespace,
-				program.namespace === 'svg' ? 'svg' : 'math'
-			);
-			wrapper.innerHTML = program.template;
-			template.content.append(...wrapper.childNodes);
-		}
-		cache.set(program, template);
-	}
-	return template;
 }
 
 function nodeAtPath(root: Node, path: readonly number[]): Node | undefined {

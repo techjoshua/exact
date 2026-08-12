@@ -121,7 +121,7 @@ async function measureParticipant(browserInstance, participant) {
 	return {
 		temperature: 'warm',
 		warmupCount: browserWarmupCount,
-		heapMeasurement: 'post-gc-retained',
+		heapMeasurement: 'post-interaction-post-gc-retained',
 		samples,
 		summary: summarizeBrowser(samples)
 	};
@@ -139,11 +139,9 @@ async function measureBrowserSample(browserInstance, participant) {
 		// EventSource intentionally keeps the network active, so semantic readiness gates the sample.
 		await page.goto(`${participant.url}/incidents/inc-100`, { waitUntil: 'domcontentloaded' });
 		await page.getByRole('heading', { name: 'Checkout authorization failures' }).waitFor();
+		const firstContentfulPaintMs = await page.evaluate(waitForFirstContentfulPaint);
 		const navigation = await page.evaluate(() => {
 			const entry = performance.getEntriesByType('navigation')[0];
-			const paints = Object.fromEntries(
-				performance.getEntriesByType('paint').map((paint) => [paint.name, paint.startTime])
-			);
 			const scripts = performance
 				.getEntriesByType('resource')
 				.filter((resource) => resource.initiatorType === 'script')
@@ -152,20 +150,19 @@ async function measureBrowserSample(browserInstance, participant) {
 				durationMs: entry?.duration ?? null,
 				domContentLoadedMs: entry?.domContentLoadedEventEnd ?? null,
 				loadEventMs: entry?.loadEventEnd ?? null,
-				firstContentfulPaintMs: paints['first-contentful-paint'] ?? null,
 				transferredScriptBytes: scripts
 			};
 		});
-		// Give queued framework activation and browser rendering work one opportunity to settle before
-		// collecting retained memory. Navigation timings above remain the original performance entries.
-		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
-		const heapBytes = await measureRetainedHeap(session);
+		navigation.firstContentfulPaintMs = firstContentfulPaintMs;
 		await page.getByRole('button', { name: 'Claim incident' }).click();
 		await page.getByText('Alex Chen', { exact: true }).waitFor();
 		await page.getByText('Version 2', { exact: true }).waitFor();
 		const timing = await page.evaluate(() => globalThis.__frameworkComparisonTiming);
 		if (timing?.optimisticFeedbackMs == null || timing.settlementMs == null)
 			throw new Error(`Missing browser interaction timing for ${participant.id}`);
+		// Collect retained memory after interaction timing. A forced collection immediately before the
+		// click would turn optimistic feedback into a cold-allocation recovery measurement.
+		const heapBytes = await measureRetainedHeap(session);
 		return {
 			navigation,
 			heapBytes,
@@ -175,6 +172,41 @@ async function measureBrowserSample(browserInstance, participant) {
 	} finally {
 		await context.close();
 	}
+}
+
+/** Waits for Chromium to publish a buffered FCP entry instead of racing paint-entry delivery. */
+function waitForFirstContentfulPaint() {
+	const read = () => performance.getEntriesByName('first-contentful-paint')[0]?.startTime;
+	const existing = read();
+	if (existing !== undefined) return Promise.resolve(existing);
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const finish = (value) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			observer.disconnect();
+			resolve(value);
+		};
+		const observer = new PerformanceObserver(() => {
+			const value = read();
+			if (value !== undefined) finish(value);
+		});
+		const timeout = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			observer.disconnect();
+			reject(new Error('First contentful paint was not observed within 2 seconds'));
+		}, 2_000);
+		observer.observe({ type: 'paint', buffered: true });
+		// Two rendering opportunities cover engines that delay buffered observer delivery.
+		requestAnimationFrame(() =>
+			requestAnimationFrame(() => {
+				const value = read();
+				if (value !== undefined) finish(value);
+			})
+		);
+	});
 }
 
 /** Installs a participant-neutral click-to-visible-mutation clock in the page's own time domain. */

@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { claimIncident, requestAnalysis, serviceUrl, submitComment } from './service-client.js';
+	import { subscribeLiveService } from './live-service.js';
+	import { claimIncident, requestAnalysis, submitComment } from './service-client.js';
 	import type { AnalysisJob, Incident, User } from './contracts.js';
 
 	let { incident, users, sessionUserId, onIncident } = $props<{
 		incident?: Incident;
 		users: User[];
 		sessionUserId: string;
-		onIncident(incident: Incident): void;
+		onIncident(incident: Incident, mode?: 'optimistic' | 'authoritative'): void;
 	}>();
 	let draft = $state('');
 	let conflict = $state('');
@@ -25,23 +26,23 @@
 	async function claim() {
 		if (!incident) return;
 		const original = copyIncident(incident);
-		onIncident({ ...original, ownerId: sessionUserId, status: 'investigating' });
+		onIncident({ ...original, ownerId: sessionUserId, status: 'investigating' }, 'optimistic');
 		conflict = '';
 		error = '';
 		try {
 			const { response, payload } = await claimIncident(original.id, sessionUserId, viewVersion);
 			if (response.status === 409 && payload.error?.current) {
-				onIncident(payload.error.current);
+				onIncident(payload.error.current, 'authoritative');
 				viewVersion = payload.error.current.version;
 				conflict = 'This incident changed while you were viewing it. The latest owner is shown.';
 			} else if (!response.ok)
 				throw new Error(payload.error?.message ?? 'Unable to claim incident');
 			else {
-				onIncident(payload.incident);
+				onIncident(payload.incident, 'authoritative');
 				viewVersion = payload.incident.version;
 			}
 		} catch (caught) {
-			onIncident(original);
+			onIncident(original, 'optimistic');
 			error = caught instanceof Error ? caught.message : 'Unable to claim incident';
 		}
 	}
@@ -54,27 +55,30 @@
 			return;
 		}
 		const original = copyIncident(incident);
-		onIncident({
-			...original,
-			comments: [
-				...original.comments,
-				{
-					id: `pending-${crypto.randomUUID()}`,
-					authorId: sessionUserId,
-					body,
-					createdAt: new Date().toISOString()
-				}
-			]
-		});
+		onIncident(
+			{
+				...original,
+				comments: [
+					...original.comments,
+					{
+						id: `pending-${crypto.randomUUID()}`,
+						authorId: sessionUserId,
+						body,
+						createdAt: new Date().toISOString()
+					}
+				]
+			},
+			'optimistic'
+		);
 		draft = '';
 		error = '';
 		try {
 			const { response, payload } = await submitComment(original.id, sessionUserId, body);
 			if (!response.ok) throw new Error(payload.error?.message ?? 'Unable to add comment');
-			onIncident(payload.incident);
+			onIncident(payload.incident, 'authoritative');
 			viewVersion = payload.incident.version;
 		} catch (caught) {
-			onIncident(original);
+			onIncident(original, 'optimistic');
 			draft = body;
 			error = caught instanceof Error ? caught.message : 'Unable to add comment';
 		}
@@ -94,12 +98,11 @@
 		}
 	}
 	onMount(() => {
-		const events = new EventSource(`${serviceUrl}/api/events`);
-		events.addEventListener('job', (event) => {
-			const next = JSON.parse((event as MessageEvent<string>).data);
-			if (next.id === job?.id) job = next;
+		return subscribeLiveService({
+			onJob: (next) => {
+				if (next.id === job?.id) job = next;
+			}
 		});
-		return () => events.close();
 	});
 	function copyIncident(value: Incident): Incident {
 		return { ...value, comments: value.comments.map((comment) => ({ ...comment })) };

@@ -26,6 +26,7 @@ export function hydrateAfterNavigation(
 ): Promise<CoreHydrationRoot> {
 	let root: CoreHydrationRoot | undefined;
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	let animationFrame: number | undefined;
 	let resolveRoot!: (root: CoreHydrationRoot) => void;
 	let rejectRoot!: (error: unknown) => void;
 	const result = new Promise<CoreHydrationRoot>((resolve, reject) => {
@@ -35,6 +36,7 @@ export function hydrateAfterNavigation(
 	const interactionEvents = ['pointerdown', 'keydown', 'input', 'change', 'submit'] as const;
 	const cleanup = () => {
 		if (timer !== undefined) clearTimeout(timer);
+		if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
 		document.removeEventListener('DOMContentLoaded', schedule);
 		for (const type of interactionEvents)
 			container.removeEventListener(type, activateFromInteraction, true);
@@ -56,15 +58,28 @@ export function hydrateAfterNavigation(
 	for (const type of interactionEvents)
 		container.addEventListener(type, activateFromInteraction, { capture: true, once: true });
 	function schedule() {
+		// A task posted directly from DOMContentLoaded may run before the next rendering opportunity.
+		// Wait through one frame so passive hydration cannot delay SSR FCP. Hidden documents use a
+		// task because their animation frames may be throttled indefinitely.
+		if (document.visibilityState === 'visible' && typeof requestAnimationFrame === 'function') {
+			animationFrame = requestAnimationFrame(() => {
+				animationFrame = undefined;
+				scheduleActivationTask();
+			});
+			return;
+		}
+		scheduleActivationTask();
+	}
+	function scheduleActivationTask() {
 		const taskScheduler = (
 			globalThis as typeof globalThis & {
 				scheduler?: {
-					postTask(work: () => void, options: { priority: 'user-blocking' }): Promise<void>;
+					postTask(work: () => void, options: { priority: 'user-visible' }): Promise<void>;
 				};
 			}
 		).scheduler;
 		if (taskScheduler) {
-			void taskScheduler.postTask(activate, { priority: 'user-blocking' }).catch(rejectRoot);
+			void taskScheduler.postTask(activate, { priority: 'user-visible' }).catch(rejectRoot);
 			return;
 		}
 		timer = setTimeout(activate, 0);

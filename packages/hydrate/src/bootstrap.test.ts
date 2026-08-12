@@ -26,6 +26,9 @@ it('reports opt-in hydration timings', () => {
 			phase: 'hydrate'
 		})
 	);
+	expect(events.map((event) => event.phase)).toEqual(
+		expect.arrayContaining(['capture-dom', 'adopt-dom', 'restore-controls'])
+	);
 });
 
 it('adopts a complete authored document while retaining framework-owned body augmentation', () => {

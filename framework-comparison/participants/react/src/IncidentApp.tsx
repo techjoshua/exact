@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { IncidentDetail } from './IncidentDetail.js';
 import { IncidentQueue } from './IncidentQueue.js';
-import { loadIncidentData, serviceUrl } from './service-client.js';
+import { subscribeLiveService } from './live-service.js';
+import { loadIncidentData } from './service-client.js';
 import type { Incident, InitialData, User } from './types.js';
 
 /** Coordinates React-owned queue resources, selection, and the application live connection. */
@@ -19,11 +20,20 @@ export function IncidentApp({
 	const [error, setError] = useState('');
 	const [connection, setConnection] = useState('Connecting');
 
-	const replaceIncident = useCallback((incident: Incident) => {
-		setIncidents((current) =>
-			current.map((candidate) => (candidate.id === incident.id ? incident : candidate))
-		);
-	}, []);
+	const replaceIncident = useCallback(
+		(incident: Incident, mode: 'optimistic' | 'authoritative' = 'authoritative') => {
+			setIncidents((current) =>
+				current.map((candidate) =>
+					candidate.id !== incident.id ||
+					(mode === 'authoritative' &&
+						(candidate.version > incident.version || sameIncidentResource(candidate, incident)))
+						? candidate
+						: incident
+				)
+			);
+		},
+		[]
+	);
 
 	const loadQueue = useCallback(async () => {
 		setLoading(true);
@@ -43,16 +53,14 @@ export function IncidentApp({
 
 	useEffect(() => {
 		if (!initialData) void loadQueue();
-		const events = new EventSource(`${serviceUrl}/api/events`);
-		events.onopen = () => setConnection('Live service');
-		events.onerror = () => setConnection('Reconnecting');
-		events.addEventListener('incident', (event) =>
-			replaceIncident(JSON.parse((event as MessageEvent<string>).data) as Incident)
-		);
+		const releaseLiveService = subscribeLiveService({
+			onConnection: setConnection,
+			onIncident: (incident) => replaceIncident(incident, 'authoritative')
+		});
 		const followLocation = () => setSelectedId(incidentIdFromPath());
 		window.addEventListener('popstate', followLocation);
 		return () => {
-			events.close();
+			releaseLiveService();
 			window.removeEventListener('popstate', followLocation);
 		};
 	}, [initialData, loadQueue, replaceIncident]);
@@ -92,6 +100,25 @@ export function IncidentApp({
 				/>
 			</main>
 		</div>
+	);
+}
+
+/** Distinguishes a duplicate transport delivery from an equal-version optimistic projection. */
+function sameIncidentResource(left: Incident, right: Incident): boolean {
+	return (
+		left.version === right.version &&
+		left.ownerId === right.ownerId &&
+		left.status === right.status &&
+		left.comments.length === right.comments.length &&
+		left.comments.every((comment, index) => {
+			const candidate = right.comments[index];
+			return (
+				candidate?.id === comment.id &&
+				candidate.authorId === comment.authorId &&
+				candidate.body === comment.body &&
+				candidate.createdAt === comment.createdAt
+			);
+		})
 	);
 }
 

@@ -7,13 +7,14 @@ import {
 	resumeTaskFrameContinuation
 } from './frame-continuation.js';
 import { createTaskFrameContext, frameForTaskContext } from './frame-context.js';
-import { publishTaskFrameEvent } from './frame-inspection.js';
+import { publishTaskFrameEvent, taskFrameInspectionAttached } from './frame-inspection.js';
 import {
 	registerTaskFrameSettlement,
 	runTaskFrameCleanups,
 	settleTaskFrameChildren
 } from './frame-settlement.js';
 import { createLazyTaskOwnerRecord } from './owner-record.js';
+import { acquireScheduledReactionBatch } from './scheduled-reactions.js';
 
 import {
 	taskFrameTokenBrand,
@@ -120,8 +121,6 @@ export function executeTaskFrame<T>(
 		owner,
 		parent: structuralParent,
 		controller,
-		children: new Set<Promise<void>>(),
-		cleanups: [],
 		...(options.label === undefined ? {} : { label: options.label }),
 		...(options.sourceEntityId === undefined ? {} : { sourceEntityId: options.sourceEntityId }),
 		activation: options.activation ?? 'invoked',
@@ -137,22 +136,25 @@ export function executeTaskFrame<T>(
 		kind: options.kind ?? 'task',
 		producerOpen: true,
 		settled: false,
-		startedAt: monotonicTimestamp(),
-		context: undefined as unknown as TaskContext
+		startedAt: monotonicTimestamp()
 	};
-	(frame as { context: TaskContext }).context = createTaskFrameContext(frame, options);
+	if (options.publicContext !== false)
+		(frame as { context: TaskContext }).context = createTaskFrameContext(frame, options);
 	registerTaskFrameSignal(controller.signal, frame);
 	registerTaskFrameSettlement(frame, settlement);
 	owner.frames.add(frame);
-	publishTaskFrameEvent(frame, 'task.frame.enter');
-	publishTaskFrameEvent(frame, 'task.start', undefined, {
-		kind: 'start',
-		arguments: options.inspectionArguments
-	});
+	const inspectedAtStart = taskFrameInspectionAttached(frame);
+	if (inspectedAtStart) {
+		publishTaskFrameEvent(frame, 'task.frame.enter');
+		publishTaskFrameEvent(frame, 'task.start', undefined, {
+			kind: 'start',
+			arguments: options.inspectionArguments
+		});
+	} else uninspectedSynchronousFrames.add(frame);
 	if (structuralParent) {
-		structuralParent.children.add(settlement);
+		(structuralParent.children ??= new Set()).add(settlement);
 		void settlement
-			.finally(() => structuralParent.children.delete(settlement))
+			.finally(() => structuralParent.children?.delete(settlement))
 			.catch(() => undefined);
 	} else {
 		// Root settlement is observed through executeTaskFrame's returned
@@ -164,10 +166,12 @@ export function executeTaskFrame<T>(
 	let synchronousError: unknown;
 	try {
 		if (controller.signal.aborted) throw new TaskCancellation(controller.signal.reason);
-		directResult = withTaskFrameRecord(frame, () => work(frame.context));
+		directResult = withTaskFrameRecord(frame, () => work(frame.context!));
 	} catch (error) {
 		synchronousError = error;
 		directResult = Promise.reject(error);
+	} finally {
+		uninspectedSynchronousFrames.delete(frame);
 	}
 	const execution = raceTaskCancellation(controller.signal, directResult);
 
@@ -281,8 +285,8 @@ export function attachTaskFrameSettlement(
 	if (frame.settled || !frame.producerOpen)
 		throw new Error('Cannot attach work after the task frame producer has closed');
 	const normalized = Promise.resolve(settlement).then(() => undefined);
-	frame.children.add(normalized);
-	void normalized.finally(() => frame.children.delete(normalized)).catch(() => undefined);
+	(frame.children ??= new Set()).add(normalized);
+	void normalized.finally(() => frame.children?.delete(normalized)).catch(() => undefined);
 }
 
 /** Adds structural work to the synchronously active task frame, when present. */
@@ -310,17 +314,8 @@ export function resumeTaskFrame(signal: AbortSignal, resume: () => void): void {
 }
 
 export { frameForTaskContext };
-
-type ScheduledReactionBatch = {
-	readonly frame: TaskFrameRecord;
-	readonly resolve: () => void;
-	readonly reject: (error: unknown) => void;
-	pending: number;
-	failed: boolean;
-	failure?: unknown;
-	closed: boolean;
-};
-const scheduledReactionBatches = new WeakMap<TaskFrameRecord, ScheduledReactionBatch>();
+const interactiveReactionContexts = new WeakMap<TaskFrameRecord, ScheduledWorkContext>();
+const uninspectedSynchronousFrames = new WeakSet<TaskFrameRecord>();
 
 function linkAbort(signal: AbortSignal, target: AbortController): void {
 	if (signal.aborted) {
@@ -334,88 +329,27 @@ function monotonicTimestamp(): number {
 	return globalThis.performance?.now() ?? Date.now();
 }
 
-setScheduledWorkContextCapture(() => {
+/** Allocates one process-local frame identity for internal consequence frames. */
+export function allocateTaskFrameId(): number {
+	return nextFrameId++;
+}
+
+setScheduledWorkContextCapture((priority) => {
 	const parent = currentTaskFrameRecord();
 	if (!parent || !parent.producerOpen || parent.settled) return undefined;
+	if (priority === 'interactive' && uninspectedSynchronousFrames.has(parent))
+		return interactiveReactionContext(parent);
 	return acquireScheduledReactionBatch(parent);
 });
 
-/**
- * Acquires one lease on the reactive consequence frame shared by a task invalidation wave.
- *
- * A single state transition can invalidate hundreds of DOM bindings. They have the same parent,
- * cancellation lifetime, and scheduler turn, so allocating a complete child task frame for every
- * reaction adds ownership machinery without adding an independently meaningful lifetime.
- */
-function acquireScheduledReactionBatch(parent: TaskFrameRecord): ScheduledWorkContext {
-	let batch = scheduledReactionBatches.get(parent);
-	if (!batch || batch.closed) {
-		batch = createScheduledReactionBatch(parent);
-		scheduledReactionBatches.set(parent, batch);
-	}
-	batch.pending++;
-	let released = false;
-	const release = (error?: unknown, failed = false) => {
-		if (released) return;
-		released = true;
-		if (failed && !batch!.failed) {
-			batch!.failed = true;
-			batch!.failure = error;
-		}
-		if (--batch!.pending !== 0) return;
-		batch!.closed = true;
-		if (scheduledReactionBatches.get(parent) === batch) scheduledReactionBatches.delete(parent);
-		if (batch!.failed) batch!.reject(batch!.failure);
-		else batch!.resolve();
+/** Reuses an open interaction producer for consequences drained inside the same DOM callback. */
+function interactiveReactionContext(parent: TaskFrameRecord): ScheduledWorkContext {
+	let context = interactiveReactionContexts.get(parent);
+	if (context) return context;
+	context = {
+		run: (work) => withTaskFrameRecord(parent, work),
+		cancel() {}
 	};
-	return {
-		run(work) {
-			if (released) return;
-			try {
-				if (batch!.frame.controller.signal.aborted)
-					throw new TaskCancellation(batch!.frame.controller.signal.reason);
-				withTaskFrameRecord(batch!.frame, work);
-			} catch (error) {
-				release(error, true);
-				throw error;
-			}
-			release();
-		},
-		cancel: release
-	};
-}
-
-/** Creates the one structurally attached frame that owns a scheduled reaction batch. */
-function createScheduledReactionBatch(parent: TaskFrameRecord): ScheduledReactionBatch {
-	let resolve!: () => void;
-	let reject!: (error: unknown) => void;
-	const completion = new Promise<void>((accept, fail) => {
-		resolve = accept;
-		reject = fail;
-	});
-	let frame!: TaskFrameRecord;
-	const execution = executeTaskFrame(
-		{
-			parent,
-			owner: parent.owner,
-			activation: parent.context.activation,
-			kind: 'reactive',
-			label: 'reactive consequences'
-		},
-		() => {
-			frame = currentTaskFrameRecord()!;
-			return completion;
-		}
-	);
-	// Structural attachment propagates failure to the parent. This observer only
-	// prevents a second process-level unhandled rejection.
-	void execution.catch(() => undefined);
-	return {
-		frame,
-		resolve,
-		reject,
-		pending: 0,
-		failed: false,
-		closed: false
-	};
+	interactiveReactionContexts.set(parent, context);
+	return context;
 }

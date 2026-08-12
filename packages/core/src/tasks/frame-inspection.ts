@@ -119,6 +119,11 @@ export function publishTaskFrameEvent(
 	});
 }
 
+/** Returns whether this frame's component domain currently has an attached inspection session. */
+export function taskFrameInspectionAttached(frame: TaskFrameRecord): boolean {
+	return inspectedFrameTarget(frame) !== undefined;
+}
+
 type InspectedFrameTarget = Readonly<{
 	host: ComponentInstance<any>;
 	inspection: ExactRuntimeInspectionOwner;

@@ -14,6 +14,44 @@ import { hydrate, hydrateAfterNavigation } from './root.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('hydration-only root capability', () => {
+	it('gives visible SSR content a rendering opportunity before passive hydration', async () => {
+		const frames: FrameRequestCallback[] = [];
+		const tasks: Array<() => void> = [];
+		const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+			frames.push(callback);
+			return frames.length;
+		});
+		vi.stubGlobal('cancelAnimationFrame', vi.fn());
+		vi.stubGlobal('scheduler', {
+			postTask(work: () => void, options: { priority: string }) {
+				expect(options.priority).toBe('user-visible');
+				tasks.push(work);
+				return Promise.resolve();
+			}
+		});
+		try {
+			const vnode = createVNode('p', null, 'Ready');
+			const container = document.createElement('main');
+			container.innerHTML = renderToString(vnode).html;
+			const pending = hydrateAfterNavigation(vnode, container);
+
+			expect(container.dataset.exactHydrated).toBeUndefined();
+			expect(tasks).toHaveLength(0);
+			frames.shift()!(performance.now());
+			expect(tasks).toHaveLength(1);
+			expect(container.dataset.exactHydrated).toBeUndefined();
+			tasks.shift()!();
+
+			const root = await pending;
+			expect(container.dataset.exactHydrated).toBe('true');
+			root.dispose();
+		} finally {
+			visibility.mockRestore();
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it('activates synchronously when interaction precedes deferred navigation hydration', async () => {
 		vi.useFakeTimers();
 		try {
@@ -22,9 +60,7 @@ describe('hydration-only root capability', () => {
 			container.innerHTML = renderToString(vnode).html;
 			const pending = hydrateAfterNavigation(vnode, container);
 
-			container
-				.querySelector('button')!
-				.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+			container.querySelector('button')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
 
 			const root = await pending;
 			expect(container.dataset.exactHydrated).toBe('true');

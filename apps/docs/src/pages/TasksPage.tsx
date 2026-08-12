@@ -2,6 +2,7 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
+import { TaskBasics } from './TaskBasics.jsx';
 import { TaskIntroduction } from './TaskIntroduction.jsx';
 import { taskSources } from './task-sources.js';
 
@@ -16,50 +17,7 @@ export function TasksPage(this: Component<{}>) {
 			next={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
 		>
 			<TaskIntroduction />
-			<section>
-				<h2>Start with an ordinary function</h2>
-				<CodeBlock source={taskSources.inferredTaskSource} language="tsx" title="DraftEditor.tsx" />
-				<p>
-					There is no task registration API in this example. The compiler sees the browser storage
-					effect and classifies <code>persistDraft</code> as client work. Its setup-scope call is
-					both an initial activation and a reactive declaration. Reading
-					<code>this.state.draft</code> while evaluating the argument makes that state the
-					activation dependency.
-				</p>
-				<p>
-					Each later draft change creates a new reactive generation and supersedes the previous one.
-					If the same function were called from a click handler, the call would instead create an
-					invoked generation for that interaction. Calling a task from another task attaches a child
-					generation automatically. The source remains ordinary function calls; the compiler
-					supplies the ownership and scheduling machinery.
-				</p>
-				<p>
-					The repository&apos;s native sample applications follow this same rule: known storage,
-					timer, listener, and DOM APIs infer client work and cancellation; reactive setup calls
-					infer latest-wins activation; and ordinary child calls infer parallel invocation. They
-					author <code>TaskContext</code> only for an environment boundary, a non-default policy, or
-					an opaque capability the compiler cannot discover.
-				</p>
-				<p>
-					A synchronous function call used as a local initializer remains an ordinary JavaScript
-					expression rather than an inferred task activation. This keeps factories, context lookups,
-					and other value-producing helpers behaving normally. Awaited work may still become a task,
-					and a final <code>TaskContext</code> parameter makes task intent explicit.
-				</p>
-				<p>
-					When one synchronous task transition invalidates many reactive bindings, those reactions
-					share one structural consequence frame. Cancellation and settlement still include the
-					whole update, while independently meaningful work started by a reaction—such as presence
-					leave motion—keeps its own child frame.
-				</p>
-				<Callout title="Async is not the marker">
-					<p>
-						A function does not become a task merely because it is <code>async</code>, and a task
-						does not have to be asynchronous. Coordination needs—not promise syntax—are what make
-						the function a task.
-					</p>
-				</Callout>
-			</section>
+			<TaskBasics />
 			<section>
 				<h2>The compiler wires discoverable cancellation and ownership</h2>
 				<p>

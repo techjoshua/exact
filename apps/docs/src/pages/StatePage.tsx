@@ -195,9 +195,8 @@ export function StatePage(this: Component<{}>) {
 					forwards an existing identity. This is an emitted-code optimization: the authored
 					initialization declaration remains its source definition for inspection. A leaf consumer
 					inside a JSX conditional keeps the calculation at that leaf, so its updates do not
-					invalidate the enclosing structural range. Shared values,
-					fresh identity allocations, event or task consumers, and explicit reactive values keep
-					their durable cells.
+					invalidate the enclosing structural range. Shared values, fresh identity allocations,
+					event or task consumers, and explicit reactive values keep their durable cells.
 				</p>
 			</section>
 			<section>
@@ -251,8 +250,10 @@ export function StatePage(this: Component<{}>) {
 					Ordinary DOM event callbacks publish their synchronous writes as one transaction. The
 					runtime snapshots and deduplicates affected consumers before patching, so replacing a
 					large reactive collection does not repeatedly update a component merely because it reads
-					several changed entries. Use an explicit <code>batch()</code> only when an external
-					integration needs to define that same boundary itself.
+					several changed entries. Interactive consequences patch before the callback returns;
+					normal and deferred work keeps its scheduled host turn. Use an explicit{' '}
+					<code>batch()</code>
+					only when an external integration needs to define that same boundary itself.
 				</p>
 			</section>
 			<section>

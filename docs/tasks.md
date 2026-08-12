@@ -115,19 +115,23 @@ task activation cannot provide that value synchronously. An awaited call can
 still be task work, and a final authored `TaskContext` remains an explicit
 request for task semantics.
 
-Reactive bindings invalidated by one synchronous task transition share a
-single structurally attached consequence frame. This preserves cancellation,
-settlement, and ambient ownership without allocating a child task frame for
-every text, property, or component-prop reaction. Independently meaningful
-work started by a reaction—such as a presence leave frame—remains its own
-cancelable child beneath that shared frame.
+Reactive bindings invalidated by one synchronous task transition share one lightweight consequence
+owner and a single completion lease on the parent frame. This preserves an open producer for
+independently meaningful nested work without allocating a separate controller, public context, or
+complete task settlement chain for a short DOM flush. Work started by a reaction—such as a presence
+leave frame—remains its own cancelable child. When runtime inspection is attached, eXact
+materializes the complete consequence frame so DevTools retains the full structural view. An
+interactive DOM wave drains while its interaction producer remains open, so it reuses that producer
+without allocating the intermediate consequence lifetime.
 
 `async`, `await`, and readiness are separate concepts. `async` supplies normal
 JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task
 ownership, cancellation, and stale-continuation fencing. The nearest Suspense
 boundary waits only when the generation is `blocking`; `nonblocking` work may
-remain pending without holding readiness. An async component that awaits a
+remain pending without holding readiness. An uncontended continuation restores
+its frame in the promise-resolution job; overlapping resumptions remain serialized.
+An async component that awaits a
 value into `this.state` is the shorthand case the compiler infers as blocking
 setup work.
 

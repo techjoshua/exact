@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { claimIncident, requestAnalysis, serviceUrl, submitComment } from './service-client.js';
+import { subscribeLiveService } from './live-service.js';
+import { claimIncident, requestAnalysis, submitComment } from './service-client.js';
 import type { AnalysisJob, Incident, User } from './types.js';
 
 type DetailProps = {
 	incident?: Incident;
 	users: User[];
 	sessionUserId: string;
-	onIncident(incident: Incident): void;
+	onIncident(incident: Incident, mode?: 'optimistic' | 'authoritative'): void;
 };
 
 /** Owns React detail state, optimistic mutations, and the selection-scoped version snapshot. */
@@ -19,34 +20,31 @@ export function IncidentDetail({ incident, users, sessionUserId, onIncident }: D
 	const [viewVersion, setViewVersion] = useState(incident?.version ?? 0);
 
 	useEffect(() => {
-		const events = new EventSource(`${serviceUrl}/api/events`);
-		events.addEventListener('job', (event) => {
-			const nextJob = JSON.parse((event as MessageEvent<string>).data) as AnalysisJob;
-			setJob((current) => (current?.id === nextJob.id ? nextJob : current));
+		return subscribeLiveService({
+			onJob: (nextJob) => setJob((current) => (current?.id === nextJob.id ? nextJob : current))
 		});
-		return () => events.close();
 	}, []);
 
 	const claim = async () => {
 		if (!incident || !sessionUserId) return;
 		const original = copyIncident(incident);
-		onIncident({ ...original, ownerId: sessionUserId, status: 'investigating' });
+		onIncident({ ...original, ownerId: sessionUserId, status: 'investigating' }, 'optimistic');
 		setConflict('');
 		setServiceError('');
 		try {
 			const { response, payload } = await claimIncident(original.id, sessionUserId, viewVersion);
 			if (response.status === 409 && payload.error?.current) {
-				onIncident(payload.error.current);
+				onIncident(payload.error.current, 'authoritative');
 				setViewVersion(payload.error.current.version);
 				setConflict('This incident changed while you were viewing it. The latest owner is shown.');
 			} else if (!response.ok) {
 				throw new Error(payload.error?.message ?? 'Unable to claim incident');
 			} else if (payload.incident) {
-				onIncident(payload.incident);
+				onIncident(payload.incident, 'authoritative');
 				setViewVersion(payload.incident.version);
-			} else onIncident(original);
+			} else onIncident(original, 'optimistic');
 		} catch (caught) {
-			onIncident(original);
+			onIncident(original, 'optimistic');
 			setServiceError(caught instanceof Error ? caught.message : 'Unable to claim incident');
 		}
 	};
@@ -66,7 +64,7 @@ export function IncidentDetail({ incident, users, sessionUserId, onIncident }: D
 			body,
 			createdAt: new Date().toISOString()
 		};
-		onIncident({ ...original, comments: [...original.comments, temporary] });
+		onIncident({ ...original, comments: [...original.comments, temporary] }, 'optimistic');
 		setDraft('');
 		setServiceError('');
 		try {
@@ -78,10 +76,10 @@ export function IncidentDetail({ incident, users, sessionUserId, onIncident }: D
 			);
 			if (!response.ok || !payload.incident)
 				throw new Error(payload.error?.message ?? 'Unable to add comment');
-			onIncident(payload.incident);
+			onIncident(payload.incident, 'authoritative');
 			setViewVersion(payload.incident.version);
 		} catch (caught) {
-			onIncident(original);
+			onIncident(original, 'optimistic');
 			setDraft(body);
 			setServiceError(caught instanceof Error ? caught.message : 'Unable to add comment');
 		}

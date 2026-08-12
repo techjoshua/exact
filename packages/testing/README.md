@@ -18,7 +18,9 @@ The mounted view provides accessible role and text queries, settled user events,
 and context inspection, and DOM-focused matchers.
 
 Tests that exercise compiler-emitted plugin markers can pass the application bundle's local
-`enhancementCatalog` through `.configure()` or `mountTest()` options.
+`enhancementCatalog` through `.configure()` or `mountTest()` options. The mount helper activates
+the enhancement renderer only when that option is present, so ordinary component tests retain the
+enhancement-free DOM entry point.
 
 ## Server and client/server tests
 

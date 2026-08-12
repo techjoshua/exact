@@ -79,9 +79,12 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 	const root = createClient(rootContainer, resolvedOptions);
 	vnode = ownedVNode(vnode, root.domain);
 	const work = createDomWorkBudget(resolvedOptions.maxTreeNodes);
+	const captureStarted = resolvedOptions.onProfile ? performance.now() : undefined;
 	const captured = captureHydrationDom(rootContainer, work);
+	reportHydrationPhase(resolvedOptions, 'capture-dom', captureStarted);
 	const formState = captured.formState;
 	try {
+		const adoptionStarted = resolvedOptions.onProfile ? performance.now() : undefined;
 		const outcome = adoptOrMountRoot(
 			vnode,
 			rootContainer,
@@ -91,8 +94,11 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 			work,
 			root.domain
 		);
+		reportHydrationPhase(resolvedOptions, 'adopt-dom', adoptionStarted);
+		const restorationStarted = resolvedOptions.onProfile ? performance.now() : undefined;
 		for (const control of restoreFormState(rootContainer, formState, work))
 			synchronizeFormBinding(control);
+		reportHydrationPhase(resolvedOptions, 'restore-controls', restorationStarted);
 		releaseProgressiveHelper(rootContainer);
 		rootContainer.setAttribute('data-exact-hydrated', 'true');
 		resolvedOptions.onHydration?.(
@@ -113,6 +119,18 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 		root.dispose();
 		throw error;
 	}
+}
+
+/** Publishes one optional phase observation without paying timing cost when profiling is disabled. */
+function reportHydrationPhase(
+	options: HydrateOptions,
+	phase: HydrateProfileEvent['phase'],
+	started: number | undefined
+): void {
+	if (started === undefined) return;
+	options.onProfile?.(
+		Object.freeze({ subsystem: 'hydrate', phase, elapsedMs: performance.now() - started })
+	);
 }
 
 /** Returns the unconsumed portion of a shared hydration traversal budget. */

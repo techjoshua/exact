@@ -527,7 +527,9 @@ publishes transactionally, and ordinary DOM event callbacks receive the same
 transaction boundary automatically. Publication snapshots the affected
 subscribers before any of them patch: a consumer that reads several changed
 paths still updates once for that synchronous operation, even when its update
-replaces the underlying watcher.
+replaces the underlying watcher. Interactive consequences are drained before
+the DOM callback returns; normal and deferred consequences retain their
+scheduled host turns.
 
 ## JSX
 

@@ -37,8 +37,17 @@ export function useIncidentWorkspace(initial: InitialData, initialPath: string) 
 	const ownerName = computed(
 		() => users.value.find((user) => user.id === selected.value?.ownerId)?.name ?? 'Unassigned'
 	);
-	const replaceIncident = (incident: Incident) => {
-		incidents.value = incidents.value.map((item) => (item.id === incident.id ? incident : item));
+	const replaceIncident = (
+		incident: Incident,
+		mode: 'optimistic' | 'authoritative' = 'authoritative'
+	) => {
+		incidents.value = incidents.value.map((item) =>
+			item.id !== incident.id ||
+			(mode === 'authoritative' &&
+				(item.version > incident.version || sameIncidentResource(item, incident)))
+				? item
+				: incident
+		);
 	};
 	const selectIncident = (id: string) => {
 		selectedId.value = id;
@@ -62,7 +71,10 @@ export function useIncidentWorkspace(initial: InitialData, initialPath: string) 
 	const claim = async () => {
 		if (!selected.value) return;
 		const original = copyIncident(selected.value);
-		replaceIncident({ ...original, ownerId: sessionUserId.value, status: 'investigating' });
+		replaceIncident(
+			{ ...original, ownerId: sessionUserId.value, status: 'investigating' },
+			'optimistic'
+		);
 		detailError.value = '';
 		conflict.value = '';
 		try {
@@ -83,7 +95,7 @@ export function useIncidentWorkspace(initial: InitialData, initialPath: string) 
 				viewVersion.value = payload.incident.version;
 			}
 		} catch (caught) {
-			replaceIncident(original);
+			replaceIncident(original, 'optimistic');
 			detailError.value = caught instanceof Error ? caught.message : 'Unable to claim incident';
 		}
 	};
@@ -95,18 +107,21 @@ export function useIncidentWorkspace(initial: InitialData, initialPath: string) 
 			return;
 		}
 		const original = copyIncident(selected.value);
-		replaceIncident({
-			...original,
-			comments: [
-				...original.comments,
-				{
-					id: `pending-${crypto.randomUUID()}`,
-					authorId: sessionUserId.value,
-					body,
-					createdAt: new Date().toISOString()
-				}
-			]
-		});
+		replaceIncident(
+			{
+				...original,
+				comments: [
+					...original.comments,
+					{
+						id: `pending-${crypto.randomUUID()}`,
+						authorId: sessionUserId.value,
+						body,
+						createdAt: new Date().toISOString()
+					}
+				]
+			},
+			'optimistic'
+		);
 		draft.value = '';
 		detailError.value = '';
 		try {
@@ -115,7 +130,7 @@ export function useIncidentWorkspace(initial: InitialData, initialPath: string) 
 			replaceIncident(payload.incident);
 			viewVersion.value = payload.incident.version;
 		} catch (caught) {
-			replaceIncident(original);
+			replaceIncident(original, 'optimistic');
 			draft.value = body;
 			detailError.value = caught instanceof Error ? caught.message : 'Unable to add comment';
 		}
@@ -178,6 +193,25 @@ export function useIncidentWorkspace(initial: InitialData, initialPath: string) 
 		addComment,
 		analyze
 	};
+}
+
+/** Distinguishes a duplicate transport delivery from an equal-version optimistic projection. */
+function sameIncidentResource(left: Incident, right: Incident): boolean {
+	return (
+		left.version === right.version &&
+		left.ownerId === right.ownerId &&
+		left.status === right.status &&
+		left.comments.length === right.comments.length &&
+		left.comments.every((comment, index) => {
+			const candidate = right.comments[index];
+			return (
+				candidate?.id === comment.id &&
+				candidate.authorId === comment.authorId &&
+				candidate.body === comment.body &&
+				candidate.createdAt === comment.createdAt
+			);
+		})
+	);
 }
 
 function pathIncident(path: string) {

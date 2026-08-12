@@ -1,7 +1,8 @@
-import { peek, TaskContext, type Component } from '@exactjs/core';
+import { batch, peek, TaskContext, type Component } from '@exactjs/core';
 import { IncidentDetail } from './IncidentDetail.jsx';
 import { IncidentQueue } from './IncidentQueue.jsx';
-import { loadIncidentData, serviceUrl } from './service-client.js';
+import { subscribeLiveService } from './live-service.js';
+import { loadIncidentData } from './service-client.js';
 import type { Incident, InitialData, User } from './types.js';
 
 type AppState = {
@@ -29,9 +30,23 @@ export function IncidentApp(
 	this.state.loading = !props.initialData;
 	this.state.connection = 'Connecting';
 
-	const replaceIncident = (incident: Incident) => {
+	const replaceIncident = (
+		incident: Incident,
+		mode: 'optimistic' | 'authoritative' = 'authoritative'
+	) => {
 		const current = this.state.incidents.find((candidate) => candidate.id === incident.id);
-		if (current) Object.assign(current, incident);
+		if (
+			!current ||
+			(mode === 'authoritative' &&
+				(current.version > incident.version || sameIncidentResource(current, incident)))
+		)
+			return;
+		batch(() => {
+			current.ownerId = incident.ownerId;
+			current.status = incident.status;
+			current.version = incident.version;
+			if (!sameComments(current.comments, incident.comments)) current.comments = incident.comments;
+		});
 	};
 
 	async function loadQueue(task: TaskContext = TaskContext.client().latest()) {
@@ -58,17 +73,17 @@ export function IncidentApp(
 
 	if (!props.initialData) void loadQueue();
 	this.onMount(({ signal }) => {
-		const events = new EventSource(`${serviceUrl}/api/events`);
-		events.onopen = () => (this.state.connection = 'Live service');
-		events.onerror = () => (this.state.connection = 'Reconnecting');
-		events.addEventListener('incident', (event) =>
-			replaceIncident(JSON.parse((event as MessageEvent<string>).data) as Incident)
+		subscribeLiveService(
+			{
+				onConnection: (connection) => (this.state.connection = connection),
+				onIncident: (incident) => replaceIncident(incident, 'authoritative')
+			},
+			signal
 		);
 		const followLocation = () => {
 			this.state.selectedId = incidentIdFromPath();
 		};
 		window.addEventListener('popstate', followLocation, { signal });
-		signal.addEventListener('abort', () => events.close(), { once: true });
 	});
 
 	const selectedIncident = this.state.incidents.find(
@@ -103,6 +118,32 @@ export function IncidentApp(
 				/>
 			</main>
 		</div>
+	);
+}
+
+/** Distinguishes a duplicate transport delivery from an equal-version optimistic projection. */
+function sameIncidentResource(left: Incident, right: Incident): boolean {
+	return (
+		left.version === right.version &&
+		left.ownerId === right.ownerId &&
+		left.status === right.status &&
+		sameComments(left.comments, right.comments)
+	);
+}
+
+/** Preserves the existing reactive branch when a transport copy contains identical comments. */
+function sameComments(left: Incident['comments'], right: Incident['comments']): boolean {
+	return (
+		left.length === right.length &&
+		left.every((comment, index) => {
+			const candidate = right[index];
+			return (
+				candidate?.id === comment.id &&
+				candidate.authorId === comment.authorId &&
+				candidate.body === comment.body &&
+				candidate.createdAt === comment.createdAt
+			);
+		})
 	);
 }
 

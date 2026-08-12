@@ -29,16 +29,21 @@ export function captureHydrationDom(container: Element, work: DomWorkBudget): Hy
 	walkDomSubtree(
 		container,
 		(node) => {
-			if (node instanceof Comment && node.data.startsWith('exact:')) hasMarkers = true;
+			if (node.nodeType === Node.COMMENT_NODE) {
+				if ((node as Comment).data.startsWith('exact:')) hasMarkers = true;
+				return;
+			}
+			if (node.nodeType !== Node.ELEMENT_NODE) return;
+			const element = node as Element;
 			if (
-				node instanceof HTMLInputElement ||
-				node instanceof HTMLTextAreaElement ||
-				node instanceof HTMLSelectElement ||
-				(node instanceof Element && node.getAttribute('contenteditable') === 'true') ||
-				isDetailsElement(node) ||
-				isDialogElement(node)
+				element.localName === 'input' ||
+				element.localName === 'textarea' ||
+				element.localName === 'select' ||
+				element.localName === 'details' ||
+				element.localName === 'dialog' ||
+				element.getAttribute('contenteditable') === 'true'
 			)
-				controls.push(node);
+				controls.push(element);
 		},
 		{ budget: work }
 	);

@@ -107,8 +107,11 @@ export type ExactPartitionInstance = Readonly<{
 	children: readonly ExactPartitionInstance[];
 }>;
 
-/** Reports an observable hydrate profile event. */
-export type HydrateProfileEvent = ExactProfileEvent<'hydrate', 'hydrate'>;
+/** Reports total or phase-level timings for one hydration attempt. */
+export type HydrateProfileEvent = ExactProfileEvent<
+	'hydrate',
+	'hydrate' | 'capture-dom' | 'adopt-dom' | 'restore-controls'
+>;
 
 /** Reports the structural outcome of one root or client-island hydration attempt. */
 export type ExactHydrationObservation = Readonly<{

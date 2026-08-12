@@ -41,9 +41,11 @@ import { hydrate } from '@exactjs/hydrate/root';
 const root = hydrate(app, document.getElementById('app')!);
 ```
 
-`hydrateAfterNavigation()` schedules that activation as user-blocking work after
-`DOMContentLoaded`. If a pointer, keyboard, input, change, or submit interaction reaches the root
-first, a capture listener activates synchronously before normal target and bubble handling.
+`hydrateAfterNavigation()` gives visible SSR content one rendering opportunity after
+`DOMContentLoaded`, then schedules activation as user-visible work. If a pointer, keyboard, input,
+change, or submit interaction reaches the root first, a capture listener activates synchronously
+before normal target and bubble handling. Hidden documents use a task directly because animation
+frames may be throttled indefinitely.
 
 Because that static entry does not expose the optional capabilities, bundlers can remove their
 implementations completely. Use the main entry whenever the compiled application contains server

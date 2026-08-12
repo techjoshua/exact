@@ -18,12 +18,16 @@ import { createVNode } from './test-support/native-vnode.js';
 
 describe('DOM enhancement capability activation', () => {
 	it('activates from a later-loaded module after the renderer root already exists', async () => {
+		delete (globalThis as typeof globalThis & Record<PropertyKey, unknown>)[
+			Symbol.for('@exactjs/dom.enhancement-capability.v1')
+		];
 		const container = document.createElement('div');
 		render(createVNode('p', null, 'Before'), container);
 		expect(container.innerHTML).toBe('<p>Before</p>');
 		expect(domEnhancementCapability()).toBeUndefined();
 
-		await import('./framework/enhancements.js');
+		const { registerDomEnhancementIntegration } = await import('./framework/enhancements.js');
+		registerDomEnhancementIntegration();
 		const identity = '@exactjs/dom:late-enhancement-capability';
 		const Enhancement = markExactComponent(function Enhancement(
 			this: Component<{}>,
