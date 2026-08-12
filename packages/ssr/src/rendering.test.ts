@@ -19,6 +19,23 @@ import { diffBoundaryHtml, renderToString, renderToStringAsync } from './index.j
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr rendering', () => {
+	it('serializes native controlled selections as option state in sync and async output', async () => {
+		const vnode = createVNode(
+			'select',
+			{ value: 'second' },
+			createVNode('option', { value: 'first' }, 'First'),
+			createVNode('option', { value: 'second' }, 'Second')
+		);
+
+		const sync = renderToString(vnode, { markers: false });
+		const asyncResult = await renderToStringAsync(vnode, { markers: false });
+
+		expect(sync.html).toBe(
+			'<select value="second"><option value="first">First</option><option value="second" selected>Second</option></select>'
+		);
+		expect(asyncResult.html).toBe(sync.html);
+	});
+
 	it('renders bundle-local enhancements as ordinary server components', async () => {
 		const identity = '@exactjs/ssr:test-enhancement#default';
 		let tone: unknown;

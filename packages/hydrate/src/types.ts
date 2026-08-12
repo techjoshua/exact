@@ -312,6 +312,19 @@ export type ExactClientOperationObservation = {
 	readonly stale: boolean;
 };
 
+/** Owns an adopted DOM root without implying optional server-operation or island capabilities. */
+export type CoreHydrationRoot = {
+	readonly domain: ComponentDomain;
+	/** Number of asynchronous operations owned by this root generation. */
+	readonly pendingRequests: number;
+	/** Prevents new work while allowing already accepted work to settle. */
+	retire(): void;
+	/** Resolves once all work admitted before retirement has settled. */
+	whenSettled(): Promise<void>;
+	/** Releases renderer scopes, listeners, component ownership, and root registration. */
+	dispose(): void;
+};
+
 /** Defines the exact endpoint transport type contract. */
 export type ExactEndpointTransport = {
 	fetch?: FetchLike;
@@ -319,14 +332,11 @@ export type ExactEndpointTransport = {
 };
 
 /** Defines the exact client type contract. */
-export type ExactClient = {
-	readonly domain: ComponentDomain;
+export type ExactClient = CoreHydrationRoot & {
 	readonly endpoint?: string;
 	readonly endpoints?: ExactEndpointRoutes;
 	state?: unknown;
 	readonly continuations?: Record<string, ExactComponentContinuationContract>;
-	/** Number of task invocation, refresh, or stream promises owned by this client generation. */
-	readonly pendingRequests: number;
 	applyPatches(patches: readonly ExactPatch[]): boolean;
 	invokeTask(id: string, payload?: unknown): Promise<ExactInvocationResult>;
 	refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
@@ -336,12 +346,6 @@ export type ExactClient = {
 		payload?: unknown
 	): Promise<ExactInvocationResult>;
 	registerComponents(config: ExactHydrationRegistration): void;
-	/** Prevents new work while allowing already accepted work to settle. */
-	retire(): void;
-	/** Resolves once all work admitted before retirement has settled. */
-	whenSettled(): Promise<void>;
-	/** Releases client requests, renderer scopes, listeners, and root ownership. */
-	dispose(): void;
 };
 
 /** Defines the hydration root type contract. */

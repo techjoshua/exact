@@ -159,6 +159,19 @@ export function ServerExecutionPage(this: Component<{}>) {
 					of repeating the initial query just to rediscover the same state.
 				</p>
 				<p>
+					A browser entry with no compiler-generated server operations, response patches, or client
+					islands may import <code>@exactjs/hydrate/root</code>. That static hydration-only facade
+					still adopts and owns the durable component tree while allowing bundlers to remove the
+					unused transport, patch, and island runtimes. Applications using any of those capabilities
+					must import the main hydration entry.
+				</p>
+				<p>
+					Its <code>hydrateAfterNavigation()</code> form schedules user-blocking activation after
+					<code>DOMContentLoaded</code>. A pointer, keyboard, input, change, or submit event arriving
+					first activates synchronously from capture, so deferring adoption does not create an inert
+					interaction window.
+				</p>
+				<p>
 					The compiler attaches a small execution subgraph to each generated component: indexed
 					value ports, setup and interaction transitions, placement, readiness, and concurrency.
 					Setup continuations wait until every constant, reactive input, or predecessor output is
@@ -195,6 +208,13 @@ export function ServerExecutionPage(this: Component<{}>) {
 					forms, events, and refs retain ordinary host semantics. Conditional intrinsic regions keep
 					their enclosing SVG or MathML namespace across SSR, hydration, and later client mounts;
 					structural and otherwise unproven regions retain a lazy region-local fallback.
+				</p>
+				<p>
+					When marked SSR is required, hydration addresses the same planned intrinsic nodes and
+					scalar slots by their compiler identities. It retains the server DOM and marker protocol
+					without constructing an equivalent generic cell tree, while one root-level snapshot protects
+					focus and form state during activation. Completed nested components also publish cached target
+					and host candidates so parent root discovery does not repeat their traversal.
 				</p>
 				<p>
 					Independent local, context-free component siblings may settle concurrently during

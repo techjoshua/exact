@@ -30,6 +30,23 @@ Generated application entries pass their bundle-local enhancement catalog throug
 `HydrateOptions.enhancementCatalog`. Hydration adopts compatible authored DOM first, then activates
 those ordinary enhancement components against the adopted targets.
 
+Applications with ordinary browser-owned service calls and no compiler-generated server
+operations, response patches, or client islands can select the hydration-only entry:
+
+```ts
+import { hydrate } from '@exactjs/hydrate/root';
+
+const root = hydrate(app, document.getElementById('app')!);
+```
+
+`hydrateAfterNavigation()` schedules that activation as user-blocking work after
+`DOMContentLoaded`. If a pointer, keyboard, input, change, or submit interaction reaches the root
+first, a capture listener activates synchronously before normal target and bubble handling.
+
+Because that static entry does not expose the optional capabilities, bundlers can remove their
+implementations completely. Use the main entry whenever the compiled application contains server
+operations, patch refreshes, or islands.
+
 Use `ExactClient.applyPatches()` only for framework integrations that deliberately apply validated
 patches within that client's root. Direct transport invocation and unscoped patch application are
 package-private implementation details.

@@ -50,7 +50,8 @@ export function adoptStaticMountedInner(
 	nodes: readonly Node[],
 	cursor: number,
 	parentInstance: ComponentInstance<any>,
-	parentScope: EffectScope
+	parentScope: EffectScope,
+	rangeEnd = nodes.length
 ): { mounted: Mounted; next: number } | undefined {
 	vnode = normalizeAdoptionVNode(root, vnode);
 	const scope = createEffectScope(parentScope);
@@ -68,10 +69,12 @@ export function adoptStaticMountedInner(
 				const adopted = adoptStaticChildrenRange(
 					root,
 					rendered,
-					nodes.slice(cursor),
+					nodes,
 					instance,
 					scope,
-					false
+					false,
+					cursor,
+					rangeEnd
 				);
 				if (!adopted || !adopted.mounts.length) {
 					unmountMounted(mounted);
@@ -99,13 +102,13 @@ export function adoptStaticMountedInner(
 				mounted.children = adopted.mounts;
 				refreshComponentRoot(instance);
 				instance.markMounted();
-				return { mounted, next: cursor + adopted.next };
+				return { mounted, next: adopted.next };
 			} catch (error) {
 				unmountMounted(mounted);
 				throw error;
 			}
 		}
-		const boundary = componentMarkerBoundary(nodes, cursor, vnode.type);
+		const boundary = componentMarkerBoundary(nodes, cursor, vnode.type, rangeEnd);
 		if (!boundary) return stopFailedAdoption(scope);
 		const { start, endIndex } = boundary;
 		if (!boundary.matches) {
@@ -132,9 +135,11 @@ export function adoptStaticMountedInner(
 			const children = adoptStaticChildren(
 				root,
 				rendered,
-				nodes.slice(cursor + 1, endIndex),
+				nodes,
 				instance,
-				scope
+				scope,
+				cursor + 1,
+				endIndex
 			);
 			if (!children) {
 				unmountMounted(mounted);
@@ -154,7 +159,7 @@ export function adoptStaticMountedInner(
 		const start = nodes[cursor];
 		if (!(start instanceof Comment) || !start.data.startsWith(`exact:${kind}:`))
 			return stopFailedAdoption(scope);
-		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data, rangeEnd);
 		if (endIndex < 0) return stopFailedAdoption(scope);
 		const end = nodes[endIndex] as Comment;
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
@@ -166,9 +171,11 @@ export function adoptStaticMountedInner(
 		const children = adoptStaticChildren(
 			root,
 			initial,
-			nodes.slice(cursor + 1, endIndex),
+			nodes,
 			parentInstance,
-			scope
+			scope,
+			cursor + 1,
+			endIndex
 		);
 		if (!children) {
 			scope.stop();
@@ -213,6 +220,7 @@ export function adoptStaticMountedInner(
 			parentInstance,
 			parentScope,
 			scope,
+			rangeEnd,
 			adoptStaticMountedInner
 		);
 	}
@@ -221,7 +229,7 @@ export function adoptStaticMountedInner(
 		const start = nodes[cursor];
 		if (!(start instanceof Comment) || !start.data.startsWith('exact:unsafe-html:'))
 			return stopFailedAdoption(scope);
-		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data, rangeEnd);
 		if (endIndex < 0) return stopFailedAdoption(scope);
 		const mounted: Mounted = {
 			vnode,
@@ -243,6 +251,7 @@ export function adoptStaticMountedInner(
 			cursor,
 			parentInstance,
 			parentScope,
+			rangeEnd,
 			adoptStaticChildren
 		);
 	}
@@ -255,6 +264,7 @@ export function adoptStaticMountedInner(
 			cursor,
 			parentInstance,
 			parentScope,
+			rangeEnd,
 			adoptStaticChildren
 		);
 	}
@@ -270,10 +280,12 @@ export function adoptStaticMountedInner(
 			const adopted = adoptStaticChildrenRange(
 				root,
 				vnode.children,
-				nodes.slice(cursor),
+				nodes,
 				parentInstance,
 				scope,
-				false
+				false,
+				cursor,
+				rangeEnd
 			);
 			if (!adopted) {
 				scope.stop();
@@ -295,9 +307,9 @@ export function adoptStaticMountedInner(
 				...(vnode.type === Target ? { targetBoundary: {} } : {})
 			};
 			if (vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
-			return { mounted, next: cursor + adopted.next };
+			return { mounted, next: adopted.next };
 		}
-		const endIndex = closingMarkerIndex(nodes, cursor, start.data);
+		const endIndex = closingMarkerIndex(nodes, cursor, start.data, rangeEnd);
 		if (endIndex < 0) {
 			scope.stop();
 			return undefined;
@@ -306,16 +318,20 @@ export function adoptStaticMountedInner(
 			? adoptKeyedListChildren(
 					root,
 					materializeList(list),
-					nodes.slice(cursor + 1, endIndex),
+					nodes,
 					parentInstance,
-					scope
+					scope,
+					cursor + 1,
+					endIndex
 				)
 			: adoptStaticChildren(
 					root,
 					vnode.children,
-					nodes.slice(cursor + 1, endIndex),
+					nodes,
 					parentInstance,
-					scope
+					scope,
+					cursor + 1,
+					endIndex
 				);
 		if (!children) {
 			scope.stop();

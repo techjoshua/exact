@@ -26,6 +26,15 @@ function rejectUnusedReactCompatibility(): Plugin {
 			);
 			if (retained)
 				throw new Error(`Native eXact bundle retained unused React compatibility: ${retained}`);
+			const unusedHydrationCapability = modules.find((id) =>
+				/[\\/]packages[\\/]hydrate[\\/]src[\\/](?:islands(?:[\\/]|\.ts)|patch(?:es|ing)(?:[\\/]|\.ts)|response[\\/]|runtime[\\/](?:client|operations)\.ts)/.test(
+					id
+				)
+			);
+			if (unusedHydrationCapability)
+				throw new Error(
+					`Hydration-only eXact bundle retained an unused optional capability: ${unusedHydrationCapability}`
+				);
 		}
 	};
 }

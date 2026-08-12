@@ -30,9 +30,8 @@ export function IncidentApp(
 	this.state.connection = 'Connecting';
 
 	const replaceIncident = (incident: Incident) => {
-		this.state.incidents = this.state.incidents.map((current) =>
-			current.id === incident.id ? incident : current
-		);
+		const current = this.state.incidents.find((candidate) => candidate.id === incident.id);
+		if (current) Object.assign(current, incident);
 	};
 
 	async function loadQueue(task: TaskContext = TaskContext.client().latest()) {

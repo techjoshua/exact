@@ -236,9 +236,9 @@ export async function renderVNodeAsyncInner(
 		let content: string;
 		if (raw !== undefined) content = raw;
 		else {
-			const previousSelect = context.reactSelectValue;
-			if (context.reactMarkup && tag === 'select')
-				context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
+			const previousSelect = context.selectValue;
+			if (tag === 'select')
+				context.selectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
 				content =
 					hasIndependentAsyncSiblings(hostVNode) && canRenderIndependentChildren(context, options)
@@ -251,7 +251,7 @@ export async function renderVNodeAsyncInner(
 							)
 						: await renderChildrenAsync(context, hostVNode.children, parent, options);
 			} finally {
-				context.reactSelectValue = previousSelect;
+				context.selectValue = previousSelect;
 			}
 		}
 		return `${host.prefix}<${tag}${attrs}>${content}</${tag}>`;

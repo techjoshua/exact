@@ -50,6 +50,8 @@ export function readExactHydrationConfig(
 	limits: ExactHydrationConfigLimits = {},
 	work: DomWorkBudget = createDomWorkBudget(limits.maxNodes)
 ): ExactHydrationConfig {
+	const indexed = indexedHydrationScript(root, scriptId);
+	if (indexed) return parseHydrationConfig(indexed, limits);
 	let script: HTMLScriptElement | undefined;
 	walkDomSubtree(
 		root as Node,
@@ -383,8 +385,10 @@ function readNearestHydrationConfig(
 	limits: ExactHydrationConfigLimits = {},
 	maxDomNodes?: number
 ): ExactHydrationConfig {
-	const work = createDomWorkBudget(maxDomNodes);
 	const root = container.getRootNode() as Node;
+	const indexed = indexedHydrationScript(root as ParentNode, '__exact_hydration');
+	if (indexed) return parseHydrationConfig(indexed, limits);
+	const work = createDomWorkBudget(maxDomNodes);
 	const scripts: HTMLScriptElement[] = [];
 	walkDomSubtree(
 		root,
@@ -398,4 +402,15 @@ function readNearestHydrationConfig(
 		if (script) return parseHydrationConfig(script, limits);
 	}
 	return scripts[0] ? parseHydrationConfig(scripts[0], limits) : {};
+}
+
+/** Uses the document's id index when the requested root owns the indexed hydration script. */
+function indexedHydrationScript(
+	root: ParentNode,
+	scriptId: string
+): HTMLScriptElement | undefined {
+	const documentRoot = root.nodeType === 9 ? (root as Document) : (root as Node).ownerDocument;
+	const candidate = documentRoot?.getElementById(scriptId);
+	if (!(candidate instanceof HTMLScriptElement)) return undefined;
+	return root === documentRoot || root.contains(candidate) ? candidate : undefined;
 }

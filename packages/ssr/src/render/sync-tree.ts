@@ -270,14 +270,14 @@ export function* renderVNodeChunks(
 		const raw = reactHostContent(context, hostVNode);
 		if (raw !== undefined) yield raw;
 		else {
-			const previousSelect = context.reactSelectValue;
-			if (context.reactMarkup && tag === 'select')
-				context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
+			const previousSelect = context.selectValue;
+			if (tag === 'select')
+				context.selectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
 				for (const child of hostVNode.children)
 					yield* renderChildChunks(context, child, parent, depth + 1);
 			} finally {
-				context.reactSelectValue = previousSelect;
+				context.selectValue = previousSelect;
 			}
 		}
 		yield `</${tag}>`;

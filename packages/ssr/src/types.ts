@@ -313,7 +313,7 @@ export type SsrContext = {
 	dynamicComponentPreloads: number;
 	resourceLinkHeaders: string[];
 	onEarlyHints?: RenderToStringOptions['onEarlyHints'];
-	reactSelectValue?: unknown;
+	selectValue?: unknown;
 	allowUnsafeHtml: boolean;
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	/** True until the first root host/text output determines document mode. */

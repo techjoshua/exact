@@ -6,6 +6,21 @@ import { createExactClient, hydrate, readExactHydrationConfig } from './index.js
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('bounded hydration bootstrap and adoption', () => {
+	it('uses the document id index before falling back to bounded traversal', () => {
+		const script = document.createElement('script');
+		script.id = '__exact_hydration';
+		script.type = 'application/json';
+		script.textContent = '{"state":{"ready":true}}';
+		document.body.appendChild(script);
+		try {
+			expect(readExactHydrationConfig(document, '__exact_hydration', {}, { limit: 1, used: 0 })).toEqual(
+				{ state: { ready: true } }
+			);
+		} finally {
+			script.remove();
+		}
+	});
+
 	it('merges serialized server continuations with client component continuations', () => {
 		const container = document.createElement('main');
 		const continuation = (id: string) => ({

@@ -217,7 +217,9 @@ export function FormsPage(this: Component<{}>) {
 					compare their declared
 					<code>value</code>, and grouped checkboxes add or remove that value from the array.
 					Controlled selects apply their value after option values are mounted, including inside
-					compiler-planned static regions, so their initial selection is never lost.
+					compiler-planned static regions, so their initial selection is never lost. Server output
+					marks the matching options too, allowing hydration to preserve a selection only when the
+					user changed it before activation.
 				</p>
 			</section>
 			<section>

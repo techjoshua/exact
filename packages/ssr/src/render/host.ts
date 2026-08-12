@@ -26,13 +26,13 @@ export function renderElement(
 		let content: string;
 		if (raw !== undefined) content = raw;
 		else {
-			const previousSelect = context.reactSelectValue;
-			if (context.reactMarkup && tag === 'select')
-				context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
+			const previousSelect = context.selectValue;
+			if (tag === 'select')
+				context.selectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
 				content = renderChildren(context, hostVNode.children, parent);
 			} finally {
-				context.reactSelectValue = previousSelect;
+				context.selectValue = previousSelect;
 			}
 		}
 		return `${host.prefix}<${tag}${attrs}>${content}</${tag}>`;
@@ -159,12 +159,12 @@ export function primitiveText(children: readonly Child[]): string {
 
 /** Performs the react host props domain operation. */
 export function reactHostProps(context: SsrContext, vnode: VNode): Record<string, unknown> {
-	if (!context.reactMarkup || vnode.type !== 'option' || context.reactSelectValue === undefined)
+	if (vnode.type !== 'option' || context.selectValue === undefined)
 		return vnode.props;
 	const value = String(unwrap(vnode.props.value) ?? primitiveText(vnode.children));
-	const selected = Array.isArray(context.reactSelectValue)
-		? context.reactSelectValue.some((item) => String(unwrap(item)) === value)
-		: String(unwrap(context.reactSelectValue)) === value;
+	const selected = Array.isArray(context.selectValue)
+		? context.selectValue.some((item) => String(unwrap(item)) === value)
+		: String(unwrap(context.selectValue)) === value;
 	return { ...vnode.props, selected };
 }
 

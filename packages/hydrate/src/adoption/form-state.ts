@@ -93,17 +93,20 @@ export function restoreFormState(
 ): Element[] {
 	if (!states.length) return [];
 	const restored: Element[] = [];
-	const identities = indexFormControlIdentities(container, work);
+	let identities: Map<string, Element | undefined> | undefined;
 	for (const state of states) {
-		const identityMatch = state.identity
-			? identities.get(`${state.identity.attribute}\0${state.identity.value}`)
-			: undefined;
-		const pathMatch = nodeAtPath(container, state.path, work);
 		const retainedIdentity =
 			container.contains(state.node) &&
 			(!state.identity ||
 				state.node.getAttribute(state.identity.attribute) === state.identity.value);
-		const candidate = retainedIdentity ? state.node : (identityMatch ?? pathMatch);
+		let candidate: Element | Node | undefined = retainedIdentity ? state.node : undefined;
+		if (!candidate) {
+			identities ??= indexFormControlIdentities(container, work);
+			candidate =
+				(state.identity
+					? identities.get(`${state.identity.attribute}\0${state.identity.value}`)
+					: undefined) ?? nodeAtPath(container, state.path, work);
+		}
 		const control =
 			candidate instanceof Element && formControlSignature(candidate) === state.signature
 				? candidate

@@ -8,6 +8,12 @@ Status: implemented foundation with the explicit limits listed below.
   hydratable output, and adapter-neutral response objects.
 - `@exactjs/hydrate` adopts server DOM, activates client islands, invokes the
   server endpoint, validates results, and applies patches.
+- `@exactjs/hydrate/root` is the statically selectable hydration-only facade for applications
+  without compiler-generated server operations, response patches, or client islands. Its root
+  owns adoption and disposal but does not retain those optional modules in the browser graph.
+  Its `hydrateAfterNavigation()` entry schedules user-blocking adoption outside the
+  DOMContentLoaded critical path and uses an interaction-capture fallback so an earlier user action
+  activates the root first.
 - `@exactjs/server` owns allowlisted invocation/refresh dispatch, request
   validation, authorization hooks, limits, and runtime-neutral adapters.
 - `@exactjs/compiler` owns placement, artifact generation, operation
@@ -71,6 +77,12 @@ Compiler-cell roots adopt their existing cell range directly; they do not pass t
 repair or clear the root container. Compiler-proven native component calls use the component's own
 identity marker without an additional cell marker pair. Intrinsic cells and structural expression
 ranges retain their markers because those ranges still own independent reactive updates.
+Compiler render programs adopt their marked intrinsic nodes and scalar slots through the program's
+stable element and slot identities. They retain the SSR DOM and marker protocol without rebuilding
+an equivalent generic Cell/Dynamic mount graph. Initial adopted prop binding is covered by the
+root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
+Completed component mounts cache their first target and host candidates; parent publication reuses
+those structural results instead of recursively rediscovering roots through nested components.
 
 Schema-defined empty hydration metadata is omitted from compiler registrations and document
 payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with

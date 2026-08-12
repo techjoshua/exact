@@ -19,6 +19,10 @@
 		"./enhanced": {
 			"types": "./dist/enhanced.d.ts",
 			"default": "./dist/enhanced.js"
+		},
+		"./root": {
+			"types": "./dist/root.d.ts",
+			"default": "./dist/root.js"
 		}
 	},
 	"main": "./dist/index.js",

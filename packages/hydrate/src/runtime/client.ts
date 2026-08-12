@@ -15,7 +15,7 @@ import {
 import { hydrateClientIslands } from '../islands.js';
 import { disposeInteractionHydration } from '../islands/interaction.js';
 import { applyPatches } from '../patches.js';
-import type { ExactClient, HydrateOptions, HydrationRoot } from '../types.js';
+import type { CoreHydrationRoot, ExactClient, HydrateOptions } from '../types.js';
 import { createComponentResumptionResolver } from './resumption.js';
 import { invokeAndApply } from './operations.js';
 import { requestVersions, roots } from './state.js';
@@ -215,6 +215,6 @@ export function remainingDomWork(work: DomWorkBudget): number {
 }
 
 /** Resolves a hydration root. */
-export function getHydrationRoot(container: Element): HydrationRoot | undefined {
+export function getHydrationRoot(container: Element): CoreHydrationRoot | undefined {
 	return roots.get(container);
 }

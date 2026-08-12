@@ -34,9 +34,10 @@ export function updateProps(
 	element: Element,
 	previous: Record<string, unknown>,
 	next: Record<string, unknown>,
-	scope: EffectScope
+	scope: EffectScope,
+	preserveUserFocus = true
 ): void {
-	preserveFocus(root, () => {
+	const apply = () => {
 		for (const key of Object.keys(previous)) {
 			if (!(key in next)) setProp(root, element, key, undefined, previous[key], scope);
 		}
@@ -45,7 +46,9 @@ export function updateProps(
 			if (!Object.is(previous[key], value))
 				setProp(root, element, key, value, previous[key], scope);
 		}
-	});
+	};
+	if (preserveUserFocus) preserveFocus(root, apply);
+	else apply();
 }
 
 /** Stops reactive prop bindings and removes delegated event handlers for an element. */

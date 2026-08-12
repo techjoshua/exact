@@ -52,7 +52,9 @@ export function adoptStaticLeaf(
 		return undefined;
 	}
 	setElementOwner(node, parentInstance);
-	updateProps(root, node, {}, vnode.props, scope);
+	// Hydration already snapshots browser-owned focus and form state around the complete adoption.
+	// Avoid repeating document focus inspection for every retained intrinsic.
+	updateProps(root, node, {}, vnode.props, scope, false);
 	return {
 		mounted: {
 			vnode,

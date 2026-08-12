@@ -905,7 +905,10 @@ Select controls always commit on `change`. Boolean state requires
 `type="checkbox"`. A `Date` requires `type="date"`. An array-bound checkbox
 requires an explicit `value`, and an array is otherwise valid only for
 `<select multiple>`. Controlled select values are applied after their option values, including in
-compiler-planned static regions, so the declared value is selected on the initial mount.
+compiler-planned static regions, so the declared value is selected on the initial mount. Native
+SSR also serializes that selection onto the matching options. Hydration can therefore distinguish
+a pristine server-rendered select from a selection the user changed before activation and preserves
+only the latter as browser-owned state.
 
 The binding generates the corresponding `value`, `checked`, or `open` prop, so that prop
 cannot also be written explicitly. An authored handler for the same event is

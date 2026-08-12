@@ -1,10 +1,11 @@
-import { isCellVNode, type ComponentDomain, type VNode } from '@exactjs/core';
+import { RenderProgram, isCellVNode, type ComponentDomain, type VNode } from '@exactjs/core';
 import {
 	adoptComponentRoot,
 	adoptCellRoot,
 	adoptDocumentRoot,
 	adoptMarkerlessComponentRoot,
 	adoptStatic,
+	consumeDomWork,
 	createDomWorkBudget,
 	render,
 	synchronizeFormBinding,
@@ -14,21 +15,21 @@ import {
 import { captureHydrationDom, restoreFormState } from '../adoption/form-state.js';
 import { adoptStaticTree, createStaticAdoptionBudget } from '../adoption/static-tree.js';
 import { resolveHydrateOptions } from '../config.js';
-import { reportMismatch } from '../patches.js';
-import type { HydrateOptions, HydrateProfileEvent, HydrationRoot } from '../types.js';
-import { createExactClientFromResolvedOptions, remainingDomWork } from './client.js';
+import { reportMismatch } from '../mismatch.js';
+import type { CoreHydrationRoot, HydrateOptions, HydrateProfileEvent } from '../types.js';
 import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
 import { roots } from './state.js';
 
 /** Hydrates a server-rendered container and returns ownership of its client root. */
-export function hydrate(
+export function hydrateWithClient<T extends CoreHydrationRoot>(
 	vnode: VNode,
 	container: Element | Document,
-	options: HydrateOptions = {}
-): HydrationRoot {
+	options: HydrateOptions,
+	createClient: (container: Element, options: HydrateOptions) => T
+): T {
 	const started = options.onProfile ? performance.now() : undefined;
 	try {
-		return hydrateRoot(vnode, container, options);
+		return hydrateRootWithClient(vnode, container, options, createClient);
 	} finally {
 		if (started !== undefined) {
 			options.onProfile?.(
@@ -43,11 +44,12 @@ export function hydrate(
 }
 
 /** Adopts the root DOM range, reporting mismatches before applying client mutations. */
-export function hydrateRoot(
+export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 	vnode: VNode,
 	container: Element | Document,
-	options: HydrateOptions
-): HydrationRoot {
+	options: HydrateOptions,
+	createClient: (container: Element, options: HydrateOptions) => T
+): T {
 	// A DOM can be supplied by a window that is not installed on globalThis.
 	// nodeType avoids coupling hydration to that realm's Document constructor.
 	const documentNode = container.nodeType === 9 ? (container as Document) : undefined;
@@ -71,10 +73,10 @@ export function hydrateRoot(
 				markers: 'none'
 			})
 		);
-		return existing;
+		return existing as T;
 	}
 	const resolvedOptions = resolveHydrateOptions(rootContainer, options);
-	const root = createExactClientFromResolvedOptions(rootContainer, resolvedOptions);
+	const root = createClient(rootContainer, resolvedOptions);
 	vnode = ownedVNode(vnode, root.domain);
 	const work = createDomWorkBudget(resolvedOptions.maxTreeNodes);
 	const captured = captureHydrationDom(rootContainer, work);
@@ -111,6 +113,13 @@ export function hydrateRoot(
 		root.dispose();
 		throw error;
 	}
+}
+
+/** Returns the unconsumed portion of a shared hydration traversal budget. */
+function remainingDomWork(work: DomWorkBudget): number {
+	const remaining = work.limit - work.used;
+	if (remaining <= 0) consumeDomWork(work);
+	return remaining;
 }
 
 function releaseProgressiveHelper(root: Element): void {
@@ -174,7 +183,8 @@ function adoptOrMountRoot(
 			? adoptComponentRoot(vnode, container, rendererOptions(options, work))
 			: isCellVNode(vnode)
 				? adoptCellRoot(vnode, container, rendererOptions(options, work))
-				: adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work)) &&
+				: (vnode.type === RenderProgram ||
+						adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work))) &&
 					adoptStatic(vnode, container, rendererOptions(options, work));
 	if (adopted) {
 		return 'adopted';

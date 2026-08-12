@@ -34,6 +34,8 @@ export type Mounted = {
 	/** Invocation-local readers and resolved nodes for a compiler-owned render program. */
 	renderProgram?: {
 		invocation: ExactRenderProgramInvocation;
+		/** Intrinsic root used for compiler-path ownership when `dom` is an SSR range marker. */
+		readonly programRoot: Node;
 		readonly slotNodes: readonly (Node | undefined)[];
 		readonly root: Root;
 		/** Last effective planned props, grouped by their target element. */
@@ -46,6 +48,11 @@ export type Mounted = {
 	rendering?: boolean;
 	rerenderPending?: boolean;
 	instance?: ComponentInstance<any>;
+	/** Cached component-root candidates published after this component's structure is complete. */
+	componentRootCache?: {
+		target?: Element;
+		host?: Element;
+	};
 	delegatedEvents?: Map<string, EventListener>;
 	stop?: StopHandle;
 	/** Semantic target exported by an ordinary `_target` boundary and its route dependencies. */
