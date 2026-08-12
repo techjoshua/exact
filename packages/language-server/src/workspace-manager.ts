@@ -1,5 +1,7 @@
 import {
 	createExactLanguageService,
+	NativeCompilerLanguageClient,
+	resolveNativeCompilerExecutable,
 	type ExactLanguageService,
 	type ExactLanguageServiceOptions,
 	type ExactLanguageServiceUpdate,
@@ -80,7 +82,14 @@ export class ExactLanguageWorkspaceManager {
 			(left, right) => right.length - left.length
 		);
 		this.trusted = trusted;
-		this.createLanguageService = host.createLanguageService ?? createExactLanguageService;
+		this.createLanguageService =
+			host.createLanguageService ??
+			((options) =>
+				createExactLanguageService(options, {
+					nativeClient: new NativeCompilerLanguageClient({
+						executable: resolveNativeCompilerExecutable(options.root)
+					})
+				}));
 		this.createLanguageExtensionHost =
 			host.createLanguageExtensionHost ??
 			(async (root) => {

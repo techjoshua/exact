@@ -16,6 +16,8 @@ Compiler analysis starts only for trusted workspaces. Source and inspection data
 In a monorepo, each document uses its nearest `exact.config.*` without escaping the containing VS
 Code workspace folder. The status-bar tooltip shows the selected project root and every active
 language provider's health; provider startup failures use a warning status instead of disappearing.
+The universal VSIX uses the `@exactjs/compiler` installation owned by that project, including the
+native platform package npm selected for the current machine. It does not carry a second compiler.
 
 ## Run from this repository
 

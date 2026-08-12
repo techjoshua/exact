@@ -279,6 +279,11 @@ export function LanguageToolsPage(this: Component<{}>) {
 					<code>--dry-run</code> to inspect the launch plan. Trust the opened workspace and open a
 					TypeScript or TSX file to activate eXact Language Tools.
 				</p>
+				<p>
+					The universal VSIX resolves the native compiler from the owning project&apos;s
+					<code>node_modules</code>, using the platform package npm already selected for that
+					machine. It does not carry a separate compiler binary.
+				</p>
 			</section>
 			<Callout title="One compiler authority">
 				<p>

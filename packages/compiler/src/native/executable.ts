@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const require = createRequire(import.meta.url);
+const packageRequire = createRequire(import.meta.url);
 
 /** Returns the platform package expected to contain the native compiler host. */
 export function nativeCompilerPlatformPackage(
@@ -17,15 +17,26 @@ export function nativeCompilerPlatformPackage(
  * Resolves the native compiler shipped for the current platform.
  *
  * An explicit environment override supports development and hermetic build
- * systems. Published installations resolve their optional platform package;
- * repository checkouts additionally recognize the output of the native build
- * script.
+ * systems. Language tools may supply an owning project root so the editor uses
+ * that project's npm-selected platform package. Other published installations
+ * resolve their own optional platform package; repository checkouts additionally
+ * recognize the output of the native build script.
  */
-export function resolveNativeCompilerExecutable(): string {
+export function resolveNativeCompilerExecutable(from?: string): string {
 	const override = process.env.EXACT_NATIVE_COMPILER;
 	if (override) return requireExecutable(path.resolve(override), 'EXACT_NATIVE_COMPILER');
-
+	const packageName = nativeCompilerPlatformPackage();
 	const filename = process.platform === 'win32' ? 'exactc-native.exe' : 'exactc-native';
+
+	if (from) {
+		try {
+			const workspaceRequire = createRequire(path.join(path.resolve(from), 'package.json'));
+			return workspaceRequire.resolve(`${packageName}/${filename}`);
+		} catch {
+			// Continue to repository and package-local development fallbacks.
+		}
+	}
+
 	const repositoryCandidate = path.resolve(
 		path.dirname(fileURLToPath(import.meta.url)),
 		'../../../..',
@@ -35,9 +46,8 @@ export function resolveNativeCompilerExecutable(): string {
 	);
 	if (fs.existsSync(repositoryCandidate)) return repositoryCandidate;
 
-	const packageName = nativeCompilerPlatformPackage();
 	try {
-		return require.resolve(`${packageName}/${filename}`);
+		return packageRequire.resolve(`${packageName}/${filename}`);
 	} catch {
 		// The platform package is optional so package managers can select one executable.
 	}

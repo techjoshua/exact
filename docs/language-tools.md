@@ -120,6 +120,10 @@ server layouts without creating a package-local dependency link. Development
 prefers the freshly built sibling workspace package over any stale installed
 copy. Bundling keeps hoisted client dependencies under the extension's runtime
 identity, so their VS Code API imports are attributed to eXact Language Tools.
+The universal VSIX resolves the native compiler from the owning project root,
+using the same `@exactjs/compiler-native-*` package npm selected for that
+machine. The extension therefore does not ship a second set of platform
+binaries or drift from the compiler used by the repository build.
 The opened workspace must be trusted, and opening a TypeScript or TSX file
 triggers activation.
 
