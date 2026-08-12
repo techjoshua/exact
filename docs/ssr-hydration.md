@@ -159,6 +159,10 @@ Finite immutable object spreads are expanded in source overwrite order, leaving 
 client artifact and sending only fallback values through SSR. Independently planned server ranges
 remain inert inside a dormant client island and retain their own refresh generation.
 
+Passive hydration does not manufacture a focus transition when the document body owns focus. When
+an authored control already owns focus, DOM adoption and later reactive patches preserve that
+connected element and its input or editable selection if browser DOM work temporarily drops focus.
+
 When an interaction island loads, hydration prepares its immutable component execution slice from
 the compiled definition and caches it by component artifact. Adoption installs only the root's
 authorized setup-transition watchers; already-resumed continuations suppress their initial

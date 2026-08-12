@@ -132,6 +132,11 @@ export function AdvancedPage(this: Component<{}>) {
 					into a stale replacement. A dirty input keeps its live browser value during adoption and
 					flows through the same compiled binding used after hydration.
 				</p>
+				<p>
+					Passive hydration leaves document-body focus alone. If an authored control already owns
+					focus, adoption and later reactive patches preserve that connected control and its input or
+					editable selection when DOM work temporarily drops focus.
+				</p>
 				<Callout title="Framework-owned, not cooperative">
 					<p>
 						Components do not need hydration lifecycle hooks. The compiler, intrinsic binding, SSR

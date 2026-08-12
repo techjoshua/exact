@@ -1,9 +1,12 @@
 import { describeNode, domDebug } from './debug.js';
 import type { Root } from './types.js';
 
-/** Runs DOM work and restores focus if patching drops focus back to the document body. */
+/** Runs DOM work and restores a user-focused element if patching drops focus to the document body. */
 export function preserveFocus<T>(root: Root, work: () => T): T {
-	const active = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+	const active = document.activeElement;
+	// Body focus means that no authored control owns focus. Besides avoiding unnecessary browser
+	// focus work, this prevents passive hydration from manufacturing a focus transition.
+	if (!(active instanceof HTMLElement) || active === document.body) return work();
 	const inputSelection =
 		active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
 			? {
@@ -12,16 +15,16 @@ export function preserveFocus<T>(root: Root, work: () => T): T {
 					direction: active.selectionDirection
 				}
 			: undefined;
-	const documentSelection = active?.isContentEditable ? cloneSelection(active) : undefined;
+	const documentSelection = active.isContentEditable ? cloneSelection(active) : undefined;
 	const result = work();
-	if (active && active.isConnected && document.activeElement === document.body) {
+	if (active.isConnected && document.activeElement === document.body) {
 		domDebug(root, 'restore focus', {
 			active: describeNode(active),
 			bodyOwnsFocus: document.activeElement === document.body
 		});
 		active.focus({ preventScroll: true });
 	}
-	if (active?.isConnected && document.activeElement === active) {
+	if (active.isConnected && document.activeElement === active) {
 		if (
 			inputSelection &&
 			(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) &&
