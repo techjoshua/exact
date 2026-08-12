@@ -1,11 +1,13 @@
 import {
 	createComponentInstance,
 	createVNode,
+	isCellVNode,
 	renderInstance,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
-import { createEffectScope, withEffectScope } from '@exactjs/reactive';
+import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
+import { getOwnedCellVNode } from '../../cells.js';
 import { clearDelegated } from '../../events.js';
 import { roots } from '../../state.js';
 import type { Mounted, RenderOptions, Root } from '../../types.js';
@@ -41,6 +43,55 @@ export function adoptStatic(
 	};
 	return completeRootAdoption(root, mounted, contentNodesBetween(markers.start, markers.end), () =>
 		createComponentInstance(root.boundary, { version: root.version })
+	);
+}
+
+/** Adopts a compiler-owned cell whose SSR marker range is also the renderer root range. */
+export function adoptCellRoot(
+	vnode: VNode,
+	container: Element,
+	options: RenderOptions = {}
+): boolean {
+	if (!isCellVNode(vnode) || roots.has(container)) return false;
+	const markers = boundaryMarkers(container);
+	if (!markers?.start.data.startsWith('exact:cell:')) return false;
+	const root = createRendererRoot(container, vnode, options, { version: 1 });
+	const scope = createEffectScope();
+	const mounted: Mounted = {
+		vnode: createVNode(root.boundary, { version: root.version }),
+		dom: markers.start,
+		end: markers.end,
+		scope,
+		children: []
+	};
+	return completeRootAdoption(
+		root,
+		mounted,
+		contentNodesBetween(markers.start, markers.end),
+		() => createComponentInstance(root.boundary, { version: root.version }),
+		(instance, rootScope, nodes) => {
+			const cellScope = createEffectScope(rootScope);
+			const cell: Mounted = {
+				vnode,
+				dom: markers.start,
+				end: markers.end,
+				scope: cellScope,
+				children: []
+			};
+			const children = adoptStaticChildren(
+				root,
+				[getOwnedCellVNode(vnode)],
+				nodes,
+				instance,
+				cellScope
+			);
+			if (!children) {
+				cellScope.stop();
+				return undefined;
+			}
+			cell.children = children;
+			return [cell];
+		}
 	);
 }
 
@@ -137,7 +188,12 @@ function completeRootAdoption(
 	root: Root,
 	mounted: Mounted,
 	nodes: readonly Node[],
-	construct: () => ComponentInstance<any>
+	construct: () => ComponentInstance<any>,
+	adoptSpecializedChildren?: (
+		instance: ComponentInstance<any>,
+		scope: EffectScope,
+		nodes: readonly Node[]
+	) => Mounted[] | undefined
 ): boolean {
 	let current = mounted;
 	try {
@@ -148,7 +204,9 @@ function completeRootAdoption(
 			const rendered = withEffectScope(current.scope, () =>
 				renderInstance(instance, () => rerenderComponent(root, current))
 			);
-			const children = adoptStaticChildren(root, rendered, nodes, instance, current.scope);
+			const children = adoptSpecializedChildren
+				? adoptSpecializedChildren(instance, current.scope, nodes)
+				: adoptStaticChildren(root, rendered, nodes, instance, current.scope);
 			if (!children) return false;
 			current.children = children;
 			current = activateAdoptedEnhancements(root, current);

@@ -67,6 +67,11 @@ Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
 
+Compiler-cell roots adopt their existing cell range directly; they do not pass through static-tree
+repair or clear the root container. Compiler-proven native component calls use the component's own
+identity marker without an additional cell marker pair. Intrinsic cells and structural expression
+ranges retain their markers because those ranges still own independent reactive updates.
+
 Schema-defined empty hydration metadata is omitted from compiler registrations and document
 payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with
 shared immutable empty values. This compaction never applies recursively to authored state, props,
@@ -96,6 +101,15 @@ renderer has matched an SSR component marker and is constructing that exact
 component for adoption. Compiled markers use the same contract identity as
 resumption records. Mismatched route or conditional ranges mount as fresh client
 instances, even while compatible ancestors continue adopting.
+Records are consumed in their per-component construction order rather than one global cross-type
+order. SSR preparation may construct different component types ahead of their final DOM order;
+that preparation detail cannot invalidate otherwise matching client adoption. Adoption checkpoints
+still return any consumed records when a candidate range fails.
+
+Root hydration parses and validates its embedded bootstrap configuration once, then passes the
+resolved immutable inputs into client construction. Static scalar DOM props bypass reactive watcher
+construction; compiler expressions and supported composite class or `srcdoc` values retain observed
+bindings.
 
 Finite component-registry selections retain the registry binding, selected
 key, and opaque compiled entry identity in their component marker. A matching

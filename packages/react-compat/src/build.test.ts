@@ -184,4 +184,27 @@ describe('React compatibility build engine', () => {
 		).toBe('unknown');
 		expect(engine.watchFiles).toContain(barrel);
 	});
+
+	it('classifies TypeScript components imported through emitted JavaScript specifiers', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-react-emitted-specifier-'));
+		const component = path.join(root, 'NativePanel.tsx');
+		await writeFile(
+			component,
+			`import type { Component } from '@exactjs/core';\nexport function NativePanel(this: Component<{}>) { return () => <p>ready</p>; }`,
+			'utf8'
+		);
+		const engine = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target: 19 });
+
+		expect(
+			engine.jsxInterop.classify({
+				importer: path.join(root, 'App.tsx'),
+				sourceModule: './NativePanel.jsx',
+				localName: 'NativePanel',
+				tagName: 'NativePanel',
+				declarationSources: [],
+				declarationSignatures: []
+			})
+		).toBe('exact');
+		expect(engine.watchFiles).toContain(component);
+	});
 });

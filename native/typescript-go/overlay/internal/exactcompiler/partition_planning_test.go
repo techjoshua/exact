@@ -536,7 +536,7 @@ func TestPartitionPlanLowersKeyedServerItemsIntoRuntimeRanges(t *testing.T) {
 	for _, expected := range []string{
 		`createKeyedServerSlot as __exactKeyedServerSlot`,
 		`__exactKeyedServerSlot("` + items[0].ID + `", "` + keyed.ID + `", item.id`,
-		`__exactVNode(ServerRow`,
+		`__exactComponentVNode(ServerRow`,
 		`discriminator: { kind: "single" }`,
 	} {
 		if !strings.Contains(server.Code, expected) {

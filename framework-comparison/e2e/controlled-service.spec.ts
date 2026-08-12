@@ -30,7 +30,29 @@ for (const participant of participants) {
 
 			const hydratedContext = await browser.newContext();
 			const hydrated = await hydratedContext.newPage();
+			if (participant.id === 'exact') {
+				await hydrated.addInitScript(() => {
+					const replaceChildren = Element.prototype.replaceChildren;
+					(
+						globalThis as typeof globalThis & { __exactRootReplacements: number }
+					).__exactRootReplacements = 0;
+					Element.prototype.replaceChildren = function (...nodes) {
+						if (this.id === 'app')
+							(globalThis as typeof globalThis & { __exactRootReplacements: number })
+								.__exactRootReplacements++;
+						return replaceChildren.apply(this, nodes);
+					};
+				});
+			}
 			await hydrated.goto(`${participant.url}/incidents/inc-101`);
+			if (participant.id === 'exact')
+				expect(
+					await hydrated.evaluate(
+						() =>
+							(globalThis as typeof globalThis & { __exactRootReplacements: number })
+								.__exactRootReplacements
+					)
+				).toBe(0);
 			await hydrated.getByLabel('Severity').selectOption('critical');
 			await expect(hydrated.getByTestId('incident-row')).toHaveCount(1);
 			await hydratedContext.close();

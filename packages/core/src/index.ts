@@ -333,6 +333,7 @@ export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './
 export {
 	createCellVNode,
 	createCompiledFragment,
+	createCompiledComponentVNode,
 	createCompiledTarget,
 	createCompiledVNode,
 	createDynamicChild,

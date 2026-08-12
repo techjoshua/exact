@@ -12,7 +12,7 @@ import {
 	type StopHandle,
 	unwrap
 } from '@exactjs/core';
-import type { EffectScope } from '@exactjs/reactive';
+import { isReactiveValue, type EffectScope } from '@exactjs/reactive';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {
@@ -172,28 +172,44 @@ function setProp(
 	}
 
 	clearPropBinding(element, key);
+	if (!propMayObserveReactiveValue(key, value)) {
+		applyPropValue(root, element, key, value);
+		return;
+	}
 	const stop = watchRetained(
-		() =>
-			preserveFocus(root, () => {
-				const actual = unwrap(value);
-
-				if (actual === false || actual === null || actual === undefined) {
-					clearDomProp(element, key);
-					return;
-				}
-
-				const normalized =
-					key === 'srcdoc' || key === 'srcDoc'
-						? unsafeHtmlAttribute(root, actual)
-						: key === 'class' || key === 'className'
-							? normalizeClassValue(actual)
-							: actual;
-				setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
-			}),
+		() => preserveFocus(root, () => applyPropValue(root, element, key, value)),
 		undefined,
 		{ scope, onRelease: () => releasePropBinding(element, key) }
 	);
 	if (stop) setPropBinding(element, key, stop);
+}
+
+/** Applies one ordinary prop after the caller has selected static or observed execution. */
+function applyPropValue(root: Root, element: Element, key: string, value: unknown): void {
+	const actual = unwrap(value);
+	if (actual === false || actual === null || actual === undefined) {
+		clearDomProp(element, key);
+		return;
+	}
+	const normalized =
+		key === 'srcdoc' || key === 'srcDoc'
+			? unsafeHtmlAttribute(root, actual)
+			: key === 'class' || key === 'className'
+				? normalizeClassValue(actual)
+				: actual;
+	setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
+}
+
+/** Reports props whose supported value shape can contain compiler reactive expressions. */
+function propMayObserveReactiveValue(key: string, value: unknown): boolean {
+	if (isReactiveValue(value)) return true;
+	if (key === 'class' || key === 'className') return typeof value === 'object' && value !== null;
+	return (
+		(key === 'srcdoc' || key === 'srcDoc') &&
+		isVNode(value) &&
+		value.type === UnsafeHtml &&
+		isReactiveValue(value.props.value)
+	);
 }
 
 function setDirectEventHandler(

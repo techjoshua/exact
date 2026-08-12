@@ -52,6 +52,26 @@ describe('bounded hydration bootstrap and adoption', () => {
 		expect(readExactHydrationConfig(deep, '__exact_hydration', { maxDepth: 2 })).toEqual({});
 	});
 
+	it('reads hydration bootstrap data once while constructing a hydrated client', () => {
+		const container = document.createElement('main');
+		const script = document.createElement('script');
+		script.id = '__exact_hydration';
+		let reads = 0;
+		Object.defineProperty(script, 'textContent', {
+			configurable: true,
+			get() {
+				reads++;
+				return '{"state":{"ready":true}}';
+			}
+		});
+		container.appendChild(script);
+
+		const client = hydrate(createVNode('p', null, 'ready'), container);
+
+		expect(reads).toBe(1);
+		client.dispose();
+	});
+
 	it('passes the DOM work budget through hydration fallback rendering', () => {
 		const container = document.createElement('div');
 		const vnode = createVNode(

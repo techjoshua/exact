@@ -21,6 +21,7 @@ import (
 
 type jsxRuntimeNames struct {
 	element                string
+	componentElement       string
 	renderProgram          string
 	fragment               string
 	target                 string
@@ -1076,7 +1077,11 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		props,
 	}
 	arguments = append(arguments, lowering.children(children)...)
-	element := lowering.call(lowering.names.element, arguments)
+	elementHelper := lowering.names.element
+	if !intrinsic && lowering.localExactComponentTag(tag) {
+		elementHelper = lowering.names.componentElement
+	}
+	element := lowering.call(elementHelper, arguments)
 	if intrinsic && lowering.independentAsyncSiblings(children) {
 		element = lowering.call(lowering.names.asyncSiblings, []*ast.Node{element})
 	}
@@ -1660,7 +1665,20 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 			return false
 		}
 		visited[id] = struct{}{}
+		if candidate.Flags&ast.SymbolFlagsAlias != 0 {
+			target := lowering.checker.GetAliasedSymbol(candidate)
+			if target != nil && resolvesToComponent(target) {
+				return true
+			}
+		}
 		for _, declaration := range candidate.Declarations {
+			if sourceFile := ast.GetSourceFileOfNode(declaration); sourceFile != nil {
+				for _, component := range collectComponents(sourceFile) {
+					if component.Start >= declaration.Pos() && component.Start < declaration.End() {
+						return true
+					}
+				}
+			}
 			if !ast.IsVariableDeclaration(declaration) {
 				continue
 			}
@@ -6715,6 +6733,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		group    int
 	}{
 		{"createCompiledVNode", lowering.names.element, 0},
+		{"createCompiledComponentVNode", lowering.names.componentElement, 0},
 		{"createCompiledRenderProgram", lowering.names.renderProgram, 0},
 		{"createCompiledFragment", lowering.names.fragment, 0},
 		{"createCompiledTarget", lowering.names.target, 0},
@@ -6932,6 +6951,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	}
 	return jsxRuntimeNames{
 		element:                allocate("__exactVNode"),
+		componentElement:       allocate("__exactComponentVNode"),
 		renderProgram:          allocate("__exactRenderProgram"),
 		fragment:               allocate("__exactFragment"),
 		target:                 allocate("__exactTarget"),

@@ -738,12 +738,46 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`import { adaptComponent as __exactInteropComponent } from "@exactjs/react-compat"`,
-		`__exactVNode(Local,`,
+		`__exactComponentVNode(Local,`,
 		`__exactVNode(__exactInteropComponent(Foreign),`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native JSX interop output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+}
+
+func TestSessionRetainsImportedExactComponentsWithoutJSXInteropAdapter(t *testing.T) {
+	root := t.TempDir()
+	child := filepath.Join(root, "child.tsx")
+	if err := os.WriteFile(child, []byte(`
+		export function Child(this: Component<{}>) {
+			return () => <span>child</span>;
+		}
+	`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(root, "entry.tsx")
+	response := NewSession().Execute(Request{
+		ID: entry, Root: root, Kind: "compile", Source: `
+			import { Child } from "./child.jsx";
+			export function Parent(this: Component<{}>) {
+				return () => <main><Child /></main>;
+			}
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat",
+			AdapterExport: "adaptComponent",
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, `__exactInteropComponent(Child)`) {
+		t.Fatalf("imported eXact component was lowered through JSX interop:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `__exactComponentVNode(Child,`) {
+		t.Fatalf("imported eXact component was not retained as an eXact VNode type:\n%s", response.Code)
 	}
 }
 
@@ -1628,7 +1662,7 @@ __fixtureTask4();
 	for _, expected := range []string{
 		`__exactBoundary("` + island.ID + `", "Panel_ExactClient_1", {`,
 		`__exactVNode("div"`,
-		`__exactVNode(ServerSummary`,
+		`__exactComponentVNode(ServerSummary`,
 		"loadSummary",
 	} {
 		if !strings.Contains(server.Code, expected) {

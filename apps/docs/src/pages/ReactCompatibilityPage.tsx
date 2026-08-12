@@ -181,6 +181,12 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					React hydration contract. Browser-only React packages should remain inside an explicit
 					client placement.
 				</p>
+				<p>
+					Imported native components remain eXact-owned even when emitted JavaScript specifiers
+					point back to TypeScript source files. When no React-owned boundary is reachable, the
+					compiler emits no compatibility adapter import, so React compatibility and its dependency
+					graph are absent from the final client bundle.
+				</p>
 			</section>
 
 			<section>

@@ -1,6 +1,7 @@
-import type { ComponentDomain, VNode } from '@exactjs/core';
+import { isCellVNode, type ComponentDomain, type VNode } from '@exactjs/core';
 import {
 	adoptComponentRoot,
+	adoptCellRoot,
 	adoptDocumentRoot,
 	adoptMarkerlessComponentRoot,
 	adoptStatic,
@@ -15,7 +16,7 @@ import { adoptStaticTree, createStaticAdoptionBudget } from '../adoption/static-
 import { resolveHydrateOptions } from '../config.js';
 import { reportMismatch } from '../patches.js';
 import type { HydrateOptions, HydrateProfileEvent, HydrationRoot } from '../types.js';
-import { createExactClient, remainingDomWork } from './client.js';
+import { createExactClientFromResolvedOptions, remainingDomWork } from './client.js';
 import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
 import { roots } from './state.js';
 
@@ -73,7 +74,7 @@ export function hydrateRoot(
 		return existing;
 	}
 	const resolvedOptions = resolveHydrateOptions(rootContainer, options);
-	const root = createExactClient(rootContainer, resolvedOptions);
+	const root = createExactClientFromResolvedOptions(rootContainer, resolvedOptions);
 	vnode = ownedVNode(vnode, root.domain);
 	const work = createDomWorkBudget(resolvedOptions.maxTreeNodes);
 	const captured = captureHydrationDom(rootContainer, work);
@@ -171,8 +172,10 @@ function adoptOrMountRoot(
 	const adopted =
 		typeof vnode.type === 'function'
 			? adoptComponentRoot(vnode, container, rendererOptions(options, work))
-			: adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work)) &&
-				adoptStatic(vnode, container, rendererOptions(options, work));
+			: isCellVNode(vnode)
+				? adoptCellRoot(vnode, container, rendererOptions(options, work))
+				: adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work)) &&
+					adoptStatic(vnode, container, rendererOptions(options, work));
 	if (adopted) {
 		return 'adopted';
 	}

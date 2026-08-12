@@ -74,6 +74,15 @@ export function createCompiledVNode(
 	return createCellVNode(createVNode(type, props, ...children));
 }
 
+/** Creates a compiled native component vnode without a redundant cell marker boundary. */
+export function createCompiledComponentVNode(
+	type: VNodeType,
+	props: Record<string, unknown> | null,
+	...children: unknown[]
+): VNode {
+	return createVNode(type, props, ...children);
+}
+
 /** Creates a compiled fragment vnode cell from raw children. */
 export function createCompiledFragment(
 	props: Record<string, unknown> | null,

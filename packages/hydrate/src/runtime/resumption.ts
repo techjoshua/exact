@@ -20,19 +20,20 @@ export type ComponentResumptionResolver = ((
 export function createComponentResumptionResolver(
 	records: () => readonly ComponentResumptionActivation[] | undefined
 ): ComponentResumptionResolver {
-	let index = 0;
+	const consumed = new Set<number>();
+	const history: number[] = [];
 	const resolve = ((type: ComponentFunction<any, any>) => {
 		const contract = readExactComponentContract(type);
 		if (!contract?.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);
 		const available = records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
-		const record = available[index];
-		if (!record) throw new Error(`eXact SSR resumption is missing component ${componentId}`);
-		if (record.componentId !== componentId)
-			throw new Error(
-				`eXact SSR resumption expected component ${record.componentId}, received ${componentId}`
-			);
+		const recordIndex = available.findIndex(
+			(record, candidate) => !consumed.has(candidate) && record.componentId === componentId
+		);
+		if (recordIndex < 0)
+			throw new Error(`eXact SSR resumption is missing component ${componentId}`);
+		const record = available[recordIndex]!;
 		const allowedPaths = new Set(contract.resumption.statePaths);
 		for (const path of Object.keys(record.values)) {
 			if (!allowedPaths.has(path))
@@ -54,14 +55,15 @@ export function createComponentResumptionResolver(
 					`eXact SSR resumption contains undeclared continuation ${componentId}:${id}`
 				);
 		}
-		index++;
+		consumed.add(recordIndex);
+		history.push(recordIndex);
 		return record;
 	}) as ComponentResumptionResolver;
-	resolve.checkpoint = () => index;
+	resolve.checkpoint = () => history.length;
 	resolve.rollback = (checkpoint) => {
-		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > index)
+		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > history.length)
 			throw new Error('Malformed eXact component resumption checkpoint');
-		index = checkpoint;
+		while (history.length > checkpoint) consumed.delete(history.pop()!);
 	};
 	return resolve;
 }

@@ -3,6 +3,7 @@ export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from '../ss
 export { createCompiledRenderProgram } from '../render-program.js';
 export {
 	createCompiledFragment,
+	createCompiledComponentVNode,
 	createCompiledTarget,
 	createCompiledVNode,
 	createDynamicChild,

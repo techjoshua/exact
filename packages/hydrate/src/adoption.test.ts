@@ -309,6 +309,23 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelector('p')?.textContent).toBe('client');
 	});
 
+	it('adopts a compiler cell at the hydration root without replacing server DOM', () => {
+		const root = document.createElement('div');
+		function Label(this: Component<{}>, props: { label: string }) {
+			return () => createCompiledVNode('p', null, props.label);
+		}
+		const vnode = createCompiledVNode(Label, { label: 'server' });
+		root.innerHTML = renderToString(vnode).html;
+		const serverNode = root.querySelector('p')!;
+
+		hydrate(vnode, root, { logger: noopLogger });
+
+		expect(root.querySelector('p')).toBe(serverNode);
+		hydrate(createCompiledVNode(Label, { label: 'client' }), root, { logger: noopLogger });
+		expect(root.querySelector('p')).toBe(serverNode);
+		expect(serverNode.textContent).toBe('client');
+	});
+
 	it('adopts keyed SSR item ranges and reorders their existing DOM', () => {
 		const root = document.createElement('div');
 		let instance!: Component<{ items: { id: string; title: string }[] }>;

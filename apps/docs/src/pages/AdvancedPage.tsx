@@ -98,6 +98,13 @@ export function AdvancedPage(this: Component<{}>) {
 					instances.
 				</p>
 				<p>
+					Compiler-cell roots adopt their existing marker range without clearing the application
+					container. Native component calls reuse their component identity marker instead of adding
+					a redundant cell pair, while intrinsic and structural reactive ranges keep independent
+					ownership markers. Resumption records preserve order between repeated instances of one
+					component without depending on SSR preparation order between unrelated component types.
+				</p>
+				<p>
 					Compiler-owned hydration metadata omits schema-defined empty arrays and objects, then
 					restores shared immutable defaults in the browser. Authored empty state, props, and
 					context values remain application data. When a generated client registration owns
@@ -114,6 +121,11 @@ export function AdvancedPage(this: Component<{}>) {
 					bounded reactive-protocol decoder. Static repair also uses the DOM renderer&apos;s
 					intrinsic namespace, attribute, URL, class, and unsafe-HTML contract, so eager and
 					deferred adoption do not maintain competing interpretations of server HTML.
+				</p>
+				<p>
+					The root bootstrap is parsed once before client ownership is created. Static scalar DOM
+					properties apply directly; only compiler expressions and supported composite reactive
+					values allocate retained property observers.
 				</p>
 				<p>
 					The compiler recognizes client islands whose initial browser responsibility is limited to
@@ -134,8 +146,8 @@ export function AdvancedPage(this: Component<{}>) {
 				</p>
 				<p>
 					Passive hydration leaves document-body focus alone. If an authored control already owns
-					focus, adoption and later reactive patches preserve that connected control and its input or
-					editable selection when DOM work temporarily drops focus.
+					focus, adoption and later reactive patches preserve that connected control and its input
+					or editable selection when DOM work temporarily drops focus.
 				</p>
 				<Callout title="Framework-owned, not cooperative">
 					<p>
