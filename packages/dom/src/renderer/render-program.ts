@@ -288,12 +288,14 @@ function bindRenderProgram(mounted: Mounted): boolean {
 	const state = mounted.renderProgram!;
 	const previousProps = state.props ?? new Map<Element, Record<string, unknown>>();
 	state.props = previousProps;
+	const stops: Array<() => void> = [];
+	const initialValues: unknown[] = [];
+	let initializing = true;
 	let released = false;
-	let valid = true;
-	let initialBinding = true;
 	const release = () => {
 		if (released) return;
 		released = true;
+		for (const stop of stops) stop();
 		for (const [element, props] of previousProps) {
 			const ref = props.ref as { fulfill(value: unknown): void } | undefined;
 			ref?.fulfill(undefined);
@@ -302,69 +304,102 @@ function bindRenderProgram(mounted: Mounted): boolean {
 		previousProps.clear();
 		mounted.stop = undefined;
 	};
-	const stop = watchRetained(
-		() => {
-			const nextProps = new Map<Element, Record<string, unknown>>();
-			for (let index = 0; index < state.slotNodes.length; index++) {
+
+	for (let index = 0; index < state.slotNodes.length; index++) {
+		const stop = watchRetained(
+			() => {
 				const value = unwrap(state.invocation.readers[index]!());
-				const slot = state.invocation.program.slots[index]!;
-				const target = state.slotNodes[index];
-				if (slot.kind !== 'text') {
-					const element = target as Element;
-					let props = nextProps.get(element);
-					if (!props) nextProps.set(element, (props = {}));
-					props[slot.name!] = value;
-					continue;
-				}
-				if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
-					valid = false;
+				if (initializing) {
+					initialValues[index] = value;
 					return;
 				}
-				const text =
-					value === null || value === undefined || value === false || value === true
-						? ''
-						: String(value);
-				const node = target as Text;
-				if (node.data !== text) node.data = text;
-			}
-			for (const [element, previous] of previousProps) {
-				if (!nextProps.has(element))
-					updateProps(state.root, element, previous, {}, mounted.scope, !initialBinding);
-			}
-			// Option values must exist before a parent select receives its controlled value. Static
-			// render-program templates deliberately omit slotted values, so DOM order alone cannot
-			// provide the browser's usual option-selection initialization.
-			const orderedProps = [...nextProps].sort(([left], [right]) => {
-				const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
-				const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
-				return leftPriority - rightPriority;
-			});
-			for (const [element, next] of orderedProps) {
-				updateProps(
-					state.root,
-					element,
-					previousProps.get(element) ?? {},
-					next,
-					mounted.scope,
-					!initialBinding
-				);
-			}
-			previousProps.clear();
-			for (const [element, props] of nextProps) previousProps.set(element, props);
-			initialBinding = false;
-		},
-		undefined,
-		{ scope: mounted.scope }
-	);
-	mounted.stop = () => {
-		stop?.();
+				applyRenderProgramSlot(mounted, index, value, previousProps);
+			},
+			undefined,
+			{ scope: mounted.scope }
+		);
+		if (stop) stops.push(stop);
+	}
+	initializing = false;
+
+	if (!applyInitialRenderProgramSlots(mounted, initialValues, previousProps)) {
 		release();
-	};
-	if (!valid) {
-		mounted.stop();
 		return false;
 	}
+	mounted.stop = release;
 	return true;
+}
+
+/** Applies initial slots as one plan so option values precede a controlled select value. */
+function applyInitialRenderProgramSlots(
+	mounted: Mounted,
+	values: readonly unknown[],
+	propsByElement: Map<Element, Record<string, unknown>>
+): boolean {
+	const state = mounted.renderProgram!;
+	for (let index = 0; index < state.slotNodes.length; index++) {
+		if (
+			state.invocation.program.slots[index]!.kind === 'text' &&
+			!isRenderProgramScalar(values[index])
+		)
+			return false;
+	}
+	for (let index = 0; index < state.slotNodes.length; index++) {
+		const slot = state.invocation.program.slots[index]!;
+		const value = values[index];
+		if (slot.kind === 'text') {
+			if (!applyRenderProgramText(state.slotNodes[index] as Text, value)) return false;
+			continue;
+		}
+		const element = state.slotNodes[index] as Element;
+		let props = propsByElement.get(element);
+		if (!props) propsByElement.set(element, (props = {}));
+		props[slot.name!] = value;
+	}
+	const orderedProps = [...propsByElement].sort(([left], [right]) => {
+		const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
+		const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
+		return leftPriority - rightPriority;
+	});
+	for (const [element, props] of orderedProps)
+		updateProps(state.root, element, {}, props, mounted.scope, false);
+	return true;
+}
+
+/** Publishes one invalidated scalar slot without resampling unrelated program readers. */
+function applyRenderProgramSlot(
+	mounted: Mounted,
+	index: number,
+	value: unknown,
+	propsByElement: Map<Element, Record<string, unknown>>
+): void {
+	const state = mounted.renderProgram!;
+	const slot = state.invocation.program.slots[index]!;
+	const target = state.slotNodes[index]!;
+	if (slot.kind === 'text') {
+		applyRenderProgramText(target as Text, value);
+		return;
+	}
+	const element = target as Element;
+	const previous = propsByElement.get(element) ?? {};
+	if (Object.is(previous[slot.name!], value)) return;
+	const next = { ...previous, [slot.name!]: value };
+	updateProps(state.root, element, previous, next, mounted.scope);
+	propsByElement.set(element, next);
+}
+
+/** Applies the scalar text contract and rejects structural values. */
+function applyRenderProgramText(node: Text, value: unknown): boolean {
+	if (!isRenderProgramScalar(value)) return false;
+	const text =
+		value === null || value === undefined || value === false || value === true ? '' : String(value);
+	if (node.data !== text) node.data = text;
+	return true;
+}
+
+/** Reports whether a planned text value can remain inside its scalar DOM slot. */
+function isRenderProgramScalar(value: unknown): boolean {
+	return !isVNode(value) && !Array.isArray(value) && !(value instanceof Promise);
 }
 
 function validSlotNodes(

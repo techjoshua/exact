@@ -106,7 +106,8 @@ export function executeTaskFrame<T>(
 		options.owner ?? structuralParent?.owner ?? createTaskOwnerRecord('implicit task invocation');
 	if (owner.disposed) return Promise.reject(new Error('Task owner has been disposed'));
 	const controller = options.controller ?? new AbortController();
-	linkAbort(owner.signal, controller);
+	// The owner cancels its active frame controllers directly during disposal. Subscribing every
+	// frame to its durable signal would retain settled controllers until the owner itself is released.
 	if (structuralParent) linkAbort(structuralParent.controller.signal, controller);
 
 	let resolveSettlement!: () => void;

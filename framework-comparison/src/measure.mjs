@@ -167,7 +167,8 @@ async function measureBrowserSample(browserInstance, participant) {
 			navigation,
 			heapBytes,
 			optimisticFeedbackMs: timing.optimisticFeedbackMs,
-			settlementMs: timing.settlementMs
+			settlementMs: timing.settlementMs,
+			phasesMs: timing.phasesMs
 		};
 	} finally {
 		await context.close();
@@ -214,9 +215,41 @@ function installInteractionTiming() {
 	const timing = {
 		startedAt: null,
 		optimisticFeedbackMs: null,
-		settlementMs: null
+		settlementMs: null,
+		phasesMs: {}
 	};
 	globalThis.__frameworkComparisonTiming = timing;
+	const mark = (phase) => {
+		if (timing.startedAt === null || timing.phasesMs[phase] !== undefined) return;
+		timing.phasesMs[phase] = performance.now() - timing.startedAt;
+	};
+
+	const nativeFetch = globalThis.fetch;
+	globalThis.fetch = (...args) => {
+		const input = args[0];
+		const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
+		if (url.endsWith('/claim')) mark('request-dispatched');
+		return nativeFetch(...args).then((response) => {
+			if (url.endsWith('/claim')) mark('http-headers-received');
+			return response;
+		});
+	};
+	const nativeResponseJson = Response.prototype.json;
+	Response.prototype.json = function () {
+		return nativeResponseJson.call(this).then((value) => {
+			if (this.url.endsWith('/claim')) mark('http-json-decoded');
+			return value;
+		});
+	};
+	const observedEventSources = new WeakSet();
+	const nativeAddEventListener = EventSource.prototype.addEventListener;
+	EventSource.prototype.addEventListener = function (type, listener, options) {
+		if (type === 'incident' && !observedEventSources.has(this)) {
+			observedEventSources.add(this);
+			nativeAddEventListener.call(this, type, () => mark('sse-incident-received'));
+		}
+		return nativeAddEventListener.call(this, type, listener, options);
+	};
 	document.addEventListener(
 		'click',
 		(event) => {
@@ -228,12 +261,17 @@ function installInteractionTiming() {
 	);
 	new MutationObserver(() => {
 		if (timing.startedAt === null) return;
-		const content = document.body?.textContent ?? '';
 		const now = performance.now();
-		if (timing.optimisticFeedbackMs === null && content.includes('Alex Chen'))
+		const owner = document.querySelector('.facts > div:first-child strong')?.textContent?.trim();
+		const version = document.querySelector('.version')?.textContent?.trim();
+		if (timing.optimisticFeedbackMs === null && owner === 'Alex Chen') {
 			timing.optimisticFeedbackMs = now - timing.startedAt;
-		if (timing.settlementMs === null && content.includes('Version 2'))
+			timing.phasesMs['optimistic-dom-visible'] ??= timing.optimisticFeedbackMs;
+		}
+		if (timing.settlementMs === null && version === 'Version 2') {
 			timing.settlementMs = now - timing.startedAt;
+			timing.phasesMs['authoritative-dom-visible'] ??= timing.settlementMs;
+		}
 	}).observe(document, { childList: true, characterData: true, subtree: true });
 }
 
