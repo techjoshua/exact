@@ -4,8 +4,10 @@ import {
 	handleComponentError,
 	observeComponentAsync,
 	runComponentInteraction,
+	traceInteractionPhase,
 	unwrap,
-	type ComponentInstance
+	type ComponentInstance,
+	type InteractionScope
 } from '@exactjs/core';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
 import { preserveFocus } from './focus.js';
@@ -104,7 +106,8 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
  */
 export function runEventInteraction<Result>(
 	owner: ComponentInstance<any> | undefined,
-	work: () => Result | PromiseLike<Result>
+	work: () => Result | PromiseLike<Result>,
+	onScope?: (scope: InteractionScope) => void
 ): Result | PromiseLike<Result> {
 	if (!owner) return work();
 	return runComponentInteraction(
@@ -113,7 +116,10 @@ export function runEventInteraction<Result>(
 		nextEventGeneration(owner),
 		'interactive',
 		new AbortController(),
-		() => work()
+		(scope) => {
+			onScope?.(scope);
+			return work();
+		}
 	);
 }
 
@@ -122,12 +128,14 @@ function runInteractiveEvent<Result>(
 	owner: ComponentInstance<any> | undefined,
 	work: () => Result | PromiseLike<Result>
 ): Result | PromiseLike<Result> {
+	let interaction: InteractionScope | undefined;
 	const result = runWithPriority('interactive', () =>
-		batch(() => runEventInteraction(owner, work))
+		batch(() => runEventInteraction(owner, work, (scope) => (interaction = scope)))
 	);
 	// Discrete feedback should not wait behind a scheduler microtask. The priority boundary keeps
 	// normal and deferred consequences queued for their ordinary host turns.
 	flushSync('interactive');
+	traceInteractionPhase(interaction, 'feedback-committed');
 	return result;
 }
 

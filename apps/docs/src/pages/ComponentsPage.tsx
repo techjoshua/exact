@@ -331,6 +331,8 @@ export function ComponentsPage(this: Component<{}>) {
 						A component-scoped, runtime-configurable logger. Canonical level calls defer all
 						argument evaluation until that level is enabled, and read reactive values through
 						<code>peek()</code> so diagnostics do not create dependencies. Builds never erase them.
+						Enabling <code>trace</code> also exposes correlated interaction start, feedback commit,
+						optimistic task, and structural-settlement timings.
 					</p>
 				</div>
 			</section>

@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { computed, currentWorkPriority, flushSync, reactive, watch } from '@exactjs/reactive';
 
 import type { TaskContext } from './contracts.js';
+import type { Component } from '../component/contracts.js';
+import { LoggerContext } from '../component/contexts.js';
+import { createComponentInstance } from '../component/runtime.js';
 import { runTaskFrame } from '../framework/task-frames.js';
+import type { LogEvent, Logger } from '../logging.js';
 import { activateTask } from './activation.js';
 import {
 	createTaskOwnerRecord,
@@ -10,7 +14,7 @@ import {
 	withTaskOwnerRecord
 } from './frame-runtime.js';
 import { createTaskOwner } from './owners.js';
-import { bindTask, defineTask, invokeTask, taskStatus } from './runtime.js';
+import { bindTask, bindTaskForHost, defineTask, invokeTask, taskStatus } from './runtime.js';
 
 function deferred<T>() {
 	let resolve!: (value: T) => void;
@@ -484,6 +488,41 @@ describe('unified task runtime', () => {
 			context.optimistic(async () => undefined);
 		});
 		await expect(invalid()).rejects.toThrow('requires a synchronous callback');
+	});
+
+	it('traces component-owned task optimism and settlement only at trace level', async () => {
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'trace',
+			log: (event) => events.push(event)
+		};
+		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+			this.setContext(LoggerContext, logger);
+			return () => null;
+		}, {});
+		const owner = createComponentInstance(() => () => null, {}, parent);
+		const state = reactive({ value: 0 });
+		const task = bindTaskForHost(
+			owner,
+			defineTask({ concurrency: 'latest', label: 'claim' }, (context: TaskContext) => {
+				context.optimistic(() => state.value++);
+				return state.value;
+			})
+		);
+
+		await expect(task()).resolves.toBe(1);
+
+		const traces = events
+			.filter((event) => event.message.startsWith('performance task'))
+			.map((event) => event.data as Record<string, unknown>);
+		expect(traces.map((trace) => trace.phase)).toEqual([
+			'started',
+			'optimistic-applied',
+			'settled'
+		]);
+		expect(new Set(traces.map((trace) => trace.operationId)).size).toBe(1);
+		expect(traces[2]!.attributes).toEqual({ outcome: 'success' });
+		parent.unmount();
 	});
 
 	it('cancels every generation when its owner is disposed', async () => {

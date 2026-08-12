@@ -35,6 +35,32 @@ enqueue events and perform I/O outside the measured operation.
 - React compatibility: render and commit work created inside `withReactProfile`.
 - Vite, webpack, and Bun plugins: compiler events through `onProfile`.
 
+## Component performance traces
+
+The nearest component `LoggerContext` can enable the `trace` level at runtime to
+observe fine-grained interaction and task timing without installing a global
+collector. Framework-owned trace records use the component identity already
+attached to `this.log` and place a structured timing record in `data`:
+
+- `operation` is `interaction` or `task`;
+- `operationId` correlates every mark for one operation;
+- `phase` identifies `started`, `feedback-committed`, `optimistic-applied`, or
+  `settled`;
+- `elapsedMs` is measured from that operation's start; and
+- `attributes` carries bounded values such as source, priority, generation,
+  interaction identity, and settlement outcome.
+
+Interaction settlement includes its structurally attached task subtree. Task
+settlement is recorded after optimistic journals are published or rolled back.
+The DOM renderer records `feedback-committed` after the interactive synchronous
+flush, which separates user-visible optimistic feedback from server/task
+settlement.
+
+These calls are not removed from production artifacts. When trace logging is
+disabled, the framework does not read a timestamp, create a span, attach
+settlement observers, or evaluate trace arguments. Enabling the logger at
+runtime affects the next operation.
+
 `stats()` remains the retained-state interface. Profiling events describe where
 time was spent, while benchmark scripts determine whether performance changed.
 

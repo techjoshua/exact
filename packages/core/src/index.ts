@@ -53,6 +53,7 @@ export { observeComponentAsync, trackComponentAsync } from './component/async.js
 export {
 	currentInteraction,
 	runComponentInteraction,
+	traceInteractionPhase,
 	type InteractionPriority,
 	type InteractionScope,
 	type InteractionSource

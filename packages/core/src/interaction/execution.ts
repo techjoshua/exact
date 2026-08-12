@@ -1,5 +1,11 @@
 import type { ComponentInstance } from '../component/contracts.js';
 import {
+	markComponentTrace,
+	startComponentTrace,
+	type ComponentTraceAttributes,
+	type ComponentTraceSpan
+} from '../component/performance-trace.js';
+import {
 	currentTaskFrameRecord,
 	executeTaskFrame,
 	taskFrameSynchronousError,
@@ -24,6 +30,7 @@ export type InteractionScope = {
 
 let nextInteractionId = 1;
 const interactionsByFrame = new WeakMap<TaskFrameRecord, InteractionScope>();
+const interactionTraces = new WeakMap<InteractionScope, ComponentTraceSpan>();
 
 /** Returns metadata for the synchronously active interaction-root task. */
 export function currentInteraction(): InteractionScope | undefined {
@@ -33,6 +40,16 @@ export function currentInteraction(): InteractionScope | undefined {
 		if (interaction) return interaction;
 	}
 	return undefined;
+}
+
+/** Emits a correlated performance mark for a currently executing interaction. */
+export function traceInteractionPhase(
+	interaction: InteractionScope | undefined,
+	phase: string,
+	attributes?: ComponentTraceAttributes
+): void {
+	if (!interaction) return;
+	markComponentTrace(interaction.owner, interactionTraces.get(interaction), phase, attributes);
 }
 
 /**
@@ -51,6 +68,7 @@ export function runComponentInteraction<Result>(
 ): Promise<Result> {
 	const taskOwner = taskOwnerForHost(owner);
 	if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
+	let interactionScope: InteractionScope | undefined;
 	const execution = executeTaskFrame(
 		{
 			owner: taskOwner,
@@ -73,11 +91,27 @@ export function runComponentInteraction<Result>(
 				priority,
 				generation
 			});
+			interactionScope = scope;
 			interactionsByFrame.set(frame, scope);
+			const trace = startComponentTrace(owner, 'interaction', `interaction:${scope.id}`, {
+				source,
+				priority,
+				generation
+			});
+			if (trace) interactionTraces.set(scope, trace);
 			return work(scope);
 		}
 	);
 	const synchronousError = taskFrameSynchronousError(execution);
-	if (synchronousError) throw synchronousError.error;
+	if (synchronousError) {
+		traceInteractionPhase(interactionScope, 'settled', { outcome: 'error' });
+		throw synchronousError.error;
+	}
+	if (interactionScope && interactionTraces.has(interactionScope)) {
+		void execution.then(
+			() => traceInteractionPhase(interactionScope, 'settled', { outcome: 'success' }),
+			() => traceInteractionPhase(interactionScope, 'settled', { outcome: 'error' })
+		);
+	}
 	return execution;
 }

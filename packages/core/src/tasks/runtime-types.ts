@@ -1,5 +1,7 @@
 import type { ReactiveMutationJournal } from '@exactjs/reactive';
 
+import type { ComponentInstance } from '../component/contracts.js';
+import type { ComponentTraceSpan } from '../component/performance-trace.js';
 import type { TaskActivation } from './contracts.js';
 import type { TaskFrameRecord } from './frame-runtime.js';
 
@@ -25,6 +27,10 @@ export type InternalTaskGeneration<Result> = {
 	observed: boolean;
 	started: boolean;
 	executing: boolean;
+	trace?: {
+		readonly owner: ComponentInstance<any>;
+		readonly span: ComponentTraceSpan;
+	};
 };
 
 /** Concurrency lane state shared by generations with the same task key. */

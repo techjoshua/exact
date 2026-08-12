@@ -29,6 +29,7 @@ import { TaskInvocationValue } from './invocation.js';
 import { validateTaskOptions } from './options.js';
 import { donateTaskPriority, taskWorkPriority } from './priority.js';
 import { executeScheduledTaskGeneration } from './generation-execution.js';
+import { markTaskPerformanceTrace, startTaskPerformanceTrace } from './performance-trace.js';
 import { createTaskStatus, defineTaskStatusProperties } from './status.js';
 import type {
 	InternalTaskGeneration,
@@ -254,6 +255,7 @@ function startGeneration<Args extends unknown[], Result>(
 	const execution = new Promise<Result>((resolveExecution, rejectExecution) => {
 		const scheduledWork = () => {
 			record.executing = true;
+			startTaskPerformanceTrace(owner, record, definition.sourceEntityId, definition.options.label);
 			const frameExecution = executeScheduledTaskGeneration(
 				owner,
 				record,
@@ -281,6 +283,7 @@ function startGeneration<Args extends unknown[], Result>(
 				lane.error = undefined;
 				lane.generation = record.generation;
 			}
+			markTaskPerformanceTrace(record, 'settled', { outcome: 'success' });
 			finishGeneration(definition, owner, state, lane, record);
 			record.resolve(value);
 		},
@@ -296,6 +299,9 @@ function startGeneration<Args extends unknown[], Result>(
 				lane.generation = record.generation;
 				if (!(error instanceof TaskCancellation)) lane.error = error;
 			}
+			markTaskPerformanceTrace(record, 'settled', {
+				outcome: error instanceof TaskCancellation ? 'cancelled' : 'error'
+			});
 			finishGeneration(definition, owner, state, lane, record);
 			record.reject(error);
 		}
