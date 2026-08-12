@@ -117,8 +117,7 @@ export function CompilerTourPage(this: Component<{}>) {
 					The helper names are private compiler/runtime coordination. Applications should use the
 					authored form and rely on compiler diagnostics. The useful promise is semantic: precise
 					dependencies, deterministic ownership, server isolation, cancellation, stable identity,
-					and minimal updates. In compiler-finite DOM regions, each scalar slot retains its own
-					dependencies, so changing one value does not resample neighboring expressions.
+					and minimal updates.
 				</p>
 			</Callout>
 		</Article>

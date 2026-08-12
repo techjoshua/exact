@@ -361,13 +361,6 @@ the iteration value explicitly inside the body. Reflective mutation through
 `Object.defineProperty()`, or `Object.defineProperties()` is rejected because
 it cannot preserve the precise write contract.
 
-Compiler-finite intrinsic regions preserve that precision through the DOM
-boundary. Each scalar text, property, attribute, style, class, or URL slot owns
-its dependency tracking, so a write resamples and publishes only invalidated
-slots rather than every dynamic expression in the surrounding region. Initial
-publication remains coordinated where HTML semantics require ordering, such as
-installing option values before a controlled select value.
-
 `Map` and `Set` participate in deep reactivity while preserving their native
 JavaScript APIs:
 

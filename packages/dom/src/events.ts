@@ -72,8 +72,7 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 	if (listeners.has(type)) return;
 
 	const listener = (event: Event) => {
-		const path = eventPath(event, container);
-		for (const cursor of path) {
+		dispatchEventPath(event, container, (cursor) => {
 			const handler = eventHandlers.get(cursor)?.get(type);
 			if (handler) {
 				const current = cursor;
@@ -90,9 +89,8 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 					}
 				});
 			}
-			if (event.cancelBubble) break;
-			if (cursor === container) break;
-		}
+			return !event.cancelBubble;
+		});
 	};
 
 	container.addEventListener(type, listener);
@@ -194,29 +192,31 @@ export function clearDelegated(root: Root): void {
 	root.portalTargets.clear();
 }
 
-function eventPath(event: Event, container: Node): Element[] {
+/** Dispatches an event path without copying the browser's composed-path array. */
+function dispatchEventPath(
+	event: Event,
+	container: Node,
+	visit: (element: Element) => boolean
+): void {
 	const native = typeof event.composedPath === 'function' ? event.composedPath() : [];
-	if (native.length) {
-		const path: Element[] = [];
-		for (const target of native) {
-			if (!(target instanceof Element)) continue;
-			path.push(target);
-			if (target === container) break;
-		}
+	const containerIndex = native.indexOf(container as EventTarget);
+	if (containerIndex >= 0) {
 		// The browser invoked this listener on `container`, so its composed path is already the
-		// authoritative containment proof. Rechecking every ancestor with Node.contains() adds DOM
-		// traversal to every delegated interaction and mishandles retargeted shadow paths.
-		if (path[path.length - 1] === container) return path;
+		// authoritative containment proof. Avoid copying that path or rechecking every ancestor with
+		// Node.contains(), which also mishandles retargeted shadow paths.
+		for (let index = 0; index <= containerIndex; index++) {
+			const target = native[index];
+			if (target instanceof Element && !visit(target)) return;
+		}
+		return;
 	}
 	// Defensive fallback for synthetic Event implementations with incomplete composed paths.
-	const path: Element[] = [];
 	let cursor = eventTargetElement(event.target);
 	while (cursor) {
-		path.push(cursor);
+		if (!visit(cursor)) return;
 		if (cursor === container) break;
 		cursor = cursor.parentElement;
 	}
-	return path;
 }
 
 function callDelegatedHandler(handler: EventListener, current: Element, event: Event): unknown {

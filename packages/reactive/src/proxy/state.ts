@@ -16,10 +16,15 @@ export const readonlyReactiveOptionsKey = Object.freeze({ readonly: true });
 export const rootProxyCache = new WeakMap<object, WeakMap<object, object>>();
 /** Provides the canonical sourced proxy cache value. */
 export const sourcedProxyCache = new WeakMap<object, WeakMap<object, Map<ReactiveRef, object>>>();
+/** Retains one parent-path source and its most recently resolved child proxy. */
+export type CachedParentSource = ReactiveRef & {
+	cachedRaw?: object;
+	cachedProxy?: object;
+};
 /** Provides the canonical parent source cache value. */
 export const parentSourceCache = new WeakMap<
 	object,
-	Map<PropertyKey, WeakMap<object, ReactiveRef>>
+	Map<PropertyKey, WeakMap<object, CachedParentSource>>
 >();
 /** Provides the canonical proxy refs value. */
 export const proxyRefs = new WeakMap<object, ReactiveRef>();

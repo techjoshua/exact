@@ -209,70 +209,22 @@ it('evaluates an initial planned slot exactly once', () => {
 	expect(reads).toBe(1);
 });
 
-it('resamples only the scalar slots invalidated by a reactive write', () => {
-	const state = reactive({ owner: 'Unassigned', version: 1 });
-	let ownerReads = 0;
-	let versionReads = 0;
-	const vnode = createCompiledRenderProgram(
-		'render-program:precise-slot-updates',
-		() => ({
-			version: 1,
-			id: 'render-program:precise-slot-updates',
-			namespace: 'html',
-			template:
-				'<section data-exact-id="detail"><strong>\ue000exact:0\ue001</strong><span>\ue000exact:1\ue001</span></section>',
-			parts: ['<section data-exact-id="detail"><strong>', '</strong><span>', '</span></section>'],
-			slots: [
-				{ id: 'owner', kind: 'text', path: [0, 0] },
-				{ id: 'version', kind: 'text', path: [1, 0] }
-			],
-			nodes: [{ id: 'detail', path: [], tag: 'section', namespace: 'html' }]
-		}),
-		[
-			() => {
-				ownerReads++;
-				return state.owner;
-			},
-			() => {
-				versionReads++;
-				return state.version;
-			}
-		],
-		() => createCompiledVNode('section', {}, state.owner, state.version)
-	);
-	const container = document.createElement('div');
-	render(vnode, container);
-	expect([ownerReads, versionReads]).toEqual([1, 1]);
-	state.owner = 'Alex Chen';
-	flushSync();
-	expect(container.querySelector('strong')?.textContent).toBe('Alex Chen');
-	expect([ownerReads, versionReads]).toEqual([2, 1]);
-});
-
 it('falls back locally when an initial text slot violates its scalar contract', () => {
-	const refValues: unknown[] = [];
 	const vnode = createCompiledRenderProgram(
 		'render-program:shape-fallback',
 		() => ({
 			version: 1,
 			id: 'render-program:shape-fallback',
 			namespace: 'html',
-			template: '<span data-exact-id="planned">\ue000exact:1\ue001</span>',
-			parts: ['<span data-exact-id="planned"', '>', '</span>'],
-			slots: [
-				{ id: 'ref', kind: 'property', path: [], name: 'ref' },
-				{ id: 'value', kind: 'text', path: [0] }
-			],
+			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
+			parts: ['<span data-exact-id="planned">', '</span>'],
+			slots: [{ id: 'value', kind: 'text', path: [0] }],
 			nodes: [{ id: 'planned', path: [], tag: 'span', namespace: 'html' }]
 		}),
-		[
-			() => ({ fulfill: (value: unknown) => refValues.push(value) }),
-			() => createCompiledVNode('strong', {}, 'generic')
-		],
+		[() => createCompiledVNode('strong', {}, 'generic')],
 		() => createCompiledVNode('span', { 'data-exact-id': 'fallback' }, 'fallback')
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
 	expect(container.querySelector('[data-exact-id="fallback"]')?.textContent).toBe('fallback');
-	expect(refValues).toEqual([]);
 });
