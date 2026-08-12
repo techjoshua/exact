@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"sessionUserId": "user-alex",
+	"users": [
+		{ "id": "user-alex", "name": "Alex Chen" },
+		{ "id": "user-riley", "name": "Riley Morgan" }
+	],
+	"incidents": [
+		{
+			"id": "inc-100",
+			"title": "Checkout authorization failures",
+			"severity": "critical",
+			"status": "open",
+			"ownerId": null,
+			"version": 1,
+			"updatedAt": "2026-08-11T16:00:00.000Z",
+			"comments": []
+		},
+		{
+			"id": "inc-101",
+			"title": "Delayed fulfillment events",
+			"severity": "high",
+			"status": "investigating",
+			"ownerId": "user-riley",
+			"version": 1,
+			"updatedAt": "2026-08-11T15:45:00.000Z",
+			"comments": []
+		},
+		{
+			"id": "inc-102",
+			"title": "Search index freshness warning",
+			"severity": "medium",
+			"status": "open",
+			"ownerId": null,
+			"version": 1,
+			"updatedAt": "2026-08-11T15:30:00.000Z",
+			"comments": []
+		}
+	],
+	"jobs": []
+}

@@ -1,0 +1,57 @@
+# Framework comparison suite
+
+This directory owns a reproducible comparison of production-shaped web applications implemented
+idiomatically in eXact and other frameworks. Every participant presents the same incident-operations
+experience, receives the same deterministic data, and passes the same observable behavior tests.
+Presentation code, routing, state ownership, and client/server integration remain participant-owned.
+
+The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
+harness, four controlled-service participants, and two native-full-stack participants are implemented. All
+six applications use production SSR and hydration and pass their track's black-box acceptance suite. They
+remain `scaffolded`—and measurements remain non-publishable—until framework specialists approve the review
+records. The suite does not publish framework rankings or treat an unreviewed result as evidence.
+
+## Comparison tracks
+
+- **Controlled service:** each UI calls the Fetch-compatible service in [`src/service.mjs`](src/service.mjs).
+  This track isolates browser delivery, startup, rendering, and interaction behavior.
+- **Native full stack:** each framework may use its preferred server actions, loaders, RPC, caching, and
+  streaming model. It must preserve the application contract and consume an equivalent fixture.
+
+Results from the two tracks are reported separately. A native result must never be compared as though it
+used the controlled transport.
+
+## Start here
+
+```sh
+npm run check:framework-comparison
+npm run test:framework-comparison
+npm run start:framework-comparison-service
+npm run build -w @exactjs/framework-comparison-suite
+npm run test:e2e -w @exactjs/framework-comparison-suite
+npm run test:native -w @exactjs/framework-comparison-suite
+npm run measure:development -w @exactjs/framework-comparison-suite
+npm run measure:native:development -w @exactjs/framework-comparison-suite
+```
+
+The service listens on `http://127.0.0.1:4310` by default. `PORT` may select another port. Its state can
+be restored with `POST /__benchmark/reset` and the `x-benchmark-control: fixture-reset` header.
+
+Read [`specification/application.md`](specification/application.md) before implementing a participant and
+[`methodology.md`](methodology.md) before collecting or interpreting measurements. Participant conventions
+are documented in [`participants/README.md`](participants/README.md).
+
+## Directory ownership
+
+```text
+fixtures/       deterministic benchmark inputs
+participants/   independent framework applications
+results/        machine-readable runs and explanatory reports
+specification/  user experience and scenario contracts
+src/            controlled service and suite validation
+test/           contract-level regression protection
+```
+
+Code may be shared through `fixtures`, `specification`, and domain contracts. Native participants share the
+canonical domain semantics but own their server integration. Participants must not share UI components or a
+client state abstraction because doing so would bias their architecture.

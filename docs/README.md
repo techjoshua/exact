@@ -19,6 +19,7 @@ These documents describe behavior that exists in the repository today:
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.                                              |
 | [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.                                  |
 | [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.                                              |
+| [framework-comparison.md](framework-comparison.md)                               | Cross-framework application contract, comparison tracks, fairness, and current suite status.              |
 | [gestures.md](gestures.md)                                                       | Prepared gesture recognition, ownership, accessibility, and testing.                                      |
 | [gravity.md](gravity.md)                                                         | Pure acceleration fields and physics force registration.                                                  |
 | [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                                                        |

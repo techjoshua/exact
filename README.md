@@ -179,6 +179,7 @@ lowering for their owning JSX pipeline.
 - [Read about server execution](apps/docs/src/pages/ServerExecutionPage.tsx)
 - [Review the native compiler architecture](docs/native-compiler.md)
 - [Browse the current engineering references](docs/README.md)
+- [Review the reproducible framework comparison suite](framework-comparison/README.md)
 
 The repository also includes complete sample applications:
 

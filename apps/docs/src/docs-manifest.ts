@@ -9,6 +9,7 @@ import { ComponentLibraryTrustPage } from './pages/ComponentLibraryTrustPage.jsx
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
+import { FrameworkComparisonPage } from './pages/FrameworkComparisonPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
 import { GesturesPage } from './pages/GesturesPage.jsx';
 import { GravityPage } from './pages/GravityPage.jsx';
@@ -96,6 +97,15 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'runtime adapter integration status Vite Webpack Bun Node Express Fastify Hapi Koa Deno Cloudflare serverless Fetch',
 				component: RuntimesPage
+			},
+			{
+				path: '/framework-comparison',
+				label: 'Framework comparison',
+				summary:
+					'Compare production-shaped applications through controlled-service and native-full-stack tracks.',
+				keywords:
+					'framework comparison benchmark methodology performance complexity incident operations controlled service native full stack reproducible',
+				component: FrameworkComparisonPage
 			}
 		]
 	},
