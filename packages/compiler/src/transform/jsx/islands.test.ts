@@ -439,7 +439,7 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).toContain('__exactHydration: "interaction"');
 		expect(server).toContain('Panel_ExactClient_1');
 		expect(server).toContain('__exactVNode("div"');
-		expect(server).toContain('__exactVNode(ServerSummary');
+		expect(server).toContain('__exactComponentVNode(ServerSummary');
 		expect(server).toContain('readFile');
 		expect(
 			analysis.boundaries.find((boundary) => boundary.name === 'Panel_ExactClient_1')?.activation

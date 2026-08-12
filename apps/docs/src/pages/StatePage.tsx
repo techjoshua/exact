@@ -193,7 +193,9 @@ export function StatePage(this: Component<{}>) {
 					For an ordinary initialization declaration whose safe result has only one view consumer,
 					the compiler may elide the standalone derived cell when the result is scalar or merely
 					forwards an existing identity. This is an emitted-code optimization: the authored
-					initialization declaration remains its source definition for inspection. Shared values,
+					initialization declaration remains its source definition for inspection. A leaf consumer
+					inside a JSX conditional keeps the calculation at that leaf, so its updates do not
+					invalidate the enclosing structural range. Shared values,
 					fresh identity allocations, event or task consumers, and explicit reactive values keep
 					their durable cells.
 				</p>

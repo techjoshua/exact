@@ -1211,7 +1211,10 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	program := lowering.renderProgramLiteral(programID, build)
 	readers := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
-		readers[index] = lowering.arrow(slot.reader)
+		readers[index] = lowering.reactiveClosure(slot.reader)
+		if readers[index] == nil {
+			readers[index] = lowering.arrow(slot.reader)
+		}
 	}
 	lowering.renderProgramFallback = true
 	fallback := lowering.lowerOpeningLike(identityNode, opening, children)
@@ -3196,6 +3199,12 @@ func (lowering *jsxLowering) reactiveClosure(
 	}
 	bySymbol := make(map[ast.SymbolId]materializedRenderLocal)
 	walkNode(expression, func(node *ast.Node) bool {
+		// Nested JSX expressions receive their own reactive closures during child lowering.
+		// Pulling their derived locals into this closure would broaden the outer dependency
+		// set and reconcile an entire conditional branch for a leaf-only update.
+		if node != expression && ast.IsJsxExpression(node) {
+			return false
+		}
 		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true

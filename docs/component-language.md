@@ -450,7 +450,9 @@ The compiler may elide the runtime cell for an ordinary initialization-derived v
 when it is safe to reevaluate, has exactly one eager view consumer, and either
 produces a scalar or forwards an existing identity without allocating a new
 one. The calculation is fused into that consumer's reactive closure while its
-authored declaration remains the inspection definition. This optimization
+authored declaration remains the inspection definition. A leaf consumer inside a JSX conditional
+keeps the calculation in its own closure instead of widening the conditional range's dependency
+set. This optimization
 does not apply to shared bindings, fresh object or collection identities, task
 or event consumers, or values explicitly created with `this.reactive()`.
 

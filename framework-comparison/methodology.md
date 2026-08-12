@@ -20,7 +20,8 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
 4. Production builds are measured. Development builds may be measured separately for build and feedback
    metrics, but never mixed with runtime results.
 5. A scenario must pass its correctness assertions before its timing is accepted.
-6. Warm and cold measurements are labeled and reported separately. Run order is randomized or rotated.
+6. Warm and cold measurements are labeled and reported separately. The controlled browser runner records warm
+   samples after one equivalent discarded scenario per participant; run order is randomized or rotated.
 7. Raw samples, environment metadata, participant commit, dependency lockfile, and harness version accompany
    every summary.
 8. Framework specialists should review meaningful participants. Review corrections are recorded rather than
@@ -35,7 +36,9 @@ Build runs will report clean build, incremental rebuild, and emitted raw/gzip/Br
 
 Scenario settlement is a semantic boundary, not merely the end of an event handler. For example, claiming an
 incident settles after the server accepts or rejects the expected version and the UI displays the authoritative
-owner and status. Optimistic feedback latency is recorded independently from settlement latency.
+owner and status. Optimistic feedback latency is recorded independently from settlement latency. Both interaction
+durations use browser event and mutation timestamps, so test-driver actionability checks and polling intervals do
+not become framework latency. An activation performed in response to the click remains inside the measurement.
 
 ## Complexity dimensions
 

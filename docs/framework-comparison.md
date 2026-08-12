@@ -54,6 +54,11 @@ plumbing, error paths, review findings, and standardized change effort. The suit
 overall winner. Development measurement commands may collect explicitly non-publishable samples for either
 track while reviews are pending; both publication commands reject unreviewed participants.
 
+Controlled browser results are labeled warm and follow one discarded, equivalent scenario per participant.
+Interaction latency is measured from the browser's captured click to the corresponding visible DOM mutation;
+automation actionability waits and assertion polling are therefore excluded, while interaction-triggered
+hydration remains included.
+
 The normative fairness and reporting rules live in
 [`framework-comparison/methodology.md`](../framework-comparison/methodology.md). The detailed experience and
 domain invariants live in

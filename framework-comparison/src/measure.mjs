@@ -13,6 +13,7 @@ if (!process.argv.includes('--correctness-passed')) {
 const suiteRoot = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(suiteRoot, '..');
 const sampleCount = Number(process.env.COMPARISON_SAMPLES ?? 7);
+const browserWarmupCount = 1;
 const participants = [
 	{
 		id: 'exact-controlled',
@@ -86,6 +87,7 @@ try {
 			commit: git('rev-parse', 'HEAD'),
 			workingTreeDirty: git('status', '--porcelain').length > 0,
 			sampleCount,
+			browserWarmupCount,
 			order: Object.keys(browserResults)
 		},
 		browser: browserResults,
@@ -94,6 +96,7 @@ try {
 		complexity: await Promise.all(participants.map(profileParticipant)),
 		limitations: [
 			'Browser samples use local loopback without network or CPU throttling.',
+			'Browser samples are warm: each participant completes one equivalent discarded scenario before measurement.',
 			'Chromium heap is an experimental point-in-time signal and is not a leak measurement.',
 			'Server requests are sequential loopback probes, not a saturation benchmark.'
 		]
@@ -109,10 +112,26 @@ try {
 
 async function measureParticipant(browserInstance, participant) {
 	const samples = [];
+	for (let index = 0; index < browserWarmupCount; index += 1)
+		await measureBrowserSample(browserInstance, participant);
 	for (let index = 0; index < sampleCount; index += 1) {
-		await resetService({});
-		const context = await browserInstance.newContext();
+		samples.push(await measureBrowserSample(browserInstance, participant));
+	}
+	return {
+		temperature: 'warm',
+		warmupCount: browserWarmupCount,
+		samples,
+		summary: summarizeBrowser(samples)
+	};
+}
+
+/** Measures browser-owned event-to-mutation latency without including automation actionability waits. */
+async function measureBrowserSample(browserInstance, participant) {
+	await resetService({});
+	const context = await browserInstance.newContext();
+	try {
 		const page = await context.newPage();
+		await page.addInitScript(installInteractionTiming);
 		const session = await context.newCDPSession(page);
 		await session.send('Performance.enable');
 		// EventSource intentionally keeps the network active, so semantic readiness gates the sample.
@@ -138,16 +157,49 @@ async function measureParticipant(browserInstance, participant) {
 		const metrics = await session.send('Performance.getMetrics');
 		const heapBytes =
 			metrics.metrics.find((metric) => metric.name === 'JSHeapUsedSize')?.value ?? null;
-		const start = performance.now();
 		await page.getByRole('button', { name: 'Claim incident' }).click();
 		await page.getByText('Alex Chen', { exact: true }).waitFor();
-		const optimisticFeedbackMs = performance.now() - start;
 		await page.getByText('Version 2', { exact: true }).waitFor();
-		const settlementMs = performance.now() - start;
-		samples.push({ navigation, heapBytes, optimisticFeedbackMs, settlementMs });
+		const timing = await page.evaluate(() => globalThis.__frameworkComparisonTiming);
+		if (timing?.optimisticFeedbackMs == null || timing.settlementMs == null)
+			throw new Error(`Missing browser interaction timing for ${participant.id}`);
+		return {
+			navigation,
+			heapBytes,
+			optimisticFeedbackMs: timing.optimisticFeedbackMs,
+			settlementMs: timing.settlementMs
+		};
+	} finally {
 		await context.close();
 	}
-	return { samples, summary: summarizeBrowser(samples) };
+}
+
+/** Installs a participant-neutral click-to-visible-mutation clock in the page's own time domain. */
+function installInteractionTiming() {
+	const timing = {
+		startedAt: null,
+		optimisticFeedbackMs: null,
+		settlementMs: null
+	};
+	globalThis.__frameworkComparisonTiming = timing;
+	document.addEventListener(
+		'click',
+		(event) => {
+			const button = event.target instanceof Element ? event.target.closest('button') : null;
+			if (button?.textContent?.trim() !== 'Claim incident' || timing.startedAt !== null) return;
+			timing.startedAt = performance.now();
+		},
+		true
+	);
+	new MutationObserver(() => {
+		if (timing.startedAt === null) return;
+		const content = document.body?.textContent ?? '';
+		const now = performance.now();
+		if (timing.optimisticFeedbackMs === null && content.includes('Alex Chen'))
+			timing.optimisticFeedbackMs = now - timing.startedAt;
+		if (timing.settlementMs === null && content.includes('Version 2'))
+			timing.settlementMs = now - timing.startedAt;
+	}).observe(document, { childList: true, characterData: true, subtree: true });
 }
 
 async function measureServer() {

@@ -47,6 +47,11 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					build, delivery, memory, and codebase complexity remain separate dimensions rather than
 					being collapsed into one score.
 				</p>
+				<p>
+					Controlled browser samples are labeled warm after one equivalent discarded scenario per
+					participant. Interaction timings run from the captured browser event to the visible DOM
+					mutation, excluding automation waits while retaining any interaction-triggered hydration.
+				</p>
 			</section>
 
 			<Callout title="Current status">

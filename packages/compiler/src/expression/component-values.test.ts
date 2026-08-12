@@ -15,7 +15,7 @@ describe('@exactjs/compiler: component values', () => {
 		);
 
 		expect(output).toContain('const Card = function Card');
-		expect(output).toContain('__exactVNode(Card, {})');
+		expect(output).toContain('__exactComponentVNode(Card, {})');
 		expect(output).toMatch(/__exactDynamic\(\(\) => this\.state\.title, "x[A-Za-z0-9_-]{22}"\)/);
 	});
 
