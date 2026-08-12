@@ -40,6 +40,10 @@ owner and status. Optimistic feedback latency is recorded independently from set
 durations use browser event and mutation timestamps, so test-driver actionability checks and polling intervals do
 not become framework latency. An activation performed in response to the click remains inside the measurement.
 
+The controlled browser heap signal is collected after semantic readiness, one browser rendering opportunity,
+and an explicit garbage collection. It therefore describes post-GC retained JavaScript heap for that page state,
+not allocation churn, a process-wide footprint, or proof by itself that an application does or does not leak.
+
 ## Complexity dimensions
 
 Complexity is reported as a profile rather than one synthetic score:

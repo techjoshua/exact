@@ -5,6 +5,7 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { chromium } from 'playwright';
+import { measureRetainedHeap } from './browser-memory.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
@@ -97,7 +98,7 @@ try {
 		limitations: [
 			'Browser samples use local loopback without network or CPU throttling.',
 			'Browser samples are warm: each participant completes one equivalent discarded scenario before measurement.',
-			'Chromium heap is an experimental point-in-time signal and is not a leak measurement.',
+			'Chromium heap is an experimental post-GC retained point-in-time signal, not a repeated-lifecycle leak measurement.',
 			'Server requests are sequential loopback probes, not a saturation benchmark.'
 		]
 	};
@@ -120,6 +121,7 @@ async function measureParticipant(browserInstance, participant) {
 	return {
 		temperature: 'warm',
 		warmupCount: browserWarmupCount,
+		heapMeasurement: 'post-gc-retained',
 		samples,
 		summary: summarizeBrowser(samples)
 	};
@@ -154,9 +156,10 @@ async function measureBrowserSample(browserInstance, participant) {
 				transferredScriptBytes: scripts
 			};
 		});
-		const metrics = await session.send('Performance.getMetrics');
-		const heapBytes =
-			metrics.metrics.find((metric) => metric.name === 'JSHeapUsedSize')?.value ?? null;
+		// Give queued framework activation and browser rendering work one opportunity to settle before
+		// collecting retained memory. Navigation timings above remain the original performance entries.
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
+		const heapBytes = await measureRetainedHeap(session);
 		await page.getByRole('button', { name: 'Claim incident' }).click();
 		await page.getByText('Alex Chen', { exact: true }).waitFor();
 		await page.getByText('Version 2', { exact: true }).waitFor();

@@ -52,6 +52,11 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					participant. Interaction timings run from the captured browser event to the visible DOM
 					mutation, excluding automation waits while retaining any interaction-triggered hydration.
 				</p>
+				<p>
+					Heap samples follow semantic readiness, one rendering opportunity, and explicit garbage
+					collection. Results label this as post-GC retained heap rather than treating live allocation
+					noise as evidence of a leak.
+				</p>
 			</section>
 
 			<Callout title="Current status">

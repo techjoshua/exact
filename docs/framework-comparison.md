@@ -59,6 +59,10 @@ Interaction latency is measured from the browser's captured click to the corresp
 automation actionability waits and assertion polling are therefore excluded, while interaction-triggered
 hydration remains included.
 
+Heap samples are taken after semantic readiness, one rendering opportunity, and explicit garbage collection.
+They are labeled as post-GC retained heap so ordinary allocation and collection timing is not mistaken for
+cross-sample growth. Dedicated repeated-lifecycle profiling is still required to diagnose an actual leak.
+
 The normative fairness and reporting rules live in
 [`framework-comparison/methodology.md`](../framework-comparison/methodology.md). The detailed experience and
 domain invariants live in
