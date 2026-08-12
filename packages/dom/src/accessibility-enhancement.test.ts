@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import './framework/enhancements.js';
 import { Accessibility } from '@exactjs/accessibility';
 import {
 	createEnhancementMarker,

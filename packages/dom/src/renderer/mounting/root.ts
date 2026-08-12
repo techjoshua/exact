@@ -48,7 +48,7 @@ import { refreshTargetBoundary } from '../target-contributions.js';
 import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
-import { activateEnhancementSubtree } from '../enhancements.js';
+import { requireDomEnhancementCapability } from '../enhancement-capability.js';
 import { fallbackRenderProgram, mountRenderProgram } from '../render-program.js';
 import { mountDynamic } from '../dynamic.js';
 import {
@@ -74,19 +74,24 @@ export function mount(
 		if (parked) return parked;
 		const scope = createEffectScope(parentScope);
 		const hasEnhancements = !!vnode.enhancement?.entries.length;
+		const enhancementCapability = hasEnhancements ? requireDomEnhancementCapability() : undefined;
 		const nesting = root.enhancementNesting ?? 0;
 		if (hasEnhancements) root.enhancementNesting = nesting + 1;
 		try {
 			let mounted = mountInner(root, vnode, scope, parentInstance, parentNode);
 			if (hasEnhancements) {
-				if (nesting === 0)
-					mounted = activateEnhancementSubtree(
+				if (nesting === 0) {
+					enhancementCapability!.install(root, (next, instance, nextScope, node) =>
+						mount(root, next, instance, nextScope, node, false)
+					);
+					mounted = enhancementCapability!.activate(
 						root,
 						mounted,
 						parentInstance,
 						parentScope,
 						(next, instance, nextScope, node) => mount(root, next, instance, nextScope, node, false)
 					);
+				}
 			}
 			const owner = mounted.instance ?? parentInstance;
 			if (owner) {

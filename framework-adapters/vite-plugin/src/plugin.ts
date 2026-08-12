@@ -187,7 +187,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						executionReason: options.serverExecutionReason,
 						watch: (file) => this.addWatchFile?.(file)
 					}),
-				requires: (request, owner) => componentAuthorization.requires(request, owner)
+				requires: (request, owner) => componentAuthorization.requires(request, owner),
+				activationModule:
+					options.target === 'server' ? undefined : '@exactjs/dom/framework/enhancements',
+				useRuntimeFacades: options.target === 'server'
 			});
 			if (enhancement.matched) return enhancement.resolution ?? null;
 			if (

@@ -197,14 +197,19 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				if (!module) throw new Error(`Unknown generated intl descriptor module ${args.path}`);
 				return { contents: module.code, loader: 'js' };
 			});
-			build.onResolve({ filter: /^@exactjs\/(?:dom|hydrate|ssr)$/ }, (args) => ({
-				path: exactEnhancementFacadeImports[args.path as keyof typeof exactEnhancementFacadeImports]
-			}));
+			if (options.target === 'server')
+				build.onResolve({ filter: /^@exactjs\/(?:dom|hydrate|ssr)$/ }, (args) => ({
+					path: exactEnhancementFacadeImports[
+						args.path as keyof typeof exactEnhancementFacadeImports
+					]
+				}));
 			build.onResolve({ filter: /^exact:optional-enhancement\// }, async (args) => {
 				return enhancementFacades.resolve(args.path, args.importer, {
 					authorization: componentAuthorization,
 					resolve: build.resolve,
-					aliases: build.config?.alias
+					aliases: build.config?.alias,
+					activationModule:
+						options.target === 'server' ? undefined : '@exactjs/dom/framework/enhancements'
 				});
 			});
 			build.onLoad({ filter: /.*/, namespace: 'exact-enhancement-facade' }, (args) => ({

@@ -35,6 +35,15 @@ function rejectUnusedReactCompatibility(): Plugin {
 				throw new Error(
 					`Hydration-only eXact bundle retained an unused optional capability: ${unusedHydrationCapability}`
 				);
+			const unusedEnhancementHost = modules.find((id) =>
+				/[\\/]packages[\\/]dom[\\/](?:src|dist)[\\/](?:framework[\\/]enhancements|renderer[\\/](?:enhancement-(?:chain|integration|targets)|enhancements))\.(?:ts|js)$/.test(
+					id
+				)
+			);
+			if (unusedEnhancementHost)
+				throw new Error(
+					`Enhancement-free eXact bundle retained the optional DOM enhancement host: ${unusedEnhancementHost}`
+				);
 		}
 	};
 }

@@ -224,7 +224,7 @@ export class ExactWebpackPlugin {
 			compiler,
 			exactExportConditions(webpackTransformTarget(this.options), this.options)
 		);
-		addWebpackEnhancementAliases(compiler);
+		if (webpackTransformTarget(this.options) === 'server') addWebpackEnhancementAliases(compiler);
 		const reactCompatibility = resolveReactCompatibility(this.options.reactCompatibility);
 		if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
 		compiler.options.module ??= {};

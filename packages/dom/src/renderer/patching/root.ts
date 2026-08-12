@@ -36,7 +36,7 @@ import { installActivity } from '../activity.js';
 import { updateSuspense } from '../suspense.js';
 import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
-import { patchEnhancementBoundary } from '../enhancements.js';
+import { requireDomEnhancementCapability } from '../enhancement-capability.js';
 import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
 import { parkForeignMounts } from './replacement-parking.js';
 import { fallbackRenderProgram, patchRenderProgram } from '../render-program.js';
@@ -86,7 +86,7 @@ export function patchInner(
 		mounted.vnode.key === next.key &&
 		mounted.vnode.domain === next.domain
 	) {
-		return patchEnhancementBoundary(
+		return requireDomEnhancementCapability().patch(
 			root,
 			mounted,
 			next,

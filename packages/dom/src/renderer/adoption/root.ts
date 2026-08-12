@@ -14,7 +14,7 @@ import type { Mounted, RenderOptions, Root } from '../../types.js';
 import { countDomWork, isDomRenderLimitError, withDomWork } from '../limits.js';
 import { rerenderComponent } from '../patching/children.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
-import { activateEnhancementSubtree, installEnhancementReconciliation } from '../enhancements.js';
+import { domEnhancementCapability } from '../enhancement-capability.js';
 import { mount } from '../mounting/root.js';
 import { createRendererRoot } from '../root-construction.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
@@ -231,14 +231,12 @@ function completeRootAdoption(
 
 /** Activates compiler-carried declarations after their authored DOM has been adopted. */
 function activateAdoptedEnhancements(root: Root, mounted: Mounted): Mounted {
-	installEnhancementReconciliation(root, (vnode, instance, scope, node) =>
+	const capability = domEnhancementCapability();
+	if (!capability) return mounted;
+	capability.install(root, (vnode, instance, scope, node) =>
 		mount(root, vnode, instance, scope, node, false)
 	);
-	return activateEnhancementSubtree(
-		root,
-		mounted,
-		undefined,
-		undefined,
-		(vnode, instance, scope, node) => mount(root, vnode, instance, scope, node, false)
+	return capability.activate(root, mounted, undefined, undefined, (vnode, instance, scope, node) =>
+		mount(root, vnode, instance, scope, node, false)
 	);
 }

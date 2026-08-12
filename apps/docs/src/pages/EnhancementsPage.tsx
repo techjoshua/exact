@@ -98,6 +98,13 @@ export function EnhancementsPage(this: Component<{}>) {
 					absent or disabled, the authored output passes through with no enhancement instance or
 					provider runtime on that path.
 				</p>
+				<p>
+					The generated provider facade loads the enhancement renderer with the component that needs
+					it. Static components include it in their normal graph; lazy components and microfrontends
+					carry it in their later-loaded graph and can activate it after the host root exists. An
+					application with no selected enhancements does not ship the enhancement mounting, routing,
+					or reconciliation implementation.
+				</p>
 			</section>
 
 			<section>

@@ -61,6 +61,14 @@ describe('build adapter support', () => {
 		expect(exactUnavailableEnhancementFacadeSource()).toContain(
 			'exactEnhancementPassThrough as default'
 		);
+		expect(
+			exactAvailableEnhancementFacadeSource(request, '@exactjs/dom/framework/enhancements')
+		).toBe(
+			`import "@exactjs/dom/framework/enhancements";\nexport { gesture as default } from "@acme/input";\n`
+		);
+		expect(
+			exactUnavailableEnhancementFacadeSource('@exactjs/dom/framework/enhancements')
+		).toContain('import "@exactjs/dom/framework/enhancements";');
 		expect(() => parseExactEnhancementFacadeRequest('exact:optional-enhancement/not-json')).toThrow(
 			/Malformed eXact enhancement facade request/
 		);

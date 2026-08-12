@@ -26,7 +26,6 @@ import {
 	unmountMounted
 } from './teardown.js';
 import { disposeRetainedReleases } from './retained-release.js';
-import { installEnhancementReconciliation } from './enhancements.js';
 
 /** Resolves a component dom node. */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
@@ -77,9 +76,6 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	}
 	if (!root) {
 		root = createRendererRoot(container, vnode, options, { version: 0 });
-		installEnhancementReconciliation(root, (vnode, instance, scope, node) =>
-			patch(root!, node ?? root!.container, undefined, vnode, instance, scope)
-		);
 		roots.set(container, root);
 		if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	}

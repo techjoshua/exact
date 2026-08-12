@@ -23,6 +23,10 @@
 		"./framework/hydration": {
 			"types": "./dist/framework/hydration.d.ts",
 			"default": "./dist/framework/hydration.js"
+		},
+		"./framework/enhancements": {
+			"types": "./dist/framework/enhancements.d.ts",
+			"default": "./dist/framework/enhancements.js"
 		}
 	},
 	"main": "./dist/index.js",

@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import './framework/enhancements.js';
 import {
 	Activity,
 	createContext,

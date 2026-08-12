@@ -22,7 +22,8 @@ export function materializeExactPhysicalEnhancementFacades(
 	code: string,
 	enhancements: readonly ExactRendererEnhancementIR[] | undefined,
 	importer: string,
-	outputRoot: string
+	outputRoot: string,
+	activationModule?: string
 ): Readonly<{ code: string; facades: readonly ExactPhysicalEnhancementFacade[] }> {
 	if (!enhancements?.length) return Object.freeze({ code, facades: Object.freeze([]) });
 	const root = path.resolve(outputRoot, '.exact', 'enhancements');
@@ -44,13 +45,16 @@ export function materializeExactPhysicalEnhancementFacades(
 		writeFileSync(
 			filename,
 			resolved
-				? exactAvailableEnhancementFacadeSource({
-						version: 1,
-						identity: entry.identity,
-						moduleSpecifier: pathToFileURL(resolved).href,
-						exportName: entry.exportName
-					})
-				: exactUnavailableEnhancementFacadeSource(),
+				? exactAvailableEnhancementFacadeSource(
+						{
+							version: 1,
+							identity: entry.identity,
+							moduleSpecifier: pathToFileURL(resolved).href,
+							exportName: entry.exportName
+						},
+						activationModule
+					)
+				: exactUnavailableEnhancementFacadeSource(activationModule),
 			'utf8'
 		);
 		facades.push(

@@ -107,7 +107,8 @@ export function transformExactWebpackModule(
 					registered,
 					result.rendererEnhancements,
 					filename,
-					options.applicationRoot
+					options.applicationRoot,
+					webpackTransformTarget(options)
 				);
 				const code =
 					options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)

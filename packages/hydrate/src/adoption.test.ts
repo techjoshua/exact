@@ -24,6 +24,7 @@ import { flushSync } from '@exactjs/reactive';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { hydrate } from './index.js';
+import { hydrate as hydrateEnhanced } from './enhanced.js';
 import { noopLogger } from './test-support/responses.js';
 
 describe('@exactjs/hydrate adoption', () => {
@@ -124,7 +125,7 @@ describe('@exactjs/hydrate adoption', () => {
 		root.innerHTML = renderToString(createVNode(Page, null), { enhancementCatalog }).html;
 		const serverNode = root.querySelector('button')!;
 
-		hydrate(createVNode(Page, null), root, {
+		hydrateEnhanced(createVNode(Page, null), root, {
 			logger: noopLogger,
 			enhancementCatalog
 		});

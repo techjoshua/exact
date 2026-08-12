@@ -75,6 +75,12 @@ scheme, so unbundled Node SSR needs no custom loader. Provider resolution happen
 compilation, not per request; absence selects the shared pass-through, while malformed installed
 exports fail when the generated module is linked.
 
+For client artifacts, each provider facade also imports the DOM enhancement integration. The
+integration registers a versioned realm capability synchronously, so bundlers place it with the
+static, lazy, or microfrontend module that selected the provider rather than forcing it into every
+application entry. Server facades continue to select the SSR catalog facade and do not import DOM
+code. Build adapters must preserve the client facade's registration side effect.
+
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from

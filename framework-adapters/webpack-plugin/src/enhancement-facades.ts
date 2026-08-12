@@ -1,4 +1,5 @@
 import type { ExactRendererEnhancementIR } from '@exactjs/compiler';
+import type { TransformTarget } from '@exactjs/compiler';
 import { materializeExactPhysicalEnhancementFacades } from '@exactjs/compiler/adapter-support';
 import path from 'node:path';
 
@@ -10,13 +11,15 @@ export function materializeWebpackEnhancementFacades(
 	code: string,
 	enhancements: readonly ExactRendererEnhancementIR[] | undefined,
 	importer: string,
-	applicationRoot = process.cwd()
+	applicationRoot = process.cwd(),
+	target: TransformTarget = 'default'
 ): string {
 	const result = materializeExactPhysicalEnhancementFacades(
 		code,
 		enhancements,
 		importer,
-		applicationRoot
+		applicationRoot,
+		target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
 	);
 	for (const facade of result.facades)
 		provenance.set(path.resolve(facade.filename), {

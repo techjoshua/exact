@@ -23,7 +23,8 @@ export class ExactViteEnhancementFacadeCatalog {
 		source: string,
 		importer: string | undefined,
 		resolveProvider: (source: string, importer: string | undefined) => Promise<string | null>,
-		authorize: (resolved: string, source: string, importer: string | undefined) => Promise<string>
+		authorize: (resolved: string, source: string, importer: string | undefined) => Promise<string>,
+		activationModule?: string
 	): Promise<string | undefined> {
 		const request = parseExactEnhancementFacadeRequest(source);
 		if (!request) return undefined;
@@ -34,14 +35,17 @@ export class ExactViteEnhancementFacadeCatalog {
 			if (!isMissingOptionalEnhancement(error, request.moduleSpecifier)) throw error;
 			resolved = null;
 		}
-		let facadeSource = exactUnavailableEnhancementFacadeSource();
+		let facadeSource = exactUnavailableEnhancementFacadeSource(activationModule);
 		if (resolved) {
 			const authorized = await authorize(resolved, request.moduleSpecifier, importer);
 			if (!isExactViteOmittedEnhancement(authorized))
-				facadeSource = exactAvailableEnhancementFacadeSource({
-					...request,
-					moduleSpecifier: authorized
-				});
+				facadeSource = exactAvailableEnhancementFacadeSource(
+					{
+						...request,
+						moduleSpecifier: authorized
+					},
+					activationModule
+				);
 		}
 		const id = `${resolvedFacadePrefix}${this.#generation}:${encodeURIComponent(source)}:${encodeURIComponent(importer ?? '')}`;
 		this.#sources.set(id, facadeSource);
@@ -79,6 +83,8 @@ export async function resolveExactViteEnhancementRequest(
 			importer: string | undefined
 		): Promise<ExactViteResolution>;
 		requires(source: string, importer: string | undefined): boolean;
+		activationModule?: string;
+		useRuntimeFacades?: boolean;
 	}>
 ): Promise<ExactViteEnhancementResolution> {
 	const facade = await options.catalog.resolve(
@@ -86,10 +92,12 @@ export async function resolveExactViteEnhancementRequest(
 		options.importer,
 		async (source, importer) => resolutionId(await options.resolve(source, importer)),
 		async (resolved, source, importer) =>
-			resolutionId(await options.authorize(resolved, source, importer)) ?? resolved
+			resolutionId(await options.authorize(resolved, source, importer)) ?? resolved,
+		options.activationModule
 	);
-	if (facade) return { matched: true, resolution: { id: facade, moduleSideEffects: false } };
-	if (!(options.source in exactEnhancementFacades)) return { matched: false };
+	if (facade) return { matched: true, resolution: { id: facade, moduleSideEffects: true } };
+	if (!(options.source in exactEnhancementFacades) || !options.useRuntimeFacades)
+		return { matched: false };
 	const request = exactEnhancementFacades[options.source as keyof typeof exactEnhancementFacades];
 	let resolution: ExactViteResolution =
 		(await options.resolve(request, options.importer)) ?? request;

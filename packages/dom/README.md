@@ -21,3 +21,8 @@ and hydration markers.
 
 Application components should be compiled before they reach the renderer. Use
 `@exactjs/testing` for component tests and `@exactjs/hydrate` when adopting server-rendered HTML.
+
+Compiler-resolved enhancements automatically load their DOM integration beside the component that
+uses them, including from lazy chunks and microfrontends. An integration that manually constructs
+enhancement markers and catalogs must import `render` from `@exactjs/dom/enhanced`; the ordinary
+entry intentionally leaves the optional enhancement host out of enhancement-free bundles.

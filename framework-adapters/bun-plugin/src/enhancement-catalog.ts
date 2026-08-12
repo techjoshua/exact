@@ -26,11 +26,12 @@ export class ExactBunEnhancementFacadeCatalog {
 			authorization?: ExactBunComponentAuthorization;
 			resolve?: ExactBunResolver;
 			aliases?: Readonly<Record<string, string>>;
+			activationModule?: string;
 		}>
 	): Promise<Readonly<{ path: string; namespace: string }> | undefined> {
 		const request = parseExactEnhancementFacadeRequest(source);
 		if (!request) return undefined;
-		let facadeSource = exactUnavailableEnhancementFacadeSource();
+		let facadeSource = exactUnavailableEnhancementFacadeSource(options.activationModule);
 		try {
 			const authorized = await options.authorization?.authorize(
 				request.moduleSpecifier,
@@ -46,10 +47,13 @@ export class ExactBunEnhancementFacadeCatalog {
 						resolveDir: importer ? path.dirname(importer) : process.cwd()
 					}));
 				if (resolved?.path)
-					facadeSource = exactAvailableEnhancementFacadeSource({
-						...request,
-						moduleSpecifier: resolved.path
-					});
+					facadeSource = exactAvailableEnhancementFacadeSource(
+						{
+							...request,
+							moduleSpecifier: resolved.path
+						},
+						options.activationModule
+					);
 			}
 		} catch (error) {
 			if (!isMissingOptionalEnhancement(error, request.moduleSpecifier)) throw error;

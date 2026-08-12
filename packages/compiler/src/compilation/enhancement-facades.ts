@@ -38,17 +38,24 @@ export function parseExactEnhancementFacadeRequest(
 
 /** Emits a facade that statically selects one resolved provider export. */
 export function exactAvailableEnhancementFacadeSource(
-	request: ExactEnhancementFacadeRequest
+	request: ExactEnhancementFacadeRequest,
+	activationModule?: string
 ): string {
 	validateRequest(request);
-	return request.exportName === 'default'
-		? `export { default } from ${JSON.stringify(request.moduleSpecifier)};\n`
-		: `export { ${request.exportName} as default } from ${JSON.stringify(request.moduleSpecifier)};\n`;
+	return `${enhancementActivationSource(activationModule)}${
+		request.exportName === 'default'
+			? `export { default } from ${JSON.stringify(request.moduleSpecifier)};\n`
+			: `export { ${request.exportName} as default } from ${JSON.stringify(request.moduleSpecifier)};\n`
+	}`;
 }
 
 /** Emits the shared zero-instance result for an unavailable optional provider. */
-export function exactUnavailableEnhancementFacadeSource(): string {
-	return `export { exactEnhancementPassThrough as default } from '@exactjs/core/runtime/enhancements';\n`;
+export function exactUnavailableEnhancementFacadeSource(activationModule?: string): string {
+	return `${enhancementActivationSource(activationModule)}export { exactEnhancementPassThrough as default } from '@exactjs/core/runtime/enhancements';\n`;
+}
+
+function enhancementActivationSource(moduleSpecifier: string | undefined): string {
+	return moduleSpecifier ? `import ${JSON.stringify(moduleSpecifier)};\n` : '';
 }
 
 function validateRequest(value: unknown): asserts value is ExactEnhancementFacadeRequest {

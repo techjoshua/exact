@@ -26,9 +26,11 @@ immediately.
 Hydrate the same compiled application that produced the server output. Server endpoints remain
 responsible for authorization, CSRF policy, payload limits, and operation allowlists.
 
-Generated application entries pass their bundle-local enhancement catalog through
-`HydrateOptions.enhancementCatalog`. Hydration adopts compatible authored DOM first, then activates
-those ordinary enhancement components against the adopted targets.
+Generated enhancement modules register their bundle-local providers and hydration support
+automatically. Hydration adopts compatible authored DOM first, then activates those ordinary
+enhancement components against the adopted targets. A low-level integration that manually passes
+`HydrateOptions.enhancementCatalog` must import `hydrate` from `@exactjs/hydrate/enhanced` so the
+synchronous enhancement host is installed before adoption.
 
 Applications with ordinary browser-owned service calls and no compiler-generated server
 operations, response patches, or client islands can select the hydration-only entry:

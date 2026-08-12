@@ -75,7 +75,8 @@ async function prepareFile(
 					prependExactEnhancementRegistrations(result.code, rendererEnhancements),
 					rendererEnhancements,
 					inputFile,
-					options.outDir ?? path.dirname(outputFile)
+					options.outDir ?? path.dirname(outputFile),
+					options.target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
 				).code
 			: result.code;
 	return Object.freeze({

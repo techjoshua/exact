@@ -97,7 +97,10 @@ provider import is always resolvable: Vite and Bun use generation-owned virtual 
 Webpack and native Node use physical ESM facades under `.exact/enhancements`. If the provider is not
 installed or enabled, the facade selects a shared zero-instance pass-through and preserves the
 authored target. An installed malformed, unauthorized, or evaluation-failing provider remains a
-build error. This is not plugin discovery, configuration, host projection, or plugin lifecycle.
+build error. Client facades also activate the versioned DOM enhancement capability, which keeps the
+host implementation in the static or lazy graph of the component that needs it and out of
+enhancement-free clients. This is not plugin discovery, configuration, host projection, or plugin
+lifecycle.
 
 The implemented [trusted language-service contribution](history/trusted-language-service-contributions.md)
 role is independent again: a plugin or enhancement library may publish inert editor metadata or an

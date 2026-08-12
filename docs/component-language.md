@@ -625,6 +625,20 @@ into the application bundle's enhancement catalog. An available entry mounts as 
 inspectable component; an unavailable entry leaves the authored output unchanged. Enhancement
 metadata and the bundle-local catalog are not framework-plugin discovery or lifecycle.
 
+The provider facade also activates the target renderer's enhancement host. That import is emitted
+beside the component module that uses the enhancement, so a statically imported component places
+the host in its ordinary bundle while a dynamically imported component or microfrontend carries
+the host in its own chunk. Evaluating the later module registers the versioned DOM capability
+before its component can mount, including when the owning renderer root already exists. Compatible
+independent bundles share the realm registration; applications should still share one eXact runtime
+when their bundler or import map supports it.
+
+An enhancement-free client does not include enhancement mounting, routing, reconciliation, or
+adoption code. Framework-generated entries activate the host automatically. A low-level integration
+that constructs enhancement markers and supplies `enhancementCatalog` manually must import from
+`@exactjs/dom/enhanced` or `@exactjs/hydrate/enhanced` so the synchronous renderer is prepared
+before it encounters those markers.
+
 Component libraries author the option, while consuming applications decide which providers their
 builds use. Enabling a provider constructs the selected enhancement as a normal component. Omitting
 or disabling it keeps the authored output and adds no enhancement instance or provider runtime on

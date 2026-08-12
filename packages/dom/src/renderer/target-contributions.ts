@@ -11,7 +11,7 @@ import { computed, scheduleWork, watch } from '@exactjs/reactive';
 import { installOwnedEventSubscription } from '../events.js';
 import { updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
-import { resolveTargetBoundary } from './enhancement-targets.js';
+import { resolveTargetBoundary } from './target-routing.js';
 
 const tokenListProps = new Set([
 	'aria-describedby',
