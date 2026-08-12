@@ -16,7 +16,7 @@
 	"scripts": {
 		"generate:app-artifacts": "npm run generate -w @exactjs/sample-server-components && npm run generate -w @exactjs/sample-shipping-calculator",
 		"build": "npm run build:prerequisites && npm run build:native-compiler && npm run build:workspaces",
-		"build:prerequisites": "npm run build -w @exactjs/core -w @exactjs/jsx",
+		"build:prerequisites": "npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer",
 		"build:workspaces": "npm run generate:app-artifacts && tsc6 -b && npm run typecheck -w @exactjs/sample-puzzle-generator",
 		"build:typescript7": "npm run generate:app-artifacts && tsc -b",
 		"format": "prettier --write .",

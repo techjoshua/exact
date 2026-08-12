@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
-test('the root build prepares package-export prerequisites before testing the native compiler', async () => {
+test('the root build prepares package-export prerequisites before building dependent workspaces', async () => {
 	const manifest = JSON.parse(await readFile(path.resolve('package.json'), 'utf8'));
 
 	assert.equal(
@@ -12,7 +12,7 @@ test('the root build prepares package-export prerequisites before testing the na
 	);
 	assert.equal(
 		manifest.scripts['build:prerequisites'],
-		'npm run build -w @exactjs/core -w @exactjs/jsx'
+		'npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer'
 	);
 	assert.equal(
 		manifest.scripts['build:workspaces'],
