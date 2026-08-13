@@ -1,5 +1,5 @@
+import { createRef, type Component } from '@exactjs/core';
 import type { AiPuzzleKind } from '../ai-word-list-format.js';
-import { getLocalAiModel, localAiModels, type LocalAiModelId } from '../ai-models.js';
 
 type AiWordControlsProps = {
 	kind: AiPuzzleKind;
@@ -9,33 +9,84 @@ type AiWordControlsProps = {
 	promptVisible: boolean;
 	response: string;
 	responseVisible: boolean;
-	supported: boolean;
 	busy: boolean;
 	progress: number;
 	status: string;
 	error?: string;
-	model: LocalAiModelId;
-	modelReady: boolean;
+	model: string;
+	apiKeyStored: boolean;
 	onTopic(topic: string): void;
 	onPromptTemplate(template: string): void;
 	onPromptVisible(visible: boolean): void;
 	onResponseVisible(visible: boolean): void;
 	onResetPrompt(): void;
 	onGenerate(): void;
-	onModel(model: LocalAiModelId): void;
+	onModel(model: string): void;
+	onSaveApiKey(apiKey: string): void;
+	onClearApiKey(): void;
 	onCancel(): void;
-	onRemoveModel(): void;
 };
 
-/** Renders the explicit opt-in controls for browser-local word and clue generation. */
-export function AiWordControls(props: AiWordControlsProps) {
+/** Renders explicit OpenAI credentials and word or clue generation controls. */
+export function AiWordControls(this: Component<{}>, props: AiWordControlsProps) {
+	const apiKeyInput = createRef<HTMLInputElement>('openai-api-key');
+
 	return () => (
 		<div className="option-box ai-option" aria-busy={props.busy ? 'true' : 'false'}>
-			<strong>Local AI helper</strong>
+			<strong>OpenAI helper</strong>
 			<p>
 				Generate {props.kind === 'crossword' ? 'answers and clues' : 'a word list'} from a topic.
-				Your topic stays on this device.
+				Your topic and prompt are sent to OpenAI.
 			</p>
+			<label className="wide-field">
+				<span>OpenAI API key</span>
+				<input
+					ref={this.ref(apiKeyInput)}
+					type="password"
+					autocomplete="off"
+					placeholder={props.apiKeyStored ? 'API key saved in this browser' : 'sk-…'}
+					disabled={props.busy}
+				/>
+				<small>
+					Saving stores the key in this origin's localStorage. Scripts running on this origin can
+					read it, so use a restricted key and clear it on shared devices.
+				</small>
+			</label>
+			<div className="ai-actions">
+				<button
+					type="button"
+					className="secondary-button"
+					disabled={props.busy}
+					onClick={() => {
+						const input = this.refs.get(apiKeyInput);
+						const key = input?.value.trim() ?? '';
+						if (!key) return;
+						props.onSaveApiKey(key);
+						input!.value = '';
+					}}
+				>
+					Save API key
+				</button>
+				{props.apiKeyStored ? (
+					<button
+						type="button"
+						className="text-button"
+						disabled={props.busy}
+						onClick={props.onClearApiKey}
+					>
+						Clear saved key
+					</button>
+				) : null}
+			</div>
+			<label className="wide-field">
+				<span>OpenAI model</span>
+				<input
+					type="text"
+					value={props.model}
+					disabled={props.busy}
+					onInput={(event) => props.onModel(event.currentTarget.value)}
+				/>
+			</label>
 			<label className="wide-field">
 				<span>Topic</span>
 				<input
@@ -46,21 +97,6 @@ export function AiWordControls(props: AiWordControlsProps) {
 					disabled={props.busy}
 					onInput={(event) => props.onTopic(event.currentTarget.value)}
 				/>
-			</label>
-			<label className="wide-field">
-				<span>Local model</span>
-				<select
-					value={props.model}
-					disabled={props.busy}
-					onChange={(event) => props.onModel(event.currentTarget.value as LocalAiModelId)}
-				>
-					{localAiModels.map((model) => (
-						<option value={model.id}>
-							{model.label} · ~{model.downloadMb} MB
-						</option>
-					))}
-				</select>
-				<small>{getLocalAiModel(props.model).note}</small>
 			</label>
 			<div className="ai-prompt-toolbar">
 				<div>
@@ -140,31 +176,18 @@ export function AiWordControls(props: AiWordControlsProps) {
 					type="button"
 					className="secondary-button"
 					disabled={
-						!props.supported || props.busy || !props.topic.trim() || !props.promptTemplate.trim()
+						!props.apiKeyStored || props.busy || !props.topic.trim() || !props.promptTemplate.trim()
 					}
 					onClick={props.onGenerate}
 				>
-					Generate with local AI
+					Generate with OpenAI
 				</button>
 				{props.busy ? (
 					<button type="button" className="text-button" onClick={props.onCancel}>
 						Cancel
 					</button>
-				) : props.modelReady ? (
-					<button type="button" className="text-button" onClick={props.onRemoveModel}>
-						Remove model
-					</button>
 				) : null}
 			</div>
-			<small>
-				{props.supported
-					? `First use downloads about ${getLocalAiModel(props.model).downloadMb} MB from Hugging Face and needs roughly ${formatMemory(getLocalAiModel(props.model).gpuMemoryMb)} of GPU memory. Each model is cached separately by this browser.`
-					: 'Local AI is unavailable because this browser or device does not expose WebGPU.'}
-			</small>
 		</div>
 	);
-}
-
-function formatMemory(megabytes: number): string {
-	return megabytes < 1000 ? `${megabytes} MB` : `${(megabytes / 1000).toFixed(1)} GB`;
 }

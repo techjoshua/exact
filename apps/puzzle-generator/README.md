@@ -26,21 +26,20 @@ errors, while page-fit scaling and disconnected crossword entries are reported a
 keys can retain the accent color or use puzzle-specific black-and-white rendering; Sudoku answer
 digits may also use a different font or weight.
 
-## Optional local AI
+## Optional OpenAI input authoring
 
-Word searches and crosswords include an opt-in topic helper powered by WebLLM. Its selector offers
-10 curated chat/instruct models with downloads below 1.5 GiB, including Llama 3.2 1B and several
-Qwen and SmolLM sizes. It shows the approximate first-download and GPU-memory cost of the selected
-model. The browser-tested Llama 3.2 1B is the default at about 672 MB downloaded and 879 MB of GPU
-memory. Gemma 3 1B is deliberately excluded while WebLLM's upstream sliding-window correctness
-issue remains unresolved. After the user opts in, the browser loads the pinned WebLLM 0.2.84 runtime
-from jsDelivr's `esm.run` endpoint and downloads the selected artifacts from the MLC repository on
-Hugging Face. Inference runs locally in a module Web Worker; topics, generated words, and clues are
-not uploaded. Each model is cached separately, while the runtime remains a CDN dependency for each
-uncached session. Unsupported browsers keep the ordinary manual authoring workflow and explain
-that WebGPU is unavailable. Model output is constrained to JSON, normalized, deduplicated, and
-passed through the same safety validation as authored words before it can replace the editable
-list. After a model is ready, the helper also offers a control that removes its cached artifacts.
+Word searches and crosswords include an opt-in topic helper powered by the OpenAI Responses API.
+The author supplies an API key and model ID; `gpt-4.1-mini` is the initial model. Saving the key
+stores it in this origin's `localStorage`, never in component state, prompts, exported artwork, or
+URLs. The interface warns that scripts executing on the same origin can read local storage and
+provides a control to remove the key. Authors should use a restricted key and clear it on shared
+devices. This explicit user-owned-key mode carries more exposure than OpenAI's recommended
+server-side key handling and is intended for authors who accept that tradeoff. Topics, prompt
+templates, and generated material are sent to OpenAI when the author explicitly generates a list.
+Ordinary puzzle generation remains browser-local and needs no key.
+
+OpenAI output is constrained to JSON, normalized, deduplicated, and passed through the same safety
+validation as authored words before it can replace the editable list.
 
 The helper's **Show prompt** control exposes a separate editable template for word searches and
 crosswords. `{{topic}}` marks where the topic is inserted, and **Reset template** restores the
@@ -49,15 +48,13 @@ template asks for short conventional clues, requires topic relevance and accurat
 pairing, and forbids answer variants in clues. Both templates spell out the required top-level JSON
 property, item count, property names, prohibition on prose or Markdown fences, and required opening,
 item, separator, and closing syntax without giving the model sample values to copy. Word searches
-and crosswords receive separate system instructions, and structured output uses a lower temperature
-to reduce format drift.
+and crosswords receive separate system instructions and strict JSON schemas.
 Independently of the template, generated crossword material is rejected when a clue contains its
 answer or a longer word containing that answer. Common scaffold placeholders are also rejected. The
 helper makes one automatic repair pass with the rejected output and exact leaking answers before it
 surfaces the failure to the author. **Show response** displays every completion
-exactly as received, including malformed output and separate initial and repair attempts. It also
-reports the model's finish reason and explains when the output limit interrupted an incomplete JSON
-object; failed validation never hides the model's response.
+exactly as received, including malformed output and separate initial and repair attempts. Failed
+validation never hides the model's response.
 
 ## Build one portable file
 
@@ -66,8 +63,7 @@ npm run build:puzzle-generator:standalone
 ```
 
 The result is `apps/puzzle-generator/dist/puzzle-foundry.html`. It contains the application,
-styles, compiler output, framework runtime, and local-AI controller with no external script,
-stylesheet, font, or image dependency for non-AI features. SVG downloads and all non-AI features
-work when the HTML file is opened from disk. Optional AI requires HTTPS or localhost for WebGPU and
-network access to load its pinned WebLLM runtime from jsDelivr. First use of each selection also
-downloads that model; cached model inference remains local afterward.
+styles, compiler output, framework runtime, and OpenAI client with no external script, stylesheet,
+font, or image dependency. SVG downloads and all non-AI features work when the HTML file is opened
+from disk. Optional input authoring requires network access to `api.openai.com` and a user-supplied
+API key.

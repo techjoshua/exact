@@ -1,5 +1,4 @@
 import type { Difficulty, PuzzleKind } from '../types.js';
-import type { LocalAiModelId } from '../ai-models.js';
 import { AiWordControls } from './AiWordControls.jsx';
 
 type GeneratorControlsProps = {
@@ -16,13 +15,12 @@ type GeneratorControlsProps = {
 	aiPromptVisible: boolean;
 	aiResponse: string;
 	aiResponseVisible: boolean;
-	aiSupported: boolean;
 	aiBusy: boolean;
 	aiProgress: number;
 	aiStatus: string;
 	aiError?: string;
-	aiModel: LocalAiModelId;
-	aiModelReady: boolean;
+	aiModel: string;
+	aiApiKeyStored: boolean;
 	onKind(kind: PuzzleKind): void;
 	onDifficulty(difficulty: Difficulty): void;
 	onSeed(seed: number): void;
@@ -36,9 +34,10 @@ type GeneratorControlsProps = {
 	onAiResponseVisible(visible: boolean): void;
 	onAiResetPrompt(): void;
 	onAiGenerate(): void;
-	onAiModel(model: LocalAiModelId): void;
+	onAiModel(model: string): void;
+	onAiSaveApiKey(apiKey: string): void;
+	onAiClearApiKey(): void;
 	onAiCancel(): void;
-	onAiRemoveModel(): void;
 	onRandomize(): void;
 };
 
@@ -152,13 +151,12 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						promptVisible={props.aiPromptVisible}
 						response={props.aiResponse}
 						responseVisible={props.aiResponseVisible}
-						supported={props.aiSupported}
 						busy={props.aiBusy}
 						progress={props.aiProgress}
 						status={props.aiStatus}
 						error={props.aiError}
 						model={props.aiModel}
-						modelReady={props.aiModelReady}
+						apiKeyStored={props.aiApiKeyStored}
 						onTopic={props.onAiTopic}
 						onPromptTemplate={props.onAiPromptTemplate}
 						onPromptVisible={props.onAiPromptVisible}
@@ -166,8 +164,9 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						onResetPrompt={props.onAiResetPrompt}
 						onGenerate={props.onAiGenerate}
 						onModel={props.onAiModel}
+						onSaveApiKey={props.onAiSaveApiKey}
+						onClearApiKey={props.onAiClearApiKey}
 						onCancel={props.onAiCancel}
-						onRemoveModel={props.onAiRemoveModel}
 					/>
 				</>
 			) : null}

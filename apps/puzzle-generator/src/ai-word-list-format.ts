@@ -1,7 +1,7 @@
 import type { PuzzleKind } from './types.js';
 import { validateWords } from './words.js';
 
-/** Puzzle kinds for which the local language model can author source material. */
+/** Puzzle kinds for which OpenAI can author source material. */
 export type AiPuzzleKind = Exclude<PuzzleKind, 'sudoku'>;
 
 const topicToken = '{{topic}}';
@@ -39,19 +39,19 @@ export class AiClueLeakError extends Error {
 	/** Records the normalized answers exposed by one otherwise structured model response. */
 	constructor(answers: readonly string[]) {
 		super(
-			`The local model repeated answers in their clues: ${answers.join(', ')}. Try again or edit the prompt template.`
+			`OpenAI repeated answers in their clues: ${answers.join(', ')}. Try again or edit the prompt template.`
 		);
 		this.name = 'AiClueLeakError';
 		this.answers = answers;
 	}
 }
 
-/** Returns the editable default prompt template for one local-AI puzzle kind. */
+/** Returns the editable default prompt template for one AI-authored puzzle kind. */
 export function defaultAiPromptTemplate(kind: AiPuzzleKind): string {
 	return kind === 'crossword' ? crosswordPromptTemplate : wordSearchPromptTemplate;
 }
 
-/** Returns the constrained JSON schema used for local model output. */
+/** Returns the constrained JSON schema used for OpenAI output. */
 export function aiWordListSchema(kind: AiPuzzleKind): string {
 	const items =
 		kind === 'crossword'
@@ -100,20 +100,18 @@ export function formatAiWordListResponse(source: string, kind: AiPuzzleKind): st
 	try {
 		parsed = JSON.parse(source);
 	} catch {
-		throw new Error('The local model returned malformed data. Try generating again.');
+		throw new Error('OpenAI returned malformed data. Try generating again.');
 	}
-	if (!isRecord(parsed)) throw new Error('The local model returned an unexpected result.');
+	if (!isRecord(parsed)) throw new Error('OpenAI returned an unexpected result.');
 
 	if (kind === 'word-search') {
-		if (!Array.isArray(parsed.words))
-			throw new Error('The local model did not return a word list.');
+		if (!Array.isArray(parsed.words)) throw new Error('OpenAI did not return a word list.');
 		const words = uniqueWords(parsed.words);
 		validateAiWords(words);
 		return words.join('\n');
 	}
 
-	if (!Array.isArray(parsed.entries))
-		throw new Error('The local model did not return crossword entries.');
+	if (!Array.isArray(parsed.entries)) throw new Error('OpenAI did not return crossword entries.');
 	const entries = new Map<string, string>();
 	const leakingAnswers: string[] = [];
 	for (const candidate of parsed.entries) {
@@ -152,19 +150,15 @@ function uniqueWords(candidates: readonly unknown[]): string[] {
 
 function validateAiWords(words: readonly string[]): void {
 	if (words.length < 6)
-		throw new Error('The local model returned too few usable words. Try a broader topic.');
+		throw new Error('OpenAI returned too few usable words. Try a broader topic.');
 	const wrongLength = words.find((word) => word.length < 3 || word.length > 12);
 	if (wrongLength)
-		throw new Error(
-			`The local model returned “${wrongLength}”, but answers must contain 3-12 letters.`
-		);
+		throw new Error(`OpenAI returned “${wrongLength}”, but answers must contain 3-12 letters.`);
 	const placeholder = words.find((word) => placeholderAnswers.has(word));
 	if (placeholder)
-		throw new Error(
-			`The local model copied the placeholder “${placeholder}” instead of an answer.`
-		);
+		throw new Error(`OpenAI copied the placeholder “${placeholder}” instead of an answer.`);
 	const issue = validateWords(words, 6);
-	if (issue) throw new Error(`The local model response was rejected: ${issue}`);
+	if (issue) throw new Error(`The OpenAI response was rejected: ${issue}`);
 }
 
 const placeholderAnswers = new Set(['WORD', 'ANSWER', 'CLUE', 'PLACEHOLDER']);

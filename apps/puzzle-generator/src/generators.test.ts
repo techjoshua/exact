@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { prebuiltAppConfig } from '@mlc-ai/web-llm';
 import {
 	aiWordListPrompt,
 	aiWordListSchema,
 	defaultAiPromptTemplate,
 	formatAiWordListResponse
 } from './ai-word-list-format.js';
-import { defaultLocalAiModel, localAiModels } from './ai-models.js';
 import { generateCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
 import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
@@ -87,19 +85,7 @@ describe('crossword generation', () => {
 });
 
 describe('document and input contracts', () => {
-	it('offers distinct local chat models below the advertised download ceiling', () => {
-		const registeredModelIds = new Set(
-			prebuiltAppConfig.model_list.map((model: { model_id: string }) => model.model_id)
-		);
-		expect(localAiModels).toHaveLength(10);
-		expect(new Set(localAiModels.map((model) => model.id)).size).toBe(localAiModels.length);
-		expect(localAiModels.every((model) => model.downloadMb < 1536)).toBe(true);
-		expect(localAiModels.every((model) => registeredModelIds.has(model.id))).toBe(true);
-		expect(JSON.stringify(localAiModels)).not.toContain('gemma3-1b');
-		expect(defaultLocalAiModel).toBe('Llama-3.2-1B-Instruct-q4f16_1-MLC');
-	});
-
-	it('validates and formats structured local-AI puzzle material', () => {
+	it('validates and formats structured OpenAI puzzle material', () => {
 		const wordSearch = formatAiWordListResponse(
 			JSON.stringify({
 				words: ['coral reef', 'OCTOPUS', 'whale', 'SHARK', 'KELP', 'TURTLE', 'DOLPHIN']
@@ -149,7 +135,7 @@ describe('document and input contracts', () => {
 		expect(parsedSchema.properties.entries.maxItems).toBeUndefined();
 	});
 
-	it('rejects malformed or unsafe local-AI responses', () => {
+	it('rejects malformed or unsafe OpenAI responses', () => {
 		expect(() => formatAiWordListResponse('not json', 'word-search')).toThrow(/malformed/i);
 		expect(() =>
 			formatAiWordListResponse(

@@ -3,7 +3,6 @@ import { GeneratorControls } from './components/GeneratorControls.jsx';
 import { PuzzlePreview } from './components/PuzzlePreview.jsx';
 import { StyleControls } from './components/StyleControls.jsx';
 import { defaultAiPromptTemplate, type AiPuzzleKind } from './ai-word-list-format.js';
-import { defaultLocalAiModel, type LocalAiModelId } from './ai-models.js';
 import {
 	createPuzzleDocuments,
 	downloadSvg,
@@ -11,6 +10,8 @@ import {
 	type DocumentRequest
 } from './documents.js';
 import { createSeed } from './random.js';
+import { generateOpenAiWordList } from './openai-ai.js';
+import { clearOpenAiSettings, loadOpenAiSettings, saveOpenAiSettings } from './openai-settings.js';
 import type { PuzzleGeneratorState, PuzzleKind, PuzzleStyle } from './types.js';
 
 const starterWords = `ORBIT
@@ -62,6 +63,9 @@ const initialStyle: PuzzleStyle = {
 
 /** Owns the browser-local generator inputs and the current pair of SVG artifacts. */
 export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
+	const openAiSettings = loadOpenAiSettings();
+	let openAiApiKey = openAiSettings.apiKey;
+	let openAiRequest: AbortController | undefined;
 	this.state.kind = 'sudoku';
 	this.state.difficulty = 'medium';
 	this.state.seed = createSeed();
@@ -76,21 +80,18 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	this.state.aiPromptVisible = false;
 	this.state.aiResponse = '';
 	this.state.aiResponseVisible = false;
-	this.state.aiSupported =
-		typeof navigator !== 'undefined' && 'gpu' in navigator && globalThis.isSecureContext !== false;
 	this.state.aiBusy = false;
 	this.state.aiProgress = 0;
 	this.state.aiStatus = 'Ready';
 	this.state.aiError = undefined;
-	this.state.aiModel = defaultLocalAiModel;
-	this.state.aiModelReady = false;
+	this.state.aiModel = openAiSettings.model;
+	this.state.aiApiKeyStored = Boolean(openAiApiKey);
 	this.state.style = initialStyle;
 	this.state.documents = peek(() => createPuzzleDocuments(requestFromState(this.state)));
 	this.state.status = 'Ready to export';
 	this.state.error = undefined;
 	this.state.previewSolution = false;
 	let aiGeneration = 0;
-	let localAiModule: Promise<typeof import('./local-ai.js')> | undefined;
 
 	const generate = (status = 'Preview updated') => {
 		try {
@@ -109,101 +110,117 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		generate();
 	};
 
-	const generateWithLocalAi = async () => {
+	const generateWithOpenAi = async () => {
 		const topic = this.state.aiTopic.trim();
 		const kind = this.state.kind;
-		if (!topic || kind === 'sudoku' || this.state.aiBusy) return;
+		const model = this.state.aiModel.trim();
+		if (!topic || !model || !openAiApiKey || kind === 'sudoku' || this.state.aiBusy) return;
 		const promptTemplate = aiPromptTemplate(this.state, kind);
 		const generation = ++aiGeneration;
+		openAiRequest = new AbortController();
 		this.state.aiBusy = true;
-		this.state.aiProgress = 0;
-		this.state.aiStatus = 'Preparing local AI…';
+		this.state.aiProgress = 0.5;
+		this.state.aiStatus = 'Waiting for OpenAI…';
 		this.state.aiError = undefined;
 		this.state.aiResponse = '';
 		this.state.aiResponseVisible = false;
 		try {
-			localAiModule ??= import('./local-ai.js');
-			const localAi = await localAiModule;
-			if (generation !== aiGeneration) return;
-			const wordText = await localAi.generateLocalAiWordList(
-				this.state.aiModel,
+			const wordText = await generateOpenAiWordList(
+				openAiApiKey,
+				model,
 				topic,
 				kind,
 				promptTemplate,
-				(progress) => {
-					if (generation !== aiGeneration) return;
-					this.state.aiProgress = progress.progress;
-					this.state.aiStatus = progress.text;
-				},
 				(response) => {
 					if (generation !== aiGeneration) return;
 					const attempt = response.attempt === 'initial' ? 'Initial response' : 'Repair response';
-					const heading = `${attempt} · finish reason: ${response.finishReason ?? 'unknown'}`;
-					const section = `${heading}\n${response.content}`;
+					const section = `${attempt}\n${response.content}`;
 					this.state.aiResponse = this.state.aiResponse
 						? `${this.state.aiResponse}\n\n${section}`
 						: section;
-				}
+				},
+				openAiRequest.signal
 			);
 			if (generation !== aiGeneration) return;
 			if (kind === 'crossword') this.state.crosswordText = wordText;
 			else this.state.wordText = wordText;
-			this.state.aiStatus = 'Generated locally';
+			this.state.aiStatus = 'Generated with OpenAI';
 			this.state.aiProgress = 1;
-			this.state.aiModelReady = true;
-			generate('Local AI word list applied');
+			generate('OpenAI word list applied');
 		} catch (error) {
 			if (generation !== aiGeneration) return;
-			this.state.aiError = error instanceof Error ? error.message : String(error);
-			this.state.aiStatus = 'Local AI could not generate a list';
+			this.state.aiError =
+				error instanceof DOMException && error.name === 'AbortError'
+					? undefined
+					: error instanceof Error
+						? error.message
+						: String(error);
+			this.state.aiStatus = this.state.aiError
+				? 'OpenAI could not generate a list'
+				: 'OpenAI request canceled';
 			if (this.state.aiResponse) this.state.aiResponseVisible = true;
 		} finally {
-			if (generation === aiGeneration) this.state.aiBusy = false;
-		}
-	};
-
-	const removeLocalAiModel = async () => {
-		try {
-			localAiModule ??= import('./local-ai.js');
-			const localAi = await localAiModule;
-			await localAi.removeLocalAiModel(this.state.aiModel);
-			localAiModule = undefined;
-			this.state.aiModelReady = false;
-			this.state.aiStatus = 'Downloaded model removed';
-			this.state.aiError = undefined;
-		} catch (error) {
-			this.state.aiError = error instanceof Error ? error.message : String(error);
+			if (generation === aiGeneration) {
+				this.state.aiBusy = false;
+				openAiRequest = undefined;
+			}
 		}
 	};
 
 	const cancelAiGeneration = () => {
 		aiGeneration++;
-		void localAiModule?.then((localAi) => localAi.disposeLocalAi());
-		localAiModule = undefined;
+		openAiRequest?.abort();
+		openAiRequest = undefined;
 		this.state.aiBusy = false;
 		this.state.aiProgress = 0;
-		this.state.aiStatus = 'Local AI canceled';
+		this.state.aiStatus = 'OpenAI request canceled';
 	};
 
-	const changeLocalAiModel = (model: LocalAiModelId) => {
+	const changeOpenAiModel = (model: string) => {
 		if (model === this.state.aiModel) return;
 		if (this.state.aiBusy) cancelAiGeneration();
-		else {
-			aiGeneration++;
-			void localAiModule?.then((localAi) => localAi.disposeLocalAi());
-			localAiModule = undefined;
-		}
 		this.state.aiModel = model;
-		this.state.aiModelReady = false;
-		this.state.aiStatus = 'Ready';
 		this.state.aiError = undefined;
+		if (openAiApiKey) {
+			try {
+				saveOpenAiSettings({ apiKey: openAiApiKey, model });
+			} catch (error) {
+				this.state.aiError = `Could not save OpenAI settings: ${error instanceof Error ? error.message : String(error)}`;
+			}
+		}
+		this.state.aiStatus = 'Ready';
 		this.state.aiResponse = '';
 		this.state.aiResponseVisible = false;
 	};
 
+	const saveOpenAiApiKey = (apiKey: string) => {
+		try {
+			saveOpenAiSettings({ apiKey, model: this.state.aiModel });
+			openAiApiKey = apiKey;
+			this.state.aiApiKeyStored = true;
+			this.state.aiStatus = 'API key saved in this browser';
+			this.state.aiError = undefined;
+		} catch (error) {
+			this.state.aiError = `Could not save the API key: ${error instanceof Error ? error.message : String(error)}`;
+		}
+	};
+
+	const clearOpenAiApiKey = () => {
+		if (this.state.aiBusy) cancelAiGeneration();
+		try {
+			clearOpenAiSettings();
+			openAiApiKey = '';
+			this.state.aiApiKeyStored = false;
+			this.state.aiStatus = 'Saved API key cleared';
+			this.state.aiError = undefined;
+		} catch (error) {
+			this.state.aiError = `Could not clear the API key: ${error instanceof Error ? error.message : String(error)}`;
+		}
+	};
+
 	this.onUnmount(() => {
 		aiGeneration++;
-		void localAiModule?.then((localAi) => localAi.disposeLocalAi());
+		openAiRequest?.abort();
 	});
 
 	const download = (solution: boolean) => {
@@ -229,7 +246,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 				</a>
 				<div className="privacy-note">
 					<span aria-hidden="true">●</span>
-					Local generation · no puzzle uploads
+					Local puzzle generation · OpenAI helper is opt-in
 				</div>
 			</header>
 
@@ -244,8 +261,9 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 						</h1>
 					</div>
 					<p>
-						Generate polished, printable puzzles without sending a word or seed anywhere. Export the
-						challenge and its answer key as separate, infinitely sharp SVG files.
+						Generate polished, printable puzzles locally. Optional OpenAI input authoring sends only
+						the topic and prompt you submit. Export the challenge and answer key as separate,
+						infinitely sharp SVG files.
 					</p>
 				</section>
 
@@ -267,13 +285,12 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							aiPromptVisible={this.state.aiPromptVisible}
 							aiResponse={this.state.aiResponse}
 							aiResponseVisible={this.state.aiResponseVisible}
-							aiSupported={this.state.aiSupported}
 							aiBusy={this.state.aiBusy}
 							aiProgress={this.state.aiProgress}
 							aiStatus={this.state.aiStatus}
 							aiError={this.state.aiError}
 							aiModel={this.state.aiModel}
-							aiModelReady={this.state.aiModelReady}
+							aiApiKeyStored={this.state.aiApiKeyStored}
 							onKind={changeKind}
 							onDifficulty={(difficulty) => {
 								this.state.difficulty = difficulty;
@@ -322,10 +339,11 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 								else this.state.aiWordSearchPrompt = defaultAiPromptTemplate(kind);
 								this.state.aiError = undefined;
 							}}
-							onAiGenerate={() => void generateWithLocalAi()}
-							onAiModel={changeLocalAiModel}
+							onAiGenerate={() => void generateWithOpenAi()}
+							onAiModel={changeOpenAiModel}
+							onAiSaveApiKey={saveOpenAiApiKey}
+							onAiClearApiKey={clearOpenAiApiKey}
 							onAiCancel={cancelAiGeneration}
-							onAiRemoveModel={() => void removeLocalAiModel()}
 							onRandomize={() => {
 								this.state.seed = createSeed();
 								generate('Puzzle shuffled');
@@ -353,7 +371,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 
 			<footer>
 				<span>Puzzle Foundry</span>
-				<span>One HTML file. Three generators. Optional local AI.</span>
+				<span>One HTML file. Three generators. Optional OpenAI input authoring.</span>
 			</footer>
 		</div>
 	);
