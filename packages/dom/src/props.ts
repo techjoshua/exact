@@ -22,7 +22,7 @@ import {
 	runEventInteraction
 } from './events.js';
 import { preserveFocus } from './focus.js';
-import { getModalBindingCapability } from './modal-capability.js';
+import { getModalBindingCapability } from './modal/capability.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
 import { bindStyle } from './style.js';
