@@ -3,10 +3,16 @@
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SudokuApp } from './SudokuApp.jsx';
+import { createCells } from './game-engine.js';
+import { puzzles } from './puzzles.js';
+import { createSavedGame, storageKey } from './storage.js';
+import type { Digit } from './types.js';
 
 describe('SudokuApp runtime', () => {
+	beforeEach(() => localStorage.clear());
+
 	it('mounts the board with setup-derived child props initialized', () => {
 		const container = document.createElement('div');
 		const errors: unknown[] = [];
@@ -46,24 +52,181 @@ describe('SudokuApp runtime', () => {
 		}
 	});
 
-	it('owns an inferred keyboard listener without authored signal plumbing', async () => {
+	it('enters a typed digit into the selected cell without selecting the number pad', async () => {
 		const container = document.createElement('div');
 
 		try {
 			render(<SudokuApp />, container);
-			await vi.waitFor(() =>
-				expect(container.querySelectorAll<HTMLButtonElement>('.number-key')).toHaveLength(9)
+			const selectedCell = container.querySelector<HTMLButtonElement>(
+				'[role="gridcell"][aria-selected="true"]'
 			);
+			expect(selectedCell).toBeTruthy();
 			window.dispatchEvent(new KeyboardEvent('keydown', { key: '1' }));
+			flushSync();
 
-			await vi.waitFor(() =>
-				expect(
-					container.querySelector<HTMLButtonElement>('.number-key[aria-pressed="true"]')
-						?.textContent
-				).toContain('1')
-			);
+			expect(selectedCell!.dataset.value).toBe('1');
+			expect(container.querySelector('.number-key[aria-pressed="true"]')).toBeNull();
 		} finally {
 			unmount(container);
+		}
+	});
+
+	it('uses typed digits to select the number pad after board selection is released', () => {
+		const container = document.createElement('div');
+
+		try {
+			render(<SudokuApp />, container);
+			const one = container.querySelectorAll<HTMLButtonElement>('.number-key')[0]!;
+			one.click();
+			one.click();
+			flushSync();
+
+			window.dispatchEvent(new KeyboardEvent('keydown', { key: '2' }));
+			flushSync();
+
+			expect(
+				container.querySelector<HTMLButtonElement>('.number-key[aria-pressed="true"]')?.textContent
+			).toContain('2');
+			expect(container.querySelector('[role="gridcell"][aria-selected="true"]')).toBeNull();
+		} finally {
+			unmount(container);
+		}
+	});
+
+	it('clears both number and cell selection when an active number is toggled off', async () => {
+		const container = document.createElement('div');
+
+		try {
+			render(<SudokuApp />, container);
+			const one = container.querySelectorAll<HTMLButtonElement>('.number-key')[0]!;
+			expect(container.querySelectorAll('[role="gridcell"][aria-selected="true"]')).toHaveLength(1);
+
+			one.click();
+			flushSync();
+			one.click();
+			flushSync();
+
+			await vi.waitFor(() => {
+				expect(container.querySelector('.number-key[aria-pressed="true"]')).toBeNull();
+				expect(container.querySelector('[role="gridcell"][aria-selected="true"]')).toBeNull();
+			});
+		} finally {
+			unmount(container);
+		}
+	});
+
+	it('enters a selected number-pad digit when an editable cell is clicked', () => {
+		const container = document.createElement('div');
+
+		try {
+			render(<SudokuApp />, container);
+			const one = container.querySelectorAll<HTMLButtonElement>('.number-key')[0]!;
+			const editableCell = container.querySelectorAll<HTMLButtonElement>('[role="gridcell"]')[2]!;
+
+			one.click();
+			flushSync();
+			expect(one.getAttribute('aria-pressed')).toBe('true');
+
+			editableCell.click();
+			flushSync();
+			expect(editableCell.dataset.value).toBe('1');
+		} finally {
+			unmount(container);
+		}
+	});
+
+	it('toggles pencil marks with mouse right-click while preserving cell DOM layers', () => {
+		const container = document.createElement('div');
+
+		try {
+			render(<SudokuApp />, container);
+			container.querySelectorAll<HTMLButtonElement>('.number-key')[0]!.click();
+			const cell = container.querySelectorAll<HTMLButtonElement>('[role="gridcell"]')[2]!;
+			const valueLayer = cell.querySelector('.cell-value');
+			const notesLayer = cell.querySelector('.cell-notes');
+			expect(notesLayer?.children).toHaveLength(9);
+
+			const rightClick = new MouseEvent('pointerdown', {
+				bubbles: true,
+				button: 2,
+				cancelable: true
+			});
+			Object.defineProperty(rightClick, 'pointerType', { value: 'mouse' });
+			cell.dispatchEvent(rightClick);
+			flushSync();
+
+			expect(cell.dataset.notes).toBe('1');
+			expect(cell.querySelector('.cell-value')).toBe(valueLayer);
+			expect(cell.querySelector('.cell-notes')).toBe(notesLayer);
+
+			const removeNote = new MouseEvent('pointerdown', {
+				bubbles: true,
+				button: 2,
+				cancelable: true
+			});
+			Object.defineProperty(removeNote, 'pointerType', { value: 'mouse' });
+			cell.dispatchEvent(removeNote);
+			flushSync();
+			expect(cell.dataset.notes).toBe('');
+		} finally {
+			unmount(container);
+		}
+	});
+
+	it('marks both cells in a conflicting entry while a number is selected', async () => {
+		const container = document.createElement('div');
+
+		try {
+			render(<SudokuApp />, container);
+			const cells = container.querySelectorAll<HTMLButtonElement>('[role="gridcell"]');
+			container.querySelectorAll<HTMLButtonElement>('.number-key')[4]!.click();
+			cells[2]!.click();
+			flushSync();
+
+			await vi.waitFor(() => {
+				expect(cells[0]!.classList).toContain('is-conflict');
+				expect(cells[2]!.classList).toContain('is-conflict');
+			});
+		} finally {
+			unmount(container);
+		}
+	});
+
+	it('freezes the clock at completion and includes the final time in the victory text', async () => {
+		vi.useFakeTimers();
+		const container = document.createElement('div');
+		const puzzle = puzzles[0]!;
+		const cells = createCells(puzzle);
+		const target = cells.find((cell) => !cell.given)!;
+		for (const cell of cells) {
+			if (!cell.given && cell.index !== target.index) {
+				cell.value = Number(puzzle.solution[cell.index]) as Digit;
+			}
+		}
+		localStorage.setItem(
+			storageKey,
+			JSON.stringify(createSavedGame(puzzle.id, cells, 65, 'paper'))
+		);
+
+		try {
+			render(<SudokuApp />, container);
+			await vi.advanceTimersByTimeAsync(1_000);
+			flushSync();
+			expect(container.querySelector('.mobile-timer strong')?.textContent).toBe('01:06');
+
+			const digit = Number(puzzle.solution[target.index]) as Digit;
+			container.querySelectorAll<HTMLButtonElement>('.number-key')[digit - 1]!.click();
+			container.querySelectorAll<HTMLButtonElement>('[role="gridcell"]')[target.index]!.click();
+			flushSync();
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(container.querySelector('.victory-banner')?.textContent).toContain('01:06');
+			await vi.advanceTimersByTimeAsync(3_000);
+			flushSync();
+			expect(container.querySelector('.mobile-timer strong')?.textContent).toBe('01:06');
+		} finally {
+			unmount(container);
+			vi.useRealTimers();
 		}
 	});
 

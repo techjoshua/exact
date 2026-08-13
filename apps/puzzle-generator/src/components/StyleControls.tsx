@@ -14,7 +14,7 @@ export function StyleControls(props: StyleControlsProps) {
 	};
 	const changePageSize = (value: string) => {
 		const pageSize: PageSize =
-			value === 'a4' || value === 'legal' || value === 'custom' ? value : 'letter';
+			value === 'seven-by-ten' || value === 'six-by-nine' || value === 'custom' ? value : 'letter';
 		change('pageSize', pageSize);
 	};
 	const changeMarginPreset = (value: string) => {
@@ -174,9 +174,9 @@ export function StyleControls(props: StyleControlsProps) {
 							value={props.style.pageSize || 'letter'}
 							onChange={(event) => changePageSize(event.currentTarget.value)}
 						>
-							<option value="letter">US Letter · 8.5 × 11 in</option>
-							<option value="a4">A4 · 210 × 297 mm</option>
-							<option value="legal">US Legal · 8.5 × 14 in</option>
+							<option value="letter">8.5 × 11 in</option>
+							<option value="seven-by-ten">7 × 10 in</option>
+							<option value="six-by-nine">6 × 9 in</option>
 							<option value="custom">Custom size</option>
 						</select>
 					</label>

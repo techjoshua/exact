@@ -252,6 +252,21 @@ describe('document and input contracts', () => {
 		).toThrow(/printable space/i);
 	});
 
+	it('renders the three inch-based page presets at print-standard dimensions', () => {
+		const puzzle = generateSudoku(2, 'easy', 7);
+		const presets = [
+			['letter', 816, 1056],
+			['seven-by-ten', 672, 960],
+			['six-by-nine', 576, 864]
+		] as const;
+
+		for (const [pageSize, width, height] of presets) {
+			const svg = renderSudokuSvg(puzzle, { ...style, pageSize }, false);
+			expect(svg).toContain(`width="${width}" height="${height}"`);
+			expect(svg).toContain(`data-page-size="${pageSize}"`);
+		}
+	});
+
 	it('omits an empty title and aligns a supplied title', () => {
 		const puzzle = generateSudoku(2, 'easy', 7);
 		const untitled = renderSudokuSvg(puzzle, { ...style, title: '' }, false);

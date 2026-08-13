@@ -10,7 +10,7 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 export type PuzzleFont = 'sans' | 'serif' | 'mono' | 'handwritten' | 'playful';
 
 /** Preset or author-defined page formats available to preview and SVG export. */
-export type PageSize = 'letter' | 'a4' | 'legal' | 'custom';
+export type PageSize = 'letter' | 'seven-by-ten' | 'six-by-nine' | 'custom';
 
 /** Preset or author-defined uniform page margins. */
 export type PageMarginPreset = 'narrow' | 'standard' | 'wide' | 'custom';

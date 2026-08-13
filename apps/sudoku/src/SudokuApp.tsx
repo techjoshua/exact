@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 import { SudokuContext } from './context.js';
 import {
 	applyMove,
@@ -57,12 +57,12 @@ export function SudokuApp(this: Component<SudokuState>) {
 	const initialPuzzle = restored
 		? findPuzzle(restored.saved.puzzleId)
 		: findPuzzle('gentle-morning');
+	const initialCells = restored?.cells ?? createCells(initialPuzzle);
 
 	this.state.puzzleId = initialPuzzle.id;
 	this.state.difficulty = initialPuzzle.difficulty;
-	this.state.cells = restored?.cells ?? createCells(initialPuzzle);
-	this.state.selectedIndex = firstEditableIndex(this.state.cells);
-	this.state.selectedDigit = undefined;
+	this.state.cells = initialCells;
+	this.state.selection = { index: firstEditableIndex(initialCells) };
 	this.state.noteMode = false;
 	this.state.history = [];
 	this.state.future = [];
@@ -88,17 +88,19 @@ export function SudokuApp(this: Component<SudokuState>) {
 	};
 
 	const enter = (digit: Digit) => {
+		if (this.state.selection.index < 0) return;
 		if (this.state.noteMode) {
 			commit(
 				`Toggle note ${digit}`,
-				planNoteToggle(this.state.cells, this.state.selectedIndex, digit)
+				planNoteToggle(this.state.cells, this.state.selection.index, digit)
 			);
 			return;
 		}
-		commit(`Enter ${digit}`, planValueEntry(this.state.cells, this.state.selectedIndex, digit));
+		commit(`Enter ${digit}`, planValueEntry(this.state.cells, this.state.selection.index, digit));
 	};
 
-	const erase = (index = this.state.selectedIndex) => {
+	const erase = (index = this.state.selection.index) => {
+		if (index === undefined || index < 0) return;
 		const cell = this.state.cells[index];
 		if (!cell || cell.given) return;
 		commit('Erase cell', planValueEntry(this.state.cells, cell.index, undefined));
@@ -110,7 +112,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 		applyMove(this.state.cells, move, 'backward');
 		this.state.history.pop();
 		this.state.future.push(move);
-		this.state.selectedIndex = move.changes[0]?.index ?? this.state.selectedIndex;
+		this.state.selection.index = move.changes[0]?.index ?? this.state.selection.index;
 	};
 
 	const redo = () => {
@@ -119,16 +121,17 @@ export function SudokuApp(this: Component<SudokuState>) {
 		applyMove(this.state.cells, move, 'forward');
 		this.state.future.pop();
 		this.state.history.push(move);
-		this.state.selectedIndex = move.changes[0]?.index ?? this.state.selectedIndex;
+		this.state.selection.index = move.changes[0]?.index ?? this.state.selection.index;
 	};
 
 	const startPuzzle = (difficulty: Difficulty) => {
 		const next = nextPuzzle(difficulty, this.state.puzzleId);
+		const nextCells = createCells(next);
 		this.state.puzzleId = next.id;
 		this.state.difficulty = next.difficulty;
-		this.state.cells = createCells(next);
-		this.state.selectedIndex = firstEditableIndex(this.state.cells);
-		this.state.selectedDigit = undefined;
+		this.state.cells = nextCells;
+		this.state.selection.index = firstEditableIndex(nextCells);
+		this.state.selection.digit = undefined;
 		this.state.noteMode = false;
 		this.state.history = [];
 		this.state.future = [];
@@ -139,15 +142,25 @@ export function SudokuApp(this: Component<SudokuState>) {
 	const commands: SudokuCommands = {
 		select: (index) => {
 			if (index < 0 || index > 80) return;
-			this.state.selectedIndex = index;
+			this.state.selection.index = index;
 			this.state.themeMenuOpen = false;
 			const cell = this.state.cells[index];
-			if (this.state.selectedDigit !== undefined && cell && !cell.given) {
-				enter(this.state.selectedDigit);
+			if (this.state.selection.digit !== undefined && cell && !cell.given) {
+				enter(this.state.selection.digit);
 			}
 		},
 		toggleDigit: (digit) => {
-			this.state.selectedDigit = this.state.selectedDigit === digit ? undefined : digit;
+			if (this.state.selection.digit === digit) {
+				this.state.selection.digit = undefined;
+				this.state.selection.index = -1;
+				return;
+			}
+			this.state.selection.digit = digit;
+		},
+		toggleNote: (index) => {
+			const digit = this.state.selection.digit;
+			if (digit === undefined) return;
+			commit(`Toggle note ${digit}`, planNoteToggle(this.state.cells, index, digit));
 		},
 		erase,
 		toggleNotes: () => {
@@ -193,9 +206,17 @@ export function SudokuApp(this: Component<SudokuState>) {
 		);
 	};
 
-	const runTimer = (paused: boolean, solved: boolean) => {
+	const runTimer = (
+		paused: boolean,
+		solved: boolean,
+		_task: TaskContext = TaskContext.client().latest()
+	) => {
 		if (paused || solved) return;
-		setInterval(() => this.state.elapsedSeconds++, 1000);
+		setInterval(() => {
+			// The latest task cancels this interval on pause or completion. The
+			// guard also prevents a tick already queued at that transition.
+			if (!this.state.paused && !isSolved(this.state.cells)) this.state.elapsedSeconds++;
+		}, 1000);
 	};
 	runTimer(this.state.paused, complete);
 
@@ -227,12 +248,18 @@ export function SudokuApp(this: Component<SudokuState>) {
 			const digit = Number(event.key);
 			if (isDigit(digit)) {
 				event.preventDefault();
-				this.state.selectedDigit = this.state.selectedDigit === digit ? undefined : digit;
+				// A selected cell owns direct keyboard entry. Number-pad selection remains
+				// available when the board selection has been explicitly released.
+				if (this.state.selection.index >= 0) enter(digit);
+				else commands.toggleDigit(digit);
 				return;
 			}
-			if ((event.key === 'Enter' || event.key === ' ') && this.state.selectedDigit !== undefined) {
+			if (
+				(event.key === 'Enter' || event.key === ' ') &&
+				this.state.selection.digit !== undefined
+			) {
 				event.preventDefault();
-				enter(this.state.selectedDigit);
+				enter(this.state.selection.digit);
 				return;
 			}
 			if (event.key === 'Backspace' || event.key === 'Delete') {
@@ -245,10 +272,14 @@ export function SudokuApp(this: Component<SudokuState>) {
 				this.state.noteMode = !this.state.noteMode;
 				return;
 			}
-			const nextIndex = keyboardSelection(this.state.selectedIndex, event.key);
-			if (nextIndex !== this.state.selectedIndex) {
+			if (event.key.startsWith('Arrow')) {
+				const currentIndex =
+					this.state.selection.index < 0
+						? firstEditableIndex(this.state.cells)
+						: this.state.selection.index;
+				const nextIndex = keyboardSelection(currentIndex, event.key);
 				event.preventDefault();
-				this.state.selectedIndex = nextIndex;
+				this.state.selection.index = nextIndex;
 			}
 			if (event.key === 'Escape') this.state.themeMenuOpen = false;
 		});
@@ -259,8 +290,12 @@ export function SudokuApp(this: Component<SudokuState>) {
 	const conflicts = findConflicts(this.state.cells);
 	const entered = enteredCellCount(this.state.cells);
 	const editable = editableCellCount(this.state.cells);
-	const selectedCell = this.state.cells[this.state.selectedIndex]!;
-	const selectedCandidates = candidatesFor(this.state.cells, this.state.selectedIndex);
+	const selectedCell =
+		this.state.selection.index < 0 ? undefined : this.state.cells[this.state.selection.index];
+	const selectedCandidates =
+		this.state.selection.index < 0
+			? []
+			: candidatesFor(this.state.cells, this.state.selection.index);
 	const lastMove = this.state.history[this.state.history.length - 1];
 	const progress = editable === 0 ? 100 : Math.round((entered / editable) * 100);
 	const digitProgress = digitPlacementProgress(this.state.cells, conflicts);
@@ -345,16 +380,16 @@ export function SudokuApp(this: Component<SudokuState>) {
 					<div className="board-slot">
 						<SudokuGrid
 							cells={this.state.cells}
-							selectedIndex={this.state.selectedIndex}
-							selectedDigit={this.state.selectedDigit}
+							selection={this.state.selection}
 							conflicts={conflicts}
 							paused={this.state.paused}
-							complete={complete}
+							complete={complete === true}
+							elapsedSeconds={this.state.elapsedSeconds}
 						/>
 					</div>
 
 					<GameControls
-						selectedDigit={this.state.selectedDigit}
+						selectedDigit={this.state.selection.digit}
 						noteMode={this.state.noteMode}
 						canUndo={this.state.history.length > 0}
 						canRedo={this.state.future.length > 0}
@@ -389,9 +424,11 @@ export function SudokuApp(this: Component<SudokuState>) {
 							<p>
 								{selectedCandidates.length
 									? `This cell currently allows ${selectedCandidates.join(', ')}.`
-									: selectedCell.value
+									: selectedCell?.value
 										? 'This cell already has a value.'
-										: 'This cell has no legal candidates yet.'}
+										: selectedCell
+											? 'This cell has no legal candidates yet.'
+											: 'Select a cell to inspect its candidates.'}
 							</p>
 						</div>
 					</div>
@@ -401,6 +438,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 					</button>
 					<p className="shortcut-note">
 						Keyboard: 1–9 choose · Enter applies · N notes · arrows move · ⌘Z undo
+						<br /> Mouse: right-click toggles the selected number&apos;s pencil mark
 					</p>
 				</aside>
 			</main>

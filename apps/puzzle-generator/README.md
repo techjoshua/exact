@@ -5,10 +5,10 @@ solvable 4×4 and 9×9 Sudoku puzzles, rectangular word searches, and compact co
 Every generator is deterministic from a visible seed. Puzzle and solution artwork use the same
 print settings but export as separate SVG files. Titles are optional, align left, center, or right.
 Titles, puzzle grids, and word-list or crossword-clue sections each have independent font and size
-controls, with expanded type-size ranges. Letter, A4, and Legal presets are joined by custom page
-width and height controls. Narrow, standard, and wide margin presets can likewise be replaced with
-a custom uniform margin. US Letter at 8.5 × 11 inches is always the initial page. The preview scales
-the resulting fixed-size page to the screen.
+controls, with expanded type-size ranges. The three publishing presets are 8.5 × 11, 7 × 10, and
+6 × 9 inches, joined by custom page width and height controls. Narrow, standard, and wide margin
+presets can likewise be replaced with a custom uniform margin. The 8.5 × 11-inch format is always
+the initial page. The preview scales the resulting fixed-size page to the screen.
 
 ## Run locally
 

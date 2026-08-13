@@ -95,9 +95,9 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/samples',
 				label: 'Sample applications',
-				summary: 'Explore the hosted Sudoku demo and complete repository applications.',
+				summary: 'Explore the hosted Sudoku and Puzzle Foundry demos and repository applications.',
 				keywords:
-					'samples applications Sudoku shipping calculator kanban workbench microfrontend server components hosted GitHub Pages',
+					'samples applications Sudoku Puzzle Foundry printable SVG shipping calculator kanban workbench microfrontend server components hosted GitHub Pages',
 				component: SamplesPage
 			},
 			{

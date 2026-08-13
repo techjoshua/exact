@@ -8,7 +8,7 @@ export function SamplesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Complete applications"
 			title="Beyond the counter"
-			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Sudoku Atelier is the hosted demo; the others are repository examples you can build locally."
+			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Sudoku Atelier and Puzzle Foundry are hosted demos; the others are repository examples you can build locally."
 			next={{ path: '/getting-started', label: 'Create an eXact app' }}
 		>
 			<section className="sudoku-showcase">
@@ -17,17 +17,34 @@ export function SamplesPage(this: Component<{}>) {
 					<h2>Sudoku Atelier</h2>
 					<p>
 						A polished, installable Sudoku game that combines direct component state, persistence,
-						responsive controls, theming, and precise board updates. Optional gesture and motion
-						enhancements add long-press input and attributed transitions without changing the core
-						component structure.
+						responsive controls, theming, and precise board updates. Typing a digit edits the
+						selected cell directly. Its stable cells retain value and pencil-mark layers while
+						board-root CSS drives number highlighting; mouse users can right-click notes, and solved
+						games preserve their final time. Optional gesture and motion enhancements add long-press
+						input and attributed transitions without changing that core structure.
 					</p>
 					<p>
-						Sudoku Atelier is the only sample published with this documentation site. Use it to see
-						how an eXact application feels before exploring the source in the repository.
+						Sudoku Atelier is published with this documentation site. Use it to see how an eXact
+						application feels before exploring the source in the repository.
 					</p>
 				</div>
 				<a className="primary-link" href="./sudoku.html">
 					Play Sudoku Atelier <span aria-hidden="true">{'→'}</span>
+				</a>
+			</section>
+
+			<section className="sudoku-showcase">
+				<div>
+					<p className="demo-kicker">Hosted publishing tool</p>
+					<h2>Puzzle Foundry</h2>
+					<p>
+						Generate printable Sudoku, word-search, and crossword puzzle and solution SVGs. Choose
+						8.5 × 11, 7 × 10, or 6 × 9-inch publishing presets, or enter custom width and height
+						dimensions in inches.
+					</p>
+				</div>
+				<a className="primary-link" href="./puzzle-foundry.html">
+					Open Puzzle Foundry <span aria-hidden="true">{'→'}</span>
 				</a>
 			</section>
 

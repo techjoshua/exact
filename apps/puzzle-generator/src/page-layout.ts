@@ -7,8 +7,8 @@ type PresetPageMargin = Exclude<PageMarginPreset, 'custom'>;
 export const pageSizePresets: Readonly<Record<PresetPageSize, { width: number; height: number }>> =
 	{
 		letter: { width: 816, height: 1056 },
-		a4: { width: 794, height: 1123 },
-		legal: { width: 816, height: 1344 }
+		'seven-by-ten': { width: 672, height: 960 },
+		'six-by-nine': { width: 576, height: 864 }
 	};
 
 /** Uniform margin sizes offered as convenient print presets, in inches. */

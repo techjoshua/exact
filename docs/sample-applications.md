@@ -7,8 +7,12 @@ updates, and the framework's normal build and runtime adapters.
 ## Hosted demo
 
 [`apps/sudoku`](../apps/sudoku) is an installable interactive Sudoku game with persistence,
-responsive controls, theming, and optional gesture and motion enhancements. It is the only sample
-published with the documentation site, at `sudoku.html`.
+responsive controls, theming, and optional gesture and motion enhancements. It is published with
+the documentation site at `sudoku.html`.
+
+[`apps/puzzle-generator`](../apps/puzzle-generator) is the hosted Puzzle Foundry publishing tool at
+`puzzle-foundry.html`. It generates printable puzzle and solution SVGs using 8.5 × 11, 7 × 10,
+6 × 9, or author-defined custom page dimensions in inches.
 
 ## Repository examples
 
@@ -26,5 +30,5 @@ published with the documentation site, at `sudoku.html`.
   French, Japanese, and Arabic to exercise catalogs, structural reordering, formatting, and
   diagnostics.
 
-Only Sudoku Atelier is hosted on GitHub Pages. The remaining applications are local repository
-examples and should not be presented as navigable documentation routes.
+Sudoku Atelier and Puzzle Foundry are hosted on GitHub Pages. The remaining applications are local
+repository examples and should not be presented as navigable documentation routes.
