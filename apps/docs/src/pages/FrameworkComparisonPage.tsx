@@ -54,8 +54,14 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 				</p>
 				<p>
 					Heap samples follow semantic readiness, one rendering opportunity, and explicit garbage
-					collection. Results label this as post-GC retained heap rather than treating live allocation
-					noise as evidence of a leak.
+					collection. Results label this as post-GC retained heap rather than treating live
+					allocation noise as evidence of a leak.
+				</p>
+				<p>
+					A separate cold-start CPU profile disables the browser cache and records JavaScript parse,
+					compile, evaluation, and total script duration through semantic readiness. Unthrottled,
+					4x, and 6x CPU profiles distinguish desktop startup from CPU-constrained behavior without
+					conflating either with network transfer time.
 				</p>
 			</section>
 

@@ -20,6 +20,8 @@
 		"start:react-native": "cd participants/react-native && npm run start",
 		"measure": "npm run test:e2e && node src/measure.mjs --correctness-passed",
 		"measure:development": "npm run test:e2e && node src/measure.mjs --correctness-passed --allow-unreviewed",
+		"measure:startup-cpu": "npm run test:e2e && node src/measure-startup-cpu.mjs --correctness-passed",
+		"measure:startup-cpu:development": "npm run test:e2e && node src/measure-startup-cpu.mjs --correctness-passed --allow-unreviewed",
 		"measure:native": "npm run test:native && node src/measure-native.mjs --correctness-passed",
 		"measure:native:development": "npm run test:native && node src/measure-native.mjs --correctness-passed --allow-unreviewed",
 		"start:service": "node src/server.mjs",

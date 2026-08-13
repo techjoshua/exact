@@ -62,6 +62,26 @@ that Chromium published the entry. A missing paint entry fails the sample instea
 population used for percentile calculation. Heap collection occurs after interaction timing so forced garbage
 collection cannot turn optimistic feedback into a cold-allocation benchmark.
 
+### Cold-start CPU profile
+
+The startup CPU track uses the same production artifacts and correctness gate but creates a fresh browser context
+and disables Chromium's HTTP cache for every sample. Network traffic remains on unthrottled local loopback so the
+profile isolates CPU work rather than estimating transfer time. Separate profiles run without CPU throttling and
+with Chromium's 4x and 6x CPU emulation.
+
+Tracing begins before navigation and ends only after the shared `Live service` readiness state. Chromium trace
+events report JavaScript parsing, compilation, and evaluation, while the Performance domain reports total script
+and task duration. The trace also records navigation, first-contentful-paint, and readiness markers so work on the
+paint-critical path can be separated from later activation. Precise coverage reports emitted script extent and
+invoked-function counts by chunk URL.
+
+Trace categories can contain nested work, so parse, compile, evaluation, and total script duration are independent
+signals and must not be added together. Parse and compile trace durations may also aggregate background-thread
+work, while Performance-domain script duration describes main-thread wall time. CPU throttling is a repeatable
+desktop-browser emulation rather than a claim about a particular mobile processor. Chunk URLs and precise
+coverage provide bundle-level attribution; source-map attribution inside a chunk requires a separate sampling
+profile.
+
 ## Complexity dimensions
 
 Complexity is reported as a profile rather than one synthetic score:

@@ -31,8 +31,14 @@ npm run build -w @exactjs/framework-comparison-suite
 npm run test:e2e -w @exactjs/framework-comparison-suite
 npm run test:native -w @exactjs/framework-comparison-suite
 npm run measure:development -w @exactjs/framework-comparison-suite
+npm run measure:startup-cpu:development -w @exactjs/framework-comparison-suite
 npm run measure:native:development -w @exactjs/framework-comparison-suite
 ```
+
+The startup CPU profile uses a fresh cache-disabled browser context for every sample and separates
+Chromium's JavaScript parse, compile, evaluation, and total script-duration signals through semantic
+readiness. It runs at 1x, 4x, and 6x CPU rates by default. `COMPARISON_STARTUP_SAMPLES` selects the sample
+count and `COMPARISON_CPU_RATES` accepts a comma-separated rate list.
 
 The service listens on `http://127.0.0.1:4310` by default. `PORT` may select another port. Its state can
 be restored with `POST /__benchmark/reset` and the `x-benchmark-control: fixture-reset` header.
