@@ -40,7 +40,7 @@ func (s *Session) Execute(request Request) Response {
 		Diagnostics: []Diagnostic{},
 		Analysis: NewAnalysis(
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-			nil, nil, nil, PartitionPlan{}, nil,
+			nil, nil, nil, nil, PartitionPlan{}, nil,
 			newPolicyAnalysis(),
 			CapabilityRequirements{},
 			nil,
@@ -55,8 +55,12 @@ func (s *Session) Execute(request Request) Response {
 		s.projects = make(map[string]*projectState)
 		return response
 	}
-	if request.Kind != "compile" && request.Kind != "analyze" && request.Kind != "diagnose" {
+	if request.Kind != "compile" && request.Kind != "analyze" && request.Kind != "diagnose" && request.Kind != "extension" {
 		response.Error = fmt.Sprintf("unsupported native compiler request kind %q", request.Kind)
+		return response
+	}
+	if request.Kind == "extension" && (request.Extension == nil || request.Extension.Namespace == "") {
+		response.Error = "native extension requests require a namespace"
 		return response
 	}
 	if request.Target == "" {
@@ -64,6 +68,18 @@ func (s *Session) Execute(request Request) Response {
 	}
 	if request.Target != TargetDefault && request.Target != TargetClient && request.Target != TargetServer {
 		response.Error = fmt.Sprintf("unsupported eXact compilation target %q", request.Target)
+		return response
+	}
+	if request.ComponentContractProjection == "" {
+		request.ComponentContractProjection = ComponentContractProjectionComplete
+	}
+	if request.ComponentContractProjection != ComponentContractProjectionComplete &&
+		request.ComponentContractProjection != ComponentContractProjectionHydrate &&
+		request.ComponentContractProjection != ComponentContractProjectionClient {
+		response.Error = fmt.Sprintf(
+			"unsupported component contract projection %q",
+			request.ComponentContractProjection,
+		)
 		return response
 	}
 	if request.Diagnostics == "" {
@@ -98,13 +114,23 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	authoredSource := request.Source
-	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, request.Source)
-	normalization, err := normalizeAuthoredSource(fileName, request.Source)
+	packageEnhancementSuffix := ""
+	if request.PackageEnhancementBoundary > 0 &&
+		request.PackageEnhancementBoundary <= len(request.Source) {
+		authoredSource = request.Source[:request.PackageEnhancementBoundary]
+		packageEnhancementSuffix = request.Source[request.PackageEnhancementBoundary:]
+	}
+	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, authoredSource)
+	normalization, err := normalizeAuthoredSource(fileName, authoredSource)
 	if err != nil {
 		response.Error = err.Error()
 		return response
 	}
 	request.Source = normalization.text
+	if packageEnhancementSuffix != "" {
+		request.PackageEnhancementBoundary = len(request.Source)
+		request.Source += packageEnhancementSuffix
+	}
 	if request.ConfigFile == "" {
 		request.ConfigFile = nearestTypeScriptConfig(fileName)
 	}
@@ -140,6 +166,22 @@ func (s *Session) Execute(request Request) Response {
 	defer generation.release()
 	response.CacheHit = generation.reused
 	sourceFile := generation.sourceFile
+	if request.Kind == "extension" {
+		extensionStarted := time.Now()
+		extensionRequest := request
+		extensionRequest.Source = authoredSource
+		response.Extension, err = executeNativeExtension(
+			extensionRequest,
+			sourceFile,
+			generation.checker,
+		)
+		response.Timings.AnalysisMicroseconds = time.Since(extensionStarted).Microseconds()
+		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
+		if err != nil {
+			response.Error = err.Error()
+		}
+		return response
+	}
 	if request.Kind == "diagnose" {
 		checkStarted := time.Now()
 		for _, projectSource := range generation.program.GetSourceFiles() {
@@ -186,7 +228,12 @@ func (s *Session) Execute(request Request) Response {
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
 	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
-	preliminaryEnhancements := collectEnhancementImports(sourceFile, generation.checker, nil)
+	preliminaryEnhancements := collectEnhancementImports(
+		sourceFile,
+		generation.checker,
+		nil,
+		request.PackageEnhancementBoundary,
+	)
 	componentBindings, componentBindingWrites, componentBindingDiagnostics := analyzeComponentBindings(
 		sourceFile,
 		generation.checker,
@@ -218,6 +265,7 @@ func (s *Session) Execute(request Request) Response {
 			sourceFile,
 			generation.checker,
 			skippedEnhancementAttributes,
+			request.PackageEnhancementBoundary,
 		)
 	}
 	stateWriteDiagnostics := unsupportedStateWriteDiagnostics(
@@ -234,6 +282,21 @@ func (s *Session) Execute(request Request) Response {
 		sourceFile,
 		generation.checker,
 	)
+	dynamicComponents := analyzeDynamicComponents(
+		sourceFile,
+		generation.checker,
+		directives,
+		components,
+	)
+	for index := range components {
+		component := &components[index]
+		for position := range dynamicComponents.uses {
+			if position >= component.Start && position < component.Start+component.Length {
+				component.DynamicComponents = true
+				break
+			}
+		}
+	}
 	reactiveBindings := collectReactiveBindings(
 		sourceFile,
 		generation.checker,
@@ -325,12 +388,6 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		request.ID,
 	)
-	symbols, boundaries := createArtifactRecords(
-		sourceFile,
-		components,
-		callables.summaries,
-		exports,
-	)
 	clientIslands := indexClientElementIslands(
 		sourceFile,
 		components,
@@ -339,6 +396,13 @@ func (s *Session) Execute(request Request) Response {
 		stateWrites,
 		reactiveBindings,
 		generation.checker,
+	)
+	symbols, boundaries := createArtifactRecords(
+		sourceFile,
+		components,
+		callables.summaries,
+		exports,
+		clientIslands,
 	)
 	continuations, resumptions := createContinuationContracts(
 		components,
@@ -368,6 +432,7 @@ func (s *Session) Execute(request Request) Response {
 	partitionBoundaries := partitionBoundaryRecords(partitionPlan)
 	boundaries = append(boundaries, partitionBoundaries...)
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
+	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()
@@ -388,6 +453,7 @@ func (s *Session) Execute(request Request) Response {
 		continuations,
 		registries,
 		enhancementImports.catalog,
+		enhancementImports.activations,
 		partitionPlan,
 		resumptions,
 		policy.graph,
@@ -445,6 +511,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, dynamicComponents.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, partitionPlanDiagnostics(partitionPlan)...)
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
@@ -506,27 +573,35 @@ func (s *Session) Execute(request Request) Response {
 	defer ast.SetParentInChildren(sourceFile.AsNode())
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
+	intlPlan := planIntlOperations(sourceFile, generation.checker)
 	transformed := lowerExactJSX(
 		sourceFile,
 		emitContext.Factory,
-		stateWrites,
-		stateAliases,
-		stateReads,
-		reactiveBindings,
-		formBindings,
-		componentBindings,
-		components,
-		tasks,
-		operations,
-		continuations,
-		clientIslands,
-		request.Target,
-		request.ServerComponents,
-		request.InstrumentInspection,
-		generation.checker,
-		request.JSXInterop,
-		enhancementImports,
-		partitionPlan,
+		jsxLoweringPlan{
+			stateWrites:          stateWrites,
+			stateReads:           stateReads,
+			reactiveBindings:     reactiveBindings,
+			formBindings:         formBindings,
+			componentBindings:    componentBindings,
+			components:           components,
+			tasks:                tasks,
+			operations:           operations,
+			continuations:        continuations,
+			clientIslands:        clientIslands,
+			target:               request.Target,
+			serverComponents:     request.ServerComponents,
+			instrumentInspection: request.InstrumentInspection,
+			typeChecker:          generation.checker,
+			interop:              request.JSXInterop,
+			enhancementImports:   enhancementImports,
+			partitionPlan:        partitionPlan,
+			dynamicComponents:    dynamicComponents.uses,
+		},
+	)
+	transformed = lowerIntlOperations(
+		transformed,
+		emitContext.Factory,
+		intlPlan,
 	)
 	// Contract wrapping synthesizes nested component implementations. Retain
 	// target-local import uses observed after task lowering so wrapping
@@ -543,6 +618,8 @@ func (s *Session) Execute(request Request) Response {
 		request.Target,
 		sourceFile.FileName(),
 		request.PreserveComponentHoisting,
+		request.JSXInterop != nil,
+		request.ComponentContractProjection,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,

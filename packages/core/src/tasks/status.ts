@@ -1,5 +1,5 @@
 import type { TaskStatus } from './contracts.js';
-import type { InternalTaskLane, InternalTaskOwnerState } from './runtime.js';
+import type { InternalTaskLane, InternalTaskOwnerState } from './runtime-types.js';
 
 /** Creates a reactive status projection over an owner and optional lane key. */
 export function createTaskStatus<Result>(

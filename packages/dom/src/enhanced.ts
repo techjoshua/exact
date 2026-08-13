@@ -1,5 +1,6 @@
 import { withExactEnhancementCatalog } from '@exactjs/core/framework/enhancement-catalog';
 import type { VNode } from '@exactjs/core';
+import './framework/enhancements.js';
 import { render as renderDom } from './renderer/root-lifecycle.js';
 import type { RenderOptions } from './types.js';
 

@@ -102,9 +102,9 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="Async components as ordinary value flow"
+			title="Async values, ordinary flow"
 			description="Await ordinary operations into state, coordinate readiness with Suspense, retain inactive mounted trees with Activity, and choose lower-priority work without introducing a rerender loop."
-			previous={{ path: '/learn/component-registries', label: 'Component registries' }}
+			previous={{ path: '/learn/component-registries', label: 'Dynamic components' }}
 			next={{ path: '/learn/server-execution', label: 'Server execution' }}
 		>
 			<section>
@@ -183,7 +183,7 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				<CodeBlock source={policyTaskSource} language="tsx" title="Task with authored readiness" />
 				<Callout title="Why some awaited forms are compiler errors">
 					<p>
-						Values needed by the returned render function must be assigned to{' '}
+						Values needed by the returned render function must be assigned to
 						<code>this.state</code>; a local created inside the asynchronous continuation is not
 						published state. Native array and object destructuring—including defaults, rest targets,
 						and computed property keys—may publish several writable state locations atomically. A
@@ -207,6 +207,12 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					stable siblings. Hydration reads explicit content or fallback markers instead of guessing
 					which branch the server emitted.
 				</p>
+				<p>
+					The compiler selects the coordinated Activity and Suspense DOM implementation only for a
+					bundle that authors one of these boundaries, including lazy and microfrontend bundles.
+					Compilerless VNode construction opts in through
+					<code>@exactjs/dom/structural-boundaries</code>.
+				</p>
 			</section>
 			<section>
 				<h2>Activity retains inactive work</h2>
@@ -218,8 +224,8 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					but allows preparation at deferred priority.
 				</p>
 				<p>
-					Parking is not unmounting. Use <code>this.onDeactivate()</code> and{' '}
-					<code>this.onActivate()</code> for reconnect behavior; final ownership cleanup remains in{' '}
+					Parking is not unmounting. Use <code>this.onDeactivate()</code> and
+					<code>this.onActivate()</code> for reconnect behavior; final ownership cleanup remains in
 					<code>this.onUnmount()</code>. Nested Activity boundaries retain their own authored mode,
 					and portal output parks with its logical owner.
 				</p>

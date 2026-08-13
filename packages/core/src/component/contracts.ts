@@ -7,6 +7,9 @@ import type {
 } from '@exactjs/reactive';
 
 import type { ComponentLog } from '../logging.js';
+import type { ComponentReactiveValue, IterableItem } from './value-contracts.js';
+export type { TaskObserver } from './task-observer.js';
+export type * from './value-contracts.js';
 import type {
 	Activity,
 	Cell,
@@ -85,8 +88,8 @@ export type VNode<Props = Record<string, unknown>> = {
 	props: Props;
 	children: Child[];
 	key?: string;
-	/** Compiler-owned optional renderer enhancements attached to this authored JSX boundary. */
-	readonly enhancements?: EnhancementMarker;
+	/** Canonical compiler-owned enhancement render node for this authored JSX boundary. */
+	readonly enhancement?: CompiledEnhancementNode;
 	/** Captured when authored; explicit ownership survives cross-root composition. */
 	readonly domain?: ComponentDomain;
 };
@@ -100,8 +103,13 @@ export type EnhancementEntry = Readonly<{
 
 /** Opaque grouped renderer-enhancement marker emitted by the compiler. */
 export type EnhancementMarker = Readonly<{
+	kind: 'enhancement';
 	entries: readonly EnhancementEntry[];
+	fallback: 'preserve-target';
 }>;
+
+/** Canonical enhancement node interpreted by every render target. */
+export type CompiledEnhancementNode = EnhancementMarker;
 
 /** Defines the vnode cell type contract. */
 export type VNodeCell = {
@@ -313,27 +321,6 @@ export type RefRegistry = {
 	root<T extends object>(binding: RefBinding<T>): RootBinding<T>;
 };
 
-/** Defines the task resource disposal type contract. */
-export type TaskResourceDisposal = string;
-/** Defines the task cleanup type contract. */
-export type TaskCleanup = (reason?: unknown) => void | Promise<void>;
-/** Defines the task idle deadline type contract. */
-export type TaskIdleDeadline = { readonly didTimeout: boolean; timeRemaining(): number };
-/** Configures task idle. */
-export type TaskIdleOptions = { timeout?: number };
-
-/** Defines the task observer type contract. */
-export type TaskObserver = {
-	register(promise: Promise<unknown>, instance: ComponentInstance<any>): void;
-	/** Retains a constructed component for the lifetime of an owning renderer. */
-	retain?(instance: ComponentInstance<any>): void;
-};
-
-/** Defines the component reactive value type contract. */
-export type ComponentReactiveValue<T> = ReactiveValue<T>;
-/** Defines the iterable item type contract. */
-export type IterableItem<T> = T extends Iterable<infer Item> ? Item : never;
-
 // Callback return values are intentionally permissive: concise callbacks often
 // return values such as Array#push's number. Promise-like values are observed at
 // runtime, while all other results are ignored.
@@ -346,6 +333,8 @@ export type RenderEventHandler = (event: { duration: number; dependencies?: unkn
 export interface Component<State extends object> {
 	state: Reactive<State>;
 	log: ComponentLog;
+	/** Cache-backed Intl facade resolved through the nearest localization provider. */
+	readonly intl: import('../localization/contracts.js').IntlFacade;
 	/** Reports whether a context lookup would resolve without reading its value. */
 	hasContext(token: ContextToken<unknown>): boolean;
 	getContext<T>(token: ContextToken<T>): Reactive<T>;

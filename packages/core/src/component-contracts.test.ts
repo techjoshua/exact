@@ -56,6 +56,12 @@ describe('@exactjs/core component contracts', () => {
 						componentId: 'component:Page',
 						ownerComponentId: 'component:Page',
 						kind: 'client-island'
+					},
+					{
+						id: 'boundary:Page:children',
+						componentId: '',
+						ownerComponentId: 'component:Page',
+						kind: 'server-slot'
 					}
 				],
 				resumption: {
@@ -64,19 +70,51 @@ describe('@exactjs/core component contracts', () => {
 					valueCaptures: [],
 					contexts: [],
 					boundaries: ['boundary:Page']
+				},
+				execution: {
+					version: 1 as const,
+					ports: [{ index: 0, kind: 'state' as const, path: 'count', direction: 'inout' as const }],
+					transitions: [
+						{
+							id: 'task:Page:1',
+							taskId: 'task:Page:1',
+							activation: 'setup' as const,
+							placement: 'server' as const,
+							readiness: 'blocking' as const,
+							concurrency: 'latest' as const,
+							inputs: [0],
+							outputs: [0]
+						}
+					],
+					reactive: [
+						{
+							name: 'count',
+							provenance: 'state' as const,
+							allocation: 'live-slot' as const,
+							dependencies: []
+						}
+					]
 				}
 			}
 		});
 
 		expect(exactComponentIdentity(component)).toBe('component:Page');
-		expect(readExactComponentContract(component)?.role).toBe('client');
+		const validated = readExactComponentContract(component)!;
+		expect(validated.role).toBe('client');
+		expect(Object.isFrozen(validated)).toBe(true);
+		expect(Object.isFrozen(validated.execution?.transitions)).toBe(true);
+		expect(readExactComponentContract(component)).toBe(validated);
 		expect(composeExactComponentContracts([component], 'client')).toMatchObject({
 			implementations: { Page_ExactClient_1: island },
 			implementationsById: { 'island:Page:1': island },
 			continuations: { 'task:Page:1': { componentId: 'component:Page' } },
 			executors: {},
-			boundaries: { 'boundary:Page': { kind: 'client-island' } },
-			resumptions: { 'component:Page': { statePaths: ['count'] } }
+			boundaries: {
+				'boundary:Page': { kind: 'client-island' },
+				'boundary:Page:children': { kind: 'server-slot' }
+			},
+			resumptions: { 'component:Page': { statePaths: ['count'] } },
+			executions: { 'component:Page': { version: 1 } }
 		});
 	});
 
@@ -219,5 +257,29 @@ describe('@exactjs/core component contracts', () => {
 		expect(() => readExactComponentContract(component)).toThrow(
 			'Unsupported eXact component contract'
 		);
+	});
+
+	it('revalidates a replaced contract attachment while reusing an unchanged frozen contract', () => {
+		const contract = (placement: 'client' | 'server') => ({
+			version: 2 as const,
+			placement,
+			role: 'client' as const,
+			implementations: [],
+			continuations: [],
+			executors: [],
+			boundaries: []
+		});
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:Replaceable',
+			[exactComponentContract]: contract('client')
+		});
+
+		const first = readExactComponentContract(component)!;
+		expect(readExactComponentContract(component)).toBe(first);
+		component[exactComponentContract] = contract('server');
+		const second = readExactComponentContract(component)!;
+		expect(second).not.toBe(first);
+		expect(second.placement).toBe('server');
+		expect(Object.isFrozen(second)).toBe(true);
 	});
 });

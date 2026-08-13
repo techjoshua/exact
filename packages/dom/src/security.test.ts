@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { BLOCKED_JAVASCRIPT_URL, unsafeHtml } from '@exactjs/core';
+import './unsafe-html.js';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';

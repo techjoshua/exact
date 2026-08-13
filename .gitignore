@@ -14,3 +14,12 @@ component-libraries/*/dist/
 component-libraries/*/*.tsbuildinfo
 apps/*/dist/
 apps/*/*.tsbuildinfo
+framework-comparison/participants/*/dist/
+framework-comparison/participants/*/dist-server/
+framework-comparison/.svelte-kit/
+framework-comparison/participants/*/.svelte-kit/
+framework-comparison/participants/*/.nuxt/
+framework-comparison/participants/*/.output/
+framework-comparison/participants/*/.react-router/
+framework-comparison/participants/*/build/
+framework-comparison/test-results/

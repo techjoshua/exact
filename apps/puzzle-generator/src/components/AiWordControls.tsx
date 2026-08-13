@@ -1,16 +1,28 @@
 import type { AiPuzzleKind } from '../ai-word-list-format.js';
+import { getLocalAiModel, localAiModels, type LocalAiModelId } from '../ai-models.js';
 
 type AiWordControlsProps = {
 	kind: AiPuzzleKind;
 	topic: string;
+	promptTemplate: string;
+	defaultPromptTemplate: string;
+	promptVisible: boolean;
+	response: string;
+	responseVisible: boolean;
 	supported: boolean;
 	busy: boolean;
 	progress: number;
 	status: string;
 	error?: string;
+	model: LocalAiModelId;
 	modelReady: boolean;
 	onTopic(topic: string): void;
+	onPromptTemplate(template: string): void;
+	onPromptVisible(visible: boolean): void;
+	onResponseVisible(visible: boolean): void;
+	onResetPrompt(): void;
 	onGenerate(): void;
+	onModel(model: LocalAiModelId): void;
 	onCancel(): void;
 	onRemoveModel(): void;
 };
@@ -35,6 +47,79 @@ export function AiWordControls(props: AiWordControlsProps) {
 					onInput={(event) => props.onTopic(event.currentTarget.value)}
 				/>
 			</label>
+			<label className="wide-field">
+				<span>Local model</span>
+				<select
+					value={props.model}
+					disabled={props.busy}
+					onChange={(event) => props.onModel(event.currentTarget.value as LocalAiModelId)}
+				>
+					{localAiModels.map((model) => (
+						<option value={model.id}>
+							{model.label} · ~{model.downloadMb} MB
+						</option>
+					))}
+				</select>
+				<small>{getLocalAiModel(props.model).note}</small>
+			</label>
+			<div className="ai-prompt-toolbar">
+				<div>
+					<button
+						type="button"
+						className="text-button"
+						aria-expanded={props.promptVisible ? 'true' : 'false'}
+						aria-controls={`ai-prompt-${props.kind}`}
+						onClick={() => props.onPromptVisible(!props.promptVisible)}
+					>
+						{props.promptVisible ? 'Hide prompt' : 'Show prompt'}
+					</button>
+					{props.response ? (
+						<button
+							type="button"
+							className="text-button"
+							aria-expanded={props.responseVisible ? 'true' : 'false'}
+							aria-controls={`ai-response-${props.kind}`}
+							onClick={() => props.onResponseVisible(!props.responseVisible)}
+						>
+							{props.responseVisible ? 'Hide response' : 'Show response'}
+						</button>
+					) : null}
+				</div>
+				{props.promptVisible ? (
+					<button
+						type="button"
+						className="text-button"
+						disabled={props.busy || props.promptTemplate === props.defaultPromptTemplate}
+						onClick={props.onResetPrompt}
+					>
+						Reset template
+					</button>
+				) : null}
+			</div>
+			{props.promptVisible ? (
+				<label className="ai-prompt-editor" id={`ai-prompt-${props.kind}`}>
+					<span>Prompt template</span>
+					<textarea
+						rows={12}
+						maxlength="4000"
+						value={props.promptTemplate}
+						disabled={props.busy}
+						spellcheck="true"
+						onInput={(event) => props.onPromptTemplate(event.currentTarget.value)}
+					/>
+					<small>
+						Use {'{{topic}}'} where the entered topic should appear. Structured JSON output and
+						answer safety checks are enforced separately.
+					</small>
+				</label>
+			) : null}
+			{props.responseVisible && props.response ? (
+				<div className="ai-response-viewer" id={`ai-response-${props.kind}`}>
+					<span>Raw model response</span>
+					<pre>{props.response}</pre>
+					<small>Shown exactly as received, before parsing and safety checks.</small>
+				</div>
+			) : null}
 			{props.busy ? (
 				<div className="ai-progress" aria-live="polite">
 					<progress max="1" value={String(props.progress)} />
@@ -54,7 +139,9 @@ export function AiWordControls(props: AiWordControlsProps) {
 				<button
 					type="button"
 					className="secondary-button"
-					disabled={!props.supported || props.busy || !props.topic.trim()}
+					disabled={
+						!props.supported || props.busy || !props.topic.trim() || !props.promptTemplate.trim()
+					}
 					onClick={props.onGenerate}
 				>
 					Generate with local AI
@@ -71,9 +158,13 @@ export function AiWordControls(props: AiWordControlsProps) {
 			</div>
 			<small>
 				{props.supported
-					? 'First use downloads about 290 MB from Hugging Face and needs roughly 1 GB of GPU memory. The model is cached by this browser.'
+					? `First use downloads about ${getLocalAiModel(props.model).downloadMb} MB from Hugging Face and needs roughly ${formatMemory(getLocalAiModel(props.model).gpuMemoryMb)} of GPU memory. Each model is cached separately by this browser.`
 					: 'Local AI is unavailable because this browser or device does not expose WebGPU.'}
 			</small>
 		</div>
 	);
+}
+
+function formatMemory(megabytes: number): string {
+	return megabytes < 1000 ? `${megabytes} MB` : `${(megabytes / 1000).toFixed(1)} GB`;
 }

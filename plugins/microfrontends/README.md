@@ -22,5 +22,11 @@ For paired Vite builds, read the completed server manifest with
 `readExactComponentAuthorizationIdentity()` and pass the result as the eXact Vite plugin's
 `componentAuthorization` option while producing the remote artifact.
 
+Vite/Rollup, Webpack 5, and Bun 1.3+ consume the same exposure plan. Webpack integration is owned
+by `ExactWebpackPlugin`; Bun remote producers call `exactBuild()` from `@exactjs/bun-plugin` so
+asynchronous plan preparation happens before `Bun.build`. Both adapters preserve actual emitted
+CSS, asset, and lazy-chunk locations, provided-package bootstrap order, and last-valid generation
+publication.
+
 For architecture and deployment examples, see
 [microfrontends](../../docs/microfrontends.md).

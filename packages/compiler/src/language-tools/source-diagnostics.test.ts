@@ -60,4 +60,31 @@ describe('source diagnostic projection', () => {
 		]);
 		expect(projected.explanation).toContain('cannot execute atomically');
 	});
+
+	it('projects the compiler-owned dynamic acknowledgement edit', () => {
+		const projected = sourceDiagnostic(
+			'Page.tsx',
+			' '.repeat(80),
+			{
+				severity: 'warning',
+				code: 'EXACT2213',
+				message: 'opaque component',
+				start: 50,
+				length: 8,
+				fixStart: 12,
+				fixText: '/** @exact dynamic */\n'
+			},
+			{ tasks: [] } as unknown as NativeCompilerAnalysis
+		);
+		expect(projected.fixes).toEqual([
+			expect.objectContaining({
+				kind: 'acknowledge-dynamic-component',
+				edit: {
+					filename: 'Page.tsx',
+					range: { start: 12, end: 12 },
+					newText: '/** @exact dynamic */\n'
+				}
+			})
+		]);
+	});
 });

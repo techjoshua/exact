@@ -14,6 +14,8 @@ import {
 	type TaskContext,
 	unsafeHtml
 } from '@exactjs/core';
+import './unsafe-html.js';
+import './structural-boundaries.js';
 import { createVNode } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';

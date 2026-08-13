@@ -13,10 +13,16 @@ import { exactModuleFilename } from './module-selection.js';
 
 const omittedEnhancementPrefix = '\0exact:omitted-enhancement/';
 
-type ExactViteResolution =
+/** Module resolution shape retained while component candidates cross Vite authorization. */
+export type ExactViteResolution =
 	| string
 	| { id: string; external?: boolean | 'absolute' | 'relative' }
 	| null;
+
+/** Immutable authorization artifacts emitted after a successful server build. */
+export type ExactViteAuthorizationArtifacts = NonNullable<
+	Awaited<ReturnType<ExactComponentAuthorizationSession['commitGeneration']>>
+>;
 
 /** Compiler facts retained across authorization generations without retaining source text. */
 export type ExactViteComponentFactRecord = Readonly<{

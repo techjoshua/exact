@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "framework-runtime",
+	"framework": "Framework name",
+	"frameworkVersion": "0.0.0",
+	"status": "scaffolded",
+	"tracks": ["controlled-service"],
+	"runtime": "node-24",
+	"commands": {
+		"build": "npm run build",
+		"start": "npm run start"
+	},
+	"baseUrl": "http://127.0.0.1:4400",
+	"sourceRoots": ["src"]
+}

@@ -1,7 +1,7 @@
 import type { ComponentFunction } from '@exactjs/core';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
+import { AccessibilityPage } from './pages/AccessibilityPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
-import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
@@ -9,10 +9,12 @@ import { ComponentLibraryTrustPage } from './pages/ComponentLibraryTrustPage.jsx
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
 import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
+import { FrameworkComparisonPage } from './pages/FrameworkComparisonPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
 import { GesturesPage } from './pages/GesturesPage.jsx';
 import { GravityPage } from './pages/GravityPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
+import { InternationalizationPage } from './pages/InternationalizationPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
 import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
@@ -22,6 +24,7 @@ import { PhysicsPage } from './pages/PhysicsPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
 import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
+import { ReactDevelopersPage } from './pages/ReactDevelopersPage.jsx';
 import { RoutingPage } from './pages/RoutingPage.jsx';
 import { RuntimesPage } from './pages/RuntimesPage.jsx';
 import { SamplesPage } from './pages/SamplesPage.jsx';
@@ -58,9 +61,9 @@ export const docGroups: DocGroup[] = [
 				path: '/',
 				label: 'Introduction',
 				summary:
-					'Why eXact runs component setup once, keeps state inspectable, and compiles precise client/server updates.',
+					'How eXact compiles ordinary TypeScript components into inspectable reactive state machines spanning client and server.',
 				keywords:
-					'overview component compiler reactive TypeScript JSX React Vue Svelte comparison state virtual DOM',
+					'overview component compiler reactive TypeScript JSX state precise updates client server',
 				component: IntroductionPage
 			},
 			{
@@ -81,11 +84,20 @@ export const docGroups: DocGroup[] = [
 				component: GettingStartedPage
 			},
 			{
+				path: '/react-developers',
+				label: 'eXact for React developers',
+				summary:
+					'Compare everyday eXact and React components side by side, from state and forms to lists, async work, and lifecycle.',
+				keywords:
+					'React developers migration comparison side by side hooks useState useEffect useMemo state forms binding JSX className keyed lists tasks lifecycle cleanup Server Components RSC Server Functions actions continuations Next.js optimistic',
+				component: ReactDevelopersPage
+			},
+			{
 				path: '/samples',
 				label: 'Sample applications',
-				summary: 'Explore complete eXact applications and portable standalone builds.',
+				summary: 'Explore the hosted Sudoku and Puzzle Foundry demos and repository applications.',
 				keywords:
-					'samples applications puzzle generator Sudoku word search crossword clues page size margins warnings local AI WebLLM Qwen WebGPU Hugging Face standalone HTML SVG shipping kanban workbench',
+					'samples applications Sudoku Puzzle Foundry printable SVG shipping calculator kanban workbench microfrontend server components hosted GitHub Pages',
 				component: SamplesPage
 			},
 			{
@@ -95,6 +107,15 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'runtime adapter integration status Vite Webpack Bun Node Express Fastify Hapi Koa Deno Cloudflare serverless Fetch',
 				component: RuntimesPage
+			},
+			{
+				path: '/framework-comparison',
+				label: 'Framework comparison',
+				summary:
+					'Compare production-shaped applications through controlled-service and native-full-stack tracks.',
+				keywords:
+					'framework comparison benchmark methodology performance complexity incident operations controlled service native full stack reproducible',
+				component: FrameworkComparisonPage
 			}
 		]
 	},
@@ -142,10 +163,10 @@ export const docGroups: DocGroup[] = [
 			},
 			{
 				path: '/learn/component-registries',
-				label: 'Component registries',
-				summary: 'Select finite eager and lazy components without losing identity or safety.',
+				label: 'Dynamic components',
+				summary: 'Choose components through branches, finite registries, or an open fallback.',
 				keywords:
-					'component registry dynamic lazy eager key identity preload SSR hydration placement bundle',
+					'component registry dynamic lazy eager key identity preload SSR hydration placement bundle createDynamicComponent provider client only',
 				component: ComponentRegistriesPage
 			},
 			{
@@ -161,14 +182,14 @@ export const docGroups: DocGroup[] = [
 				path: '/learn/server-execution',
 				label: 'Server execution',
 				summary:
-					'Understand distributed component continuations, SSR resumption, and server-only dependency isolation.',
+					'Understand distributed continuations, dependency-driven SSR execution, and server-only isolation.',
 				keywords:
-					'server task continuation state machine C# async SSR hydration context Apollo TanStack bundle shared secret',
+					'server task continuation dependency watcher component execution subgraph root blueprint cache slot state machine C# async SSR scheduler hydration context Apollo TanStack bundle shared secret',
 				component: ServerExecutionPage
 			},
 			{
 				path: '/learn/language-tools',
-				label: 'Compiler-aware language tools',
+				label: 'Language tools',
 				summary:
 					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
 				keywords:
@@ -181,7 +202,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Inspect durable browser and server components across authorized microfrontend roots.',
 				keywords:
-					'DevTools Chromium component inspection state contexts tasks invocations timeline server cooperation allowDebug catalog redaction secrets microfrontend federation CDP agent',
+					'DevTools Chromium component inspection state contexts tasks invocations arguments results errors execution history timeline server cooperation allowDebug catalog redaction secrets microfrontend federation CDP agent',
 				component: DevtoolsPage
 			}
 		]
@@ -233,6 +254,15 @@ export const docGroups: DocGroup[] = [
 				component: EnhancementsPage
 			},
 			{
+				path: '/components/accessibility',
+				label: 'Accessibility',
+				summary:
+					'Add ref relationships, bounded focus lifecycle, composite navigation, and package-owned guidance while preserving native HTML behavior.',
+				keywords:
+					'accessibility a11y ARIA label description relationship ref focus dialog modal command keyboard navigation roving tabindex active descendant listbox tablist radiogroup toolbar grid LSP diagnostics enhancement',
+				component: AccessibilityPage
+			},
+			{
 				path: '/components/trust',
 				label: 'Server trust',
 				summary: 'Authorize resolved component packages before server execution.',
@@ -282,6 +312,15 @@ export const docGroups: DocGroup[] = [
 				component: PluginsPage
 			},
 			{
+				path: '/plugins/internationalization',
+				label: 'Internationalization',
+				summary:
+					'Localize enhancement-authored messages with semantic inference and XLIFF catalogs.',
+				keywords:
+					'plugin internationalization intl i18n locale translation catalog XLIFF extraction source message plural ordinal currency unit CLDR date time Temporal analyzer enhancement Vite Bun Webpack test bed reorder fragments',
+				component: InternationalizationPage
+			},
+			{
 				path: '/plugins/microfrontends',
 				label: 'Microfrontends',
 				summary: 'Expose and consume independently built eXact component roots.',
@@ -306,13 +345,6 @@ export const docGroups: DocGroup[] = [
 				summary: 'Program a turtle and watch eXact coordinate the work.',
 				keywords: 'logo turtle interpreter canvas demo playground',
 				component: LogoLabPage
-			},
-			{
-				path: '/compare',
-				label: 'Framework comparison',
-				summary: 'Compare eXact with React, Vue, and Svelte without a winner-takes-all scorecard.',
-				keywords: 'compare React Vue Svelte reactivity compiler components ecosystem',
-				component: ComparisonPage
 			},
 			{
 				path: '/advanced',

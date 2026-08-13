@@ -127,6 +127,7 @@ async function mountVNode(
 	const rendered = createVNode(TestMountHost, { entries }, vnode);
 	const tracker = new TaskTracker();
 	try {
+		if (options.enhancementCatalog) await import('@exactjs/dom/framework/enhancements');
 		withTaskObserver(tracker, () =>
 			render(rendered, container, { enhancementCatalog: options.enhancementCatalog })
 		);

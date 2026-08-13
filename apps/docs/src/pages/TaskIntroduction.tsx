@@ -6,9 +6,10 @@ export function TaskIntroduction(this: Component<{}>) {
 		<section>
 			<h2>Tasks are eXact&apos;s unit of coordinated work</h2>
 			<p>
-				An eXact component is a durable instance whose setup runs once. Some work associated with
-				that instance must run again when an input changes, wait for asynchronous operations,
-				publish state safely, respond to an interaction, or own a resource. A <strong>task</strong>{' '}
+				An eXact component is ordinary TypeScript compiled into a durable reactive state-machine
+				instance. Some work associated with that instance must execute when an input changes, wait
+				for asynchronous operations, publish state safely, respond to an interaction, or own a
+				resource. A <strong>task</strong>
 				is the framework&apos;s model for that coordinated work.
 			</p>
 			<p>

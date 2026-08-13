@@ -43,6 +43,15 @@ const catalog: ExactBuildInspectionCatalog = Object.freeze({
 					])
 				})
 			]),
+			partitionPlans: Object.freeze([
+				Object.freeze({
+					version: 1,
+					buildKey,
+					roots: ['component'],
+					nodes: [{ id: 'component' }],
+					edges: []
+				})
+			]),
 			redactions: Object.freeze({
 				statePaths: Object.freeze([]),
 				contextTokens: Object.freeze([]),
@@ -108,6 +117,20 @@ describe('server-cooperative debug protocol', () => {
 		);
 		expect(wrongBuild.status).toBe(404);
 		expect(JSON.stringify(responseJson(wrongBuild))).not.toContain('Page.tsx');
+	});
+
+	it('returns value-free activation plans through catalog authorization', async () => {
+		const context = server();
+		const opened = await handleExactRequest(debugOpen(), context);
+		const sessionId = responseJson(opened).session.id as string;
+		const response = await handleExactRequest(
+			debugQuery(sessionId, 'partitions.plan', { identity: runtimeIdentity(sessionId) }),
+			context
+		);
+
+		expect(responseJson(response).result).toEqual([
+			expect.objectContaining({ buildKey, roots: ['component'] })
+		]);
 	});
 
 	it('requires source capability and a matching hash while redacting known secret literals', async () => {

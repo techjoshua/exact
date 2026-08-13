@@ -26,9 +26,32 @@ immediately.
 Hydrate the same compiled application that produced the server output. Server endpoints remain
 responsible for authorization, CSRF policy, payload limits, and operation allowlists.
 
-Generated application entries pass their bundle-local enhancement catalog through
-`HydrateOptions.enhancementCatalog`. Hydration adopts compatible authored DOM first, then activates
-those ordinary enhancement components against the adopted targets.
+Generated enhancement modules register their bundle-local providers and hydration support
+automatically. Hydration adopts compatible authored DOM first, then activates those ordinary
+enhancement components against the adopted targets. A low-level integration that manually passes
+`HydrateOptions.enhancementCatalog` must import `hydrate` from `@exactjs/hydrate/enhanced` so the
+synchronous enhancement host is installed before adoption.
+
+Applications with ordinary browser-owned service calls and no compiler-generated server
+operations, response patches, or client islands can select the hydration-only entry:
+
+```ts
+import { hydrate } from '@exactjs/hydrate/root';
+
+const root = hydrate(app, document.getElementById('app')!);
+```
+
+`hydrateAfterNavigation()` gives visible SSR content one rendering opportunity after
+`DOMContentLoaded`, then schedules activation as user-visible work. If a pointer, keyboard, input,
+change, or submit interaction reaches the root first, a capture listener activates synchronously
+before normal target and bubble handling. Hidden documents use a task directly because animation
+frames may be throttled indefinitely. Scheduling and event ownership follow the container's own
+document and window, including embedded realms. Activation settles once: a scheduling or hydration
+failure removes pending hooks and rejects without a later retry.
+
+Because that static entry does not expose the optional capabilities, bundlers can remove their
+implementations completely. Use the main entry whenever the compiled application contains server
+operations, patch refreshes, or islands.
 
 Use `ExactClient.applyPatches()` only for framework integrations that deliberately apply validated
 patches within that client's root. Direct transport invocation and unscoped patch application are

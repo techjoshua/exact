@@ -52,6 +52,7 @@ export function withDomWork<T>(root: Root, run: () => T): T {
 /** Charges one render value against both local and hydration-shared budgets. */
 export function countDomWork(root: Root): void {
 	if (root.workBudget) consumeDomWork(root.workBudget);
+	if (root.interactionWork) root.interactionWork.traversedNodes++;
 	if (++root.traversedNodes > root.maxTreeNodes) {
 		throw new DomTreeWorkError(root.maxTreeNodes);
 	}

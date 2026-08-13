@@ -14,22 +14,17 @@ const asyncSource = `async function loadProfile(id: string) {
   }
 }`;
 
-const csharpIteratorSource = `static IEnumerable<Task> LoadProfile(
-    string id,
-    AsyncResult<Profile> output)
+const csharpIteratorSource = `static IEnumerable<Task> LoadProfile(string id, AsyncResult<Profile> output)
 {
-    Task<HttpResponseMessage> response =
-        client.GetAsync($"/api/profiles/{id}");
+    Task<HttpResponseMessage> response = client.GetAsync($"/api/profiles/{id}");
     yield return response;
 
     response.Result.EnsureSuccessStatusCode();
 
-    Task<string> json =
-        response.Result.Content.ReadAsStringAsync();
+    Task<string> json = response.Result.Content.ReadAsStringAsync();
     yield return json;
 
-    output.Value =
-        JsonSerializer.Deserialize<Profile>(json.Result);
+    output.Value = JsonSerializer.Deserialize<Profile>(json.Result);
 }
 
 // The runner awaits Current, then calls MoveNext() again.
@@ -51,7 +46,7 @@ const javascriptGeneratorSource = `function* loadProfile(id: string) {
 const exactCounterSource = `import type { Component } from '@exactjs/core';
 
 function Counter(this: Component<{ count: number }>) {
-  // Setup runs once for this component instance.
+  // Default state for each new component instance.
   this.state.count = 0;
   const doubled = this.state.count * 2;
 
@@ -74,16 +69,14 @@ const reactCounterSource = `function Counter() {
 }`;
 
 const distributedSource = `type Product = { id: string; name: string };
+type ProductState = { product?: Product; saves: number };
 
 interface ProductRepository {
   /** @exact shared */
   find(id: string): Promise<Product>;
 }
 
-async function ProductPage(
-  this: Component<{ product?: Product; saves: number }>,
-  props: { productId: string }
-) {
+async function ProductPage(this: Component<ProductState>, props: { productId: string }) {
   const products = this.getContext(ProductRepositoryContext);
   this.state.saves = 0;
 
@@ -122,7 +115,7 @@ export function StoryPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="The story behind eXact"
-			title="What async/await taught me about web frameworks"
+			title="From async/await to eXact"
 			description="Clear source code and sophisticated runtime machinery do not have to be enemies. Sometimes the compiler can carry the complexity so the programmer does not have to."
 			previous={{ path: '/', label: 'Introduction' }}
 			next={{ path: '/getting-started', label: 'Quick start' }}
@@ -156,7 +149,7 @@ export function StoryPage(this: Component<{}>) {
 				</p>
 				<p>
 					After several trips down the rabbit hole, I built a small package that expressed
-					asynchronous operations with iterator blocks. I had to write <code>yield return</code>{' '}
+					asynchronous operations with iterator blocks. I had to write <code>yield return</code>
 					instead of <code>await</code>, but an iterator runner could feed each completed result
 					back into the suspended function. Extension methods wrapped the runner and preserved typed
 					results with generics.
@@ -190,7 +183,7 @@ export function StoryPage(this: Component<{}>) {
 					title="A generator-shaped JavaScript lowering"
 				/>
 				<p>
-					That distinction matters. The gift of compilation is not a particular <code>switch</code>{' '}
+					That distinction matters. The gift of compilation is not a particular <code>switch</code>
 					statement hidden in generated output. It is the freedom to separate an expressive source
 					model from the detailed mechanism that makes the model work.
 				</p>
@@ -227,26 +220,27 @@ export function StoryPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Setup once... update only what depends on state</h2>
+				<h2>Describe once... update only what depends on state</h2>
 				<p>
-					In eXact, the outer component function is setup. It normally runs once for each instance
-					and returns the function that describes the view. State belongs directly to that durable
-					instance. The compiler connects each state read to the DOM expression, derived value,
+					In eXact, the component body is a compiler-analyzed definition of initial state, tasks,
+					reactive relationships, and view preparation—not a callback executed linearly. The
+					compiler turns that description into a reactive state machine, and each mounted component
+					owns one durable instance. Every state read connects to the DOM expression, derived value,
 					task, or server operation that consumes it.
 				</p>
 				<CodeBlock source={exactCounterSource} language="tsx" title="The same idea in eXact" />
 				<p>
-					When <code>count</code> changes, the component function does not run again and there is no
+					When <code>count</code> changes, the existing state machine transitions and there is no
 					virtual tree to diff. The count text and the derived value are invalidated as precise
 					reactive expressions. The runtime updates the affected DOM ranges while the component, its
 					state, its tasks, and its owned resources remain in place.
 				</p>
-				<Callout title="Where the state-machine analogy fits" tone="note">
+				<Callout title="How the pieces fit" tone="note">
 					<p>
-						It is useful, but it is not the whole architecture. eXact compiles synchronous reads
-						into a graph of targeted reactive work. Async setup and distributed server work are
-						lowered into resumable continuations. Together they provide the same larger lesson as
-						async/await: generated complexity can protect simple, linear source.
+						eXact uses the right compiled representation for each kind of work. Synchronous state
+						reads become a graph of targeted reactive updates, while async initialization and
+						distributed server work become resumable continuations. In both cases, the compiler
+						manages complexity that would otherwise spill into component code.
 					</p>
 				</Callout>
 			</section>
@@ -325,7 +319,7 @@ export function StoryPage(this: Component<{}>) {
 					The goal is straightforward: make eXact the framework people want to build with, while
 					giving existing applications a practical path to get there. We are still at the beginning,
 					but the direction is the same one that fascinated me years ago: write the clearest version
-					of the program, then let the compiler carry the machinery.
+					of the program, then let the compiler manage the machinery.
 				</p>
 				<div className="hero-actions">
 					<Link className="primary-link" to="/getting-started">

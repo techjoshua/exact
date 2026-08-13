@@ -35,7 +35,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 		const server = await readFile(result.serverFile, 'utf8');
 
 		expect(client).toMatch(
-			/export const ClientWidget: typeof __exactImplementation_ClientWidget_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
+			/export const ClientWidget = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
 		);
 		expect(client).toMatch(
 			/\{ id: "[^"]+", name: "ClientWidget", role: "root", implementation: __exactImplementation_ClientWidget_\d+ \}/
@@ -70,7 +70,9 @@ describe('@exactjs/compiler: island boundaries', () => {
 			{ filename: 'ClientWidget.tsx', target: 'server' }
 		);
 
-		expect(server).toContain('export function ClientWidget(props = {})');
+		expect(server).toContain(
+			'export const ClientWidget = /* @__PURE__ */ Object.assign(function ClientWidget(props = {})'
+		);
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('"ClientWidget"');
 		expect(server).not.toContain('window.innerWidth');
@@ -173,7 +175,12 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(serverRanges[0]!.child).not.toBe(serverRanges[1]!.child);
 		expect(
 			analysis.partitionPlan.nodes.find((node) => node.id === serverRanges[0]!.parent)
-		).toMatchObject({ kind: 'region', placement: 'client', activation: 'eager' });
+		).toMatchObject({
+			kind: 'region',
+			placement: 'client',
+			activation: 'interaction',
+			activationDecision: { mode: 'interaction', reasons: [] }
+		});
 	});
 
 	it('uses distinct boundaries for repeated client component tag instances', () => {
@@ -265,7 +272,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 		);
 
 		expect(server).toContain('__exactBoundary');
-		expect(server).toContain('children: ["Issue", this.state.title, "#", this.state.count]');
+		expect(server).toContain('children: ["Issue ", this.state.title, " #", this.state.count]');
 		expect(server).not.toContain('window.innerWidth');
 	});
 

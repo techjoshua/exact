@@ -6,6 +6,21 @@ import { createExactClient, hydrate, readExactHydrationConfig } from './index.js
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('bounded hydration bootstrap and adoption', () => {
+	it('uses the document id index before falling back to bounded traversal', () => {
+		const script = document.createElement('script');
+		script.id = '__exact_hydration';
+		script.type = 'application/json';
+		script.textContent = '{"state":{"ready":true}}';
+		document.body.appendChild(script);
+		try {
+			expect(readExactHydrationConfig(document, '__exact_hydration', {}, { limit: 1, used: 0 })).toEqual(
+				{ state: { ready: true } }
+			);
+		} finally {
+			script.remove();
+		}
+	});
+
 	it('merges serialized server continuations with client component continuations', () => {
 		const container = document.createElement('main');
 		const continuation = (id: string) => ({
@@ -50,6 +65,26 @@ describe('bounded hydration bootstrap and adoption', () => {
 		deep.innerHTML =
 			'<script id="__exact_hydration">{"state":{"one":{"two":{"three":true}}}}</script>';
 		expect(readExactHydrationConfig(deep, '__exact_hydration', { maxDepth: 2 })).toEqual({});
+	});
+
+	it('reads hydration bootstrap data once while constructing a hydrated client', () => {
+		const container = document.createElement('main');
+		const script = document.createElement('script');
+		script.id = '__exact_hydration';
+		let reads = 0;
+		Object.defineProperty(script, 'textContent', {
+			configurable: true,
+			get() {
+				reads++;
+				return '{"state":{"ready":true}}';
+			}
+		});
+		container.appendChild(script);
+
+		const client = hydrate(createVNode('p', null, 'ready'), container);
+
+		expect(reads).toBe(1);
+		client.dispose();
 	});
 
 	it('passes the DOM work budget through hydration fallback rendering', () => {

@@ -2,11 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { exactEnhancementFacadeRequest } from '@exactjs/compiler/adapter-support';
 import {
+	ExactViteEnhancementFacadeCatalog,
 	exactEnhancementFacades,
 	prependViteEnhancementRegistrations
 } from './enhancement-catalog.js';
-import { exact } from './plugin.js';
+import { exact as createExact } from './plugin.js';
+
+const exact = (...args: Parameters<typeof createExact>) =>
+	createExact(...args) as Omit<ReturnType<typeof createExact>, 'transform'> & {
+		transform(
+			...values: Parameters<ReturnType<typeof createExact>['transform']>
+		): Awaited<ReturnType<ReturnType<typeof createExact>['transform']>>;
+	};
 
 describe('Vite enhancement catalog emission', () => {
 	it('registers only the capabilities emitted for a compiled application module', () => {
@@ -23,18 +32,19 @@ describe('Vite enhancement catalog emission', () => {
 			}
 		]);
 
-		expect(code).toContain(`from "@exactjs/motion"`);
-		expect(code).toContain(`from "@acme/input/enhancements"`);
+		expect(code.match(/exact:optional-enhancement\//g)).toHaveLength(2);
 		expect(code).toContain(`__exactRegisterEnhancement("@exactjs/motion#default"`);
 		expect(code).toContain('@exactjs/core/framework/enhancement-catalog');
 		expect(code).not.toContain('pluginRegistry');
 	});
 
-	it('redirects every renderer root to the shared bundle-catalog facade', () => {
-		const plugin = exact({ reactCompatibility: false });
+	it('keeps client renderer roots lean and redirects server roots to catalog facades', async () => {
+		const client = exact({ reactCompatibility: false });
+		const server = exact({ reactCompatibility: false, target: 'server' });
 
 		for (const [request, facade] of Object.entries(exactEnhancementFacades)) {
-			expect(plugin.resolveId!(request)).toBe(facade);
+			expect(await client.resolveId!(request)).toBeNull();
+			expect(await server.resolveId!(request)).toBe(facade);
 		}
 	});
 
@@ -70,11 +80,40 @@ describe('Vite enhancement catalog emission', () => {
 
 		try {
 			const result = plugin.transform(source, entry);
-			expect(result?.code).toContain(`from "./motion.js"`);
+			expect(result?.code).toContain(`exact:optional-enhancement/`);
 			expect(result?.code).toContain(`__exactRegisterEnhancement("./motion.js#default"`);
 			expect(result?.code).toContain('@exactjs/core/framework/enhancement-catalog');
 		} finally {
 			plugin.closeBundle?.();
 		}
+	});
+
+	it('loads pass-through and provider facades without retaining stale generations', async () => {
+		const catalog = new ExactViteEnhancementFacadeCatalog();
+		const request = exactEnhancementFacadeRequest({
+			identity: '@acme/motion#default',
+			moduleSpecifier: '@acme/motion',
+			exportName: 'default'
+		});
+		const absent = await catalog.resolve(
+			request,
+			'/app/view.tsx',
+			async () => null,
+			async (id) => id,
+			'@exactjs/dom/framework/enhancements'
+		);
+		expect(catalog.load(absent!)).toContain('exactEnhancementPassThrough');
+		expect(catalog.load(absent!)).toContain('@exactjs/dom/framework/enhancements');
+		const available = await catalog.resolve(
+			request,
+			'/app/view.tsx',
+			async () => '/packages/motion.js',
+			async (id) => id,
+			'@exactjs/dom/framework/enhancements'
+		);
+		expect(catalog.load(available!)).toContain('from "/packages/motion.js"');
+		expect(catalog.load(available!)).toContain('@exactjs/dom/framework/enhancements');
+		catalog.advanceGeneration();
+		expect(catalog.load(available!)).toBeUndefined();
 	});
 });

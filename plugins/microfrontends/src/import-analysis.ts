@@ -24,10 +24,22 @@ export function analyzeProvidedPackageImports(
 	};
 
 	for (const statement of source.statements) {
-		if (ts.isExportDeclaration(statement) && moduleKey(statement.moduleSpecifier, keys)) {
-			throw new Error(
-				`Re-exports of provided package ${JSON.stringify((statement.moduleSpecifier as ts.StringLiteral).text)} are not supported`
-			);
+		if (ts.isExportDeclaration(statement)) {
+			const key = moduleKey(statement.moduleSpecifier, keys);
+			if (key) {
+				if (!statement.exportClause || !ts.isNamedExports(statement.exportClause)) {
+					add(key, { kind: 're-export' });
+					continue;
+				}
+				for (const element of statement.exportClause.elements) {
+					if (!statement.isTypeOnly && !element.isTypeOnly)
+						add(key, {
+							kind: 'named',
+							imported: (element.propertyName ?? element.name).text
+						});
+				}
+				continue;
+			}
 		}
 		if (!ts.isImportDeclaration(statement)) continue;
 		const key = moduleKey(statement.moduleSpecifier, keys);

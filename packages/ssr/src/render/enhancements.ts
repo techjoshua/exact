@@ -1,5 +1,6 @@
 import {
 	createVNode,
+	isExactEnhancementPassThrough,
 	readExactEnhancementContexts,
 	type ComponentFunction,
 	type EnhancementEntry,
@@ -31,7 +32,7 @@ export async function activateSsrEnhancementsAsync(
 	const declarations = localDeclarations(vnode);
 	if (declarations.length) reportUnavailableEntries(context, declarations);
 	if (declarations.length && !context.plannedEnhancementBoundaries.has(vnode)) {
-		if (declarations.some((entry) => context.enhancementCatalog?.has(entry.identity))) {
+		if (declarations.some((entry) => activeEnhancement(context, entry.identity))) {
 			await planSsrEnhancementBoundaryAsync(context, vnode, parent, options);
 		} else {
 			context.plannedEnhancementBoundaries.add(vnode);
@@ -49,7 +50,7 @@ function planBoundaryIfNeeded(
 	if (!declarations.length) return;
 	reportUnavailableEntries(context, declarations);
 	if (context.plannedEnhancementBoundaries.has(vnode)) return;
-	if (declarations.some((entry) => context.enhancementCatalog?.has(entry.identity))) {
+	if (declarations.some((entry) => activeEnhancement(context, entry.identity))) {
 		planSsrEnhancementBoundary(context, vnode, parent);
 	} else {
 		context.plannedEnhancementBoundaries.add(vnode);
@@ -60,7 +61,7 @@ function activatePlannedTarget(context: SsrContext, vnode: VNode): VNode {
 	const declarations = context.enhancementTargets.get(vnode) ?? [];
 	if (!declarations.length) return vnode;
 	const active = declarations.filter((entry) => {
-		if (context.enhancementCatalog?.has(entry.identity)) return true;
+		if (activeEnhancement(context, entry.identity)) return true;
 		reportUnavailable(context, entry.identity);
 		return false;
 	});
@@ -77,13 +78,12 @@ function activatePlannedTarget(context: SsrContext, vnode: VNode): VNode {
 }
 
 function localDeclarations(vnode: VNode): EnhancementEntry[] {
-	return (vnode.enhancements?.entries ?? []).filter((entry) => !routingOnlyEntry(entry));
+	return (vnode.enhancement?.entries ?? []).filter((entry) => !routingOnlyEntry(entry));
 }
 
 function reportUnavailableEntries(context: SsrContext, entries: readonly EnhancementEntry[]): void {
 	for (const entry of entries) {
-		if (!context.enhancementCatalog?.has(entry.identity))
-			reportUnavailable(context, entry.identity);
+		if (!activeEnhancement(context, entry.identity)) reportUnavailable(context, entry.identity);
 	}
 }
 
@@ -105,7 +105,7 @@ function enhancementVNode(
 }
 
 function withoutEnhancements(vnode: VNode): VNode {
-	const { enhancements: _enhancements, ...plain } = vnode;
+	const { enhancement: _enhancement, ...plain } = vnode;
 	return plain;
 }
 
@@ -167,6 +167,7 @@ function orderEnhancementEntries(
 }
 
 function reportUnavailable(context: SsrContext, identity: string): void {
+	if (isExactEnhancementPassThrough(context.enhancementCatalog?.get(identity))) return;
 	if (context.unavailableEnhancements.has(identity)) return;
 	context.unavailableEnhancements.add(identity);
 	context.logger?.log({
@@ -174,4 +175,9 @@ function reportUnavailable(context: SsrContext, identity: string): void {
 		message: `Optional renderer enhancement "${identity}" is unavailable`,
 		scope: { source: 'framework', packageName: '@exactjs/ssr', category: 'enhancement' }
 	});
+}
+
+function activeEnhancement(context: SsrContext, identity: string): boolean {
+	const component = context.enhancementCatalog?.get(identity);
+	return component !== undefined && !isExactEnhancementPassThrough(component);
 }

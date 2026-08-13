@@ -56,7 +56,8 @@ export function createExactHydrationRegistrationModule(
 		islandEntries,
 		graph.operations,
 		islandsExportName,
-		continuationsName
+		continuationsName,
+		options.preserveAuthoredModuleExtensions ?? false
 	);
 	const registration = omitUndefinedProperties({
 		endpoint: options.endpoint,
@@ -76,10 +77,14 @@ function createClientDescriptorCompositionModule(
 	entries: readonly ClientIslandRegistryEntry[],
 	operations: ExactArtifactGraph['operations'],
 	exportName: string,
-	continuationsName: string
+	continuationsName: string,
+	preserveModuleExtensions: boolean
 ): string {
 	const islands = entries.map((entry) => {
-		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(runtimeModuleSpecifier(entry.module))}).then((module) => module[${JSON.stringify(entry.exportName)}]))`;
+		const activation =
+			entry.activation?.mode === 'interaction' ? `, ${JSON.stringify(entry.activation)}` : '';
+		const module = preserveModuleExtensions ? entry.module : runtimeModuleSpecifier(entry.module);
+		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(module)}).then((module) => module[${JSON.stringify(entry.exportName)}])${activation})`;
 	});
 	const continuationValues = operations.map((continuation) =>
 		compactHydrationContinuation({

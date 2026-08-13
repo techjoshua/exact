@@ -96,6 +96,9 @@ function compileMixedApp(target: 'client' | 'server'): exactCore.ComponentFuncti
 	};
 	const modules: Record<string, unknown> = {
 		'@exactjs/core': exactCore,
+		'@exactjs/core/runtime/render': exactCore,
+		'@exactjs/core/runtime/reactivity': exactCore,
+		'@exactjs/core/runtime/tasks': exactCore,
 		'@exactjs/react-compat/exact': { adaptReactComponent },
 		'react-widget': { Widget }
 	};

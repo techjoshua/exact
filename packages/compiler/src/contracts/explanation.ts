@@ -1,4 +1,5 @@
 import type { ExactPlacement } from './policy.js';
+import type { ExactActivationDecision } from './analysis.js';
 
 /** Explains why one value is retained in a browser resumption record. */
 export type ExactResumptionFieldExplanation = Readonly<{
@@ -72,4 +73,10 @@ export type ExactCompilerExplanation = Readonly<{
 	target: 'default' | 'client' | 'server';
 	components: readonly ExactComponentExplanation[];
 	registries: readonly ExactComponentRegistryExplanation[];
+	islands: readonly Readonly<{
+		id: string;
+		name: string;
+		componentId?: string;
+		activation: ExactActivationDecision;
+	}>[];
 }>;

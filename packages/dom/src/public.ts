@@ -14,6 +14,7 @@ export {
 } from './state.js';
 export {
 	adoptComponentRoot,
+	adoptCellRoot,
 	adoptDocumentRoot,
 	adoptMarkerlessComponentRoot,
 	adoptStatic

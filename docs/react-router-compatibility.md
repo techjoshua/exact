@@ -9,6 +9,10 @@ location, matches, navigation state, route data, errors, blockers, history,
 fetchers, and hydration record. The compatibility layer does not run an
 independent React Router beside the native router.
 
+The controller publishes every accepted location as a reactive route-context snapshot. Persistent
+native consumers, including `NavLink`, update their active presentation and `aria-current` from
+that snapshot without requiring the surrounding route layout to remount.
+
 ## Supported families
 
 - React Router and React Router DOM 5.3-compatible APIs.

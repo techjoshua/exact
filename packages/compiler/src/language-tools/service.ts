@@ -27,7 +27,12 @@ import {
 	refactorFilename
 } from './refactor-equivalence.js';
 import { planExactTaskRefactor } from './task-refactor.js';
+import { importedLanguageFiles } from './imported-files.js';
 import { createExactSourceInspection } from './source-inspection.js';
+import {
+	preparePackageEnhancementSource,
+	sanitizePackageEnhancementResponse
+} from '../compilation/package-enhancements.js';
 import {
 	defaultMaxCachedAnalyses,
 	defaultMaxCachedAnalysisBytes,
@@ -72,6 +77,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 	private readonly ownsClient: boolean;
 	private readonly maxCachedAnalyses: number;
 	private readonly maxCachedAnalysisBytes: number;
+	private readonly packageEnhancements: ExactLanguageServiceOptions['packageEnhancements'];
 	private readonly snapshots = new Map<string, SourceSnapshot>();
 	private readonly analyses = new Map<string, AnalysisSnapshot>();
 	private readonly imports = new Map<string, ReadonlySet<string>>();
@@ -89,6 +95,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		this.root = path.resolve(options.root);
 		this.configFile = options.configFile ? path.resolve(this.root, options.configFile) : undefined;
 		this.projectKind = options.projectKind ?? 'configured';
+		this.packageEnhancements = options.packageEnhancements;
 		this.maxCachedAnalyses = positiveCacheLimit(
 			options.maxCachedAnalyses,
 			defaultMaxCachedAnalyses,
@@ -162,7 +169,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 			if (!current || current.version !== snapshot.version || current.source !== snapshot.source)
 				throw staleError(filename);
 			this.storeAnalysis(filename, snapshot, response);
-			this.imports.set(filename, importedFiles(filename, response, this.root));
+			this.imports.set(filename, importedLanguageFiles(filename, response, this.root));
 			diagnostics.push(
 				...createExactSourceInspection(filename, snapshot.source, nextGeneration, response)
 					.diagnostics
@@ -227,7 +234,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 			throwIfAborted(signal);
 			analysis = this.storeAnalysis(normalized, snapshot, response);
 			this.snapshots.set(normalized, snapshot);
-			this.imports.set(normalized, importedFiles(normalized, response, this.root));
+			this.imports.set(normalized, importedLanguageFiles(normalized, response, this.root));
 		}
 		const inspection = this.withProject(
 			createExactSourceInspection(
@@ -302,17 +309,22 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		source: string,
 		signal?: AbortSignal
 	): Promise<NativeCompilerResponse> {
-		return this.client.request(
+		const prepared = preparePackageEnhancementSource(source, filename, this.packageEnhancements);
+		const response = await this.client.request(
 			{
 				id: filename,
 				kind: 'analyze',
-				source,
+				source: prepared.source,
+				...(prepared.moduleSpecifiers.size
+					? { packageEnhancementBoundary: prepared.authoredLength }
+					: {}),
 				root: this.root,
 				...(this.configFile ? { configFile: this.configFile } : {}),
 				diagnostics: 'semantic'
 			},
 			signal
 		);
+		return sanitizePackageEnhancementResponse(response, prepared);
 	}
 
 	private affectedFiles(changed: readonly string[]): string[] {
@@ -385,9 +397,14 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 	}
 
 	private withProject(inspection: ExactSourceInspection): ExactSourceInspection {
+		const project = Object.freeze({ kind: this.projectKind, root: this.root });
 		return Object.freeze({
 			...inspection,
-			project: Object.freeze({ kind: this.projectKind, root: this.root })
+			project,
+			languageProjection: Object.freeze({
+				...inspection.languageProjection,
+				project
+			})
 		});
 	}
 
@@ -402,33 +419,6 @@ export function createExactLanguageService(
 	host?: ExactLanguageServiceHostOptions
 ): ExactLanguageService {
 	return new ExactCompilerLanguageService(options, host);
-}
-
-function importedFiles(
-	filename: string,
-	response: NativeCompilerResponse,
-	root: string
-): ReadonlySet<string> {
-	const directory = path.dirname(filename);
-	return new Set(
-		response.analysis.imports
-			.filter((entry) => entry.moduleSpecifier.startsWith('.'))
-			.map((entry) => {
-				const base = path.resolve(directory, entry.moduleSpecifier);
-				for (const candidate of [
-					base,
-					`${base}.ts`,
-					`${base}.tsx`,
-					`${base}.js`,
-					`${base}.jsx`,
-					path.join(base, 'index.ts'),
-					path.join(base, 'index.tsx')
-				]) {
-					if (existsSync(candidate)) return candidate;
-				}
-				return path.resolve(root, base);
-			})
-	);
 }
 
 function unique(values: readonly string[]): string[] {

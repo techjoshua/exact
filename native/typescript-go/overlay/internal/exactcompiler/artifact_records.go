@@ -17,6 +17,7 @@ func createArtifactRecords(
 	components []Component,
 	callables []CallableSummary,
 	exports []ExportRecord,
+	clientIslands map[*ast.Node]clientElementIsland,
 ) ([]SymbolRecord, []Boundary) {
 	filename := sourceFile.FileName()
 	symbols := []SymbolRecord{}
@@ -29,17 +30,9 @@ func createArtifactRecords(
 			defaultComponents[candidate.node.Pos()] = struct{}{}
 		}
 	}
-	elementIslandSlots := make(map[string]bool)
-	for _, island := range indexClientElementIslands(
-		sourceFile,
-		components,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-	) {
-		elementIslandSlots[island.component.ID+":"+strconv.Itoa(island.index)] = island.serverSlot
+	elementIslands := make(map[string]clientElementIsland)
+	for _, island := range clientIslands {
+		elementIslands[island.component.ID+":"+strconv.Itoa(island.index)] = island
 	}
 	for _, component := range components {
 		target := "both"
@@ -100,6 +93,7 @@ func createArtifactRecords(
 		}
 		if component.Exported {
 			for index := 1; index <= component.ClientIslandCount; index++ {
+				island, hasIsland := elementIslands[component.ID+":"+strconv.Itoa(index)]
 				name := generatedComponentName(
 					component.Name,
 					"client-island",
@@ -133,9 +127,16 @@ func createArtifactRecords(
 						ComponentID:      component.ID,
 						OwnerComponentID: component.ID,
 						Kind:             "client-island",
+						Activation: func() *ActivationDecision {
+							if !hasIsland {
+								return nil
+							}
+							decision := island.activation
+							return &decision
+						}(),
 					},
 				)
-				if elementIslandSlots[component.ID+":"+strconv.Itoa(index)] {
+				if hasIsland && island.serverSlot {
 					boundaries = appendUniqueBoundary(
 						boundaries,
 						seenBoundaries,

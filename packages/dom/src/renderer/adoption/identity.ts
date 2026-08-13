@@ -37,13 +37,19 @@ export function componentMarkerMatchesType(marker: Comment, type: VNode['type'])
 export function componentMarkerBoundary(
 	nodes: readonly Node[],
 	cursor: number,
-	type: VNode['type']
+	type: VNode['type'],
+	end = nodes.length
 ): { start: Comment; endIndex: number; matches: boolean } | undefined {
 	const start = nodes[cursor];
 	if (!(start instanceof Comment) || !start.data.startsWith('exact:component:')) return undefined;
-	const endIndex = nodes.findIndex(
-		(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-	);
+	let endIndex = -1;
+	for (let index = cursor + 1; index < end; index++) {
+		const node = nodes[index];
+		if (node instanceof Comment && node.data === `/${start.data}`) {
+			endIndex = index;
+			break;
+		}
+	}
 	if (endIndex < 0) return undefined;
 	return { start, endIndex, matches: componentMarkerMatchesType(start, type) };
 }

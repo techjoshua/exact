@@ -36,20 +36,20 @@ export const exactSemanticTokenTypes = Object.freeze([
 
 /** Stable semantic-token modifiers understood by eXact editor clients. */
 export const exactSemanticTokenModifiers = Object.freeze([
-	'exact.component',
-	'exact.initializer',
-	'exact.render',
-	'exact.inferredTask',
-	'exact.explicitTask',
-	'exact.derived',
-	'exact.dependency',
-	'exact.effect',
-	'exact.server',
-	'exact.client',
-	'exact.blocking',
-	'exact.deferred',
-	'exact.owned',
-	'exact.disposable'
+	'exactComponent',
+	'exactInitializer',
+	'exactRender',
+	'exactInferredTask',
+	'exactExplicitTask',
+	'exactDerived',
+	'exactDependency',
+	'exactEffect',
+	'exactServer',
+	'exactClient',
+	'exactBlocking',
+	'exactDeferred',
+	'exactOwned',
+	'exactDisposable'
 ]);
 
 /** Projects compiler classifications into standard full semantic tokens. */
@@ -276,15 +276,15 @@ function entitySemanticToken(entity: ExactSourceEntity): ExactSemanticTokenProje
 	let type: ExactSemanticTokenProjection['type'];
 	switch (entity.kind) {
 		case 'component':
-			modifiers.push('exact.component');
+			modifiers.push('exactComponent');
 			type = 'function';
 			break;
 		case 'explicit-task':
-			modifiers.push('exact.explicitTask');
+			modifiers.push('exactExplicitTask');
 			type = 'method';
 			break;
 		case 'derived':
-			modifiers.push('exact.derived');
+			modifiers.push('exactDerived');
 			type = 'variable';
 			break;
 		default:
@@ -292,11 +292,11 @@ function entitySemanticToken(entity: ExactSourceEntity): ExactSemanticTokenProje
 	}
 	const classification = entity.classification;
 	if (classification?.kind === 'task') {
-		if (classification.placement === 'server') modifiers.push('exact.server');
-		if (classification.placement === 'client') modifiers.push('exact.client');
-		if (classification.readiness === 'blocking') modifiers.push('exact.blocking');
-		if (classification.priority === 'deferred') modifiers.push('exact.deferred');
-		if (classification.resources.length) modifiers.push('exact.owned', 'exact.disposable');
+		if (classification.placement === 'server') modifiers.push('exactServer');
+		if (classification.placement === 'client') modifiers.push('exactClient');
+		if (classification.readiness === 'blocking') modifiers.push('exactBlocking');
+		if (classification.priority === 'deferred') modifiers.push('exactDeferred');
+		if (classification.resources.length) modifiers.push('exactOwned', 'exactDisposable');
 	}
 	return { type, modifiers };
 }

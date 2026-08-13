@@ -3,12 +3,52 @@ import type {
 	ExactLanguageServiceOptions,
 	ExactSourceInspection
 } from '@exactjs/compiler';
+import type { ExactLanguageExtensionHost } from '@exactjs/language-extension-host';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { ExactLanguageWorkspaceManager } from './workspace-manager.js';
 
 describe('ExactLanguageWorkspaceManager', () => {
+	it('owns a document by its nearest nested eXact project inside a monorepo workspace', async () => {
+		const created: Array<{
+			options: ExactLanguageServiceOptions;
+			service: FakeLanguageService;
+		}> = [];
+		const workspaceRoot = mkdtempSync(path.join(tmpdir(), 'exact-language-monorepo-'));
+		const projectRoot = path.join(workspaceRoot, 'apps', 'localized');
+		const filename = path.join(projectRoot, 'src', 'Page.tsx');
+		mkdirSync(path.dirname(filename), { recursive: true });
+		writeFileSync(
+			path.join(projectRoot, 'exact.config.ts'),
+			`export * as local from './enhancement.js' with { type: 'exact-enhancement', scope: 'package' };
+export default {};\n`
+		);
+		const manager = new ExactLanguageWorkspaceManager([workspaceRoot], true, {
+			createLanguageService(options) {
+				const service = new FakeLanguageService(options);
+				created.push({ options, service });
+				return service;
+			}
+		});
+
+		await manager.synchronizeDocument(
+			pathToFileURL(filename).href,
+			1,
+			'export function Page() { return () => <main local:enabled />; }'
+		);
+
+		expect(created[0]?.options.root).toBe(projectRoot);
+		expect(created[0]?.options.packageEnhancements).toEqual([
+			expect.objectContaining({ localName: 'local', moduleSpecifier: './enhancement.js' })
+		]);
+		await manager.removeRoot(workspaceRoot);
+		expect(created[0]?.service.dispose).toHaveBeenCalledOnce();
+		await manager.dispose();
+	});
+
 	it('owns configured and bounded inferred projects independently', async () => {
 		const created: Array<{
 			options: ExactLanguageServiceOptions;
@@ -51,7 +91,48 @@ describe('ExactLanguageWorkspaceManager', () => {
 		expect(factory).not.toHaveBeenCalled();
 		await manager.dispose();
 	});
+
+	it('retains host-level provider failures for editor status', async () => {
+		const root = path.resolve('workspace-provider-failure');
+		const uri = pathToFileURL(path.join(root, 'Page.tsx')).href;
+		const manager = new ExactLanguageWorkspaceManager([root], true, {
+			createLanguageService: (options) => new FakeLanguageService(options),
+			createLanguageExtensionHost: async () => failingLanguageHost('provider discovery failed')
+		});
+
+		await manager.synchronizeDocument(uri, 1, 'export const page = 1;');
+
+		expect(manager.providerFailure(uri)).toBe('provider discovery failed');
+		await manager.dispose();
+	});
 });
+
+function failingLanguageHost(message: string): ExactLanguageExtensionHost {
+	return {
+		async synchronizeProviders() {
+			throw new Error(message);
+		},
+		async diagnostics() {
+			return { diagnostics: [], statuses: [] };
+		},
+		async complete() {
+			return [];
+		},
+		async hover() {
+			return [];
+		},
+		async inlayHints() {
+			return [];
+		},
+		async codeActions() {
+			return [];
+		},
+		status() {
+			return [];
+		},
+		async dispose() {}
+	};
+}
 
 class FakeLanguageService implements ExactLanguageService {
 	readonly dispose = vi.fn(async () => undefined);
@@ -79,7 +160,25 @@ class FakeLanguageService implements ExactLanguageService {
 			compiler: { typescriptVersion: '7.0.0', backendVersion: '1.26.0' },
 			partitionPlan: { version: 1, buildKey: 'fixture', roots: [], nodes: [], edges: [] },
 			components: [],
-			diagnostics: []
+			diagnostics: [],
+			languageProjection: {
+				protocol: 1,
+				generation: this.generation,
+				project: { kind: this.options.projectKind ?? 'configured', root: this.options.root },
+				document: {
+					uri: pathToFileURL(this.filename).href,
+					path: this.filename,
+					version: this.generation,
+					textHash: 'fixture',
+					text: ''
+				},
+				imports: [],
+				components: [],
+				enhancements: [],
+				jsx: [],
+				expressions: [],
+				types: []
+			}
 		};
 	}
 

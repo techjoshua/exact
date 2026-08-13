@@ -18,6 +18,20 @@ export function createExactCompilerExplanation(
 	return Object.freeze({
 		filename: analysis.filename,
 		target,
+		islands: Object.freeze(
+			analysis.boundaries.flatMap((boundary) =>
+				boundary.kind === 'client-island' && boundary.activation
+					? [
+							Object.freeze({
+								id: boundary.id,
+								name: boundary.name,
+								...(boundary.componentId ? { componentId: boundary.componentId } : {}),
+								activation: freezeActivationDecision(boundary.activation)
+							})
+						]
+					: []
+			)
+		),
 		registries: Object.freeze(
 			(analysis.registries ?? []).map((registry) =>
 				Object.freeze({
@@ -60,6 +74,23 @@ export function createExactCompilerExplanation(
 					})
 				});
 			})
+		)
+	});
+}
+
+function freezeActivationDecision(
+	activation: NonNullable<ExactModuleAnalysis['boundaries'][number]['activation']>
+) {
+	return Object.freeze({
+		...activation,
+		reasons: Object.freeze(activation.reasons.map((reason) => Object.freeze({ ...reason }))),
+		targets: Object.freeze(
+			activation.targets.map((target) =>
+				Object.freeze({
+					...target,
+					events: Object.freeze(target.events.map((event) => Object.freeze({ ...event })))
+				})
+			)
 		)
 	});
 }

@@ -5,6 +5,7 @@ import type {
 	ExactServerContext,
 	ExactServerContextConfiguration
 } from '../types.js';
+import { exactResponseBodyOf } from '../response-body.js';
 import {
 	applyResponseState,
 	disposePreservingPrimary,
@@ -110,7 +111,10 @@ export async function runWithExactRequestScope<T>(
 		throw error;
 	}
 	try {
-		if (isResponse(value) && value.stream) {
+		if (isResponse(value) && exactResponseBodyOf(value)) {
+			releaseAttempted = true;
+			await opened.dispose('eXact buffered response complete');
+		} else if (isResponse(value) && value.stream) {
 			value = {
 				...value,
 				stream: retainScopeForStream(value.stream, opened.dispose, opened.context.signal)

@@ -18,8 +18,9 @@ type corpusInput struct {
 }
 
 type corpusGroup struct {
-	Config    string   `json:"config"`
-	Filenames []string `json:"filenames"`
+	Config                     string            `json:"config"`
+	Filenames                  []string          `json:"filenames"`
+	PackageEnhancementSuffixes map[string]string `json:"packageEnhancementSuffixes,omitempty"`
 }
 
 type corpusProjectResult struct {
@@ -132,12 +133,20 @@ func compileCorpusProject(
 		if err != nil {
 			return projectOutcome{err: fmt.Errorf("%s: %w", filename, err)}
 		}
+		authoredSource := string(source)
+		preparedSource := authoredSource
+		packageEnhancementBoundary := 0
+		if suffix := group.PackageEnhancementSuffixes[filename]; suffix != "" {
+			packageEnhancementBoundary = len(authoredSource)
+			preparedSource += suffix
+		}
 		response := session.Execute(exactcompiler.Request{
-			ID:          filename,
-			Kind:        "compile",
-			Source:      string(source),
-			ConfigFile:  group.Config,
-			Diagnostics: "syntax",
+			ID:                         filename,
+			Kind:                       "compile",
+			Source:                     preparedSource,
+			ConfigFile:                 group.Config,
+			Diagnostics:                "syntax",
+			PackageEnhancementBoundary: packageEnhancementBoundary,
 		})
 		if response.Error != "" {
 			return projectOutcome{err: fmt.Errorf("%s: %s", filename, response.Error)}

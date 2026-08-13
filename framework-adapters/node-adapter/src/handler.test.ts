@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { defineExactOperationContract } from '@exactjs/server';
+import { createExactBufferedResponse, defineExactOperationContract } from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
 
@@ -190,6 +190,71 @@ describe('@exactjs/node-adapter', () => {
 		expect(response.statusCode).toBe(202);
 		expect(response.headers.get('x-result')).toBe('accepted');
 		expect(response.body).toBe('queued');
+	});
+
+	it('writes buffered SSR bodies without materializing their Web stream', async () => {
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			destroyed: false,
+			body: '',
+			setHeader() {
+				return this;
+			},
+			write(chunk: string | Uint8Array) {
+				this.body += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+				return true;
+			},
+			end() {
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & { body: string };
+		const result = createExactBufferedResponse(200, {}, '<main>ready</main>');
+
+		await writeNodeResponse(response, result);
+
+		expect(response.body).toBe('<main>ready</main>');
+		expect(() => result.stream).toThrow('already claimed');
+	});
+
+	it('resumes ordered buffered chunks only after Node backpressure clears', async () => {
+		const events = new EventEmitter();
+		let writes = 0;
+		const response = Object.assign(events, {
+			statusCode: 0,
+			destroyed: false,
+			body: '',
+			setHeader() {
+				return this;
+			},
+			write(chunk: string) {
+				this.body += chunk;
+				writes++;
+				if (writes === 1) {
+					queueMicrotask(() => events.emit('drain'));
+					return false;
+				}
+				return true;
+			},
+			end() {
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & { body: string };
+
+		await writeNodeResponse(
+			response,
+			createExactBufferedResponse(200, {}, ['first', 'second', 'third'])
+		);
+
+		expect(response.body).toBe('firstsecondthird');
+		expect(writes).toBe(3);
 	});
 
 	it('cancels a backpressured stream when the client disconnects', async () => {

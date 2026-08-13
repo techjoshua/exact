@@ -4,25 +4,31 @@ import {
 	readRenderProgram,
 	renderProgramFallback,
 	unwrap,
+	withComponentDomain,
+	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { withEffectScope } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
-import { renderAttrs } from '../markup.js';
-import { boundedJoin, countSsrNode } from './limits.js';
+import { exactMarkerId, renderAttrs } from '../markup.js';
+import { appendBoundedHtml, countSsrNode } from './limits.js';
 import type { SsrContext } from '../types.js';
 
 /** Executes the compiler-native scalar subset or selects its lazy generic fallback. */
 export function renderSsrProgram(
 	context: SsrContext,
-	vnode: VNode
+	vnode: VNode,
+	owner?: ComponentInstance<any>
 ): { readonly html?: string; readonly fallback?: VNode } {
 	const invocation = readRenderProgram(vnode);
-	if (!invocation || context.markers || context.reactMarkup || context.textSeparators)
-		return { fallback: renderProgramFallback(vnode) };
+	if (!invocation || context.reactMarkup)
+		return { fallback: materializeProgramFallback(vnode, owner) };
 	const { program, readers } = invocation;
 	if (program.parts.length !== readers.length + 1)
-		return { fallback: renderProgramFallback(vnode) };
-	const output: string[] = [program.parts[0] ?? ''];
+		return { fallback: materializeProgramFallback(vnode, owner) };
+	if (context.markers && !hasValidSsrOperations(program))
+		return { fallback: materializeProgramFallback(vnode, owner) };
+	const values = new Array<unknown>(readers.length);
 	for (let index = 0; index < readers.length; index++) {
 		const slot = program.slots[index]!;
 		const value = unwrap(readers[index]!());
@@ -30,19 +36,105 @@ export function renderSsrProgram(
 			value instanceof Promise ||
 			(slot.kind === 'text' && (isVNode(value) || Array.isArray(value)))
 		)
-			return { fallback: renderProgramFallback(vnode) };
+			return { fallback: materializeProgramFallback(vnode, owner) };
+		values[index] = value;
 		countSsrNode(context);
-		if (slot.kind === 'text') {
-			if (value !== null && value !== undefined && value !== false && value !== true)
-				output.push(escapeText(String(value)));
-		} else if (slot.name) {
-			const node = program.nodes.find((candidate) => samePath(candidate.path, slot.path));
-			output.push(renderAttrs({ [slot.name]: value }, false, node?.tag, context));
-		}
-		output.push(program.parts[index + 1] ?? '');
 	}
 	for (let index = 1; index < program.nodes.length; index++) countSsrNode(context);
-	return { html: boundedJoin(context, output) };
+	if (context.markers) return renderMarkedProgram(context, program, values);
+	let html = program.parts[0] ?? '';
+	for (let index = 0; index < values.length; index++) {
+		html = appendBoundedHtml(
+			context,
+			html,
+			renderProgramSlot(context, program, index, values[index])
+		);
+		html = appendBoundedHtml(context, html, program.parts[index + 1] ?? '');
+	}
+	return { html };
+}
+
+function renderMarkedProgram(
+	context: SsrContext,
+	program: NonNullable<ReturnType<typeof readRenderProgram>>['program'],
+	values: readonly unknown[]
+): { readonly html: string } {
+	const parts = program.ssrParts!;
+	const operations = program.ssrOperations!;
+	let html = parts[0] ?? '';
+	const markerBase = context.nextId;
+	for (let position = 0; position < operations.length; position++) {
+		const operation = operations[position]!;
+		if (operation.kind === 'slot') {
+			const slot = program.slots[operation.index]!;
+			const rendered = renderProgramSlot(
+				context,
+				program,
+				operation.index,
+				values[operation.index]
+			);
+			html = appendBoundedHtml(
+				context,
+				html,
+				slot.kind === 'text'
+					? `<!--exact:dynamic:${exactMarkerId(slot.id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(slot.id)}-->`
+					: rendered
+			);
+		} else {
+			const id = `cell:${markerBase + operation.index}`;
+			html = appendBoundedHtml(
+				context,
+				html,
+				operation.kind === 'node-open'
+					? `<!--exact:${id}-->`
+					: operation.kind === 'node-close'
+						? `<!--/exact:${id}-->`
+						: ''
+			);
+		}
+		html = appendBoundedHtml(context, html, parts[position + 1] ?? '');
+	}
+	context.nextId += program.nodes.length;
+	return { html };
+}
+
+function hasValidSsrOperations(
+	program: NonNullable<ReturnType<typeof readRenderProgram>>['program']
+): boolean {
+	if (
+		!program.ssrParts ||
+		!program.ssrOperations ||
+		program.ssrParts.length !== program.ssrOperations.length + 1
+	)
+		return false;
+	for (const operation of program.ssrOperations) {
+		if (!Number.isSafeInteger(operation.index) || operation.index < 0) return false;
+		if (operation.kind === 'slot') {
+			if (operation.index >= program.slots.length) return false;
+		} else if (
+			(operation.kind === 'node-open' || operation.kind === 'node-close') &&
+			operation.index < program.nodes.length
+		) {
+			continue;
+		} else return false;
+	}
+	return true;
+}
+
+function renderProgramSlot(
+	context: SsrContext,
+	program: NonNullable<ReturnType<typeof readRenderProgram>>['program'],
+	index: number,
+	value: unknown
+): string {
+	const slot = program.slots[index]!;
+	if (slot.kind === 'text')
+		return value === null || value === undefined || value === false || value === true
+			? ''
+			: escapeText(String(value));
+	if (!slot.name) return '';
+	const node = program.nodes.find((candidate) => samePath(candidate.path, slot.path));
+	return renderAttrs({ [slot.name]: value }, false, node?.tag, context);
 }
 
 function samePath(left: readonly number[], right: readonly number[]): boolean {
@@ -53,10 +145,11 @@ function samePath(left: readonly number[], right: readonly number[]): boolean {
 export function renderSsrProgramString(
 	context: SsrContext,
 	vnode: VNode,
+	owner: ComponentInstance<any> | undefined,
 	renderFallback: (fallback: VNode) => string
 ): string | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
-	const planned = renderSsrProgram(context, vnode);
+	const planned = renderSsrProgram(context, vnode, owner);
 	return planned.fallback ? renderFallback(planned.fallback) : planned.html!;
 }
 
@@ -64,9 +157,21 @@ export function renderSsrProgramString(
 export function renderSsrProgramChunks(
 	context: SsrContext,
 	vnode: VNode,
+	owner: ComponentInstance<any> | undefined,
 	renderFallback: (fallback: VNode) => Iterable<string>
 ): Iterable<string> | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
-	const planned = renderSsrProgram(context, vnode);
+	const planned = renderSsrProgram(context, vnode, owner);
 	return planned.fallback ? renderFallback(planned.fallback) : [planned.html!];
+}
+
+/** Re-enters the component owner while a marker-mode fallback allocates reactive VNodes. */
+function materializeProgramFallback(
+	vnode: VNode,
+	owner: ComponentInstance<any> | undefined
+): VNode {
+	if (!owner) return renderProgramFallback(vnode);
+	return withEffectScope(owner.scope, () =>
+		withComponentDomain(owner.domain, () => renderProgramFallback(vnode))
+	);
 }

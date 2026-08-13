@@ -22,7 +22,7 @@ export function createTaskFrameContext(
 		cleanup(cleanup) {
 			if (frame.settled || !frame.producerOpen)
 				throw new Error('Cannot register cleanup after the task producer has closed');
-			frame.cleanups.push(cleanup);
+			(frame.cleanups ??= []).push(cleanup);
 		},
 		own(resource) {
 			context.cleanup(async () => {

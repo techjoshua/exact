@@ -12,14 +12,22 @@ import {
 	unsafeHtml,
 	type Child,
 	type Component,
+	type LogEvent,
+	type Logger,
 	type RootLifecycle
 } from '@exactjs/core';
+import '@exactjs/dom/unsafe-html';
+import {
+	createCompiledDynamicComponent,
+	createServerDynamicComponent
+} from '@exactjs/core/runtime/dynamic-components';
 import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 import { render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import { renderToString } from '@exactjs/ssr';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
+import { hydrate as hydrateEnhanced } from './enhanced.js';
 import { noopLogger } from './test-support/responses.js';
 
 describe('@exactjs/hydrate adoption', () => {
@@ -120,7 +128,7 @@ describe('@exactjs/hydrate adoption', () => {
 		root.innerHTML = renderToString(createVNode(Page, null), { enhancementCatalog }).html;
 		const serverNode = root.querySelector('button')!;
 
-		hydrate(createVNode(Page, null), root, {
+		hydrateEnhanced(createVNode(Page, null), root, {
 			logger: noopLogger,
 			enhancementCatalog
 		});
@@ -305,6 +313,23 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelector('p')?.textContent).toBe('client');
 	});
 
+	it('adopts a compiler cell at the hydration root without replacing server DOM', () => {
+		const root = document.createElement('div');
+		function Label(this: Component<{}>, props: { label: string }) {
+			return () => createCompiledVNode('p', null, props.label);
+		}
+		const vnode = createCompiledVNode(Label, { label: 'server' });
+		root.innerHTML = renderToString(vnode).html;
+		const serverNode = root.querySelector('p')!;
+
+		hydrate(vnode, root, { logger: noopLogger });
+
+		expect(root.querySelector('p')).toBe(serverNode);
+		hydrate(createCompiledVNode(Label, { label: 'client' }), root, { logger: noopLogger });
+		expect(root.querySelector('p')).toBe(serverNode);
+		expect(serverNode.textContent).toBe('client');
+	});
+
 	it('adopts keyed SSR item ranges and reorders their existing DOM', () => {
 		const root = document.createElement('div');
 		let instance!: Component<{ items: { id: string; title: string }[] }>;
@@ -356,6 +381,48 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelector('p')?.textContent).toBe('client');
 	});
 
+	it('activates a client-only dynamic component inside its SSR-owned range', () => {
+		const root = document.createElement('div');
+		let serverPhase = true;
+		function ClientPanel() {
+			return () => createVNode('strong', null, 'activated');
+		}
+		function Page() {
+			const dynamic = serverPhase
+				? createServerDynamicComponent('fixture:hydrated-dynamic')
+				: createCompiledDynamicComponent({
+						id: 'fixture:hydrated-dynamic',
+						source: () => ClientPanel,
+						props: {}
+					});
+			return () =>
+				createVNode(
+					'div',
+					null,
+					createVNode('span', null, 'before'),
+					dynamic,
+					createVNode('span', null, 'after')
+				);
+		}
+		markExactComponent(ClientPanel, 'fixture:hydrated-dynamic-panel');
+		markExactComponent(Page, 'fixture:hydrated-dynamic-page');
+		root.innerHTML = renderToString(createVNode(Page, null)).html;
+		const siblings = root.querySelectorAll('span');
+		const before = siblings[0];
+		const after = siblings[1];
+		serverPhase = false;
+
+		const diagnostics: string[] = [];
+		hydrate(createVNode(Page, null), root, {
+			logger: noopLogger,
+			onDiagnostic: (diagnostic) => diagnostics.push(`${diagnostic.code}:${diagnostic.message}`)
+		});
+		expect(root.textContent).toBe('beforeactivatedafter');
+		expect(diagnostics).toEqual([]);
+		expect(root.querySelectorAll('span')[0]).toBe(before);
+		expect(root.querySelectorAll('span')[1]).toBe(after);
+	});
+
 	it('attaches JSX events while adopting a component root', () => {
 		const root = document.createElement('div');
 		function Counter(this: Component<{ count: number }>) {
@@ -375,6 +442,27 @@ describe('@exactjs/hydrate adoption', () => {
 		button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		flushSync();
 		expect(button.textContent).toBe('1');
+	});
+
+	it('propagates the hydration logger into adopted component interactions', async () => {
+		const root = document.createElement('div');
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'trace',
+			log: (event) => events.push(event)
+		};
+		function Counter(this: Component<{ count: number }>) {
+			this.state.count = 0;
+			return () =>
+				createVNode('button', { onClick: () => this.state.count++ }, String(this.state.count));
+		}
+		root.innerHTML = renderToString(createVNode(Counter, null)).html;
+		hydrate(createVNode(Counter, null), root, { logger });
+
+		root.querySelector('button')!.click();
+		await vi.waitFor(() =>
+			expect(events.some((event) => event.message === 'performance interaction settled')).toBe(true)
+		);
 	});
 
 	it('fulfills component refs while adopting existing elements', () => {

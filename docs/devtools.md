@@ -37,6 +37,12 @@ bootstrap remains a fallback for pages without transformed native roots. Compile
 reactive cells are transparent at that boundary: a root inspection domain continues into the
 authored component tree when the renderer unwraps the compiled root.
 
+Vite development mode enables those defaults through `@exactjs/vite-plugin`, not through Vite
+itself. Custom middleware servers must include `exact()` in the Vite configuration they load;
+calling `createServer()` or `transformIndexHtml()` without the plugin cannot install runtime
+inspection. In that case the Chromium panel remains in `Waiting for eXact runtime
+instrumentation…` and continues discovery until an instrumented document is loaded.
+
 Runtime authorization is separate:
 
 ```ts
@@ -151,9 +157,38 @@ Load `packages/chromium-devtools` in Chromium's extension page, open DevTools, a
 package root and references the generated assets. The build bundles both Manifest V3 content
 entries as classic scripts for Chromium and makes every extension-page entry self-contained.
 The extension's main-world bridge is installed at document start, while the inspection hook
-becomes active only when a consumer connects. Closing the panel closes live subscriptions and
-releases highlights and bridges. Reloading or disconnecting the extension fences the old content
-port before page-hook teardown, so late acknowledgements are not forwarded into a closed channel.
+becomes active only when the application runtime loads. The isolated content script repeatedly
+greets the main-world bridge until it receives a document- and bridge-generation acknowledgement;
+that acknowledgement separately reports whether runtime instrumentation is ready. The background
+worker releases inspection requests only after both layers are ready, eliminating the lossy
+document-start ordering race.
+
+Panel and content-script ports reconnect after Manifest V3 worker replacement. The background owns
+each unresolved read-only request until its correlated response arrives, requeues in-flight work
+when a content generation disappears, and rejects responses from superseded ports. A panel request
+therefore survives worker restart, target navigation, and page restoration without requiring a
+manual reload. Response timeouts run only while the runtime is known to be ready; one silent ready
+connection is replaced and replayed before an unresponsive-runtime error is reported. Closing the
+panel releases its queued ownership, subscriptions, highlights, and bridge session, and the bounded
+per-tab request limit still prevents unbounded recovery queues. The panel exposes `waiting for page
+bridge`, `waiting for runtime instrumentation`, and `reconnecting` states while recovery proceeds.
+Component and partition trees provide an independent disclosure control for every branch and retain
+collapsed branches across live updates. State, prop, and context sections show nested arrays and
+objects as bounded JSON-like own-property summaries by default; expanding one value reveals its
+already-redacted bounded preview without expanding unrelated values. Expanded rows use a bounded
+content-sized key column and compact indentation, so each nested level does not reserve another
+large fraction of the remaining width. Value disclosure state and panel scroll positions survive
+live refreshes for the same selected component.
+
+The Tasks section separates execution history from live scheduler frames. Starting a task records
+its placement, generation, timing, and bounded argument preview; settlement updates that record
+with its final status and a bounded result or error preview. Each execution remains collapsed until
+opened. The runtime never retains the original argument, result, or error objects for inspection.
+History exists only while an inspection session is attached, defaults to the 200 most recently
+started executions across that runtime owner, and is released on detach. Runtime integrations may
+set `maxTaskExecutions` when creating the inspection owner; late completion of an older task cannot
+evict a newer execution from the bounded history.
+
 The DevTools entry registers `dist/panel.html` from the extension root; generated document paths
 are not resolved relative to `dist/devtools.html`.
 

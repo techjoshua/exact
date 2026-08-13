@@ -42,9 +42,9 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Component libraries"
-			title="Authorize component code before it enters the server"
+			title="Authorize before execution"
 			description="eXact build adapters combine compiler component facts with the physical package graph they resolved. The shared policy admits reviewed component libraries before evaluation and leaves client-only code outside this additional server boundary."
-			previous={{ path: '/components/enhancements', label: 'Enhancements' }}
+			previous={{ path: '/components/accessibility', label: 'Accessibility' }}
 			next={{ path: '/components/motion', label: 'Motion' }}
 		>
 			<section>

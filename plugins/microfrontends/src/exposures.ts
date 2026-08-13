@@ -25,7 +25,8 @@ export function createExactExposureRegistrationModules(
 	for (const exposure of plan.exposures) {
 		const selected = selectedExposureGraph(exposure.exposure, exposure.component, graph, options);
 		registrations[exposure.exposure] = createExactHydrationRegistrationModule(
-			withExactAuthoredClientModules(selected)
+			withExactAuthoredClientModules(selected),
+			{ preserveAuthoredModuleExtensions: true }
 		);
 	}
 	return Object.freeze(registrations);

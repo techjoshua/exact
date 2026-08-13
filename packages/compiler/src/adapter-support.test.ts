@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
 	createExactDiagnosticReporter,
 	exactEnhancementFacadeImports,
+	exactEnhancementFacadeRequest,
+	exactAvailableEnhancementFacadeSource,
+	exactUnavailableEnhancementFacadeSource,
+	parseExactEnhancementFacadeRequest,
 	exactDiagnosticKey,
 	formatExactDiagnostic,
 	shouldCompileExactBuildModule,
@@ -26,15 +30,48 @@ describe('build adapter support', () => {
 			}
 		]);
 
-		expect(code.match(/import \* as __exactEnhancement/g)).toHaveLength(1);
+		expect(code.match(/import __exactEnhancement/g)).toHaveLength(1);
 		expect(code).toContain('@exactjs/core/framework/enhancement-catalog');
 		expect(code).toContain('__exactRegisterEnhancement("@exactjs/motion#default"');
-		expect(code).toContain('["default"] !== undefined');
+		const request = code.match(/from "(exact:optional-enhancement\/[^"]+)"/)?.[1];
+		expect(parseExactEnhancementFacadeRequest(request!)).toEqual({
+			version: 1,
+			identity: '@exactjs/motion#default',
+			moduleSpecifier: '@exactjs/motion',
+			exportName: 'default'
+		});
 		expect(exactEnhancementFacadeImports).toEqual({
 			'@exactjs/dom': '@exactjs/dom/enhanced',
 			'@exactjs/hydrate': '@exactjs/hydrate/enhanced',
 			'@exactjs/ssr': '@exactjs/ssr/enhanced'
 		});
+	});
+
+	it('emits target-neutral available and unavailable enhancement facades', () => {
+		const request = parseExactEnhancementFacadeRequest(
+			exactEnhancementFacadeRequest({
+				identity: '@acme/input#gesture',
+				moduleSpecifier: '@acme/input',
+				exportName: 'gesture'
+			})
+		)!;
+		expect(exactAvailableEnhancementFacadeSource(request)).toBe(
+			`export { gesture as default } from "@acme/input";\n`
+		);
+		expect(exactUnavailableEnhancementFacadeSource()).toContain(
+			'exactEnhancementPassThrough as default'
+		);
+		expect(
+			exactAvailableEnhancementFacadeSource(request, '@exactjs/dom/framework/enhancements')
+		).toBe(
+			`import "@exactjs/dom/framework/enhancements";\nexport { gesture as default } from "@acme/input";\n`
+		);
+		expect(
+			exactUnavailableEnhancementFacadeSource('@exactjs/dom/framework/enhancements')
+		).toContain('import "@exactjs/dom/framework/enhancements";');
+		expect(() => parseExactEnhancementFacadeRequest('exact:optional-enhancement/not-json')).toThrow(
+			/Malformed eXact enhancement facade request/
+		);
 	});
 
 	it('matches string, regular expression, and mixed path filters', () => {

@@ -1,6 +1,7 @@
 import type {
 	ExactCompilerSeparationResult,
 	ExactComponentSemanticsResult,
+	ExactInferenceDecorationsResult,
 	ExactProjectStatusResult,
 	ExactSourceEntity
 } from '@exactjs/language-server';
@@ -12,6 +13,7 @@ import {
 	type ServerOptions
 } from 'vscode-languageclient/node.js';
 import { resolveExactLanguageServerModule } from './server-module.js';
+import { projectStatusPresentation } from './project-status.js';
 
 let client: LanguageClient | undefined;
 
@@ -31,7 +33,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		],
 		initializationOptions: {
 			workspaceTrusted: vscode.workspace.isTrusted,
-			trace: configuration.get('trace.server', 'off')
+			trace: configuration.get('trace.server', 'off'),
+			inlayHints: configuration.get('inlayHints', 'important')
 		}
 	};
 	client = new LanguageClient(
@@ -52,6 +55,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		overviewRulerColor: new vscode.ThemeColor('editorInfo.foreground'),
 		overviewRulerLane: vscode.OverviewRulerLane.Left
 	});
+	const inferenceDecoration = vscode.window.createTextEditorDecorationType({
+		textDecoration: 'underline'
+	});
 	const tree = vscode.window.createTreeView('exact.componentSemantics', {
 		treeDataProvider: semantics,
 		showCollapseAll: true
@@ -65,17 +71,41 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		tree,
 		status,
 		regionDecoration,
+		inferenceDecoration,
 		vscode.workspace.registerTextDocumentContentProvider('exact-separation', separation),
 		vscode.window.onDidChangeActiveTextEditor((editor) => {
 			semantics.select(editor?.document.uri);
 			void decorateEditor(editor, client!, regionDecoration);
+			void decorateInferenceEvidence(editor, client!, inferenceDecoration);
 			void updateStatus(status, editor?.document.uri, client!);
 		}),
 		vscode.workspace.onDidChangeTextDocument((event) => {
 			if (event.document === vscode.window.activeTextEditor?.document) {
 				semantics.refresh();
 				void decorateEditor(vscode.window.activeTextEditor, client!, regionDecoration);
+				void decorateInferenceEvidence(
+					vscode.window.activeTextEditor,
+					client!,
+					inferenceDecoration
+				);
+				void updateStatus(status, event.document.uri, client!);
 			}
+		}),
+		client.onNotification('exact/providerStatusChanged', ({ uri }: { uri: string }) => {
+			const editor = vscode.window.activeTextEditor;
+			if (editor?.document.uri.toString() === uri) {
+				void updateStatus(status, editor.document.uri, client!);
+				void decorateInferenceEvidence(editor, client!, inferenceDecoration);
+			}
+		}),
+		vscode.workspace.onDidChangeConfiguration((event) => {
+			if (!event.affectsConfiguration('exact.languageTools.inlayHints')) return;
+			void client!.sendNotification('exact/inlayHintLevelChanged', {
+				level: vscode.workspace
+					.getConfiguration('exact.languageTools')
+					.get('inlayHints', 'important')
+			});
+			void decorateInferenceEvidence(vscode.window.activeTextEditor, client!, inferenceDecoration);
 		}),
 		vscode.commands.registerCommand('exact.showComponentSemantics', async () => {
 			semantics.select(vscode.window.activeTextEditor?.document.uri);
@@ -103,6 +133,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	);
 	semantics.select(vscode.window.activeTextEditor?.document.uri);
 	await decorateEditor(vscode.window.activeTextEditor, client, regionDecoration);
+	await decorateInferenceEvidence(vscode.window.activeTextEditor, client, inferenceDecoration);
 	await updateStatus(status, vscode.window.activeTextEditor?.document.uri, client);
 }
 
@@ -242,6 +273,30 @@ async function decorateEditor(
 	);
 }
 
+async function decorateInferenceEvidence(
+	editor: vscode.TextEditor | undefined,
+	languageClient: LanguageClient,
+	decoration: vscode.TextEditorDecorationType
+): Promise<void> {
+	if (!editor || editor.document.uri.scheme !== 'file') return;
+	const version = editor.document.version;
+	const result = await languageClient.sendRequest<ExactInferenceDecorationsResult | undefined>(
+		'exact/inferenceDecorations',
+		{ textDocument: { uri: editor.document.uri.toString() } }
+	);
+	if (!result || result.version !== version || editor.document.version !== version) {
+		editor.setDecorations(decoration, []);
+		return;
+	}
+	editor.setDecorations(
+		decoration,
+		result.decorations.map((item) => ({
+			range: offsetRange(editor.document, item.range),
+			hoverMessage: new vscode.MarkdownString(item.hover)
+		}))
+	);
+}
+
 async function revealEntity(uri: vscode.Uri, entity: ExactSourceEntity): Promise<void> {
 	const document = await vscode.workspace.openTextDocument(uri);
 	const editor = await vscode.window.showTextDocument(document);
@@ -265,7 +320,7 @@ function entityDescription(entity: ExactSourceEntity): string | undefined {
 	const classification = entity.classification;
 	if (classification?.kind === 'task')
 		return `${classification.origin}, ${classification.placement}, ${classification.readiness}`;
-	if (classification?.kind === 'initializer') return 'runs once per instance';
+	if (classification?.kind === 'initializer') return 'initializes state-machine instance';
 	if (classification?.kind === 'state-assignment')
 		return classification.execution === 'once-per-instance'
 			? 'initializes once'
@@ -286,11 +341,8 @@ async function updateStatus(
 	const status = await languageClient.sendRequest<ExactProjectStatusResult>('exact/projectStatus', {
 		textDocument: { uri: uri.toString() }
 	});
-	item.text = status.trusted
-		? `$(symbol-namespace) eXact ${status.project?.kind ?? 'project'}`
-		: '$(shield) eXact restricted';
-	item.tooltip = status.compiler
-		? `TypeScript ${status.compiler.typescriptVersion}; eXact backend ${status.compiler.backendVersion}`
-		: 'Compiler execution disabled until this workspace is trusted.';
+	const presentation = projectStatusPresentation(status);
+	item.text = presentation.text;
+	item.tooltip = presentation.tooltip;
 	item.show();
 }

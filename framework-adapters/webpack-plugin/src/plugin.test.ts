@@ -41,6 +41,17 @@ describe('@exactjs/webpack-plugin', () => {
 		});
 	});
 
+	it('projects runtime contracts for client-only bundles', () => {
+		const result = transformExactWebpackSource(
+			`export function Counter() { return () => <button onClick={() => 1}>Count</button>; }`,
+			'/src/Counter.tsx',
+			{ renderMode: 'client' }
+		);
+
+		expect(result?.code).not.toContain('resumption:');
+		expect(result?.code).not.toContain('render: "returned-function"');
+	});
+
 	it('links attributed capabilities into the shared application-bundle catalog', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-webpack-enhancement-'));
 		const entry = path.join(root, 'entry.tsx');

@@ -30,7 +30,7 @@ export function GravityPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Component library / @exactjs/gravity"
-			title="Compose acceleration without another simulation"
+			title="Compose gravity fields"
 			description="Pure finite fields can be sampled anywhere, while ordinary components register named force contributors into an existing deterministic physics world."
 			previous={{ path: '/components/physics', label: 'Physics' }}
 			next={{ path: '/plugins', label: 'Plugin system' }}

@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Component } from '../component/contracts.js';
+import { LoggerContext } from '../component/contexts.js';
 import { createComponentInstance } from '../component/runtime.js';
+import type { LogEvent, Logger } from '../logging.js';
 import { TaskCancellation } from '../tasks/cancellation.js';
 import { joinTask } from '../tasks/frame-runtime.js';
 import { defineTask } from '../tasks/runtime.js';
 import { taskAwait } from '../tasks/resources.js';
-import { currentInteraction, runComponentInteraction } from './execution.js';
+import {
+	currentInteraction,
+	runComponentInteraction,
+	traceInteractionPhase,
+	type InteractionScope
+} from './execution.js';
 
 describe('component interactions', () => {
 	it('aggregates work joined synchronously by an interaction host', async () => {
@@ -114,5 +122,43 @@ describe('component interactions', () => {
 		await interaction;
 		expect(settled).toBe(true);
 		owner.unmount();
+	});
+
+	it('traces interaction start, feedback, and structural settlement with one operation id', async () => {
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'trace',
+			log: (event) => events.push(event)
+		};
+		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+			this.setContext(LoggerContext, logger);
+			return () => null;
+		}, {});
+		const owner = createComponentInstance(() => () => null, {}, parent);
+		let scope: InteractionScope | undefined;
+
+		await runComponentInteraction(
+			owner,
+			'event',
+			3,
+			'interactive',
+			new AbortController(),
+			(interaction) => {
+				scope = interaction;
+				traceInteractionPhase(scope, 'feedback-committed');
+			}
+		);
+
+		const traces = events.map((event) => event.data as Record<string, unknown>);
+		expect(traces.map((trace) => trace.phase)).toEqual([
+			'started',
+			'feedback-committed',
+			'settled'
+		]);
+		expect(new Set(traces.map((trace) => trace.operationId))).toEqual(
+			new Set([`interaction:${scope!.id}`])
+		);
+		expect(traces[2]!.attributes).toEqual({ outcome: 'success' });
+		parent.unmount();
 	});
 });

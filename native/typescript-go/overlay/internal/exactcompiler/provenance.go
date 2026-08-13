@@ -422,12 +422,22 @@ func reactiveReadWithinInitializer(
 		return false
 	}
 	if !ast.IsObjectLiteralExpression(initializer) {
-		return readWithin(reads, component, initializer)
+		for _, read := range reads {
+			if read.Component == component && read.Start >= initializer.Pos() &&
+				read.Start+read.Length <= initializer.End() &&
+				!readInsideComponentLog(initializer, read) {
+				return true
+			}
+		}
+		return false
 	}
 	for _, read := range reads {
 		if read.Component != component ||
 			read.Start < initializer.Pos() ||
 			read.Start+read.Length > initializer.End() {
+			continue
+		}
+		if readInsideComponentLog(initializer, read) {
 			continue
 		}
 		deferred := false
@@ -451,6 +461,20 @@ func reactiveReadWithinInitializer(
 		}
 	}
 	return false
+}
+
+func readInsideComponentLog(root *ast.Node, read StateRead) bool {
+	observed := false
+	walkNode(root, func(node *ast.Node) bool {
+		if _, logging := canonicalComponentLogLevel(node); !logging {
+			return true
+		}
+		if read.Start >= node.Pos() && read.Start+read.Length <= node.End() {
+			observed = true
+		}
+		return false
+	})
+	return observed
 }
 
 func bindingIdentifiers(name *ast.Node) []*ast.Node {

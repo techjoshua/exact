@@ -1,50 +1,34 @@
 # Sample applications
 
 The repository's native applications exercise eXact as complete products rather than isolated API
-examples. They use setup-once components, direct observable state, compiler-owned fine-grained
-updates, and the framework's normal build adapters.
+examples. They use durable component instances, direct observable state, precise compiler-owned
+updates, and the framework's normal build and runtime adapters.
 
-## Puzzle Foundry
+## Hosted demo
 
-[`apps/puzzle-generator`](../apps/puzzle-generator) is a browser-local publishing tool for Sudoku,
-word-search, and crossword puzzles. Its algorithms are deterministic from a visible seed and its
-generated puzzle and solution are independent fixed-page SVG documents. Titles have typography
-independent from puzzle content. Letter, A4, and Legal page sizes share configurable margins, and
-content is scaled into that printable region with a visible warning when necessary. Crossword input
-uses `answer - clue` lines and produces numbered Across and Down clue tables. Its grid lines, unused
-cells, and letter-cell background are separately styled; the letter-cell background does not color
-the page. Answer keys support color or puzzle-specific black-and-white rendering. Sudoku answer
-digits may use their own portable font stack and weight.
+[`apps/sudoku`](../apps/sudoku) is an installable interactive Sudoku game with persistence,
+responsive controls, theming, and optional gesture and motion enhancements. It is published with
+the documentation site at `sudoku.html`.
 
-The standalone build is intentionally one HTML file:
+[`apps/puzzle-generator`](../apps/puzzle-generator) is the hosted Puzzle Foundry publishing tool at
+`puzzle-foundry.html`. It generates printable puzzle and solution SVGs using 8.5 × 11, 7 × 10,
+6 × 9, or author-defined custom page dimensions in inches.
 
-```sh
-npm run build:puzzle-generator:standalone
-```
+## Repository examples
 
-`apps/puzzle-generator/dist/puzzle-foundry.html` has no external scripts, stylesheets, fonts,
-images, or network services for its non-AI features. Word input never leaves the browser. Controls
-regenerate on change, while Shuffle deliberately chooses a new seed. Word-search generation
-validates dimensions and blocked sequences; visible errors preserve the last valid preview, and
-crossword generation reports disconnected words rather than claiming they were placed.
-
-Word searches and crosswords also expose an explicit local-AI opt-in. On demand, the app and its
-module worker load the pinned WebLLM 0.2.84 runtime from jsDelivr's `esm.run` endpoint rather than
-bundling it. On first use the browser downloads the approximately 290 MB quantized Qwen2.5 0.5B
-model from Hugging Face, reports progress, and caches it. Inference stays on the user's WebGPU
-device; topics and generated puzzle material are not uploaded. Generated JSON is normalized and
-safety-checked through the ordinary word-input boundary. A post-download control can remove the
-cached model, and unsupported devices retain the complete manual workflow.
-
-## Other complete samples
-
-- [`apps/sudoku`](../apps/sudoku) is an installable, interactive Sudoku game with persistence,
-  optional enhancements, and a standalone build.
 - [`apps/shipping-calculator`](../apps/shipping-calculator) demonstrates native SSR, hydration,
   client islands, server continuations, and a production-shaped server.
-- [`apps/kanban`](../apps/kanban) and [`apps/workbench`](../apps/workbench) demonstrate stateful
-  application interfaces and compiler-led updates.
+- [`apps/kanban`](../apps/kanban) exercises direct state mutation, keyed list identity, forms, and
+  focused updates as cards move between columns.
+- [`apps/workbench`](../apps/workbench) composes a denser stateful workspace from derived values,
+  tasks, forms, and component-owned tools.
 - [`apps/microfrontend-portal`](../apps/microfrontend-portal) exercises trusted microfrontend
-  composition.
-- [`apps/server-components`](../apps/server-components) focuses on server component placement and
-  generated artifacts.
+  composition, shared capabilities, and independently built runtime boundaries.
+- [`apps/server-components`](../apps/server-components) focuses on component placement, trusted
+  server resources, generated artifacts, and public data crossing the client/server boundary.
+- [`apps/intl-testbed`](../apps/intl-testbed) renders one enhancement-authored scenario in English,
+  French, Japanese, and Arabic to exercise catalogs, structural reordering, formatting, and
+  diagnostics.
+
+Sudoku Atelier and Puzzle Foundry are hosted on GitHub Pages. The remaining applications are local
+repository examples and should not be presented as navigable documentation routes.

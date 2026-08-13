@@ -12,6 +12,7 @@ import (
 type enhancementProvidedValue struct {
 	valueType   *checker.Type
 	stringValue *string
+	valueless   bool
 }
 
 type enhancementTypeAlternative map[string]map[string]enhancementProvidedValue
@@ -196,7 +197,7 @@ func enhancementAttributeValue(
 	typeChecker *checker.Checker,
 ) enhancementProvidedValue {
 	if attribute.Initializer == nil {
-		return enhancementProvidedValue{valueType: typeChecker.GetBooleanType()}
+		return enhancementProvidedValue{valueType: typeChecker.GetBooleanType(), valueless: true}
 	}
 	if ast.IsJsxExpression(attribute.Initializer) {
 		expression := attribute.Initializer.AsJsxExpression().Expression
@@ -217,6 +218,14 @@ func enhancementValueAssignable(
 	target *checker.Type,
 	typeChecker *checker.Checker,
 ) bool {
+	if value.valueless {
+		for _, candidate := range target.Distributed() {
+			if candidate.Flags()&checker.TypeFlagsBooleanLike != 0 {
+				return true
+			}
+		}
+		return false
+	}
 	if value.stringValue == nil {
 		return typeChecker.IsTypeAssignableTo(value.valueType, target)
 	}

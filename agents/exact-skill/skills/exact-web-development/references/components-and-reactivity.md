@@ -2,7 +2,8 @@
 
 ## Component shape
 
-Read the outer function as construction and the returned function as the connected view:
+Read the outer function as a compiler-analyzed component definition and the returned function as
+the connected view:
 
 ```tsx
 import type { Child, Component } from '@exactjs/core';
@@ -36,15 +37,15 @@ function Panel(this: Component<PanelState>, props: PanelProps) {
 }
 ```
 
-The component instance owns reactive state, lifecycle, tasks, refs, context, and logging. Assigning
-state invalidates only consumers that read the changed data; it does not rerun the setup function.
-Keep the returned function declarative: its body is the JSX view expression. Put declarations and
-imperative control flow in setup, while conditional JSX and keyed callbacks retain precise
+The compiler turns the component description into a reactive state machine whose durable instance
+owns state, lifecycle, tasks, refs, context, and logging. Assigning state runs only affected
+transitions rather than calling the component again. Keep the returned function declarative: its body is the JSX view expression. Put
+declarations and source control flow in the outer definition, while conditional JSX and keyed callbacks retain precise
 view-local ownership.
 
 ## Derived values
 
-Prefer ordinary setup expressions when they are pure and compiler-analyzable:
+Prefer ordinary initialization-derived expressions when they are pure and compiler-analyzable:
 
 ```ts
 const subtotal = this.state.quantity * this.state.price;
@@ -72,7 +73,7 @@ const reportSubtotal = (value: number, task: TaskContext = TaskContext.client().
 reportSubtotal(Number(subtotal));
 ```
 
-The compiler observes a reactive value passed to a setup task call and
+The compiler observes a reactive value passed to an initialization task call and
 reactivates the task when it changes. This is the same contract for
 `this.reactive()` values and `ReactiveValue` instances created through
 `@exactjs/reactive`.
@@ -104,7 +105,7 @@ that cycle; use a snapshot or an explicit task according to the intended behavio
 ## Context and refs
 
 Use typed eXact context tokens with `this.setContext()` and `this.getContext()`. Use `this.ref()`
-and `this.refs` for DOM references. Initialize both during setup rather than discovering them
+and `this.refs` for DOM references. Declare both in the outer component definition rather than discovering them
 through rerender timing.
 
 ## Event handlers

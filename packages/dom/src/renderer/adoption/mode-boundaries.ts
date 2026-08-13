@@ -20,7 +20,9 @@ type AdoptChildren = (
 	children: Child[],
 	nodes: readonly Node[],
 	parentInstance: ComponentInstance<any>,
-	parentScope: EffectScope
+	parentScope: EffectScope,
+	start?: number,
+	end?: number
 ) => Mounted[] | undefined;
 
 /** Adopts one SSR-emitted native Activity marker range. */
@@ -31,6 +33,7 @@ export function adoptActivityBoundary(
 	cursor: number,
 	parentInstance: ComponentInstance<any>,
 	parentScope: EffectScope,
+	end: number,
 	adoptChildren: AdoptChildren
 ): { mounted: Mounted; next: number } | undefined {
 	const scope = createEffectScope(parentScope);
@@ -39,9 +42,7 @@ export function adoptActivityBoundary(
 		scope.stop();
 		return undefined;
 	}
-	const endIndex = nodes.findIndex(
-		(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-	);
+	const endIndex = closingBoundaryIndex(nodes, cursor, start.data, end);
 	if (endIndex < 0) {
 		scope.stop();
 		return undefined;
@@ -61,9 +62,11 @@ export function adoptActivityBoundary(
 		const children = adoptChildren(
 			root,
 			vnode.children,
-			nodes.slice(cursor + 1, endIndex),
+			nodes,
 			activityOwner,
-			contentScope
+			contentScope,
+			cursor + 1,
+			endIndex
 		);
 		if (!children) {
 			scope.stop();
@@ -97,6 +100,7 @@ export function adoptSuspenseBoundary(
 	cursor: number,
 	parentInstance: ComponentInstance<any>,
 	parentScope: EffectScope,
+	end: number,
 	adoptChildren: AdoptChildren
 ): { mounted: Mounted; next: number } | undefined {
 	const scope = createEffectScope(parentScope);
@@ -109,9 +113,7 @@ export function adoptSuspenseBoundary(
 		scope.stop();
 		return undefined;
 	}
-	const endIndex = nodes.findIndex(
-		(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-	);
+	const endIndex = closingBoundaryIndex(nodes, cursor, start.data, end);
 	if (endIndex < 0) {
 		scope.stop();
 		return undefined;
@@ -129,9 +131,11 @@ export function adoptSuspenseBoundary(
 		const children = adoptChildren(
 			root,
 			vnode.children,
-			nodes.slice(cursor + 1, endIndex),
+			nodes,
 			suspense.owner,
-			scope
+			scope,
+			cursor + 1,
+			endIndex
 		);
 		if (!children || suspense.coordinator.pending) {
 			unmountMounted(mounted);
@@ -154,9 +158,11 @@ export function adoptSuspenseBoundary(
 		const fallback = adoptChildren(
 			root,
 			normalizeRenderResult(unwrap(vnode.props.fallback) as Child | Child[]),
-			nodes.slice(cursor + 1, endIndex),
+			nodes,
 			parentInstance,
-			scope
+			scope,
+			cursor + 1,
+			endIndex
 		);
 		if (!fallback) {
 			unmountMounted(mounted);
@@ -167,4 +173,19 @@ export function adoptSuspenseBoundary(
 	}
 	suspense.owner.markMounted();
 	return { mounted, next: endIndex + 1 };
+}
+
+/** Finds a boundary's closing marker without reading beyond its owning node range. */
+function closingBoundaryIndex(
+	nodes: readonly Node[],
+	cursor: number,
+	opening: string,
+	end: number
+): number {
+	const closing = `/${opening}`;
+	for (let index = cursor + 1; index < end; index++) {
+		const node = nodes[index];
+		if (node instanceof Comment && node.data === closing) return index;
+	}
+	return -1;
 }

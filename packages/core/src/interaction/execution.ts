@@ -1,5 +1,11 @@
 import type { ComponentInstance } from '../component/contracts.js';
 import {
+	markComponentTrace,
+	componentTraceStarter,
+	type LazyComponentTraceAttributes,
+	type ComponentTraceSpan
+} from '../component/performance-trace.js';
+import {
 	currentTaskFrameRecord,
 	executeTaskFrame,
 	taskFrameSynchronousError,
@@ -24,6 +30,7 @@ export type InteractionScope = {
 
 let nextInteractionId = 1;
 const interactionsByFrame = new WeakMap<TaskFrameRecord, InteractionScope>();
+let interactionTraces: WeakMap<InteractionScope, ComponentTraceSpan> | undefined;
 
 /** Returns metadata for the synchronously active interaction-root task. */
 export function currentInteraction(): InteractionScope | undefined {
@@ -33,6 +40,16 @@ export function currentInteraction(): InteractionScope | undefined {
 		if (interaction) return interaction;
 	}
 	return undefined;
+}
+
+/** Emits a correlated performance mark for a currently executing interaction. */
+export function traceInteractionPhase(
+	interaction: InteractionScope | undefined,
+	phase: string,
+	attributes?: LazyComponentTraceAttributes
+): void {
+	if (!interaction) return;
+	markComponentTrace(interaction.owner, interactionTraces?.get(interaction), phase, attributes);
 }
 
 /**
@@ -51,6 +68,7 @@ export function runComponentInteraction<Result>(
 ): Promise<Result> {
 	const taskOwner = taskOwnerForHost(owner);
 	if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
+	let interactionScope: InteractionScope | undefined;
 	const execution = executeTaskFrame(
 		{
 			owner: taskOwner,
@@ -60,7 +78,9 @@ export function runComponentInteraction<Result>(
 			label: `${source} interaction`,
 			concurrency: 'latest',
 			priority: priority === 'interactive' ? 'immediate' : priority,
-			readiness: priority === 'deferred' ? 'nonblocking' : 'blocking'
+			readiness: priority === 'deferred' ? 'nonblocking' : 'blocking',
+			// Interaction hosts receive InteractionScope rather than the public task context.
+			publicContext: false
 		},
 		() => {
 			const frame = currentTaskFrameRecord()!;
@@ -71,11 +91,33 @@ export function runComponentInteraction<Result>(
 				priority,
 				generation
 			});
+			interactionScope = scope;
 			interactionsByFrame.set(frame, scope);
+			const trace = componentTraceStarter(owner)?.('interaction', `interaction:${scope.id}`, {
+				source,
+				priority,
+				generation
+			});
+			if (trace) (interactionTraces ??= new WeakMap()).set(scope, trace);
 			return work(scope);
 		}
 	);
 	const synchronousError = taskFrameSynchronousError(execution);
-	if (synchronousError) throw synchronousError.error;
+	if (synchronousError) {
+		if (interactionScope && interactionTraces?.has(interactionScope))
+			finishInteractionTrace(interactionScope, 'error');
+		throw synchronousError.error;
+	}
+	if (interactionScope && interactionTraces?.has(interactionScope)) {
+		void execution.then(
+			() => finishInteractionTrace(interactionScope!, 'success'),
+			() => finishInteractionTrace(interactionScope!, 'error')
+		);
+	}
 	return execution;
+}
+
+function finishInteractionTrace(interaction: InteractionScope, outcome: 'success' | 'error'): void {
+	traceInteractionPhase(interaction, 'settled', { outcome });
+	interactionTraces?.delete(interaction);
 }

@@ -8,36 +8,40 @@ cannot be mistaken for a current framework contract.
 
 These documents describe behavior that exists in the repository today:
 
-| Document                                                                         | Subject                                                                          |
-| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [actions-and-forms.md](actions-and-forms.md)                                     | Task interactions, optimism, forms, and router coordination.                     |
-| [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                        |
-| [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                           |
-| [component-library-trust.md](component-library-trust.md)                         | Bundler-enforced server component package authorization.                         |
-| [component-registries.md](component-registries.md)                               | Finite eager/lazy component selection, identity, SSR, and hydration.             |
-| [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.                     |
-| [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.         |
-| [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.                     |
-| [gestures.md](gestures.md)                                                       | Prepared gesture recognition, ownership, accessibility, and testing.             |
-| [gravity.md](gravity.md)                                                         | Pure acceleration fields and physics force registration.                         |
-| [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                               |
-| [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                              |
-| [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.         |
-| [microfrontends.md](microfrontends.md)                                           | Implemented trusted microfrontend scope and remaining adapter work.              |
-| [motion.md](motion.md)                                                           | Prepared motion definitions, finite playback, configuration, and current limits. |
-| [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.        |
-| [native-ssr-production-guide.md](native-ssr-production-guide.md)                 | Production SSR, request, response, security, and deployment contracts.           |
-| [performance.md](performance.md)                                                 | Opt-in JavaScript performance suite, measurement contract, and tracked baseline. |
-| [physics.md](physics.md)                                                         | Deterministic simulation, component ownership, and safe DOM projection.          |
-| [react-compatibility.md](react-compatibility.md)                                 | React 18/19 compatibility surface and explicit fidelity limits.                  |
-| [react-ecosystem-adapters.md](react-ecosystem-adapters.md)                       | Native substitutions for selected React-owned packages.                          |
-| [react-router-compatibility.md](react-router-compatibility.md)                   | Implemented React Router 5/6/7 facade coverage.                                  |
-| [sample-applications.md](sample-applications.md)                                 | Complete native applications and their build or runtime focus.                   |
-| [scheduling-suspense-activity.md](scheduling-suspense-activity.md)               | Native scheduling, readiness, retained DOM, and async-component semantics.       |
-| [server-components.md](server-components.md)                                     | Authoring and operating server-executed component work.                          |
-| [server-context-and-data-policy.md](server-context-and-data-policy.md)           | Context lifetime, placement, residency, sharing, and secret boundaries.          |
-| [ssr-hydration.md](ssr-hydration.md)                                             | Current SSR, streaming, hydration, and patch capabilities.                       |
-| [tasks.md](tasks.md)                                                             | Function-defined tasks, structured lifetime, policy, status, and task ABI.       |
+| Document                                                                         | Subject                                                                                                   |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [actions-and-forms.md](actions-and-forms.md)                                     | Task interactions, optimism, forms, and router coordination.                                              |
+| [accessibility.md](accessibility.md)                                             | Native-first accessibility enhancements, modal binding, relationships, navigation, and diagnostics.       |
+| [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                                                 |
+| [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                                                    |
+| [component-library-trust.md](component-library-trust.md)                         | Bundler-enforced server component package authorization.                                                  |
+| [component-registries.md](component-registries.md)                               | Branched, finite-registry, and open dynamic component selection.                                          |
+| [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.                                              |
+| [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.                                  |
+| [exact-for-react-developers.md](exact-for-react-developers.md)                   | Side-by-side native eXact and idiomatic React component authoring guide.                                  |
+| [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.                                              |
+| [framework-comparison.md](framework-comparison.md)                               | Cross-framework application contract, comparison tracks, fairness, and current suite status.              |
+| [gestures.md](gestures.md)                                                       | Prepared gesture recognition, ownership, accessibility, and testing.                                      |
+| [gravity.md](gravity.md)                                                         | Pure acceleration fields and physics force registration.                                                  |
+| [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                                                        |
+| [internationalization.md](internationalization.md)                               | Native intl analysis, source-message extraction, XLIFF catalogs, runtime, and shared bundler integration. |
+| [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                                                       |
+| [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.                                  |
+| [microfrontends.md](microfrontends.md)                                           | Implemented trusted microfrontend scope and remaining adapter work.                                       |
+| [motion.md](motion.md)                                                           | Prepared motion definitions, finite playback, configuration, and current limits.                          |
+| [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.                                 |
+| [native-ssr-production-guide.md](native-ssr-production-guide.md)                 | Production SSR, request, response, security, and deployment contracts.                                    |
+| [performance.md](performance.md)                                                 | Opt-in JavaScript performance suite, measurement contract, and tracked baseline.                          |
+| [physics.md](physics.md)                                                         | Deterministic simulation, component ownership, and safe DOM projection.                                   |
+| [react-compatibility.md](react-compatibility.md)                                 | React 18/19 compatibility surface and explicit fidelity limits.                                           |
+| [react-ecosystem-adapters.md](react-ecosystem-adapters.md)                       | Native substitutions for selected React-owned packages.                                                   |
+| [react-router-compatibility.md](react-router-compatibility.md)                   | Implemented React Router 5/6/7 facade coverage.                                                           |
+| [sample-applications.md](sample-applications.md)                                 | Complete native applications and their build or runtime focus.                                            |
+| [scheduling-suspense-activity.md](scheduling-suspense-activity.md)               | Native scheduling, readiness, retained DOM, and async-component semantics.                                |
+| [server-components.md](server-components.md)                                     | Authoring and operating server-executed component work.                                                   |
+| [server-context-and-data-policy.md](server-context-and-data-policy.md)           | Context lifetime, placement, residency, sharing, and secret boundaries.                                   |
+| [ssr-hydration.md](ssr-hydration.md)                                             | Current SSR, streaming, hydration, and patch capabilities.                                                |
+| [tasks.md](tasks.md)                                                             | Function-defined tasks, structured lifetime, policy, status, and task ABI.                                |
 
 The public learning guide is the eXact docs application under
 [`apps/docs`](../apps/docs). Package-level API entry points live in the
@@ -56,37 +60,33 @@ or create and insert a focused proposal before any dependent stage; when it fail
 rejection and continue. “Resolve” therefore means an explicit accept-or-reject decision, not an
 indefinite exploratory pause.
 
-| Stage | Work                                                                                                | Completion gate                                                                                                                                           |
-| ----: | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|     0 | [Recursive server/client graph partitioning](history/recursive-server-client-graph-partitioning.md) | **Completed and archived:** retain as the protocol and ownership baseline.                                                                                |
-|     1 | [JavaScript performance measurement baseline](history/javascript-performance-improvements.md)       | **Completed and archived:** compiled DOM gate plus production-shaped client, server, network, heap, Chromium, and build baselines.                        |
-|     2 | [Separate enhancements from framework plugins](history/enhancements-as-component-composition.md)    | **Completed and archived:** enhancement terminology, activator grouping, `_`, `_target`, bounded routing, ownership, and metadata.                        |
-|     3 | [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | **Completed and archived:** authorize resolved server-executing component graphs without adding compiler policy.                                          |
-|     4 | [Component value/callback binding shorthand](history/component-value-callback-bindings.md)          | **Completed and archived:** finite component pairs, canonical intrinsic endpoints, details adoption, and language tooling.                                |
-|     5 | [Cooperative structured children](proposals/cooperative-structured-children.md)                     | **Deferred prerequisite:** no implementation work is scheduled; it must be accepted and implemented before stage 6 can resume.                            |
-|     6 | [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)       | **Deferred dependent stage:** do not finalize or implement until stage 5 supplies its accepted framework contract.                                        |
-|     7 | [Dependent performance foundations](history/javascript-performance-improvements.md)                 | **Completed and archived:** accepted experiments 2–4, implemented experiment 6, rejected unmeasured binary/worker expansion, and recorded evidence.       |
-|     8 | [Compiler-owned render programs](history/compiler-owned-render-programs.md)                         | **Completed and archived:** finite intrinsic programs share host semantics across markerless SSR, DOM mount/patch, and hydration.                         |
-|     9 | [Bounded deterministic async SSR](history/bounded-deterministic-async-ssr.md)                       | **Completed and archived:** proven sibling groups use one nested-safe request scheduler and deterministic authored-order publication.                     |
-|    10 | [Compact hydration and progressive publication](history/compact-hydration-publication.md)           | **Completed and archived:** grouped rows, dormant ownership, corruption isolation, and progressive helper handoff are implemented.                        |
-|    11 | [Compiler-planned server execution graphs](proposals/compiler-planned-server-execution-graphs.md)   | Start proven render-required server work when reachability, ownership, and inputs are ready instead of waiting for recursive discovery.                   |
-|    12 | [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)                | Implement deferred ownership, replay, capability splitting, hydration, and diagnostics over the settled contracts.                                        |
-|    13 | [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)             | Implement typed structural plans using the settled render-slot, activation, and fallback contracts.                                                       |
-|    14 | [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)              | Implement authenticated reconstruction using settled execution, structural, SSR ownership, and streaming contracts.                                       |
-|    15 | [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)    | Complete heterogeneous adapter conformance over all preceding artifact, trust, locale, activation, refresh, and resumption contracts.                     |
-|    16 | [Remaining JavaScript performance experiments](history/javascript-performance-improvements.md)      | **Completed and archived:** accepted bounded tooling/diagnostics, recorded measured rejections, and stopped after final profiles found no unnamed target. |
+| Stage | Work                                                                                                | Completion gate                                                                                                                                                                                                        |
+| ----: | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|     0 | [Recursive server/client graph partitioning](history/recursive-server-client-graph-partitioning.md) | **Completed and archived:** retain as the protocol and ownership baseline.                                                                                                                                             |
+|     1 | [JavaScript performance measurement baseline](history/javascript-performance-improvements.md)       | **Completed and archived:** compiled DOM gate plus production-shaped client, server, network, heap, Chromium, and build baselines.                                                                                     |
+|     2 | [Separate enhancements from framework plugins](history/enhancements-as-component-composition.md)    | **Completed and archived:** enhancement terminology, activator grouping, `_`, `_target`, bounded routing, ownership, and metadata.                                                                                     |
+|     3 | [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | **Completed and archived:** authorize resolved server-executing component graphs without adding compiler policy.                                                                                                       |
+|     4 | [Component value/callback binding shorthand](history/component-value-callback-bindings.md)          | **Completed and archived:** finite component pairs, canonical intrinsic endpoints, details adoption, and language tooling.                                                                                             |
+|     5 | [Cooperative structured children](proposals/cooperative-structured-children.md)                     | **Removed from the sequence:** independent exploratory work; lexical intl message ownership no longer depends on it.                                                                                                   |
+|     6 | [Enhancement-first internationalization](history/enhancement-first-internationalization.md)         | **Completed and archived:** protocol 1, native analysis, runtime, package catalogs, interchange, units, capability providers, lazy generations, and shared Vite/Bun/Webpack coordination pass the architecture gate.   |
+|     7 | [Dependent performance foundations](history/javascript-performance-improvements.md)                 | **Completed and archived:** accepted experiments 2–4, implemented experiment 6, rejected unmeasured binary/worker expansion, and recorded evidence.                                                                    |
+|     8 | [Compiler-owned render programs](history/compiler-owned-render-programs.md)                         | **Completed and archived:** finite intrinsic programs share host semantics across markerless SSR, DOM mount/patch, and hydration.                                                                                      |
+|     9 | [Bounded deterministic async SSR](history/bounded-deterministic-async-ssr.md)                       | **Completed and archived:** proven sibling groups use one nested-safe request scheduler and deterministic authored-order publication.                                                                                  |
+|    10 | [Compact hydration and progressive publication](history/compact-hydration-publication.md)           | **Completed and archived:** grouped rows, dormant ownership, corruption isolation, and progressive helper handoff are implemented.                                                                                     |
+|    11 | [Compiler-planned component execution](history/compiler-planned-component-execution.md)             | **Completed and archived:** attached per-component execution subgraphs issue server or client work from availability-aware value dependencies.                                                                         |
+|    12 | [Broader lazy interaction-island eligibility](history/lazy-interaction-islands.md)                  | **Completed and archived:** independent server ranges, finite spread proof, bounded policy replay, generated activation metadata, and inspection explanations are implemented.                                         |
+|    13 | [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)    | **Removed as a standalone gate:** retain only measured, incremental render-program extensions; current authorized range and boundary replacement is sufficient for later stages.                                       |
+|    14 | Serializable partial-prerender resumption                                                           | **Rejected:** ordinary Suspense with progressive SSR already provides the useful behavior; avoiding shell rendering does not justify persistent checkpoints, replay coordination, build retention, and reconstruction. |
+|    15 | [Webpack and Bun microfrontend production parity](history/webpack-bun-microfrontend-parity.md)      | **Completed and archived:** Webpack and Bun share production artifact, generation, resource, trust, bootstrap, and recovery contracts with Vite/Rollup.                                                                |
+|    16 | [Remaining JavaScript performance experiments](history/javascript-performance-improvements.md)      | **Completed and archived:** accepted bounded tooling/diagnostics, recorded measured rejections, and stopped after final profiles found no unnamed target.                                                              |
 
 The active and gated documents are:
 
-| Proposal                                                                                          | Status   | Scope                                                                                                                |
-| ------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
-| [Cooperative structured children](proposals/cooperative-structured-children.md)                   | Deferred | Prerequisite for nested cooperative message composition; no prototype or implementation work is currently scheduled. |
-| [Enhancement-first internationalization](proposals/enhancement-first-internationalization.md)     | Deferred | Depends on an accepted and implemented cooperative-children contract before finalization or implementation.          |
-| [Compiler-planned server execution graphs](proposals/compiler-planned-server-execution-graphs.md) | Proposed | Start eligible render-data tasks from compiler-proven request reachability and dependency readiness.                 |
-| [Broader lazy interaction-island eligibility](proposals/lazy-interaction-islands.md)              | Gated    | Defer more statically safe client regions after the accepted performance foundations are implemented.                |
-| [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md)           | Proposed | Emit source-informed refresh plans while retaining validated boundary replacement.                                   |
-| [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md)            | Proposed | Persist authenticated postponed renderer/task state and resume it in a later request.                                |
-| [Webpack and Bun microfrontend production parity](proposals/webpack-bun-microfrontend-parity.md)  | Proposed | Complete adapter lifecycle and heterogeneous conformance over the shared artifact model.                             |
+| Proposal                                                                                         | Status      | Scope                                                                                                       |
+| ------------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.             |
+| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md) | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.      |
+| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)      | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements. |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
 proposal:
@@ -94,6 +94,19 @@ proposal:
 | Document                                          | Scope                                                                    |
 | ------------------------------------------------- | ------------------------------------------------------------------------ |
 | [Candidate future work](proposals/future-work.md) | Uncommitted framework, integration, sample, and optimization candidates. |
+
+Archived implementations, independent exploratory designs, and deferred optimizations do not
+create hidden prerequisites for the sequential program. Dynamic component boundaries and
+Webpack/Bun microfrontend parity are implemented foundations. Persisted partial-prerender
+resumption is intentionally not planned.
+Compiler-authored runtime capabilities and their optional-provider adapter matrix are implemented
+foundations rather than pending gates.
+
+The August 2026 architecture reevaluation compared every active document with the implemented
+compiler, renderer, SSR, hydration, task, and adapter contracts. Enhancement-first
+internationalization and trusted language-service contributions moved to history because their
+current references and implementations are already authoritative. Cooperative children, motion
+orchestration, and `future-work.md` remain independent research without delivery dependencies.
 
 Delivered proposals move to [`history`](history) after their current contracts and remaining
 limitations are captured by the references above. The archive preserves their delivery rationale
@@ -116,7 +129,11 @@ Completed proposal records:
 | [Compiler-owned render programs](history/compiler-owned-render-programs.md)                         | Branded finite host programs with shared SSR, DOM, hydration, property, namespace, event, ref, ownership, and fallback semantics.     |
 | [Bounded deterministic async SSR](history/bounded-deterministic-async-ssr.md)                       | Compiler-proven sibling concurrency with one nested-safe request scheduler, ordered merging, cancellation, and serial fallback.       |
 | [Compact hydration and progressive publication](history/compact-hydration-publication.md)           | Grouped finite rows, deferred activation ownership, row-local recovery, and deterministic progressive-helper handoff.                 |
+| [Compiler-planned component execution](history/compiler-planned-component-execution.md)             | Attached local port/transition subgraphs, availability watchers, target projections, and reactive forwarding.                         |
 | [JavaScript performance improvements](history/javascript-performance-improvements.md)               | Measured client/server baselines, accepted tooling and diagnostic bounds, and recorded rejections for unqualified runtime candidates. |
+| [Accessibility enhancements and diagnostics](history/accessibility-enhancements-and-diagnostics.md) | Native modal binding, ref relationships, focus lifecycle, composite navigation, and package-owned trusted diagnostics.                |
+| [Trusted language-service contributions](history/trusted-language-service-contributions.md)         | Bounded trusted package diagnostics, actions, hover, completion, and CLI contributions without compiler callbacks.                    |
+| [Enhancement-first internationalization](history/enhancement-first-internationalization.md)         | Protocol-1 lexical messages, catalogs, units, capability providers, and shared cross-bundler coordination.                            |
 
 The current repository-wide implementation review is recorded in
 [`history/repository-code-review-2026-07.md`](history/repository-code-review-2026-07.md).

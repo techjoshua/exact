@@ -51,7 +51,7 @@ async function loadProduct(task: TaskContext = TaskContext.server().deferred().b
 loadProduct();
 ```
 
-Ordinary awaited component setup is preferred for direct value flow. Explicit
+Ordinary awaited component initialization is preferred for direct value flow. Explicit
 `TaskContext` policy remains useful for external effects, cleanup, nonblocking
 work, manual dependencies, forced placement, readiness, or priority.
 
@@ -67,7 +67,14 @@ For each cross-runtime continuation, the compiler records:
 - SSR resumption liveness; and
 - reachable client, render, and executor artifacts.
 
-Async setup becomes synchronous component construction plus restartable owned
+It also derives one component-local execution subgraph from the same analysis. Indexed ports join
+a continuation's declared inputs and outputs; transitions retain initialization versus interaction
+activation, placement, readiness, and concurrency. Server and client artifacts receive compact
+target projections of that record. Structural child calls remain in the compiled render program,
+so selecting a static, conditional, keyed, registry, lazy, or recursive child instantiates that
+child's attached subgraph without consulting a central dispatch or planning module.
+
+Async initialization becomes synchronous component construction plus restartable owned
 work. Sequential awaits preserve source order. State writes are staged and
 publish together after the generation and its `finally` block complete.
 Failed, cancelled, or superseded generations discard their writes.
@@ -88,11 +95,17 @@ SSR is the first transition between the machines. The server:
 4. emits the initial HTML and deterministic ownership markers; and
 5. emits the minimum public resumption record needed by the browser.
 
+Construction installs availability-aware watchers for initialization transitions. A watcher issues only
+after every input is available and captures one atomic versioned snapshot. Generation-bound output
+slots connect predecessor work directly to downstream continuations and forwarded child props.
+Async SSR wires reachable compiled children before it waits for parent initialization work, allowing
+independent nested operations to enter the shared bounded request scheduler immediately.
+
 Hydration reconstructs the durable client instance, adopts the existing DOM,
 restores public component state/context, and arms future task generations.
 Settled SSR work is not repeated merely to rediscover the same initial data.
 
-Task placement does not contaminate indivisible component setup placement. When
+Task placement does not contaminate indivisible component initialization placement. When
 an otherwise isomorphic component owns client tasks plus server continuations,
 the compiler emits client and server roots, registers the resumable client
 root, and SSR encloses the rendered component range in an eager resumption

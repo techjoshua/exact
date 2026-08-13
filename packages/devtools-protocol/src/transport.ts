@@ -68,7 +68,8 @@ export function exactDebugCapabilityForRequest(request: ExactDebugRequest): Exac
 		if (request.query.method === 'source.excerpt') return 'source';
 		if (
 			request.query.method === 'catalog.entity' ||
-			request.query.method === 'dependencies.explain'
+			request.query.method === 'dependencies.explain' ||
+			request.query.method === 'partitions.plan'
 		)
 			return 'catalog';
 		return 'snapshot';

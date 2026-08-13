@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "sveltekit-controlled",
+	"framework": "SvelteKit",
+	"frameworkVersion": "2.70.2",
+	"status": "scaffolded",
+	"tracks": ["controlled-service"],
+	"runtime": "node-24",
+	"commands": {
+		"build": "npm run build:sveltekit -w @exactjs/framework-comparison-suite",
+		"start": "npm run dev:sveltekit -w @exactjs/framework-comparison-suite"
+	},
+	"baseUrl": "http://127.0.0.1:4403",
+	"sourceRoots": ["src"]
+}

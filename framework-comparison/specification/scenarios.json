@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"scenarios": [
+		{
+			"id": "queue.initial-load",
+			"fixtureIncidentId": "inc-100",
+			"track": "both",
+			"settlesWhen": "The queue shows the fixture's three incidents in severity order.",
+			"metrics": ["navigation", "browser-cpu", "javascript-bytes", "heap"]
+		},
+		{
+			"id": "incident.optimistic-claim",
+			"fixtureIncidentId": "inc-100",
+			"track": "both",
+			"settlesWhen": "The detail and queue identify user-alex as owner at version 2.",
+			"metrics": ["optimistic-feedback", "server-settlement", "interaction-latency"]
+		},
+		{
+			"id": "incident.claim-conflict",
+			"fixtureIncidentId": "inc-101",
+			"track": "both",
+			"settlesWhen": "The stale claimant sees the authoritative owner and an actionable conflict message.",
+			"metrics": ["server-settlement", "rollback", "interaction-latency"]
+		},
+		{
+			"id": "incident.comment",
+			"fixtureIncidentId": "inc-102",
+			"track": "both",
+			"settlesWhen": "One comment appears once with its authoritative identifier and author.",
+			"metrics": ["optimistic-feedback", "server-settlement"]
+		},
+		{
+			"id": "incident.analysis-progress",
+			"fixtureIncidentId": "inc-100",
+			"track": "both",
+			"settlesWhen": "Analysis progresses from queued through running to completed without navigation.",
+			"metrics": ["server-settlement", "live-update-latency", "browser-cpu"]
+		}
+	]
+}

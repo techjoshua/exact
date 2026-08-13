@@ -24,6 +24,9 @@ Navigation and form work started inside an eXact interaction participates in tha
 pending lifetime. Import the main package for native eXact code. React Router compatibility
 entrypoints are selected by the React compatibility build integration.
 
+`NavLink` derives its active presentation and `aria-current="page"` from each accepted location
+snapshot, so persistent navigation shells stay synchronized without remounting.
+
 The low-level `createExactRouter()` accepts an optional neutral `publication` coordinator. It
 receives accepted navigation metadata after loaders and blockers settle and owns the timing around
 the single authoritative state publication. The router does not depend on any visual-transition

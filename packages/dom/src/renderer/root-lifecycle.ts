@@ -1,4 +1,10 @@
-import { createVNode, Text, type ComponentInstance, type VNode } from '@exactjs/core';
+import {
+	createVNode,
+	LoggerContext,
+	Text,
+	type ComponentInstance,
+	type VNode
+} from '@exactjs/core';
 import {
 	componentDomainInspection,
 	createFrameworkComponentDomain
@@ -26,7 +32,6 @@ import {
 	unmountMounted
 } from './teardown.js';
 import { disposeRetainedReleases } from './retained-release.js';
-import { installEnhancementReconciliation } from './enhancements.js';
 
 /** Resolves a component dom node. */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
@@ -77,9 +82,6 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	}
 	if (!root) {
 		root = createRendererRoot(container, vnode, options, { version: 0 });
-		installEnhancementReconciliation(root, (vnode, instance, scope, node) =>
-			patch(root!, node ?? root!.container, undefined, vnode, instance, scope)
-		);
 		roots.set(container, root);
 		if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	}
@@ -87,6 +89,13 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	root.version++;
 	root.logger = options.logger;
+	if (options.logger) {
+		const contexts = root.ambientContexts as Map<symbol, unknown> | undefined;
+		if (contexts) contexts.set(LoggerContext.id, options.logger);
+		else root.ambientContexts = new Map([[LoggerContext.id, options.logger]]);
+	} else {
+		(root.ambientContexts as Map<symbol, unknown> | undefined)?.delete(LoggerContext.id);
+	}
 	root.debugMarkers = options.debugMarkers ?? false;
 	root.maxTreeDepth = normalizeTreeDepth(options.maxTreeDepth);
 	root.maxTreeNodes = normalizeTreeNodes(options.maxTreeNodes);

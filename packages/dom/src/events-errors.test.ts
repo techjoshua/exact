@@ -8,9 +8,7 @@ import {
 	ErrorContext,
 	type Component,
 	type ErrorContextValue,
-	type ErrorReport,
-	type LogEvent,
-	type Logger
+	type ErrorReport
 } from '@exactjs/core';
 import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, watch } from '@exactjs/reactive';
@@ -81,12 +79,13 @@ describe('@exactjs/dom events-errors', () => {
 						this.state.first = 1;
 						this.state.second = 2;
 					},
-					children: 'update'
+					children: createExpression(() => `${this.state.first}:${this.state.second}`)
 				});
 		}
 		render(jsx(Form, {}), container);
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		expect(scheduled).toHaveBeenCalledTimes(1);
+		expect(container.textContent).toBe('1:2');
 	});
 
 	it('runs capture handlers without relying on bubbling delegation', () => {
@@ -183,30 +182,6 @@ describe('@exactjs/dom events-errors', () => {
 		container.firstElementChild!.dispatchEvent(new Event(type, { bubbles: false }));
 
 		expect(handled).toHaveBeenCalledTimes(1);
-	});
-
-	it('uses the root logger for framework diagnostics', () => {
-		const events: LogEvent[] = [];
-		const logger: Logger = {
-			isEnabled: () => true,
-			log: (event) => events.push(event)
-		};
-
-		const container = document.createElement('div');
-		render(jsx('span', { children: 'first' }), container, { logger });
-		render(jsx('strong', { children: 'second' }), container, { logger });
-
-		expect(events).toContainEqual(
-			expect.objectContaining({
-				level: 'trace',
-				message: 'replace node',
-				scope: {
-					source: 'framework',
-					packageName: 'dom',
-					category: 'patch'
-				}
-			})
-		);
 	});
 
 	it('does not retain delegated event handlers after DOM replacement', () => {

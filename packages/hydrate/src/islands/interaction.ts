@@ -1,153 +1,106 @@
-import type { HydrateOptions } from '../types.js';
 import { logFrameworkEvent } from '@exactjs/core';
+import type { ExactLazyEventPolicy, HydrateOptions } from '../types.js';
+import {
+	captureInteractionControlState,
+	restoreInteractionControlState,
+	type InteractionControlState
+} from './interaction-control-state.js';
 
-const activationEvents = [
-	'auxclick',
-	'beforeinput',
-	'contextmenu',
-	'click',
-	'dblclick',
-	'dragenter',
-	'dragleave',
-	'dragover',
-	'dragstart',
-	'dragend',
-	'drop',
-	'blur',
-	'focus',
-	'focusout',
-	'input',
-	'change',
-	'submit',
-	'keydown',
-	'keyup',
-	'mousedown',
-	'mouseup',
-	'pointerdown',
-	'pointerup',
-	'touchstart',
-	'touchend',
-	'wheel',
-	'focusin',
-	'compositionstart',
-	'compositionupdate',
-	'compositionend'
-] as const;
 const maxQueuedInteractions = 256;
 const islandBoundarySelector = '[data-exact-client-boundary], [data-xh]';
 
-type InteractionController = {
-	activate(boundary: Element, event: Event): boolean | Promise<boolean>;
-	dispose(): void;
-};
+type InteractionController = { dispose(): void };
+type PolicyResolver = (
+	boundary: Element,
+	target: Element,
+	type: string
+) => ExactLazyEventPolicy | undefined;
 
 const controllers = new WeakMap<Node, InteractionController>();
 
-/**
- * Installs the small capture-phase broker that activates a dormant island before its event reaches
- * the target or the renderer's delegated bubble listener.
- */
+/** Installs policy-specific capture listeners for compiler-proven dormant islands. */
 export function ensureInteractionHydration(
 	container: Element | Document,
 	activate: (boundary: Element, event: Event) => boolean | Promise<boolean>,
+	eventTypes: readonly ExactLazyEventPolicy['type'][],
+	resolvePolicy: PolicyResolver,
 	options: HydrateOptions
 ): void {
 	controllers.get(container)?.dispose();
 	const pending = new WeakMap<Element, QueuedActivation>();
+	const activations = new Set<QueuedActivation>();
+	const failedGenerations = new WeakMap<Element, string | null>();
 	let replaying = false;
 	const listener = (event: Event) => {
 		if (replaying) return;
 		const target = eventTargetElement(event.target);
 		const boundary = target?.closest(islandBoundarySelector);
 		if (
+			!target ||
 			!boundary ||
 			!container.contains(boundary) ||
 			boundary.getAttribute('data-exact-client-hydration') !== 'interaction' ||
 			boundary.getAttribute('data-exact-client-hydrated') === 'true'
 		)
 			return;
+		const policy = resolvePolicy(boundary, target, event.type);
+		if (!policy) return;
 		const generation = boundary.getAttribute('data-exact-client-generation');
-		const identity = target ? captureTargetIdentity(boundary, target) : undefined;
-		const queued = captureQueuedInteraction(event, identity);
+		if (failedGenerations.get(boundary) === generation) return;
+		const queued = captureQueuedInteraction(boundary, target, event, policy);
 		const existing = pending.get(boundary);
 		if (existing) {
-			cancelOriginalInteraction(event);
-			queueInteraction(existing.events, queued);
+			interceptOriginalInteraction(event, policy);
+			queueInteraction(existing.events, queued, options);
 			return;
 		}
 		let activated: boolean | Promise<boolean> = false;
 		try {
 			activated = activate(boundary, event);
 		} catch (error) {
-			logFrameworkEvent(
-				'error',
-				'hydrate',
-				'interaction',
-				'interaction island activation failed',
-				error,
-				options.logger
-			);
+			logActivationFailure(error, options);
 		}
 		if (activated instanceof Promise) {
-			cancelOriginalInteraction(event);
-			const activation: QueuedActivation = { events: [queued] };
+			interceptOriginalInteraction(event, policy);
+			const activation: QueuedActivation = { boundary, events: [queued], released: false };
 			pending.set(boundary, activation);
-			void activated
-				.then((result) => {
+			activations.add(activation);
+			void activated.then(
+				(result) => {
 					pending.delete(boundary);
-					if (
-						boundary.getAttribute('data-exact-client-generation') !== generation ||
-						!container.contains(boundary)
-					)
-						return;
+					activations.delete(activation);
+					if (activation.released || !sameGeneration(container, boundary, generation)) return;
+					if (!result) failedGenerations.set(boundary, generation);
 					replaying = true;
 					try {
-						for (const interaction of activation.events) {
-							const replacement = interaction.identity
-								? resolveTargetIdentity(boundary, interaction.identity)
-								: undefined;
-							if (!replacement) continue;
-							replayInteraction(interaction.event, replacement, interaction.submitterIdentity);
-						}
+						if (result) replayQueued(boundary, activation.events, false);
+						else replayQueued(boundary, activation.events, true);
 					} finally {
 						replaying = false;
 					}
 					if (result && !hasDormantIsland(container)) dispose();
-				})
-				.catch((error) => {
+					activation.events.length = 0;
+				},
+				(error) => {
 					pending.delete(boundary);
-					logFrameworkEvent(
-						'error',
-						'hydrate',
-						'interaction',
-						'interaction island activation failed',
-						error,
-						options.logger
-					);
-					if (container.contains(boundary)) {
-						replaying = true;
-						try {
-							for (const interaction of activation.events) {
-								const replacement = interaction.identity
-									? resolveTargetIdentity(boundary, interaction.identity)
-									: undefined;
-								if (replacement)
-									replayInteraction(interaction.event, replacement, interaction.submitterIdentity);
-							}
-						} finally {
-							replaying = false;
-						}
+					activations.delete(activation);
+					logActivationFailure(error, options);
+					if (activation.released || !sameGeneration(container, boundary, generation)) return;
+					failedGenerations.set(boundary, generation);
+					replaying = true;
+					try {
+						replayQueued(boundary, activation.events, true);
+					} finally {
+						replaying = false;
 					}
-				});
+					activation.events.length = 0;
+				}
+			);
 			return;
 		}
 		if (!activated) return;
-		if (
-			!target ||
-			boundary.getAttribute('data-exact-client-generation') !== generation ||
-			!container.contains(boundary)
-		) {
-			cancelOriginalInteraction(event);
+		if (!sameGeneration(container, boundary, generation)) {
+			interceptOriginalInteraction(event, policy);
 			if (!hasDormantIsland(container)) dispose();
 			return;
 		}
@@ -155,59 +108,104 @@ export function ensureInteractionHydration(
 			if (!hasDormantIsland(container)) dispose();
 			return;
 		}
-		cancelOriginalInteraction(event);
-		const replacement = identity ? resolveTargetIdentity(boundary, identity) : undefined;
-		if (replacement) replayInteraction(event, replacement, queued.submitterIdentity);
+		interceptOriginalInteraction(event, policy);
+		replaying = true;
+		try {
+			replayQueued(boundary, [queued], false);
+		} finally {
+			replaying = false;
+		}
 		if (!hasDormantIsland(container)) dispose();
 	};
+	const listenedEvents = [...new Set(eventTypes)];
 	const dispose = () => {
-		for (const type of activationEvents) container.removeEventListener(type, listener, true);
+		for (const activation of activations) {
+			activation.released = true;
+			activation.events.length = 0;
+			pending.delete(activation.boundary);
+		}
+		activations.clear();
+		for (const type of listenedEvents) container.removeEventListener(type, listener, true);
 		options.signal?.removeEventListener('abort', dispose);
 		controllers.delete(container);
 	};
-	for (const type of activationEvents) container.addEventListener(type, listener, true);
+	for (const type of listenedEvents) container.addEventListener(type, listener, true);
 	options.signal?.addEventListener('abort', dispose, { once: true });
-	controllers.set(container, { activate, dispose });
+	controllers.set(container, { dispose });
 }
 
 type QueuedInteraction = Readonly<{
-	event: Event;
-	identity: TargetIdentity | undefined;
-	submitterIdentity: TargetIdentity | undefined;
+	type: ExactLazyEventPolicy['type'];
+	replay: ExactLazyEventPolicy['replay'];
+	identity: TargetIdentity;
+	submitterIdentity?: TargetIdentity;
+	control?: InteractionControlState;
 	key: string;
-	stateLike: boolean;
 }>;
 
 type QueuedActivation = {
+	boundary: Element;
 	events: QueuedInteraction[];
+	released: boolean;
 };
 
 function captureQueuedInteraction(
+	boundary: Element,
+	target: Element,
 	event: Event,
-	identity: TargetIdentity | undefined
+	policy: ExactLazyEventPolicy
 ): QueuedInteraction {
+	const identity = captureTargetIdentity(boundary, target);
 	return {
-		event: cloneInteractionEvent(event),
+		type: policy.type,
+		replay: policy.replay,
 		identity,
-		submitterIdentity:
-			event instanceof SubmitEvent && event.submitter instanceof Element
-				? captureTargetIdentity(
-						event.submitter.closest(islandBoundarySelector) ?? event.submitter,
-						event.submitter
-					)
-				: undefined,
-		key: `${event.type}:${identity?.exactId ?? identity?.id ?? identity?.name ?? identity?.path.join('.') ?? ''}`,
-		stateLike: event.type === 'input' || event.type === 'change'
+		...(policy.replay === 'latest-value'
+			? { control: captureInteractionControlState(target) }
+			: {}),
+		...(event instanceof SubmitEvent && event.submitter instanceof Element
+			? { submitterIdentity: captureTargetIdentity(boundary, event.submitter) }
+			: {}),
+		key: `${policy.type}:${identity.exactId ?? identity.id ?? identity.name ?? identity.path.join('.')}`
 	};
 }
 
-function queueInteraction(queue: QueuedInteraction[], interaction: QueuedInteraction): void {
-	if (interaction.stateLike) {
+function queueInteraction(
+	queue: QueuedInteraction[],
+	interaction: QueuedInteraction,
+	options: HydrateOptions
+): void {
+	if (interaction.replay === 'latest-value') {
 		const previous = queue.findIndex((candidate) => candidate.key === interaction.key);
 		if (previous >= 0) queue.splice(previous, 1);
 	}
-	if (queue.length >= maxQueuedInteractions) queue.shift();
+	if (queue.length >= maxQueuedInteractions) {
+		const discard = queue.findIndex((candidate) => candidate.type !== 'submit');
+		if (discard < 0) {
+			logFrameworkEvent(
+				'warn',
+				'hydrate',
+				'interaction-overflow',
+				'interaction queue rejected a submit because its bounded capacity contains only submits',
+				undefined,
+				options.logger
+			);
+			return;
+		}
+		queue.splice(discard, 1);
+	}
 	queue.push(interaction);
+}
+
+function replayQueued(
+	boundary: Element,
+	queue: readonly QueuedInteraction[],
+	failed: boolean
+): void {
+	for (const interaction of queue) {
+		const target = resolveTargetIdentity(boundary, interaction.identity);
+		if (target) replayInteraction(interaction, target, failed);
+	}
 }
 
 /** Removes an interaction broker when its hydration root is explicitly released. */
@@ -219,6 +217,17 @@ function eventTargetElement(target: EventTarget | null): Element | undefined {
 	if (target instanceof Element) return target;
 	if (target instanceof Node) return target.parentElement ?? undefined;
 	return undefined;
+}
+
+function sameGeneration(
+	container: Element | Document,
+	boundary: Element,
+	generation: string | null
+): boolean {
+	return (
+		container.contains(boundary) &&
+		boundary.getAttribute('data-exact-client-generation') === generation
+	);
 }
 
 function hasDormantIsland(container: Element | Document): boolean {
@@ -280,108 +289,56 @@ function targetSignature(target: Element): string {
 	}`;
 }
 
-function cancelOriginalInteraction(event: Event): void {
-	event.preventDefault();
+function interceptOriginalInteraction(event: Event, policy: ExactLazyEventPolicy): void {
+	if (policy.replay === 'native-click' || policy.replay === 'request-submit')
+		event.preventDefault();
 	event.stopImmediatePropagation();
 }
 
-function replayInteraction(
-	event: Event,
-	target: Element,
-	submitterIdentity?: TargetIdentity
-): void {
-	if (event.type === 'click' && target instanceof HTMLElement) {
+function replayInteraction(interaction: QueuedInteraction, target: Element, failed: boolean): void {
+	if (interaction.control) restoreInteractionControlState(target, interaction.control);
+	if (interaction.replay === 'native-click' && target instanceof HTMLElement) {
 		target.click();
 		return;
 	}
-	if (event.type === 'submit') {
+	if (interaction.replay === 'request-submit') {
 		const form =
 			target instanceof HTMLFormElement
 				? target
 				: target.closest('form') instanceof HTMLFormElement
 					? target.closest('form')
 					: undefined;
-		if (form) {
-			const resolvedSubmitter = submitterIdentity
-				? resolveTargetIdentity(form, submitterIdentity)
+		if (!form) return;
+		const resolved = interaction.submitterIdentity
+			? resolveTargetIdentity(boundaryFor(form), interaction.submitterIdentity)
+			: undefined;
+		const submitter =
+			resolved instanceof HTMLButtonElement || resolved instanceof HTMLInputElement
+				? resolved
 				: undefined;
-			const submitter =
-				resolvedSubmitter instanceof HTMLButtonElement ||
-				resolvedSubmitter instanceof HTMLInputElement
-					? resolvedSubmitter
-					: target instanceof HTMLButtonElement || target instanceof HTMLInputElement
-						? target
-						: undefined;
-			form.requestSubmit(submitter);
-			return;
-		}
+		form.requestSubmit(submitter);
+		return;
 	}
-	target.dispatchEvent(cloneInteractionEvent(event));
+	if (!failed)
+		target.dispatchEvent(
+			new Event(interaction.type, {
+				bubbles: interaction.type !== 'focus' && interaction.type !== 'blur',
+				composed: true
+			})
+		);
 }
 
-function cloneInteractionEvent(event: Event): Event {
-	const options = {
-		bubbles: event.bubbles,
-		cancelable: event.cancelable,
-		composed: event.composed
-	};
-	if (event instanceof KeyboardEvent)
-		return new KeyboardEvent(event.type, {
-			...options,
-			key: event.key,
-			code: event.code,
-			altKey: event.altKey,
-			ctrlKey: event.ctrlKey,
-			metaKey: event.metaKey,
-			shiftKey: event.shiftKey,
-			repeat: event.repeat
-		});
-	if (event instanceof InputEvent)
-		return new InputEvent(event.type, {
-			...options,
-			data: event.data,
-			inputType: event.inputType,
-			isComposing: event.isComposing
-		});
-	if (typeof CompositionEvent !== 'undefined' && event instanceof CompositionEvent)
-		return new CompositionEvent(event.type, {
-			...options,
-			data: event.data
-		});
-	if (typeof PointerEvent !== 'undefined' && event instanceof PointerEvent)
-		return new PointerEvent(event.type, mouseEventOptions(event, options));
-	if (typeof WheelEvent !== 'undefined' && event instanceof WheelEvent)
-		return new WheelEvent(event.type, {
-			...mouseEventOptions(event, options),
-			deltaX: event.deltaX,
-			deltaY: event.deltaY,
-			deltaZ: event.deltaZ,
-			deltaMode: event.deltaMode
-		});
-	if (event instanceof MouseEvent)
-		return new MouseEvent(event.type, mouseEventOptions(event, options));
-	if (typeof FocusEvent !== 'undefined' && event instanceof FocusEvent)
-		return new FocusEvent(event.type, {
-			...options,
-			relatedTarget: event.relatedTarget
-		});
-	return new Event(event.type, options);
+function boundaryFor(element: Element): Element {
+	return element.closest(islandBoundarySelector) ?? element;
 }
 
-function mouseEventOptions(event: MouseEvent, options: EventInit): MouseEventInit {
-	return {
-		...options,
-		detail: event.detail,
-		screenX: event.screenX,
-		screenY: event.screenY,
-		clientX: event.clientX,
-		clientY: event.clientY,
-		ctrlKey: event.ctrlKey,
-		shiftKey: event.shiftKey,
-		altKey: event.altKey,
-		metaKey: event.metaKey,
-		button: event.button,
-		buttons: event.buttons,
-		relatedTarget: event.relatedTarget
-	};
+function logActivationFailure(error: unknown, options: HydrateOptions): void {
+	logFrameworkEvent(
+		'error',
+		'hydrate',
+		'interaction',
+		'interaction island activation failed',
+		error,
+		options.logger
+	);
 }

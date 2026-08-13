@@ -107,8 +107,11 @@ export type ExactPartitionInstance = Readonly<{
 	children: readonly ExactPartitionInstance[];
 }>;
 
-/** Reports an observable hydrate profile event. */
-export type HydrateProfileEvent = ExactProfileEvent<'hydrate', 'hydrate'>;
+/** Reports total or phase-level timings for one hydration attempt. */
+export type HydrateProfileEvent = ExactProfileEvent<
+	'hydrate',
+	'hydrate' | 'capture-dom' | 'adopt-dom' | 'restore-controls'
+>;
 
 /** Reports the structural outcome of one root or client-island hydration attempt. */
 export type ExactHydrationObservation = Readonly<{
@@ -238,6 +241,34 @@ export type ExactEndpointRoutes = {
 /** Defers loading one generated client-island implementation until activation. */
 export type ClientIslandLoader = Readonly<{
 	load(): Promise<ComponentFunction<any, any>>;
+	activation?: ExactActivationDecision;
+}>;
+
+/** Compiler-proven bounded activation behavior for one lazy island. */
+export type ExactActivationDecision = Readonly<{
+	mode: 'server-only' | 'eager' | 'interaction' | 'inert';
+	reasons: readonly ExactActivationReason[];
+	targets: readonly ExactActivationTarget[];
+}>;
+
+/** One source-located reason an island cannot remain dormant. */
+export type ExactActivationReason = Readonly<{
+	code: string;
+	start: number;
+	length: number;
+	detail?: string;
+}>;
+
+/** One adopted DOM target and its compiler-authorized event policies. */
+export type ExactActivationTarget = Readonly<{
+	id: string;
+	events: readonly ExactLazyEventPolicy[];
+}>;
+
+/** One bounded replay operation retained without a native Event object. */
+export type ExactLazyEventPolicy = Readonly<{
+	type: 'click' | 'submit' | 'input' | 'change' | 'focus' | 'blur' | 'focusin' | 'focusout';
+	replay: 'native-click' | 'request-submit' | 'latest-value' | 'notification';
 }>;
 
 /** One eager or compiler-generated lazy client-island implementation. */
@@ -284,6 +315,19 @@ export type ExactClientOperationObservation = {
 	readonly stale: boolean;
 };
 
+/** Owns an adopted DOM root without implying optional server-operation or island capabilities. */
+export type CoreHydrationRoot = {
+	readonly domain: ComponentDomain;
+	/** Number of asynchronous operations owned by this root generation. */
+	readonly pendingRequests: number;
+	/** Prevents new work while allowing already accepted work to settle. */
+	retire(): void;
+	/** Resolves once all work admitted before retirement has settled. */
+	whenSettled(): Promise<void>;
+	/** Releases renderer scopes, listeners, component ownership, and root registration. */
+	dispose(): void;
+};
+
 /** Defines the exact endpoint transport type contract. */
 export type ExactEndpointTransport = {
 	fetch?: FetchLike;
@@ -291,14 +335,11 @@ export type ExactEndpointTransport = {
 };
 
 /** Defines the exact client type contract. */
-export type ExactClient = {
-	readonly domain: ComponentDomain;
+export type ExactClient = CoreHydrationRoot & {
 	readonly endpoint?: string;
 	readonly endpoints?: ExactEndpointRoutes;
 	state?: unknown;
 	readonly continuations?: Record<string, ExactComponentContinuationContract>;
-	/** Number of task invocation, refresh, or stream promises owned by this client generation. */
-	readonly pendingRequests: number;
 	applyPatches(patches: readonly ExactPatch[]): boolean;
 	invokeTask(id: string, payload?: unknown): Promise<ExactInvocationResult>;
 	refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
@@ -308,12 +349,6 @@ export type ExactClient = {
 		payload?: unknown
 	): Promise<ExactInvocationResult>;
 	registerComponents(config: ExactHydrationRegistration): void;
-	/** Prevents new work while allowing already accepted work to settle. */
-	retire(): void;
-	/** Resolves once all work admitted before retirement has settled. */
-	whenSettled(): Promise<void>;
-	/** Releases client requests, renderer scopes, listeners, and root ownership. */
-	dispose(): void;
 };
 
 /** Defines the hydration root type contract. */

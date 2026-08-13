@@ -10,13 +10,69 @@ import {
 } from '@exactjs/core';
 import { computed } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { renderToHydratableDocumentStream, renderToHydratableStringAsync } from './index.js';
+import {
+	renderToHydratableDocumentStream,
+	renderToHydratableString,
+	renderToHydratableStringAsync
+} from './index.js';
 import { renderResumableComponentBoundary } from './render/boundaries.js';
 import { createSsrContext } from './render/context.js';
 import { readRemainingStreamEvents } from './test-support/streams.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr component resumption', () => {
+	it('discards resumptions from invalidated synchronous render attempts', () => {
+		const childImplementation = function Snapshot(
+			this: Component<{ value: number }>,
+			props: { value: number; invalidate(): void }
+		) {
+			this.state.value = props.value;
+			props.invalidate();
+			return () => createVNode('output', null, String(this.state.value));
+		};
+		const Snapshot = Object.assign(childImplementation, {
+			[exactComponentType]: 'component:Snapshot',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:Snapshot',
+					statePaths: ['value'],
+					valueCaptures: [],
+					contexts: [],
+					boundaries: []
+				}
+			}
+		});
+		function Root(this: Component<{ value: number }>) {
+			this.state.value = 0;
+			return () =>
+				createVNode(Snapshot, {
+					value: this.state.value,
+					invalidate: () => {
+						if (this.state.value === 0) this.state.value = 1;
+					}
+				});
+		}
+
+		const rendered = renderToHydratableString(createVNode(Root, {}));
+
+		expect(rendered.html).toContain('<output>1</output>');
+		expect(rendered.resumptions).toEqual([
+			{
+				componentId: 'component:Snapshot',
+				values: { value: 1 },
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+	});
+
 	it('emits only compiler-selected state and successfully settled continuation ids', async () => {
 		const implementation = function Counter(
 			this: Component<{ count: number; serverOnly: string }>

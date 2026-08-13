@@ -1,0 +1,10 @@
+{
+	"name": "@exactjs/framework-comparison-react-native",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "react-router build",
+		"start": "react-router-serve build/server/index.js",
+		"typecheck": "react-router typegen && tsc --noEmit"
+	}
+}

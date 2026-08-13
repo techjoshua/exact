@@ -21,7 +21,8 @@ describe('renderer enhancement markers', () => {
 		});
 
 		expect(vnode.props).toEqual({ id: 'save' });
-		expect(vnode.enhancements).toBe(marker);
+		expect(vnode.enhancement).toBe(marker);
+		expect(marker).toMatchObject({ kind: 'enhancement', fallback: 'preserve-target' });
 		expect(marker.entries).toEqual([
 			{ identity: '@exactjs/motion#motion', props: { preset: 'fade' } },
 			{ identity: '@exactjs/gestures#gestures', props: { draggable: true }, root: true }

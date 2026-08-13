@@ -1,70 +1,110 @@
 // @vitest-environment jsdom
 
-import { expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-it('stops forwarding page responses after the extension port disconnects', async () => {
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => {
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+});
+
+it('handshakes until runtime readiness and reconnects a replaced extension port', async () => {
 	vi.resetModules();
-	const portMessages: unknown[] = [];
-	const disconnectListeners: Array<() => void> = [];
+	const ports = [extensionPort(), extensionPort()];
+	let connectionIndex = 0;
 	let lastErrorReads = 0;
-	const port = {
-		name: 'exact-devtools-content',
-		onMessage: { addListener: vi.fn() },
-		onDisconnect: {
-			addListener(listener: () => void) {
-				disconnectListeners.push(listener);
-			}
-		},
-		postMessage(message: unknown) {
-			portMessages.push(message);
-		},
-		disconnect: vi.fn()
-	};
 	Object.defineProperty(globalThis, 'chrome', {
 		configurable: true,
 		value: {
 			runtime: {
-				connect: () => port,
+				connect: () => ports[connectionIndex++]!.port,
 				get lastError() {
-					lastErrorReads += 1;
-					return { message: 'Receiving end does not exist.' };
+					lastErrorReads++;
+					return { message: 'Service worker stopped.' };
 				}
 			}
 		}
 	});
-	let pageListener: ((event: MessageEvent) => void) | undefined;
-	const addListener = vi.spyOn(window, 'addEventListener').mockImplementation((type, listener) => {
-		if (type === 'message') pageListener = listener as (event: MessageEvent) => void;
+	const listeners = new Map<string, EventListener[]>();
+	vi.spyOn(window, 'addEventListener').mockImplementation((type, listener) => {
+		let values = listeners.get(type);
+		if (!values) listeners.set(type, (values = []));
+		values.push(listener as EventListener);
 	});
-	const removeListener = vi.spyOn(window, 'removeEventListener').mockImplementation(() => {});
-	const postWindowMessage = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
+	const posted: unknown[] = [];
+	vi.spyOn(window, 'postMessage').mockImplementation((message) => {
+		posted.push(message);
+	});
 
 	await import('./content-script.js');
-	expect(addListener).toHaveBeenCalledWith('message', expect.any(Function));
-	pageListener?.(
-		new MessageEvent('message', {
-			source: window,
-			data: { source: 'exact-devtools-page', message: { id: 'before-disconnect' } }
-		})
-	);
-	expect(portMessages).toEqual([{ id: 'before-disconnect' }]);
+	expect(ports[0]!.sent.map(readStatus)).toEqual(['connecting', 'waiting-for-page']);
+	expect(pageControls(posted, 'hello')).toHaveLength(1);
+	await vi.advanceTimersByTimeAsync(500);
+	expect(pageControls(posted, 'hello')).toHaveLength(2);
 
-	disconnectListeners[0]?.();
+	const documentId = pageControls(posted, 'hello')[0]!.documentId as string;
+	receiveWindowMessage(listeners, {
+		source: 'exact-devtools-page',
+		control: {
+			type: 'ready',
+			documentId,
+			bridgeId: 'bridge-1',
+			runtimeReady: false
+		}
+	});
+	expect(readStatus(ports[0]!.sent.at(-1))).toBe('waiting-for-runtime');
+	receiveWindowMessage(listeners, {
+		source: 'exact-devtools-page',
+		control: {
+			type: 'ready',
+			documentId,
+			bridgeId: 'bridge-1',
+			runtimeReady: true,
+			protocol: 1
+		}
+	});
+	expect(readStatus(ports[0]!.sent.at(-1))).toBe('ready');
+	const helloCount = pageControls(posted, 'hello').length;
+	await vi.advanceTimersByTimeAsync(1_000);
+	expect(pageControls(posted, 'hello')).toHaveLength(helloCount);
+
+	ports[0]!.disconnect();
 	expect(lastErrorReads).toBe(1);
-	expect(removeListener).toHaveBeenCalledWith('message', pageListener);
-	expect(postWindowMessage).toHaveBeenCalledWith(
-		{
-			source: 'exact-devtools-extension',
-			message: { id: 'disconnect', type: 'disconnect' }
-		},
-		'*'
-	);
-
-	pageListener?.(
-		new MessageEvent('message', {
-			source: window,
-			data: { source: 'exact-devtools-page', message: { id: 'stale-response' } }
-		})
-	);
-	expect(portMessages).toEqual([{ id: 'before-disconnect' }]);
+	expect(pageControls(posted, 'transport-disconnect')).toHaveLength(1);
+	await vi.advanceTimersByTimeAsync(100);
+	expect(connectionIndex).toBe(2);
+	expect(readStatus(ports[1]!.sent.at(-1))).toBe('waiting-for-page');
 });
+
+function extensionPort() {
+	const messages: Array<(message: unknown) => void> = [];
+	const disconnects: Array<() => void> = [];
+	const sent: unknown[] = [];
+	const port: chrome.runtime.Port = {
+		name: 'exact-devtools-content',
+		onMessage: { addListener: (listener) => messages.push(listener) },
+		onDisconnect: { addListener: (listener) => disconnects.push(listener) },
+		postMessage: vi.fn((message: unknown) => sent.push(message)),
+		disconnect: vi.fn(() => disconnects.forEach((listener) => listener()))
+	};
+	return {
+		port,
+		sent,
+		disconnect() {
+			port.disconnect();
+		}
+	};
+}
+
+function receiveWindowMessage(listeners: Map<string, EventListener[]>, data: unknown): void {
+	for (const listener of listeners.get('message') ?? [])
+		listener(new MessageEvent('message', { source: window, data }));
+}
+
+function pageControls(messages: readonly any[], type: string): any[] {
+	return messages.map((message) => message?.control).filter((control) => control?.type === type);
+}
+
+function readStatus(message: any): unknown {
+	return message?.status;
+}

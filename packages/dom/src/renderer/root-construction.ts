@@ -1,4 +1,4 @@
-import type { VNode } from '@exactjs/core';
+import { LoggerContext, type ComponentContextValues, type VNode } from '@exactjs/core';
 import type { RenderOptions, Root } from '../types.js';
 import { normalizeTreeDepth, normalizeTreeNodes } from './limits.js';
 import { createDomErrorContext, createRootBoundary } from './root-support.js';
@@ -17,6 +17,9 @@ export function createRendererRoot(
 	options: RenderOptions,
 	construction: RendererRootConstruction
 ): Root {
+	const ambientContexts: ComponentContextValues | undefined = options.logger
+		? new Map([[LoggerContext.id, options.logger]])
+		: undefined;
 	const root: Root = {
 		container,
 		delegated: new Map(),
@@ -36,6 +39,7 @@ export function createRendererRoot(
 		onUnsafeHtml: options.onUnsafeHtml,
 		onProfile: options.onProfile,
 		logger: options.logger,
+		ambientContexts,
 		enhancementCatalog: options.enhancementCatalog,
 		...(construction.mode ? { mode: construction.mode } : {}),
 		...(construction.markerlessHydration ? { markerlessHydration: true } : {})

@@ -35,7 +35,7 @@ func unsafeDerivedDiagnostics(
 		walkNode(candidate.node, func(node *ast.Node) bool {
 			if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
 				isStaticPropertyName(node) ||
-				!eagerRenderReference(node, candidate.node) {
+				!eagerRenderReference(node, candidate.node, sourceFile, typeChecker) {
 				return true
 			}
 			symbol := typeChecker.GetSymbolAtLocation(node)
@@ -113,9 +113,25 @@ func unsafeDerivedSymbols(
 	return result
 }
 
-func eagerRenderReference(reference *ast.Node, component *ast.Node) bool {
+func eagerRenderReference(
+	reference *ast.Node,
+	component *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
 	var renderRoot *ast.Node
 	for current := reference.Parent; current != nil && current != component; current = current.Parent {
+		if ast.IsJsxSpreadAttribute(current) {
+			_, reason := finiteIslandSpread(
+				sourceFile,
+				current.AsJsxSpreadAttribute().Expression,
+				typeChecker,
+				nil,
+			)
+			if reason == "" {
+				return false
+			}
+		}
 		if ast.IsJsxAttribute(current) {
 			name := jsxAttributeText(current.AsJsxAttribute().Name())
 			if interactiveJSXAttribute(name) {

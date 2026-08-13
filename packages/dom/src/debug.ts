@@ -2,7 +2,11 @@ import { logFrameworkEvent, type VNode } from '@exactjs/core';
 import type { Root } from './types.js';
 
 /** Emits a DOM patch trace event through the root logger. */
-export function domDebug(root: Root, message: string, details?: Record<string, unknown>): void {
+export function domDebug(
+	root: Root,
+	message: string,
+	details?: Record<string, unknown> | (() => Record<string, unknown>)
+): void {
 	logFrameworkEvent('trace', 'dom', 'patch', message, details, root.logger);
 }
 

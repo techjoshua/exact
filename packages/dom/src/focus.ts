@@ -1,27 +1,73 @@
 import { describeNode, domDebug } from './debug.js';
 import type { Root } from './types.js';
 
-/** Runs DOM work and restores focus if patching drops focus back to the document body. */
+type FocusTransaction = { depth: number; snapshot?: FocusSnapshot };
+type FocusSnapshot = {
+	active: HTMLElement;
+	inputSelection?: {
+		start: number | null;
+		end: number | null;
+		direction: HTMLInputElement['selectionDirection'];
+	};
+	documentSelection?: SavedSelection;
+};
+
+const focusTransactions = new WeakMap<Root, FocusTransaction>();
+
+/** Runs DOM work and restores a user-focused element if patching drops focus to the document body. */
 export function preserveFocus<T>(root: Root, work: () => T): T {
-	const active = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-	const inputSelection =
-		active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
-			? {
-					start: active.selectionStart,
-					end: active.selectionEnd,
-					direction: active.selectionDirection
-				}
-			: undefined;
-	const documentSelection = active?.isContentEditable ? cloneSelection(active) : undefined;
-	const result = work();
-	if (active && active.isConnected && document.activeElement === document.body) {
-		domDebug(root, 'restore focus', {
+	const existing = focusTransactions.get(root);
+	if (existing) {
+		existing.depth++;
+		try {
+			return work();
+		} finally {
+			existing.depth--;
+		}
+	}
+	const transaction: FocusTransaction = { depth: 1, snapshot: captureFocus() };
+	focusTransactions.set(root, transaction);
+	try {
+		const result = work();
+		restoreFocus(root, transaction.snapshot);
+		return result;
+	} finally {
+		focusTransactions.delete(root);
+	}
+}
+
+/** Captures the one authored focus owner shared by a complete DOM transaction. */
+function captureFocus(): FocusSnapshot | undefined {
+	const active = document.activeElement;
+	// Body focus means that no authored control owns focus. Besides avoiding unnecessary browser
+	// focus work, this prevents passive hydration from manufacturing a focus transition.
+	if (!(active instanceof HTMLElement) || active === document.body) return undefined;
+	return {
+		active,
+		inputSelection:
+			active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
+				? {
+						start: active.selectionStart,
+						end: active.selectionEnd,
+						direction: active.selectionDirection
+					}
+				: undefined,
+		documentSelection: active.isContentEditable ? cloneSelection(active) : undefined
+	};
+}
+
+/** Restores the focus snapshot once, after all nested reconciliation work completes. */
+function restoreFocus(root: Root, snapshot: FocusSnapshot | undefined): void {
+	if (!snapshot) return;
+	const { active, inputSelection, documentSelection } = snapshot;
+	if (active.isConnected && document.activeElement === document.body) {
+		domDebug(root, 'restore focus', () => ({
 			active: describeNode(active),
 			bodyOwnsFocus: document.activeElement === document.body
-		});
+		}));
 		active.focus({ preventScroll: true });
 	}
-	if (active?.isConnected && document.activeElement === active) {
+	if (active.isConnected && document.activeElement === active) {
 		if (
 			inputSelection &&
 			(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) &&
@@ -35,7 +81,6 @@ export function preserveFocus<T>(root: Root, work: () => T): T {
 			);
 		} else if (documentSelection) restoreSelection(active, documentSelection);
 	}
-	return result;
 }
 
 type SavedSelection = { start: number[]; startOffset: number; end: number[]; endOffset: number };

@@ -1,4 +1,5 @@
-import type { PuzzleKind, PuzzleStyle } from '../types.js';
+import { pageMarginPresets, resolvePageMargin } from '../page-layout.js';
+import type { PageMarginPreset, PageSize, PuzzleKind, PuzzleStyle } from '../types.js';
 
 type StyleControlsProps = {
 	kind: PuzzleKind;
@@ -10,6 +11,20 @@ type StyleControlsProps = {
 export function StyleControls(props: StyleControlsProps) {
 	const change = <K extends keyof PuzzleStyle>(key: K, value: PuzzleStyle[K]) => {
 		props.onStyle({ ...props.style, [key]: value });
+	};
+	const changePageSize = (value: string) => {
+		const pageSize: PageSize =
+			value === 'seven-by-ten' || value === 'six-by-nine' || value === 'custom' ? value : 'letter';
+		change('pageSize', pageSize);
+	};
+	const changeMarginPreset = (value: string) => {
+		const preset: PageMarginPreset =
+			value === 'narrow' || value === 'wide' || value === 'custom' ? value : 'standard';
+		props.onStyle({
+			...props.style,
+			pageMarginPreset: preset,
+			pageMargin: preset === 'custom' ? props.style.pageMargin : pageMarginPresets[preset]
+		});
 	};
 	return () => (
 		<section className="control-section style-section" aria-labelledby="style-heading">
@@ -66,7 +81,7 @@ export function StyleControls(props: StyleControlsProps) {
 					<input
 						type="range"
 						min="16"
-						max="54"
+						max="96"
 						value={String(props.style.titleFontSize)}
 						onInput={(event) => change('titleFontSize', Number(event.currentTarget.value))}
 					/>
@@ -93,7 +108,7 @@ export function StyleControls(props: StyleControlsProps) {
 					<input
 						type="range"
 						min="14"
-						max="28"
+						max="64"
 						value={String(props.style.fontSize)}
 						onInput={(event) => change('fontSize', Number(event.currentTarget.value))}
 					/>
@@ -110,34 +125,121 @@ export function StyleControls(props: StyleControlsProps) {
 					/>
 				</label>
 			</div>
+			{props.kind !== 'sudoku' ? (
+				<div className="option-box">
+					<strong>{props.kind === 'crossword' ? 'Crossword clues' : 'Word list'}</strong>
+					<div className="field-grid">
+						<label>
+							<span>{props.kind === 'crossword' ? 'Clue typeface' : 'List typeface'}</span>
+							<select
+								value={props.style.supplementaryFontFamily}
+								onChange={(event) =>
+									change(
+										'supplementaryFontFamily',
+										event.currentTarget.value as PuzzleStyle['supplementaryFontFamily']
+									)
+								}
+							>
+								<option value="sans">Modern sans</option>
+								<option value="serif">Classic serif</option>
+								<option value="mono">Editorial mono</option>
+								<option value="handwritten">Handwritten print</option>
+								<option value="playful">Playful rounded</option>
+							</select>
+						</label>
+						<label>
+							<span>
+								{props.kind === 'crossword' ? 'Clue' : 'List'} size ·
+								{props.style.supplementaryFontSize}px
+							</span>
+							<input
+								type="range"
+								min="8"
+								max="48"
+								value={String(props.style.supplementaryFontSize)}
+								onInput={(event) =>
+									change('supplementaryFontSize', Number(event.currentTarget.value))
+								}
+							/>
+						</label>
+					</div>
+				</div>
+			) : null}
 			<div className="option-box">
 				<strong>Page</strong>
 				<div className="field-grid">
 					<label>
 						<span>Page size</span>
 						<select
-							value={props.style.pageSize}
-							onChange={(event) =>
-								change('pageSize', event.currentTarget.value as PuzzleStyle['pageSize'])
-							}
+							value={props.style.pageSize || 'letter'}
+							onChange={(event) => changePageSize(event.currentTarget.value)}
 						>
-							<option value="letter">US Letter · 8.5 × 11 in</option>
-							<option value="a4">A4 · 210 × 297 mm</option>
-							<option value="legal">US Legal · 8.5 × 14 in</option>
+							<option value="letter">8.5 × 11 in</option>
+							<option value="seven-by-ten">7 × 10 in</option>
+							<option value="six-by-nine">6 × 9 in</option>
+							<option value="custom">Custom size</option>
 						</select>
 					</label>
 					<label>
-						<span>Margins · {props.style.pageMargin.toFixed(2)} in</span>
-						<input
-							type="range"
-							min="0.25"
-							max="2"
-							step="0.25"
-							value={String(props.style.pageMargin)}
-							onInput={(event) => change('pageMargin', Number(event.currentTarget.value))}
-						/>
+						<span>Margins · {resolvePageMargin(props.style).toFixed(2)} in</span>
+						<select
+							value={props.style.pageMarginPreset}
+							onChange={(event) => changeMarginPreset(event.currentTarget.value)}
+						>
+							<option value="narrow">Narrow · 0.25 in</option>
+							<option value="standard">Standard · 0.5 in</option>
+							<option value="wide">Wide · 1 in</option>
+							<option value="custom">Custom margin</option>
+						</select>
 					</label>
 				</div>
+				{props.style.pageSize === 'custom' ? (
+					<div className="field-grid custom-layout-fields">
+						<label>
+							<span>Page width · inches</span>
+							<input
+								type="number"
+								min="1"
+								max="48"
+								step="0.01"
+								value={String(props.style.customPageWidth)}
+								onChange={(event) =>
+									change('customPageWidth', numberOrFallback(event.currentTarget.value, 8.5))
+								}
+							/>
+						</label>
+						<label>
+							<span>Page height · inches</span>
+							<input
+								type="number"
+								min="1"
+								max="48"
+								step="0.01"
+								value={String(props.style.customPageHeight)}
+								onChange={(event) =>
+									change('customPageHeight', numberOrFallback(event.currentTarget.value, 11))
+								}
+							/>
+						</label>
+					</div>
+				) : null}
+				{props.style.pageMarginPreset === 'custom' ? (
+					<div className="field-grid custom-layout-fields">
+						<label>
+							<span>Custom margin · inches</span>
+							<input
+								type="number"
+								min="0"
+								max="24"
+								step="0.01"
+								value={String(props.style.pageMargin)}
+								onChange={(event) =>
+									change('pageMargin', numberOrFallback(event.currentTarget.value, 0.5))
+								}
+							/>
+						</label>
+					</div>
+				) : null}
 			</div>
 			<div className="color-grid">
 				<label>
@@ -238,4 +340,10 @@ export function StyleControls(props: StyleControlsProps) {
 			) : null}
 		</section>
 	);
+}
+
+function numberOrFallback(value: string, fallback: number): number {
+	if (!value.trim()) return fallback;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : fallback;
 }

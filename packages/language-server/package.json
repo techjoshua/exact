@@ -24,6 +24,9 @@
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/compiler": "^0.1.0",
+		"@exactjs/config": "^0.1.0",
+		"@exactjs/language-extension-api": "^0.1.0",
+		"@exactjs/language-extension-host": "^0.1.0",
 		"vscode-languageserver": "^9.0.1",
 		"vscode-languageserver-textdocument": "^1.0.12"
 	},

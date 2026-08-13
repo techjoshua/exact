@@ -99,11 +99,22 @@ focus to an optional return target, applies `inert` and disables pointer interac
 the same connected DOM generation when presence reverses before leave completion:
 
 ```tsx
-<Presence when={this.state.showDialog} returnFocus={this.ref.openButton} mode="out-in">
-	<Motion as="dialog" motion={dialogMotion}>
-		<DialogContents />
-	</Motion>
-</Presence>
+const openButtonRef = createRef<HTMLButtonElement>('open dialog button');
+
+function DialogExample(this: Component<{ showDialog: boolean }>) {
+	const openButton = this.ref(openButtonRef);
+
+	return () => (
+		<>
+			<button ref={openButton}>Open</button>
+			<Presence when={this.state.showDialog} returnFocus={openButton} mode="out-in">
+				<Motion as="dialog" motion={dialogMotion}>
+					<DialogContents />
+				</Motion>
+			</Presence>
+		</>
+	);
+}
 ```
 
 The renderer publishes release while observers can attach leave tasks, then deactivates the

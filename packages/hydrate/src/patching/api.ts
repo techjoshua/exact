@@ -1,6 +1,5 @@
 import {
 	createCleanupFailure,
-	logFrameworkEvent,
 	throwCleanupFailure,
 	type Logger
 } from '@exactjs/core';
@@ -12,6 +11,7 @@ import {
 } from '@exactjs/dom';
 import { readExactPartitionDiscriminator } from '@exactjs/dom/framework/hydration';
 import type { ExactPartitionAuthority, ExactPatch } from '@exactjs/server';
+import { reportMismatch } from '../mismatch.js';
 import type { HydrationDiagnostic } from '../types.js';
 import { applyPatch } from './application.js';
 import { createProtocolIndex } from './indexing.js';
@@ -269,13 +269,4 @@ export function createPatchBoundaryResolver(
 	};
 }
 
-/** Performs the report mismatch domain operation. */
-export function reportMismatch(
-	options: PatchOptions,
-	message: string,
-	code: HydrationDiagnostic['code'] = 'adoption-mismatch',
-	patch?: { type: string; id: string }
-): void {
-	logFrameworkEvent('warn', 'hydrate', 'mismatch', message, undefined, options.logger);
-	options.onDiagnostic?.({ code, message, patch });
-}
+export { reportMismatch } from '../mismatch.js';

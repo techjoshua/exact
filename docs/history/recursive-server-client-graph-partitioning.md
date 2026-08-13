@@ -29,9 +29,8 @@ proposal rather than an implementation-local approximation.
 | Enhancements                           | Ordinary component nodes in every partition projection    |
 
 This proposal is the prerequisite for
-[`lazy-interaction-islands.md`](../proposals/lazy-interaction-islands.md),
-[`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md), and
-[`partial-prerender-resumption.md`](../proposals/partial-prerender-resumption.md).
+[`lazy-interaction-islands.md`](lazy-interaction-islands.md) and
+[`compiler-planned-structural-refresh.md`](../proposals/compiler-planned-structural-refresh.md).
 
 ## Decision
 
@@ -83,7 +82,7 @@ component owners.
   children.
 - Inferring native ownership for React or another unbranded foreign value.
 - Removing range-local replacement, hydration mismatch recovery, or application error boundaries.
-- Persisting partial prerenders; that is a dependent proposal.
+- Persisting partial prerenders; that optimization is intentionally not planned.
 - Stable partition identity across different builds.
 
 ## Static partition plan

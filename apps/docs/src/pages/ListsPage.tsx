@@ -28,6 +28,19 @@ const explicitJsxKeySource = `return () => (
   </ul>
 );`;
 
+const keyedFragmentSource = `import { _ } from '@exactjs/jsx';
+
+return () => (
+  <dl>
+    {this.state.todos.map((todo) => (
+      <_ key={todo.id}>
+        <dt>{todo.title}</dt>
+        <dd>{todo.notes}</dd>
+      </_>
+    ))}
+  </dl>
+);`;
+
 const explicitMapSource = `return () => this.map(
   this.state.todos,
   // Identity is explicit at the rendering boundary.
@@ -40,7 +53,7 @@ export function ListsPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="Lists keep the identity you give them"
+			title="Lists preserve identity"
 			description="Use ordinary map syntax and mark the field that means identity. Reorders then move the existing item rather than quietly turning it into a different one."
 			previous={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
 			next={{ path: '/learn/component-registries', label: 'Component registries' }}
@@ -75,7 +88,8 @@ export function ListsPage(this: Component<{}>) {
 				<p>
 					The framework owns list identity. Duplicate keys fail deterministically rather than
 					falling back to position and risking state corruption. String arrays use the string value
-					as their key.
+					as their key. The annotated item type may be declared in this file or imported from a
+					shared model module.
 				</p>
 			</section>
 			<section>
@@ -87,10 +101,18 @@ export function ListsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={explicitJsxKeySource} language="tsx" title="Explicit JSX key" />
 				<p>
+					When one keyed item renders several siblings, import eXact&apos;s transparent
+					<code>_</code> fragment. The standard <code>&lt;&gt;</code> shorthand cannot receive
+					props; <code>_</code> accepts the key, preserves the sibling group as one item, and adds
+					no DOM wrapper.
+				</p>
+				<CodeBlock source={keyedFragmentSource} language="tsx" title="Keyed fragment group" />
+				<p>
 					Use <code>{'this.map(collection, item => item.id, render)'}</code> when the selector
-					belongs next to the view, when the data type cannot carry an <code>@exact key</code>{' '}
-					annotation, or when you need the distinction between eXact's keyed rendering and native{' '}
-					<code>Array.map()</code> to be obvious.
+					belongs next to the view, when the data type cannot carry an <code>@exact key</code>
+					annotation, or when you need the distinction between eXact's keyed rendering and native
+					<code>Array.map()</code> to be obvious. Automatic keyed lowering is limited to maps that
+					produce JSX children, so ordinary data-copy and transformation maps remain native arrays.
 				</p>
 				<CodeBlock source={explicitMapSource} language="tsx" title="Explicit keyed rendering" />
 			</section>

@@ -107,6 +107,8 @@ export interface ExactPluginConfigController<T> {
 	renderConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
 	clientConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
 	testingConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
+	/** Produces a finite, secret-free configuration projection for the plugin's language provider. */
+	languageConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
 }
 
 /** Defines the exact plugin entries interface contract. */

@@ -4,7 +4,7 @@
 import { createContext, createVNode, type Component, type ComponentInstance } from '@exactjs/core';
 import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@exactjs/dom';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
-import { getHydrationRoot } from '@exactjs/hydrate';
+import { getHydrationRoot, type CoreHydrationRoot, type ExactClient } from '@exactjs/hydrate';
 import { createTestVNode } from '@exactjs/testing/internal/fixtures';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
@@ -462,8 +462,8 @@ describe('RemoteComponent', () => {
 		);
 		await waitFor(() => container.textContent === 'Old remoteOld remote');
 		for (const element of Array.from(container.querySelectorAll('[data-exact-remote="retiring"]')))
-			void getHydrationRoot(element)
-				?.invokeTask('probe')
+			void requestClient(element)
+				.invokeTask('probe')
 				.catch(() => undefined);
 
 		await waitFor(() => container.textContent === 'New remoteNew remote');
@@ -590,11 +590,29 @@ describe('RemoteComponent', () => {
 	});
 });
 
-function remoteClient(container: Element, binding: string) {
+function remoteClient(container: Element, binding: string): ExactClient {
 	const root = container.querySelector(`[data-exact-remote="${binding}"]`);
-	const client = root ? getHydrationRoot(root) : undefined;
-	if (!client) throw new Error(`Missing request client for remote binding ${binding}`);
+	if (!root) throw new Error(`Missing remote root for binding ${binding}`);
+	return requestClient(root);
+}
+
+function requestClient(root: Element): ExactClient {
+	const client = getHydrationRoot(root);
+	if (!client || !isExactClient(client)) throw new Error('Remote root has no request client');
 	return client;
+}
+
+function isExactClient(root: CoreHydrationRoot): root is ExactClient {
+	return (
+		'applyPatches' in root &&
+		typeof root.applyPatches === 'function' &&
+		'invokeTask' in root &&
+		typeof root.invokeTask === 'function' &&
+		'refreshBoundary' in root &&
+		typeof root.refreshBoundary === 'function' &&
+		'registerComponents' in root &&
+		typeof root.registerComponents === 'function'
+	);
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {

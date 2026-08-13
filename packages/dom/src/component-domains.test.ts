@@ -6,10 +6,12 @@ import {
 	createContext,
 	createExactRuntimeInspectionOwner,
 	currentComponentDomain,
+	markExactComponent,
 	Target,
 	withComponentDomain,
 	type Component
 } from '@exactjs/core';
+import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -194,6 +196,46 @@ describe('component domain rendering', () => {
 		host.detach('target-inspection-session');
 		unmount(container);
 		container.remove();
+		restoreInspection();
+	});
+
+	it('projects a dynamic boundary as a synthetic DevTools tree node', () => {
+		const container = document.createElement('div');
+		const inspection = createExactRuntimeInspectionOwner({
+			buildKey: 'dynamic-inspection',
+			executionRoot: 'page'
+		});
+		function Panel() {
+			return () => createVNode('p', null, 'dynamic');
+		}
+		function Host() {
+			const boundary = createCompiledDynamicComponent({
+				id: 'fixture:dynamic-inspection',
+				source: () => Panel,
+				props: { label: 'visible' }
+			});
+			return () => boundary;
+		}
+		markExactComponent(Panel, 'fixture:inspection-panel');
+		markExactComponent(Host, 'fixture:inspection-host');
+
+		const restoreInspection = setExactDomInspectionOwner(inspection);
+		render(createCompiledVNode(Host, null), container);
+		const host = createExactDomInspectionHost();
+		host.attach('dynamic-inspection-session', { publish() {} });
+		const dynamic = host
+			.snapshot()
+			.components.find((candidate) => candidate.synthetic?.kind === 'dynamic-component');
+
+		expect(dynamic?.name).toBe('DynamicComponent');
+		expect(dynamic?.synthetic).toMatchObject({
+			boundaryId: 'fixture:dynamic-inspection',
+			availability: 'available',
+			adoptedComponentId: 'fixture:inspection-panel'
+		});
+		expect(dynamic?.parent?.componentTypeId).toBe('fixture:inspection-host');
+		host.detach();
+		unmount(container);
 		restoreInspection();
 	});
 });

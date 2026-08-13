@@ -108,6 +108,8 @@ function isolatedSsrFrame(
 		traversedNodes: 0,
 		reactResourceHints: [],
 		reactResourceKeys: new Set(),
+		dynamicComponentPreloads: 0,
+		resourceLinkHeaders: [],
 		hostStack: [...context.hostStack],
 		unavailableEnhancements: new Set(),
 		enhancementVNodes: new WeakSet(),
@@ -136,6 +138,9 @@ function mergeIndependentResults(
 			throw new SsrTreeNodeError(context.maxTreeNodes);
 		for (const hint of result.frame.reactResourceHints)
 			if (!context.reactResourceHints.includes(hint)) context.reactResourceHints.push(hint);
+		for (const link of result.frame.resourceLinkHeaders)
+			if (!context.resourceLinkHeaders.includes(link)) context.resourceLinkHeaders.push(link);
+		context.dynamicComponentPreloads = context.resourceLinkHeaders.length;
 		for (const identity of result.frame.unavailableEnhancements)
 			context.unavailableEnhancements.add(identity);
 		for (const instance of result.created) context.onComponentCreated?.(instance);

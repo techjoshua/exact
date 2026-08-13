@@ -6,14 +6,14 @@ import {
 } from '@exactjs/compiler';
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import type { ExactComponentAuthorizationAudit } from '@exactjs/component-library-policy';
+import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
+import { IntlBuildCoordinator, type IntlBuildConfiguration } from '@exactjs/intl-build';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
-import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
 	resolveReactCompatibility,
 	type ReactCompatibilityOptions
 } from '@exactjs/react-compat/plugin';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Compiler as WebpackCompiler } from 'webpack';
 import {
@@ -24,11 +24,10 @@ import {
 	disposeWebpackCompilerSession,
 	replaceWebpackCompilerSession,
 	webpackCompilerSession,
-	recordWebpackInspectionModule,
-	recordWebpackComponentBuildFacts,
 	resetWebpackAuthorizationGeneration,
 	webpackInspectionCatalog
 } from './sessions.js';
+import { installWebpackIntlModules } from './intl-modules.js';
 import { webpackTransformTarget } from './transform-selection.js';
 import {
 	addWebpackConditions,
@@ -38,6 +37,7 @@ import {
 } from './resolver.js';
 import { resolveWebpackDebug } from './devtools.js';
 import { transformExactWebpackModule, type ExactWebpackTransformResult } from './transform.js';
+import { recordWebpackTransformResult } from './transform-recording.js';
 import {
 	installExactWebpackLoaderBridge,
 	removeExactWebpackLoaderBridge,
@@ -50,10 +50,17 @@ import {
 import type {
 	WebpackAfterResolveData,
 	WebpackAliasConfiguration,
-	WebpackResolveCallback,
-	WebpackResolveRequest
+	WebpackResolverLike
 } from './resolution-contracts.js';
+import type { ExactLanguageProjectionV1 } from '@exactjs/language-extension-api';
+import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import { createExactWebpackRule } from './rule.js';
+import {
+	configuredExactWebpackTransformOptions,
+	createExactWebpackLanguageIntegration
+} from './language-integration.js';
+import { webpackEnhancementFacadeProvenance } from './enhancement-facades.js';
+import { ExactWebpackMicrofrontendIntegration } from './microfrontends.js';
 export { createExactWebpackRule } from './rule.js';
 export type * from './resolution-contracts.js';
 export {
@@ -67,6 +74,8 @@ export {
 /** Configures exact webpack plugin. */
 export type ExactWebpackPluginOptions = {
 	target?: TransformTarget;
+	/** Retains only the component-contract fields needed by this browser rendering mode. */
+	renderMode?: 'universal' | 'client' | 'hydrate';
 	clientCondition?: string;
 	serverCondition?: string;
 	include?: FilterPattern;
@@ -79,10 +88,20 @@ export type ExactWebpackPluginOptions = {
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	onProfile?: ExactProfileSink;
+	/** Enables shared intl analysis, linking, catalogs, and generated descriptor modules. */
+	internationalization?: false | Readonly<IntlBuildConfiguration>;
 	/** Independent server catalog and compact runtime controls. */
 	debug?: ExactWebpackDebugOptions;
+	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
+	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
+	/** Compact identity from the paired server build for server-executing remote artifacts. */
+	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	/** @internal Loader-owned compiler session identity. */
 	__exactSessionId?: string;
+	/** @internal Collects the language projection for the shared validation session. */
+	__exactLanguageValidation?: boolean;
+	/** @internal Package-wide bindings loaded by the owning build generation. */
+	__exactPackageEnhancements?: readonly ExactPackageEnhancementImport[];
 };
 
 /** Higher-level Webpack controls for server-cooperative DevTools output. */
@@ -100,40 +119,6 @@ export type ExactWebpackDebugOptions = {
 export type ExactWebpackProfileEvent = ExactProfileEvent<'webpack-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
-
-/** Defines the webpack resolver like type contract. */
-export type WebpackResolverLike = {
-	hooks?: {
-		resolve?: {
-			tapAsync?(
-				name: string,
-				handler: (
-					request: WebpackResolveRequest,
-					context: unknown,
-					callback: WebpackResolveCallback
-				) => void
-			): void;
-		};
-	};
-	ensureHook?(name: string): unknown;
-	getHook?(name: string): {
-		tapAsync?(
-			name: string,
-			handler: (
-				request: WebpackResolveRequest,
-				context: unknown,
-				callback: WebpackResolveCallback
-			) => void
-		): void;
-	};
-	doResolve?(
-		hook: unknown,
-		request: WebpackResolveRequest,
-		message: string,
-		context: unknown,
-		callback: WebpackResolveCallback
-	): void;
-};
 
 /** Defines the webpack compiler like type contract. */
 export type WebpackCompilerLike = {
@@ -216,6 +201,8 @@ export class ExactWebpackPlugin {
 	apply(compiler: WebpackCompilerLike): void;
 	apply(input: WebpackCompiler | WebpackCompilerLike): void {
 		const compiler = input as WebpackCompilerLike;
+		if ('webpack' in input)
+			new ExactWebpackMicrofrontendIntegration(input as WebpackCompiler, this.options).install();
 		let diagnosticsEnabled =
 			this.options.diagnostics ?? Boolean(compiler.watchMode || compiler.options.watch);
 		const owned = createWebpackCompilerSession(diagnosticsEnabled, this.options.onProfile);
@@ -228,11 +215,18 @@ export class ExactWebpackPlugin {
 		const reporter = createExactDiagnosticReporter();
 		const warn = (message: string): void =>
 			compiler.getInfrastructureLogger?.('ExactWebpackPlugin').warn(message);
+		const intl = new IntlBuildCoordinator({
+			applicationRoot: this.options.applicationRoot,
+			configuration: this.options.internationalization || undefined,
+			target: this.options.target === 'server' ? 'server' : 'client'
+		});
+		let intlReady = intl.beginBuild();
+		const language = createExactWebpackLanguageIntegration(this.options);
 		addWebpackConditions(
 			compiler,
 			exactExportConditions(webpackTransformTarget(this.options), this.options)
 		);
-		addWebpackEnhancementAliases(compiler);
+		if (webpackTransformTarget(this.options) === 'server') addWebpackEnhancementAliases(compiler);
 		const reactCompatibility = resolveReactCompatibility(this.options.reactCompatibility);
 		if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
 		compiler.options.module ??= {};
@@ -247,13 +241,19 @@ export class ExactWebpackPlugin {
 			get session() {
 				return compilerSession;
 			},
+			intl,
+			intlReady: () => intlReady,
+			packageEnhancements: language.packageEnhancements,
 			record: (filename, source, result) =>
 				recordWebpackTransformResult(
 					{ ...buildOptions, __exactSessionId: owned.id },
 					filename,
 					source,
 					result
-				)
+				),
+			validate: async (projection) => {
+				await (await language.validation()).validate([projection]);
+			}
 		});
 		if (
 			!development &&
@@ -289,6 +289,9 @@ export class ExactWebpackPlugin {
 					});
 				};
 				const processAssets = async () => {
+					await intlReady;
+					intl.validateCatalogs();
+					for (const file of intl.catalogFiles) compilation.fileDependencies?.add(file);
 					const committed = await commitWebpackAuthorizationGeneration(
 						owned.id,
 						authorizationOptions
@@ -313,6 +316,7 @@ export class ExactWebpackPlugin {
 			});
 		}
 		compiler.hooks?.watchRun?.tap?.('ExactWebpackPlugin', (current) => {
+			intlReady = intl.beginBuild();
 			clearWebpackInspectionModules(owned.id);
 			resetWebpackAuthorizationGeneration(owned.id, authorizationOptions);
 			if (this.options.diagnostics === undefined) configureDiagnostics(true);
@@ -331,9 +335,14 @@ export class ExactWebpackPlugin {
 				applyExactWebpackResolver(resolver, this.options)
 			);
 			factory.hooks?.afterResolve?.tapPromise?.('ExactWebpackPlugin', async (data) => {
-				const request = data && (data.createData?.rawRequest ?? data.request);
-				const importer = data && data.contextInfo?.issuer;
+				let request = data ? (data.createData?.rawRequest ?? data.request) : undefined;
+				let importer = data ? data.contextInfo?.issuer : undefined;
 				const resource = data && data.createData?.resource;
+				const facade = webpackEnhancementFacadeProvenance(importer);
+				if (facade) {
+					request = facade.request;
+					importer = facade.importer;
+				}
 				if (request && importer && resource) {
 					const authorization = await authorizeWebpackResolvedComponent(
 						owned.id,
@@ -351,9 +360,12 @@ export class ExactWebpackPlugin {
 				}
 			});
 		});
+		installWebpackIntlModules(input as WebpackCompiler, intl);
 		const dispose = (): void => {
 			removeExactWebpackLoaderBridge(bridgeCarrier);
 			disposeWebpackCompilerSession(owned.id);
+			intl.dispose();
+			language.dispose();
 		};
 		compiler.hooks?.watchClose?.tap?.('ExactWebpackPlugin', dispose);
 		compiler.hooks?.shutdown?.tap?.('ExactWebpackPlugin', dispose);
@@ -379,39 +391,25 @@ export async function transformExactWebpackSourceAsync(
 	filename: string,
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession,
-	record?: (result: ExactWebpackTransformResult) => void
+	record?: (result: ExactWebpackTransformResult) => void,
+	intl?: IntlBuildCoordinator,
+	intlReady?: Promise<void>,
+	validateLanguage?: (projection: ExactLanguageProjectionV1) => Promise<void>,
+	packageEnhancements?: Promise<readonly ExactPackageEnhancementImport[]>
 ): Promise<{ code: string; map: unknown } | null> {
-	const registry = await prepareExactPluginRegistry({
-		applicationRoot: options.applicationRoot ?? path.dirname(filename),
-		configPath: options.configPath,
-		hostMode: 'build'
-	});
-	const configured = {
-		...options,
-		debug: options.debug ?? registry.config?.debug
-	};
-	const result = transformExactWebpackModule(source, filename, configured, session);
+	await intlReady;
+	const configured = await configuredExactWebpackTransformOptions(
+		options,
+		filename,
+		Boolean(validateLanguage)
+	);
+	if (packageEnhancements) configured.__exactPackageEnhancements = await packageEnhancements;
+	const result = transformExactWebpackModule(source, filename, configured, session, intl);
 	if (!result) return null;
+	if (result.languageProjection) await validateLanguage?.(result.languageProjection);
 	if (record) record(result);
 	else recordWebpackTransformResult(configured, filename, source, result);
 	return { code: result.code, map: result.map };
-}
-
-function recordWebpackTransformResult(
-	options: ExactWebpackPluginOptions,
-	filename: string,
-	source: string,
-	result: ExactWebpackTransformResult
-): void {
-	if (result.componentBuild)
-		recordWebpackComponentBuildFacts(
-			options.__exactSessionId,
-			filename,
-			source,
-			result.componentBuild
-		);
-	if (result.inspection)
-		recordWebpackInspectionModule(options.__exactSessionId, filename, source, result.inspection);
 }
 
 /** Performs the compiler session for webpack loader domain operation. */

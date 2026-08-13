@@ -36,6 +36,14 @@
 			"types": "./dist/rollup.d.ts",
 			"default": "./dist/rollup.js"
 		},
+		"./webpack": {
+			"types": "./dist/webpack.d.ts",
+			"default": "./dist/webpack.js"
+		},
+		"./bun": {
+			"types": "./dist/bun.d.ts",
+			"default": "./dist/bun.js"
+		},
 		"./webpack-feasibility": {
 			"types": "./dist/webpack-feasibility.d.ts",
 			"default": "./dist/webpack-feasibility.js"

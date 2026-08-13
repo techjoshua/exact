@@ -86,7 +86,7 @@ describe('router', () => {
 		expect(container.querySelector('a')?.getAttribute('href')).toBe('#/app/start?page=2');
 	});
 
-	it('collects routes generated inside compiled fragments', () => {
+	it('collects routes generated inside compiled fragments', async () => {
 		const routeType = Route as unknown as ComponentFunction<any, any>;
 		const generated = [
 			createVNode(routeType, {
@@ -110,11 +110,21 @@ describe('router', () => {
 			container
 		);
 		expect(container.querySelector('p')?.textContent).toBe('Generated route');
+		expect(container.querySelectorAll('a')[0]?.getAttribute('aria-current')).toBe('page');
+		expect(container.querySelectorAll('a')[1]?.getAttribute('aria-current')).toBeNull();
 		container.querySelectorAll('a')[1]!.click();
 		expect(container.querySelector('p')?.textContent).toBe('State route');
+		await vi.waitFor(() => {
+			expect(container.querySelectorAll('a')[0]?.getAttribute('aria-current')).toBeNull();
+			expect(container.querySelectorAll('a')[1]?.getAttribute('aria-current')).toBe('page');
+		});
 		container.querySelectorAll('a')[0]!.click();
 		expect(source.location().pathname).toBe('/guides/routing');
 		expect(container.querySelector('p')?.textContent).toBe('Generated route');
+		await vi.waitFor(() => {
+			expect(container.querySelectorAll('a')[0]?.getAttribute('aria-current')).toBe('page');
+			expect(container.querySelectorAll('a')[1]?.getAttribute('aria-current')).toBeNull();
+		});
 	});
 
 	it('keeps the current pathname for query and fragment targets', () => {

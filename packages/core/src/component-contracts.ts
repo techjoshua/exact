@@ -1,17 +1,6 @@
 import type { ContextToken } from './component/contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
-import { isExactComponentBoundaryContract } from './component-contract/boundary-validation.js';
-import {
-	isExactContinuationDependency,
-	isExactContinuationInvocation,
-	isExactContinuationStatePath
-} from './component-contract/continuation-validation.js';
-import {
-	hasOnlyContractKeys as hasOnlyKeys,
-	isContractRecord as isRecord,
-	isContractString as isString,
-	isSafeContractStringList as isSafeStringList
-} from './component-contract/metadata-validation.js';
+import { validatedComponentContract } from './component-contract/contract-cache.js';
 
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
@@ -50,11 +39,14 @@ export type ExactComponentContinuationContract = Readonly<{
 	kind: 'task';
 	componentId: string;
 	readiness: 'blocking' | 'nonblocking';
+	concurrency?: 'parallel' | 'latest' | 'queue';
 	dependencies: readonly Readonly<{
+		index?: number;
 		source: 'state' | 'props' | 'derived' | 'argument';
+		path?: string;
 	}>[];
 	invocation?: Readonly<{
-		arguments: readonly Readonly<{ source: 'argument' }>[];
+		arguments: readonly Readonly<{ index?: number; source: 'argument'; path?: string }>[];
 		concurrency: 'parallel' | 'latest' | 'queue';
 	}>;
 	stateReads: readonly ExactContinuationStatePathContract[];
@@ -126,6 +118,56 @@ export type ExactComponentResumptionContract = Readonly<{
 	boundaries: readonly string[];
 }>;
 
+/** Compact target-local execution wiring emitted for one semantic component. */
+export type ExactComponentExecutionContract = Readonly<{
+	version: 1;
+	ports: readonly Readonly<{
+		index: number;
+		kind: 'state' | 'props' | 'context' | 'derived' | 'argument';
+		path: string;
+		direction: 'input' | 'output' | 'inout';
+	}>[];
+	transitions: readonly Readonly<{
+		id: string;
+		taskId: string;
+		activation: 'setup' | 'interaction';
+		placement: 'client' | 'server' | 'isomorphic';
+		readiness: 'blocking' | 'nonblocking';
+		concurrency: 'parallel' | 'latest' | 'queue';
+		inputs: readonly number[];
+		outputs: readonly number[];
+	}>[];
+	/** Build-inspection inventory omitted from render-mode-projected runtime bundles. */
+	reactive?: readonly Readonly<{
+		name: string;
+		provenance: 'state' | 'props' | 'context' | 'derived' | 'cell' | 'snapshot' | 'unknown';
+		allocation: 'constant' | 'live-slot' | 'inline' | 'computed' | 'snapshot' | 'structural';
+		dependencies: readonly string[];
+	}>[];
+}>;
+
+/** Canonical compiler description from which one durable state-machine instance is created. */
+export type ExactCompiledComponentDefinitionContract = Readonly<{
+	version: 1;
+	instantiate: (...args: any[]) => any;
+	/** Build-inspection inventories omitted from render-mode-projected runtime bundles. */
+	state?: readonly string[];
+	tasks?: readonly string[];
+	reactive?: ExactComponentExecutionContract['reactive'];
+	render?: 'returned-function';
+	capabilities: readonly (
+		| 'tasks'
+		| 'continuations'
+		| 'resumption'
+		| 'inspection'
+		| 'registry'
+		| 'enhancements'
+		| 'interactions'
+		| 'compatibility'
+		| 'dynamic-components'
+	)[];
+}>;
+
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{
 	/** Partition-aware component artifact contract. Version 1 artifacts are not adopted. */
@@ -137,6 +179,8 @@ export type ExactComponentContract = Readonly<{
 	executors: readonly ExactComponentContinuationExecutorContract[];
 	boundaries: readonly ExactComponentBoundaryContract[];
 	resumption?: ExactComponentResumptionContract;
+	execution?: ExactComponentExecutionContract;
+	definition?: ExactCompiledComponentDefinitionContract;
 }>;
 
 /** Composed target-local contracts indexed for runtime use. */
@@ -147,6 +191,8 @@ export type ExactComposedComponentContracts = Readonly<{
 	executors: Record<string, ExactComponentContinuationExecutorContract>;
 	boundaries: Record<string, ExactComponentBoundaryContract>;
 	resumptions: Record<string, ExactComponentResumptionContract>;
+	executions: Record<string, ExactComponentExecutionContract>;
+	definitions: Record<string, ExactCompiledComponentDefinitionContract>;
 }>;
 
 type ContractComponent = ((...args: any[]) => any) & {
@@ -183,9 +229,7 @@ export function readExactComponentContract(
 	const contract = (component as ContractComponent)[exactComponentContract];
 	if (!contract) return undefined;
 	const componentId = exactComponentIdentity(component);
-	if (!isComponentContract(contract, componentId))
-		throw new Error('Unsupported eXact component contract');
-	return contract;
+	return validatedComponentContract(component, contract, componentId);
 }
 
 /** Returns the stable compiler identity used to pair SSR and client component boundaries. */
@@ -211,6 +255,8 @@ export function composeExactComponentContracts(
 	const executors: Record<string, ExactComponentContinuationExecutorContract> = {};
 	const boundaries: Record<string, ExactComponentBoundaryContract> = {};
 	const resumptions: Record<string, ExactComponentResumptionContract> = {};
+	const executions: Record<string, ExactComponentExecutionContract> = {};
+	const definitions: Record<string, ExactCompiledComponentDefinitionContract> = {};
 
 	for (const component of components) {
 		const contract = readExactComponentContract(component);
@@ -240,6 +286,9 @@ export function composeExactComponentContracts(
 				contract.resumption,
 				'resumption'
 			);
+		if (contract.execution)
+			addUniqueJson(executions, componentId, contract.execution, 'execution plan');
+		if (contract.definition) definitions[componentId] = contract.definition;
 	}
 
 	return Object.freeze({
@@ -248,7 +297,9 @@ export function composeExactComponentContracts(
 		continuations,
 		executors,
 		boundaries,
-		resumptions
+		resumptions,
+		executions,
+		definitions
 	});
 }
 
@@ -284,119 +335,4 @@ function addUniqueJson<T>(target: Record<string, T>, key: string, value: T, kind
 	if (previous && JSON.stringify(previous) !== JSON.stringify(value))
 		throw new Error(`Conflicting eXact component ${kind} ${key}`);
 	target[key] = value;
-}
-
-/** Validates all required metadata before a generated artifact gains runtime authority. */
-function isComponentContract(value: unknown, componentId: string): value is ExactComponentContract {
-	if (!isRecord(value)) return false;
-	return (
-		hasOnlyKeys(value, [
-			'version',
-			'placement',
-			'role',
-			'implementations',
-			'continuations',
-			'executors',
-			'boundaries',
-			'resumption'
-		]) &&
-		value.version === 2 &&
-		(value.placement === 'client' ||
-			value.placement === 'server' ||
-			value.placement === 'isomorphic' ||
-			value.placement === 'unknown') &&
-		(value.role === 'client' || value.role === 'executor') &&
-		Array.isArray(value.implementations) &&
-		value.implementations.every(isImplementation) &&
-		Array.isArray(value.continuations) &&
-		value.continuations.every(
-			(continuation) => isContinuation(continuation) && continuation.componentId === componentId
-		) &&
-		Array.isArray(value.executors) &&
-		value.executors.every(
-			(executor) => isExecutor(executor) && executor.componentId === componentId
-		) &&
-		Array.isArray(value.boundaries) &&
-		value.boundaries.every(
-			(boundary) =>
-				isExactComponentBoundaryContract(boundary) && boundary.componentId === componentId
-		) &&
-		(value.resumption === undefined ||
-			(isResumption(value.resumption) && value.resumption.componentId === componentId))
-	);
-}
-
-/** Validates one executable implementation descriptor. */
-function isImplementation(value: unknown): value is ExactComponentImplementationContract {
-	if (!isRecord(value)) return false;
-	return (
-		hasOnlyKeys(value, ['id', 'name', 'role', 'implementation']) &&
-		isString(value.id) &&
-		isString(value.name) &&
-		(value.role === 'root' || value.role === 'client-island' || value.role === 'server-part') &&
-		typeof value.implementation === 'function'
-	);
-}
-
-/** Validates one browser-visible continuation allowlist. */
-function isContinuation(value: unknown): value is ExactComponentContinuationContract {
-	if (!isRecord(value)) return false;
-	return (
-		hasOnlyKeys(value, [
-			'id',
-			'kind',
-			'componentId',
-			'readiness',
-			'dependencies',
-			'stateReads',
-			'stateWrites',
-			'publicContexts',
-			'serverContexts',
-			'contextWrites',
-			'serverContextWrites',
-			'boundaries',
-			'invocation'
-		]) &&
-		isString(value.id) &&
-		value.kind === 'task' &&
-		isString(value.componentId) &&
-		(value.readiness === 'blocking' || value.readiness === 'nonblocking') &&
-		Array.isArray(value.dependencies) &&
-		value.dependencies.every(isExactContinuationDependency) &&
-		Array.isArray(value.stateReads) &&
-		value.stateReads.every(isExactContinuationStatePath) &&
-		Array.isArray(value.stateWrites) &&
-		value.stateWrites.every(isExactContinuationStatePath) &&
-		isSafeStringList(value.publicContexts) &&
-		isSafeStringList(value.serverContexts) &&
-		isSafeStringList(value.contextWrites) &&
-		(value.serverContextWrites === undefined || isSafeStringList(value.serverContextWrites)) &&
-		isSafeStringList(value.boundaries) &&
-		(value.invocation === undefined || isExactContinuationInvocation(value.invocation))
-	);
-}
-
-/** Validates one server executor descriptor. */
-function isExecutor(value: unknown): value is ExactComponentContinuationExecutorContract {
-	if (!isRecord(value)) return false;
-	return (
-		hasOnlyKeys(value, ['id', 'componentId', 'execute']) &&
-		isString(value.id) &&
-		isString(value.componentId) &&
-		typeof value.execute === 'function'
-	);
-}
-
-/** Validates one generated DOM boundary descriptor. */
-/** Validates one browser resumption allowlist. */
-function isResumption(value: unknown): value is ExactComponentResumptionContract {
-	if (!isRecord(value)) return false;
-	return (
-		hasOnlyKeys(value, ['componentId', 'statePaths', 'valueCaptures', 'contexts', 'boundaries']) &&
-		isString(value.componentId) &&
-		isSafeStringList(value.statePaths) &&
-		isSafeStringList(value.valueCaptures) &&
-		isSafeStringList(value.contexts) &&
-		isSafeStringList(value.boundaries)
-	);
 }

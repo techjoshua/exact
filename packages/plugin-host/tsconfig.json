@@ -6,7 +6,11 @@
 		"outDir": "dist",
 		"lib": ["ES2022", "DOM"]
 	},
-	"references": [{ "path": "../plugin-api" }, { "path": "../config" }],
+	"references": [
+		{ "path": "../plugin-api" },
+		{ "path": "../config" },
+		{ "path": "../package-provenance" }
+	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts"]
 }

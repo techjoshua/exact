@@ -28,7 +28,7 @@ export function collectSsrEnhancementRoutes(
 	const groups = new Map<VNode, TargetGroup>();
 	let order = 0;
 	visitTree(context, boundary, parent, depth, budget, (vnode, instance) => {
-		for (const entry of vnode.enhancements?.entries ?? []) {
+		for (const entry of vnode.enhancement?.entries ?? []) {
 			if (routingOnlyEntry(entry)) continue;
 			const routed = resolveSsrEnhancementTarget(context, vnode, instance, entry.identity);
 			if (!routed) continue;
@@ -190,7 +190,7 @@ function findExplicitInTransparentOutput(
 		return findExplicitInTransparentOutput(context, getCellVNode(vnode), identity);
 	if (typeof vnode.type === 'function') return undefined;
 	if (typeof vnode.type === 'string') {
-		const selector = vnode.enhancements?.entries.find(
+		const selector = vnode.enhancement?.entries.find(
 			(entry) => entry.identity === identity && entry.root !== undefined
 		);
 		if (selector && unwrap(selector.root)) return vnode;

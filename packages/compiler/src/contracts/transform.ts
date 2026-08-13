@@ -7,6 +7,7 @@ import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerExplanation } from './explanation.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type { ExactSourceEntityKind } from '../language-tools/contracts.js';
+import type { ExactPackageEnhancementImport } from '@exactjs/config';
 
 /** Replaces one imported or exported binding during native module lowering. */
 export interface ModuleExportReplacement {
@@ -31,11 +32,18 @@ export type TransformOptions = {
 	root?: string;
 	/** TypeScript project configuration used for semantic analysis and generated-code checking. */
 	configFile?: string;
+	/** Enhancement imports declared package-wide by the owning exact configuration. */
+	packageEnhancements?: readonly ExactPackageEnhancementImport[];
 	/** Immutable deployment namespace shared by coordinated client/server artifacts. */
 	buildKey?: string;
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */
 	session?: ExactCompilerSession;
 	target?: TransformTarget;
+	/**
+	 * Projects the complete compiler-owned component contract for a concrete runtime bundle.
+	 * Omit this for rendering-mode-neutral output; bundler adapters set it from their render mode.
+	 */
+	componentContractProjection?: ComponentContractProjection;
 	serverComponents?: boolean;
 	/**
 	 * Preserves function-declaration hoisting while attaching component descriptors.
@@ -125,6 +133,9 @@ export type ModuleTransform = (
 
 /** Defines the transform target type contract. */
 export type TransformTarget = 'default' | 'client' | 'server';
+
+/** Selects the runtime component-contract subset retained by a physical bundle. */
+export type ComponentContractProjection = 'complete' | 'hydrate' | 'client';
 
 /** Defines the exact asset kind type contract. */
 export type ExactAssetKind =

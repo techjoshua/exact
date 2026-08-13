@@ -10,7 +10,9 @@ export function isExactContinuationDependency(
 ): value is ExactComponentContinuationContract['dependencies'][number] {
 	return (
 		isContractRecord(value) &&
-		hasOnlyContractKeys(value, ['source']) &&
+		hasOnlyContractKeys(value, ['index', 'source', 'path']) &&
+		(value.index === undefined || (Number.isSafeInteger(value.index) && value.index >= 0)) &&
+		(value.path === undefined || isContractString(value.path)) &&
 		(value.source === 'state' ||
 			value.source === 'props' ||
 			value.source === 'derived' ||
@@ -39,7 +41,10 @@ export function isExactContinuationInvocation(
 				argumentsValue.every(
 					(argument) =>
 						isContractRecord(argument) &&
-						hasOnlyContractKeys(argument, ['source']) &&
+						hasOnlyContractKeys(argument, ['index', 'source', 'path']) &&
+						(argument.index === undefined ||
+							(Number.isSafeInteger(argument.index) && argument.index >= 0)) &&
+						(argument.path === undefined || isContractString(argument.path)) &&
 						argument.source === 'argument'
 				))) &&
 		(value.concurrency === 'parallel' ||

@@ -4,7 +4,6 @@ import {
 	Fragment,
 	isCellVNode,
 	normalizeDocumentVNode,
-	normalizeRenderResult,
 	Portal,
 	RenderProgram,
 	ServerSlot,
@@ -12,20 +11,13 @@ import {
 	Target,
 	Text,
 	UnsafeHtml,
-	unwrap,
 	watch,
-	type Child,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import {
-	getComponentProps,
-	getListBinding,
-	materializeList,
-	stopReplacedChildren
-} from '../../children.js';
+import { getComponentProps, getListBinding, materializeList } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
 import { mountServerSlot } from '../../server-slots.js';
@@ -39,15 +31,15 @@ import {
 } from '../mounting/children.js';
 import { mount } from '../mounting/root.js';
 import { disposeMounted } from '../teardown.js';
-import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
-import { installActivity } from '../activity.js';
-import { updateSuspense } from '../suspense.js';
+import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
+import { requireStructuralBoundaryCapability } from '../structural-capability.js';
 import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
-import { patchEnhancementBoundary } from '../enhancements.js';
+import { requireDomEnhancementCapability } from '../enhancement-capability.js';
 import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
 import { parkForeignMounts } from './replacement-parking.js';
 import { fallbackRenderProgram, patchRenderProgram } from '../render-program.js';
+import { patchDynamic } from '../dynamic.js';
 
 /** Performs the patch domain operation. */
 export function patch(
@@ -58,6 +50,10 @@ export function patch(
 	parentInstance?: ComponentInstance<any>,
 	parentScope?: EffectScope
 ): Mounted {
+	// Compiler-owned keyed-list caches return the exact retained VNode when an
+	// item is unchanged. Its live readers already own subsequent updates, so
+	// descending into that subtree can neither rebind nor improve its output.
+	if (mounted?.vnode === next && mounted.scope.active) return mounted;
 	return withTreeDepth(root, () => {
 		countDomWork(root);
 		return patchInner(root, parent, mounted, next, parentInstance, parentScope);
@@ -93,7 +89,7 @@ export function patchInner(
 		mounted.vnode.key === next.key &&
 		mounted.vnode.domain === next.domain
 	) {
-		return patchEnhancementBoundary(
+		return requireDomEnhancementCapability().patch(
 			root,
 			mounted,
 			next,
@@ -121,13 +117,13 @@ export function patchInner(
 		mounted.vnode.key !== next.key ||
 		mounted.vnode.domain !== next.domain
 	) {
-		domDebug(root, 'replace node', {
+		domDebug(root, 'replace node', () => ({
 			previousType: describeVNodeType(mounted.vnode.type),
 			previousKey: mounted.vnode.key ?? 'none',
 			nextType: describeVNodeType(next.type),
 			nextKey: next.key ?? 'none',
 			parent: describeNode(parent)
-		});
+		}));
 		const previousParking = root.replacementParking;
 		const parking = {
 			mounts: new Map<VNode, Array<{ mounted: Mounted; parent: Node }>>(),
@@ -202,35 +198,24 @@ export function patchInner(
 
 	if (next.type === UnsafeHtml) {
 		mounted.vnode = next;
-		assertUnsafeHtmlAllowed(root);
-		bindUnsafeHtml(root, mounted, next.props.value);
+		const capability = requireUnsafeHtmlDomCapability();
+		capability.assertAllowed(root);
+		capability.bind(root, mounted, next.props.value);
 		return mounted;
 	}
 
 	if (next.type === Activity) {
-		const activity = mounted.activity;
-		if (!activity) throw new Error('Cannot patch an Activity boundary without Activity state');
-		mounted.stop?.();
-		mounted.stop = undefined;
-		mounted.vnode = next;
-		const contentParent = activity.retained?.segments[0]?.fragment ?? parent;
-		mounted.children = patchChildren(
-			root,
-			contentParent,
-			mounted.children,
-			next.children,
-			activity.owner,
-			activity.contentScope,
-			activity.retained?.detached ? null : mounted.end,
-			mounted
-		);
-		installActivity(root, mounted);
-		return mounted;
+		return requireStructuralBoundaryCapability().patchActivity(root, parent, mounted, next);
 	}
 
 	if (next.type === Suspense) {
-		updateSuspense(root, parent, mounted, next, parentInstance);
-		return mounted;
+		return requireStructuralBoundaryCapability().patchSuspense(
+			root,
+			parent,
+			mounted,
+			next,
+			parentInstance
+		);
 	}
 
 	if (next.type === Target) {
@@ -299,43 +284,7 @@ export function patchInner(
 		return mounted;
 	}
 
-	if (next.type === Dynamic) {
-		mounted.vnode = next;
-		const value = next.props.value;
-		mounted.stop?.();
-		mounted.children = patchChildren(
-			root,
-			parent,
-			mounted.children,
-			normalizeRenderResult(unwrap(value) as Child | Child[]),
-			parentInstance,
-			mounted.scope,
-			afterMountedChildren(mounted),
-			mounted
-		);
-		mounted.stop = watch(
-			() => {
-				const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
-				mounted.children = patchChildren(
-					root,
-					mounted.dom.parentNode ?? parent,
-					mounted.children,
-					nextChildren,
-					parentInstance,
-					mounted.scope,
-					afterMountedChildren(mounted),
-					mounted
-				);
-			},
-			undefined,
-			{
-				scope: mounted.scope,
-				onSchedule: () =>
-					stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[]))
-			}
-		);
-		return mounted;
-	}
+	if (next.type === Dynamic) return patchDynamic(root, parent, mounted, next, parentInstance);
 
 	if (next.type === Portal) {
 		const previousTarget = mounted.portalTarget ?? portalTarget(mounted.vnode);

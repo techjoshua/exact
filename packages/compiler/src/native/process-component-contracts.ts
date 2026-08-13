@@ -17,6 +17,49 @@ export type NativeCompilerComponent = Readonly<{
 	contexts: readonly NativeCompilerContextEffect[];
 	splitBoundaries: readonly string[];
 	diagnostics: readonly string[];
+	execution: NativeCompilerComponentExecution;
+}>;
+
+/** Canonical component-local execution subgraph produced by native analysis. */
+export type NativeCompilerComponentExecution = Readonly<{
+	version: 1;
+	ports: readonly Readonly<{
+		index: number;
+		kind: 'state' | 'props' | 'context' | 'derived' | 'argument';
+		path: string;
+		direction: 'input' | 'output' | 'inout';
+	}>[];
+	transitions: readonly Readonly<{
+		id: string;
+		taskId: string;
+		activation: 'setup' | 'interaction';
+		placement: 'client' | 'server' | 'isomorphic';
+		readiness: 'blocking' | 'nonblocking';
+		concurrency: 'parallel' | 'latest' | 'queue';
+		inputs: readonly number[];
+		outputs: readonly number[];
+	}>[];
+	reactive: readonly Readonly<{
+		name: string;
+		provenance: 'state' | 'props' | 'context' | 'derived' | 'cell' | 'snapshot' | 'unknown';
+		allocation: 'constant' | 'live-slot' | 'inline' | 'computed' | 'snapshot' | 'structural';
+		dependencies: readonly string[];
+	}>[];
+}>;
+
+/** Separates server activation requirements from browser resumption data. */
+export type NativeCompilerComponentResumption = Readonly<{
+	componentId: string;
+	serverRender: Readonly<{
+		stateReads: readonly string[];
+		serverContexts: readonly NativeCompilerContextEffect[];
+	}>;
+	client: Readonly<{
+		statePaths: readonly string[];
+		valueCaptures: readonly string[];
+		contexts: readonly string[];
+		boundaries: readonly string[];
+	}>;
 }>;
 
 /** Describes one local component rendered by another component. */

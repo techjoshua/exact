@@ -25,6 +25,7 @@ const child = spawn(data.executable, [], {
 const lines = createInterface({ input: child.stdout });
 const pendingLines: Array<(line: string) => void> = [];
 const queuedLines: string[] = [];
+let closing = false;
 
 lines.on('line', (line) => {
 	const pending = pendingLines.shift();
@@ -41,13 +42,11 @@ child.once('exit', (code, signal) => {
 parentPort?.on('message', (message: 'request' | 'close') => {
 	void handleMessage(message);
 });
+parentPort?.once('close', closeNativeProcess);
 
 async function handleMessage(message: 'request' | 'close'): Promise<void> {
 	if (message === 'close') {
-		child.stdin.write(`${JSON.stringify({ kind: 'shutdown' })}\n`);
-		child.kill();
-		Atomics.store(header, 0, stateClosed);
-		Atomics.notify(header, 0);
+		closeNativeProcess();
 		return;
 	}
 	if (Atomics.load(header, 0) !== stateRequest) {
@@ -74,7 +73,22 @@ function nextLine(): Promise<string> {
 	return new Promise((resolve) => pendingLines.push(resolve));
 }
 
+function closeNativeProcess(): void {
+	if (closing) return;
+	closing = true;
+	Atomics.store(header, 0, stateClosed);
+	Atomics.notify(header, 0);
+	try {
+		if (child.stdin.writable) child.stdin.write(`${JSON.stringify({ kind: 'shutdown' })}\n`);
+	} finally {
+		lines.close();
+		child.kill();
+		parentPort?.close();
+	}
+}
+
 function publish(nextState: number, value: string): void {
+	if (closing) return;
 	const encoded = encoder.encode(value);
 	if (encoded.byteLength > payload.byteLength) {
 		publishError(
@@ -91,6 +105,7 @@ function publish(nextState: number, value: string): void {
 }
 
 function publishError(error: unknown): void {
+	if (closing) return;
 	const message = error instanceof Error ? error.message : String(error);
 	const encoded = encoder.encode(message);
 	const length = Math.min(encoded.byteLength, payload.byteLength);

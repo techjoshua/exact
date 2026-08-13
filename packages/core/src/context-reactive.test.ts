@@ -9,7 +9,8 @@ import {
 	createVNode,
 	isVNode,
 	renderInstance,
-	type Component
+	type Component,
+	type VNode
 } from './index.js';
 
 describe('@exactjs/core context-reactive', () => {
@@ -136,6 +137,26 @@ describe('@exactjs/core context-reactive', () => {
 		expect(nodes).toHaveLength(1);
 		expect(isVNode(nodes[0])).toBe(true);
 		expect(isVNode(nodes[0]) ? nodes[0].type : undefined).toBe(Symbol.for('exact.fragment'));
+	});
+
+	it('preserves compiler-identified list caches across recreated render closures', () => {
+		const items = [{ id: 'a' }];
+		const instance = createComponentInstance(function List(this: Component<{}>) {
+			return () =>
+				this.map(
+					items,
+					(item) => item.id,
+					(item) => createVNode('li', null, item.id),
+					'fixture:list'
+				);
+		}, {});
+
+		const first = renderInstance(instance, () => undefined)[0] as VNode;
+		const firstCache = (first.props.list as { cache: Map<string, unknown> }).cache;
+		firstCache.set('a', { retained: true });
+		const second = renderInstance(instance, () => undefined)[0] as VNode;
+
+		expect((second.props.list as { cache: Map<string, unknown> }).cache).toBe(firstCache);
 	});
 
 	it('prevents child components from writing to parent-owned props', () => {

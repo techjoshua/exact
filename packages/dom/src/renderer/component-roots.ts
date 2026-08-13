@@ -14,9 +14,12 @@ export function refreshComponentRoot(
 	introduction: RootIntroduction = 'update'
 ): void {
 	const mounted = componentMounts.get(instance);
+	const target = mounted ? firstTargetElement(mounted) : undefined;
+	const host = mounted ? firstHostElement(mounted) : undefined;
+	if (mounted) mounted.componentRootCache = { target, host };
 	publishComponentRoot(
 		instance,
-		mounted ? (firstTargetElement(mounted) ?? firstHostElement(mounted)) : undefined,
+		target ?? host,
 		presented,
 		introduction
 	);
@@ -26,6 +29,10 @@ function firstTargetElement(mounted: Mounted): Element | undefined {
 	if (mounted.vnode.type === Target && mounted.targetBoundary?.selected?.dom instanceof Element)
 		return mounted.targetBoundary.selected.dom;
 	for (const child of mounted.children) {
+		if (child.instance && child.componentRootCache) {
+			if (child.componentRootCache.target) return child.componentRootCache.target;
+			continue;
+		}
 		const element = firstTargetElement(child);
 		if (element) return element;
 	}
@@ -74,11 +81,15 @@ export function disposeMountedComponentRoot(instance: ComponentInstance<any>): v
 export function firstHostElement(mounted: Mounted): Element | undefined {
 	if (
 		(typeof mounted.vnode.type === 'string' || mounted.renderProgram) &&
-		mounted.dom instanceof Element
+		(mounted.renderProgram?.programRoot ?? mounted.dom) instanceof Element
 	)
-		return mounted.dom;
+		return (mounted.renderProgram?.programRoot ?? mounted.dom) as Element;
 	if (mounted.vnode.type === Text) return undefined;
 	for (const child of mounted.children) {
+		if (child.instance && child.componentRootCache) {
+			if (child.componentRootCache.host) return child.componentRootCache.host;
+			continue;
+		}
 		const element = firstHostElement(child);
 		if (element) return element;
 	}

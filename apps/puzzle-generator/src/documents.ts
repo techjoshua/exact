@@ -1,4 +1,5 @@
 import { generateCrossword } from './crossword.js';
+import { validatePageLayout } from './page-layout.js';
 import { pageFitWarning, renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
 import { generateSudoku } from './sudoku.js';
 import type { Difficulty, PuzzleDocuments, PuzzleKind, PuzzleStyle } from './types.js';
@@ -19,6 +20,8 @@ export type DocumentRequest = {
 
 /** Validates a request, generates its model, and renders puzzle and solution SVGs. */
 export function createPuzzleDocuments(request: DocumentRequest): PuzzleDocuments {
+	const pageIssue = validatePageLayout(request.style);
+	if (pageIssue) throw new Error(pageIssue);
 	if (request.kind === 'sudoku') {
 		const puzzle = generateSudoku(request.boxSize, request.difficulty, request.seed);
 		const clueCount = puzzle.givens.filter(Boolean).length;

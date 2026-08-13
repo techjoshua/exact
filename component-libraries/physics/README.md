@@ -5,7 +5,7 @@ workers, servers, and tests.
 
 ## Quick start
 
-Create bodies during component setup, then advance the world manually or through the optional eXact
+Declare bodies in the outer component definition, then advance the world manually or through the optional eXact
 component surface:
 
 ```ts

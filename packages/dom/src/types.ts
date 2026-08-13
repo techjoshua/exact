@@ -1,5 +1,7 @@
 import type {
 	EnhancementEntry,
+	Child,
+	ComponentContextValues,
 	ComponentFunction,
 	ComponentInstance,
 	ExactRuntimeInspectionOwner,
@@ -31,13 +33,19 @@ export type Mounted = {
 	range?: 'item';
 	scope: EffectScope;
 	children: Mounted[];
+	/** Last normalized output of a compiler-owned dynamic range. */
+	dynamicChildren?: readonly Child[];
 	/** Invocation-local readers and resolved nodes for a compiler-owned render program. */
 	renderProgram?: {
 		invocation: ExactRenderProgramInvocation;
+		/** Intrinsic root used for compiler-path ownership when `dom` is an SSR range marker. */
+		readonly programRoot: Node;
 		readonly slotNodes: readonly (Node | undefined)[];
 		readonly root: Root;
 		/** Last effective planned props, grouped by their target element. */
 		props?: Map<Element, Record<string, unknown>>;
+		/** Applies replacement readers without recreating the retained slot watcher. */
+		refresh?: () => void;
 	};
 	/** Physical parent for children whose logical parent remains elsewhere. */
 	portalTarget?: Node;
@@ -46,6 +54,11 @@ export type Mounted = {
 	rendering?: boolean;
 	rerenderPending?: boolean;
 	instance?: ComponentInstance<any>;
+	/** Cached component-root candidates published after this component's structure is complete. */
+	componentRootCache?: {
+		target?: Element;
+		host?: Element;
+	};
 	delegatedEvents?: Map<string, EventListener>;
 	stop?: StopHandle;
 	/** Semantic target exported by an ordinary `_target` boundary and its route dependencies. */
@@ -115,12 +128,16 @@ export type Root = {
 	version: number;
 	boundary: ComponentFunction<{}, { version: number }>;
 	logger?: Logger;
+	/** Root-provided contexts inherited by components without a logical parent. */
+	ambientContexts?: ComponentContextValues;
 	debugMarkers: boolean;
 	maxTreeDepth: number;
 	traversalDepth: number;
 	maxTreeNodes: number;
 	traversedNodes: number;
 	workDepth: number;
+	/** Interaction-local reconciliation work collected only while an event is active. */
+	interactionWork?: { reconciliations: number; traversedNodes: number };
 	workBudget?: DomWorkBudget;
 	allowUnsafeHtml: boolean;
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;

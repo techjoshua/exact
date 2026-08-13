@@ -2,6 +2,7 @@ import { peek, reactive, rollbackReactiveMutationJournals, scheduleWork } from '
 
 import { TaskCancellation } from './cancellation.js';
 import { inheritComponentContinuationIdentity } from './component-continuation.js';
+import { taskDefinitionBrand, type TaskDefinition } from './definition-record.js';
 import { discardTaskMutations, publishTaskMutations } from './resources.js';
 import { readExactInspectionSource } from '../component/inspection-source.js';
 import type {
@@ -19,7 +20,6 @@ import {
 	createTaskOwnerRecord,
 	currentTaskFrameRecord,
 	currentTaskOwnerRecord,
-	executeTaskFrame,
 	frameForTaskContext,
 	taskOwnerRecord,
 	type TaskOwnerRecord
@@ -27,8 +27,9 @@ import {
 import { taskOwnerForHost } from './owner-hosts.js';
 import { TaskInvocationValue } from './invocation.js';
 import { validateTaskOptions } from './options.js';
-import { applyTaskOptimistic } from './optimism.js';
 import { donateTaskPriority, taskWorkPriority } from './priority.js';
+import { executeScheduledTaskGeneration } from './generation-execution.js';
+import { markTaskPerformanceTrace, startTaskPerformanceTrace } from './performance-trace.js';
 import { createTaskStatus, defineTaskStatusProperties } from './status.js';
 import type {
 	InternalTaskGeneration,
@@ -36,22 +37,7 @@ import type {
 	InternalTaskOwnerState
 } from './runtime-types.js';
 
-export type {
-	InternalTaskGeneration,
-	InternalTaskLane,
-	InternalTaskOwnerState
-} from './runtime-types.js';
-
-const taskDefinitionBrand = Symbol('exact.task-definition');
 const defaultLaneKey = Symbol('exact.default-task-lane');
-
-type TaskDefinition<Args extends unknown[], Result> = {
-	readonly [taskDefinitionBrand]: true;
-	readonly options: RuntimeTaskOptions<Args>;
-	readonly implementation: (...args: [...Args, TaskContext]) => Result | Promise<Result>;
-	readonly sourceEntityId?: string;
-	readonly owners: WeakMap<TaskOwnerRecord, InternalTaskOwnerState<Result>>;
-};
 
 /**
  * Defines one stable compilerless task using the same owner, lane, generation,
@@ -146,10 +132,11 @@ export function taskStatus<Args extends unknown[], Result>(
 export function invokeTaskForActivation<Args extends unknown[], Result>(
 	task: TaskFunction<Args, Result>,
 	owner: TaskOwnerRecord,
+	activationSite: object,
 	activation: 'initialization' | 'reactive',
 	args: Args
 ): TaskInvocation<Result> {
-	return invokeDefinition(readDefinition(task), owner, undefined, args, activation);
+	return invokeDefinition(readDefinition(task), owner, undefined, args, activation, activationSite);
 }
 
 function invokeDefinition<Args extends unknown[], Result>(
@@ -157,7 +144,8 @@ function invokeDefinition<Args extends unknown[], Result>(
 	explicitOwner: TaskOwnerRecord | undefined,
 	explicitParent: ReturnType<typeof currentTaskFrameRecord>,
 	args: Args,
-	activation: TaskActivation = 'invoked'
+	activation: TaskActivation = 'invoked',
+	activationSite?: object
 ): TaskInvocation<Result> {
 	const capturedArgs = definition.options.captureArguments
 		? peek(() => definition.options.captureArguments!(args))
@@ -174,9 +162,12 @@ function invokeDefinition<Args extends unknown[], Result>(
 			? taskOwnerRecord(definition.options.owner)
 			: createTaskOwnerRecord(definition.options.label));
 	const state = ownerState(definition, owner);
-	const key = definition.options.concurrencyKey?.(...resolvedArgs) ?? defaultLaneKey;
+	const dependencyDriven = activation !== 'invoked';
+	const key = dependencyDriven
+		? (activationSite ?? defaultLaneKey)
+		: (definition.options.concurrencyKey?.(...resolvedArgs) ?? defaultLaneKey);
 	const lane = taskLane(state, key);
-	const concurrency = definition.options.concurrency ?? 'parallel';
+	const concurrency = dependencyDriven ? 'latest' : (definition.options.concurrency ?? 'parallel');
 	if (concurrency === 'latest') cancelLane(lane, 'superseded');
 	const generation = ++state.nextGeneration;
 	const controller = new AbortController();
@@ -213,6 +204,7 @@ function invokeDefinition<Args extends unknown[], Result>(
 		releaseReservation,
 		foreground,
 		activation,
+		concurrency,
 		readiness,
 		priority,
 		observed: false,
@@ -263,28 +255,13 @@ function startGeneration<Args extends unknown[], Result>(
 	const execution = new Promise<Result>((resolveExecution, rejectExecution) => {
 		const scheduledWork = () => {
 			record.executing = true;
-			const frameExecution = executeTaskFrame(
-				{
-					parent: record.parent,
-					parentReserved: record.releaseReservation !== undefined,
-					owner,
-					controller: record.controller,
-					generation: record.generation,
-					activation: record.activation,
-					label: definition.options.label,
-					sourceEntityId: definition.sourceEntityId,
-					placement: definition.options.placement,
-					concurrency: definition.options.concurrency,
-					detached: definition.options.detached,
-					priority: record.priority,
-					readiness: record.readiness,
-					optimistic: (work) => applyTaskOptimistic(record, definition.options.concurrency, work),
-					propagateFailure: () => !record.observed
-				},
-				(context) =>
-					definition.implementation(
-						...([...record.args, context] as unknown as [...Args, TaskContext])
-					)
+			startTaskPerformanceTrace(owner, record, definition.sourceEntityId, definition.options.label);
+			const frameExecution = executeScheduledTaskGeneration(
+				owner,
+				record,
+				definition.options,
+				definition.sourceEntityId,
+				definition.implementation
 			);
 			record.releaseReservation?.();
 			void frameExecution.then(resolveExecution, rejectExecution);
@@ -306,6 +283,7 @@ function startGeneration<Args extends unknown[], Result>(
 				lane.error = undefined;
 				lane.generation = record.generation;
 			}
+			if (record.trace) markTaskPerformanceTrace(record, 'settled', { outcome: 'success' });
 			finishGeneration(definition, owner, state, lane, record);
 			record.resolve(value);
 		},
@@ -321,6 +299,10 @@ function startGeneration<Args extends unknown[], Result>(
 				lane.generation = record.generation;
 				if (!(error instanceof TaskCancellation)) lane.error = error;
 			}
+			if (record.trace)
+				markTaskPerformanceTrace(record, 'settled', {
+					outcome: error instanceof TaskCancellation ? 'cancelled' : 'error'
+				});
 			finishGeneration(definition, owner, state, lane, record);
 			record.reject(error);
 		}
@@ -337,7 +319,7 @@ function finishGeneration<Args extends unknown[], Result>(
 	lane.active.delete(record);
 	if (record.foreground) state.pendingCount = Math.max(0, state.pendingCount - 1);
 	if (record.foreground) lane.pendingCount = Math.max(0, lane.pendingCount - 1);
-	if ((definition.options.concurrency ?? 'parallel') === 'queue') {
+	if (record.concurrency === 'queue') {
 		const next = lane.queue.shift();
 		if (next) {
 			startGeneration(definition, owner, state, lane, next);
@@ -424,3 +406,4 @@ function resolveBoundOwner(owner?: TaskOwner): TaskOwnerRecord {
 		throw new Error('Binding task status requires an explicit owner outside a durable task host');
 	return ownerRecord;
 }
+import '../component/task-capability-integration.js';

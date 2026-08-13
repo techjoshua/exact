@@ -34,6 +34,7 @@ export interface ExactResolvedPluginConfiguration {
 	readonly render?: unknown;
 	readonly client?: unknown;
 	readonly testing?: unknown;
+	readonly language?: unknown;
 }
 
 /** Defines the exact configuration resolution interface contract. */
@@ -216,23 +217,27 @@ async function resolveOnePlugin<T>(
 	const validation = await controller.validate(current, finalContext);
 	if (validation !== undefined)
 		throw new Error(`Plugin ${selected.packageName} validate() must return undefined`);
-	const [build, server, render, client, testing] = await Promise.all([
+	const [build, server, render, client, testing, language] = await Promise.all([
 		options.hostMode === 'build' ? controller.buildConfig?.(current, finalContext) : undefined,
 		options.hostMode === 'server' ? controller.serverConfig?.(current, finalContext) : undefined,
 		options.hostMode === 'server' || options.hostMode === 'render'
 			? controller.renderConfig?.(current, finalContext)
 			: undefined,
 		options.hostMode === 'client' ? controller.clientConfig?.(current, finalContext) : undefined,
-		options.hostMode === 'testing' ? controller.testingConfig?.(current, finalContext) : undefined
+		options.hostMode === 'testing' ? controller.testingConfig?.(current, finalContext) : undefined,
+		controller.languageConfig?.(current, finalContext)
 	]);
 	if (build !== undefined) assertJsonSafe(build, `${selected.packageName} build configuration`);
+	if (language !== undefined)
+		assertJsonSafe(language, `${selected.packageName} language configuration`);
 	return Object.freeze({
 		plugin: selected,
 		build,
 		server,
 		render,
 		client,
-		testing
+		testing,
+		language
 	});
 }
 

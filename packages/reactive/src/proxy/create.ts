@@ -22,7 +22,8 @@ import {
 	reactiveRawObjects,
 	readonlyReactiveOptionsKey,
 	rootProxyCache,
-	sourcedProxyCache
+	sourcedProxyCache,
+	type CachedParentSource
 } from './state.js';
 
 /** Creates a reactive. */
@@ -50,7 +51,7 @@ export function createReactive(
 				return reactiveCollectionMember(target, key, proxy, options, (current, dependency) => {
 					if (!current || typeof current !== 'object' || !isReactiveContainer(unwrap(current)))
 						return current;
-					return createReactive(
+					return sourcedReactive(
 						unwrap(current) as object,
 						options,
 						dependency === undefined ? undefined : createParentSource(target, dependency, options)
@@ -58,6 +59,8 @@ export function createReactive(
 				});
 			}
 			const current = Reflect.get(target, key, receiver);
+			if (current && typeof current === 'object' && requiresExactProxyValue(target, key))
+				return current;
 			if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {
 				return (...args: unknown[]) =>
 					mutateArray(target, String(key), current, args, receiver, options);
@@ -72,7 +75,7 @@ export function createReactive(
 				const currentValue = current.get();
 				const currentTarget = unwrap(currentValue);
 				return isReactiveContainer(currentTarget)
-					? createReactive(currentTarget, options, createParentSource(target, key, options))
+					? sourcedReactive(currentTarget, options, createParentSource(target, key, options))
 					: currentTarget;
 			}
 
@@ -83,7 +86,7 @@ export function createReactive(
 					return receiver;
 				}
 				const source = createParentSource(target, key, options);
-				const proxy = createReactive(currentTarget, options, source);
+				const proxy = sourcedReactive(currentTarget, options, source);
 				return proxy;
 			}
 
@@ -209,11 +212,17 @@ export function createReactive(
 	return proxy;
 }
 
+/** Preserves ECMAScript invariants for frozen object-valued data properties. */
+function requiresExactProxyValue(target: object, key: PropertyKey): boolean {
+	const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+	return !!descriptor && 'value' in descriptor && !descriptor.configurable && !descriptor.writable;
+}
+
 function createParentSource(
 	target: object,
 	key: PropertyKey,
 	options: ReactiveOptions
-): ReactiveRef {
+): CachedParentSource {
 	const optionKey = reactiveOptionsKey(options);
 	let byKey = parentSourceCache.get(target);
 	if (!byKey) parentSourceCache.set(target, (byKey = new Map()));
@@ -221,7 +230,7 @@ function createParentSource(
 	if (!byOptions) byKey.set(key, (byOptions = new WeakMap()));
 	const cached = byOptions.get(optionKey);
 	if (cached) return cached;
-	const source: ReactiveRef = {
+	const source: CachedParentSource = {
 		target,
 		key,
 		get() {
@@ -230,11 +239,11 @@ function createParentSource(
 			if (isReactiveValue(next)) {
 				const nextValue = next.get();
 				return nextValue && typeof nextValue === 'object'
-					? createReactive(unwrap(nextValue) as object, options, source)
+					? sourcedReactive(unwrap(nextValue) as object, options, source)
 					: nextValue;
 			}
 			return next && typeof next === 'object'
-				? createReactive(unwrap(next) as object, options, source)
+				? sourcedReactive(unwrap(next) as object, options, source)
 				: next;
 		},
 		set(value: unknown) {
@@ -250,6 +259,23 @@ function createParentSource(
 	};
 	byOptions.set(optionKey, source);
 	return source;
+}
+
+/** Reuses the child proxy most recently resolved through one stable parent path. */
+function sourcedReactive(
+	raw: object,
+	options: ReactiveOptions,
+	source?: CachedParentSource
+): object {
+	if (!source) return createReactive(raw, options);
+	if (source.cachedRaw === raw && source.cachedProxy) {
+		registerProxySource(source.cachedProxy, source);
+		return source.cachedProxy;
+	}
+	const proxy = createReactive(raw, options, source);
+	source.cachedRaw = raw;
+	source.cachedProxy = proxy;
+	return proxy;
 }
 
 function getCachedProxy(

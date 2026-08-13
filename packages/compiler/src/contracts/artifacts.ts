@@ -1,5 +1,5 @@
 import type { ExactPlacement } from './policy.js';
-import type { ExactPartitionPlanIR } from './analysis.js';
+import type { ExactActivationDecision, ExactPartitionPlanIR } from './analysis.js';
 
 /** Configures package export map. */
 export type PackageExportMapOptions = {
@@ -71,7 +71,12 @@ export type ExactTaskOperationPlan = Readonly<{
 	id: string;
 	componentId: string;
 	readiness: 'blocking' | 'nonblocking';
-	dependencies: readonly Readonly<{ source: 'state' | 'props' | 'derived' | 'argument' }>[];
+	concurrency: 'parallel' | 'latest' | 'queue';
+	dependencies: readonly Readonly<{
+		index: number;
+		source: 'state' | 'props' | 'derived' | 'argument';
+		path?: string;
+	}>[];
 	stateReads: readonly ExactTaskStatePathPlan[];
 	stateWrites: readonly ExactTaskStatePathPlan[];
 	publicContexts: readonly string[];
@@ -80,7 +85,7 @@ export type ExactTaskOperationPlan = Readonly<{
 	serverContextWrites: readonly string[];
 	boundaries: readonly string[];
 	invocation?: Readonly<{
-		arguments: readonly Readonly<{ source: 'argument' }>[];
+		arguments: readonly Readonly<{ index: number; source: 'argument'; path?: string }>[];
 		concurrency: 'parallel' | 'latest' | 'queue';
 	}>;
 }>;
@@ -108,6 +113,7 @@ export type ExactArtifactRegistryPlan = Readonly<{
 	name: string;
 	exportName: string;
 	componentId?: string;
+	activation?: ExactActivationDecision;
 }>;
 
 /** Supported compiler products consumed by build adapters and artifact graph creation. */
@@ -163,6 +169,7 @@ export type ExactComponentRegistryEntry = {
 	exportName: string;
 	module: string;
 	componentId?: string;
+	activation?: ExactActivationDecision;
 };
 
 /** Defines the client island registry entry type contract. */
@@ -182,6 +189,8 @@ export type ExactHydrationRegistrationModuleOptions = {
 	endpoints?: ExactHydrationEndpointRoutes;
 	islandsExportName?: string;
 	registrationExportName?: string;
+	/** Keeps source extensions when a bundler, rather than Node, resolves authored modules. */
+	preserveAuthoredModuleExtensions?: boolean;
 };
 
 /** Defines the exact hydration endpoint routes type contract. */

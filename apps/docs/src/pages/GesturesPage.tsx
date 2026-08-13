@@ -44,7 +44,7 @@ export function GesturesPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Component library / @exactjs/gestures"
-			title="Recognize intent without owning application state"
+			title="Recognize intent, preserve ownership"
 			description="Prepared recognizers normalize pointer, hover, focus, keyboard, and pinch input while one durable component session owns capture, cancellation, coalescing, and cleanup."
 			previous={{ path: '/components/motion', label: 'Motion' }}
 			next={{ path: '/components/physics', label: 'Physics' }}

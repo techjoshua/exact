@@ -73,7 +73,7 @@ func setupSnapshotCaptureDiagnostics(
 					diagnostics = append(diagnostics, Diagnostic{
 						Severity: "error",
 						Code:     "EXACT2002",
-						Message: "setup-time state snapshot " + binding.Name +
+						Message: "initialization-time state snapshot " + binding.Name +
 							" is captured by an asynchronous callback; use a live " +
 							"reactive read or peek() for an intentional snapshot",
 						Start:  reference.Pos(),

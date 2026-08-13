@@ -12,6 +12,12 @@ export type ExactRenderProgramNode = Readonly<{
 	namespace: 'html' | 'svg' | 'mathml';
 }>;
 
+/** One server-only marker or slot operation between immutable program strings. */
+export type ExactRenderProgramSsrOperation = Readonly<{
+	kind: 'node-open' | 'node-close' | 'slot';
+	index: number;
+}>;
+
 /** One compiler-owned scalar slot. The reader remains invocation-local. */
 export type ExactRenderProgramSlot = Readonly<{
 	id: string;
@@ -29,6 +35,8 @@ export type ExactRenderProgram = Readonly<{
 	parts: readonly string[];
 	slots: readonly ExactRenderProgramSlot[];
 	nodes: readonly ExactRenderProgramNode[];
+	ssrParts?: readonly string[];
+	ssrOperations?: readonly ExactRenderProgramSsrOperation[];
 }>;
 
 type BrandedRenderProgram = ExactRenderProgram & { readonly [renderProgramBrand]: true };
@@ -66,6 +74,14 @@ export function createCompiledRenderProgram(
 			nodes: Object.freeze(
 				program.nodes.map((node) => Object.freeze({ ...node, path: Object.freeze([...node.path]) }))
 			),
+			...(program.ssrParts ? { ssrParts: Object.freeze([...program.ssrParts]) } : {}),
+			...(program.ssrOperations
+				? {
+						ssrOperations: Object.freeze(
+							program.ssrOperations.map((operation) => Object.freeze({ ...operation }))
+						)
+					}
+				: {}),
 			[renderProgramBrand]: true as const
 		});
 		programs.set(cacheKey, branded);

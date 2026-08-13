@@ -43,7 +43,7 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 	this.state.shown = true;
 	this.state.stageScale = 1;
 	let stageScale = 1;
-	const stageViewport = createRef<HTMLElement>('enhancement-playground-stage');
+	const stageViewport = createRef<HTMLDivElement>('enhancement-playground-stage');
 	const world = createPhysicsWorld({ fixedStep: 1 / 120, maxCatchUpSteps: 8 });
 	const orb = world.createBody({
 		id: 'orb',

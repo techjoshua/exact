@@ -68,8 +68,8 @@ export type SudokuState = {
 	puzzleId: string;
 	difficulty: Difficulty;
 	cells: SudokuCell[];
-	selectedIndex: number;
-	selectedDigit?: Digit;
+	/** Coherent board and number-pad selection; index -1 releases both. */
+	selection: { index: number; digit?: Digit };
 	noteMode: boolean;
 	history: GameMove[];
 	future: GameMove[];
@@ -85,6 +85,7 @@ export type SudokuState = {
 export type SudokuCommands = {
 	select(index: number): void;
 	toggleDigit(digit: Digit): void;
+	toggleNote(index: number): void;
 	erase(index?: number): void;
 	toggleNotes(): void;
 	undo(): void;

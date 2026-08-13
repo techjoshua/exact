@@ -70,7 +70,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="One component, two cooperating state machines"
+			title="One component across runtimes"
 			description="Server work remains ordinary component code. The compiler separates the client and server transitions, carries only required public values, and keeps server libraries and resources out of the browser."
 			previous={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
 			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
@@ -159,6 +159,57 @@ export function ServerExecutionPage(this: Component<{}>) {
 					of repeating the initial query just to rediscover the same state.
 				</p>
 				<p>
+					A browser entry with no compiler-generated server operations, response patches, or client
+					islands may import <code>@exactjs/hydrate/root</code>. That static hydration-only facade
+					still adopts and owns the durable component tree while allowing bundlers to remove the
+					unused transport, patch, and island runtimes. Applications using any of those capabilities
+					must import the main hydration entry.
+				</p>
+				<p>
+					Its <code>hydrateAfterNavigation()</code> form gives visible SSR content one rendering
+					opportunity after <code>DOMContentLoaded</code>, then schedules user-visible activation. A
+					pointer, keyboard, input, change, or submit event arriving first activates synchronously
+					from capture, so deferring adoption does not create an inert interaction window. Hidden
+					documents activate from a task because animation frames may be throttled indefinitely.
+					Scheduling follows the root container&apos;s own document and window, including embedded
+					realms. Scheduling and hydration failures remove pending hooks and settle once without a
+					later retry.
+				</p>
+				<p>
+					An opt-in hydration profile reports DOM capture, adoption, form-control restoration, and
+					total hydration independently, making scheduling delay distinguishable from adoption work.
+				</p>
+				<p>
+					The compiler attaches a small execution subgraph to each generated component: indexed
+					value ports, setup and interaction transitions, placement, readiness, and concurrency.
+					Setup continuations wait until every constant, reactive input, or predecessor output is
+					available. A completed output wakes only its direct consumers; a newer generation makes
+					that output pending and fences stale completion. Available <code>undefined</code> remains
+					a real value rather than being confused with an unresolved slot.
+				</p>
+				<p>
+					A child prop may combine several planned outputs into one object. The generated reactive
+					value carries every contributing output path, so server rendering waits for the complete
+					aggregate before child setup instead of initializing the child from a partially populated
+					object.
+				</p>
+				<p>
+					Rendering the selected root wires each reachable compiled child before waiting for parent
+					work. Independent nested continuations can therefore enter the same request-wide bounded
+					scheduler immediately, with no startup planner or flattened application graph. Conditional
+					branches, keyed lists, registries, and lazy components still follow normal render
+					reachability, so unselected work stays inactive. Client-only async tasks reuse the same
+					dependency watcher but never create a server transition.
+				</p>
+				<p>
+					The server reuses an immutable execution blueprint for each selected root. Validated
+					contracts and port, transition, output-path, and setup-prop indexes are prepared once;
+					dynamic components join that root&apos;s blueprint only when rendering reaches them. Weak
+					keys permit replaced components to be collected, and changed compiler metadata is
+					revalidated. Props, state, contexts, task generations, cancellation, and dependency
+					watchers remain request-owned, so the cache cannot leak one request into another.
+				</p>
+				<p>
 					For compiler-proven intrinsic regions, eXact can skip generic VNode traversal: the server
 					writes escaped text and finite host slots directly, the browser clones a cached HTML, SVG,
 					or MathML template, and hydration adopts with compiler paths. Properties, styles, URLs,
@@ -167,8 +218,16 @@ export function ServerExecutionPage(this: Component<{}>) {
 					structural and otherwise unproven regions retain a lazy region-local fallback.
 				</p>
 				<p>
+					When marked SSR is required, hydration addresses the same planned intrinsic nodes and
+					scalar slots by their compiler identities. It retains the server DOM and marker protocol
+					without constructing an equivalent generic cell tree, while one root-level snapshot
+					protects focus and form state during activation. Completed nested components also publish
+					cached target and host candidates so parent root discovery does not repeat their
+					traversal.
+				</p>
+				<p>
 					Independent local, context-free component siblings may settle concurrently during
-					markerless async SSR. <code>maxAsyncSsrConcurrency</code> defaults to <code>4</code>,{' '}
+					markerless async SSR. <code>maxAsyncSsrConcurrency</code> defaults to <code>4</code>,
 					<code>1</code>
 					forces serial work, and the renderer caps the value at <code>32</code>. Results still
 					publish in source order. Nested proven groups share the same request-wide bound;
@@ -178,7 +237,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					Finite client islands share one grouped hydration table instead of repeating their
 					component name and props on every boundary. Opaque spreads keep the self-describing
 					fallback. Compact interaction islands keep no decoded prop shell while dormant and release
-					the shared table after final activation. Progressive inline responses install one
+					the shared table after final activation. Their generated registry carries bounded target
+					and event policies rather than publishing event names in HTML; inert server ranges inside
+					them keep independent refresh ownership. Progressive inline responses install one
 					root-confined reveal helper and use compact calls afterward; hydration claims that helper,
 					and inert mode remains available when policy forbids inline code.
 				</p>

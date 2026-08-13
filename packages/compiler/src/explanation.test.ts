@@ -13,6 +13,12 @@ describe('@exactjs/compiler explanation', () => {
 		);
 
 		expect(result.explanation?.components).toHaveLength(1);
+		expect(result.explanation?.islands[0]?.activation).toEqual(
+			expect.objectContaining({
+				mode: 'interaction',
+				targets: [expect.objectContaining({ events: [{ type: 'click', replay: 'native-click' }] })]
+			})
+		);
 		expect(result.explanation?.components[0]).toMatchObject({
 			name: 'Counter',
 			continuations: [

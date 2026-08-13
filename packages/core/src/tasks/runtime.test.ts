@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { computed, currentWorkPriority, flushSync, reactive, watch } from '@exactjs/reactive';
 
 import type { TaskContext } from './contracts.js';
+import type { Component } from '../component/contracts.js';
+import { LoggerContext } from '../component/contexts.js';
+import { createComponentInstance } from '../component/runtime.js';
 import { runTaskFrame } from '../framework/task-frames.js';
+import type { LogEvent, Logger } from '../logging.js';
 import { activateTask } from './activation.js';
 import {
 	createTaskOwnerRecord,
@@ -10,7 +14,7 @@ import {
 	withTaskOwnerRecord
 } from './frame-runtime.js';
 import { createTaskOwner } from './owners.js';
-import { bindTask, defineTask, invokeTask, taskStatus } from './runtime.js';
+import { bindTask, bindTaskForHost, defineTask, invokeTask, taskStatus } from './runtime.js';
 
 function deferred<T>() {
 	let resolve!: (value: T) => void;
@@ -105,9 +109,10 @@ describe('unified task runtime', () => {
 		stop();
 	});
 
-	it('shares one child frame across a broad reactive invalidation wave', async () => {
+	it('shares one lightweight frame across a broad synchronous reactive invalidation wave', async () => {
 		const state = reactive({ value: 0 });
 		const scheduledFrameIds = new Set<number>();
+		let parentFrameId: number | undefined;
 		const stops = Array.from({ length: 100 }, () =>
 			watch(() => {
 				void state.value;
@@ -116,13 +121,35 @@ describe('unified task runtime', () => {
 			})
 		);
 		const task = defineTask({}, () => {
+			parentFrameId = currentTaskFrameRecord()?.id;
 			state.value++;
 		});
 
 		await task();
 
 		expect(scheduledFrameIds.size).toBe(1);
+		expect([...scheduledFrameIds]).not.toEqual([parentFrameId]);
 		for (const stop of stops) stop();
+	});
+
+	it('reuses the open producer for an interactive consequence wave', async () => {
+		const state = reactive({ value: 0 });
+		let parentFrameId: number | undefined;
+		let consequenceFrameId: number | undefined;
+		const stop = watch(() => {
+			void state.value;
+			consequenceFrameId = currentTaskFrameRecord()?.id;
+		});
+		const task = defineTask({ priority: 'immediate' }, () => {
+			parentFrameId = currentTaskFrameRecord()?.id;
+			state.value++;
+			flushSync('interactive');
+		});
+
+		await task();
+
+		expect(consequenceFrameId).toBe(parentFrameId);
+		stop();
 	});
 
 	it('keeps presence work independently attached beneath the shared reactive frame', async () => {
@@ -218,6 +245,75 @@ describe('unified task runtime', () => {
 
 		expect(activations).toEqual(['initialization:1', 'reactive:2']);
 		activation[Symbol.dispose]();
+		await owner[Symbol.asyncDispose]();
+	});
+
+	it('supersedes reactive generations independently of invoked concurrency policy', async () => {
+		const owner = createTaskOwnerRecord('reactive supersession test');
+		const state = reactive({ value: 1 });
+		const started: number[] = [];
+		const aborted: number[] = [];
+		const task = defineTask(
+			{ concurrency: 'parallel' },
+			(value: number, context: TaskContext) =>
+				new Promise<number>((resolve, reject) => {
+					started.push(value);
+					if (value === 2) resolve(value);
+					context.signal.addEventListener('abort', () => {
+						aborted.push(value);
+						reject(context.signal.reason);
+					});
+				})
+		);
+		const activation = withTaskOwnerRecord(owner, () =>
+			activateTask(
+				task,
+				computed(() => state.value)
+			)
+		);
+		flushSync();
+		await Promise.resolve();
+
+		state.value = 2;
+		flushSync();
+		await Promise.resolve();
+		flushSync();
+		await Promise.resolve();
+
+		expect(started).toEqual([1, 2]);
+		expect(aborted).toEqual([1]);
+		activation[Symbol.dispose]();
+		await owner[Symbol.asyncDispose]();
+	});
+
+	it('isolates dependency-driven concurrency by activation site', async () => {
+		const owner = createTaskOwnerRecord('activation site test');
+		const state = reactive({ left: 1, right: 2 });
+		const signals: AbortSignal[] = [];
+		const task = defineTask(
+			{ concurrency: 'latest' },
+			(_value: number, context: TaskContext) =>
+				new Promise<void>((_resolve, reject) => {
+					signals.push(context.signal);
+					context.signal.addEventListener('abort', () => reject(context.signal.reason));
+				})
+		);
+		const activations = withTaskOwnerRecord(owner, () => [
+			activateTask(
+				task,
+				computed(() => state.left)
+			),
+			activateTask(
+				task,
+				computed(() => state.right)
+			)
+		]);
+		flushSync();
+		await Promise.resolve();
+
+		expect(signals).toHaveLength(2);
+		expect(signals.every((signal) => !signal.aborted)).toBe(true);
+		for (const activation of activations) activation[Symbol.dispose]();
 		await owner[Symbol.asyncDispose]();
 	});
 
@@ -392,6 +488,41 @@ describe('unified task runtime', () => {
 			context.optimistic(async () => undefined);
 		});
 		await expect(invalid()).rejects.toThrow('requires a synchronous callback');
+	});
+
+	it('traces component-owned task optimism and settlement only at trace level', async () => {
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'trace',
+			log: (event) => events.push(event)
+		};
+		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+			this.setContext(LoggerContext, logger);
+			return () => null;
+		}, {});
+		const owner = createComponentInstance(() => () => null, {}, parent);
+		const state = reactive({ value: 0 });
+		const task = bindTaskForHost(
+			owner,
+			defineTask({ concurrency: 'latest', label: 'claim' }, (context: TaskContext) => {
+				context.optimistic(() => state.value++);
+				return state.value;
+			})
+		);
+
+		await expect(task()).resolves.toBe(1);
+
+		const traces = events
+			.filter((event) => event.message.startsWith('performance task'))
+			.map((event) => event.data as Record<string, unknown>);
+		expect(traces.map((trace) => trace.phase)).toEqual([
+			'started',
+			'optimistic-applied',
+			'settled'
+		]);
+		expect(new Set(traces.map((trace) => trace.operationId)).size).toBe(1);
+		expect(traces[2]!.attributes).toEqual({ outcome: 'success' });
+		parent.unmount();
 	});
 
 	it('cancels every generation when its owner is disposed', async () => {

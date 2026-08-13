@@ -83,7 +83,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 		touchAction: 'none'
 	});
 	function confirmHold() {
-		this.state.held = !peek(() => this.state.held);
+		state.held = !peek(() => state.held);
 	}
 	const holdControl = defineGesture({
 		name: 'hold-to-confirm',
@@ -162,11 +162,11 @@ export function GestureControls(this: Component<GestureControlsState>) {
 					<span className="sample-label">Press</span>
 					<button className="applause-button" gesture:apply={pressControl}>
 						<span
-							key={this.state.presses}
+							key={String(this.state.presses)}
 							className={this.state.presses ? 'applause-icon is-active' : 'applause-icon'}
 						>
 							👏
-						</span>{' '}
+						</span>
 						Applaud <strong>{this.state.presses}</strong>
 					</button>
 					<small aria-live="polite">

@@ -43,6 +43,7 @@ export class NativeCompilerProcess {
 	private typescriptVersion: string | undefined;
 	private backendVersion: string | undefined;
 	private disposed = false;
+	private workerClosed = false;
 
 	constructor(options: NativeCompilerProcessOptions) {
 		if (!options.executable) throw new Error('Native compiler executable is required');
@@ -60,12 +61,18 @@ export class NativeCompilerProcess {
 		this.worker = new Worker(worker, {
 			workerData: { executable: options.executable, memory: this.memory }
 		});
-		this.waitForState(stateStarting, 'start');
-		if (Atomics.load(this.header, 0) === stateError) throw this.readError();
-		this.worker.unref();
-		const version = this.request({ kind: 'version' });
-		this.typescriptVersion = version.typescriptVersion;
-		this.backendVersion = version.backendVersion;
+		try {
+			this.waitForState(stateStarting, 'start');
+			if (Atomics.load(this.header, 0) === stateError) throw this.readError();
+			this.worker.unref();
+			const version = this.request({ kind: 'version' });
+			this.typescriptVersion = version.typescriptVersion;
+			this.backendVersion = version.backendVersion;
+		} catch (error) {
+			this.closeWorker();
+			this.disposed = true;
+			throw error;
+		}
 	}
 
 	/** Executes one request through the existing native process. */
@@ -142,19 +149,34 @@ export class NativeCompilerProcess {
 	dispose(): void {
 		if (this.disposed) return;
 		this.disposed = true;
-		const activeState = Atomics.load(this.header, 0);
-		this.worker.postMessage('close');
-		this.waitForState(activeState, 'close');
-		void this.worker.terminate();
+		this.closeWorker();
 	}
 
 	private waitForState(expected: number, operation: string): void {
 		const result = Atomics.wait(this.header, 0, expected, this.timeoutMs);
 		if (result === 'timed-out') {
-			void this.worker.terminate();
 			this.disposed = true;
+			this.closeWorker();
 			throw new Error(`Native compiler timed out during ${operation}`);
 		}
+	}
+
+	/** Stops a provisional or published worker and the native child process it owns. */
+	private closeWorker(): void {
+		if (this.workerClosed) return;
+		this.workerClosed = true;
+		const activeState = Atomics.load(this.header, 0);
+		let closedGracefully = activeState === stateClosed;
+		try {
+			if (!closedGracefully) {
+				this.worker.postMessage('close');
+				Atomics.wait(this.header, 0, activeState, this.timeoutMs);
+				closedGracefully = Atomics.load(this.header, 0) === stateClosed;
+			}
+		} catch {
+			// The worker may already have exited. Forced termination remains the fallback below.
+		}
+		if (!closedGracefully) void this.worker.terminate();
 	}
 
 	private readError(): Error {

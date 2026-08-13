@@ -29,11 +29,14 @@
 		"dist/native/async-language-client.*",
 		"dist/native/module-analysis.*",
 		"dist/native/process.*",
+		"dist/native/process-activation-contracts.*",
+		"dist/native/process-continuation-contracts.*",
 		"dist/native/process-contracts.*",
 		"dist/native/process-diagnostic-contracts.*",
 		"dist/native/process-module-contracts.*",
 		"dist/native/process-policy-contracts.*",
 		"dist/native/process-semantic-contracts.*",
+		"dist/native/process-state-contracts.*",
 		"dist/native/process-worker.*",
 		"dist/native/transformation.*",
 		"dist/paths.*",
@@ -67,7 +70,10 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
+		"@exactjs/config": "^0.1.0",
 		"@exactjs/devtools-protocol": "^0.1.0",
+		"@exactjs/language-extension-api": "^0.1.0",
+		"@exactjs/language-extension-host": "^0.1.0",
 		"@exactjs/instrumentation": "^0.1.0"
 	},
 	"optionalDependencies": {

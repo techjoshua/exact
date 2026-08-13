@@ -4,7 +4,7 @@ Status: implemented compatibility targets for React 18.3 and React 19.2, with
 the explicit fidelity limits below.
 
 React compatibility is an adoption boundary for React-owned code. Native eXact
-components retain eXact's setup-once, inspectable-state, fine-grained model.
+components retain eXact's durable, inspectable reactive-state-machine model.
 
 ## Build selection
 

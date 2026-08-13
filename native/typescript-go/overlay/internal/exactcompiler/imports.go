@@ -19,6 +19,7 @@ func collectImports(sourceFile *ast.SourceFile) []Import {
 				TypeOnly:        typeOnly,
 				SideEffectOnly:  sideEffectOnly,
 				RuntimeBinding:  importHasRuntimeBinding(clause),
+				Enhancement:     exactEnhancementImport(declaration),
 				Start:           statement.Pos(),
 				Length:          statement.End() - statement.Pos(),
 			})

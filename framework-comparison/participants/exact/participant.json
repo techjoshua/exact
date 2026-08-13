@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "exact-controlled",
+	"framework": "eXact",
+	"frameworkVersion": "0.1.0",
+	"status": "scaffolded",
+	"tracks": ["controlled-service"],
+	"runtime": "node-24",
+	"commands": {
+		"build": "npm run build:exact -w @exactjs/framework-comparison-suite",
+		"start": "npm run dev:exact -w @exactjs/framework-comparison-suite"
+	},
+	"baseUrl": "http://127.0.0.1:4401",
+	"sourceRoots": ["src"]
+}

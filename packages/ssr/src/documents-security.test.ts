@@ -7,6 +7,7 @@ import {
 	type Component
 } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
+import { exactResponseBodyOf } from '@exactjs/server';
 import {
 	createExactServerRuntime,
 	parseKeyedListSnapshotHtml,
@@ -26,6 +27,27 @@ import {
 } from './test-support/streams.js';
 
 describe('@exactjs/ssr documents-security', () => {
+	it('preserves ordered renderer chunks through the Node response body handoff', async () => {
+		const runtime = createExactServerRuntime({
+			contract: { version: 1, invocations: {}, boundaries: {} }
+		});
+		const response = await renderExactRequestToProgressiveHtmlResponse(
+			{ method: 'GET', url: 'https://example.test/' },
+			runtime,
+			() => createVNode('main', null, createVNode('h1', null, 'Ready')),
+			{ hydration: false, markers: false }
+		);
+		const chunks: string[] = [];
+
+		await exactResponseBodyOf(response)?.writeTo((chunk) => {
+			chunks.push(chunk);
+		});
+
+		expect(chunks.length).toBeGreaterThan(3);
+		expect(chunks.join('')).toBe('<div id="exact-root"><main><h1>Ready</h1></main></div>');
+		await runtime.dispose?.();
+	});
+
 	it('preserves authored documents instead of adding a progressive root wrapper', async () => {
 		const runtime = createExactServerRuntime({
 			contract: { version: 1, invocations: {}, boundaries: {} }

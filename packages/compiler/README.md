@@ -38,6 +38,11 @@ module-local dependencies and component identity on each artifact entry. Ephemer
 analysis is compiler-owned and is not part of compilation results or artifact graphs.
 Generated component, operation, continuation, and registry identities are opaque build output.
 
+Build-tool authors may set `componentContractProjection` only when producing a concrete runtime
+bundle. `hydrate` retains resumption metadata, `client` omits it, and both omit analysis-only
+component inventories already present in `componentBuild`. Leaving the option unset preserves the
+complete rendering-mode-neutral compiler contract.
+
 Build and test adapters can call `inspectExactComponentBuildFacts()` for the same protocol-1
 descriptive component/import projection without emitting JavaScript. The result contains no marker
 interpretation, package trust, or authorization decision; adapters must join its authored edges to

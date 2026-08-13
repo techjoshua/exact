@@ -1,10 +1,20 @@
 import type { NativeCompilerModuleRewrite } from './process-module-contracts.js';
-import type { NativeCompilerComponent } from './process-component-contracts.js';
+import type {
+	NativeCompilerComponent,
+	NativeCompilerComponentResumption
+} from './process-component-contracts.js';
 import type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
 import type { NativeCompilerPolicyAnalysis } from './process-policy-contracts.js';
 import type { NativeCompilerPartitionPlan } from './process-partition-contracts.js';
 import type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 import type { NativeCompilerTask } from './process-task-contracts.js';
+import type { NativeCompilerContinuation } from './process-continuation-contracts.js';
+import type { ExactActivationDecision } from './process-activation-contracts.js';
+import type {
+	NativeCompilerStateAlias,
+	NativeCompilerStateEffect,
+	NativeCompilerStateRead
+} from './process-state-contracts.js';
 
 export type {
 	NativeCompilerModuleExportReplacement,
@@ -12,6 +22,7 @@ export type {
 } from './process-module-contracts.js';
 export type {
 	NativeCompilerComponent,
+	NativeCompilerComponentResumption,
 	NativeCompilerRenderEdge
 } from './process-component-contracts.js';
 export type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
@@ -33,20 +44,24 @@ export type {
 	NativeCompilerTaskResource,
 	NativeCompilerTaskSignalCall
 } from './process-task-contracts.js';
+export type { NativeCompilerContinuation } from './process-continuation-contracts.js';
+export type * from './process-activation-contracts.js';
+export type * from './process-state-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.28.0';
+export const nativeCompilerProtocolVersion = '1.34.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
 	id?: string;
-	kind: 'version' | 'reset' | 'diagnose' | 'analyze' | 'compile';
+	kind: 'version' | 'reset' | 'diagnose' | 'analyze' | 'compile' | 'extension';
 	source?: string;
 	root?: string;
 	/** Immutable deployment namespace shared by every artifact in one partition graph. */
 	buildKey?: string;
 	configFile?: string;
 	target?: 'default' | 'client' | 'server';
+	componentContractProjection?: 'complete' | 'hydrate' | 'client';
 	serverComponents?: boolean;
 	preserveComponentHoisting?: boolean;
 	diagnostics?: 'syntax' | 'semantic';
@@ -60,6 +75,10 @@ export type NativeCompilerRequest = Readonly<{
 	moduleRewrite?: NativeCompilerModuleRewrite;
 	/** Adds compact source identity markers without retaining rich inspection metadata. */
 	instrumentInspection?: boolean;
+	/** First virtual package-enhancement offset appended after authored source. */
+	packageEnhancementBoundary?: number;
+	/** Namespaced native frontend operation isolated from standard compiler semantics. */
+	extension?: Readonly<{ namespace: string; payload?: unknown }>;
 }>;
 
 /** Host-owned runtime brand adapter used for unproven JSX component values. */
@@ -115,6 +134,7 @@ export type NativeCompilerImport = Readonly<{
 	typeOnly: boolean;
 	sideEffectOnly: boolean;
 	runtimeBinding: boolean;
+	enhancement?: boolean;
 	start: number;
 	length: number;
 }>;
@@ -185,6 +205,7 @@ export type NativeCompilerBoundary = Readonly<{
 	discriminatorKind?: 'single' | 'branch' | 'keyed';
 	discriminatorValues?: string[];
 	generation?: number;
+	activation?: ExactActivationDecision;
 }>;
 
 /** Describes one JSX attribute discovered inside the native process. */
@@ -203,6 +224,20 @@ export type NativeCompilerJSXElement = Readonly<{
 	start: number;
 	length: number;
 	attributes: readonly NativeCompilerJSXAttribute[];
+}>;
+
+/** Canonical enhancement selection joined to one authored JSX activation. */
+export type NativeCompilerEnhancementActivation = Readonly<{
+	namespace: string;
+	activator: string;
+	start: number;
+	length: number;
+	targetStart: number;
+	targetLength: number;
+	identity: string;
+	moduleSpecifier: string;
+	exportName: string;
+	application: 'direct' | 'enhancement-target' | 'target-intrinsic' | 'propagated';
 }>;
 
 /** Describes one direct component-state mutation discovered natively. */
@@ -229,79 +264,6 @@ export type NativeCompilerValueBinding = Readonly<{
 	intrinsicAdapter?: string;
 	start: number;
 	length: number;
-}>;
-
-/** Describes one lexical alias for a component-owned state path. */
-export type NativeCompilerStateAlias = Readonly<{
-	component: string;
-	name: string;
-	path: readonly string[];
-	start: number;
-	length: number;
-	invalidAt?: number;
-}>;
-
-/** Describes one component-state dependency discovered natively. */
-export type NativeCompilerStateRead = Readonly<{
-	component: string;
-	path: readonly string[];
-	confidence: 'exact' | 'broad';
-	start: number;
-	length: number;
-}>;
-
-/** Describes one compiler-owned cross-runtime task transition. */
-export type NativeCompilerContinuation = Readonly<{
-	id: string;
-	kind: 'task';
-	label?: string;
-	componentId: string;
-	taskId: string;
-	placement: 'server' | 'isomorphic';
-	readiness: 'blocking' | 'nonblocking';
-	async: boolean;
-	activation: Readonly<{
-		stateReads: readonly NativeCompilerStateEffect[];
-		dependencies: readonly Readonly<{
-			index: number;
-			source: 'state' | 'props' | 'derived' | 'argument';
-		}>[];
-		serverContexts: readonly NativeCompilerContextEffect[];
-		publicContexts: readonly NativeCompilerContextEffect[];
-	}>;
-	effects: Readonly<{
-		stateWrites: readonly NativeCompilerStateEffect[];
-		contextWrites: readonly NativeCompilerContextEffect[];
-		serverContextWrites: readonly NativeCompilerContextEffect[];
-		boundaries: readonly string[];
-	}>;
-	ownership: Readonly<{
-		componentId: string;
-		lifetime: 'component' | 'invocation';
-	}>;
-	cancellation: 'abort-signal';
-	invocation?: Readonly<{
-		arguments: readonly Readonly<{
-			index: number;
-			source: 'argument';
-		}>[];
-		concurrency: 'parallel' | 'latest' | 'queue';
-	}>;
-}>;
-
-/** Separates server activation requirements from browser resumption data. */
-export type NativeCompilerComponentResumption = Readonly<{
-	componentId: string;
-	serverRender: Readonly<{
-		stateReads: readonly string[];
-		serverContexts: readonly NativeCompilerContextEffect[];
-	}>;
-	client: Readonly<{
-		statePaths: readonly string[];
-		valueCaptures: readonly string[];
-		contexts: readonly string[];
-		boundaries: readonly string[];
-	}>;
 }>;
 
 /** Describes one context-token dependency discovered natively. */
@@ -351,18 +313,6 @@ export type NativeCompilerCallable = Readonly<{
 	reevaluationSafe: boolean;
 }>;
 
-/** Describes one task effect against component-owned state. */
-export type NativeCompilerStateEffect = Readonly<{
-	path: string;
-	kind: 'read' | 'write';
-	confidence: 'exact' | 'broad' | 'unknown';
-	operation?: 'map' | 'set';
-	receiver?:
-		| Readonly<{ kind: 'component' }>
-		| Readonly<{ kind: 'parameter'; index: number }>
-		| Readonly<{ kind: 'unknown' }>;
-}>;
-
 /** Describes native reactive provenance for one component lexical binding. */
 export type NativeCompilerReactiveBinding = Readonly<{
 	component: string;
@@ -400,6 +350,7 @@ export type NativeCompilerAnalysis = Readonly<{
 		moduleSpecifier: string;
 		exportName: string;
 	}>[];
+	enhancementActivations?: readonly NativeCompilerEnhancementActivation[];
 	resumptions: readonly NativeCompilerComponentResumption[];
 	policy: NativeCompilerPolicyAnalysis;
 	requiredCapabilities: NativeCompilerCapabilityRequirements;
@@ -437,4 +388,6 @@ export type NativeCompilerResponse = Readonly<{
 	timings: NativeCompilerTimings;
 	cacheHit?: boolean;
 	error?: string;
+	/** Namespaced response returned only for an extension request. */
+	extension?: unknown;
 }>;

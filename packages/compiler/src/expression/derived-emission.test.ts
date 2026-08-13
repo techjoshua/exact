@@ -112,6 +112,23 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain('return __exact_fullName_1;');
 	});
 
+	it('keeps a nested derived leaf out of its enclosing conditional dependency set', () => {
+		const output = transform(`
+      function View(props: { user?: { name: string } }) {
+        const name = props.user?.name ?? 'Unassigned';
+        return () => <section>{props.user ? <strong>{name}</strong> : null}</section>;
+      }
+    `);
+
+		const conditional = output.indexOf('__exactDynamic(() => props.user ?');
+		const materializedName = output.indexOf('const __exact_name_1 =', conditional);
+		const nestedReturn = output.indexOf('return __exact_name_1;', materializedName);
+		expect(conditional).toBeGreaterThan(-1);
+		expect(materializedName).toBeGreaterThan(conditional);
+		expect(nestedReturn).toBeGreaterThan(materializedName);
+		expect(output).not.toContain('[() => name]');
+	});
+
 	it('inlines safe destructured prop-derived consts inside reactive JSX props', () => {
 		const output = transform(`
       function View({ user }: { user: { first: string; last: string } }) {

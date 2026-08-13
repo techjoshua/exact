@@ -15,6 +15,10 @@ import type {
 	NativeCompilerCapabilityPolicy,
 	NativeCompilerSourceMap
 } from './process-contracts.js';
+import {
+	preparePackageEnhancementSource,
+	sanitizePackageEnhancementResponse
+} from '../compilation/package-enhancements.js';
 
 /**
  * Executes a normalized module entirely through the persistent Go host.
@@ -33,45 +37,57 @@ export function transformSourceWithNativeCompiler(
 		throw new Error('Native compilation requires a session with a configured Go compiler host');
 	const policyOptions = capabilityCompilationOptions(options);
 	const target = options.target ?? 'default';
-	const response = session.compileNative({
-		id: filename,
-		kind: 'compile',
-		source: normalized,
-		root: options.root,
-		configFile: options.configFile,
-		buildKey: options.buildKey,
-		target,
-		serverComponents: options.serverComponents,
-		preserveComponentHoisting: options.preserveComponentHoisting,
-		diagnostics: options.generatedValidation === 'semantic' ? 'semantic' : 'syntax',
-		sourceMap: options.sourceMap,
-		packageType: policyOptions.packageType,
-		packageName: policyOptions.packageName,
-		capabilities: nativeCapabilityPolicy(policyOptions),
-		assetRules: options.assetRules?.map((rule) => ({
-			...rule,
-			extensions: [...(rule.extensions ?? [])],
-			queries: [...(rule.queries ?? [])]
-		})),
-		preserveClientAssetImports: options.preserveClientAssetImports,
-		...(options.jsxInterop
-			? {
-					jsxInterop: {
-						adapterModule: options.jsxInterop.adapterModule,
-						adapterExport: options.jsxInterop.adapterExport
+	const prepared = preparePackageEnhancementSource(
+		normalized,
+		filename,
+		options.packageEnhancements
+	);
+	const response = sanitizePackageEnhancementResponse(
+		session.compileNative({
+			id: filename,
+			kind: 'compile',
+			source: prepared.source,
+			...(prepared.moduleSpecifiers.size
+				? { packageEnhancementBoundary: prepared.authoredLength }
+				: {}),
+			root: options.root,
+			configFile: options.configFile,
+			buildKey: options.buildKey,
+			target,
+			componentContractProjection: options.componentContractProjection,
+			serverComponents: options.serverComponents,
+			preserveComponentHoisting: options.preserveComponentHoisting,
+			diagnostics: options.generatedValidation === 'semantic' ? 'semantic' : 'syntax',
+			sourceMap: options.sourceMap,
+			packageType: policyOptions.packageType,
+			packageName: policyOptions.packageName,
+			capabilities: nativeCapabilityPolicy(policyOptions),
+			assetRules: options.assetRules?.map((rule) => ({
+				...rule,
+				extensions: [...(rule.extensions ?? [])],
+				queries: [...(rule.queries ?? [])]
+			})),
+			preserveClientAssetImports: options.preserveClientAssetImports,
+			...(options.jsxInterop
+				? {
+						jsxInterop: {
+							adapterModule: options.jsxInterop.adapterModule,
+							adapterExport: options.jsxInterop.adapterExport
+						}
 					}
-				}
-			: {}),
-		...(options.moduleRewrite
-			? {
-					moduleRewrite: {
-						moduleAliases: { ...options.moduleRewrite.moduleAliases },
-						replacements: [...(options.moduleRewrite.replacements ?? [])]
+				: {}),
+			...(options.moduleRewrite
+				? {
+						moduleRewrite: {
+							moduleAliases: { ...options.moduleRewrite.moduleAliases },
+							replacements: [...(options.moduleRewrite.replacements ?? [])]
+						}
 					}
-				}
-			: {}),
-		instrumentInspection: shouldEnableInspection(options.instrumentInspection)
-	});
+				: {}),
+			instrumentInspection: shouldEnableInspection(options.instrumentInspection)
+		}),
+		prepared
+	);
 	throwNativeCompilerErrors(filename, normalized, response.diagnostics);
 	if (response.code === undefined)
 		throw new Error(`Native compiler returned no generated code for ${filename}`);
@@ -132,36 +148,47 @@ export function analyzeSourceWithNativeCompiler(
 	if (!session?.hasNativeCompiler())
 		throw new Error('Native analysis requires a session with a configured Go compiler host');
 	const policyOptions = capabilityCompilationOptions(options);
-	const response = session.compileNative({
-		id: filename,
-		kind: 'analyze',
-		source: normalized,
-		root: options.root,
-		configFile: options.configFile,
-		buildKey: options.buildKey,
-		target: options.target ?? 'default',
-		serverComponents: options.serverComponents,
-		preserveComponentHoisting: options.preserveComponentHoisting,
-		diagnostics: options.generatedValidation === 'semantic' ? 'semantic' : 'syntax',
-		packageType: policyOptions.packageType,
-		packageName: policyOptions.packageName,
-		capabilities: nativeCapabilityPolicy(policyOptions),
-		assetRules: options.assetRules?.map((rule) => ({
-			...rule,
-			extensions: [...(rule.extensions ?? [])],
-			queries: [...(rule.queries ?? [])]
-		})),
-		preserveClientAssetImports: options.preserveClientAssetImports,
-		...(options.jsxInterop
-			? {
-					jsxInterop: {
-						adapterModule: options.jsxInterop.adapterModule,
-						adapterExport: options.jsxInterop.adapterExport
+	const prepared = preparePackageEnhancementSource(
+		normalized,
+		filename,
+		options.packageEnhancements
+	);
+	const response = sanitizePackageEnhancementResponse(
+		session.compileNative({
+			id: filename,
+			kind: 'analyze',
+			source: prepared.source,
+			...(prepared.moduleSpecifiers.size
+				? { packageEnhancementBoundary: prepared.authoredLength }
+				: {}),
+			root: options.root,
+			configFile: options.configFile,
+			buildKey: options.buildKey,
+			target: options.target ?? 'default',
+			serverComponents: options.serverComponents,
+			preserveComponentHoisting: options.preserveComponentHoisting,
+			diagnostics: options.generatedValidation === 'semantic' ? 'semantic' : 'syntax',
+			packageType: policyOptions.packageType,
+			packageName: policyOptions.packageName,
+			capabilities: nativeCapabilityPolicy(policyOptions),
+			assetRules: options.assetRules?.map((rule) => ({
+				...rule,
+				extensions: [...(rule.extensions ?? [])],
+				queries: [...(rule.queries ?? [])]
+			})),
+			preserveClientAssetImports: options.preserveClientAssetImports,
+			...(options.jsxInterop
+				? {
+						jsxInterop: {
+							adapterModule: options.jsxInterop.adapterModule,
+							adapterExport: options.jsxInterop.adapterExport
+						}
 					}
-				}
-			: {}),
-		instrumentInspection: shouldEnableInspection(options.instrumentInspection)
-	});
+				: {}),
+			instrumentInspection: shouldEnableInspection(options.instrumentInspection)
+		}),
+		prepared
+	);
 	const analysis = nativeModuleAnalysis(filename, response);
 	if (options.packageName) analysis.packageName = options.packageName;
 	return analysis;

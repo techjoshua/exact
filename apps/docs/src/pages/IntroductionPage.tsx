@@ -7,24 +7,14 @@ import { Callout } from './Callout.jsx';
 
 const counterSource = `import type { Component } from '@exactjs/core';
 
-type CounterState = {
-  count: number;
-  lastChanged: string;
-};
+type CounterState = { count: number };
 
 export function CounterDemo(this: Component<CounterState>) {
-  // Setup runs once for this component instance.
+  // Default state for each new component instance.
   this.state.count = 0;
-  this.state.lastChanged = 'Nothing has changed yet.';
 
-  // The compiler turns this pure expression into a lazy reactive value.
+  // The compiler turns this expression into a lazy reactive value.
   const doubled = this.state.count * 2;
-
-  const change = (amount: number) => {
-    this.state.count += amount;
-    this.state.lastChanged =
-      \`Only the count cells changed at \${new Date().toLocaleTimeString()}.\`;
-  };
 
   return () => (
     <section className="demo counter-demo" aria-label="Interactive counter example">
@@ -34,34 +24,18 @@ export function CounterDemo(this: Component<CounterState>) {
         <span className="counter-derived">twice that is {doubled}</span>
       </div>
 
-      <div className="button-row">
-        <button type="button" onClick={() => change(-1)}>−1</button>
-        <button type="button" onClick={() => change(1)}>+1</button>
-        <button
-          type="button"
-          onClick={() => {
-            this.state.count = 0;
-            this.state.lastChanged = 'Back at the starting point.';
-          }}
-        >
-          Reset
-        </button>
-      </div>
-
-      <p className="demo-status" aria-live="polite">
-        {this.state.lastChanged}
-      </p>
+      <button type="button" onClick={() => this.state.count++}>+1</button>
     </section>
   );
 }`;
 
-/** Introduces eXact's setup-once, compiler-led reactive web framework model. */
+/** Introduces eXact's ordinary-TypeScript-to-reactive-state-machine component model. */
 export function IntroductionPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Welcome to eXact"
-			title="Write the component. Do not rerun it."
-			description="eXact is a compiler-led web framework built around long-lived TypeScript components, precise reactive updates, and automatic client/server coordination. Component setup runs once; the expressions that depend on changing state stay connected."
+			title="Expressive by design. eXact by execution."
+			description="eXact lets you describe a component using ordinary TypeScript, then compiles it into a reactive state machine with seamless client and server execution defined in the same component."
 			next={{ path: '/story', label: 'The story behind eXact' }}
 		>
 			<section className="sudoku-showcase">
@@ -78,18 +52,6 @@ export function IntroductionPage(this: Component<{}>) {
 				<a className="primary-link" href="./sudoku.html">
 					Play Sudoku Atelier <span aria-hidden="true">{'\u2192'}</span>
 				</a>
-			</section>
-
-			<section>
-				<h2>Publish puzzles from one portable file.</h2>
-				<p>
-					Puzzle Foundry is a second complete native sample: deterministic Sudoku, word-search, and
-					crossword generation; shared print styling; and separate puzzle and solution SVG exports.
-					Its production artifact is one self-contained HTML file with no network dependency.
-				</p>
-				<Link className="primary-link" to="/samples">
-					Explore sample applications <span aria-hidden="true">{'→'}</span>
-				</Link>
 			</section>
 
 			<section>
@@ -143,7 +105,7 @@ export function IntroductionPage(this: Component<{}>) {
 						<span className="topic-index">Svelte</span>
 						<strong>Compilation, with a framework dialect</strong>
 						<p>
-							Svelte avoids a virtual DOM, but runes such as <code>$state</code>,{' '}
+							Svelte avoids a virtual DOM, but runes such as <code>$state</code>,
 							<code>$derived</code>, and <code>$effect</code> make reactivity a distinct syntax to
 							learn and recognize.
 						</p>
@@ -163,11 +125,11 @@ export function IntroductionPage(this: Component<{}>) {
 			<section className="hero-grid">
 				<div className="hero-copy">
 					<p className="demo-kicker">See the model</p>
-					<h2>One setup, precise updates</h2>
+					<h2>One instance, precise updates</h2>
 					<p>
 						Use the controls to change one state field. The displayed count and doubled value are
 						separate reactive expressions. The component remains alive, its state remains
-						inspectable, and its function does not run again after a click.
+						inspectable, and only the affected transitions run after a click.
 					</p>
 					<div className="hero-actions">
 						<Link className="primary-link" to="/learn/components">
@@ -184,10 +146,10 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>Here is the whole component</h2>
 				<p>
-					The component body is setup: initialize state, define derived values, register tasks, and
-					assemble services. The returned function describes the view. State reads look like
-					ordinary property access, but the compiler preserves them as independently connected
-					update boundaries.
+					The component body is a compiler-analyzed definition: it supplies state defaults, task
+					definitions, reactive relationships, and view preparation. It is not a linearly executed
+					setup callback. The returned function contains the view expression, and the compiler
+					preserves its state reads as independently connected update boundaries.
 				</p>
 				<CodeBlock source={counterSource} language="tsx" title="CounterDemo.tsx" />
 			</section>
@@ -205,7 +167,7 @@ export function IntroductionPage(this: Component<{}>) {
 					</div>
 					<div className="topic-card">
 						<span className="topic-index">Updates</span>
-						<strong>Keep work local</strong>
+						<strong>Update only what changed</strong>
 						<p>
 							The compiler gives text, props, styles, branches, and keyed collections their own
 							update boundaries.
@@ -213,7 +175,7 @@ export function IntroductionPage(this: Component<{}>) {
 					</div>
 					<div className="topic-card">
 						<span className="topic-index">Lifetime</span>
-						<strong>Give work an owner</strong>
+						<strong>Keep work tied to the component</strong>
 						<p>
 							Tasks, cancellation, disposable resources, context, refs, and cleanup belong to a
 							long-lived component instance.
@@ -238,18 +200,18 @@ export function IntroductionPage(this: Component<{}>) {
 					updates, async lifetime, server placement, and cleanup remain parts of one understandable
 					component.
 				</p>
-				<Link className="secondary-link" to="/compare">
-					See the detailed comparison
-				</Link>
 			</section>
 
 			<section>
-				<h2>Continue from the idea, not the installer</h2>
+				<h2>Learn more about eXact</h2>
 				<div className="card-grid">
 					<Link className="topic-card" to="/learn/components">
 						<span className="topic-index">01</span>
 						<strong>Understand components</strong>
-						<p>See setup, views, props, context, tasks, refs, and the complete instance surface.</p>
+						<p>
+							See initialization, views, props, context, tasks, refs, and the complete instance
+							surface.
+						</p>
 					</Link>
 					<Link className="topic-card" to="/learn/state">
 						<span className="topic-index">02</span>
@@ -266,13 +228,30 @@ export function IntroductionPage(this: Component<{}>) {
 				</div>
 			</section>
 			<section>
-				<h2>Where it stands today</h2>
+				<h2>What eXact supports today</h2>
 				<p>
-					eXact is under active development. The docs distinguish implemented behavior from future
-					direction, and the examples use the repository's current package workflow. That maturity
-					affects adoption, but it is context for evaluating the framework rather than the
-					framework's headline feature.
+					eXact already connects the major parts of an application through one compiler-led model:
 				</p>
+				<ul>
+					<li>
+						Clear, easy-to-follow syntax compiled into an optimized, reactive JavaScript state
+						machine with continuations that span client and server.
+					</li>
+					<li>A familiar JSX dialect that gets out of your way.</li>
+					<li>Durable components with direct, deeply reactive state.</li>
+					<li>Derived values and precise DOM, prop, branch, and keyed-list updates.</li>
+					<li>Owned tasks with cancellation, scheduling, optimistic state, and Suspense.</li>
+					<li>
+						Server rendering, hydration, client islands, server tasks, and compiler-planned server
+						execution.
+					</li>
+					<li>Routing, reactive forms, component testing, and React compatibility.</li>
+					<li>
+						Open enhancements for accessibility, internationalization, motion, gestures, and more.
+					</li>
+					<li>Vite, Webpack, Bun, precompiled builds, and portable server adapters.</li>
+					<li>Compiler-aware VS Code tooling and Chromium runtime DevTools.</li>
+				</ul>
 			</section>
 		</Article>
 	);

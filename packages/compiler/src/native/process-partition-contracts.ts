@@ -1,3 +1,5 @@
+import type { ExactActivationDecision } from './process-activation-contracts.js';
+
 /** Native recursive client/server partition plan consumed by artifact and runtime lowering. */
 export type NativeCompilerPartitionPlan = Readonly<{
 	version: number;
@@ -30,6 +32,7 @@ export type NativeCompilerPartitionPlanNode = Readonly<{
 	optional?: boolean;
 	conservative?: boolean;
 	reason?: string;
+	activationDecision?: ExactActivationDecision;
 }>;
 
 /** One finite edge between reusable native partition templates. */

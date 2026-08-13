@@ -44,6 +44,8 @@ export async function dispatchExactInspectionQuery(
 		response = success(request, session.id, queryContext.sessions.describe(session));
 	} else if (request.method === 'roots.list') {
 		response = rootsResponse(request, session.id, queryContext);
+	} else if (request.method === 'partitions.plan') {
+		response = partitionPlansResponse(request, session.id, queryContext);
 	} else if (request.method === 'catalog.entity' || request.method === 'dependencies.explain') {
 		response = catalogEntityResponse(request, session.id, queryContext);
 	} else if (request.method === 'timeline.query' || request.method === 'errors.list') {
@@ -60,6 +62,18 @@ export async function dispatchExactInspectionQuery(
 		response = failure(request.id, 'unavailable', 'runtime-not-instrumented');
 	}
 	return boundedResponse(response, queryContext.maxSnapshotBytes);
+}
+
+function partitionPlansResponse(
+	request: ExactInspectionRequest,
+	sessionId: string,
+	queryContext: ExactServerInspectionQueryContext
+): ExactInspectionResponse {
+	const identity = request.params?.identity;
+	if (!identity) return failure(request.id, 'bad-request', 'complete build/root identity required');
+	const root = queryContext.catalogs.find(identity.buildKey, identity.executionRoot);
+	if (!root) return failure(request.id, 'unavailable', 'build-retired');
+	return success(request, sessionId, root.partitionPlans ?? []);
 }
 
 function rootsResponse(

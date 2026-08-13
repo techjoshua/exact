@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "nuxt-controlled",
+	"framework": "Nuxt",
+	"frameworkVersion": "4.5.2",
+	"status": "scaffolded",
+	"tracks": ["controlled-service"],
+	"runtime": "node-24",
+	"commands": {
+		"build": "npm run build:nuxt -w @exactjs/framework-comparison-suite",
+		"start": "npm run dev:nuxt -w @exactjs/framework-comparison-suite"
+	},
+	"baseUrl": "http://127.0.0.1:4404",
+	"sourceRoots": ["app"]
+}

@@ -35,14 +35,14 @@ export function GettingStartedPage(this: Component<{}>) {
 			title="Create an eXact app"
 			description="The official scaffolder creates a working project with compatible public package versions, compiler integration, runtime wiring, tests, and optional agent guidance."
 			previous={{ path: '/story', label: 'The story behind eXact' }}
-			next={{ path: '/runtimes', label: 'Runtimes & integrations' }}
+			next={{ path: '/react-developers', label: 'eXact for React developers' }}
 		>
 			<section>
 				<h2>1. Run the scaffolder</h2>
 				<p>
-					Use npm&apos;s <code>create</code> command to run the latest released version of{' '}
+					Use npm&apos;s <code>create</code> command to run the latest released version of
 					<code>@exactjs/create-exact-app</code>. The generated package manifest uses the eXact
-					package versions that belong to that release—there are no repository-only{' '}
+					package versions that belong to that release—there are no repository-only
 					<code>workspace:</code> dependencies to replace.
 				</p>
 				<CodeBlock source={createAppSource} language="shell" title="Terminal" compact />
@@ -97,7 +97,7 @@ export function GettingStartedPage(this: Component<{}>) {
 				<Callout title="One native compiler for your platform" tone="tip">
 					<p>
 						The compiler package is a small JavaScript host. npm selects one native binary for your
-						operating system and architecture from the platform packages declared by{' '}
+						operating system and architecture from the platform packages declared by
 						<code>@exactjs/compiler</code>; it does not install all six targets or the retired
 						JavaScript compiler.
 					</p>

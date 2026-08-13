@@ -100,6 +100,7 @@ function isContinuation(value: unknown): value is ExactSerializedContinuationCon
 			'id',
 			'componentId',
 			'readiness',
+			'concurrency',
 			'dependencies',
 			'invocation',
 			'stateReads',
@@ -114,6 +115,10 @@ function isContinuation(value: unknown): value is ExactSerializedContinuationCon
 		typeof record.id === 'string' &&
 		typeof record.componentId === 'string' &&
 		(record.readiness === 'blocking' || record.readiness === 'nonblocking') &&
+		(record.concurrency === undefined ||
+			record.concurrency === 'parallel' ||
+			record.concurrency === 'latest' ||
+			record.concurrency === 'queue') &&
 		(record.dependencies === undefined ||
 			(Array.isArray(record.dependencies) &&
 				record.dependencies.every(isExactContinuationDependency))) &&

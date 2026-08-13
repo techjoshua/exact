@@ -74,7 +74,7 @@ export default function Unused(this: Component<{}>) {
 			applicationRoot: root
 		})['./Area']!;
 
-		expect(registration).toContain(slash(clientButton).replace(/\.tsx$/, '.js'));
+		expect(registration).toContain(slash(clientButton));
 		expect(registration).not.toContain(slash(unused));
 		expect(registration).toContain('continuations');
 		expect(registration).not.toContain('stateContracts');

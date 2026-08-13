@@ -15,12 +15,12 @@ export function placeMountedBefore(
 	const last = nodes[nodes.length - 1];
 
 	if (first.parentNode === parent && last.nextSibling === cursor && areContiguous(nodes)) {
-		domDebug(root, 'skip placement', {
+		domDebug(root, 'skip placement', () => ({
 			reason: 'mounted-range-already-before-cursor',
 			parent: describeNode(parent),
 			node: describeNode(first),
 			before: describeNode(cursor)
-		});
+		}));
 		runAfterPlacement(mounted);
 		return;
 	}
@@ -102,28 +102,28 @@ function areContiguous(nodes: Node[]): boolean {
 function insertBeforeIfNeeded(root: Root, parent: Node, node: Node, before?: Node | null): void {
 	const cursor = before?.parentNode === parent ? before : null;
 	if (node === cursor) {
-		domDebug(root, 'skip placement', {
+		domDebug(root, 'skip placement', () => ({
 			reason: 'node-is-cursor',
 			parent: describeNode(parent),
 			node: describeNode(node),
 			before: describeNode(cursor)
-		});
+		}));
 		return;
 	}
 	if (node.parentNode === parent && node.nextSibling === cursor) {
-		domDebug(root, 'skip placement', {
+		domDebug(root, 'skip placement', () => ({
 			reason: 'already-before-cursor',
 			parent: describeNode(parent),
 			node: describeNode(node),
 			before: describeNode(cursor)
-		});
+		}));
 		return;
 	}
-	domDebug(root, 'place node', {
+	domDebug(root, 'place node', () => ({
 		parent: describeNode(parent),
 		node: describeNode(node),
 		before: describeNode(cursor),
 		active: describeNode(document.activeElement)
-	});
+	}));
 	parent.insertBefore(node, cursor);
 }

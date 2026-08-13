@@ -2,6 +2,29 @@ import { describe, expect, it } from 'vitest';
 import { createExactLanguageService, type ExactSourceEntity } from '../index.js';
 
 describe('compiler source inspection', () => {
+	it('projects source-located lazy-island fallback decisions', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		try {
+			const source = `export function Page(this: Component<{}>) {
+	return () => <button onMouseMove={() => undefined}>Move</button>;
+}`;
+			await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 1, source }]);
+			const inspection = await service.inspect('Page.tsx');
+			const decision = inspection.partitionPlan.nodes.find(
+				(node) => node.activationDecision
+			)?.activationDecision;
+
+			expect(decision).toEqual(
+				expect.objectContaining({
+					mode: 'eager',
+					reasons: [expect.objectContaining({ code: 'unsupported-event' })]
+				})
+			);
+		} finally {
+			await service.dispose();
+		}
+	});
+
 	it('preserves component binding ownership and endpoint metadata', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		try {

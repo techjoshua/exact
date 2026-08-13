@@ -81,6 +81,23 @@ describe('exposure artifact graph selection', () => {
 			compiler: { typescriptVersion: '7.0.0', backendVersion: '1.26.0' },
 			partitionPlan: { version: 1 as const, buildKey: 'fixture', roots: [], nodes: [], edges: [] },
 			diagnostics: [],
+			languageProjection: {
+				protocol: 1 as const,
+				generation: 1,
+				project: { root: '/src', kind: 'configured' as const },
+				document: {
+					uri: 'file:///src/components.tsx',
+					path: '/src/components.tsx',
+					version: 1,
+					textHash: 'fixture'
+				},
+				imports: [],
+				components: [],
+				enhancements: [],
+				jsx: [],
+				expressions: [],
+				types: []
+			},
 			components: ['billing', 'button', 'admin'].map((id) => ({
 				id,
 				kind: 'component' as const,

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, unmount } from '@exactjs/dom';
+import { render, unmount } from '@exactjs/dom/enhanced';
 import {
 	Activity,
 	createEnhancementMarker,

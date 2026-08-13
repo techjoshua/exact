@@ -1,95 +1,114 @@
 import type { Component } from '@exactjs/core';
-import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
-
-const standaloneCommand = `npm run build:puzzle-generator:standalone
-# Output: apps/puzzle-generator/dist/puzzle-foundry.html`;
 
 /** Presents complete repository applications and the framework behavior each one exercises. */
 export function SamplesPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Complete applications"
-			title="Explore eXact beyond a counter."
-			description="The repository samples are product-shaped applications built with native setup-once components, direct state, and compiler-owned updates."
+			title="Beyond the counter"
+			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Sudoku Atelier and Puzzle Foundry are hosted demos; the others are repository examples you can build locally."
 			next={{ path: '/getting-started', label: 'Create an eXact app' }}
 		>
-			<section>
-				<h2>Puzzle Foundry</h2>
-				<p>
-					Puzzle Foundry creates Sudoku, word-search, and crossword artwork entirely in the browser.
-					A visible seed makes each result reproducible. Common print settings feed two independent
-					fixed-page SVG documents: the unsolved puzzle and its answer key. Titles have independent
-					type controls, Letter/A4/Legal pages use configurable margins, and fit warnings explain
-					when content must be reduced. Answer keys can use color or puzzle-specific black-and-white
-					rendering.
-				</p>
-				<div className="card-grid">
-					<div className="topic-card">
-						<span className="topic-index">Sudoku</span>
-						<strong>4×4 and 9×9</strong>
-						<p>
-							Difficulty changes clue density while every grid retains one solution. Answer digits
-							may use a separate font and weight.
-						</p>
-					</div>
-					<div className="topic-card">
-						<span className="topic-index">Search</span>
-						<strong>Rectangular and safety checked</strong>
-						<p>
-							Hard mode adds near matches; monochrome solutions circle answers with transparent
-							ovals.
-						</p>
-					</div>
-					<div className="topic-card">
-						<span className="topic-index">Crossword</span>
-						<strong>Connected and compact</strong>
-						<p>
-							Repeated layouts maximize overlap. Human-readable answer-and-clue lines become
-							numbered Across and Down lists, with separate grid, unused-cell, and letter-cell
-							colors.
-						</p>
-					</div>
+			<section className="sudoku-showcase">
+				<div>
+					<p className="demo-kicker">Hosted demo</p>
+					<h2>Sudoku Atelier</h2>
+					<p>
+						A polished, installable Sudoku game that combines direct component state, persistence,
+						responsive controls, theming, and precise board updates. Typing a digit edits the
+						selected cell directly. Its stable cells retain value and pencil-mark layers while
+						board-root CSS drives number highlighting; mouse users can right-click notes, and solved
+						games preserve their final time. Optional gesture and motion enhancements add long-press
+						input and attributed transitions without changing that core structure.
+					</p>
+					<p>
+						Sudoku Atelier is published with this documentation site. Use it to see how an eXact
+						application feels before exploring the source in the repository.
+					</p>
 				</div>
-				<CodeBlock source={standaloneCommand} language="shell" />
-				<p>
-					For word searches and crosswords, an optional WebLLM helper can turn a topic into editable
-					puzzle material. After the user opts in, the app loads a pinned WebLLM runtime from
-					jsDelivr and downloads its Qwen2.5 0.5B model from Hugging Face. The browser caches the
-					model and runs it locally through WebGPU. Generated JSON crosses the same normalization
-					and safety boundary as manually entered words, and the cached model can be removed
-					afterward.
-				</p>
-				<Callout title="One genuinely portable file">
-					The standalone artifact includes the application, styles, compiler output, and client
-					runtime. Non-AI features load from disk without external scripts, styles, fonts, images,
-					or services. AI use requires HTTPS or localhost plus network access for the pinned WebLLM
-					runtime and first model download; prompts never leave the device.
-				</Callout>
+				<a className="primary-link" href="./sudoku.html">
+					Play Sudoku Atelier <span aria-hidden="true">{'→'}</span>
+				</a>
+			</section>
+
+			<section className="sudoku-showcase">
+				<div>
+					<p className="demo-kicker">Hosted publishing tool</p>
+					<h2>Puzzle Foundry</h2>
+					<p>
+						Generate printable Sudoku, word-search, and crossword puzzle and solution SVGs. Choose
+						8.5 × 11, 7 × 10, or 6 × 9-inch publishing presets, or enter custom width and height
+						dimensions in inches.
+					</p>
+				</div>
+				<a className="primary-link" href="./puzzle-foundry.html">
+					Open Puzzle Foundry <span aria-hidden="true">{'→'}</span>
+				</a>
 			</section>
 
 			<section>
-				<h2>Other native samples</h2>
-				<ul>
-					<li>
-						<strong>Sudoku Atelier</strong> — an installable game with direct state, persistence,
-						responsive controls, and optional gesture and motion enhancements.
-					</li>
-					<li>
-						<strong>Shipping Calculator</strong> — production-shaped SSR, hydration, client islands,
-						and server continuations.
-					</li>
-					<li>
-						<strong>Kanban and Project Workbench</strong> — stateful application interfaces with
-						fine-grained list and form updates.
-					</li>
-					<li>
-						<strong>Microfrontend Portal and Server Components</strong> — distributed ownership,
-						placement, trust, and generated server artifacts.
-					</li>
-				</ul>
+				<h2>Production-shaped client and server work</h2>
+				<div className="card-grid">
+					<div className="topic-card">
+						<span className="topic-index">Shipping Calculator</span>
+						<strong>Follow one feature across the network</strong>
+						<p>
+							This application demonstrates native server rendering, hydration, client islands, and
+							server continuations through a production-shaped server. It is the best sample for
+							understanding how compiler-selected data and work move between runtimes.
+						</p>
+					</div>
+					<div className="topic-card">
+						<span className="topic-index">Kanban</span>
+						<strong>Preserve identity through busy list updates</strong>
+						<p>
+							The board exercises keyed collections, direct mutation, forms, and focused updates in
+							an interface where cards and columns must retain their identity as they move.
+						</p>
+					</div>
+					<div className="topic-card">
+						<span className="topic-index">Project Workbench</span>
+						<strong>Compose a larger stateful workspace</strong>
+						<p>
+							Workbench brings several component-owned tools together to demonstrate forms, derived
+							values, tasks, and fine-grained updates across a denser application shell.
+						</p>
+					</div>
+				</div>
 			</section>
+
+			<section>
+				<h2>Distributed ownership and placement</h2>
+				<div className="card-grid">
+					<div className="topic-card">
+						<span className="topic-index">Microfrontend Portal</span>
+						<strong>Compose independently delivered features</strong>
+						<p>
+							The portal exercises trusted microfrontend composition, runtime ownership, shared
+							capabilities, and the boundaries that keep independently built application regions
+							safe.
+						</p>
+					</div>
+					<div className="topic-card">
+						<span className="topic-index">Server Components</span>
+						<strong>Inspect compiler-planned server artifacts</strong>
+						<p>
+							This sample focuses on component placement, generated client and server roots, trusted
+							server resources, and the public data allowed to cross the boundary.
+						</p>
+					</div>
+				</div>
+			</section>
+
+			<Callout title="Repository examples">
+				<p>
+					Shipping Calculator, Kanban, Project Workbench, Microfrontend Portal, and Server
+					Components are source examples in the eXact repository. They are not deployed as routes on
+					this documentation site.
+				</p>
+			</Callout>
 		</Article>
 	);
 }

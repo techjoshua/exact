@@ -5,13 +5,18 @@ TypeScript and TSX forms that the compiler gives framework meaning to. Ordinary
 TypeScript keeps its ordinary JavaScript semantics unless this document says
 otherwise.
 
+eXact lets you describe a component using ordinary TypeScript, then compiles that description into
+a reactive state machine with seamless client and server execution defined in the same component.
+This reference explains how source declarations become state, transitions, dependencies, tasks,
+and connected render regions in that machine.
+
 The reference describes source code, not generated `.exact.client`,
 `.exact.server`, or `.exact.shared` artifacts. Those files are build output and
 are not an application authoring surface.
 
 Compiler-aware editor support exposes the same language model without requiring
-generated-code inspection. eXact Language Tools identifies setup-once
-initializers, reactive render regions, inferred and explicit tasks, interactions,
+generated-code inspection. eXact Language Tools identifies component initialization
+declarations, reactive render regions, inferred and explicit tasks, interactions,
 derived values, bindings, and lifecycle registrations; each classification
 links to the compiler-owned source evidence behind it. See
 [Compiler-aware language tools](language-tools.md).
@@ -49,9 +54,27 @@ import {
 Renderer and application packages may expose additional APIs, but they do not
 change the component language described here.
 
+### JSX text whitespace
+
+Multiline JSX text follows HTML-like authoring whitespace. Line breaks and surrounding indentation
+collapse to a single space between meaningful text, elements, and expressions; whitespace at the
+start or end of a child list is discarded, and indentation before closing punctuation does not
+create a visible space. Single-line authored text is preserved. Write ordinary spaces in prose
+instead of inserting explicit one-space expressions between children:
+
+```tsx
+<p>
+	Hello <strong>{props.name}</strong>, your report is ready.
+</p>
+```
+
+This produces the same text boundaries as `Hello <strong>…</strong>, your report is ready.` without
+creating reactive space expressions. Explicit string expressions remain appropriate only when the
+exact whitespace itself is dynamic or intentionally significant.
+
 ## Component declarations
 
-An eXact component is a function that establishes one durable component
+An eXact component function is a compiler-analyzed definition for one durable component
 instance. The usual declaration gives `this` a state type and gives the second
 parameter a props type:
 
@@ -77,9 +100,12 @@ export function Counter(this: Component<CounterState>, props: CounterProps) {
 }
 ```
 
-The outer function is setup. It normally executes once for each mounted
-instance. Props are parent-owned reactive inputs. State, tasks, contexts,
-refs, lifecycle registrations, and logging belong to the durable instance.
+The outer function is not an ordinary linearly executed setup callback. It describes default state,
+task definitions, reactive task relationships, and preparation of the returned render function.
+The compiler preserves ordinary TypeScript evaluation semantics while turning those facts into a
+reactive state machine. Each mounted component owns one durable instance of that machine. Props are
+parent-owned reactive inputs. State, tasks, contexts, refs, lifecycle registrations, and logging
+belong to that durable instance.
 The runtime keeps that ownership inspectable without allocating a separate
 method closure or empty collection for every capability on every instance.
 Stable component and logging methods are shared. Refs, list caches, contexts,
@@ -92,10 +118,22 @@ their child, reaction, cleanup, and pause-waiter collections are created on
 first use. A DOM binding that observes no reactive dependency applies its value
 once and releases its watcher and binding-table entry; reactive expressions
 continue to retain ordinary fine-grained update behavior.
+A computed expression captures reactive ownership where it is created, not
+where its lazy first read happens. Consequently, a reusable expression sampled
+during SSR remains live for a later hydration owner instead of being disposed
+with the completed server render.
 Readonly prop tracking traverses plain objects and collections. Opaque class
 instances retain their authored identity even when supplied by a reactive JSX
 expression, so resource methods may mutate their own private state without
-being mistaken for writes to the parent-owned prop binding.
+being mistaken for writes to the parent-owned prop binding. Frozen,
+non-writable object properties likewise retain their exact authored values as
+required by JavaScript proxy invariants. An explicitly reactive value stored in
+such a property remains reactive through its own identity.
+Component prop reads always return the authored value, including primitive
+values used by control flow. When a compiled server or isomorphic task also
+depends on that prop, the runtime retains its readiness, generation, and
+cancellation source as hidden execution-plan wiring rather than exposing the
+reactive or continuation wrapper to component code.
 
 Every component accepted by the native renderer is compiler-branded. The key
 `Symbol.for('@exactjs/component')` stores the component's opaque stable ID; a
@@ -153,7 +191,7 @@ function Results(this: Component<{ layout: 'grid' | 'list' }>) {
 ```
 
 A reactive choice owns a dynamic slot and replaces only that subtree. Keep a
-choice in setup as an ordinary compiler-observed derived value. The returned
+choice in the component body as an ordinary compiler-observed derived value. The returned
 view remains one expression regardless of how many consumers share it.
 
 ```tsx
@@ -179,21 +217,28 @@ participate in `Suspense`; `preloadComponent()` starts loading without construct
 Use `renderComponent()` with `ComponentSelection<typeof Widget>` when heterogeneous entries need
 correlated key-specific props.
 
+Target-specific compiler brands are emitted as pure attachments. A production bundler may therefore
+remove an unreachable component and its brand together; referenced components retain the same
+runtime identity and ownership contract.
+
 Mutable dictionaries, reassigned component variables, and unproven string lookups remain
 diagnostics because they do not provide a finite component, placement, or artifact graph.
 
-## Setup, render, and deferred callbacks
+## Component definition, render, and deferred callbacks
 
-Code belongs to one of three important execution regions:
+Source belongs to one of three important semantic regions:
 
-- setup runs when the durable instance is constructed;
-- the returned view expression establishes compiler-owned reactive regions;
-- event, task, lifecycle, timer, and other callbacks run later.
+- the component body supplies state defaults, tasks, reactive relationships, and render preparation;
+- the returned view expression establishes compiler-owned reactive regions; and
+- event, task, lifecycle, timer, and other callbacks execute when activated later.
 
-Setup may initialize state, create derived values, register tasks and
-lifecycle work, publish context, and create refs. The returned render function
+The component body may initialize state, create derived values, declare tasks and lifecycle work,
+publish context, and create refs. Do not reason about it as an imperative callback that the runtime
+walks from top to bottom: the compiler may emit independent states, transitions, dependencies, and
+render regions while preserving their documented dependencies and observable ordering.
+The returned render function
 contains only its view expression. Put declarations and imperative control flow
-in setup; keep conditional tree logic and keyed iteration in JSX:
+in the component body; keep conditional tree logic and keyed iteration in JSX:
 
 ```tsx
 function Summary(this: Component<SummaryState>) {
@@ -220,7 +265,7 @@ deferred work and may mutate state normally.
 
 ### Lexical micro-components
 
-Setup may name small view-only arrows and compose them as JSX tags:
+The component body may name small view-only arrows and compose them as JSX tags:
 
 ```tsx
 function Article(this: Component<ArticleState>) {
@@ -247,8 +292,8 @@ other micro-components in scope. The compiler lowers their JSX tags to
 owner-local view calls, attributes their reactive expressions to `Article`,
 and gives them no component identity, state, lifecycle, tasks, refs, or
 registry entry. A micro-component is an immutable, PascalCase, synchronous
-arrow declared in component setup and contains one view expression. It cannot
-escape its owner. Component setup itself returns a component-local view arrow;
+arrow declared in the component body and contains one view expression. It cannot
+escape its owner. The component definition returns a component-local view arrow;
 module-level shared or bound render callables are not supported.
 
 ## State
@@ -263,8 +308,8 @@ this.state.profile.tags.push('compiler');
 ```
 
 Reads connect the current compiler-owned expression, task, list, or derived
-value to the path it consumes. Writes invalidate those consumers; they do not
-rerun the outer component function.
+value to the path it consumes. Writes transition the existing component state machine rather than
+calling the component again to redescribe its interface.
 
 ### Supported writes
 
@@ -359,7 +404,7 @@ this.state.page = 1;
 this.state.rows = [];
 ```
 
-A safe setup expression that reads state, props, or reactive context becomes a
+A safe initialization expression that reads state, props, or reactive context becomes a
 shared, lazy derived value:
 
 ```tsx
@@ -369,10 +414,14 @@ const total = subtotal + (props.express ? 14 : 0);
 return () => <strong>{total}</strong>;
 ```
 
-Setup location describes a component-owned relationship. A derived cell caches
+The compiler must be able to prove that the initializer is safe to reevaluate. Effectful work
+belongs in an interaction or task; an opaque helper needs a valid pure-call contract before it can
+participate in an inferred derived relationship.
+
+Its component-body location describes a component-owned relationship. A derived cell caches
 one result for all of its DOM, component-prop, list, and task consumers and
 uses result equality to stop unchanged values from propagating farther through
-the graph. Keep a derived declaration in setup when several consumers should
+the graph. Keep a derived declaration in the component body when several consumers should
 share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
 
@@ -391,17 +440,19 @@ return () => <strong>{label}</strong>;
 ```
 
 The returned view does not rerun as a unit, so declarations and imperative
-control flow belong in component setup. Conditional expressions in JSX and
+control flow belong in the component body. Conditional expressions in JSX and
 callbacks owned by keyed branches or items remain region-local and update only
 their structural range. This keeps authored ownership unambiguous and prevents
 the same view-local calculation from being duplicated across generated
 reactive boundaries.
 
-The compiler may elide the runtime cell for an ordinary setup-derived value
+The compiler may elide the runtime cell for an ordinary initialization-derived value
 when it is safe to reevaluate, has exactly one eager view consumer, and either
 produces a scalar or forwards an existing identity without allocating a new
 one. The calculation is fused into that consumer's reactive closure while its
-authored declaration remains the inspection definition. This optimization
+authored declaration remains the inspection definition. A leaf consumer inside a JSX conditional
+keeps the calculation in its own closure instead of widening the conditional range's dependency
+set. This optimization
 does not apply to shared bindings, fresh object or collection identities, task
 or event consumers, or values explicitly created with `this.reactive()`.
 
@@ -413,7 +464,7 @@ this.state.subtotal = this.state.quantity * this.state.price;
 [this.state.tax, this.state.total] = calculateTotals(this.state.subtotal, props.taxRate);
 ```
 
-Every target in setup-time reactive destructuring must be a writable state
+Every target in initialization-time reactive destructuring must be a writable state
 location so the results can publish as one derived-state transaction. A read
 of the same output path would form a feedback cycle and is rejected.
 
@@ -476,7 +527,9 @@ publishes transactionally, and ordinary DOM event callbacks receive the same
 transaction boundary automatically. Publication snapshots the affected
 subscribers before any of them patch: a consumer that reads several changed
 paths still updates once for that synchronous operation, even when its update
-replaces the underlying watcher.
+replaces the underlying watcher. Interactive consequences are drained before
+the DOM callback returns; normal and deferred consequences retain their
+scheduled host turns.
 
 ## JSX
 
@@ -548,6 +601,16 @@ return () => (
 
 ## Enhancement composition
 
+An enhancement is an optional ordinary component around authored output. Namespaced JSX selects a
+finite enhancement component, which may wrap, observe, or contribute properties and behavior to
+that output. The authored output remains the fallback when the provider is unavailable.
+
+An attributed enhancement is compiled into an explicit `kind: "enhancement"` render-program node
+with a preserve-target fallback. The authored namespace is classified once; DOM, SSR, hydration,
+and component tests consume that node and never reinterpret the original attribute. Provider
+availability belongs to the consuming artifact, so a published component continues to render when
+its optional provider package is absent. Installed provider defects are not treated as absence.
+
 An attributed import establishes a local JSX namespace for optional ordinary components supplied
 by a component library:
 
@@ -563,6 +626,67 @@ canonical component identities and grouped reactive props. Build adapters may li
 into the application bundle's enhancement catalog. An available entry mounts as an ordinary,
 inspectable component; an unavailable entry leaves the authored output unchanged. Enhancement
 metadata and the bundle-local catalog are not framework-plugin discovery or lifecycle.
+
+The provider facade also activates the target renderer's enhancement host. That import is emitted
+beside the component module that uses the enhancement, so a statically imported component places
+the host in its ordinary bundle while a dynamically imported component or microfrontend carries
+the host in its own chunk. Evaluating the later module registers the versioned DOM capability
+before its component can mount, including when the owning renderer root already exists. Compatible
+independent bundles share the realm registration; applications should still share one eXact runtime
+when their bundler or import map supports it.
+
+An enhancement-free client does not include enhancement mounting, routing, reconciliation, or
+adoption code. Framework-generated entries activate the host automatically. A low-level integration
+that constructs enhancement markers and supplies `enhancementCatalog` manually must import from
+`@exactjs/dom/enhanced` or `@exactjs/hydrate/enhanced` so the synchronous renderer is prepared
+before it encounters those markers.
+
+Component libraries author the option, while consuming applications decide which providers their
+builds use. Enabling a provider constructs the selected enhancement as a normal component. Omitting
+or disabling it keeps the authored output and adds no enhancement instance or provider runtime on
+that path. Libraries cannot force activation in consuming applications.
+
+The contract is open to third-party packages. Any package can publish ordinary components through
+finite `exact-enhancement` exports without a plugin, central registry, special base class, or private
+compiler API. Enhancement packages may also contribute bounded language-service completions,
+hovers, hints, diagnostics, and safe edits. The intl and accessibility packages use this seam to
+explain valid authoring and warn about invalid messages, placeholders, catalogs, ARIA relationships,
+focus, names, and composite structure.
+
+An enhancement prop documented with `@exact analyzer-only` is a finite, typed source field for a
+trusted analyzer rather than component input. The compiler accepts and type-checks the namespaced
+field, exposes it through the ordinary language projection, and removes it from emitted JSX without
+selecting or mounting an enhancement component. This generic contract is appropriate for structural
+labels and similar compile-time evidence whose meaning belongs to the package analyzer.
+It is not reinterpreted as component or intrinsic binding shorthand merely because both features
+use namespaced JSX; a genuine collision with an otherwise valid binding receives the ordinary
+ambiguity diagnostic.
+
+Ordinary component imports from packages are also resolved at this shared build-host boundary. The
+per-module compiler keeps an opaque imported edge conservative until the host validates the
+package's inert published component catalog; it does not report the temporary absence of an
+in-module contract as a source error. A valid but opaque component-position value lowers to the
+[open client-only dynamic boundary](component-registries.md#open-dynamic-fallback) and receives `EXACT2213` unless its
+owning declaration uses `@exact dynamic`. Provably invalid values remain errors; the annotation
+cannot make them executable.
+
+An attributed namespace export in `exact.config.*` can make the same namespace available to every compiled
+component owned by that package:
+
+```ts
+export * as intl from '@exactjs/intl/enhancements' with { type: 'exact-enhancement', scope: 'package' };
+
+export default defineConfig({});
+```
+
+The namespace export states package-wide availability without pretending the config consumes a
+file-local binding, so ordinary unused-import rules need no exception. The configuration loader
+records it statically and never executes the enhancement module.
+The compiler treats `intl` as a virtual import in each package component, but emits a catalog import
+only for modules that actually activate `intl:*`. A top-level declaration or explicit import using
+the same local name is a duplicate identifier; rename it or remove the redundant declaration.
+`scope: 'package'` is rejected outside `exact.config.*`, and package bindings do not leak into
+dependencies or consuming packages.
 
 An enhancement module may attribute named re-exports as finite activators:
 
@@ -616,6 +740,9 @@ Authored singular props take precedence, followed by the nearest contribution; `
 through and `null` explicitly suppresses a lower value. Classes and token-list attributes are
 deduplicated, styles merge per property, refs fan out, and event subscriptions preserve intrinsic
 then inner-to-outer ordering. Reactive contributions update without changing the authored VNode.
+Framework-owned projections may explicitly mark a finite scalar contribution as replacing its
+authored fallback while that projection is active. This marker is runtime metadata, not `_target`
+authoring syntax; ordinary authored target layers retain the precedence above.
 
 ### Bounded target routing
 
@@ -685,6 +812,9 @@ boundary.
 or reactive values:
 
 ```tsx
+<article className="card featured" />
+<article className={`card featured theme-${props.theme}`} />
+
 <div
 	className={[
 		'card',
@@ -739,13 +869,14 @@ A component can pair an ordinary value prop with an ordinary notification callba
 callback's first argument is a replacement value:
 
 ```tsx
-<Dialog open:onOpenChanged={this.state.dialogOpen} />
+<SettingsPanel expanded:onExpandedChanged={this.state.settingsExpanded} />
 ```
 
-This is exactly shorthand for a reactive `open` prop and an ordinary callback that assigns its
-first argument to `this.state.dialogOpen`. Both names must exist in the component's finite prop
-type, the callback must return only `void` or `undefined`, and the target must be one writable state
-location. Additional callback arguments are allowed and ignored.
+This is exactly shorthand for a reactive `expanded` prop and an ordinary `onExpandedChanged`
+callback prop that assigns its first argument to `this.state.settingsExpanded`. Both sides of the
+colon are ordinary names from the child component's finite prop type. The parent retains ownership
+of the writable state location; the child receives an immutable value and a callback. The callback
+must return only `void` or `undefined`. Additional callback arguments are allowed and ignored.
 
 The parent remains the state owner and the child still receives immutable props. Write the two
 props explicitly when the callback must validate, refuse, transform, log, await, or return a
@@ -763,7 +894,7 @@ and is therefore not the application type-check command for compiler-owned TSX s
 
 ### Intrinsic bindings
 
-Four compiler-owned namespaced props provide two-way bindings to one writable
+Five compiler-owned namespaced props provide two-way bindings to one writable
 reactive location:
 
 ```tsx
@@ -775,6 +906,7 @@ reactive location:
 <input type="checkbox" value="ups" checked:onChange={this.state.carriers} />
 <select multiple value:onChange={this.state.tags}>...</select>
 <details open:onToggle={this.state.advanced}>Advanced settings</details>
+<dialog modal:isOpen={this.state.settingsOpen}>Settings</dialog>
 ```
 
 The supported combinations are:
@@ -785,11 +917,16 @@ The supported combinations are:
 | `value:onChange`   | `input`, `textarea`, `select`, `select multiple` | scalar value, or a homogeneous string/number array for multi-select |
 | `checked:onChange` | checkbox or radio `input`                        | boolean, the radio value, or a homogeneous string/number array      |
 | `open:onToggle`    | `details`                                        | boolean disclosure state                                            |
+| `modal:isOpen`     | `dialog`                                         | boolean native modal state                                          |
 
 Select controls always commit on `change`. Boolean state requires
 `type="checkbox"`. A `Date` requires `type="date"`. An array-bound checkbox
 requires an explicit `value`, and an array is otherwise valid only for
-`<select multiple>`.
+`<select multiple>`. Controlled select values are applied after their option values, including in
+compiler-planned static regions, so the declared value is selected on the initial mount. Native
+SSR also serializes that selection onto the matching options. Hydration can therefore distinguish
+a pristine server-rendered select from a selection the user changed before activation and preserves
+only the latter as browser-owned state.
 
 The binding generates the corresponding `value`, `checked`, or `open` prop, so that prop
 cannot also be written explicitly. An authored handler for the same event is
@@ -806,6 +943,26 @@ allowed and runs after state has been updated:
 each member that the browser changes publishes its own final value, and an agreeing state update
 does not write the property back. A disclosure changed before hydration is treated like a dirty
 form control: hydration preserves the live value and publishes it before normal reactive updates.
+
+`modal:isOpen` owns only native modal state. A committed true value calls `showModal()`, false calls
+`close()`, and native `toggle` or `close` completion publishes the final `:modal` state. It cannot
+be combined with `open`: serialized `open` is nonmodal and cannot represent browser top-layer
+state. SSR therefore omits modal state, while hydration adopts a dialog opened before hydration
+and publishes that state before normal writes. Disposal removes binding listeners without closing
+the dialog. An already-open nonmodal dialog is an ownership conflict rather than something the
+binding silently converts.
+
+JSX also types the native button command surface used with dialogs and popovers:
+
+```tsx
+<button commandFor="settings" command="show-modal">Settings</button>
+<button commandFor="settings" command="request-close">Cancel</button>
+```
+
+The finite values are `show-modal`, `close`, `request-close`, `show-popover`, `hide-popover`, and
+`toggle-popover`. These are native attributes, not eXact event aliases. A package language provider
+such as `@exactjs/accessibility` may validate statically resolvable command targets without adding
+package semantics to the compiler.
 
 Bindings observe only their declared browser endpoint. Reset, autofill, restoration, or another
 platform mutation updates state when the browser dispatches that endpoint; eXact does not synthesize
@@ -827,7 +984,7 @@ complex:
 ### Refs
 
 Create a typed key outside the component, create an instance-owned binding
-during setup, and attach it with `ref`:
+in the component body, and attach it with `ref`:
 
 ```tsx
 const searchInput = createRef<HTMLInputElement>('search input');
@@ -872,7 +1029,8 @@ never acquire structural retention.
 ### Keyed collections
 
 An ordinary reactive `Array.map()` is compiled as a keyed collection when
-identity is available from a type annotation:
+identity is available from a type annotation. The annotation may live beside
+the component or on an item type imported from another module:
 
 ```tsx
 type Todo = {
@@ -918,7 +1076,9 @@ return () =>
 Keys must be stable and unique among siblings. They preserve component
 instances, DOM nodes, form values, refs, and local state across insertion,
 removal, and reordering. Array indexes are appropriate only when position
-really is the item's identity.
+really is the item's identity. Inferred keyed lowering applies only when the
+map produces JSX children; ordinary data transformations keep native
+`Array.map()` semantics even when their item type has an `@exact key` field.
 
 ### Portals
 
@@ -952,12 +1112,16 @@ return () => <article>{unsafeHtml(auditedMarkup)}</article>;
 Native DOM, SSR, and hydration roots reject it unless the application opts in
 with `allowUnsafeHtml: true`. `dangerouslySetInnerHTML` is not supported.
 `iframe.srcdoc` likewise requires an `unsafeHtml()` value and root opt-in.
+Compiled calls select the DOM unsafe-HTML renderer in the module that uses the
+capability, so an application without such a call omits the range parser and
+binding implementation. Compilerless VNode construction must import
+`@exactjs/dom/unsafe-html` explicitly.
 
 ## Tasks
 
 An ordinary local function becomes a task when the compiler finds task policy,
 task capabilities, placement-sensitive effects, or a known activation host.
-Calling it during setup declares component-owned work:
+Calling it in the component body declares component-owned work:
 
 ```tsx
 function Search(this: Component<SearchState>) {
@@ -1075,7 +1239,7 @@ boundary. Placement, concurrency, priority, readiness, and attachment are
 independent. Contradictory or repeated policy is an error. Explicit placement
 may not contradict known browser-only or server-only effects.
 
-Call setup-activated tasks directly during setup, not inside render functions.
+Call initialization-activated tasks directly in the component body, not inside render functions.
 Calls inside other task functions are invoked child generations and attach to
 the active task frame automatically. Use task policy for external effects,
 cleanup, nonblocking work, manual scheduling/readiness, concurrency, or opaque
@@ -1248,6 +1412,12 @@ On first mount the fallback remains until the candidate is ready. On later
 updates, committed content remains visible while the next candidate prepares.
 Nested boundaries own independent generations.
 
+The compiler selects the coordinated Activity/Suspense DOM implementation only
+for modules that author one of these native boundaries. This remains correct for
+lazy chunks and microfrontends because the importing module carries the
+registration. Compilerless VNode construction must import
+`@exactjs/dom/structural-boundaries` explicitly.
+
 `Activity` retains a mounted subtree while changing its connectivity and work
 policy:
 
@@ -1336,7 +1506,7 @@ promote a value to application or request lifetime.
 
 ## Lifecycle, refs, and logging
 
-Lifecycle handlers are registered during setup:
+Lifecycle handlers are declared in the component body:
 
 ```tsx
 this.onMount(({ signal }) => {
@@ -1371,7 +1541,25 @@ are observed when promise-like; ordinary return values are ignored.
 Task cleanup remains the preferred owner for resources acquired by a task.
 
 `this.log` is the component-scoped logger. It follows the nearest logger
-context and adds component identity to structured log records.
+context and adds component identity to structured log records. Write ordinary
+calls such as `this.log.debug('loaded', { id, record })`: the compiler lowers
+canonical `this.log.trace()`, `debug()`, `info()`, `warn()`, and `error()` calls
+so the logger's runtime enablement check happens before any argument expression
+is evaluated. Disabled calls therefore do not build message templates, payload
+objects, or errors, and do not require authored lazy callbacks.
+
+When the level is enabled, the runtime evaluates the complete argument list
+inside `peek()`. Reactive values are read at the time of the log call without
+turning diagnostic observation into a render, effect, or task dependency. The
+compiler treats that complete argument region as the same observational
+boundary; it does not synthesize a derived computation for the logging
+expression.
+
+Logging is never erased according to build mode. The same artifact can enable a
+level later through its logger context, and the next call observes that change.
+Calls through aliases, computed properties, or another object's logger are left
+as ordinary TypeScript; use lazy log values there when deferred evaluation is
+required.
 
 ## Placement and data-policy annotations
 

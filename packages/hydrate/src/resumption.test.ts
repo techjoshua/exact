@@ -15,6 +15,7 @@ import {
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
+import { createComponentResumptionResolver } from './runtime/resumption.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 function resumablePage(id: string, label: string) {
@@ -44,6 +45,39 @@ function resumablePage(id: string, label: string) {
 }
 
 describe('@exactjs/hydrate component resumption', () => {
+	it('matches SSR activations by component type while preserving per-type order and rollback', () => {
+		const First = resumablePage('component:First', 'first');
+		const Second = resumablePage('component:Second', 'second');
+		const records = [
+			{
+				componentId: 'component:Second',
+				values: { label: 'second-server' },
+				contexts: {},
+				settledContinuations: []
+			},
+			{
+				componentId: 'component:First',
+				values: { label: 'first-server' },
+				contexts: {},
+				settledContinuations: []
+			},
+			{
+				componentId: 'component:First',
+				values: { label: 'first-server-2' },
+				contexts: {},
+				settledContinuations: []
+			}
+		];
+		const resolve = createComponentResumptionResolver(() => records);
+
+		expect(resolve(First)?.values.label).toBe('first-server');
+		const checkpoint = resolve.checkpoint();
+		expect(resolve(Second)?.values.label).toBe('second-server');
+		resolve.rollback(checkpoint);
+		expect(resolve(Second)?.values.label).toBe('second-server');
+		expect(resolve(First)?.values.label).toBe('first-server-2');
+	});
+
 	it('limits SSR activation records to adoption so later client navigation mounts fresh state', async () => {
 		const InitialPage = resumablePage('component:InitialPage', 'initial');
 		const NavigatedPage = resumablePage('component:NavigatedPage', 'navigated');

@@ -13,8 +13,8 @@ describe('RemoteComponent server rendering', () => {
 			{ markers: false }
 		);
 
-		expect(result.html).toBe(
-			'<div data-exact-remote="billing" data-exact-remote-state="placeholder"></div>'
+		expect(result.html).toMatch(
+			/^<div id="exact-[^"]+" data-exact-remote="billing" data-exact-remote-state="placeholder"><\/div>$/u
 		);
 		expect(result.html).not.toContain('Remote unavailable');
 	});

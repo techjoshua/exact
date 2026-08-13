@@ -10,7 +10,7 @@ export function LogoLabPage(this: Component<{}>) {
 			title="Logo lab"
 			description="Edit a small Logo program and give the turtle instructions. The parser is bounded, the animation belongs to the component, and the drawing remains data rather than an opaque bitmap."
 			previous={{ path: '/plugins/secrets', label: 'Secrets' }}
-			next={{ path: '/compare', label: 'Framework comparison' }}
+			next={{ path: '/advanced', label: 'Beyond the browser' }}
 		>
 			<LogoLab />
 			<section>

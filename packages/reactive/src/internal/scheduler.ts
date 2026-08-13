@@ -38,11 +38,13 @@ const priorityOrder: Record<WorkPriority, number> = {
 	normal: 1,
 	deferred: 2
 };
-let captureScheduledWorkContext: (() => ScheduledWorkContext | undefined) | undefined;
+let captureScheduledWorkContext:
+	| ((priority: WorkPriority) => ScheduledWorkContext | undefined)
+	| undefined;
 
 /** Installs framework ownership capture for subsequently scheduled reactive work. */
 export function setScheduledWorkContextCapture(
-	capture: (() => ScheduledWorkContext | undefined) | undefined
+	capture: ((priority: WorkPriority) => ScheduledWorkContext | undefined) | undefined
 ): void {
 	captureScheduledWorkContext = capture;
 }
@@ -54,7 +56,7 @@ export function queueReaction(
 ): void {
 	priority = constrainedPriority(reaction.scope, priority);
 	const previous = queuedReactions.get(reaction);
-	const context = captureScheduledWorkContext?.();
+	const context = captureScheduledWorkContext?.(priority);
 	if (context) previous?.context?.cancel();
 	if (!previous || isHigherWorkPriority(priority, previous.priority) || context)
 		queuedReactions.set(reaction, {

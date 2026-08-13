@@ -80,8 +80,13 @@ export function createComponentListController() {
 				});
 			}
 			const previous = caches.get(cacheId);
-			const cache = previous?.render === render ? previous.cache : new Map();
-			if (!previous || previous.render !== render) caches.set(cacheId, { render, cache });
+			// A compiler id identifies one stable authored map site. Its render closure is
+			// recreated when an enclosing reactive expression runs, but cached item VNodes
+			// already contain their own live readers and must retain identity.
+			const cache = id !== undefined || previous?.render === render ? previous?.cache : undefined;
+			const activeCache = cache ?? new Map();
+			if (!previous || previous.render !== render)
+				caches.set(cacheId, { render, cache: activeCache });
 			return createVNode(Fragment, {
 				key: id,
 				list: {
@@ -89,7 +94,7 @@ export function createComponentListController() {
 					source,
 					key,
 					render,
-					cache: cache as Map<string, { item: T; vnode: VNode }>
+					cache: activeCache as Map<string, { item: T; vnode: VNode }>
 				} satisfies ListBinding<T>
 			});
 		}

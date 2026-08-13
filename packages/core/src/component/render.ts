@@ -1,4 +1,4 @@
-import { watch } from '@exactjs/reactive';
+import { watch, withEffectScope } from '@exactjs/reactive';
 
 import type { Child, ComponentInstance, RenderResult } from './contracts.js';
 
@@ -35,7 +35,9 @@ export function renderInstance(
 			try {
 				instance.beginRender();
 				const render = instance.errorFallback ?? instance.renderFunction;
-				output = withComponentDomain(instance.domain, render);
+				output = withEffectScope(instance.scope, () =>
+					withComponentDomain(instance.domain, render)
+				);
 			} catch (error) {
 				if (isPromiseLike(error) && handleComponentSuspension(instance, error)) {
 					output = null;
@@ -50,7 +52,9 @@ export function renderInstance(
 					return;
 				}
 				instance.errorFallback = fallback;
-				output = withComponentDomain(instance.domain, fallback);
+				output = withEffectScope(instance.scope, () =>
+					withComponentDomain(instance.domain, fallback)
+				);
 			} finally {
 				instance.endRender();
 			}

@@ -29,6 +29,7 @@ import {
 	type AuthoredTaskRegion
 } from './source-ranges.js';
 import { componentReasons, taskEntity } from './task-inspection.js';
+import { createExactLanguageProjection } from './language-projection.js';
 
 /** Projects native compiler facts into the stable editor-facing source model. */
 export function createExactSourceInspection(
@@ -50,6 +51,7 @@ export function createExactSourceInspection(
 			backendVersion: response.backendVersion
 		}),
 		partitionPlan: freezePartitionPlan(response.analysis.partitionPlan),
+		languageProjection: createExactLanguageProjection(filename, source, generation, response),
 		components: Object.freeze(components),
 		diagnostics: Object.freeze(
 			// TypeScript diagnostics remain available from the native response for builds,
@@ -72,6 +74,9 @@ function freezePartitionPlan(
 			plan.nodes.map((node) =>
 				Object.freeze({
 					...node,
+					...(node.activationDecision
+						? { activationDecision: freezeActivationDecision(node.activationDecision) }
+						: {}),
 					artifactTargets: Object.freeze([...node.artifactTargets]),
 					renderPath: Object.freeze([...node.renderPath]),
 					childEdges: Object.freeze([...node.childEdges])
@@ -88,6 +93,27 @@ function freezePartitionPlan(
 			)
 		)
 	});
+}
+
+function freezeActivationDecision<
+	T extends {
+		mode: string;
+		reasons: readonly Record<string, unknown>[];
+		targets: readonly (Record<string, unknown> & { events: readonly Record<string, unknown>[] })[];
+	}
+>(decision: T): T {
+	return Object.freeze({
+		...decision,
+		reasons: Object.freeze(decision.reasons.map((reason) => Object.freeze({ ...reason }))),
+		targets: Object.freeze(
+			decision.targets.map((target) =>
+				Object.freeze({
+					...target,
+					events: Object.freeze(target.events.map((event) => Object.freeze({ ...event })))
+				})
+			)
+		)
+	}) as T;
 }
 
 function inspectComponent(

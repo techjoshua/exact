@@ -3,7 +3,7 @@
 Status: implemented in native eXact, SSR/hydration, and the React compatibility
 runtime.
 
-These facilities extend eXact's setup-once, fine-grained reactive model. They
+These facilities extend eXact's durable reactive-state-machine component model. They
 do not introduce a component rerender loop.
 
 ## Language-tool presentation
@@ -62,7 +62,7 @@ async function ShippingOptions(this: Component<ShippingState>) {
 }
 ```
 
-The compiler emits synchronous component setup plus owned, restartable
+The compiler emits synchronous component initialization plus owned, restartable
 continuation work. Reactive reads become generation dependencies, recognized
 APIs receive the task abort signal, and state writes are staged. A successful
 generation publishes all staged writes together; failed, cancelled, or stale

@@ -1,5 +1,11 @@
 # Compiler-aware language tools
 
+Package-provided diagnostics and editor features use the generic trusted language-extension
+protocol documented in
+[Trusted language-service contributions](history/trusted-language-service-contributions.md).
+Inert declarations cover finite rules. Trusted executable analyzers run in bounded child Node
+processes and receive compiler-owned serialized projections, never compiler or LSP objects.
+
 eXact Language Tools makes the native compiler's component model visible while
 source is being edited. It runs as a separate language server beside ordinary
 TypeScript support: TypeScript continues to own completion, rename, navigation,
@@ -7,7 +13,7 @@ formatting, and general type diagnostics; eXact owns component regions,
 placement, readiness, effects, ownership, framework diagnostics, and
 semantics-aware refactors.
 
-The implementation has three boundaries:
+The implementation has five boundaries:
 
 - `@exactjs/compiler` owns source inspection, inference reasons, rich
   diagnostics, refactor planning, equivalence checks, and no-emit project
@@ -17,10 +23,83 @@ The implementation has three boundaries:
   protocol projection. Negotiated listeners, including workspace-folder
   changes, are installed only after initialization and only when the client
   advertised them; and
+- `@exactjs/language-extension-api` owns the versioned declaration, projection, diagnostic,
+  completion, hover, hint, and data-only edit contracts;
+- `@exactjs/language-extension-host` owns package discovery, independent analyzer trust, child
+  processes, limits, policy, and the validation session shared by `exactc`, artifact compilation,
+  Vite, Webpack, and Bun; and
 - `@exactjs/vscode` starts the local server and presents compiler facts through
   VS Code.
 
-No editor package contains a second eXact parser or classifier.
+No editor package or provider contains a second eXact parser or enhancement classifier.
+
+For each document, the language server searches upward from the file for the nearest
+`exact.config.*`, stopping at the containing editor workspace folder. That config's directory owns
+the compiler session, package-scoped enhancement exports, and language-provider host. Documents in
+different applications inside one monorepo therefore retain independent configs and provider
+policies; a document with no nested config continues to use the workspace root. Removing a
+workspace folder disposes every nested compiler and provider session it owns.
+
+The VS Code status tooltip shows the resolved project root and active language-provider health.
+Provider synchronization refreshes it after analysis, and a provider or host failure changes the
+status icon to a warning with the failure message instead of silently suppressing package
+diagnostics.
+
+## Package-provided language assistance
+
+A package may publish strict inert metadata under `exact.language`, a trusted analyzer, or both.
+Discovery is bounded to packages opted in through an attributed `exact-enhancement` import in the
+current document, a `scope: 'package'` enhancement namespace export in the owning `exact.config.*`, or a
+selected framework plugin. Ordinary API imports do not activate an enhancement provider, and the
+host does not scan every transitive dependency. A local opt-in lets a provider inspect the whole
+document, including warning that semantic content has not used the enhancement. A package opt-in
+applies that inspection to every compiled component owned by the package. Language trust remains
+independent from runtime, build-plugin, and component-library authorization.
+
+```ts
+import { defineConfig } from '@exactjs/config';
+
+export default defineConfig({
+	languageExtensions: {
+		analyzers: {
+			mode: 'trusted',
+			allow: ['@company/design-system']
+		},
+		ignore: [{ provider: '@company/design-system', roles: ['inlayHints'] }],
+		diagnostics: {
+			severity: [
+				{ provider: '@company/design-system', codes: ['deprecated-tone'], severity: 'warning' }
+			]
+		}
+	}
+});
+```
+
+The default trusted scope includes framework-owned `@exactjs/` analyzers. Third-party executable
+providers require application policy; declarative metadata remains inert. Provider diagnostics,
+hover, completions, inlay hints, and source-only code actions merge with core LSP results while
+retaining package identity and version. Source-located provider errors reject compiler and official
+adapter candidate generations before files or HMR output are published. Provider failures do not
+hide TypeScript or core eXact editor diagnostics.
+
+`@exactjs/intl` is a production provider. Hovering an `intl:*` activation shows the exact
+native analyzer inference, optional message name, durable message key, placeholder guide, source
+locale, target property or content, and the locales whose configured JSON or XLIFF catalogs contain
+that key. It also reports invalid messages, configured missing locales, malformed XLIFF, duplicate
+or obsolete units, protected-placeholder damage, legacy eXact metadata, and literal formatter
+locales that contradict the source locale. Completions cover semantic and concrete units,
+currencies, display styles, and translated-property formatter roles; compact inlay hints summarize
+inference and coverage. The analyzer and its host are Node-only build tooling and never enter a
+browser bundle.
+
+`@exactjs/accessibility` uses the same generic host for finite ARIA names and values, IDs and
+relationships, native labels and commands, accessible-name evidence, focus order, modal-dialog
+usage, custom interaction parity, live-region conflicts, and the complete composite policies the
+package actually ships. It contributes ARIA, role, command, and enhancement completions;
+evidence-aware hovers; navigation-policy inlays; and bounded safe edits. Dynamic text, opaque
+component output, and runtime-only identity remain explicitly unproven rather than becoming
+speculative errors. No accessibility rule or package identity is built into the language server or
+compiler.
 
 ## Run the VS Code extension from a checkout
 
@@ -41,6 +120,10 @@ server layouts without creating a package-local dependency link. Development
 prefers the freshly built sibling workspace package over any stale installed
 copy. Bundling keeps hoisted client dependencies under the extension's runtime
 identity, so their VS Code API imports are attributed to eXact Language Tools.
+The universal VSIX resolves the native compiler from the owning project root,
+using the same `@exactjs/compiler-native-*` package npm selected for that
+machine. The extension therefore does not ship a second set of platform
+binaries or drift from the compiler used by the repository build.
 The opened workspace must be trusted, and opening a TypeScript or TSX file
 triggers activation.
 
@@ -196,6 +279,10 @@ that namespace and a colon completes the imported callable's finite public props
 in kebab-case, plus the reserved `root` target selector. Unrelated implicit-`this`
 and unused-import diagnostics remain unchanged.
 
+An attributed `scope: 'package'` namespace export in `exact.config.*` declares package-wide use;
+the binding supplies the virtual namespace for package components even though configuration code
+does not reference its runtime value.
+
 After a finite component value prop and colon, the plugin completes compatible notification
 callback props whose first required parameter can flow back to the value type. Intrinsics complete
 only their supported `onInput`, `onChange`, or `onToggle` endpoints. Hover explains the conceptual
@@ -299,6 +386,7 @@ The VS Code extension presents:
 - eXact-owned semantic modifiers without replacing TypeScript coloring;
 - optional source-operation markers without whole-function decoration;
 - concise component CodeLens and operation-local inlay badges;
+- provider-authored underlines over source fragments that prove an inference;
 - compiler-backed diagnostics and code actions;
 - the Component Semantics tree;
 - source navigation for inference evidence; and
@@ -318,6 +406,15 @@ Presentation settings are independent:
 ```
 
 These settings never change compiler meaning.
+`important` includes compiler operation badges and package inference notes such as intl message
+behavior and translation coverage. `off` suppresses all eXact inlays, while `all` also admits any
+lower-priority hints providers add later. Changes apply immediately. VS Code's native
+`editor.inlayHints.enabled` setting must independently allow inlays.
+
+An analyzer may attach bounded source evidence to an inlay. The VS Code client renders that evidence
+as an underline without changing the token's syntax color; hovering it explains the inference and
+names the provider. Evidence must be analyzer-proven source provenance, not an editor-side keyword
+guess. Disabling eXact inlays also removes these companion decorations.
 
 Semantic tokens are emitted only where eXact can preserve TypeScript's standard
 base classification: component declarations remain `function`, explicit task

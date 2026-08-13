@@ -1,0 +1,12 @@
+{
+	"extends": "./tsconfig.json",
+	"include": [
+		"src/App.tsx",
+		"src/browser-events.ts",
+		"src/contracts.ts",
+		"src/native-store.ts",
+		"src/request-lifetime.ts",
+		"src/workspace-view.tsx",
+		"vite*.ts"
+	]
+}

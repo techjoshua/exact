@@ -29,6 +29,7 @@ function Editor(
 		delivery: 'ground' | 'express';
 		carriers: ('ups' | 'usps')[];
 		tags: string[];
+		settingsOpen: boolean;
 	}>
 ) {
 	return () => (
@@ -46,6 +47,7 @@ function Editor(
 				<option value="tsx">TSX</option>
 			</select>
 			<details open:onToggle={this.state.advanced}>Advanced settings</details>
+			<dialog modal:isOpen={this.state.settingsOpen}>Settings</dialog>
 		</form>
 	);
 }
@@ -57,6 +59,7 @@ Supported relationships:
 - `value:onChange`: input, textarea, select, and multi-select; scalar values or compatible arrays.
 - `checked:onChange`: checkbox and radio input; boolean, radio value, or compatible checkbox arrays.
 - `open:onToggle`: details; boolean disclosure state.
+- `modal:isOpen`: dialog; boolean native modal state through `showModal()` and `close()`.
 
 The bound state type controls conversion. Preserve nullable declarations when an empty control
 should map to `null` or `undefined`.

@@ -9,6 +9,7 @@ import {
 	unsafeHtml,
 	type Component
 } from '@exactjs/core';
+import './unsafe-html.js';
 import { jsx, jsxs } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';

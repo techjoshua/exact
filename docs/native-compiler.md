@@ -29,7 +29,7 @@ Language sessions are permanently `noEmit: true`: they never write JavaScript,
 target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
-Native protocol 1.28 and generated component-contract version 2 carry the normalized recursive
+Native protocol 1.34 and generated component-contract version 2 carry the normalized recursive
 partition plan, including ordinary enhancement-component owners, structural templates,
 crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains
 `setupExecution` on authored state assignments across source normalization, distinguishing
@@ -68,6 +68,19 @@ provide an explicit executable.
 
 ## Public integration
 
+When emitted code reaches an optional enhancement, file and project compilation prepend its
+artifact-local registration and materialize a provider facade under the output's
+`.exact/enhancements` directory. Emitted modules import that ordinary ESM file, never an `exact:`
+scheme, so unbundled Node SSR needs no custom loader. Provider resolution happens during
+compilation, not per request; absence selects the shared pass-through, while malformed installed
+exports fail when the generated module is linked.
+
+For client artifacts, each provider facade also imports the DOM enhancement integration. The
+integration registers a versioned realm capability synchronously, so bundlers place it with the
+static, lazy, or microfrontend module that selected the provider rather than forcing it into every
+application entry. Server facades continue to select the SSR catalog facade and do not import DOM
+code. Build adapters must preserve the client facade's registration side effect.
+
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
@@ -87,6 +100,12 @@ transformation kernel for JSX ownership, React compatibility selection, native c
 inspection controls, instrumentation, source results, and contextual failures. Resolution, HMR,
 asset emission, and build-tool lifecycle behavior remain adapter-owned.
 
+Process startup is provisional until the worker starts and the native protocol/version handshake
+completes. Any startup, timeout, or negotiation failure closes the worker and its child process
+before the error escapes. Native JSX lowering receives one immutable analysis plan, prepares its
+derived binding indexes once, and retains a single source traversal; lowering stages should extend
+that plan instead of restoring a broad positional-argument boundary or adding extra tree walks.
+
 Generated operation identifiers, ephemeral module analysis, helper imports, and lowered source
 are compiler-session details. Applications should depend on authored TypeScript behavior and
 documented executable runtime contracts rather than generated representation.
@@ -99,6 +118,15 @@ provided by the build integration. Its `components` and `partitionPlan` entries 
 component ownership, placement, environment effects, and concrete client/server artifact
 reachability. `rendererEnhancements` carries canonical enhancement identity plus the module
 specifier and export needed to construct a bundle-local enhancement catalog.
+Package-scoped config bindings are appended as host-owned virtual imports after authored source;
+the protocol boundary preserves authored offsets, duplicate-identifier ownership, and demand-driven
+catalog filtering without teaching the native compiler how to execute project configuration.
+Finite enhancement props documented with `@exact analyzer-only` remain typed language-projection
+facts but do not select renderer enhancements, create activation records, or enter emitted JSX.
+Their package-specific interpretation stays outside the compiler.
+Binding analysis recognizes those declared fields as enhancement-owned syntax, while retaining the
+usual ambiguity diagnostic when the same namespaced attribute is also a valid component or form
+binding.
 
 This is the sole compiler-provided seam for component-library authorization. It is deliberately
 descriptive rather than authoritative: the compiler does not read the component-library marker,

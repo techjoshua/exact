@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
+import type { DynamicComponentArtifact } from '@exactjs/core';
 import type { ExactMicrofrontendConfig } from './config.js';
 import {
 	generateProvidedPackageBootstrap,
@@ -28,6 +29,75 @@ export type ExactRemoteArtifactPlan = {
 	providedBootstrapSource: string;
 	exposures: readonly ExactRemoteExposureArtifact[];
 };
+
+/** Immutable output accepted only after one complete bundler generation succeeds. */
+export type ExactRemoteAcceptedGeneration = Readonly<{
+	buildKey: string;
+	entries: Readonly<Record<string, string>>;
+	artifacts: Readonly<Record<string, DynamicComponentArtifact>>;
+	resources: Readonly<{
+		css: readonly string[];
+		assets: readonly string[];
+		chunks: readonly string[];
+	}>;
+}>;
+
+/** Validates and freezes one adapter's actual emitted remote outputs. */
+export function acceptExactRemoteArtifactGeneration(
+	plan: ExactRemoteArtifactPlan,
+	output: Readonly<{
+		entries: Readonly<Record<string, string>>;
+		publicPath?: string;
+		immutable?: boolean;
+		integrity?: Readonly<Record<string, string>>;
+		css?: readonly string[];
+		assets?: readonly string[];
+		chunks?: readonly string[];
+	}>
+): ExactRemoteAcceptedGeneration {
+	const entries: Record<string, string> = {};
+	const artifacts: Record<string, DynamicComponentArtifact> = {};
+	for (const exposure of plan.exposures) {
+		const emitted = output.entries[exposure.exposure];
+		if (!emitted)
+			throw new Error(
+				`Missing emitted entry for remote exposure ${JSON.stringify(exposure.exposure)}`
+			);
+		const url = publicArtifactUrl(output.publicPath, emitted);
+		entries[exposure.exposure] = url;
+		if (output.immutable) {
+			artifacts[exposure.exposure] = Object.freeze({
+				url,
+				authorized: true,
+				immutable: true,
+				...(output.integrity?.[exposure.exposure]
+					? { integrity: output.integrity[exposure.exposure] }
+					: {})
+			});
+		}
+	}
+	return Object.freeze({
+		buildKey: plan.buildKey,
+		entries: Object.freeze(entries),
+		artifacts: Object.freeze(artifacts),
+		resources: Object.freeze({
+			css: Object.freeze(uniqueOutput(output.css)),
+			assets: Object.freeze(uniqueOutput(output.assets)),
+			chunks: Object.freeze(uniqueOutput(output.chunks))
+		})
+	});
+}
+
+function publicArtifactUrl(publicPath: string | undefined, filename: string): string {
+	if (/^https:\/\//.test(filename) || (filename.startsWith('/') && !filename.startsWith('//')))
+		return filename;
+	const prefix = publicPath && publicPath !== 'auto' ? publicPath.replace(/\/$/, '') : '';
+	return `${prefix}/${filename.replace(/^\/+/, '')}`;
+}
+
+function uniqueOutput(values: readonly string[] | undefined): string[] {
+	return [...new Set(values ?? [])].sort();
+}
 
 /** Creates canonical entries and provider publication for one application build. */
 export function createExactRemoteArtifactPlan(

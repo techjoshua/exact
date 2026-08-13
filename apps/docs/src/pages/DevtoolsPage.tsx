@@ -25,7 +25,7 @@ export function DevtoolsPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="Inspect the running component model"
+			title="Inspect the running system"
 			description="eXact DevTools joins durable browser instances, compiler explanations, server continuations, and microfrontend roots through one bounded read-only protocol."
 			previous={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
 			next={{ path: '/guides/routing', label: 'Routing' }}
@@ -54,7 +54,9 @@ export function DevtoolsPage(this: Component<{}>) {
 					Vite instrumented modules establish a runtime import barrier before application
 					evaluation, so the first native client root is inspection-owned rather than racing a
 					sibling bootstrap script. Compiler-generated reactive root cells preserve that ownership
-					when the renderer enters the authored component tree.
+					when the renderer enters the authored component tree. This behavior belongs to the eXact
+					Vite integration rather than Vite itself: custom middleware servers must include
+					<code>exact()</code> in the Vite configuration they load.
 				</p>
 			</section>
 			<section>
@@ -84,6 +86,14 @@ export function DevtoolsPage(this: Component<{}>) {
 					the same timeline vocabulary. Compiler-marked task IDs travel with each function
 					definition, so the inspector never guesses identity from array order.
 				</p>
+				<p>
+					Completed, failed, and cancelled tasks remain visible as a bounded execution history for
+					the attached inspection session. Each row starts collapsed and exposes redacted previews
+					of its invocation arguments and result or error on demand. The scheduler still releases
+					its live frame and the runtime never retains the original application values. By default,
+					the 200 most recently started executions are shared across a runtime owner; integrations
+					can tune the cap with <code>maxTaskExecutions</code>.
+				</p>
 			</section>
 			<section>
 				<h2>Microfrontends authorize independently</h2>
@@ -103,9 +113,13 @@ export function DevtoolsPage(this: Component<{}>) {
 				<p>
 					The Chromium extension's Components tree shows every durable instance in its live
 					parent/child hierarchy. Selecting an instance opens its state, props, context, task, and
-					dependency details. The tree and details panes scroll independently, and live updates
-					preserve their positions and expanded sections. Selecting another component keeps the tree
-					position while opening its details from the top.
+					dependency details. Every component and partition branch can be collapsed independently.
+					Nested arrays and objects begin as bounded JSON-like summaries of their own properties and
+					expand only when requested, keeping large state graphs manageable. Expanded levels use
+					content-sized key columns and compact indentation instead of recursively reserving a large
+					share of the remaining width. The tree and details panes scroll independently, and live
+					updates preserve their positions, collapsed branches, and expanded values. Selecting
+					another component keeps the tree position while opening its details from the top.
 				</p>
 				<p>
 					The Profiler records an explicit interaction window, groups events into causal framework,
@@ -121,9 +135,14 @@ export function DevtoolsPage(this: Component<{}>) {
 					For local use, build the Chromium package and load its package directory as an unpacked
 					extension. Its manifest points to generated assets and the Manifest V3 content entries are
 					emitted as classic scripts. The panel and worker entries are self-contained bundles, so
-					extension pages do not resolve packages through the application. Reloading the extension
-					also fences its old content port before the page bridge disconnects, and panel
-					registration points at the generated document from the extension root.
+					extension pages do not resolve packages through the application. The content script keeps
+					handshaking until both the document bridge and runtime instrumentation acknowledge
+					readiness. Only then does the worker release its bounded request queue. Panel and content
+					ports reconnect automatically after worker replacement, navigation, or page restoration;
+					unresolved read-only work is replayed against the new generation and stale responses are
+					fenced. The panel shows whether it is waiting for the page bridge, waiting for runtime
+					instrumentation, or reconnecting, so target-page reload is not the normal recovery
+					mechanism.
 				</p>
 				<p>
 					Source navigation opens only exact SHA-256 matches, checking source-mapped resources, then

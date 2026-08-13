@@ -1,4 +1,5 @@
 import type { ExactRendererEnhancementIR } from '../contracts/transform.js';
+import { exactEnhancementFacadeRequest } from './enhancement-facades.js';
 
 /** Renderer entry points redirected to application-bundle enhancement facades by build adapters. */
 export const exactEnhancementFacadeImports = Object.freeze({
@@ -19,11 +20,13 @@ export function prependExactEnhancementRegistrations(
 	);
 	const imports = entries.map(
 		(entry, index) =>
-			`import * as __exactEnhancement${index} from ${JSON.stringify(entry.moduleSpecifier)};`
+			`import __exactEnhancement${index} from ${JSON.stringify(
+				exactEnhancementFacadeRequest(entry)
+			)};`
 	);
 	const registrations = entries.map(
 		(entry, index) =>
-			`if (__exactEnhancement${index}[${JSON.stringify(entry.exportName)}] !== undefined) __exactRegisterEnhancement(${JSON.stringify(entry.identity)}, __exactEnhancement${index}[${JSON.stringify(entry.exportName)}]);`
+			`__exactRegisterEnhancement(${JSON.stringify(entry.identity)}, __exactEnhancement${index});`
 	);
 	return `${imports.join('\n')}
 import { registerExactEnhancement as __exactRegisterEnhancement } from '@exactjs/core/framework/enhancement-catalog';

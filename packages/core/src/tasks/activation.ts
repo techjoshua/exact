@@ -1,12 +1,4 @@
-import {
-	isReactiveValue,
-	peek,
-	ref as reactiveRef,
-	subscribe,
-	unwrap,
-	type ReactiveRef,
-	type ReactiveValue
-} from '@exactjs/reactive';
+import { peek, type ReactiveValue } from '@exactjs/reactive';
 
 import type { TaskFunction } from './contracts.js';
 import {
@@ -17,6 +9,19 @@ import {
 } from './frame-runtime.js';
 import { taskOwnerForHost } from './owner-hosts.js';
 import { bindTask, invokeTaskForActivation } from './runtime.js';
+import {
+	beginComponentContinuationOutputs,
+	componentContinuationDependencies
+} from './component-execution.js';
+import {
+	activationInputDependency,
+	type ContinuationDependencySource
+} from './dependency-source.js';
+import {
+	watchContinuationDependencies,
+	type ContinuationDependencyWatcher
+} from './dependency-watcher.js';
+import { componentExecutionSliceAllows } from './component-execution-slice.js';
 
 type ActivationInput<T> = T | ReactiveValue<T>;
 
@@ -29,7 +34,8 @@ export function activateTask<Args extends unknown[], Result>(
 	...inputs: { [Index in keyof Args]: ActivationInput<Args[Index]> }
 ): Disposable {
 	const owner = currentTaskOwnerRecord();
-	if (!owner) throw new Error('activateTask() requires a durable task host during setup');
+	if (!owner)
+		throw new Error('activateTask() requires a durable task host during component initialization');
 	return activateOwnedTask(owner, task, inputs);
 }
 
@@ -49,43 +55,99 @@ export function activateTaskForHost<Args extends unknown[], Result>(
 	return activateOwnedTask(owner, task, inputs);
 }
 
+/**
+ * Activates compiler-generated continuation work from availability-aware dependency sources.
+ *
+ * This is a framework ABI: application code should use {@link activateTask}. The returned watcher
+ * and all issued task generations are owned by the supplied durable host.
+ */
+export function activateTaskFromDependenciesForHost<Args extends unknown[], Result>(
+	host: object,
+	task: TaskFunction<Args, Result>,
+	dependencies: { [Index in keyof Args]: ContinuationDependencySource<Args[Index]> }
+): Disposable {
+	const owner = taskOwnerForHost(host);
+	if (!owner)
+		throw new Error(
+			'activateTaskFromDependenciesForHost() requires a registered durable task host'
+		);
+	return activateOwnedTaskFromDependencies(owner, task, dependencies);
+}
+
 function activateOwnedTask<Args extends unknown[], Result>(
 	owner: TaskOwnerRecord,
 	task: TaskFunction<Args, Result>,
 	inputs: { [Index in keyof Args]: ActivationInput<Args[Index]> }
 ): Disposable {
+	const dependencies = inputs.map(activationInputDependency) as {
+		[Index in keyof Args]: ContinuationDependencySource<Args[Index]>;
+	};
+	return activateOwnedTaskFromDependencies(owner, task, dependencies);
+}
+
+function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
+	owner: TaskOwnerRecord,
+	task: TaskFunction<Args, Result>,
+	dependencies: { [Index in keyof Args]: ContinuationDependencySource<Args[Index]> }
+): Disposable {
+	if (!componentExecutionSliceAllows(owner, task)) return inertActivation;
 	const bound = bindTask(task, { owner });
-	let stop: (() => void) | undefined;
+	const activationSite = {};
+	dependencies = componentContinuationDependencies(owner, task, dependencies);
+	let watcher: ContinuationDependencyWatcher | undefined;
+	let releaseDependencyWait: (() => void) | undefined;
 	const registration: TaskActivationRegistration = {
 		task,
 		settled: false,
 		start(skipInitial) {
-			if (stop) return;
-			const invoke = (activation: 'initialization' | 'reactive') => {
-				const args = inputs.map((input) =>
-					isReactiveValue(input) ? unwrap(input) : input
-				) as Args;
-				registration.settled = false;
-				const invocation = peek(() => invokeTaskForActivation(task, owner, activation, args));
-				void Promise.resolve(invocation).then(
-					() => {
+			if (watcher) return;
+			let initial = true;
+			const settleDependencyWait = () => {
+				releaseDependencyWait?.();
+				releaseDependencyWait = undefined;
+			};
+			const retainDependencyWait = () => {
+				if (releaseDependencyWait || !owner.observeSettlement) return;
+				let release!: () => void;
+				const settlement = new Promise<void>((resolve) => (release = resolve));
+				releaseDependencyWait = release;
+				owner.observeSettlement(settlement);
+			};
+			watcher = watchContinuationDependencies(dependencies, {
+				onReady(vector) {
+					settleDependencyWait();
+					if (skipInitial && initial) {
+						initial = false;
 						registration.settled = true;
-					},
-					() => {
-						registration.settled = false;
+						return;
 					}
-				);
-			};
-			const sources = inputs
-				.map((input) => reactiveRef(input))
-				.filter((source): source is ReactiveRef => source !== undefined);
-			for (const source of sources) unwrap(source);
-			const stops = sources.map((source) => subscribe(source, () => invoke('reactive')));
-			stop = () => {
-				for (const stopInput of stops) stopInput();
-			};
-			if (skipInitial) registration.settled = true;
-			else invoke('initialization');
+					const activation = initial ? 'initialization' : 'reactive';
+					initial = false;
+					const args = vector.values as Args;
+					registration.settled = false;
+					const outputs = beginComponentContinuationOutputs(owner, task);
+					const invocation = peek(() =>
+						invokeTaskForActivation(task, owner, activationSite, activation, args)
+					);
+					void Promise.resolve(invocation).then(
+						() => {
+							outputs?.publish();
+							registration.settled = true;
+						},
+						(error) => {
+							outputs?.settleFailure(error);
+							registration.settled = false;
+						}
+					);
+				},
+				onUnavailable(state) {
+					registration.settled = false;
+					bound.cancel('task-activation-dependency-unavailable');
+					if (state === 'pending') retainDependencyWait();
+					else settleDependencyWait();
+				}
+			});
+			watcher.evaluate();
 		}
 	};
 	owner.activationRegistrations.add(registration);
@@ -95,7 +157,9 @@ function activateOwnedTask<Args extends unknown[], Result>(
 		[Symbol.dispose]() {
 			if (disposed) return;
 			disposed = true;
-			stop?.();
+			watcher?.[Symbol.dispose]();
+			releaseDependencyWait?.();
+			releaseDependencyWait = undefined;
 			bound.cancel('task-activation-disposed');
 			owner.activationRegistrations.delete(registration);
 			owner.ownerCleanups.delete(cleanup);
@@ -105,6 +169,8 @@ function activateOwnedTask<Args extends unknown[], Result>(
 	registerTaskOwnerCleanup(owner, cleanup);
 	return activation;
 }
+
+const inertActivation: Disposable = Object.freeze({ [Symbol.dispose]() {} });
 
 /** Defers setup activations until a framework host has restored resumable state. */
 export function deferTaskOwnerActivations(owner: TaskOwnerRecord): void {

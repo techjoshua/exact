@@ -1,0 +1,8 @@
+{
+	"name": "@exactjs/framework-comparison-sveltekit",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	}
+}

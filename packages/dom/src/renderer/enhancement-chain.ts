@@ -92,7 +92,7 @@ function enhancementVNode(
 
 /** Returns the authored VNode identity without its compiler-owned enhancement declaration. */
 export function withoutEnhancements(vnode: VNode): VNode {
-	if (!vnode.enhancements) return vnode;
-	const { enhancements: _enhancements, ...plain } = vnode;
+	if (!vnode.enhancement) return vnode;
+	const { enhancement: _enhancement, ...plain } = vnode;
 	return plain;
 }

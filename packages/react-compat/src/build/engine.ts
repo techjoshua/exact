@@ -484,7 +484,16 @@ function manifestUsesExact(manifest: PackageManifestLike): boolean {
 }
 
 function readableSourceCandidates(filename: string): string[] {
-	return /\.[cm]?[jt]sx?$|\.d\.[cm]?ts$/i.test(filename)
+	if (/\.d\.[cm]?ts$/i.test(filename)) return [filename];
+	const extension = path.extname(filename).toLowerCase();
+	if (extension === '.js' || extension === '.jsx' || extension === '.mjs' || extension === '.cjs') {
+		const stem = filename.slice(0, -extension.length);
+		const prefix = extension === '.mjs' ? 'm' : extension === '.cjs' ? 'c' : '';
+		// TypeScript applications commonly author an emitted JavaScript extension in source imports.
+		// Inspect the matching source file before the not-yet-emitted path so ownership remains native.
+		return [`${stem}.${prefix}tsx`, `${stem}.${prefix}ts`, filename];
+	}
+	return /\.[cm]?[jt]sx?$/i.test(filename)
 		? [filename]
 		: [
 				filename,

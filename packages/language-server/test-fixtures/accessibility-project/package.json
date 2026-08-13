@@ -1,0 +1,11 @@
+{
+	"name": "@exactjs/test-accessibility-language-project",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@exactjs/accessibility": "0.1.0",
+		"@exactjs/config": "0.1.0",
+		"@exactjs/core": "0.1.0",
+		"@exactjs/jsx": "0.1.0"
+	}
+}

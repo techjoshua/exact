@@ -51,10 +51,10 @@ describe('@exactjs/compiler: diagnostics', () => {
 		const analysis = analyzeSource(source, { filename: '/src/Page.tsx' });
 
 		expect(analysis.components[0]!.diagnostics).toContain(
-			'error: JSX tag Widget resolves to variable, not a runtime component'
+			'error: JSX component-position value is not callable or constructable and cannot be a dynamic component'
 		);
 		expect(() => transform(source, { filename: '/src/Page.tsx' })).toThrow(
-			'JSX tag Widget resolves to variable'
+			'JSX component-position value is not callable or constructable'
 		);
 	});
 

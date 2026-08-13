@@ -1,0 +1,8 @@
+{
+	"schemaVersion": 1,
+	"participantId": "react-native",
+	"status": "pending",
+	"reviewer": null,
+	"reviewedAt": null,
+	"findings": ["Requires review by a React Router specialist before publication."]
+}

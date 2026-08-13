@@ -15,6 +15,14 @@ This is similar to the syntactic sugar C# applies to an `async` method. Authored
 linear code becomes explicit continuation and state-management machinery.
 eXact distributes that generated machinery across the browser and server.
 
+Each SSR component instance owns every reactive cell allocated while materializing its compiled
+view. Eligible server render programs emit their nested cell and dynamic hydration markers
+directly; an unsupported or malformed program alone materializes its marker-compatible fallback
+inside that owner. Completing or cancelling the request stops the scope before the instance
+becomes unreachable, so component graphs do not accumulate across requests. Process RSS may remain
+above live heap after a burst because the JavaScript engine and native allocator retain reusable
+pages.
+
 For the full architecture and disclosure model, see
 [distributed-component-continuations.md](distributed-component-continuations.md).
 For production runtime and adapter concerns, see
@@ -89,6 +97,13 @@ Target-specific compilation emits `.exact.client`, `.exact.server`, and when
 appropriate `.exact.shared` artifacts. Generated component contracts are
 attached privately to the artifacts that own them. Runtime composition reads
 those contracts; applications do not invent generated operation IDs.
+
+Each attached contract also carries that component's compact execution subgraph: indexed value
+ports, setup or interaction transitions, placement, readiness, concurrency, and reactive-allocation
+decisions. The compiler derives client and server projections from one target-neutral analysis and
+removes opposite-environment transitions before emission. A module may still contain and export
+several components, and ordinary named barrel exports remain tree-shakeable because there is no
+eager process-wide dispatch registration.
 
 Imports used exclusively by server continuations remain unreachable from
 client runtime output. This includes transitive dependencies, re-exports,
@@ -176,6 +191,36 @@ server-resident context writes remain server-only.
 Use request-aware SSR entrypoints when rendering with server contexts. SSR can
 settle server tasks, capture the permitted state and shared context needed by
 the browser, and mark those continuations as settled.
+
+Instantiating a compiled component state machine installs dependency watchers before task activation. Constants and live
+values are immediately available; predecessor outputs are generation-bound slots. A dependent
+continuation receives one complete snapshot only after every slot is available. Starting a newer
+producer generation makes its current output pending, and stale, failed, or cancelled settlement
+cannot publish into downstream work. Interaction-only outputs retain their current visible value
+until the interaction actually begins.
+When one child prop aggregates several planned state outputs, the compiler carries every
+contributing path on that single reactive value. SSR exposes the aggregate to child setup only
+after all of those outputs settle, then samples the complete expression once; it cannot initialize
+the child from a partially populated object merely because the prop is not a direct state read.
+
+Async SSR invokes reachable compiled children before draining compiler-planned parent work. Each
+child therefore wires and offers its independent ready continuations to the same request-owned
+bounded scheduler without a startup graph-flattening pass. Conditional, keyed, registry, lazy, and
+recursive children continue to use normal render-program reachability, so inactive alternatives do
+not execute merely because their component contracts exist.
+
+Within that async render, finite intrinsic branches with no component, structural, enhancement, or
+server boundary use the synchronous walker. Compiler-proven module collections also keep ordinary
+per-render mapping semantics while omitting reactive wrappers around item values that cannot
+invalidate. Output remains as bounded engine ropes until its final adapter encoding, avoiding a
+flat string copy at every nested element.
+
+SSR caches the immutable preparation work by the selected root function. Component contracts,
+transition and port indexes, output paths, and setup-prop selection are reused across requests;
+dynamic components join the root blueprint only when reached. Entries are weakly keyed and checked
+against the current compiler identity and attached contract, while values, ownership, watchers,
+generations, cancellation, and request contexts remain per render. This removes repeated validation
+and graph-index construction without turning the cache into shared application state.
 
 Hydration then:
 

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
-test('the root build prepares package-export prerequisites before testing the native compiler', async () => {
+test('the root build prepares package-export prerequisites before building dependent workspaces', async () => {
 	const manifest = JSON.parse(await readFile(path.resolve('package.json'), 'utf8'));
 
 	assert.equal(
@@ -12,11 +12,28 @@ test('the root build prepares package-export prerequisites before testing the na
 	);
 	assert.equal(
 		manifest.scripts['build:prerequisites'],
-		'npm run build -w @exactjs/core -w @exactjs/jsx'
+		'npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer'
 	);
 	assert.equal(
 		manifest.scripts['build:workspaces'],
-		'npm run generate:app-artifacts && tsc6 -b && npm run typecheck -w @exactjs/sample-puzzle-generator'
+		'npm run generate:app-artifacts && tsc6 -b && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator'
+	);
+	assert.equal(
+		manifest.scripts['generate:component-library-build-facts'],
+		'node scripts/generate-all-component-library-build-facts.mjs'
 	);
 	assert.equal(manifest.devDependencies['@typescript/native'], 'npm:typescript@^7.0.2');
+});
+
+test('the root build includes the enhancement playground and its component libraries', async () => {
+	const config = JSON.parse(await readFile(path.resolve('tsconfig.json'), 'utf8'));
+	const references = new Set(config.references.map((reference) => reference.path));
+
+	for (const project of [
+		'./component-libraries/physics',
+		'./component-libraries/gravity',
+		'./apps/enhancement-playground'
+	]) {
+		assert.ok(references.has(project), `missing root TypeScript project reference: ${project}`);
+	}
 });

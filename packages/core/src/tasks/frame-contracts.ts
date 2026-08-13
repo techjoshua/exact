@@ -26,6 +26,7 @@ export type TaskOwnerRecord = TaskOwner & {
 	readonly controller: AbortController;
 	host?: object;
 	observeSettlement?: (settlement: Promise<unknown>) => void;
+	runTask?: <T>(work: () => Promise<T>) => Promise<T>;
 	registerReadiness?: (
 		taskGeneration: number,
 		settlement: PromiseLike<unknown>,
@@ -43,9 +44,9 @@ export type TaskFrameRecord = {
 	readonly owner: TaskOwnerRecord;
 	readonly parent?: TaskFrameRecord;
 	readonly controller: AbortController;
-	readonly children: Set<Promise<void>>;
-	readonly cleanups: TaskFrameCleanup[];
-	readonly context: TaskContext;
+	children?: Set<Promise<void>>;
+	cleanups?: TaskFrameCleanup[];
+	readonly context?: TaskContext;
 	readonly kind: string;
 	readonly label?: string;
 	readonly sourceEntityId?: string;
@@ -76,8 +77,12 @@ export type InternalTaskFrameOptions = {
 	readonly sourceEntityId?: string;
 	readonly placement?: 'current' | 'client' | 'server';
 	readonly concurrency?: 'parallel' | 'latest' | 'queue';
+	/** Invocation arguments exposed only as a bounded preview while inspection is attached. */
+	readonly inspectionArguments?: readonly unknown[];
 	/** Whether a failed child contributes structural failure to its parent. */
 	readonly propagateFailure?: () => boolean;
 	/** Confirms that the caller atomically reserved this parent before scheduling. */
 	readonly parentReserved?: boolean;
+	/** Omits the public TaskContext for internal hosts whose callback cannot observe it. */
+	readonly publicContext?: false;
 };
