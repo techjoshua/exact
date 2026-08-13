@@ -432,7 +432,7 @@ a {
 }
 
 .article-header,
-.article > section:not(.hero-grid):not(.logo-lab),
+.article > section:not(.hero-grid):not(.logo-lab):not(.react-comparison),
 .article > .callout,
 .article > .page-navigation,
 .article > .package-group {
@@ -502,6 +502,72 @@ h1 {
 
 .article p {
 	color: var(--text-soft);
+}
+
+.react-comparison {
+	width: 100%;
+}
+
+.react-comparison > h2,
+.react-comparison > p {
+	width: min(100%, 52rem);
+	margin-right: auto;
+	margin-left: auto;
+}
+
+.code-comparison {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1rem;
+	align-items: start;
+}
+
+.code-comparison .code-block {
+	margin-bottom: 0;
+}
+
+.comparison-code-stack {
+	display: grid;
+	min-width: 0;
+	gap: 1rem;
+}
+
+.comparison-code-stack > h3 {
+	padding: 0.2rem 0.15rem;
+	color: var(--text);
+	font-size: 0.86rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.continuation-comparison {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	margin: 1rem 0 1.5rem;
+	overflow: hidden;
+	border: 1px solid var(--border);
+	border-radius: 0.65rem;
+	background: var(--surface);
+}
+
+.continuation-comparison > div {
+	padding: 1rem;
+}
+
+.continuation-comparison > div + div {
+	border-left: 1px solid var(--border);
+}
+
+.continuation-comparison strong {
+	color: var(--accent-strong);
+	font-size: 0.78rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.continuation-comparison p {
+	margin-bottom: 0;
+	font-size: 0.82rem;
 }
 
 .article code:not(.code-block code) {
@@ -1526,8 +1592,15 @@ td {
 	}
 
 	.hero-grid,
-	.logo-workspace {
+	.logo-workspace,
+	.code-comparison,
+	.continuation-comparison {
 		grid-template-columns: 1fr;
+	}
+
+	.continuation-comparison > div + div {
+		border-top: 1px solid var(--border);
+		border-left: 0;
 	}
 
 	.logo-editor-panel textarea,
@@ -1625,6 +1698,11 @@ td {
 	.code-block {
 		margin-right: -0.25rem;
 		margin-left: -0.25rem;
+	}
+
+	.comparison-code-stack .code-block {
+		margin-right: 0;
+		margin-left: 0;
 	}
 
 	.logo-lab {

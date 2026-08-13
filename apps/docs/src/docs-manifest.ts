@@ -24,6 +24,7 @@ import { PhysicsPage } from './pages/PhysicsPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
 import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
+import { ReactDevelopersPage } from './pages/ReactDevelopersPage.jsx';
 import { RoutingPage } from './pages/RoutingPage.jsx';
 import { RuntimesPage } from './pages/RuntimesPage.jsx';
 import { SamplesPage } from './pages/SamplesPage.jsx';
@@ -81,6 +82,15 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'create exact app install scaffold vite runtime test runner agent skill native compiler platform binary TypeScript 7',
 				component: GettingStartedPage
+			},
+			{
+				path: '/react-developers',
+				label: 'eXact for React developers',
+				summary:
+					'Compare everyday eXact and React components side by side, from state and forms to lists, async work, and lifecycle.',
+				keywords:
+					'React developers migration comparison side by side hooks useState useEffect useMemo state forms binding JSX className keyed lists tasks lifecycle cleanup Server Components RSC Server Functions actions continuations Next.js optimistic',
+				component: ReactDevelopersPage
 			},
 			{
 				path: '/samples',

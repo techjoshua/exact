@@ -18,6 +18,7 @@ These documents describe behavior that exists in the repository today:
 | [component-registries.md](component-registries.md)                               | Branched, finite-registry, and open dynamic component selection.                                          |
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.                                              |
 | [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.                                  |
+| [exact-for-react-developers.md](exact-for-react-developers.md)                   | Side-by-side native eXact and idiomatic React component authoring guide.                                  |
 | [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.                                              |
 | [framework-comparison.md](framework-comparison.md)                               | Cross-framework application contract, comparison tracks, fairness, and current suite status.              |
 | [gestures.md](gestures.md)                                                       | Prepared gesture recognition, ownership, accessibility, and testing.                                      |
