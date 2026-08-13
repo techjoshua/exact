@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import './structural-boundaries.js';
 import './framework/enhancements.js';
 import {
 	Activity,

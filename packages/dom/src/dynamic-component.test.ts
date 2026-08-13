@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import './structural-boundaries.js';
 import { Suspense, markExactComponent, type Component } from '@exactjs/core';
 import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { flushSync, reactive } from '@exactjs/reactive';

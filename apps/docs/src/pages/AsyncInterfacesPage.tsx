@@ -207,6 +207,12 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					stable siblings. Hydration reads explicit content or fallback markers instead of guessing
 					which branch the server emitted.
 				</p>
+				<p>
+					The compiler selects the coordinated Activity and Suspense DOM implementation only for a
+					bundle that authors one of these boundaries, including lazy and microfrontend bundles.
+					Compilerless VNode construction opts in through
+					<code>@exactjs/dom/structural-boundaries</code>.
+				</p>
 			</section>
 			<section>
 				<h2>Activity retains inactive work</h2>

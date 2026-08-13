@@ -22,9 +22,9 @@ import { patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { unmountMany, unmountMounted } from '../teardown.js';
-import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
+import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { refreshTargetBoundary } from '../target-contributions.js';
-import { adoptActivityBoundary, adoptSuspenseBoundary } from './mode-boundaries.js';
+import { requireStructuralBoundaryCapability } from '../structural-capability.js';
 import {
 	componentMarkerBoundary,
 	recoverMismatchedComponentRange,
@@ -228,7 +228,8 @@ export function adoptStaticMountedInner(
 		);
 	}
 	if (vnode.type === UnsafeHtml) {
-		assertUnsafeHtmlAllowed(root);
+		const capability = requireUnsafeHtmlDomCapability();
+		capability.assertAllowed(root);
 		const start = nodes[cursor];
 		if (!(start instanceof Comment) || !start.data.startsWith('exact:unsafe-html:'))
 			return stopFailedAdoption(scope);
@@ -242,12 +243,12 @@ export function adoptStaticMountedInner(
 			children: [],
 			rawNodes: nodes.slice(cursor + 1, endIndex)
 		};
-		bindUnsafeHtml(root, mounted, vnode.props.value, true);
+		capability.bind(root, mounted, vnode.props.value, true);
 		return { mounted, next: endIndex + 1 };
 	}
 	if (vnode.type === Activity) {
 		scope.stop();
-		return adoptActivityBoundary(
+		return requireStructuralBoundaryCapability().adoptActivity(
 			root,
 			vnode,
 			nodes,
@@ -260,7 +261,7 @@ export function adoptStaticMountedInner(
 	}
 	if (vnode.type === Suspense) {
 		scope.stop();
-		return adoptSuspenseBoundary(
+		return requireStructuralBoundaryCapability().adoptSuspense(
 			root,
 			vnode,
 			nodes,

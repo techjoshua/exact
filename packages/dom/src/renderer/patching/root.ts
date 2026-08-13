@@ -31,9 +31,8 @@ import {
 } from '../mounting/children.js';
 import { mount } from '../mounting/root.js';
 import { disposeMounted } from '../teardown.js';
-import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
-import { installActivity } from '../activity.js';
-import { updateSuspense } from '../suspense.js';
+import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
+import { requireStructuralBoundaryCapability } from '../structural-capability.js';
 import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
 import { requireDomEnhancementCapability } from '../enhancement-capability.js';
@@ -199,35 +198,24 @@ export function patchInner(
 
 	if (next.type === UnsafeHtml) {
 		mounted.vnode = next;
-		assertUnsafeHtmlAllowed(root);
-		bindUnsafeHtml(root, mounted, next.props.value);
+		const capability = requireUnsafeHtmlDomCapability();
+		capability.assertAllowed(root);
+		capability.bind(root, mounted, next.props.value);
 		return mounted;
 	}
 
 	if (next.type === Activity) {
-		const activity = mounted.activity;
-		if (!activity) throw new Error('Cannot patch an Activity boundary without Activity state');
-		mounted.stop?.();
-		mounted.stop = undefined;
-		mounted.vnode = next;
-		const contentParent = activity.retained?.segments[0]?.fragment ?? parent;
-		mounted.children = patchChildren(
-			root,
-			contentParent,
-			mounted.children,
-			next.children,
-			activity.owner,
-			activity.contentScope,
-			activity.retained?.detached ? null : mounted.end,
-			mounted
-		);
-		installActivity(root, mounted);
-		return mounted;
+		return requireStructuralBoundaryCapability().patchActivity(root, parent, mounted, next);
 	}
 
 	if (next.type === Suspense) {
-		updateSuspense(root, parent, mounted, next, parentInstance);
-		return mounted;
+		return requireStructuralBoundaryCapability().patchSuspense(
+			root,
+			parent,
+			mounted,
+			next,
+			parentInstance
+		);
 	}
 
 	if (next.type === Target) {

@@ -5,6 +5,7 @@ import { createExpression, type Component } from '@exactjs/core';
 import { createEffectScope, flushSync } from '@exactjs/reactive';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
+import './runtime/modal.js';
 import { bindModalOpen } from './modal-binding.js';
 import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 

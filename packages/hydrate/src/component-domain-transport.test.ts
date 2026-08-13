@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/dom/structural-boundaries';
 import {
 	Suspense,
 	activateTaskForHost,

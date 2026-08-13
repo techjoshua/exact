@@ -6846,6 +6846,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/dynamic-components"},
 		{module: "@exactjs/core/runtime/logging"},
 		{module: "@exactjs/core/runtime/localization"},
+		{module: "@exactjs/dom/runtime/modal"},
+		{module: "@exactjs/dom/runtime/unsafe-html"},
+		{module: "@exactjs/dom/runtime/structural-boundaries"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -6936,11 +6939,22 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
 	interactionUsed := containsInteractionRuntimeUse(root)
 	localizationUsed := containsComponentLocalizationUse(root)
+	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
+	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
+		lowering.sourceFile,
+		lowering.checker,
+	)
+	structuralBoundariesUsed := lowering.target != TargetServer &&
+		(partitionUsesStructuralBoundaries(lowering.partitionPlan) ||
+			containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker))
 	result := make([]*ast.Node, 0, len(groups))
 	for index, group := range groups {
 		if len(group.specifiers) == 0 {
 			if (index == 2 && (interopUsed || interactionUsed)) ||
-				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) {
+				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) ||
+				(group.module == "@exactjs/dom/runtime/modal" && modalBindingUsed) ||
+				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
+				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,
@@ -6968,6 +6982,61 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		result = append(result, declaration)
 	}
 	return result
+}
+
+func partitionUsesStructuralBoundaries(plan PartitionPlan) bool {
+	for _, node := range plan.Nodes {
+		if node.Kind == "readiness-boundary" ||
+			(node.Kind == "region" && node.Reason == "Activity retention boundary") {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCoreStructuralBoundaryImport(
+	root *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	for local, reference := range bindings.byName {
+		if reference.moduleSpecifier == "@exactjs/core" &&
+			(reference.exportName == "Activity" || reference.exportName == "Suspense") &&
+			containsIdentifier(root, local) {
+			return true
+		}
+	}
+	found := false
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
+			(reference.exportName == "Activity" || reference.exportName == "Suspense")
+		return !found
+	})
+	return found
+}
+
+func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
+	found := false
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(
+			node.AsCallExpression().Expression,
+			bindings,
+			typeChecker,
+		)
+		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
+			reference.exportName == "unsafeHtml"
+		return !found
+	})
+	return found
 }
 
 func containsComponentLocalizationUse(root *ast.Node) bool {

@@ -26,3 +26,8 @@ Compiler-resolved enhancements automatically load their DOM integration beside t
 uses them, including from lazy chunks and microfrontends. An integration that manually constructs
 enhancement markers and catalogs must import `render` from `@exactjs/dom/enhanced`; the ordinary
 entry intentionally leaves the optional enhancement host out of enhancement-free bundles.
+
+The compiler applies the same bundle-local selection to native modal bindings, `unsafeHtml()`, and
+the coordinated Activity/Suspense renderer. Compilerless code that constructs unsafe-HTML or
+structural-boundary VNodes must import `@exactjs/dom/unsafe-html` or
+`@exactjs/dom/structural-boundaries`, respectively.

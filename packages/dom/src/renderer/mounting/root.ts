@@ -7,7 +7,6 @@ import {
 	Fragment,
 	handleComponentError,
 	isCellVNode,
-	normalizeActivityMode,
 	normalizeRenderResult,
 	Portal,
 	RenderProgram,
@@ -18,7 +17,6 @@ import {
 	Target,
 	Text,
 	UnsafeHtml,
-	unwrap,
 	watch,
 	type ComponentFunction,
 	type ComponentInstance,
@@ -43,11 +41,10 @@ import { countDomWork, isDomRenderLimitError, withTreeDepth } from '../limits.js
 import { bindText, patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
-import { installActivity, prepareActivity } from '../activity.js';
 import { refreshTargetBoundary } from '../target-contributions.js';
-import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
-import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
+import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
+import { requireStructuralBoundaryCapability } from '../structural-capability.js';
 import { requireDomEnhancementCapability } from '../enhancement-capability.js';
 import { fallbackRenderProgram, mountRenderProgram } from '../render-program.js';
 import { mountDynamic } from '../dynamic.js';
@@ -166,49 +163,34 @@ export function mountInner(
 	}
 
 	if (vnode.type === UnsafeHtml) {
-		assertUnsafeHtmlAllowed(root);
+		const capability = requireUnsafeHtmlDomCapability();
+		capability.assertAllowed(root);
 		const id = `exact:unsafe-html:client`;
 		const start = document.createComment(id);
 		const end = document.createComment(`/${id}`);
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [], rawNodes: [] };
-		bindUnsafeHtml(root, mounted, vnode.props.value);
+		capability.bind(root, mounted, vnode.props.value);
 		return mounted;
 	}
 
 	if (vnode.type === Activity) {
-		const start = createMarker(root, 'activity');
-		const end = createMarker(root, 'activity-end');
-		const contentScope = createEffectScope(scope);
-		const mounted: Mounted = {
-			vnode,
-			dom: start,
-			end,
-			scope,
-			children: []
-		};
-		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
-		const activityOwner = prepareActivity(root, mounted, parentInstance, contentScope, mode);
-		mounted.children = mountDetachedChildren(
+		return requireStructuralBoundaryCapability().mountActivity(
 			root,
-			vnode.children,
-			activityOwner,
-			contentScope,
+			vnode,
+			scope,
+			parentInstance,
 			parentNode
 		);
-		installActivity(root, mounted);
-		return mounted;
 	}
 
 	if (vnode.type === Suspense) {
-		const mounted: Mounted = {
+		return requireStructuralBoundaryCapability().mountSuspense(
+			root,
 			vnode,
-			dom: createMarker(root, 'suspense'),
-			end: createMarker(root, 'suspense-end'),
 			scope,
-			children: []
-		};
-		initializeSuspense(root, mounted, parentInstance, parentNode);
-		return mounted;
+			parentInstance,
+			parentNode
+		);
 	}
 
 	if (vnode.type === Target) {

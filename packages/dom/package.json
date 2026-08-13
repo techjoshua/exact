@@ -27,6 +27,26 @@
 		"./framework/enhancements": {
 			"types": "./dist/framework/enhancements.d.ts",
 			"default": "./dist/framework/enhancements.js"
+		},
+		"./runtime/modal": {
+			"types": "./dist/runtime/modal.d.ts",
+			"default": "./dist/runtime/modal.js"
+		},
+		"./runtime/unsafe-html": {
+			"types": "./dist/runtime/unsafe-html.d.ts",
+			"default": "./dist/runtime/unsafe-html.js"
+		},
+		"./unsafe-html": {
+			"types": "./dist/unsafe-html.d.ts",
+			"default": "./dist/unsafe-html.js"
+		},
+		"./runtime/structural-boundaries": {
+			"types": "./dist/runtime/structural-boundaries.d.ts",
+			"default": "./dist/runtime/structural-boundaries.js"
+		},
+		"./structural-boundaries": {
+			"types": "./dist/structural-boundaries.d.ts",
+			"default": "./dist/structural-boundaries.js"
 		}
 	},
 	"main": "./dist/index.js",

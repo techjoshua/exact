@@ -22,7 +22,7 @@ import {
 	runEventInteraction
 } from './events.js';
 import { preserveFocus } from './focus.js';
-import { bindModalOpen } from './modal-binding.js';
+import { getModalBindingCapability } from './modal-capability.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
 import { bindStyle } from './style.js';
@@ -137,7 +137,12 @@ function setProp(
 
 	if (key === '__exactModalOpen') {
 		if (value === undefined) return;
-		const stop = bindModalOpen(element, value, scope, () => releasePropBinding(element, key));
+		const capability = getModalBindingCapability();
+		if (!capability)
+			throw new Error(
+				'Modal binding is unavailable because this artifact did not include the modal capability'
+			);
+		const stop = capability.bind(element, value, scope, () => releasePropBinding(element, key));
 		if (stop) setPropBinding(element, key, stop);
 		return;
 	}

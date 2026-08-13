@@ -214,7 +214,8 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>value:onChange</code> commits input, textarea, select, and multi-select values; and
 					<code>checked:onChange</code> handles booleans, radio values, or checkbox arrays. Details
 					use <code>open:onToggle</code>, while dialogs use the bidirectional native-modal binding
-					<code>modal:isOpen</code>.
+					<code>modal:isOpen</code>. Its native dialog controller is selected automatically only for
+					compiled bundles that use that binding.
 				</p>
 				<p>
 					The compiler selects number, date, nullable, radio, checkbox-array, and multi-select

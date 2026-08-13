@@ -8,3 +8,5 @@ into browser DOM roots.
 - Use stable list keys and component-registry keys when identity must survive updates.
 - Use the `/enhanced` entry only for manually constructed enhancement markers and catalogs;
   compiler-resolved enhancements activate their renderer support automatically.
+- Compilerless code that constructs `unsafeHtml()`, Activity, or Suspense VNodes must import the
+  corresponding `/unsafe-html` or `/structural-boundaries` integration entry.

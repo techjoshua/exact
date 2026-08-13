@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/dom/runtime/modal';
 import { createExpression } from '@exactjs/core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { hydrate } from './index.js';

@@ -16,6 +16,7 @@ import {
 	type Logger,
 	type RootLifecycle
 } from '@exactjs/core';
+import '@exactjs/dom/unsafe-html';
 import {
 	createCompiledDynamicComponent,
 	createServerDynamicComponent

@@ -1112,6 +1112,10 @@ return () => <article>{unsafeHtml(auditedMarkup)}</article>;
 Native DOM, SSR, and hydration roots reject it unless the application opts in
 with `allowUnsafeHtml: true`. `dangerouslySetInnerHTML` is not supported.
 `iframe.srcdoc` likewise requires an `unsafeHtml()` value and root opt-in.
+Compiled calls select the DOM unsafe-HTML renderer in the module that uses the
+capability, so an application without such a call omits the range parser and
+binding implementation. Compilerless VNode construction must import
+`@exactjs/dom/unsafe-html` explicitly.
 
 ## Tasks
 
@@ -1407,6 +1411,12 @@ return () => (
 On first mount the fallback remains until the candidate is ready. On later
 updates, committed content remains visible while the next candidate prepares.
 Nested boundaries own independent generations.
+
+The compiler selects the coordinated Activity/Suspense DOM implementation only
+for modules that author one of these native boundaries. This remains correct for
+lazy chunks and microfrontends because the importing module carries the
+registration. Compilerless VNode construction must import
+`@exactjs/dom/structural-boundaries` explicitly.
 
 `Activity` retains a mounted subtree while changing its connectivity and work
 policy:

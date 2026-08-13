@@ -92,6 +92,7 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		const server = transformSource(source, { filename: '/app/Modal.tsx', target: 'server' });
 
 		expect(result.code).not.toContain('modal:isOpen');
+		expect(result.code).toContain('import "@exactjs/dom/runtime/modal"');
 		expect(result.code).toContain(
 			'__exactModalOpen: __exactExpression(() => this.state.open ?? false)'
 		);
@@ -100,6 +101,7 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		expect(result.code).toContain('event.currentTarget.matches(":modal")');
 		expect(server.code).not.toContain('modal:isOpen');
 		expect(server.code).not.toContain('__exactModalOpen');
+		expect(server.code).not.toContain('@exactjs/dom/runtime/modal');
 		expect(server.code).not.toMatch(/\bopen:/);
 	});
 

@@ -45,13 +45,21 @@ describe('unsafeHtml package capabilities', () => {
 			})
 		).toThrow(/has not explicitly enabled/);
 
-		expect(() =>
-			transformSource(rawHtmlSource, {
-				filename: 'src/article.tsx',
-				packageType: 'application',
-				packageName: 'my-app',
-				capabilityPolicy: { unsafeHtml: { enabled: true } }
-			})
-		).not.toThrow();
+		const client = transformSource(rawHtmlSource, {
+			filename: 'src/article.tsx',
+			packageType: 'application',
+			packageName: 'my-app',
+			capabilityPolicy: { unsafeHtml: { enabled: true } }
+		});
+		expect(client.code).toContain('import "@exactjs/dom/runtime/unsafe-html"');
+
+		const server = transformSource(rawHtmlSource, {
+			filename: 'src/article.tsx',
+			packageType: 'application',
+			packageName: 'my-app',
+			target: 'server',
+			capabilityPolicy: { unsafeHtml: { enabled: true } }
+		});
+		expect(server.code).not.toContain('@exactjs/dom/runtime/unsafe-html');
 	});
 });

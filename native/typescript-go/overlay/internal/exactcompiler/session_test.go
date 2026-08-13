@@ -805,6 +805,9 @@ func TestSessionDoesNotAdaptCoreVNodeSymbolsAsReactComponents(t *testing.T) {
 	if !strings.Contains(response.Code, `__exactVNode(Suspense,`) {
 		t.Fatalf("core Suspense symbol was not retained as an eXact VNode type:\n%s", response.Code)
 	}
+	if !strings.Contains(response.Code, `import "@exactjs/dom/runtime/structural-boundaries"`) {
+		t.Fatalf("native Suspense did not select its DOM structural capability:\n%s", response.Code)
+	}
 }
 
 func TestSessionEmitsClientRootComponentContract(t *testing.T) {
