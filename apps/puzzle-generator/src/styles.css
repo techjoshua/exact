@@ -461,14 +461,111 @@ input[type='range'] {
 	margin-top: 18px;
 }
 
-.ai-option > p {
+.ai-option:not(.expanded) {
+	padding: 0;
+	border: 0;
+	background: transparent;
+}
+
+.ai-config-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 43px;
+	padding: 7px 11px;
+	border: 1px solid #c9c3b5;
+	border-radius: 3px;
+	background: #fffef9;
+	color: #17251e;
+	text-align: left;
+}
+
+.ai-option.expanded .ai-config-toggle {
+	width: 100%;
+	padding: 0 0 13px;
+	border: 0;
+	border-bottom: 1px solid #d4cec0;
+	border-radius: 0;
+	background: transparent;
+}
+
+.ai-config-icon {
+	position: relative;
+	display: grid;
+	flex: 0 0 auto;
+	place-items: center;
+	width: 27px;
+	height: 27px;
+	border-radius: 50%;
+	background: #eeeade;
+	color: #6e7771;
+}
+
+.ai-config-icon svg {
+	width: 17px;
+	height: 17px;
+	fill: none;
+	stroke: currentColor;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 1.8;
+}
+
+.ai-config-icon > span {
+	position: absolute;
+	right: -4px;
+	bottom: -3px;
+	display: grid;
+	place-items: center;
+	width: 13px;
+	height: 13px;
+	border: 2px solid #fffef9;
+	border-radius: 50%;
+	background: #b6492d;
+	color: white;
+	font-size: 8px;
+	font-weight: 900;
+}
+
+.ai-config-icon.configured {
+	background: #dceade;
+	color: #326247;
+}
+
+.ai-config-icon.configured > span {
+	background: #4f8b68;
+}
+
+.ai-config-label {
+	display: grid;
+	gap: 1px;
+}
+
+.ai-config-label strong {
+	font-family: Georgia, serif;
+	font-size: 13px;
+}
+
+.ai-config-label small {
+	color: #7a827d;
+	font-size: 9px;
+	font-weight: 700;
+}
+
+.ai-config-chevron {
+	margin-left: auto;
+	color: #6e7771;
+	font-size: 17px;
+}
+
+.ai-config-body > p {
 	margin: 6px 0 0;
 	color: #657068;
 	font-size: 11px;
 	line-height: 1.5;
 }
 
-.ai-option > small {
+.ai-config-body > small {
 	display: block;
 	margin-top: 10px;
 	color: #7a827d;

@@ -21,6 +21,7 @@ type GeneratorControlsProps = {
 	aiError?: string;
 	aiModel: string;
 	aiApiKeyStored: boolean;
+	aiConfigVisible: boolean;
 	onKind(kind: PuzzleKind): void;
 	onDifficulty(difficulty: Difficulty): void;
 	onSeed(seed: number): void;
@@ -38,6 +39,7 @@ type GeneratorControlsProps = {
 	onAiSaveApiKey(apiKey: string): void;
 	onAiClearApiKey(): void;
 	onAiCancel(): void;
+	onAiConfigVisible(visible: boolean): void;
 	onRandomize(): void;
 };
 
@@ -157,6 +159,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						error={props.aiError}
 						model={props.aiModel}
 						apiKeyStored={props.aiApiKeyStored}
+						configVisible={props.aiConfigVisible}
 						onTopic={props.onAiTopic}
 						onPromptTemplate={props.onAiPromptTemplate}
 						onPromptVisible={props.onAiPromptVisible}
@@ -167,6 +170,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						onSaveApiKey={props.onAiSaveApiKey}
 						onClearApiKey={props.onAiClearApiKey}
 						onCancel={props.onAiCancel}
+						onConfigVisible={props.onAiConfigVisible}
 					/>
 				</>
 			) : null}

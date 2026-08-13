@@ -48,6 +48,9 @@ settings are never included.
 ## Optional OpenAI input authoring
 
 Word searches and crosswords include an opt-in topic helper powered by the OpenAI Responses API.
+Its compact key-icon button stays collapsed until opened and indicates whether an API key is
+configured, keeping credentials, model, topic, prompt, and response controls out of the ordinary
+puzzle-authoring flow.
 The author supplies an API key and model ID; `gpt-4.1-mini` is the initial model. Saving the key
 stores it in this origin's `localStorage`, never in component state, prompts, exported artwork, or
 URLs. The interface warns that scripts executing on the same origin can read local storage and

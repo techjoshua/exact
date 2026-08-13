@@ -99,6 +99,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	this.state.aiError = undefined;
 	this.state.aiModel = openAiSettings.model;
 	this.state.aiApiKeyStored = Boolean(openAiApiKey);
+	this.state.aiConfigVisible = false;
 	this.state.style = initialStyle;
 	this.state.documents = peek(() => createPuzzleDocuments(requestFromState(this.state)));
 	this.state.status = 'Ready to export';
@@ -464,6 +465,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							aiError={this.state.aiError}
 							aiModel={this.state.aiModel}
 							aiApiKeyStored={this.state.aiApiKeyStored}
+							aiConfigVisible={this.state.aiConfigVisible}
 							onKind={changeKind}
 							onDifficulty={(difficulty) => {
 								this.state.difficulty = difficulty;
@@ -522,6 +524,9 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							onAiSaveApiKey={saveOpenAiApiKey}
 							onAiClearApiKey={clearOpenAiApiKey}
 							onAiCancel={cancelAiGeneration}
+							onAiConfigVisible={(visible) => {
+								this.state.aiConfigVisible = visible;
+							}}
 							onRandomize={() => {
 								this.state.seed = createSeed();
 								invalidateBulkVerification();

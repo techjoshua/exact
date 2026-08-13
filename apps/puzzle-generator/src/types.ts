@@ -124,6 +124,7 @@ export type PuzzleGeneratorState = {
 	aiError?: string;
 	aiModel: string;
 	aiApiKeyStored: boolean;
+	aiConfigVisible: boolean;
 	style: PuzzleStyle;
 	documents: PuzzleDocuments;
 	status: string;
