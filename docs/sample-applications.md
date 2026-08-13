@@ -10,10 +10,6 @@ updates, and the framework's normal build and runtime adapters.
 responsive controls, theming, and optional gesture and motion enhancements. It is published with
 the documentation site at `sudoku.html`.
 
-[`apps/puzzle-generator`](../apps/puzzle-generator) is the hosted Puzzle Foundry publishing tool at
-`puzzle-foundry.html`. It generates printable puzzle and solution SVGs using 8.5 × 11, 7 × 10,
-6 × 9, or author-defined custom page dimensions in inches.
-
 ## Repository examples
 
 - [`apps/shipping-calculator`](../apps/shipping-calculator) demonstrates native SSR, hydration,
@@ -30,5 +26,5 @@ the documentation site at `sudoku.html`.
   French, Japanese, and Arabic to exercise catalogs, structural reordering, formatting, and
   diagnostics.
 
-Sudoku Atelier and Puzzle Foundry are hosted on GitHub Pages. The remaining applications are local
-repository examples and should not be presented as navigable documentation routes.
+Only Sudoku Atelier is presented through the documentation application. The remaining applications
+are local repository examples and should not be presented as navigable documentation routes.
