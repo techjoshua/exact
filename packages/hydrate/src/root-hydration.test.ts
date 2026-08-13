@@ -70,6 +70,125 @@ describe('hydration-only root capability', () => {
 		}
 	});
 
+	it('uses the container document and window for deferred scheduling', async () => {
+		const frame = document.createElement('iframe');
+		document.body.append(frame);
+		const ownerDocument = frame.contentDocument!;
+		const ownerWindow = frame.contentWindow!;
+		const frames: FrameRequestCallback[] = [];
+		const tasks: Array<() => void> = [];
+		const visibility = vi.spyOn(ownerDocument, 'visibilityState', 'get').mockReturnValue('visible');
+		vi.spyOn(ownerWindow, 'requestAnimationFrame').mockImplementation((callback) => {
+			frames.push(callback);
+			return frames.length;
+		});
+		Object.defineProperty(ownerWindow, 'scheduler', {
+			configurable: true,
+			value: {
+				postTask(work: () => void) {
+					tasks.push(work);
+					return Promise.resolve();
+				}
+			}
+		});
+		try {
+			const vnode = createVNode('p', null, 'Ready');
+			const container = ownerDocument.createElement('main');
+			container.innerHTML = renderToString(vnode).html;
+			ownerDocument.body.append(container);
+
+			const pending = hydrateAfterNavigation(vnode, container);
+			expect(frames).toHaveLength(1);
+			frames.shift()!(performance.now());
+			expect(tasks).toHaveLength(1);
+			tasks.shift()!();
+
+			const root = await pending;
+			expect(container.dataset.exactHydrated).toBe('true');
+			root.dispose();
+		} finally {
+			visibility.mockRestore();
+			frame.remove();
+		}
+	});
+
+	it('cleans up after scheduler rejection and does not hydrate from a later interaction', async () => {
+		const frames: FrameRequestCallback[] = [];
+		const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+			frames.push(callback);
+			return frames.length;
+		});
+		vi.stubGlobal('cancelAnimationFrame', vi.fn());
+		vi.stubGlobal('scheduler', {
+			postTask() {
+				return Promise.reject(new Error('scheduler unavailable'));
+			}
+		});
+		try {
+			const vnode = createVNode('button', null, 'Ready');
+			const container = document.createElement('main');
+			container.innerHTML = renderToString(vnode).html;
+			const pending = hydrateAfterNavigation(vnode, container);
+			frames.shift()!(performance.now());
+
+			await expect(pending).rejects.toThrow('scheduler unavailable');
+			container.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+			expect(container.dataset.exactHydrated).toBeUndefined();
+		} finally {
+			visibility.mockRestore();
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('rejects when scheduling throws synchronously', async () => {
+		const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+		vi.stubGlobal('scheduler', {
+			postTask() {
+				throw new Error('scheduler failed synchronously');
+			}
+		});
+		try {
+			const vnode = createVNode('button', null, 'Ready');
+			const container = document.createElement('main');
+			container.innerHTML = renderToString(vnode).html;
+
+			await expect(hydrateAfterNavigation(vnode, container)).rejects.toThrow(
+				'scheduler failed synchronously'
+			);
+			expect(container.dataset.exactHydrated).toBeUndefined();
+		} finally {
+			visibility.mockRestore();
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('does not retry failed hydration from stale scheduled work or later interaction', async () => {
+		vi.useFakeTimers();
+		try {
+			let attempts = 0;
+			const vnode = createVNode('p', null, 'Ready');
+			const container = document.createElement('main');
+			container.innerHTML = renderToString(vnode).html;
+			const pending = hydrateAfterNavigation(vnode, container, {
+				onHydration() {
+					attempts++;
+					throw new Error('synthetic hydration failure');
+				}
+			});
+
+			container.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+			await expect(pending).rejects.toThrow('synthetic hydration failure');
+			container.dispatchEvent(new Event('keydown', { bubbles: true }));
+			await vi.runAllTimersAsync();
+
+			expect(attempts).toBe(1);
+			expect(container.dataset.exactHydrated).toBeUndefined();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('adopts marked compiler render programs without materializing their generic cells', () => {
 		let fallbacks = 0;
 		const program = createCompiledRenderProgram(

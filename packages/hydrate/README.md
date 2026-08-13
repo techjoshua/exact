@@ -45,7 +45,9 @@ const root = hydrate(app, document.getElementById('app')!);
 `DOMContentLoaded`, then schedules activation as user-visible work. If a pointer, keyboard, input,
 change, or submit interaction reaches the root first, a capture listener activates synchronously
 before normal target and bubble handling. Hidden documents use a task directly because animation
-frames may be throttled indefinitely.
+frames may be throttled indefinitely. Scheduling and event ownership follow the container's own
+document and window, including embedded realms. Activation settles once: a scheduling or hydration
+failure removes pending hooks and rejects without a later retry.
 
 Because that static entry does not expose the optional capabilities, bundlers can remove their
 implementations completely. Use the main entry whenever the compiled application contains server

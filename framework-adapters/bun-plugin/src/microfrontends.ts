@@ -74,6 +74,15 @@ export class ExactBunMicrofrontendIntegration {
 		this.#remote.acceptGeneration(this.#generation, bunRemoteOutputs(result, build.config?.outdir));
 	}
 
+	/** Releases candidate-generation and generated-module state owned by this integration. */
+	dispose(): void {
+		if (this.#generation !== undefined) this.#remote.rejectGeneration(this.#generation);
+		this.#generation = undefined;
+		this.#paths.clear();
+		this.#sources.clear();
+		this.#remote.dispose();
+	}
+
 	/** Reports whether a source file belongs to the remote build scope. */
 	includes(filename: string): boolean {
 		return this.scope(filename) !== undefined;

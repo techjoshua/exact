@@ -23,6 +23,21 @@ import {
 type BunResolveHandler = Parameters<NonNullable<BunBuildLike['onResolve']>>[1];
 
 describe('@exactjs/bun-plugin', () => {
+	it('releases retained build resources through an idempotent terminal lifecycle', async () => {
+		const plugin = exact();
+
+		await plugin.dispose();
+		await plugin.dispose();
+
+		expect(() =>
+			plugin.setup({
+				config: {},
+				onResolve() {},
+				onLoad() {}
+			})
+		).toThrow('disposed eXact Bun plugin');
+	});
+
 	it('reports opt-in transform timings', () => {
 		const onProfile = vi.fn();
 

@@ -40,11 +40,11 @@ import {
 	readBunLoadSource
 } from './source-loading.js';
 export { mergeConditions, resolveExactBunRequest } from './selection.js';
-import type { BunPluginLike, ExactBunPluginOptions } from './types.js';
+import type { ExactBunPlugin, ExactBunPluginOptions } from './types.js';
 export type * from './types.js';
 
 /** Creates the Bun plugin that transforms eXact JSX and resolves .exact facade imports. */
-export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
+export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 	let diagnosticsEnabled = options.diagnostics ?? false;
 	let compilerSession = createCompilerSession({
 		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
@@ -59,11 +59,37 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 	});
 	let componentAuthorization: ExactBunComponentAuthorization | undefined;
 	let languageValidation: ExactLanguageValidationSession | undefined;
+	let remoteIntegration: ExactBunMicrofrontendIntegration | undefined;
+	let disposed = false;
+	const dispose = async (): Promise<void> => {
+		if (disposed) return;
+		disposed = true;
+		const authorization = componentAuthorization;
+		componentAuthorization = undefined;
+		const remote = remoteIntegration;
+		remoteIntegration = undefined;
+		const validation = languageValidation;
+		languageValidation = undefined;
+		const results = await Promise.allSettled([
+			Promise.resolve().then(() => compilerSession.dispose()),
+			Promise.resolve().then(() => intl.dispose()),
+			Promise.resolve().then(() => authorization?.dispose()),
+			Promise.resolve().then(() => remote?.dispose()),
+			Promise.resolve().then(() => validation?.dispose())
+		]);
+		const errors = results
+			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+			.map((result) => result.reason);
+		if (errors.length === 1) throw errors[0];
+		if (errors.length > 1) throw new AggregateError(errors, 'Failed to dispose eXact Bun plugin');
+	};
 	return {
 		name: 'exact',
+		dispose,
 		setup(build) {
+			if (disposed) throw new Error('Cannot set up a disposed eXact Bun plugin');
 			const remote = options.__exactRemoteBuild?.adapter;
-			const remoteIntegration = remote ? new ExactBunMicrofrontendIntegration(remote) : undefined;
+			remoteIntegration = remote ? new ExactBunMicrofrontendIntegration(remote) : undefined;
 			const enhancementFacades = new ExactBunEnhancementFacadeCatalog();
 			if (options.target === 'server' && (build.config?.hot || process.argv.includes('--hot')))
 				throw new Error(
@@ -99,6 +125,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					buildKey: options.debug?.buildKey ?? (automaticDevelopment ? 'development' : undefined)
 				});
 			build.onStart?.(async () => {
+				if (disposed) throw new Error('Cannot start a disposed eXact Bun plugin');
 				remoteIntegration?.begin();
 				inspectionModules.clear();
 				enhancementFacades.clear();

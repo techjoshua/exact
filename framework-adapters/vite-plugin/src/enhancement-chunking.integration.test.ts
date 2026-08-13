@@ -2,9 +2,22 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build, type OutputChunk, type RollupOutput } from 'vite';
+import { build } from 'vite';
 import { expect, it, onTestFinished } from 'vitest';
+import type { ExactRollupOutputLike } from './artifact-isolation.js';
 import { exact } from './index.js';
+
+type EmittedChunk = ExactRollupOutputLike & {
+	type: 'chunk';
+	isEntry: boolean;
+	modules: Readonly<Record<string, unknown>>;
+	imports: readonly string[];
+	dynamicImports: readonly string[];
+};
+
+type ViteBuildOutput = {
+	output: readonly ExactRollupOutputLike[];
+};
 
 it('keeps the enhancement host with a later-loaded enhancement module', async () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-enhancement-chunking-'));
@@ -58,10 +71,10 @@ export function LazyPanel() { return () => <button motion:preset="fade">Lazy</bu
 		logLevel: 'silent',
 		plugins: [exact({ applicationRoot: root, reactCompatibility: false })],
 		build: { write: false, minify: false }
-	})) as RollupOutput;
+	})) as ViteBuildOutput;
 	const chunks = new Map(
 		result.output
-			.filter((output): output is OutputChunk => output.type === 'chunk')
+			.filter((output): output is EmittedChunk => output.type === 'chunk')
 			.map((chunk) => [chunk.fileName, chunk])
 	);
 	const entry = [...chunks.values()].find((chunk) => chunk.isEntry)!;
@@ -74,13 +87,13 @@ export function LazyPanel() { return () => <button motion:preset="fade">Lazy</bu
 });
 
 function reachableModules(
-	entry: OutputChunk,
-	chunks: ReadonlyMap<string, OutputChunk>,
+	entry: EmittedChunk,
+	chunks: ReadonlyMap<string, EmittedChunk>,
 	includeDynamic: boolean
 ): Set<string> {
 	const modules = new Set<string>();
 	const visited = new Set<string>();
-	const visit = (chunk: OutputChunk): void => {
+	const visit = (chunk: EmittedChunk): void => {
 		if (visited.has(chunk.fileName)) return;
 		visited.add(chunk.fileName);
 		for (const id of Object.keys(chunk.modules)) modules.add(id);

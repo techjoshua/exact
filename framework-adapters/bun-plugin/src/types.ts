@@ -102,3 +102,9 @@ export type BunLoadResult = { contents: string; loader?: 'js' | 'jsx' | 'ts' | '
 
 /** Defines the Bun plugin contract without requiring Bun's ambient types. */
 export type BunPluginLike = { name: string; setup(build: BunBuildLike): void };
+
+/** eXact Bun plugin with an explicit terminal lifecycle for retained build resources. */
+export type ExactBunPlugin = BunPluginLike & {
+	/** Releases retained compiler and build-integration resources. */
+	dispose(): Promise<void>;
+};

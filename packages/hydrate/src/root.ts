@@ -24,8 +24,20 @@ export function hydrateAfterNavigation(
 	container: Element,
 	options: HydrateOptions = {}
 ): Promise<CoreHydrationRoot> {
-	let root: CoreHydrationRoot | undefined;
-	let timer: ReturnType<typeof setTimeout> | undefined;
+	const ownerDocument = container.ownerDocument;
+	const ownerWindow = ownerDocument.defaultView;
+	const requestFrame =
+		ownerWindow?.requestAnimationFrame?.bind(ownerWindow) ??
+		globalThis.requestAnimationFrame?.bind(globalThis);
+	const cancelFrame =
+		ownerWindow?.cancelAnimationFrame?.bind(ownerWindow) ??
+		globalThis.cancelAnimationFrame?.bind(globalThis);
+	const taskScheduler =
+		(ownerWindow as (Window & typeof globalThis & { scheduler?: NavigationTaskScheduler }) | null)
+			?.scheduler ??
+		(globalThis as typeof globalThis & { scheduler?: NavigationTaskScheduler }).scheduler;
+	let status: 'pending' | 'activating' | 'resolved' | 'rejected' = 'pending';
+	let timer: number | ReturnType<typeof setTimeout> | undefined;
 	let animationFrame: number | undefined;
 	let resolveRoot!: (root: CoreHydrationRoot) => void;
 	let rejectRoot!: (error: unknown) => void;
@@ -35,22 +47,37 @@ export function hydrateAfterNavigation(
 	});
 	const interactionEvents = ['pointerdown', 'keydown', 'input', 'change', 'submit'] as const;
 	const cleanup = () => {
-		if (timer !== undefined) clearTimeout(timer);
-		if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
-		document.removeEventListener('DOMContentLoaded', schedule);
+		if (timer !== undefined) {
+			if (ownerWindow) ownerWindow.clearTimeout(timer as number);
+			else clearTimeout(timer);
+			timer = undefined;
+		}
+		if (animationFrame !== undefined) {
+			cancelFrame?.(animationFrame);
+			animationFrame = undefined;
+		}
+		ownerDocument.removeEventListener('DOMContentLoaded', schedule);
 		for (const type of interactionEvents)
 			container.removeEventListener(type, activateFromInteraction, true);
 	};
 	const activate = () => {
-		if (!root) {
-			cleanup();
-			try {
-				root = hydrate(vnode, container, options);
-				resolveRoot(root);
-			} catch (error) {
-				rejectRoot(error);
-			}
+		if (status !== 'pending') return;
+		status = 'activating';
+		cleanup();
+		try {
+			const root = hydrate(vnode, container, options);
+			status = 'resolved';
+			resolveRoot(root);
+		} catch (error) {
+			status = 'rejected';
+			rejectRoot(error);
 		}
+	};
+	const rejectActivation = (error: unknown) => {
+		if (status !== 'pending') return;
+		status = 'rejected';
+		cleanup();
+		rejectRoot(error);
 	};
 	const activateFromInteraction = () => {
 		void activate();
@@ -58,36 +85,43 @@ export function hydrateAfterNavigation(
 	for (const type of interactionEvents)
 		container.addEventListener(type, activateFromInteraction, { capture: true, once: true });
 	function schedule() {
+		if (status !== 'pending') return;
 		// A task posted directly from DOMContentLoaded may run before the next rendering opportunity.
 		// Wait through one frame so passive hydration cannot delay SSR FCP. Hidden documents use a
 		// task because their animation frames may be throttled indefinitely.
-		if (document.visibilityState === 'visible' && typeof requestAnimationFrame === 'function') {
-			animationFrame = requestAnimationFrame(() => {
-				animationFrame = undefined;
-				scheduleActivationTask();
-			});
-			return;
+		try {
+			if (ownerDocument.visibilityState === 'visible' && requestFrame) {
+				animationFrame = requestFrame(() => {
+					animationFrame = undefined;
+					scheduleActivationTask();
+				});
+				return;
+			}
+			scheduleActivationTask();
+		} catch (error) {
+			rejectActivation(error);
 		}
-		scheduleActivationTask();
 	}
 	function scheduleActivationTask() {
-		const taskScheduler = (
-			globalThis as typeof globalThis & {
-				scheduler?: {
-					postTask(work: () => void, options: { priority: 'user-visible' }): Promise<void>;
-				};
+		if (status !== 'pending') return;
+		try {
+			if (taskScheduler) {
+				void taskScheduler.postTask(activate, { priority: 'user-visible' }).catch(rejectActivation);
+				return;
 			}
-		).scheduler;
-		if (taskScheduler) {
-			void taskScheduler.postTask(activate, { priority: 'user-visible' }).catch(rejectRoot);
-			return;
+			timer = ownerWindow ? ownerWindow.setTimeout(activate, 0) : setTimeout(activate, 0);
+		} catch (error) {
+			rejectActivation(error);
 		}
-		timer = setTimeout(activate, 0);
 	}
-	if (document.readyState === 'loading')
-		document.addEventListener('DOMContentLoaded', schedule, { once: true });
+	if (ownerDocument.readyState === 'loading')
+		ownerDocument.addEventListener('DOMContentLoaded', schedule, { once: true });
 	else schedule();
 	return result;
 }
+
+type NavigationTaskScheduler = {
+	postTask(work: () => void, options: { priority: 'user-visible' }): Promise<void>;
+};
 
 export type { CoreHydrationRoot, HydrateOptions } from './types.js';

@@ -171,6 +171,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					pointer, keyboard, input, change, or submit event arriving first activates synchronously
 					from capture, so deferring adoption does not create an inert interaction window. Hidden
 					documents activate from a task because animation frames may be throttled indefinitely.
+					Scheduling follows the root container&apos;s own document and window, including embedded
+					realms. Scheduling and hydration failures remove pending hooks and settle once without a
+					later retry.
 				</p>
 				<p>
 					An opt-in hydration profile reports DOM capture, adoption, form-control restoration, and

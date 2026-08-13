@@ -135,6 +135,11 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					assets, and lazy chunks. Bun server <code>--hot</code> remains unsupported; use watch or a
 					coordinated rebuild so the last authorized generation remains unambiguous.
 				</p>
+				<p>
+					<code>exactBuild()</code> releases its compiler resources after success or failure. A
+					build host that installs <code>exact()</code> directly must retain the plugin instance and
+					call its idempotent <code>dispose()</code> after the final build or watch generation.
+				</p>
 			</section>
 			<Callout title="Trust boundary" tone="warning">
 				<p>

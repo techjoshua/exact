@@ -134,23 +134,28 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 					};
 				}
 			).Bun;
-			const result = await bun.build({
-				entrypoints: [entry],
-				target: 'browser',
-				format: 'esm',
-				splitting: true,
-				sourcemap: 'external',
-				external: ['@exactjs/core'],
-				plugins: [exact({ applicationRoot: root })]
-			});
+			const exactPlugin = exact({ applicationRoot: root });
+			try {
+				const result = await bun.build({
+					entrypoints: [entry],
+					target: 'browser',
+					format: 'esm',
+					splitting: true,
+					sourcemap: 'external',
+					external: ['@exactjs/core'],
+					plugins: [exactPlugin]
+				});
 
-			testApi.expect(result.success).toBe(true);
-			testApi.expect(result.logs).toEqual([]);
-			const output = result.outputs.find((item) => item.kind === 'entry-point');
-			testApi.expect(output).toBeDefined();
-			testApi.expect(await output!.text()).toContain('__exactVNode("button"');
-			const sourceMap = result.outputs.find((item) => item.kind === 'sourcemap');
-			testApi.expect(await sourceMap!.text()).toContain('entry.tsx');
+				testApi.expect(result.success).toBe(true);
+				testApi.expect(result.logs).toEqual([]);
+				const output = result.outputs.find((item) => item.kind === 'entry-point');
+				testApi.expect(output).toBeDefined();
+				testApi.expect(await output!.text()).toContain('__exactVNode("button"');
+				const sourceMap = result.outputs.find((item) => item.kind === 'sourcemap');
+				testApi.expect(await sourceMap!.text()).toContain('entry.tsx');
+			} finally {
+				await exactPlugin.dispose();
+			}
 		} finally {
 			await rm(root, { recursive: true, force: true });
 		}
@@ -171,36 +176,39 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 						};
 					}
 				).Bun;
-				const result = await bun.build({
-					entrypoints: [fixture.entry],
-					target: 'bun',
-					format: 'esm',
-					outdir: fixture.outdir,
-					external: ['@exactjs/core'],
-					plugins: [
-						exact({
-							target: 'server',
-							applicationRoot: fixture.root,
-							reactCompatibility: false
-						})
-					]
+				const exactPlugin = exact({
+					target: 'server',
+					applicationRoot: fixture.root,
+					reactCompatibility: false
 				});
+				try {
+					const result = await bun.build({
+						entrypoints: [fixture.entry],
+						target: 'bun',
+						format: 'esm',
+						outdir: fixture.outdir,
+						external: ['@exactjs/core'],
+						plugins: [exactPlugin]
+					});
 
-				testApi.expect(result.success).toBe(true);
-				testApi.expect(result.logs).toEqual([]);
-				const manifest = JSON.parse(
-					await readFile(
-						path.join(fixture.outdir, '.exact', 'component-library-authorization.json'),
-						'utf8'
-					)
-				) as { packages: unknown[] };
-				testApi.expect(manifest.packages).toEqual([
-					testApi.expect.objectContaining({
-						name: '@acme/cards',
-						decision: 'root',
-						reasons: ['ssr']
-					})
-				]);
+					testApi.expect(result.success).toBe(true);
+					testApi.expect(result.logs).toEqual([]);
+					const manifest = JSON.parse(
+						await readFile(
+							path.join(fixture.outdir, '.exact', 'component-library-authorization.json'),
+							'utf8'
+						)
+					) as { packages: unknown[] };
+					testApi.expect(manifest.packages).toEqual([
+						testApi.expect.objectContaining({
+							name: '@acme/cards',
+							decision: 'root',
+							reasons: ['ssr']
+						})
+					]);
+				} finally {
+					await exactPlugin.dispose();
+				}
 			} finally {
 				await rm(fixture.root, { recursive: true, force: true });
 			}

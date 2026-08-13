@@ -197,74 +197,12 @@ type collectionMapPlan struct {
 func lowerExactJSX(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
-	stateWrites []StateWrite,
-	stateAliases []StateAlias,
-	stateReads []StateRead,
-	reactiveBindings []ReactiveBinding,
-	formBindings map[int]formBinding,
-	componentBindings map[int]componentBinding,
-	components []Component,
-	tasks []Task,
-	operations []InvokedTaskOperation,
-	continuations []Continuation,
-	clientIslands map[*ast.Node]clientElementIsland,
-	target Target,
-	serverComponents bool,
-	instrumentInspection bool,
-	typeChecker *checker.Checker,
-	interop *JSXInterop,
-	enhancementImports enhancementImports,
-	partitionPlan PartitionPlan,
-	dynamicComponents map[int]dynamicComponentUseKind,
+	plan jsxLoweringPlan,
 ) *ast.SourceFile {
-	hasJSX := sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0
-	hasReactiveCapture := strings.Contains(sourceFile.Text(), ".reactive")
-	derived, elidedDerived := planDerivedBindings(
-		sourceFile,
-		reactiveBindings,
-		typeChecker,
-	)
-	if !hasJSX && len(stateWrites) == 0 && len(tasks) == 0 &&
-		len(derived) == 0 && !hasReactiveCapture && len(components) == 0 {
+	lowering, required := plan.prepare(sourceFile, factory)
+	if !required {
 		return sourceFile
 	}
-	lowering := &jsxLowering{
-		sourceFile:           sourceFile,
-		factory:              factory,
-		names:                allocateJSXRuntimeNames(sourceFile),
-		nodeIDs:              expressionNodeIDs(sourceFile),
-		writes:               indexStateWrites(stateWrites),
-		tasks:                indexTasks(tasks),
-		invokedTasks:         indexInvokedTasks(tasks),
-		functionTasks:        indexFunctionTasks(tasks),
-		taskDefinitions:      indexFunctionTaskSymbols(tasks, sourceFile, typeChecker),
-		taskDefinitionNames:  indexFunctionTaskNames(tasks, sourceFile),
-		operations:           indexInvokedTaskOperations(operations),
-		stateReads:           stateReads,
-		bindings:             reactiveBindings,
-		formBindings:         formBindings,
-		componentBindings:    componentBindings,
-		checker:              typeChecker,
-		taskHelpers:          make(map[string]string),
-		materializedNames:    make(map[int]string),
-		cachedDerivedNames:   make(map[int]string),
-		derived:              derived,
-		elidedDerived:        elidedDerived,
-		target:               target,
-		serverComponents:     serverComponents,
-		instrumentInspection: instrumentInspection,
-		interop:              interop,
-		components:           componentIndexByName(components),
-		microComponents:      lexicalMicroComponentSymbols(sourceFile, typeChecker),
-		renderEdges:          indexRenderEdges(components),
-		contextWrites:        indexContinuationContextWrites(continuations),
-		collectionMaps:       make(map[string]collectionMapPlan),
-		enhancementImports:   enhancementImports,
-		partitionPlan:        partitionPlan,
-		dynamicComponents:    dynamicComponents,
-		clientIslands:        clientIslands,
-	}
-	lowering.indexCollectionMaps()
 	lowering.visitor = ast.NewNodeVisitor(
 		lowering.visit,
 		&factory.NodeFactory,

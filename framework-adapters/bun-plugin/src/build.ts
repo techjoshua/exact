@@ -81,12 +81,17 @@ export async function exactBuild(options: ExactBunBuildOptions): Promise<unknown
 	}
 
 	const { exact: _exactOptions, plugins = [], entrypoints = [], ...buildOptions } = options;
-	return runtime.Bun.build({
-		...buildOptions,
-		...(banner === undefined ? {} : { banner }),
-		entrypoints: [...entrypoints, ...remoteEntrypoints],
-		plugins: [exact({ ...options.exact, __exactRemoteBuild: remote }), ...plugins]
-	});
+	const exactPlugin = exact({ ...options.exact, __exactRemoteBuild: remote });
+	try {
+		return await runtime.Bun.build({
+			...buildOptions,
+			...(banner === undefined ? {} : { banner }),
+			entrypoints: [...entrypoints, ...remoteEntrypoints],
+			plugins: [exactPlugin, ...plugins]
+		});
+	} finally {
+		await exactPlugin.dispose();
+	}
 }
 
 function publicPath(options: ExactBunBuildOptions): string | undefined {

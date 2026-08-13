@@ -7,14 +7,19 @@ Bun build integration for eXact TypeScript and TSX.
 ```ts
 import { exact } from '@exactjs/bun-plugin';
 
-const result = await Bun.build({
-	entrypoints: ['./src/client.tsx'],
-	outdir: './dist',
-	target: 'browser',
-	format: 'esm',
-	splitting: true,
-	plugins: [exact({ target: 'client' })]
-});
+const exactPlugin = exact({ target: 'client' });
+try {
+	const result = await Bun.build({
+		entrypoints: ['./src/client.tsx'],
+		outdir: './dist',
+		target: 'browser',
+		format: 'esm',
+		splitting: true,
+		plugins: [exactPlugin]
+	});
+} finally {
+	await exactPlugin.dispose();
+}
 ```
 
 When the eXact configuration declares microfrontend exposures, use the asynchronous coordinator so
@@ -36,6 +41,9 @@ await exactBuild({
 `onRemoteEntries` only after a complete successful generation and offers stable development IDs
 through `onRemoteDevelopmentEntries`. Direct `Bun.build({ plugins: [exact()] })` remains supported
 for ordinary builds and reports an actionable error if exposures require the coordinator.
+`exactBuild()` always releases its compiler resources after the build settles. A host that installs
+`exact()` directly must retain the plugin and call its idempotent `dispose()` after the final build
+or watch generation, including when `Bun.build()` rejects.
 
 Use `target: 'server'` with Bun's server target for the matching server build. Keep
 `serverComponents`, React compatibility, and build identity consistent across paired outputs.

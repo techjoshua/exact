@@ -100,6 +100,12 @@ transformation kernel for JSX ownership, React compatibility selection, native c
 inspection controls, instrumentation, source results, and contextual failures. Resolution, HMR,
 asset emission, and build-tool lifecycle behavior remain adapter-owned.
 
+Process startup is provisional until the worker starts and the native protocol/version handshake
+completes. Any startup, timeout, or negotiation failure closes the worker and its child process
+before the error escapes. Native JSX lowering receives one immutable analysis plan, prepares its
+derived binding indexes once, and retains a single source traversal; lowering stages should extend
+that plan instead of restoring a broad positional-argument boundary or adding extra tree walks.
+
 Generated operation identifiers, ephemeral module analysis, helper imports, and lowered source
 are compiler-session details. Applications should depend on authored TypeScript behavior and
 documented executable runtime contracts rather than generated representation.

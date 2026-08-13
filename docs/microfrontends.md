@@ -48,6 +48,9 @@ await exactBuild({
 
 Direct `Bun.build({ plugins: [exact()] })` remains the smaller path for an application without
 remote exposures. If exposures are configured, it fails with an instruction to use `exactBuild()`.
+`exactBuild()` releases its retained compiler resources after success or failure. A build host that
+installs `exact()` directly must retain that plugin instance and call its idempotent `dispose()`
+after its final build or watch generation.
 Webpack and Bun expose optional `onRemoteEntries` and `onRemoteDevelopmentEntries` callbacks for a
 deployment or development host that needs the immutable exposure-to-entry map.
 
