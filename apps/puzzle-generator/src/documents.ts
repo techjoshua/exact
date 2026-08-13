@@ -1,4 +1,4 @@
-import { generateCrossword } from './crossword.js';
+import { generateCrossword, transposeCrossword } from './crossword.js';
 import { validatePageLayout } from './page-layout.js';
 import { pageFitWarning, renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
 import { generateSudoku } from './sudoku.js';
@@ -18,8 +18,16 @@ export type DocumentRequest = {
 	style: PuzzleStyle;
 };
 
+/** Batch-only rendering variations that do not alter the authored generation request. */
+export type DocumentGenerationOptions = {
+	transposeCrossword?: boolean;
+};
+
 /** Validates a request, generates its model, and renders puzzle and solution SVGs. */
-export function createPuzzleDocuments(request: DocumentRequest): PuzzleDocuments {
+export function createPuzzleDocuments(
+	request: DocumentRequest,
+	options: DocumentGenerationOptions = {}
+): PuzzleDocuments {
 	const pageIssue = validatePageLayout(request.style);
 	if (pageIssue) throw new Error(pageIssue);
 	if (request.kind === 'sudoku') {
@@ -30,6 +38,7 @@ export function createPuzzleDocuments(request: DocumentRequest): PuzzleDocuments
 		return {
 			puzzleSvg,
 			solutionSvg,
+			contentIdentity: JSON.stringify([puzzle.givens, puzzle.solution]),
 			summary: `${puzzle.size}×${puzzle.size} grid · ${clueCount} clues · unique solution`,
 			warning: pageFitWarning(puzzleSvg)
 		};
@@ -54,12 +63,14 @@ export function createPuzzleDocuments(request: DocumentRequest): PuzzleDocuments
 		return {
 			puzzleSvg,
 			solutionSvg: renderWordSearchSvg(puzzle, request.style, true),
+			contentIdentity: JSON.stringify([puzzle.grid, puzzle.placements]),
 			summary: `${request.rows}×${request.columns} grid · ${words.length} hidden words${request.difficulty === 'hard' ? ' · near-match decoys' : ''}`,
 			warning: pageFitWarning(puzzleSvg)
 		};
 	}
 
-	const puzzle = generateCrossword(words, request.seed, crosswordClues);
+	const generatedPuzzle = generateCrossword(words, request.seed, crosswordClues);
+	const puzzle = options.transposeCrossword ? transposeCrossword(generatedPuzzle) : generatedPuzzle;
 	if (puzzle.words.length < 2)
 		throw new Error('The supplied words do not share enough letters to form a crossword.');
 	const placementWarning = puzzle.unplaced.length
@@ -69,6 +80,7 @@ export function createPuzzleDocuments(request: DocumentRequest): PuzzleDocuments
 	return {
 		puzzleSvg,
 		solutionSvg: renderCrosswordSvg(puzzle, request.style, true),
+		contentIdentity: JSON.stringify([puzzle.cells, puzzle.entries]),
 		summary: `${puzzle.columns}×${puzzle.rows} compact grid · ${puzzle.words.length}/${words.length} words placed`,
 		warning: [placementWarning, pageFitWarning(puzzleSvg)].filter(Boolean).join(' ') || undefined
 	};

@@ -5,7 +5,7 @@ import {
 	defaultAiPromptTemplate,
 	formatAiWordListResponse
 } from './ai-word-list-format.js';
-import { generateCrossword } from './crossword.js';
+import { generateCrossword, transposeCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
 import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
 import { generateSudoku, countSudokuSolutions } from './sudoku.js';
@@ -81,6 +81,17 @@ describe('crossword generation', () => {
 		expect(puzzle.cells.filter(Boolean).length).toBeLessThan(
 			puzzle.words.reduce((total, word) => total + word.length, 0)
 		);
+	});
+
+	it('transposes layouts without changing their answers or clue ownership', () => {
+		const puzzle = generateCrossword(['ORBIT', 'COMET', 'METEOR', 'TELESCOPE', 'PLANET'], 7788);
+		const transposed = transposeCrossword(puzzle);
+		expect(transposed.rows).toBe(puzzle.columns);
+		expect(transposed.columns).toBe(puzzle.rows);
+		expect(transposed.entries.map((entry) => entry.word).sort()).toEqual(
+			puzzle.entries.map((entry) => entry.word).sort()
+		);
+		expect(transposeCrossword(transposed)).toEqual(puzzle);
 	});
 });
 

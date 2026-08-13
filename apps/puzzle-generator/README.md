@@ -26,6 +26,17 @@ errors, while page-fit scaling and disconnected crossword entries are reported a
 keys can retain the accent color or use puzzle-specific black-and-white rendering; Sudoku answer
 digits may also use a different font or weight.
 
+## Bulk puzzle sets
+
+Every puzzle type can export 1–100 content-unique puzzles at once using the current input,
+difficulty, dimensions, seed, and print styling as its template. Generation derives repeatable
+candidate seeds from the visible seed, rejects duplicate generator models, and reports progress or
+allows cancellation while the set is assembled. A bulk download is a ZIP with numbered
+`puzzles/puzzle-001.svg` and `solutions/solution-001.svg` paths plus a `manifest.json` that records
+the public generation request and the seed for each pair. OpenAI credentials and browser settings
+are never included. If the selected input cannot produce the requested number of distinct results,
+the operation reports that limitation instead of padding the archive with duplicates.
+
 ## Optional OpenAI input authoring
 
 Word searches and crosswords include an opt-in topic helper powered by the OpenAI Responses API.

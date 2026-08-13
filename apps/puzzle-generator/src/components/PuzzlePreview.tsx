@@ -1,5 +1,6 @@
 import { svgDataUrl } from '../svg.js';
 import type { PuzzleDocuments } from '../types.js';
+import { BulkExportControls } from './BulkExportControls.jsx';
 
 type PuzzlePreviewProps = {
 	documents: PuzzleDocuments;
@@ -8,6 +9,14 @@ type PuzzlePreviewProps = {
 	error?: string;
 	onSolution(solution: boolean): void;
 	onDownload(solution: boolean): void;
+	bulkCount: number;
+	bulkBusy: boolean;
+	bulkCompleted: number;
+	bulkStatus: string;
+	bulkError?: string;
+	onBulkCount(count: number): void;
+	onBulkGenerate(): void;
+	onBulkCancel(): void;
 };
 
 /** Shows the generated artifact and exposes separate puzzle/solution downloads. */
@@ -68,6 +77,17 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 					</button>
 				</div>
 			</div>
+
+			<BulkExportControls
+				count={props.bulkCount}
+				busy={props.bulkBusy}
+				completed={props.bulkCompleted}
+				status={props.bulkStatus}
+				error={props.bulkError}
+				onCount={props.onBulkCount}
+				onGenerate={props.onBulkGenerate}
+				onCancel={props.onBulkCancel}
+			/>
 		</section>
 	);
 }

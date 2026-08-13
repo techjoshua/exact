@@ -44,6 +44,8 @@ export type PuzzleDocuments = {
 	puzzleSvg: string;
 	solutionSvg: string;
 	summary: string;
+	/** Generator-model identity used to reject duplicate puzzles independently of their styling. */
+	contentIdentity: string;
 	warning?: string;
 };
 
@@ -127,4 +129,9 @@ export type PuzzleGeneratorState = {
 	status: string;
 	error?: string;
 	previewSolution: boolean;
+	bulkCount: number;
+	bulkBusy: boolean;
+	bulkCompleted: number;
+	bulkStatus: string;
+	bulkError?: string;
 };

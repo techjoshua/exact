@@ -47,6 +47,52 @@ export function generateCrossword(
 	return normalizeLayout(best!, new Map(clues.map((entry) => [entry.word, entry.clue])));
 }
 
+/**
+ * Transposes a normalized crossword while preserving forward answer spelling and clue ownership.
+ * Across entries become Down entries and vice versa; clue numbers are reassigned in reading order.
+ */
+export function transposeCrossword(puzzle: CrosswordPuzzle): CrosswordPuzzle {
+	const cells: Array<CrosswordCell | undefined> = Array(puzzle.cells.length).fill(undefined);
+	const starts: Array<{ oldNumber: number; row: number; column: number }> = [];
+	for (let row = 0; row < puzzle.rows; row++) {
+		for (let column = 0; column < puzzle.columns; column++) {
+			const cell = puzzle.cells[row * puzzle.columns + column];
+			if (!cell) continue;
+			const transposedRow = column;
+			const transposedColumn = row;
+			cells[transposedRow * puzzle.rows + transposedColumn] = { letter: cell.letter };
+			if (cell.number)
+				starts.push({ oldNumber: cell.number, row: transposedRow, column: transposedColumn });
+		}
+	}
+
+	starts.sort((left, right) => left.row - right.row || left.column - right.column);
+	const newNumbers = new Map<number, number>();
+	for (const [index, start] of starts.entries()) {
+		const number = index + 1;
+		newNumbers.set(start.oldNumber, number);
+		cells[start.row * puzzle.rows + start.column]!.number = number;
+	}
+
+	return {
+		rows: puzzle.columns,
+		columns: puzzle.rows,
+		cells,
+		words: [...puzzle.words],
+		entries: puzzle.entries
+			.map((entry) => ({
+				...entry,
+				number: newNumbers.get(entry.number)!,
+				orientation: entry.orientation === 'across' ? ('down' as const) : ('across' as const)
+			}))
+			.sort(
+				(left, right) =>
+					left.number - right.number || left.orientation.localeCompare(right.orientation)
+			),
+		unplaced: [...puzzle.unplaced]
+	};
+}
+
 function orderWords(words: readonly string[], random: () => number, attempt: number): string[] {
 	const ordered = shuffled(words, random);
 	if (attempt % 3 === 0) ordered.sort((left, right) => right.length - left.length);
@@ -71,7 +117,9 @@ function buildLayout(words: readonly string[], random: () => number): Layout {
 	});
 
 	for (const word of words.slice(1)) {
-		const candidates: Array<PlacedWord & { overlaps: number; area: number }> = [];
+		const candidates: Array<
+			PlacedWord & { overlaps: number; area: number; tieBreaker: number }
+		> = [];
 		for (let letterIndex = 0; letterIndex < word.length; letterIndex++) {
 			for (const [coordinate, letter] of layout.letters) {
 				if (letter !== word[letterIndex]) continue;
@@ -90,11 +138,22 @@ function buildLayout(words: readonly string[], random: () => number): Layout {
 						simulated.set(coordinateKey(cellRow, cellColumn), cellLetter)
 					);
 					const bounds = layoutBounds(simulated);
-					candidates.push({ ...candidate, overlaps, area: bounds.rows * bounds.columns });
+					candidates.push({
+						...candidate,
+						overlaps,
+						area: bounds.rows * bounds.columns,
+						tieBreaker: random()
+					});
 				}
 			}
 		}
-		candidates.sort((left, right) => right.overlaps - left.overlaps || left.area - right.area);
+		// Seeded tie-breaking preserves quality priorities while allowing seeds to explore layouts.
+		candidates.sort(
+			(left, right) =>
+				right.overlaps - left.overlaps ||
+				left.area - right.area ||
+				left.tieBreaker - right.tieBreaker
+		);
 		if (candidates[0]) placeWord(layout, candidates[0]);
 		else layout.unplaced.push(word);
 	}

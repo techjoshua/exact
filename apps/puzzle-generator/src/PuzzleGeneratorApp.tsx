@@ -4,6 +4,11 @@ import { PuzzlePreview } from './components/PuzzlePreview.jsx';
 import { StyleControls } from './components/StyleControls.jsx';
 import { defaultAiPromptTemplate, type AiPuzzleKind } from './ai-word-list-format.js';
 import {
+	BULK_COUNT_LIMIT,
+	createBulkPuzzleArchive,
+	downloadBulkPuzzleArchive
+} from './bulk-export.js';
+import {
 	createPuzzleDocuments,
 	downloadSvg,
 	exportBaseName,
@@ -66,6 +71,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	const openAiSettings = loadOpenAiSettings();
 	let openAiApiKey = openAiSettings.apiKey;
 	let openAiRequest: AbortController | undefined;
+	let bulkRequest: AbortController | undefined;
 	this.state.kind = 'sudoku';
 	this.state.difficulty = 'medium';
 	this.state.seed = createSeed();
@@ -91,7 +97,13 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	this.state.status = 'Ready to export';
 	this.state.error = undefined;
 	this.state.previewSolution = false;
+	this.state.bulkCount = 50;
+	this.state.bulkBusy = false;
+	this.state.bulkCompleted = 0;
+	this.state.bulkStatus = 'Ready to create a puzzle set';
+	this.state.bulkError = undefined;
 	let aiGeneration = 0;
+	let bulkGeneration = 0;
 
 	const generate = (status = 'Preview updated') => {
 		try {
@@ -218,9 +230,63 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		}
 	};
 
+	const generateBulkArchive = async () => {
+		if (this.state.bulkBusy) return;
+		const generation = ++bulkGeneration;
+		const count = this.state.bulkCount;
+		const request = requestFromState(this.state);
+		bulkRequest = new AbortController();
+		this.state.bulkBusy = true;
+		this.state.bulkCompleted = 0;
+		this.state.bulkStatus = `Creating 0 of ${count} distinct puzzles…`;
+		this.state.bulkError = undefined;
+		try {
+			const archive = await createBulkPuzzleArchive(
+				request,
+				count,
+				({ completed, total }) => {
+					if (generation !== bulkGeneration) return;
+					this.state.bulkCompleted = completed;
+					this.state.bulkStatus = `Creating ${completed} of ${total} distinct puzzles…`;
+				},
+				bulkRequest.signal
+			);
+			if (generation !== bulkGeneration) return;
+			downloadBulkPuzzleArchive(archive);
+			this.state.bulkStatus = `${count} puzzle and solution pairs exported`;
+			this.state.status = `Bulk ${request.kind} ZIP exported`;
+		} catch (error) {
+			if (generation !== bulkGeneration) return;
+			const canceled = error instanceof DOMException && error.name === 'AbortError';
+			this.state.bulkError = canceled
+				? undefined
+				: error instanceof Error
+					? error.message
+					: String(error);
+			this.state.bulkStatus = canceled ? 'Bulk generation canceled' : 'Could not create puzzle set';
+		} finally {
+			if (generation === bulkGeneration) {
+				this.state.bulkBusy = false;
+				bulkRequest = undefined;
+			}
+		}
+	};
+
+	const cancelBulkGeneration = () => {
+		bulkGeneration++;
+		bulkRequest?.abort();
+		bulkRequest = undefined;
+		this.state.bulkBusy = false;
+		this.state.bulkCompleted = 0;
+		this.state.bulkStatus = 'Bulk generation canceled';
+		this.state.bulkError = undefined;
+	};
+
 	this.onUnmount(() => {
 		aiGeneration++;
 		openAiRequest?.abort();
+		bulkGeneration++;
+		bulkRequest?.abort();
 	});
 
 	const download = (solution: boolean) => {
@@ -365,6 +431,17 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 						status={this.state.status}
 						error={this.state.error}
 						onDownload={download}
+						bulkCount={this.state.bulkCount}
+						bulkBusy={this.state.bulkBusy}
+						bulkCompleted={this.state.bulkCompleted}
+						bulkStatus={this.state.bulkStatus}
+						bulkError={this.state.bulkError}
+						onBulkCount={(count) => {
+							this.state.bulkCount = clampBulkCount(count);
+							this.state.bulkError = undefined;
+						}}
+						onBulkGenerate={() => void generateBulkArchive()}
+						onBulkCancel={cancelBulkGeneration}
 					/>
 				</div>
 			</main>
@@ -400,4 +477,10 @@ function aiPromptTemplate(state: PuzzleGeneratorState, kind: AiPuzzleKind): stri
 
 function clampDimension(value: number): number {
 	return Number.isFinite(value) ? Math.max(5, Math.min(30, Math.round(value))) : 5;
+}
+
+function clampBulkCount(value: number): number {
+	return Number.isFinite(value)
+		? Math.max(1, Math.min(BULK_COUNT_LIMIT, Math.round(value)))
+		: 1;
 }
