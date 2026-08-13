@@ -61,7 +61,9 @@ static compiler facts:
 `@exactjs/component-library` has no JavaScript entry, install script, registration, lifecycle, or
 trust grant. The build-facts JSON maps package exports to compiler-owned component identities and
 is validated without importing candidate code. Official component-library builds generate it
-after TypeScript output. Custom package tooling can use
+after TypeScript output. The root workspace build discovers every publishable manifest with this
+declaration and regenerates its facts, so a clean release build cannot depend on an earlier
+package-local build. Custom package tooling can use
 `@exactjs/compiler/component-library-build` to create and write the same deterministic protocol.
 
 ## Enforcement and artifacts
