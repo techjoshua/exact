@@ -865,6 +865,38 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 	}
 }
 
+func TestSessionImportsComponentLocalizationOnlyWhenUsed(t *testing.T) {
+	localized := NewSession().Execute(Request{
+		ID:     "localized.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `export function Price() {
+			return () => <output>{this.intl.NumberFormat('en-US').format(42)}</output>;
+		}`,
+	})
+	if localized.Error != "" {
+		t.Fatal(localized.Error)
+	}
+	if !strings.Contains(localized.Code, `import "@exactjs/core/runtime/localization"`) {
+		t.Fatalf("component Intl use did not import its runtime capability:\n%s", localized.Code)
+	}
+
+	plain := NewSession().Execute(Request{
+		ID:     "plain.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `export function Price() {
+			return () => <output>{42}</output>;
+		}`,
+	})
+	if plain.Error != "" {
+		t.Fatal(plain.Error)
+	}
+	if strings.Contains(plain.Code, "runtime/localization") {
+		t.Fatalf("component without Intl use retained localization capability:\n%s", plain.Code)
+	}
+}
+
 func TestSessionEmitsCompatibilityCapabilityOnlyForAdaptedComponentRoots(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "button.tsx",

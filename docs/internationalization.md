@@ -405,7 +405,12 @@ locale/options combinations without sharing locale state. The compiler lowers pr
 chains, finite local formatter bindings, and native
 number, bigint, and `Date` locale-string methods to `this.intl`; it removes a finite formatter
 declaration when all uses become cache operations. Escaping objects retain their binding but obtain
-the formatter through the cache. Helpers outside components can import the same global facade:
+the formatter through the cache. That component reference also makes the compiler import core's
+localization capability registration into the component's own bundle. Components that never use
+`this.intl` therefore omit the formatter pool, while lazy modules and microfrontend bundles carry
+the capability when their own compiled components require it; the shell does not need to predict
+their requirements. Compilerless component definitions can opt in with a side-effect import of
+`@exactjs/core/localization`. Helpers outside components can import the same global facade:
 
 ```ts
 import { intl } from '@exactjs/core';

@@ -6845,6 +6845,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/enhancements"},
 		{module: "@exactjs/core/runtime/dynamic-components"},
 		{module: "@exactjs/core/runtime/logging"},
+		{module: "@exactjs/core/runtime/localization"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -6934,10 +6935,12 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}
 	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
 	interactionUsed := containsInteractionRuntimeUse(root)
+	localizationUsed := containsComponentLocalizationUse(root)
 	result := make([]*ast.Node, 0, len(groups))
 	for index, group := range groups {
 		if len(group.specifiers) == 0 {
-			if index == 2 && (interopUsed || interactionUsed) {
+			if (index == 2 && (interopUsed || interactionUsed)) ||
+				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,
@@ -6965,6 +6968,19 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		result = append(result, declaration)
 	}
 	return result
+}
+
+func containsComponentLocalizationUse(root *ast.Node) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		member := node.AsPropertyAccessExpression()
+		found = member.Expression.Kind == ast.KindThisKeyword && member.Name().Text() == "intl"
+		return !found
+	})
+	return found
 }
 
 func containsInteractionRuntimeUse(root *ast.Node) bool {

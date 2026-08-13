@@ -87,6 +87,14 @@
 		"./runtime/logging": {
 			"types": "./dist/runtime/logging.d.ts",
 			"default": "./dist/runtime/logging.js"
+		},
+		"./runtime/localization": {
+			"types": "./dist/runtime/localization.d.ts",
+			"default": "./dist/runtime/localization.js"
+		},
+		"./localization": {
+			"types": "./dist/localization.d.ts",
+			"default": "./dist/localization.js"
 		}
 	},
 	"main": "./dist/index.js",

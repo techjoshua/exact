@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import '../localization.js';
 import { createComponentInstance } from '../component/runtime.js';
 import type { Component } from '../component/contracts.js';
 import { LocalizationContext } from './context.js';

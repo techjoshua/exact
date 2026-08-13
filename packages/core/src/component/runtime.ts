@@ -41,11 +41,11 @@ import {
 	mutableComponentRenderHandlers
 } from './lifecycle-handlers.js';
 import { createComponentListController } from './list-controller.js';
+import { componentLocalizationCapability } from './localization-capability.js';
 import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins } from './plugins.js';
 import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
 import { reactiveValue } from './reactive-value.js';
-import { createComponentIntlFacade } from '../localization/facade.js';
 import type { IntlFacade } from '../localization/contracts.js';
 import { createComponentRefBinding, createComponentRefRegistry } from './ref-runtime.js';
 import { createComponentReactive } from './reactive-expression.js';
@@ -140,7 +140,12 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	}
 
 	get intl(): IntlFacade {
-		return (this.intlFacade ??= createComponentIntlFacade(this));
+		const capability = componentLocalizationCapability();
+		if (!capability)
+			throw new Error(
+				'Component localization is unavailable because this artifact did not include the localization capability'
+			);
+		return (this.intlFacade ??= capability.create(this));
 	}
 
 	get mountHandlers(): LifecycleHandler[] {

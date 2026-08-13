@@ -224,8 +224,11 @@ export function InternationalizationPage(this: Component<{}>) {
 					The compiler lowers proven native constructor chains, finite formatter bindings, and
 					native number, bigint, and <code>Date</code> locale-string calls to <code>this.intl</code>
 					. A formatter declaration disappears when every use becomes a cached operation; escaping
-					objects remain observable but are constructed through the cache. Helpers without a
-					component owner import the public <code>intl</code> facade directly.
+					objects remain observable but are constructed through the cache. A component reference
+					also selects the localization integration for that component&apos;s bundle, including lazy
+					and microfrontend bundles; components that do not use it omit the formatter pool.
+					Compilerless components opt in through <code>@exactjs/core/localization</code>, while
+					helpers without a component owner import the public <code>intl</code> facade directly.
 				</p>
 				<p>
 					Each message is joined to a public compiler component identity after compilation. Watched

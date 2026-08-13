@@ -6,7 +6,7 @@ import { cachedDurationFormatter, cachedIntlFormatter } from './formatter-pool.j
 type LocalizationResolver = () => LocalizationContextValue | undefined;
 
 /** Realm-wide cache-backed Intl facade for helpers without a component owner. */
-export const intl: IntlFacade = createIntlFacade(() => undefined);
+export const intl: IntlFacade = /* @__PURE__ */ createIntlFacade(() => undefined);
 
 /** Creates a stable facade whose implicit source policy resolves through the nearest provider. */
 export function createComponentIntlFacade(instance: ComponentInstance<any>): IntlFacade {
