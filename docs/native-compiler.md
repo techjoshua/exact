@@ -29,7 +29,7 @@ Language sessions are permanently `noEmit: true`: they never write JavaScript,
 target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
-Native protocol 1.31 and generated component-contract version 2 carry the normalized recursive
+Native protocol 1.34 and generated component-contract version 2 carry the normalized recursive
 partition plan, including ordinary enhancement-component owners, structural templates,
 crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains
 `setupExecution` on authored state assignments across source normalization, distinguishing

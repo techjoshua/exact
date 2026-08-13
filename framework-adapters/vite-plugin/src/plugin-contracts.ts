@@ -16,6 +16,8 @@ export type ExactPluginOptions = {
 	include?: FilterPattern;
 	exclude?: FilterPattern;
 	target?: TransformTarget;
+	/** Retains only the component-contract fields needed by this browser rendering mode. */
+	renderMode?: 'universal' | 'client' | 'hydrate';
 	clientCondition?: string;
 	serverCondition?: string;
 	serverComponents?: boolean;

@@ -124,6 +124,12 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 				session: input.compilerSession,
 				packageEnhancements: input.packageEnhancements,
 				target: exactTransformTarget(options),
+				componentContractProjection:
+					options.target === 'server' ||
+					options.renderMode === undefined ||
+					options.renderMode === 'universal'
+						? 'complete'
+						: options.renderMode,
 				serverComponents: options.serverComponents,
 				sourceMap: false,
 				assetRules: options.assetRules,

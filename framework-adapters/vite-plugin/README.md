@@ -15,6 +15,11 @@ export default defineConfig({
 
 Use `target: 'server'` for server artifacts, `serverComponents: true` for split server-component
 builds, and `reactCompatibility` only when the application consumes React-owned packages.
+Set `renderMode: 'hydrate'` for a browser bundle that adopts SSR HTML, or `renderMode: 'client'`
+for a fresh-mount-only browser bundle. These modes keep the compiler's complete analysis result
+available to the build while omitting analysis-only component inventories from emitted JavaScript;
+client-only bundles also omit resumption metadata. The default `universal` behavior preserves the
+complete contract when one artifact may serve more than one mode.
 
 ## What the plugin handles
 

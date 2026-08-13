@@ -7,13 +7,23 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.33.0"
+const ProtocolVersion = "1.34.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
 
 // Target identifies the eXact artifact being compiled.
 type Target string
+
+// ComponentContractProjection identifies which runtime-facing subset a build host requests.
+// The empty value retains the complete, rendering-mode-neutral compiler output.
+type ComponentContractProjection string
+
+const (
+	ComponentContractProjectionComplete ComponentContractProjection = "complete"
+	ComponentContractProjectionHydrate  ComponentContractProjection = "hydrate"
+	ComponentContractProjectionClient   ComponentContractProjection = "client"
+)
 
 const (
 	// TargetDefault compiles an artifact without client/server specialization.
@@ -26,27 +36,28 @@ const (
 
 // Request is one newline-delimited command accepted by a Session.
 type Request struct {
-	ID                         string            `json:"id,omitempty"`
-	Kind                       string            `json:"kind"`
-	Source                     string            `json:"source,omitempty"`
-	Root                       string            `json:"root,omitempty"`
-	BuildKey                   string            `json:"buildKey,omitempty"`
-	ConfigFile                 string            `json:"configFile,omitempty"`
-	Target                     Target            `json:"target,omitempty"`
-	ServerComponents           bool              `json:"serverComponents,omitempty"`
-	PreserveComponentHoisting  bool              `json:"preserveComponentHoisting,omitempty"`
-	Diagnostics                string            `json:"diagnostics,omitempty"`
-	SourceMap                  bool              `json:"sourceMap,omitempty"`
-	PackageType                string            `json:"packageType,omitempty"`
-	PackageName                string            `json:"packageName,omitempty"`
-	Capabilities               CapabilityPolicy  `json:"capabilities,omitempty"`
-	AssetRules                 []AssetRule       `json:"assetRules,omitempty"`
-	PreserveClientAssetImports bool              `json:"preserveClientAssetImports,omitempty"`
-	JSXInterop                 *JSXInterop       `json:"jsxInterop,omitempty"`
-	ModuleRewrite              *ModuleRewrite    `json:"moduleRewrite,omitempty"`
-	InstrumentInspection       bool              `json:"instrumentInspection,omitempty"`
-	PackageEnhancementBoundary int               `json:"packageEnhancementBoundary,omitempty"`
-	Extension                  *ExtensionRequest `json:"extension,omitempty"`
+	ID                          string                      `json:"id,omitempty"`
+	Kind                        string                      `json:"kind"`
+	Source                      string                      `json:"source,omitempty"`
+	Root                        string                      `json:"root,omitempty"`
+	BuildKey                    string                      `json:"buildKey,omitempty"`
+	ConfigFile                  string                      `json:"configFile,omitempty"`
+	Target                      Target                      `json:"target,omitempty"`
+	ComponentContractProjection ComponentContractProjection `json:"componentContractProjection,omitempty"`
+	ServerComponents            bool                        `json:"serverComponents,omitempty"`
+	PreserveComponentHoisting   bool                        `json:"preserveComponentHoisting,omitempty"`
+	Diagnostics                 string                      `json:"diagnostics,omitempty"`
+	SourceMap                   bool                        `json:"sourceMap,omitempty"`
+	PackageType                 string                      `json:"packageType,omitempty"`
+	PackageName                 string                      `json:"packageName,omitempty"`
+	Capabilities                CapabilityPolicy            `json:"capabilities,omitempty"`
+	AssetRules                  []AssetRule                 `json:"assetRules,omitempty"`
+	PreserveClientAssetImports  bool                        `json:"preserveClientAssetImports,omitempty"`
+	JSXInterop                  *JSXInterop                 `json:"jsxInterop,omitempty"`
+	ModuleRewrite               *ModuleRewrite              `json:"moduleRewrite,omitempty"`
+	InstrumentInspection        bool                        `json:"instrumentInspection,omitempty"`
+	PackageEnhancementBoundary  int                         `json:"packageEnhancementBoundary,omitempty"`
+	Extension                   *ExtensionRequest           `json:"extension,omitempty"`
 }
 
 // ExtensionRequest selects an isolated native frontend operation without adding

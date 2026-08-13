@@ -12,6 +12,7 @@ import (
 func componentExecutionMetadata(
 	factory *printer.NodeFactory,
 	execution ComponentExecution,
+	compact bool,
 ) *ast.Node {
 	ports := make([]*ast.Node, 0, len(execution.Ports))
 	for _, port := range execution.Ports {
@@ -44,12 +45,15 @@ func componentExecutionMetadata(
 			contractProperty(factory, "dependencies", stringMetadata(factory, binding.Dependencies)),
 		))
 	}
-	return contractObject(factory, true,
+	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, execution.Version)),
 		contractProperty(factory, "ports", contractArray(factory, ports...)),
 		contractProperty(factory, "transitions", contractArray(factory, transitions...)),
-		contractProperty(factory, "reactive", contractArray(factory, reactive...)),
-	)
+	}
+	if !compact {
+		properties = append(properties, contractProperty(factory, "reactive", contractArray(factory, reactive...)))
+	}
+	return contractObject(factory, true, properties...)
 }
 
 // componentDefinitionMetadata emits the single compiler-owned description
@@ -63,6 +67,7 @@ func componentDefinitionMetadata(
 	hasInteractions bool,
 	compatibility bool,
 	dynamicComponents bool,
+	compact bool,
 ) *ast.Node {
 	state := []string{}
 	tasks := []string{}
@@ -102,15 +107,20 @@ func componentDefinitionMetadata(
 			contractProperty(factory, "dependencies", stringMetadata(factory, binding.Dependencies)),
 		))
 	}
-	return contractObject(factory, true,
+	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "instantiate", instantiate),
-		contractProperty(factory, "state", stringMetadata(factory, state)),
-		contractProperty(factory, "tasks", stringMetadata(factory, tasks)),
-		contractProperty(factory, "reactive", contractArray(factory, reactive...)),
-		contractProperty(factory, "render", contractString(factory, "returned-function")),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
-	)
+	}
+	if !compact {
+		properties = append(properties,
+			contractProperty(factory, "state", stringMetadata(factory, state)),
+			contractProperty(factory, "tasks", stringMetadata(factory, tasks)),
+			contractProperty(factory, "reactive", contractArray(factory, reactive...)),
+			contractProperty(factory, "render", contractString(factory, "returned-function")),
+		)
+	}
+	return contractObject(factory, true, properties...)
 }
 
 // projectComponentExecution removes opposite-target transitions and compacts

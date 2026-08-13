@@ -11,6 +11,10 @@ six applications use production SSR and hydration and pass their track's black-b
 remain `scaffolded`—and measurements remain non-publishable—until framework specialists approve the review
 records. The suite does not publish framework rankings or treat an unreviewed result as evidence.
 
+The eXact controlled participant declares `renderMode: 'hydrate'` in its Vite build. This retains the
+resumption contract required by the shared SSR/hydration experience while excluding compiler analysis
+inventories that no browser execution path consumes.
+
 ## Comparison tracks
 
 - **Controlled service:** each UI calls the Fetch-compatible service in [`src/service.mjs`](src/service.mjs).

@@ -24,6 +24,7 @@ func lowerComponentContracts(
 	identityFilename string,
 	preserveComponentHoisting bool,
 	compatibility bool,
+	projection ComponentContractProjection,
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -75,6 +76,7 @@ func lowerComponentContracts(
 							used,
 							preserveComponentHoisting,
 							compatibility,
+							projection,
 						)...,
 					)
 					continue
@@ -112,6 +114,7 @@ func lowerComponentContracts(
 				target,
 				used,
 				compatibility,
+				projection,
 			)
 			if rootChanged {
 				statements = append(statements, updatedRoot)
@@ -434,6 +437,7 @@ func wrapRootComponentFunction(
 	used map[string]struct{},
 	preserveComponentHoisting bool,
 	compatibility bool,
+	projection ComponentContractProjection,
 ) []*ast.Node {
 	if !preserveComponentHoisting {
 		return wrapRootComponentFunctionValue(
@@ -448,6 +452,7 @@ func wrapRootComponentFunction(
 			target,
 			used,
 			compatibility,
+			projection,
 		)
 	}
 	factory := emitContext.Factory
@@ -467,6 +472,7 @@ func wrapRootComponentFunction(
 		used,
 		false,
 		compatibility,
+		projection,
 	)
 	attachmentStatement := factory.NewExpressionStatement(attachment)
 	return []*ast.Node{declaration.AsNode(), attachmentStatement}
@@ -484,6 +490,7 @@ func wrapRootComponentFunctionValue(
 	target Target,
 	used map[string]struct{},
 	compatibility bool,
+	projection ComponentContractProjection,
 ) []*ast.Node {
 	factory := emitContext.Factory
 	name := declaration.Name()
@@ -527,6 +534,7 @@ func wrapRootComponentFunctionValue(
 		used,
 		true,
 		compatibility,
+		projection,
 	)
 	implementationDeclaration := factory.NewVariableStatement(
 		nil,
@@ -596,6 +604,7 @@ func rootComponentContractAttachment(
 	used map[string]struct{},
 	wrapIIFE bool,
 	compatibility bool,
+	projection ComponentContractProjection,
 ) *ast.Node {
 	factory := emitContext.Factory
 	implementationName := component.Name
@@ -681,7 +690,11 @@ func rootComponentContractAttachment(
 		contractProperty(
 			factory,
 			"execution",
-			componentExecutionMetadata(factory, projectedExecution),
+			componentExecutionMetadata(
+				factory,
+				projectedExecution,
+				projection != ComponentContractProjectionComplete,
+			),
 		),
 		contractProperty(
 			factory,
@@ -695,10 +708,11 @@ func rootComponentContractAttachment(
 				target == TargetClient && component.Interactions,
 				usesCompatibility,
 				component.DynamicComponents,
+				projection != ComponentContractProjectionComplete,
 			),
 		),
 	}
-	if component.Placement != "server" {
+	if component.Placement != "server" && projection != ComponentContractProjectionClient {
 		contractProperties = append(contractProperties, contractProperty(
 			factory,
 			"resumption",
@@ -826,6 +840,7 @@ func wrapRootComponentVariables(
 	target Target,
 	used map[string]struct{},
 	compatibility bool,
+	projection ComponentContractProjection,
 ) (*ast.Node, bool) {
 	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
@@ -878,6 +893,7 @@ func wrapRootComponentVariables(
 			used,
 			false,
 			compatibility,
+			projection,
 		)
 		body := factory.NewBlock(
 			factory.NewNodeList([]*ast.Node{

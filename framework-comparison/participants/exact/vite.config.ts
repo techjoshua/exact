@@ -5,7 +5,7 @@ import type { Plugin } from 'vite';
 /** Builds and serves only the independently authored eXact participant. */
 export default {
 	root: fileURLToPath(new URL('.', import.meta.url)),
-	plugins: [exact(), rejectUnusedReactCompatibility()],
+	plugins: [exact({ renderMode: 'hydrate' }), rejectUnusedReactCompatibility()],
 	server: { host: '127.0.0.1' },
 	preview: { host: '127.0.0.1' },
 	build: { outDir: 'dist', emptyOutDir: true }

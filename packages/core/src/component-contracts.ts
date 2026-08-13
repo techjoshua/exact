@@ -137,7 +137,8 @@ export type ExactComponentExecutionContract = Readonly<{
 		inputs: readonly number[];
 		outputs: readonly number[];
 	}>[];
-	reactive: readonly Readonly<{
+	/** Build-inspection inventory omitted from render-mode-projected runtime bundles. */
+	reactive?: readonly Readonly<{
 		name: string;
 		provenance: 'state' | 'props' | 'context' | 'derived' | 'cell' | 'snapshot' | 'unknown';
 		allocation: 'constant' | 'live-slot' | 'inline' | 'computed' | 'snapshot' | 'structural';
@@ -149,10 +150,11 @@ export type ExactComponentExecutionContract = Readonly<{
 export type ExactCompiledComponentDefinitionContract = Readonly<{
 	version: 1;
 	instantiate: (...args: any[]) => any;
-	state: readonly string[];
-	tasks: readonly string[];
-	reactive: ExactComponentExecutionContract['reactive'];
-	render: 'returned-function';
+	/** Build-inspection inventories omitted from render-mode-projected runtime bundles. */
+	state?: readonly string[];
+	tasks?: readonly string[];
+	reactive?: ExactComponentExecutionContract['reactive'];
+	render?: 'returned-function';
 	capabilities: readonly (
 		| 'tasks'
 		| 'continuations'

@@ -92,6 +92,12 @@ export function AdvancedPage(this: Component<{}>) {
 			<section>
 				<h2>Interactive HTML does not have to hydrate eagerly</h2>
 				<p>
+					Browser builds can declare <code>renderMode: 'hydrate'</code> when they adopt SSR HTML or{' '}
+					<code>renderMode: 'client'</code> when they only mount fresh DOM. The bundler keeps the
+					executable component contract for that mode and leaves analysis-only inventories in the
+					compiler result. Use the default universal mode when one artifact must support both.
+				</p>
+				<p>
 					SSR resumption records apply only when a component&apos;s compiler identity matches its
 					server marker and that existing range is adopted. Mismatched pages introduced before
 					hydration, later client routes, and conditional views initialize as fresh browser

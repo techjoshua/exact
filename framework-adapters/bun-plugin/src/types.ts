@@ -13,6 +13,8 @@ type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 /** Configures the eXact Bun plugin. */
 export type ExactBunPluginOptions = {
 	target?: TransformTarget;
+	/** Retains only the component-contract fields needed by this browser rendering mode. */
+	renderMode?: 'universal' | 'client' | 'hydrate';
 	clientCondition?: string;
 	serverCondition?: string;
 	include?: FilterPattern;

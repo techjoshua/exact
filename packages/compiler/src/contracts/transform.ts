@@ -39,6 +39,11 @@ export type TransformOptions = {
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */
 	session?: ExactCompilerSession;
 	target?: TransformTarget;
+	/**
+	 * Projects the complete compiler-owned component contract for a concrete runtime bundle.
+	 * Omit this for rendering-mode-neutral output; bundler adapters set it from their render mode.
+	 */
+	componentContractProjection?: ComponentContractProjection;
 	serverComponents?: boolean;
 	/**
 	 * Preserves function-declaration hoisting while attaching component descriptors.
@@ -128,6 +133,9 @@ export type ModuleTransform = (
 
 /** Defines the transform target type contract. */
 export type TransformTarget = 'default' | 'client' | 'server';
+
+/** Selects the runtime component-contract subset retained by a physical bundle. */
+export type ComponentContractProjection = 'complete' | 'hydrate' | 'client';
 
 /** Defines the exact asset kind type contract. */
 export type ExactAssetKind =

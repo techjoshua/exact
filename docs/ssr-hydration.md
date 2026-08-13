@@ -91,6 +91,12 @@ Schema-defined empty hydration metadata is omitted from compiler registrations a
 payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with
 shared immutable empty values. This compaction never applies recursively to authored state, props,
 or public-context values, where an empty collection remains meaningful application data.
+The Vite, Webpack, and Bun adapters also accept `renderMode: 'hydrate'` for browser artifacts that
+adopt SSR HTML and `renderMode: 'client'` for fresh-mount-only artifacts. Both modes retain the
+same executable component semantics while leaving analysis-only state, task, and reactive
+inventories in the compiler's build result instead of emitted JavaScript. Client-only projection
+also omits component resumption records. The default `universal` mode preserves the complete
+contract when a build cannot commit to one browser rendering mode.
 Applications whose client entry imports a generated hydration registration should set
 `includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
 same continuation contracts.

@@ -85,6 +85,26 @@ describe('@exactjs/vite-plugin: transform', () => {
 		});
 	});
 
+	it('projects component contracts for the configured browser render mode', () => {
+		const source = `export function Counter() {
+			this.state.count = 0;
+			return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+		}`;
+		const hydrated = exact({ reactCompatibility: false, renderMode: 'hydrate' }).transform(
+			source,
+			'/src/Counter.tsx'
+		);
+		const client = exact({ reactCompatibility: false, renderMode: 'client' }).transform(
+			source,
+			'/src/Counter.tsx'
+		);
+
+		expect(hydrated?.code).toContain('resumption:');
+		expect(hydrated?.code).not.toContain('render: "returned-function"');
+		expect(hydrated?.code).not.toContain('reactive: [');
+		expect(client?.code).not.toContain('resumption:');
+	});
+
 	it('runs optional intl analysis before ordinary compilation and extracts descriptors', async () => {
 		const extracted: unknown[] = [];
 		const clientRequirements: unknown[] = [];

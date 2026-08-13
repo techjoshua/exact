@@ -39,6 +39,9 @@ for ordinary builds and reports an actionable error if exposures require the coo
 
 Use `target: 'server'` with Bun's server target for the matching server build. Keep
 `serverComponents`, React compatibility, and build identity consistent across paired outputs.
+For browser builds, set `renderMode: 'hydrate'` when the entry adopts SSR HTML or
+`renderMode: 'client'` when it only performs fresh mounts. The default `universal` contract remains
+available when one output must support either mode.
 
 ## What the plugin handles
 

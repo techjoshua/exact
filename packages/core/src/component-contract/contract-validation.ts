@@ -79,11 +79,11 @@ function isDefinition(value: unknown): boolean {
 		]) &&
 		value.version === 1 &&
 		typeof value.instantiate === 'function' &&
-		isSafeContractStringList(value.state) &&
-		isSafeContractStringList(value.tasks) &&
-		Array.isArray(value.reactive) &&
-		value.reactive.every(isReactiveAllocation) &&
-		value.render === 'returned-function' &&
+		(value.state === undefined || isSafeContractStringList(value.state)) &&
+		(value.tasks === undefined || isSafeContractStringList(value.tasks)) &&
+		(value.reactive === undefined ||
+			(Array.isArray(value.reactive) && value.reactive.every(isReactiveAllocation))) &&
+		(value.render === undefined || value.render === 'returned-function') &&
 		Array.isArray(value.capabilities) &&
 		value.capabilities.every((capability) =>
 			[
@@ -94,7 +94,8 @@ function isDefinition(value: unknown): boolean {
 				'registry',
 				'enhancements',
 				'interactions',
-				'compatibility'
+				'compatibility',
+				'dynamic-components'
 			].includes(capability)
 		)
 	);
@@ -190,8 +191,8 @@ function isExecution(value: unknown): value is ExactComponentExecutionContract {
 		value.transitions.every((transition) =>
 			isExecutionTransition(transition, value.ports.length)
 		) &&
-		Array.isArray(value.reactive) &&
-		value.reactive.every(isReactiveAllocation)
+		(value.reactive === undefined ||
+			(Array.isArray(value.reactive) && value.reactive.every(isReactiveAllocation)))
 	);
 }
 

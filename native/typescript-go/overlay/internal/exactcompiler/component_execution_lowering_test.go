@@ -68,6 +68,44 @@ func TestTaskFreeExportCarriesCanonicalDefinitionWithoutTaskCapability(t *testin
 	}
 }
 
+func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
+	source := `
+		declare class Component<State> { state: State }
+		export function Counter(this: Component<{ count: number }>) {
+			this.state.count = 0;
+			return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+		}
+	`
+	hydrate := NewSession().Execute(Request{
+		ID: "hydrate.tsx", Kind: "compile", Target: TargetClient, Source: source,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+	})
+	if hydrate.Error != "" || len(hydrate.Diagnostics) != 0 {
+		t.Fatalf("hydrate projection failed: %s %#v", hydrate.Error, hydrate.Diagnostics)
+	}
+	for _, expected := range []string{"definition:", "instantiate:", "capabilities:", "resumption:"} {
+		if !strings.Contains(hydrate.Code, expected) {
+			t.Fatalf("hydrate projection is missing %q:\n%s", expected, hydrate.Code)
+		}
+	}
+	for _, omitted := range []string{"state: [", "tasks: [", "reactive: [", `render: "returned-function"`} {
+		if strings.Contains(hydrate.Code, omitted) {
+			t.Fatalf("hydrate projection retained build-only metadata %q:\n%s", omitted, hydrate.Code)
+		}
+	}
+
+	client := NewSession().Execute(Request{
+		ID: "client.tsx", Kind: "compile", Target: TargetClient, Source: source,
+		ComponentContractProjection: ComponentContractProjectionClient,
+	})
+	if client.Error != "" || len(client.Diagnostics) != 0 {
+		t.Fatalf("client projection failed: %s %#v", client.Error, client.Diagnostics)
+	}
+	if strings.Contains(client.Code, "resumption:") {
+		t.Fatalf("client-only projection retained hydration resumption metadata:\n%s", client.Code)
+	}
+}
+
 func TestComponentExecutionPropagatesAggregateOutputSourcesThroughChildProps(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "projection.tsx",

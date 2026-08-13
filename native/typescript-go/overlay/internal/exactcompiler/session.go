@@ -70,6 +70,18 @@ func (s *Session) Execute(request Request) Response {
 		response.Error = fmt.Sprintf("unsupported eXact compilation target %q", request.Target)
 		return response
 	}
+	if request.ComponentContractProjection == "" {
+		request.ComponentContractProjection = ComponentContractProjectionComplete
+	}
+	if request.ComponentContractProjection != ComponentContractProjectionComplete &&
+		request.ComponentContractProjection != ComponentContractProjectionHydrate &&
+		request.ComponentContractProjection != ComponentContractProjectionClient {
+		response.Error = fmt.Sprintf(
+			"unsupported component contract projection %q",
+			request.ComponentContractProjection,
+		)
+		return response
+	}
 	if request.Diagnostics == "" {
 		request.Diagnostics = "syntax"
 	}
@@ -606,6 +618,7 @@ func (s *Session) Execute(request Request) Response {
 		sourceFile.FileName(),
 		request.PreserveComponentHoisting,
 		request.JSXInterop != nil,
+		request.ComponentContractProjection,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,

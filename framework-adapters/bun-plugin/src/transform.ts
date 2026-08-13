@@ -94,6 +94,12 @@ export function transformExactBunSource(
 				session,
 				packageEnhancements: options.__exactPackageEnhancements,
 				target: targetFor(options),
+				componentContractProjection:
+					options.target === 'server' ||
+					options.renderMode === undefined ||
+					options.renderMode === 'universal'
+						? 'complete'
+						: options.renderMode,
 				serverComponents: options.serverComponents,
 				sourceMap: options.sourceMap ?? true,
 				assetRules: options.assetRules,

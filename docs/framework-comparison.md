@@ -7,6 +7,9 @@ black-box acceptance suites, and measurement harness are implemented. The contro
 React, SvelteKit, and Nuxt. The native track includes eXact compiler server tasks and React Router loaders and
 actions. All participants remain scaffolded until specialist review; publishable results have not been added.
 
+The eXact browser build explicitly selects the hydrating component-contract projection: it preserves the
+same SSR adoption behavior while leaving analysis-only component inventories out of the shipped bundle.
+
 ## What the suite compares
 
 The application is an incident-operations console with server-renderable queues, deep-linked details,

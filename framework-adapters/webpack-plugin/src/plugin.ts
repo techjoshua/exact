@@ -74,6 +74,8 @@ export {
 /** Configures exact webpack plugin. */
 export type ExactWebpackPluginOptions = {
 	target?: TransformTarget;
+	/** Retains only the component-contract fields needed by this browser rendering mode. */
+	renderMode?: 'universal' | 'client' | 'hydrate';
 	clientCondition?: string;
 	serverCondition?: string;
 	include?: FilterPattern;
