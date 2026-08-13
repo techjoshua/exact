@@ -1,5 +1,4 @@
 import {
-	createComponentInstance,
 	normalizeRenderResult,
 	renderInstance,
 	type Child,
@@ -14,6 +13,10 @@ import { componentName, getComponentProps } from './component-vnode.js';
 import { handleSsrConstructionError } from './construction-errors.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderLimitError } from './limits.js';
+import {
+	createSsrComponentInstance,
+	resolveSsrComponentExecution
+} from './root-execution-cache.js';
 
 /** Renderer operations supplied by the sync tree without creating an import cycle. */
 export type SyncComponentOperations = Readonly<{
@@ -69,24 +72,35 @@ export function renderSyncComponent(
 			return output;
 		}
 		const componentProps = getComponentProps(vnode);
-		instance = createComponentInstance(
+		const blueprint = resolveSsrComponentExecution(context, vnode.type as ComponentFunction<any>);
+		instance = createSsrComponentInstance(
+			context,
 			vnode.type as ComponentFunction<any, Record<string, unknown>>,
 			componentProps,
 			parent,
-			context.componentContexts,
-			context.componentDomain
+			blueprint
 		);
 		context.onComponentCreated?.(instance);
 		let stabilized = false;
 		for (let pass = 0; pass < 25; pass++) {
 			if (documentProbe) resetDocumentProbe(context);
+			const checkpoint = context.onComponentAttemptCheckpoint?.();
 			let invalidated = false;
-			const children = renderInstance(instance, () => {
-				invalidated = true;
-			});
-			const html = operations.renderChildren(context, children, instance);
+			let html: string;
+			try {
+				const children = renderInstance(instance, () => {
+					invalidated = true;
+				});
+				html = operations.renderChildren(context, children, instance);
+			} catch (error) {
+				context.onComponentAttemptRollback?.(checkpoint);
+				throw error;
+			}
 			flushSync();
-			if (invalidated) continue;
+			if (invalidated) {
+				context.onComponentAttemptRollback?.(checkpoint);
+				continue;
+			}
 			output = componentOutput(
 				context,
 				vnode,

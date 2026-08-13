@@ -112,10 +112,29 @@ function preview(
 		if (value instanceof Map) return previewMap(value, path, depth, state);
 		if (value instanceof Set) return previewSet(value, path, depth, state);
 		if (Array.isArray(value)) return previewArray(value, path, depth, state);
+		if (value instanceof Error) return previewError(value, path, depth, state);
 		return previewObject(value, path, depth, state);
 	} catch {
 		return Object.freeze({ kind: 'unavailable', reason: 'inspection-failed' });
 	}
+}
+
+function previewError(
+	value: Error,
+	path: string[],
+	depth: number,
+	state: PreviewState
+): ExactValuePreview {
+	const descriptors = Object.getOwnPropertyDescriptors(value);
+	const entries: ExactPreviewEntry[] = [];
+	for (const key of ['name', 'message', 'cause'] as const) {
+		const descriptor = descriptors[key];
+		if (!descriptor || !('value' in descriptor) || !reserve(key, state)) continue;
+		entries.push(
+			Object.freeze({ key, value: preview(descriptor.value, [...path, key], depth + 1, state) })
+		);
+	}
+	return objectPreview(typeName(value), entries, false);
 }
 
 function previewFunction(value: CallableFunction): ExactValuePreview {

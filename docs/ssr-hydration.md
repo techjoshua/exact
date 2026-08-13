@@ -8,6 +8,18 @@ Status: implemented foundation with the explicit limits listed below.
   hydratable output, and adapter-neutral response objects.
 - `@exactjs/hydrate` adopts server DOM, activates client islands, invokes the
   server endpoint, validates results, and applies patches.
+- `@exactjs/hydrate/root` is the statically selectable hydration-only facade for applications
+  without compiler-generated server operations, response patches, or client islands. Its root
+  owns adoption and disposal but does not retain those optional modules in the browser graph.
+  Its `hydrateAfterNavigation()` entry gives visible SSR content one rendering opportunity before
+  scheduling user-visible adoption outside the DOMContentLoaded critical path. An
+  interaction-capture fallback still activates the root synchronously when a user acts first, and
+  hidden documents use a task fallback because animation frames may be throttled indefinitely.
+  Scheduling uses the container's document and window, so roots in embedded realms do not depend on
+  the host page's readiness, frame, timer, or task queues. Activation has one terminal settlement:
+  scheduling and hydration failures remove pending hooks and cannot trigger a later retry.
+  An opt-in hydration profile reports DOM capture, adoption, control restoration, and total
+  hydration separately so applications can distinguish scheduling delay from adoption work.
 - `@exactjs/server` owns allowlisted invocation/refresh dispatch, request
   validation, authorization hooks, limits, and runtime-neutral adapters.
 - `@exactjs/compiler` owns placement, artifact generation, operation
@@ -46,16 +58,48 @@ groups temporarily yield their parent permit and reuse the same request-wide sch
 both multiplied concurrency and deadlock. Marker-bearing, document, inspection, React-compatible,
 callback-observed, and unproven groups remain serial.
 
+Components with compiler-attached execution subgraphs wire reachable child components before
+waiting for their own setup continuations. Ready root task generations enter that same request
+scheduler, while nested task frames retain the parent's permit. This removes the recursive async
+discovery waterfall without building or flattening a request-wide plan. Uncompiled components keep
+the ordinary drain-before-render path, and structural render reachability still prevents inactive
+branches or unselected dynamic components from starting work.
+
+After output extensions choose the rendered root, SSR reuses a root-keyed immutable execution
+blueprint. It caches validated contracts and prepared lookup indexes for components reached beneath
+that root, including dynamic components on first use. Weak keys avoid retaining replaced dynamic
+components, and an attachment or compiler-identity change forces validation and preparation again.
+The cache contains no props, contexts, state, task generations, cancellation, or other request data.
+Per request, components allocate only their compact value slots and the watchers required by actual
+transitions; components without transitions skip continuation-frame allocation entirely.
+
 ## Hydration
 
 Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
 
+Compiler-cell roots adopt their existing cell range directly; they do not pass through static-tree
+repair or clear the root container. Compiler-proven native component calls use the component's own
+identity marker without an additional cell marker pair. Intrinsic cells and structural expression
+ranges retain their markers because those ranges still own independent reactive updates.
+Compiler render programs adopt their marked intrinsic nodes and scalar slots through the program's
+stable element and slot identities. They retain the SSR DOM and marker protocol without rebuilding
+an equivalent generic Cell/Dynamic mount graph. Initial adopted prop binding is covered by the
+root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
+Completed component mounts cache their first target and host candidates; parent publication reuses
+those structural results instead of recursively rediscovering roots through nested components.
+
 Schema-defined empty hydration metadata is omitted from compiler registrations and document
 payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with
 shared immutable empty values. This compaction never applies recursively to authored state, props,
 or public-context values, where an empty collection remains meaningful application data.
+The Vite, Webpack, and Bun adapters also accept `renderMode: 'hydrate'` for browser artifacts that
+adopt SSR HTML and `renderMode: 'client'` for fresh-mount-only artifacts. Both modes retain the
+same executable component semantics while leaving analysis-only state, task, and reactive
+inventories in the compiler's build result instead of emitted JavaScript. Client-only projection
+also omits component resumption records. The default `universal` mode preserves the complete
+contract when a build cannot commit to one browser rendering mode.
 Applications whose client entry imports a generated hydration registration should set
 `includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
 same continuation contracts.
@@ -81,6 +125,15 @@ renderer has matched an SSR component marker and is constructing that exact
 component for adoption. Compiled markers use the same contract identity as
 resumption records. Mismatched route or conditional ranges mount as fresh client
 instances, even while compatible ancestors continue adopting.
+Records are consumed in their per-component construction order rather than one global cross-type
+order. SSR preparation may construct different component types ahead of their final DOM order;
+that preparation detail cannot invalidate otherwise matching client adoption. Adoption checkpoints
+still return any consumed records when a candidate range fails.
+
+Root hydration parses and validates its embedded bootstrap configuration once, then passes the
+resolved immutable inputs into client construction. Static scalar DOM props bypass reactive watcher
+construction; compiler expressions and supported composite class or `srcdoc` values retain observed
+bindings.
 
 Finite component-registry selections retain the registry binding, selected
 key, and opaque compiled entry identity in their component marker. A matching
@@ -131,8 +184,31 @@ Boundary replacement remains the correctness fallback.
 
 Runtime inspection exposes the same retained ranges through `partitions.tree`.
 The Chromium DevTools component view shows their host, opaque plan identity,
-component owner, discriminator kind, generation, and nested range ancestry without
+component owner, activation mode and fallback reason, discriminator kind, generation, and nested range ancestry without
 turning inspection identities into dispatch authority.
+
+Compiler-proven interaction islands install only the delegated listeners named by their generated
+registry policy. `click` and `submit` resume through native `click()` and `requestSubmit()`;
+`input` and `change` preserve the browser's already-applied control mutation and coalesce to the
+latest value; focus events replay notification only. Queues retain identities and policy fields,
+never native `Event` objects, and are generation-fenced and bounded. Refs, unsupported events or
+event data, observable initial work, and non-finite spreads produce source-located eager reasons.
+Finite immutable object spreads are expanded in source overwrite order, leaving handlers in the
+client artifact and sending only fallback values through SSR. Independently planned server ranges
+remain inert inside a dormant client island and retain their own refresh generation.
+
+Passive hydration does not manufacture a focus transition when the document body owns focus. When
+an authored control already owns focus, DOM adoption and later reactive patches preserve that
+connected element and its input or editable selection if browser DOM work temporarily drops focus.
+
+When an interaction island loads, hydration prepares its immutable component execution slice from
+the compiled definition and caches it by component artifact. Adoption installs only the root's
+authorized setup-transition watchers; already-resumed continuations suppress their initial
+generation, while unresolved live-ins use the declared predecessor slots. Dependency cycles fail
+the activation instead of leaving it indefinitely loading. The slice exists only while the island
+region is constructed, so it cannot suppress or activate unrelated dormant components. Boundary
+generation replacement, abort, or unmount continues to fence loader completion, queued events, and
+task publications.
 
 ## Data boundary
 
@@ -148,13 +224,13 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
-- [Compiler-planned structural refresh](proposals/compiler-planned-structural-refresh.md) for
-  additional proven patch forms.
-- [Broader lazy-island classification](proposals/lazy-interaction-islands.md) where source remains
-  statically safe.
-- [Full Webpack and Bun microfrontend production conformance](proposals/webpack-bun-microfrontend-parity.md).
-- [Serializable partial-prerender resumption](proposals/partial-prerender-resumption.md); current
-  progressive rendering does not persist opaque postponed renderer state.
+- Measured [structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)
+  may add proven patch fast paths, but current range and boundary replacement is already the
+  correctness contract and does not block later SSR work.
+- Webpack, Bun, and Vite/Rollup now share the production microfrontend artifact and recovery contract.
+- Persisting postponed renderer state across requests is intentionally not planned: ordinary
+  Suspense and progressive SSR provide the useful behavior without checkpoint reconstruction and
+  distributed replay coordination.
 
 See [server-components.md](server-components.md) for authoring and
 [component-registries.md](component-registries.md) for finite dynamic

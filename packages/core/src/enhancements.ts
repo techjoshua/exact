@@ -1,5 +1,6 @@
 import type {
 	ComponentFunction,
+	CompiledEnhancementNode,
 	ContextToken,
 	EnhancementEntry,
 	EnhancementMarker
@@ -7,6 +8,36 @@ import type {
 
 /** Global property carrying compiler-derived context effects needed before enhancement activation. */
 export const exactEnhancementContexts = Symbol.for('@exactjs/enhancement-contexts');
+const exactEnhancementPassThroughBrand = Symbol.for('@exactjs/enhancement-pass-through');
+
+type BrandedEnhancementComponent = ComponentFunction<any, Record<string, unknown>> & {
+	[exactEnhancementPassThroughBrand]?: true;
+};
+
+/**
+ * Shared stateless provider used when an optional enhancement implementation is unavailable.
+ *
+ * Enhanced renderers recognize its brand before component construction, so this function is an
+ * ordinary facade value without creating an instance, scope, wrapper, marker, or inspection event.
+ */
+export const exactEnhancementPassThrough: ComponentFunction<
+	any,
+	Record<string, unknown>
+> = Object.defineProperty(
+	function ExactEnhancementPassThrough(_props: Record<string, unknown>) {
+		return () => _props.children as any;
+	},
+	exactEnhancementPassThroughBrand,
+	{ value: true }
+) as ComponentFunction<any, Record<string, unknown>>;
+
+/** Reports whether a generated facade selected the shared zero-instance pass-through provider. */
+export function isExactEnhancementPassThrough(value: unknown): boolean {
+	return (
+		typeof value === 'function' &&
+		(value as BrandedEnhancementComponent)[exactEnhancementPassThroughBrand] === true
+	);
+}
 
 /** Minimal context effects used to order co-targeted ordinary components. */
 export interface EnhancementContextContract {
@@ -16,7 +47,9 @@ export interface EnhancementContextContract {
 }
 
 /** Creates the opaque grouped marker used by compiler-owned JSX enhancement lowering. */
-export function createEnhancementMarker(entries: readonly EnhancementEntry[]): EnhancementMarker {
+export function createEnhancementNode(
+	entries: readonly EnhancementEntry[]
+): CompiledEnhancementNode {
 	const identities = new Set<string>();
 	const normalized = entries.map((entry) => {
 		if (!entry.identity) throw new TypeError('An enhancement entry requires a canonical identity');
@@ -29,8 +62,19 @@ export function createEnhancementMarker(entries: readonly EnhancementEntry[]): E
 			...(entry.root === undefined ? {} : { root: entry.root })
 		});
 	});
-	return Object.freeze({ entries: Object.freeze(normalized) });
+	return Object.freeze({
+		kind: 'enhancement' as const,
+		entries: Object.freeze(normalized),
+		fallback: 'preserve-target' as const
+	});
 }
+
+/**
+ * Creates the legacy marker shape while preserving the canonical enhancement-node semantics.
+ * @deprecated Compiler output now calls createEnhancementNode.
+ */
+export const createEnhancementMarker: (entries: readonly EnhancementEntry[]) => EnhancementMarker =
+	createEnhancementNode;
 
 /** Copies an object while omitting a compiler-proven finite set of namespaced enhancement keys. */
 export function omitKnownProps(

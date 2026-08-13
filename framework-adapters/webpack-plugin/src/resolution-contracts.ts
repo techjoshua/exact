@@ -21,3 +21,36 @@ export type WebpackAliasTarget = string | false | string[];
 export type WebpackAliasConfiguration =
 	| Record<string, WebpackAliasTarget>
 	| { alias: WebpackAliasTarget; name: string; onlyModule?: boolean }[];
+/** Minimal resolver surface used by the Webpack adapter without coupling shared logic to Webpack internals. */
+export type WebpackResolverLike = {
+	hooks?: {
+		resolve?: {
+			tapAsync?(
+				name: string,
+				handler: (
+					request: WebpackResolveRequest,
+					context: unknown,
+					callback: WebpackResolveCallback
+				) => void
+			): void;
+		};
+	};
+	ensureHook?(name: string): unknown;
+	getHook?(name: string): {
+		tapAsync?(
+			name: string,
+			handler: (
+				request: WebpackResolveRequest,
+				context: unknown,
+				callback: WebpackResolveCallback
+			) => void
+		): void;
+	};
+	doResolve?(
+		hook: unknown,
+		request: WebpackResolveRequest,
+		message: string,
+		context: unknown,
+		callback: WebpackResolveCallback
+	): void;
+};

@@ -83,7 +83,7 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Build for the web"
-			title="Use React components inside an eXact application"
+			title="Bring React with you"
 			description="Supported React 18 and 19 components can appear directly in native eXact JSX. The compiler inserts the compatibility boundary while eXact state and precise reactive updates remain in control."
 			previous={{ path: '/guides/testing', label: 'Testing' }}
 			next={{ path: '/plugins', label: 'Plugin system' }}
@@ -170,7 +170,7 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					The matching <code>types18</code> or <code>types19</code> facade also lets React-owned
 					source render a compiled eXact component directly. The compatible React element pipeline
 					checks its compiler-emitted brand before mounting it natively. The live stepper above
-					includes an eXact-owned child through exactly that path.{' '}
+					includes an eXact-owned child through exactly that path.
 					<code>exposeExactComponent()</code>
 					remains useful for stock React builds outside eXact compatibility and explicit
 					ref-property bridges.
@@ -180,6 +180,12 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					retain eXact's selective hydration behavior; compatible React trees use the supported
 					React hydration contract. Browser-only React packages should remain inside an explicit
 					client placement.
+				</p>
+				<p>
+					Imported native components remain eXact-owned even when emitted JavaScript specifiers
+					point back to TypeScript source files. When no React-owned boundary is reachable, the
+					compiler emits no compatibility adapter import, so React compatibility and its dependency
+					graph are absent from the final client bundle.
 				</p>
 			</section>
 

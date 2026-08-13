@@ -1,11 +1,11 @@
 import type {
 	CrosswordPuzzle,
-	PageSize,
 	PuzzleFont,
 	PuzzleStyle,
 	SudokuPuzzle,
 	WordSearchPuzzle
 } from './types.js';
+import { resolvePageDimensions, resolvePageMargin } from './page-layout.js';
 
 const fontStacks: Readonly<Record<PuzzleFont, string>> = {
 	sans: 'Inter, ui-sans-serif, system-ui, sans-serif',
@@ -13,12 +13,6 @@ const fontStacks: Readonly<Record<PuzzleFont, string>> = {
 	mono: "'Courier New', ui-monospace, monospace",
 	handwritten: "'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive",
 	playful: "'Trebuchet MS', 'Arial Rounded MT Bold', ui-sans-serif, sans-serif"
-};
-
-const pageSizes: Readonly<Record<PageSize, { width: number; height: number }>> = {
-	letter: { width: 816, height: 1056 },
-	a4: { width: 794, height: 1123 },
-	legal: { width: 816, height: 1344 }
 };
 
 /** Renders a complete standalone Sudoku SVG suitable for preview or download. */
@@ -209,14 +203,17 @@ function svgDocument(
 	body: string,
 	pageBackground = style.paper
 ): string {
-	const page = pageSizes[style.pageSize];
-	const pageMargin = style.pageMargin * 96;
+	const page = resolvePageDimensions(style);
+	const pageMarginInches = resolvePageMargin(style);
+	const pageMargin = pageMarginInches * 96;
 	const availableWidth = Math.max(1, page.width - pageMargin * 2);
 	const availableHeight = Math.max(1, page.height - pageMargin * 2);
 	const scale = Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight);
 	const left = pageMargin + (availableWidth - contentWidth * scale) / 2;
 	const top = pageMargin + (availableHeight - contentHeight * scale) / 2;
-	return `<svg xmlns="http://www.w3.org/2000/svg" width="${page.width}" height="${page.height}" viewBox="0 0 ${page.width} ${page.height}" data-page-size="${style.pageSize}" data-page-margin="${style.pageMargin}" data-content-scale="${svgNumber(scale)}" role="img" aria-label="${xml(style.title.trim() || 'Printable puzzle')}" style="font-family:${xml(fontStacks[style.fontFamily])}"><rect width="100%" height="100%" fill="${xml(pageBackground)}"/><g transform="translate(${svgNumber(left)} ${svgNumber(top)}) scale(${svgNumber(scale)})">${body}</g></svg>`;
+	const width = svgNumber(page.width);
+	const height = svgNumber(page.height);
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-page-size="${style.pageSize || 'letter'}" data-page-margin="${svgNumber(pageMarginInches)}" data-content-scale="${svgNumber(scale)}" role="img" aria-label="${xml(style.title.trim() || 'Printable puzzle')}" style="font-family:${xml(fontStacks[style.fontFamily])}"><rect width="100%" height="100%" fill="${xml(pageBackground)}"/><g transform="translate(${svgNumber(left)} ${svgNumber(top)}) scale(${svgNumber(scale)})">${body}</g></svg>`;
 }
 
 function titleMarkup(style: PuzzleStyle, width: number): string {
@@ -249,21 +246,22 @@ function clueTable(
 ): { height: number; markup: string } {
 	const columnGap = 24;
 	const columnWidth = (width - columnGap) / 2;
-	const fontSize = Math.max(10, style.fontSize * 0.64);
+	const fontSize = style.supplementaryFontSize;
 	const lineHeight = fontSize * 1.35;
+	const fontFamily = xml(fontStacks[style.supplementaryFontFamily]);
 	const groups = (['across', 'down'] as const).map((orientation, column) => {
 		const entries = puzzle.entries.filter((entry) => entry.orientation === orientation);
 		let line = 1;
 		const x = 34 + column * (columnWidth + columnGap);
 		const markup = [
-			`<text x="${x}" y="{Y}" font-size="${fontSize + 2}" font-weight="700" fill="${xml(style.ink)}">${orientation === 'across' ? 'Across' : 'Down'}</text>`
+			`<text x="${x}" y="{Y}" font-family="${fontFamily}" font-size="${fontSize + 2}" font-weight="700" fill="${xml(style.ink)}">${orientation === 'across' ? 'Across' : 'Down'}</text>`
 		];
 		for (const entry of entries) {
 			const limit = Math.max(12, Math.floor(columnWidth / (fontSize * 0.56)));
 			const lines = wrapClue(`${entry.number}. ${entry.clue}`, limit);
 			for (const [index, text] of lines.entries()) {
 				markup.push(
-					`<text x="${x + (index ? 14 : 0)}" y="{Y}" dy="${line * lineHeight}" font-size="${fontSize}" fill="${xml(style.ink)}">${xml(text)}</text>`
+					`<text x="${x + (index ? 14 : 0)}" y="{Y}" dy="${line * lineHeight}" font-family="${fontFamily}" font-size="${fontSize}" fill="${xml(style.ink)}">${xml(text)}</text>`
 				);
 				line++;
 			}
@@ -299,19 +297,18 @@ function wordBank(
 ): { height: number; markup: string } {
 	const sorted = [...words].sort();
 	const longestWord = Math.max(...words.map((word) => word.length));
-	const approximateWidth = Math.max(
-		90,
-		Math.min(gridWidth, longestWord * style.fontSize * 0.52 + 24)
-	);
+	const fontSize = style.supplementaryFontSize;
+	const approximateWidth = Math.max(90, Math.min(gridWidth, longestWord * fontSize * 0.52 + 24));
 	const columns = Math.max(1, Math.floor(gridWidth / approximateWidth));
 	const rows = Math.ceil(sorted.length / columns);
 	const columnWidth = gridWidth / columns;
-	const lineHeight = style.fontSize * 1.45;
+	const lineHeight = fontSize * 1.45;
+	const fontFamily = xml(fontStacks[style.supplementaryFontFamily]);
 	const markup = sorted
 		.map((word, index) => {
 			const column = index % columns;
 			const row = Math.floor(index / columns);
-			return `<text x="${34 + column * columnWidth}" y="{Y}" dy="${row * lineHeight}" font-size="${style.fontSize * 0.72}" letter-spacing="1.2" fill="${xml(style.ink)}">${xml(word)}</text>`;
+			return `<text x="${34 + column * columnWidth}" y="{Y}" dy="${row * lineHeight}" font-family="${fontFamily}" font-size="${fontSize}" letter-spacing="1.2" fill="${xml(style.ink)}">${xml(word)}</text>`;
 		})
 		.join('');
 	return { height: rows * lineHeight + 30, markup };

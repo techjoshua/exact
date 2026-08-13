@@ -1,4 +1,5 @@
 import type { ExactPlacement } from '../contracts/policy.js';
+import type { ExactLanguageProjectionV1 } from '@exactjs/language-extension-api';
 
 /** Half-open UTF-16 source range used by compiler-aware editor features. */
 export type ExactSourceRange = Readonly<{
@@ -96,7 +97,7 @@ export type ExactOwnedResource = Readonly<{
 	description?: string;
 }>;
 
-/** Setup-once component classification. */
+/** Component state-machine initialization classification. */
 export type ExactInitializerClassification = Readonly<{
 	kind: 'initializer';
 	execution: 'once-per-instance';
@@ -215,6 +216,7 @@ export type ExactInspectedComponent = ExactSourceEntity &
 export type ExactDiagnosticFixSummary = Readonly<{
 	kind: ExactRefactorKind;
 	title: string;
+	edit?: ExactSourceEdit;
 }>;
 
 /** Rich eXact diagnostic projected from the same facts used by builds. */
@@ -244,6 +246,8 @@ export type ExactSourceInspection = Readonly<{
 	partitionPlan: Readonly<ExactPartitionPlanIR>;
 	components: readonly ExactInspectedComponent[];
 	diagnostics: readonly ExactSourceDiagnostic[];
+	/** Generic, serialized facts available to trusted package language analyzers. */
+	languageProjection: ExactLanguageProjectionV1;
 }>;
 
 /** Options for selecting optional inspection projections. */
@@ -258,6 +262,8 @@ export type ExactLanguageServiceOptions = Readonly<{
 	noEmit?: true;
 	/** Project ownership label used by language-server inferred workspaces. */
 	projectKind?: 'configured' | 'inferred';
+	/** Enhancement imports declared package-wide by the owning exact configuration. */
+	packageEnhancements?: readonly import('@exactjs/config').ExactPackageEnhancementImport[];
 	/** Maximum cold disk-backed analyses retained by one workspace. Defaults to 128. */
 	maxCachedAnalyses?: number;
 	/** Estimated byte budget for cold disk-backed analyses. Defaults to 32 MiB. */
@@ -312,7 +318,8 @@ export type ExactRefactorKind =
 	| 'remove-redundant-placement'
 	| 'make-blocking'
 	| 'make-nonblocking'
-	| 'split-placement-conflict';
+	| 'split-placement-conflict'
+	| 'acknowledge-dynamic-component';
 
 /** Version-bound request for a compiler-planned source transformation. */
 export type ExactRefactorRequest = Readonly<{

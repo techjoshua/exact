@@ -7,7 +7,12 @@
 		"lib": ["ES2022"],
 		"types": ["node"]
 	},
-	"references": [{ "path": "../compiler" }],
+	"references": [
+		{ "path": "../compiler" },
+		{ "path": "../config" },
+		{ "path": "../language-extension-api" },
+		{ "path": "../language-extension-host" }
+	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/test-support"]
 }

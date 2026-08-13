@@ -7,6 +7,7 @@ import { loadExactDevtoolsPanelModel } from './panel/model.js';
 describe('human and agent protocol parity', () => {
 	it('returns the same validated component projection to the panel and CDP agent', async () => {
 		const client: ExactExtensionQueryClient = {
+			onStatus: () => () => {},
 			connect: async () => ({ id: 'session' }),
 			request: async (request) => response(request),
 			subscribe: async () => ({ close: async () => {} }),

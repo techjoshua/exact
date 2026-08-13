@@ -602,7 +602,15 @@ p {
 	background: var(--peer);
 }
 
-.sudoku-cell.is-matching {
+.sudoku-board.selected-digit-1 :where(.sudoku-cell:is([data-value='1'], [data-notes~='1'])),
+.sudoku-board.selected-digit-2 :where(.sudoku-cell:is([data-value='2'], [data-notes~='2'])),
+.sudoku-board.selected-digit-3 :where(.sudoku-cell:is([data-value='3'], [data-notes~='3'])),
+.sudoku-board.selected-digit-4 :where(.sudoku-cell:is([data-value='4'], [data-notes~='4'])),
+.sudoku-board.selected-digit-5 :where(.sudoku-cell:is([data-value='5'], [data-notes~='5'])),
+.sudoku-board.selected-digit-6 :where(.sudoku-cell:is([data-value='6'], [data-notes~='6'])),
+.sudoku-board.selected-digit-7 :where(.sudoku-cell:is([data-value='7'], [data-notes~='7'])),
+.sudoku-board.selected-digit-8 :where(.sudoku-cell:is([data-value='8'], [data-notes~='8'])),
+.sudoku-board.selected-digit-9 :where(.sudoku-cell:is([data-value='9'], [data-notes~='9'])) {
 	background: var(--matching);
 }
 
@@ -639,12 +647,19 @@ p {
 }
 
 .cell-value {
+	grid-area: 1 / 1;
+	opacity: 0;
 	font-family: var(--display);
 	font-size: clamp(18px, 4.2vw, 32px);
 	line-height: 1;
 }
 
+.sudoku-cell.has-value .cell-value {
+	opacity: 1;
+}
+
 .cell-notes {
+	grid-area: 1 / 1;
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
 	width: 100%;
@@ -656,12 +671,24 @@ p {
 	line-height: 1;
 }
 
+.sudoku-cell.has-value .cell-notes {
+	opacity: 0;
+}
+
 .cell-notes span {
 	display: grid;
 	place-items: center;
 }
 
-.cell-notes span.is-note-match {
+.sudoku-board.selected-digit-1 .cell-notes span.is-note[data-digit='1'],
+.sudoku-board.selected-digit-2 .cell-notes span.is-note[data-digit='2'],
+.sudoku-board.selected-digit-3 .cell-notes span.is-note[data-digit='3'],
+.sudoku-board.selected-digit-4 .cell-notes span.is-note[data-digit='4'],
+.sudoku-board.selected-digit-5 .cell-notes span.is-note[data-digit='5'],
+.sudoku-board.selected-digit-6 .cell-notes span.is-note[data-digit='6'],
+.sudoku-board.selected-digit-7 .cell-notes span.is-note[data-digit='7'],
+.sudoku-board.selected-digit-8 .cell-notes span.is-note[data-digit='8'],
+.sudoku-board.selected-digit-9 .cell-notes span.is-note[data-digit='9'] {
 	border-radius: 50%;
 	background: var(--accent);
 	color: var(--accent-ink);

@@ -11,9 +11,15 @@ import {
 	type ExactValueRedactor
 } from '@exactjs/devtools-protocol';
 import { exactComponentIdentity, isExactComponent } from '../component-contracts.js';
-import { inspectTaskFramesForHost, type TaskFrameInspection } from '../tasks/frame-inspection.js';
+import { inspectTaskFrameSnapshotsForHost } from '../tasks/frame-inspection.js';
 import type { ComponentInstance } from './contracts.js';
 import { componentDomainInspection } from './domain.js';
+import {
+	inspectRetainedTaskExecutions,
+	registerTaskInspectionHistory,
+	releaseTaskInspectionHistory,
+	TaskInspectionHistory
+} from './task-inspection-history.js';
 
 /** Runtime fields fixed for one build and component-domain owner. */
 export type ExactRuntimeInspectionOwnerOptions = Readonly<{
@@ -22,6 +28,8 @@ export type ExactRuntimeInspectionOwnerOptions = Readonly<{
 	binding?: string;
 	side?: 'client' | 'server';
 	redact?: ExactValueRedactor;
+	/** Maximum task executions retained while an inspection session is attached. */
+	maxTaskExecutions?: number;
 }>;
 
 /** Input published by runtime packages before the owner adds sequence/session identity. */
@@ -71,6 +79,7 @@ export function createExactRuntimeInspectionOwner(
 	let sessionId: string | undefined;
 	let sink: ExactRuntimeInspectionSink | undefined;
 	let sequence = 0;
+	let taskHistory: TaskInspectionHistory | undefined;
 	const owner: ExactRuntimeInspectionOwner = {
 		buildKey: options.buildKey,
 		executionRoot: options.executionRoot,
@@ -81,6 +90,9 @@ export function createExactRuntimeInspectionOwner(
 		},
 		attach(nextSessionId, nextSink) {
 			if (!nextSessionId) throw new TypeError('Inspection session ID must not be empty');
+			taskHistory?.clear();
+			taskHistory = new TaskInspectionHistory(options.maxTaskExecutions);
+			registerTaskInspectionHistory(owner, taskHistory);
 			sessionId = nextSessionId;
 			sink = nextSink;
 			sequence = 0;
@@ -90,6 +102,9 @@ export function createExactRuntimeInspectionOwner(
 			sessionId = undefined;
 			sink = undefined;
 			sequence = 0;
+			taskHistory?.clear();
+			taskHistory = undefined;
+			releaseTaskInspectionHistory(owner);
 		},
 		publish(input) {
 			if (!sessionId || !sink) return;
@@ -116,6 +131,7 @@ export function createExactRuntimeInspectionOwner(
 			} catch {
 				// Inspection is observational and cannot participate in application errors.
 			}
+			if (input.kind === 'component.unmount') taskHistory?.deleteComponent(input.component);
 		},
 		identity(component, details = {}) {
 			if (!sessionId) return undefined;
@@ -166,11 +182,10 @@ export function inspectExactRuntimeComponent(
 		props: owner.preview(component.props, ['props']),
 		state: owner.preview(component.state, ['state']),
 		contexts: Object.freeze([...(options.contexts ?? inspectContexts(component, owner))]),
-		tasks: Object.freeze([
-			...inspectTaskFramesForHost(component).map((frame) =>
-				inspectTaskFrame(owner, component, frame)
-			)
-		]),
+		tasks: mergeTaskSnapshots(
+			inspectRetainedTaskExecutions(owner, component),
+			inspectTaskFrameSnapshotsForHost(component, owner)
+		),
 		...(options.activity ? { activity: options.activity } : {}),
 		...(options.suspense ? { suspense: options.suspense } : {}),
 		...(options.targetContributions?.length
@@ -180,41 +195,20 @@ export function inspectExactRuntimeComponent(
 	});
 }
 
-function inspectTaskFrame(
-	owner: ExactRuntimeInspectionOwner,
-	component: ComponentInstance<any>,
-	frame: TaskFrameInspection
-): ExactTaskRuntimeSnapshot {
-	const sourceEntityId = taskFrameSourceEntityId(frame);
-	return Object.freeze({
-		id: owner.identity(component, { sourceEntityId, generation: frame.generation })!,
-		...(frame.parentId === undefined
-			? {}
-			: {
-					parent: owner.identity(component, {
-						sourceEntityId: `runtime-task-frame:${frame.parentId}`,
-						generation: frame.generation
-					})!
-				}),
-		...(frame.label === undefined ? {} : { name: frame.label }),
-		kind: frame.kind,
-		activation: frame.activation,
-		placement: frame.placement === 'current' ? 'isomorphic' : frame.placement,
-		readiness: frame.readiness,
-		priority: frame.priority,
-		concurrency: frame.concurrency,
-		status: 'running',
-		generation: frame.generation,
-		pending: frame.foreground ? 1 : 0,
-		foreground: frame.foreground,
-		structuralPending: frame.structuralPending,
-		optimistic: false,
-		startedAt: frame.startedAt
-	});
+function mergeTaskSnapshots(
+	history: readonly ExactTaskRuntimeSnapshot[],
+	active: readonly ExactTaskRuntimeSnapshot[]
+): readonly ExactTaskRuntimeSnapshot[] {
+	if (!active.length) return history;
+	const activeKeys = new Set(active.map(taskSnapshotKey));
+	return Object.freeze([
+		...active,
+		...history.filter((task) => !activeKeys.has(taskSnapshotKey(task)))
+	]);
 }
 
-function taskFrameSourceEntityId(frame: TaskFrameInspection): string {
-	return frame.sourceEntityId ?? `runtime-task-frame:${frame.id}`;
+function taskSnapshotKey(task: ExactTaskRuntimeSnapshot): string {
+	return `${task.id.sourceEntityId ?? ''}\u0000${task.generation}`;
 }
 
 function inspectContexts(

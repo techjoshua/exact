@@ -20,13 +20,22 @@ export const dialogMotion = defineMotion({
   reduced: 'skip'
 });`;
 
-const componentSource = `<MotionConfig reducedMotion="system" transition={{ duration: 160 }}>
-  <Presence when={this.state.open} returnFocus={this.ref.openButton} mode="out-in">
-    <Motion as="dialog" motion={dialogMotion} appear className="dialog">
-      <DialogContents />
-    </Motion>
-  </Presence>
-</MotionConfig>`;
+const componentSource = `const openButtonRef = createRef<HTMLButtonElement>('open dialog button');
+
+function DialogExample(this: Component<{ open: boolean }>) {
+  const openButton = this.ref(openButtonRef);
+
+  return () => <>
+    <button ref={openButton}>Open</button>
+    <MotionConfig reducedMotion="system" transition={{ duration: 160 }}>
+      <Presence when={this.state.open} returnFocus={openButton} mode="out-in">
+        <Motion as="dialog" motion={dialogMotion} appear className="dialog">
+          <DialogContents />
+        </Motion>
+      </Presence>
+    </MotionConfig>
+  </>;
+}`;
 
 const enhancementSource = `import motion from '@exactjs/motion'
   with { type: 'exact-enhancement' };
@@ -55,7 +64,7 @@ export function MotionPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Component library / @exactjs/motion"
-			title="Keep state authoritative while tasks own motion"
+			title="Motion follows state"
 			description="Prepared definitions describe visual behavior. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
 			previous={{ path: '/components/trust', label: 'Server trust' }}
 			next={{ path: '/components/gestures', label: 'Gestures' }}
@@ -99,9 +108,9 @@ export function MotionPage(this: Component<{}>) {
 				<h2>Coordinate conditional presence</h2>
 				<CodeBlock source={componentSource} language="tsx" title="Dialog.tsx" />
 				<p>
-					Use explicit components when a compilerless caller needs motion or when components such as{' '}
+					Use explicit components when a compilerless caller needs motion or when components such as
 					<code>Presence</code>, <code>MotionConfig</code>, and <code>MotionList</code> own
-					structural coordination rather than decorating one existing target. <code>Motion</code>{' '}
+					structural coordination rather than decorating one existing target. <code>Motion</code>
 					renders one real intrinsic selected by <code>as</code>. <code>MotionConfig</code> inherits
 					enabled, transition, appear, and reduced-motion policy through the logical component tree,
 					including portals. <code>Presence</code> makes leaving content inert, returns focus, and

@@ -1,11 +1,14 @@
 import { logFrameworkEvent, withTaskObserver, type VNode } from '@exactjs/core';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
-import { exactServerDebugRuntime, runWithExactRequestScope } from '@exactjs/server';
-import { augmentDocumentBody } from '../document.js';
+import {
+	createExactBufferedResponse,
+	exactServerDebugRuntime,
+	runWithExactRequestScope
+} from '@exactjs/server';
 import { escapeAttr } from '../html.js';
 import { renderHydrationScript } from '../hydration.js';
 import { createSsrResumptionCapture } from '../resumption.js';
-import { assertOutputWithinLimit, boundedJoin } from '../render/limits.js';
+import { assertOutputWithinLimit } from '../render/limits.js';
 import {
 	createDocumentEventStream,
 	createHtmlStream,
@@ -33,8 +36,18 @@ import {
 	streamDocumentRender
 } from './async-rendering.js';
 import { createSsrContext } from './context.js';
+import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
+import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderVNode, renderVNodeChunks } from './sync-tree.js';
+import { SsrOutputBuffer } from './output-buffer.js';
+import {
+	createChunkedHydratableResult,
+	createChunkedStringResult,
+	isExactDocumentResult,
+	startsExactDocument
+} from './output-result.js';
+import { htmlChunksOf, hydratableChunksOf } from './output-buffer.js';
 
 /** Configures ssr render. */
 export type SsrRenderOptions = RenderToStringOptions & { taskDeadline?: number };
@@ -71,25 +84,36 @@ export function renderToStringOwned(
 	vnode: VNode,
 	options: RenderToStringOptions
 ): RenderToStringResult {
-	const context = createSsrContext(options);
 	const validatedVNode = processExactOutputSync(
 		vnode,
 		{ kind: 'vnode', signal: options.signal },
 		options.outputExtensions ?? []
 	) as VNode;
-	const body = renderVNode(context, validatedVNode, undefined);
-	const html = processExactOutputSync(
-		boundedJoin(context, [...context.reactResourceHints, body]),
-		{ kind: 'html', signal: options.signal },
-		options.outputExtensions ?? []
-	) as string;
-	assertOutputWithinLimit(context, html);
+	const context = createSsrContext(options);
+	attachSsrRootExecutionBlueprint(context, validatedVNode);
+	const output = new SsrOutputBuffer(context.maxOutputBytes);
+	if (canRenderSsrSubtreeSynchronously(context, validatedVNode)) {
+		for (const chunk of renderVNodeChunks(context, validatedVNode, undefined, 1))
+			output.append(chunk);
+	} else output.append(renderVNode(context, validatedVNode, undefined));
+	output.prepend(context.reactResourceHints);
+	let chunks = output.finish();
+	if (options.outputExtensions?.length) {
+		const html = processExactOutputSync(
+			chunks.length === 1 ? chunks[0]! : chunks.join(''),
+			{ kind: 'html', signal: options.signal },
+			options.outputExtensions
+		) as string;
+		assertOutputWithinLimit(context, html);
+		chunks = [html];
+	}
 	const hydrationTable = context.hydrationTable.value();
-	return {
-		html,
-		state: options.state,
-		...(hydrationTable ? { hydrationTable } : {})
-	};
+	return createChunkedStringResult(
+		chunks,
+		options.state,
+		hydrationTable,
+		context.resourceLinkHeaders
+	);
 }
 
 /** Transforms to hydratable string into its required representation. */
@@ -120,12 +144,7 @@ export function renderToHydratableString(
 		maxHydrationBytes: options.maxHydrationBytes,
 		outputExtensions: options.outputExtensions
 	});
-	return {
-		...result,
-		resumptions: emittedResumptions,
-		hydrationScript,
-		htmlWithHydration: augmentDocumentBody(result.html, hydrationScript)
-	};
+	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
 
 /** Transforms to stream into its required representation. */
@@ -134,13 +153,14 @@ export function renderToStream(
 	options: RenderToStringOptions = {}
 ): ReadableStream<Uint8Array> {
 	const profileStarted = options.onProfile ? performance.now() : undefined;
-	const context = createSsrContext(options);
 	const owner = createSsrOwner();
 	const validatedVNode = processExactOutputSync(
 		vnode,
 		{ kind: 'vnode', signal: options.signal },
 		options.outputExtensions ?? []
 	) as VNode;
+	const context = createSsrContext(options);
+	attachSsrRootExecutionBlueprint(context, validatedVNode);
 	const rendered = renderVNodeChunks(context, validatedVNode, undefined, 1);
 	const observed: Iterable<string> = {
 		[Symbol.iterator]() {
@@ -264,16 +284,26 @@ export async function renderExactRequestToHtmlResponse(
 				contexts: context.contexts?.componentValues,
 				signal: options.signal ?? context.signal
 			};
-			const body =
-				options.hydration === false
-					? (await renderToStringAsync(vnode, renderOptions)).html
-					: (await renderToHydratableStringAsync(vnode, renderOptions)).htmlWithHydration;
+			let body: string;
+			let preloadLinks: readonly string[] | undefined;
+			if (options.hydration === false) {
+				const rendered = await renderToStringAsync(vnode, renderOptions);
+				body = rendered.html;
+				preloadLinks = rendered.preloadLinks;
+			} else {
+				const rendered = await renderToHydratableStringAsync(vnode, renderOptions);
+				body = rendered.htmlWithHydration;
+				preloadLinks = rendered.preloadLinks;
+			}
 			return {
 				status: options.status ?? 200,
-				headers: {
-					'content-type': options.contentType ?? 'text/html; charset=utf-8',
-					...(options.headers ?? {})
-				},
+				headers: withPreloadLinks(
+					{
+						'content-type': options.contentType ?? 'text/html; charset=utf-8',
+						...(options.headers ?? {})
+					},
+					preloadLinks
+				),
 				body
 			};
 		},
@@ -303,28 +333,53 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 			// body is consumed. Conservatively settle the root before returning the
 			// response; lower-level progressive APIs remain available when an
 			// application can prove its provisional shell has no pre-commit effects.
-			let body: string;
+			let body: readonly string[];
+			let preloadLinks: readonly string[] | undefined;
 			if (options.hydration === false) {
 				const rendered = await renderToStringAsync(vnode, renderOptions);
-				body = progressiveRoot(rendered.html, options.rootId);
+				preloadLinks = rendered.preloadLinks;
+				const chunks = htmlChunksOf(rendered) ?? [rendered.html];
+				body = startsExactDocument(chunks)
+					? chunks
+					: [`<div id="${escapeAttr(options.rootId ?? 'exact-root')}">`, ...chunks, '</div>'];
 			} else {
 				const rendered = await renderToHydratableStringAsync(vnode, renderOptions);
-				body = isRenderedDocument(rendered.html)
-					? rendered.htmlWithHydration
-					: `${progressiveRoot(rendered.html, options.rootId)}${rendered.hydrationScript}`;
+				preloadLinks = rendered.preloadLinks;
+				const htmlChunks = htmlChunksOf(rendered) ?? [rendered.html];
+				body = isExactDocumentResult(rendered)
+					? (hydratableChunksOf(rendered) ?? [rendered.htmlWithHydration])
+					: [
+							`<div id="${escapeAttr(options.rootId ?? 'exact-root')}">`,
+							...htmlChunks,
+							'</div>',
+							rendered.hydrationScript
+						];
 			}
-			return {
-				status: options.status ?? 200,
-				headers: {
-					'content-type': options.contentType ?? 'text/html; charset=utf-8',
-					...(options.headers ?? {})
-				},
-				body: '',
-				stream: stringStream(body)
-			};
+			return createExactBufferedResponse(
+				options.status ?? 200,
+				withPreloadLinks(
+					{
+						'content-type': options.contentType ?? 'text/html; charset=utf-8',
+						...(options.headers ?? {})
+					},
+					preloadLinks
+				),
+				body
+			);
 		},
 		request.platformRequest ?? request
 	);
+}
+
+function withPreloadLinks(
+	headers: Record<string, string>,
+	links: readonly string[] | undefined
+): Record<string, string> {
+	if (!links?.length) return headers;
+	const existingKey = Object.keys(headers).find((key) => key.toLowerCase() === 'link');
+	const key = existingKey ?? 'link';
+	headers[key] = [headers[key], ...links].filter(Boolean).join(', ');
+	return headers;
 }
 
 function requestInspectionOptions(
@@ -352,33 +407,4 @@ function requestInspectionOptions(
 			...(options.binding ? { binding: options.binding } : {})
 		})
 	};
-}
-
-/** Performs the progressive root domain operation. */
-export function progressiveRoot(html: string, rootId = 'exact-root'): string {
-	return isRenderedDocument(html) ? html : `<div id="${escapeAttr(rootId)}">${html}</div>`;
-}
-
-/** Reports whether rendered document. */
-export function isRenderedDocument(html: string): boolean {
-	return /^\s*(?:<!doctype\s+html>\s*)?<html(?:\s|>)/i.test(html);
-}
-
-/** Performs the string stream domain operation. */
-export function stringStream(value: string): ReadableStream<Uint8Array> {
-	const encoded = new TextEncoder().encode(value);
-	let emitted = false;
-	return new ReadableStream<Uint8Array>(
-		{
-			pull(controller) {
-				if (emitted) {
-					controller.close();
-					return;
-				}
-				emitted = true;
-				controller.enqueue(encoded);
-			}
-		},
-		{ highWaterMark: 0 }
-	);
 }

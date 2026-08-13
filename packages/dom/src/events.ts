@@ -4,10 +4,12 @@ import {
 	handleComponentError,
 	observeComponentAsync,
 	runComponentInteraction,
+	traceInteractionPhase,
 	unwrap,
-	type ComponentInstance
+	type ComponentInstance,
+	type InteractionScope
 } from '@exactjs/core';
-import { runWithPriority } from '@exactjs/reactive';
+import { flushSync, runWithPriority } from '@exactjs/reactive';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { eventHandlers } from './state.js';
@@ -72,18 +74,15 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 	if (listeners.has(type)) return;
 
 	const listener = (event: Event) => {
-		const path = eventPath(event, container);
-		for (const cursor of path) {
+		dispatchEventPath(event, container, (cursor) => {
 			const handler = eventHandlers.get(cursor)?.get(type);
 			if (handler) {
 				const current = cursor;
 				preserveFocus(root, () => {
 					try {
 						const owner = findOwnerInstance(current);
-						const result = runWithPriority('interactive', () =>
-							batch(() =>
-								runEventInteraction(owner, () => callDelegatedHandler(handler, current, event))
-							)
+						const result = runInteractiveEvent(root, owner, () =>
+							callDelegatedHandler(handler, current, event)
 						);
 						observeComponentAsync(owner, result, 'event', type);
 					} catch (error) {
@@ -92,9 +91,8 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 					}
 				});
 			}
-			if (event.cancelBubble) break;
-			if (cursor === container) break;
-		}
+			return !event.cancelBubble;
+		});
 	};
 
 	container.addEventListener(type, listener);
@@ -108,7 +106,8 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
  */
 export function runEventInteraction<Result>(
 	owner: ComponentInstance<any> | undefined,
-	work: () => Result | PromiseLike<Result>
+	work: () => Result | PromiseLike<Result>,
+	onScope?: (scope: InteractionScope) => void
 ): Result | PromiseLike<Result> {
 	if (!owner) return work();
 	return runComponentInteraction(
@@ -117,8 +116,41 @@ export function runEventInteraction<Result>(
 		nextEventGeneration(owner),
 		'interactive',
 		new AbortController(),
-		() => work()
+		(scope) => {
+			onScope?.(scope);
+			return work();
+		}
 	);
+}
+
+/** Publishes one event transaction and applies its interactive consequences before returning. */
+function runInteractiveEvent<Result>(
+	root: Root,
+	owner: ComponentInstance<any> | undefined,
+	work: () => Result | PromiseLike<Result>
+): Result | PromiseLike<Result> {
+	let interaction: InteractionScope | undefined;
+	root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
+	try {
+		const result = runWithPriority('interactive', () =>
+			batch(() =>
+				runEventInteraction(owner, work, (scope) => {
+					interaction = scope;
+				})
+			)
+		);
+		traceInteractionPhase(interaction, 'handler-complete');
+		// Discrete feedback should not wait behind a scheduler microtask. The priority boundary keeps
+		// normal and deferred consequences queued for their ordinary host turns.
+		flushSync('interactive');
+		traceInteractionPhase(interaction, 'feedback-committed', () => ({
+			reconciliations: root.interactionWork!.reconciliations,
+			traversedNodes: root.interactionWork!.traversedNodes
+		}));
+		return result;
+	} finally {
+		root.interactionWork = undefined;
+	}
 }
 
 /**
@@ -141,12 +173,8 @@ export function installOwnedEventSubscription(
 			try {
 				const handler = unwrap(source);
 				if (typeof handler !== 'function') return;
-				const result = runWithPriority('interactive', () =>
-					batch(() =>
-						runEventInteraction(activeOwner, () =>
-							callDelegatedHandler(handler as EventListener, element, event)
-						)
-					)
+				const result = runInteractiveEvent(root, activeOwner, () =>
+					callDelegatedHandler(handler as EventListener, element, event)
 				);
 				observeComponentAsync(activeOwner, result, 'event', type);
 			} catch (error) {
@@ -186,26 +214,31 @@ export function clearDelegated(root: Root): void {
 	root.portalTargets.clear();
 }
 
-function eventPath(event: Event, container: Node): Element[] {
+/** Dispatches an event path without copying the browser's composed-path array. */
+function dispatchEventPath(
+	event: Event,
+	container: Node,
+	visit: (element: Element) => boolean
+): void {
 	const native = typeof event.composedPath === 'function' ? event.composedPath() : [];
-	if (native.length) {
-		const path: Element[] = [];
-		for (const target of native) {
-			if (!(target instanceof Element)) continue;
-			if (target !== container && !container.contains(target)) continue;
-			path.push(target);
-			if (target === container) break;
+	const containerIndex = native.indexOf(container as EventTarget);
+	if (containerIndex >= 0) {
+		// The browser invoked this listener on `container`, so its composed path is already the
+		// authoritative containment proof. Avoid copying that path or rechecking every ancestor with
+		// Node.contains(), which also mishandles retargeted shadow paths.
+		for (let index = 0; index <= containerIndex; index++) {
+			const target = native[index];
+			if (target instanceof Element && !visit(target)) return;
 		}
-		return path;
+		return;
 	}
-	const path: Element[] = [];
+	// Defensive fallback for synthetic Event implementations with incomplete composed paths.
 	let cursor = eventTargetElement(event.target);
 	while (cursor) {
-		path.push(cursor);
+		if (!visit(cursor)) return;
 		if (cursor === container) break;
 		cursor = cursor.parentElement;
 	}
-	return path;
 }
 
 function callDelegatedHandler(handler: EventListener, current: Element, event: Event): unknown {

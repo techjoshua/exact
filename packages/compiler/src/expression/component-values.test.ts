@@ -15,7 +15,7 @@ describe('@exactjs/compiler: component values', () => {
 		);
 
 		expect(output).toContain('const Card = function Card');
-		expect(output).toContain('__exactVNode(Card, {})');
+		expect(output).toContain('__exactComponentVNode(Card, {})');
 		expect(output).toMatch(/__exactDynamic\(\(\) => this\.state\.title, "x[A-Za-z0-9_-]{22}"\)/);
 	});
 
@@ -52,28 +52,26 @@ describe('@exactjs/compiler: component values', () => {
 		expect(app?.renderEdges.map((edge) => edge.tag)).toEqual(['Grid', 'List']);
 	});
 
-	it('rejects reassigned and arbitrary registry-selected component values', () => {
-		expect(() =>
-			transform(
-				`function App() {
+	it('warns and lowers reassigned or otherwise opaque component values', () => {
+		const reassigned = transform(
+			`function App() {
           let View = Grid;
           View = List;
           return () => <View />;
         }`,
-				{ filename: 'App.tsx' }
-			)
-		).toThrow(/JSX tag View resolves to variable, not a runtime component/);
+			{ filename: 'App.tsx' }
+		);
+		expect(reassigned).toContain('createCompiledDynamicComponent');
 
-		expect(() =>
-			transform(
-				`function App(this: Component<{ kind: string }>) {
+		const indexed = transform(
+			`function App(this: Component<{ kind: string }>) {
           const views = { grid: Grid, list: List };
           const View = views[this.state.kind];
           return () => <View />;
         }`,
-				{ filename: 'App.tsx' }
-			)
-		).toThrow(/JSX tag View resolves to variable, not a runtime component/);
+			{ filename: 'App.tsx' }
+		);
+		expect(indexed).toContain('createCompiledDynamicComponent');
 	});
 
 	it('attaches target descriptors to top-level function-valued components', () => {
@@ -103,6 +101,8 @@ describe('@exactjs/compiler: component values', () => {
 
 		expect(output).toContain('@exactjs/component');
 		expect(output).toContain('Object.assign');
-		expect(output).toContain('export function Badge');
+		expect(output).toContain('definition:');
+		expect(output).toContain('tasks: []');
+		expect(output).not.toContain('@exactjs/core/runtime/tasks');
 	});
 });

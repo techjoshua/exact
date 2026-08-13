@@ -80,9 +80,20 @@ export function adoptStaticChildren(
 	children: Child[],
 	nodes: readonly Node[],
 	parentInstance: ComponentInstance<any>,
-	parentScope: EffectScope
+	parentScope: EffectScope,
+	start = 0,
+	end = nodes.length
 ): Mounted[] | undefined {
-	return adoptStaticChildrenRange(root, children, nodes, parentInstance, parentScope, true)?.mounts;
+	return adoptStaticChildrenRange(
+		root,
+		children,
+		nodes,
+		parentInstance,
+		parentScope,
+		true,
+		start,
+		end
+	)?.mounts;
 }
 
 /** Performs the adopt static children range domain operation. */
@@ -92,13 +103,15 @@ export function adoptStaticChildrenRange(
 	nodes: readonly Node[],
 	parentInstance: ComponentInstance<any>,
 	parentScope: EffectScope,
-	requireAll: boolean
+	requireAll: boolean,
+	start = 0,
+	end = nodes.length
 ): { mounts: Mounted[]; next: number } | undefined {
 	const vnodes = children.map(childToVNode).filter((child): child is VNode => !!child);
 	const mounts: Mounted[] = [];
-	let cursor = 0;
+	let cursor = start;
 	for (const child of vnodes) {
-		const result = adoptStaticMounted(root, child, nodes, cursor, parentInstance, parentScope);
+		const result = adoptStaticMounted(root, child, nodes, cursor, parentInstance, parentScope, end);
 		if (!result) {
 			unmountMany(mounts);
 			return undefined;
@@ -106,7 +119,7 @@ export function adoptStaticChildrenRange(
 		mounts.push(result.mounted);
 		cursor = result.next;
 	}
-	if (requireAll && cursor !== nodes.length) {
+	if (requireAll && cursor !== end) {
 		unmountMany(mounts);
 		return undefined;
 	}
@@ -117,9 +130,13 @@ export function adoptStaticChildrenRange(
 export function closingMarkerIndex(
 	nodes: readonly Node[],
 	cursor: number,
-	opening: string
+	opening: string,
+	end = nodes.length
 ): number {
-	return nodes.findIndex(
-		(node, index) => index > cursor && node instanceof Comment && node.data === `/${opening}`
-	);
+	const closing = `/${opening}`;
+	for (let index = cursor + 1; index < end; index++) {
+		const node = nodes[index];
+		if (node instanceof Comment && node.data === closing) return index;
+	}
+	return -1;
 }

@@ -22,14 +22,22 @@ that the generated server artifact cannot actually provide.
 ## Registry scope beyond finite local graphs
 
 Native component registries intentionally describe a finite, immutable set of compiler-visible
-components. Possible later work includes stronger production-graph verification, signed remote
-entry installation, inactive-instance caching, standalone lazy components, and preload heuristics.
+components. The focused
+implemented [compiler-authored dynamic component boundary](../history/compiler-authored-dynamic-component-boundaries.md)
+now owns intentionally opaque local, lazy, and authorized client-only remote component
+selection, including its warning annotation, server-call prohibition, generation fencing, and
+cleanup. Possible later registry-specific work remains limited to preload heuristics or explicitly
+measured inactive-instance caching; it must not weaken registry identity or SSR guarantees.
 
-Any remote or runtime-extensible design must define deployment trust, version and artifact
-identity, placement, SSR and hydration authority, stale-load fencing, and cleanup. It must not
-weaken `createComponentRegistry()` by treating arbitrary authored strings as component or protocol
-identity. React-owned values should continue to cross the explicit compatibility boundary unless
-a future compiler-owned contract can prove ownership.
+## Not planned: persisted partial-prerender resumption
+
+Do not implement cross-request serialization and reconstruction of postponed SSR work without new,
+production-scale evidence. Static Suspense fallbacks and the existing progressive renderer already
+provide immediate shells, concurrent dynamic regions, cancellation, and same-response publication.
+Persisting the shell would usually save only its already-small render cost while requiring encrypted
+checkpoints, replay coordination, retained builds, context reacquisition, and a second reconstructed
+lifetime. Reconsider only if a future contributor demonstrates a representative workload where
+that measured gain materially exceeds the simpler current path.
 
 ## Optional visual and simulation adapters
 
@@ -37,6 +45,12 @@ Motion, gestures, physics, and gravity compose today through ordinary state, cal
 task ownership, and the physics force seam. Consider convenience adapters only where repeated
 application code demonstrates a stable cross-package contract. Keep each base package independently
 usable and avoid introducing a required dependency cycle.
+
+The focused
+[`exploratory-motion-values-and-orchestration.md`](exploratory-motion-values-and-orchestration.md)
+proposal now owns investigation of finite spring timing, interpolation helpers, reactive motion
+values, gesture handoff, timelines, shared elements, and scroll/view motion. In particular, it does
+not select a general component-resource API merely for motion ergonomics.
 
 Related experiments may evaluate shared-layout coordination across independently updated roots and
 worker-oriented physics helpers. They must preserve renderer-owned DOM identity, deterministic

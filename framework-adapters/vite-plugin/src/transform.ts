@@ -4,6 +4,7 @@ import {
 	type ExactCompilerSession
 } from '@exactjs/compiler';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
+import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import type { ReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
 import { jsxSourceOwnership, type ResolvedReactCompatibility } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
@@ -24,7 +25,9 @@ import {
 import { prependViteEnhancementRegistrations } from './enhancement-catalog.js';
 import { exactModuleFilename, exactTransformTarget } from './module-selection.js';
 import type { ExactPluginOptions, ExactViteDebugOptions } from './plugin-contracts.js';
+import type { ExactLanguageProjectionV1 } from '@exactjs/language-extension-api';
 import { rewriteWithCompatibility } from './react-compatibility-emission.js';
+import type { ExactPackageEnhancementImport } from '@exactjs/config';
 
 /** Mutable build-owned inspection record collected for server catalog emission. */
 export type ExactViteInspectionRecord = Readonly<{
@@ -39,38 +42,68 @@ export type TransformExactViteModuleOptions = Readonly<{
 	id: string;
 	options: ExactPluginOptions;
 	compilerSession: ExactCompilerSession;
+	packageEnhancements?: readonly ExactPackageEnhancementImport[];
 	reactCompatibility?: ResolvedReactCompatibility;
 	compatibilityEngine?: ReactCompatibilityBuildEngine;
 	configuredDebug?: ExactViteDebugOptions;
+	languageValidation: boolean;
 	viteCommand: 'build' | 'serve';
 	componentAuthorization: ExactViteComponentAuthorization;
 	inspectionModules: Map<string, ExactViteInspectionRecord>;
+	intl: IntlBuildCoordinator;
 	recordMicrofrontendModule(code: string, id: string): void;
 	warn(message: string): void;
 }>;
 
 /** Runs the compiler/compatibility transform while projecting adapter-owned build metadata. */
-export function transformExactViteModule(
-	input: TransformExactViteModuleOptions
-): { code: string; map: unknown; moduleType: 'js' } | null {
+export function transformExactViteModule(input: TransformExactViteModuleOptions): {
+	code: string;
+	map: unknown;
+	moduleType: 'js';
+	languageProjection?: ExactLanguageProjectionV1;
+} | null {
 	const { code, id, options } = input;
+	const internationalization = options.internationalization || undefined;
 	if (!isExactBuildSourceModule(id)) return null;
 	const filename = exactModuleFilename(id);
-	if (!shouldTransformExactBuildModulePath(filename, options)) return null;
+	const reachedPublication = internationalization
+		? input.intl.activateReachedSource(code, filename)
+		: undefined;
+	if (!shouldTransformExactBuildModulePath(filename, options))
+		return reachedPublication
+			? {
+					code: reachedPublication.code,
+					map:
+						options.sourceMap === false
+							? null
+							: createLineSourceMap(filename, code, reachedPublication.code),
+					moduleType: 'js'
+				}
+			: null;
 	input.recordMicrofrontendModule(code, id);
-	const ownership = jsxSourceOwnership(filename, code, input.reactCompatibility);
+	const authoredOwnership = jsxSourceOwnership(filename, code, input.reactCompatibility);
+	const intlAnalysis =
+		internationalization && authoredOwnership !== 'react'
+			? input.intl.analyzeConfiguredSource(code, filename)
+			: undefined;
+	for (const diagnostic of intlAnalysis?.diagnostics ?? [])
+		input.warn(`${diagnostic.file}:${diagnostic.start}: ${diagnostic.message}`);
+	const analyzedCode = intlAnalysis?.code ?? code;
+	const ownership = intlAnalysis
+		? jsxSourceOwnership(filename, analyzedCode, input.reactCompatibility)
+		: authoredOwnership;
 	const output = transformExactAdapterModule({
-		source: code,
+		source: analyzedCode,
 		filename,
 		errorId: id,
 		jsxOwnership: ownership,
-		usesReactRuntimeImports: usesReactRuntimeImports(code, filename),
-		transformReact: containsExactBuildJsx(filename, code),
-		shouldCompile: shouldCompileExactBuildModule(filename, code, options),
+		usesReactRuntimeImports: usesReactRuntimeImports(analyzedCode, filename),
+		transformReact: containsExactBuildJsx(filename, analyzedCode),
+		shouldCompile: shouldCompileExactBuildModule(filename, analyzedCode, options),
 		...(input.reactCompatibility
 			? {
 					react: () => {
-						const lowered = transformReactJsx(code, {
+						const lowered = transformReactJsx(analyzedCode, {
 							filename,
 							target: input.reactCompatibility!.target,
 							sourceMap: false
@@ -81,7 +114,7 @@ export function transformExactViteModule(
 							filename,
 							options.target,
 							options.sourceMap,
-							code
+							analyzedCode
 						);
 					}
 				}
@@ -89,18 +122,29 @@ export function transformExactViteModule(
 		compiler: {
 			options: {
 				session: input.compilerSession,
+				packageEnhancements: input.packageEnhancements,
 				target: exactTransformTarget(options),
+				componentContractProjection:
+					options.target === 'server' ||
+					options.renderMode === undefined ||
+					options.renderMode === 'universal'
+						? 'complete'
+						: options.renderMode,
 				serverComponents: options.serverComponents,
 				sourceMap: false,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: true,
 				jsxInterop: input.compatibilityEngine?.jsxInterop,
 				emitInspection:
-					options.target === 'server' &&
-					inspectionCatalogEnabled(input.configuredDebug, input.viteCommand),
+					input.languageValidation ||
+					(options.target === 'server' &&
+						inspectionCatalogEnabled(input.configuredDebug, input.viteCommand)),
 				instrumentInspection: inspectionRuntimeEnabled(input.configuredDebug, input.viteCommand)
 			},
 			finish: (result) => {
+				if (intlAnalysis?.descriptors.length && options.internationalization) {
+					input.intl.linkDescriptorOwners(intlAnalysis, result.componentBuild.components, filename);
+				}
 				input.componentAuthorization.record(filename, result.componentBuild, code);
 				const rewritten = input.compatibilityEngine
 					? input.compatibilityEngine.transformModule({
@@ -126,7 +170,7 @@ export function transformExactViteModule(
 				};
 			},
 			inspection: (result) =>
-				result.inspectionCatalog && options.target === 'server'
+				result.inspectionCatalog
 					? {
 							inspection: result.inspectionCatalog,
 							redactions: result.inspectionRedactions,
@@ -139,7 +183,7 @@ export function transformExactViteModule(
 					compatibility: () =>
 						input.compatibilityEngine!.transformModule({
 							id: filename,
-							source: code,
+							source: analyzedCode,
 							format: /\.c[jt]s$/i.test(filename) ? 'commonjs' : 'module',
 							target: options.target === 'server' ? 'server' : 'client',
 							sourceMap: options.sourceMap ?? true
@@ -152,7 +196,19 @@ export function transformExactViteModule(
 			: undefined
 	});
 	if (!output) return null;
-	if (output.inspection) input.inspectionModules.set(path.resolve(filename), output.inspection);
+	if (
+		output.inspection &&
+		options.target === 'server' &&
+		inspectionCatalogEnabled(input.configuredDebug, input.viteCommand)
+	)
+		input.inspectionModules.set(path.resolve(filename), output.inspection);
 	input.recordMicrofrontendModule(output.code, id);
-	return { code: output.code, map: output.map, moduleType: 'js' };
+	return {
+		code: output.code,
+		map: output.map,
+		moduleType: 'js',
+		...(output.inspection
+			? { languageProjection: output.inspection.inspection.languageProjection }
+			: {})
+	};
 }

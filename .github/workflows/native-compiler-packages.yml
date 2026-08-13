@@ -1,38 +1,10 @@
-name: Native compiler packages
+name: Build, test, and publish
 
 on:
   pull_request:
-    paths:
-      - '.github/workflows/native-compiler-packages.yml'
-      - 'native/typescript-go/**'
-      - 'native/npm/**'
-      - 'packages/compiler/package.json'
-      - 'scripts/build-native-compiler.mjs'
-      - 'scripts/native-compiler-build-cache.mjs'
-      - 'scripts/native-compiler-build-cache.test.mjs'
-      - 'scripts/local-build.test.mjs'
-      - 'scripts/checkout-native-typescript-go.mjs'
-      - 'scripts/native-compiler-source.mjs'
-      - 'scripts/native-compiler-source.test.mjs'
-      - 'scripts/package-native-compiler.mjs'
-      - 'scripts/test-native-compiler-package.mjs'
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/native-compiler-packages.yml'
-      - 'native/typescript-go/**'
-      - 'native/npm/**'
-      - 'packages/compiler/package.json'
-      - 'scripts/build-native-compiler.mjs'
-      - 'scripts/native-compiler-build-cache.mjs'
-      - 'scripts/native-compiler-build-cache.test.mjs'
-      - 'scripts/local-build.test.mjs'
-      - 'scripts/checkout-native-typescript-go.mjs'
-      - 'scripts/native-compiler-source.mjs'
-      - 'scripts/native-compiler-source.test.mjs'
-      - 'scripts/package-native-compiler.mjs'
-      - 'scripts/test-native-compiler-package.mjs'
   workflow_dispatch:
     inputs:
       publish:
@@ -44,38 +16,21 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: exact-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  package:
-    name: ${{ matrix.platform }}-${{ matrix.arch }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: darwin
-            arch: arm64
-            runner: macos-15
-          - platform: darwin
-            arch: x64
-            runner: macos-15-intel
-          - platform: linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-          - platform: linux
-            arch: x64
-            runner: ubuntu-24.04
-          - platform: win32
-            arch: arm64
-            runner: windows-11-arm
-          - platform: win32
-            arch: x64
-            runner: windows-2025
+  native-compiler:
+    name: Native compiler
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          cache: npm
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26.2'
@@ -83,51 +38,265 @@ jobs:
       - run: npm ci
       - run: npm run test:build-scripts
       - run: npm run build -w @exactjs/core
-      - name: Build and stage package
-        run: >-
-          node scripts/build-native-compiler.mjs
-          --platform ${{ matrix.platform }}
-          --arch ${{ matrix.arch }}
-          --package
-      - name: Prepare release artifact directory
-        run: >-
-          node -e
-          "require('node:fs').mkdirSync('.tmp/native-package-artifacts',{recursive:true})"
-      - name: Pack release artifact
-        run: >-
-          npm pack
-          ".tmp/native-packages/compiler-native-${{ matrix.platform }}-${{ matrix.arch }}"
-          --pack-destination .tmp/native-package-artifacts
-      - name: Install and execute packaged compiler
-        run: node scripts/test-native-compiler-package.mjs .tmp/native-package-artifacts
-      - name: Exercise repository compiler corpus
-        if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
+      - name: Build and pack native compiler packages
         shell: bash
         run: |
-          npm run build -w @exactjs/compiler
-          npm run build \
-            -w @exactjs/gestures \
-            -w @exactjs/motion \
-            -w @exactjs/gravity \
-            -w @exactjs/physics
-          EXACT_NATIVE_COMPILER="$PWD/.tmp/native-compiler/exactc-native" \
-            npm run check:native-compiler-corpus
-      - name: Install acceptance browser
-        if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
-        run: npx playwright install --with-deps chromium
-      - name: Exercise compiler browser acceptance
-        if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
-        shell: bash
-        run: |
-          EXACT_NATIVE_COMPILER="$PWD/.tmp/native-compiler/exactc-native" \
-            npm run check:compiler-acceptance
+          mkdir -p .tmp/native-artifact/native-package-artifacts
+          for target in \
+            linux-x64 \
+            linux-arm64 \
+            darwin-x64 \
+            darwin-arm64 \
+            win32-x64 \
+            win32-arm64
+          do
+            platform="${target%-*}"
+            arch="${target#*-}"
+            node scripts/build-native-compiler.mjs \
+              --platform "$platform" \
+              --arch "$arch" \
+              --package
+            npm pack \
+              ".tmp/native-packages/compiler-native-$target" \
+              --pack-destination .tmp/native-artifact/native-package-artifacts
+
+            if [[ "$target" == "linux-x64" ]]; then
+              node scripts/test-native-compiler-package.mjs \
+                .tmp/native-artifact/native-package-artifacts
+            fi
+          done
+
+          cp \
+            .tmp/native-packages/compiler-native-linux-x64/exactc-native \
+            .tmp/native-artifact/exactc-native
       - uses: actions/upload-artifact@v4
         with:
-          name: compiler-native-${{ matrix.platform }}-${{ matrix.arch }}
-          path: .tmp/native-package-artifacts/*.tgz
+          name: native-compiler
+          path: .tmp/native-artifact/
+          include-hidden-files: true
           if-no-files-found: error
-      - name: Publish platform package
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
-        run: npm publish ".tmp/native-packages/compiler-native-${{ matrix.platform }}-${{ matrix.arch }}"
+  compatibility:
+    name: TypeScript compatibility
+    needs: native-compiler
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-compiler
+          path: .tmp/native-artifact
+      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: npm ci
+      - run: npm run build:prerequisites
+      - run: npm run build:workspaces
+      - run: npm run check:typescript-compatibility
+    env:
+      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+
+  acceptance:
+    name: Compiler browser acceptance
+    needs: native-compiler
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-compiler
+          path: .tmp/native-artifact
+      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:prerequisites
+      - run: npm run build:workspaces
+      - run: npm run check:native-compiler-corpus
+      - run: npm run check:compiler-acceptance:built
+    env:
+      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+
+  package:
+    name: Package release artifacts
+    needs:
+      - native-compiler
+      - compatibility
+      - acceptance
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-compiler
+          path: .tmp/native-artifact
+      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: npm ci
+      - name: Build release workspaces
+        run: |
+          npm run build:prerequisites
+          npm run build:workspaces
+      - run: npm run check:publish
+      - name: Package npm workspaces
+        run: >-
+          node scripts/package-release-npm.mjs
+          --native-packages .tmp/native-artifact/native-package-artifacts
+          --output .tmp/release/npm
+      - name: Package VS Code extension
+        shell: bash
+        run: |
+          javascript_packages=()
+          compiler_archives=(.tmp/release/npm/exactjs-compiler-[0-9]*.tgz)
+          if [[ "${#compiler_archives[@]}" -ne 1 || ! -f "${compiler_archives[0]}" ]]; then
+            echo 'Expected one npm package for @exactjs/compiler' >&2
+            exit 1
+          fi
+          compiler_stage=".tmp/vscode-compiler"
+          rm -rf "$compiler_stage"
+          mkdir -p "$compiler_stage"
+          tar -xzf "${compiler_archives[0]}" -C "$compiler_stage" --strip-components=1
+          node -e \
+            "const fs=require('node:fs');const file=process.argv[1];const manifest=JSON.parse(fs.readFileSync(file));delete manifest.optionalDependencies;fs.writeFileSync(file,JSON.stringify(manifest,null,'\t')+'\n')" \
+            "$compiler_stage/package.json"
+          mkdir -p .tmp/vscode-dependencies
+          stripped_compiler="$(
+            npm pack "$compiler_stage" --pack-destination .tmp/vscode-dependencies --silent
+          )"
+          javascript_packages+=(".tmp/vscode-dependencies/$stripped_compiler")
+          for package in \
+            config \
+            devtools-protocol \
+            instrumentation \
+            language-extension-api \
+            language-extension-host \
+            language-server \
+            package-provenance \
+            plugin-api \
+            typescript-plugin
+          do
+            archives=(.tmp/release/npm/exactjs-"$package"-*.tgz)
+            if [[ "${#archives[@]}" -ne 1 || ! -f "${archives[0]}" ]]; then
+              echo "Expected one npm package for @exactjs/$package" >&2
+              exit 1
+            fi
+            javascript_packages+=("${archives[0]}")
+          done
+          stage=".tmp/vscode-extension"
+          rm -rf "$stage"
+          mkdir -p "$stage"
+          cp packages/vscode-extension/{package.json,README.md,AGENTS.md} "$stage"
+          cp -R packages/vscode-extension/dist "$stage/dist"
+          node -e \
+            "const fs=require('node:fs');const file=process.argv[1];const manifest=JSON.parse(fs.readFileSync(file));manifest.name='exact-language-tools';delete manifest.devDependencies;delete manifest.files;delete manifest.scripts;fs.writeFileSync(file,JSON.stringify(manifest,null,'\t')+'\n')" \
+            "$stage/package.json"
+          npm install \
+            --prefix "$stage" \
+            --omit=dev \
+            --omit=optional \
+            --ignore-scripts \
+            --no-audit \
+            --no-fund \
+            --no-package-lock \
+            --no-save \
+            "${javascript_packages[@]}"
+          (
+            cd "$stage"
+            node "$GITHUB_WORKSPACE/node_modules/@vscode/vsce/vsce" package \
+              --dependencies \
+              --skip-license \
+              --out "$GITHUB_WORKSPACE/.tmp/release/exact-language-tools.vsix"
+          )
+      - name: Verify VS Code extension contents
+        shell: bash
+        run: |
+          listing="$(unzip -Z1 .tmp/release/exact-language-tools.vsix)"
+          grep -q '^extension/node_modules/@exactjs/language-server/' <<<"$listing"
+          if grep -q '^extension/node_modules/@exactjs/compiler-native-' <<<"$listing"; then
+            echo 'The universal VSIX must use the workspace-installed native compiler.' >&2
+            exit 1
+          fi
+      - name: Package Chromium DevTools extension
+        working-directory: packages/chromium-devtools
+        run: >-
+          zip -qr ../../.tmp/release/exact-chromium-devtools.zip
+          manifest.json README.md AGENTS.md dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: .tmp/release/
+          include-hidden-files: true
+          if-no-files-found: error
+    env:
+      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+
+  publish-native-packages:
+    name: Publish native packages
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+    needs:
+      - package
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-packages
+          path: .tmp/release
+      - name: Publish platform packages
+        shell: bash
+        run: |
+          for package in .tmp/release/npm/exactjs-compiler-native-*.tgz
+          do
+            npm publish "$package"
+          done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-pages:
+    name: Publish Pages apps
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: native-compiler
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-compiler
+          path: .tmp/native-artifact
+      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: npm ci
+      - name: Build framework workspaces
+        run: |
+          npm run build:prerequisites
+          npm run build:workspaces
+      - name: Build standalone documentation
+        run: npm run build -w @exactjs/docs
+      - name: Build standalone Sudoku
+        run: npm run build:sudoku:standalone
+      - name: Assemble Pages branch
+        run: node scripts/prepare-gh-pages.mjs
+      - name: Publish gh-pages branch
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./.tmp/gh-pages
+          commit_message: 'Deploy documentation and sample apps'
+    env:
+      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native

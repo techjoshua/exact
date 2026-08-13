@@ -3,6 +3,7 @@ import { captureReactiveMutations } from '@exactjs/reactive';
 import { isPromiseLike } from '../component/async-value.js';
 import type { RuntimeTaskOptions } from './contracts.js';
 import type { InternalTaskGeneration } from './runtime-types.js';
+import { markTaskPerformanceTrace } from './performance-trace.js';
 
 /** Captures one synchronous optimistic transition for commit or rollback by its task generation. */
 export function applyTaskOptimistic<Result>(
@@ -21,4 +22,5 @@ export function applyTaskOptimistic<Result>(
 		throw new TypeError('TaskContext.optimistic() requires a synchronous callback');
 	}
 	record.journals.push(journal);
+	markTaskPerformanceTrace(record, 'optimistic-applied');
 }

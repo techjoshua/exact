@@ -114,6 +114,10 @@ func createContinuationContracts(
 			boundaries,
 			component.ID,
 		)
+		concurrency := task.Concurrency
+		if concurrency == "" {
+			concurrency = "parallel"
+		}
 		continuations = append(continuations, Continuation{
 			ID:          task.ID,
 			Kind:        "task",
@@ -121,6 +125,7 @@ func createContinuationContracts(
 			TaskID:      task.ID,
 			Placement:   task.Placement,
 			Readiness:   task.Readiness,
+			Concurrency: concurrency,
 			Async:       task.Async,
 			Activation: ContinuationActivation{
 				StateReads:     append([]StateEffect(nil), task.Reads...),
@@ -177,6 +182,7 @@ func createContinuationContracts(
 			TaskID:      operation.ID,
 			Placement:   operation.Placement,
 			Readiness:   "nonblocking",
+			Concurrency: operation.Concurrency,
 			Async:       true,
 			Activation: ContinuationActivation{
 				StateReads:     append([]StateEffect(nil), operation.Reads...),

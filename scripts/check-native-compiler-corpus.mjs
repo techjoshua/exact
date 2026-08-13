@@ -4,6 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
+import { loadExactPackageEnhancements } from '../packages/config/dist/node.js';
+import { preparePackageEnhancementSource } from '../packages/compiler/dist/compilation/package-enhancements.js';
+
 import { discoverNativeCompilerCorpus } from './native-compiler-corpus/discovery.mjs';
 import {
 	normalizedNativeBaselineElapsedMs,
@@ -50,7 +53,21 @@ const started = performance.now();
 const result = await runNativeCorpus({
 	executable,
 	workers,
-	groups: [...groups].map(([config, filenames]) => ({ config, filenames }))
+	groups: [...groups].map(([config, filenames]) => {
+		const { packageEnhancements } = loadExactPackageEnhancements({
+			applicationRoot: path.dirname(config)
+		});
+		return {
+			config,
+			filenames,
+			packageEnhancementSuffixes: Object.fromEntries(
+				filenames.flatMap((filename) => {
+					const prepared = preparePackageEnhancementSource('', filename, packageEnhancements);
+					return prepared.source ? [[filename, prepared.source]] : [];
+				})
+			)
+		};
+	})
 });
 const elapsedMs = performance.now() - started;
 const fileCount = result.fileCount;

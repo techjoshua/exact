@@ -6,6 +6,7 @@ const maintainedSource = [
 	'apps/**/*.{ts,tsx}',
 	'component-libraries/**/*.{ts,tsx}',
 	'framework-adapters/**/*.{ts,tsx}',
+	'framework-comparison/**/*.{ts,tsx}',
 	'packages/**/*.{ts,tsx}',
 	'plugins/**/*.{ts,tsx}',
 	'react-adapters/**/*.{ts,tsx}'
@@ -19,10 +20,16 @@ export default tseslint.config(
 			'**/node_modules/**',
 			'**/.tmp/**',
 			'**/.exact/**',
+			'**/.nuxt/**',
+			'**/.output/**',
+			'**/.react-router/**',
+			'**/.svelte-kit/**',
+			'framework-comparison/participants/*/build/**',
 			'apps/react-reconciler-reference-*/**',
 			'apps/react-reference-*/**',
 			'packages/react-dom-compat/fixtures/**',
-			'component-libraries/*/capability.d.ts'
+			'component-libraries/*/capability.d.ts',
+			'packages/*/capability.d.ts'
 		]
 	},
 	{

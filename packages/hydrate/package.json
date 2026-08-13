@@ -19,6 +19,10 @@
 		"./enhanced": {
 			"types": "./dist/enhanced.d.ts",
 			"default": "./dist/enhanced.js"
+		},
+		"./root": {
+			"types": "./dist/root.d.ts",
+			"default": "./dist/root.js"
 		}
 	},
 	"main": "./dist/index.js",
@@ -30,6 +34,7 @@
 		"@exactjs/server": "^0.1.0"
 	},
 	"devDependencies": {
+		"@exactjs/accessibility": "^0.1.0",
 		"@exactjs/testing": "^0.1.0"
 	},
 	"scripts": {

@@ -21,11 +21,17 @@ import (
 
 type jsxRuntimeNames struct {
 	element                string
+	componentElement       string
 	renderProgram          string
 	fragment               string
 	target                 string
 	expression             string
+	forwardedExpression    string
+	componentOutput        string
 	dynamic                string
+	dynamicComponent       string
+	serverDynamicComponent string
+	dynamicComponentValue  string
 	boundary               string
 	finiteBoundary         string
 	asyncSiblings          string
@@ -65,48 +71,51 @@ type jsxRuntimeNames struct {
 	componentRegistry      string
 	enhancements           string
 	omitEnhancementProps   string
+	componentLog           string
 	interop                string
 }
 
 type jsxLowering struct {
-	sourceFile            *ast.SourceFile
-	factory               *printer.NodeFactory
-	visitor               *ast.NodeVisitor
-	names                 jsxRuntimeNames
-	nodeIDs               map[*ast.Node]string
-	writes                map[string]StateWrite
-	tasks                 map[string]Task
-	invokedTasks          map[int]Task
-	functionTasks         map[int]Task
-	taskDefinitions       map[ast.SymbolId]Task
-	taskDefinitionNames   map[string]Task
-	operations            map[string]InvokedTaskOperation
-	stateReads            []StateRead
-	bindings              []ReactiveBinding
-	formBindings          map[int]formBinding
-	componentBindings     map[int]componentBinding
-	checker               *checker.Checker
-	taskHelpers           map[string]string
-	derived               map[int]ReactiveBinding
-	elidedDerived         map[int]ReactiveBinding
-	target                Target
-	serverComponents      bool
-	instrumentInspection  bool
-	components            map[string]Component
-	microComponents       map[ast.SymbolId]struct{}
-	renderEdges           map[string]RenderEdge
-	clientIslands         map[*ast.Node]clientElementIsland
-	clientDefinitions     []*ast.Node
-	captureValues         map[ast.SymbolId]string
-	interop               *JSXInterop
-	materializedNames     map[int]string
-	cachedDerivedNames    map[int]string
-	contextWrites         map[string][]string
-	collectionMaps        map[string]collectionMapPlan
-	enhancementImports    enhancementImports
-	partitionPlan         PartitionPlan
-	renderProgramFallback bool
-	renderProgramContexts map[int]renderProgramContext
+	sourceFile             *ast.SourceFile
+	factory                *printer.NodeFactory
+	visitor                *ast.NodeVisitor
+	names                  jsxRuntimeNames
+	nodeIDs                map[*ast.Node]string
+	writes                 map[string]StateWrite
+	tasks                  map[string]Task
+	invokedTasks           map[int]Task
+	functionTasks          map[int]Task
+	taskDefinitions        map[ast.SymbolId]Task
+	taskDefinitionNames    map[string]Task
+	operations             map[string]InvokedTaskOperation
+	stateReads             []StateRead
+	bindings               []ReactiveBinding
+	formBindings           map[int]formBinding
+	componentBindings      map[int]componentBinding
+	checker                *checker.Checker
+	taskHelpers            map[string]string
+	derived                map[int]ReactiveBinding
+	elidedDerived          map[int]ReactiveBinding
+	target                 Target
+	serverComponents       bool
+	instrumentInspection   bool
+	components             map[string]Component
+	microComponents        map[ast.SymbolId]struct{}
+	renderEdges            map[string]RenderEdge
+	clientIslands          map[*ast.Node]clientElementIsland
+	clientDefinitions      []*ast.Node
+	captureValues          map[ast.SymbolId]string
+	interop                *JSXInterop
+	materializedNames      map[int]string
+	cachedDerivedNames     map[int]string
+	contextWrites          map[string][]string
+	collectionMaps         map[string]collectionMapPlan
+	enhancementImports     enhancementImports
+	partitionPlan          PartitionPlan
+	dynamicComponents      map[int]dynamicComponentUseKind
+	renderProgramFallback  bool
+	renderProgramContexts  map[int]renderProgramContext
+	declarativeRenderDepth int
 }
 
 type renderProgramContext struct {
@@ -129,18 +138,33 @@ type renderProgramNode struct {
 	namespace string
 }
 
+type renderProgramSsrOperation struct {
+	kind  string
+	index int
+}
+
 type renderProgramBuild struct {
-	template  strings.Builder
-	part      strings.Builder
-	parts     []string
-	slots     []renderProgramSlot
-	nodes     []renderProgramNode
-	namespace string
+	template      strings.Builder
+	part          strings.Builder
+	parts         []string
+	ssrPart       strings.Builder
+	ssrParts      []string
+	ssrOperations []renderProgramSsrOperation
+	slots         []renderProgramSlot
+	nodes         []renderProgramNode
+	namespace     string
 }
 
 func (build *renderProgramBuild) write(value string) {
 	build.template.WriteString(value)
 	build.part.WriteString(value)
+	build.ssrPart.WriteString(value)
+}
+
+func (build *renderProgramBuild) ssrOperation(kind string, index int) {
+	build.ssrParts = append(build.ssrParts, build.ssrPart.String())
+	build.ssrPart.Reset()
+	build.ssrOperations = append(build.ssrOperations, renderProgramSsrOperation{kind: kind, index: index})
 }
 
 func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Node) {
@@ -148,12 +172,15 @@ func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Nod
 	build.template.WriteString(fmt.Sprintf("\ue000exact:%d\ue001", index))
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
+	build.ssrOperation("slot", index)
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: append([]int(nil), path...), reader: reader})
 }
 
 func (build *renderProgramBuild) propertySlot(id string, path []int, name string, reader *ast.Node) {
+	index := len(build.slots)
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
+	build.ssrOperation("slot", index)
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), name: name, reader: reader})
 }
 
@@ -170,72 +197,12 @@ type collectionMapPlan struct {
 func lowerExactJSX(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
-	stateWrites []StateWrite,
-	stateAliases []StateAlias,
-	stateReads []StateRead,
-	reactiveBindings []ReactiveBinding,
-	formBindings map[int]formBinding,
-	componentBindings map[int]componentBinding,
-	components []Component,
-	tasks []Task,
-	operations []InvokedTaskOperation,
-	continuations []Continuation,
-	clientIslands map[*ast.Node]clientElementIsland,
-	target Target,
-	serverComponents bool,
-	instrumentInspection bool,
-	typeChecker *checker.Checker,
-	interop *JSXInterop,
-	enhancementImports enhancementImports,
-	partitionPlan PartitionPlan,
+	plan jsxLoweringPlan,
 ) *ast.SourceFile {
-	hasJSX := sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0
-	hasReactiveCapture := strings.Contains(sourceFile.Text(), ".reactive")
-	derived, elidedDerived := planDerivedBindings(
-		sourceFile,
-		reactiveBindings,
-		typeChecker,
-	)
-	if !hasJSX && len(stateWrites) == 0 && len(tasks) == 0 &&
-		len(derived) == 0 && !hasReactiveCapture && len(components) == 0 {
+	lowering, required := plan.prepare(sourceFile, factory)
+	if !required {
 		return sourceFile
 	}
-	lowering := &jsxLowering{
-		sourceFile:           sourceFile,
-		factory:              factory,
-		names:                allocateJSXRuntimeNames(sourceFile),
-		nodeIDs:              expressionNodeIDs(sourceFile),
-		writes:               indexStateWrites(stateWrites),
-		tasks:                indexTasks(tasks),
-		invokedTasks:         indexInvokedTasks(tasks),
-		functionTasks:        indexFunctionTasks(tasks),
-		taskDefinitions:      indexFunctionTaskSymbols(tasks, sourceFile, typeChecker),
-		taskDefinitionNames:  indexFunctionTaskNames(tasks, sourceFile),
-		operations:           indexInvokedTaskOperations(operations),
-		stateReads:           stateReads,
-		bindings:             reactiveBindings,
-		formBindings:         formBindings,
-		componentBindings:    componentBindings,
-		checker:              typeChecker,
-		taskHelpers:          make(map[string]string),
-		materializedNames:    make(map[int]string),
-		cachedDerivedNames:   make(map[int]string),
-		derived:              derived,
-		elidedDerived:        elidedDerived,
-		target:               target,
-		serverComponents:     serverComponents,
-		instrumentInspection: instrumentInspection,
-		interop:              interop,
-		components:           componentIndexByName(components),
-		microComponents:      lexicalMicroComponentSymbols(sourceFile, typeChecker),
-		renderEdges:          indexRenderEdges(components),
-		contextWrites:        indexContinuationContextWrites(continuations),
-		collectionMaps:       make(map[string]collectionMapPlan),
-		enhancementImports:   enhancementImports,
-		partitionPlan:        partitionPlan,
-		clientIslands:        clientIslands,
-	}
-	lowering.indexCollectionMaps()
 	lowering.visitor = ast.NewNodeVisitor(
 		lowering.visit,
 		&factory.NodeFactory,
@@ -256,18 +223,16 @@ func lowerExactJSX(
 		).AsSourceFile()
 		ast.SetParentInChildren(transformed.AsNode())
 	}
-	runtimeImport := lowering.runtimeImport(transformed.AsNode())
+	runtimeImports := lowering.runtimeImports(transformed.AsNode())
 	interopImport := lowering.interopImport(transformed.AsNode())
-	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+2)
+	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+1)
 	insertion := 0
 	for insertion < len(transformed.Statements.Nodes) &&
 		isDirectiveStatement(transformed.Statements.Nodes[insertion]) {
 		statements = append(statements, transformed.Statements.Nodes[insertion])
 		insertion++
 	}
-	if runtimeImport != nil {
-		statements = append(statements, runtimeImport)
-	}
+	statements = append(statements, runtimeImports...)
 	if interopImport != nil {
 		statements = append(statements, interopImport)
 	}
@@ -383,6 +348,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		return captured
 	}
 	if compiled := lowering.lowerComponentRegistryCreation(node); compiled != nil {
+		return compiled
+	}
+	if compiled := lowering.lowerComponentLogCall(node); compiled != nil {
 		return compiled
 	}
 	if ast.IsCallExpression(node) && isComponentMapCall(node) {
@@ -581,6 +549,89 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	default:
 		return lowering.visitor.VisitEachChild(node)
 	}
+}
+
+// lowerComponentLogCall preserves the ordinary ComponentLog authoring surface while
+// moving its runtime enablement check ahead of argument evaluation. Optional-call
+// semantics are the important part of this ABI: when the helper returns undefined,
+// JavaScript does not evaluate or allocate any of the authored arguments.
+func (lowering *jsxLowering) lowerComponentLogCall(node *ast.Node) *ast.Node {
+	if !ast.IsCallExpression(node) || !lowering.insideComponent(node) {
+		return nil
+	}
+	call := node.AsCallExpression()
+	level, canonical := canonicalComponentLogLevel(node)
+	if !canonical {
+		return nil
+	}
+	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes))
+	for _, argument := range call.Arguments.Nodes {
+		arguments = append(arguments, lowering.visitor.VisitNode(argument))
+	}
+	methodLookup := lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(lowering.names.componentLog),
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewThisExpression(),
+			lowering.factory.NewStringLiteral(level, ast.TokenFlagsNone),
+		}),
+		ast.NodeFlagsNone,
+	)
+	return lowering.factory.NewCallExpression(
+		methodLookup,
+		lowering.factory.NewToken(ast.KindQuestionDotToken),
+		call.TypeArguments,
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.arrow(
+				lowering.factory.NewArrayLiteralExpression(
+					lowering.factory.NewNodeList(arguments),
+					false,
+				),
+			),
+		}),
+		call.Flags,
+	)
+}
+
+// canonicalComponentLogLevel recognizes only the framework-owned authored surface.
+// Analysis uses the same predicate as emission so dependency planning and runtime
+// lowering cannot disagree about which calls are observational boundaries.
+func canonicalComponentLogLevel(node *ast.Node) (string, bool) {
+	if !ast.IsCallExpression(node) {
+		return "", false
+	}
+	call := node.AsCallExpression()
+	if call.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(call.Expression) {
+		return "", false
+	}
+	method := call.Expression.AsPropertyAccessExpression()
+	level := method.Name().Text()
+	switch level {
+	case "trace", "debug", "info", "warn", "error":
+	default:
+		return "", false
+	}
+	if method.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(method.Expression) {
+		return "", false
+	}
+	log := method.Expression.AsPropertyAccessExpression()
+	if log.QuestionDotToken != nil || log.Name().Text() != "log" ||
+		log.Expression.Kind != ast.KindThisKeyword {
+		return "", false
+	}
+	return level, true
+}
+
+// insideComponent prevents the logging ABI from rewriting unrelated objects which
+// happen to expose a this.log property in the same TypeScript project.
+func (lowering *jsxLowering) insideComponent(node *ast.Node) bool {
+	for _, component := range lowering.components {
+		if node.Pos() >= component.Start && node.End() <= component.Start+component.Length {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) lowerComponentRegistryCreation(
@@ -992,6 +1043,9 @@ func (lowering *jsxLowering) lowerOpeningLike(
 			),
 		)
 	}
+	if kind, exists := lowering.dynamicComponents[tag.Pos()]; exists {
+		return lowering.lowerDynamicComponent(identityNode, tag, opening, children, kind)
+	}
 	if lowering.microComponentTag(tag) {
 		return lowering.lowerMicroComponent(tag, opening, children)
 	}
@@ -1031,7 +1085,9 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
 	} else {
 		emittedTag = lowering.visitor.VisitNode(tag)
-		if lowering.interop != nil && !lowering.localExactComponentTag(tag) {
+		if lowering.interop != nil &&
+			!lowering.localExactComponentTag(tag) &&
+			!lowering.exactCoreVNodeTag(tag) {
 			emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
 		}
 	}
@@ -1046,7 +1102,11 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		props,
 	}
 	arguments = append(arguments, lowering.children(children)...)
-	element := lowering.call(lowering.names.element, arguments)
+	elementHelper := lowering.names.element
+	if !intrinsic && lowering.localExactComponentTag(tag) {
+		elementHelper = lowering.names.componentElement
+	}
+	element := lowering.call(elementHelper, arguments)
 	if intrinsic && lowering.independentAsyncSiblings(children) {
 		element = lowering.call(lowering.names.asyncSiblings, []*ast.Node{element})
 	}
@@ -1062,6 +1122,59 @@ func (lowering *jsxLowering) lowerOpeningLike(
 		}
 	}
 	return element
+}
+
+func (lowering *jsxLowering) lowerDynamicComponent(
+	identityNode *ast.Node,
+	tag *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+	kind dynamicComponentUseKind,
+) *ast.Node {
+	id := lowering.factory.NewStringLiteral(
+		exactStableID(
+			normalizedIdentityFilename(lowering.sourceFile.FileName()),
+			"dynamic-component",
+			lowering.nodeIDs[identityNode],
+		),
+		ast.TokenFlagsNone,
+	)
+	if lowering.target == TargetServer {
+		return lowering.call(lowering.names.serverDynamicComponent, []*ast.Node{id})
+	}
+	props := lowering.props(opening.Attributes(), "", false, "")
+	values := lowering.children(children)
+	if len(values) != 0 {
+		var childrenValue *ast.Node
+		if len(values) == 1 {
+			childrenValue = values[0]
+		} else {
+			childrenValue = lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(values),
+				false,
+			)
+		}
+		props = lowering.appendObjectProperty(props, "children", childrenValue)
+	}
+	source := lowering.visitor.VisitNode(tag)
+	if kind != dynamicComponentHelper {
+		source = lowering.call(
+			lowering.names.dynamicComponentValue,
+			[]*ast.Node{lowering.arrow(source)},
+		)
+	}
+	property := func(name string, value *ast.Node) *ast.Node {
+		return lowering.property(lowering.factory.NewIdentifier(name), value)
+	}
+	options := lowering.factory.NewObjectLiteralExpression(
+		lowering.factory.NewNodeList([]*ast.Node{
+			property("id", id),
+			property("source", source),
+			property("props", props),
+		}),
+		false,
+	)
+	return lowering.call(lowering.names.dynamicComponent, []*ast.Node{options})
 }
 
 func (lowering *jsxLowering) independentAsyncSiblings(children *ast.NodeList) bool {
@@ -1113,6 +1226,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		return nil
 	}
 	build.parts = append(build.parts, build.part.String())
+	build.ssrParts = append(build.ssrParts, build.ssrPart.String())
 	programID := exactStableID(
 		lowering.sourceFile.FileName(),
 		"render-program",
@@ -1122,7 +1236,10 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	program := lowering.renderProgramLiteral(programID, build)
 	readers := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
-		readers[index] = lowering.arrow(slot.reader)
+		readers[index] = lowering.reactiveClosure(slot.reader)
+		if readers[index] == nil {
+			readers[index] = lowering.arrow(slot.reader)
+		}
 	}
 	lowering.renderProgramFallback = true
 	fallback := lowering.lowerOpeningLike(identityNode, opening, children)
@@ -1199,9 +1316,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if len(path) == 0 {
 		build.namespace = namespace
 	}
+	nodeIndex := len(build.nodes)
 	build.nodes = append(build.nodes, renderProgramNode{
 		id: lowering.elementID(identityNode), path: append([]int(nil), path...), tag: tag, namespace: namespace,
 	})
+	build.ssrOperation("node-open", nodeIndex)
 	build.write("<" + tag + ` data-exact-id="` + html.EscapeString(lowering.elementID(identityNode)) + `"`)
 	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path) {
 		return false
@@ -1212,11 +1331,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if children != nil {
 		semantic = ast.GetSemanticJsxChildren(children.Nodes)
 	}
-	for _, child := range semantic {
+	for childIndex, child := range semantic {
 		childPath := append(append([]int(nil), path...), domIndex)
 		switch {
 		case ast.IsJsxText(child):
-			text := normalizeJSXText(child.AsJsxText().Text)
+			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
 			if text == "" {
 				continue
 			}
@@ -1254,6 +1373,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if !voidElement(tag) {
 		build.write("</" + tag + ">")
 	}
+	build.ssrOperation("node-close", nodeIndex)
 	return true
 }
 
@@ -1398,13 +1518,28 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			property("namespace", lowering.factory.NewStringLiteral(node.namespace, ast.TokenFlagsNone)),
 		}), false)
 	}
-	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+	members := []*ast.Node{
 		property("version", lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
 		property("parts", array(parts)), property("slots", array(slots)), property("nodes", array(nodes)),
-	}), false)
+	}
+	if lowering.target == TargetServer {
+		ssrParts := make([]*ast.Node, len(build.ssrParts))
+		for index, value := range build.ssrParts {
+			ssrParts[index] = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)
+		}
+		ssrOperations := make([]*ast.Node, len(build.ssrOperations))
+		for index, operation := range build.ssrOperations {
+			ssrOperations[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+				property("kind", lowering.factory.NewStringLiteral(operation.kind, ast.TokenFlagsNone)),
+				property("index", lowering.factory.NewNumericLiteral(strconv.Itoa(operation.index), ast.TokenFlagsNone)),
+			}), false)
+		}
+		members = append(members, property("ssrParts", array(ssrParts)), property("ssrOperations", array(ssrOperations)))
+	}
+	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
 }
 
 func (lowering *jsxLowering) serverPartitionRangeEdge(start int) (PartitionPlanEdge, bool) {
@@ -1558,7 +1693,20 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 			return false
 		}
 		visited[id] = struct{}{}
+		if candidate.Flags&ast.SymbolFlagsAlias != 0 {
+			target := lowering.checker.GetAliasedSymbol(candidate)
+			if target != nil && resolvesToComponent(target) {
+				return true
+			}
+		}
 		for _, declaration := range candidate.Declarations {
+			if sourceFile := ast.GetSourceFileOfNode(declaration); sourceFile != nil {
+				for _, component := range collectComponents(sourceFile) {
+					if component.Start >= declaration.Pos() && component.Start < declaration.End() {
+						return true
+					}
+				}
+			}
 			if !ast.IsVariableDeclaration(declaration) {
 				continue
 			}
@@ -1577,6 +1725,23 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 		return false
 	}
 	return resolvesToComponent(symbol)
+}
+
+func (lowering *jsxLowering) exactCoreVNodeTag(tag *ast.Node) bool {
+	if !ast.IsIdentifier(tag) || lowering.checker == nil {
+		return false
+	}
+	bindings := collectExternalImportBindings(lowering.sourceFile, lowering.checker)
+	reference, exists := bindings.byName[tag.Text()]
+	if !exists || reference.moduleSpecifier != "@exactjs/core" {
+		return false
+	}
+	switch reference.exportName {
+	case "Activity", "Cell", "Dynamic", "Fragment", "Portal", "RenderProgram", "ServerBoundary", "ServerSlot", "Suspense", "Target", "Text", "UnsafeHtml":
+		return true
+	default:
+		return false
+	}
 }
 
 func (lowering *jsxLowering) clientComponentBoundary(
@@ -1765,7 +1930,8 @@ func (lowering *jsxLowering) partitionSlotIDs(children *ast.NodeList) []string {
 		return nil
 	}
 	result := []string{}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for _, child := range semantic {
 		start, end := child.Pos(), child.End()
 		switch {
 		case ast.IsJsxText(child):
@@ -1814,13 +1980,11 @@ func (lowering *jsxLowering) clientBoundaryChildren(
 		return nil, true
 	}
 	values := []*ast.Node{}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for childIndex, child := range semantic {
 		switch {
 		case ast.IsJsxText(child):
-			text := strings.Join(
-				strings.Fields(child.AsJsxText().Text),
-				" ",
-			)
+			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
 			if text != "" {
 				values = append(
 					values,
@@ -1851,7 +2015,8 @@ func jsxChildrenRequireServerSlot(children *ast.NodeList) bool {
 	if children == nil {
 		return false
 	}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for _, child := range semantic {
 		if ast.IsJsxText(child) {
 			continue
 		}
@@ -2131,9 +2296,10 @@ func (lowering *jsxLowering) propsWithReactivity(
 				if reactive && !jsxCallbackExpression(expression) &&
 					!jsxEventAttribute(name) &&
 					name != "key" && name != "ref" {
-					initializer = lowering.reactiveExpression(
+					initializer = lowering.reactiveExpressionMode(
 						expression,
 						initializer,
+						!intrinsic,
 					)
 				}
 			default:
@@ -2644,7 +2810,8 @@ func (lowering *jsxLowering) formBindingProperties(
 	attributes *ast.Node,
 ) []*ast.Node {
 	if name != "value:onInput" && name != "value:onChange" &&
-		name != "checked:onChange" && name != "open:onToggle" {
+		name != "checked:onChange" && name != "open:onToggle" &&
+		name != "modal:isOpen" {
 		return nil
 	}
 	if initializer == nil || !ast.IsJsxExpression(initializer) {
@@ -2676,10 +2843,11 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 		return nil
 	}
 	result := []*ast.Node{}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for childIndex, child := range semantic {
 		switch {
 		case ast.IsJsxText(child):
-			text := normalizeJSXText(child.AsJsxText().Text)
+			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
 			if text != "" {
 				result = append(
 					result,
@@ -2691,8 +2859,15 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 			if expression == nil {
 				continue
 			}
-			emitted := lowering.visitor.VisitNode(expression)
 			if lowering.moduleDeclarativeCollection(expression) {
+				lowering.declarativeRenderDepth++
+				emitted := lowering.visitor.VisitNode(expression)
+				lowering.declarativeRenderDepth--
+				result = append(result, emitted)
+				continue
+			}
+			emitted := lowering.visitor.VisitNode(expression)
+			if lowering.declarativeRenderDepth > 0 {
 				result = append(result, emitted)
 				continue
 			}
@@ -2700,18 +2875,25 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 			if closure == nil {
 				closure = lowering.arrow(emitted)
 			}
+			arguments := []*ast.Node{
+				closure,
+				lowering.factory.NewStringLiteral(
+					lowering.dynamicID(child),
+					ast.TokenFlagsNone,
+				),
+			}
+			if lowering.checker != nil &&
+				!ast.NodeIsSynthesized(expression) &&
+				ast.GetSourceFileOfNode(expression) != nil &&
+				scalarDerivedType(lowering.checker.GetTypeAtLocation(expression)) {
+				arguments = append(
+					arguments,
+					lowering.factory.NewKeywordExpression(ast.KindFalseKeyword),
+				)
+			}
 			result = append(
 				result,
-				lowering.call(
-					lowering.names.dynamic,
-					[]*ast.Node{
-						closure,
-						lowering.factory.NewStringLiteral(
-							lowering.dynamicID(child),
-							ast.TokenFlagsNone,
-						),
-					},
-				),
+				lowering.call(lowering.names.dynamic, arguments),
 			)
 		default:
 			result = append(result, lowering.visitor.VisitNode(child))
@@ -2725,7 +2907,7 @@ var exactKeyArgument = regexp.MustCompile(
 )
 
 func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
-	if lowering.checker == nil {
+	if lowering.checker == nil || !insideJSXChildExpression(node) {
 		return nil
 	}
 	call := node.AsCallExpression()
@@ -2787,6 +2969,19 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	)
 }
 
+// Key inference removes authored list ceremony only for maps that produce JSX
+// children. Ordinary data transforms must retain Array.prototype.map semantics.
+func insideJSXChildExpression(node *ast.Node) bool {
+	for current := node.Parent; current != nil; current = current.Parent {
+		if !ast.IsJsxExpression(current) {
+			continue
+		}
+		parent := current.Parent
+		return parent != nil && (ast.IsJsxElement(parent) || ast.IsJsxFragment(parent))
+	}
+	return false
+}
+
 func (lowering *jsxLowering) indexCollectionMaps() {
 	if lowering.checker == nil {
 		return
@@ -2839,7 +3034,11 @@ func (lowering *jsxLowering) collectionKey(
 				if !ast.IsVariableDeclaration(declaration) {
 					continue
 				}
-				text := sourceText(lowering.sourceFile, declaration)
+				declarationSource := ast.GetSourceFileOfNode(declaration)
+				if declarationSource == nil {
+					continue
+				}
+				text := sourceText(declarationSource, declaration)
 				if match := exactKeyArgument.FindStringSubmatch(text); match != nil &&
 					match[1] != "" {
 					return match[1], false, true
@@ -2858,13 +3057,17 @@ func (lowering *jsxLowering) collectionKey(
 	}
 	for _, property := range lowering.checker.GetPropertiesOfType(elementType) {
 		for _, declaration := range property.Declarations {
+			declarationSource := ast.GetSourceFileOfNode(declaration)
+			if declarationSource == nil {
+				continue
+			}
 			start := declaration.Pos()
 			end := declaration.End()
-			if start < 0 || end > len(lowering.sourceFile.Text()) || start >= end {
+			if start < 0 || end > len(declarationSource.Text()) || start >= end {
 				continue
 			}
 			if exactKeyArgument.MatchString(
-				lowering.sourceFile.Text()[start:end],
+				declarationSource.Text()[start:end],
 			) {
 				return ast.SymbolName(property), false, true
 			}
@@ -2903,6 +3106,9 @@ func (lowering *jsxLowering) moduleDeclarativeCollection(
 	if symbol == nil {
 		return false
 	}
+	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		symbol = lowering.checker.GetAliasedSymbol(symbol)
+	}
 	for _, declaration := range symbol.Declarations {
 		if !ast.IsVariableDeclaration(declaration) ||
 			declaration.Parent == nil ||
@@ -2911,7 +3117,7 @@ func (lowering *jsxLowering) moduleDeclarativeCollection(
 			continue
 		}
 		statement := declaration.Parent.Parent
-		if statement != nil && statement.Parent == lowering.sourceFile.AsNode() {
+		if statement != nil && statement.Parent != nil && ast.IsSourceFile(statement.Parent) {
 			return true
 		}
 	}
@@ -2922,14 +3128,109 @@ func (lowering *jsxLowering) reactiveExpression(
 	source *ast.Node,
 	expression *ast.Node,
 ) *ast.Node {
+	return lowering.reactiveExpressionMode(source, expression, false)
+}
+
+func (lowering *jsxLowering) reactiveExpressionMode(
+	source *ast.Node,
+	expression *ast.Node,
+	forwardLiveSlot bool,
+) *ast.Node {
+	if lowering.declarativeRenderDepth > 0 {
+		return expression
+	}
 	closure := lowering.reactiveClosure(source)
 	if closure == nil {
 		closure = lowering.arrow(expression)
 	}
-	return lowering.call(
-		lowering.names.expression,
+	helper := lowering.names.expression
+	if forwardLiveSlot && lowering.liveSlotForwarding(source) {
+		helper = lowering.names.forwardedExpression
+	}
+	value := lowering.call(
+		helper,
 		[]*ast.Node{closure},
 	)
+	if paths, direct := lowering.componentExecutionOutputPaths(source); len(paths) != 0 {
+		pathValue := lowering.factory.NewStringLiteral(paths[0], ast.TokenFlagsNone)
+		if !direct {
+			values := make([]*ast.Node, len(paths))
+			for index, path := range paths {
+				values[index] = lowering.factory.NewStringLiteral(path, ast.TokenFlagsNone)
+			}
+			pathValue = lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(values),
+				false,
+			)
+		}
+		return lowering.call(lowering.names.componentOutput, []*ast.Node{
+			lowering.factory.NewThisExpression(),
+			pathValue,
+			value,
+		})
+	}
+	return value
+}
+
+func (lowering *jsxLowering) liveSlotForwarding(source *ast.Node) bool {
+	root := source
+	for ast.IsPropertyAccessExpression(root) {
+		root = root.AsPropertyAccessExpression().Expression
+	}
+	for ast.IsElementAccessExpression(root) {
+		root = root.AsElementAccessExpression().Expression
+	}
+	if !ast.IsIdentifier(root) || lowering.checker == nil || ast.GetSourceFileOfNode(root) == nil {
+		return false
+	}
+	symbol := lowering.checker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		name := declaration.Name()
+		if name == nil {
+			continue
+		}
+		for _, binding := range lowering.bindings {
+			if binding.Start == name.Pos() &&
+				(binding.Provenance == "props" || binding.Provenance == "cell") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// componentExecutionOutputPaths recognizes state values whose pending
+// generations must remain attached when a scalar or aggregate value is forwarded.
+func (lowering *jsxLowering) componentExecutionOutputPaths(source *ast.Node) ([]string, bool) {
+	paths := []string{}
+	seen := make(map[string]bool)
+	direct := false
+	for _, read := range lowering.stateReads {
+		if read.Start < source.Pos() || read.Start+read.Length > source.End() ||
+			read.Confidence != "exact" {
+			continue
+		}
+		component, exists := lowering.components[read.Component]
+		if !exists {
+			continue
+		}
+		path := strings.Join(read.Path, ".")
+		for _, port := range component.Execution.Ports {
+			if port.Kind == "state" && port.Path == path &&
+				(port.Direction == "output" || port.Direction == "inout") {
+				if !seen[path] {
+					seen[path] = true
+					paths = append(paths, path)
+					direct = read.Start == source.Pos() && read.Length == source.End()-source.Pos()
+				}
+				break
+			}
+		}
+	}
+	return paths, len(paths) == 1 && direct
 }
 
 type materializedRenderLocal struct {
@@ -2951,6 +3252,12 @@ func (lowering *jsxLowering) reactiveClosure(
 	}
 	bySymbol := make(map[ast.SymbolId]materializedRenderLocal)
 	walkNode(expression, func(node *ast.Node) bool {
+		// Nested JSX expressions receive their own reactive closures during child lowering.
+		// Pulling their derived locals into this closure would broaden the outer dependency
+		// set and reconcile an entire conditional branch for a leaf-only update.
+		if node != expression && ast.IsJsxExpression(node) {
+			return false
+		}
 		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true
@@ -6300,11 +6607,16 @@ func planDerivedBindings(
 			continue
 		}
 		candidates[symbol] = &derivedElisionCandidate{
-			binding:        binding,
-			declaration:    declaration,
-			reference:      reference,
-			component:      component,
-			renderConsumer: eagerRenderReference(reference, component),
+			binding:     binding,
+			declaration: declaration,
+			reference:   reference,
+			component:   component,
+			renderConsumer: eagerRenderReference(
+				reference,
+				component,
+				sourceFile,
+				typeChecker,
+			),
 		}
 	}
 	for _, candidate := range candidates {
@@ -6457,33 +6769,64 @@ func nodeSpanKey(node *ast.Node) string {
 	return fmt.Sprintf("%d:%d", node.Pos(), node.End()-node.Pos())
 }
 
-func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
-	specifiers := []*ast.Node{}
+func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
+	type importGroup struct {
+		module     string
+		specifiers []*ast.Node
+	}
+	groups := []importGroup{
+		{module: "@exactjs/core/runtime/render"},
+		{module: "@exactjs/core/runtime/reactivity"},
+		{module: "@exactjs/core/runtime/tasks"},
+		{module: "@exactjs/core/runtime/inspection"},
+		{module: "@exactjs/core/runtime/registry"},
+		{module: "@exactjs/core/runtime/enhancements"},
+		{module: "@exactjs/core/runtime/dynamic-components"},
+		{module: "@exactjs/core/runtime/logging"},
+		{module: "@exactjs/core/runtime/localization"},
+		{module: "@exactjs/dom/runtime/modal"},
+		{module: "@exactjs/dom/runtime/unsafe-html"},
+		{module: "@exactjs/dom/runtime/structural-boundaries"},
+	}
+	add := func(group int, imported string, local string) {
+		groups[group].specifiers = append(
+			groups[group].specifiers,
+			lowering.importSpecifier(imported, local),
+		)
+	}
 	helpers := []struct {
 		imported string
 		local    string
+		group    int
 	}{
-		{"createCompiledVNode", lowering.names.element},
-		{"createCompiledRenderProgram", lowering.names.renderProgram},
-		{"createCompiledFragment", lowering.names.fragment},
-		{"createCompiledTarget", lowering.names.target},
-		{"createExpression", lowering.names.expression},
-		{"createDynamicChild", lowering.names.dynamic},
-		{"createServerBoundary", lowering.names.boundary},
-		{"markFiniteClientBoundary", lowering.names.finiteBoundary},
-		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings},
-		{"createServerSlot", lowering.names.serverSlot},
-		{"createKeyedServerSlot", lowering.names.keyedServerSlot},
-		{"createDerived", lowering.names.derived},
-		{"writeReactiveLazy", lowering.names.write},
-		{"updateReactiveValue", lowering.names.update},
-		{"updateReactiveValueWithResult", lowering.names.updateResult},
-		{"deleteReactiveValue", lowering.names.delete},
-		{"mutateReactiveArray", lowering.names.arrayMutation},
-		{"mutateReactiveCollection", lowering.names.collectionMutation},
-		{"createCompiledComponentRegistry", lowering.names.componentRegistry},
-		{"createEnhancementMarker", lowering.names.enhancements},
-		{"omitKnownProps", lowering.names.omitEnhancementProps},
+		{"createCompiledVNode", lowering.names.element, 0},
+		{"createCompiledComponentVNode", lowering.names.componentElement, 0},
+		{"createCompiledRenderProgram", lowering.names.renderProgram, 0},
+		{"createCompiledFragment", lowering.names.fragment, 0},
+		{"createCompiledTarget", lowering.names.target, 0},
+		{"createExpression", lowering.names.expression, 0},
+		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
+		{"componentExecutionValueForHost", lowering.names.componentOutput, 2},
+		{"createDynamicChild", lowering.names.dynamic, 0},
+		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, 6},
+		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, 6},
+		{"dynamicComponentValue", lowering.names.dynamicComponentValue, 6},
+		{"createServerBoundary", lowering.names.boundary, 0},
+		{"markFiniteClientBoundary", lowering.names.finiteBoundary, 0},
+		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings, 0},
+		{"createServerSlot", lowering.names.serverSlot, 0},
+		{"createKeyedServerSlot", lowering.names.keyedServerSlot, 0},
+		{"createDerived", lowering.names.derived, 1},
+		{"writeReactiveLazy", lowering.names.write, 1},
+		{"updateReactiveValue", lowering.names.update, 1},
+		{"updateReactiveValueWithResult", lowering.names.updateResult, 1},
+		{"deleteReactiveValue", lowering.names.delete, 1},
+		{"mutateReactiveArray", lowering.names.arrayMutation, 1},
+		{"mutateReactiveCollection", lowering.names.collectionMutation, 1},
+		{"createCompiledComponentRegistry", lowering.names.componentRegistry, 4},
+		{"createEnhancementNode", lowering.names.enhancements, 5},
+		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
+		{"componentLogMethod", lowering.names.componentLog, 7},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -6492,10 +6835,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 			used = true
 		}
 		if used {
-			specifiers = append(
-				specifiers,
-				lowering.importSpecifier(helper.imported, helper.local),
-			)
+			add(helper.group, helper.imported, helper.local)
 		}
 	}
 	taskHelperOrder := []string{
@@ -6527,29 +6867,144 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 			if !containsIdentifier(root, local) {
 				continue
 			}
-			specifiers = append(
-				specifiers,
-				lowering.importSpecifier(imported, local),
-			)
+			group := 2
+			if imported == "markExactInspectionSource" {
+				group = 3
+			}
+			add(group, imported, local)
 		}
 	}
-	if len(specifiers) == 0 {
-		return nil
-	}
-	result := lowering.factory.NewImportDeclaration(
-		nil,
-		lowering.factory.NewImportClause(
-			ast.KindUnknown,
-			nil,
-			lowering.factory.NewNamedImports(
-				lowering.factory.NewNodeList(specifiers),
-			),
-		),
-		lowering.factory.NewStringLiteral("@exactjs/core", ast.TokenFlagsNone),
-		nil,
+	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
+	interactionUsed := containsInteractionRuntimeUse(root)
+	localizationUsed := containsComponentLocalizationUse(root)
+	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
+	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
+		lowering.sourceFile,
+		lowering.checker,
 	)
-	ast.SetParentInChildren(result)
+	structuralBoundariesUsed := lowering.target != TargetServer &&
+		(partitionUsesStructuralBoundaries(lowering.partitionPlan) ||
+			containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker))
+	result := make([]*ast.Node, 0, len(groups))
+	for index, group := range groups {
+		if len(group.specifiers) == 0 {
+			if (index == 2 && (interopUsed || interactionUsed)) ||
+				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) ||
+				(group.module == "@exactjs/dom/runtime/modal" && modalBindingUsed) ||
+				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
+				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) {
+				declaration := lowering.factory.NewImportDeclaration(
+					nil,
+					nil,
+					lowering.factory.NewStringLiteral(group.module, ast.TokenFlagsNone),
+					nil,
+				)
+				ast.SetParentInChildren(declaration)
+				result = append(result, declaration)
+			}
+			continue
+		}
+		declaration := lowering.factory.NewImportDeclaration(
+			nil,
+			lowering.factory.NewImportClause(
+				ast.KindUnknown,
+				nil,
+				lowering.factory.NewNamedImports(
+					lowering.factory.NewNodeList(group.specifiers),
+				),
+			),
+			lowering.factory.NewStringLiteral(group.module, ast.TokenFlagsNone),
+			nil,
+		)
+		ast.SetParentInChildren(declaration)
+		result = append(result, declaration)
+	}
 	return result
+}
+
+func partitionUsesStructuralBoundaries(plan PartitionPlan) bool {
+	for _, node := range plan.Nodes {
+		if node.Kind == "readiness-boundary" ||
+			(node.Kind == "region" && node.Reason == "Activity retention boundary") {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCoreStructuralBoundaryImport(
+	root *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	for local, reference := range bindings.byName {
+		if reference.moduleSpecifier == "@exactjs/core" &&
+			(reference.exportName == "Activity" || reference.exportName == "Suspense") &&
+			containsIdentifier(root, local) {
+			return true
+		}
+	}
+	found := false
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
+			(reference.exportName == "Activity" || reference.exportName == "Suspense")
+		return !found
+	})
+	return found
+}
+
+func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
+	found := false
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(
+			node.AsCallExpression().Expression,
+			bindings,
+			typeChecker,
+		)
+		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
+			reference.exportName == "unsafeHtml"
+		return !found
+	})
+	return found
+}
+
+func containsComponentLocalizationUse(root *ast.Node) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		member := node.AsPropertyAccessExpression()
+		found = member.Expression.Kind == ast.KindThisKeyword && member.Name().Text() == "intl"
+		return !found
+	})
+	return found
+}
+
+func containsInteractionRuntimeUse(root *ast.Node) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsPropertyAssignment(node) {
+			return true
+		}
+		propertyName := node.AsPropertyAssignment().Name()
+		if !ast.IsIdentifier(propertyName) && !ast.IsStringLiteral(propertyName) {
+			return true
+		}
+		name := propertyName.Text()
+		found = jsxEventAttribute(name) || strings.HasPrefix(name, "__exactBind")
+		return !found
+	})
+	return found
 }
 
 func (lowering *jsxLowering) interopImport(root *ast.Node) *ast.Node {
@@ -6645,11 +7100,17 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	}
 	return jsxRuntimeNames{
 		element:                allocate("__exactVNode"),
+		componentElement:       allocate("__exactComponentVNode"),
 		renderProgram:          allocate("__exactRenderProgram"),
 		fragment:               allocate("__exactFragment"),
 		target:                 allocate("__exactTarget"),
 		expression:             allocate("__exactExpression"),
+		forwardedExpression:    allocate("__exactForwardedExpression"),
+		componentOutput:        allocate("__exactComponentOutput"),
 		dynamic:                allocate("__exactDynamic"),
+		dynamicComponent:       allocate("__exactDynamicComponent"),
+		serverDynamicComponent: allocate("__exactServerDynamicComponent"),
+		dynamicComponentValue:  allocate("__exactDynamicComponentValue"),
 		boundary:               allocate("__exactBoundary"),
 		finiteBoundary:         allocate("__exactFiniteBoundary"),
 		asyncSiblings:          allocate("__exactAsyncSiblings"),
@@ -6689,6 +7150,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		componentRegistry:      allocate("__exactComponentRegistry"),
 		enhancements:           allocate("__exactEnhancements"),
 		omitEnhancementProps:   allocate("__exactOmitEnhancementProps"),
+		componentLog:           allocate("__exactComponentLog"),
 		interop:                allocate("__exactInteropComponent"),
 	}
 }
@@ -6803,28 +7265,41 @@ func jsxCallbackExpression(node *ast.Node) bool {
 func normalizeJSXText(value string) string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
 	value = strings.ReplaceAll(value, "\r", "\n")
-	lines := strings.Split(value, "\n")
-	result := make([]string, 0, len(lines))
-	for index, line := range lines {
-		switch {
-		case len(lines) == 1:
-		case index == 0:
-			line = strings.TrimRightFunc(line, unicode.IsSpace)
-		case index == len(lines)-1:
-			line = strings.TrimLeftFunc(line, unicode.IsSpace)
-		default:
-			line = strings.TrimSpace(line)
-		}
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		result = append(result, html.UnescapeString(line))
+	if !strings.Contains(value, "\n") {
+		return html.UnescapeString(value)
 	}
-	if len(result) == 0 {
+	characters := []rune(value)
+	content := strings.Join(strings.Fields(value), " ")
+	if content == "" {
 		return ""
 	}
-	if len(lines) == 1 {
-		return result[0]
+	if unicode.IsSpace(characters[0]) {
+		content = " " + content
 	}
-	return strings.Join(result, " ")
+	if unicode.IsSpace(characters[len(characters)-1]) {
+		content += " "
+	}
+	return html.UnescapeString(content)
+}
+
+func normalizeJSXChildText(value string, index int, count int) string {
+	text := normalizeJSXText(value)
+	if strings.ContainsAny(value, "\r\n") {
+		if index == 0 {
+			text = strings.TrimLeftFunc(text, unicode.IsSpace)
+		}
+		if index == count-1 {
+			text = strings.TrimRightFunc(text, unicode.IsSpace)
+		}
+		if strings.HasPrefix(text, " ") {
+			trimmed := strings.TrimLeftFunc(text, unicode.IsSpace)
+			for _, first := range trimmed {
+				if strings.ContainsRune(".,;:!?%)]}»›。，、；：！？％）］｝", first) {
+					text = trimmed
+				}
+				break
+			}
+		}
+	}
+	return text
 }

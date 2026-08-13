@@ -17,7 +17,7 @@ The overlay implements the production compiler host:
 - eXact analysis, placement, policy, artifact partitioning, JSX and task
   lowering, generated validation, and statically linked extensions run against
   the native AST;
-- component setup placement excludes owned task bodies, while client task and
+- component initialization placement excludes owned task bodies, while client task and
   server continuation requirements still select dual artifacts and public
   resumption contracts;
 - files with an explicit foreign `@jsxImportSource` remain in their TypeScript

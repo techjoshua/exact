@@ -15,9 +15,9 @@ import {
 import { hydrateClientIslands } from '../islands.js';
 import { disposeInteractionHydration } from '../islands/interaction.js';
 import { applyPatches } from '../patches.js';
-import type { ExactClient, HydrateOptions, HydrationRoot } from '../types.js';
-import { invokeAndApply } from './operations.js';
+import type { CoreHydrationRoot, ExactClient, HydrateOptions } from '../types.js';
 import { createComponentResumptionResolver } from './resumption.js';
+import { invokeAndApply } from './operations.js';
 import { requestVersions, roots } from './state.js';
 
 const requestClients = new WeakMap<import('@exactjs/core').ComponentDomain, ExactClient>();
@@ -56,6 +56,14 @@ export function requestClientForComponentDomain(
 /** Creates an exact client. */
 export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
 	const resolvedOptions = resolveHydrateOptions(container, options);
+	return createExactClientFromResolvedOptions(container, resolvedOptions);
+}
+
+/** Creates a client from options already validated for this container by the hydration entry point. */
+export function createExactClientFromResolvedOptions(
+	container: Element,
+	resolvedOptions: HydrateOptions
+): ExactClient {
 	const lifetime = new AbortController();
 	const abortLifetime = () => lifetime.abort(resolvedOptions.signal?.reason);
 	if (resolvedOptions.signal?.aborted) abortLifetime();
@@ -207,6 +215,6 @@ export function remainingDomWork(work: DomWorkBudget): number {
 }
 
 /** Resolves a hydration root. */
-export function getHydrationRoot(container: Element): HydrationRoot | undefined {
+export function getHydrationRoot(container: Element): CoreHydrationRoot | undefined {
 	return roots.get(container);
 }

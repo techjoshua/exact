@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -15,6 +23,21 @@ import {
 type BunResolveHandler = Parameters<NonNullable<BunBuildLike['onResolve']>>[1];
 
 describe('@exactjs/bun-plugin', () => {
+	it('releases retained build resources through an idempotent terminal lifecycle', async () => {
+		const plugin = exact();
+
+		await plugin.dispose();
+		await plugin.dispose();
+
+		expect(() =>
+			plugin.setup({
+				config: {},
+				onResolve() {},
+				onLoad() {}
+			})
+		).toThrow('disposed eXact Bun plugin');
+	});
+
 	it('reports opt-in transform timings', () => {
 		const onProfile = vi.fn();
 
@@ -37,6 +60,17 @@ describe('@exactjs/bun-plugin', () => {
 			sources: ['/src/view.tsx'],
 			sourcesContent: ['const view = <span />;']
 		});
+	});
+
+	it('projects runtime contracts for client-only bundles', () => {
+		const result = transformExactBunSource(
+			`export function Counter() { return () => <button onClick={() => 1}>Count</button>; }`,
+			'/src/Counter.tsx',
+			{ renderMode: 'client' }
+		);
+
+		expect(result?.code).not.toContain('resumption:');
+		expect(result?.code).not.toContain('render: "returned-function"');
 	});
 
 	it('links attributed capabilities into the shared application-bundle catalog', () => {
@@ -175,6 +209,44 @@ describe('@exactjs/bun-plugin', () => {
 				onLoad() {}
 			})
 		).toThrow(/server-hmr-unsupported/);
+	});
+
+	it('directs configured remote producers to exactBuild before compilation', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-remote-coordinator-'));
+		let start!: () => void | Promise<void>;
+		try {
+			const scope = path.join(root, 'node_modules', '@exactjs');
+			mkdirSync(scope, { recursive: true });
+			symlinkSync(
+				path.resolve(import.meta.dirname, '../../../plugins/microfrontends'),
+				path.join(scope, 'microfrontends'),
+				'junction'
+			);
+			writeFileSync(
+				path.join(root, 'package.json'),
+				JSON.stringify({
+					name: '@fixture/direct-bun-remote',
+					private: true,
+					type: 'module',
+					dependencies: { '@exactjs/microfrontends': '^0.1.0' }
+				})
+			);
+			writeFileSync(
+				path.join(root, 'exact.config.mjs'),
+				`export default { plugins: { microfrontends(config) { config.exposes['./Area'] = { component: './src/Area.tsx' }; } } };\n`
+			);
+			exact({ applicationRoot: root }).setup({
+				config: {},
+				onResolve() {},
+				onLoad() {},
+				onStart(handler) {
+					start = handler;
+				}
+			});
+			await expect(start()).rejects.toThrow('must use exactBuild()');
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	it('does not commit authorization artifacts for a failed watch build', async () => {

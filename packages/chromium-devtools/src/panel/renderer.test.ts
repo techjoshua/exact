@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import type {
 	ExactInspectedRuntimeComponent,
-	ExactRuntimeInspectionEvent
+	ExactRuntimeInspectionEvent,
+	ExactTaskRuntimeSnapshot
 } from '@exactjs/devtools-protocol';
 import { describe, expect, it, vi } from 'vitest';
 import type { ExactDevtoolsPanelModel } from './model.js';
@@ -22,6 +23,150 @@ describe('Chromium panel presentation', () => {
 		expect(container.querySelectorAll('.instance-chip')).toHaveLength(0);
 		(container.querySelectorAll('.tree-node')[1] as HTMLButtonElement).click();
 		expect(selectComponent).toHaveBeenCalledWith(second.id);
+	});
+
+	it('collapses component branches independently and preserves them across updates', () => {
+		const parent = component('parent');
+		const child = { ...component('child'), parent: parent.id };
+		const container = document.createElement('main');
+		const actions = { selectComponent: vi.fn() };
+		renderExactComponentsView(container, panelModel([parent, child], parent), actions);
+
+		const branch = container.querySelector<HTMLElement>('[data-panel-collapse-key]')!;
+		const toggle = branch.querySelector<HTMLButtonElement>('[data-tree-disclosure]')!;
+		const children = branch.querySelector<HTMLElement>(':scope > .tree-children')!;
+		expect(toggle.getAttribute('aria-expanded')).toBe('true');
+		toggle.click();
+		expect(children.hidden).toBe(true);
+		expect(toggle.getAttribute('aria-label')).toContain('Expand');
+
+		renderExactComponentsView(container, panelModel([parent, child], parent), actions);
+		const updatedBranch = container.querySelector<HTMLElement>('[data-panel-collapse-key]')!;
+		expect(updatedBranch.dataset.panelExpanded).toBe('false');
+		expect(updatedBranch.querySelector<HTMLElement>(':scope > .tree-children')?.hidden).toBe(true);
+	});
+
+	it('shows compiler activation mode and fallback reasons for live partition ranges', () => {
+		const selected = component('first');
+		const container = document.createElement('main');
+		const model: ExactDevtoolsPanelModel = {
+			...panelModel([selected], selected),
+			partitions: [
+				{
+					executionRoot: 'page',
+					buildKey: 'build',
+					plan: 'edge',
+					ownerComponentId: 'component:Card',
+					discriminator: { kind: 'single' },
+					generation: 1,
+					host: 'server',
+					children: []
+				}
+			],
+			partitionPlans: [
+				{
+					version: 1,
+					buildKey: 'build',
+					roots: ['root'],
+					edges: [{ id: 'edge', child: 'region' }],
+					nodes: [
+						{
+							id: 'region',
+							activation: 'eager',
+							activationDecision: { reasons: [{ code: 'opaque-spread' }] }
+						}
+					]
+				}
+			]
+		};
+
+		renderExactComponentsView(container, model, { selectComponent: vi.fn() });
+		const partition = [...container.querySelectorAll('.tree-node')].at(-1)!;
+		expect(partition.textContent).toContain('eager');
+		expect(partition.getAttribute('title')).toContain('opaque-spread');
+	});
+
+	it('summarizes nested own properties and preserves explicit value expansion', () => {
+		const selected = {
+			...component('first'),
+			state: {
+				kind: 'object',
+				type: 'Object',
+				entries: [
+					{
+						key: 'profile',
+						value: {
+							kind: 'object',
+							type: 'Object',
+							entries: [
+								{ key: 'name', value: { kind: 'scalar', value: 'Ada' } },
+								{ key: 'active', value: { kind: 'scalar', value: true } }
+							],
+							truncated: false
+						}
+					}
+				],
+				truncated: false
+			}
+		} satisfies ExactInspectedRuntimeComponent;
+		const container = document.createElement('main');
+		const actions = { selectComponent: vi.fn() };
+		renderExactComponentsView(container, panelModel([selected], selected), actions);
+
+		const profile = container.querySelector<HTMLDetailsElement>('.preview-complex')!;
+		expect(profile.open).toBe(false);
+		expect(profile.querySelector('summary')?.textContent).toBe('{"name": "Ada", "active": true}');
+		profile.open = true;
+
+		renderExactComponentsView(container, panelModel([selected], selected), actions);
+		expect(container.querySelector<HTMLDetailsElement>('.preview-complex')?.open).toBe(true);
+	});
+
+	it('shows settled task history with collapsed argument and result details', () => {
+		const selected = component('first');
+		const task: ExactTaskRuntimeSnapshot = {
+			id: { ...selected.id, sourceEntityId: 'Card:task:load', generation: 3 },
+			name: 'Load card',
+			kind: 'task',
+			activation: 'invoked',
+			placement: 'server',
+			readiness: 'blocking',
+			priority: 'normal',
+			concurrency: 'latest',
+			status: 'settled',
+			generation: 3,
+			pending: 0,
+			foreground: false,
+			structuralPending: false,
+			optimistic: false,
+			startedAt: 10,
+			settledAt: 14,
+			arguments: {
+				kind: 'object',
+				type: 'Array',
+				entries: [{ key: '0', value: { kind: 'scalar', value: 'card-7' } }],
+				truncated: false
+			},
+			result: {
+				kind: 'object',
+				type: 'Object',
+				entries: [{ key: 'approved', value: { kind: 'scalar', value: true } }],
+				truncated: false
+			}
+		};
+		const container = document.createElement('main');
+		const model = { ...panelModel([selected], selected), tasks: [task] };
+
+		renderExactComponentsView(container, model, { selectComponent: vi.fn() });
+
+		const execution = container.querySelector<HTMLDetailsElement>('.task-execution')!;
+		expect(execution.open).toBe(false);
+		expect(execution.querySelector('summary')?.textContent).toContain('Load card');
+		expect(execution.querySelector('summary')?.textContent).toContain('settled');
+		expect(execution.textContent).toContain('Arguments');
+		expect(execution.textContent).toContain('["card-7"]');
+		expect(execution.textContent).toContain('Result');
+		expect(execution.textContent).toContain('{"approved": true}');
 	});
 
 	it('preserves component view position and disclosures across live updates', () => {
@@ -139,6 +284,7 @@ function panelModel(
 		sessionId: 'session',
 		components,
 		partitions: [],
+		partitionPlans: [],
 		selected,
 		state: { state: selected.state, props: selected.props },
 		contexts: [],

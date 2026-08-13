@@ -1,4 +1,10 @@
-import { unwrap, type ComponentInstance, type EnhancementEntry, type VNode } from '@exactjs/core';
+import {
+	isExactEnhancementPassThrough,
+	unwrap,
+	type ComponentInstance,
+	type EnhancementEntry,
+	type VNode
+} from '@exactjs/core';
 import {
 	createEffectScope,
 	scheduleWork,
@@ -66,7 +72,7 @@ export function activateEnhancementSubtree(
 		(left, right) => right.target.depth - left.target.depth
 	)) {
 		const active = group.entries.filter((entry) => {
-			if (root.enhancementCatalog?.has(entry.identity)) return true;
+			if (activeEnhancement(root, entry.identity)) return true;
 			reportUnavailable(root, entry.identity);
 			return false;
 		});
@@ -102,7 +108,7 @@ export function patchEnhancementBoundary(
 ): Mounted {
 	const state = mounted.enhancement!;
 	const local = new Map(
-		(next.enhancements?.entries ?? []).map((entry) => [entry.identity, entry] as const)
+		(next.enhancement?.entries ?? []).map((entry) => [entry.identity, entry] as const)
 	);
 	const entries = state.entries
 		.filter((entry) => state.inheritedIdentities.has(entry.identity) || local.has(entry.identity))
@@ -116,7 +122,7 @@ export function patchEnhancementBoundary(
 					})
 				: entry;
 		});
-	const active = entries.filter((entry) => root.enhancementCatalog?.has(entry.identity));
+	const active = entries.filter((entry) => activeEnhancement(root, entry.identity));
 	if (!active.length)
 		return deactivateEnhancementBoundary(
 			root,
@@ -341,7 +347,7 @@ function installEnhancementRouteWatch(
 			for (const [identity, values] of boundaries) {
 				for (const boundary of values) {
 					walkLogicalMounted(boundary, undefined, undefined, 0, (current) => {
-						for (const entry of current.vnode.enhancements?.entries ?? []) {
+						for (const entry of current.vnode.enhancement?.entries ?? []) {
 							if (entry.identity === identity && entry.root !== undefined) unwrap(entry.root);
 						}
 					});
@@ -390,12 +396,13 @@ function detachMounted(owner: Mounted | undefined, target: Mounted): boolean {
 
 function reportUnavailableDeclarations(root: Root, mounted: Mounted): void {
 	walkMounted(mounted, undefined, undefined, 0, (current) => {
-		for (const entry of current.vnode.enhancements?.entries ?? [])
+		for (const entry of current.vnode.enhancement?.entries ?? [])
 			reportUnavailable(root, entry.identity);
 	});
 }
 
 function reportUnavailable(root: Root, identity: string): void {
+	if (isExactEnhancementPassThrough(root.enhancementCatalog?.get(identity))) return;
 	root.unavailableEnhancements ??= new Set();
 	if (root.unavailableEnhancements.has(identity)) return;
 	root.unavailableEnhancements.add(identity);
@@ -404,4 +411,9 @@ function reportUnavailable(root: Root, identity: string): void {
 		message: `Optional renderer enhancement "${identity}" is unavailable`,
 		scope: { source: 'framework', packageName: '@exactjs/dom', category: 'enhancement' }
 	});
+}
+
+function activeEnhancement(root: Root, identity: string): boolean {
+	const component = root.enhancementCatalog?.get(identity);
+	return component !== undefined && !isExactEnhancementPassThrough(component);
 }

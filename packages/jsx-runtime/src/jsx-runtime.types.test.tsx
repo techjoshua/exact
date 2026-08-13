@@ -1,9 +1,11 @@
 /** @jsxImportSource @exactjs/jsx */
 import {
+	Activity,
 	createComponentRegistry,
 	createRef,
 	getCellVNode,
 	isCellVNode,
+	Suspense,
 	type Component,
 	type RefBinding
 } from '@exactjs/core';
@@ -53,6 +55,11 @@ describe('@exactjs/jsx types', () => {
 
 		const vnode = (
 			<section className="panel" className:active={true} data-kind="example">
+				<Suspense fallback={<span>Loading</span>}>
+					<Activity mode="active">
+						<span>Ready</span>
+					</Activity>
+				</Suspense>
 				<Label text="Save">
 					<button
 						ref={ref}
@@ -94,6 +101,6 @@ describe('@exactjs/jsx types', () => {
 		if (!isCellVNode(vnode)) throw new Error('Expected cell vnode');
 		const inner = getCellVNode(vnode);
 		expect(inner.type).toBe('section');
-		expect(inner.children).toHaveLength(8);
+		expect(inner.children).toHaveLength(9);
 	});
 });

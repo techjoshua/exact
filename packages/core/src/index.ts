@@ -1,4 +1,12 @@
 export {
+	adoptElementId,
+	attachElementIdentity,
+	ensureElementId,
+	reserveElementId,
+	reservedElementId,
+	resolveElementId
+} from './component/element-identity.js';
+export {
 	batch,
 	computed,
 	decodeReactiveProtocolValue,
@@ -27,6 +35,13 @@ export {
 	type CleanupFailure
 } from './cleanup.js';
 export { normalizeActivityMode } from './activity.js';
+export { LocalizationContext } from './localization/context.js';
+export { intl } from './localization/facade.js';
+export type {
+	IntlDurationFormatter,
+	IntlFacade,
+	LocalizationContextValue
+} from './localization/contracts.js';
 export { isFiniteClientBoundary, markFiniteClientBoundary } from './hydration-boundary.js';
 export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from './ssr-independence.js';
 export {
@@ -38,6 +53,7 @@ export { observeComponentAsync, trackComponentAsync } from './component/async.js
 export {
 	currentInteraction,
 	runComponentInteraction,
+	traceInteractionPhase,
 	type InteractionPriority,
 	type InteractionScope,
 	type InteractionSource
@@ -116,6 +132,7 @@ export type {
 	ComponentDomainIdentity,
 	DirectComponentFunction,
 	ComponentFunction,
+	CompiledEnhancementNode,
 	EnhancementEntry,
 	EnhancementMarker,
 	ComponentInstance,
@@ -153,16 +170,42 @@ export type {
 	VNodeCell,
 	VNodeType
 } from './component/contracts.js';
+export { createDynamicComponent } from './dynamic-component/creation.js';
+export type {
+	DynamicComponentArtifact,
+	DynamicComponentCandidate,
+	DynamicComponentInspection,
+	DynamicComponentResolution,
+	DynamicComponentResolver,
+	DynamicComponentStatus
+} from './dynamic-component/contracts.js';
 export {
+	createEnhancementNode,
 	createEnhancementMarker,
+	exactEnhancementPassThrough,
 	exactEnhancementContexts,
+	isExactEnhancementPassThrough,
 	markExactEnhancementContexts,
 	omitKnownProps,
 	readExactEnhancementContexts,
 	type EnhancementContextContract
 } from './enhancements.js';
 export { bindTask, bindTaskForHost, defineTask, invokeTask, taskStatus } from './tasks/runtime.js';
-export { activateTask, activateTaskForHost } from './tasks/activation.js';
+export {
+	activateTask,
+	activateTaskForHost,
+	activateTaskFromDependenciesForHost
+} from './tasks/activation.js';
+export {
+	activationInputDependency,
+	plannedContinuationDependency,
+	constantContinuationDependency,
+	createContinuationDependencySlot,
+	type ContinuationDependencySlot,
+	type ContinuationDependencySnapshot,
+	type ContinuationDependencySource
+} from './tasks/dependency-source.js';
+export { componentExecutionValueForHost } from './tasks/component-execution.js';
 export { createTaskOwner } from './tasks/owners.js';
 export {
 	bindTaskCallback,
@@ -203,6 +246,7 @@ export {
 	markExactComponent,
 	readExactComponentContract,
 	type ExactComponentBoundaryContract,
+	type ExactCompiledComponentDefinitionContract,
 	type ExactCollectionMutation,
 	type ExactComponentContinuationActivation,
 	type ExactComponentContinuationContract,
@@ -210,6 +254,7 @@ export {
 	type ExactComponentContinuationExecutionResult,
 	type ExactComponentContinuationExecutorContract,
 	type ExactComponentContract,
+	type ExactComponentExecutionContract,
 	type ExactComponentImplementationContract,
 	type ExactComponentResumptionContract,
 	type ExactComposedComponentContracts,
@@ -243,6 +288,7 @@ export {
 	ServerSlot,
 	Suspense,
 	Target,
+	TargetOverrides,
 	Text,
 	UnsafeHtml
 } from './symbols.js';
@@ -253,7 +299,8 @@ export {
 	type ExactRenderProgram,
 	type ExactRenderProgramInvocation,
 	type ExactRenderProgramNode,
-	type ExactRenderProgramSlot
+	type ExactRenderProgramSlot,
+	type ExactRenderProgramSsrOperation
 } from './render-program.js';
 export { withTaskObserver } from './tasks/observers.js';
 export {
@@ -261,7 +308,6 @@ export {
 	settledComponentContinuationIds
 } from './tasks/component-continuation.js';
 export {
-	createDerived,
 	discardTaskMutations,
 	mutateTaskCollection,
 	ownTaskResource,
@@ -277,6 +323,7 @@ export {
 	taskObserver,
 	taskTimeout
 } from './tasks/resources.js';
+export { createDerived } from './component/derived.js';
 export {
 	combineTaskSignal,
 	withAbortSignal,
@@ -287,10 +334,12 @@ export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './
 export {
 	createCellVNode,
 	createCompiledFragment,
+	createCompiledComponentVNode,
 	createCompiledTarget,
 	createCompiledVNode,
 	createDynamicChild,
 	createExpression,
+	createForwardedExpression,
 	createPortal,
 	createServerBoundary,
 	createServerSlot,

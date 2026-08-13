@@ -5,16 +5,32 @@ import type {
 	ExactSourceInspection,
 	ExactSourceRange
 } from '@exactjs/compiler';
+import type { ExactLanguageProviderStatus } from '@exactjs/language-extension-host';
 
 /** Initialization options understood by the eXact language server. */
 export type ExactLanguageServerInitializationOptions = Readonly<{
 	workspaceTrusted?: boolean;
 	trace?: 'off' | 'messages' | 'verbose';
+	inlayHints?: 'off' | 'important' | 'all';
 }>;
 
 /** Parameters for the structured component-semantics request. */
 export type ExactComponentSemanticsParams = Readonly<{
 	textDocument: Readonly<{ uri: string }>;
+}>;
+
+/** Parameters for source decorations that expose provider inference evidence. */
+export type ExactInferenceDecorationsParams = ExactComponentSemanticsParams;
+
+/** Versioned provider evidence rendered as unobtrusive source decorations. */
+export type ExactInferenceDecorationsResult = Readonly<{
+	version: number;
+	decorations: readonly Readonly<{
+		range: ExactSourceRange;
+		kind: string;
+		hover: string;
+		provider: string;
+	}>[];
 }>;
 
 /** Parameters for resolving the explanation behind one compiler entity. */
@@ -50,4 +66,6 @@ export type ExactProjectStatusResult = Readonly<{
 	trusted: boolean;
 	project?: ExactSourceInspection['project'];
 	compiler?: ExactSourceInspection['compiler'];
+	providers?: readonly ExactLanguageProviderStatus[];
+	providerFailure?: string;
 }>;

@@ -3,19 +3,21 @@
 ## Status
 
 Implemented. Compiler-finite intrinsic regions now use branded, revision-cached programs across
-markerless SSR, DOM mounting, patching, and markerless hydration. The executor covers HTML, SVG,
-MathML, scalar text, finite properties and attributes, classes, styles, URLs, ordinary form
-controls, events, and refs by reusing the generic host operations. Program roots participate in
-component-root publication and release static as well as reactive host ownership. Marker-bearing,
-structural, enhancement-routed, opaque-spread, raw-content, and otherwise unproven regions retain
-the region-local generic fallback by design; no partially supported host semantics remain.
+marker-bearing and markerless SSR, DOM mounting, patching, and markerless hydration. Server
+artifacts alone carry the compact operation sequence needed to reproduce nested cell and dynamic
+markers without materializing a fallback tree. The executor covers HTML, SVG, MathML, scalar text,
+finite properties and attributes, classes, styles, URLs, ordinary form controls, events, and refs
+by reusing the generic host operations. Program roots participate in component-root publication
+and release static as well as reactive host ownership. Structural, enhancement-routed,
+opaque-spread, raw-content, and otherwise unproven regions retain the region-local generic fallback
+by design; no partially supported host semantics remain.
 
 This proposal implements the accepted render-plan experiment in
 [`javascript-performance-improvements.md`](javascript-performance-improvements.md). It follows the
 delivered component, enhancement, binding, partition, and component-library trust contracts. It
-must land before bounded async SSR, compact hydration publication, lazy interaction islands,
-structural refresh, partial-prerender resumption, or final adapter parity consumes render-slot
-identity.
+must land before bounded async SSR, compact hydration publication, lazy interaction islands, final
+adapter parity, or any measured structural refresh extension
+consumes render-slot identity.
 
 ## Decision
 
@@ -102,6 +104,11 @@ writer. It applies the existing DOM property/attribute, URL, style, namespace, r
 output-limit, React-markup, and resource-hint rules. Byte accounting occurs as chunks are encoded;
 the executor does not build a VNode tree or encode a completed string solely to measure it.
 
+For hydratable output, server artifacts interleave immutable strings with node-open, node-close,
+and slot operations. Runtime cell numbers remain request-local, while text slots use their stable
+compiler marker identities. Client artifacts omit this server-only sequence. Unsupported metadata
+still fails closed to the region-local fallback before output is published.
+
 Synchronous and asynchronous SSR use the same program and slot identities. Async components still
 stabilize their task-owned state before publication. A slot read that suspends, throws, changes
 shape, or violates its declared kind transfers control to the owning generic fallback before that
@@ -182,6 +189,25 @@ August 6, 2026 tracked five-process run measured a 19.79x median CPU improvement
 focused peak heap from 12,456,752 to 115,512 bytes. Client mount and hydration
 must improve or remain within 3% of generic medians for each newly eligible category; raw, gzip,
 Brotli, startup, update, and retained-heap counter-metrics are mandatory.
+
+The August 10, 2026 shipping production profile measured 1,000 requests after 300 warmups. Direct
+marker programs, rope-preserving bounded output, declarative-collection wrapper elision, and the
+finite synchronous branch fast path reduced sampled transient allocation from approximately 8.58
+MB to 3.92 MB per request while retaining production markers. The opt-in fixture guard uses a
+broader 5.5 MiB ceiling because allocation sampling varies by engine and environment.
+
+The subsequent Node transport pass made the settled response body single-consumer and its Web
+stream representation lazy. A production-shaped 200-request sample after 100 warmups, using the
+direct Node writer, measured 3.48 MB per request. That removed another approximately 413 KB per
+request relative to the preceding 3.89 MB same-machine sample while preserving native
+backpressure and Fetch-compatible stream access.
+
+The follow-up completion retained ordered renderer chunks through the Node handoff, made public
+string materialization lazy, replaced final `TextEncoder` validation with incremental exact UTF-8
+accounting, and removed request-time key/entry/pair arrays from native and React-compatible
+attribute and style traversal. The same shipping allocation fixture measured approximately 3.45
+MB per request during the initial pass and 3.43 MB after eliminating per-chunk promise creation on
+the normal Node write path.
 
 ## Acceptance criteria
 

@@ -13,6 +13,12 @@ import type { Mounted } from './types.js';
 /** Stops mounted children that cannot be reused by an upcoming replacement patch. */
 export function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): void {
 	const nextVNodes = childrenToVNodes(nextChildren);
+	if (
+		mounted.children.length === 1 &&
+		nextVNodes.length === 1 &&
+		canPatchMounted(mounted.children[0]!, nextVNodes[0]!)
+	)
+		return;
 
 	const plan = planChildReconciliation(mounted.children, nextVNodes);
 	for (let index = 0; index < plan.matches.length; index++) {

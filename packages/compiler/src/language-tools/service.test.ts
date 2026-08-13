@@ -233,9 +233,9 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 	}));
 	return {
 		id: filename,
-		protocolVersion: '1.28.0',
+		protocolVersion: '1.34.0',
 		typescriptVersion: '7.0.0',
-		backendVersion: '1.28.0',
+		backendVersion: '1.34.0',
 		diagnostics: [],
 		analysis: {
 			imports: [],
@@ -255,7 +255,8 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 					clientIslandCount: 0,
 					contexts: [],
 					splitBoundaries: [],
-					diagnostics: []
+					diagnostics: [],
+					execution: { version: 1, ports: [], transitions: [], reactive: [] }
 				}
 			],
 			jsx: [],

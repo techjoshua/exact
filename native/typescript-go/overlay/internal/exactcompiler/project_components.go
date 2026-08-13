@@ -168,12 +168,14 @@ func linkProjectComponents(
 						}
 						return true
 					}
-					appendComponentDiagnostic(
-						&record.component,
-						"error: JSX tag "+
-							strings.TrimSpace(sourceText(record.sourceFile, tag))+
-							" resolves to variable, not a runtime component",
-					)
+					if scalarDerivedType(typeChecker.GetTypeAtLocation(tag)) {
+						appendComponentDiagnostic(
+							&record.component,
+							"error: JSX component-position value is not callable or constructable and cannot be a dynamic component",
+						)
+					}
+					// Other TypeScript-valid local values are open dynamic boundaries.
+					// Shared analysis reports their acknowledgement warning.
 					return true
 				}
 				bindings := importBindingsBySource[record.sourceFile]

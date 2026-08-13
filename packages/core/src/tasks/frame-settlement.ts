@@ -22,7 +22,7 @@ export function waitForTaskFrameSettlement(frame: TaskFrameRecord): Promise<void
 export async function settleTaskFrameChildren(frame: TaskFrameRecord): Promise<void> {
 	let primary: unknown;
 	let failed = false;
-	while (frame.children.size) {
+	while (frame.children?.size) {
 		const results = await Promise.allSettled([...frame.children]);
 		for (const result of results) {
 			if (result.status === 'fulfilled' || failed) continue;
@@ -36,7 +36,7 @@ export async function settleTaskFrameChildren(frame: TaskFrameRecord): Promise<v
 /** Runs frame-owned cleanup in last-in-first-out order and reports its first failure. */
 export async function runTaskFrameCleanups(frame: TaskFrameRecord): Promise<void> {
 	let primary: unknown;
-	for (const cleanup of frame.cleanups.reverse()) {
+	for (const cleanup of frame.cleanups?.reverse() ?? []) {
 		try {
 			await cleanup();
 		} catch (error) {

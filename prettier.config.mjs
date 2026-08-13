@@ -1,5 +1,6 @@
 /** @type {import('prettier').Config} */
 const config = {
+	plugins: ['prettier-plugin-svelte'],
 	useTabs: true,
 	tabWidth: 2,
 	trailingComma: 'none',

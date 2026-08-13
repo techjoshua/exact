@@ -7,6 +7,7 @@ import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import { fade, pop } from '@exactjs/motion/presets';
 import { SudokuContext } from '../context.js';
 import { arePeers } from '../game-engine.js';
+import { formatElapsed } from '../presentation.js';
 import type { Digit, SudokuCell } from '../types.js';
 
 const rows = [0, 1, 2, 3, 4, 5, 6, 7, 8];
@@ -14,22 +15,27 @@ const noteDigits: readonly Digit[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 type SudokuGridProps = {
 	cells: SudokuCell[];
-	selectedIndex: number;
-	selectedDigit?: Digit;
+	selection: { index: number; digit?: Digit };
 	conflicts: number[];
 	paused: boolean;
 	complete: boolean;
+	elapsedSeconds: number;
 };
 
 /** Renders the stable accessible board and its derived cell relationships. */
 export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 	const game = this.getContext(SudokuContext);
-	const selectedValue = props.selectedDigit ?? props.cells[props.selectedIndex]?.value;
+	const selectedValue =
+		props.selection.digit ??
+		(props.selection.index < 0 ? undefined : props.cells[props.selection.index]?.value);
 
 	return () => (
 		<div className="board-frame" className:is-complete={props.complete}>
 			<div
-				className="sudoku-board"
+				className={[
+					'sudoku-board',
+					selectedValue === undefined ? '' : `selected-digit-${selectedValue}`
+				]}
 				className:is-paused={props.paused}
 				role="grid"
 				aria-label="Sudoku puzzle"
@@ -41,20 +47,7 @@ export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 						{props.cells
 							.filter((cell) => cell.row === row)
 							.map((cell) => (
-								<CellButton
-									cell={cell}
-									selected={props.selectedDigit === undefined && cell.index === props.selectedIndex}
-									peer={
-										props.selectedDigit === undefined && arePeers(cell.index, props.selectedIndex)
-									}
-									matching={
-										selectedValue !== undefined &&
-										(cell.value === selectedValue || cell.notes.includes(selectedValue))
-									}
-									matchingDigit={selectedValue}
-									conflict={props.conflicts.includes(cell.index)}
-									paused={props.paused}
-								/>
+								<CellButton cell={cell} grid={props} />
 							))}
 					</div>
 				))}
@@ -74,7 +67,9 @@ export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 				<div className="victory-banner" role="status" motion:apply={pop}>
 					<span className="victory-mark">✦</span>
 					<strong>Beautifully solved</strong>
-					<small>Every row, column and house is complete.</small>
+					<small>
+						Every row, column and house is complete in {formatElapsed(props.elapsedSeconds)}.
+					</small>
 					<button type="button" onClick={() => game.newGame()}>
 						Start a new puzzle
 					</button>
@@ -86,21 +81,23 @@ export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 
 type CellButtonProps = {
 	cell: SudokuCell;
-	selected: boolean;
-	peer: boolean;
-	matching: boolean;
-	matchingDigit?: Digit;
-	conflict: boolean;
-	paused: boolean;
+	grid: SudokuGridProps;
 };
 
 /** Renders one stable grid cell with value, notes, and accessible state. */
 function CellButton(this: Component<{}>, props: CellButtonProps) {
 	const game = this.getContext(SudokuContext);
+	const selected =
+		props.grid.selection.digit === undefined && props.cell.index === props.grid.selection.index;
+	const peer =
+		props.grid.selection.digit === undefined &&
+		props.grid.selection.index >= 0 &&
+		arePeers(props.cell.index, props.grid.selection.index);
+	const conflict = props.grid.conflicts.includes(props.cell.index);
 	let suppressClickUntil = 0;
 
 	function eraseHeldCell(sample: GestureSample) {
-		if (props.cell.given || props.paused) return;
+		if (props.cell.given || props.grid.paused) return;
 		suppressClickUntil = performance.now() + 500;
 		sample.originalEvent.preventDefault();
 		game.erase(props.cell.index);
@@ -125,38 +122,48 @@ function CellButton(this: Component<{}>, props: CellButtonProps) {
 		game.select(props.cell.index);
 	};
 
+	const toggleSelectedNote = (event: PointerEvent) => {
+		if (event.pointerType !== 'mouse' || event.button !== 2) return;
+		event.preventDefault();
+		if (props.cell.given || props.grid.paused) return;
+		game.toggleNote(props.cell.index);
+	};
+
+	const suppressContextMenu = (event: MouseEvent) => {
+		if (event.button === 2) event.preventDefault();
+	};
+
 	return () => (
 		<button
 			type="button"
 			role="gridcell"
 			className="sudoku-cell"
 			className:is-given={props.cell.given}
-			className:is-selected={props.selected}
-			className:is-peer={props.peer}
-			className:is-matching={props.matching}
-			className:is-conflict={props.conflict}
-			aria-label={cellLabel(props.cell, props.conflict)}
-			aria-selected={props.selected}
-			disabled={props.paused}
-			tabIndex={props.selected ? 0 : -1}
+			className:has-value={props.cell.value !== undefined}
+			className:is-selected={selected}
+			className:is-peer={peer}
+			className:is-conflict={conflict}
+			data-value={props.cell.value}
+			data-notes={props.cell.notes.join(' ')}
+			aria-label={cellLabel(props.cell, conflict)}
+			aria-selected={selected}
+			disabled={props.grid.paused}
+			tabIndex={selected ? 0 : -1}
 			onClick={selectCell}
+			onPointerDown={toggleSelectedNote}
+			onContextMenu={suppressContextMenu}
 			gesture:apply={eraseOnHold}
 		>
-			{props.cell.value !== undefined ? (
-				<span className="cell-value">{props.cell.value}</span>
-			) : (
-				<span className="cell-notes" aria-hidden="true">
-					{noteDigits.map((digit) => (
-						<span
-							className:is-note-match={
-								props.cell.notes.includes(digit) && digit === props.matchingDigit
-							}
-						>
-							{props.cell.notes.includes(digit) ? digit : ''}
-						</span>
-					))}
-				</span>
-			)}
+			<span className="cell-value" aria-hidden="true">
+				{props.cell.value ?? ''}
+			</span>
+			<span className="cell-notes" aria-hidden="true">
+				{noteDigits.map((digit) => (
+					<span className:is-note={props.cell.notes.includes(digit)} data-digit={digit}>
+						{props.cell.notes.includes(digit) ? digit : ''}
+					</span>
+				))}
+			</span>
 		</button>
 	);
 }

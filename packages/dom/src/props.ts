@@ -7,10 +7,12 @@ import {
 	observeComponentAsync,
 	sanitizeUrlAttribute,
 	UnsafeHtml,
+	attachElementIdentity,
+	type RefBinding,
 	type StopHandle,
 	unwrap
 } from '@exactjs/core';
-import type { EffectScope } from '@exactjs/reactive';
+import { isReactiveValue, type EffectScope } from '@exactjs/reactive';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {
@@ -20,6 +22,7 @@ import {
 	runEventInteraction
 } from './events.js';
 import { preserveFocus } from './focus.js';
+import { getModalBindingCapability } from './modal/capability.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
 import { bindStyle } from './style.js';
@@ -31,9 +34,10 @@ export function updateProps(
 	element: Element,
 	previous: Record<string, unknown>,
 	next: Record<string, unknown>,
-	scope: EffectScope
+	scope: EffectScope,
+	preserveUserFocus = true
 ): void {
-	preserveFocus(root, () => {
+	const apply = () => {
 		for (const key of Object.keys(previous)) {
 			if (!(key in next)) setProp(root, element, key, undefined, previous[key], scope);
 		}
@@ -42,7 +46,9 @@ export function updateProps(
 			if (!Object.is(previous[key], value))
 				setProp(root, element, key, value, previous[key], scope);
 		}
-	});
+	};
+	if (preserveUserFocus) preserveFocus(root, apply);
+	else apply();
 }
 
 /** Stops reactive prop bindings and removes delegated event handlers for an element. */
@@ -66,7 +72,9 @@ export function synchronizeFormBinding(element: Element): boolean {
 	const entry =
 		entries?.get('__exactBindInput') ??
 		entries?.get('__exactBindChange') ??
-		entries?.get('__exactBindToggle');
+		entries?.get('__exactBindToggle') ??
+		entries?.get('__exactBindModalToggle') ??
+		entries?.get('__exactBindModalClose');
 	if (!entry) return false;
 	const event = new Event(entry.type, { bubbles: false, cancelable: false });
 	Object.defineProperties(event, {
@@ -98,19 +106,44 @@ function setProp(
 		if (previous && previous !== value) {
 			(previous as { fulfill(value: unknown): void }).fulfill(undefined);
 		}
+		if (value) attachElementIdentity(value as RefBinding<unknown>, element);
 		(value as { fulfill(value: unknown): void } | undefined)?.fulfill(element);
 		return;
 	}
 
-	if (key === '__exactBindInput' || key === '__exactBindChange' || key === '__exactBindToggle') {
+	if (
+		key === '__exactBindInput' ||
+		key === '__exactBindChange' ||
+		key === '__exactBindToggle' ||
+		key === '__exactBindModalToggle' ||
+		key === '__exactBindModalClose'
+	) {
 		setDirectEventHandler(
 			root,
 			element,
 			key,
-			key === '__exactBindInput' ? 'input' : key === '__exactBindToggle' ? 'toggle' : 'change',
+			key === '__exactBindInput'
+				? 'input'
+				: key === '__exactBindToggle' || key === '__exactBindModalToggle'
+					? 'toggle'
+					: key === '__exactBindModalClose'
+						? 'close'
+						: 'change',
 			value,
 			false
 		);
+		return;
+	}
+
+	if (key === '__exactModalOpen') {
+		if (value === undefined) return;
+		const capability = getModalBindingCapability();
+		if (!capability)
+			throw new Error(
+				'Modal binding is unavailable because this artifact did not include the modal capability'
+			);
+		const stop = capability.bind(element, value, scope, () => releasePropBinding(element, key));
+		if (stop) setPropBinding(element, key, stop);
 		return;
 	}
 
@@ -147,28 +180,44 @@ function setProp(
 	}
 
 	clearPropBinding(element, key);
+	if (!propMayObserveReactiveValue(key, value)) {
+		applyPropValue(root, element, key, value);
+		return;
+	}
 	const stop = watchRetained(
-		() =>
-			preserveFocus(root, () => {
-				const actual = unwrap(value);
-
-				if (actual === false || actual === null || actual === undefined) {
-					clearDomProp(element, key);
-					return;
-				}
-
-				const normalized =
-					key === 'srcdoc' || key === 'srcDoc'
-						? unsafeHtmlAttribute(root, actual)
-						: key === 'class' || key === 'className'
-							? normalizeClassValue(actual)
-							: actual;
-				setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
-			}),
+		() => preserveFocus(root, () => applyPropValue(root, element, key, value)),
 		undefined,
 		{ scope, onRelease: () => releasePropBinding(element, key) }
 	);
 	if (stop) setPropBinding(element, key, stop);
+}
+
+/** Applies one ordinary prop after the caller has selected static or observed execution. */
+function applyPropValue(root: Root, element: Element, key: string, value: unknown): void {
+	const actual = unwrap(value);
+	if (actual === false || actual === null || actual === undefined) {
+		clearDomProp(element, key);
+		return;
+	}
+	const normalized =
+		key === 'srcdoc' || key === 'srcDoc'
+			? unsafeHtmlAttribute(root, actual)
+			: key === 'class' || key === 'className'
+				? normalizeClassValue(actual)
+				: actual;
+	setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
+}
+
+/** Reports props whose supported value shape can contain compiler reactive expressions. */
+function propMayObserveReactiveValue(key: string, value: unknown): boolean {
+	if (isReactiveValue(value)) return true;
+	if (key === 'class' || key === 'className') return typeof value === 'object' && value !== null;
+	return (
+		(key === 'srcdoc' || key === 'srcDoc') &&
+		isVNode(value) &&
+		value.type === UnsafeHtml &&
+		isReactiveValue(value.props.value)
+	);
 }
 
 function setDirectEventHandler(
@@ -257,10 +306,10 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 
 	if (property === 'defaultValue' && isFocusedTextControl(element)) {
 		if (root)
-			domDebug(root, 'skip focused defaultValue', {
+			domDebug(root, 'skip focused defaultValue', () => ({
 				element: describeNode(element),
 				value
-			});
+			}));
 		return;
 	}
 
@@ -289,12 +338,12 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 
 			if (property === 'value' || property === 'defaultValue') {
 				if (root)
-					domDebug(root, 'set form value prop', {
+					domDebug(root, 'set form value prop', () => ({
 						element: describeNode(element),
 						property,
 						active: describeNode(document.activeElement),
 						value
-					});
+					}));
 			}
 			record[property] = value;
 			syncBooleanAttribute(element, property, value);
@@ -338,7 +387,9 @@ function clearDomProp(element: Element, key: string): void {
 }
 
 function normalizePropName(key: string): string {
-	return key === 'className' ? 'class' : key;
+	if (key === 'className') return 'class';
+	if (key === 'commandFor') return 'commandfor';
+	return key;
 }
 
 function isFocusedTextControl(element: Element): boolean {

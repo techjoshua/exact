@@ -60,8 +60,9 @@ func analyzeComponentBindings(
 			name := attribute.Name().AsJsxNamespacedName()
 			valueProp, callbackProp := name.Namespace.Text(), name.Name().Text()
 			members := enhancements.applications[attributes.Pos()].attributes[property.Pos()]
+			analysisFields := enhancements.analysisFields[property]
 			if reason != "" {
-				if len(members) != 0 {
+				if len(members) != 0 || len(analysisFields) != 0 {
 					continue
 				}
 				diagnostics = append(diagnostics, componentBindingDiagnostic(property, reason))
@@ -78,21 +79,24 @@ func analyzeComponentBindings(
 				typeChecker,
 			)
 			if diagnostic != "" {
-				if len(members) != 0 {
+				if len(members) != 0 || len(analysisFields) != 0 {
 					continue
 				}
 				diagnostics = append(diagnostics, componentBindingDiagnostic(property, diagnostic))
 				continue
 			}
-			if len(members) != 0 {
-				identities := make([]string, 0, len(members))
+			if len(members) != 0 || len(analysisFields) != 0 {
+				identities := make([]string, 0, len(members)+len(analysisFields))
 				for _, member := range members {
 					identities = append(identities, member.identity)
+				}
+				for _, field := range analysisFields {
+					identities = append(identities, field.identity)
 				}
 				diagnostics = append(diagnostics, componentBindingDiagnostic(
 					property,
 					fmt.Sprintf(
-						"%s:%s is ambiguous between component props %s and %s and enhancement member(s) on %s; expand the binding into explicit props or rename the enhancement namespace",
+						"%s:%s is ambiguous between component props %s and %s and enhancement field(s) on %s; expand the binding into explicit props or rename the enhancement namespace",
 						valueProp,
 						callbackProp,
 						valueProp,

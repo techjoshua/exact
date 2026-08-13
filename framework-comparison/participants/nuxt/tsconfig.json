@@ -1,0 +1,4 @@
+{
+	"extends": "./.nuxt/tsconfig.json",
+	"exclude": [".output", "node_modules", "../sveltekit", "../exact", "../react"]
+}

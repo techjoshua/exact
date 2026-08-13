@@ -8,12 +8,10 @@ import {
 	Target,
 	Text,
 	UnsafeHtml,
-	createComponentInstance,
 	getCellVNode,
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
-	readExactComponentContract,
 	renderInstance,
 	type VNode
 } from '@exactjs/core';
@@ -32,8 +30,9 @@ import {
 	assertOutputCharacterBound,
 	boundedJoin,
 	countSsrNode,
+	enterSsrTreeDepth,
 	isSsrRenderLimitError,
-	withSsrTreeDepth
+	leaveSsrTreeDepth
 } from '../render/limits.js';
 import type { Child, ComponentFunction, ComponentInstance, SsrContext } from '../types.js';
 import { handleSsrConstructionError } from './construction-errors.js';
@@ -63,6 +62,10 @@ import {
 	renderUnsafeHtml
 } from './host.js';
 import { renderNativeSuspenseSync } from './native-boundaries.js';
+import {
+	createSsrComponentInstance,
+	resolveSsrComponentExecution
+} from './root-execution-cache.js';
 import { activateSsrEnhancements } from './enhancements.js';
 import * as syncComponents from './sync-component.js';
 import { applySsrTargetContributions } from './target-contributions.js';
@@ -99,7 +102,7 @@ export function* renderVNodeChunks(
 		yield* marked(id, () => renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1));
 		return;
 	}
-	const programChunks = renderSsrProgramChunks(context, vnode, (fallback) =>
+	const programChunks = renderSsrProgramChunks(context, vnode, parent, (fallback) =>
 		renderVNodeChunks(context, fallback, parent, depth + 1)
 	);
 	if (programChunks) {
@@ -180,9 +183,8 @@ export function* renderVNodeChunks(
 	if (vnode.type === Dynamic) {
 		const id = dynamicMarkerId(context, vnode);
 		yield* marked(id, function* () {
-			for (const child of resolveSsrDynamicChildren(context, vnode)) {
+			for (const child of resolveSsrDynamicChildren(context, vnode))
 				yield* renderChildChunks(context, child, parent, depth + 1);
-			}
 		});
 		return;
 	}
@@ -205,6 +207,7 @@ export function* renderVNodeChunks(
 		return;
 	}
 	if (typeof vnode.type === 'function') {
+		const blueprint = resolveSsrComponentExecution(context, vnode.type);
 		const componentId = componentMarkerId(context, vnode);
 		const enhancement = context.enhancementVNodes.has(vnode);
 		let childParent = parent;
@@ -218,12 +221,12 @@ export function* renderVNodeChunks(
 		} else
 			try {
 				componentProps = getComponentProps(vnode);
-				const instance = createComponentInstance(
+				const instance = createSsrComponentInstance(
+					context,
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					componentProps,
 					parent,
-					context.componentContexts,
-					context.componentDomain
+					blueprint
 				);
 				context.onComponentCreated?.(instance);
 				childParent = instance;
@@ -243,11 +246,7 @@ export function* renderVNodeChunks(
 			yield* rendered();
 		} else if (context.documentProbe && context.hostStack.length === 0) {
 			yield* syncComponents.renderRootComponentChunks(context, componentId, rendered());
-		} else if (
-			parent &&
-			typeof vnode.type === 'function' &&
-			readExactComponentContract(vnode.type)?.resumption
-		) {
+		} else if (parent && typeof vnode.type === 'function' && blueprint.contract?.resumption) {
 			yield renderResumableComponentBoundary(
 				context,
 				vnode,
@@ -262,8 +261,7 @@ export function* renderVNodeChunks(
 	}
 
 	const host = enterHost(context, vnode);
-	const hostVNode = host.vnode;
-	const tag = host.tag;
+	const { vnode: hostVNode, tag } = host;
 	try {
 		const hostProps = reactHostProps(context, hostVNode);
 		registerReactImagePreload(context, tag, hostProps);
@@ -272,14 +270,14 @@ export function* renderVNodeChunks(
 		const raw = reactHostContent(context, hostVNode);
 		if (raw !== undefined) yield raw;
 		else {
-			const previousSelect = context.reactSelectValue;
-			if (context.reactMarkup && tag === 'select')
-				context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
+			const previousSelect = context.selectValue;
+			if (tag === 'select')
+				context.selectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
 				for (const child of hostVNode.children)
 					yield* renderChildChunks(context, child, parent, depth + 1);
 			} finally {
-				context.reactSelectValue = previousSelect;
+				context.selectValue = previousSelect;
 			}
 		}
 		yield `</${tag}>`;
@@ -310,12 +308,15 @@ export function renderVNode(
 	vnode: VNode,
 	parent?: ComponentInstance<any>
 ): string {
-	return withSsrTreeDepth(context, () => {
+	enterSsrTreeDepth(context);
+	try {
 		countSsrNode(context);
 		const html = renderVNodeInner(context, vnode, parent);
 		assertOutputCharacterBound(context, html);
 		return html;
-	});
+	} finally {
+		leaveSsrTreeDepth(context);
+	}
 }
 
 /** Transforms vnode inner into its required representation. */
@@ -331,7 +332,7 @@ export function renderVNodeInner(
 			renderVNode(context, getCellVNode(vnode), parent)
 		);
 	}
-	const program = renderSsrProgramString(context, vnode, (fallback) =>
+	const program = renderSsrProgramString(context, vnode, parent, (fallback) =>
 		renderVNode(context, fallback, parent)
 	);
 	if (program !== undefined) return program;

@@ -7,7 +7,6 @@ import {
 	Fragment,
 	handleComponentError,
 	isCellVNode,
-	normalizeActivityMode,
 	normalizeRenderResult,
 	Portal,
 	RenderProgram,
@@ -18,9 +17,7 @@ import {
 	Target,
 	Text,
 	UnsafeHtml,
-	unwrap,
 	watch,
-	type Child,
 	type ComponentFunction,
 	type ComponentInstance,
 	type VNode
@@ -28,18 +25,12 @@ import {
 import {
 	createEffectScope,
 	flushSync,
-	peek,
 	transferEffectScope,
 	withEffectScope,
 	type EffectScope
 } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import {
-	getComponentProps,
-	getListBinding,
-	materializeList,
-	stopReplacedChildren
-} from '../../children.js';
+import { getComponentProps, getListBinding, materializeList } from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
 import { setElementOwner, setNodeOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
@@ -50,13 +41,13 @@ import { countDomWork, isDomRenderLimitError, withTreeDepth } from '../limits.js
 import { bindText, patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
-import { installActivity, prepareActivity } from '../activity.js';
 import { refreshTargetBoundary } from '../target-contributions.js';
-import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
-import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
-import { activateEnhancementSubtree } from '../enhancements.js';
+import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
+import { requireStructuralBoundaryCapability } from '../structural-capability.js';
+import { requireDomEnhancementCapability } from '../enhancement-capability.js';
 import { fallbackRenderProgram, mountRenderProgram } from '../render-program.js';
+import { mountDynamic } from '../dynamic.js';
 import {
 	mountChildren,
 	mountDetachedChildren,
@@ -79,20 +70,25 @@ export function mount(
 		const parked = takeParkedMount(root, vnode, parentInstance, parentScope);
 		if (parked) return parked;
 		const scope = createEffectScope(parentScope);
-		const hasEnhancements = !!vnode.enhancements?.entries.length;
+		const hasEnhancements = !!vnode.enhancement?.entries.length;
+		const enhancementCapability = hasEnhancements ? requireDomEnhancementCapability() : undefined;
 		const nesting = root.enhancementNesting ?? 0;
 		if (hasEnhancements) root.enhancementNesting = nesting + 1;
 		try {
 			let mounted = mountInner(root, vnode, scope, parentInstance, parentNode);
 			if (hasEnhancements) {
-				if (nesting === 0)
-					mounted = activateEnhancementSubtree(
+				if (nesting === 0) {
+					enhancementCapability!.install(root, (next, instance, nextScope, node) =>
+						mount(root, next, instance, nextScope, node, false)
+					);
+					mounted = enhancementCapability!.activate(
 						root,
 						mounted,
 						parentInstance,
 						parentScope,
 						(next, instance, nextScope, node) => mount(root, next, instance, nextScope, node, false)
 					);
+				}
 			}
 			const owner = mounted.instance ?? parentInstance;
 			if (owner) {
@@ -167,49 +163,34 @@ export function mountInner(
 	}
 
 	if (vnode.type === UnsafeHtml) {
-		assertUnsafeHtmlAllowed(root);
+		const capability = requireUnsafeHtmlDomCapability();
+		capability.assertAllowed(root);
 		const id = `exact:unsafe-html:client`;
 		const start = document.createComment(id);
 		const end = document.createComment(`/${id}`);
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [], rawNodes: [] };
-		bindUnsafeHtml(root, mounted, vnode.props.value);
+		capability.bind(root, mounted, vnode.props.value);
 		return mounted;
 	}
 
 	if (vnode.type === Activity) {
-		const start = createMarker(root, 'activity');
-		const end = createMarker(root, 'activity-end');
-		const contentScope = createEffectScope(scope);
-		const mounted: Mounted = {
-			vnode,
-			dom: start,
-			end,
-			scope,
-			children: []
-		};
-		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
-		const activityOwner = prepareActivity(root, mounted, parentInstance, contentScope, mode);
-		mounted.children = mountDetachedChildren(
+		return requireStructuralBoundaryCapability().mountActivity(
 			root,
-			vnode.children,
-			activityOwner,
-			contentScope,
+			vnode,
+			scope,
+			parentInstance,
 			parentNode
 		);
-		installActivity(root, mounted);
-		return mounted;
 	}
 
 	if (vnode.type === Suspense) {
-		const mounted: Mounted = {
+		return requireStructuralBoundaryCapability().mountSuspense(
+			root,
 			vnode,
-			dom: createMarker(root, 'suspense'),
-			end: createMarker(root, 'suspense-end'),
 			scope,
-			children: []
-		};
-		initializeSuspense(root, mounted, parentInstance, parentNode);
-		return mounted;
+			parentInstance,
+			parentNode
+		);
 	}
 
 	if (vnode.type === Target) {
@@ -262,44 +243,7 @@ export function mountInner(
 		return mounted;
 	}
 
-	if (vnode.type === Dynamic) {
-		const marker = createMarker(root, 'dynamic');
-		const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
-		const value = vnode.props.value;
-		mounted.children = mountDetachedChildren(
-			root,
-			normalizeRenderResult(unwrap(value) as Child | Child[]),
-			parentInstance,
-			mounted.scope,
-			parentNode
-		);
-		mounted.stop = watch(
-			() => {
-				const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
-				const parent = marker.parentNode;
-				if (!parent) return;
-				mounted.children = peek(() =>
-					patchChildren(
-						root,
-						parent,
-						mounted.children,
-						nextChildren,
-						parentInstance,
-						mounted.scope,
-						afterMountedChildren(mounted),
-						mounted
-					)
-				);
-			},
-			undefined,
-			{
-				scope: mounted.scope,
-				onSchedule: () =>
-					stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[]))
-			}
-		);
-		return mounted;
-	}
+	if (vnode.type === Dynamic) return mountDynamic(root, vnode, scope, parentInstance, parentNode);
 
 	if (vnode.type === Portal) {
 		const marker = createMarker(root, 'portal');
@@ -338,7 +282,7 @@ export function mountInner(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					getComponentProps(vnode),
 					parentInstance,
-					undefined,
+					parentInstance?.ambientContexts ?? root.ambientContexts,
 					vnode.domain ?? parentInstance?.domain
 				)
 			);

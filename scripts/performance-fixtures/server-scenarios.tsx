@@ -1,4 +1,4 @@
-import { activateTaskForHost, defineTask, type Component, type TaskContext } from '@exactjs/core';
+import { activateTaskForHost, defineTask, TaskContext, type Component } from '@exactjs/core';
 import { renderToProgressiveHtmlStream, renderToString, renderToStringAsync } from '@exactjs/ssr';
 import {
 	defineExactBoundaryContract,
@@ -7,12 +7,14 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
+import { PlannedTree } from './planned-components.js';
 
 /** Stable server scenario identifiers emitted into baseline reports and release diagnostics. */
 export const serverScenarioNames = [
 	'server.ssr-sync',
 	'server.ssr-async-cpu',
 	'server.ssr-async-io',
+	'server.ssr-planned',
 	'server.ssr-progressive',
 	'server.operation-request',
 	'server.operation-stream'
@@ -39,6 +41,8 @@ export async function runServerScenario(
 			return asynchronousCpuSsr(options.iterations ?? 100_000);
 		case 'server.ssr-async-io':
 			return asynchronousIoSsr(options.iterations ?? 4);
+		case 'server.ssr-planned':
+			return plannedContinuationSsr(options.iterations ?? 64);
 		case 'server.ssr-progressive':
 			return progressiveSsr();
 		case 'server.operation-request':
@@ -67,14 +71,13 @@ function ServerTree(_props: { count: number }) {
 
 function CpuPanel(this: Component<{ value: number }>, props: { iterations: number }) {
 	this.state.value = 0;
-	activateTaskForHost(
-		this,
-		defineTask({ readiness: 'blocking' }, async (_task: TaskContext) => {
-			let value = 0;
-			for (let index = 0; index < props.iterations; index++) value = (value + index) % 1_000_003;
-			this.state.value = value;
-		})
-	);
+	const calculate = async (iterations: number, _task: TaskContext = TaskContext.blocking()) => {
+		await Promise.resolve();
+		let value = 0;
+		for (let index = 0; index < iterations; index++) value = (value + index) % 1_000_003;
+		this.state.value = value;
+	};
+	void calculate(props.iterations);
 	return () => <output>{this.state.value}</output>;
 }
 
@@ -123,8 +126,9 @@ async function asynchronousCpuSsr(iterations: number): Promise<ServerScenarioRes
 		markers: false
 	});
 	const elapsed = performance.now() - started;
+	const expected = ((iterations * (iterations - 1)) / 2) % 1_000_003;
 	assert(
-		result.html.includes('<output'),
+		result.html.includes(`>${expected}</output>`),
 		`asynchronous CPU SSR did not publish component output: ${result.html}`
 	);
 	return {
@@ -161,6 +165,37 @@ async function asynchronousIoSsr(delayMs: number): Promise<ServerScenarioResult>
 			...payloadByteUnits('html'),
 			siblings: 'count',
 			delayMs: 'ms'
+		}
+	};
+}
+
+async function plannedContinuationSsr(count: number): Promise<ServerScenarioResult> {
+	globalThis.gc?.();
+	const startingHeap = process.memoryUsage().heapUsed;
+	const started = performance.now();
+	const result = await renderToStringAsync(<PlannedTree count={count} />, { markers: false });
+	const elapsed = performance.now() - started;
+	const heapGrowthBytes = Math.max(0, process.memoryUsage().heapUsed - startingHeap);
+	globalThis.gc?.();
+	const retainedHeapBytes = Math.max(0, process.memoryUsage().heapUsed - startingHeap);
+	assert(
+		result.html.includes(`<li>${count}</li>`),
+		'planned SSR lost trailing continuation output'
+	);
+	return {
+		metrics: {
+			renderMs: elapsed,
+			heapGrowthBytes,
+			retainedHeapBytes,
+			components: count,
+			...payloadBytes('html', result.html)
+		},
+		units: {
+			renderMs: 'ms',
+			heapGrowthBytes: 'bytes',
+			retainedHeapBytes: 'bytes',
+			components: 'count',
+			...payloadByteUnits('html')
 		}
 	};
 }

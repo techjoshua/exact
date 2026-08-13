@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "react-controlled",
+	"framework": "React",
+	"frameworkVersion": "19.2.0",
+	"status": "scaffolded",
+	"tracks": ["controlled-service"],
+	"runtime": "node-24",
+	"commands": {
+		"build": "npm run build:react -w @exactjs/framework-comparison-suite",
+		"start": "npm run dev:react -w @exactjs/framework-comparison-suite"
+	},
+	"baseUrl": "http://127.0.0.1:4402",
+	"sourceRoots": ["src"]
+}

@@ -26,7 +26,13 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 		this.resourcePath ?? 'input.tsx',
 		options,
 		bridge?.session ?? compilerSessionForWebpackLoader(options.__exactSessionId),
-		bridge ? (result) => bridge.record(this.resourcePath ?? 'input.tsx', source, result) : undefined
+		bridge
+			? (result) => bridge.record(this.resourcePath ?? 'input.tsx', source, result)
+			: undefined,
+		bridge?.intl,
+		bridge?.intlReady(),
+		bridge?.validate,
+		bridge?.packageEnhancements()
 	).then(
 		(result) => callback(null, result?.code ?? source, result?.map ?? null),
 		(error) => callback(error instanceof Error ? error : new Error(String(error)))

@@ -1,0 +1,8 @@
+{
+	"name": "@exactjs/framework-comparison-nuxt",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	}
+}

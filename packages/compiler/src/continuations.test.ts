@@ -33,13 +33,31 @@ describe('distributed component continuation IR', () => {
 
 		const component = analysis.components[0]!;
 		const continuation = analysis.continuations[0]!;
+		expect(component.execution).toMatchObject({
+			version: 1,
+			transitions: [
+				expect.objectContaining({
+					id: component.tasks[0]!.id,
+					activation: 'setup',
+					placement: 'server',
+					concurrency: 'latest'
+				})
+			]
+		});
+		expect(component.execution.ports).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ kind: 'state', path: 'query', direction: 'input' }),
+				expect.objectContaining({ kind: 'state', path: 'results', direction: 'output' }),
+				expect.objectContaining({ kind: 'context', path: 'RepositoryContext' })
+			])
+		);
 		expect(continuation).toMatchObject({
 			id: component.tasks[0]!.id,
 			componentId: component.id,
 			placement: 'server',
 			activation: {
 				stateReads: expect.arrayContaining([expect.objectContaining({ path: 'query' })]),
-				dependencies: [{ index: 1, source: 'state' }],
+				dependencies: [{ index: 1, source: 'state', path: 'this.state.query' }],
 				serverContexts: [{ token: 'RepositoryContext', kind: 'read', confidence: 'exact' }],
 				publicContexts: []
 			},

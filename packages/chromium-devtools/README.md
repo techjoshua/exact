@@ -14,7 +14,9 @@ Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
 `packages/chromium-devtools`. Load the package directory rather than `dist`; its manifest points
 to the generated extension files.
 
-After reloading the target page, open DevTools and select the **eXact** panel.
+Open DevTools and select the **eXact** panel. The extension automatically reconnects after target
+navigation, page restoration, or Manifest V3 worker replacement; a manual target-page reload is
+not part of normal connection recovery.
 
 ## Views
 
@@ -26,10 +28,15 @@ After reloading the target page, open DevTools and select the **eXact** panel.
 
 Live inspection updates preserve each view's scroll position and disclosure state. Selecting a
 different component keeps the tree position while starting the new instance's details at the top.
+Nested value rows size their key column to bounded content instead of repeatedly reserving a fixed
+share of the remaining width, keeping deeply expanded arrays and objects compact.
+Completed, failed, and cancelled tasks remain in a bounded session history. Task rows stay
+collapsed by default and reveal redacted argument, result, or error previews when opened.
 
 ## Requirements
 
 The application must be built with eXact inspection instrumentation enabled. Server-backed
 inspection also requires an authorized debug session on the application's existing eXact endpoint.
 The extension uses the versioned, read-only page bridge and does not evaluate caller-provided
-JavaScript.
+JavaScript. While connecting, the panel distinguishes a missing page bridge from runtime
+instrumentation that has not loaded yet and continues discovery automatically.

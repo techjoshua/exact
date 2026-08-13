@@ -32,7 +32,9 @@ export function resumeTaskFrameContinuation(
 	pendingResumptions.push({ frame, resume, enter });
 	if (resumptionScheduled) return;
 	resumptionScheduled = true;
-	queueMicrotask(runNextTaskResumption);
+	// The promise-resolution job is already an asynchronous boundary. Enter the uncontended first
+	// continuation there and retain the queue only for resolutions that overlap its authored job.
+	runNextTaskResumption();
 }
 
 /** Serializes restoration so concurrent promise resolutions cannot exchange task ownership. */

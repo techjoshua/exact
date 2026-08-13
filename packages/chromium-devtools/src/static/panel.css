@@ -100,7 +100,7 @@ button {
 }
 
 .toolbar-button:hover,
-.tree-node:hover,
+.tree-row:hover,
 .waterfall-row:hover {
 	background: var(--surface-hover);
 }
@@ -180,6 +180,11 @@ main {
 	border-left: 1px solid var(--border);
 }
 
+.tree-row {
+	display: flex;
+	align-items: center;
+}
+
 .tree-node {
 	display: flex;
 	align-items: center;
@@ -192,14 +197,30 @@ main {
 	text-align: left;
 }
 
+.tree-row > .tree-node {
+	width: auto;
+	flex: 1;
+}
+
 .tree-node.selected {
 	background: var(--accent-soft);
 	color: light-dark(#075d79, #b9edff);
 }
 
 .tree-disclosure {
-	width: 9px;
+	display: grid;
+	place-items: center;
+	width: 22px;
+	min-height: 27px;
+	padding: 0;
+	border: 0;
+	background: transparent;
 	color: var(--muted);
+}
+
+.tree-disclosure-placeholder {
+	width: 22px;
+	flex: 0 0 22px;
 }
 
 .tree-name {
@@ -252,7 +273,7 @@ main {
 
 .preview-object {
 	display: grid;
-	grid-template-columns: minmax(90px, auto) 1fr;
+	grid-template-columns: fit-content(140px) minmax(0, 1fr);
 	margin: 0;
 	padding: 8px 12px 12px;
 }
@@ -265,11 +286,49 @@ main {
 }
 
 .preview-object dt {
+	max-width: 140px;
+	overflow: hidden;
 	color: var(--muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.preview-object dd {
+	min-width: 0;
 }
 
 .preview-scalar {
 	color: light-dark(#0550ae, #79c0ff);
+}
+
+.preview-complex {
+	min-width: 0;
+}
+
+.preview-complex > summary {
+	cursor: pointer;
+}
+
+.preview-complex-summary {
+	display: inline-block;
+	max-width: min(100%, 620px);
+	overflow: hidden;
+	color: var(--muted);
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	text-overflow: ellipsis;
+	vertical-align: bottom;
+	white-space: nowrap;
+}
+
+.preview-complex > .preview-object {
+	margin-top: 2px;
+	padding: 2px 0 2px 8px;
+	border-left: 1px solid var(--border);
+}
+
+.preview-complex > .preview-object > dt,
+.preview-complex > .preview-object > dd {
+	padding: 3px 4px;
 }
 
 .preview-redacted,
@@ -289,6 +348,30 @@ main {
 
 .task-metadata {
 	flex: 1;
+	color: var(--muted);
+}
+
+.task-execution > summary {
+	cursor: pointer;
+}
+
+.task-execution > summary::marker {
+	color: var(--muted);
+}
+
+.task-value {
+	display: grid;
+	grid-template-columns: minmax(64px, max-content) minmax(0, 1fr);
+	align-items: start;
+	gap: 8px;
+	padding: 4px 12px 6px 28px;
+}
+
+.task-value:last-child {
+	padding-bottom: 10px;
+}
+
+.task-value-label {
 	color: var(--muted);
 }
 

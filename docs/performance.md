@@ -6,6 +6,28 @@ measurements. The tracked
 current client, server, wire, heap, and production-fixture build evidence. It is a comparison point,
 not a machine-independent release budget.
 
+The dated
+[`compiler-planned component execution record`](performance-baselines/compiler-planned-component-execution-2026-08-10.md)
+interprets the current planned-SSR, root-cache, shipping retained-heap, and allocation results that
+close the delivered execution model's performance criterion.
+
+The dated
+[`enhancement capability bundle audit`](performance-baselines/enhancement-capability-bundle-audit-2026-08-12.md)
+records the controlled raw, gzip, Brotli, and module-reachability change from moving the DOM
+enhancement host beside compiler-resolved providers.
+
+Compiled modules now import focused render, reactivity, task, inspection, registry, and enhancement
+facades. The base component constructor has no reverse import to the task implementation: task code
+installs its integration only when reachable, and a compiler-proven component with neither tasks
+nor interaction roots allocates no task owner. Event-owning components retain one because event
+callbacks execute as cancellable interaction tasks. Each exported component carries one immutable compiled definition; execution-plan and
+lazy-island slice indexes are cached by definition rather than rebuilt per instance or request.
+Optional enhancement implementations remain outside the core and basic-renderer ledgers.
+The enhancement host follows the same reachability rule: provider facades install its versioned DOM
+capability, so enhancement-free clients omit chain construction, target selection, reconciliation,
+and hydration activation. Lazy components and microfrontends retain that host in their own loading
+graph and may register it after a root exists.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:
@@ -37,6 +59,27 @@ The focused reactive command includes the repaired compiled keyed-list DOM gate:
 
 ```sh
 npm run benchmark:reactive
+```
+
+The shipping fixture also has a manually invoked retained-heap regression test. It warms the
+compiler-generated hydratable SSR root with production marker behavior, forces full collections,
+and verifies across 1,000 measured requests that each batch plateaus with zero surviving component
+instances or effect scopes. A separate retained-heap ceiling catches unowned retained values:
+
+```sh
+npm run test:heap -w @exactjs/sample-shipping-calculator
+```
+
+This guard is intentionally excluded from ordinary correctness runs because exposed garbage
+collection and process heap measurements are diagnostic, environment-sensitive operations.
+
+The paired allocation-sampling guard profiles collected as well as surviving objects after warmup.
+It detects regressions that restore marker-mode VNode fallbacks, reactive wrappers for declarative
+module collections, nested subtree flattening, eager response-stream encoding, allocation-backed
+UTF-8 validation, or key/entry arrays during attribute traversal:
+
+```sh
+npm run test:allocation -w @exactjs/sample-shipping-calculator
 ```
 
 Dependent-foundation candidates are measured one at a time in isolated Node processes:

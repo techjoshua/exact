@@ -33,7 +33,7 @@ func analyzeComponents(
 	if len(candidates) != len(components) {
 		return components
 	}
-	elements := collectComponentElements(sourceFile)
+	elements := collectComponentElements(sourceFile, typeChecker)
 	contextRoots := moduleContextTokenRoots(sourceFile)
 
 	for index := range components {
@@ -76,7 +76,7 @@ func analyzeComponents(
 					indivisible = setup.Effect
 					diagnostics = append(
 						diagnostics,
-						"error: component setup has mixed placement effects ("+
+						"error: component initialization has mixed placement effects ("+
 							effectSourcePath(setup.EffectSources)+")",
 					)
 				case "unknown":
@@ -86,7 +86,7 @@ func analyzeComponents(
 						indivisible = "mixed"
 						diagnostics = append(
 							diagnostics,
-							"error: component setup has mixed placement effects ("+
+							"error: component initialization has mixed placement effects ("+
 								effectSourcePath(setup.EffectSources)+")",
 						)
 					case knownBrowser:
@@ -114,6 +114,7 @@ func analyzeComponents(
 					if attribute == "ref" {
 						splitBoundaries["ref"] = struct{}{}
 					} else if interactiveJSXAttribute(attribute) {
+						component.Interactions = true
 						splitBoundaries["event-handler"] = struct{}{}
 					}
 				}
@@ -481,7 +482,7 @@ func activeComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate 
 	return result
 }
 
-func collectComponentElements(sourceFile *ast.SourceFile) []componentElement {
+func collectComponentElements(sourceFile *ast.SourceFile, typeChecker *checker.Checker) []componentElement {
 	result := []componentElement{}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		var tag *ast.Node
@@ -499,10 +500,7 @@ func collectComponentElements(sourceFile *ast.SourceFile) []componentElement {
 			ast.IsJsxElement(node.Parent) {
 			full = node.Parent
 		}
-		interactive := false
-		for _, name := range jsxAttributeNames(node) {
-			interactive = interactive || interactiveJSXAttribute(name)
-		}
+		interactive := elementHasInteractiveWork(sourceFile, node, typeChecker)
 		result = append(result, componentElement{
 			node:        node,
 			tag:         tagText,
@@ -547,7 +545,7 @@ func jsxAttributeNames(node *ast.Node) []string {
 
 func interactiveJSXAttribute(name string) bool {
 	if name == "ref" || name == "value:onInput" || name == "value:onChange" ||
-		name == "checked:onChange" || name == "open:onToggle" {
+		name == "checked:onChange" || name == "open:onToggle" || name == "modal:isOpen" {
 		return true
 	}
 	if separator := strings.IndexByte(name, ':'); separator >= 0 {

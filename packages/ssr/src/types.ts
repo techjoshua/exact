@@ -1,6 +1,7 @@
 import type {
 	Child,
 	ComponentDomain,
+	DynamicComponentArtifact,
 	ComponentContextValues,
 	ExactComponentContinuationContract,
 	EnhancementEntry,
@@ -72,10 +73,22 @@ export type RenderToStringOptions = {
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
 	/** Observes deterministic component construction order before descendants render. */
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
+	/** @internal Checkpoints speculative descendant observations during sync stabilization. */
+	onComponentAttemptCheckpoint?: () => unknown;
+	/** @internal Discards observations produced by an invalidated sync render attempt. */
+	onComponentAttemptRollback?: (checkpoint: unknown) => void;
 	/** Receives SSR rendering profiling observations. */
 	onProfile?: ExactProfileSink;
 	/** Internal request-owned observation boundary; omitted in hardened server output. */
 	inspection?: ExactRuntimeInspectionOwner;
+	/** Build-authorized immutable artifacts keyed by compiler dynamic-boundary identity. */
+	dynamicComponentArtifacts?:
+		| ReadonlyMap<string, DynamicComponentArtifact>
+		| Readonly<Record<string, DynamicComponentArtifact>>;
+	/** Maximum selected dynamic artifacts hinted by one request. Defaults to 16. */
+	maxDynamicComponentPreloads?: number;
+	/** Receives validated Link values early enough for a capable adapter to emit HTTP 103. */
+	onEarlyHints?: (links: readonly string[]) => void;
 };
 
 /** Reports an observable ssr profile event. */
@@ -88,6 +101,8 @@ export type RenderToStringResult = {
 	resumptions?: readonly ComponentResumptionActivation[];
 	/** Internal response-local table consumed by hydratable entry points. */
 	hydrationTable?: import('./render/hydration-table.js').ExactHydrationTable;
+	/** Deduplicated final-header Link values discovered while rendering. */
+	preloadLinks?: readonly string[];
 };
 
 /** Configures hydration script. */
@@ -297,7 +312,12 @@ export type SsrContext = {
 	maxOutputBytes: number;
 	reactResourceHints: string[];
 	reactResourceKeys: Set<string>;
-	reactSelectValue?: unknown;
+	dynamicComponentArtifacts?: RenderToStringOptions['dynamicComponentArtifacts'];
+	maxDynamicComponentPreloads: number;
+	dynamicComponentPreloads: number;
+	resourceLinkHeaders: string[];
+	onEarlyHints?: RenderToStringOptions['onEarlyHints'];
+	selectValue?: unknown;
 	allowUnsafeHtml: boolean;
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	/** True until the first root host/text output determines document mode. */
@@ -346,12 +366,16 @@ export type SsrContext = {
 	componentDomain?: ComponentDomain;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
+	onComponentAttemptCheckpoint?: () => unknown;
+	onComponentAttemptRollback?: (checkpoint: unknown) => void;
 	/** Request-local scheduler shared by every eligible sibling group. */
 	asyncScheduler: import('./render/async-scheduler.js').AsyncSsrScheduler;
 	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */
 	asyncFrame: boolean;
 	/** Response-local compiler-finite boundary table. */
 	hydrationTable: import('./render/hydration-table.js').SsrHydrationTable;
+	/** Reusable immutable plan cache selected by the rendered root component. */
+	rootExecutionBlueprint?: import('./render/root-execution-cache.js').SsrRootExecutionBlueprint;
 };
 
 export type {

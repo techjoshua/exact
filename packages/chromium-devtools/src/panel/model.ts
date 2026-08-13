@@ -8,6 +8,7 @@ import {
 	type ExactInspectionResponse,
 	type ExactInspectionRuntimeId,
 	type ExactRuntimeInspectionEvent,
+	type ExactRuntimePartitionPlan,
 	type ExactRuntimeSourceLocation,
 	type ExactTaskRuntimeSnapshot,
 	type ExactValuePreview
@@ -19,6 +20,7 @@ export type ExactDevtoolsPanelModel = Readonly<{
 	sessionId: string;
 	components: readonly ExactInspectedRuntimeComponent[];
 	partitions: readonly ExactInspectedPartitionInstance[];
+	partitionPlans: readonly ExactRuntimePartitionPlan[];
 	selected?: ExactInspectedRuntimeComponent;
 	state?: Readonly<{ state: ExactValuePreview; props: ExactValuePreview }>;
 	contexts: readonly ExactContextPreview[];
@@ -46,14 +48,16 @@ export async function loadExactDevtoolsPanelModel(
 				component.id.instanceId === selected.instanceId
 		) ?? components[0];
 	const identity = selectedComponent?.id;
-	const [state, contexts, tasks, timeline, microfrontends, partitions] = await Promise.all([
-		identity ? query(client, session.id, 'state.get', identity) : undefined,
-		identity ? query(client, session.id, 'contexts.list', identity) : undefined,
-		identity ? query(client, session.id, 'tasks.list', identity) : undefined,
-		query(client, session.id, 'timeline.query', undefined, { page: { limit: 500 } }),
-		query(client, session.id, 'microfrontends.list'),
-		query(client, session.id, 'partitions.tree')
-	]);
+	const [state, contexts, tasks, timeline, microfrontends, partitions, partitionPlans] =
+		await Promise.all([
+			identity ? query(client, session.id, 'state.get', identity) : undefined,
+			identity ? query(client, session.id, 'contexts.list', identity) : undefined,
+			identity ? query(client, session.id, 'tasks.list', identity) : undefined,
+			query(client, session.id, 'timeline.query', undefined, { page: { limit: 500 } }),
+			query(client, session.id, 'microfrontends.list'),
+			query(client, session.id, 'partitions.tree'),
+			identity ? query(client, session.id, 'partitions.plan', identity) : undefined
+		]);
 	const sourceEntityId = selected?.sourceEntityId ?? selectedComponent?.tasks[0]?.id.sourceEntityId;
 	const dependency =
 		identity && sourceEntityId
@@ -66,6 +70,9 @@ export async function loadExactDevtoolsPanelModel(
 		sessionId: session.id,
 		components: Object.freeze(components),
 		partitions: Object.freeze(result<ExactInspectedPartitionInstance[]>(partitions)),
+		partitionPlans: Object.freeze(
+			partitionPlans?.ok ? result<ExactRuntimePartitionPlan[]>(partitionPlans) : []
+		),
 		...(selectedComponent ? { selected: selectedComponent } : {}),
 		...(state
 			? { state: result<{ state: ExactValuePreview; props: ExactValuePreview }>(state) }

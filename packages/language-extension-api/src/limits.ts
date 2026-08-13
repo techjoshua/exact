@@ -1,0 +1,25 @@
+/** Protocol-1 resource bounds enforced by every conforming host. */
+export const exactLanguageProtocolLimits = Object.freeze({
+	declarativeBytes: 256 * 1024,
+	declarations: 2_048,
+	nestingDepth: 16,
+	graphEdges: 1_024,
+	messageBytes: 4 * 1024,
+	completionItems: 500,
+	relatedRanges: 32,
+	codeActionItems: 100,
+	codeActionChangedBytes: 1024 * 1024,
+	documentDiagnostics: 500,
+	projectDiagnostics: 2_000,
+	initializationMilliseconds: 5_000,
+	interactiveMilliseconds: 150,
+	inlayHintMilliseconds: 500,
+	inferenceEvidencePerHint: 128,
+	codeActionMilliseconds: 1_000,
+	documentDiagnosticMilliseconds: 5_000,
+	projectDiagnosticMilliseconds: 30_000,
+	responseBytes: 8 * 1024 * 1024,
+	cancellationGraceMilliseconds: 500,
+	shutdownMilliseconds: 2_000,
+	runnerOldSpaceMegabytes: 256
+});

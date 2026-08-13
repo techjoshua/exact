@@ -37,11 +37,13 @@ type clientElementIsland struct {
 	name             string
 	statePaths       [][]string
 	interaction      bool
+	activation       ActivationDecision
 	serverSlot       bool
 	valueCaptures    []islandValueCapture
 	functionCaptures []islandFunctionCapture
 	derivedCaptures  []islandDerivedCapture
 	hasSpread        bool
+	finiteSpreads    map[int][]finiteSpreadProperty
 }
 
 func indexClientElementIslands(
@@ -58,7 +60,8 @@ func indexClientElementIslands(
 	if len(candidates) != len(components) {
 		return result
 	}
-	elements := collectComponentElements(sourceFile)
+	elements := collectComponentElements(sourceFile, typeChecker)
+	nodeIDs := expressionNodeIDs(sourceFile)
 	for componentIndex, component := range components {
 		owned := make([]componentElement, 0)
 		for _, element := range elements {
@@ -68,9 +71,18 @@ func indexClientElementIslands(
 		}
 		for index, element := range outerClientIslandElements(owned) {
 			node := fullJSXElementNode(element.node)
+			finiteSpreads := islandFiniteSpreads(sourceFile, element.node, typeChecker)
 			valueCaptures, functionCaptures := islandCaptures(
 				candidates[componentIndex].node,
 				node,
+				typeChecker,
+			)
+			valueCaptures, functionCaptures, spreadInputs := finiteSpreadCaptureInputs(
+				candidates[componentIndex].node,
+				element.node,
+				finiteSpreads,
+				valueCaptures,
+				functionCaptures,
 				typeChecker,
 			)
 			stateCaptures := append([]islandValueCapture(nil), valueCaptures...)
@@ -89,6 +101,7 @@ func indexClientElementIslands(
 				stateWrites,
 				stateCaptures,
 				reactiveBindings,
+				spreadInputs,
 			)
 			paths = islandDerivedStatePaths(
 				paths,
@@ -101,6 +114,9 @@ func indexClientElementIslands(
 			)
 			serverSlot := clientIslandHasServerSlot(component, node)
 			islandIndex := index + 1
+			activation := analyzeIslandSubtreeActivation(
+				sourceFile, node, typeChecker, nodeIDs,
+			)
 			result[node] = clientElementIsland{
 				component: component,
 				node:      node,
@@ -116,14 +132,15 @@ func indexClientElementIslands(
 					"client-island",
 					islandIndex,
 				),
-				statePaths: paths,
-				interaction: interactionHydrationElement(element.node) &&
-					!serverSlot,
+				statePaths:       paths,
+				interaction:      activation.Mode == "interaction",
+				activation:       activation,
 				serverSlot:       serverSlot,
 				valueCaptures:    valueCaptures,
 				functionCaptures: functionCaptures,
 				derivedCaptures:  derivedCaptures,
-				hasSpread:        jsxOpeningHasSpread(element.node),
+				hasSpread:        islandHasOpaqueSpread(element.node, finiteSpreads),
+				finiteSpreads:    finiteSpreads,
 			}
 		}
 	}
@@ -278,19 +295,6 @@ func islandDerivedCaptures(
 		return derived[left].start < derived[right].start
 	})
 	return ordinary, derived
-}
-
-func jsxOpeningHasSpread(opening *ast.Node) bool {
-	attributes := opening.Attributes()
-	if attributes == nil {
-		return false
-	}
-	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
-		if ast.IsJsxSpreadAttribute(property) {
-			return true
-		}
-	}
-	return false
 }
 
 func islandCaptures(
@@ -791,6 +795,20 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 	}
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 		if ast.IsJsxSpreadAttribute(property) {
+			if members, finite := island.finiteSpreads[property.Pos()]; finite {
+				for _, member := range members {
+					value := lowering.factory.NewPropertyAccessExpression(
+						props, nil, lowering.factory.NewIdentifier(member.name), ast.NodeFlagsNone,
+					)
+					if interactiveJSXAttribute(member.name) {
+						value = lowering.finiteSpreadPropertyValue(&member)
+					}
+					properties = append(properties, lowering.property(
+						jsxPropertyName(lowering.factory, member.name), value,
+					))
+				}
+				continue
+			}
 			properties = append(
 				properties,
 				lowering.factory.NewSpreadAssignment(
@@ -846,6 +864,19 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 	return properties
 }
 
+func (lowering *jsxLowering) finiteSpreadPropertyValue(
+	property *finiteSpreadProperty,
+) *ast.Node {
+	if property.condition == nil {
+		return lowering.visitor.VisitNode(property.value)
+	}
+	return lowering.conditional(
+		lowering.visitor.VisitNode(property.condition),
+		lowering.finiteSpreadPropertyValue(property.whenTrue),
+		lowering.finiteSpreadPropertyValue(property.whenFalse),
+	)
+}
+
 func outerClientIslandElements(elements []componentElement) []componentElement {
 	result := make([]componentElement, 0)
 	for index, element := range elements {
@@ -889,6 +920,7 @@ func islandStatePaths(
 	stateWrites []StateWrite,
 	captures []islandValueCapture,
 	reactiveBindings []ReactiveBinding,
+	additionalInputs []*ast.Node,
 ) [][]string {
 	result := [][]string{}
 	seen := make(map[string]struct{})
@@ -905,15 +937,14 @@ func islandStatePaths(
 	}
 	for _, read := range stateReads {
 		if read.Component != component || len(read.Path) == 0 ||
-			read.Start < node.Pos() || read.Start >= node.End() {
+			!positionInIslandInputs(read.Start, node, additionalInputs) {
 			continue
 		}
 		add(read.Path)
 	}
 	for _, write := range stateWrites {
 		if write.Component == component &&
-			write.Start >= node.Pos() &&
-			write.Start < node.End() {
+			positionInIslandInputs(write.Start, node, additionalInputs) {
 			add(write.Path)
 		}
 	}
@@ -1008,36 +1039,6 @@ func hasDescendantStatePath(paths [][]string, prefix []string) bool {
 	return false
 }
 
-func interactionHydrationElement(opening *ast.Node) bool {
-	attributes := opening.Attributes()
-	if attributes == nil {
-		return false
-	}
-	hasActivation := false
-	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
-		if ast.IsJsxSpreadAttribute(property) {
-			if !ast.IsObjectLiteralExpression(
-				property.AsJsxSpreadAttribute().Expression,
-			) {
-				return false
-			}
-			continue
-		}
-		attribute := property.AsJsxAttribute()
-		name := jsxAttributeText(attribute.Name())
-		if name == "ref" {
-			return false
-		}
-		if interactiveJSXAttribute(name) {
-			if _, activation := interactionHydrationEvents[name]; !activation {
-				return false
-			}
-			hasActivation = true
-		}
-	}
-	return hasActivation
-}
-
 func (lowering *jsxLowering) lowerServerClientIsland(
 	identityNode *ast.Node,
 	opening *ast.Node,
@@ -1088,6 +1089,7 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 			opening.Attributes(),
 			false,
 			"",
+			island.finiteSpreads,
 		)...,
 	)
 	if island.interaction {
@@ -1108,6 +1110,7 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 					identityNode,
 					opening,
 					children,
+					island.finiteSpreads,
 				),
 			),
 		)
@@ -1140,6 +1143,7 @@ func (lowering *jsxLowering) serverIslandFallback(
 	identityNode *ast.Node,
 	opening *ast.Node,
 	children *ast.NodeList,
+	finiteSpreads map[int][]finiteSpreadProperty,
 ) *ast.Node {
 	tag := openingTag(opening)
 	tagText := sourceText(lowering.sourceFile, tag)
@@ -1147,6 +1151,7 @@ func (lowering *jsxLowering) serverIslandFallback(
 		opening.Attributes(),
 		true,
 		lowering.elementID(identityNode),
+		finiteSpreads,
 	)
 	arguments := []*ast.Node{
 		lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone),
@@ -1163,6 +1168,7 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 	attributes *ast.Node,
 	includeElementID bool,
 	elementID string,
+	finiteSpreads map[int][]finiteSpreadProperty,
 ) []*ast.Node {
 	properties := []*ast.Node{}
 	if includeElementID {
@@ -1185,6 +1191,18 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 	}
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 		if ast.IsJsxSpreadAttribute(property) {
+			if members, finite := finiteSpreads[property.Pos()]; finite {
+				for _, member := range members {
+					if interactiveJSXAttribute(member.name) {
+						continue
+					}
+					properties = append(properties, lowering.property(
+						jsxPropertyName(lowering.factory, member.name),
+						lowering.finiteSpreadPropertyValue(&member),
+					))
+				}
+				continue
+			}
 			properties = append(
 				properties,
 				lowering.factory.NewSpreadAssignment(
@@ -1292,37 +1310,4 @@ func (lowering *jsxLowering) islandStateObject(
 		lowering.factory.NewNodeList(properties),
 		false,
 	)
-}
-
-var interactionHydrationEvents = map[string]struct{}{
-	"onAuxClick": {}, "onAuxClickCapture": {},
-	"onBeforeInput": {}, "onBeforeInputCapture": {},
-	"onBlur": {}, "onBlurCapture": {},
-	"onChange": {}, "onChangeCapture": {},
-	"onClick": {}, "onClickCapture": {},
-	"onCompositionEnd": {}, "onCompositionEndCapture": {},
-	"onCompositionStart": {}, "onCompositionStartCapture": {},
-	"onCompositionUpdate": {}, "onCompositionUpdateCapture": {},
-	"onContextMenu": {}, "onContextMenuCapture": {},
-	"onDoubleClick": {}, "onDoubleClickCapture": {},
-	"onDragEnd": {}, "onDragEndCapture": {},
-	"onDragEnter": {}, "onDragEnterCapture": {},
-	"onDragLeave": {}, "onDragLeaveCapture": {},
-	"onDragOver": {}, "onDragOverCapture": {},
-	"onDragStart": {}, "onDragStartCapture": {},
-	"onDrop": {}, "onDropCapture": {},
-	"onFocus": {}, "onFocusCapture": {},
-	"onFocusIn": {}, "onFocusInCapture": {},
-	"onFocusOut": {}, "onFocusOutCapture": {},
-	"onInput": {}, "onInputCapture": {},
-	"onKeyDown": {}, "onKeyDownCapture": {},
-	"onKeyUp": {}, "onKeyUpCapture": {},
-	"onMouseDown": {}, "onMouseDownCapture": {},
-	"onMouseUp": {}, "onMouseUpCapture": {},
-	"onPointerDown": {}, "onPointerDownCapture": {},
-	"onPointerUp": {}, "onPointerUpCapture": {},
-	"onSubmit": {}, "onSubmitCapture": {},
-	"onTouchEnd": {}, "onTouchEndCapture": {},
-	"onTouchStart": {}, "onTouchStartCapture": {},
-	"onWheel": {}, "onWheelCapture": {},
 }

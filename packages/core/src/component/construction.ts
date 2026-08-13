@@ -2,7 +2,7 @@ import { attachSuppressedCleanupFailure } from '../cleanup.js';
 import type { ComponentInstance } from './contracts.js';
 
 /**
- * Releases every lifecycle resource registered before component setup failed.
+ * Releases every lifecycle resource registered before component initialization failed.
  *
  * The construction error remains primary; teardown failures are retained as
  * suppressed diagnostics on that error.

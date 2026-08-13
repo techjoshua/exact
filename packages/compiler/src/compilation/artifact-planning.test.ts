@@ -95,8 +95,8 @@ describe('@exactjs/compiler: artifact planning', () => {
 
 		expect(results).toHaveLength(1);
 		expect(results[0]!.inputFile).toBe(changedInput);
-		expect(await readFile(results[0]!.clientFile, 'utf8')).toContain('changed.exact.shared.ts');
-		expect(await readFile(results[0]!.sharedFile!, 'utf8')).toContain('Changed');
+		expect(await readFile(results[0]!.clientFile, 'utf8')).toContain('Changed');
+		expect(results[0]!.sharedFile).toBeUndefined();
 		await expect(readFile(path.join(outDir, 'retained.exact.client.ts'), 'utf8')).rejects.toThrow();
 	});
 

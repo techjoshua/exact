@@ -536,7 +536,7 @@ func TestPartitionPlanLowersKeyedServerItemsIntoRuntimeRanges(t *testing.T) {
 	for _, expected := range []string{
 		`createKeyedServerSlot as __exactKeyedServerSlot`,
 		`__exactKeyedServerSlot("` + items[0].ID + `", "` + keyed.ID + `", item.id`,
-		`__exactVNode(ServerRow`,
+		`__exactComponentVNode(ServerRow`,
 		`discriminator: { kind: "single" }`,
 	} {
 		if !strings.Contains(server.Code, expected) {
@@ -555,7 +555,7 @@ func TestPartitionPlanLowersKeyedServerItemsIntoRuntimeRanges(t *testing.T) {
 	}
 }
 
-func TestPartitionPlanKeepsUnknownForeignChildNarrowAndExplained(t *testing.T) {
+func TestPartitionPlanDefersStaticPackageChildResolutionToBuildHost(t *testing.T) {
 	source := `
 		import { UnknownLibraryValue } from "unknown-component-library";
 		function ClientShell(props: { children?: unknown }) {
@@ -582,7 +582,7 @@ func TestPartitionPlanKeepsUnknownForeignChildNarrowAndExplained(t *testing.T) {
 	conservativeRegion := false
 	for _, node := range response.Analysis.PartitionPlan.Nodes {
 		if node.Kind == "component" && node.Conservative &&
-			strings.Contains(node.Reason, "UnknownLibraryValue") {
+			strings.Contains(node.Reason, "awaits build-host component catalog resolution") {
 			conservativeComponent = true
 		}
 		if node.Kind == "region" && node.Conservative && node.Placement == "either" {
@@ -598,8 +598,8 @@ func TestPartitionPlanKeepsUnknownForeignChildNarrowAndExplained(t *testing.T) {
 			diagnostic = true
 		}
 	}
-	if !diagnostic {
-		t.Fatalf("unknown child did not produce an actionable partition diagnostic: %#v", response.Diagnostics)
+	if diagnostic {
+		t.Fatalf("host-resolvable package child produced a premature partition diagnostic: %#v", response.Diagnostics)
 	}
 	compiled := NewSession().Execute(Request{
 		ID: "partition-unknown-child.tsx", Kind: "compile", Target: TargetClient,

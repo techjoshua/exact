@@ -10,6 +10,7 @@
 	},
 	"references": [
 		{ "path": "../../packages/core" },
+		{ "path": "../../packages/reactive" },
 		{ "path": "../../packages/request" },
 		{ "path": "../../packages/jsx-runtime" },
 		{ "path": "../../packages/react-compat" }

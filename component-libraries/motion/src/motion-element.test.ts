@@ -3,7 +3,7 @@
  */
 import { Activity, createEnhancementMarker, createExpression, type Component } from '@exactjs/core';
 import { runTaskFrame } from '@exactjs/core/framework/task-frames';
-import { render, unmount } from '@exactjs/dom';
+import { render, unmount } from '@exactjs/dom/enhanced';
 import { flushSync } from '@exactjs/reactive';
 import {
 	createTestVNode as createVNode,

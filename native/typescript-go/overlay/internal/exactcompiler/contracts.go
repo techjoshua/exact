@@ -7,13 +7,23 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.28.0"
+const ProtocolVersion = "1.34.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
 
 // Target identifies the eXact artifact being compiled.
 type Target string
+
+// ComponentContractProjection identifies which runtime-facing subset a build host requests.
+// The empty value retains the complete, rendering-mode-neutral compiler output.
+type ComponentContractProjection string
+
+const (
+	ComponentContractProjectionComplete ComponentContractProjection = "complete"
+	ComponentContractProjectionHydrate  ComponentContractProjection = "hydrate"
+	ComponentContractProjectionClient   ComponentContractProjection = "client"
+)
 
 const (
 	// TargetDefault compiles an artifact without client/server specialization.
@@ -26,25 +36,35 @@ const (
 
 // Request is one newline-delimited command accepted by a Session.
 type Request struct {
-	ID                         string           `json:"id,omitempty"`
-	Kind                       string           `json:"kind"`
-	Source                     string           `json:"source,omitempty"`
-	Root                       string           `json:"root,omitempty"`
-	BuildKey                   string           `json:"buildKey,omitempty"`
-	ConfigFile                 string           `json:"configFile,omitempty"`
-	Target                     Target           `json:"target,omitempty"`
-	ServerComponents           bool             `json:"serverComponents,omitempty"`
-	PreserveComponentHoisting  bool             `json:"preserveComponentHoisting,omitempty"`
-	Diagnostics                string           `json:"diagnostics,omitempty"`
-	SourceMap                  bool             `json:"sourceMap,omitempty"`
-	PackageType                string           `json:"packageType,omitempty"`
-	PackageName                string           `json:"packageName,omitempty"`
-	Capabilities               CapabilityPolicy `json:"capabilities,omitempty"`
-	AssetRules                 []AssetRule      `json:"assetRules,omitempty"`
-	PreserveClientAssetImports bool             `json:"preserveClientAssetImports,omitempty"`
-	JSXInterop                 *JSXInterop      `json:"jsxInterop,omitempty"`
-	ModuleRewrite              *ModuleRewrite   `json:"moduleRewrite,omitempty"`
-	InstrumentInspection       bool             `json:"instrumentInspection,omitempty"`
+	ID                          string                      `json:"id,omitempty"`
+	Kind                        string                      `json:"kind"`
+	Source                      string                      `json:"source,omitempty"`
+	Root                        string                      `json:"root,omitempty"`
+	BuildKey                    string                      `json:"buildKey,omitempty"`
+	ConfigFile                  string                      `json:"configFile,omitempty"`
+	Target                      Target                      `json:"target,omitempty"`
+	ComponentContractProjection ComponentContractProjection `json:"componentContractProjection,omitempty"`
+	ServerComponents            bool                        `json:"serverComponents,omitempty"`
+	PreserveComponentHoisting   bool                        `json:"preserveComponentHoisting,omitempty"`
+	Diagnostics                 string                      `json:"diagnostics,omitempty"`
+	SourceMap                   bool                        `json:"sourceMap,omitempty"`
+	PackageType                 string                      `json:"packageType,omitempty"`
+	PackageName                 string                      `json:"packageName,omitempty"`
+	Capabilities                CapabilityPolicy            `json:"capabilities,omitempty"`
+	AssetRules                  []AssetRule                 `json:"assetRules,omitempty"`
+	PreserveClientAssetImports  bool                        `json:"preserveClientAssetImports,omitempty"`
+	JSXInterop                  *JSXInterop                 `json:"jsxInterop,omitempty"`
+	ModuleRewrite               *ModuleRewrite              `json:"moduleRewrite,omitempty"`
+	InstrumentInspection        bool                        `json:"instrumentInspection,omitempty"`
+	PackageEnhancementBoundary  int                         `json:"packageEnhancementBoundary,omitempty"`
+	Extension                   *ExtensionRequest           `json:"extension,omitempty"`
+}
+
+// ExtensionRequest selects an isolated native frontend operation without adding
+// its domain semantics to the standard compiler request contract.
+type ExtensionRequest struct {
+	Namespace string `json:"namespace"`
+	Payload   any    `json:"payload,omitempty"`
 }
 
 // ModuleRewrite contains host-planned aliases applied before native printing.
@@ -126,6 +146,8 @@ type Diagnostic struct {
 	FileName string `json:"filename,omitempty"`
 	Start    int    `json:"start,omitempty"`
 	Length   int    `json:"length,omitempty"`
+	FixStart int    `json:"fixStart,omitempty"`
+	FixText  string `json:"fixText,omitempty"`
 }
 
 // Directive is one compiler directive found in source trivia.
@@ -144,6 +166,7 @@ type Import struct {
 	TypeOnly        bool   `json:"typeOnly"`
 	SideEffectOnly  bool   `json:"sideEffectOnly"`
 	RuntimeBinding  bool   `json:"runtimeBinding"`
+	Enhancement     bool   `json:"enhancement,omitempty"`
 	Start           int    `json:"start"`
 	Length          int    `json:"length"`
 }
@@ -166,6 +189,9 @@ type Component struct {
 	EnhancementContexts EnhancementContextEffects `json:"enhancementContexts"`
 	SplitBoundaries     []string                  `json:"splitBoundaries"`
 	Diagnostics         []string                  `json:"diagnostics"`
+	Execution           ComponentExecution        `json:"execution"`
+	Interactions        bool                      `json:"-"`
+	DynamicComponents   bool                      `json:"-"`
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.
@@ -216,23 +242,51 @@ type ExportRecord struct {
 
 // Boundary identifies one runtime split owned by a durable component.
 type Boundary struct {
-	ID                  string   `json:"id"`
-	Name                string   `json:"name"`
-	ComponentID         string   `json:"componentId,omitempty"`
-	OwnerComponentID    string   `json:"ownerComponentId,omitempty"`
-	RenderEdgeID        string   `json:"renderEdgeId,omitempty"`
-	RenderEdgeIndex     int      `json:"renderEdgeIndex,omitempty"`
-	RenderPath          string   `json:"renderPath,omitempty"`
-	Kind                string   `json:"kind"`
-	PlanVersion         int      `json:"planVersion,omitempty"`
-	BuildKey            string   `json:"buildKey,omitempty"`
-	PlanEdgeID          string   `json:"planEdgeId,omitempty"`
-	ParentPlanID        string   `json:"parentPlanId,omitempty"`
-	FallbackPlanID      string   `json:"fallbackPlanId,omitempty"`
-	PatchTargets        []string `json:"patchTargets,omitempty"`
-	DiscriminatorKind   string   `json:"discriminatorKind,omitempty"`
-	DiscriminatorValues []string `json:"discriminatorValues,omitempty"`
-	Generation          int      `json:"generation,omitempty"`
+	ID                  string              `json:"id"`
+	Name                string              `json:"name"`
+	ComponentID         string              `json:"componentId,omitempty"`
+	OwnerComponentID    string              `json:"ownerComponentId,omitempty"`
+	RenderEdgeID        string              `json:"renderEdgeId,omitempty"`
+	RenderEdgeIndex     int                 `json:"renderEdgeIndex,omitempty"`
+	RenderPath          string              `json:"renderPath,omitempty"`
+	Kind                string              `json:"kind"`
+	PlanVersion         int                 `json:"planVersion,omitempty"`
+	BuildKey            string              `json:"buildKey,omitempty"`
+	PlanEdgeID          string              `json:"planEdgeId,omitempty"`
+	ParentPlanID        string              `json:"parentPlanId,omitempty"`
+	FallbackPlanID      string              `json:"fallbackPlanId,omitempty"`
+	PatchTargets        []string            `json:"patchTargets,omitempty"`
+	DiscriminatorKind   string              `json:"discriminatorKind,omitempty"`
+	DiscriminatorValues []string            `json:"discriminatorValues,omitempty"`
+	Generation          int                 `json:"generation,omitempty"`
+	Activation          *ActivationDecision `json:"activation,omitempty"`
+}
+
+// ActivationDecision explains when one compiler-owned client range may activate.
+type ActivationDecision struct {
+	Mode    string             `json:"mode"`
+	Reasons []ActivationReason `json:"reasons"`
+	Targets []ActivationTarget `json:"targets"`
+}
+
+// ActivationReason identifies one conservative fallback and its authored range.
+type ActivationReason struct {
+	Code   string `json:"code"`
+	Start  int    `json:"start"`
+	Length int    `json:"length"`
+	Detail string `json:"detail,omitempty"`
+}
+
+// ActivationTarget identifies an adopted DOM target and its approved event policies.
+type ActivationTarget struct {
+	ID     string            `json:"id"`
+	Events []LazyEventPolicy `json:"events"`
+}
+
+// LazyEventPolicy describes the bounded replay operation for one event family.
+type LazyEventPolicy struct {
+	Type   string `json:"type"`
+	Replay string `json:"replay"`
 }
 
 // DataPolicy is the normalized residency and secrecy contract for one value.
@@ -562,6 +616,7 @@ type Continuation struct {
 	TaskID       string                  `json:"taskId"`
 	Placement    string                  `json:"placement"`
 	Readiness    string                  `json:"readiness"`
+	Concurrency  string                  `json:"concurrency"`
 	Async        bool                    `json:"async"`
 	Activation   ContinuationActivation  `json:"activation"`
 	Effects      ContinuationEffects     `json:"effects"`
@@ -672,6 +727,21 @@ type RendererEnhancement struct {
 	ExportName      string `json:"exportName"`
 }
 
+// EnhancementActivation joins one authored namespaced JSX attribute to the canonical enhancement
+// component selected by the compiler. It is descriptive input for generic build and language tools.
+type EnhancementActivation struct {
+	Namespace       string `json:"namespace"`
+	Activator       string `json:"activator"`
+	Start           int    `json:"start"`
+	Length          int    `json:"length"`
+	TargetStart     int    `json:"targetStart"`
+	TargetLength    int    `json:"targetLength"`
+	Identity        string `json:"identity"`
+	ModuleSpecifier string `json:"moduleSpecifier"`
+	ExportName      string `json:"exportName"`
+	Application     string `json:"application"`
+}
+
 // PartitionPlan is the normalized, build-local component and execution-region
 // graph used to derive recursive client/server ownership. The first delivery is
 // analysis-only; existing artifacts remain projected through Boundary records.
@@ -687,21 +757,22 @@ type PartitionPlan struct {
 // template. Component nodes retain durable ownership while region nodes carry
 // only execution, hydration, and refresh authority.
 type PartitionPlanNode struct {
-	ID                string   `json:"id"`
-	Kind              string   `json:"kind"`
-	ComponentContract string   `json:"componentContract,omitempty"`
-	OwnerComponent    string   `json:"ownerComponent"`
-	Placement         string   `json:"placement"`
-	ArtifactTargets   []string `json:"artifactTargets"`
-	Activation        string   `json:"activation"`
-	RefreshAuthority  string   `json:"refreshAuthority"`
-	Start             int      `json:"start"`
-	Length            int      `json:"length"`
-	RenderPath        []string `json:"renderPath"`
-	ChildEdges        []string `json:"childEdges"`
-	Optional          bool     `json:"optional,omitempty"`
-	Conservative      bool     `json:"conservative,omitempty"`
-	Reason            string   `json:"reason,omitempty"`
+	ID                 string              `json:"id"`
+	Kind               string              `json:"kind"`
+	ComponentContract  string              `json:"componentContract,omitempty"`
+	OwnerComponent     string              `json:"ownerComponent"`
+	Placement          string              `json:"placement"`
+	ArtifactTargets    []string            `json:"artifactTargets"`
+	Activation         string              `json:"activation"`
+	RefreshAuthority   string              `json:"refreshAuthority"`
+	Start              int                 `json:"start"`
+	Length             int                 `json:"length"`
+	RenderPath         []string            `json:"renderPath"`
+	ChildEdges         []string            `json:"childEdges"`
+	Optional           bool                `json:"optional,omitempty"`
+	Conservative       bool                `json:"conservative,omitempty"`
+	Reason             string              `json:"reason,omitempty"`
+	ActivationDecision *ActivationDecision `json:"activationDecision,omitempty"`
 }
 
 // PartitionPlanEdge connects reusable plan templates. Runtime branches and
@@ -732,28 +803,29 @@ type PartitionPlanDataSlot struct {
 
 // Analysis contains eXact-owned semantic facts returned by the native host.
 type Analysis struct {
-	Imports          []Import               `json:"imports"`
-	Components       []Component            `json:"components"`
-	JSX              []JSXElement           `json:"jsx"`
-	StateAliases     []StateAlias           `json:"stateAliases"`
-	StateReads       []StateRead            `json:"stateReads"`
-	StateWrites      []StateWrite           `json:"stateWrites"`
-	ValueBindings    []ValueCallbackBinding `json:"valueBindings"`
-	ReactiveBindings []ReactiveBinding      `json:"reactiveBindings"`
-	Callables        []CallableSummary      `json:"callables"`
-	Tasks            []Task                 `json:"tasks"`
-	Exports          []ExportRecord         `json:"exports"`
-	Symbols          []SymbolRecord         `json:"symbols"`
-	Boundaries       []Boundary             `json:"boundaries"`
-	Continuations    []Continuation         `json:"continuations"`
-	Registries       []ComponentRegistry    `json:"registries"`
-	Enhancements     []RendererEnhancement  `json:"rendererEnhancements"`
-	PartitionPlan    PartitionPlan          `json:"partitionPlan"`
-	Resumptions      []ComponentResumption  `json:"resumptions"`
-	Policy           PolicyAnalysis         `json:"policy"`
-	Capabilities     CapabilityRequirements `json:"requiredCapabilities"`
-	Assets           []AssetDependency      `json:"assets"`
-	SemanticGraph    SemanticGraph          `json:"semanticGraph"`
+	Imports                []Import                `json:"imports"`
+	Components             []Component             `json:"components"`
+	JSX                    []JSXElement            `json:"jsx"`
+	StateAliases           []StateAlias            `json:"stateAliases"`
+	StateReads             []StateRead             `json:"stateReads"`
+	StateWrites            []StateWrite            `json:"stateWrites"`
+	ValueBindings          []ValueCallbackBinding  `json:"valueBindings"`
+	ReactiveBindings       []ReactiveBinding       `json:"reactiveBindings"`
+	Callables              []CallableSummary       `json:"callables"`
+	Tasks                  []Task                  `json:"tasks"`
+	Exports                []ExportRecord          `json:"exports"`
+	Symbols                []SymbolRecord          `json:"symbols"`
+	Boundaries             []Boundary              `json:"boundaries"`
+	Continuations          []Continuation          `json:"continuations"`
+	Registries             []ComponentRegistry     `json:"registries"`
+	Enhancements           []RendererEnhancement   `json:"rendererEnhancements"`
+	EnhancementActivations []EnhancementActivation `json:"enhancementActivations"`
+	PartitionPlan          PartitionPlan           `json:"partitionPlan"`
+	Resumptions            []ComponentResumption   `json:"resumptions"`
+	Policy                 PolicyAnalysis          `json:"policy"`
+	Capabilities           CapabilityRequirements  `json:"requiredCapabilities"`
+	Assets                 []AssetDependency       `json:"assets"`
+	SemanticGraph          SemanticGraph           `json:"semanticGraph"`
 }
 
 // NewAnalysis creates a protocol-safe result whose collections encode as JSON
@@ -775,6 +847,7 @@ func NewAnalysis(
 	continuations []Continuation,
 	registries []ComponentRegistry,
 	enhancements []RendererEnhancement,
+	enhancementActivations []EnhancementActivation,
 	partitionPlan PartitionPlan,
 	resumptions []ComponentResumption,
 	policy PolicyAnalysis,
@@ -783,25 +856,26 @@ func NewAnalysis(
 	semanticGraph SemanticGraph,
 ) Analysis {
 	return Analysis{
-		Imports:          nonNilSlice(imports),
-		Components:       normalizedComponents(components),
-		JSX:              normalizedJSX(jsx),
-		StateAliases:     nonNilSlice(stateAliases),
-		StateReads:       nonNilSlice(stateReads),
-		StateWrites:      nonNilSlice(stateWrites),
-		ValueBindings:    nonNilSlice(valueBindings),
-		ReactiveBindings: nonNilSlice(reactiveBindings),
-		Callables:        normalizedCallables(callables),
-		Tasks:            normalizedTasks(tasks),
-		Exports:          nonNilSlice(exports),
-		Symbols:          nonNilSlice(symbols),
-		Boundaries:       nonNilSlice(boundaries),
-		Continuations:    normalizedContinuations(continuations),
-		Registries:       normalizedComponentRegistries(registries),
-		Enhancements:     nonNilSlice(enhancements),
-		PartitionPlan:    normalizedPartitionPlan(partitionPlan),
-		Resumptions:      normalizedResumptions(resumptions),
-		Policy:           normalizedPolicy(policy),
+		Imports:                nonNilSlice(imports),
+		Components:             normalizedComponents(components),
+		JSX:                    normalizedJSX(jsx),
+		StateAliases:           nonNilSlice(stateAliases),
+		StateReads:             nonNilSlice(stateReads),
+		StateWrites:            nonNilSlice(stateWrites),
+		ValueBindings:          nonNilSlice(valueBindings),
+		ReactiveBindings:       nonNilSlice(reactiveBindings),
+		Callables:              normalizedCallables(callables),
+		Tasks:                  normalizedTasks(tasks),
+		Exports:                nonNilSlice(exports),
+		Symbols:                nonNilSlice(symbols),
+		Boundaries:             nonNilSlice(boundaries),
+		Continuations:          normalizedContinuations(continuations),
+		Registries:             normalizedComponentRegistries(registries),
+		Enhancements:           nonNilSlice(enhancements),
+		EnhancementActivations: nonNilSlice(enhancementActivations),
+		PartitionPlan:          normalizedPartitionPlan(partitionPlan),
+		Resumptions:            normalizedResumptions(resumptions),
+		Policy:                 normalizedPolicy(policy),
 		Capabilities: CapabilityRequirements{
 			RawHTML: nonNilSlice(capabilities.RawHTML),
 		},
@@ -1005,6 +1079,7 @@ type Response struct {
 	Timings           Timings                 `json:"timings"`
 	CacheHit          bool                    `json:"cacheHit,omitempty"`
 	Error             string                  `json:"error,omitempty"`
+	Extension         any                     `json:"extension,omitempty"`
 }
 
 // NewResponseVersionFields returns the versions required on every response,

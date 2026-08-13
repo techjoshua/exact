@@ -10,10 +10,12 @@ export function adoptKeyedListChildren(
 	vnodes: VNode[],
 	nodes: readonly Node[],
 	parentInstance: ComponentInstance<any>,
-	parentScope: EffectScope
+	parentScope: EffectScope,
+	startIndex = 0,
+	end = nodes.length
 ): Mounted[] | undefined {
 	const mounts: Mounted[] = [];
-	let cursor = 0;
+	let cursor = startIndex;
 	for (const vnode of vnodes) {
 		const start = nodes[cursor];
 		const key = vnode.key;
@@ -21,9 +23,14 @@ export function adoptKeyedListChildren(
 			unmountMany(mounts);
 			return undefined;
 		}
-		const endIndex = nodes.findIndex(
-			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-		);
+		let endIndex = -1;
+		for (let index = cursor + 1; index < end; index++) {
+			const node = nodes[index];
+			if (node instanceof Comment && node.data === `/${start.data}`) {
+				endIndex = index;
+				break;
+			}
+		}
 		if (endIndex < 0) {
 			unmountMany(mounts);
 			return undefined;
@@ -31,12 +38,13 @@ export function adoptKeyedListChildren(
 		const adopted = adoptStaticMounted(
 			root,
 			vnode,
-			nodes.slice(cursor + 1, endIndex),
-			0,
+			nodes,
+			cursor + 1,
 			parentInstance,
-			parentScope
+			parentScope,
+			endIndex
 		);
-		if (!adopted || adopted.next !== endIndex - cursor - 1) {
+		if (!adopted || adopted.next !== endIndex) {
 			unmountMany(adopted ? [adopted.mounted, ...mounts] : mounts);
 			return undefined;
 		}
@@ -50,7 +58,7 @@ export function adoptKeyedListChildren(
 		});
 		cursor = endIndex + 1;
 	}
-	if (cursor !== nodes.length) {
+	if (cursor !== end) {
 		unmountMany(mounts);
 		return undefined;
 	}

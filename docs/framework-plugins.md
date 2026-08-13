@@ -91,10 +91,22 @@ hosts or enforce a cross-cutting boundary.
 
 ## Enhancements are not framework plugins
 
-Namespaced JSX enhancements are optional ordinary components supplied by component libraries. They
-use compiler metadata and a bundle-local enhancement catalog, not plugin discovery, configuration,
-host projections, or plugin lifecycle. A component library may independently expose a genuine host
-plugin, but the two surfaces are activated and documented separately.
+Namespaced JSX enhancements are optional ordinary components supplied by component libraries. The
+compiler lowers each application once into a canonical enhancement render node. Its generated
+provider import is always resolvable: Vite and Bun use generation-owned virtual facades, while
+Webpack and native Node use physical ESM facades under `.exact/enhancements`. If the provider is not
+installed or enabled, the facade selects a shared zero-instance pass-through and preserves the
+authored target. An installed malformed, unauthorized, or evaluation-failing provider remains a
+build error. Client facades also activate the versioned DOM enhancement capability, which keeps the
+host implementation in the static or lazy graph of the component that needs it and out of
+enhancement-free clients. This is not plugin discovery, configuration, host projection, or plugin
+lifecycle.
+
+The implemented [trusted language-service contribution](history/trusted-language-service-contributions.md)
+role is independent again: a plugin or enhancement library may publish inert editor metadata or an
+explicitly trusted analyzer without receiving compiler callbacks. Enabled provider errors join the
+compilation validation gate but cannot transform output. Language-role trust and ignores do not
+implicitly enable or disable plugin runtime participation.
 
 See [Component language](component-language.md#enhancement-composition) for attributed imports,
 finite activators, direct `_` composition, `_target`, bounded routing, SSR, and hydration.
@@ -103,5 +115,6 @@ finite activators, direct `_` composition, `_target`, bounded routing, SSR, and 
 
 - Webpack and Bun use the shared contracts but individual plugins may expose a
   narrower host-specific feature set. Check the plugin and runtime docs.
-- Low-level renderer callers outside Vite, Bun, Webpack, and component tests must supply an
-  explicit application-bundle catalog.
+- Low-level enhanced-renderer callers may still supply an explicit catalog. Compiler and adapter
+  output prepares the same provider decision before application execution; it is never resolved per
+  request.

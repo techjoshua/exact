@@ -67,7 +67,7 @@ export function TestingPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Build for the web"
-			title="Test behavior through the real component"
+			title="Test the real component"
 			description="Mount the DOM-rendered component, find controls the way a user does, and inspect framework state only when the test truly needs it."
 			previous={{ path: '/guides/forms', label: 'Accessible forms' }}
 			next={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
@@ -84,7 +84,7 @@ export function TestingPage(this: Component<{}>) {
 				<h2>Settling is explicit</h2>
 				<p>
 					State changes and event interactions flush reactive rendering and wait for observed
-					component tasks. Long-lived work can opt out, while <code>view.flush()</code> and{' '}
+					component tasks. Long-lived work can opt out, while <code>view.flush()</code> and
 					<code>view.settle()</code> keep timing choices visible.
 				</p>
 			</section>

@@ -53,7 +53,7 @@ type componentRender struct {
 }
 
 // renderDiagnostics keeps the returned view declarative. Component-owned
-// declarations and control flow live in setup; the render callable contains
+// declarations and control flow live in the outer component definition; the render callable contains
 // only its returned view expression, including JSX branches and list callbacks.
 func renderDiagnostics(
 	sourceFile *ast.SourceFile,
@@ -80,13 +80,13 @@ func renderDiagnostics(
 		if body := render.callable.Body(); body != nil && ast.IsBlock(body) {
 			diagnostics = append(diagnostics, renderDiagnostic(
 				body,
-				"render functions must contain one view expression; move declarations and control flow into component setup and keep conditional view logic in JSX",
+				"render functions must contain one view expression; move declarations and control flow into the outer component definition and keep conditional view logic in JSX",
 			))
 		}
 		if ast.HasSyntacticModifier(render.callable, ast.ModifierFlagsAsync) {
 			diagnostics = append(diagnostics, renderDiagnostic(
 				render.returned,
-				"render functions must be synchronous; move asynchronous work into component setup or a local task function",
+				"render functions must be synchronous; move asynchronous work into the outer component definition or a local task function",
 			))
 		}
 		walkNode(render.callable, func(node *ast.Node) bool {
@@ -116,7 +116,7 @@ func renderDiagnostics(
 				); action != "" {
 					diagnostics = append(diagnostics, renderDiagnostic(
 						node,
-						"render functions may not "+action+"; move the effect into component setup, a local task function, or an interaction callback",
+						"render functions may not "+action+"; move the effect into the outer component definition, a local task function, or an interaction callback",
 					))
 					return false
 				}
@@ -133,7 +133,7 @@ func renderDiagnostics(
 			if body != nil && !ast.IsBlock(body) && !ast.IsArrowFunction(body) {
 				diagnostics = append(diagnostics, renderDiagnostic(
 					body,
-					"component setup must return a component-local render arrow; compose reusable view structure with lexical micro-components declared in setup",
+					"the outer component definition must return a component-local render arrow; compose reusable view structure with lexical micro-components declared there",
 				))
 			}
 		}
@@ -141,7 +141,7 @@ func renderDiagnostics(
 			if !ast.IsArrowFunction(unwrapRenderExpression(returned)) {
 				diagnostics = append(diagnostics, renderDiagnostic(
 					returned,
-					"component setup must return a component-local render arrow; compose reusable view structure with lexical micro-components declared in setup",
+					"the outer component definition must return a component-local render arrow; compose reusable view structure with lexical micro-components declared there",
 				))
 			}
 		}

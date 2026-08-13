@@ -314,8 +314,8 @@ when its bytes have already been published.
 Keyed-list snapshots currently retain the wrapped HTML, inner HTML, and every item HTML. Store one
 backing string with item offsets, materializing item substrings only at an API boundary. The generic
 HTML differ similarly holds parsed trees, attribute maps, identity sets, source HTML, and patches
-for both versions; compiler-planned structural refresh should allow it to become a compatibility
-fallback rather than the normal large-boundary path.
+for both versions; a measured structural render-program extension may let it become a compatibility
+fallback for specific large-boundary forms without introducing a parallel plan.
 
 SSR enhancement planning eagerly creates several weak maps and sets and may retain prepared
 component children until final rendering. Allocate planning state only after an enhancement is
@@ -392,6 +392,13 @@ takes over. Compare compressed bytes, browser script parse/evaluation, reveal la
 and inert-mode equivalence.
 
 ## Client startup, hydration, and lazy capability loading
+
+The deferred, unsequenced
+[`compiler-authored-runtime-capabilities.md`](compiler-authored-runtime-capabilities.md)
+proposal preserves the broader required-import, instance-level omission, portable optional
+enhancement facade, and cross-target bundle-accounting direction described by this investigation.
+It does not replace or precede the capability-splitting delivery already owned by the lazy-island
+stage.
 
 The compiler should emit a per-root capability set so final bundlers can omit or defer task,
 enhancement, Activity, Suspense, portal, refresh, resumption, inspection, and compatibility runtime
@@ -534,14 +541,14 @@ remain binding, must treat this plan as a constraint rather than wait for a late
   replaced by large per-boundary runtime shells. It should consume the compact hydration table,
   capability-split runtime, and compiler adoption plan rather than preserve per-island JSON and a
   generic full-tree adoption pass.
-- **Compiler-planned structural refresh:** compact plans should replace most full HTML parse trees
-  and duplicated snapshots. Rich source explanation stays outside client contracts, and temporary
-  plan/diff state is released after publication. Plans should share render-slot identities and
-  keyed deltas with client updates rather than define a parallel mutation model.
-- **Partial-prerender resumption:** checkpoints serialize compact identities, never live component
-  or VNode graphs. Resumed request ownership must use traversal-scoped SSR disposal and release
-  reconstructed generations deterministically. Resumed independent siblings may use the same
-  bounded deterministic SSR concurrency contract.
+- **Structural render-program refresh extensions:** the later architecture review removed this as a
+  standalone gate. A measured extension may replace full HTML parse trees and duplicated snapshots
+  for one proven form, but must reuse render-slot identities and partition authority rather than
+  define a parallel mutation model.
+- **Persisted partial-prerender resumption:** rejected after architecture review. Static Suspense
+  fallbacks and progressive SSR already provide the useful response behavior; avoiding the shell's
+  render cost does not justify checkpoint security, replay coordination, build retention, and
+  reconstructed request ownership without new production-scale evidence.
 - **Server component-library trust:** bundler authorization should make one package decision per
   graph generation and reuse it across target emission and HMR invalidation. It must not duplicate
   compiler placement analysis, retain stale generations, or add runtime checks to already-authorized

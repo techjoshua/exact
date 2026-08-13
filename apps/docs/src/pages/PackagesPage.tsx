@@ -29,6 +29,11 @@ const packageGroups: PackageGroup[] = [
 		intro: 'Common application structure without a second component model.',
 		packages: [
 			{
+				name: '@exactjs/accessibility',
+				purpose:
+					'Native-first ARIA relationships, focus lifecycle, composite navigation, and trusted accessibility diagnostics.'
+			},
+			{
 				name: '@exactjs/router',
 				purpose:
 					'Nested routing, links, outlets, data operations, and interaction-coordinated navigation.'
@@ -40,6 +45,11 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/testing',
 				purpose: 'Component mounting, accessible queries, events, state, and runner adapters.'
+			},
+			{
+				name: '@exactjs/intl',
+				purpose:
+					'Experimental validated message plans, locale environment, and enhancement runtime.'
 			}
 		]
 	},
@@ -63,6 +73,10 @@ const packageGroups: PackageGroup[] = [
 					'VS Code startup, trust, semantic presentation, region markers, and component views.'
 			},
 			{ name: '@exactjs/vite-plugin', purpose: 'Vite integration over the shared compiler.' },
+			{
+				name: '@exactjs/intl-analyzer',
+				purpose: 'Experimental build-only lexical message extraction and source instrumentation.'
+			},
 			{
 				name: '@exactjs/webpack-plugin',
 				purpose: 'Webpack resolution, conditions, and transform integration.'
@@ -135,7 +149,7 @@ export function PackagesPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Explore"
-			title="Find the package that owns the job"
+			title="Find the right owner"
 			description="The package surface is broad because platform boundaries are explicit. Most browser applications begin with only core, DOM, JSX, and the compiler integration."
 			previous={{ path: '/advanced', label: 'Beyond the browser' }}
 		>

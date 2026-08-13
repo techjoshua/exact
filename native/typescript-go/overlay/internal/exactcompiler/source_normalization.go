@@ -1221,7 +1221,7 @@ func inspectComponentComputationStatement(
 	visit = func(node *ast.Node, assignmentTarget bool) {
 		if node == nil ||
 			(node != statement && ast.IsFunctionLike(node)) ||
-			isComponentPeekCall(node) {
+			isComponentObservationBoundary(node) {
 			return
 		}
 		if ast.IsBinaryExpression(node) {
@@ -1299,7 +1299,7 @@ func containsComponentReactiveRead(
 	visit = func(node *ast.Node) {
 		if node == nil || found ||
 			(node != root && ast.IsFunctionLike(node)) ||
-			isComponentPeekCall(node) {
+			isComponentObservationBoundary(node) {
 			return
 		}
 		if _, ok := componentComputationStatePath(node); ok ||
@@ -1324,6 +1324,14 @@ func containsComponentReactiveRead(
 	}
 	visit(root)
 	return found
+}
+
+func isComponentObservationBoundary(node *ast.Node) bool {
+	if isComponentPeekCall(node) {
+		return true
+	}
+	_, logging := canonicalComponentLogLevel(node)
+	return logging
 }
 
 func componentComputationEnvironmentBindings(

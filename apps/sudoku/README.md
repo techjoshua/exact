@@ -16,7 +16,13 @@ npm run dev:sudoku
 
 Games are generated locally from reproducible seeds and retain a unique solution. The interface
 supports notes, undo and redo, conflict highlighting, number-placement progress, themes, and
-responsive controls.
+responsive controls. Typing a digit enters it directly into the selected cell, while typing after
+the board selection is released selects that digit on the number pad. Selecting a number enables
+click-to-enter; selecting it again clears both the number and cell selection. Mouse users can
+right-click an editable cell to toggle a pencil mark for the selected number. Each board cell
+retains stable value and nine-slot pencil-mark DOM layers, while board-root CSS state controls their
+visibility and matching-number highlights. Solving a puzzle stops its clock and includes the final
+elapsed time in the victory message.
 
 ## Build
 

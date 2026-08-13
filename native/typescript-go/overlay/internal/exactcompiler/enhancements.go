@@ -10,12 +10,13 @@ import (
 )
 
 type enhancementComponent struct {
-	identity  string
-	canonical string
-	members   map[string]enhancementMember
-	variants  []map[string]enhancementMember
-	module    string
-	export    string
+	identity       string
+	canonical      string
+	members        map[string]enhancementMember
+	analysisFields map[string]enhancementMember
+	variants       []map[string]enhancementMember
+	module         string
+	export         string
 }
 
 type enhancementActivator struct {
@@ -26,6 +27,7 @@ type enhancementActivator struct {
 type enhancementBinding struct {
 	defaultComponent *enhancementComponent
 	activators       map[string]enhancementActivator
+	analysisFields   map[string]enhancementAnalysisField
 }
 
 type enhancementMember struct {
@@ -35,12 +37,14 @@ type enhancementMember struct {
 }
 
 type enhancementImports struct {
-	bindings     map[string]enhancementBinding
-	declarations map[int]struct{}
-	spreads      map[int]enhancementSpread
-	applications map[int]enhancementApplication
-	catalog      []RendererEnhancement
-	diagnostics  []Diagnostic
+	bindings       map[string]enhancementBinding
+	declarations   map[int]struct{}
+	spreads        map[int]enhancementSpread
+	applications   map[int]enhancementApplication
+	catalog        []RendererEnhancement
+	activations    []EnhancementActivation
+	diagnostics    []Diagnostic
+	analysisFields map[*ast.Node][]enhancementAnalysisField
 }
 
 type enhancementSpreadMember struct {
@@ -59,6 +63,12 @@ type enhancementApplication struct {
 	attributes map[int][]enhancementSpreadMember
 }
 
+type enhancementAnalysisField struct {
+	identity string
+	source   string
+	member   enhancementMember
+}
+
 type enhancementResolutionDiagnostic struct {
 	code    string
 	message string
@@ -68,14 +78,31 @@ func collectEnhancementImports(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	skippedAttributes map[int]struct{},
+	packageEnhancementBoundary int,
 ) enhancementImports {
 	result := enhancementImports{
-		bindings:     make(map[string]enhancementBinding),
-		declarations: make(map[int]struct{}),
-		spreads:      make(map[int]enhancementSpread),
-		applications: make(map[int]enhancementApplication),
+		bindings:       make(map[string]enhancementBinding),
+		declarations:   make(map[int]struct{}),
+		spreads:        make(map[int]enhancementSpread),
+		applications:   make(map[int]enhancementApplication),
+		analysisFields: make(map[*ast.Node][]enhancementAnalysisField),
 	}
 	ordinaryBindings := make(map[string]struct{})
+	bindingDeclarations := make(map[string]*ast.Node)
+	setBinding := func(name string, binding enhancementBinding, statement *ast.Node) {
+		if previous := bindingDeclarations[name]; previous != nil &&
+			packageEnhancementBoundary > 0 && statement.Pos() >= packageEnhancementBoundary {
+			result.diagnostics = append(result.diagnostics, enhancementDiagnostic(
+				sourceFile,
+				previous,
+				"EXACT6017",
+				fmt.Sprintf("duplicate identifier %q; it is already declared as a package-scoped enhancement", name),
+			))
+			return
+		}
+		bindingDeclarations[name] = statement
+		result.bindings[name] = binding
+	}
 	for _, statement := range sourceFile.Statements.Nodes {
 		if !ast.IsImportDeclaration(statement) {
 			continue
@@ -98,6 +125,14 @@ func collectEnhancementImports(
 				Start:  statement.Pos(),
 				Length: statement.End() - statement.Pos(),
 			})
+		}
+		if exactPackageEnhancementImport(declaration) &&
+			(packageEnhancementBoundary == 0 || statement.Pos() < packageEnhancementBoundary) {
+			addDiagnostic(
+				"EXACT6018",
+				"scope: 'package' enhancement imports are allowed only in exact.config.*",
+			)
+			continue
 		}
 		if declaration.ImportClause == nil ||
 			!ast.IsStringLiteral(declaration.ModuleSpecifier) {
@@ -131,7 +166,7 @@ func collectEnhancementImports(
 			if diagnostic != "" {
 				addDiagnostic("EXACT6004", diagnostic)
 			} else {
-				result.bindings[name.Text()] = enhancementBinding{defaultComponent: &component}
+				setBinding(name.Text(), enhancementBindingForComponent(&component), statement)
 				appendEnhancementCatalog(&result, identity, moduleSpecifier, "default")
 			}
 		}
@@ -154,7 +189,7 @@ func collectEnhancementImports(
 				addDiagnostic(diagnostic.code, diagnostic.message)
 			}
 			if binding.defaultComponent != nil || len(binding.activators) != 0 {
-				result.bindings[namespace.Text()] = binding
+				setBinding(namespace.Text(), binding, statement)
 				appendEnhancementBindingCatalog(&result, binding)
 			}
 			continue
@@ -190,11 +225,12 @@ func collectEnhancementImports(
 				addDiagnostic("EXACT6004", diagnostic)
 				continue
 			}
-			result.bindings[specifier.Name().Text()] = enhancementBinding{defaultComponent: &component}
+			setBinding(specifier.Name().Text(), enhancementBindingForComponent(&component), statement)
 			appendEnhancementCatalog(&result, identity, moduleSpecifier, exportName)
 		}
 	}
 	collectEnhancementApplications(sourceFile, typeChecker, &result, ordinaryBindings, skippedAttributes)
+	collectEnhancementAnalysisFieldDiagnostics(sourceFile, typeChecker, &result)
 	collectEnhancementTypeDiagnostics(sourceFile, typeChecker, &result)
 	collectTargetDiagnostics(sourceFile, &result)
 	return result
@@ -257,13 +293,30 @@ func appendEnhancementBindingCatalog(imports *enhancementImports, binding enhanc
 	}
 }
 
+func enhancementBindingForComponent(component *enhancementComponent) enhancementBinding {
+	binding := enhancementBinding{
+		defaultComponent: component,
+		activators:       make(map[string]enhancementActivator),
+		analysisFields:   make(map[string]enhancementAnalysisField),
+	}
+	for name, member := range component.analysisFields {
+		binding.analysisFields[name] = enhancementAnalysisField{
+			identity: component.identity, source: name, member: member,
+		}
+	}
+	return binding
+}
+
 func resolveEnhancementNamespace(
 	moduleSpecifierNode *ast.Node,
 	localName *ast.Node,
 	moduleSpecifier string,
 	typeChecker *checker.Checker,
 ) (enhancementBinding, []enhancementResolutionDiagnostic) {
-	binding := enhancementBinding{activators: make(map[string]enhancementActivator)}
+	binding := enhancementBinding{
+		activators:     make(map[string]enhancementActivator),
+		analysisFields: make(map[string]enhancementAnalysisField),
+	}
 	if typeChecker == nil {
 		return binding, []enhancementResolutionDiagnostic{{
 			code: "EXACT6004", message: "exact-enhancement namespaces require semantic component resolution",
@@ -325,6 +378,13 @@ func resolveEnhancementNamespace(
 		} else {
 			componentCopy := component
 			canonicalComponents[component.canonical] = &componentCopy
+		}
+		for name, member := range component.analysisFields {
+			if _, exists := binding.analysisFields[name]; !exists {
+				binding.analysisFields[name] = enhancementAnalysisField{
+					identity: component.identity, source: name, member: member,
+				}
+			}
 		}
 		if exportName == "default" {
 			binding.defaultComponent = canonicalComponents[component.canonical]
@@ -551,6 +611,7 @@ func resolveEnhancementComponentSymbol(
 		}
 	}
 	members := make(map[string]enhancementMember)
+	analysisFields := make(map[string]enhancementMember)
 	variants := make([]map[string]enhancementMember, 0, len(propsType.Distributed()))
 	for _, memberType := range propsType.Distributed() {
 		variant := make(map[string]enhancementMember)
@@ -563,6 +624,12 @@ func resolveEnhancementComponentSymbol(
 			valueType := typeChecker.GetTypeOfSymbolAtLocation(property, location)
 			member := enhancementMember{
 				prop: name, valueType: valueType, optional: property.Flags&ast.SymbolFlagsOptional != 0,
+			}
+			if enhancementAnalyzerOnlyProperty(property) {
+				if _, exists := analysisFields[canonical]; !exists {
+					analysisFields[canonical] = member
+				}
+				continue
 			}
 			variant[name] = member
 			if _, exists := members[canonical]; !exists {
@@ -577,12 +644,13 @@ func resolveEnhancementComponentSymbol(
 		canonicalIdentity = identity
 	}
 	return enhancementComponent{
-		identity:  identity,
-		canonical: canonicalIdentity,
-		members:   members,
-		variants:  variants,
-		module:    moduleSpecifier,
-		export:    exportName,
+		identity:       identity,
+		canonical:      canonicalIdentity,
+		members:        members,
+		analysisFields: analysisFields,
+		variants:       variants,
+		module:         moduleSpecifier,
+		export:         exportName,
 	}, ""
 }
 
@@ -651,6 +719,21 @@ func exactEnhancementImport(declaration *ast.ImportDeclaration) bool {
 			continue
 		}
 		if item.Value.AsStringLiteral().Text == "exact-enhancement" {
+			return true
+		}
+	}
+	return false
+}
+
+func exactPackageEnhancementImport(declaration *ast.ImportDeclaration) bool {
+	if !exactEnhancementImport(declaration) || declaration.Attributes == nil {
+		return false
+	}
+	for _, attribute := range declaration.Attributes.AsImportAttributes().Attributes.Nodes {
+		item := attribute.AsImportAttribute()
+		if item.Name().Text() == "scope" && item.Value != nil &&
+			ast.IsStringLiteral(item.Value) &&
+			item.Value.AsStringLiteral().Text == "package" {
 			return true
 		}
 	}

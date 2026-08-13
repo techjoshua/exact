@@ -1,6 +1,6 @@
 ---
 name: exact-web-development
-description: Build, modify, debug, review, configure, and test web applications that use the eXact framework and @exactjs packages. Use when the user asks to create an eXact project or component, when package.json contains @exactjs/* dependencies, when TSX uses eXact Component instances or reactive this.state, or when working with eXact forms, tasks, routing, rendering, SSR, hydration, server components, build plugins, runtime adapters, framework plugins, or server/client placement.
+description: Build, modify, debug, review, configure, and test web applications that use the eXact framework and @exactjs packages. Use when the user asks to create an eXact project or component, when package.json contains @exactjs/* dependencies, when TSX uses eXact Component instances or reactive this.state, or when working with eXact forms, tasks, routing, rendering, internationalization, SSR, hydration, server components, build plugins, runtime adapters, framework plugins, or server/client placement.
 ---
 
 # eXact web development
@@ -23,20 +23,24 @@ When creating or repairing compiler configuration, read
 ## Preserve the component model
 
 - Define an eXact component as a function whose typed `this` is `Component<State>`.
-- Initialize state, context, refs, lifecycle, and task activation in the outer setup function.
+- Declare state defaults, context, refs, lifecycle, and task activation in the outer component
+  definition. The compiler turns that description into a reactive state machine; do not treat the
+  definition as an ordinary linearly executed callback.
 - Return a render function whose body is the view expression. Keep declarations and imperative
-  control flow in setup; use conditional JSX and keyed callbacks for view-local branching.
+  source control flow in the outer definition; use conditional JSX and keyed callbacks for
+  view-local branching.
 - Mutate `this.state` directly. Do not use `useState`, reducers, setter wrappers, or immutable
   replacement merely because the file contains JSX.
 - Keep props parent-owned. Store local mutable data in `this.state`.
-- Write ordinary safe derived setup expressions. Let the compiler preserve and cache their
+- Write ordinary safe initialization-derived expressions. Let the compiler preserve and cache their
   reactive dependencies; use `this.reactive()` only when an explicit reactive value is useful.
 - Assign derived results directly to `this.state`. Reactive reads on the right become dependencies;
   use `peek(() => ...)` when an assignment intentionally captures a one-time snapshot.
 - In an async component, await ordinary operations into state. Sequential awaits and
   `try`/`catch`/`finally` remain ordinary TypeScript while the compiler owns cancellation and
   atomic publication.
-- Assume the outer component function runs once per instance, not once per update.
+- Assume each mounted component owns one durable compiled state-machine instance; an update runs
+  affected transitions rather than calling the component again.
 
 Read [components-and-reactivity.md](references/components-and-reactivity.md) before creating
 nontrivial components or translating code from another framework.
@@ -50,7 +54,7 @@ expression boundaries and is not an equivalent application runtime.
 Use the package scope `@exactjs`, not the former `@exact` scope.
 
 When the installed project provides eXact Language Tools, use its
-compiler-backed diagnostics and Component Semantics view to inspect setup,
+compiler-backed diagnostics and Component Semantics view to inspect initialization,
 render, inferred and explicit tasks, placement, readiness, dependencies,
 effects, signal injection, and cleanup. Treat those facts as compiler
 authority. Do not infer eXact behavior from generated JavaScript or reproduce a
@@ -99,28 +103,38 @@ that omitted its catalog or runtime hooks.
   inspectable, and use `this.reactive()` only when another API needs a first-class reactive value.
 - Use inferred DOM event types: `onInput={(event) => event.currentTarget.value}` normally needs no
   manual `Event` annotation or element cast.
+- Write ordinary spaces in JSX prose. eXact follows HTML-like whitespace collapsing across
+  multiline text, elements, and expressions; do not add `{' '}` merely to separate children. Use
+  an explicit string expression only for dynamic or intentionally exact whitespace.
 - Use `valueProp:callbackProp={this.state.path}` for a component's mechanical controlled-value
   callback when both props are finite and the callback only publishes a replacement. Write both
   props explicitly for validation, transformation, logging, async work, or callback composition.
 - Use `value:onInput`, `value:onChange`, `checked:onChange`, and `open:onToggle` for supported
   intrinsic bindings when the target is one writable state location.
+- Use `modal:isOpen` for writable native dialog modality. Do not combine it with the nonmodal
+  `open` attribute or recreate browser top-layer and inertness behavior.
 - Use `className:token={condition}` for a static conditional class token. Use a class array or
   truthy-key object when token names are dynamic; authored class sources compose in prop order.
 - Use ordinary compiled `Array.map()` with an `@exact key` identity annotation, an explicit
   `key={...}` prop, or `this.map()` when an explicit selector is clearer.
 - Use native-looking reactive `Map` and `Set` operations. Let compiler-generated continuations
   transport collection deltas instead of cloning or manually serializing whole collections.
+- When `@exactjs/intl` is installed, keep authored TSX as the source-locale fallback and mark only
+  lexical message regions, formatter values, or allowlisted human-facing intrinsic properties.
+  Do not recursively absorb ordinary component output into an enclosing message; use a named
+  `intl:fragment` when a component-owned range must move as an opaque exactly-once slot. Read the
+  installed package's `AGENTS.md` and `README.md` before configuring catalogs or unit policy.
 - Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
   product-specific presentation; build directly on `ErrorContext` only for different capture or
   reset semantics.
-- Define coordinated work as an ordinary local function. Call it during setup
+- Define coordinated work as an ordinary local function. Call it in the outer definition
   for initialization/reactive activation or from an event, form, lifecycle,
   router, or another task for invoked activation. Use an optional final
   `TaskContext = TaskContext...` default for placement, concurrency, priority,
   readiness, detachment, cancellation, cleanup, ownership, or optimism.
 - Use a defaulted non-context task parameter to capture an unconditional reactive
   input once per generation without making it an activation dependency. Keep
-  explicit setup-call arguments for tracked inputs and reserve `task.peek()` for
+  explicit initialization-call arguments for tracked inputs and reserve `task.peek()` for
   conditional or mid-body snapshots.
 - Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Use
   a function-defined task when code needs reactive status, direct invocation,
@@ -128,7 +142,7 @@ that omitted its catalog or runtime hooks.
 - Use `createComponentRegistry()` for finite runtime component selection. Derive keys with
   `KeyOf<typeof Registry>` or narrow untrusted strings with `hasComponent()`; do not replace it
   with a mutable component dictionary or an untyped `createVNode()` escape.
-  Pass reactive dependencies as ordinary setup-call arguments; use parameter
+  Pass reactive dependencies as ordinary initialization-call arguments; use parameter
   defaults for generation-stable untracked captures.
 - Use `TaskContext.client()` or `TaskContext.server()` policy only when
   placement is architectural or cannot be inferred from browser/server usage.
@@ -138,6 +152,8 @@ that omitted its catalog or runtime hooks.
 
 Read [forms-and-lists.md](references/forms-and-lists.md) for controls, conversions, nullable
 bindings, radio groups, multi-selects, checkbox groups, and list identity. Read
+[accessibility.md](references/accessibility.md) before adding ARIA relationship enhancements,
+focus scopes, modal bindings, or custom composite keyboard navigation. Read
 [tasks-and-placement.md](references/tasks-and-placement.md) for asynchronous work and split builds.
 Read [distributed-execution.md](references/distributed-execution.md) before creating or changing
 server tasks, server context, SSR resumption, or client/server protocol tests.

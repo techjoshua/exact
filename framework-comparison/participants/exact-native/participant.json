@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "exact-native",
+	"framework": "eXact",
+	"frameworkVersion": "0.1.0",
+	"status": "scaffolded",
+	"tracks": ["native-full-stack"],
+	"runtime": "node-24",
+	"commands": {
+		"build": "npm run build:exact-native -w @exactjs/framework-comparison-suite",
+		"start": "npm run start:exact-native -w @exactjs/framework-comparison-suite"
+	},
+	"baseUrl": "http://127.0.0.1:4501",
+	"sourceRoots": ["src"]
+}

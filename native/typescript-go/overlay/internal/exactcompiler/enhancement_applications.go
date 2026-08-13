@@ -12,6 +12,7 @@ type enhancementPrefixSelection struct {
 	binding    enhancementBinding
 	components []*enhancementComponent
 	seen       map[string]struct{}
+	runtime    bool
 }
 
 // collectEnhancementApplications selects canonical components before distributing
@@ -90,13 +91,16 @@ func collectEnhancementApplications(
 				continue
 			}
 			if activator, exists := selection.binding.activators[name.Name().Text()]; exists {
+				selection.runtime = true
 				selection.add(activator.component)
+			} else if _, analysisOnly := selection.binding.analysisFields[name.Name().Text()]; !analysisOnly {
+				selection.runtime = true
 			}
 		}
 
 		for _, prefix := range prefixOrder {
 			selection := selections[prefix]
-			if len(selection.components) == 0 && selection.binding.defaultComponent != nil {
+			if selection.runtime && len(selection.components) == 0 && selection.binding.defaultComponent != nil {
 				selection.add(selection.binding.defaultComponent)
 			}
 		}
@@ -147,12 +151,76 @@ func collectEnhancementApplications(
 				imports,
 			)
 			application.attributes[property.Pos()] = members
+			recordEnhancementActivations(
+				imports,
+				node,
+				property,
+				name.Namespace.Text(),
+				name.Name().Text(),
+				selection,
+				members,
+			)
 		}
 		if len(application.components) != 0 {
 			imports.applications[attributes.Pos()] = application
 		}
 		return true
 	})
+}
+
+// recordEnhancementActivations preserves the compiler's canonical component selection without
+// exposing checker or AST objects to downstream package tooling.
+func recordEnhancementActivations(
+	imports *enhancementImports,
+	target *ast.Node,
+	attribute *ast.Node,
+	namespace string,
+	activator string,
+	selection *enhancementPrefixSelection,
+	members []enhancementSpreadMember,
+) {
+	selected := make(map[string]struct{})
+	if candidate, exists := selection.binding.activators[activator]; exists {
+		selected[candidate.component.identity] = struct{}{}
+	}
+	for _, member := range members {
+		selected[member.identity] = struct{}{}
+	}
+	application := "direct"
+	tag := jsxOpeningTag(target)
+	if tag == "_" {
+		application = "enhancement-target"
+	} else if tag == "_target" {
+		application = "target-intrinsic"
+	}
+	for _, component := range selection.components {
+		if _, exists := selected[component.identity]; !exists {
+			continue
+		}
+		imports.activations = append(imports.activations, EnhancementActivation{
+			Namespace:       namespace,
+			Activator:       activator,
+			Start:           attribute.Pos(),
+			Length:          attribute.End() - attribute.Pos(),
+			TargetStart:     target.Pos(),
+			TargetLength:    target.End() - target.Pos(),
+			Identity:        component.identity,
+			ModuleSpecifier: component.module,
+			ExportName:      component.export,
+			Application:     application,
+		})
+	}
+}
+
+func jsxOpeningTag(node *ast.Node) string {
+	switch {
+	case ast.IsJsxOpeningElement(node):
+		return node.AsJsxOpeningElement().TagName.Text()
+	case ast.IsJsxSelfClosingElement(node):
+		return node.AsJsxSelfClosingElement().TagName.Text()
+	default:
+		return ""
+	}
 }
 
 func collectOrdinaryEnhancementPrefixDiagnostics(
@@ -236,6 +304,9 @@ func collectSpreadActivatorSelections(
 				continue
 			}
 			activator, exists := selection.binding.activators[member]
+			if _, analysisOnly := selection.binding.analysisFields[member]; !analysisOnly {
+				selection.runtime = true
+			}
 			if !exists {
 				continue
 			}
@@ -280,6 +351,13 @@ func distributeEnhancementMember(
 			"EXACT6006",
 			fmt.Sprintf("%s:%s is reserved and cannot be an enhancement prop", prefix, member),
 		))
+		return nil
+	}
+	if field, exists := selection.binding.analysisFields[member]; exists {
+		field.source = prefix + ":" + member
+		imports.analysisFields[node] = appendUniqueEnhancementAnalysisField(
+			imports.analysisFields[node], field,
+		)
 		return nil
 	}
 	if len(selection.components) == 0 {

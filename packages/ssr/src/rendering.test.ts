@@ -3,6 +3,7 @@ import {
 	Fragment,
 	Suspense,
 	Target as TargetBoundary,
+	TargetOverrides,
 	activateTaskForHost,
 	createEnhancementMarker,
 	createContext,
@@ -18,6 +19,23 @@ import { diffBoundaryHtml, renderToString, renderToStringAsync } from './index.j
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr rendering', () => {
+	it('serializes native controlled selections as option state in sync and async output', async () => {
+		const vnode = createVNode(
+			'select',
+			{ value: 'second' },
+			createVNode('option', { value: 'first' }, 'First'),
+			createVNode('option', { value: 'second' }, 'Second')
+		);
+
+		const sync = renderToString(vnode, { markers: false });
+		const asyncResult = await renderToStringAsync(vnode, { markers: false });
+
+		expect(sync.html).toBe(
+			'<select value="second"><option value="first">First</option><option value="second" selected>Second</option></select>'
+		);
+		expect(asyncResult.html).toBe(sync.html);
+	});
+
 	it('renders bundle-local enhancements as ordinary server components', async () => {
 		const identity = '@exactjs/ssr:test-enhancement#default';
 		let tone: unknown;
@@ -143,6 +161,19 @@ describe('@exactjs/ssr rendering', () => {
 			'<button class="authored shared inner outer" style="color: green; margin-top: 2px; padding-top: 4px;" aria-describedby="authored shared inner outer" data-tone="inner"></button>'
 		);
 		expect(asyncOutput.html).toBe(output.html);
+	});
+
+	it('serializes framework-owned target fallback overrides', () => {
+		const output = renderToString(
+			createVNode(
+				TargetBoundary,
+				{ placeholder: 'Translated', [TargetOverrides]: ['placeholder'] },
+				createVNode('input', { placeholder: 'Fallback', id: 'search' })
+			),
+			{ markers: false }
+		);
+
+		expect(output.html).toBe('<input placeholder="Translated" id="search">');
 	});
 
 	it('leaves unavailable server enhancements inert and warns once per identity', () => {

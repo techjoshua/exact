@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/printer"
@@ -22,6 +23,8 @@ func lowerComponentContracts(
 	target Target,
 	identityFilename string,
 	preserveComponentHoisting bool,
+	compatibility bool,
+	projection ComponentContractProjection,
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -72,11 +75,21 @@ func lowerComponentContracts(
 							target,
 							used,
 							preserveComponentHoisting,
+							compatibility,
+							projection,
 						)...,
 					)
 					continue
 				}
 				if component, attach := eligible[name.Text()]; attach {
+					if !preserveComponentHoisting &&
+						!componentFunctionReferencedEarlier(sourceFile, statement, name.Text()) {
+						statements = append(
+							statements,
+							brandComponentFunctionValue(emitContext, statement.AsFunctionDeclaration(), component)...,
+						)
+						continue
+					}
 					statements = append(
 						statements,
 						statement,
@@ -100,13 +113,15 @@ func lowerComponentContracts(
 				boundaries,
 				target,
 				used,
+				compatibility,
+				projection,
 			)
 			if rootChanged {
 				statements = append(statements, updatedRoot)
 				continue
 			}
 			updated, changed := brandComponentVariables(
-				factory,
+				emitContext,
 				statement,
 				eligible,
 			)
@@ -178,12 +193,110 @@ func lowerComponentContracts(
 	return result
 }
 
+func componentFunctionReferencedEarlier(
+	sourceFile *ast.SourceFile,
+	declaration *ast.Node,
+	name string,
+) bool {
+	for _, statement := range sourceFile.Statements.Nodes {
+		if statement == declaration {
+			return false
+		}
+		found := false
+		walkNode(statement, func(node *ast.Node) bool {
+			if ast.IsIdentifier(node) && node.Text() == name {
+				found = true
+				return false
+			}
+			return !found
+		})
+		if found {
+			return true
+		}
+	}
+	return false
+}
+
+// brandComponentFunctionValue makes the brand part of the declaration's owned value. Bundlers
+// therefore retain the brand whenever the component is reachable and remove both together when it
+// is not. This lowering is used only when preserving function-declaration hoisting was not
+// requested.
+func brandComponentFunctionValue(
+	emitContext *printer.EmitContext,
+	declaration *ast.FunctionDeclaration,
+	component Component,
+) []*ast.Node {
+	factory := emitContext.Factory
+	name := declaration.Name()
+	functionModifiers := []*ast.Node{}
+	if modifiers := declaration.Modifiers(); modifiers != nil {
+		for _, modifier := range modifiers.Nodes {
+			if modifier.Kind != ast.KindExportKeyword &&
+				modifier.Kind != ast.KindDefaultKeyword {
+				functionModifiers = append(functionModifiers, modifier)
+			}
+		}
+	}
+	var implementationModifiers *ast.ModifierList
+	if len(functionModifiers) != 0 {
+		implementationModifiers = factory.NewModifierList(functionModifiers)
+	}
+	implementation := factory.NewFunctionExpression(
+		implementationModifiers,
+		declaration.AsteriskToken,
+		factory.NewIdentifier(name.Text()),
+		declaration.TypeParameters,
+		declaration.Parameters,
+		declaration.Type,
+		declaration.FullSignature,
+		declaration.Body,
+	)
+	defaultExport := ast.HasSyntacticModifier(
+		declaration.AsNode(),
+		ast.ModifierFlagsDefault,
+	)
+	var publicModifiers *ast.ModifierList
+	if ast.HasSyntacticModifier(declaration.AsNode(), ast.ModifierFlagsExport) &&
+		!defaultExport {
+		publicModifiers = factory.NewModifierList([]*ast.Node{
+			factory.NewModifier(ast.KindExportKeyword),
+		})
+	}
+	publicDeclaration := factory.NewVariableStatement(
+		publicModifiers,
+		factory.NewVariableDeclarationList(
+			factory.NewNodeList([]*ast.Node{
+				factory.NewVariableDeclaration(
+					factory.NewIdentifier(name.Text()),
+					nil,
+					nil,
+					pureComponentBrandAttachment(emitContext, implementation, component.ID),
+				),
+			}),
+			ast.NodeFlagsConst,
+		),
+	)
+	result := []*ast.Node{publicDeclaration}
+	if defaultExport {
+		result = append(
+			result,
+			factory.NewExportAssignment(
+				nil,
+				false,
+				nil,
+				factory.NewIdentifier(name.Text()),
+			),
+		)
+	}
+	return result
+}
+
 func componentRootContract(
 	component Component,
 	target Target,
-	continuations []Continuation,
-	resumptions []ComponentResumption,
-	boundaries []Boundary,
+	_ []Continuation,
+	_ []ComponentResumption,
+	_ []Boundary,
 ) bool {
 	if !component.Exported {
 		return false
@@ -191,36 +304,23 @@ func componentRootContract(
 	if target == TargetClient && component.Placement == "client" {
 		return true
 	}
+	if target == TargetServer && component.Placement == "server" {
+		return true
+	}
 	if component.Placement != "isomorphic" {
 		return false
 	}
-	for _, continuation := range continuations {
-		if continuation.ComponentID == component.ID {
-			return target == TargetClient || target == TargetServer
-		}
-	}
-	for _, resumption := range resumptions {
-		if resumption.ComponentID == component.ID &&
-			(len(resumption.Client.StatePaths) != 0 ||
-				len(resumption.Client.ValueCaptures) != 0 ||
-				len(resumption.Client.Contexts) != 0 ||
-				len(resumption.Client.Boundaries) != 0) {
-			return target == TargetClient || target == TargetServer
-		}
-	}
-	for _, boundary := range boundaries {
-		if boundary.OwnerComponentID == component.ID {
-			return target == TargetClient || target == TargetServer
-		}
-	}
-	return false
+	// Every exported isomorphic component carries the same canonical definition,
+	// including task-free components whose target-local execution graph is empty.
+	return true
 }
 
 func brandComponentVariables(
-	factory *printer.NodeFactory,
+	emitContext *printer.EmitContext,
 	statement *ast.Node,
 	eligible map[string]Component,
 ) (*ast.Node, bool) {
+	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
 	list := variable.DeclarationList.AsVariableDeclarationList()
 	declarations := append([]*ast.Node(nil), list.Declarations.Nodes...)
@@ -245,7 +345,7 @@ func brandComponentVariables(
 			name,
 			declaration.ExclamationToken,
 			declaration.Type,
-			componentBrandAttachment(factory, declaration.Initializer, component.ID),
+			pureComponentBrandAttachment(emitContext, declaration.Initializer, component.ID),
 		)
 		changed = true
 	}
@@ -262,6 +362,21 @@ func brandComponentVariables(
 		variable.Modifiers(),
 		declarationList,
 	), true
+}
+
+// pureComponentBrandAttachment permits a bundler to remove an unreachable
+// variable component together with the initializer that owns its brand.
+func pureComponentBrandAttachment(
+	emitContext *printer.EmitContext,
+	component *ast.Node,
+	identity string,
+) *ast.Node {
+	return emitContext.AddSyntheticLeadingComment(
+		componentBrandAttachment(emitContext.Factory, component, identity),
+		ast.KindMultiLineCommentTrivia,
+		" @__PURE__ ",
+		false,
+	)
 }
 
 func componentBrandAttachment(
@@ -321,6 +436,8 @@ func wrapRootComponentFunction(
 	target Target,
 	used map[string]struct{},
 	preserveComponentHoisting bool,
+	compatibility bool,
+	projection ComponentContractProjection,
 ) []*ast.Node {
 	if !preserveComponentHoisting {
 		return wrapRootComponentFunctionValue(
@@ -334,6 +451,8 @@ func wrapRootComponentFunction(
 			boundaries,
 			target,
 			used,
+			compatibility,
+			projection,
 		)
 	}
 	factory := emitContext.Factory
@@ -352,6 +471,8 @@ func wrapRootComponentFunction(
 		declaration.AsNode(),
 		used,
 		false,
+		compatibility,
+		projection,
 	)
 	attachmentStatement := factory.NewExpressionStatement(attachment)
 	return []*ast.Node{declaration.AsNode(), attachmentStatement}
@@ -368,6 +489,8 @@ func wrapRootComponentFunctionValue(
 	boundaries []Boundary,
 	target Target,
 	used map[string]struct{},
+	compatibility bool,
+	projection ComponentContractProjection,
 ) []*ast.Node {
 	factory := emitContext.Factory
 	name := declaration.Name()
@@ -410,6 +533,8 @@ func wrapRootComponentFunctionValue(
 		implementation,
 		used,
 		true,
+		compatibility,
+		projection,
 	)
 	implementationDeclaration := factory.NewVariableStatement(
 		nil,
@@ -443,7 +568,7 @@ func wrapRootComponentFunctionValue(
 				factory.NewVariableDeclaration(
 					factory.NewIdentifier(name.Text()),
 					nil,
-					factory.NewTypeQueryNode(implementationIdentifier, nil),
+					nil,
 					attachment,
 				),
 			}),
@@ -478,6 +603,8 @@ func rootComponentContractAttachment(
 	componentFunction *ast.Node,
 	used map[string]struct{},
 	wrapIIFE bool,
+	compatibility bool,
+	projection ComponentContractProjection,
 ) *ast.Node {
 	factory := emitContext.Factory
 	implementationName := component.Name
@@ -522,17 +649,13 @@ func rootComponentContractAttachment(
 			used,
 		)
 	}
-	resumption := componentResumptionMetadata(
-		factory,
-		component,
-		resumptions,
-		boundaries,
-	)
 	role := "executor"
 	if target == TargetClient {
 		role = "client"
 	}
-	contract := contractObject(factory, true,
+	projectedExecution := projectComponentExecution(component.Execution, target)
+	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
+	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
 			"version",
@@ -564,8 +687,39 @@ func rootComponentContractAttachment(
 			"boundaries",
 			componentBoundaryMetadata(factory, component, boundaries),
 		),
-		contractProperty(factory, "resumption", resumption),
-	)
+		contractProperty(
+			factory,
+			"execution",
+			componentExecutionMetadata(
+				factory,
+				projectedExecution,
+				projection != ComponentContractProjectionComplete,
+			),
+		),
+		contractProperty(
+			factory,
+			"definition",
+			componentDefinitionMetadata(
+				factory,
+				implementation,
+				projectedExecution,
+				componentContinuations,
+				componentHasResumption(component.ID, resumptions),
+				target == TargetClient && component.Interactions,
+				usesCompatibility,
+				component.DynamicComponents,
+				projection != ComponentContractProjectionComplete,
+			),
+		),
+	}
+	if component.Placement != "server" && projection != ComponentContractProjectionClient {
+		contractProperties = append(contractProperties, contractProperty(
+			factory,
+			"resumption",
+			componentResumptionMetadata(factory, component, resumptions, boundaries),
+		))
+	}
+	contract := contractObject(factory, true, contractProperties...)
 	brandSymbol := factory.NewComputedPropertyName(
 		factory.NewCallExpression(
 			factory.NewPropertyAccessExpression(
@@ -643,6 +797,37 @@ func rootComponentContractAttachment(
 	)
 }
 
+func componentUsesJSXInterop(component Component, componentFunction *ast.Node) bool {
+	for _, edge := range component.RenderEdges {
+		if edge.ModuleSpecifier != "" && edge.ComponentID == "" {
+			return true
+		}
+	}
+	used := false
+	walkNode(componentFunction, func(node *ast.Node) bool {
+		if !ast.IsIdentifier(node) {
+			return true
+		}
+		name := node.Text()
+		used = name == "__exactInteropComponent" || strings.HasPrefix(name, "__exactInteropComponent_")
+		return !used
+	})
+	return used
+}
+
+func componentHasResumption(componentID string, resumptions []ComponentResumption) bool {
+	for _, resumption := range resumptions {
+		if resumption.ComponentID == componentID &&
+			(len(resumption.Client.StatePaths) != 0 ||
+				len(resumption.Client.ValueCaptures) != 0 ||
+				len(resumption.Client.Contexts) != 0 ||
+				len(resumption.Client.Boundaries) != 0) {
+			return true
+		}
+	}
+	return false
+}
+
 func wrapRootComponentVariables(
 	emitContext *printer.EmitContext,
 	statement *ast.Node,
@@ -654,6 +839,8 @@ func wrapRootComponentVariables(
 	boundaries []Boundary,
 	target Target,
 	used map[string]struct{},
+	compatibility bool,
+	projection ComponentContractProjection,
 ) (*ast.Node, bool) {
 	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
@@ -705,6 +892,8 @@ func wrapRootComponentVariables(
 			declaration.Initializer,
 			used,
 			false,
+			compatibility,
+			projection,
 		)
 		body := factory.NewBlock(
 			factory.NewNodeList([]*ast.Node{
@@ -816,6 +1005,7 @@ func continuationExecutorMetadata(
 ) *ast.Node {
 	workByID := continuationWorkByID(componentFunction, continuations)
 	aliases := componentContextAliases(componentFunction)
+	stateType := continuationExecutorStateType(factory, componentFunction)
 	values := make([]*ast.Node, 0, len(continuations))
 	for _, continuation := range continuations {
 		work := workByID[continuation.ID]
@@ -827,6 +1017,7 @@ func continuationExecutorMetadata(
 			work,
 			continuation,
 			aliases,
+			stateType,
 			used,
 		)
 		values = append(values, contractObject(factory, true,
@@ -893,6 +1084,7 @@ func continuationExecutor(
 	work *ast.Node,
 	continuation Continuation,
 	aliases []continuationContextAlias,
+	stateType *ast.Node,
 	used map[string]struct{},
 ) *ast.Node {
 	activationName := allocateGeneratedName(used, "__exactActivation")
@@ -1061,18 +1253,7 @@ func continuationExecutor(
 		constStatement(
 			factory,
 			component,
-			contractObject(factory, false,
-				contractProperty(
-					factory,
-					"state",
-					factory.NewPropertyAccessExpression(
-						activation,
-						nil,
-						factory.NewIdentifier("state"),
-						ast.NodeFlagsNone,
-					),
-				),
-			),
+			continuationComponentValue(factory, activation, stateType),
 		),
 		constStatement(
 			factory,
@@ -1181,21 +1362,10 @@ func continuationMetadata(
 ) *ast.Node {
 	values := make([]*ast.Node, 0, len(continuations))
 	for _, continuation := range continuations {
-		dependencies := make([]*ast.Node, 0, len(continuation.Activation.Dependencies))
-		for _, dependency := range continuation.Activation.Dependencies {
-			dependencies = append(
-				dependencies,
-				contractObject(
-					factory,
-					true,
-					contractProperty(
-						factory,
-						"source",
-						contractString(factory, dependency.Source),
-					),
-				),
-			)
-		}
+		dependencies := continuationDependencyMetadata(
+			factory,
+			continuation.Activation.Dependencies,
+		)
 		serverContexts := []string{}
 		if !client {
 			for _, context := range continuation.Activation.ServerContexts {
@@ -1239,6 +1409,11 @@ func continuationMetadata(
 				factory,
 				"readiness",
 				contractString(factory, continuation.Readiness),
+			),
+			contractProperty(
+				factory,
+				"concurrency",
+				contractString(factory, continuation.Concurrency),
 			),
 			contractProperty(
 				factory,
@@ -1298,15 +1473,16 @@ func continuationInvocationMetadata(
 	}
 	arguments := make([]*ast.Node, 0, len(continuation.Invocation.Arguments))
 	for _, argument := range continuation.Invocation.Arguments {
-		arguments = append(arguments, contractObject(
-			factory,
-			true,
-			contractProperty(
-				factory,
-				"source",
-				contractString(factory, argument.Source),
-			),
-		))
+		properties := []*ast.Node{
+			contractProperty(factory, "index", contractNumber(factory, argument.Index)),
+			contractProperty(factory, "source", contractString(factory, argument.Source)),
+		}
+		if argument.Path != "" {
+			properties = append(properties,
+				contractProperty(factory, "path", contractString(factory, argument.Path)),
+			)
+		}
+		arguments = append(arguments, contractObject(factory, true, properties...))
 	}
 	return contractProperty(
 		factory,

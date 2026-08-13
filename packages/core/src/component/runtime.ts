@@ -1,17 +1,10 @@
 import {
-	computed,
 	createEffectScope,
-	unwrap,
 	updateReactive,
 	withEffectScope,
 	type Reactive,
 	type ReactiveValue
 } from '@exactjs/reactive';
-import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks/activation.js';
-import { componentContinuationTaskId } from '../tasks/component-continuation.js';
-import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
-import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../tasks/observers.js';
-import { registerTaskOwnerHost } from '../tasks/owner-hosts.js';
 import { createComponentActivation, type ComponentActivation } from './activation.js';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
@@ -31,7 +24,7 @@ import type {
 	RenderFunction,
 	VNode
 } from './contracts.js';
-import { cleanupFailedComponentConstruction, isTemplateStringsArray } from './construction.js';
+import { cleanupFailedComponentConstruction } from './construction.js';
 import { ErrorContext } from './contexts.js';
 import {
 	componentDomainInspection,
@@ -48,13 +41,18 @@ import {
 	mutableComponentRenderHandlers
 } from './lifecycle-handlers.js';
 import { createComponentListController } from './list-controller.js';
+import { componentLocalizationCapability } from './localization-capability.js';
 import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins } from './plugins.js';
-import { componentReadinessContext } from './readiness.js';
+import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
 import { reactiveValue } from './reactive-value.js';
+import type { IntlFacade } from '../localization/contracts.js';
 import { createComponentRefBinding, createComponentRefRegistry } from './ref-runtime.js';
+import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
 import { createComponentProps, createComponentState } from './state.js';
+import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
+import { readExactComponentContract } from '../component-contracts.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
@@ -83,8 +81,10 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	private refsValue?: Map<symbol, RefBinding<unknown>>;
 	private refsRegistry?: RefRegistry;
 	private lists?: ReturnType<typeof createComponentListController>;
+	private intlFacade?: IntlFacade;
 	private readonly inspection;
-	private readonly taskOwner;
+	private readonly taskCapability = componentTaskCapability();
+	private taskState?: ComponentTaskCapabilityState;
 	private readonly activation: ComponentActivation;
 	private activityBlockers?: Set<symbol>;
 	private mountedValue = false;
@@ -96,7 +96,8 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		rawProps: Props,
 		parent: ComponentInstance<any> | undefined,
 		ambientContexts: ComponentContextValues | undefined,
-		domain: ComponentInstance<State>['domain']
+		domain: ComponentInstance<State>['domain'],
+		execution?: PreparedComponentExecution
 	) {
 		this.type = type;
 		this.parent = parent;
@@ -109,14 +110,13 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		});
 		this.state = createComponentState<State>(domain, () => this);
 		this.props = createComponentProps(rawProps);
-		this.taskOwner = createTaskOwnerRecord(this.id);
 		this.activation = createComponentActivation(
 			this,
 			() => this.mountedValue,
 			() => this.disposedValue,
 			() => this.activityBlockers?.size ?? 0
 		);
-		this.initialize();
+		this.initialize(execution, rawProps);
 	}
 
 	get contexts(): Map<symbol, unknown> {
@@ -137,6 +137,15 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 
 	get refs(): RefRegistry {
 		return (this.refsRegistry ??= createComponentRefRegistry(this));
+	}
+
+	get intl(): IntlFacade {
+		const capability = componentLocalizationCapability();
+		if (!capability)
+			throw new Error(
+				'Component localization is unavailable because this artifact did not include the localization capability'
+			);
+		return (this.intlFacade ??= capability.create(this));
 	}
 
 	get mountHandlers(): LifecycleHandler[] {
@@ -189,16 +198,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		input: TemplateStringsArray | (() => T) | T,
 		...values: unknown[]
 	): ReactiveValue<string> | ReactiveValue<T> {
-		if (typeof input === 'function') return computed(input as () => T);
-		if (!isTemplateStringsArray(input)) return computed(() => input);
-		return computed(() => {
-			let result = '';
-			for (let index = 0; index < input.length; index++) {
-				result += input[index];
-				if (index < values.length) result += String(unwrap(values[index]) ?? '');
-			}
-			return result;
-		});
+		return createComponentReactive(input, values);
 	}
 
 	ref<T>(key: RefKey<T>): RefBinding<T> {
@@ -310,7 +310,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		teardown(() => this.scope.stop());
 		if (this.lists) teardown(() => this.lists!.dispose());
 		if (this.mountController) teardown(() => this.mountController!.abort(reason));
-		teardown(() => void this.taskOwner[Symbol.asyncDispose]());
+		if (this.taskState) teardown(() => this.taskCapability?.release(this.taskState, this));
 		for (const handler of componentLifecycleHandlers(this, 'unmount')) {
 			try {
 				const result = handler({ signal: AbortSignal.abort(reason), reason });
@@ -323,24 +323,23 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			}
 		}
 		clearComponentLifecycleHandlers(this);
-		releaseTaskObserver(this);
 		if (failed) throw firstError;
 	}
 
-	private initialize(): void {
+	private initialize(execution: PreparedComponentExecution | undefined, rawProps: Props): void {
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
-			deferTaskOwnerActivations(this.taskOwner);
 		}
-		registerTaskOwnerHost(this, this.taskOwner);
-		const readiness = componentReadinessContext(this);
-		if (readiness)
-			this.taskOwner.registerReadiness = (taskGeneration, settlement, commit, discard) =>
-				readiness.register({ owner: this, taskGeneration, settlement, commit, discard });
-		const taskObserver = taskObserverFor(this);
-		if (taskObserver)
-			this.taskOwner.observeSettlement = (settlement) => taskObserver.register(settlement, this);
+		const contract = readExactComponentContract(this.type);
+		this.taskState = this.taskCapability?.create(
+			this,
+			this.type,
+			contract,
+			execution,
+			rawProps,
+			Boolean(resumption)
+		);
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });
@@ -349,10 +348,15 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		if (resumption) prepareComponentContextResumption(this, resumption);
 
 		let result: RenderFunction;
+		const instantiate = contract?.definition?.instantiate ?? this.type;
 		try {
 			result = withEffectScope(this.scope, () =>
 				withComponentDomain(this.domain, () =>
-					withTaskOwnerRecord(this.taskOwner, () => this.type.call(this, this.props as Props))
+					this.taskCapability
+						? this.taskCapability.run(this.taskState, () =>
+								instantiate.call(this, this.props as Props)
+							)
+						: instantiate.call(this, this.props as Props)
 				)
 			);
 		} catch (error) {
@@ -363,10 +367,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 			this.inspection?.publish({ kind: 'resumption.activate', component: this });
 			const settledContinuations = new Set(resumption.settledContinuations);
-			releaseTaskOwnerActivations(this.taskOwner, (task) => {
-				const continuationId = componentContinuationTaskId(task);
-				return continuationId !== undefined && settledContinuations.has(continuationId);
-			});
+			this.taskCapability?.resume(this.taskState, settledContinuations);
 		}
 		if (typeof result !== 'function') {
 			const error = new TypeError(
@@ -376,8 +377,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			throw error;
 		}
 		this.renderFunctionValue = result;
-		taskObserver?.retain?.(this);
-		if (taskObserver?.retain) retainTaskObserver(this, taskObserver);
+		this.taskCapability?.retain(this.taskState, this);
 	}
 }
 
@@ -393,4 +393,19 @@ export function createComponentInstance<
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
 	return new ComponentInstanceImpl(type, rawProps, parent, ambientContexts, domain);
+}
+
+/** Creates an instance using a previously validated and indexed compiler execution plan. */
+export function createPreparedComponentInstance<
+	State extends object,
+	Props extends Record<string, unknown>
+>(
+	type: ComponentFunction<State, Props>,
+	rawProps: Props,
+	execution: PreparedComponentExecution | undefined,
+	parent?: ComponentInstance<any>,
+	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
+	domain = parent?.domain ?? pageComponentDomain
+): ComponentInstance<State> {
+	return new ComponentInstanceImpl(type, rawProps, parent, ambientContexts, domain, execution);
 }

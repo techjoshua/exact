@@ -7,7 +7,7 @@ import type { Digit, GameMove, SudokuCell } from '../types.js';
 
 type ExactLensProps = {
 	open: boolean;
-	cell: SudokuCell;
+	cell?: SudokuCell;
 	candidates: Digit[];
 	conflicts: number[];
 	lastMove?: GameMove;
@@ -63,7 +63,9 @@ export function ExactLens(this: Component<{}>, props: ExactLensProps) {
 					<div>
 						<p>Live component instance</p>
 						<strong>
-							Cell r{props.cell.row + 1}c{props.cell.column + 1}
+							{props.cell
+								? `Cell r${props.cell.row + 1}c${props.cell.column + 1}`
+								: 'No cell selected'}
 						</strong>
 					</div>
 					<button
@@ -94,7 +96,7 @@ export function ExactLens(this: Component<{}>, props: ExactLensProps) {
 				</section>
 				<section>
 					<h2>Selected state</h2>
-					<pre>{cellSnapshot(props.cell)}</pre>
+					<pre>{props.cell ? cellSnapshot(props.cell) : 'Select a cell to inspect its state.'}</pre>
 				</section>
 				<section>
 					<h2>Last transaction</h2>

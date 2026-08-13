@@ -3,7 +3,9 @@ import {
 	createComponentInstance,
 	createContext,
 	createExactRuntimeInspectionOwner,
+	defineTask,
 	inspectExactRuntimeComponent,
+	markExactInspectionSource,
 	type Component
 } from '../index.js';
 import { createFrameworkComponentDomain } from './domain.js';
@@ -115,5 +117,101 @@ describe('component runtime inspection', () => {
 			}
 		]);
 		expect(JSON.stringify(snapshot)).not.toContain('must-never-appear');
+	});
+
+	it('retains bounded redacted task arguments and results after execution settles', async () => {
+		let executions!: readonly PromiseLike<{
+			total: number;
+			token: string;
+		}>[];
+		function Calculator(this: Component<{}>) {
+			const calculate = defineTask<
+				[{ amount: number; token: string }],
+				{ total: number; token: string }
+			>(
+				{ label: 'Calculate' },
+				markExactInspectionSource(
+					'Calculator:task:calculate',
+					async (input: { amount: number; token: string }) => ({
+						total: input.amount * 2,
+						token: input.token
+					})
+				)
+			);
+			executions = [
+				calculate({ amount: 2, token: 'first-secret' }),
+				calculate({ amount: 4, token: 'second-secret' })
+			];
+			return () => null;
+		}
+		const owner = createExactRuntimeInspectionOwner({
+			buildKey: 'build',
+			executionRoot: 'page',
+			maxTaskExecutions: 1,
+			redact: (path) => (path.at(-1) === 'token' ? 'secret' : undefined)
+		});
+		owner.attach('session', { publish() {} });
+		const instance = createComponentInstance(
+			Calculator,
+			{},
+			undefined,
+			undefined,
+			createFrameworkComponentDomain({ executionRoot: 'page', inspection: owner })
+		);
+
+		await Promise.all(executions);
+
+		const tasks = inspectExactRuntimeComponent(instance)!.tasks;
+		expect(tasks).toHaveLength(1);
+		expect(tasks[0]).toMatchObject({
+			name: 'Calculate',
+			status: 'settled',
+			generation: 2,
+			completedGeneration: 2,
+			arguments: { kind: 'object', type: 'Array' },
+			result: { kind: 'object', type: 'Object' }
+		});
+		expect(tasks[0]!.settledAt).toBeGreaterThanOrEqual(tasks[0]!.startedAt!);
+		expect(JSON.stringify(tasks)).not.toContain('second-secret');
+		expect(JSON.stringify(tasks)).toContain('secret');
+
+		owner.detach('session');
+		expect(inspectExactRuntimeComponent(instance)).toBeUndefined();
+	});
+
+	it('retains failed task status and safe Error details', async () => {
+		let failure!: PromiseLike<never>;
+		function Worker(this: Component<{}>) {
+			const fail = defineTask<[], never>(
+				{ label: 'Reject shipment' },
+				markExactInspectionSource('Worker:task:reject', async () => {
+					throw new TypeError('shipment is invalid');
+				})
+			);
+			failure = fail();
+			return () => null;
+		}
+		const owner = createExactRuntimeInspectionOwner({ buildKey: 'build', executionRoot: 'page' });
+		owner.attach('session', { publish() {} });
+		const instance = createComponentInstance(
+			Worker,
+			{},
+			undefined,
+			undefined,
+			createFrameworkComponentDomain({ executionRoot: 'page', inspection: owner })
+		);
+
+		await expect(Promise.resolve(failure)).rejects.toThrow('shipment is invalid');
+
+		const task = inspectExactRuntimeComponent(instance)!.tasks[0]!;
+		expect(task).toMatchObject({
+			status: 'failed',
+			failedGeneration: 1,
+			error: {
+				kind: 'object',
+				type: 'TypeError',
+				entries: [{ key: 'message', value: { kind: 'scalar', value: 'shipment is invalid' } }]
+			}
+		});
 	});
 });

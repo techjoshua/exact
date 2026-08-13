@@ -1,11 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
+import './framework/enhancements.js';
 import {
 	createDynamicChild,
 	createEnhancementMarker,
 	Fragment,
 	Target,
+	TargetOverrides,
 	type Child,
 	type Component,
 	type RootLifecycle
@@ -214,6 +216,20 @@ describe('renderer enhancements', () => {
 
 		container.querySelector('button')!.click();
 		expect(calls).toEqual(['authored']);
+	});
+
+	it('allows framework projections to replace only declared authored fallbacks', () => {
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Target,
+				{ title: 'Translated', [TargetOverrides]: ['title'] },
+				createVNode('button', { title: 'Fallback', id: 'stable' }, 'Save')
+			),
+			container
+		);
+
+		expect(container.innerHTML).toBe('<button title="Translated" id="stable">Save</button>');
 	});
 
 	it('does not reroute target ownership for unrelated structural changes', () => {

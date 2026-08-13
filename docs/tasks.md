@@ -91,34 +91,47 @@ lookalike values do not receive this treatment. Recognized policy facets are:
 - readiness: `blocking()` or `nonblocking()`; and
 - lifetime: attached by default or explicitly `detached()`.
 
-At component setup, a call to a classified function declares initialization
+In the component body, a call to a classified function declares initialization
 and reactive activation. Its argument expressions are observed inputs. A call
 from an event or other active host creates an invoked generation. A call under
 an active task attaches a child frame; after an `await`, compiler output uses
 the retained context and the public task ABI to restore the same relationship.
-Synchronous setup activations through normal priority settle before the first
+Synchronous initialization activations through normal priority settle before the first
 render so their state output is available to the component and its children.
 
-A setup expression that consumes a call's value synchronously remains ordinary
+For compiled components, initialization activation is backed by an availability-aware dependency watcher.
+It distinguishes an available `undefined` from an unresolved predecessor slot, snapshots all
+inputs atomically, and coalesces several publications from one reactive transaction. A successful
+generation publishes its declared state outputs to downstream watchers; replacement, failure,
+cancellation, and owner disposal use the existing task generation and structural lifetime rules.
+The same path applies to client-only asynchronous tasks. An interaction task appears in the local
+execution contract for placement and output validation but still requires its authored event or
+explicit invocation before it can run.
+
+An initialization expression that consumes a call's value synchronously remains ordinary
 initialization. Factory calls, context lookups, and other helpers used to
 initialize local values must return their JavaScript value directly; inferred
 task activation cannot provide that value synchronously. An awaited call can
 still be task work, and a final authored `TaskContext` remains an explicit
 request for task semantics.
 
-Reactive bindings invalidated by one synchronous task transition share a
-single structurally attached consequence frame. This preserves cancellation,
-settlement, and ambient ownership without allocating a child task frame for
-every text, property, or component-prop reaction. Independently meaningful
-work started by a reaction—such as a presence leave frame—remains its own
-cancelable child beneath that shared frame.
+Reactive bindings invalidated by one synchronous task transition share one lightweight consequence
+owner and a single completion lease on the parent frame. This preserves an open producer for
+independently meaningful nested work without allocating a separate controller, public context, or
+complete task settlement chain for a short DOM flush. Work started by a reaction—such as a presence
+leave frame—remains its own cancelable child. When runtime inspection is attached, eXact
+materializes the complete consequence frame so DevTools retains the full structural view. An
+interactive DOM wave drains while its interaction producer remains open, so it reuses that producer
+without allocating the intermediate consequence lifetime.
 
 `async`, `await`, and readiness are separate concepts. `async` supplies normal
 JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task
 ownership, cancellation, and stale-continuation fencing. The nearest Suspense
 boundary waits only when the generation is `blocking`; `nonblocking` work may
-remain pending without holding readiness. An async component that awaits a
+remain pending without holding readiness. An uncontended continuation restores
+its frame in the promise-resolution job; overlapping resumptions remain serialized.
+An async component that awaits a
 value into `this.state` is the shorthand case the compiler infers as blocking
 setup work.
 

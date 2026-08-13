@@ -2,6 +2,8 @@ import { peek, type Component } from '@exactjs/core';
 import { GeneratorControls } from './components/GeneratorControls.jsx';
 import { PuzzlePreview } from './components/PuzzlePreview.jsx';
 import { StyleControls } from './components/StyleControls.jsx';
+import { defaultAiPromptTemplate, type AiPuzzleKind } from './ai-word-list-format.js';
+import { defaultLocalAiModel, type LocalAiModelId } from './ai-models.js';
 import {
 	createPuzzleDocuments,
 	downloadSvg,
@@ -40,7 +42,12 @@ const initialStyle: PuzzleStyle = {
 	titleFontSize: 28,
 	fontFamily: 'sans',
 	fontSize: 20,
+	supplementaryFontFamily: 'sans',
+	supplementaryFontSize: 14,
 	pageSize: 'letter',
+	customPageWidth: 8.5,
+	customPageHeight: 11,
+	pageMarginPreset: 'standard',
 	pageMargin: 0.5,
 	ink: '#17251e',
 	accent: '#d85f3d',
@@ -64,12 +71,18 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	this.state.wordText = starterWords;
 	this.state.crosswordText = starterCrossword;
 	this.state.aiTopic = '';
+	this.state.aiWordSearchPrompt = defaultAiPromptTemplate('word-search');
+	this.state.aiCrosswordPrompt = defaultAiPromptTemplate('crossword');
+	this.state.aiPromptVisible = false;
+	this.state.aiResponse = '';
+	this.state.aiResponseVisible = false;
 	this.state.aiSupported =
 		typeof navigator !== 'undefined' && 'gpu' in navigator && globalThis.isSecureContext !== false;
 	this.state.aiBusy = false;
 	this.state.aiProgress = 0;
 	this.state.aiStatus = 'Ready';
 	this.state.aiError = undefined;
+	this.state.aiModel = defaultLocalAiModel;
 	this.state.aiModelReady = false;
 	this.state.style = initialStyle;
 	this.state.documents = peek(() => createPuzzleDocuments(requestFromState(this.state)));
@@ -100,20 +113,38 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		const topic = this.state.aiTopic.trim();
 		const kind = this.state.kind;
 		if (!topic || kind === 'sudoku' || this.state.aiBusy) return;
+		const promptTemplate = aiPromptTemplate(this.state, kind);
 		const generation = ++aiGeneration;
 		this.state.aiBusy = true;
 		this.state.aiProgress = 0;
 		this.state.aiStatus = 'Preparing local AI…';
 		this.state.aiError = undefined;
+		this.state.aiResponse = '';
+		this.state.aiResponseVisible = false;
 		try {
 			localAiModule ??= import('./local-ai.js');
 			const localAi = await localAiModule;
 			if (generation !== aiGeneration) return;
-			const wordText = await localAi.generateLocalAiWordList(topic, kind, (progress) => {
-				if (generation !== aiGeneration) return;
-				this.state.aiProgress = progress.progress;
-				this.state.aiStatus = progress.text;
-			});
+			const wordText = await localAi.generateLocalAiWordList(
+				this.state.aiModel,
+				topic,
+				kind,
+				promptTemplate,
+				(progress) => {
+					if (generation !== aiGeneration) return;
+					this.state.aiProgress = progress.progress;
+					this.state.aiStatus = progress.text;
+				},
+				(response) => {
+					if (generation !== aiGeneration) return;
+					const attempt = response.attempt === 'initial' ? 'Initial response' : 'Repair response';
+					const heading = `${attempt} · finish reason: ${response.finishReason ?? 'unknown'}`;
+					const section = `${heading}\n${response.content}`;
+					this.state.aiResponse = this.state.aiResponse
+						? `${this.state.aiResponse}\n\n${section}`
+						: section;
+				}
+			);
 			if (generation !== aiGeneration) return;
 			if (kind === 'crossword') this.state.crosswordText = wordText;
 			else this.state.wordText = wordText;
@@ -125,6 +156,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 			if (generation !== aiGeneration) return;
 			this.state.aiError = error instanceof Error ? error.message : String(error);
 			this.state.aiStatus = 'Local AI could not generate a list';
+			if (this.state.aiResponse) this.state.aiResponseVisible = true;
 		} finally {
 			if (generation === aiGeneration) this.state.aiBusy = false;
 		}
@@ -134,7 +166,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		try {
 			localAiModule ??= import('./local-ai.js');
 			const localAi = await localAiModule;
-			await localAi.removeLocalAiModel();
+			await localAi.removeLocalAiModel(this.state.aiModel);
 			localAiModule = undefined;
 			this.state.aiModelReady = false;
 			this.state.aiStatus = 'Downloaded model removed';
@@ -151,6 +183,22 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		this.state.aiBusy = false;
 		this.state.aiProgress = 0;
 		this.state.aiStatus = 'Local AI canceled';
+	};
+
+	const changeLocalAiModel = (model: LocalAiModelId) => {
+		if (model === this.state.aiModel) return;
+		if (this.state.aiBusy) cancelAiGeneration();
+		else {
+			aiGeneration++;
+			void localAiModule?.then((localAi) => localAi.disposeLocalAi());
+			localAiModule = undefined;
+		}
+		this.state.aiModel = model;
+		this.state.aiModelReady = false;
+		this.state.aiStatus = 'Ready';
+		this.state.aiError = undefined;
+		this.state.aiResponse = '';
+		this.state.aiResponseVisible = false;
 	};
 
 	this.onUnmount(() => {
@@ -214,11 +262,17 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 								this.state.kind === 'crossword' ? this.state.crosswordText : this.state.wordText
 							}
 							aiTopic={this.state.aiTopic}
+							aiPromptTemplate={aiPromptTemplate(this.state, currentAiKind(this.state.kind))}
+							aiDefaultPromptTemplate={defaultAiPromptTemplate(currentAiKind(this.state.kind))}
+							aiPromptVisible={this.state.aiPromptVisible}
+							aiResponse={this.state.aiResponse}
+							aiResponseVisible={this.state.aiResponseVisible}
 							aiSupported={this.state.aiSupported}
 							aiBusy={this.state.aiBusy}
 							aiProgress={this.state.aiProgress}
 							aiStatus={this.state.aiStatus}
 							aiError={this.state.aiError}
+							aiModel={this.state.aiModel}
 							aiModelReady={this.state.aiModelReady}
 							onKind={changeKind}
 							onDifficulty={(difficulty) => {
@@ -250,7 +304,26 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 								this.state.aiTopic = topic;
 								this.state.aiError = undefined;
 							}}
+							onAiPromptTemplate={(template) => {
+								if (this.state.kind === 'crossword') this.state.aiCrosswordPrompt = template;
+								else this.state.aiWordSearchPrompt = template;
+								this.state.aiError = undefined;
+							}}
+							onAiPromptVisible={(visible) => {
+								this.state.aiPromptVisible = visible;
+							}}
+							onAiResponseVisible={(visible) => {
+								this.state.aiResponseVisible = visible;
+							}}
+							onAiResetPrompt={() => {
+								const kind = currentAiKind(this.state.kind);
+								if (kind === 'crossword')
+									this.state.aiCrosswordPrompt = defaultAiPromptTemplate(kind);
+								else this.state.aiWordSearchPrompt = defaultAiPromptTemplate(kind);
+								this.state.aiError = undefined;
+							}}
 							onAiGenerate={() => void generateWithLocalAi()}
+							onAiModel={changeLocalAiModel}
 							onAiCancel={cancelAiGeneration}
 							onAiRemoveModel={() => void removeLocalAiModel()}
 							onRandomize={() => {
@@ -297,6 +370,14 @@ function requestFromState(state: PuzzleGeneratorState): DocumentRequest {
 		wordText: state.kind === 'crossword' ? state.crosswordText : state.wordText,
 		style: state.style
 	};
+}
+
+function currentAiKind(kind: PuzzleKind): AiPuzzleKind {
+	return kind === 'crossword' ? 'crossword' : 'word-search';
+}
+
+function aiPromptTemplate(state: PuzzleGeneratorState, kind: AiPuzzleKind): string {
+	return kind === 'crossword' ? state.aiCrosswordPrompt : state.aiWordSearchPrompt;
 }
 
 function clampDimension(value: number): number {

@@ -1,7 +1,14 @@
 import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { exact } from './index.js';
+import { exact as createExact } from './index.js';
+
+const exact = (...args: Parameters<typeof createExact>) =>
+	createExact(...args) as Omit<ReturnType<typeof createExact>, 'transform'> & {
+		transform(
+			...values: Parameters<ReturnType<typeof createExact>['transform']>
+		): Awaited<ReturnType<ReturnType<typeof createExact>['transform']>>;
+	};
 
 describe('@exactjs/vite-plugin: React compatibility', () => {
 	it('automatically aliases installed React and compiles React-owned JSX to the compatibility runtime', () => {

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { prebuiltAppConfig } from '@mlc-ai/web-llm';
 import {
 	aiWordListPrompt,
 	aiWordListSchema,
+	defaultAiPromptTemplate,
 	formatAiWordListResponse
 } from './ai-word-list-format.js';
+import { defaultLocalAiModel, localAiModels } from './ai-models.js';
 import { generateCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
 import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
@@ -19,7 +22,12 @@ const style: PuzzleStyle = {
 	titleFontSize: 30,
 	fontFamily: 'sans',
 	fontSize: 20,
+	supplementaryFontFamily: 'mono',
+	supplementaryFontSize: 15,
 	pageSize: 'letter',
+	customPageWidth: 8.5,
+	customPageHeight: 11,
+	pageMarginPreset: 'standard',
 	pageMargin: 0.5,
 	ink: '#111111',
 	accent: '#cc3300',
@@ -79,6 +87,18 @@ describe('crossword generation', () => {
 });
 
 describe('document and input contracts', () => {
+	it('offers distinct local chat models below the advertised download ceiling', () => {
+		const registeredModelIds = new Set(
+			prebuiltAppConfig.model_list.map((model: { model_id: string }) => model.model_id)
+		);
+		expect(localAiModels).toHaveLength(10);
+		expect(new Set(localAiModels.map((model) => model.id)).size).toBe(localAiModels.length);
+		expect(localAiModels.every((model) => model.downloadMb < 1536)).toBe(true);
+		expect(localAiModels.every((model) => registeredModelIds.has(model.id))).toBe(true);
+		expect(JSON.stringify(localAiModels)).not.toContain('gemma3-1b');
+		expect(defaultLocalAiModel).toBe('Llama-3.2-1B-Instruct-q4f16_1-MLC');
+	});
+
 	it('validates and formats structured local-AI puzzle material', () => {
 		const wordSearch = formatAiWordListResponse(
 			JSON.stringify({
@@ -102,8 +122,31 @@ describe('document and input contracts', () => {
 			'crossword'
 		);
 		expect(crossword).toContain('ORBIT - Path around a planet');
-		expect(aiWordListPrompt('space', 'crossword')).toContain('Output JSON only');
-		expect(JSON.parse(aiWordListSchema('crossword')).required).toEqual(['entries']);
+		const crosswordTemplate = defaultAiPromptTemplate('crossword');
+		expect(crosswordTemplate).toContain('{{topic}}');
+		expect(crosswordTemplate).toContain('conventional American-style crossword');
+		expect(crosswordTemplate).toContain('array of 20 objects');
+		expect(crosswordTemplate).toContain('published crossword');
+		expect(crosswordTemplate).toContain('Never put the answer');
+		expect(crosswordTemplate).toContain('exactly one top-level property named "entries"');
+		expect(crosswordTemplate).toContain('no introduction, explanation, markdown, or code fence');
+		expect(crosswordTemplate).toContain('quoted key "entries"');
+		expect(crosswordTemplate).not.toContain('ANSWER1');
+		expect(defaultAiPromptTemplate('word-search')).toContain(
+			'exactly one top-level property named "words"'
+		);
+		expect(defaultAiPromptTemplate('word-search')).toContain('quoted key "words"');
+		expect(defaultAiPromptTemplate('word-search')).toContain('array of 20 strings');
+		expect(defaultAiPromptTemplate('word-search')).not.toContain('WORD1');
+		expect(aiWordListPrompt('space', 'crossword')).toContain('related to "space"');
+		expect(aiWordListPrompt('space', 'crossword')).not.toContain('{{topic}}');
+		expect(aiWordListPrompt('space', 'crossword', 'Write short clues.')).toBe(
+			'Write short clues.\nTopic: "space"'
+		);
+		const parsedSchema = JSON.parse(aiWordListSchema('crossword'));
+		expect(parsedSchema.required).toEqual(['entries']);
+		expect(parsedSchema.properties.entries.minItems).toBeUndefined();
+		expect(parsedSchema.properties.entries.maxItems).toBeUndefined();
 	});
 
 	it('rejects malformed or unsafe local-AI responses', () => {
@@ -114,6 +157,29 @@ describe('document and input contracts', () => {
 				'word-search'
 			)
 		).toThrow(/rejected/i);
+		expect(() =>
+			formatAiWordListResponse(
+				JSON.stringify({
+					entries: [
+						{ word: 'BREAK', clue: 'Break the habit, or so?' },
+						{ word: 'PROGRAM', clue: 'Programme your code with instructions' },
+						{ word: 'INPUT', clue: 'Information supplied to software' },
+						{ word: 'SYNTAX', clue: 'Grammar of a programming language' },
+						{ word: 'CODE', clue: 'Instructions written for a computer' },
+						{ word: 'REPEAT', clue: 'Do another time' }
+					]
+				}),
+				'crossword'
+			)
+		).toThrow(/repeated answers.*BREAK.*PROGRAM/i);
+		expect(() =>
+			formatAiWordListResponse(
+				JSON.stringify({
+					words: ['WORD', 'ORBIT', 'COMET', 'PLANET', 'GALAXY', 'NEBULA']
+				}),
+				'word-search'
+			)
+		).toThrow(/placeholder/i);
 	});
 
 	it('normalizes words, rejects blocked input, and emits separate SVG documents', () => {
@@ -154,6 +220,51 @@ describe('document and input contracts', () => {
 		expect(svg).toContain('>Across</text>');
 		expect(svg).toContain('>Down</text>');
 		for (const entry of crossword.entries) expect(svg).toContain(entry.clue);
+		expect(svg).toContain('font-family="&apos;Courier New&apos;');
+		expect(svg).toContain('font-size="15"');
+	});
+
+	it('renders custom page dimensions and margins and rejects unusable print regions', () => {
+		const puzzle = generateSudoku(2, 'easy', 7);
+		const customStyle: PuzzleStyle = {
+			...style,
+			pageSize: 'custom',
+			customPageWidth: 12.25,
+			customPageHeight: 9.5,
+			pageMarginPreset: 'custom',
+			pageMargin: 0.375
+		};
+		const svg = renderSudokuSvg(puzzle, customStyle, false);
+		expect(svg).toContain('width="1176" height="912"');
+		expect(svg).toContain('data-page-size="custom"');
+		expect(svg).toContain('data-page-margin="0.375"');
+		expect(() =>
+			createPuzzleDocuments({
+				kind: 'sudoku',
+				difficulty: 'easy',
+				seed: 7,
+				boxSize: 2,
+				rows: 8,
+				columns: 8,
+				wordText: '',
+				style: { ...customStyle, pageMargin: 5 }
+			})
+		).toThrow(/printable space/i);
+	});
+
+	it('renders the three inch-based page presets at print-standard dimensions', () => {
+		const puzzle = generateSudoku(2, 'easy', 7);
+		const presets = [
+			['letter', 816, 1056],
+			['seven-by-ten', 672, 960],
+			['six-by-nine', 576, 864]
+		] as const;
+
+		for (const [pageSize, width, height] of presets) {
+			const svg = renderSudokuSvg(puzzle, { ...style, pageSize }, false);
+			expect(svg).toContain(`width="${width}" height="${height}"`);
+			expect(svg).toContain(`data-page-size="${pageSize}"`);
+		}
 	});
 
 	it('omits an empty title and aligns a supplied title', () => {

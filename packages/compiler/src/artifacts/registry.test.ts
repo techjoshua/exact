@@ -48,6 +48,8 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).toContain('lazyClientIsland as __exactLazyIsland');
 		expect(module).toContain('import("./dist/panel.exact.client.js")');
 		expect(module).toContain('.then((module) => module["Panel_ExactClient_1"])');
+		expect(module).toContain('"mode":"interaction"');
+		expect(module).toContain('"replay":"native-click"');
 		expect(module).not.toContain('import { Panel');
 		expect(module).toContain('export const registration');
 		expect(module).toContain('islands: islands');
@@ -61,6 +63,11 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).not.toContain('"boundaries": []');
 		expect(module).not.toContain('"stateContracts"');
 		expect(module).not.toContain('"actionBoundaries"');
+		expect(
+			createExactHydrationRegistrationModule(graph, {
+				preserveAuthoredModuleExtensions: true
+			})
+		).toContain('import("./dist/panel.exact.client.ts")');
 	});
 
 	it('registers continuation-owning dual-root components for client hydration', async () => {
@@ -231,13 +238,13 @@ describe('@exactjs/compiler: registries', () => {
 			target: 'client',
 			placement: 'client'
 		});
-		expect(client).toMatch(
-			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
-		);
+		expect(client).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(client).not.toContain('export function Panel_ExactClient_1');
 		expect(client).not.toContain('export function Panel_ExactClient_2');
 		expect(server).toContain('createServerBoundary as');
-		expect(server).toContain('export function Panel(props = {})');
+		expect(server).toContain(
+			'export const Panel = /* @__PURE__ */ Object.assign(function Panel(props = {})'
+		);
 		expect(server).not.toContain('Panel_ExactServer_1');
 		expect(server).toContain('"Panel"');
 		expect(server).not.toContain('Panel_ExactClient_1');

@@ -9,6 +9,8 @@ export type ExactContinuationActivationIR = {
 	dependencies: Array<{
 		index: number;
 		source: 'state' | 'props' | 'derived' | 'argument';
+		/** Stable compiler path used to connect local producer and consumer ports. */
+		path?: string;
 	}>;
 	/** Server-owned tokens resolved for each invocation rather than transported by the client. */
 	serverContexts: ExactContextEffect[];
@@ -38,6 +40,7 @@ export type ExactContinuationIR = {
 	taskId: string;
 	placement: Extract<ExactPlacement, 'server' | 'isomorphic'>;
 	readiness: 'blocking' | 'nonblocking';
+	concurrency: 'parallel' | 'latest' | 'queue';
 	async: boolean;
 	activation: ExactContinuationActivationIR;
 	effects: ExactContinuationEffectsIR;
@@ -47,7 +50,7 @@ export type ExactContinuationIR = {
 	};
 	cancellation: 'abort-signal';
 	invocation?: {
-		arguments: Array<{ index: number; source: 'argument' }>;
+		arguments: Array<{ index: number; source: 'argument'; path?: string }>;
 		concurrency: 'parallel' | 'latest' | 'queue';
 	};
 };

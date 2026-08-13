@@ -22,7 +22,7 @@ it('emits authorization artifacts from a real Vite server build', async () => {
 		build: {
 			ssr: fixture.entry,
 			outDir: path.join(fixture.root, 'dist'),
-			rollupOptions: { external: ['@exactjs/core'] }
+			rollupOptions: { external: /^@exactjs\/core(?:\/.*)?$/ }
 		}
 	});
 
@@ -65,7 +65,7 @@ it('rejects an unauthorized component during a real Vite server build', async ()
 			build: {
 				ssr: fixture.entry,
 				outDir: path.join(fixture.root, 'dist'),
-				rollupOptions: { external: ['@exactjs/core'] }
+				rollupOptions: { external: /^@exactjs\/core(?:\/.*)?$/ }
 			}
 		})
 	).rejects.toMatchObject({
@@ -95,7 +95,7 @@ it('gates transitive component imports using the parent package published facts'
 			build: {
 				ssr: fixture.entry,
 				outDir: path.join(fixture.root, 'dist'),
-				rollupOptions: { external: ['@exactjs/core'] }
+				rollupOptions: { external: /^@exactjs\/core(?:\/.*)?$/ }
 			}
 		})
 	).rejects.toMatchObject({

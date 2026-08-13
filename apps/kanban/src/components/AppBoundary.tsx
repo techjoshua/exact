@@ -36,7 +36,7 @@ export function AppBoundary(this: Component<AppBoundaryState>, props: AppBoundar
 						<div>
 							<h1>Something went wrong</h1>
 							<p>
-								{this.state.errors.length} {this.state.errors.length == 1 ? 'error' : 'errors'}{' '}
+								{this.state.errors.length} {this.state.errors.length == 1 ? 'error' : 'errors'}
 								reported by the board.
 							</p>
 						</div>

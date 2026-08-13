@@ -133,9 +133,16 @@ func (builder *partitionPlanBuilder) addExternalComponent(edge RenderEdge) strin
 	placement, conservative, reason := partitionPlacement(edge.Placement)
 	if edge.ComponentID == "" {
 		conservative = true
-		reason = "render edge has no compiler-branded native component contract"
+		if edge.ModuleSpecifier != "" {
+			// Static package edges are deliberately opaque to the per-module compiler.
+			// The shared build host validates their published component catalogs before
+			// execution, so absence of an in-module contract is not itself actionable.
+			reason = "external render edge awaits build-host component catalog resolution"
+		} else {
+			reason = "render edge has no compiler-branded native component contract"
+		}
 	}
-	if conservative {
+	if conservative && edge.ModuleSpecifier == "" {
 		reason = "unresolved foreign render edge " + edge.Name + ": " + reason
 	}
 	id := exactStableID(builder.filename, "partition", contract, "component")
@@ -182,16 +189,17 @@ func (builder *partitionPlanBuilder) addClientIslands(
 		}
 		id := exactStableID(builder.filename, "partition", island.id, "client-region")
 		builder.addNode(PartitionPlanNode{
-			ID:               id,
-			Kind:             "region",
-			OwnerComponent:   owner,
-			Placement:        "client",
-			ArtifactTargets:  []string{"client"},
-			Activation:       activation,
-			RefreshAuthority: "client",
-			Start:            island.node.Pos(),
-			Length:           island.node.End() - island.node.Pos(),
-			RenderPath:       []string{strconv.Itoa(island.node.Pos())},
+			ID:                 id,
+			Kind:               "region",
+			OwnerComponent:     owner,
+			Placement:          "client",
+			ArtifactTargets:    []string{"client"},
+			Activation:         activation,
+			RefreshAuthority:   "client",
+			Start:              island.node.Pos(),
+			Length:             island.node.End() - island.node.Pos(),
+			RenderPath:         []string{strconv.Itoa(island.node.Pos())},
+			ActivationDecision: &island.activation,
 		})
 		builder.addEdge(partitionEdgeInput{
 			parent: owner, child: id, kind: "client-range", cardinality: "one",
@@ -621,7 +629,7 @@ func (builder *partitionPlanBuilder) addEnhancementComponents(
 	if len(candidates) != len(components) {
 		return
 	}
-	for _, element := range collectComponentElements(sourceFile) {
+	for _, element := range collectComponentElements(sourceFile, nil) {
 		ownerIndex := componentOwnerIndex(element.node, candidates)
 		if ownerIndex < 0 || ownerIndex >= len(components) {
 			continue
@@ -654,6 +662,14 @@ func (builder *partitionPlanBuilder) addEnhancementComponents(
 				Length:            element.fullEnd - element.fullStart,
 				RenderPath:        []string{strconv.Itoa(element.node.Pos())},
 				Optional:          true,
+				ActivationDecision: &ActivationDecision{
+					Mode: "eager",
+					Reasons: []ActivationReason{{
+						Code: "enhancement-setup", Start: element.fullStart,
+						Length: element.fullEnd - element.fullStart,
+					}},
+					Targets: []ActivationTarget{},
+				},
 			})
 			builder.addEdge(partitionEdgeInput{
 				parent: parent, child: id, kind: "enhancement", cardinality: "optional",

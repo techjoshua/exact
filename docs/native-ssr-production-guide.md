@@ -22,6 +22,20 @@ the Fetch body, destroys an Express response, or terminates the corresponding
 host stream. Applications must not attempt to render a second document into the
 same response.
 
+The request-level progressive HTML helper settles its render into an eXact-owned,
+single-consumer chunk body. Node adapters claim those ordered chunks directly and
+write them to the native response with backpressure, avoiding a redundant final
+join, UTF-8 buffer, and Web `ReadableStream`. Fetch-compatible hosts materialize that stream
+lazily when they read `response.stream`. Reading the stream, writing through the
+Node adapter, and cancellation are mutually exclusive claims; an application
+must choose one transport path for each response.
+
+Checked string rendering accounts for UTF-8 bytes as chunks enter the request-owned
+buffer, including surrogate pairs split across chunk boundaries. A final public
+string is joined only when a string API is observed or an HTML output extension
+requires the complete value. Native attributes, styles, and React-compatible form
+ordering traverse owned properties directly without allocating key, entry, or pair arrays.
+
 `RequestContext.redirect(location, status)` validates relative locations
 against the normalized request URL while preserving them as relative
 `Location` headers, and requires a 3xx status. Explicit absolute locations
@@ -56,8 +70,10 @@ eXact propagates that signal through:
 - Invocations, refreshes, batches, and response streams.
 - Provider and request-scope disposal.
 
-Request resources remain alive until a non-stream response finishes or a stream
-closes, errors, or is cancelled. Application-scoped resources remain alive
+Request resources remain alive until a non-stream response finishes or a genuinely
+producer-backed stream closes, errors, or is cancelled. A settled buffered SSR
+body releases its request resources before adapter consumption because no render
+work remains. Application-scoped resources remain alive
 until the server runtime is disposed. Cleanup runs in dependency-safe reverse
 order. A cleanup failure is retained as suppressed diagnostic information when
 another failure is already primary.

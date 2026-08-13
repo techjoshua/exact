@@ -10,6 +10,16 @@ export {
 	generateRemoteEntryModule,
 	planProvidedPackageBridge
 } from './artifacts.js';
+export {
+	acceptExactRemoteArtifactGeneration,
+	createExactRemoteArtifactPlan,
+	resolveExactBuildKey
+} from './build.js';
+export type {
+	ExactRemoteAcceptedGeneration,
+	ExactRemoteArtifactPlan,
+	ExactRemoteExposureArtifact
+} from './build.js';
 export type {
 	ExactProvidedPackageBridge,
 	ExactProvidedPackageImportUsage,
@@ -34,6 +44,8 @@ export type {
 	ExactRemoteRollupAdapterOptions,
 	ExactRollupOutput
 } from './rollup.js';
+export { createExactRemoteWebpackAdapter } from './webpack.js';
+export { createExactRemoteBunAdapter } from './bun.js';
 export type {
 	ExactBindingGateway,
 	ExactBindingGatewayOptions,

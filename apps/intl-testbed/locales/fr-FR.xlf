@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.1" srcLang="en-US" trgLang="fr-FR">
+  <file id="f1" original="@exactjs/sample-intl-testbed">
+    <unit id="lazy-idle_yms4d1R0xWX9Zbyp_IBCgFWl7V0_c3qES-9tZa2n28U">
+      <segment>
+        <source>Lazy locale chunk not requested.</source>
+        <target>Le segment de langue différé n’a pas été demandé.</target>
+      </segment>
+    </unit>
+    <unit id="panel-title_GA4E_gLtO0itGBqXPapuq0RuGQyLjTAM4rnJccu9yrw">
+      <segment>
+        <source>The same source, localized</source>
+        <target>La même source, localisée</target>
+      </segment>
+    </unit>
+    <unit id="scenario-structure_9PcGjmcCg_mVz7U9eP8x18l6T_XIi5GOzj9WbYL6BAY">
+      <segment>
+        <source>Message structure</source>
+        <target>Structure du message</target>
+      </segment>
+    </unit>
+    <unit id="greeting_yumgKLrqc33GndjBM6roFbP9Cr_fvU0Z0Vwpw1JDbE4">
+      <segment>
+        <source>Hello, <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/>. Read <pc id="n3" equivStart="&lt;catalogs&gt;" equivEnd="&lt;/catalogs&gt;" canCopy="no" canDelete="no">the catalog notes</pc>.</source>
+        <target>Bonjour, <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/>. Consultez <pc id="n3" equivStart="&lt;catalogs&gt;" equivEnd="&lt;/catalogs&gt;" canCopy="no" canDelete="no">les notes du catalogue</pc>.</target>
+      </segment>
+    </unit>
+    <unit id="transfer-order_Fq8aTGS5v0mUFYjcEiXNUXjOtRMLa_fgrD8RcHGqyVU">
+      <segment>
+        <source>Send <pc id="n1" equivStart="&lt;report&gt;" equivEnd="&lt;/report&gt;" canCopy="no" canDelete="no">the quarterly report</pc> to <ph id="n3" equiv="{recipient}" canCopy="no" canDelete="no"/>.</source>
+        <target>Envoyez <pc id="n1" equivStart="&lt;report&gt;" equivEnd="&lt;/report&gt;" canCopy="no" canDelete="no">le rapport trimestriel</pc> à <ph id="n3" equiv="{recipient}" canCopy="no" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="reorder-note_06L1CZUZWAgZihBsog6Cik6AhvOUSMp5T-mKhHm1X4k">
+      <segment>
+        <source>The report and recipient are movable, but their implementations are not translated.</source>
+        <target>Le rapport et le destinataire peuvent être déplacés, mais leurs implémentations ne sont pas traduites.</target>
+      </segment>
+    </unit>
+    <unit id="scenario-selection_QP1K8U1VAWjNycAE8r9Nz_zq91Ba_4w4E1TZwKSLT3Y">
+      <segment>
+        <source>Branches and plurality</source>
+        <target>Branches et pluralité</target>
+      </segment>
+    </unit>
+    <unit id="inbox-count_PleJcWPj6LR6akas4U6vdHfLEqupeZ8yBDBynzbl0uw">
+      <segment>
+        <source>You have <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/> new <pc id="n3" equivStart="{plural-cardinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n3.case.0" type="generic" value="=1">message</mrk><mrk id="n3.fallback" type="generic">messages</mrk></pc>.</source>
+        <target>Vous avez <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/><pc id="n3" equivStart="{plural-cardinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n3.case.0" type="generic" value="=1"> nouveau message</mrk><mrk id="n3.fallback" type="generic"> nouveaux messages</mrk></pc>.</target>
+      </segment>
+    </unit>
+    <unit id="status-selection_bL40OGY7YKXQeGgjXae6VtkEIi7Stdhwj1irm5dfipQ">
+      <segment>
+        <source><pc id="n0" equivStart="{boolean}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n0.case.0" type="generic" value="true">Ready</mrk><mrk id="n0.fallback" type="generic">Waiting</mrk></pc>: <pc id="n2" equivStart="{exact}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n2.case.0" type="generic" value="owner">Owner</mrk><mrk id="n2.fallback" type="generic">Member</mrk></pc></source>
+        <target><pc id="n0" equivStart="{boolean}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n0.case.0" type="generic" value="true">Prêt</mrk><mrk id="n0.fallback" type="generic">En attente</mrk></pc> : <pc id="n2" equivStart="{exact}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n2.case.0" type="generic" value="owner">Propriétaire</mrk><mrk id="n2.fallback" type="generic">Membre</mrk></pc></target>
+      </segment>
+    </unit>
+    <unit id="ordinal-position_clxl8T_LMp9L-5xOM9XxpOk0PIJDmB-CK6_R3mZFr4g">
+      <segment>
+        <source>You finished <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/><pc id="n2" equivStart="&lt;sup&gt;" equivEnd="&lt;/sup&gt;" canCopy="no" canDelete="no"><pc id="n2.0" equivStart="{plural-ordinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n2.0.case.0" type="generic" value="zero">th</mrk><mrk id="n2.0.case.1" type="generic" value="one">st</mrk><mrk id="n2.0.case.2" type="generic" value="two">nd</mrk><mrk id="n2.0.case.3" type="generic" value="few">rd</mrk><mrk id="n2.0.case.4" type="generic" value="many">th</mrk><mrk id="n2.0.fallback" type="generic">th</mrk></pc></pc> in the review queue.</source>
+        <target>Vous avez terminé <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/><pc id="n2" equivStart="&lt;sup&gt;" equivEnd="&lt;/sup&gt;" canCopy="no" canDelete="no"><pc id="n2.0" equivStart="{plural-ordinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n2.0.case.0" type="generic" value="zero">e</mrk><mrk id="n2.0.case.1" type="generic" value="one">er</mrk><mrk id="n2.0.case.2" type="generic" value="two">e</mrk><mrk id="n2.0.case.3" type="generic" value="few">e</mrk><mrk id="n2.0.case.4" type="generic" value="many">e</mrk><mrk id="n2.0.fallback" type="generic">e</mrk></pc></pc> dans la file de révision.</target>
+      </segment>
+    </unit>
+    <unit id="scenario-formatters_27ms8_weeXjQv9DBZmznoJk0EpUTAzH-R5z9EU7ZD34">
+      <segment>
+        <source>Native intent inference</source>
+        <target>Déduction native de l’intention</target>
+      </segment>
+    </unit>
+    <unit id="label-currency_-60Wr66qTmij8VB_LgoZUmoV1rMqc1qlS3YjZ6REv5g">
+      <segment>
+        <source>Currency</source>
+        <target>Devise</target>
+      </segment>
+    </unit>
+    <unit id="label-road-range_wTdxWPONgwxI9o5smv2BYImMbne4ch9C2t5tY7jF5WQ">
+      <segment>
+        <source>Road range</source>
+        <target>Distance routière</target>
+      </segment>
+    </unit>
+    <unit id="label-height_OyX4cdcLQUGRQmHPvPD5wz1YZqNhwREHymL6FOq6kHo">
+      <segment>
+        <source>Person height</source>
+        <target>Taille</target>
+      </segment>
+    </unit>
+    <unit id="label-temperature_ySk8XyivFza4INOtPW79B4HYUpllMEY1lEuUHDDHAPs">
+      <segment>
+        <source>Temperature</source>
+        <target>Température</target>
+      </segment>
+    </unit>
+    <unit id="label-land-area_BaM4w-g03yEJmzxBNdKExLMK4P6v3b37YMlyGxjIWyg">
+      <segment>
+        <source>Land area</source>
+        <target>Superficie du terrain</target>
+      </segment>
+    </unit>
+    <unit id="label-person-mass_cklpzldPeDkkNsW5EgFwoxBY27lHFoJw5-Roup_ZJhI">
+      <segment>
+        <source>Person mass</source>
+        <target>Masse corporelle</target>
+      </segment>
+    </unit>
+    <unit id="label-liquid-volume_XrYbDhYOiS9gpiZDGwDtDB10W2XBDoeFpbC4V11zSCw">
+      <segment>
+        <source>Liquid volume</source>
+        <target>Volume liquide</target>
+      </segment>
+    </unit>
+    <unit id="label-road-speed_PUfvD0KmzzSfWsL144LDH-ZxQj_Qk_rz4MtI5_KACU8">
+      <segment>
+        <source>Road speed</source>
+        <target>Vitesse routière</target>
+      </segment>
+    </unit>
+    <unit id="label-weather-pressure_IE6C_lpLiOlW1ehnXD7daOhmwhr47gJpacWjV7pyogY">
+      <segment>
+        <source>Weather pressure</source>
+        <target>Pression atmosphérique</target>
+      </segment>
+    </unit>
+    <unit id="label-food-energy_tad7A0XbGdeQbsE161Z7qwnXLqO0VffW-sG7ZUaxfoE">
+      <segment>
+        <source>Food energy</source>
+        <target>Énergie alimentaire</target>
+      </segment>
+    </unit>
+    <unit id="label-engine-power_TsDuqt80srOz_fFWsEOU1r09O8cAZPxQYlDNoCKsnVQ">
+      <segment>
+        <source>Engine power</source>
+        <target>Puissance du moteur</target>
+      </segment>
+    </unit>
+    <unit id="label-fuel-economy_cHUT7tZvCb4Xce3pL3LXa6dzidX6Cv_5G0Xw_q3uJtc">
+      <segment>
+        <source>Fuel economy</source>
+        <target>Consommation de carburant</target>
+      </segment>
+    </unit>
+    <unit id="label-digital-storage_pr2AntMos5j6XLYxFCALEdT2jNIDbXfKozlkZe9X0Fk">
+      <segment>
+        <source>Digital storage</source>
+        <target>Stockage numérique</target>
+      </segment>
+    </unit>
+    <unit id="date-time_V3HVUW4DfD_2XyZPa-pA0dPxXNBPoa-soUvGZQ6NkwQ">
+      <segment>
+        <source>Published <ph id="n1" equiv="{date-time}" canCopy="yes" canDelete="no"/>.</source>
+        <target>Publié <ph id="n1" equiv="{date-time}" canCopy="yes" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="date-range_om_djg8eJiw2j97NIOr3JCMzQL4933bym8HYG1N-FZ0">
+      <segment>
+        <source>Campaign: <ph id="n1" equiv="{date-time}" canCopy="yes" canDelete="no"/>.</source>
+        <target>Campagne : <ph id="n1" equiv="{date-time}" canCopy="yes" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="relative-duration_WlmrcPKy_xePlHiPuUoPon0Y3ThbLX-QdznDyN4H7c8">
+      <segment>
+        <source>Posted <ph id="n1" equiv="{relative-duration}" canCopy="yes" canDelete="no"/>.</source>
+        <target>Publié <ph id="n1" equiv="{relative-duration}" canCopy="yes" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="display-list_2VxOPoHvS8HBV8ogcX4eMqHz0daqWCDZ32FutiG8Btw">
+      <segment>
+        <source>Language: <ph id="n1" equiv="{display-name}" canCopy="yes" canDelete="no"/>. Team: <ph id="n3" equiv="{list}" canCopy="yes" canDelete="no"/>.</source>
+        <target>Langue : <ph id="n1" equiv="{display-name}" canCopy="yes" canDelete="no"/>. Équipe : <ph id="n3" equiv="{list}" canCopy="yes" canDelete="no"/>.</target>
+      </segment>
+    </unit>
+    <unit id="scenario-properties_D8uvkgteETeOA8EfcIs-kgz5AHR49u4vbPKThlnGyjk">
+      <segment>
+        <source>Intrinsic properties</source>
+        <target>Propriétés intrinsèques</target>
+      </segment>
+    </unit>
+    <unit id="scenario-unenhanced_jWZ8rV67CFB8CXt90JUkOIQr4o0a871YRy2bddH4M8E">
+      <segment>
+        <source>Intentional non-translated content</source>
+        <target>Contenu intentionnellement non traduit</target>
+      </segment>
+    </unit>
+    <unit id="lazy-loading_TpZJev3AeLkIt06WfRQs7Sd2dqLxdoj30S2Vf3g9eGE">
+      <segment>
+        <source>Loading locale chunk…</source>
+        <target>Chargement du segment de langue…</target>
+      </segment>
+    </unit>
+    <unit id="DHMY_Q_GWH6RL2_LNMCFHzKHZX54I92cTsmV30EUBSY">
+      <segment>
+        <source>Search messages</source>
+        <target>Rechercher des messages</target>
+      </segment>
+    </unit>
+    <unit id="tddfnfYuNEGY2VgSvcJFShEE0m5RgfACpQzE-6U5qhI">
+      <segment>
+        <source>Search the localized inbox</source>
+        <target>Rechercher dans la boîte localisée</target>
+      </segment>
+    </unit>
+    <unit id="lazy-arrival_HBAgakG10gTAlGe2d-AiAbNX5edSrPKFGOmQVrP1lJU">
+      <segment>
+        <source>This translated panel and its catalog arrived in a separate lazy chunk.</source>
+        <target>Ce panneau traduit et son catalogue sont arrivés dans un segment chargé à la demande.</target>
+      </segment>
+    </unit>
+  </file>
+</xliff>

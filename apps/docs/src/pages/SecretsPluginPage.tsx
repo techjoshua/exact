@@ -33,7 +33,7 @@ export function SecretsPluginPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Plugin / @exactjs/secrets"
-			title="Make secret handling visible to both server and compiler"
+			title="Make secrets explicit"
 			description="The secrets plugin loads values through application-owned providers, validates required names at startup, and gives secret data a compiler-visible qualification that persists until trusted code explicitly consumes it."
 			previous={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
 			next={{ path: '/examples/logo-lab', label: 'Logo lab' }}
@@ -51,7 +51,7 @@ export function SecretsPluginPage(this: Component<{}>) {
 				<h2>Configure providers and policy once</h2>
 				<CodeBlock source={secretsConfigSource} language="ts" title="exact.config.ts" />
 				<p>
-					The built-in environment provider reads process environment values and optional{' '}
+					The built-in environment provider reads process environment values and optional
 					<code>.env</code>
 					files. Applications can add providers implementing the same async interface. Later
 					providers replace earlier values with the same name, and startup fails when a required

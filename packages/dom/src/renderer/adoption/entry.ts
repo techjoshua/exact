@@ -11,10 +11,11 @@ export function adoptStaticMounted(
 	nodes: readonly Node[],
 	cursor: number,
 	parentInstance: ComponentInstance<any>,
-	parentScope: EffectScope
+	parentScope: EffectScope,
+	end = nodes.length
 ): { mounted: Mounted; next: number } | undefined {
 	return withTreeDepth(root, () => {
 		countDomWork(root);
-		return adoptStaticMountedInner(root, vnode, nodes, cursor, parentInstance, parentScope);
+		return adoptStaticMountedInner(root, vnode, nodes, cursor, parentInstance, parentScope, end);
 	});
 }

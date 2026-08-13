@@ -6,16 +6,18 @@ import type {
 	ExactValuePreview
 } from '@exactjs/devtools-protocol';
 import type { ExactDevtoolsPanelModel } from './model.js';
+import { renderComponentTreeNode } from './component-tree.js';
 import { renderPartitionTree } from './partition-tree.js';
 import { renderTaskSection } from './task-section.js';
+import { setTreeBranchExpanded } from './tree-disclosure.js';
+import { renderExactValuePreview } from './value-preview.js';
 import {
 	buildExactComponentForest,
 	buildExactProfilerFrames,
 	exactEventComponentName,
 	exactPanelIdentityKey,
 	exactPanelComponentTypeKey,
-	formatExactProfilerDuration,
-	type ExactComponentTreeNode
+	formatExactProfilerDuration
 } from './view-model.js';
 
 /** Actions supplied by the panel controller to the presentation layer. */
@@ -36,13 +38,14 @@ export function renderExactComponentsView(
 	const tree = node('div', 'component-tree');
 	tree.setAttribute('data-panel-scroll-key', 'component-tree');
 	const selectedKey = model.selected ? exactPanelIdentityKey(model.selected.id) : undefined;
-	for (const root of forest) tree.append(renderTreeNode(root, selectedKey, actions));
+	for (const root of forest)
+		tree.append(renderComponentTreeNode(root, selectedKey, actions.selectComponent));
 	if (!model.components.length)
 		tree.append(
 			emptyState('No inspectable components', 'Reload the page with runtime inspection enabled.')
 		);
 	sidebar.append(tree);
-	sidebar.append(...renderPartitionTree(model.partitions));
+	sidebar.append(...renderPartitionTree(model.partitions, model.partitionPlans));
 	layout.append(sidebar, renderComponentDetails(model));
 	replacePanelView(container, layout, 'components');
 }
@@ -125,38 +128,6 @@ export function renderExactMicrofrontendsView(
 	replacePanelView(container, grid, 'microfrontends');
 }
 
-function renderTreeNode(
-	treeNode: ExactComponentTreeNode,
-	selectedKey: string | undefined,
-	actions: ExactPanelRenderActions
-): HTMLElement {
-	const branch = node('div', 'tree-branch');
-	const component = treeNode.component;
-	const button = node('button', 'tree-node');
-	button.type = 'button';
-	button.classList.toggle('selected', exactPanelIdentityKey(component.id) === selectedKey);
-	button.title = `${component.name} · ${component.id.instanceId ?? 'runtime instance'}`;
-	const disclosure = node('span', 'tree-disclosure');
-	disclosure.textContent = treeNode.children.length ? '▾' : '';
-	const status = node('span', `status-dot status-${component.status}`);
-	const name = node('span', 'tree-name');
-	name.textContent = component.name;
-	button.append(disclosure, status, name);
-	if (component.id.instanceId)
-		button.append(badge(shortIdentity(component.id.instanceId), 'neutral'));
-	if (component.tasks.some((task) => task.status === 'running' || task.status === 'queued'))
-		button.append(badge('working', 'busy'));
-	button.addEventListener('click', () => actions.selectComponent(component.id));
-	branch.append(button);
-	if (treeNode.children.length) {
-		const children = node('div', 'tree-children');
-		for (const child of treeNode.children)
-			children.append(renderTreeNode(child, selectedKey, actions));
-		branch.append(children);
-	}
-	return branch;
-}
-
 function renderComponentDetails(model: ExactDevtoolsPanelModel): HTMLElement {
 	const details = node('section', 'component-details');
 	details.setAttribute(
@@ -183,10 +154,11 @@ function renderComponentDetails(model: ExactDevtoolsPanelModel): HTMLElement {
 
 	const state = model.state?.state ?? component.state;
 	const props = model.state?.props ?? component.props;
+	const componentKey = exactPanelIdentityKey(component.id);
 	details.append(
-		previewSection('State', state, 'State is empty'),
-		previewSection('Props', props, 'No props'),
-		contextSection(model.contexts),
+		previewSection('State', state, 'State is empty', [componentKey, 'State']),
+		previewSection('Props', props, 'No props', [componentKey, 'Props']),
+		contextSection(model.contexts, componentKey),
 		renderTaskSection(model.tasks)
 	);
 	if (model.dependency !== undefined) {
@@ -207,7 +179,8 @@ function renderComponentDetails(model: ExactDevtoolsPanelModel): HTMLElement {
 function previewSection(
 	title: string,
 	preview: ExactValuePreview,
-	emptyLabel: string
+	emptyLabel: string,
+	path: readonly string[]
 ): HTMLElement {
 	const section = document.createElement('details');
 	section.className = 'detail-section';
@@ -217,40 +190,14 @@ function previewSection(
 	summary.textContent = title;
 	section.append(summary);
 	if (preview.kind === 'object' && !preview.entries.length) section.append(emptyState(emptyLabel));
-	else section.append(renderPreview(preview));
+	else section.append(renderExactValuePreview(preview, path, true));
 	return section;
 }
 
-function renderPreview(preview: ExactValuePreview): HTMLElement {
-	if (preview.kind === 'object') {
-		const list = node('dl', 'preview-object');
-		for (const entry of preview.entries) {
-			const key = document.createElement('dt');
-			key.textContent = entry.key;
-			const value = document.createElement('dd');
-			value.append(renderPreview(entry.value));
-			list.append(key, value);
-		}
-		if (preview.truncated) list.append(labeledValue('', '… preview truncated'));
-		return list;
-	}
-	const value = node('span', `preview-value preview-${preview.kind}`);
-	value.textContent =
-		preview.kind === 'scalar'
-			? typeof preview.value === 'string'
-				? JSON.stringify(preview.value)
-				: String(preview.value)
-			: preview.kind === 'function'
-				? `ƒ ${preview.name ?? 'anonymous'}`
-				: preview.kind === 'dom'
-					? `<${preview.tag}${preview.id ? `#${preview.id}` : ''}>`
-					: preview.kind === 'redacted'
-						? `redacted (${preview.reason})`
-						: `unavailable (${preview.reason})`;
-	return value;
-}
-
-function contextSection(contexts: readonly ExactContextPreview[]): HTMLElement {
+function contextSection(
+	contexts: readonly ExactContextPreview[],
+	componentKey: string
+): HTMLElement {
 	const section = document.createElement('details');
 	section.className = 'detail-section';
 	section.setAttribute('data-panel-disclosure-key', 'contexts');
@@ -262,7 +209,14 @@ function contextSection(contexts: readonly ExactContextPreview[]): HTMLElement {
 		const row = node('div', 'context-row');
 		row.append(
 			labeledValue(context.name, context.scope),
-			context.value ? renderPreview(context.value) : badge(context.availability, 'neutral')
+			context.value
+				? renderExactValuePreview(context.value, [
+						componentKey,
+						'Contexts',
+						context.scope,
+						context.name
+					])
+				: badge(context.availability, 'neutral')
 		);
 		section.append(row);
 	}
@@ -369,6 +323,7 @@ function replacePanelView(container: Element, view: HTMLElement, viewKey: string
 	const preserve = container.firstElementChild?.getAttribute('data-panel-view-key') === viewKey;
 	const scrollPositions = new Map<string, Readonly<{ top: number; left: number }>>();
 	const disclosureStates = new Map<string, boolean>();
+	const collapseStates = new Map<string, boolean>();
 	if (preserve) {
 		for (const element of container.querySelectorAll<HTMLElement>('[data-panel-scroll-key]')) {
 			const key = element.getAttribute('data-panel-scroll-key');
@@ -380,6 +335,10 @@ function replacePanelView(container: Element, view: HTMLElement, viewKey: string
 			const key = element.getAttribute('data-panel-disclosure-key');
 			if (key) disclosureStates.set(key, element.open);
 		}
+		for (const element of container.querySelectorAll<HTMLElement>('[data-panel-collapse-key]')) {
+			const key = element.getAttribute('data-panel-collapse-key');
+			if (key) collapseStates.set(key, element.dataset.panelExpanded === 'true');
+		}
 	}
 	view.setAttribute('data-panel-view-key', viewKey);
 	container.replaceChildren(view);
@@ -389,6 +348,10 @@ function replacePanelView(container: Element, view: HTMLElement, viewKey: string
 	)) {
 		const key = element.getAttribute('data-panel-disclosure-key');
 		if (key && disclosureStates.has(key)) element.open = disclosureStates.get(key)!;
+	}
+	for (const element of container.querySelectorAll<HTMLElement>('[data-panel-collapse-key]')) {
+		const key = element.getAttribute('data-panel-collapse-key');
+		if (key && collapseStates.has(key)) setTreeBranchExpanded(element, collapseStates.get(key)!);
 	}
 	for (const element of container.querySelectorAll<HTMLElement>('[data-panel-scroll-key]')) {
 		const key = element.getAttribute('data-panel-scroll-key');

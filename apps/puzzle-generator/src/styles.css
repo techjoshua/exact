@@ -440,6 +440,10 @@ input[type='range'] {
 	margin-top: 0;
 }
 
+.custom-layout-fields {
+	margin-top: 14px;
+}
+
 .crossword-colors {
 	grid-template-columns: repeat(2, 1fr);
 	margin-top: 0;
@@ -470,6 +474,68 @@ input[type='range'] {
 	color: #7a827d;
 	font-size: 10px;
 	line-height: 1.45;
+}
+
+.ai-prompt-toolbar {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 10px;
+}
+
+.ai-prompt-toolbar > div {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.ai-prompt-editor {
+	display: grid;
+	gap: 6px;
+	margin-top: 10px;
+}
+
+.ai-prompt-editor textarea {
+	min-height: 210px;
+	resize: vertical;
+	font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+	font-size: 10px;
+	line-height: 1.5;
+}
+
+.ai-prompt-editor small {
+	color: #7a827d;
+	font-size: 10px;
+	line-height: 1.4;
+}
+
+.ai-response-viewer {
+	display: grid;
+	gap: 6px;
+	margin-top: 10px;
+}
+
+.ai-response-viewer pre {
+	max-height: 260px;
+	margin: 0;
+	padding: 10px;
+	overflow: auto;
+	border: 1px solid #d8d5c9;
+	background: #f8f6ef;
+	font:
+		10px/1.5 ui-monospace,
+		SFMono-Regular,
+		Consolas,
+		'Liberation Mono',
+		monospace;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.ai-response-viewer small {
+	color: #7a827d;
+	font-size: 10px;
+	line-height: 1.4;
 }
 
 .ai-progress {

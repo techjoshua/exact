@@ -1,4 +1,5 @@
 import type { RenderToStringOptions, SsrContext } from '../types.js';
+import { utf8ByteLength } from './utf8.js';
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
@@ -70,15 +71,25 @@ export function countSsrNode(context: SsrContext): void {
  */
 export function boundedJoin(context: SsrContext, chunks: readonly string[]): string {
 	let characters = 0;
+	let html = '';
 	for (const chunk of chunks) {
 		characters += chunk.length;
 		if (characters > context.maxOutputBytes) {
 			throw new SsrOutputLimitError(context.maxOutputBytes);
 		}
+		// Preserve nested output as an engine rope until the adapter performs the
+		// one unavoidable UTF-8 encoding, instead of flattening every subtree.
+		html += chunk;
 	}
-	const html = chunks.join('');
 	assertOutputCharacterBound(context, html);
 	return html;
+}
+
+/** Appends one output chunk while retaining the request's conservative character ceiling. */
+export function appendBoundedHtml(context: SsrContext, html: string, chunk: string): string {
+	const appended = html + chunk;
+	assertOutputCharacterBound(context, appended);
+	return appended;
 }
 
 /**
@@ -96,25 +107,18 @@ export function assertOutputCharacterBound(context: SsrContext, html: string): v
 /** Verifies the exact UTF-8 byte length when non-ASCII output requires it. */
 export function assertOutputWithinLimit(context: SsrContext, html: string): void {
 	assertOutputCharacterBound(context, html);
-	if (
-		/[^\x00-\x7f]/.test(html) &&
-		new TextEncoder().encode(html).byteLength > context.maxOutputBytes
-	) {
+	if (utf8ByteLength(html) > context.maxOutputBytes) {
 		throw new SsrOutputLimitError(context.maxOutputBytes);
 	}
 }
 
 /** Runs a synchronous nested traversal while restoring depth on every exit. */
 export function withSsrTreeDepth<T>(context: SsrContext, run: () => T): T {
-	context.traversalDepth++;
-	if (context.traversalDepth > context.maxTreeDepth) {
-		context.traversalDepth--;
-		throw new SsrTreeDepthError(context.maxTreeDepth);
-	}
+	enterSsrTreeDepth(context);
 	try {
 		return run();
 	} finally {
-		context.traversalDepth--;
+		leaveSsrTreeDepth(context);
 	}
 }
 
@@ -123,16 +127,25 @@ export async function withSsrTreeDepthAsync<T>(
 	context: SsrContext,
 	run: () => Promise<T>
 ): Promise<T> {
-	context.traversalDepth++;
-	if (context.traversalDepth > context.maxTreeDepth) {
-		context.traversalDepth--;
-		throw new SsrTreeDepthError(context.maxTreeDepth);
-	}
+	enterSsrTreeDepth(context);
 	try {
 		return await run();
 	} finally {
-		context.traversalDepth--;
+		leaveSsrTreeDepth(context);
 	}
+}
+
+/** Enters one traversal frame without allocating a callback closure. */
+export function enterSsrTreeDepth(context: SsrContext): void {
+	context.traversalDepth++;
+	if (context.traversalDepth <= context.maxTreeDepth) return;
+	context.traversalDepth--;
+	throw new SsrTreeDepthError(context.maxTreeDepth);
+}
+
+/** Leaves a traversal frame entered by {@link enterSsrTreeDepth}. */
+export function leaveSsrTreeDepth(context: SsrContext): void {
+	context.traversalDepth--;
 }
 
 /** Adds one stable task deadline without extending an existing render deadline. */

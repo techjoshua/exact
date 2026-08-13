@@ -15,7 +15,7 @@ export function CompilerTourPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="What the compiler writes for you"
+			title="Inside the compiler"
 			description="Follow one component across browser and server artifacts, from ordinary state and TSX to reactive DOM work and a compiler-generated protocol."
 			previous={{ path: '/learn/tasks', label: 'Tasks, dependencies & scheduling' }}
 			next={{ path: '/learn/lists', label: 'Keyed lists' }}
@@ -84,66 +84,32 @@ export function CompilerTourPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>What to notice</h2>
-				<div className="definition-grid">
-					<code>Component wrapper</code>
-					<p>
-						The exported function remains the durable component factory. Setup is not converted into
-						a function that reruns after every state change.
-					</p>
-					<code>State writes</code>
-					<p>
-						Generated write helpers publish reactive invalidation while preserving direct assignment
-						semantics and the assigned result.
-					</p>
-					<code>Derived subtotal</code>
-					<p>
-						The right-hand state reads become dependencies of an owned computation. The subtotal
-						destination is an effect, not a dependency.
-					</p>
-					<code>Search task</code>
-					<p>
-						The query drives a deferred server generation. The browser dispatches an opaque
-						continuation; the server resolves its repository context, and cancellation crosses the
-						transport boundary.
-					</p>
-					<code>Server isolation</code>
-					<p>
-						The repository, credentials, database or API SDK, and their dependencies remain in the
-						server artifact. Only the explicitly shared product data can return to client-visible
-						state.
-					</p>
-					<code>Client task</code>
-					<p>
-						The title effect remains entirely in the browser artifact. Its use of{' '}
-						<code>document</code> determines placement, while the compiler infers selected product
-						name as its only dependency.
-					</p>
-					<code>Input bindings</code>
-					<p>
-						Namespaced values become a reactive DOM value plus the correctly typed intrinsic event
-						write. Conversion for the number input is compiler-selected.
-					</p>
-					<code>Dynamic ranges</code>
-					<p>
-						Text and the conditional status receive narrow reactive computations and stable marker
-						identity. They do not require a component rerender.
-					</p>
-					<code>Keyed products</code>
-					<p>
-						The map callback retains product identity by key while expressions inside each item keep
-						their own reactive ownership.
-					</p>
-					<code>SSR and resumption</code>
-					<p>
-						The server artifact can settle the same continuation for the initial HTML. Its public
-						state is resumed in the browser, so hydration adopts the rendered DOM without shipping
-						or rerunning the repository client.
-					</p>
-					<p>
-						A component may own client tasks and server continuations without turning those task
-						bodies into mixed setup. The compiler emits both roots, marks the SSR component range
-						for eager resumption, and preserves invoked return values in streamed responses.
-					</p>
+				<div className="card-grid">
+					<div className="topic-card">
+						<span className="topic-index">Precise updates</span>
+						<strong>Each dependency keeps a narrow destination</strong>
+						<p>
+							Direct state writes invalidate the derived subtotal, bindings, text, and conditional
+							ranges that depend on them without rerunning the component.
+						</p>
+					</div>
+					<div className="topic-card">
+						<span className="topic-index">One task across the boundary</span>
+						<strong>The compiler owns placement and cancellation</strong>
+						<p>
+							The query activates server work, cancellation is injected into the repository call,
+							and trusted context stays server-side. The browser title task remains local.
+						</p>
+					</div>
+					<div className="topic-card">
+						<span className="topic-index">Stable identity and resumption</span>
+						<strong>Annotations remove repeated view ceremony</strong>
+						<p>
+							The product type&apos;s <code>@exact key</code> annotation preserves rows through
+							ordinary map syntax. SSR can settle the same work and the browser adopts its DOM and
+							public state.
+						</p>
+					</div>
 				</div>
 			</section>
 			<Callout title="Generated code is an implementation contract, not an authoring API">

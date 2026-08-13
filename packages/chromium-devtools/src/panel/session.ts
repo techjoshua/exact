@@ -8,6 +8,7 @@ import { loadExactDevtoolsPanelModel, type ExactDevtoolsPanelModel } from './mod
 /** Disposable connection and live-event owner for one Chromium panel instance. */
 export interface ExactDevtoolsPanelSession {
 	load(selected?: ExactInspectionRuntimeId): Promise<ExactDevtoolsPanelModel>;
+	reset(): void;
 	dispose(): Promise<void>;
 }
 
@@ -29,6 +30,12 @@ export function createExactDevtoolsPanelSession(
 				subscription = await client.subscribe(model.sessionId, model.timelineCursor, onEvent);
 			}
 			return model;
+		},
+		reset() {
+			// Transport replacement closes page-owned subscriptions. Forget their local identity so the
+			// next load establishes a fresh subscription even if the runtime reuses its session ID.
+			subscription = undefined;
+			sessionId = undefined;
 		},
 		async dispose() {
 			if (disposed) return;

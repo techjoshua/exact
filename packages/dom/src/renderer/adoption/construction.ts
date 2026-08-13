@@ -3,6 +3,7 @@ import {
 	exactComponentIdentity,
 	pageComponentDomain,
 	withComponentResumption,
+	type ComponentContextValues,
 	type ComponentFunction,
 	type ComponentInstance,
 	type VNode
@@ -13,7 +14,8 @@ import { getComponentProps } from '../../children.js';
 /** Constructs one component after DOM adoption has validated its server marker identity. */
 export function constructAdoptedComponent(
 	vnode: VNode,
-	parent?: ComponentInstance<any>
+	parent?: ComponentInstance<any>,
+	ambientContexts?: ComponentContextValues
 ): ComponentInstance<any> {
 	exactComponentIdentity(vnode.type as ComponentFunction<any, Record<string, unknown>>);
 	const domain = vnode.domain ?? parent?.domain ?? pageComponentDomain;
@@ -22,7 +24,7 @@ export function constructAdoptedComponent(
 			vnode.type as ComponentFunction<any, Record<string, unknown>>,
 			getComponentProps(vnode),
 			parent,
-			undefined,
+			parent?.ambientContexts ?? ambientContexts,
 			domain
 		)
 	);

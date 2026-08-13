@@ -33,11 +33,12 @@ export function nativeModuleAnalysis(
 		exports,
 		symbols,
 		boundaries: response.analysis.boundaries.map((boundary) => {
-			const { patchTargets, discriminatorValues, ...record } = boundary;
+			const { patchTargets, discriminatorValues, activation, ...record } = boundary;
 			return {
 				...record,
 				...(patchTargets ? { patchTargets: [...patchTargets] } : {}),
-				...(discriminatorValues ? { discriminatorValues: [...discriminatorValues] } : {})
+				...(discriminatorValues ? { discriminatorValues: [...discriminatorValues] } : {}),
+				...(activation ? { activation: cloneActivationDecision(activation) } : {})
 			};
 		}),
 		partitionPlan: {
@@ -46,6 +47,9 @@ export function nativeModuleAnalysis(
 			roots: [...response.analysis.partitionPlan.roots],
 			nodes: response.analysis.partitionPlan.nodes.map((node) => ({
 				...node,
+				...(node.activationDecision
+					? { activationDecision: cloneActivationDecision(node.activationDecision) }
+					: {}),
 				artifactTargets: [...node.artifactTargets],
 				renderPath: [...node.renderPath],
 				childEdges: [...node.childEdges]
@@ -153,6 +157,23 @@ export function nativeModuleAnalysis(
 	};
 }
 
+function cloneActivationDecision<
+	T extends {
+		mode: string;
+		reasons: readonly Record<string, unknown>[];
+		targets: readonly (Record<string, unknown> & { events: readonly Record<string, unknown>[] })[];
+	}
+>(decision: T): T {
+	return {
+		...decision,
+		reasons: decision.reasons.map((reason) => ({ ...reason })),
+		targets: decision.targets.map((target) => ({
+			...target,
+			events: target.events.map((event) => ({ ...event }))
+		}))
+	} as T;
+}
+
 function nativeComponent(
 	component: NativeCompilerComponent,
 	tasks: readonly NativeCompilerTask[]
@@ -177,7 +198,20 @@ function nativeComponent(
 		splitBoundaries: [...component.splitBoundaries],
 		diagnostics: [...component.diagnostics],
 		environmentEffect: component.environmentEffect,
-		artifactTargets: [...component.artifactTargets]
+		artifactTargets: [...component.artifactTargets],
+		execution: {
+			version: 1,
+			ports: component.execution.ports.map((port) => ({ ...port })),
+			transitions: component.execution.transitions.map((transition) => ({
+				...transition,
+				inputs: [...transition.inputs],
+				outputs: [...transition.outputs]
+			})),
+			reactive: component.execution.reactive.map((binding) => ({
+				...binding,
+				dependencies: [...binding.dependencies]
+			}))
+		}
 	};
 }
 
