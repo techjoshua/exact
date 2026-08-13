@@ -37,3 +37,25 @@ test('the root build includes the enhancement playground and its component libra
 		assert.ok(references.has(project), `missing root TypeScript project reference: ${project}`);
 	}
 });
+
+test('Pages publishes Puzzle Foundry without advertising it in documentation', async () => {
+	const workflow = await readFile(
+		path.resolve('.github/workflows/native-compiler-packages.yml'),
+		'utf8'
+	);
+	const assembler = await readFile(path.resolve('scripts/prepare-gh-pages.mjs'), 'utf8');
+	const documentationSources = await Promise.all(
+		[
+			'README.md',
+			'docs/sample-applications.md',
+			'apps/docs/src/docs-manifest.ts',
+			'apps/docs/src/pages/SamplesPage.tsx'
+		].map((filename) => readFile(path.resolve(filename), 'utf8'))
+	);
+
+	assert.match(workflow, /npm run build:puzzle-generator:standalone/);
+	assert.match(assembler, /puzzle-foundry\.html/);
+	for (const source of documentationSources) {
+		assert.doesNotMatch(source, /Puzzle Foundry|puzzle-foundry\.html|apps\/puzzle-generator/);
+	}
+});

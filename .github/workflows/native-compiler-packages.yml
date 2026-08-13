@@ -289,6 +289,8 @@ jobs:
         run: npm run build -w @exactjs/docs
       - name: Build standalone Sudoku
         run: npm run build:sudoku:standalone
+      - name: Build standalone Puzzle Foundry
+        run: npm run build:puzzle-generator:standalone
       - name: Assemble Pages branch
         run: node scripts/prepare-gh-pages.mjs
       - name: Publish gh-pages branch
