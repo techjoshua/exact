@@ -130,6 +130,8 @@ export type PuzzleGeneratorState = {
 	error?: string;
 	previewSolution: boolean;
 	bulkCount: number;
+	bulkPlanText: string;
+	bulkVerified: boolean;
 	bulkBusy: boolean;
 	bulkCompleted: number;
 	bulkStatus: string;

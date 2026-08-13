@@ -33,10 +33,11 @@ export async function generateOpenAiWordList(
 ): Promise<string> {
 	const systemPrompt = systemInstruction(kind);
 	const userPrompt = aiWordListPrompt(topic, kind, promptTemplate);
-	const content = await requestStructuredInput(
+	const content = await requestOpenAiStructuredOutput(
 		apiKey,
 		model,
-		kind,
+		kind === 'crossword' ? 'crossword_entries' : 'word_search_words',
+		JSON.parse(aiWordListSchema(kind)),
 		[
 			{ role: 'system', content: systemPrompt },
 			{ role: 'user', content: userPrompt }
@@ -48,10 +49,11 @@ export async function generateOpenAiWordList(
 		return formatAiWordListResponse(content, kind);
 	} catch (error) {
 		if (kind !== 'crossword' || !(error instanceof AiClueLeakError)) throw error;
-		const repaired = await requestStructuredInput(
+		const repaired = await requestOpenAiStructuredOutput(
 			apiKey,
 			model,
-			kind,
+			'crossword_entries',
+			JSON.parse(aiWordListSchema(kind)),
 			[
 				{ role: 'system', content: systemPrompt },
 				{ role: 'user', content: userPrompt },
@@ -68,12 +70,15 @@ export async function generateOpenAiWordList(
 	}
 }
 
-async function requestStructuredInput(
+/** Sends one strict JSON-schema Responses API request without retaining the supplied credential. */
+export async function requestOpenAiStructuredOutput(
 	apiKey: string,
 	model: string,
-	kind: AiPuzzleKind,
+	name: string,
+	schema: Record<string, unknown>,
 	input: ReadonlyArray<{ role: 'system' | 'user' | 'assistant'; content: string }>,
-	signal?: AbortSignal
+	signal?: AbortSignal,
+	maxOutputTokens = 1500
 ): Promise<string> {
 	const response = await fetch('https://api.openai.com/v1/responses', {
 		method: 'POST',
@@ -84,13 +89,13 @@ async function requestStructuredInput(
 		body: JSON.stringify({
 			model,
 			input,
-			max_output_tokens: 1500,
+			max_output_tokens: maxOutputTokens,
 			text: {
 				format: {
 					type: 'json_schema',
-					name: kind === 'crossword' ? 'crossword_entries' : 'word_search_words',
+					name,
 					strict: true,
-					schema: JSON.parse(aiWordListSchema(kind))
+					schema
 				}
 			}
 		}),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BULK_COUNT_LIMIT, createBulkPuzzleArchive } from './bulk-export.js';
+import { formatBulkPuzzlePlan, verifyBulkPuzzlePlan, type BulkPuzzlePlan } from './bulk-plan.js';
 import type { DocumentRequest } from './documents.js';
 import type { PuzzleKind, PuzzleStyle } from './types.js';
 
@@ -32,7 +33,7 @@ describe('bulk puzzle archives', () => {
 	for (const kind of ['sudoku', 'word-search', 'crossword'] as const) {
 		it(`pairs distinct ${kind} puzzles and solutions in one portable ZIP`, async () => {
 			const progress: number[] = [];
-			const archive = await createBulkPuzzleArchive(request(kind), 3, ({ completed }) =>
+			const archive = await createBulkPuzzleArchive(request(kind), plan(kind, 3), ({ completed }) =>
 				progress.push(completed)
 			);
 			const files = readStoredZip(archive.bytes);
@@ -50,13 +51,16 @@ describe('bulk puzzle archives', () => {
 				'solutions/solution-003.svg'
 			]);
 			expect(manifest).toMatchObject({
-				format: 'puzzle-foundry-bulk-v1',
+				format: 'puzzle-foundry-bulk-v2',
 				kind,
 				count: 3,
 				baseSeed: 700
 			});
-			expect(manifest.request).not.toHaveProperty('seed');
-			expect(manifest.request).not.toHaveProperty('apiKey');
+			expect(manifest.shared.style).not.toHaveProperty('title');
+			expect(manifest).not.toHaveProperty('apiKey');
+			expect(manifest.entries.map((entry: { title: string }) => entry.title)).toEqual([
+				'Edition 1', 'Edition 2', 'Edition 3'
+			]);
 			expect(new Set(manifest.entries.map((entry: { seed: number }) => entry.seed)).size).toBe(3);
 			const puzzles = [...files.entries()]
 				.filter(([path]) => path.startsWith('puzzles/'))
@@ -67,9 +71,9 @@ describe('bulk puzzle archives', () => {
 	}
 
 	it('rejects quantities outside the supported archive limit', async () => {
-		await expect(createBulkPuzzleArchive(request('sudoku'), 0)).rejects.toThrow(/1 to 100/);
+		await expect(createBulkPuzzleArchive(request('sudoku'), plan('sudoku', 0))).rejects.toThrow(/1 to 100/);
 		await expect(
-			createBulkPuzzleArchive(request('sudoku'), BULK_COUNT_LIMIT + 1)
+			createBulkPuzzleArchive(request('sudoku'), plan('sudoku', BULK_COUNT_LIMIT + 1))
 		).rejects.toThrow(/1 to 100/);
 	});
 
@@ -77,13 +81,29 @@ describe('bulk puzzle archives', () => {
 		'fulfills a 50-pair production-sized request for every puzzle type',
 		async () => {
 			for (const kind of ['sudoku', 'word-search', 'crossword'] as const) {
-				const archive = await createBulkPuzzleArchive(request(kind), 50);
+				const archive = await createBulkPuzzleArchive(request(kind), plan(kind, 50));
 				expect(archive.manifest.entries).toHaveLength(50);
 				expect(new Set(archive.manifest.entries.map((entry) => entry.seed)).size).toBe(50);
 			}
 		},
 		30_000
 	);
+
+	it('requires unique titles and per-puzzle source material before export', () => {
+		const duplicatePlan: BulkPuzzlePlan = {
+			kind: 'word-search',
+			entries: [
+				{ title: 'Same', wordText: wordsFor(0) },
+				{ title: 'Same', wordText: wordsFor(0) }
+			]
+		};
+		const verification = verifyBulkPuzzlePlan(
+			formatBulkPuzzlePlan(duplicatePlan),
+			request('word-search'),
+			2
+		);
+		expect(verification.issues.join(' ')).toMatch(/repeats the title.*repeats another puzzle’s source/i);
+	});
 });
 
 /** Creates representative valid input for each generator without involving OpenAI settings. */
@@ -101,6 +121,34 @@ function request(kind: PuzzleKind): DocumentRequest {
 				: 'ORBIT\nCOMET\nMETEOR\nTELESCOPE\nPLANET\nLUNAR',
 		style
 	};
+}
+
+function plan(kind: PuzzleKind, count: number): BulkPuzzlePlan {
+	return {
+		kind,
+		entries: Array.from({ length: count }, (_, index) => ({
+			title: `Edition ${index + 1}`,
+			wordText: kind === 'sudoku' ? '' : kind === 'crossword' ? crosswordFor(index) : wordsFor(index)
+		}))
+	};
+}
+
+function wordsFor(index: number): string {
+	return `ORBIT\nCOMET\nMETEOR\nTELESCOPE\nPLANET\nLUNAR\n${letterCode(index)}`;
+}
+
+function crosswordFor(index: number): string {
+	return `ORBIT - Path around a planet\nCOMET - Icy visitor\nMETEOR - Flash in the sky\nTELESCOPE - Viewing instrument\nPLANET - World around a star\nLUNAR - Related to the moon\n${letterCode(index)} - Edition marker`;
+}
+
+function letterCode(index: number): string {
+	let value = index;
+	let result = 'CODE';
+	do {
+		result += String.fromCharCode(65 + (value % 26));
+		value = Math.floor(value / 26) - 1;
+	} while (value >= 0);
+	return result;
 }
 
 /** Reads stored local ZIP records to verify the browser-created archive's public file contract. */

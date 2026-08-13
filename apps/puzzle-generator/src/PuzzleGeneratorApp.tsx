@@ -9,6 +9,12 @@ import {
 	downloadBulkPuzzleArchive
 } from './bulk-export.js';
 import {
+	createManualBulkPlan,
+	formatBulkPuzzlePlan,
+	parseBulkPuzzlePlan,
+	verifyBulkPuzzlePlan
+} from './bulk-plan.js';
+import {
 	createPuzzleDocuments,
 	downloadSvg,
 	exportBaseName,
@@ -16,6 +22,7 @@ import {
 } from './documents.js';
 import { createSeed } from './random.js';
 import { generateOpenAiWordList } from './openai-ai.js';
+import { generateOpenAiBulkPlan } from './openai-bulk.js';
 import { clearOpenAiSettings, loadOpenAiSettings, saveOpenAiSettings } from './openai-settings.js';
 import type { PuzzleGeneratorState, PuzzleKind, PuzzleStyle } from './types.js';
 
@@ -98,6 +105,8 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	this.state.error = undefined;
 	this.state.previewSolution = false;
 	this.state.bulkCount = 50;
+	this.state.bulkPlanText = '';
+	this.state.bulkVerified = false;
 	this.state.bulkBusy = false;
 	this.state.bulkCompleted = 0;
 	this.state.bulkStatus = 'Ready to create a puzzle set';
@@ -116,9 +125,21 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		}
 	};
 
+	const invalidateBulkVerification = () => {
+		if (!this.state.bulkPlanText) return;
+		this.state.bulkVerified = false;
+		this.state.bulkStatus = 'Shared settings changed; verify the edition again';
+		this.state.bulkError = undefined;
+	};
+
 	const changeKind = (kind: PuzzleKind) => {
 		if (this.state.aiBusy) cancelAiGeneration();
+		if (this.state.bulkBusy) cancelBulkGeneration();
 		this.state.kind = kind;
+		this.state.bulkPlanText = '';
+		this.state.bulkVerified = false;
+		this.state.bulkStatus = 'Create or draft an edition plan';
+		this.state.bulkError = undefined;
 		generate();
 	};
 
@@ -191,6 +212,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	const changeOpenAiModel = (model: string) => {
 		if (model === this.state.aiModel) return;
 		if (this.state.aiBusy) cancelAiGeneration();
+		if (this.state.bulkBusy) cancelBulkGeneration();
 		this.state.aiModel = model;
 		this.state.aiError = undefined;
 		if (openAiApiKey) {
@@ -219,6 +241,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 
 	const clearOpenAiApiKey = () => {
 		if (this.state.aiBusy) cancelAiGeneration();
+		if (this.state.bulkBusy) cancelBulkGeneration();
 		try {
 			clearOpenAiSettings();
 			openAiApiKey = '';
@@ -231,10 +254,18 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 	};
 
 	const generateBulkArchive = async () => {
-		if (this.state.bulkBusy) return;
+		if (this.state.bulkBusy || !this.state.bulkVerified) return;
 		const generation = ++bulkGeneration;
 		const count = this.state.bulkCount;
 		const request = requestFromState(this.state);
+		let plan;
+		try {
+			plan = parseBulkPuzzlePlan(this.state.bulkPlanText, request.kind);
+		} catch (error) {
+			this.state.bulkVerified = false;
+			this.state.bulkError = error instanceof Error ? error.message : String(error);
+			return;
+		}
 		bulkRequest = new AbortController();
 		this.state.bulkBusy = true;
 		this.state.bulkCompleted = 0;
@@ -243,7 +274,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 		try {
 			const archive = await createBulkPuzzleArchive(
 				request,
-				count,
+				plan,
 				({ completed, total }) => {
 					if (generation !== bulkGeneration) return;
 					this.state.bulkCompleted = completed;
@@ -264,6 +295,82 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 					? error.message
 					: String(error);
 			this.state.bulkStatus = canceled ? 'Bulk generation canceled' : 'Could not create puzzle set';
+		} finally {
+			if (generation === bulkGeneration) {
+				this.state.bulkBusy = false;
+				bulkRequest = undefined;
+			}
+		}
+	};
+
+	const createManualEditionDraft = () => {
+		const request = requestFromState(this.state);
+		this.state.bulkPlanText = formatBulkPuzzlePlan(
+			createManualBulkPlan(request, this.state.bulkCount)
+		);
+		this.state.bulkVerified = false;
+		this.state.bulkError = undefined;
+		this.state.bulkStatus =
+			request.kind === 'sudoku'
+				? 'Review the individual titles, then verify the edition'
+				: 'Replace repeated source blocks with per-puzzle material, then verify';
+	};
+
+	const verifyBulkEdition = () => {
+		const verification = verifyBulkPuzzlePlan(
+			this.state.bulkPlanText,
+			requestFromState(this.state),
+			this.state.bulkCount
+		);
+		this.state.bulkVerified = verification.issues.length === 0;
+		this.state.bulkError = verification.issues.length
+			? verification.issues.join('\n')
+			: undefined;
+		this.state.bulkStatus = verification.issues.length
+			? `${verification.issues.length} edition issue${verification.issues.length === 1 ? '' : 's'} need attention`
+			: verification.warnings.length
+				? `Verified with ${verification.warnings.length} warning${verification.warnings.length === 1 ? '' : 's'}: ${verification.warnings.join(' ')}`
+				: `${verification.plan!.entries.length} titled puzzles verified and ready to export`;
+	};
+
+	const generateBulkPlanWithOpenAi = async () => {
+		const kind = this.state.kind;
+		const topic = this.state.aiTopic.trim();
+		const model = this.state.aiModel.trim();
+		if (kind === 'sudoku' || !topic || !model || !openAiApiKey || this.state.bulkBusy) return;
+		const generation = ++bulkGeneration;
+		bulkRequest = new AbortController();
+		this.state.bulkBusy = true;
+		this.state.bulkCompleted = 0;
+		this.state.bulkError = undefined;
+		this.state.bulkVerified = false;
+		this.state.bulkStatus = `OpenAI is drafting 0 of ${this.state.bulkCount} puzzles…`;
+		try {
+			const plan = await generateOpenAiBulkPlan(
+				openAiApiKey,
+				model,
+				topic,
+				kind,
+				this.state.bulkCount,
+				({ completed, total, content }) => {
+					if (generation !== bulkGeneration) return;
+					this.state.bulkCompleted = completed;
+					this.state.bulkStatus = `OpenAI drafted ${completed} of ${total} puzzles…`;
+					if (content)
+						this.state.aiResponse = this.state.aiResponse
+							? `${this.state.aiResponse}\n\nBulk draft\n${content}`
+							: `Bulk draft\n${content}`;
+				},
+				bulkRequest.signal
+			);
+			if (generation !== bulkGeneration) return;
+			this.state.bulkPlanText = formatBulkPuzzlePlan(plan);
+			this.state.bulkStatus = 'OpenAI draft ready for manual review and verification';
+		} catch (error) {
+			if (generation !== bulkGeneration) return;
+			const canceled = error instanceof DOMException && error.name === 'AbortError';
+			this.state.bulkError = canceled ? undefined : error instanceof Error ? error.message : String(error);
+			this.state.bulkStatus = canceled ? 'Bulk drafting canceled' : 'OpenAI could not draft the edition';
 		} finally {
 			if (generation === bulkGeneration) {
 				this.state.bulkBusy = false;
@@ -360,22 +467,27 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							onKind={changeKind}
 							onDifficulty={(difficulty) => {
 								this.state.difficulty = difficulty;
+								invalidateBulkVerification();
 								generate();
 							}}
 							onSeed={(seed) => {
 								this.state.seed = seed;
+								invalidateBulkVerification();
 								generate();
 							}}
 							onBoxSize={(boxSize) => {
 								this.state.sudokuBoxSize = boxSize;
+								invalidateBulkVerification();
 								generate();
 							}}
 							onRows={(rows: number) => {
 								this.state.wordRows = clampDimension(rows);
+								invalidateBulkVerification();
 								generate();
 							}}
 							onColumns={(columns: number) => {
 								this.state.wordColumns = clampDimension(columns);
+								invalidateBulkVerification();
 								generate();
 							}}
 							onWordText={(wordText) => {
@@ -412,6 +524,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							onAiCancel={cancelAiGeneration}
 							onRandomize={() => {
 								this.state.seed = createSeed();
+								invalidateBulkVerification();
 								generate('Puzzle shuffled');
 							}}
 						/>
@@ -420,26 +533,45 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 							style={this.state.style}
 							onStyle={(style: PuzzleStyle) => {
 								this.state.style = style;
+								invalidateBulkVerification();
 								generate();
 							}}
 						/>
 					</aside>
 
 					<PuzzlePreview
+						kind={this.state.kind}
 						documents={this.state.documents}
 						solution:onSolution={this.state.previewSolution}
 						status={this.state.status}
 						error={this.state.error}
 						onDownload={download}
 						bulkCount={this.state.bulkCount}
+						bulkPlanText={this.state.bulkPlanText}
+						bulkVerified={this.state.bulkVerified}
 						bulkBusy={this.state.bulkBusy}
 						bulkCompleted={this.state.bulkCompleted}
 						bulkStatus={this.state.bulkStatus}
 						bulkError={this.state.bulkError}
+						bulkCanUseOpenAi={
+							this.state.aiApiKeyStored &&
+							Boolean(this.state.aiTopic.trim()) &&
+							Boolean(this.state.aiModel.trim())
+						}
 						onBulkCount={(count) => {
 							this.state.bulkCount = clampBulkCount(count);
+							this.state.bulkVerified = false;
 							this.state.bulkError = undefined;
 						}}
+						onBulkPlanText={(source) => {
+							this.state.bulkPlanText = source;
+							this.state.bulkVerified = false;
+							this.state.bulkStatus = 'Edition changed; verify it before export';
+							this.state.bulkError = undefined;
+						}}
+						onBulkManualDraft={createManualEditionDraft}
+						onBulkOpenAiDraft={() => void generateBulkPlanWithOpenAi()}
+						onBulkVerify={verifyBulkEdition}
 						onBulkGenerate={() => void generateBulkArchive()}
 						onBulkCancel={cancelBulkGeneration}
 					/>

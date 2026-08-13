@@ -736,6 +736,7 @@ input:disabled {
 
 .bulk-export-actions {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: end;
 	gap: 8px;
 }
@@ -750,14 +751,55 @@ input:disabled {
 
 .bulk-progress,
 .bulk-status,
+.bulk-help,
+.bulk-plan-editor,
+.bulk-final-actions,
 .bulk-export > .generation-error {
 	grid-column: 1 / -1;
+}
+
+.bulk-help {
+	color: #7a827d;
+	font-size: 10px;
+}
+
+.bulk-plan-editor {
+	display: grid;
+	gap: 7px;
+}
+
+.bulk-plan-editor > span {
+	margin: 0;
+}
+
+.bulk-plan-editor textarea {
+	min-height: 240px;
+	font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+	font-size: 11px;
+}
+
+.bulk-plan-editor small {
+	color: #6e7771;
+	font-size: 10px;
+	line-height: 1.45;
+}
+
+.bulk-final-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
 }
 
 .bulk-status {
 	color: #42614f;
 	font-size: 10px;
 	font-weight: 700;
+}
+
+.bulk-status.verified {
+	color: #2e7147;
 }
 
 .bulk-progress {

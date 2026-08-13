@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateOpenAiWordList } from './openai-ai.js';
+import { generateOpenAiBulkPlan } from './openai-bulk.js';
 
 describe('OpenAI puzzle input generation', () => {
 	afterEach(() => vi.unstubAllGlobals());
@@ -58,5 +59,36 @@ describe('OpenAI puzzle input generation', () => {
 				() => undefined
 			)
 		).rejects.toThrow('Incorrect API key provided');
+	});
+
+	it('drafts separately titled bulk source sets through a strict bounded schema', async () => {
+		const content = JSON.stringify({
+			puzzles: [
+				{ title: 'Near Earth', words: ['ORBIT', 'COMET', 'PLANET', 'GALAXY', 'NEBULA', 'LUNAR'] },
+				{ title: 'Deep Space', words: ['METEOR', 'COSMOS', 'PULSAR', 'QUASAR', 'ECLIPSE', 'STAR'] }
+			]
+		});
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(JSON.stringify({ output_text: content }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			})
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		const plan = await generateOpenAiBulkPlan(
+			'sk-bulk-secret',
+			'gpt-4.1-mini',
+			'space',
+			'word-search',
+			2,
+			() => undefined
+		);
+		const request = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+		expect(request.text.format).toMatchObject({ type: 'json_schema', strict: true });
+		expect(request.text.format.schema.properties.puzzles).toMatchObject({ minItems: 2, maxItems: 2 });
+		expect(fetchMock.mock.calls[0]![1].body).not.toContain('sk-bulk-secret');
+		expect(plan.entries.map((entry) => entry.title)).toEqual(['Near Earth', 'Deep Space']);
+		expect(plan.entries[0]!.wordText).toContain('ORBIT');
 	});
 });

@@ -1,5 +1,6 @@
 import { svgDataUrl } from '../svg.js';
 import type { PuzzleDocuments } from '../types.js';
+import type { PuzzleKind } from '../types.js';
 import { BulkExportControls } from './BulkExportControls.jsx';
 
 type PuzzlePreviewProps = {
@@ -10,11 +11,19 @@ type PuzzlePreviewProps = {
 	onSolution(solution: boolean): void;
 	onDownload(solution: boolean): void;
 	bulkCount: number;
+	bulkPlanText: string;
+	bulkVerified: boolean;
 	bulkBusy: boolean;
 	bulkCompleted: number;
 	bulkStatus: string;
 	bulkError?: string;
+	kind: PuzzleKind;
+	bulkCanUseOpenAi: boolean;
 	onBulkCount(count: number): void;
+	onBulkPlanText(source: string): void;
+	onBulkManualDraft(): void;
+	onBulkOpenAiDraft(): void;
+	onBulkVerify(): void;
 	onBulkGenerate(): void;
 	onBulkCancel(): void;
 };
@@ -79,12 +88,20 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 			</div>
 
 			<BulkExportControls
+				kind={props.kind}
 				count={props.bulkCount}
+				planText={props.bulkPlanText}
+				verified={props.bulkVerified}
 				busy={props.bulkBusy}
 				completed={props.bulkCompleted}
 				status={props.bulkStatus}
 				error={props.bulkError}
+				canUseOpenAi={props.bulkCanUseOpenAi}
 				onCount={props.onBulkCount}
+				onPlanText={props.onBulkPlanText}
+				onManualDraft={props.onBulkManualDraft}
+				onOpenAiDraft={props.onBulkOpenAiDraft}
+				onVerify={props.onBulkVerify}
 				onGenerate={props.onBulkGenerate}
 				onCancel={props.onBulkCancel}
 			/>

@@ -28,14 +28,22 @@ digits may also use a different font or weight.
 
 ## Bulk puzzle sets
 
-Every puzzle type can export 1–100 content-unique puzzles at once using the current input,
-difficulty, dimensions, seed, and print styling as its template. Generation derives repeatable
-candidate seeds from the visible seed, rejects duplicate generator models, and reports progress or
-allows cancellation while the set is assembled. A bulk download is a ZIP with numbered
-`puzzles/puzzle-001.svg` and `solutions/solution-001.svg` paths plus a `manifest.json` that records
-the public generation request and the seed for each pair. OpenAI credentials and browser settings
-are never included. If the selected input cannot produce the requested number of distinct results,
-the operation reports that limitation instead of padding the archive with duplicates.
+Every puzzle type can export an edition of 1–100 puzzles. An editable edition plan gives every
+puzzle its own title. Word-search entries also contain an independent word list, and crossword
+entries contain independent answer/clue pairs; Sudoku needs only the titles because its boards are
+generated locally from derived seeds. **Manual draft** creates the titled block format directly
+from the current puzzle for hand editing. For word searches and crosswords, **Draft with OpenAI**
+can instead create separately titled source sets in bounded requests using the saved model, API
+key, and topic. Model output is still editable and cannot be exported until the author runs
+**Verify edition**.
+
+Verification checks the requested count, title and source-set uniqueness, word and clue safety,
+generator validity, rendered puzzle identity, and page-fit warnings. Page size, margins, fonts,
+type sizes, colors, line styling, and solution styling remain shared edition settings and are
+merged with each plan entry's title and source material. A ZIP contains numbered
+`puzzles/puzzle-001.svg` and `solutions/solution-001.svg` paths plus a `manifest.json` recording the
+shared settings and each pair's title, seed, and source text. OpenAI credentials and browser
+settings are never included.
 
 ## Optional OpenAI input authoring
 

@@ -48,4 +48,25 @@ describe('PuzzleGeneratorApp OpenAI settings', () => {
 			unmount(container);
 		}
 	});
+
+	it('requires an editable titled plan to be verified before bulk export', async () => {
+		const container = document.createElement('div');
+		try {
+			render(<PuzzleGeneratorApp />, container);
+			const quantity = container.querySelector<HTMLInputElement>('.bulk-export-actions input')!;
+			quantity.value = '2';
+			quantity.dispatchEvent(new Event('input', { bubbles: true }));
+			const manual = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Manual draft'))!;
+			manual.click();
+			await vi.waitFor(() => expect(container.querySelector<HTMLTextAreaElement>('.bulk-plan-editor textarea')?.value).toContain('# The Sunday Puzzle No. 2'));
+			const download = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Download verified ZIP'))!;
+			expect(download.disabled).toBe(true);
+			const verify = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Verify edition'))!;
+			verify.click();
+			await vi.waitFor(() => expect(container.textContent).toContain('2 titled puzzles verified'));
+			expect(download.disabled).toBe(false);
+		} finally {
+			unmount(container);
+		}
+	});
 });
