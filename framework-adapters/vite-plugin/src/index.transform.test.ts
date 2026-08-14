@@ -204,14 +204,17 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(result?.code).toContain('__exactPrepareIntl(__exactIntlDescriptor0, [query], [])');
 	});
 
-	it('compiles semantic unit ranges through the ordinary enhancement path', () => {
+	it.each([
+		['intrinsic', '<output intl:unit="distance-road">{minimum}-{maximum} miles</output>'],
+		['fragment', '<_ intl:unit="distance-road">{minimum}-{maximum} miles</_>']
+	] as const)('compiles semantic unit ranges on an %s host', (_kind, formatter) => {
 		const plugin = exact({
 			reactCompatibility: false,
 			internationalization: { owner: 'example', sourceLocale: 'en-US' }
 		});
 		const result = plugin.transform(
 			`export function Distance({ minimum, maximum }) {
-				return () => <_ intl:unit="distance-road">{minimum}-{maximum} miles</_>;
+				return () => ${formatter};
 			}`,
 			`${process.cwd()}/src/Distance.tsx`
 		);
@@ -227,7 +230,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 			internationalization: { owner: 'example', sourceLocale: 'en-US' }
 		});
 		const result = plugin.transform(
-			`export function Total({ total }) { return () => <_ intl:currency>{total}</_>; }`,
+			`export function Total({ total }) { return () => <output intl:currency>{total}</output>; }`,
 			`${process.cwd()}/src/Total.tsx`
 		);
 

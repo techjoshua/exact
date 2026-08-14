@@ -144,83 +144,57 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 					<dl className="value-grid">
 						<div>
 							<dt intl:message="label-currency">Currency</dt>
-							<dd>
-								<_ intl:currency>${props.total}</_>
-							</dd>
+							<dd intl:currency>${props.total}</dd>
 						</div>
 						<div>
 							<dt intl:message="label-road-range">Road range</dt>
-							<dd>
-								<_ intl:unit="distance-road">
-									{props.minimumDistance}-{props.maximumDistance} miles
-								</_>
+							<dd intl:unit="distance-road">
+								{props.minimumDistance}-{props.maximumDistance} miles
 							</dd>
 						</div>
 						<div>
 							<dt intl:message="label-height">Person height</dt>
-							<dd>
-								<_ intl:cldr="length/person-height">{props.height} inches</_>
-							</dd>
+							<dd intl:cldr="length/person-height">{props.height} inches</dd>
 						</div>
 						<div>
 							<dt intl:message="label-temperature">Temperature</dt>
-							<dd>
-								<_ intl:cldr="temperature/weather">{props.temperature} °C</_>
-							</dd>
+							<dd intl:cldr="temperature/weather">{props.temperature} °C</dd>
 						</div>
 						<div>
 							<dt intl:message="label-land-area">Land area</dt>
-							<dd>
-								<_ intl:unit="area-land">{2} acres</_>
-							</dd>
+							<dd intl:unit="area-land">{2} acres</dd>
 						</div>
 						<div>
 							<dt intl:message="label-person-mass">Person mass</dt>
-							<dd>
-								<_ intl:unit="mass-person">{180} pounds</_>
-							</dd>
+							<dd intl:unit="mass-person">{180} pounds</dd>
 						</div>
 						<div>
 							<dt intl:message="label-liquid-volume">Liquid volume</dt>
-							<dd>
-								<_ intl:unit="volume-liquid">{12} gallons</_>
-							</dd>
+							<dd intl:unit="volume-liquid">{12} gallons</dd>
 						</div>
 						<div>
 							<dt intl:message="label-road-speed">Road speed</dt>
-							<dd>
-								<_ intl:unit="speed-road">{65} mph</_>
-							</dd>
+							<dd intl:unit="speed-road">{65} mph</dd>
 						</div>
 						<div>
 							<dt intl:message="label-weather-pressure">Weather pressure</dt>
-							<dd>
-								<_ intl:unit="pressure-weather">{29.92} inHg</_>
-							</dd>
+							<dd intl:unit="pressure-weather">{29.92} inHg</dd>
 						</div>
 						<div>
 							<dt intl:message="label-food-energy">Food energy</dt>
-							<dd>
-								<_ intl:unit="energy-food">{500} kcal</_>
-							</dd>
+							<dd intl:unit="energy-food">{500} kcal</dd>
 						</div>
 						<div>
 							<dt intl:message="label-engine-power">Engine power</dt>
-							<dd>
-								<_ intl:unit="power-engine">{150} hp</_>
-							</dd>
+							<dd intl:unit="power-engine">{150} hp</dd>
 						</div>
 						<div>
 							<dt intl:message="label-fuel-economy">Fuel economy</dt>
-							<dd>
-								<_ intl:unit="fuel-economy-road">{30} mpg</_>
-							</dd>
+							<dd intl:unit="fuel-economy-road">{30} mpg</dd>
 						</div>
 						<div>
 							<dt intl:message="label-digital-storage">Digital storage</dt>
-							<dd>
-								<_ intl:unit="digital-storage">{512} GB</_>
-							</dd>
+							<dd intl:unit="digital-storage">{512} GB</dd>
 						</div>
 					</dl>
 					<p intl:message="date-time">

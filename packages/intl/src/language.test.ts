@@ -42,7 +42,7 @@ describe('intl language contribution', () => {
 
 	it('completes semantic formatter vocabularies from the active attribute', async () => {
 		const root = fileURLToPath(new URL('../../../apps/intl-testbed/', import.meta.url));
-		const source = 'const View = () => () => <_ intl:unit="distance" />;';
+		const source = 'const View = () => () => <output intl:unit="distance" />;';
 		const filename = path.join(root, 'src', 'completion.tsx');
 		const analyzer = await createExactLanguageAnalyzer(analyzerContext(root));
 		try {
@@ -85,9 +85,9 @@ describe('intl language contribution', () => {
 		const source = `
 			export function Measurements() {
 				return () => <section>
-					<_ intl:unit="mass-person">{180} pounds</_>
-					<_ intl:unit="volume-liquid">{12} gallons</_>
-					<_ intl:unit="speed-road">{65} mph</_>
+					<output intl:unit="mass-person">{180} pounds</output>
+					<output intl:unit="volume-liquid">{12} gallons</output>
+					<output intl:unit="speed-road">{65} mph</output>
 					<p intl:message>{new Intl.NumberFormat('en-US', { style: 'unit', unit: 'mile-per-hour' }).format(65)}</p>
 				</section>;
 			}

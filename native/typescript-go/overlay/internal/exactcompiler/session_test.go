@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -869,19 +870,30 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 }
 
 func TestSessionImportsComponentLocalizationOnlyWhenUsed(t *testing.T) {
-	localized := NewSession().Execute(Request{
-		ID:     "localized.tsx",
-		Kind:   "compile",
-		Target: TargetClient,
-		Source: `export function Price() {
+	localizedSources := []string{
+		`export function Price() {
 			return () => <output>{this.intl.NumberFormat('en-US').format(42)}</output>;
 		}`,
-	})
-	if localized.Error != "" {
-		t.Fatal(localized.Error)
+		`export function Price() {
+			return () => <output>{new Intl.NumberFormat('en-US').format(42)}</output>;
+		}`,
+		`export function Price(props: { amount: number }) {
+			return () => <output>{props.amount.toLocaleString('en-US')}</output>;
+		}`,
 	}
-	if !strings.Contains(localized.Code, `import "@exactjs/core/runtime/localization"`) {
-		t.Fatalf("component Intl use did not import its runtime capability:\n%s", localized.Code)
+	for index, source := range localizedSources {
+		localized := NewSession().Execute(Request{
+			ID:     fmt.Sprintf("localized-%d.tsx", index),
+			Kind:   "compile",
+			Target: TargetClient,
+			Source: source,
+		})
+		if localized.Error != "" {
+			t.Fatal(localized.Error)
+		}
+		if !strings.Contains(localized.Code, `import "@exactjs/core/runtime/localization"`) {
+			t.Fatalf("component Intl use did not import its runtime capability:\n%s", localized.Code)
+		}
 	}
 
 	plain := NewSession().Execute(Request{

@@ -64,16 +64,16 @@ export const intlUnitsSource = `function Measurements(props: Measurements) {
   return () => (
     <dl>
       <dt intl:message>Driving distance</dt>
-      <dd><_ intl:unit="distance-road">{props.minimum}-{props.maximum} miles</_></dd>
-      <dd><_ intl:unit="distance-road" intl:convert-to="kilometer">{props.detour} miles</_></dd>
+      <dd intl:unit="distance-road">{props.minimum}-{props.maximum} miles</dd>
+      <dd intl:unit="distance-road" intl:convert-to="kilometer">{props.detour} miles</dd>
       <dt intl:message>Person height</dt>
-      <dd><_ intl:cldr="length/person-height">{props.height} inches</_></dd>
+      <dd intl:cldr="length/person-height">{props.height} inches</dd>
       <dt intl:message>Weather</dt>
-      <dd><_ intl:unit="temperature-weather">{Math.round(props.temperature)} °F</_></dd>
+      <dd intl:unit="temperature-weather">{Math.round(props.temperature)} °F</dd>
       <dt intl:message>Fuel economy</dt>
-      <dd><_ intl:unit="fuel-economy-road">{props.economy} mpg</_></dd>
+      <dd intl:unit="fuel-economy-road">{props.economy} mpg</dd>
       <dt intl:message>Download</dt>
-      <dd><_ intl:unit="digital-storage">{props.size} GB</_></dd>
+      <dd intl:unit="digital-storage">{props.size} GB</dd>
     </dl>
   );
 }`;

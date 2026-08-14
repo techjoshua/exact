@@ -43,6 +43,8 @@ the target intrinsic's `lang` and `dir` attributes synchronized across SSR and c
 locale value uses the CLDR-backed `IntlLocaleString` type; call `defineIntlLocale(value)` to
 validate and narrow a dynamic string. Semantic unit preferences otherwise come directly from CLDR
 locale data and only need configuration for intentional application or user overrides.
+Prefer a semantic intrinsic host for a formatter that owns its complete content; reserve `_` for a
+narrower inline range, multiple independently formatted regions, or a value with no suitable host.
 
 The runtime covers messages, translated intrinsic properties, plurals, ordinals, dates, currency,
 duration, display names, lists, movable structure, and CLDR-preferred semantic units. Build-only
@@ -73,8 +75,5 @@ Intentional exclusions use HTML's inherited `translate="no"`; `lang` and `dir` d
 warning. The check covers text plus supported `alt`, `title`, `placeholder`, and ARIA fallbacks.
 The provider entry is build-only and unavailable to browser conditions.
 
-Automatic destination units use a focused runtime projection of pinned Unicode CLDR 48 preferences.
-Explicit application preferences take priority, while `intl:convert-to` remains fixed; CLDR stays a
-build-time data source and its Unicode license ships with the derived data.
-
-See the [internationalization reference](../../docs/internationalization.md) for complete guidance.
+Automatic destination units use pinned Unicode CLDR 48 preferences; explicit application policy
+takes priority while `intl:convert-to` stays fixed. See the [reference](../../docs/internationalization.md).
