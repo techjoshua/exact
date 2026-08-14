@@ -40,11 +40,12 @@ type intlPrototypeLowering struct {
 }
 
 type intlOperationPlan struct {
-	constructors map[string]intlConstructorLowering
-	bindings     map[string]*intlBindingLowering
-	prototypes   map[string]intlPrototypeLowering
-	removed      map[int]struct{}
-	globalAlias  string
+	constructors          map[string]intlConstructorLowering
+	bindings              map[string]*intlBindingLowering
+	prototypes            map[string]intlPrototypeLowering
+	removed               map[int]struct{}
+	globalAlias           string
+	componentLocalization bool
 }
 
 // lowerIntlOperations routes proven native formatter operations through core's realm cache. The
@@ -173,21 +174,25 @@ func planIntlOperations(sourceFile *ast.SourceFile, typeChecker *checker.Checker
 	}
 	for _, binding := range bindings {
 		plan.removed[binding.declaration.Pos()] = struct{}{}
-		for span := range binding.uses {
+		for span, component := range binding.uses {
 			plan.bindings[span] = binding
+			plan.componentLocalization = plan.componentLocalization || component
 		}
 	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if constructor, _, supported := nativeIntlConstructor(node, typeChecker); supported {
+			component := insideIntlComponentScope(node, componentNodes)
 			plan.constructors[nodeSpanKey(node)] = intlConstructorLowering{
 				constructor: constructor,
-				component:   insideIntlComponentScope(node, componentNodes),
+				component:   component,
 			}
+			plan.componentLocalization = plan.componentLocalization || component
 		}
 		if ast.IsCallExpression(node) {
 			if prototype, supported := planPrototypeLocaleCall(node, typeChecker); supported {
 				prototype.component = insideIntlComponentScope(node, componentNodes)
 				plan.prototypes[nodeSpanKey(node)] = prototype
+				plan.componentLocalization = plan.componentLocalization || prototype.component
 			}
 		}
 		return true

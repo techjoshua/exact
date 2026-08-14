@@ -156,6 +156,12 @@ export function InternationalizationPage(this: Component<{}>) {
 					and dimension-checked <code>intl:convert-to</code> conversion, including offset and
 					reciprocal formulas.
 				</p>
+				<p>
+					Place a formatter enhancement on its intrinsic host when it owns that element&apos;s
+					complete content. Reserve the <code>_</code> fragment form for a narrower inline range,
+					multiple independent formatter regions in one host, or content without an appropriate
+					semantic host.
+				</p>
 				<CodeBlock source={intlUnitsSource} language="tsx" title="Measurements.tsx" />
 				<p>
 					Automatic destination units come from Unicode CLDR 48 preference data rather than a
