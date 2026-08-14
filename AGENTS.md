@@ -137,6 +137,9 @@ Familiar JSX should make eXact easy to read without importing React's semantics:
   component.
 - Prefer eXact's compiler-supported bindings, event typing, list identity, tasks, and placement
   features when they remove real source ceremony.
+- Attach an enhancement to an existing semantic intrinsic when it owns that element's complete
+  content or behavior. Use the transparent `_` fragment only for a genuinely narrower range,
+  several independently enhanced regions within one host, or when no appropriate host exists.
 - Use ordinary spaces in JSX prose. eXact applies HTML-like whitespace collapsing across multiline
   text, elements, and expressions, so do not insert `{' '}` merely to separate children. Use an
   explicit string expression only when the exact whitespace is dynamic or intentionally significant.

@@ -250,10 +250,14 @@ Semantic road distances can express a single value or range without selecting a 
 system:
 
 ```tsx
-<_ intl:unit="distance-road">
+<dd intl:unit="distance-road">
 	{minimumDistance}-{maximumDistance} miles
-</_>
+</dd>
 ```
+
+Prefer an intrinsic host when the formatter owns that element's complete content. Use the `_`
+fragment form only when the formatted value is a narrower inline range within a host, when several
+independent formatter regions share one host, or when no semantic host element is appropriate.
 
 The bounded implementation infers the source unit from a recognized fallback label or the package
 source locale, localizes unit plurality, and keeps one visible unit on a range. Enhancement-first

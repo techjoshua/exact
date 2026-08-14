@@ -7,7 +7,7 @@ afterAll(() => analyzer.dispose());
 
 describe('native intl analyzer', () => {
 	it('projects native byte spans into JavaScript UTF-16 offsets', () => {
-		const source = `export function Values(total: number, date: Date) { return () => <><_ intl:cldr="temperature/weather">{total} °C</_><p intl:message>Published {new Intl.DateTimeFormat('en-US').format(date)}.</p></>; }`;
+		const source = `export function Values(total: number, date: Date) { return () => <><output intl:cldr="temperature/weather">{total} °C</output><p intl:message>Published {new Intl.DateTimeFormat('en-US').format(date)}.</p></>; }`;
 		const result = analyzer.analyzeSource(source, {
 			filename: 'C:/app/src/Unicode.tsx',
 			owner: '@app/example',
@@ -15,7 +15,7 @@ describe('native intl analyzer', () => {
 		});
 
 		expect(result.diagnostics).toEqual([]);
-		expect(result.code).toContain(`>{total} °C</_>`);
+		expect(result.code).toContain(`>{total} °C</output>`);
 		expect(result.code).toContain(`Published {new Intl.DateTimeFormat('en-US').format(date)}.`);
 	});
 
@@ -122,14 +122,14 @@ describe('native intl analyzer', () => {
 
 	it('matches inferred currency and semantic road-distance ranges', () => {
 		expectNativeDescriptors(
-			`export function Values(total: number, minimumDistance: number, maximumDistance: number) { return () => <><_ intl:currency>{total} US dollars</_><_ intl:unit="distance-road" intl:convert-to="kilometer">{minimumDistance}-{maximumDistance} miles</_></>; }`,
+			`export function Values(total: number, minimumDistance: number, maximumDistance: number) { return () => <><output intl:currency>{total} US dollars</output><output intl:unit="distance-road" intl:convert-to="kilometer">{minimumDistance}-{maximumDistance} miles</output></>; }`,
 			'C:/app/src/Values.tsx'
 		);
 	});
 
 	it('matches exact CLDR selectors and offset-unit projections', () => {
 		expectNativeDescriptors(
-			`export function Weather(temperature: number) { return () => <_ intl:cldr="temperature/weather" intl:convert-to="fahrenheit">{temperature} °C</_>; }`,
+			`export function Weather(temperature: number) { return () => <output intl:cldr="temperature/weather" intl:convert-to="fahrenheit">{temperature} °C</output>; }`,
 			'C:/app/src/Weather.tsx'
 		);
 	});
