@@ -113,6 +113,7 @@ type jsxLowering struct {
 	enhancementImports     enhancementImports
 	partitionPlan          PartitionPlan
 	dynamicComponents      map[int]dynamicComponentUseKind
+	componentLocalization  bool
 	renderProgramFallback  bool
 	renderProgramContexts  map[int]renderProgramContext
 	declarativeRenderDepth int
@@ -6876,7 +6877,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}
 	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
 	interactionUsed := containsInteractionRuntimeUse(root)
-	localizationUsed := containsComponentLocalizationUse(root)
+	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root)
 	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
 	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
 		lowering.sourceFile,

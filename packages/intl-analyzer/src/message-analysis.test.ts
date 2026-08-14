@@ -195,7 +195,7 @@ describe('analyzeIntlSource', () => {
 	it('infers a semantic road-distance range and strips unit metadata', () => {
 		const result = analyzeIntlSource(
 			`export function Distance(minimumDistance: number, maximumDistance: number) {
-				return () => <_ intl:unit="distance-road" intl:convert-to="kilometer">{minimumDistance}-{maximumDistance} miles</_>;
+				return () => <output intl:unit="distance-road" intl:convert-to="kilometer">{minimumDistance}-{maximumDistance} miles</output>;
 			}`,
 			{ filename: '/src/Distance.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
@@ -222,7 +222,7 @@ describe('analyzeIntlSource', () => {
 	it('uses the source locale Intl vocabulary for unit labels', () => {
 		const result = analyzeIntlSource(
 			`export function Distance(distance: number) {
-				return () => <_ intl:unit="distance-road">{distance} kilomètres</_>;
+				return () => <output intl:unit="distance-road">{distance} kilomètres</output>;
 			}`,
 			{ filename: '/src/Distance.tsx', owner: 'example', sourceLocale: 'fr-FR' }
 		);
@@ -241,11 +241,11 @@ describe('analyzeIntlSource', () => {
 
 	it('infers currency and display from source locale and authored fallback', () => {
 		const implicit = analyzeIntlSource(
-			`export function Total(total: number) { return () => <_ intl:currency>{total}</_>; }`,
+			`export function Total(total: number) { return () => <output intl:currency>{total}</output>; }`,
 			{ filename: '/src/Total.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
 		const named = analyzeIntlSource(
-			`export function Total(total: number) { return () => <_ intl:currency>{total} US dollars</_>; }`,
+			`export function Total(total: number) { return () => <output intl:currency>{total} US dollars</output>; }`,
 			{ filename: '/src/NamedTotal.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
 
@@ -277,11 +277,11 @@ describe('analyzeIntlSource', () => {
 
 	it('uses CLDR likely-region data for implicit source currencies', () => {
 		const german = analyzeIntlSource(
-			`export function Total(total: number) { return () => <_ intl:currency>{total}</_>; }`,
+			`export function Total(total: number) { return () => <output intl:currency>{total}</output>; }`,
 			{ filename: '/src/GermanTotal.tsx', owner: 'example', sourceLocale: 'de-DE' }
 		);
 		const indianEnglish = analyzeIntlSource(
-			`export function Total(total: number) { return () => <_ intl:currency>{total}</_>; }`,
+			`export function Total(total: number) { return () => <output intl:currency>{total}</output>; }`,
 			{ filename: '/src/IndianTotal.tsx', owner: 'example', sourceLocale: 'en-IN' }
 		);
 
@@ -300,7 +300,7 @@ describe('analyzeIntlSource', () => {
 		'infers native currency labels for the %s source locale',
 		(sourceLocale, label, currency, display) => {
 			const result = analyzeIntlSource(
-				`export function Total(total: number) { return () => <_ intl:currency>{total} ${label}</_>; }`,
+				`export function Total(total: number) { return () => <output intl:currency>{total} ${label}</output>; }`,
 				{ filename: `/src/${sourceLocale}-Total.tsx`, owner: 'example', sourceLocale }
 			);
 
@@ -314,7 +314,7 @@ describe('analyzeIntlSource', () => {
 	it('rejects explicit currency metadata that contradicts a localized fallback label', () => {
 		const result = analyzeIntlSource(
 			`export function Total(total: number) {
-				return () => <_ intl:currency="USD">{total} euros</_>;
+				return () => <output intl:currency="USD">{total} euros</output>;
 			}`,
 			{ filename: '/src/ContradictoryTotal.tsx', owner: 'example', sourceLocale: 'fr-FR' }
 		);
