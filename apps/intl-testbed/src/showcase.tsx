@@ -39,6 +39,7 @@ export function preloadLazyShowcase(): Promise<void> {
 export interface ShowcaseValues {
 	name: string;
 	count: number;
+	hasMessageCount: boolean;
 	role: 'owner' | 'member';
 	ready: boolean;
 	total: number;
@@ -125,7 +126,8 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 						Branches and plurality
 					</p>
 					<p intl:message="inbox-count">
-						You have {props.count} new {props.count === 1 ? 'message' : 'messages'}.
+						You have {props.hasMessageCount ? `${props.count}` : 'no'} new
+						<_ intl:plural={props.count}>{props.count === 1 ? 'message' : 'messages'}</_>.
 					</p>
 					<p intl:message="status-selection">
 						{props.ready ? 'Ready' : 'Waiting'}: {props.role === 'owner' ? 'Owner' : 'Member'}
@@ -148,8 +150,12 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 						</div>
 						<div>
 							<dt intl:message="label-road-range">Road range</dt>
-							<dd intl:unit="distance-road">
-								{props.minimumDistance}-{props.maximumDistance} miles
+							<dd intl:message="road-range-value">
+								Route coverage:
+								<_ intl:unit="distance-road">
+									{props.minimumDistance}-{props.maximumDistance} miles
+								</_>
+								.
 							</dd>
 						</div>
 						<div>

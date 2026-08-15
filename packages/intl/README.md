@@ -45,6 +45,9 @@ validate and narrow a dynamic string. Semantic unit preferences otherwise come d
 locale data and only need configuration for intentional application or user overrides.
 Prefer a semantic intrinsic host for a formatter that owns its complete content; reserve `_` for a
 narrower inline range, multiple independently formatted regions, or a value with no suitable host.
+Selectors and formatters nested in `intl:message` join its single reorderable translation unit. A
+standalone `plural`, `select`, `currency`, `unit`, or `cldr` activation creates an implicit message;
+co-target it with `intl:message` when the scope needs a readable name.
 
 The runtime covers messages, translated intrinsic properties, plurals, ordinals, dates, currency,
 duration, display names, lists, movable structure, and CLDR-preferred semantic units. Build-only
@@ -62,18 +65,11 @@ Message keys hash a generic translator-facing text and placeholder contract. An 
 message name becomes a readable prefix; exact bindings and formatter options use a separate
 execution-contract hash and do not enter XLIFF.
 
-The Node-only `@exactjs/intl/language` entry uses eXact's trusted language extension protocol. It
-shows inference, message identity, placeholders, targets, and translation coverage on hover. It
-also diagnoses invalid messages, locale gaps or contradictions, malformed or stale catalogs, and
-incompatible inline codes. Concise inference and coverage inlays are enabled by default and can be
-disabled through provider or editor policy. Analyzer-proven fallback text, branches, Temporal
-values, and native `Intl.*` expressions are underlined with an inference explanation on hover.
-The package-scoped export opts every compiled component into this assistance, including warnings
-for likely linguistic content that has not been marked for translation. A file-local attributed
-import provides the narrower opt-in when package-wide checking is not desired.
-Intentional exclusions use HTML's inherited `translate="no"`; `lang` and `dir` do not suppress the
-warning. The check covers text plus supported `alt`, `title`, `placeholder`, and ARIA fallbacks.
-The provider entry is build-only and unavailable to browser conditions.
+The Node-only `@exactjs/intl/language` entry provides inference, identity, placeholder, target, and
+coverage assistance through eXact's trusted language-extension protocol. It diagnoses invalid or
+unmarked messages, locale gaps, stale catalogs, and incompatible inline codes. Package-scoped
+configuration inspects every compiled component; a file-local attributed import narrows the scope.
+Use inherited `translate="no"` for intentional exclusions. The provider entry is build-only.
 
 Automatic destination units use pinned Unicode CLDR 48 preferences; explicit application policy
 takes priority while `intl:convert-to` stays fixed. See the [reference](../../docs/internationalization.md).

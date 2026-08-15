@@ -1,5 +1,6 @@
 import type { IntlRuntimeDescriptorV1 } from '@exactjs/intl';
 import { validateIntlCatalog } from '@exactjs/intl/internal';
+import { analyzeIntlSource } from '@exactjs/intl-analyzer';
 import { describe, expect, it } from 'vitest';
 import { exactJsonCatalogInterchange, xliff21CatalogInterchange } from './catalog-interchange.js';
 import { exportXliff21SourceCatalog, synchronizeXliff21Catalog } from './xliff-interchange.js';
@@ -25,6 +26,27 @@ const catalog = {
 };
 
 describe('intl catalog interchange', () => {
+	it('exports one XLIFF unit for a message with nested plural and unit contributions', () => {
+		const analysis = analyzeIntlSource(
+			`export function Summary(props: { count: number; distance: number }) { return () =>
+				<p intl:message="summary">
+					<_ intl:plural={props.count}>{props.count === 1 ? 'One message' : \`\${props.count} messages\`}</_>
+					across <span intl:unit="distance-road">{props.distance} miles</span>.
+				</p>;
+			}`,
+			{ filename: '/src/Summary.tsx', owner: '@acme/card', sourceLocale: 'en-US' }
+		);
+
+		expect(analysis.diagnostics).toEqual([]);
+		expect(analysis.descriptors).toHaveLength(1);
+		const encoded = exportXliff21SourceCatalog(analysis.descriptors, { owner: '@acme/card' });
+		expect(encoded.match(/<unit /gu)).toHaveLength(1);
+		expect(encoded.match(/equivStart="\{plural-cardinal\}"/gu)).toHaveLength(1);
+		expect(encoded).toContain('equivStart="{plural-cardinal}"');
+		expect(encoded).toContain('equivStart="&lt;span&gt;"');
+		expect(encoded).toContain('equiv="{unit}"');
+	});
+
 	it('round-trips validated protocol JSON', () => {
 		const encoded = exactJsonCatalogInterchange.exportCatalog(catalog, [descriptor]);
 		expect(exactJsonCatalogInterchange.importCatalog(encoded, [descriptor])).toMatchObject(catalog);

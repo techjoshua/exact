@@ -214,7 +214,10 @@ export type IntlMessageActivation = true | string;
 /** Author-facing property-message activation and optional finite formatter shorthand. */
 export type IntlPropertyActivation = true | string | Readonly<{ format?: string; name?: string }>;
 
-/** Author-facing cardinal plural activation. */
+/**
+ * Author-facing cardinal plural contribution to the nearest lexical message.
+ * A standalone activation creates an implicit message scope for its content.
+ */
 export type IntlPluralActivation =
 	| number
 	| Readonly<{
@@ -225,7 +228,10 @@ export type IntlPluralActivation =
 /** Values accepted by exact message selection. */
 export type IntlExactSelector = string | number | boolean;
 
-/** Author-facing exact selection activation. */
+/**
+ * Author-facing exact-selection contribution to the nearest lexical message.
+ * A standalone activation creates an implicit message scope for its content.
+ */
 export type IntlSelectActivation<Value extends IntlExactSelector = IntlExactSelector> =
 	| Value
 	| Readonly<{ value: Value; name?: string }>;
@@ -233,13 +239,19 @@ export type IntlSelectActivation<Value extends IntlExactSelector = IntlExactSele
 /** Currency display forms preserved as semantic formatter policy. */
 export type IntlCurrencyDisplay = 'symbol' | 'narrowSymbol' | 'code' | 'name';
 
-/** Author-facing currency activation before analyzer preparation. */
+/**
+ * Author-facing currency contribution before analyzer preparation.
+ * It joins the nearest lexical message or creates an implicit standalone scope.
+ */
 export type IntlCurrencyActivation =
 	| true
 	| string
 	| Readonly<{ currency?: string; display?: IntlCurrencyDisplay; name?: string }>;
 
-/** Author-facing semantic-unit activation before analyzer preparation. */
+/**
+ * Author-facing semantic-unit contribution before analyzer preparation.
+ * It joins the nearest lexical message or creates an implicit standalone scope.
+ */
 export type IntlUnitActivation =
 	| string
 	| Readonly<{

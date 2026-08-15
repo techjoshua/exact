@@ -5,6 +5,8 @@ import {
 	type ComponentFunction,
 	type ErrorReport
 } from '@exactjs/core';
+// React client roots can produce Suspense and Activity VNodes without compiler lowering.
+import '@exactjs/dom/structural-boundaries';
 import { render as renderExact, unmount as unmountExact } from '@exactjs/dom';
 import { hydrate as hydrateExact, type HydrationRoot } from '@exactjs/hydrate';
 import type { ReactNode } from '@exactjs/react-compat';

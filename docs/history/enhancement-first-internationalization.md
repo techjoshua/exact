@@ -193,11 +193,11 @@ opaque component's internal content.
 
 ### Role grouping and semantic hosts
 
-`message`, `plural`, and `select` are activators for one canonical `IntlMessage` component.
-`plural` and `select` both establish a message boundary and supply its selector, so authors do not
-also write `intl:message`. If both forms are present for generated or low-level code, normal
-canonical-component deduplication still creates one instance; ordinary source should use only the
-most specific activator.
+`message` establishes an explicit lexical message boundary. `plural` and `select` contribute their
+selectors to the nearest such boundary; when neither has an enclosing message, it synthesizes that
+boundary for its own range. Co-targeted forms and nested formatter or selector roles therefore lower
+to one canonical `IntlMessage` plan, descriptor, and catalog unit rather than mounting independent
+message components.
 
 Content-projecting intl roles are initially valid only on a direct intrinsic or `_` boundary. On an
 intrinsic, the authored element remains the semantic host and the intl role owns only its lexical
@@ -952,13 +952,14 @@ described above:
 </p>
 ```
 
-`intl:plural` establishes the message boundary and declares its reactive numeric operand. Its common
-form takes that value directly; the finite `{ value, name }` form adds a readable message name without
-changing selector semantics. The displayed count and every operand-dependent source ternary refer
-to one binding. The operand is read once per reactive update; that value selects the active case and
-supplies every displayed occurrence, avoiding duplicate watchers or inconsistent reads. In an active
-translation, a plain displayed occurrence receives the catalog's number formatting; an explicit
-nested `intl:number` remains available when source requests additional formatting options.
+`intl:plural` contributes its reactive numeric operand to the nearest lexical message, or creates an
+implicit message scope when used alone. Its common form takes that value directly; the finite
+`{ value, name }` form adds a readable name to the implicit message without changing selector
+semantics. The displayed count and every operand-dependent source ternary refer to one binding. The
+operand is read once per reactive update; that value selects the active case and supplies every
+displayed occurrence, avoiding duplicate watchers or inconsistent reads. In an active translation,
+a plain displayed occurrence receives the catalog's number formatting; an explicit nested
+`intl:number` remains available when source requests additional formatting options.
 
 Several source-language changes may depend on the same operand without creating independent
 selectors:
