@@ -36,6 +36,26 @@ export const intlStructureSource = `function Transfer(props: TransferProps) {
   );
 }`;
 
+/** Nested selector and formatter roles contributing to one lexical message. */
+export const intlCompositionSource = `function Delivery(props: { count: number; distance: number }) {
+  return () => (
+    <p intl:message="delivery-summary">
+      <_ intl:plural={props.count}>
+        {props.count === 1 ? 'One package' : \`\${props.count} packages\`}
+      </_>
+      covering <span intl:unit="distance-road">{props.distance} miles</span>.
+    </p>
+  );
+}
+
+function Inbox(props: { count: number }) {
+  return () => (
+    <p intl:plural={{ value: props.count, name: 'inbox-count' }}>
+      You have {props.count ? \`\${props.count}\` : 'no'} new messages.
+    </p>
+  );
+}`;
+
 /** Preferred native cardinal category-map authoring in a Polish source package. */
 export const intlCardinalSource = `const cardinals = new Intl.PluralRules('pl-PL');
 const inboxForms = { one: 'wiadomość', few: 'wiadomości', many: 'wiadomości', other: 'wiadomości' };

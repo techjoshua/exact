@@ -44,12 +44,15 @@ export interface NativeIntlRegion {
 	readonly explicit?: boolean;
 	readonly element: NativeIntlSpan;
 	readonly attribute: NativeIntlSpan;
+	/** All analyzer-consumed attributes owned by this message scope. */
+	readonly attributes: readonly NativeIntlSpan[];
 	readonly content: NativeIntlSpan;
 	readonly values: readonly NativeIntlSpan[];
 	readonly structures: readonly Readonly<{
 		element: NativeIntlSpan;
 		content: NativeIntlSpan;
-		attribute?: NativeIntlSpan;
+		/** Analyzer metadata removed from the retained structural factory. */
+		attributes?: readonly NativeIntlSpan[];
 		opaque?: boolean;
 	}>[];
 	readonly evidence: readonly Readonly<NativeIntlSpan & { kind: string; detail: string }>[];
@@ -135,6 +138,7 @@ function normalizeNativeIntlAnalysis(
 			...region,
 			element: span(region.element),
 			attribute: span(region.attribute),
+			attributes: region.attributes.map(span),
 			content: span(region.content),
 			values: region.values.map(span),
 			evidence: region.evidence.map((item) => ({ ...item, ...span(item) })),
@@ -142,7 +146,7 @@ function normalizeNativeIntlAnalysis(
 				...structure,
 				element: span(structure.element),
 				content: span(structure.content),
-				...(structure.attribute ? { attribute: span(structure.attribute) } : {})
+				...(structure.attributes ? { attributes: structure.attributes.map(span) } : {})
 			}))
 		})),
 		untranslated: analysis.untranslated.map(span),

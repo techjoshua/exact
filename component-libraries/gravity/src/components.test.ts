@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { render, unmount } from '@exactjs/dom/enhanced';
+import '@exactjs/dom/structural-boundaries';
 import {
 	Activity,
 	createEnhancementMarker,

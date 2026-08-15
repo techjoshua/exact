@@ -3,6 +3,7 @@
  */
 import { Activity, type Component } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
+import '@exactjs/dom/structural-boundaries';
 import { computed, flushSync } from '@exactjs/reactive';
 import {
 	createTestVNode as createVNode,

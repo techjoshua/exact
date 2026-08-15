@@ -21,6 +21,9 @@ The bounded implementation recognizes lexical messages and allowlisted intrinsic
 finite branches and direct intrinsic structure, ordinal and Temporal projections, standard finite
 `Intl` calls, display-name property roles, explicit intl-role components, semantic unit/CLDR
 selectors, road-distance value/range fallbacks, and temperature projections. It
+folds nested plural, select, currency, unit, and CLDR contributions into one nearest lexical
+message descriptor; a standalone contribution creates the same descriptor shape through an
+implicit message scope. This keeps preparation and catalog identity at the message boundary. It
 uses the JavaScript host's native `Intl` locale vocabulary and Go's CLDR-backed locale/currency
 facilities instead of maintaining language tables. Unit labels and currency name/symbol evidence
 come from bounded native-`Intl` profiles with ambiguous labels removed. English fallback shorthand
