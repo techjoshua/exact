@@ -152,6 +152,7 @@ type intlRegion struct {
 	Explicit        bool                    `json:"explicit,omitempty"`
 	Element         intlSpan                `json:"element"`
 	Attribute       intlSpan                `json:"attribute"`
+	Attributes      []intlSpan              `json:"attributes"`
 	Content         intlSpan                `json:"content"`
 	Values          []intlSpan              `json:"values"`
 	Structures      []intlStructureRegion   `json:"structures"`
@@ -166,10 +167,10 @@ type intlInferenceEvidence struct {
 }
 
 type intlStructureRegion struct {
-	Element   intlSpan `json:"element"`
-	Content   intlSpan `json:"content"`
-	Attribute intlSpan `json:"attribute,omitempty"`
-	Opaque    bool     `json:"opaque,omitempty"`
+	Element    intlSpan   `json:"element"`
+	Content    intlSpan   `json:"content"`
+	Attributes []intlSpan `json:"attributes,omitempty"`
+	Opaque     bool       `json:"opaque,omitempty"`
 }
 
 type intlSpan struct {
@@ -188,10 +189,15 @@ type intlPatternBuild struct {
 	bindings        []intlBinding
 	values          []intlSpan
 	structures      []intlStructureRegion
+	attributes      []intlSpan
 	evidence        []intlInferenceEvidence
 	identities      map[string]int
 	ordinalMarkers  map[string]struct{}
 	ordinalWrappers []intlOrdinalWrapper
+	sourceLocale    string
+	unitLabels      map[string]string
+	currencyLabels  map[string]intlCurrencyLabel
+	defaultCurrency []string
 }
 
 func executeNativeExtension(
@@ -307,18 +313,10 @@ func analyzeIntlSourceNative(
 			if activation == nil {
 				activation = jsxAttribute(opening.Attributes(), "", activationName)
 			}
-			var pattern []intlPatternNode
-			var build *intlPatternBuild
-			var supported bool
-			switch tag {
-			case "IntlCurrency":
-				pattern, build, supported = buildIntlCurrency(sourceFile, children, opening.Attributes(), activation, options.SourceLocale, options.CurrencyLabels, options.DefaultCurrencyLabels)
-			case "IntlUnit":
-				pattern, build, supported = buildIntlUnit(sourceFile, children, opening.Attributes(), activation, options.SourceLocale, options.UnitLabels)
-			default:
-				build = newIntlPatternBuild(options.OrdinalMarkers, options.OrdinalWrappers)
-				pattern, supported = buildIntlChildren(sourceFile, typeChecker, children, build)
-			}
+			build := newIntlMessagePatternBuild(options)
+			pattern, supported := buildIntlContribution(
+				sourceFile, typeChecker, children, opening.Attributes(), activationName, activation, build,
+			)
 			if !supported || len(pattern) == 0 {
 				result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 					File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
@@ -354,63 +352,49 @@ func analyzeIntlSourceNative(
 		if !ast.IsJsxElement(node) {
 			return true
 		}
-		if activation := intlJSXAttribute(opening.Attributes(), "currency"); activation != nil {
-			pattern, build, supported := buildIntlCurrency(sourceFile, children, opening.Attributes(), activation, options.SourceLocale, options.CurrencyLabels, options.DefaultCurrencyLabels)
-			if !supported {
-				result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
-					File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), activation.Pos()),
-					Length:  activation.End() - scanner.SkipTrivia(sourceFile.Text(), activation.Pos()),
-					Message: "intl:currency requires one numeric value and a static or source-locale currency",
-				})
-				return false
-			}
-			appendNativeIntlDescriptor(
-				&result, request, options, sourceFile, node, activation, activation,
-				ownerOrdinal, ownerID, occurrence, intlTarget{Kind: "content"}, pattern, build, "",
-				"", false,
-			)
-			occurrence++
-			return false
-		}
-		unitActivation := intlJSXAttribute(opening.Attributes(), "unit")
-		if unitActivation == nil {
-			unitActivation = intlJSXAttribute(opening.Attributes(), "cldr")
-		}
-		if activation := unitActivation; activation != nil {
-			pattern, build, supported := buildIntlUnit(sourceFile, children, opening.Attributes(), activation, options.SourceLocale, options.UnitLabels)
-			if !supported {
-				result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
-					File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), activation.Pos()),
-					Length:  activation.End() - scanner.SkipTrivia(sourceFile.Text(), activation.Pos()),
-					Message: "intl:unit requires a supported semantic unit, one numeric value or range, and a recognizable source unit",
-				})
-				return false
-			}
-			appendNativeIntlDescriptor(
-				&result, request, options, sourceFile, node, activation, activation,
-				ownerOrdinal, ownerID, occurrence, intlTarget{Kind: "content"}, pattern, build, "",
-				"", false,
-			)
-			occurrence++
-			return false
-		}
-		attribute := intlJSXAttribute(opening.Attributes(), "message")
-		if attribute == nil {
-			return true
-		}
-		build := newIntlPatternBuild(options.OrdinalMarkers, options.OrdinalWrappers)
-		pattern, supported := buildIntlChildren(sourceFile, typeChecker, children, build)
-		if !supported || len(pattern) == 0 {
+		messageActivation := intlJSXAttribute(opening.Attributes(), "message")
+		activationName, specializedActivation, specializedSupported := intlNestedContentActivation(opening.Attributes())
+		if !specializedSupported {
 			result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 				File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
 				Length:  node.End() - scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
-				Message: "This intl message contains structure or expressions not yet supported by the native protocol-1 analyzer",
+				Message: "One content range cannot declare more than one intl selector or formatter role",
 			})
+			return false
+		}
+		if messageActivation == nil && specializedActivation == nil {
 			return true
 		}
-		name := intlStaticAttributeString(attribute)
+		build := newIntlMessagePatternBuild(options)
+		pattern, supported := buildIntlContribution(
+			sourceFile, typeChecker, children, opening.Attributes(), activationName, specializedActivation, build,
+		)
+		if !supported || len(pattern) == 0 {
+			failure := "This intl message contains structure or expressions not yet supported by the native protocol-1 analyzer"
+			if activationName == "currency" {
+				failure = "intl:currency requires one numeric value and a static or source-locale currency"
+			} else if activationName == "unit" || activationName == "cldr" {
+				failure = "intl:unit requires a supported semantic unit, one numeric value or range, and a recognizable source unit"
+			} else if activationName == "plural" || activationName == "select" {
+				failure = fmt.Sprintf("intl:%s requires a finite selector and supported lexical fallback", activationName)
+			}
+			result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
+				File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
+				Length:  node.End() - scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
+				Message: failure,
+			})
+			return false
+		}
+		primaryActivation := messageActivation
+		if primaryActivation == nil {
+			primaryActivation = specializedActivation
+		}
+		name := intlStaticAttributeString(messageActivation)
+		if name == "" && specializedActivation != nil {
+			name = intlStaticObjectName(specializedActivation)
+		}
 		appendNativeIntlDescriptor(
-			&result, request, options, sourceFile, node, attribute, nil,
+			&result, request, options, sourceFile, node, primaryActivation, nil,
 			ownerOrdinal, ownerID, occurrence, intlTarget{Kind: "content"},
 			pattern, build, name,
 			"", false,
@@ -726,7 +710,7 @@ func intlClientRequirements(sourceFile *ast.SourceFile, descriptors []intlDescri
 	return result
 }
 
-func buildIntlCurrency(
+func buildIntlCurrencyInto(
 	sourceFile *ast.SourceFile,
 	children []*ast.Node,
 	attributes *ast.Node,
@@ -734,18 +718,21 @@ func buildIntlCurrency(
 	sourceLocale string,
 	currencyLabels map[string]intlCurrencyLabel,
 	defaultCurrencyLabels []string,
-) ([]intlPatternNode, *intlPatternBuild, bool) {
-	build := newIntlPatternBuild(nil, nil)
+	build *intlPatternBuild,
+) ([]intlPatternNode, bool) {
 	expressions, text := intlDirectChildren(sourceFile, children)
 	if len(expressions) != 1 || !intlScalarExpression(expressions[0]) {
-		return nil, build, false
+		return nil, false
 	}
 	authoredCurrency := intlStaticAttributeString(activation)
+	if authoredCurrency == "" {
+		authoredCurrency = intlStaticObjectString(activation, "currency")
+	}
 	inferredCurrency, inferredDisplay, label := intlCurrencyEvidence(
 		text, sourceLocale, currencyLabels, defaultCurrencyLabels,
 	)
 	if authoredCurrency != "" && inferredCurrency != "" && authoredCurrency != inferredCurrency {
-		return nil, build, false
+		return nil, false
 	}
 	currency := authoredCurrency
 	if currency == "" {
@@ -755,11 +742,14 @@ func buildIntlCurrency(
 		currency = intlDefaultCurrency(sourceLocale)
 	}
 	if matched, _ := regexp.MatchString(`^[A-Z]{3}$`, currency); !matched {
-		return nil, build, false
+		return nil, false
 	}
 	explicitDisplay := intlStaticNamedAttribute(attributes, "display")
+	if explicitDisplay == "" {
+		explicitDisplay = intlStaticObjectString(activation, "display")
+	}
 	if explicitDisplay != "" && inferredDisplay != "" && explicitDisplay != inferredDisplay {
-		return nil, build, false
+		return nil, false
 	}
 	display := explicitDisplay
 	if display == "" {
@@ -777,39 +767,45 @@ func buildIntlCurrency(
 		Formatter: map[string]any{
 			"kind": "currency", "currency": currency, "display": display, "options": map[string]any{},
 		},
-	}}, build, true
+	}}, true
 }
 
-func buildIntlUnit(
+func buildIntlUnitInto(
 	sourceFile *ast.SourceFile,
 	children []*ast.Node,
 	attributes *ast.Node,
 	activation *ast.Node,
 	sourceLocale string,
 	unitLabels map[string]string,
-) ([]intlPatternNode, *intlPatternBuild, bool) {
-	build := newIntlPatternBuild(nil, nil)
+	build *intlPatternBuild,
+) ([]intlPatternNode, bool) {
 	semantic := intlStaticAttributeString(activation)
+	if semantic == "" {
+		semantic = intlStaticObjectString(activation, "unit")
+	}
 	quantity, usage, semanticSupported := intlSemanticUnit(semantic)
 	if !semanticSupported {
-		return nil, build, false
+		return nil, false
 	}
 	expressions, text := intlDirectChildren(sourceFile, children)
 	if len(expressions) < 1 || len(expressions) > 2 {
-		return nil, build, false
+		return nil, false
 	}
 	for _, expression := range expressions {
 		if !intlScalarExpression(expression) {
-			return nil, build, false
+			return nil, false
 		}
 	}
 	if len(expressions) == 2 && !strings.ContainsAny(text, "-–—") {
-		return nil, build, false
+		return nil, false
 	}
 	inferredSourceUnit, label := intlSourceUnitFromFallback(text, unitLabels)
 	explicitSourceUnit := intlStaticNamedAttribute(attributes, "source-unit")
+	if explicitSourceUnit == "" {
+		explicitSourceUnit = intlStaticObjectString(activation, "sourceUnit")
+	}
 	if explicitSourceUnit != "" && inferredSourceUnit != "" && explicitSourceUnit != inferredSourceUnit {
-		return nil, build, false
+		return nil, false
 	}
 	sourceUnit := explicitSourceUnit
 	if sourceUnit == "" {
@@ -819,14 +815,17 @@ func buildIntlUnit(
 		sourceUnit = intlDefaultSemanticUnit(quantity, usage, sourceLocale)
 	}
 	if sourceUnit == "" {
-		return nil, build, false
+		return nil, false
 	}
 	if explicitSourceUnit == "" && inferredSourceUnit != "" && label != "" {
 		recordIntlTextInference(sourceFile, children, label, "unit", fmt.Sprintf("%s source unit inferred from authored fallback", sourceUnit), build)
 	}
 	convertTo := intlStaticNamedAttribute(attributes, "convert-to")
+	if convertTo == "" {
+		convertTo = intlStaticObjectString(activation, "convertTo")
+	}
 	if convertTo != "" && !intlCompatibleUnit(quantity, convertTo) {
-		return nil, build, false
+		return nil, false
 	}
 	bindings := make([]int, 0, len(expressions))
 	for _, expression := range expressions {
@@ -843,7 +842,7 @@ func buildIntlUnit(
 	if convertTo != "" {
 		formatter["convertTo"] = convertTo
 	}
-	return []intlPatternNode{{Kind: "format", Bindings: bindings, Formatter: formatter}}, build, true
+	return []intlPatternNode{{Kind: "format", Bindings: bindings, Formatter: formatter}}, true
 }
 
 func intlDirectChildren(sourceFile *ast.SourceFile, children []*ast.Node) ([]*ast.Node, string) {
@@ -1202,16 +1201,36 @@ func appendNativeIntlDescriptor(
 			activationName = activation.AsJsxAttribute().Name().AsJsxNamespacedName().Name().Text()
 		}
 	}
+	attributes := []intlSpan{{Start: attributeStart, Length: attributeLength}}
+	if target.Kind == "content" {
+		if contentAttributes := intlContentAttributeSpans(opening.Attributes()); len(contentAttributes) > 0 {
+			attributes = offsetIntlSpans(contentAttributes, positionDelta)
+		}
+		attributes = append(attributes, offsetIntlSpans(build.attributes, positionDelta)...)
+	}
 	result.Regions = append(result.Regions, intlRegion{
 		DescriptorIndex: descriptorIndex,
 		ActivationName:  activationName,
 		Explicit:        explicit,
 		Element:         intlSpan{Start: elementStart, Length: element.End() - parsedElementStart},
 		Attribute:       intlSpan{Start: attributeStart, Length: attributeLength},
+		Attributes:      attributes,
 		Content:         intlSpan{Start: contentStart + positionDelta, Length: contentEnd - contentStart},
 		Values:          offsetIntlSpans(build.values, positionDelta), Structures: offsetIntlStructures(build.structures, positionDelta),
 		Evidence: offsetIntlEvidence(build.evidence, positionDelta),
 	})
+}
+
+func intlContentAttributeSpans(attributes *ast.Node) []intlSpan {
+	result := []intlSpan{}
+	for _, name := range []string{
+		"message", "plural", "select", "currency", "unit", "cldr", "display", "source-unit", "convert-to",
+	} {
+		if attribute := intlJSXAttribute(attributes, name); attribute != nil {
+			result = append(result, intlNodeSpan(attribute))
+		}
+	}
+	return result
 }
 
 func intlExplicitComponent(tag string) bool {
@@ -1333,10 +1352,10 @@ func offsetIntlStructures(structures []intlStructureRegion, delta int) []intlStr
 	result := make([]intlStructureRegion, len(structures))
 	for index, structure := range structures {
 		result[index] = intlStructureRegion{
-			Element:   intlSpan{Start: structure.Element.Start + delta, Length: structure.Element.Length},
-			Content:   intlSpan{Start: structure.Content.Start + delta, Length: structure.Content.Length},
-			Attribute: intlSpan{Start: structure.Attribute.Start + delta, Length: structure.Attribute.Length},
-			Opaque:    structure.Opaque,
+			Element:    intlSpan{Start: structure.Element.Start + delta, Length: structure.Element.Length},
+			Content:    intlSpan{Start: structure.Content.Start + delta, Length: structure.Content.Length},
+			Attributes: offsetIntlSpans(structure.Attributes, delta),
+			Opaque:     structure.Opaque,
 		}
 	}
 	return result
@@ -1475,6 +1494,17 @@ func newIntlPatternBuild(
 	}
 }
 
+// newIntlMessagePatternBuild owns all analyzer policy needed while nested
+// formatter and selector enhancements contribute to one lexical message.
+func newIntlMessagePatternBuild(options intlAnalyzeOptions) *intlPatternBuild {
+	build := newIntlPatternBuild(options.OrdinalMarkers, options.OrdinalWrappers)
+	build.sourceLocale = options.SourceLocale
+	build.unitLabels = options.UnitLabels
+	build.currencyLabels = options.CurrencyLabels
+	build.defaultCurrency = options.DefaultCurrencyLabels
+	return build
+}
+
 func intlStaticAttributeString(attribute *ast.Node) string {
 	if attribute == nil {
 		return ""
@@ -1487,16 +1517,31 @@ func intlStaticAttributeString(attribute *ast.Node) string {
 }
 
 func intlStaticObjectName(attribute *ast.Node) string {
+	return intlStaticObjectString(attribute, "name")
+}
+
+func intlStaticObjectString(attribute *ast.Node, name string) string {
+	if attribute == nil {
+		return ""
+	}
 	initializer := attribute.AsJsxAttribute().Initializer
 	if initializer == nil || !ast.IsJsxExpression(initializer) {
 		return ""
 	}
-	options, supported := intlObjectOptions(initializer.AsJsxExpression().Expression)
-	if !supported {
+	expression := unwrapRenderExpression(initializer.AsJsxExpression().Expression)
+	if expression == nil || !ast.IsObjectLiteralExpression(expression) {
 		return ""
 	}
-	name, _ := options["name"].(string)
-	return name
+	for _, property := range expression.AsObjectLiteralExpression().Properties.Nodes {
+		if !ast.IsPropertyAssignment(property) || property.AsPropertyAssignment().Name().Text() != name {
+			continue
+		}
+		value := unwrapRenderExpression(property.AsPropertyAssignment().Initializer)
+		if ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value) {
+			return value.Text()
+		}
+	}
+	return ""
 }
 
 func intlPropertyDescriptorName(
@@ -1699,32 +1744,49 @@ func buildIntlElement(
 ) (intlPatternNode, bool) {
 	element := child.AsJsxElement()
 	tag := sourceText(sourceFile, element.OpeningElement.TagName())
+	attributes := element.OpeningElement.Attributes()
+	activationName, activation, activationSupported := intlNestedContentActivation(attributes)
+	if !activationSupported || intlJSXAttribute(attributes, "message") != nil {
+		return intlPatternNode{}, false
+	}
 	fragment := intlJSXAttribute(element.OpeningElement.Attributes(), "fragment")
 	fragmentName := intlStaticAttributeString(fragment)
-	fragmentSpan := intlSpan{}
-	if fragment != nil {
-		start := scanner.SkipTrivia(sourceFile.Text(), fragment.Pos())
-		fragmentSpan = intlSpan{Start: start, Length: fragment.End() - start}
-	}
 	if fragment != nil && (!validIntlFragmentName(fragmentName) || (tag != "_" && !jsxIntrinsic(tag))) {
 		return intlPatternNode{}, false
 	}
+	metadata := intlActivationAttributeSpans(attributes, activationName)
+	if fragment != nil {
+		metadata = append(metadata, intlNodeSpan(fragment))
+	}
+	build.attributes = append(build.attributes, metadata...)
 	contentStart, contentEnd := intlChildrenSpan(element.Children.Nodes, element.OpeningElement.End())
 	elementStart := scanner.SkipTrivia(sourceFile.Text(), child.Pos())
-	if fragment != nil && tag == "_" {
+	if fragment != nil && tag == "_" && activation == nil {
 		binding := len(build.bindings)
 		build.bindings = append(build.bindings, intlBinding{
 			Index: binding, Kind: "opaque", Type: "opaque-structure", Name: fragmentName, ExactlyOnce: true,
 		})
 		build.structures = append(build.structures, intlStructureRegion{
-			Element:   intlSpan{Start: elementStart, Length: child.End() - elementStart},
-			Content:   intlSpan{Start: contentStart, Length: contentEnd - contentStart},
-			Attribute: fragmentSpan, Opaque: true,
+			Element:    intlSpan{Start: elementStart, Length: child.End() - elementStart},
+			Content:    intlSpan{Start: contentStart, Length: contentEnd - contentStart},
+			Attributes: metadata, Opaque: true,
 		})
 		return intlPatternNode{Kind: "opaque", Binding: binding, Name: fragmentName}, true
 	}
-	if !jsxIntrinsic(tag) {
+	if tag != "_" && !jsxIntrinsic(tag) {
 		return intlPatternNode{}, false
+	}
+	nested, supported := buildIntlContribution(
+		sourceFile, typeChecker, element.Children.Nodes, attributes, activationName, activation, build,
+	)
+	if !supported {
+		return intlPatternNode{}, false
+	}
+	if tag == "_" {
+		if len(nested) != 1 {
+			return intlPatternNode{}, false
+		}
+		return nested[0], true
 	}
 	bindingName := tag
 	if fragmentName != "" {
@@ -1735,15 +1797,124 @@ func buildIntlElement(
 		Index: binding, Kind: "element", Type: "structure", Name: bindingName, ExactlyOnce: true,
 	})
 	build.structures = append(build.structures, intlStructureRegion{
-		Element:   intlSpan{Start: elementStart, Length: child.End() - elementStart},
-		Content:   intlSpan{Start: contentStart, Length: contentEnd - contentStart},
-		Attribute: fragmentSpan,
+		Element:    intlSpan{Start: elementStart, Length: child.End() - elementStart},
+		Content:    intlSpan{Start: contentStart, Length: contentEnd - contentStart},
+		Attributes: metadata,
 	})
-	nested, supported := buildIntlChildren(sourceFile, typeChecker, element.Children.Nodes, build)
-	if !supported {
-		return intlPatternNode{}, false
-	}
 	return intlPatternNode{Kind: "element", Binding: binding, Nodes: nested}, true
+}
+
+// buildIntlContribution lowers one nested role into its enclosing message plan.
+// A role with no activation is ordinary lexical message content.
+func buildIntlContribution(
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	children []*ast.Node,
+	attributes *ast.Node,
+	activationName string,
+	activation *ast.Node,
+	build *intlPatternBuild,
+) ([]intlPatternNode, bool) {
+	switch activationName {
+	case "currency":
+		return buildIntlCurrencyInto(
+			sourceFile, children, attributes, activation, build.sourceLocale,
+			build.currencyLabels, build.defaultCurrency, build,
+		)
+	case "unit", "cldr":
+		return buildIntlUnitInto(
+			sourceFile, children, attributes, activation, build.sourceLocale, build.unitLabels, build,
+		)
+	case "plural", "select":
+		selector := intlActivationValueExpression(activation)
+		if selector == nil || !intlScalarExpression(selector) {
+			return nil, false
+		}
+		fallback, supported := buildIntlChildren(sourceFile, typeChecker, children, build)
+		if !supported || len(fallback) == 0 {
+			return nil, false
+		}
+		bindingType, selection := "string", "exact"
+		if activationName == "plural" {
+			bindingType, selection = "number", "plural-cardinal"
+		}
+		binding := registerIntlSelector(sourceFile, selector, bindingType, build)
+		// An explicit role often surrounds the source-language conditional for
+		// the same selector. Retain that decision once instead of exposing a
+		// redundant selector nested inside an empty outer fallback.
+		if len(fallback) == 1 && fallback[0].Kind == "select" &&
+			fallback[0].Binding == binding && fallback[0].Selection == selection &&
+			fallback[0].RangeBinding == nil {
+			return fallback, true
+		}
+		return []intlPatternNode{{
+			Kind: "select", Binding: binding, Selection: selection,
+			Cases: []intlPatternCase{}, Fallback: fallback,
+		}}, true
+	default:
+		return buildIntlChildren(sourceFile, typeChecker, children, build)
+	}
+}
+
+// intlNestedContentActivation returns the one specialized role owned by a
+// nested range. More than one role is ambiguous and therefore unsupported.
+func intlNestedContentActivation(attributes *ast.Node) (string, *ast.Node, bool) {
+	var name string
+	var activation *ast.Node
+	for _, candidate := range []string{"plural", "select", "currency", "unit", "cldr"} {
+		if value := intlJSXAttribute(attributes, candidate); value != nil {
+			if activation != nil {
+				return "", nil, false
+			}
+			name, activation = candidate, value
+		}
+	}
+	return name, activation, true
+}
+
+func intlActivationValueExpression(attribute *ast.Node) *ast.Node {
+	if attribute == nil {
+		return nil
+	}
+	initializer := attribute.AsJsxAttribute().Initializer
+	if initializer == nil || !ast.IsJsxExpression(initializer) {
+		return nil
+	}
+	expression := unwrapRenderExpression(initializer.AsJsxExpression().Expression)
+	if expression == nil || !ast.IsObjectLiteralExpression(expression) {
+		return expression
+	}
+	for _, property := range expression.AsObjectLiteralExpression().Properties.Nodes {
+		if ast.IsPropertyAssignment(property) && property.AsPropertyAssignment().Name().Text() == "value" {
+			return unwrapRenderExpression(property.AsPropertyAssignment().Initializer)
+		}
+	}
+	return nil
+}
+
+func intlNodeSpan(node *ast.Node) intlSpan {
+	start := node.Pos()
+	return intlSpan{Start: start, Length: node.End() - start}
+}
+
+func intlActivationAttributeSpans(attributes *ast.Node, activationName string) []intlSpan {
+	names := []string{}
+	switch activationName {
+	case "currency":
+		names = []string{"currency", "display"}
+	case "unit", "cldr":
+		names = []string{"unit", "cldr", "source-unit", "convert-to"}
+	case "plural", "select":
+		names = []string{activationName}
+	}
+	result := []intlSpan{}
+	for _, name := range names {
+		if attribute := intlJSXAttribute(attributes, name); attribute != nil {
+			start := attribute.Pos()
+			result = append(result, intlSpan{Start: start, Length: attribute.End() - start})
+		}
+	}
+	return result
 }
 
 func validIntlFragmentName(name string) bool {

@@ -6,6 +6,7 @@ import {
 	intlConfigurationSource,
 	intlCardinalSource,
 	intlCacheSource,
+	intlCompositionSource,
 	intlDurationSource,
 	intlFormattersSource,
 	intlLanguageToolsSource,
@@ -106,6 +107,14 @@ export function InternationalizationPage(this: Component<{}>) {
 					and removed without mounting another runtime enhancement.
 				</p>
 				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
+				<h3>Compose one lexical message</h3>
+				<p>
+					Nested <code>intl:plural</code>, <code>intl:select</code>, currency, unit, and CLDR roles
+					contribute selectors and formatters to their nearest <code>intl:message</code>. The
+					analyzer prepares one descriptor and extraction produces one translator-reorderable XLIFF
+					unit. A standalone specialized role creates an implicit message scope instead.
+				</p>
+				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
 			</section>
 			<section>
 				<h2>Intent comes from ordinary fallbacks</h2>

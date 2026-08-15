@@ -49,7 +49,7 @@ export function instrumentNativeIntlAnalysis(
 		const structures = region.structures.map((structure) => structureFactory(source, structure));
 		const target =
 			descriptor.target.kind === 'content' && !region.explicit
-				? targetFactory(source, region, activationName)
+				? targetFactory(source, region)
 				: undefined;
 		const argumentsList = [
 			`__exactIntlDescriptor${region.descriptorIndex}`,
@@ -62,10 +62,9 @@ export function instrumentNativeIntlAnalysis(
 			...region.attribute,
 			replacement: `${region.attribute.length === 0 ? ' ' : ''}${preparedName}={__exactPrepareIntl(${argumentsList.join(', ')})}`
 		});
-		for (const span of auxiliaryAttributeSpans(source, region, activationName))
-			edits.push({ ...span, replacement: '' });
-		for (const structure of region.structures)
-			if (structure.attribute?.length) edits.push({ ...structure.attribute, replacement: '' });
+		for (const span of uniqueSpans(region.attributes))
+			if (!spansOverlap(span, region.attribute) && span.length > 0)
+				edits.push({ ...span, replacement: '' });
 	}
 
 	const declaration =
@@ -155,68 +154,105 @@ function structureFactory(
 	source: string,
 	structure: NativeIntlRegion['structures'][number]
 ): string {
-	const element = removeFragmentMetadata(sliceSpan(source, structure.element));
+	const element = removeOwnedAttributes(
+		sliceSpan(source, structure.element),
+		structure.element.start,
+		structure.attributes ?? []
+	);
 	if (structure.opaque) return `() => ${element}`;
 	const relativeStart = structure.content.start - structure.element.start;
-	const relativeEnd = relativeStart + structure.content.length;
-	const original = sliceSpan(source, structure.element);
-	const opening = removeFragmentMetadata(original.slice(0, relativeStart));
-	return `__intlChildren => ${opening}{__intlChildren}${original.slice(relativeEnd)}`;
+	const sanitizedContentStart =
+		relativeStart -
+		removedLengthBefore(
+			structure.attributes ?? [],
+			structure.element.start,
+			structure.content.start
+		);
+	const sanitizedContentEnd =
+		sanitizedContentStart +
+		structure.content.length -
+		removedLengthBetween(
+			structure.attributes ?? [],
+			structure.content.start,
+			structure.content.start + structure.content.length
+		);
+	return `__intlChildren => ${element.slice(0, sanitizedContentStart)}{__intlChildren}${element.slice(sanitizedContentEnd)}`;
 }
 
-function removeFragmentMetadata(source: string): string {
-	return source.replace(/\s+intl:fragment(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^{}]*\}))?/gu, '');
-}
-
-function targetFactory(source: string, region: NativeIntlRegion, activationName: string): string {
-	const element = sliceSpan(source, region.element);
+function targetFactory(source: string, region: NativeIntlRegion): string {
+	const element = removeOwnedAttributes(
+		sliceSpan(source, region.element),
+		region.element.start,
+		region.attributes
+	);
 	const relativeStart = region.content.start - region.element.start;
-	const relativeEnd = relativeStart + region.content.length;
-	const shell = removeIntlMetadata(
-		`${element.slice(0, relativeStart)}{__intlContent}${element.slice(relativeEnd)}`,
-		activationName
-	);
-	return `__intlContent => ${shell}`;
+	const sanitizedContentStart =
+		relativeStart -
+		removedLengthBefore(region.attributes, region.element.start, region.content.start);
+	const sanitizedContentEnd =
+		sanitizedContentStart +
+		region.content.length -
+		removedLengthBetween(
+			region.attributes,
+			region.content.start,
+			region.content.start + region.content.length
+		);
+	return `__intlContent => ${element.slice(0, sanitizedContentStart)}{__intlContent}${element.slice(sanitizedContentEnd)}`;
 }
 
-function auxiliaryAttributeSpans(
+/** Removes compiler-consumed attributes from one retained source slice. */
+function removeOwnedAttributes(
 	source: string,
-	region: NativeIntlRegion,
-	activationName: string
-): readonly NativeIntlSpan[] {
-	const names =
-		activationName === 'currency'
-			? ['display']
-			: activationName === 'unit'
-				? ['source-unit', 'convert-to']
-				: [];
-	if (names.length === 0) return [];
-	const openingLength = Math.max(0, region.content.start - region.element.start);
-	const opening = source.slice(region.element.start, region.element.start + openingLength);
-	const pattern = new RegExp(
-		`\\s+intl:(?:${names.join('|')})(?:\\s*=\\s*(?:"[^"]*"|'[^']*'|\\{[^{}]*\\}))?`,
-		'gu'
-	);
-	return [...opening.matchAll(pattern)].map((match) => ({
-		start: region.element.start + (match.index ?? 0),
-		length: match[0].length
-	}));
+	base: number,
+	attributes: readonly NativeIntlSpan[]
+): string {
+	let result = source;
+	for (const attribute of [...uniqueSpans(attributes)].sort(
+		(left, right) => right.start - left.start
+	)) {
+		const start = attribute.start - base;
+		if (start < 0 || start + attribute.length > result.length) continue;
+		result = `${result.slice(0, start)}${result.slice(start + attribute.length)}`;
+	}
+	return result;
 }
 
-function removeIntlMetadata(element: string, activationName: string): string {
-	const names =
-		activationName === 'currency'
-			? ['currency', 'display']
-			: activationName === 'unit'
-				? ['unit', 'source-unit', 'convert-to']
-				: [activationName];
-	return element.replace(
-		new RegExp(
-			`\\s+intl:(?:${names.join('|')})(?:\\s*=\\s*(?:"[^"]*"|'[^']*'|\\{[^{}]*\\}))?`,
-			'gu'
-		),
-		''
+function removedLengthBefore(
+	attributes: readonly NativeIntlSpan[],
+	base: number,
+	position: number
+): number {
+	return uniqueSpans(attributes).reduce(
+		(total, attribute) =>
+			attribute.start >= base && attribute.start < position ? total + attribute.length : total,
+		0
 	);
+}
+
+function removedLengthBetween(
+	attributes: readonly NativeIntlSpan[],
+	start: number,
+	end: number
+): number {
+	return uniqueSpans(attributes).reduce(
+		(total, attribute) =>
+			attribute.start >= start && attribute.start < end ? total + attribute.length : total,
+		0
+	);
+}
+
+function spansOverlap(left: NativeIntlSpan, right: NativeIntlSpan): boolean {
+	return left.start < right.start + right.length && right.start < left.start + left.length;
+}
+
+function uniqueSpans(spans: readonly NativeIntlSpan[]): readonly NativeIntlSpan[] {
+	const seen = new Set<string>();
+	return spans.filter((span) => {
+		const key = `${span.start}:${span.length}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
 }
 
 function applySourceEdits(source: string, edits: readonly SourceEdit[]): string {
@@ -227,7 +263,9 @@ function applySourceEdits(source: string, edits: readonly SourceEdit[]): string 
 	let output = source;
 	for (const edit of ordered) {
 		if (edit.start + edit.length > previousStart)
-			throw new Error('Native intl instrumentation produced overlapping source edits');
+			throw new Error(
+				`Native intl instrumentation edit ${edit.start}:${edit.length} overlaps the edit beginning at ${previousStart}`
+			);
 		output = `${output.slice(0, edit.start)}${edit.replacement}${output.slice(edit.start + edit.length)}`;
 		previousStart = edit.start;
 	}

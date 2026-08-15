@@ -9,7 +9,9 @@ analysis.
 
 Use `exportXliff21SourceCatalog()` to create a targetless translation request from analyzed source
 messages. Pure formatter/value descriptors are omitted, while placeholders embedded in linguistic
-messages remain available for reordering. Send that XLIFF to a translation workflow, then persist each returned bilingual locale
+messages remain available for reordering. Nested selector and formatter contributions remain
+inside their enclosing message's single XLIFF unit. Send that XLIFF to a translation workflow,
+then persist each returned bilingual locale
 catalog as XLIFF. The coordinator lowers those catalogs to the shared bounded runtime protocol after
 source descriptors are known; JSON remains useful for generated adapters but is not the translation
 source of truth. `synchronizeXliff21Catalog()` refreshes source units while preserving compatible
