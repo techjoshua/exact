@@ -132,6 +132,43 @@ function Greeting(props: { name: string }) {
 }
 ```
 
+### Compose one lexical message
+
+An explicit `intl:message` owns all nested selector and formatter enhancements in its lexical
+content. Nested `intl:plural`, `intl:select`, `intl:currency`, `intl:unit`, and `intl:cldr` regions
+contribute nodes to that one message plan; they do not create independent descriptors or catalog
+units:
+
+```tsx
+<p intl:message="journey-summary">
+	<_ intl:plural={count}>{count === 1 ? 'One delivery' : `${count} deliveries`}</_>
+	covering <span intl:unit="distance-road">{distance} miles</span>.
+</p>
+```
+
+This produces one message key. The plural range is a selector node, the unit is a formatter inside
+the retained `span` structure, and shared values are evaluated once per reactive update. The XLIFF
+request likewise contains one `<unit>` whose generic inline codes let translators reorder the
+selector, formatter, and intrinsic without exposing executable metadata.
+
+When no explicit message encloses a specialized enhancement, that enhancement creates an implicit
+message scope for its own range. This is preferred when the role owns an intrinsic's complete
+content:
+
+```tsx
+<p intl:plural={{ value: count, name: 'inbox-count' }}>
+	You have {count ? `${count}` : 'no'} new {count === 1 ? 'message' : 'messages'}.
+</p>
+
+<dd intl:unit="distance-road">{distance} miles</dd>
+```
+
+An explicit message and one specialized role may share the same host when both apply to the complete
+content. More than one selector or formatter role on the same range is ambiguous and receives a
+source diagnostic. Nested explicit message boundaries are not merged: keep the message on the
+outer lexical range, or expose an independently translated component through a named
+`intl:fragment` when it must move within the enclosing translation.
+
 The native TypeScript-Go analyzer recognizes normalized text, shared scalar identifier/property bindings,
 finite boolean/exact branches, cardinal and English ordinal fallback ternaries, movable direct intrinsic
 children, native `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Intl.RelativeTimeFormat`,
@@ -498,8 +535,9 @@ translation catalog.
 The internal prepared activation, companion registration, and validation APIs are build-tool
 contracts; application code should not construct them. Message analysis remains lexical and does
 not descend through arbitrary component implementations. Explicit `IntlMessage`, `IntlPlural`,
-`IntlSelect`, `IntlCurrency`, and `IntlUnit` components publish finite intl roles and share the same
-prepared renderer as their enhancement forms.
+`IntlSelect`, `IntlCurrency`, and `IntlUnit` components publish the same finite roles as their
+enhancement forms. Build analysis folds nested roles into the nearest lexical message and emits one
+prepared renderer activation; a standalone specialized role receives an implicit message scope.
 
 Each adapter's `onClientRequirements(requirements, moduleId)` callback reports the finite
 `temporal` and `intl-duration-format` requirements discovered for each analyzed module. Generated

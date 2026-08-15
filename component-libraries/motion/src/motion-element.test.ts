@@ -4,6 +4,7 @@
 import { Activity, createEnhancementMarker, createExpression, type Component } from '@exactjs/core';
 import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import { render, unmount } from '@exactjs/dom/enhanced';
+import '@exactjs/dom/structural-boundaries';
 import { flushSync } from '@exactjs/reactive';
 import {
 	createTestVNode as createVNode,

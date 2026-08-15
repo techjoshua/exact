@@ -43,10 +43,10 @@
         <target>分岐と複数形</target>
       </segment>
     </unit>
-    <unit id="inbox-count_PleJcWPj6LR6akas4U6vdHfLEqupeZ8yBDBynzbl0uw">
+    <unit id="inbox-count_rnaRmAvyx60m2siluGKCvqJkJ-c4gYVRa6UEXgzPlEY">
       <segment>
-        <source>You have <ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/> new <pc id="n3" equivStart="{plural-cardinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n3.case.0" type="generic" value="=1">message</mrk><mrk id="n3.fallback" type="generic">messages</mrk></pc>.</source>
-        <target>新着メッセージは<ph id="n1" equiv="{value-0}" canCopy="yes" canDelete="no"/>件あります。</target>
+        <source>You have <pc id="n1" equivStart="{boolean}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n1.case.0" type="generic" value="true"><ph id="n1.c0.0" equiv="{value-0}" canCopy="yes" canDelete="no"/></mrk><mrk id="n1.fallback" type="generic">no</mrk></pc> new <pc id="n3" equivStart="{plural-cardinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n3.case.0" type="generic" value="=1">message</mrk><mrk id="n3.fallback" type="generic">messages</mrk></pc>.</source>
+        <target><pc id="n1" equivStart="{boolean}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n1.case.0" type="generic" value="true"><pc id="n3" equivStart="{plural-cardinal}" equivEnd="{/}" canCopy="no" canDelete="no"><mrk id="n3.case.0" type="generic" value="other">新着メッセージは<ph id="n1.c0.0" equiv="{value-0}" canCopy="yes" canDelete="no"/>件あります。</mrk><mrk id="n3.fallback" type="generic">新着メッセージは<ph id="n1.c0.0" equiv="{value-0}" canCopy="yes" canDelete="no"/>件あります。</mrk></pc></mrk><mrk id="n1.fallback" type="generic">新着メッセージはありません。</mrk></pc></target>
       </segment>
     </unit>
     <unit id="status-selection_bL40OGY7YKXQeGgjXae6VtkEIi7Stdhwj1irm5dfipQ">
@@ -77,6 +77,12 @@
       <segment>
         <source>Road range</source>
         <target>道路距離</target>
+      </segment>
+    </unit>
+    <unit id="road-range-value_ywfLjWqq1sb-PVp67N7PaHDIXuaGLUen8QXSGGYgoh4">
+      <segment>
+        <source>Route coverage: <ph id="n1" equiv="{unit}" canCopy="yes" canDelete="no"/>.</source>
+        <target>ルートの範囲：<ph id="n1" equiv="{unit}" canCopy="yes" canDelete="no"/>。</target>
       </segment>
     </unit>
     <unit id="label-height_OyX4cdcLQUGRQmHPvPD5wz1YZqNhwREHymL6FOq6kHo">

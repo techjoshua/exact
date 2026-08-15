@@ -163,6 +163,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 						environment={localeEnvironments[locale]}
 						name={this.state.name}
 						count={this.state.count}
+						hasMessageCount={this.state.count !== 0 && !Number.isNaN(this.state.count)}
 						role={this.state.role}
 						ready={this.state.ready}
 						total={this.state.total}
