@@ -15,6 +15,7 @@ import (
 type corpusInput struct {
 	Groups  []corpusGroup `json:"groups"`
 	Workers int           `json:"workers"`
+	Mode    string        `json:"mode,omitempty"`
 }
 
 type corpusGroup struct {
@@ -100,7 +101,7 @@ func compileCorpus(
 			defer workerGroup.Done()
 			session := exactcompiler.NewSession()
 			for project := range jobs {
-				outcomes <- compileCorpusProject(project, session)
+				outcomes <- compileCorpusProject(project, session, request.Mode)
 			}
 		}()
 	}
@@ -129,6 +130,7 @@ func compileCorpus(
 func compileCorpusProject(
 	group corpusGroup,
 	session *exactcompiler.Session,
+	mode string,
 ) projectOutcome {
 	projectStarted := time.Now()
 	var timings exactcompiler.Timings
@@ -193,10 +195,37 @@ func compileCorpusProject(
 		accumulateCorpusTimings(&timings, response.Timings)
 		addCorpusCounters(counters, response.Counters)
 	}
+	measuredFileCount := len(group.Filenames)
+	if mode == "incremental" {
+		measuredFileCount = 1
+		timings = exactcompiler.Timings{}
+		counters = make(map[string]int64)
+		outputBytes = 0
+		projectStarted = time.Now()
+		request := requests[len(requests)/2]
+		request.Source += "\n"
+		response := session.Execute(request)
+		if response.Error != "" {
+			return projectOutcome{err: fmt.Errorf("%s: %s", request.ID, response.Error)}
+		}
+		for _, diagnostic := range response.Diagnostics {
+			if diagnostic.Severity == "error" {
+				return projectOutcome{err: fmt.Errorf(
+					"%s: %s %s",
+					request.ID,
+					diagnostic.Code,
+					diagnostic.Message,
+				)}
+			}
+		}
+		outputBytes = len(response.Code)
+		accumulateCorpusTimings(&timings, response.Timings)
+		addCorpusCounters(counters, response.Counters)
+	}
 	return projectOutcome{
 		result: corpusProjectResult{
 			Config:               group.Config,
-			FileCount:            len(group.Filenames),
+			FileCount:            measuredFileCount,
 			ElapsedMilliseconds:  float64(time.Since(projectStarted).Microseconds()) / 1_000,
 			CallableMicroseconds: timings.CallableMicroseconds,
 			PhaseMicroseconds:    corpusTimingMap(timings),
@@ -213,6 +242,9 @@ func addCorpusCounters(target map[string]int64, counters exactcompiler.WorkCount
 	target["componentSourceAnalyses"] += counters.ComponentSourceAnalyses
 	target["componentLinkWalks"] += counters.ComponentLinkWalks
 	target["componentResultCacheHits"] += counters.ComponentResultCacheHits
+	target["fullInvalidations"] += counters.FullInvalidations
+	target["affectedSourceCount"] += counters.AffectedSourceCount
+	target["reusedSourceCount"] += counters.ReusedSourceCount
 }
 
 func addCorpusCounterMap(target map[string]int64, counters map[string]int64) {

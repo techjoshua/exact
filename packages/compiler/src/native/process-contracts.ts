@@ -170,6 +170,9 @@ export type NativeCompilerWorkCounters = Readonly<{
 	componentSourceAnalyses: number;
 	componentLinkWalks: number;
 	componentResultCacheHits: number;
+	fullInvalidations: number;
+	affectedSourceCount: number;
+	reusedSourceCount: number;
 }>;
 
 /** Source map emitted directly while the Go printer writes transformed nodes. */

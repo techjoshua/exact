@@ -14,6 +14,7 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 	root := t.TempDir()
 	childFile := filepath.Join(root, "Child.tsx")
 	pageFile := filepath.Join(root, "Page.tsx")
+	unrelatedFile := filepath.Join(root, "Unrelated.tsx")
 	configFile := filepath.Join(root, "tsconfig.json")
 	childSource := `export function Child() { return () => <span>child</span>; }`
 	pageSource := `
@@ -23,9 +24,11 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 			return () => <main><Child /></main>;
 		}
 	`
+	unrelatedSource := `export function Unrelated() { return () => <aside>stable</aside>; }`
 	for filename, source := range map[string]string{
-		childFile: childSource,
-		pageFile:  pageSource,
+		childFile:     childSource,
+		pageFile:      pageSource,
+		unrelatedFile: unrelatedSource,
 	} {
 		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
 			t.Fatal(err)
@@ -43,6 +46,7 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 		Sources: []ProjectSource{
 			{ID: childFile, Source: childSource},
 			{ID: pageFile, Source: pageSource},
+			{ID: unrelatedFile, Source: unrelatedSource},
 		},
 	})
 	if synchronized.Error != "" {
@@ -65,6 +69,30 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 			!reflect.DeepEqual(cached.Analysis.Components, fresh.Analysis.Components) {
 			t.Fatalf("synchronized output for %s diverged from fresh compilation", request.ID)
 		}
+	}
+
+	changedChildSource := `export function Child() { window.name = "child"; return () => <span>changed</span>; }`
+	if err := os.WriteFile(childFile, []byte(changedChildSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	changedChild := session.Execute(Request{
+		ID: childFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: changedChildSource,
+	})
+	if changedChild.Error != "" {
+		t.Fatal(changedChild.Error)
+	}
+	if changedChild.Counters.CallableSourceAnalyses >= 4 ||
+		changedChild.Counters.ComponentSourceAnalyses >= 2 {
+		t.Fatalf("unrelated project facts were rebuilt after a leaf edit: %#v", changedChild.Counters)
+	}
+	pageRequest := Request{
+		ID: pageFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: pageSource,
+	}
+	incrementalPage := session.Execute(pageRequest)
+	freshPage := NewSession().Execute(pageRequest)
+	if incrementalPage.Code != freshPage.Code ||
+		!reflect.DeepEqual(incrementalPage.Analysis.Components, freshPage.Analysis.Components) {
+		t.Fatal("reverse-dependent page diverged after incremental child edit")
 	}
 }
 

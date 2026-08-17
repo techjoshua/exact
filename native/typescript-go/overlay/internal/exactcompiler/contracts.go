@@ -1081,6 +1081,9 @@ type WorkCounters struct {
 	ComponentSourceAnalyses  int64 `json:"componentSourceAnalyses"`
 	ComponentLinkWalks       int64 `json:"componentLinkWalks"`
 	ComponentResultCacheHits int64 `json:"componentResultCacheHits"`
+	FullInvalidations        int64 `json:"fullInvalidations"`
+	AffectedSourceCount      int64 `json:"affectedSourceCount"`
+	ReusedSourceCount        int64 `json:"reusedSourceCount"`
 }
 
 func (value WorkCounters) since(previous WorkCounters) WorkCounters {
@@ -1090,6 +1093,9 @@ func (value WorkCounters) since(previous WorkCounters) WorkCounters {
 		ComponentSourceAnalyses:  value.ComponentSourceAnalyses - previous.ComponentSourceAnalyses,
 		ComponentLinkWalks:       value.ComponentLinkWalks - previous.ComponentLinkWalks,
 		ComponentResultCacheHits: value.ComponentResultCacheHits - previous.ComponentResultCacheHits,
+		FullInvalidations:        value.FullInvalidations - previous.FullInvalidations,
+		AffectedSourceCount:      value.AffectedSourceCount - previous.AffectedSourceCount,
+		ReusedSourceCount:        value.ReusedSourceCount - previous.ReusedSourceCount,
 	}
 }
 

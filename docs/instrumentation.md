@@ -69,7 +69,9 @@ time was spent, while benchmark scripts determine whether performance changed.
 
 The native compiler corpus records median end-to-end elapsed time, individual
 samples, output size, and compiler phase timings for both the corpus and each
-project in `.tmp/native-compiler-corpus.json`. Its throughput is compared with
+project in `.tmp/native-compiler-corpus.json`. A separate warmed single-edit
+pass records program rebuilds, affected and reused sources, component link
+walks, callable analyses, and cache hits. Its throughput is compared with
 stable project/file-count pairs in
 `docs/performance-baselines/native-compiler-corpus.json`, so adding a large
 project does not masquerade as a compiler regression. The guard considers both

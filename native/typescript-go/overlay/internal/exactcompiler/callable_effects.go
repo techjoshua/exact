@@ -264,6 +264,7 @@ func collectProjectCallableEffects(
 		)
 	}
 	cache := project.callableCache
+	ensureProjectCallableSources(project, typeChecker, cache)
 	if !cache.owned[sourceFile] {
 		project.counters.CallableSourceAnalyses++
 		refreshed := collectCallableEffects(
@@ -305,27 +306,59 @@ func buildProjectCallableCache(
 			continue
 		}
 		counters.CallableSourceAnalyses++
-		components := collectComponents(sourceFile)
-		_, reads, writes := collectStateAnalysis(sourceFile, typeChecker)
-		bindings, bindingWrites, _ := analyzeComponentBindings(
-			sourceFile,
-			typeChecker,
-			collectEnhancementImports(sourceFile, typeChecker, nil, 0),
-		)
-		writes = append(writes, bindingWrites...)
-		analysis := collectCallableEffects(
-			sourceFile,
-			typeChecker,
-			components,
-			reads,
-			writes,
-			bindings,
-		)
+		analysis := analyzeProjectCallableSource(sourceFile, typeChecker)
 		cache.bySource[sourceFile] = analysis
 		cache.fingerprints[sourceFile] = callableAnalysisFingerprint(analysis)
 	}
 	rebuildProjectCallableCache(program, cache)
 	return cache
+}
+
+func ensureProjectCallableSources(
+	project *projectState,
+	typeChecker *checker.Checker,
+	cache *projectCallableCache,
+) {
+	changed := false
+	for _, sourceFile := range project.program.GetSourceFiles() {
+		if sourceFile.IsDeclarationFile ||
+			strings.Contains(strings.ReplaceAll(sourceFile.FileName(), `\`, `/`), "/node_modules/") {
+			continue
+		}
+		if _, exists := cache.bySource[sourceFile]; exists {
+			continue
+		}
+		project.counters.CallableSourceAnalyses++
+		analysis := analyzeProjectCallableSource(sourceFile, typeChecker)
+		cache.bySource[sourceFile] = analysis
+		cache.fingerprints[sourceFile] = callableAnalysisFingerprint(analysis)
+		changed = true
+	}
+	if changed {
+		rebuildProjectCallableCache(project.program, cache)
+	}
+}
+
+func analyzeProjectCallableSource(
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) callableAnalysis {
+	components := collectComponents(sourceFile)
+	_, reads, writes := collectStateAnalysis(sourceFile, typeChecker)
+	bindings, bindingWrites, _ := analyzeComponentBindings(
+		sourceFile,
+		typeChecker,
+		collectEnhancementImports(sourceFile, typeChecker, nil, 0),
+	)
+	writes = append(writes, bindingWrites...)
+	return collectCallableEffects(
+		sourceFile,
+		typeChecker,
+		components,
+		reads,
+		writes,
+		bindings,
+	)
 }
 
 func callableAnalysisFingerprint(analysis callableAnalysis) string {
