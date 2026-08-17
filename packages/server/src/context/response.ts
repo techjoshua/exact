@@ -56,13 +56,15 @@ export async function disposeOwnedValue(owned: OwnedValue, reason: unknown): Pro
 		await owned.factory.dispose(owned.value, reason);
 		return;
 	}
-	const value = owned.value as any;
-	const asyncDispose = (Symbol as any).asyncDispose;
-	const dispose = (Symbol as any).dispose;
-	if (asyncDispose && typeof value?.[asyncDispose] === 'function') {
-		await value[asyncDispose]();
-	} else if (dispose && typeof value?.[dispose] === 'function') {
-		value[dispose]();
+	const value = owned.value;
+	if (!value || (typeof value !== 'object' && typeof value !== 'function')) return;
+	const symbols = Symbol as SymbolConstructor & { asyncDispose?: symbol; dispose?: symbol };
+	const asyncDispose = symbols.asyncDispose && Reflect.get(value, symbols.asyncDispose);
+	const dispose = symbols.dispose && Reflect.get(value, symbols.dispose);
+	if (typeof asyncDispose === 'function') {
+		await Reflect.apply(asyncDispose, value, []);
+	} else if (typeof dispose === 'function') {
+		Reflect.apply(dispose, value, []);
 	}
 }
 

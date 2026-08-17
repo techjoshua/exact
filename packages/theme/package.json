@@ -44,6 +44,7 @@
 	},
 	"scripts": {
 		"build": "tsc -b && node scripts/generate-styles.mjs && prettier --write styles.css && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"check:performance": "npm run build && node scripts/check-performance.mjs",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

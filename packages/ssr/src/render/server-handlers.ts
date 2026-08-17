@@ -5,6 +5,10 @@ import {
 	exactServerDebugRuntime,
 	type ExactPatch
 } from '@exactjs/server';
+import {
+	markExactFrameworkInvocationHandler,
+	normalizeExactHandlerResult
+} from '@exactjs/server/framework/trusted-handler';
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from '../diff.js';
 import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerPair } from '../markup.js';
 import {
@@ -43,7 +47,7 @@ export function createBoundaryRefreshHandler(
 	render: BoundaryRenderFunction,
 	options: BoundaryRefreshOptions
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
-	return async (input, context) => {
+	return markExactFrameworkInvocationHandler(async (input, context) => {
 		const vnode = await render(input, context);
 		const result = await renderToStringAsync(vnode, {
 			...options,
@@ -59,15 +63,18 @@ export function createBoundaryRefreshHandler(
 			html: result.html,
 			...(result.state === undefined ? {} : { state: result.state })
 		};
-	};
+	});
 }
 
 /** Creates an invocation refresh handler. */
 export function createInvocationRefreshHandler(
 	options: InvocationRefreshOptions
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
-	return async (input, context) => {
-		const invocationResult: ExactInvocationResult = (await options.invoke(input, context)) ?? {};
+	return markExactFrameworkInvocationHandler(async (input, context) => {
+		const invocationResult: ExactInvocationResult = normalizeExactHandlerResult(
+			options.invoke,
+			await options.invoke(input, context)
+		);
 		const patches: ExactPatch[] = [...(invocationResult.patches ?? [])];
 		let state = invocationResult.state;
 
@@ -99,7 +106,7 @@ export function createInvocationRefreshHandler(
 			patches,
 			...(state === undefined ? {} : { state })
 		};
-	};
+	});
 }
 
 /** Creates an exact server handler registry. */
@@ -123,11 +130,12 @@ export function createExactServerHandlerRegistry(
 		const executor = options.contract.executors?.[id];
 		if (explicitAction && executor)
 			throw new Error(`Conflicting application and generated eXact invocation handler ${id}`);
-		const invocation =
-			explicitAction ??
-			(executor
-				? createExactContinuationHandler(options.contract.invocations[id]!, executor)
-				: undefined);
+		const generated = executor
+			? markExactFrameworkInvocationHandler(
+					createExactContinuationHandler(options.contract.invocations[id]!, executor)
+				)
+			: undefined;
+		const invocation = explicitAction ?? generated;
 		if (!invocation) continue;
 		const boundaries = options.contract.invocations[id]!.boundaries.map((boundaryId) => {
 			const renderer = options.boundaries?.[boundaryId];
@@ -140,7 +148,7 @@ export function createExactServerHandlerRegistry(
 		}).filter((boundary): boundary is InvocationRefreshBoundaryOptions => boundary !== undefined);
 		actionHandlers[id] = boundaries.length
 			? createInvocationRefreshHandler({ invoke: invocation, boundaries })
-			: async (input, context) => (await invocation(input, context)) ?? {};
+			: invocation;
 	}
 
 	return {
@@ -265,7 +273,7 @@ export function renderKeyedListSnapshotOwned<T>(
 export function createKeyedListRefreshHandler<T>(
 	options: KeyedListRefreshOptions<T>
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
-	return async (input, context) => {
+	return markExactFrameworkInvocationHandler(async (input, context) => {
 		const nextItems = await options.items(input, context);
 		const next = renderKeyedListSnapshot({
 			...options,
@@ -282,7 +290,7 @@ export function createKeyedListRefreshHandler<T>(
 				? diffKeyedListItems(options.listId, previous, next.items)
 				: [{ type: 'replace', id: options.listId, html: next.innerHtml } as ExactPatch]
 		};
-	};
+	});
 }
 
 /** Reads a keyed list snapshot html from its source representation. */

@@ -1,4 +1,5 @@
 import type { ExactCollectionMutation, ExactContinuationStatePathContract } from '@exactjs/core';
+import { hasOnlySafeProtocolKeys } from '@exactjs/core/framework/protocol-records';
 import { isSafeObjectKey } from './safety.js';
 
 type MutableStateContainer = Record<string, unknown> | unknown[];
@@ -39,7 +40,8 @@ export function mergeStateForContract(
 	const writes =
 		contract.writes?.filter((write) => write.kind === 'write' && write.confidence === 'exact') ??
 		[];
-	if (writes.some((write) => write.path === '*')) return { ok: true, state: update };
+	if (writes.some((write) => write.path === '*'))
+		return hasOnlySafeProtocolKeys(update) ? { ok: true, state: update } : { ok: false };
 	if (!update || typeof update !== 'object' || Array.isArray(update)) return { ok: false };
 	const paths = writes.map((write) => write.path);
 	if (!stateNodeMatchesWrites(update, '', paths)) return { ok: false };
@@ -65,9 +67,10 @@ export function commitStateForContract(
 		[];
 	if (writes.some((write) => write.path === '*')) {
 		if (!update || typeof update !== 'object' || Array.isArray(update)) return;
+		if (!hasOnlySafeProtocolKeys(update)) return;
 		for (const key of Object.keys(target))
 			if (!Object.prototype.hasOwnProperty.call(update, key)) delete target[key];
-		Object.assign(target, update);
+		for (const key of Object.keys(update)) target[key] = (update as Record<string, unknown>)[key];
 		return;
 	}
 	for (const write of writes) {

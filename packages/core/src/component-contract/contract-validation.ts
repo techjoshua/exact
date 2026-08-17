@@ -181,16 +181,14 @@ function isResumption(value: unknown): value is ExactComponentResumptionContract
 }
 
 function isExecution(value: unknown): value is ExactComponentExecutionContract {
+	if (!isContractRecord(value) || !Array.isArray(value.ports)) return false;
+	const ports = value.ports;
 	return (
-		isContractRecord(value) &&
 		hasOnlyContractKeys(value, ['version', 'ports', 'transitions', 'reactive']) &&
 		value.version === 1 &&
-		Array.isArray(value.ports) &&
-		value.ports.every((port, index) => isExecutionPort(port, index)) &&
+		ports.every((port, index) => isExecutionPort(port, index)) &&
 		Array.isArray(value.transitions) &&
-		value.transitions.every((transition) =>
-			isExecutionTransition(transition, value.ports.length)
-		) &&
+		value.transitions.every((transition) => isExecutionTransition(transition, ports.length)) &&
 		(value.reactive === undefined ||
 			(Array.isArray(value.reactive) && value.reactive.every(isReactiveAllocation)))
 	);
@@ -201,8 +199,10 @@ function isExecutionPort(value: unknown, expectedIndex: number): boolean {
 		isContractRecord(value) &&
 		hasOnlyContractKeys(value, ['index', 'kind', 'path', 'direction']) &&
 		value.index === expectedIndex &&
+		typeof value.kind === 'string' &&
 		['state', 'props', 'context', 'derived', 'argument'].includes(value.kind) &&
 		isContractString(value.path) &&
+		typeof value.direction === 'string' &&
 		['input', 'output', 'inout'].includes(value.direction)
 	);
 }
@@ -238,9 +238,11 @@ function isReactiveAllocation(value: unknown): boolean {
 		isContractRecord(value) &&
 		hasOnlyContractKeys(value, ['name', 'provenance', 'allocation', 'dependencies']) &&
 		isContractString(value.name) &&
+		typeof value.provenance === 'string' &&
 		['state', 'props', 'context', 'derived', 'cell', 'snapshot', 'unknown'].includes(
 			value.provenance
 		) &&
+		typeof value.allocation === 'string' &&
 		['constant', 'live-slot', 'inline', 'computed', 'snapshot', 'structural'].includes(
 			value.allocation
 		) &&

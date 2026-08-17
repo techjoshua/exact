@@ -3,11 +3,88 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	defineExactBoundaryContract,
 	defineExactOperationContract,
-	handleExactRequest
+	handleExactRequest,
+	unsafeExactHtml
 } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';
 
 describe('@exactjs/server security-validation', () => {
+	it('requires business-payload validation for manual operations', async () => {
+		const handler = vi.fn(() => ({ value: 'unreachable' }));
+		const response = await handleExactRequest(
+			{
+				method: 'POST',
+				body: { type: 'invoke', id: 'allowed-action', payload: { amount: -1 } }
+			},
+			context({ invocations: { 'allowed-action': handler }, payloadDecoders: undefined })
+		);
+
+		expect(response.status).toBe(400);
+		expect(handler).not.toHaveBeenCalled();
+	});
+
+	it('rejects raw authored HTML and accepts the explicit unsafe capability', async () => {
+		const raw = await handleExactRequest(
+			{ method: 'POST', body: { type: 'invoke', id: 'allowed-action' } },
+			context({
+				invocations: {
+					'allowed-action': () => ({
+						patches: [{ type: 'replace', id: 'panel', html: '<script>bad()</script>' }]
+					})
+				}
+			})
+		);
+		const trusted = await handleExactRequest(
+			{ method: 'POST', body: { type: 'invoke', id: 'allowed-action' } },
+			context({
+				invocations: {
+					'allowed-action': () => ({
+						patches: [{ type: 'replace', id: 'panel', html: unsafeExactHtml('<p>Reviewed</p>') }]
+					})
+				}
+			})
+		);
+
+		expect(raw.status).toBe(500);
+		expect(trusted.status).toBe(200);
+		expect(JSON.parse(trusted.body).patches[0].html).toBe('<p>Reviewed</p>');
+	});
+
+	it('normalizes a validated payload before authorization and handler execution', async () => {
+		const authorize = vi.fn((_request, input) =>
+			Promise.resolve((input as { payload?: { amount?: number } }).payload?.amount === 7)
+		);
+		const handler = vi.fn((input) => ({ value: input.payload }));
+		const response = await handleExactRequest(
+			{
+				method: 'POST',
+				body: { type: 'invoke', id: 'allowed-action', payload: { amount: '7' } }
+			},
+			context({
+				authorize,
+				invocations: { 'allowed-action': handler },
+				payloadDecoders: {
+					invocations: {
+						'allowed-action': (payload) => {
+							if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+								throw new TypeError('Expected payload');
+							const amount = Number((payload as { amount?: unknown }).amount);
+							if (!Number.isSafeInteger(amount) || amount < 0)
+								throw new TypeError('Invalid amount');
+							return { amount };
+						}
+					}
+				}
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(authorize).toHaveBeenCalledOnce();
+		expect(handler).toHaveBeenCalledWith(
+			expect.objectContaining({ payload: { amount: 7 } }),
+			expect.anything()
+		);
+	});
 	it('reports opt-in request timings', async () => {
 		const onProfile = vi.fn();
 
@@ -374,7 +451,11 @@ describe('@exactjs/server security-validation', () => {
 	it('passes boundary html snapshots to refresh handlers', async () => {
 		const refresh = vi.fn((input) => ({
 			patches: [
-				{ type: 'replace' as const, id: 'allowed-boundary', html: String(input.boundaryHtml ?? '') }
+				{
+					type: 'replace' as const,
+					id: 'allowed-boundary',
+					html: unsafeExactHtml(String(input.boundaryHtml ?? ''))
+				}
 			]
 		}));
 		const result = await handleExactRequest(
@@ -440,7 +521,13 @@ describe('@exactjs/server security-validation', () => {
 				contract,
 				refreshBoundaries: {
 					permissions: () => ({
-						patches: [{ type: 'replace', id: 'summary', html: '<p>Wrong sibling</p>' }]
+						patches: [
+							{
+								type: 'replace',
+								id: 'summary',
+								html: unsafeExactHtml('<p>Wrong sibling</p>')
+							}
+						]
 					})
 				}
 			})

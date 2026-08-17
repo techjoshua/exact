@@ -37,17 +37,19 @@ export async function connectExactCdp(
 	const pending = new Map<number, Pending>();
 	const listeners = new Set<(method: string, params: unknown) => void>();
 	socket.addEventListener('message', (event) => {
-		let message: any;
+		let parsed: unknown;
 		try {
-			message = JSON.parse(String(event.data));
+			parsed = JSON.parse(String(event.data));
 		} catch {
 			return;
 		}
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+		const message = parsed as Record<string, unknown>;
 		if (typeof message.id === 'number') {
 			const request = pending.get(message.id);
 			if (!request) return;
 			pending.delete(message.id);
-			if (message.error) request.reject(new Error(String(message.error.message)));
+			if (message.error) request.reject(new Error(cdpErrorMessage(message.error)));
 			else request.resolve(message.result);
 			return;
 		}
@@ -79,6 +81,12 @@ export async function connectExactCdp(
 		}
 	};
 	return Object.freeze(transport);
+}
+
+function cdpErrorMessage(value: unknown): string {
+	return value && typeof value === 'object' && 'message' in value
+		? String((value as { message: unknown }).message)
+		: String(value);
 }
 
 async function discoverWebSocketUrl(

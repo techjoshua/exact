@@ -81,6 +81,6 @@ function boundedString(value: unknown, maximum: number): value is string {
 	return typeof value === 'string' && value.length > 0 && value.length <= maximum;
 }
 
-function record(value: unknown): value is Record<string, any> {
+function record(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

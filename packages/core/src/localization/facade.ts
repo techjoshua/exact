@@ -9,12 +9,12 @@ type LocalizationResolver = () => LocalizationContextValue | undefined;
 export const intl: IntlFacade = /* @__PURE__ */ createIntlFacade(() => undefined);
 
 /** Creates a stable facade whose implicit source policy resolves through the nearest provider. */
-export function createComponentIntlFacade(instance: ComponentInstance<any>): IntlFacade {
+export function createComponentIntlFacade(instance: ComponentInstance<object>): IntlFacade {
 	return createIntlFacade(() => componentLocalization(instance));
 }
 
 function componentLocalization(
-	instance: ComponentInstance<any>
+	instance: ComponentInstance<object>
 ): LocalizationContextValue | undefined {
 	if (!instance.hasContext(LocalizationContext)) return undefined;
 	return instance.getContext(LocalizationContext);

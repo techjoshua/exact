@@ -129,7 +129,11 @@ export type ModuleTransform = (
 		source: string;
 		target: TransformTarget;
 	}>
-) => Readonly<{ code: string }>;
+) => Readonly<{
+	code: string;
+	/** Maps transformed output back to the supplied pre-transform source. */
+	map?: unknown;
+}>;
 
 /** Defines the transform target type contract. */
 export type TransformTarget = 'default' | 'client' | 'server';

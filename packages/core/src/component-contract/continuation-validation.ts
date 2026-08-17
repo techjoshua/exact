@@ -11,7 +11,8 @@ export function isExactContinuationDependency(
 	return (
 		isContractRecord(value) &&
 		hasOnlyContractKeys(value, ['index', 'source', 'path']) &&
-		(value.index === undefined || (Number.isSafeInteger(value.index) && value.index >= 0)) &&
+		(value.index === undefined ||
+			(typeof value.index === 'number' && Number.isSafeInteger(value.index) && value.index >= 0)) &&
 		(value.path === undefined || isContractString(value.path)) &&
 		(value.source === 'state' ||
 			value.source === 'props' ||
@@ -43,7 +44,9 @@ export function isExactContinuationInvocation(
 						isContractRecord(argument) &&
 						hasOnlyContractKeys(argument, ['index', 'source', 'path']) &&
 						(argument.index === undefined ||
-							(Number.isSafeInteger(argument.index) && argument.index >= 0)) &&
+							(typeof argument.index === 'number' &&
+								Number.isSafeInteger(argument.index) &&
+								argument.index >= 0)) &&
 						(argument.path === undefined || isContractString(argument.path)) &&
 						argument.source === 'argument'
 				))) &&

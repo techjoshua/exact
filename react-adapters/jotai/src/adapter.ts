@@ -39,7 +39,7 @@ export function createAtomSource<Value>(
 
 /** Creates a component atom. */
 export function createComponentAtom<Value>(
-	component: Component<any>,
+	component: Component<object>,
 	valueAtom: Atom<Value>,
 	store?: Store
 ): ExternalSource<Value> {

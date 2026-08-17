@@ -9,7 +9,7 @@ export interface ReduxStore<State = unknown, Action = unknown> {
 }
 
 /** Provides the canonical redux store context value. */
-export const ReduxStoreContext = createContext<ReduxStore<any, any>>('exact.redux.store', {
+export const ReduxStoreContext = createContext<ReduxStore<unknown, unknown>>('exact.redux.store', {
 	reactive: false
 });
 /** Provides the canonical redux server state context value. */
@@ -58,7 +58,7 @@ export interface ReduxCompatibilitySubscription {
 
 /** Framework-neutral subscription contract consumed by optional React Redux custom contexts. */
 export function createReduxSubscription(
-	store: ReduxStore<any, any>
+	store: ReduxStore<unknown, unknown>
 ): ReduxCompatibilitySubscription {
 	const listeners = new Set<() => void>();
 	let unsubscribe: (() => void) | undefined;
@@ -93,8 +93,8 @@ export function createReduxSubscription(
 }
 
 /** Creates a redux source. */
-export function createReduxSource<State, Selected = State>(
-	store: ReduxStore<State, any>,
+export function createReduxSource<State, Selected = State, Action = unknown>(
+	store: ReduxStore<State, Action>,
 	selector: (state: State) => Selected = identity as (state: State) => Selected,
 	equality: (left: Selected, right: Selected) => boolean = Object.is,
 	serverState?: State
@@ -110,7 +110,7 @@ export function createReduxSource<State, Selected = State>(
 
 /** Creates a component selector. */
 export function createComponentSelector<State, Selected = State>(
-	component: Component<any>,
+	component: Component<object>,
 	selector?: (state: State) => Selected,
 	equality?: (left: Selected, right: Selected) => boolean
 ): ExternalSource<Selected> {

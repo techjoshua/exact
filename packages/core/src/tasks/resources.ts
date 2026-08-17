@@ -232,14 +232,28 @@ function disposeTaskResource<T>(
 	reason: unknown
 ): void | Promise<void> {
 	if (typeof disposal === 'function') return disposal(resource, reason);
-	const value = resource as any;
-	if (disposal === 'call') return value();
-	if (disposal === 'cancel') return value?.cancel?.(reason);
-	if (disposal) return value?.[disposal]?.();
-	const asyncDispose = (Symbol as any).asyncDispose;
-	if (asyncDispose && typeof value?.[asyncDispose] === 'function') return value[asyncDispose]();
-	const dispose = (Symbol as any).dispose;
-	if (dispose && typeof value?.[dispose] === 'function') return value[dispose]();
+	if (disposal === 'call') {
+		if (typeof resource === 'function') return resource();
+		return;
+	}
+	if (!resource || (typeof resource !== 'object' && typeof resource !== 'function')) return;
+	if (disposal === 'cancel') return invokeResourceMethod(resource, 'cancel', reason);
+	if (disposal) return invokeResourceMethod(resource, disposal);
+	const symbols = Symbol as SymbolConstructor & { asyncDispose?: symbol; dispose?: symbol };
+	if (symbols.asyncDispose) {
+		const result = invokeResourceMethod(resource, symbols.asyncDispose);
+		if (result !== undefined) return result;
+	}
+	if (symbols.dispose) return invokeResourceMethod(resource, symbols.dispose);
+}
+
+function invokeResourceMethod(
+	resource: object,
+	key: PropertyKey,
+	...args: unknown[]
+): void | Promise<void> | undefined {
+	const method = Reflect.get(resource, key) as unknown;
+	if (typeof method === 'function') return method.apply(resource, args) as void | Promise<void>;
 }
 
 function reportTaskResourceError(signal: AbortSignal, error: unknown): void {
@@ -252,15 +266,15 @@ function reportTaskResourceError(signal: AbortSignal, error: unknown): void {
 }
 
 /** Compiler helpers for resources whose lifetime is owned by a task generation. */
-export function taskTimeout(
+export function taskTimeout<Args extends unknown[]>(
 	signal: AbortSignal,
-	handler: (...args: any[]) => void,
+	handler: (...args: Args) => void,
 	delay?: number,
-	...args: any[]
+	...args: Args
 ): ReturnType<typeof setTimeout> {
 	const abort = () => clearTimeout(timeout);
 	const timeout = setTimeout(
-		(...values: any[]) => {
+		(...values: Args) => {
 			signal.removeEventListener('abort', abort);
 			if (!signal.aborted) runTaskCallback(signal, 'timeout', () => handler(...values));
 		},
@@ -273,14 +287,14 @@ export function taskTimeout(
 }
 
 /** Starts an interval whose timer is cleared automatically when the task signal aborts. */
-export function taskInterval(
+export function taskInterval<Args extends unknown[]>(
 	signal: AbortSignal,
-	handler: (...args: any[]) => void,
+	handler: (...args: Args) => void,
 	delay?: number,
-	...args: any[]
+	...args: Args
 ): ReturnType<typeof setInterval> {
 	const interval = setInterval(
-		(...values: any[]) => {
+		(...values: Args) => {
 			if (!signal.aborted) runTaskCallback(signal, 'interval', () => handler(...values));
 		},
 		delay,
@@ -330,7 +344,7 @@ function runTaskCallback(signal: AbortSignal, phase: string, callback: () => voi
 /** Runs fetch with the task signal combined with any caller-provided cancellation signal. */
 export function taskFetch<T>(
 	signal: AbortSignal,
-	fetcher: (...args: any[]) => T,
+	fetcher: (input: unknown, init?: Record<string, unknown>) => T,
 	input: unknown,
 	init?: Record<string, unknown>
 ): T {

@@ -255,7 +255,8 @@ export function isExactRuntimeInspectionEvent(
 		!Number.isFinite(value.timestamp) ||
 		(value.wallTime !== undefined &&
 			(typeof value.wallTime !== 'number' || !Number.isFinite(value.wallTime))) ||
-		!inspectionEventKinds.has(value.kind) ||
+		typeof value.kind !== 'string' ||
+		!inspectionEventKinds.has(value.kind as ExactRuntimeInspectionEventKind) ||
 		!isExactInspectionRuntimeId(value.id)
 	)
 		return false;
@@ -290,7 +291,10 @@ function validPreview(value: unknown, depth: number): boolean {
 			(typeof value.value === 'string' && value.value.length <= 100_000)
 		);
 	if (value.kind === 'redacted')
-		return ['secret', 'server-resource', 'policy'].includes(value.reason);
+		return (
+			typeof value.reason === 'string' &&
+			['secret', 'server-resource', 'policy'].includes(value.reason)
+		);
 	if (value.kind === 'unavailable') return boundedString(value.reason, 1024);
 	if (value.kind === 'function') return value.name === undefined || boundedString(value.name, 128);
 	if (value.kind === 'dom')
@@ -322,7 +326,7 @@ function positiveInteger(value: unknown): value is number {
 	return Number.isSafeInteger(value) && (value as number) > 0;
 }
 
-function record(value: unknown): value is Record<string, any> {
+function record(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 

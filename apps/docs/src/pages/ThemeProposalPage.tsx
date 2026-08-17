@@ -73,9 +73,10 @@ export function ThemeProposalPage(this: Component<{}>) {
 				</p>
 				<p>
 					The contract pins its context-free CSS color grammar, 24-step chroma gamut mapping,
-					1,001-candidate contrast search, surface and tone formulas, canonical rounding,
-					serialization, fingerprinting, and every built-in typography stack. Independent
-					implementations therefore have golden outputs rather than aesthetic discretion.
+					nearest-first search over a 1,001-value contrast grid, surface and tone formulas,
+					canonical rounding, serialization, fingerprinting, and every built-in typography stack.
+					Independent implementations therefore have golden outputs rather than aesthetic
+					discretion.
 				</p>
 			</section>
 

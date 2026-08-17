@@ -48,9 +48,7 @@ export const defaultMaxSsrTreeNodes = DEFAULT_MAX_TREE_NODES;
 export const defaultMaxSsrOutputBytes = DEFAULT_MAX_OUTPUT_BYTES;
 
 /** Normalizes a positive integer limit or returns its domain default. */
-export function normalizePositiveLimit(value: number | undefined, fallback: number): number {
-	return Number.isSafeInteger(value) && value! > 0 ? value! : fallback;
-}
+export { normalizeProtocolLimit as normalizePositiveLimit } from '@exactjs/core/framework/protocol-records';
 
 /** Normalizes a caller-provided depth limit and applies the hard safety cap. */
 export function normalizeSsrTreeDepth(value: number | undefined): number {

@@ -44,12 +44,12 @@ describe('independent theme component-library fixture', () => {
 		expect(
 			container.querySelector<HTMLElement>('.theme-lab-chart table')?.dataset.exactThemeRole
 		).toBeUndefined();
-		expect(container.querySelector<HTMLElement>('.theme-lab-chart thead th')?.dataset.exactThemeRole).toBe(
-			'text'
-		);
-		expect(container.querySelector<HTMLElement>('.theme-lab-chart tbody td')?.dataset.exactThemeRole).toBe(
-			'text'
-		);
+		expect(
+			container.querySelector<HTMLElement>('.theme-lab-chart thead th')?.dataset.exactThemeRole
+		).toBe('text');
+		expect(
+			container.querySelector<HTMLElement>('.theme-lab-chart tbody td')?.dataset.exactThemeRole
+		).toBe('text');
 		expect(container.querySelector('.theme-lab-chart th.exact-theme-surface')).toBeNull();
 		expect(container.querySelector('progress')?.getAttribute('aria-label')).toBe('Confidence');
 		expect(

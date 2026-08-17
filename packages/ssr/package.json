@@ -34,6 +34,7 @@
 	},
 	"devDependencies": {
 		"@exactjs/accessibility": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
 		"@exactjs/testing": "^0.1.0"
 	},
 	"scripts": {
