@@ -388,3 +388,18 @@ The remaining cell, component, fragment, and keyed markers are structural owners
 addresses, not redundant scalar-program markers. Removing them still requires the broader mounted
 range rebasing and server-refresh proof described in the original recommendation; recommendation
 1 alone does not establish that proof.
+
+### Recommendation 6: inert-leaf scope experiment rejected
+
+The experiment created an ordinary child scope, then allowed the reactive runtime to detach it only
+when it had acquired no children, reactions, cleanups, or pause waiters and the mounted leaf owned
+no manual stop, resource, range, or structural state. The leaf borrowed its parent's active scope
+for later patching while teardown explicitly avoided stopping that borrowed owner. Typechecking,
+21 focused scope tests, eight render-program tests, and all 28 comparison checks passed.
+
+Against the recommendation-2 baseline, retained heap moved from 2,838,644 B to 2,839,248 B (+604
+B), while the client artifact grew from 219,061 B / 65,687 B gzip to 219,574 B / 65,840 B gzip.
+Navigation moved from 35.5 ms to 36.0 ms, FCP from 48 ms to 52 ms, optimistic feedback remained 1.9
+ms, settlement moved from 13.6 ms to 13.0 ms, and clean build from 4,602.6 ms to 4,373.0 ms. The
+proof and ownership bookkeeping cost more than the eligible scope records saved on this route, so
+the implementation was reverted. Raw experiment: `raw-1786987577328.json`.
