@@ -131,6 +131,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 			{hasNotes ? <p className="card-notes">Has notes</p> : null}
 			<div className="card-actions">
 				<button
+					theme:action="quiet"
 					type="button"
 					className="secondary-button"
 					onClick={(event) => {
@@ -141,6 +142,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 					Notes
 				</button>
 				<button
+					theme:action="quiet"
 					type="button"
 					onClick={(event) => {
 						event.stopPropagation();

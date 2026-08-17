@@ -38,6 +38,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 
 	return () => (
 		<article
+			theme:surface="sunken"
 			id={`column-${props.column.id}`}
 			className="column"
 			className:empty={columnTasks.length === 0}
