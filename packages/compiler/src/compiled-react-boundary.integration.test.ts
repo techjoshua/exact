@@ -3,6 +3,7 @@
  */
 import * as exactCore from '@exactjs/core';
 import { createVNode } from '@exactjs/core';
+import * as exactRenderRuntime from '@exactjs/core/runtime/render';
 import { render, unmount } from '@exactjs/dom';
 import { createExactClient } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';
@@ -96,7 +97,7 @@ function compileMixedApp(target: 'client' | 'server'): exactCore.ComponentFuncti
 	};
 	const modules: Record<string, unknown> = {
 		'@exactjs/core': exactCore,
-		'@exactjs/core/runtime/render': exactCore,
+		'@exactjs/core/runtime/render': exactRenderRuntime,
 		'@exactjs/core/runtime/reactivity': exactCore,
 		'@exactjs/core/runtime/tasks': exactCore,
 		'@exactjs/react-compat/exact': { adaptReactComponent },
