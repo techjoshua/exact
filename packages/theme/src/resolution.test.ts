@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { BuiltInTemperament, ResolvedTheme, ThemeAppearance } from './contracts.js';
 import { contrastRatio } from './color.js';
 import { ThemeResolutionError } from './errors.js';
-import { resolveTheme, serializeThemeVariables } from './resolver.js';
+import { builtInTemperaments, resolveTheme, serializeThemeVariables } from './resolver.js';
 import { exactThemeContract, themeSurfaceBundles, themeTones } from './token-contract.js';
 
 const environment = { appearance: 'light', contrast: 'standard', motion: 'full' } as const;
@@ -19,28 +20,77 @@ describe('deterministic theme resolution', () => {
 
 	it('keeps all built-in foreground, boundary, focus, and solid pairs above their contract ratios', () => {
 		for (const appearance of ['light', 'dark'] as const)
-			for (const contrast of ['standard', 'more'] as const) {
-				const theme = resolveTheme({ environment: { appearance, contrast, motion: 'full' } });
-				expect(theme.warnings).toEqual([]);
-				const textRatio = contrast === 'more' ? 7 : 4.5;
-				const boundaryRatio = contrast === 'more' ? 4.5 : 3;
-				for (const bundle of themeSurfaceBundles) {
-					const surface = theme.surfaces[bundle];
-					expect(contrastRatio(surface.foreground, surface.background)).toBeGreaterThanOrEqual(
-						textRatio - 0.02
-					);
-					expect(contrastRatio(surface.foregroundMuted, surface.background)).toBeGreaterThanOrEqual(
-						textRatio - 0.02
-					);
-					expect(contrastRatio(surface.border, surface.background)).toBeGreaterThanOrEqual(
-						boundaryRatio - 0.02
-					);
+			for (const contrast of ['standard', 'more'] as const)
+				for (const temperament of Object.keys(builtInTemperaments) as BuiltInTemperament[]) {
+					const theme = resolveTheme({
+						source: { temperament },
+						environment: { appearance, contrast, motion: 'full' }
+					});
+					expect(theme.warnings).toEqual([]);
+					const textRatio = contrast === 'more' ? 7 : 4.5;
+					const boundaryRatio = contrast === 'more' ? 4.5 : 3;
+					for (const bundle of themeSurfaceBundles) {
+						const surface = theme.surfaces[bundle];
+						expect(contrastRatio(surface.foreground, surface.background)).toBeGreaterThanOrEqual(
+							textRatio - 0.02
+						);
+						expect(
+							contrastRatio(surface.foregroundMuted, surface.background)
+						).toBeGreaterThanOrEqual(textRatio - 0.02);
+						expect(contrastRatio(surface.border, surface.background)).toBeGreaterThanOrEqual(
+							boundaryRatio - 0.02
+						);
+					}
+					for (const tone of themeTones)
+						expect(
+							contrastRatio(theme.tones[tone].onSolid, theme.tones[tone].solid)
+						).toBeGreaterThanOrEqual(4.48);
 				}
-				for (const tone of themeTones)
-					expect(
-						contrastRatio(theme.tones[tone].onSolid, theme.tones[tone].solid)
-					).toBeGreaterThanOrEqual(4.48);
+	});
+
+	it('keeps every temperament surface level distinct in light and dark appearances', () => {
+		for (const appearance of ['light', 'dark'] as const)
+			for (const temperament of Object.keys(builtInTemperaments) as BuiltInTemperament[]) {
+				const theme = resolvePreset(temperament, appearance);
+				const levels = [0, 1, 2, 3].map(
+					(level) => theme.surfaces[level as 0 | 1 | 2 | 3].background.oklch.l
+				);
+				for (let index = 1; index < levels.length; index++)
+					expect(levels[index]! - levels[index - 1]!).toBeGreaterThanOrEqual(0.0039);
 			}
+	});
+
+	it('gives named temperaments distinct tonal, chromatic, state, and status behavior', () => {
+		for (const appearance of ['light', 'dark'] as const) {
+			const balanced = resolvePreset('balanced', appearance);
+			const restrained = resolvePreset('restrained', appearance);
+			const expressive = resolvePreset('expressive', appearance);
+			const dramatic = resolvePreset('dramatic', appearance);
+			const soft = resolvePreset('soft', appearance);
+			const stark = resolvePreset('stark', appearance);
+			const monochrome = resolvePreset('monochrome', appearance);
+
+			expect(surfaceSpan(soft)).toBeLessThan(surfaceSpan(restrained));
+			expect(surfaceSpan(restrained)).toBeLessThan(surfaceSpan(balanced));
+			expect(surfaceSpan(balanced)).toBeLessThan(surfaceSpan(expressive));
+			expect(surfaceSpan(expressive)).toBeLessThan(surfaceSpan(dramatic));
+			expect(surfaceSpan(dramatic)).toBeLessThan(surfaceSpan(stark));
+
+			expect(stateSpan(soft)).toBeLessThan(stateSpan(restrained));
+			expect(stateSpan(restrained)).toBeLessThan(stateSpan(balanced));
+			expect(stateSpan(balanced)).toBeLessThan(stateSpan(expressive));
+			expect(stateSpan(expressive)).toBeLessThan(stateSpan(dramatic));
+			expect(stateSpan(dramatic)).toBeLessThan(stateSpan(stark));
+
+			expect(soft.tones.accent.solid.oklch.c).toBeLessThan(restrained.tones.accent.solid.oklch.c);
+			expect(dramatic.tones.accent.solid.oklch.c).toBeLessThan(
+				expressive.tones.accent.solid.oklch.c
+			);
+			expect(expressive.tones.info.solid.oklch.c).toBeGreaterThan(
+				balanced.tones.info.solid.oklch.c
+			);
+			for (const tone of themeTones) expect(monochrome.tones[tone].solid.oklch.c).toBe(0);
+		}
 	});
 
 	it('accepts every documented context-free color family and DTCG shape', () => {
@@ -111,7 +161,7 @@ describe('deterministic theme resolution', () => {
 			accent: theme.tokens['accent-solid'],
 			medium: theme.tokens['control-height-md']
 		}).toEqual({
-			fingerprint: 'dp6hgtwatsm2pm6nddi8-76m-cbii8pbncmkbiazt7a',
+			fingerprint: 'nhaoymziq8-mlyc5msugfmy_6iu3wnwfqwn-sbcxig8',
 			key: 'oklch(0.54 0.09 185)',
 			canvas: 'oklch(0.97 0.0108 185)',
 			accent: 'oklch(0.54 0.09 185)',
@@ -150,3 +200,21 @@ describe('deterministic theme resolution', () => {
 		).toThrow(ThemeResolutionError);
 	});
 });
+
+function resolvePreset(
+	temperament: BuiltInTemperament,
+	appearance: ThemeAppearance
+): ResolvedTheme {
+	return resolveTheme({
+		source: { keyColor: '#167a75', temperament },
+		environment: { appearance, contrast: 'standard', motion: 'full' }
+	});
+}
+
+function surfaceSpan(theme: ResolvedTheme): number {
+	return theme.surfaces[3].background.oklch.l - theme.surfaces[0].background.oklch.l;
+}
+
+function stateSpan(theme: ResolvedTheme): number {
+	return Math.abs(theme.tones.accent.solidActive.oklch.l - theme.tones.accent.solid.oklch.l);
+}

@@ -30,13 +30,25 @@ export function createSurfaces(
 	const light = source.appearance === 'light',
 		interval = source.temperament.surfaceInterval,
 		cap = light ? 0.995 : 0.42,
-		base = light ? 0.02 : 0.03;
+		origin = light
+			? clamp(canvas.oklch.l - interval * 0.75, 0.04, cap - 0.015)
+			: clamp(canvas.oklch.l + 0.02, 0.04, cap - 0.015),
+		// Light canvases have little headroom before white. Centering the hierarchy around the canvas
+		// preserves every temperament's interval instead of clipping all raised surfaces to one value.
+		step = Math.min(Math.max(interval * (light ? 0.45 : 0.65), 0.004), (cap - origin) / 3);
 	const levels: Record<string, readonly [number, number]> = {
-		0: [clamp(canvas.oklch.l + base, 0.04, cap), 1],
-		1: [clamp(canvas.oklch.l + base + interval, 0.04, cap), 0.92],
-		2: [clamp(canvas.oklch.l + base + 2 * interval, 0.04, cap), 0.84],
-		3: [clamp(canvas.oklch.l + base + 3 * interval, 0.04, cap), 0.76],
-		sunken: [clamp(canvas.oklch.l - interval, 0.04, cap), 1]
+		0: [origin, 1],
+		1: [origin + step, 0.92],
+		2: [origin + 2 * step, 0.84],
+		3: [origin + 3 * step, 0.76],
+		sunken: [
+			clamp(
+				light ? origin - Math.max(0.008, interval * 0.5) : canvas.oklch.l - interval,
+				0.04,
+				cap
+			),
+			1
+		]
 	};
 	levels.overlay = levels[2]!;
 	const result = Object.create(null) as Record<
@@ -124,7 +136,9 @@ export function toneFamilies(
 	accentChroma: number,
 	temperament: ThemeTemperament
 ): Record<ThemeTone, { h: number; c: number }> {
-	const statusChroma = Math.min(Math.max(accentChroma * 0.85, 0.1), temperament.accentChromaCap);
+	// Status intensity follows the temperament. A fixed 0.1 floor previously made nearly every
+	// preset's statuses equally saturated even when its accent and neutral relationships differed.
+	const statusChroma = Math.min(Math.max(accentChroma * 0.9, 0.04), temperament.accentChromaCap);
 	return {
 		neutral: { h: neutral.oklch.h, c: neutral.oklch.c },
 		accent: { h: key.oklch.h, c: accentChroma },
@@ -185,13 +199,25 @@ export function createTone(
 		undefined,
 		source.appearance
 	);
+	// Move states away from the selected on-solid foreground. Appearance alone is insufficient:
+	// light accents may use black text and dark accents may use white, which previously drove every
+	// dark state into the same contrast boundary and erased the temperament's state interval.
+	const solidDirection = solidPair.onSolid.oklch.l > 0.5 ? -1 : 1;
 	const solidHover = resolveSolid(
-		{ l: clamp(solidPair.solid.oklch.l + d * s, 0.001, 0.999), c: family.c, h: family.h },
+		{
+			l: clamp(solidPair.solid.oklch.l + solidDirection * s, 0.001, 0.999),
+			c: family.c,
+			h: family.h
+		},
 		solidPair.onSolid,
 		source.appearance
 	).solid;
 	const solidActive = resolveSolid(
-		{ l: clamp(solidPair.solid.oklch.l + d * 2 * s, 0.001, 0.999), c: family.c, h: family.h },
+		{
+			l: clamp(solidPair.solid.oklch.l + solidDirection * 2 * s, 0.001, 0.999),
+			c: family.c,
+			h: family.h
+		},
 		solidPair.onSolid,
 		source.appearance
 	).solid;
