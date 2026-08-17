@@ -4952,7 +4952,7 @@ func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *test
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "rows.map((row) => __exactRenderProgram") ||
-		!strings.Contains(response.Code, "[() => row.id, () => row.id]") ||
+		!strings.Contains(response.Code, "__exactSlot => __exactSlot === 0 ? row.id : row.id") ||
 		!strings.Contains(response.Code, "title: row.id }, row.id") {
 		t.Fatalf("declarative collection did not preserve direct values: %s", response.Code)
 	}

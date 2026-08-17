@@ -44,7 +44,7 @@ type BrandedRenderProgram = ExactRenderProgram & { readonly [renderProgramBrand]
 /** Per-instance readers and generic fallback joined to one cached compiled program. */
 export type ExactRenderProgramInvocation = Readonly<{
 	program: BrandedRenderProgram;
-	readers: readonly (() => unknown)[];
+	readers: readonly (() => unknown)[] | ((index: number) => unknown);
 	/** Generic recovery retained only when the artifact can execute outside the closed client path. */
 	fallback?: () => VNode;
 }>;
@@ -71,7 +71,7 @@ export function compiledRenderProgramCacheSize(): number {
 export function createCompiledRenderProgram(
 	cacheKey: string,
 	createProgram: () => ExactRenderProgram,
-	readers: readonly (() => unknown)[],
+	readers: readonly (() => unknown)[] | ((index: number) => unknown),
 	fallback?: () => VNode
 ): VNode {
 	let branded = programs.get(cacheKey);
@@ -116,12 +116,23 @@ export function readRenderProgram(vnode: VNode): ExactRenderProgramInvocation | 
 		!invocation.program ||
 		invocation.program[renderProgramBrand] !== true ||
 		invocation.program.version !== 1 ||
-		!Array.isArray(invocation.readers) ||
+		(!Array.isArray(invocation.readers) && typeof invocation.readers !== 'function') ||
 		(invocation.fallback !== undefined && typeof invocation.fallback !== 'function') ||
-		invocation.readers.length !== invocation.program.slots.length
+		(Array.isArray(invocation.readers) &&
+			invocation.readers.length !== invocation.program.slots.length)
 	)
 		return undefined;
 	return invocation as ExactRenderProgramInvocation;
+}
+
+/** Evaluates one invocation-local slot through either legacy readers or a combined dispatcher. */
+export function readRenderProgramSlot(
+	invocation: ExactRenderProgramInvocation,
+	index: number
+): unknown {
+	return typeof invocation.readers === 'function'
+		? invocation.readers(index)
+		: invocation.readers[index]!();
 }
 
 /** Materializes the region-local generic path after an executor rejection. */

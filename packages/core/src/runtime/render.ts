@@ -5,6 +5,7 @@ export {
 	compiledRenderProgramCacheSize,
 	createCompiledRenderProgram,
 	readRenderProgram,
+	readRenderProgramSlot,
 	renderProgramFallback,
 	type ExactRenderProgram,
 	type ExactRenderProgramInvocation,

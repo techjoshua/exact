@@ -107,7 +107,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	arguments := []*ast.Node{
 		lowering.factory.NewStringLiteral(programCacheKey, ast.TokenFlagsNone),
 		lowering.arrow(program),
-		lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false),
+		lowering.renderProgramReaders(readers),
 	}
 	if lowering.target != TargetClient ||
 		lowering.contractProjection == ComponentContractProjectionComplete {
@@ -121,6 +121,43 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		arguments = append(arguments, lowering.arrow(fallback))
 	}
 	return lowering.call(lowering.names.renderProgram, arguments)
+}
+
+// renderProgramReaders combines multi-slot readers into one component-local dispatcher. Each slot
+// still executes under its own reactive observation; only the JavaScript function definitions are
+// shared, avoiding a branch for the common zero- and one-slot programs.
+func (lowering *jsxLowering) renderProgramReaders(readers []*ast.Node) *ast.Node {
+	if len(readers) <= 1 {
+		return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false)
+	}
+	for _, reader := range readers {
+		if !ast.IsArrowFunction(reader) || ast.IsBlock(reader.AsArrowFunction().Body) {
+			return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false)
+		}
+	}
+	index := lowering.factory.NewIdentifier("__exactSlot")
+	value := readers[len(readers)-1].AsArrowFunction().Body
+	for readerIndex := len(readers) - 2; readerIndex >= 0; readerIndex-- {
+		value = lowering.conditional(
+			lowering.binary(
+				index,
+				ast.KindEqualsEqualsEqualsToken,
+				lowering.factory.NewNumericLiteral(strconv.Itoa(readerIndex), ast.TokenFlagsNone),
+			),
+			readers[readerIndex].AsArrowFunction().Body,
+			value,
+		)
+	}
+	parameter := lowering.factory.NewParameterDeclaration(nil, nil, index, nil, nil, nil)
+	return lowering.factory.NewArrowFunction(
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{parameter}),
+		nil,
+		nil,
+		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+		value,
+	)
 }
 
 // renderProgramParentNamespace resolves the concrete DOM namespace inherited by
