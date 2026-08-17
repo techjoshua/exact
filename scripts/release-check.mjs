@@ -96,8 +96,10 @@ try {
 			await run(reactCompatibility);
 			await run(r3fBrowser);
 		}
-		if (profile === 'full')
+		if (profile === 'full') {
+			await run(task('React Router v6.3 isolated compatibility', ['run', 'test:router-v63']));
 			await run(task('Theme Lab browser acceptance', ['run', 'test:e2e:theme']));
+		}
 	}
 	if (profile === 'full' || profile === 'performance') {
 		for (const benchmark of performanceChecks) await run(benchmark);
