@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generatePath as exactGeneratePath } from './core.js';
-import {
-	createMemoryRouter as createExactMemoryRouter,
-	matchPath as modernMatchPath
-} from './modern.js';
+import { createMemoryRouter as createExactMemoryRouter } from './modern.js';
 import { matchPath as v5MatchPath } from './v5.js';
 
 describe('pinned React Router differential conformance', () => {
@@ -193,15 +190,6 @@ function normalizeV5(value: any): unknown {
 		path: value.path,
 		url: value.url,
 		isExact: value.isExact,
-		params: value.params
-	};
-}
-
-function normalizeModern(value: any): unknown {
-	if (!value) return null;
-	return {
-		pathname: value.pathname,
-		pathnameBase: value.pathnameBase,
 		params: value.params
 	};
 }

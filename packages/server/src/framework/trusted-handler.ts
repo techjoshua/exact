@@ -1,15 +1,13 @@
 import type {
-	ExactInvocationRequest,
 	ExactInvocationHandler,
 	ExactInvocationResult,
-	ExactManualInvocationResult,
-	ExactServerContext
+	ExactManualInvocationResult
 } from '../types.js';
 import { normalizeExactManualResult } from '../trusted-html.js';
 
 const frameworkHandlerBrand = Symbol.for('@exactjs/server/framework-handler');
 
-type BrandedFrameworkHandler = Function & { [frameworkHandlerBrand]?: true };
+type BrandedFrameworkHandler = ExactInvocationHandler & { [frameworkHandlerBrand]?: true };
 
 /** Server handler whose HTML provenance is owned by the compiler or SSR renderer. */
 export type ExactFrameworkInvocationHandler = ExactInvocationHandler;
@@ -28,7 +26,7 @@ export function markExactFrameworkInvocationHandler<T extends ExactFrameworkInvo
 }
 
 /** Returns whether a handler was created by a trusted framework renderer boundary. */
-export function isExactFrameworkInvocationHandler(handler: Function): boolean {
+export function isExactFrameworkInvocationHandler(handler: ExactInvocationHandler): boolean {
 	return (handler as BrandedFrameworkHandler)[frameworkHandlerBrand] === true;
 }
 
