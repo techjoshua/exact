@@ -26,6 +26,7 @@
 		"@exactjs/request": "^0.1.0",
 		"@exactjs/server": "^0.1.0",
 		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/theme": "^0.1.0",
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {
