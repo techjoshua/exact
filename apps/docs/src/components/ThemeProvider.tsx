@@ -1,4 +1,5 @@
 import type { Child, Component } from '@exactjs/core';
+import { _ } from '@exactjs/jsx';
 import {
 	isThemePreference,
 	ThemeContext,
@@ -8,12 +9,10 @@ import {
 
 function persistTheme(preference: ThemePreference) {
 	if (preference === 'system') {
-		document.documentElement.removeAttribute('data-theme');
 		localStorage.removeItem('exact-docs-theme');
 		return;
 	}
 
-	document.documentElement.dataset.theme = preference;
 	localStorage.setItem('exact-docs-theme', preference);
 }
 
@@ -40,5 +39,14 @@ export function ThemeProvider(
 		if (stored && isThemePreference(stored)) theme.setPreference(stored);
 	});
 
-	return () => props.children;
+	return () => (
+		<_
+			theme:scope
+			theme:appearance={this.state.preference}
+			theme:tonic="teal"
+			theme:temperament="restrained"
+		>
+			{props.children}
+		</_>
+	);
 }

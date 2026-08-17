@@ -39,7 +39,8 @@ export function ThemeProposalPage(this: Component<{}>) {
 			<Callout title="Implemented as exact-theme/1">
 				The package, reactive scopes, CSS variables, enhancements, override validation, and exterior
 				derivation APIs are available now. <a href="#/examples/theme-lab">Open the Theme Lab</a> to
-				change root and nested sources live.
+				change root and nested sources live. This documentation shell also uses a reactive root
+				theme scope for its persisted appearance preference and application chrome.
 			</Callout>
 
 			<section>

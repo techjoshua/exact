@@ -7,8 +7,9 @@ export function ThemeControl(this: Component<{}>) {
 
 	return () => (
 		<label className="theme-control">
-			<span>Appearance</span>
+			<span theme:text="supporting">Appearance</span>
 			<select
+				theme:field="subtle"
 				value={theme.preference}
 				onChange={(event) => {
 					const preference = event.currentTarget.value;
