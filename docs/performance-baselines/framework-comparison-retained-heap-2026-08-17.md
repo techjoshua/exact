@@ -540,9 +540,34 @@ bundle and therefore does not satisfy this performance recommendation.
 
 ### Function-count follow-up final verification
 
-The final clean 50-pass run retained the accepted combined-reader result: heap was 2,833,392 B
-(-3,028 B from the preceding committed baseline), FCP remained 48 ms, optimistic feedback remained
-1.9 ms, settlement improved from 13.8 ms to 13.6 ms, and navigation moved from 32.6 ms to 33.9 ms.
-The clean build measurement moved from 4,134.1 ms to 4,278.8 ms. Timing differences at this scale
-remain descriptive; the deterministic accepted changes are 20 fewer V8-visible functions, 15 fewer
-invoked functions, and lower retained heap. Final raw run: `final-functions-framework-50.json`.
+A commit-isolated A/B subsequently compared `7f603329` with the combined-reader commit `4a4533f7`.
+Each checkout received a complete repository build before measurement so ignored compiler and runtime
+artifacts could not cross-contaminate the result. Three paired rounds alternated commit order and
+collected 50 browser samples plus one clean comparison build per commit in each round. Every artifact
+reported the expected commit, a clean worktree, and 50 eXact samples.
+
+Across the pooled 150 browser samples per commit, the combined-reader result changed retained heap
+from 2,836,420 B to 2,833,392 B (-3,028 B, -0.11%). FCP p50 through p95 remained unchanged. The
+remaining timing distributions were mixed:
+
+| Metric              | Percentile |   Before |    After |       Change |
+| ------------------- | ---------: | -------: | -------: | -----------: |
+| Navigation          |        p50 |  33.5 ms |  33.3 ms | -0.2 ms     |
+| Navigation          |        p90 |  35.9 ms |  36.4 ms | +0.5 ms     |
+| Navigation          |        p95 |  37.0 ms |  37.5 ms | +0.5 ms     |
+| Optimistic feedback |        p50 |   1.9 ms |   1.8 ms | -0.1 ms     |
+| Optimistic feedback |        p95 |   2.7 ms |   2.8 ms | +0.1 ms     |
+| Settlement          |        p50 |  13.5 ms |  13.6 ms | +0.1 ms     |
+| Settlement          |        p95 |  15.0 ms |  14.7 ms | -0.3 ms     |
+
+The three clean-build observations were 4,265.2/4,192.8/4,115.9 ms before and
+4,184.6/4,370.2/4,282.3 ms after. Their medians differ by +89.4 ms (+2.13%), but the paired deltas
+were -80.6, +177.4, and +166.3 ms. Treat this as a possible build regression requiring more build
+observations, not a stable attributed cost. Likewise, the browser result supports the deterministic
+heap reduction but does not establish a broad timing win: navigation p50 improved while its p90/p95
+tails worsened, and interaction changes were sub-millisecond and directionally mixed.
+
+Raw A/B runs: `ab-valid-baseline-r1-50.json` through `ab-valid-baseline-r3-50.json` and
+`ab-valid-after-r1-50.json` through `ab-valid-after-r3-50.json`. The earlier
+`final-functions-framework-50.json` remains a valid clean measurement of the final state, but its
+timing differences are not used alone to attribute the combined-reader change.
