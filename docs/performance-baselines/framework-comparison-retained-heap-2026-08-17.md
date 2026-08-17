@@ -537,3 +537,12 @@ compiler fact propagated into component construction; opaque/external values rem
 collection-capable, while a proven object/array-only graph may select a narrow proxy entry. Until
 that fact exists, moving the implementations into separate files changes layout but not the loaded
 bundle and therefore does not satisfy this performance recommendation.
+
+### Function-count follow-up final verification
+
+The final clean 50-pass run retained the accepted combined-reader result: heap was 2,833,392 B
+(-3,028 B from the preceding committed baseline), FCP remained 48 ms, optimistic feedback remained
+1.9 ms, settlement improved from 13.8 ms to 13.6 ms, and navigation moved from 32.6 ms to 33.9 ms.
+The clean build measurement moved from 4,134.1 ms to 4,278.8 ms. Timing differences at this scale
+remain descriptive; the deterministic accepted changes are 20 fewer V8-visible functions, 15 fewer
+invoked functions, and lower retained heap. Final raw run: `final-functions-framework-50.json`.
