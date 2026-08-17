@@ -51,6 +51,10 @@ Callable analysis was separated into graph/cache coordination, direct fact colle
 fixed-point effect/environment resolution. `callable_effects.go` fell from 1,983 to 744
 checker-counted lines; all three resulting owners are below the standard limit.
 
+Policy analysis was separated into graph coordination/annotations, secret-flow analysis, and
+subject propagation/task enforcement. `policy.go` fell from 2,167 to 871 checker-counted lines;
+each resulting owner is below the standard limit.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,
