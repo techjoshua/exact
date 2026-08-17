@@ -1,0 +1,78 @@
+{
+	"name": "@exactjs/time",
+	"version": "0.1.0",
+	"description": "Clock-derived reactive view enhancements for eXact",
+	"type": "module",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"capability.d.ts",
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./enhancements": {
+			"types": "./capability.d.ts",
+			"default": "./dist/enhancements.js"
+		},
+		"./internal": {
+			"types": "./dist/internal.d.ts",
+			"default": "./dist/internal.js"
+		},
+		"./testing": {
+			"types": "./dist/testing.d.ts",
+			"default": "./dist/testing.js"
+		},
+		"./language": {
+			"types": "./dist/language.d.ts",
+			"node": "./dist/language.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"exact": {
+		"language": {
+			"schemaVersion": 1,
+			"analyzer": {
+				"protocolVersion": "^1.0.0",
+				"subpath": "./language",
+				"capabilities": [
+					"diagnostics",
+					"completions",
+					"hover",
+					"inlayHints"
+				],
+				"projection": [
+					"sourceText",
+					"enhancements",
+					"jsx",
+					"expressions",
+					"types"
+				]
+			}
+		}
+	},
+	"exactComponentLibrary": {
+		"protocol": 1,
+		"build": "./dist/exact-component-build.json"
+	},
+	"dependencies": {
+		"@exactjs/component-library": "^0.1.0",
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/language-extension-api": "^0.1.0",
+		"@exactjs/reactive": "^0.1.0"
+	},
+	"scripts": {
+		"build": "tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

@@ -162,6 +162,11 @@ export function ComponentsPage(this: Component<{}>) {
 					receives no separate component identity, state, lifecycle, or task scope. Module-level
 					shared or bound render callables are not component views.
 				</p>
+				<p>
+					Lexical capabilities remain attributed to that owner. A reusable micro-component may, for
+					example, contain a <code>time:update</code> range; each call receives its own range inputs
+					without acquiring component lifecycle or identity.
+				</p>
 			</section>
 			<section>
 				<h2>JS-eXtra</h2>

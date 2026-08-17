@@ -17,6 +17,10 @@ The overlay implements the production compiler host:
 - eXact analysis, placement, policy, artifact partitioning, JSX and task
   lowering, generated validation, and statically linked extensions run against
   the native AST;
+- component emission retains one explicit visitor in `jsx_lowering.go`; focused
+  sibling modules own element/render-program, partition, property, collection,
+  reactivity, derived-value, task, state-write, stable-identity, and runtime
+  capability-import lowering without adding handler dispatch or extra AST walks;
 - component initialization placement excludes owned task bodies, while client task and
   server continuation requirements still select dual artifacts and public
   resumption contracts;

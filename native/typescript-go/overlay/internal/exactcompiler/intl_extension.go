@@ -1999,7 +1999,7 @@ func buildIntlExpression(
 	}
 	if ast.IsConditionalExpression(expression) {
 		conditional := expression.AsConditionalExpression()
-		selection, supported := analyzeIntlSelection(sourceFile, conditional.Condition)
+		selection, supported := analyzeIntlSelection(sourceFile, typeChecker, conditional.Condition)
 		if !supported {
 			return nil, false
 		}
@@ -2444,12 +2444,39 @@ func analyzeNativeIntlFormatter(expression *ast.Node, typeChecker *checker.Check
 	}
 	operation := call.Expression.AsPropertyAccessExpression()
 	method := operation.Name().Text()
-	if method == "toLocaleString" {
+	if method == "toLocaleString" || method == "toLocaleDateString" || method == "toLocaleTimeString" {
 		temporalKind := intlTemporalExpressionKind(operation.Expression, typeChecker)
-		if temporalKind != "" && temporalKind != "temporal-duration" {
+		typeName := ""
+		if typeChecker != nil {
+			typeName = typeChecker.TypeToString(typeChecker.GetTypeAtLocation(operation.Expression))
+		}
+		if method == "toLocaleString" && temporalKind == "temporal-duration" {
 			options, valid := intlObjectOptions(intlArgument(call.Arguments, 1))
 			if !valid {
 				return nil, "", nil, false
+			}
+			return []*ast.Node{operation.Expression}, temporalKind, map[string]any{
+				"kind": "duration", "options": options,
+			}, true
+		}
+		if (temporalKind != "" && temporalKind != "temporal-duration") || typeName == "Date" {
+			options, valid := intlObjectOptions(intlArgument(call.Arguments, 1))
+			if !valid {
+				return nil, "", nil, false
+			}
+			if typeName == "Date" && len(options) == 0 {
+				options = map[string]any{"year": "numeric", "month": "numeric", "day": "numeric"}
+				if method != "toLocaleDateString" {
+					options["hour"], options["minute"], options["second"] = "numeric", "numeric", "numeric"
+				}
+				if method == "toLocaleTimeString" {
+					delete(options, "year")
+					delete(options, "month")
+					delete(options, "day")
+				}
+			}
+			if typeName == "Date" {
+				temporalKind = "temporal-instant"
 			}
 			return []*ast.Node{operation.Expression}, temporalKind, map[string]any{
 				"kind": "date-time", "temporalKind": temporalKind, "options": options,
@@ -2498,6 +2525,13 @@ func analyzeNativeIntlFormatter(expression *ast.Node, typeChecker *checker.Check
 			formatter["range"] = true
 		}
 		return values, "temporal-date-time", formatter, true
+	case "DurationFormat":
+		if rangeFormat {
+			return nil, "", nil, false
+		}
+		return values, "temporal-duration", map[string]any{
+			"kind": "duration", "options": options,
+		}, true
 	case "NumberFormat":
 		style, _ := options["style"].(string)
 		if style == "currency" {
@@ -2650,34 +2684,42 @@ type intlSelection struct {
 	trueKey     string
 }
 
-func analyzeIntlSelection(sourceFile *ast.SourceFile, condition *ast.Node) (intlSelection, bool) {
+func analyzeIntlSelection(
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	condition *ast.Node,
+) (intlSelection, bool) {
 	condition = unwrapRenderExpression(condition)
+	if ast.IsBinaryExpression(condition) {
+		binary := condition.AsBinaryExpression()
+		if binary.OperatorToken.Kind == ast.KindEqualsEqualsEqualsToken ||
+			binary.OperatorToken.Kind == ast.KindEqualsEqualsToken {
+			leftValue, leftType, leftLiteral := intlFiniteLiteral(sourceFile, binary.Left)
+			rightValue, rightType, rightLiteral := intlFiniteLiteral(sourceFile, binary.Right)
+			selector, literal, bindingType := binary.Left, rightValue, rightType
+			if leftLiteral {
+				selector, literal, bindingType = binary.Right, leftValue, leftType
+			} else if !rightLiteral {
+				selector = nil
+			}
+			if selector != nil && intlScalarExpression(selector) {
+				selection, trueKey := "exact", literal
+				if bindingType == "number" && literal == "1" {
+					selection, trueKey = "plural-cardinal", "=1"
+				}
+				return intlSelection{selector, bindingType, selection, trueKey}, true
+			}
+		}
+	}
 	if intlScalarExpression(condition) && !ast.IsStringLiteral(condition) && !ast.IsNumericLiteral(condition) {
 		return intlSelection{condition, "boolean", "boolean", "true"}, true
 	}
-	if !ast.IsBinaryExpression(condition) {
-		return intlSelection{}, false
+	if typeChecker != nil &&
+		typeChecker.GetTypeAtLocation(condition).Flags()&checker.TypeFlagsBooleanLike != 0 &&
+		safeReactiveInitializer(condition, sourceFile, typeChecker) {
+		return intlSelection{condition, "boolean", "boolean", "true"}, true
 	}
-	binary := condition.AsBinaryExpression()
-	if binary.OperatorToken.Kind != ast.KindEqualsEqualsEqualsToken && binary.OperatorToken.Kind != ast.KindEqualsEqualsToken {
-		return intlSelection{}, false
-	}
-	leftValue, leftType, leftLiteral := intlFiniteLiteral(sourceFile, binary.Left)
-	rightValue, rightType, rightLiteral := intlFiniteLiteral(sourceFile, binary.Right)
-	selector, literal, bindingType := binary.Left, rightValue, rightType
-	if leftLiteral {
-		selector, literal, bindingType = binary.Right, leftValue, leftType
-	} else if !rightLiteral {
-		return intlSelection{}, false
-	}
-	if !intlScalarExpression(selector) {
-		return intlSelection{}, false
-	}
-	selection, trueKey := "exact", literal
-	if bindingType == "number" && literal == "1" {
-		selection, trueKey = "plural-cardinal", "=1"
-	}
-	return intlSelection{selector, bindingType, selection, trueKey}, true
+	return intlSelection{}, false
 }
 
 func intlFiniteLiteral(sourceFile *ast.SourceFile, expression *ast.Node) (string, string, bool) {

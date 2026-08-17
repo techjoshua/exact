@@ -84,6 +84,14 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 	const eventDate = new Date('2026-08-08T16:30:00Z');
 	const rangeStart = new Date('2026-08-08T16:30:00Z');
 	const rangeEnd = new Date('2026-08-12T19:00:00Z');
+	const releaseDate = new Date('2026-08-15T12:00:00Z');
+	const releaseSeconds = Math.floor((Date.now() - releaseDate.getTime()) / 1_000);
+	const releaseMinutes = Math.floor((Date.now() - releaseDate.getTime()) / 60_000);
+	const releaseHours = Math.floor((Date.now() - releaseDate.getTime()) / 3_600_000);
+	const releaseDays = Math.floor((Date.now() - releaseDate.getTime()) / 86_400_000);
+	const releaseWeeks = Math.floor((Date.now() - releaseDate.getTime()) / 604_800_000);
+	const releaseMonths = Math.floor((Date.now() - releaseDate.getTime()) / 2_592_000_000);
+	const releaseYears = Math.floor((Date.now() - releaseDate.getTime()) / 31_536_000_000);
 
 	return () => (
 		<IntlProvider environment={props.environment}>
@@ -237,6 +245,46 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 												: Math.abs(props.publishedAgo.seconds) > 0
 													? `${Math.abs(props.publishedAgo.seconds)} second${Math.abs(props.publishedAgo.seconds) === 1 ? '' : 's'} ago`
 													: 'just now'}
+						.
+					</p>
+					<p intl:message="live-relative-time">
+						Testbed release:
+						<time time:update>
+							{Math.abs(releaseSeconds) < 60
+								? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+										-releaseSeconds,
+										'second'
+									)
+								: Math.abs(releaseMinutes) < 60
+									? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+											-releaseMinutes,
+											'minute'
+										)
+									: Math.abs(releaseHours) < 24
+										? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+												-releaseHours,
+												'hour'
+											)
+										: Math.abs(releaseDays) < 7
+											? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+													-releaseDays,
+													'day'
+												)
+											: Math.abs(releaseWeeks) < 5
+												? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+														-releaseWeeks,
+														'week'
+													)
+												: Math.abs(releaseMonths) < 12
+													? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+															-releaseMonths,
+															'month'
+														)
+													: new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+															-releaseYears,
+															'year'
+														)}
+						</time>
 						.
 					</p>
 					<p intl:message="display-list">

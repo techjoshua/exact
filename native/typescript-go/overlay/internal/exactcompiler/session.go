@@ -115,10 +115,14 @@ func (s *Session) Execute(request Request) Response {
 	}
 	authoredSource := request.Source
 	packageEnhancementSuffix := ""
-	if request.PackageEnhancementBoundary > 0 &&
-		request.PackageEnhancementBoundary <= len(request.Source) {
-		authoredSource = request.Source[:request.PackageEnhancementBoundary]
-		packageEnhancementSuffix = request.Source[request.PackageEnhancementBoundary:]
+	if request.PackageEnhancementBoundary > 0 {
+		boundary, valid := utf16OffsetToByteOffset(request.Source, request.PackageEnhancementBoundary)
+		if !valid {
+			response.Error = "package enhancement boundary is not a valid UTF-16 source offset"
+			return response
+		}
+		authoredSource = request.Source[:boundary]
+		packageEnhancementSuffix = request.Source[boundary:]
 	}
 	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, authoredSource)
 	normalization, err := normalizeAuthoredSource(fileName, authoredSource)
@@ -128,7 +132,10 @@ func (s *Session) Execute(request Request) Response {
 	}
 	request.Source = normalization.text
 	if packageEnhancementSuffix != "" {
-		request.PackageEnhancementBoundary = len(request.Source)
+		// TypeScript source positions remain UTF-16 code-unit offsets even though Go slices the
+		// transport source by UTF-8 byte offset. Preserve that coordinate system after authored
+		// normalization so virtual package imports remain distinguishable after non-ASCII text.
+		request.PackageEnhancementBoundary = utf16Length(request.Source)
 		request.Source += packageEnhancementSuffix
 	}
 	if request.ConfigFile == "" {
@@ -514,6 +521,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, dynamicComponents.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, partitionPlanDiagnostics(partitionPlan)...)
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
+	response.Diagnostics = append(response.Diagnostics, timeDiagnostics(sourceFile, generation.checker, enhancementImports)...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
@@ -724,6 +732,40 @@ func (s *Session) Execute(request Request) Response {
 	)
 	response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 	return response
+}
+
+// utf16OffsetToByteOffset converts JavaScript string offsets at the process boundary before Go
+// slices UTF-8 source. It rejects offsets inside a surrogate pair or beyond the source.
+func utf16OffsetToByteOffset(source string, offset int) (int, bool) {
+	units := 0
+	for byteOffset, value := range source {
+		if units == offset {
+			return byteOffset, true
+		}
+		width := 1
+		if value > 0xffff {
+			width = 2
+		}
+		if units+width > offset {
+			return 0, false
+		}
+		units += width
+	}
+	if units == offset {
+		return len(source), true
+	}
+	return 0, false
+}
+
+func utf16Length(source string) int {
+	units := 0
+	for _, value := range source {
+		units++
+		if value > 0xffff {
+			units++
+		}
+	}
+	return units
 }
 
 func hasErrorDiagnostic(diagnostics []Diagnostic) bool {

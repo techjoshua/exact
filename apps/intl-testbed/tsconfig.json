@@ -12,6 +12,7 @@
 		{ "path": "../../packages/core" },
 		{ "path": "../../packages/dom" },
 		{ "path": "../../packages/intl" },
+		{ "path": "../../packages/time" },
 		{ "path": "../../packages/intl-analyzer" },
 		{ "path": "../../packages/jsx-runtime" },
 		{ "path": "../../framework-adapters/vite-plugin" }

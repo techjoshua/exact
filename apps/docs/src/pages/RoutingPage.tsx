@@ -111,7 +111,7 @@ export function RoutingPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Choose a location source deliberately</h2>
-				<table>
+				<table className="docs-table">
 					<thead>
 						<tr>
 							<th>Mode</th>

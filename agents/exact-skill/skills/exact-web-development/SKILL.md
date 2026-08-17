@@ -124,6 +124,11 @@ that omitted its catalog or runtime hooks.
   Do not recursively absorb ordinary component output into an enclosing message; use a named
   `intl:fragment` when a component-owned range must move as an opaque exactly-once slot. Read the
   installed package's `AGENTS.md` and `README.md` before configuring catalogs or unit policy.
+- When `@exactjs/theme` is installed, put generated choices on deliberate `Theme` scopes and label
+  portable elements with the finite semantic enhancement roles. Use `ThemeOverride` only for CSS
+  token patches; use `ThemeContext` and a deriver when specialized palettes must react to source
+  changes. Read [theme.md](references/theme.md) before adding theme scopes, controls, charts, or
+  package-wide theme enhancement configuration.
 - Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
   product-specific presentation; build directly on `ErrorContext` only for different capture or
   reset semantics.

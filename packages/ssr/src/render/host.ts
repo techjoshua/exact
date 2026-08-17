@@ -159,8 +159,7 @@ export function primitiveText(children: readonly Child[]): string {
 
 /** Performs the react host props domain operation. */
 export function reactHostProps(context: SsrContext, vnode: VNode): Record<string, unknown> {
-	if (vnode.type !== 'option' || context.selectValue === undefined)
-		return vnode.props;
+	if (vnode.type !== 'option' || context.selectValue === undefined) return vnode.props;
 	const value = String(unwrap(vnode.props.value) ?? primitiveText(vnode.children));
 	const selected = Array.isArray(context.selectValue)
 		? context.selectValue.some((item) => String(unwrap(item)) === value)

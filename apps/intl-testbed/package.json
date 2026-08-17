@@ -17,6 +17,7 @@
 		"@exactjs/dom": "^0.1.0",
 		"@exactjs/intl": "^0.1.0",
 		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/time": "^0.1.0",
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {

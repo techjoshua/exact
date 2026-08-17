@@ -175,6 +175,20 @@ files exist. Ensure the workspace has been built, then request sandbox escalatio
 instead of treating those messages as missing artifacts or changing package resolution to work
 around them.
 
+## Do not orphan Windows development process trees
+
+Do not run a long-lived `npm run dev` command as a blocking automated shell command with a timeout.
+On Windows the npm, command-shell, Vite, language-provider, and native-compiler descendants are not
+one automatically reaped process group; terminating the outer shell can leave the complete server
+tree running without ever delivering Vite's close lifecycle.
+
+Prefer the collaborative preview/browser server lifecycle when it is available. An automated test
+that needs its own server should create and close Vite programmatically in one owning process and
+use `try`/`finally`, as the Theme Lab browser runner does. If a background server is genuinely
+necessary, record its exact PID ownership, stop every process in that owned tree when the task
+finishes or fails, and verify that no task-owned `node`, language-extension runner, or
+`exactc-native` process remains. A shell-command timeout is not cleanup.
+
 ## The seat-belt rule for testing
 
 Treat tests like seat belts: add protection in proportion to the risk of the journey.

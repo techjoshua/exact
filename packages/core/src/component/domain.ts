@@ -12,6 +12,7 @@ import type { ExactRuntimeInspectionOwner } from './inspection.js';
 let activeDomain: ComponentDomain | undefined;
 const resumingDomains = new WeakMap<ComponentDomain, number>();
 const domainCapabilities = new WeakMap<ComponentDomain, ComponentDomainCapabilities>();
+const wallClockUsedDomains = new WeakSet<ComponentDomain>();
 
 /** Public options for creating an application-owned component domain. */
 export type ComponentDomainOptions = ComponentDomainIdentity;
@@ -24,6 +25,8 @@ export type ComponentDomainCapabilities = Readonly<{
 	) => ComponentResumptionActivation | undefined;
 	inspection?: ExactRuntimeInspectionOwner;
 	inspectionActivation?: 'hydration';
+	/** Immutable wall-clock sample shared by one framework-owned render transaction. */
+	wallClockSnapshot?: number;
 }>;
 
 /** Internal construction options used by framework render and hydration boundaries. */
@@ -46,7 +49,10 @@ export function createFrameworkComponentDomain(
 		...(options.dispatchContinuation ? { dispatchContinuation: options.dispatchContinuation } : {}),
 		...(options.resumeComponent ? { resumeComponent: options.resumeComponent } : {}),
 		...(options.inspection ? { inspection: options.inspection } : {}),
-		...(options.inspectionActivation ? { inspectionActivation: options.inspectionActivation } : {})
+		...(options.inspectionActivation ? { inspectionActivation: options.inspectionActivation } : {}),
+		...(options.wallClockSnapshot !== undefined
+			? { wallClockSnapshot: options.wallClockSnapshot }
+			: {})
 	});
 	domainCapabilities.set(domain, capabilities);
 	return domain;
@@ -69,6 +75,22 @@ export function componentDomainResumption(
 /** Reports whether a framework domain activated its root through hydration. */
 export function isHydrationComponentDomain(domain: ComponentDomain): boolean {
 	return domainCapabilities.get(domain)?.inspectionActivation === 'hydration';
+}
+
+/** Returns the request-owned wall-clock sample attached by a server renderer. */
+export function componentDomainWallClockSnapshot(domain: ComponentDomain): number | undefined {
+	return domainCapabilities.get(domain)?.wallClockSnapshot;
+}
+
+/** Marks that an optional clock capability consumed this framework domain's request sample. */
+export function markComponentDomainWallClockUsed(domain: ComponentDomain): void {
+	if (domainCapabilities.get(domain)?.wallClockSnapshot !== undefined)
+		wallClockUsedDomains.add(domain);
+}
+
+/** Reports whether optional clock behavior consumed this framework domain's request sample. */
+export function componentDomainUsesWallClock(domain: ComponentDomain): boolean {
+	return wallClockUsedDomains.has(domain);
 }
 
 function constructComponentDomain(options: ComponentDomainOptions): ComponentDomain {

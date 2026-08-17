@@ -1,4 +1,5 @@
 import { logFrameworkEvent, withTaskObserver, type VNode } from '@exactjs/core';
+import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
 import {
 	createExactBufferedResponse,
@@ -112,7 +113,10 @@ export function renderToStringOwned(
 		chunks,
 		options.state,
 		hydrationTable,
-		context.resourceLinkHeaders
+		context.resourceLinkHeaders,
+		context.componentDomain && componentDomainUsesWallClock(context.componentDomain)
+			? context.wallClockSnapshot
+			: undefined
 	);
 }
 
@@ -133,6 +137,7 @@ export function renderToHydratableString(
 		continuations: options.continuations,
 		resumptions: emittedResumptions,
 		publicContexts: options.publicContexts,
+		wallClockSnapshot: result.wallClockSnapshot,
 		hydrationTable: result.hydrationTable,
 		executionRoot: options.executionRoot,
 		binding: options.binding,

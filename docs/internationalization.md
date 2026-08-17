@@ -219,6 +219,12 @@ declared by the package as a generic analyzer-only enhancement field: the compil
 removes it, while only the intl analyzer assigns its message-slot meaning. It never mounts an intl
 runtime component on the marked child.
 
+Clock progression composes without becoming Intl behavior. A nested `time:update` range lends its
+range-local clock sample to preparation of the enclosing lexical message, so translated native
+`Intl.RelativeTimeFormat` values and authored fallback content update together. The time package
+owns sampling and scheduling; this package continues to own translation and cached locale-sensitive
+formatting. See [Clock-derived views](date-time.md).
+
 Finite relative-duration projections are summarized onto one reactive duration binding. Both the
 nested plain-language fallback and the equivalent source-local array/`find`/
 `Intl.RelativeTimeFormat` helper are supported. Direct `Temporal.Duration` values select duration
