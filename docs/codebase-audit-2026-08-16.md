@@ -25,6 +25,11 @@ Large Go/CSS ceilings are migration controls, not approval of current size: new 
 immediately and listed legacy files cannot grow while cohesive phase splits proceed. Root
 compiler/framework aliases likewise remain only for the documented 0.x compatibility window.
 
+The first follow-on Go decomposition moved normalized-source edit ordering and authored-position
+projection out of `source_normalization.go` into the focused `source_edit_mapping.go` owner. This
+reduced the legacy module from 1,791 to 1,634 checker-counted lines and lowered its enforced ceiling to
+match; state-destructuring and component-computation phases remain the next cohesive split points.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,
