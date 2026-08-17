@@ -12,8 +12,9 @@ type DocsHeaderProps = {
 /** Renders the documentation masthead and delegates shell navigation controls. */
 export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 	return () => (
-		<header className="topbar">
+		<header theme:surface="raised" className="topbar">
 			<button
+				theme:action="quiet"
 				className="mobile-menu-button"
 				type="button"
 				aria-label="Open documentation navigation"
@@ -33,7 +34,12 @@ export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 				<a className="sudoku-link" href="./sudoku.html">
 					<span>Play Sudoku</span> <span aria-hidden="true">{'\u2192'}</span>
 				</a>
-				<button className="search-trigger" type="button" onClick={props.onOpenSearch}>
+				<button
+					theme:action="secondary"
+					className="search-trigger"
+					type="button"
+					onClick={props.onOpenSearch}
+				>
 					<span aria-hidden="true">{'\u2315'}</span> Search
 				</button>
 				<ThemeControl />

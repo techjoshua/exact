@@ -16,6 +16,10 @@ import '@exactjs/theme/styles.css';
 
 An application may activate the enhancement namespace package-wide from `exact.config.ts`. The stylesheet contains one static balanced fallback plus role recipes; it performs no runtime style injection.
 
+The eXact documentation shell uses this same contract for its application chrome. Its persisted
+light, dark, or system preference drives a reactive root `theme:scope`; layout remains docs-owned,
+while shell colors, surfaces, fields, actions, focus, and shadows come from generated theme values.
+
 ## Source and reactivity
 
 Declarative scopes accept the curated tonic names `teal`, `blue`, `violet`, `amber`, `rose`, and `green`, or any opaque context-free CSS Color 4 or DTCG color accepted by `ThemeColor`. The names are conveniences rather than a closed palette. A temperament—`balanced`, `restrained`, `expressive`, `dramatic`, `soft`, `stark`, or `monochrome`—controls chroma, surface, state, and status relationships. Appearance, density, shape, depth, typography, contrast, and motion are independent axes. Every nested source axis inherits when omitted, and each accepts explicit `inherit`, including `theme:tonic` and `theme:temperament`. `system` appearance, contrast, and motion follow their media queries.
