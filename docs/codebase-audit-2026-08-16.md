@@ -7,7 +7,9 @@ Remediation-order items 1–6 have been implemented and promoted into maintained
 1. **Acceptance gates:** source architecture, test typechecking, and formatting are restored.
 2. **Trust and dependencies:** reserved protocol keys are rejected recursively, manual payloads
    require decoders before authorization, authored HTML patches require `unsafeExactHtml()`, and
-   dependency findings are upgraded or governed by owner/expiry policy with no high/critical items.
+   dependency findings are upgraded or governed by owner/expiry policy with no moderate/high/critical
+   items. Vulnerable historical Router v6 fixtures were removed from the installed graph; three
+   comparison-only Svelte-chain low findings remain owner/expiry governed.
 3. **Theme performance:** nearest-first bounded search preserves exhaustive-grid results, initial
    scope resolution is reused, parent revisions are observed, and release budgets cover resolution.
 4. **Release coverage:** all maintained application tests/builds and docs verification are in the
