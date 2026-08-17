@@ -1,13 +1,12 @@
 import {
 	RenderProgram,
 	isVNode,
-	readRenderProgram,
-	renderProgramFallback,
 	unwrap,
 	withComponentDomain,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { readRenderProgram, renderProgramFallback } from '@exactjs/core/runtime/render';
 import { withEffectScope } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';

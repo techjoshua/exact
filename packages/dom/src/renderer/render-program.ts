@@ -1,13 +1,10 @@
+import { isVNode, unwrap, type ComponentInstance, type VNode } from '@exactjs/core';
 import {
-	isVNode,
 	readRenderProgram,
 	renderProgramFallback,
-	unwrap,
-	type ComponentInstance,
 	type ExactRenderProgram,
-	type ExactRenderProgramInvocation,
-	type VNode
-} from '@exactjs/core';
+	type ExactRenderProgramInvocation
+} from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import type { EffectScope } from '@exactjs/reactive';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';

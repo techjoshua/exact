@@ -10,3 +10,6 @@ VNode helpers from the root. Renderer and build-adapter code should prefer the m
 are compatibility aliases during the 0.x deprecation window; they must not be treated as stable
 application contracts. They will be removed from the root at the next breaking release after all
 generated imports and maintained adapters use ownership-specific subpaths.
+
+Render-program construction, inspection, fallback, cache diagnostics, and contracts have completed
+that migration and are available only from `@exactjs/core/runtime/render`.
