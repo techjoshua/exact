@@ -508,3 +508,32 @@ bootstrap can omit mounting only when it proves both that an SSR root is mandato
 closed recovery program exists for every mismatch. The controlled comparison intentionally does
 not assert those stronger application contracts, so specializing it further would benchmark a
 narrower behavior rather than improve the framework implementation.
+
+### Target-operation specialization requires a capability ABI
+
+The target-contribution module contributes 28 static functions, but it is synchronously called by
+mounting, adoption, patching, and teardown. `Target` is also a supported runtime VNode, so replacing
+those calls with no-ops when compiler syntax is absent would break hand-authored target nodes. A
+benchmark-only `@exactjs/dom/basic` import would have the same problem when hydration receives a
+target created outside the compiled entry module.
+
+No implementation or performance delta is claimed. The viable prerequisite is a registered target
+capability: generic renderer sites retain a small fail-closed bridge, the compiler imports the full
+target implementation whenever its component graph can produce `Target`, and the public general DOM
+entry registers it for hand-authored runtime use. That is a cross-package capability ABI requiring
+separate compatibility tests before the 28-function estimate can be tested honestly.
+
+### Collection implementation split remains blocked on compiler facts
+
+The 43-function collection proxy module cannot be removed based only on the collection literals in
+the comparison source. Component props, contexts, public `reactive()` calls, compatibility inputs,
+and values crossing `unknown` or `any` boundaries may introduce Map or Set instances synchronously.
+An object-only runtime selected without whole-component capability facts would return nested
+collections without observation or would need a late dynamic import that cannot preserve a
+synchronous proxy operation.
+
+No implementation or performance delta is claimed. The required first change is a conservative
+compiler fact propagated into component construction; opaque/external values remain
+collection-capable, while a proven object/array-only graph may select a narrow proxy entry. Until
+that fact exists, moving the implementations into separate files changes layout but not the loaded
+bundle and therefore does not satisfy this performance recommendation.
