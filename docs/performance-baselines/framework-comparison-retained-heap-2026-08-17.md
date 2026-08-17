@@ -476,3 +476,19 @@ The unthrottled CPU differences are noise-sized and the 4x profile was mixed; th
 for its deterministic function/closure reduction and small heap improvement, not as evidence of a
 broad desktop startup win. Raw profiles: `startup-cpu-functions-20.json` and
 `step1-dispatch-startup-20.json`. Raw 50-pass comparison: `step1-dispatch-framework-50.json`.
+
+### Prototype conversion experiment rejected
+
+The durable component instance and reactive effect scope on this path already use shared-prototype
+classes. The remaining component activation helper was converted from an instance-owned object to
+an internal prototype-backed class, saving its `update` and `deactivate` function objects per
+component while retaining the three private-state predicate closures.
+
+All 28 comparison scenarios and focused lifecycle tests passed, but the trade was unfavorable.
+Against the combined-reader baseline, retained heap changed from 2,833,392 B to 2,833,152 B (-240
+B), while the client artifact grew by about 490 B raw and 140 B gzip. V8 reported two additional
+emitted and invoked functions. At 1x, compile moved from 22.020 ms to 22.444 ms and evaluation from
+30.382 ms to 31.092 ms; at 6x those metrics improved by 7.496 ms and 8.760 ms respectively. The
+ordinary-startup and artifact costs outweigh the negligible fixture heap saving, so the class was
+reverted. Raw profiles: `step2-activation-class-startup-20.json` and
+`step2-activation-class-framework-50.json`.
