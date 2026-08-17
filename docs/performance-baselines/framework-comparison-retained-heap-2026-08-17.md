@@ -403,3 +403,21 @@ Navigation moved from 35.5 ms to 36.0 ms, FCP from 48 ms to 52 ms, optimistic fe
 ms, settlement moved from 13.6 ms to 13.0 ms, and clean build from 4,602.6 ms to 4,373.0 ms. The
 proof and ownership bookkeeping cost more than the eligible scope records saved on this route, so
 the implementation was reverted. Raw experiment: `raw-1786987577328.json`.
+
+### Recommendation 7: hydration-only configuration projection
+
+The hydration-only entry now selects a bounded decoder whose accepted field inventory excludes
+operation endpoints, continuations, islands, and transports. Those fields remain supported by the
+complete hydration runtime. The narrow decoder rejects an unexpected complete-runtime field rather
+than ignoring it, and retains byte/depth/node ceilings, reactive protocol decoding, build and
+authorization matching, resumption validation, and compact hydration-table validation. All 28
+comparison checks, typechecking, and focused root/config tests passed.
+
+Against the recommendation-2 baseline, retained heap moved from 2,838,644 B to 2,836,420 B (-2,224
+B, -0.08%). The client artifact moved from 219,061 B / 65,687 B gzip to 222,356 B / 65,896 B gzip
+(+3,295 B raw, +209 B gzip). Navigation was effectively flat (35.5 ms to 35.6 ms), FCP remained 48
+ms, optimistic feedback moved from 1.9 ms to 1.8 ms, settlement from 13.6 ms to 14.0 ms, and clean
+build from 4,602.6 ms to 4,209.9 ms. The result is retained because it removes executed general
+decoder work with neutral normal-path timing; the 0.32% gzip increase and duplicated schema surface
+remain costs to revisit if a generated decoder can share more primitives without restoring general
+field reachability. Raw after-run: `raw-1786987873152.json`.

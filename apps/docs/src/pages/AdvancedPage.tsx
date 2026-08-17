@@ -139,6 +139,11 @@ export function AdvancedPage(this: Component<{}>) {
 					values allocate retained property observers.
 				</p>
 				<p>
+					The hydration-only client accepts only its compiler-declared root configuration fields.
+					Transport, continuation, and island fields remain exclusive to the complete runtime and
+					cause the narrow document configuration to fail closed rather than being ignored.
+				</p>
+				<p>
 					The compiler recognizes client islands whose initial browser responsibility is limited to
 					bounded click, submit, input, change, or focus handling and reactive form bindings. SSR
 					emits the real inert control, and the generated hydration registration loads that

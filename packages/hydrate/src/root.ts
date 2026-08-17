@@ -2,6 +2,7 @@ import type { VNode } from '@exactjs/core';
 import type { CoreHydrationRoot, HydrateOptions } from './types.js';
 import { hydrateWithClient } from './runtime/hydration.js';
 import { createHydrationOnlyClient } from './runtime/root-client.js';
+import { resolveRootHydrateOptions } from './root-config.js';
 
 /**
  * Hydrates an SSR root while excluding optional server-operation, patch, and island runtimes.
@@ -12,7 +13,13 @@ export function hydrate(
 	container: Element | Document,
 	options: HydrateOptions = {}
 ): CoreHydrationRoot {
-	return hydrateWithClient(vnode, container, options, createHydrationOnlyClient);
+	return hydrateWithClient(
+		vnode,
+		container,
+		options,
+		createHydrationOnlyClient,
+		resolveRootHydrateOptions
+	);
 }
 
 /**

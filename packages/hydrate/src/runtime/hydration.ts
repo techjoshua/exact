@@ -25,11 +25,15 @@ export function hydrateWithClient<T extends CoreHydrationRoot>(
 	vnode: VNode,
 	container: Element | Document,
 	options: HydrateOptions,
-	createClient: (container: Element, options: HydrateOptions) => T
+	createClient: (container: Element, options: HydrateOptions) => T,
+	resolveOptions: (
+		container: Element,
+		options: HydrateOptions
+	) => HydrateOptions = resolveHydrateOptions
 ): T {
 	const started = options.onProfile ? performance.now() : undefined;
 	try {
-		return hydrateRootWithClient(vnode, container, options, createClient);
+		return hydrateRootWithClient(vnode, container, options, createClient, resolveOptions);
 	} finally {
 		if (started !== undefined) {
 			options.onProfile?.(
@@ -48,7 +52,11 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 	vnode: VNode,
 	container: Element | Document,
 	options: HydrateOptions,
-	createClient: (container: Element, options: HydrateOptions) => T
+	createClient: (container: Element, options: HydrateOptions) => T,
+	resolveOptions: (
+		container: Element,
+		options: HydrateOptions
+	) => HydrateOptions = resolveHydrateOptions
 ): T {
 	// A DOM can be supplied by a window that is not installed on globalThis.
 	// nodeType avoids coupling hydration to that realm's Document constructor.
@@ -75,7 +83,7 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 		);
 		return existing as T;
 	}
-	const resolvedOptions = resolveHydrateOptions(rootContainer, options);
+	const resolvedOptions = resolveOptions(rootContainer, options);
 	const root = createClient(rootContainer, resolvedOptions);
 	vnode = ownedVNode(vnode, root.domain);
 	const work = createDomWorkBudget(resolvedOptions.maxTreeNodes);
