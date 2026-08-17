@@ -608,7 +608,9 @@ func safeReactiveInitializerWithHelpers(
 		case ast.IsNewExpression(candidate):
 			expression := candidate.AsNewExpression().Expression
 			if ast.IsIdentifier(expression) &&
-				(expression.Text() == "Set" || expression.Text() == "Map") &&
+				(expression.Text() == "Set" || expression.Text() == "Map" ||
+					(expression.Text() == "Date" &&
+						(candidate.AsNewExpression().Arguments == nil || len(candidate.AsNewExpression().Arguments.Nodes) == 0))) &&
 				symbolIsOutsideSource(
 					typeChecker.GetSymbolAtLocation(expression),
 					sourceFile,
@@ -684,6 +686,7 @@ func safeDerivedCall(
 	receiverText := strings.TrimSpace(sourceText(sourceFile, member.Expression))
 	if (receiverText == "Array" && name == "isArray") ||
 		(receiverText == "JSON" && (name == "parse" || name == "stringify")) ||
+		(receiverText == "Date" && name == "now") ||
 		(receiverText == "Math" && safeMathMethod(name)) {
 		return symbolIsOutsideSource(
 			typeChecker.GetSymbolAtLocation(member.Expression),
@@ -694,6 +697,9 @@ func safeDerivedCall(
 	display := ""
 	if receiverType != nil {
 		display = typeChecker.TypeToString(receiverType)
+	}
+	if name == "getTime" && (display == "Date" || strings.HasSuffix(display, ".Date")) {
+		return true
 	}
 	if _, safe := safeDerivedStringMethods[name]; safe &&
 		(display == "string" || strings.Contains(display, "String")) {

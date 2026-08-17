@@ -15,6 +15,10 @@
 		"./framework/watch": {
 			"types": "./dist/framework/watch.d.ts",
 			"default": "./dist/framework/watch.js"
+		},
+		"./framework/settlement": {
+			"types": "./dist/framework/settlement.d.ts",
+			"default": "./dist/framework/settlement.js"
 		}
 	},
 	"main": "./dist/index.js",

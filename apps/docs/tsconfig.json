@@ -16,6 +16,8 @@
 		{ "path": "../../packages/react-compat" },
 		{ "path": "../../packages/ssr" },
 		{ "path": "../../component-libraries/router" },
+		{ "path": "../../packages/theme" },
+		{ "path": "../../component-libraries/theme-fixture" },
 		{ "path": "../../framework-adapters/vite-plugin" }
 	],
 	"include": ["src", "vite.config.ts", "exact-options.mjs"]

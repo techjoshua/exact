@@ -33,7 +33,10 @@ export function createHydrationOnlyClient(
 				executionRoot: resolvedOptions.executionRoot,
 				binding: resolvedOptions.binding
 			}),
-		inspectionActivation: 'hydration'
+		inspectionActivation: 'hydration',
+		...(resolvedOptions.wallClockSnapshot === undefined
+			? {}
+			: { wallClockSnapshot: resolvedOptions.wallClockSnapshot })
 	});
 	resolvedOptions.componentDomain = domain;
 	const root: CoreHydrationRoot = {

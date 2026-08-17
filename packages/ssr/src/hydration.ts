@@ -21,6 +21,7 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 			continuations: options.continuations,
 			resumptions: options.resumptions,
 			publicContexts: options.publicContexts,
+			wallClockSnapshot: options.wallClockSnapshot,
 			h: options.hydrationTable,
 			executionRoot: options.executionRoot,
 			binding: options.binding,

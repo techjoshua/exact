@@ -9,7 +9,7 @@ import {
 } from '@exactjs/core';
 import { computed, scheduleWork, watch } from '@exactjs/reactive';
 import { installOwnedEventSubscription } from '../events.js';
-import { updateProps } from '../props.js';
+import { isCompilerFormBindingProp, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { resolveTargetBoundary } from './target-routing.js';
 
@@ -195,6 +195,10 @@ function composeTargetProps(
 		if (key === 'children' || key === 'key') continue;
 		if (key === 'ref') {
 			if (authored.ref !== undefined) result.ref = authored.ref;
+			continue;
+		}
+		if (isCompilerFormBindingProp(key)) {
+			if (key in authored) result[key] = authored[key];
 			continue;
 		}
 		if (/^on[A-Z]/.test(key)) {

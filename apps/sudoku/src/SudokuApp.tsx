@@ -25,31 +25,10 @@ import { themeName } from './themes.js';
 import type { Difficulty, Digit, GameMove, SudokuCommands, SudokuState } from './types.js';
 import { ExactLens } from './components/ExactLens.jsx';
 import { GameControls } from './components/GameControls.jsx';
+import { ProgressOrbit } from './components/ProgressOrbit.jsx';
+import { SudokuBrand } from './components/SudokuBrand.jsx';
 import { SudokuGrid } from './components/SudokuGrid.jsx';
 import { ThemePicker } from './components/ThemePicker.jsx';
-
-type ProgressOrbitProps = {
-	progress: number;
-	compact?: boolean;
-	showLabel?: boolean;
-};
-
-/** Renders the same reactive completion ring in wide and compact layouts. */
-function ProgressOrbit(this: Component<{}>, props: ProgressOrbitProps) {
-	return () => (
-		<div
-			className="progress-orbit"
-			className:progress-orbit-compact={props.compact}
-			style={{
-				background: `conic-gradient(var(--accent) ${props.progress}%, var(--accent-soft) 0)`
-			}}
-			aria-label={`${props.progress}% filled`}
-		>
-			<strong>{props.progress}%</strong>
-			{props.showLabel ? <span>filled</span> : null}
-		</div>
-	);
-}
 
 /** Owns the complete browser-local game, history, timer, preferences, and command surface. */
 export function SudokuApp(this: Component<SudokuState>) {
@@ -305,18 +284,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 			<div className="ambient ambient-one" aria-hidden="true" />
 			<div className="ambient ambient-two" aria-hidden="true" />
 			<header className="topbar">
-				<a className="brand" href="/" aria-label="Sudoku Atelier home">
-					<span className="brand-mark" aria-hidden="true">
-						<span>9</span>
-						<span>3</span>
-						<span>6</span>
-						<span>1</span>
-					</span>
-					<span>
-						<strong>Sudoku Atelier</strong>
-						<small>crafted with eXact</small>
-					</span>
-				</a>
+				<SudokuBrand />
 				<div className="topbar-actions">
 					<span className="theme-label">{themeName(this.state.theme)}</span>
 					<button

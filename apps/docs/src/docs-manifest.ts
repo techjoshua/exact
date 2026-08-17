@@ -7,6 +7,7 @@ import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
 import { ComponentLibraryTrustPage } from './pages/ComponentLibraryTrustPage.jsx';
 import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
+import { DateTimePage } from './pages/DateTimePage.jsx';
 import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { FrameworkComparisonPage } from './pages/FrameworkComparisonPage.jsx';
@@ -34,6 +35,8 @@ import { StatePage } from './pages/StatePage.jsx';
 import { StoryPage } from './pages/StoryPage.jsx';
 import { TasksPage } from './pages/TasksPage.jsx';
 import { TestingPage } from './pages/TestingPage.jsx';
+import { ThemeProposalPage } from './pages/ThemeProposalPage.jsx';
+import { ThemeLabPage } from './pages/ThemeLabPage.jsx';
 
 /** Describes one routable and searchable documentation article. */
 export type DocPage = {
@@ -254,6 +257,23 @@ export const docGroups: DocGroup[] = [
 				component: EnhancementsPage
 			},
 			{
+				path: '/components/theme',
+				label: 'Theming',
+				summary:
+					'Generate reactive semantic themes from compact visual primitives, compose nested surfaces, and derive specialized palettes.',
+				keywords:
+					'theme theming proposal temperament palette OKLCH color CSS variables semantic action surface field text status selection nested reactive chart data colors component library enhancement depth hover active dragging interactive busy disabled overlay',
+				component: ThemeProposalPage
+			},
+			{
+				path: '/components/date-time',
+				label: 'Date & time',
+				summary: 'Progress clock-derived views with compiler-planned shared scheduling.',
+				keywords:
+					'time date clock countdown stopwatch relative time Temporal Intl scheduler auto accuracy disabled manual clock enhancement',
+				component: DateTimePage
+			},
+			{
 				path: '/components/accessibility',
 				label: 'Accessibility',
 				summary:
@@ -339,6 +359,15 @@ export const docGroups: DocGroup[] = [
 	{
 		label: 'Explore',
 		pages: [
+			{
+				path: '/examples/theme-lab',
+				label: 'Theme lab',
+				summary:
+					'Interactively validate generated root and nested themes with portable controls and a derived translucent chart.',
+				keywords:
+					'theme lab interactive key temperament mode contrast nested chart controls semantic',
+				component: ThemeLabPage
+			},
 			{
 				path: '/examples/logo-lab',
 				label: 'Logo lab',

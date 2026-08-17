@@ -25,6 +25,7 @@ These documents describe behavior that exists in the repository today:
 | [gravity.md](gravity.md)                                                         | Pure acceleration fields and physics force registration.                                                  |
 | [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                                                        |
 | [internationalization.md](internationalization.md)                               | Native intl analysis, source-message extraction, XLIFF catalogs, runtime, and shared bundler integration. |
+| [date-time.md](date-time.md)                                                     | Reactive clock-derived views, automatic boundaries, shared scheduling, clocks, and Intl composition.      |
 | [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                                                       |
 | [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.                                  |
 | [microfrontends.md](microfrontends.md)                                           | Implemented trusted microfrontend scope and remaining adapter work.                                       |
@@ -42,6 +43,7 @@ These documents describe behavior that exists in the repository today:
 | [server-context-and-data-policy.md](server-context-and-data-policy.md)           | Context lifetime, placement, residency, sharing, and secret boundaries.                                   |
 | [ssr-hydration.md](ssr-hydration.md)                                             | Current SSR, streaming, hydration, and patch capabilities.                                                |
 | [tasks.md](tasks.md)                                                             | Function-defined tasks, structured lifetime, policy, status, and task ABI.                                |
+| [theme.md](theme.md)                                                             | Deterministic theme resolution, semantic enhancements, nested surfaces, CSS tokens, and derivation.       |
 
 The public learning guide is the eXact docs application under
 [`apps/docs`](../apps/docs). Package-level API entry points live in the
@@ -79,14 +81,16 @@ indefinite exploratory pause.
 |    14 | Serializable partial-prerender resumption                                                           | **Rejected:** ordinary Suspense with progressive SSR already provides the useful behavior; avoiding shell rendering does not justify persistent checkpoints, replay coordination, build retention, and reconstruction. |
 |    15 | [Webpack and Bun microfrontend production parity](history/webpack-bun-microfrontend-parity.md)      | **Completed and archived:** Webpack and Bun share production artifact, generation, resource, trust, bootstrap, and recovery contracts with Vite/Rollup.                                                                |
 |    16 | [Remaining JavaScript performance experiments](history/javascript-performance-improvements.md)      | **Completed and archived:** accepted bounded tooling/diagnostics, recorded measured rejections, and stopped after final profiles found no unnamed target.                                                              |
+|    17 | [Native component-lowering decomposition](history/native-component-lowering-decomposition.md)       | **Completed and archived:** one explicit native lowering traversal now delegates to cohesive rendering, reactivity, task, state, identity, and capability-import modules with equivalent corpus output.                |
 
 The active and gated documents are:
 
-| Proposal                                                                                         | Status      | Scope                                                                                                       |
-| ------------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- |
-| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.             |
-| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md) | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.      |
-| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)      | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements. |
+| Proposal                                                                                         | Status      | Scope                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.                                             |
+| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md) | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.                                      |
+| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)      | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.                                 |
+| [Semantic generative theming](proposals/semantic-generative-theming.md)                          | Implemented | Normative design record for the reactive theme contract, semantic element enhancements, surface composition, and pure extension derivation. |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
 proposal:
@@ -120,20 +124,21 @@ historical record identifies its implemented contract, measurement baseline, or 
 
 Completed proposal records:
 
-| Proposal                                                                                            | Delivered contract                                                                                                                    |
-| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| [Recursive server/client graph partitioning](history/recursive-server-client-graph-partitioning.md) | Maximal same-placement regions across alternating client and server descendants.                                                      |
-| [Enhancements as component composition](history/enhancements-as-component-composition.md)           | Ordinary component-library enhancements, finite activators, direct `_`, semantic `_target`, bounded routing, and portable metadata.   |
-| [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | Resolver-proven server component authorization, inert package facts, atomic development generations, and paired fingerprints.         |
-| [Component value/callback binding shorthand](history/component-value-callback-bindings.md)          | Finite controlled-component pairs, canonical intrinsic endpoints, details hydration adoption, and binding-aware language tooling.     |
-| [Compiler-owned render programs](history/compiler-owned-render-programs.md)                         | Branded finite host programs with shared SSR, DOM, hydration, property, namespace, event, ref, ownership, and fallback semantics.     |
-| [Bounded deterministic async SSR](history/bounded-deterministic-async-ssr.md)                       | Compiler-proven sibling concurrency with one nested-safe request scheduler, ordered merging, cancellation, and serial fallback.       |
-| [Compact hydration and progressive publication](history/compact-hydration-publication.md)           | Grouped finite rows, deferred activation ownership, row-local recovery, and deterministic progressive-helper handoff.                 |
-| [Compiler-planned component execution](history/compiler-planned-component-execution.md)             | Attached local port/transition subgraphs, availability watchers, target projections, and reactive forwarding.                         |
-| [JavaScript performance improvements](history/javascript-performance-improvements.md)               | Measured client/server baselines, accepted tooling and diagnostic bounds, and recorded rejections for unqualified runtime candidates. |
-| [Accessibility enhancements and diagnostics](history/accessibility-enhancements-and-diagnostics.md) | Native modal binding, ref relationships, focus lifecycle, composite navigation, and package-owned trusted diagnostics.                |
-| [Trusted language-service contributions](history/trusted-language-service-contributions.md)         | Bounded trusted package diagnostics, actions, hover, completion, and CLI contributions without compiler callbacks.                    |
-| [Enhancement-first internationalization](history/enhancement-first-internationalization.md)         | Protocol-1 lexical messages, catalogs, units, capability providers, and shared cross-bundler coordination.                            |
+| Proposal                                                                                            | Delivered contract                                                                                                                          |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Recursive server/client graph partitioning](history/recursive-server-client-graph-partitioning.md) | Maximal same-placement regions across alternating client and server descendants.                                                            |
+| [Enhancements as component composition](history/enhancements-as-component-composition.md)           | Ordinary component-library enhancements, finite activators, direct `_`, semantic `_target`, bounded routing, and portable metadata.         |
+| [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | Resolver-proven server component authorization, inert package facts, atomic development generations, and paired fingerprints.               |
+| [Component value/callback binding shorthand](history/component-value-callback-bindings.md)          | Finite controlled-component pairs, canonical intrinsic endpoints, details hydration adoption, and binding-aware language tooling.           |
+| [Compiler-owned render programs](history/compiler-owned-render-programs.md)                         | Branded finite host programs with shared SSR, DOM, hydration, property, namespace, event, ref, ownership, and fallback semantics.           |
+| [Bounded deterministic async SSR](history/bounded-deterministic-async-ssr.md)                       | Compiler-proven sibling concurrency with one nested-safe request scheduler, ordered merging, cancellation, and serial fallback.             |
+| [Compact hydration and progressive publication](history/compact-hydration-publication.md)           | Grouped finite rows, deferred activation ownership, row-local recovery, and deterministic progressive-helper handoff.                       |
+| [Compiler-planned component execution](history/compiler-planned-component-execution.md)             | Attached local port/transition subgraphs, availability watchers, target projections, and reactive forwarding.                               |
+| [JavaScript performance improvements](history/javascript-performance-improvements.md)               | Measured client/server baselines, accepted tooling and diagnostic bounds, and recorded rejections for unqualified runtime candidates.       |
+| [Accessibility enhancements and diagnostics](history/accessibility-enhancements-and-diagnostics.md) | Native modal binding, ref relationships, focus lifecycle, composite navigation, and package-owned trusted diagnostics.                      |
+| [Trusted language-service contributions](history/trusted-language-service-contributions.md)         | Bounded trusted package diagnostics, actions, hover, completion, and CLI contributions without compiler callbacks.                          |
+| [Enhancement-first internationalization](history/enhancement-first-internationalization.md)         | Protocol-1 lexical messages, catalogs, units, capability providers, and shared cross-bundler coordination.                                  |
+| [Reactive clock-derived views](history/reactive-clock-derived-views.md)                             | Compiler-inferred clock views, adaptive finite plans, shared settlement-driven scheduling, calendar boundaries, and SSR/hydration adoption. |
 
 The current repository-wide implementation review is recorded in
 [`history/repository-code-review-2026-07.md`](history/repository-code-review-2026-07.md).

@@ -190,7 +190,10 @@ queued and active generation and awaits structural cleanup.
 
 Concurrency policy applies to invoked generations: `parallel` overlaps,
 `latest` supersedes, and `queue` preserves order. Reactive activation always
-supersedes the previous generation for its activation site. Priority
+supersedes the previous generation for its activation site. Each replacement
+is a new durable-owner root, so it cannot inherit cancellation from the
+generation it supersedes even when the dependency changes during that
+generation's continuation. Priority
 (`immediate`, `normal`, or `deferred`) determines when eligible work runs;
 readiness (`blocking` or `nonblocking`) independently determines whether
 Suspense waits.

@@ -88,6 +88,7 @@ function parseHydrationConfig(
 				'continuations',
 				'resumptions',
 				'publicContexts',
+				'wallClockSnapshot',
 				'h',
 				'executionRoot',
 				'binding',
@@ -120,6 +121,9 @@ function parseHydrationConfig(
 			...(continuations === undefined ? {} : { continuations }),
 			...(resumptions === undefined ? {} : { resumptions }),
 			...(isRecord(record.publicContexts) ? { publicContexts: record.publicContexts } : {}),
+			...(typeof record.wallClockSnapshot === 'number' && Number.isFinite(record.wallClockSnapshot)
+				? { wallClockSnapshot: record.wallClockSnapshot }
+				: {}),
 			...(hydrationTable ? { hydrationTable } : {}),
 			...(typeof record.executionRoot === 'string' ? { executionRoot: record.executionRoot } : {}),
 			...(typeof record.binding === 'string' ? { binding: record.binding } : {}),
@@ -183,6 +187,7 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 		),
 		resumptions: options.resumptions ?? config.resumptions,
 		publicContexts: options.publicContexts ?? config.publicContexts,
+		wallClockSnapshot: options.wallClockSnapshot ?? config.wallClockSnapshot,
 		hydrationTable: options.hydrationTable ?? config.hydrationTable,
 		executionRoot: options.executionRoot ?? config.executionRoot,
 		binding: options.binding ?? config.binding,
@@ -405,10 +410,7 @@ function readNearestHydrationConfig(
 }
 
 /** Uses the document's id index when the requested root owns the indexed hydration script. */
-function indexedHydrationScript(
-	root: ParentNode,
-	scriptId: string
-): HTMLScriptElement | undefined {
+function indexedHydrationScript(root: ParentNode, scriptId: string): HTMLScriptElement | undefined {
 	const documentRoot = root.nodeType === 9 ? (root as Document) : (root as Node).ownerDocument;
 	const candidate = documentRoot?.getElementById(scriptId);
 	if (!(candidate instanceof HTMLScriptElement)) return undefined;

@@ -69,10 +69,27 @@ export function mount(
 		if (countWork) countDomWork(root);
 		const parked = takeParkedMount(root, vnode, parentInstance, parentScope);
 		if (parked) return parked;
-		const scope = createEffectScope(parentScope);
 		const hasEnhancements = !!vnode.enhancement?.entries.length;
 		const enhancementCapability = hasEnhancements ? requireDomEnhancementCapability() : undefined;
 		const nesting = root.enhancementNesting ?? 0;
+		if (
+			hasEnhancements &&
+			nesting === 0 &&
+			(typeof vnode.type === 'string' || vnode.type === Fragment)
+		) {
+			enhancementCapability!.install(root, (next, instance, nextScope, node) =>
+				mount(root, next, instance, nextScope, node, false)
+			);
+			const direct = enhancementCapability!.mountDirect?.(
+				root,
+				vnode,
+				parentInstance,
+				parentScope,
+				(next, instance, nextScope, node) => mount(root, next, instance, nextScope, node, false)
+			);
+			if (direct) return direct;
+		}
+		const scope = createEffectScope(parentScope);
 		if (hasEnhancements) root.enhancementNesting = nesting + 1;
 		try {
 			let mounted = mountInner(root, vnode, scope, parentInstance, parentNode);

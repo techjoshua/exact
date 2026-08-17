@@ -129,14 +129,42 @@ function inspectOwnershipName(relative) {
 
 function inspectSize(file, source, isTest = false) {
 	const relative = repositoryPath(file);
-	const logicalLines = logicalLineCount(source ?? '');
+	const logicalLines = logicalLineCount(file, source ?? '');
 	const limit = isTest ? 600 : 400;
 	if (logicalLines > limit) {
 		violations.push(`${relative}: ${logicalLines} logical lines exceeds the ${limit}-line limit`);
 	}
 }
 
-function logicalLineCount(source) {
+function logicalLineCount(file, source) {
+	const sourceFile = ts.createSourceFile(
+		file,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+	);
+	const literalSpans = [];
+	const collectLiteralSpans = (node) => {
+		if (
+			ts.isStringLiteralLike(node) ||
+			node.kind === ts.SyntaxKind.TemplateHead ||
+			node.kind === ts.SyntaxKind.TemplateMiddle ||
+			node.kind === ts.SyntaxKind.TemplateTail
+		) {
+			literalSpans.push([node.getStart(sourceFile), node.end]);
+		}
+		ts.forEachChild(node, collectLiteralSpans);
+	};
+	collectLiteralSpans(sourceFile);
+	const withoutLiteralPayloads = source.split('');
+	for (const [start, end] of literalSpans) {
+		for (let offset = start + 1; offset < end; offset++) {
+			if (withoutLiteralPayloads[offset] !== '\n' && withoutLiteralPayloads[offset] !== '\r')
+				withoutLiteralPayloads[offset] = ' ';
+		}
+	}
+	source = withoutLiteralPayloads.join('');
 	let inBlockComment = false;
 	let count = 0;
 	for (const line of source.split(/\r?\n/)) {

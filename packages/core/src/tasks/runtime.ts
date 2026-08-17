@@ -153,7 +153,11 @@ function invokeDefinition<Args extends unknown[], Result>(
 	if (!Array.isArray(capturedArgs))
 		throw new TypeError('Task argument capture must return an argument array');
 	const resolvedArgs = capturedArgs as Args;
-	const ambient = explicitParent ?? currentTaskFrameRecord();
+	const dependencyDriven = activation !== 'invoked';
+	// Dependency-driven activations are durable-owner roots. A dependency can publish while an
+	// earlier generation's continuation is temporarily restored; inheriting that ambient frame
+	// would make the replacement generation a child of the generation it is about to supersede.
+	const ambient = dependencyDriven ? explicitParent : (explicitParent ?? currentTaskFrameRecord());
 	const owner =
 		explicitOwner ??
 		ambient?.owner ??
@@ -162,7 +166,6 @@ function invokeDefinition<Args extends unknown[], Result>(
 			? taskOwnerRecord(definition.options.owner)
 			: createTaskOwnerRecord(definition.options.label));
 	const state = ownerState(definition, owner);
-	const dependencyDriven = activation !== 'invoked';
 	const key = dependencyDriven
 		? (activationSite ?? defaultLaneKey)
 		: (definition.options.concurrencyKey?.(...resolvedArgs) ?? defaultLaneKey);

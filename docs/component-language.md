@@ -296,6 +296,12 @@ arrow declared in the component body and contains one view expression. It cannot
 escape its owner. The component definition returns a component-local view arrow;
 module-level shared or bound render callables are not supported.
 
+Compiler-owned lexical capabilities follow the micro-component back to its durable owner. For
+example, a prop-bearing micro-component may contain `time:update`; each invocation receives a
+distinct mounted clock range and input anchor while the ranges share the owner-independent clock
+scheduler. Moving the same JSX into an ordinary durable child component makes that child opaque and
+requires it to declare its own enhancement.
+
 ## State
 
 `this.state` is a deeply reactive, instance-owned object. Read it normally and
@@ -646,6 +652,14 @@ builds use. Enabling a provider constructs the selected enhancement as a normal 
 or disabling it keeps the authored output and adds no enhancement instance or provider runtime on
 that path. Libraries cannot force activation in consuming applications.
 
+For client DOM mounting, a direct intrinsic or `_` fragment chain that declares a provided context
+is constructed before that target's descendants. Its contexts are therefore available during
+descendant component setup, just as they would be beneath an explicitly authored wrapper component.
+Enhancements sharing that target are ordered by their declared context effects; nested targets then
+construct within the resulting outer provider chain. Target discovery for a component boundary
+remains bounded by that component's materialized output because the semantic target cannot be known
+before the component constructs.
+
 The contract is open to third-party packages. Any package can publish ordinary components through
 finite `exact-enhancement` exports without a plugin, central registry, special base class, or private
 compiler API. Enhancement packages may also contribute bounded language-service completions,
@@ -739,7 +753,9 @@ compiler diagnostic. Nested target boundaries contribute independently to the sa
 Authored singular props take precedence, followed by the nearest contribution; `undefined` falls
 through and `null` explicitly suppresses a lower value. Classes and token-list attributes are
 deduplicated, styles merge per property, refs fan out, and event subscriptions preserve intrinsic
-then inner-to-outer ordering. Reactive contributions update without changing the authored VNode.
+then inner-to-outer ordering. Compiler-owned native-control bindings remain attached verbatim while
+target layers contribute presentation or behavior, so enhancing a bound input or select cannot
+interpose on its state publication. Reactive contributions update without changing the authored VNode.
 Framework-owned projections may explicitly mark a finite scalar contribution as replacing its
 authored fallback while that projection is active. This marker is runtime metadata, not `_target`
 authoring syntax; ordinary authored target layers retain the precedence above.

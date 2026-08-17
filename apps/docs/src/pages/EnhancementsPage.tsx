@@ -49,7 +49,7 @@ export function EnhancementsPage(this: Component<{}>) {
 			title="Extend JSX. Enrich the experience."
 			description="An enhancement is an optional component around authored output. Namespaced JSX selects it, and the consuming application decides whether its provider participates."
 			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
-			next={{ path: '/components/accessibility', label: 'Accessibility' }}
+			next={{ path: '/components/theme', label: 'Theme proposal' }}
 		>
 			<section>
 				<h2>An optional component around authored output</h2>
@@ -113,8 +113,15 @@ export function EnhancementsPage(this: Component<{}>) {
 					Enhancements on <code>_</code> occupy that transparent fragment boundary directly,
 					including text and multi-node output. Nested <code>_target</code> layers compose classes,
 					styles, token-list attributes, refs, events, and singular properties without mutating the
-					authored child. Target routing follows the active logical output path and stops at the
-					first root-bearing component frame.
+					authored child. Compiler-owned native-control bindings remain attached verbatim when a
+					layer styles or augments a bound input or select. Target routing follows the active
+					logical output path and stops at the first root-bearing component frame.
+				</p>
+				<p>
+					During client DOM mounting, a direct intrinsic or <code>_</code> chain that declares a
+					provided context constructs before that target&apos;s descendants. It can consequently
+					establish services, themes, or policies that descendant components consume during setup,
+					with nested enhanced targets constructing inside the outer provider chain.
 				</p>
 				<CodeBlock source={packageScopeSource} language="ts" title="exact.config.ts" />
 				<p>

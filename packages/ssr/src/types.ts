@@ -98,6 +98,8 @@ export type SsrProfileEvent = ExactProfileEvent<'ssr', 'render-to-string' | 'cre
 export type RenderToStringResult = {
 	html: string;
 	state?: unknown;
+	/** Internal request-owned clock sample transferred to hydrating framework domains. */
+	wallClockSnapshot?: number;
 	resumptions?: readonly ComponentResumptionActivation[];
 	/** Internal response-local table consumed by hydratable entry points. */
 	hydrationTable?: import('./render/hydration-table.js').ExactHydrationTable;
@@ -114,6 +116,8 @@ export type HydrationScriptOptions = {
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
+	/** Internal request-owned clock sample emitted by a paired SSR render. */
+	wallClockSnapshot?: number;
 	/** Compiler-finite client boundary rows grouped by component prop schema. */
 	hydrationTable?: import('./render/hydration-table.js').ExactHydrationTable;
 	executionRoot?: string;
@@ -364,6 +368,8 @@ export type SsrContext = {
 	>;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
+	/** Immutable wall-clock sample shared by the request render. */
+	wallClockSnapshot: number;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
 	onComponentAttemptCheckpoint?: () => unknown;

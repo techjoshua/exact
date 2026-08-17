@@ -50,6 +50,16 @@ const packageGroups: PackageGroup[] = [
 				name: '@exactjs/intl',
 				purpose:
 					'Experimental validated message plans, locale environment, and enhancement runtime.'
+			},
+			{
+				name: '@exactjs/time',
+				purpose:
+					'Compiler-planned clock-derived views, shared settlement-aware scheduling, and injectable clocks.'
+			},
+			{
+				name: '@exactjs/theme',
+				purpose:
+					'Deterministic semantic theme generation, reactive nested scopes, typed CSS tokens, enhancements, and exterior palette derivation.'
 			}
 		]
 	},

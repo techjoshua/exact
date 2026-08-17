@@ -18,11 +18,47 @@ export function resolveTargetBoundary(
 	parentInstance: ComponentInstance<any> | undefined,
 	dependencies?: Set<Mounted>
 ): MountedTarget | undefined {
-	const nested = findFirstTargetExport(boundary, undefined, parentInstance, 0, true, dependencies);
-	if (nested) return nested;
 	for (const child of boundary.children) {
-		const routed = findFirstRoot(child, boundary, parentInstance, 1, boundary, dependencies);
-		if (routed) return routed;
+		const target = findTargetBoundaryChild(child, boundary, parentInstance, 1, dependencies);
+		if (target) return target;
+	}
+	return undefined;
+}
+
+/** Resolves one logical target child without searching past an authoritative intrinsic. */
+function findTargetBoundaryChild(
+	mounted: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: ComponentInstance<any> | undefined,
+	depth: number,
+	dependencies?: Set<Mounted>
+): MountedTarget | undefined {
+	dependencies?.add(mounted);
+	if (typeof mounted.vnode.type === 'string') return { mounted, owner, parentInstance, depth };
+	if (mounted.vnode.type === Target && mounted.targetBoundary?.selected)
+		return locateMountedTarget(
+			mounted,
+			mounted.targetBoundary.selected,
+			owner,
+			parentInstance,
+			depth,
+			dependencies
+		);
+	if (typeof mounted.vnode.type === 'function') {
+		const exported = findFirstTargetExport(
+			mounted,
+			owner,
+			parentInstance,
+			depth,
+			false,
+			dependencies
+		);
+		return exported ?? findRootBearingFrame(mounted, owner, parentInstance, depth, dependencies);
+	}
+	const childInstance = mounted.instance ?? parentInstance;
+	for (const child of mounted.children) {
+		const target = findTargetBoundaryChild(child, mounted, childInstance, depth + 1, dependencies);
+		if (target) return target;
 	}
 	return undefined;
 }

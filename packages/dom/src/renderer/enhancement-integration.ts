@@ -3,6 +3,7 @@ import {
 	type DomEnhancementCapability
 } from './enhancement-capability.js';
 import { exactEnhancementCatalog } from '@exactjs/core/framework/enhancement-catalog';
+import { mountDirectEnhancementBoundary } from './direct-enhancement.js';
 import {
 	activateEnhancementSubtree,
 	installEnhancementReconciliation,
@@ -15,6 +16,7 @@ const enhancementCapability: DomEnhancementCapability = Object.freeze({
 		root.enhancementCatalog ??= exactEnhancementCatalog;
 		installEnhancementReconciliation(root, mount);
 	},
+	mountDirect: mountDirectEnhancementBoundary,
 	activate: activateEnhancementSubtree,
 	patch: patchEnhancementBoundary
 });

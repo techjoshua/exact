@@ -1,0 +1,506 @@
+package exactcompiler
+
+import (
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+)
+
+func (lowering *jsxLowering) reactiveExpression(
+	source *ast.Node,
+	expression *ast.Node,
+) *ast.Node {
+	return lowering.reactiveExpressionMode(source, expression, false)
+}
+
+func (lowering *jsxLowering) reactiveExpressionMode(
+	source *ast.Node,
+	expression *ast.Node,
+	forwardLiveSlot bool,
+) *ast.Node {
+	if lowering.declarativeRenderDepth > 0 {
+		return expression
+	}
+	closure := lowering.reactiveClosure(source)
+	if closure == nil {
+		closure = lowering.arrow(expression)
+	}
+	helper := lowering.names.expression
+	if forwardLiveSlot && lowering.liveSlotForwarding(source) {
+		helper = lowering.names.forwardedExpression
+	}
+	value := lowering.call(
+		helper,
+		[]*ast.Node{closure},
+	)
+	if paths, direct := lowering.componentExecutionOutputPaths(source); len(paths) != 0 {
+		pathValue := lowering.factory.NewStringLiteral(paths[0], ast.TokenFlagsNone)
+		if !direct {
+			values := make([]*ast.Node, len(paths))
+			for index, path := range paths {
+				values[index] = lowering.factory.NewStringLiteral(path, ast.TokenFlagsNone)
+			}
+			pathValue = lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(values),
+				false,
+			)
+		}
+		return lowering.call(lowering.names.componentOutput, []*ast.Node{
+			lowering.factory.NewThisExpression(),
+			pathValue,
+			value,
+		})
+	}
+	return value
+}
+
+func (lowering *jsxLowering) liveSlotForwarding(source *ast.Node) bool {
+	root := source
+	for ast.IsPropertyAccessExpression(root) {
+		root = root.AsPropertyAccessExpression().Expression
+	}
+	for ast.IsElementAccessExpression(root) {
+		root = root.AsElementAccessExpression().Expression
+	}
+	if !ast.IsIdentifier(root) || lowering.checker == nil || ast.GetSourceFileOfNode(root) == nil {
+		return false
+	}
+	symbol := lowering.checker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		name := declaration.Name()
+		if name == nil {
+			continue
+		}
+		for _, binding := range lowering.bindings {
+			if binding.Start == name.Pos() &&
+				(binding.Provenance == "props" || binding.Provenance == "cell") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// componentExecutionOutputPaths recognizes state values whose pending
+// generations must remain attached when a scalar or aggregate value is forwarded.
+func (lowering *jsxLowering) componentExecutionOutputPaths(source *ast.Node) ([]string, bool) {
+	paths := []string{}
+	seen := make(map[string]bool)
+	direct := false
+	for _, read := range lowering.stateReads {
+		if read.Start < source.Pos() || read.Start+read.Length > source.End() ||
+			read.Confidence != "exact" {
+			continue
+		}
+		component, exists := lowering.components[read.Component]
+		if !exists {
+			continue
+		}
+		path := strings.Join(read.Path, ".")
+		for _, port := range component.Execution.Ports {
+			if port.Kind == "state" && port.Path == path &&
+				(port.Direction == "output" || port.Direction == "inout") {
+				if !seen[path] {
+					seen[path] = true
+					paths = append(paths, path)
+					direct = read.Start == source.Pos() && read.Length == source.End()-source.Pos()
+				}
+				break
+			}
+		}
+	}
+	return paths, len(paths) == 1 && direct
+}
+
+type materializedRenderLocal struct {
+	symbol      ast.SymbolId
+	declaration *ast.Node
+	name        string
+	cached      bool
+}
+
+// reactiveClosure moves render-local pure calculations into the reactive
+// callback that consumes them. Closing over their first render value would
+// retain a stale snapshot after a dependency changes.
+func (lowering *jsxLowering) reactiveClosure(
+	expression *ast.Node,
+) *ast.Node {
+	scope := enclosingCallableNode(expression)
+	if scope == nil || lowering.checker == nil {
+		return nil
+	}
+	bySymbol := make(map[ast.SymbolId]materializedRenderLocal)
+	walkNode(expression, func(node *ast.Node) bool {
+		// Nested JSX expressions receive their own reactive closures during child lowering.
+		// Pulling their derived locals into this closure would broaden the outer dependency
+		// set and reconcile an entire conditional branch for a leaf-only update.
+		if node != expression && ast.IsJsxExpression(node) {
+			return false
+		}
+		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+			isStaticPropertyName(node) {
+			return true
+		}
+		symbol := lowering.checker.GetSymbolAtLocation(node)
+		if symbol == nil {
+			return true
+		}
+		id := ast.GetSymbolId(symbol)
+		if _, exists := bySymbol[id]; exists {
+			return true
+		}
+		if local, exists := lowering.elidedDerivedLocal(symbol); exists {
+			bySymbol[id] = local
+			return true
+		}
+		for _, declaration := range symbol.Declarations {
+			if !ast.IsVariableDeclaration(declaration) ||
+				enclosingCallableNode(declaration) != scope {
+				continue
+			}
+			variable := declaration.AsVariableDeclaration()
+			name := variable.Name()
+			if variable.Initializer == nil || name == nil ||
+				!ast.IsIdentifier(name) ||
+				!safeReactiveInitializer(
+					variable.Initializer,
+					lowering.sourceFile,
+					lowering.checker,
+				) {
+				continue
+			}
+			bySymbol[id] = materializedRenderLocal{
+				symbol:      id,
+				declaration: declaration,
+				name:        lowering.materializedName(name.Text(), name.Pos()),
+			}
+			break
+		}
+		return true
+	})
+	queue := make([]materializedRenderLocal, 0, len(bySymbol))
+	for _, local := range bySymbol {
+		queue = append(queue, local)
+	}
+	for len(queue) != 0 {
+		local := queue[0]
+		queue = queue[1:]
+		if local.cached {
+			continue
+		}
+		initializer := local.declaration.AsVariableDeclaration().Initializer
+		walkNode(initializer, func(node *ast.Node) bool {
+			if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+				isStaticPropertyName(node) {
+				return true
+			}
+			symbol := lowering.checker.GetSymbolAtLocation(node)
+			if symbol == nil {
+				return true
+			}
+			id := ast.GetSymbolId(symbol)
+			if _, exists := bySymbol[id]; exists {
+				return true
+			}
+			if dependency, exists := lowering.elidedDerivedLocal(symbol); exists {
+				bySymbol[id] = dependency
+				queue = append(queue, dependency)
+			}
+			return true
+		})
+	}
+	for symbol, local := range lowering.cachedDerivedLocals(expression) {
+		if _, exists := bySymbol[symbol]; !exists {
+			bySymbol[symbol] = local
+		}
+	}
+	return lowering.materializedClosure(expression, bySymbol)
+}
+
+// cachedDerivedLocals identifies retained derived values whose repeated reads
+// belong to one eager reactive evaluation. Reading the cell once preserves
+// TypeScript control-flow narrowing and avoids redundant get calls.
+func (lowering *jsxLowering) cachedDerivedLocals(
+	expression *ast.Node,
+) map[ast.SymbolId]materializedRenderLocal {
+	locals := make(map[ast.SymbolId]materializedRenderLocal)
+	counts := make(map[ast.SymbolId]int)
+	walkNode(expression, func(node *ast.Node) bool {
+		if node != expression && isCallableNode(node) {
+			return false
+		}
+		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+			isStaticPropertyName(node) {
+			return true
+		}
+		if _, exists := lowering.derivedBindingAtReference(node); !exists {
+			return true
+		}
+		symbol := lowering.checker.GetSymbolAtLocation(node)
+		if symbol == nil {
+			return true
+		}
+		id := ast.GetSymbolId(symbol)
+		counts[id]++
+		if _, exists := locals[id]; exists {
+			return true
+		}
+		for _, declaration := range symbol.Declarations {
+			if !ast.IsVariableDeclaration(declaration) {
+				continue
+			}
+			name := declaration.AsVariableDeclaration().Name()
+			if name == nil || !ast.IsIdentifier(name) {
+				continue
+			}
+			clockDerived := lowering.timeActivation != "" &&
+				timeExpressionHasClockDependency(
+					declaration.AsVariableDeclaration().Initializer,
+					lowering.checker,
+					lowering.sourceFile,
+					make(map[ast.SymbolId]struct{}),
+				)
+			localName := lowering.cachedDerivedName(name.Text(), name.Pos())
+			if clockDerived {
+				localName = lowering.materializedName(name.Text(), name.Pos())
+			}
+			locals[id] = materializedRenderLocal{
+				symbol:      id,
+				declaration: declaration,
+				name:        localName,
+				cached:      !clockDerived,
+			}
+			break
+		}
+		return true
+	})
+	for symbol := range locals {
+		if counts[symbol] < 2 {
+			delete(locals, symbol)
+		}
+	}
+	return locals
+}
+
+func (lowering *jsxLowering) materializedClosure(
+	expression *ast.Node,
+	bySymbol map[ast.SymbolId]materializedRenderLocal,
+) *ast.Node {
+	if len(bySymbol) == 0 {
+		return nil
+	}
+	locals := make([]materializedRenderLocal, 0, len(bySymbol))
+	for _, local := range bySymbol {
+		locals = append(locals, local)
+	}
+	sort.Slice(locals, func(left int, right int) bool {
+		return locals[left].declaration.Pos() < locals[right].declaration.Pos()
+	})
+	statements := make([]*ast.Node, 0, len(locals)+1)
+	for _, local := range locals {
+		variable := local.declaration.AsVariableDeclaration()
+		var initializer *ast.Node
+		if local.cached {
+			initializer = lowering.derivedGet(
+				lowering.factory.NewIdentifier(variable.Name().Text()),
+			)
+		} else {
+			initializer = lowering.replaceMaterializedReferences(
+				variable.Initializer,
+				bySymbol,
+			)
+		}
+		statements = append(
+			statements,
+			lowering.factory.NewVariableStatement(
+				nil,
+				lowering.factory.NewVariableDeclarationList(
+					lowering.factory.NewNodeList([]*ast.Node{
+						lowering.factory.NewVariableDeclaration(
+							lowering.factory.NewIdentifier(local.name),
+							nil,
+							variable.Type,
+							initializer,
+						),
+					}),
+					ast.NodeFlagsConst,
+				),
+			),
+		)
+	}
+	value := lowering.replaceMaterializedReferences(expression, bySymbol)
+	statements = append(statements, lowering.factory.NewReturnStatement(value))
+	return lowering.factory.NewArrowFunction(
+		nil,
+		nil,
+		lowering.factory.NewNodeList(nil),
+		nil,
+		nil,
+		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+		lowering.factory.NewBlock(
+			lowering.factory.NewNodeList(statements),
+			true,
+		),
+	)
+}
+
+func (lowering *jsxLowering) elidedDerivedLocal(
+	symbol *ast.Symbol,
+) (materializedRenderLocal, bool) {
+	id := ast.GetSymbolId(symbol)
+	for _, declaration := range symbol.Declarations {
+		if !ast.IsVariableDeclaration(declaration) {
+			continue
+		}
+		variable := declaration.AsVariableDeclaration()
+		name := variable.Name()
+		if variable.Initializer == nil || name == nil || !ast.IsIdentifier(name) {
+			continue
+		}
+		if _, exists := lowering.elidedDerived[name.Pos()]; !exists {
+			continue
+		}
+		return materializedRenderLocal{
+			symbol:      id,
+			declaration: declaration,
+			name:        lowering.materializedName(name.Text(), name.Pos()),
+		}, true
+	}
+	return materializedRenderLocal{}, false
+}
+
+func enclosingCallableNode(node *ast.Node) *ast.Node {
+	for current := node.Parent; current != nil; current = current.Parent {
+		if isCallableNode(current) ||
+			ast.IsMethodDeclaration(current) ||
+			ast.IsGetAccessorDeclaration(current) ||
+			ast.IsSetAccessorDeclaration(current) {
+			return current
+		}
+	}
+	return nil
+}
+
+func (lowering *jsxLowering) materializedName(
+	name string,
+	start int,
+) string {
+	if existing := lowering.materializedNames[start]; existing != "" {
+		return existing
+	}
+	base := "__exact_" + name + "_"
+	index := 1
+	candidate := base + strconv.Itoa(index)
+	for strings.Contains(lowering.sourceFile.Text(), candidate) {
+		index++
+		candidate = base + strconv.Itoa(index)
+	}
+	lowering.materializedNames[start] = candidate
+	return candidate
+}
+
+func (lowering *jsxLowering) cachedDerivedName(
+	name string,
+	start int,
+) string {
+	if existing := lowering.cachedDerivedNames[start]; existing != "" {
+		return existing
+	}
+	base := "__exact_cached_" + name + "_"
+	index := 1
+	candidate := base + strconv.Itoa(index)
+	for strings.Contains(lowering.sourceFile.Text(), candidate) {
+		index++
+		candidate = base + strconv.Itoa(index)
+	}
+	lowering.cachedDerivedNames[start] = candidate
+	return candidate
+}
+
+func (lowering *jsxLowering) replaceMaterializedReferences(
+	root *ast.Node,
+	locals map[ast.SymbolId]materializedRenderLocal,
+) *ast.Node {
+	var visitor *ast.NodeVisitor
+	visitor = ast.NewNodeVisitor(
+		func(node *ast.Node) *ast.Node {
+			if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
+				!isStaticPropertyName(node) {
+				symbol := lowering.checker.GetSymbolAtLocation(node)
+				if symbol != nil {
+					if local, exists := locals[ast.GetSymbolId(symbol)]; exists {
+						return lowering.factory.NewIdentifier(local.name)
+					}
+				}
+			}
+			updated := visitor.VisitEachChild(node)
+			if updated != node {
+				if identity := lowering.nodeIDs[node]; identity != "" {
+					lowering.nodeIDs[updated] = identity
+				}
+			}
+			return updated
+		},
+		&lowering.factory.NodeFactory,
+		ast.NodeVisitorHooks{},
+	)
+	return lowering.visitor.VisitNode(visitor.VisitNode(root))
+}
+
+func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
+	var callee *ast.Node
+	var value *ast.Node
+	var typeArguments *ast.NodeList
+	var flags ast.NodeFlags
+	switch {
+	case ast.IsCallExpression(node):
+		call := node.AsCallExpression()
+		if !componentReactiveMember(call.Expression) ||
+			call.Arguments == nil ||
+			len(call.Arguments.Nodes) != 1 {
+			return nil
+		}
+		value = call.Arguments.Nodes[0]
+		if ast.IsArrowFunction(value) || ast.IsFunctionExpression(value) {
+			return nil
+		}
+		callee = call.Expression
+		typeArguments = call.TypeArguments
+		flags = call.Flags
+	case ast.IsTaggedTemplateExpression(node):
+		tagged := node.AsTaggedTemplateExpression()
+		if !componentReactiveMember(tagged.Tag) {
+			return nil
+		}
+		callee = tagged.Tag
+		value = tagged.Template
+		typeArguments = tagged.TypeArguments
+		flags = tagged.Flags
+	default:
+		return nil
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.visitor.VisitNode(callee),
+		nil,
+		typeArguments,
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.arrow(lowering.visitor.VisitNode(value)),
+		}),
+		flags,
+	)
+}
+
+func componentReactiveMember(expression *ast.Node) bool {
+	if !ast.IsPropertyAccessExpression(expression) {
+		return false
+	}
+	member := expression.AsPropertyAccessExpression()
+	return member.Expression.Kind == ast.KindThisKeyword &&
+		member.Name() != nil &&
+		member.Name().Text() == "reactive"
+}

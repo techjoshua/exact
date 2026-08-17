@@ -1,0 +1,406 @@
+package exactcompiler
+
+import (
+	"fmt"
+	"html"
+	"strconv"
+	"strings"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+)
+
+type renderProgramContext struct {
+	namespace string
+	certain   bool
+}
+
+type renderProgramSlot struct {
+	id     string
+	kind   string
+	path   []int
+	name   string
+	reader *ast.Node
+}
+
+type renderProgramNode struct {
+	id        string
+	path      []int
+	tag       string
+	namespace string
+}
+
+type renderProgramSsrOperation struct {
+	kind  string
+	index int
+}
+
+type renderProgramBuild struct {
+	template      strings.Builder
+	part          strings.Builder
+	parts         []string
+	ssrPart       strings.Builder
+	ssrParts      []string
+	ssrOperations []renderProgramSsrOperation
+	slots         []renderProgramSlot
+	nodes         []renderProgramNode
+	namespace     string
+}
+
+func (build *renderProgramBuild) write(value string) {
+	build.template.WriteString(value)
+	build.part.WriteString(value)
+	build.ssrPart.WriteString(value)
+}
+
+func (build *renderProgramBuild) ssrOperation(kind string, index int) {
+	build.ssrParts = append(build.ssrParts, build.ssrPart.String())
+	build.ssrPart.Reset()
+	build.ssrOperations = append(build.ssrOperations, renderProgramSsrOperation{kind: kind, index: index})
+}
+
+func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Node) {
+	index := len(build.slots)
+	build.template.WriteString(fmt.Sprintf("\ue000exact:%d\ue001", index))
+	build.parts = append(build.parts, build.part.String())
+	build.part.Reset()
+	build.ssrOperation("slot", index)
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: append([]int(nil), path...), reader: reader})
+}
+
+func (build *renderProgramBuild) propertySlot(id string, path []int, name string, reader *ast.Node) {
+	index := len(build.slots)
+	build.parts = append(build.parts, build.part.String())
+	build.part.Reset()
+	build.ssrOperation("slot", index)
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), name: name, reader: reader})
+}
+
+func (lowering *jsxLowering) lowerRenderProgram(
+	identityNode *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+) *ast.Node {
+	parentNamespace, certain := lowering.renderProgramParentNamespace(identityNode)
+	if !certain {
+		return nil
+	}
+	build := &renderProgramBuild{}
+	if !lowering.appendRenderProgramElement(build, identityNode, opening, children, nil, parentNamespace) {
+		return nil
+	}
+	build.parts = append(build.parts, build.part.String())
+	build.ssrParts = append(build.ssrParts, build.ssrPart.String())
+	programID := exactStableID(
+		lowering.sourceFile.FileName(),
+		"render-program",
+		lowering.nodeIDs[identityNode],
+	)
+	programCacheKey := exactStableID(programID, sourceText(lowering.sourceFile, identityNode))
+	program := lowering.renderProgramLiteral(programID, build)
+	readers := make([]*ast.Node, len(build.slots))
+	for index, slot := range build.slots {
+		readers[index] = lowering.reactiveClosure(slot.reader)
+		if readers[index] == nil {
+			readers[index] = lowering.arrow(slot.reader)
+		}
+	}
+	lowering.renderProgramFallback = true
+	fallback := lowering.lowerOpeningLike(identityNode, opening, children)
+	lowering.renderProgramFallback = false
+	return lowering.call(lowering.names.renderProgram, []*ast.Node{
+		lowering.factory.NewStringLiteral(programCacheKey, ast.TokenFlagsNone),
+		lowering.arrow(program),
+		lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false),
+		lowering.arrow(fallback),
+	})
+}
+
+// renderProgramParentNamespace resolves the concrete DOM namespace inherited by
+// a planned region from intrinsic JSX ancestors. A component ancestor makes the
+// eventual insertion point component-defined, so that region stays on the
+// generic renderer where namespace inheritance is resolved at mount time.
+func (lowering *jsxLowering) renderProgramParentNamespace(node *ast.Node) (string, bool) {
+	if lowering.renderProgramContexts == nil {
+		lowering.renderProgramContexts = make(map[int]renderProgramContext)
+		walkNode(lowering.sourceFile.AsNode(), func(candidate *ast.Node) bool {
+			if ast.IsJsxElement(candidate) || ast.IsJsxSelfClosingElement(candidate) {
+				namespace, certain := lowering.renderProgramSourceParentNamespace(candidate)
+				lowering.renderProgramContexts[candidate.Pos()] = renderProgramContext{
+					namespace: namespace,
+					certain:   certain,
+				}
+			}
+			return true
+		})
+	}
+	if context, exists := lowering.renderProgramContexts[node.Pos()]; exists {
+		return context.namespace, context.certain
+	}
+	return lowering.renderProgramSourceParentNamespace(node)
+}
+
+func (lowering *jsxLowering) renderProgramSourceParentNamespace(node *ast.Node) (string, bool) {
+	tags := make([]string, 0, 2)
+	for current := node.Parent; current != nil; current = current.Parent {
+		if !ast.IsJsxElement(current) {
+			continue
+		}
+		tag := sourceText(lowering.sourceFile, openingTag(current.AsJsxElement().OpeningElement))
+		if tag == "_" {
+			continue
+		}
+		if !jsxIntrinsic(tag) {
+			return "", false
+		}
+		tags = append(tags, tag)
+	}
+	parentNamespace := "html"
+	for index := len(tags) - 1; index >= 0; index-- {
+		tag := tags[index]
+		namespace := renderProgramNamespace(tag, parentNamespace)
+		parentNamespace = renderProgramChildNamespace(tag, namespace)
+	}
+	return parentNamespace, true
+}
+
+func (lowering *jsxLowering) appendRenderProgramElement(
+	build *renderProgramBuild,
+	identityNode *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+	path []int,
+	parentNamespace string,
+) bool {
+	tag := sourceText(lowering.sourceFile, openingTag(opening))
+	if !jsxIntrinsic(tag) || unsupportedPlannedHost(tag) {
+		return false
+	}
+	namespace := renderProgramNamespace(tag, parentNamespace)
+	if len(path) == 0 {
+		build.namespace = namespace
+	}
+	nodeIndex := len(build.nodes)
+	build.nodes = append(build.nodes, renderProgramNode{
+		id: lowering.elementID(identityNode), path: append([]int(nil), path...), tag: tag, namespace: namespace,
+	})
+	build.ssrOperation("node-open", nodeIndex)
+	build.write("<" + tag + ` data-exact-id="` + html.EscapeString(lowering.elementID(identityNode)) + `"`)
+	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path) {
+		return false
+	}
+	build.write(">")
+	domIndex := 0
+	semantic := ast.GetSemanticJsxChildren(nil)
+	if children != nil {
+		semantic = ast.GetSemanticJsxChildren(children.Nodes)
+	}
+	for childIndex, child := range semantic {
+		childPath := append(append([]int(nil), path...), domIndex)
+		switch {
+		case ast.IsJsxText(child):
+			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
+			if text == "" {
+				continue
+			}
+			build.write(html.EscapeString(text))
+			domIndex++
+		case ast.IsJsxExpression(child):
+			expression := child.AsJsxExpression().Expression
+			if expression == nil {
+				continue
+			}
+			// Adjacent text would be coalesced by HTML parsing and cannot retain an
+			// independently addressable reactive slot without extra marker nodes.
+			if domIndex != 0 || len(semantic) != 1 ||
+				expression.SubtreeFacts()&ast.SubtreeContainsJsx != 0 ||
+				!lowering.scalarRenderProgramExpression(expression) {
+				return false
+			}
+			build.textSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression))
+			domIndex++
+		case ast.IsJsxElement(child):
+			element := child.AsJsxElement()
+			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace)) {
+				return false
+			}
+			domIndex++
+		case ast.IsJsxSelfClosingElement(child):
+			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace)) {
+				return false
+			}
+			domIndex++
+		default:
+			return false
+		}
+	}
+	if !voidElement(tag) {
+		build.write("</" + tag + ">")
+	}
+	build.ssrOperation("node-close", nodeIndex)
+	return true
+}
+
+func renderProgramNamespace(tag string, parent string) string {
+	if tag == "svg" {
+		return "svg"
+	}
+	if tag == "math" {
+		return "mathml"
+	}
+	if parent == "svg" {
+		return "svg"
+	}
+	if parent == "mathml" {
+		return "mathml"
+	}
+	return "html"
+}
+
+func renderProgramChildNamespace(tag string, namespace string) string {
+	if namespace == "svg" && tag == "foreignObject" {
+		return "html"
+	}
+	return namespace
+}
+
+func (lowering *jsxLowering) appendRenderProgramAttributes(
+	build *renderProgramBuild,
+	attributes *ast.Node,
+	tag string,
+	path []int,
+) bool {
+	if attributes == nil {
+		return true
+	}
+	application := lowering.enhancementImports.applications[attributes.Pos()]
+	if len(application.components) != 0 || jsxHasConditionalClassName(attributes) {
+		return false
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxSpreadAttribute(property) || !ast.IsJsxAttribute(property) {
+			return false
+		}
+		attribute := property.AsJsxAttribute()
+		if ast.IsJsxNamespacedName(attribute.Name()) {
+			return false
+		}
+		name := jsxAttributeText(attribute.Name())
+		if name == "key" || name == "data-exact-id" {
+			return false
+		}
+		if _, exists := lowering.componentBindings[property.Pos()]; exists {
+			return false
+		}
+		if len(lowering.formBindingProperties(name, attribute.Initializer, attributes)) != 0 {
+			return false
+		}
+		reader := lowering.jsxAttributeInitializer(attribute, tag, name, false)
+		if reader != nil {
+			build.propertySlot(lowering.dynamicID(property), path, name, reader)
+		}
+	}
+	return true
+}
+
+func renderProgramSlotKind(name string) string {
+	switch name {
+	case "class", "className":
+		return "class"
+	case "style":
+		return "style"
+	case "href", "src", "srcSet", "action", "formAction", "poster", "cite", "data":
+		return "url"
+	default:
+		return "property"
+	}
+}
+
+func (lowering *jsxLowering) scalarRenderProgramExpression(expression *ast.Node) bool {
+	// Type queries are valid only for nodes from the bound source tree. Reactive
+	// lowering can revisit synthetic expressions whose parent chain is incomplete.
+	for current := expression; current != nil; current = current.Parent {
+		if current == lowering.sourceFile.AsNode() {
+			return scalarDerivedType(lowering.checker.GetTypeAtLocation(expression))
+		}
+	}
+	return false
+}
+
+func voidElement(tag string) bool {
+	switch tag {
+	case "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr":
+		return true
+	}
+	return false
+}
+
+func unsupportedPlannedHost(tag string) bool {
+	switch tag {
+	case "html", "head", "body", "script", "style", "title", "template", "annotation-xml":
+		return true
+	}
+	return false
+}
+
+func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgramBuild) *ast.Node {
+	property := func(name string, value *ast.Node) *ast.Node {
+		return lowering.property(lowering.factory.NewIdentifier(name), value)
+	}
+	array := func(values []*ast.Node) *ast.Node {
+		return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
+	}
+	path := func(values []int) *ast.Node {
+		items := make([]*ast.Node, len(values))
+		for index, value := range values {
+			items[index] = lowering.factory.NewNumericLiteral(strconv.Itoa(value), ast.TokenFlagsNone)
+		}
+		return array(items)
+	}
+	parts := make([]*ast.Node, len(build.parts))
+	for index, value := range build.parts {
+		parts[index] = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)
+	}
+	slots := make([]*ast.Node, len(build.slots))
+	for index, slot := range build.slots {
+		members := []*ast.Node{
+			property("id", lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone)),
+			property("kind", lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)),
+			property("path", path(slot.path)),
+		}
+		if slot.name != "" {
+			members = append(members, property("name", lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone)))
+		}
+		slots[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
+	}
+	nodes := make([]*ast.Node, len(build.nodes))
+	for index, node := range build.nodes {
+		nodes[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+			property("id", lowering.factory.NewStringLiteral(node.id, ast.TokenFlagsNone)),
+			property("path", path(node.path)),
+			property("tag", lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone)),
+			property("namespace", lowering.factory.NewStringLiteral(node.namespace, ast.TokenFlagsNone)),
+		}), false)
+	}
+	members := []*ast.Node{
+		property("version", lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone)),
+		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
+		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
+		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
+		property("parts", array(parts)), property("slots", array(slots)), property("nodes", array(nodes)),
+	}
+	if lowering.target == TargetServer {
+		ssrParts := make([]*ast.Node, len(build.ssrParts))
+		for index, value := range build.ssrParts {
+			ssrParts[index] = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)
+		}
+		ssrOperations := make([]*ast.Node, len(build.ssrOperations))
+		for index, operation := range build.ssrOperations {
+			ssrOperations[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+				property("kind", lowering.factory.NewStringLiteral(operation.kind, ast.TokenFlagsNone)),
+				property("index", lowering.factory.NewNumericLiteral(strconv.Itoa(operation.index), ast.TokenFlagsNone)),
+			}), false)
+		}
+		members = append(members, property("ssrParts", array(ssrParts)), property("ssrOperations", array(ssrOperations)))
+	}
+	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
+}
