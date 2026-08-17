@@ -492,3 +492,19 @@ emitted and invoked functions. At 1x, compile moved from 22.020 ms to 22.444 ms 
 ordinary-startup and artifact costs outweigh the negligible fixture heap saving, so the class was
 reverted. Raw profiles: `step2-activation-class-startup-20.json` and
 `step2-activation-class-framework-50.json`.
+
+### Hydration DOM split requires no additional implementation
+
+The comparison already imports `@exactjs/hydrate/root`, whose build guard excludes request,
+patch-response, island, and optional enhancement capabilities. The generic DOM mount and patch
+modules that remain are reachable for two supported reasons: the application explicitly calls
+`render()` when its container has no SSR children, and hydration retains synchronous malformed-root
+recovery. Moving the same modules behind another package name would not change the emitted chunk;
+removing them would delete the client-render path, while dynamically importing recovery would
+change hydration timing and failure behavior.
+
+No code or performance delta is claimed for this recommendation. A future compiler-generated
+bootstrap can omit mounting only when it proves both that an SSR root is mandatory and that a
+closed recovery program exists for every mismatch. The controlled comparison intentionally does
+not assert those stronger application contracts, so specializing it further would benchmark a
+narrower behavior rather than improve the framework implementation.
