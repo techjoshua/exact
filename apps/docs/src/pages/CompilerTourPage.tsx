@@ -112,6 +112,17 @@ export function CompilerTourPage(this: Component<{}>) {
 					</div>
 				</div>
 			</section>
+			<section>
+				<h2>Project work is shared across modules</h2>
+				<p>
+					Project compilation installs the complete prepared source set before emitting modules. The
+					native compiler then builds callable effects, component relationships, expression
+					identities, and placement links once for that TypeScript program generation. Each module
+					still receives its target-specific output, while unchanged project facts are reused
+					instead of rediscovered for every file. A watched source change creates a new generation
+					before affected output is published.
+				</p>
+			</section>
 			<Callout title="Generated code is an implementation contract, not an authoring API">
 				<p>
 					The helper names are private compiler/runtime coordination. Applications should use the

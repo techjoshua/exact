@@ -260,10 +260,12 @@ func collectProjectCallableEffects(
 		project.callableCache = buildProjectCallableCache(
 			project.program,
 			typeChecker,
+			&project.counters,
 		)
 	}
 	cache := project.callableCache
 	if !cache.owned[sourceFile] {
+		project.counters.CallableSourceAnalyses++
 		refreshed := collectCallableEffects(
 			sourceFile,
 			typeChecker,
@@ -290,6 +292,7 @@ func collectProjectCallableEffects(
 func buildProjectCallableCache(
 	program *compiler.Program,
 	typeChecker *checker.Checker,
+	counters *WorkCounters,
 ) *projectCallableCache {
 	cache := &projectCallableCache{
 		bySource:     make(map[*ast.SourceFile]callableAnalysis),
@@ -301,6 +304,7 @@ func buildProjectCallableCache(
 			strings.Contains(strings.ReplaceAll(sourceFile.FileName(), `\`, `/`), "/node_modules/") {
 			continue
 		}
+		counters.CallableSourceAnalyses++
 		components := collectComponents(sourceFile)
 		_, reads, writes := collectStateAnalysis(sourceFile, typeChecker)
 		bindings, bindingWrites, _ := analyzeComponentBindings(

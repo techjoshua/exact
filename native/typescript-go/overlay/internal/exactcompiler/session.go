@@ -55,6 +55,9 @@ func (s *Session) Execute(request Request) Response {
 		s.projects = make(map[string]*projectState)
 		return response
 	}
+	if request.Kind == "synchronize" {
+		return s.synchronizeProject(request, response, requestStarted)
+	}
 	if request.Kind != "compile" && request.Kind != "analyze" && request.Kind != "diagnose" && request.Kind != "extension" {
 		response.Error = fmt.Sprintf("unsupported native compiler request kind %q", request.Kind)
 		return response
@@ -142,11 +145,7 @@ func (s *Session) Execute(request Request) Response {
 		request.ConfigFile = nearestTypeScriptConfig(fileName)
 	}
 
-	projectIdentity := request.ConfigFile
-	if projectIdentity == "" {
-		projectIdentity = fileName
-	}
-	projectKey := strings.Join([]string{request.Root, projectIdentity}, "\x00")
+	projectKey := nativeProjectKey(request, fileName)
 	programStarted := time.Now()
 	project := s.projects[projectKey]
 	if project == nil {
@@ -164,6 +163,7 @@ func (s *Session) Execute(request Request) Response {
 		}
 		s.projects[projectKey] = project
 	}
+	countersBefore := project.counters
 	generation, err := project.advance(context.Background(), fileName, request.Source)
 	response.Timings.ProgramMicroseconds = time.Since(programStarted).Microseconds()
 	if err != nil {
@@ -731,6 +731,7 @@ func (s *Session) Execute(request Request) Response {
 		setupAssignmentExecutions,
 	)
 	response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
+	response.Counters = project.counters.since(countersBefore)
 	return response
 }
 

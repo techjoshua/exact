@@ -7,14 +7,19 @@ import (
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/checker"
-	"github.com/microsoft/typescript-go/internal/compiler"
 	"github.com/microsoft/typescript-go/internal/tspath"
 )
 
 type projectComponent struct {
-	sourceFile *ast.SourceFile
-	candidate  componentCandidate
-	component  Component
+	sourceFile     *ast.SourceFile
+	candidate      componentCandidate
+	candidateIndex int
+	component      Component
+}
+
+type projectComponentLinkFacts struct {
+	edges       []RenderEdge
+	diagnostics []string
 }
 
 // linkProjectComponents resolves JSX component tags by checker symbol across
@@ -27,13 +32,15 @@ func linkProjectComponents(
 	current []Component,
 	callables callableAnalysis,
 ) []Component {
+	ensureProjectComponentCaches(project)
 	if project.componentCache != nil {
 		if cached, exists := project.componentCache[requested]; exists {
+			project.counters.ComponentResultCacheHits++
 			return append([]Component(nil), cached...)
 		}
 	}
 	records := projectComponentRecords(
-		project.program,
+		project,
 		requested,
 		typeChecker,
 		current,
@@ -66,13 +73,17 @@ func linkProjectComponents(
 	for index := range records {
 		record := &records[index]
 		edges := []RenderEdge{}
-		candidates := activeComponentCandidates(record.sourceFile)
-		nodeIDs := expressionNodeIDs(record.sourceFile)
+		if facts, exists := project.componentLinks[record.candidate.node]; exists {
+			record.component.RenderEdges = append([]RenderEdge(nil), facts.edges...)
+			record.component.Diagnostics = append(record.component.Diagnostics, facts.diagnostics...)
+			continue
+		}
+		project.counters.ComponentLinkWalks++
+		candidates := projectComponentCandidates(project, record.sourceFile)
+		nodeIDs := projectComponentNodeIDs(project, record.sourceFile)
+		diagnosticCount := len(record.component.Diagnostics)
 		walkNode(record.candidate.node, func(node *ast.Node) bool {
-			if componentOwnerIndex(node, candidates) != componentCandidateIndex(
-				record.candidate,
-				candidates,
-			) {
+			if componentOwnerIndex(node, candidates) != record.candidateIndex {
 				return false
 			}
 			tag := jsxTagNode(node)
@@ -261,7 +272,12 @@ func linkProjectComponents(
 			return true
 		})
 		record.component.RenderEdges = edges
+		project.componentLinks[record.candidate.node] = projectComponentLinkFacts{
+			edges:       append([]RenderEdge(nil), edges...),
+			diagnostics: append([]string(nil), record.component.Diagnostics[diagnosticCount:]...),
+		}
 	}
+	refreshProjectComponentEdgePlacements(records)
 	resolveProjectComponentSubgraphs(records)
 
 	result := []Component{}
@@ -815,30 +831,39 @@ func cacheRequestedComponents(
 }
 
 func projectComponentRecords(
-	program *compiler.Program,
+	project *projectState,
 	requested *ast.SourceFile,
 	typeChecker *checker.Checker,
 	current []Component,
 	callables callableAnalysis,
 ) []projectComponent {
 	records := []projectComponent{}
-	currentCandidates := activeComponentCandidates(requested)
+	currentCandidates := projectComponentCandidates(project, requested)
 	for index := range current {
 		records = append(records, projectComponent{
-			sourceFile: requested,
-			candidate:  currentCandidates[index],
-			component:  current[index],
+			sourceFile:     requested,
+			candidate:      currentCandidates[index],
+			candidateIndex: index,
+			component:      current[index],
 		})
 	}
-	for _, dependency := range program.GetSourceFiles() {
+	for _, dependency := range project.program.GetSourceFiles() {
 		if dependency == requested || dependency.IsDeclarationFile ||
 			strings.Contains(strings.ReplaceAll(dependency.FileName(), `\`, `/`), "/node_modules/") {
+			continue
+		}
+		if cached, exists := project.componentFacts[dependency]; exists {
+			for _, record := range cached {
+				record.component = cloneProjectComponent(record.component)
+				records = append(records, record)
+			}
 			continue
 		}
 		components := collectComponents(dependency)
 		if len(components) == 0 {
 			continue
 		}
+		project.counters.ComponentSourceAnalyses++
 		assignComponentIDs(dependency, components, dependency.FileName())
 		aliases, reads, writes := collectStateAnalysis(dependency, typeChecker)
 		reactive := collectReactiveBindings(
@@ -871,27 +896,78 @@ func projectComponentRecords(
 			typeChecker,
 		)
 		candidates := activeComponentCandidates(dependency)
+		facts := make([]projectComponent, 0, len(components))
 		for index := range components {
-			records = append(records, projectComponent{
-				sourceFile: dependency,
-				candidate:  candidates[index],
-				component:  components[index],
-			})
+			record := projectComponent{
+				sourceFile:     dependency,
+				candidate:      candidates[index],
+				candidateIndex: index,
+				component:      components[index],
+			}
+			facts = append(facts, record)
+			records = append(records, record)
 		}
+		project.componentFacts[dependency] = facts
 	}
 	return records
 }
 
-func componentCandidateIndex(
-	expected componentCandidate,
-	candidates []componentCandidate,
-) int {
-	for index, candidate := range candidates {
-		if candidate.node == expected.node {
-			return index
+func ensureProjectComponentCaches(project *projectState) {
+	if project.componentFacts == nil {
+		project.componentFacts = make(map[*ast.SourceFile][]projectComponent)
+	}
+	if project.componentCandidates == nil {
+		project.componentCandidates = make(map[*ast.SourceFile][]componentCandidate)
+	}
+	if project.componentNodeIDs == nil {
+		project.componentNodeIDs = make(map[*ast.SourceFile]map[*ast.Node]string)
+	}
+	if project.componentLinks == nil {
+		project.componentLinks = make(map[*ast.Node]projectComponentLinkFacts)
+	}
+}
+
+func projectComponentCandidates(project *projectState, sourceFile *ast.SourceFile) []componentCandidate {
+	if cached, exists := project.componentCandidates[sourceFile]; exists {
+		return cached
+	}
+	candidates := activeComponentCandidates(sourceFile)
+	project.componentCandidates[sourceFile] = candidates
+	return candidates
+}
+
+func projectComponentNodeIDs(project *projectState, sourceFile *ast.SourceFile) map[*ast.Node]string {
+	if cached, exists := project.componentNodeIDs[sourceFile]; exists {
+		return cached
+	}
+	nodeIDs := expressionNodeIDs(sourceFile)
+	project.componentNodeIDs[sourceFile] = nodeIDs
+	return nodeIDs
+}
+
+func cloneProjectComponent(component Component) Component {
+	component.RenderEdges = append([]RenderEdge(nil), component.RenderEdges...)
+	component.Diagnostics = append([]string(nil), component.Diagnostics...)
+	return component
+}
+
+func refreshProjectComponentEdgePlacements(records []projectComponent) {
+	placements := make(map[string]string, len(records))
+	for _, record := range records {
+		placements[record.component.ID] = record.component.Placement
+	}
+	for index := range records {
+		for edgeIndex := range records[index].component.RenderEdges {
+			edge := &records[index].component.RenderEdges[edgeIndex]
+			if placement, exists := placements[edge.ComponentID]; exists {
+				edge.Placement = placement
+				edge.Boundary = placement
+			} else if edge.ModuleSpecifier != "" {
+				edge.Placement = records[index].component.Placement
+				edge.Boundary = records[index].component.Placement
+			}
 		}
 	}
-	return -1
 }
 
 func jsxTagNode(node *ast.Node) *ast.Node {

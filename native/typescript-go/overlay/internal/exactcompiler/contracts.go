@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.34.0"
+const ProtocolVersion = "1.35.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -58,6 +58,14 @@ type Request struct {
 	InstrumentInspection        bool                        `json:"instrumentInspection,omitempty"`
 	PackageEnhancementBoundary  int                         `json:"packageEnhancementBoundary,omitempty"`
 	Extension                   *ExtensionRequest           `json:"extension,omitempty"`
+	Sources                     []ProjectSource             `json:"sources,omitempty"`
+}
+
+// ProjectSource is one complete source overlay installed before project work begins.
+type ProjectSource struct {
+	ID                         string `json:"id"`
+	Source                     string `json:"source"`
+	PackageEnhancementBoundary int    `json:"packageEnhancementBoundary,omitempty"`
 }
 
 // ExtensionRequest selects an isolated native frontend operation without adding
@@ -1066,6 +1074,25 @@ type Timings struct {
 	TotalMicroseconds       int64 `json:"totalMicroseconds"`
 }
 
+// WorkCounters report cache and rebuild behavior independently from machine timing noise.
+type WorkCounters struct {
+	ProgramRebuilds          int64 `json:"programRebuilds"`
+	CallableSourceAnalyses   int64 `json:"callableSourceAnalyses"`
+	ComponentSourceAnalyses  int64 `json:"componentSourceAnalyses"`
+	ComponentLinkWalks       int64 `json:"componentLinkWalks"`
+	ComponentResultCacheHits int64 `json:"componentResultCacheHits"`
+}
+
+func (value WorkCounters) since(previous WorkCounters) WorkCounters {
+	return WorkCounters{
+		ProgramRebuilds:          value.ProgramRebuilds - previous.ProgramRebuilds,
+		CallableSourceAnalyses:   value.CallableSourceAnalyses - previous.CallableSourceAnalyses,
+		ComponentSourceAnalyses:  value.ComponentSourceAnalyses - previous.ComponentSourceAnalyses,
+		ComponentLinkWalks:       value.ComponentLinkWalks - previous.ComponentLinkWalks,
+		ComponentResultCacheHits: value.ComponentResultCacheHits - previous.ComponentResultCacheHits,
+	}
+}
+
 // Response is one newline-delimited result emitted by a Session.
 type Response struct {
 	ID                string                  `json:"id,omitempty"`
@@ -1077,6 +1104,7 @@ type Response struct {
 	Diagnostics       []Diagnostic            `json:"diagnostics"`
 	Analysis          Analysis                `json:"analysis"`
 	Timings           Timings                 `json:"timings"`
+	Counters          WorkCounters            `json:"counters"`
 	CacheHit          bool                    `json:"cacheHit,omitempty"`
 	Error             string                  `json:"error,omitempty"`
 	Extension         any                     `json:"extension,omitempty"`
