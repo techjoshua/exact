@@ -21,6 +21,8 @@ describe('documentation theme isolation', () => {
 		expect(stylesheet).toContain('--code-surface: var(--exact-theme-neutral-subtle)');
 		expect(stylesheet).toContain('--syntax-keyword: var(--exact-theme-accent-text)');
 		expect(stylesheet).toContain('--syntax-string: var(--exact-theme-success-text)');
+		expect(stylesheet).toContain('--syntax-keyword: var(--exact-theme-accent-solid-active)');
+		expect(stylesheet).toContain('--syntax-string: var(--exact-theme-success-solid-active)');
 		expect(stylesheet).toContain('--syntax-invalid: var(--exact-theme-danger-solid)');
 		expect(stylesheet).not.toMatch(/--syntax-(?:keyword|type|function|string|number):\s*#/);
 	});

@@ -164,6 +164,7 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	await expect(
 		page.getByRole('heading', { name: 'Theme by meaning, not selector surgery' })
 	).toBeVisible();
+	await page.locator('.theme-control > summary').click();
 	const appearance = page.getByLabel('Appearance');
 	const codeBlock = page.locator('.code-block').first();
 
@@ -183,9 +184,45 @@ test('keeps documentation code blocks on the reactive application theme', async 
 
 	expect(light.surface).toBe(light.neutralSubtle);
 	expect(dark.surface).toBe(dark.neutralSubtle);
-	expect(light.keyword).toBe(light.accentText);
+	expect(light.keyword).toBe(light.accentSolidActive);
 	expect(dark.keyword).toBe(dark.accentText);
 	expect(dark.surface).not.toBe(light.surface);
+	expect(light.rootColorScheme).toBe('light');
+	expect(dark.rootColorScheme).toBe('dark');
+});
+
+test('keeps theme customization inside the viewport and themes article callouts', async ({ page }) => {
+	await page.goto('/#/story');
+	await page.locator('.theme-control > summary').click();
+	const panel = page.locator('.theme-control-panel');
+	await expect(panel).toBeVisible();
+	const bounds = await panel.boundingBox();
+	expect(bounds).not.toBeNull();
+	expect(bounds!.x).toBeGreaterThanOrEqual(0);
+	expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+
+	const originalFingerprint = await page
+		.locator('#app > [data-exact-theme]')
+		.getAttribute('data-exact-theme-fingerprint');
+	await panel.getByLabel('Color').selectOption('violet');
+	await panel.getByLabel('Shape').selectOption('pill');
+	await expect
+		.poll(() => page.locator('#app > [data-exact-theme]').getAttribute('data-exact-theme-fingerprint'))
+		.not.toBe(originalFingerprint);
+	expect(await page.evaluate(() => localStorage.getItem('exact-docs-theme-settings'))).toContain(
+		'"shape":"pill"'
+	);
+
+	const callout = page.locator('.callout').filter({ hasText: 'How the pieces fit' });
+	await expect(callout).toHaveClass(/exact-theme-surface/);
+	const colors = await callout.evaluate((element) => {
+		const style = getComputedStyle(element);
+		return {
+			background: style.backgroundColor,
+			infoSubtle: style.getPropertyValue('--exact-theme-info-subtle').trim()
+		};
+	});
+	expect(colors.background).toBe(colors.infoSubtle);
 });
 
 function themeScope(page: Page, index: number): Locator {
@@ -199,7 +236,9 @@ async function codeThemeReport(codeBlock: Locator) {
 			surface: style.getPropertyValue('--code-surface').trim(),
 			neutralSubtle: style.getPropertyValue('--exact-theme-neutral-subtle').trim(),
 			keyword: style.getPropertyValue('--syntax-keyword').trim(),
-			accentText: style.getPropertyValue('--exact-theme-accent-text').trim()
+			accentText: style.getPropertyValue('--exact-theme-accent-text').trim(),
+			accentSolidActive: style.getPropertyValue('--exact-theme-accent-solid-active').trim(),
+			rootColorScheme: getComputedStyle(document.documentElement).colorScheme
 		};
 	});
 }

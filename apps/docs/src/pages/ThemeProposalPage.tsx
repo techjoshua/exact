@@ -40,7 +40,8 @@ export function ThemeProposalPage(this: Component<{}>) {
 				The package, reactive scopes, CSS variables, enhancements, override validation, and exterior
 				derivation APIs are available now. <a href="#/examples/theme-lab">Open the Theme Lab</a> to
 				change root and nested sources live. This documentation shell also uses a reactive root
-				theme scope for its persisted appearance preference and application chrome.
+				theme scope for its persisted appearance and customization preferences, including browser-owned
+				chrome such as scrollbars.
 			</Callout>
 
 			<section>
