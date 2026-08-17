@@ -150,6 +150,7 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-client.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
 		Source: `
 			export function Planned(props: { label: string }) {
 				return () => <span>{props.label}</span>;
@@ -161,7 +162,8 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, "createCompiledRenderProgram") ||
 		strings.Contains(response.Code, "ssrParts:") ||
-		strings.Contains(response.Code, "ssrOperations:") {
+		strings.Contains(response.Code, "ssrOperations:") ||
+		strings.Contains(response.Code, `() => __exactVNode("span"`) {
 		t.Fatalf("client render program retained server marker metadata:\n%s", response.Code)
 	}
 }
@@ -940,7 +942,6 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		t.Fatalf("client component has no root symbol: %#v", response.Analysis.Symbols)
 	}
 	for _, expected := range []string{
-		`import "@exactjs/core/runtime/tasks"`,
 		`const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract")`,
 		`const __exactImplementation_Button_1 = function Button()`,
 		`export const Button =`,
@@ -962,6 +963,9 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 				response.Code,
 			)
 		}
+	}
+	if !strings.Contains(response.Code, `import "@exactjs/core/runtime/tasks"`) {
+		t.Fatalf("complete client projection lost its generic fallback dependency:\n%s", response.Code)
 	}
 	if strings.Count(response.Code, "boundaries: []") < 2 {
 		t.Fatalf(

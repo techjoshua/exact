@@ -123,6 +123,11 @@ export function AdvancedPage(this: Component<{}>) {
 					same local fallback and ownership behavior.
 				</p>
 				<p>
+					A hydrate-only client artifact also omits the duplicate generic VNode factory for a
+					compiler-closed intrinsic program. Complete and server-capable artifacts retain that
+					fallback, and a malformed document still enters deterministic root hydration recovery.
+				</p>
+				<p>
 					Document config, island props, JSON responses, and streamed events pass through the same
 					bounded reactive-protocol decoder. Static repair also uses the DOM renderer&apos;s
 					intrinsic namespace, attribute, URL, class, and unsafe-HTML contract, so eager and
