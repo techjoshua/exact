@@ -28,6 +28,7 @@ type jsxLowering struct {
 	derived                map[int]ReactiveBinding
 	elidedDerived          map[int]ReactiveBinding
 	target                 Target
+	contractProjection     ComponentContractProjection
 	serverComponents       bool
 	instrumentInspection   bool
 	components             map[string]Component

@@ -597,6 +597,7 @@ func (s *Session) Execute(request Request) Response {
 			continuations:         continuations,
 			clientIslands:         clientIslands,
 			target:                request.Target,
+			contractProjection:    request.ComponentContractProjection,
 			serverComponents:      request.ServerComponents,
 			instrumentInspection:  request.InstrumentInspection,
 			typeChecker:           generation.checker,

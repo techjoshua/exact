@@ -280,3 +280,34 @@ The work should be implemented and measured in this order:
 No recommendation removes support for generic VNodes, open component packages, runtime inspection,
 Map/Set state, or recovery. Each moves that machinery behind the compiler-visible capability or
 trust boundary that actually requires it.
+
+## Implementation measurements
+
+### Recommendation 1: closed hydrate render-program fallback
+
+The hydrate/client component-contract projection now omits each compiler-closed intrinsic
+program's generic VNode fallback closure. Complete, universal, and server-capable projections keep
+the fallback because they can enter SSR, React-compatible markup, or local recovery. A failed
+closed-program adoption still reaches deterministic root hydration recovery; fresh mounting fails
+explicitly if a compiler-owned closed program cannot mount.
+
+The full controlled comparison passed all 28 browser checks after the change. Seven-sample medians
+and complete client artifacts changed as follows:
+
+| Metric                   |      Before |       After |            Change |
+| ------------------------ | ----------: | ----------: | ----------------: |
+| Post-GC retained heap    | 2,847,044 B | 2,843,044 B | -4,000 B (-0.14%) |
+| Navigation               |     35.4 ms |     33.1 ms |           -2.3 ms |
+| First contentful paint   |       48 ms |       44 ms |             -4 ms |
+| Optimistic feedback      |      1.8 ms |      2.2 ms |           +0.4 ms |
+| Authoritative settlement |     13.5 ms |     13.9 ms |           +0.4 ms |
+| Clean comparison build   |  4,649.7 ms |  4,148.9 ms |         -500.8 ms |
+| Client artifact, raw     |   225,662 B |   221,651 B | -4,011 B (-1.78%) |
+| Client artifact, gzip    |    66,856 B |    66,290 B |   -566 B (-0.85%) |
+
+The sub-millisecond interaction movements and single-run build movement are not treated as causal
+performance claims. The reproducible code-size and retained-heap reductions are smaller than the
+original estimate because generic structural regions still make the ordinary renderer reachable;
+this first implementation removes duplicate per-program factories rather than the renderer itself.
+Raw runs: `raw-1786983123299.json` and `raw-1786986398296.json` under the ignored comparison `.tmp`
+directory.

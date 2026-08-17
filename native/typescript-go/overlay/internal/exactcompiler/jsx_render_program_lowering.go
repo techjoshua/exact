@@ -104,15 +104,23 @@ func (lowering *jsxLowering) lowerRenderProgram(
 			readers[index] = lowering.arrow(slot.reader)
 		}
 	}
-	lowering.renderProgramFallback = true
-	fallback := lowering.lowerOpeningLike(identityNode, opening, children)
-	lowering.renderProgramFallback = false
-	return lowering.call(lowering.names.renderProgram, []*ast.Node{
+	arguments := []*ast.Node{
 		lowering.factory.NewStringLiteral(programCacheKey, ast.TokenFlagsNone),
 		lowering.arrow(program),
 		lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false),
-		lowering.arrow(fallback),
-	})
+	}
+	if lowering.target != TargetClient ||
+		lowering.contractProjection == ComponentContractProjectionComplete {
+		// Server and universal artifacts can enter React-compatible SSR or recover one malformed
+		// region locally. A client artifact already has root-level hydration recovery, so retaining
+		// a duplicate generic VNode factory for every compiler-closed region only adds parse, heap,
+		// and construction work to the successful path.
+		lowering.renderProgramFallback = true
+		fallback := lowering.lowerOpeningLike(identityNode, opening, children)
+		lowering.renderProgramFallback = false
+		arguments = append(arguments, lowering.arrow(fallback))
+	}
+	return lowering.call(lowering.names.renderProgram, arguments)
 }
 
 // renderProgramParentNamespace resolves the concrete DOM namespace inherited by

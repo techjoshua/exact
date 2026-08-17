@@ -22,6 +22,7 @@ type jsxLoweringPlan struct {
 	continuations         []Continuation
 	clientIslands         map[*ast.Node]clientElementIsland
 	target                Target
+	contractProjection    ComponentContractProjection
 	serverComponents      bool
 	instrumentInspection  bool
 	typeChecker           *checker.Checker
@@ -71,6 +72,7 @@ func (plan jsxLoweringPlan) prepare(
 		derived:               derived,
 		elidedDerived:         elidedDerived,
 		target:                plan.target,
+		contractProjection:    plan.contractProjection,
 		serverComponents:      plan.serverComponents,
 		instrumentInspection:  plan.instrumentInspection,
 		interop:               plan.interop,

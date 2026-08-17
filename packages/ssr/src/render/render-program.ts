@@ -169,8 +169,12 @@ function materializeProgramFallback(
 	vnode: VNode,
 	owner: ComponentInstance<any> | undefined
 ): VNode {
-	if (!owner) return renderProgramFallback(vnode);
-	return withEffectScope(owner.scope, () =>
-		withComponentDomain(owner.domain, () => renderProgramFallback(vnode))
-	);
+	const fallback = !owner
+		? renderProgramFallback(vnode)
+		: withEffectScope(owner.scope, () =>
+				withComponentDomain(owner.domain, () => renderProgramFallback(vnode))
+			);
+	if (!fallback)
+		throw new Error('Client-only compiler render programs cannot execute through SSR fallback');
+	return fallback;
 }

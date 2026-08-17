@@ -166,10 +166,11 @@ export function mountInner(
 	}
 
 	if (vnode.type === RenderProgram) {
-		return (
-			mountRenderProgram(root, vnode, scope, parentInstance) ??
-			mountInner(root, fallbackRenderProgram(vnode), scope, parentInstance, parentNode)
-		);
+		const planned = mountRenderProgram(root, vnode, scope, parentInstance);
+		if (planned) return planned;
+		const fallback = fallbackRenderProgram(vnode);
+		if (fallback) return mountInner(root, fallback, scope, parentInstance, parentNode);
+		throw new Error('Compiler-closed render program could not be mounted');
 	}
 
 	if (vnode.type === Text) {

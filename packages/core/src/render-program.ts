@@ -45,7 +45,8 @@ type BrandedRenderProgram = ExactRenderProgram & { readonly [renderProgramBrand]
 export type ExactRenderProgramInvocation = Readonly<{
 	program: BrandedRenderProgram;
 	readers: readonly (() => unknown)[];
-	fallback: () => VNode;
+	/** Generic recovery retained only when the artifact can execute outside the closed client path. */
+	fallback?: () => VNode;
 }>;
 
 const programs = new Map<string, BrandedRenderProgram>();
@@ -71,7 +72,7 @@ export function createCompiledRenderProgram(
 	cacheKey: string,
 	createProgram: () => ExactRenderProgram,
 	readers: readonly (() => unknown)[],
-	fallback: () => VNode
+	fallback?: () => VNode
 ): VNode {
 	let branded = programs.get(cacheKey);
 	if (!branded) {
@@ -101,7 +102,7 @@ export function createCompiledRenderProgram(
 	const domain = currentComponentDomain();
 	return {
 		type: RenderProgram,
-		props: { program: branded, readers, fallback },
+		props: { program: branded, readers, ...(fallback ? { fallback } : {}) },
 		children: [],
 		...(domain ? { domain } : {})
 	};
@@ -116,7 +117,7 @@ export function readRenderProgram(vnode: VNode): ExactRenderProgramInvocation | 
 		invocation.program[renderProgramBrand] !== true ||
 		invocation.program.version !== 1 ||
 		!Array.isArray(invocation.readers) ||
-		typeof invocation.fallback !== 'function' ||
+		(invocation.fallback !== undefined && typeof invocation.fallback !== 'function') ||
 		invocation.readers.length !== invocation.program.slots.length
 	)
 		return undefined;
@@ -124,8 +125,8 @@ export function readRenderProgram(vnode: VNode): ExactRenderProgramInvocation | 
 }
 
 /** Materializes the region-local generic path after an executor rejection. */
-export function renderProgramFallback(vnode: VNode): VNode {
+export function renderProgramFallback(vnode: VNode): VNode | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) throw new Error('Invalid compiler-owned render program');
-	return invocation.fallback();
+	return invocation.fallback?.();
 }

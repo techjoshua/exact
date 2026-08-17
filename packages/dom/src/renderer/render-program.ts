@@ -131,15 +131,12 @@ export function adoptRenderProgramOrFallback(
 		: undefined;
 	if (adopted) return { mounted: adopted, next: cursor + 1 };
 	scope.stop();
-	return adoptFallback(
-		root,
-		fallbackRenderProgram(vnode),
-		nodes,
-		cursor,
-		parentInstance,
-		parentScope,
-		end
-	);
+	const fallback = fallbackRenderProgram(vnode);
+	// Client-closed programs deliberately recover at the hydration-root boundary. Keeping a
+	// region-local VNode factory in every successful program costs more than the rare full-root
+	// recovery, while the root still preserves the same fail-closed malformed-SSR behavior.
+	if (!fallback) return undefined;
+	return adoptFallback(root, fallback, nodes, cursor, parentInstance, parentScope, end);
 }
 
 /** Adopts compiler-addressed program nodes inside the marker ranges required by generic SSR. */
@@ -277,7 +274,7 @@ export function patchRenderProgram(mounted: Mounted, vnode: VNode): boolean {
 }
 
 /** Returns the lazy fallback without exposing its compiler-owned brand. */
-export function fallbackRenderProgram(vnode: VNode): VNode {
+export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 	return renderProgramFallback(vnode);
 }
 
