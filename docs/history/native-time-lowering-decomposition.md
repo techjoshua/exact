@@ -2,9 +2,8 @@
 
 ## Status
 
-In progress. Time diagnostics now have a separate owner while the lowering traversal and plan
-construction remain unchanged. The `time_lowering.go` legacy ceiling has ratcheted from 1,734 to
-1,530 checker-counted lines.
+Completed. The original module is now below the standard Go architecture limit, and its legacy
+ceiling has been removed.
 
 ## Ownership
 
@@ -12,9 +11,13 @@ construction remain unchanged. The `time_lowering.go` legacy ceiling has ratchet
 accuracy diagnostics. It may inspect formatter and clock plans, but it does not emit runtime AST or
 own activation lifecycle.
 
-`time_lowering.go` continues to own activation construction, change-plan inference, quantization,
-clock-read rewriting, and derived-reference lowering. Further extraction should separate pure plan
-inference from AST emission without adding another traversal or changing clock ownership.
+`time_activation_lowering.go` owns range-local activation construction and the small runtime plan
+AST primitives consumed by inference.
 
-Every split must pass native Go tests and the semantic compiler corpus. The legacy ceiling should
-be removed once all remaining files are below the standard 1,200-line Go limit.
+`time_clock_lowering.go` owns clock-read instrumentation, zero-argument date lowering, and
+clock-derived reference rewriting.
+
+`time_lowering.go` now owns change-plan inference, formatter sensitivity, static helper tracing,
+and quantization analysis. The split adds no traversal and does not change clock ownership.
+
+Native Go tests and the semantic compiler corpus must continue to guard these ownership boundaries.
