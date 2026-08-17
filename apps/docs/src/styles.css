@@ -91,6 +91,19 @@
 	--syntax-invalid: var(--exact-theme-danger-solid);
 }
 
+[data-exact-theme-appearance='light'] {
+	/* Text tones are intentionally soft for prose; solid-active tones retain code-token contrast. */
+	--syntax-keyword: var(--exact-theme-accent-solid-active);
+	--syntax-type: var(--exact-theme-warning-solid-active);
+	--syntax-function: var(--exact-theme-info-solid-active);
+	--syntax-string: var(--exact-theme-success-solid-active);
+	--syntax-number: var(--exact-theme-danger-solid-active);
+	--syntax-tag: var(--exact-theme-danger-solid-active);
+	--syntax-property: var(--exact-theme-info-solid-active);
+	--syntax-command: var(--exact-theme-accent-solid-active);
+	--syntax-bracket: var(--exact-theme-warning-solid-active);
+}
+
 .theme-lab-workbench {
 	display: grid;
 	grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
@@ -408,33 +421,65 @@ a {
 }
 
 .theme-control {
-	display: flex;
-	align-items: center;
-	gap: 0.25rem;
-	padding-left: 0.65rem;
-}
-
-.theme-control span {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip: rect(0 0 0 0);
-}
-
-.theme-control select {
-	height: 2.25rem;
+	position: relative;
 	border: 0;
-	background: var(--surface-raised);
-	color: var(--text);
-	padding: 0 1.8rem 0 0.2rem;
-	font-size: 0.8rem;
+	background: transparent;
+}
+
+.theme-control > summary {
+	display: inline-flex;
+	min-height: 2.35rem;
+	align-items: center;
+	gap: 0.4rem;
+	padding-inline: 0.7rem;
+	list-style: none;
 	cursor: pointer;
 }
 
-.theme-control select option {
-	background: var(--surface-raised);
-	color: var(--text);
+.theme-control > summary::-webkit-details-marker {
+	display: none;
+}
+
+.theme-control-panel {
+	position: absolute;
+	z-index: 60;
+	top: calc(100% + 0.55rem);
+	inset-inline-end: 0;
+	width: min(28rem, calc(100vw - 1.5rem));
+	padding: 1rem;
+	border: 1px solid var(--border);
+	border-radius: var(--exact-theme-radius-lg);
+	box-shadow: var(--exact-theme-shadow-lg);
+}
+
+.theme-control-field {
+	display: grid;
+	gap: 0.35rem;
+	min-width: 0;
+}
+
+.theme-control-field > span,
+.theme-customize-heading > span {
+	font-size: 0.72rem;
+}
+
+.theme-control-field select {
+	width: 100%;
+	text-transform: capitalize;
+}
+
+.theme-customize-heading {
+	display: grid;
+	gap: 0.2rem;
+	margin-block: 1rem 0.65rem;
+	padding-top: 0.85rem;
+	border-top: 1px solid var(--border);
+}
+
+.theme-customize-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.75rem;
 }
 
 .github-link {
@@ -1049,14 +1094,19 @@ a.topic-card:hover {
 	margin-bottom: 3rem;
 	padding: 1.15rem 1.25rem;
 	border: 1px solid var(--border);
-	border-left: 3px solid var(--accent);
+	border-left: 3px solid var(--exact-theme-info-border);
 	border-radius: 0.5rem;
-	background: var(--accent-soft);
+	background: var(--exact-theme-info-subtle);
 }
 
 .callout--warning {
-	border-left-color: var(--highlight);
-	background: var(--highlight-soft);
+	border-left-color: var(--exact-theme-warning-border);
+	background: var(--exact-theme-warning-subtle);
+}
+
+.callout--tip {
+	border-left-color: var(--exact-theme-success-border);
+	background: var(--exact-theme-success-subtle);
 }
 
 .callout > strong {
@@ -1740,8 +1790,12 @@ a.topic-card:hover {
 	.brand small,
 	.search-trigger kbd,
 	.github-link,
-	.theme-control span {
+		.theme-control > summary span {
 		display: none;
+	}
+
+	.theme-customize-grid {
+		grid-template-columns: 1fr;
 	}
 
 	.search-trigger {

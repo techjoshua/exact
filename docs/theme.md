@@ -30,6 +30,11 @@ maps, and printable document styling rather than treating the theme package as a
 Declarative scopes accept the curated tonic names `teal`, `blue`, `violet`, `amber`, `rose`, and `green`, or any opaque context-free CSS Color 4 or DTCG color accepted by `ThemeColor`. The names are conveniences rather than a closed palette. A temperament—`balanced`, `restrained`, `expressive`, `dramatic`, `soft`, `stark`, or `monochrome`—controls chroma, surface, state, and status relationships. Appearance, density, shape, depth, typography, contrast, and motion are independent axes. Every nested source axis inherits when omitted, and each accepts explicit `inherit`, including `theme:tonic` and `theme:temperament`. `system` appearance, contrast, and motion follow their media queries.
 
 The Theme Lab pairs tonic presets with native color-picker controls for both root and nested scopes. Choosing a color switches that scope to `custom` and applies the selected color reactively without remounting its contents.
+
+The public documentation shell also uses a root theme scope. Its header menu persists appearance,
+tonic, temperament, density, shape, depth, typography, contrast, and motion choices. Explicit light
+and dark appearances are reflected on the document root so browser-owned chrome such as scrollbars
+uses the same color scheme; `system` continues to follow the operating-system preference.
 The lab's host-page control rules explicitly exclude themed actions, fields, and selections, so page-level hover, focus, and disabled colors cannot replace the generated contract while inspecting a theme.
 
 Every runtime theme scope establishes `font-body`, `font-size-md`, and `line-height-body` on its wrapper. Native descendants and themed controls that use `font: inherit` therefore follow the selected typography preset, while heading/display and code roles switch to their dedicated generated families and scales.
