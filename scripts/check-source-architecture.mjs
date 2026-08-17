@@ -27,7 +27,6 @@ const legacyArchitectureCeilings = new Map([
 	['native/typescript-go/overlay/internal/exactcompiler/intl_extension.go', 2816],
 	['native/typescript-go/overlay/internal/exactcompiler/policy.go', 2167],
 	['native/typescript-go/overlay/internal/exactcompiler/callable_effects.go', 1983],
-	['native/typescript-go/overlay/internal/exactcompiler/time_lowering.go', 1530],
 	['native/typescript-go/overlay/internal/exactcompiler/component_contract_lowering.go', 1733],
 	['native/typescript-go/overlay/internal/exactcompiler/tasks.go', 1417],
 	['native/typescript-go/overlay/internal/exactcompiler/element_islands.go', 1314],

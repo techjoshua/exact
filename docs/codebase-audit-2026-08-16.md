@@ -31,6 +31,10 @@ into `source_edit_mapping.go` and state-destructuring validation/rewriting into
 to 1,061 checker-counted lines, below the standard 1,200-line Go limit, so its legacy ceiling was
 removed rather than merely lowered.
 
+Time lowering was subsequently split into diagnostics, activation construction, clock rewriting,
+and plan inference owners. `time_lowering.go` fell from 1,734 to 1,094 checker-counted lines, and its
+legacy ceiling was also removed.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,
