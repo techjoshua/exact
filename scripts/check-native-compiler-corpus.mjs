@@ -106,7 +106,10 @@ const significantProjectRatio = Math.max(
 	0,
 	...(comparison?.projectRatios ?? [])
 		.filter((project) => project.baselineMs >= 250)
-		.flatMap((project) => [project.ratio, project.incrementalRatio ?? 0])
+		.flatMap((project) => [
+			project.ratio,
+			project.baselineIncrementalMs >= 50 ? (project.incrementalRatio ?? 0) : 0
+		])
 );
 const record = {
 	schemaVersion: 3,

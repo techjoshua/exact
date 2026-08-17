@@ -10,9 +10,17 @@ import { preparePackageEnhancementSource } from '../packages/compiler/dist/compi
 
 import { discoverNativeCompilerCorpus } from './native-compiler-corpus/discovery.mjs';
 
-/** Removes response fields that describe execution rather than compiler output. */
-export function normalizeNativeCompilerResponse(response) {
-	const { timings: _timings, cacheHit: _cacheHit, ...output } = response;
+/** Removes execution fields and, when requested, version identity from compiler output. */
+export function normalizeNativeCompilerResponse(response, ignoreVersions = false) {
+	const output = { ...response };
+	delete output.timings;
+	delete output.counters;
+	delete output.cacheHit;
+	if (ignoreVersions) {
+		delete output.protocolVersion;
+		delete output.backendVersion;
+		delete output.typescriptVersion;
+	}
 	return output;
 }
 
@@ -54,6 +62,7 @@ async function main() {
 	const root = path.resolve(import.meta.dirname, '..');
 	const beforeExecutable = requiredArgument('before');
 	const afterExecutable = requiredArgument('after');
+	const ignoreVersions = process.argv.includes('--ignore-versions');
 	const discovered = await discoverNativeCompilerCorpus(root);
 	const projectFilter = process.env.EXACT_NATIVE_CORPUS_PROJECT;
 	const groups = [...discovered.groups]
@@ -106,8 +115,8 @@ async function main() {
 			`Native compilers returned different response counts: ${beforeResponses.length} and ${afterResponses.length}`
 		);
 	for (let index = 0; index < beforeResponses.length; index++) {
-		const before = normalizeNativeCompilerResponse(beforeResponses[index]);
-		const after = normalizeNativeCompilerResponse(afterResponses[index]);
+		const before = normalizeNativeCompilerResponse(beforeResponses[index], ignoreVersions);
+		const after = normalizeNativeCompilerResponse(afterResponses[index], ignoreVersions);
 		if (isDeepStrictEqual(before, after)) continue;
 		const context = evidence.get(String(before.id ?? after.id)) ?? {};
 		const difference = firstNativeCompilerDifference(before, after);

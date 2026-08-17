@@ -76,7 +76,8 @@ stable project/file-count pairs in
 `docs/performance-baselines/native-compiler-corpus.json`, so adding a large
 project does not masquerade as a compiler regression. The guard considers both
 aggregate matched-project worker time and significant individual-project
-regressions. Run
+regressions; per-project incremental ratios below a 50 ms baseline are reported
+but excluded from the ratio guard because scheduler noise dominates them. Run
 `npm run check:native-compiler-corpus:baseline` only when intentionally
 accepting a new native baseline. `EXACT_NATIVE_CORPUS_WORKERS`,
 `EXACT_NATIVE_CORPUS_PROJECT`, `EXACT_NATIVE_CORPUS_SAMPLES`, and
