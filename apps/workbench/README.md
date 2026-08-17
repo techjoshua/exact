@@ -19,4 +19,5 @@ npm run build:workbench
 
 Workbench demonstrates multiple derived views, context-based commands, component-owned resources,
 focus management, recoverable errors, and async persistence without introducing a separate state
-store.
+store. It also uses `@exactjs/theme` package-scoped enhancements and generated semantic tokens while
+retaining application-owned board, panel, and responsive layout CSS.

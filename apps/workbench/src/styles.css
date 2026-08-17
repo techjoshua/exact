@@ -1,6 +1,8 @@
+@import '@exactjs/theme/styles.css';
+
 :root {
-	color: #243041;
-	background: #f5f7fa;
+	color: var(--exact-theme-on-canvas);
+	background: var(--exact-theme-canvas);
 	font-family:
 		Inter,
 		ui-sans-serif,
@@ -19,6 +21,10 @@ body {
 	margin: 0;
 }
 
+.exact-theme-scope {
+	min-block-size: 100vh;
+}
+
 button,
 input,
 select,
@@ -30,8 +36,8 @@ button {
 	border: 0;
 	border-radius: 6px;
 	padding: 9px 11px;
-	background: #2563eb;
-	color: white;
+	background: var(--exact-theme-accent-solid);
+	color: var(--exact-theme-accent-on-solid);
 	cursor: pointer;
 }
 
@@ -74,7 +80,7 @@ h2 {
 .activity-panel p,
 .empty-detail p,
 .empty-state {
-	color: #667085;
+	color: var(--exact-theme-surface-foreground-muted);
 }
 
 .header-controls {
@@ -88,11 +94,11 @@ input,
 select,
 textarea {
 	width: 100%;
-	border: 1px solid #cbd5e1;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
 	border-radius: 6px;
 	padding: 9px 11px;
-	background: white;
-	color: #243041;
+	background: var(--exact-theme-surface-background);
+	color: var(--exact-theme-surface-foreground);
 }
 
 textarea {
@@ -102,7 +108,7 @@ textarea {
 .segmented {
 	display: inline-grid;
 	grid-template-columns: 1fr 1fr;
-	border: 1px solid #cbd5e1;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
 	border-radius: 6px;
 	overflow: hidden;
 	background: white;
@@ -111,11 +117,11 @@ textarea {
 .segmented button {
 	border-radius: 0;
 	background: white;
-	color: #344054;
+	color: var(--exact-theme-surface-foreground-muted);
 }
 
 .segmented button.active {
-	background: #243041;
+	background: var(--exact-theme-neutral-solid);
 	color: white;
 }
 
@@ -142,7 +148,7 @@ textarea {
 .detail-panel,
 .activity-panel,
 .error-panel {
-	border: 1px solid #d9e2ef;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
 	border-radius: 8px;
 	background: white;
 	box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
@@ -151,11 +157,11 @@ textarea {
 .column {
 	min-height: 460px;
 	padding: 12px;
-	background: #eef3f8;
+	background: var(--exact-theme-neutral-subtle);
 }
 
 .column.empty {
-	background: #f8fafc;
+	background: var(--exact-theme-surface-background);
 }
 
 .column header,
@@ -172,7 +178,7 @@ textarea {
 }
 
 .column header span {
-	color: #667085;
+	color: var(--exact-theme-surface-foreground-muted);
 	font-size: 13px;
 }
 
@@ -184,7 +190,7 @@ textarea {
 }
 
 .task-card {
-	border: 1px solid #d8e0eb;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
 	border-radius: 8px;
 	padding: 12px;
 	background: white;
@@ -204,7 +210,7 @@ textarea {
 	width: 100%;
 	padding: 0;
 	background: transparent;
-	color: #243041;
+	color: var(--exact-theme-surface-foreground);
 	font-weight: 700;
 	text-align: left;
 	overflow-wrap: anywhere;
@@ -215,7 +221,7 @@ textarea {
 }
 
 .task-title:hover {
-	color: #1d4ed8;
+	color: var(--exact-theme-accent-text);
 }
 
 .task-priority {
@@ -239,7 +245,7 @@ textarea {
 
 .task-owner {
 	margin-top: 6px;
-	color: #475467;
+	color: var(--exact-theme-surface-foreground-muted);
 	font-size: 13px;
 	font-weight: 600;
 }
@@ -271,46 +277,46 @@ textarea {
 .label-row span {
 	border-radius: 999px;
 	padding: 3px 7px;
-	background: #e8eef6;
-	color: #475467;
+	background: var(--exact-theme-neutral-subtle);
+	color: var(--exact-theme-neutral-text);
 	font-size: 12px;
 }
 
 .priority.high {
-	background: #fee2e2;
-	color: #991b1b;
+	background: var(--exact-theme-danger-subtle);
+	color: var(--exact-theme-danger-text);
 }
 
 .priority.medium {
-	background: #fef3c7;
-	color: #92400e;
+	background: var(--exact-theme-warning-subtle);
+	color: var(--exact-theme-warning-text);
 }
 
 .priority.low {
-	background: #dcfce7;
-	color: #166534;
+	background: var(--exact-theme-success-subtle);
+	color: var(--exact-theme-success-text);
 }
 
 .move-row button {
-	border: 1px solid #cbd5e1;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
 	min-width: 0;
 	padding: 6px 7px;
 	background: white;
-	color: #475467;
+	color: var(--exact-theme-surface-foreground-muted);
 	font-size: 12px;
 	line-height: 1.2;
 	white-space: nowrap;
 }
 
 .move-row button.active {
-	border-color: #243041;
-	background: #243041;
+	border-color: var(--exact-theme-neutral-solid);
+	background: var(--exact-theme-neutral-solid);
 	color: white;
 }
 
 .quiet-button {
-	background: #e8eef6;
-	color: #243041;
+	background: var(--exact-theme-neutral-subtle);
+	color: var(--exact-theme-neutral-text);
 }
 
 .fill-button {
@@ -319,7 +325,7 @@ textarea {
 }
 
 .empty-state {
-	border: 1px dashed #cbd5e1;
+	border: var(--exact-theme-border-width) dashed var(--exact-theme-surface-border-strong);
 	border-radius: 8px;
 	padding: 18px 12px;
 	text-align: center;
@@ -359,7 +365,7 @@ textarea {
 }
 
 .detail-panel label span {
-	color: #475467;
+	color: var(--exact-theme-surface-foreground-muted);
 	font-size: 13px;
 	font-weight: 700;
 }
@@ -380,8 +386,8 @@ textarea {
 	border: 0;
 	border-radius: 999px;
 	padding: 5px 8px;
-	background: #e8eef6;
-	color: #475467;
+	background: var(--exact-theme-neutral-subtle);
+	color: var(--exact-theme-neutral-text);
 	font-size: 12px;
 }
 
@@ -422,7 +428,7 @@ textarea {
 .activity-panel li span {
 	display: inline-block;
 	min-width: 56px;
-	color: #667085;
+	color: var(--exact-theme-surface-foreground-muted);
 	font-size: 12px;
 }
 
@@ -440,7 +446,7 @@ textarea {
 .command-palette,
 .import-dialog {
 	width: min(720px, 100%);
-	border: 1px solid #d9e2ef;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
 	border-radius: 8px;
 	padding: 16px;
 	background: white;
@@ -459,7 +465,7 @@ textarea {
 .command-palette header p,
 .import-dialog header p {
 	margin-top: 4px;
-	color: #667085;
+	color: var(--exact-theme-surface-foreground-muted);
 }
 
 .command-list {
@@ -470,24 +476,24 @@ textarea {
 
 .command-list button,
 .command-grid button {
-	background: #f8fafc;
-	color: #243041;
+	background: var(--exact-theme-surface-background);
+	color: var(--exact-theme-surface-foreground);
 	text-align: left;
 }
 
 .command-list button:hover,
 .command-grid button:hover {
-	background: #e8eef6;
+	background: var(--exact-theme-neutral-subtle);
 }
 
 .command-list .danger-command {
-	background: #fff1f2;
-	color: #9f1239;
+	background: var(--exact-theme-danger-subtle);
+	color: var(--exact-theme-danger-text);
 }
 
 .command-section {
 	margin-top: 18px;
-	border-top: 1px solid #e5eaf2;
+	border-top: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
 	padding-top: 14px;
 }
 
@@ -512,11 +518,11 @@ textarea {
 
 .form-error {
 	margin-top: 10px;
-	border: 1px solid #fecdd3;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-danger-border);
 	border-radius: 6px;
 	padding: 9px 11px;
-	background: #fff1f2;
-	color: #9f1239;
+	background: var(--exact-theme-danger-subtle);
+	color: var(--exact-theme-danger-text);
 }
 
 .error-panel p {
@@ -524,18 +530,18 @@ textarea {
 }
 
 .error-item {
-	border: 1px solid #fecdd3;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-danger-border);
 	border-radius: 8px;
 	padding: 12px;
-	background: #fff1f2;
+	background: var(--exact-theme-danger-subtle);
 }
 
 .error-item pre {
 	overflow: auto;
 	border-radius: 6px;
 	padding: 10px;
-	background: #1f2937;
-	color: #f8fafc;
+	background: var(--exact-theme-neutral-solid);
+	color: var(--exact-theme-neutral-on-solid);
 }
 
 @media (max-width: 1040px) {

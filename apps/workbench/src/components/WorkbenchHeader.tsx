@@ -18,14 +18,15 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 	return () => (
 		<header className="workbench-header">
 			<div>
-				<h1>Project Workbench</h1>
-				<p>
+				<h1 theme:text="display">Project Workbench</h1>
+				<p theme:text="supporting">
 					{props.visible} of {props.total} tasks visible · {syncLabel(props.syncState)}
 				</p>
 			</div>
 
 			<div className="header-controls">
 				<input
+					theme:field="subtle"
 					type="search"
 					placeholder="Search tasks, owners, labels"
 					value={props.query}
@@ -33,6 +34,7 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 				/>
 				<div className="segmented" role="group" aria-label="View mode">
 					<button
+						theme:selection="strong"
 						type="button"
 						className:active={props.view === 'board'}
 						onClick={() => workbench.setView('board')}
@@ -40,6 +42,7 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 						Board
 					</button>
 					<button
+						theme:selection="strong"
 						type="button"
 						className:active={props.view === 'list'}
 						onClick={() => workbench.setView('list')}
@@ -47,7 +50,12 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 						List
 					</button>
 				</div>
-				<button type="button" className="quiet-button" onClick={() => workbench.openPalette()}>
+				<button
+					theme:action="quiet"
+					type="button"
+					className="quiet-button"
+					onClick={() => workbench.openPalette()}
+				>
 					Actions
 				</button>
 				<form
@@ -58,12 +66,15 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 					}}
 				>
 					<input
+						theme:field="default"
 						type="text"
 						placeholder="New task"
 						value={props.draftTitle}
 						onInput={(event) => workbench.setDraftTitle(event.currentTarget.value)}
 					/>
-					<button type="submit">Add</button>
+					<button theme:action="primary" type="submit">
+						Add
+					</button>
 				</form>
 			</div>
 		</header>
