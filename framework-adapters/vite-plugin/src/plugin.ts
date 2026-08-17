@@ -269,7 +269,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		async handleHotUpdate(context) {
 			intl.advanceGeneration();
-			enhancementFacadeCatalog.advanceGeneration();
 			if (intl.isCatalogFile(context.file)) {
 				await intl.refreshCatalogGeneration();
 				const affected: unknown[] = [];

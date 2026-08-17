@@ -103,7 +103,8 @@ export function EnhancementsPage(this: Component<{}>) {
 					it. Static components include it in their normal graph; lazy components and microfrontends
 					carry it in their later-loaded graph and can activate it after the host root exists. An
 					application with no selected enhancements does not ship the enhancement mounting, routing,
-					or reconciliation implementation.
+					or reconciliation implementation. In Vite development, components that resolve to the same
+					provider share its generated facade while authorization remains scoped to each importer.
 				</p>
 			</section>
 

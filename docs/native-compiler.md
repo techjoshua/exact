@@ -86,6 +86,10 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
 
+The Vite adapter authorizes each optional provider in its importing component's scope, then gives
+equivalent resolved facades one content-derived module identity. Components that select the same
+provider therefore share one browser module without weakening package-scoped authorization.
+
 `exactc --check .` is the no-emit application type-check path. It analyzes and lowers each
 transformable project module before TypeScript semantic validation, so compiler-owned TSX is
 checked as the ordinary props and callbacks it produces. Untransformed TypeScript modules are
