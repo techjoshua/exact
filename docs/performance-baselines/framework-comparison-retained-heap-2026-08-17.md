@@ -311,3 +311,30 @@ original estimate because generic structural regions still make the ordinary ren
 this first implementation removes duplicate per-program factories rather than the renderer itself.
 Raw runs: `raw-1786983123299.json` and `raw-1786986398296.json` under the ignored comparison `.tmp`
 directory.
+
+### Recommendation 2: optional task-frame diagnostics
+
+Task execution now depends on a compact optional inspection capability rather than importing task
+snapshot projection, retained history, value-preview integration, and event publication directly.
+Creating an inspection owner installs the full capability before an instrumented root runs. The
+focused inspection suite passed all five tests, and the controlled comparison again passed all 28
+browser checks.
+
+The independent seven-sample comparison against the recommendation-1 result was:
+
+| Metric                   |      Before |       After |            Change |
+| ------------------------ | ----------: | ----------: | ----------------: |
+| Post-GC retained heap    | 2,843,044 B | 2,838,644 B | -4,400 B (-0.15%) |
+| Navigation               |     33.1 ms |     35.5 ms |           +2.4 ms |
+| First contentful paint   |       44 ms |       48 ms |             +4 ms |
+| Optimistic feedback      |      2.2 ms |      1.9 ms |           -0.3 ms |
+| Authoritative settlement |     13.9 ms |     13.6 ms |           -0.3 ms |
+| Clean comparison build   |  4,148.9 ms |  4,602.6 ms |         +453.7 ms |
+| Client artifact, raw     |   221,651 B |   219,061 B | -2,590 B (-1.17%) |
+| Client artifact, gzip    |    66,290 B |    65,687 B |   -603 B (-0.91%) |
+
+Browser and clean-build timing changes remain within the variation seen between these short runs;
+the accepted effects are the smaller artifact and retained heap. The realized reduction is below
+the original estimate because component-domain checks and ordinary optional logging remain in the
+hot path: they preserve late owner lookup and application-provided logging without retaining the
+heavy task projection implementation. Raw after-run: `raw-1786986648026.json`.
