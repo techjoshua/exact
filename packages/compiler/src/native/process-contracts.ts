@@ -49,12 +49,12 @@ export type * from './process-activation-contracts.js';
 export type * from './process-state-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.34.0';
+export const nativeCompilerProtocolVersion = '1.35.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
 	id?: string;
-	kind: 'version' | 'reset' | 'diagnose' | 'analyze' | 'compile' | 'extension';
+	kind: 'version' | 'reset' | 'synchronize' | 'diagnose' | 'analyze' | 'compile' | 'extension';
 	source?: string;
 	root?: string;
 	/** Immutable deployment namespace shared by every artifact in one partition graph. */
@@ -79,6 +79,15 @@ export type NativeCompilerRequest = Readonly<{
 	packageEnhancementBoundary?: number;
 	/** Namespaced native frontend operation isolated from standard compiler semantics. */
 	extension?: Readonly<{ namespace: string; payload?: unknown }>;
+	/** Complete prepared overlays installed atomically before a project batch. */
+	sources?: readonly NativeCompilerProjectSource[];
+}>;
+
+/** One prepared source overlay owned by a project synchronization request. */
+export type NativeCompilerProjectSource = Readonly<{
+	id: string;
+	source: string;
+	packageEnhancementBoundary?: number;
 }>;
 
 /** Host-owned runtime brand adapter used for unproven JSX component values. */
@@ -152,6 +161,15 @@ export type NativeCompilerTimings = Readonly<{
 	loweringMicroseconds: number;
 	printMicroseconds: number;
 	totalMicroseconds: number;
+}>;
+
+/** Machine-independent counts explaining native project cache behavior. */
+export type NativeCompilerWorkCounters = Readonly<{
+	programRebuilds: number;
+	callableSourceAnalyses: number;
+	componentSourceAnalyses: number;
+	componentLinkWalks: number;
+	componentResultCacheHits: number;
 }>;
 
 /** Source map emitted directly while the Go printer writes transformed nodes. */
@@ -386,6 +404,7 @@ export type NativeCompilerResponse = Readonly<{
 	diagnostics: readonly NativeCompilerDiagnostic[];
 	analysis: NativeCompilerAnalysis;
 	timings: NativeCompilerTimings;
+	counters?: NativeCompilerWorkCounters;
 	cacheHit?: boolean;
 	error?: string;
 	/** Namespaced response returned only for an extension request. */

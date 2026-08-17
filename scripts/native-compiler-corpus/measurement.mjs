@@ -46,6 +46,58 @@ export function normalizedNativeBaselineElapsedMs(baseline, current) {
 	);
 }
 
+/**
+ * Compares stable projects by worker time when a project-aware baseline is available.
+ * Added or removed projects do not masquerade as compiler regressions.
+ */
+export function nativeBaselineComparison(baseline, current) {
+	if (baseline?.schemaVersion >= 3 && Array.isArray(baseline.projects)) {
+		const tracked = new Map(
+			baseline.projects.map((project) => [`${project.config}\0${project.fileCount}`, project])
+		);
+		const matched = (current.projects ?? []).flatMap((project) => {
+			const previous = tracked.get(`${project.config}\0${project.fileCount}`);
+			return previous ? [{ current: project, baseline: previous }] : [];
+		});
+		const baselineMs = matched.reduce((total, entry) => total + entry.baseline.elapsedMs, 0);
+		const currentMs = matched.reduce((total, entry) => total + entry.current.elapsedMs, 0);
+		if (matched.length === 0 || baselineMs <= 0 || currentMs <= 0) return undefined;
+		return {
+			ratio: currentMs / baselineMs,
+			basis: 'matched-project-worker-time',
+			matchedProjects: matched.length,
+			baselineMs,
+			currentMs,
+			projectRatios: matched
+				.map((entry) => ({
+					config: entry.current.config,
+					ratio: entry.current.elapsedMs / entry.baseline.elapsedMs,
+					baselineMs: entry.baseline.elapsedMs,
+					currentMs: entry.current.elapsedMs
+				}))
+				.sort((left, right) => right.ratio - left.ratio)
+		};
+	}
+	const normalizedMs = normalizedNativeBaselineElapsedMs(baseline, current);
+	if (!normalizedMs) return undefined;
+	return {
+		ratio: current.elapsedMs / normalizedMs,
+		basis: 'legacy-file-count',
+		matchedProjects: 0,
+		baselineMs: normalizedMs,
+		currentMs: current.elapsedMs,
+		projectRatios: []
+	};
+}
+
+/** Returns the middle elapsed-time observation without averaging warm and noisy runs. */
+export function medianNativeCorpusResult(results) {
+	if (results.length === 0) throw new Error('native corpus measurement requires a sample');
+	return [...results].sort((left, right) => left.elapsedMs - right.elapsedMs)[
+		Math.floor(results.length / 2)
+	];
+}
+
 /** Reads the tracked native compiler throughput baseline. */
 export async function readNativeCompilerCorpusBaseline(root) {
 	try {
@@ -69,12 +121,22 @@ export async function writeNativeCompilerCorpusBaseline(root, record) {
 		path.join(directory, 'native-compiler-corpus.json'),
 		`${JSON.stringify(
 			{
-				schemaVersion: 1,
+				schemaVersion: 3,
 				recordedAt: record.generatedAt,
 				elapsedMs: record.elapsedMs,
 				workers: record.workers,
 				fileCount: record.fileCount,
 				projectCount: record.projectCount,
+				outputBytes: record.outputBytes,
+				phaseMicroseconds: record.phaseMicroseconds,
+				counters: record.counters,
+				projects: record.projects.map((project) => ({
+					config: project.config,
+					fileCount: project.fileCount,
+					elapsedMs: project.elapsedMs,
+					phaseMicroseconds: project.phaseMicroseconds,
+					counters: project.counters
+				})),
 				node: record.node,
 				platform: record.platform,
 				arch: record.arch,

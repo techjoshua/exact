@@ -15,15 +15,20 @@ import (
 )
 
 type projectState struct {
-	currentDirectory string
-	configFile       string
-	sources          map[string]string
-	fs               *sourceOverlay
-	config           *tsoptions.ParsedCommandLine
-	program          *compiler.Program
-	callableCache    *projectCallableCache
-	componentCache   map[*ast.SourceFile][]Component
-	initialized      bool
+	currentDirectory    string
+	configFile          string
+	sources             map[string]string
+	fs                  *sourceOverlay
+	config              *tsoptions.ParsedCommandLine
+	program             *compiler.Program
+	callableCache       *projectCallableCache
+	componentCache      map[*ast.SourceFile][]Component
+	componentFacts      map[*ast.SourceFile][]projectComponent
+	componentCandidates map[*ast.SourceFile][]componentCandidate
+	componentNodeIDs    map[*ast.SourceFile]map[*ast.Node]string
+	componentLinks      map[*ast.Node]projectComponentLinkFacts
+	initialized         bool
+	counters            WorkCounters
 }
 
 type projectGeneration struct {
@@ -136,6 +141,7 @@ func (state *projectState) advance(
 	unchanged := existingSource != nil && existingSource.Text() == source
 	reused := state.initialized && unchanged
 	if !unchanged {
+		state.counters.ProgramRebuilds++
 		state.fs.set(fileName, source)
 		host := compiler.NewCompilerHost(
 			state.currentDirectory,
@@ -169,8 +175,7 @@ func (state *projectState) advance(
 			state.program = next
 		}
 		state.sources[sourceKey] = source
-		state.callableCache = nil
-		state.componentCache = nil
+		state.invalidateAnalysisCaches()
 	}
 	state.initialized = true
 	state.program.BindSourceFiles()
@@ -186,4 +191,15 @@ func (state *projectState) advance(
 		release:    release,
 		reused:     reused,
 	}, nil
+}
+
+// invalidateAnalysisCaches releases every checker and AST identity owned by
+// the superseded TypeScript program generation.
+func (state *projectState) invalidateAnalysisCaches() {
+	state.callableCache = nil
+	state.componentCache = nil
+	state.componentFacts = nil
+	state.componentCandidates = nil
+	state.componentNodeIDs = nil
+	state.componentLinks = nil
 }

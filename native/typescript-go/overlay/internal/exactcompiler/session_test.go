@@ -4,10 +4,69 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 )
+
+func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
+	root := t.TempDir()
+	childFile := filepath.Join(root, "Child.tsx")
+	pageFile := filepath.Join(root, "Page.tsx")
+	configFile := filepath.Join(root, "tsconfig.json")
+	childSource := `export function Child() { return () => <span>child</span>; }`
+	pageSource := `
+		import { Child } from "./Child.js";
+		export function Page() {
+			document.title = "page";
+			return () => <main><Child /></main>;
+		}
+	`
+	for filename, source := range map[string]string{
+		childFile: childSource,
+		pageFile:  pageSource,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(configFile, []byte(`{"compilerOptions":{"jsx":"preserve"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	session := NewSession()
+	synchronized := session.Execute(Request{
+		Kind:       "synchronize",
+		Root:       root,
+		ConfigFile: configFile,
+		Sources: []ProjectSource{
+			{ID: childFile, Source: childSource},
+			{ID: pageFile, Source: pageSource},
+		},
+	})
+	if synchronized.Error != "" {
+		t.Fatal(synchronized.Error)
+	}
+
+	for _, request := range []Request{
+		{ID: pageFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: pageSource},
+		{ID: childFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: childSource},
+	} {
+		cached := session.Execute(request)
+		fresh := NewSession().Execute(request)
+		if cached.Error != "" || fresh.Error != "" {
+			t.Fatalf("cached error %q; fresh error %q", cached.Error, fresh.Error)
+		}
+		if !cached.CacheHit {
+			t.Fatalf("synchronized source %s did not reuse its program generation", request.ID)
+		}
+		if cached.Code != fresh.Code ||
+			!reflect.DeepEqual(cached.Analysis.Components, fresh.Analysis.Components) {
+			t.Fatalf("synchronized output for %s diverged from fresh compilation", request.ID)
+		}
+	}
+}
 
 func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 	response := NewSession().Execute(Request{Kind: "version"})

@@ -9,7 +9,8 @@ import { preparePackageEnhancementSource } from '../packages/compiler/dist/compi
 
 import { discoverNativeCompilerCorpus } from './native-compiler-corpus/discovery.mjs';
 import {
-	normalizedNativeBaselineElapsedMs,
+	nativeBaselineComparison,
+	medianNativeCorpusResult,
 	positiveInteger,
 	readNativeCompilerCorpusBaseline,
 	writeNativeCompilerCorpusBaseline
@@ -41,6 +42,11 @@ const maxBaselineRatio = positiveNumber(
 	1.5,
 	'EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO'
 );
+const sampleCount = positiveInteger(
+	process.env.EXACT_NATIVE_CORPUS_SAMPLES,
+	3,
+	'EXACT_NATIVE_CORPUS_SAMPLES'
+);
 const executable =
 	process.env.EXACT_NATIVE_COMPILER ??
 	path.join(
@@ -49,8 +55,7 @@ const executable =
 		'native-compiler',
 		process.platform === 'win32' ? 'exactc-native.exe' : 'exactc-native'
 	);
-const started = performance.now();
-const result = await runNativeCorpus({
+const corpusInput = {
 	executable,
 	workers,
 	groups: [...groups].map(([config, filenames]) => {
@@ -68,17 +73,36 @@ const result = await runNativeCorpus({
 			)
 		};
 	})
-});
-const elapsedMs = performance.now() - started;
+};
+const samples = [];
+for (let sample = 0; sample < sampleCount; sample += 1) {
+	const started = performance.now();
+	const result = await runNativeCorpus(corpusInput);
+	samples.push({ ...result, elapsedMs: performance.now() - started });
+}
+const result = medianNativeCorpusResult(samples);
+const elapsedMs = result.elapsedMs;
 const fileCount = result.fileCount;
 const projectCount = groups.size;
 const outputBytes = result.outputBytes;
 const phaseMicroseconds = result.phaseMicroseconds;
-const projects = result.projects.sort((left, right) => right.elapsedMs - left.elapsedMs);
+const counters = result.counters;
+const projects = result.projects
+	.map((project) => ({
+		...project,
+		config: path.relative(root, project.config).replaceAll('\\', '/')
+	}))
+	.sort((left, right) => right.elapsedMs - left.elapsedMs);
 const baseline = await readNativeCompilerCorpusBaseline(root);
-const normalizedBaselineMs = normalizedNativeBaselineElapsedMs(baseline, result);
+const comparison = nativeBaselineComparison(baseline, { ...result, elapsedMs, projects });
+const significantProjectRatio = Math.max(
+	0,
+	...(comparison?.projectRatios ?? [])
+		.filter((project) => project.baselineMs >= 250)
+		.map((project) => project.ratio)
+);
 const record = {
-	schemaVersion: 2,
+	schemaVersion: 3,
 	generatedAt: new Date().toISOString(),
 	elapsedMs,
 	workers: result.workers,
@@ -86,13 +110,16 @@ const record = {
 	projectCount,
 	outputBytes,
 	phaseMicroseconds,
+	counters,
 	projects,
+	sampleCount,
+	sampleElapsedMs: samples.map((sample) => sample.elapsedMs),
 	maxBaselineRatio,
-	...(normalizedBaselineMs
+	...(comparison
 		? {
-				nativeBaselineElapsedMs: baseline.elapsedMs,
-				normalizedNativeBaselineMs: normalizedBaselineMs,
-				baselineRatio: elapsedMs / normalizedBaselineMs
+				baselineRatio: comparison.ratio,
+				guardRatio: Math.max(comparison.ratio, significantProjectRatio),
+				baselineComparison: comparison
 			}
 		: {}),
 	node: process.version,
@@ -116,17 +143,19 @@ if (record.baselineRatio !== undefined) {
 			? `${speedup.toFixed(2)}x faster than`
 			: `${record.baselineRatio.toFixed(2)}x slower than`;
 	console.log(
-		`native compiler corpus is ${comparison} its tracked baseline normalized to ${fileCount} files (${(record.normalizedNativeBaselineMs / 1_000).toFixed(2)}s)`
+		`native compiler corpus is ${comparison} its tracked baseline (${record.baselineComparison.basis}, ${record.baselineComparison.matchedProjects || projectCount} projects)`
 	);
 }
 for (const [phase, microseconds] of Object.entries(phaseMicroseconds).sort(
 	([, left], [, right]) => right - left
 ))
 	console.log(`  ${phase.padEnd(28)} ${(microseconds / 1_000_000).toFixed(2)}s worker time`);
+for (const [counter, value] of Object.entries(counters).sort(([, left], [, right]) => right - left))
+	console.log(`  ${counter.padEnd(28)} ${value}`);
 console.log('  slowest projects');
 for (const project of projects.slice(0, 5))
 	console.log(
-		`    ${path.relative(root, project.config).padEnd(44)} ${(project.elapsedMs / 1_000).toFixed(2)}s (${project.fileCount} files, ${(project.callableMicroseconds / 1_000_000).toFixed(2)}s callable)`
+		`    ${project.config.padEnd(44)} ${(project.elapsedMs / 1_000).toFixed(2)}s (${project.fileCount} files, ${(project.phaseMicroseconds.projectLinkMicroseconds / 1_000_000).toFixed(2)}s link, ${(project.callableMicroseconds / 1_000_000).toFixed(2)}s callable)`
 	);
 if (updateBaseline) {
 	console.log('updated docs/performance-baselines/native-compiler-corpus.json');
@@ -135,9 +164,9 @@ if (updateBaseline) {
 		'native compiler performance guard requires a comparable tracked native baseline'
 	);
 }
-if (!updateBaseline && record.baselineRatio > maxBaselineRatio) {
+if (!updateBaseline && record.guardRatio > maxBaselineRatio) {
 	throw new Error(
-		`native compiler corpus ratio ${record.baselineRatio.toFixed(2)} exceeded ${maxBaselineRatio.toFixed(2)}`
+		`native compiler corpus guard ratio ${record.guardRatio.toFixed(2)} exceeded ${maxBaselineRatio.toFixed(2)}`
 	);
 }
 
