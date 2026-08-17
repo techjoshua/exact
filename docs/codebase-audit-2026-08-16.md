@@ -47,6 +47,10 @@ Component contract descriptor/continuation metadata formation was separated from
 branding and wrapper lowering. `component_contract_lowering.go` fell from 1,733 to 943
 checker-counted lines, eliminating its legacy ceiling.
 
+Callable analysis was separated into graph/cache coordination, direct fact collection, and
+fixed-point effect/environment resolution. `callable_effects.go` fell from 1,983 to 744
+checker-counted lines; all three resulting owners are below the standard limit.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,
