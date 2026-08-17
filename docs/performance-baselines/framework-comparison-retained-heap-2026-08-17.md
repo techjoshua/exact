@@ -442,3 +442,37 @@ original baseline, the three retained changes produced:
 Short-run timing differences remain descriptive rather than causal claims. The accepted cumulative
 result improves retained heap and transfer size without a measured FCP regression; interaction
 medians remain within sub-millisecond variation. Final raw run: `raw-1786988056665.json`.
+
+## V8 function-count follow-up
+
+The compiler now combines expression-bodied readers for a multi-slot render program into one
+invocation-local indexed reader. Zero- and one-slot programs retain the direct array representation,
+and readers requiring a block body remain separate so materialized derived-local semantics do not
+move into a conditional expression. The DOM and SSR executors accept both the historical reader
+array and the combined representation, preserving compatibility with existing generated output.
+
+An earlier experiment hoisted all 28 render-program descriptor factories to module scope. Although
+that reduced V8-visible functions by 28 and improved the 6x CPU stress profile, it eagerly retained
+descriptors for cold conditional programs. Post-GC heap increased by 6,900 B even after eliminating
+a duplicate branded graph, so the hoisting experiment was reverted.
+
+The accepted combined-reader version passed the native compiler suite, focused core/DOM/SSR tests,
+and all 28 comparison scenarios. Against the prior committed baseline it produced:
+
+| Metric                         |      Before | Combined readers |    Change |
+| ------------------------------ | ----------: | ---------------: | --------: |
+| V8-visible functions           |       1,312 |            1,292 |       -20 |
+| Invoked functions at readiness |         705 |              690 |       -15 |
+| Post-GC retained heap, p50     | 2,836,420 B |      2,833,392 B |  -3,028 B |
+| Compile trace, 1x p50          |   21.867 ms |        22.020 ms | +0.153 ms |
+| Evaluation trace, 1x p50       |   30.312 ms |        30.382 ms | +0.070 ms |
+| Compile trace, 6x p50          |  265.538 ms |       259.273 ms | -6.265 ms |
+| Evaluation trace, 6x p50       |  384.976 ms |       380.060 ms | -4.916 ms |
+| Navigation, p50                |     32.6 ms |          33.4 ms |   +0.8 ms |
+| Optimistic feedback, p50       |      1.9 ms |           2.0 ms |   +0.1 ms |
+| Authoritative settlement, p50  |     13.8 ms |          13.5 ms |   -0.3 ms |
+
+The unthrottled CPU differences are noise-sized and the 4x profile was mixed; this change is retained
+for its deterministic function/closure reduction and small heap improvement, not as evidence of a
+broad desktop startup win. Raw profiles: `startup-cpu-functions-20.json` and
+`step1-dispatch-startup-20.json`. Raw 50-pass comparison: `step1-dispatch-framework-50.json`.

@@ -1,6 +1,7 @@
 import { isVNode, unwrap, type ComponentInstance, type VNode } from '@exactjs/core';
 import {
 	readRenderProgram,
+	readRenderProgramSlot,
 	renderProgramFallback,
 	type ExactRenderProgram,
 	type ExactRenderProgramInvocation
@@ -301,7 +302,7 @@ function bindRenderProgram(mounted: Mounted): boolean {
 	const apply = () => {
 		const nextProps = new Map<Element, Record<string, unknown>>();
 		for (let index = 0; index < state.slotNodes.length; index++) {
-			const value = unwrap(state.invocation.readers[index]!());
+			const value = unwrap(readRenderProgramSlot(state.invocation, index));
 			const slot = state.invocation.program.slots[index]!;
 			const target = state.slotNodes[index];
 			if (slot.kind !== 'text') {

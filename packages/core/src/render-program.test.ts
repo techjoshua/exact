@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	clearCompiledRenderPrograms,
 	compiledRenderProgramCacheSize,
-	createCompiledRenderProgram
+	createCompiledRenderProgram,
+	readRenderProgram,
+	readRenderProgramSlot
 } from './render-program.js';
 import { createVNode } from './vnode.js';
 
@@ -38,5 +40,23 @@ describe('compiled render-program cache', () => {
 				fallback
 			);
 		expect(compiledRenderProgramCacheSize()).toBe(2_048);
+	});
+
+	it('reads compiler-combined slots through one dispatcher', () => {
+		const vnode = createCompiledRenderProgram(
+			'revision:combined',
+			() => ({
+				...program('combined'),
+				parts: ['<p>', ':', '</p>'],
+				slots: [
+					{ id: 'first', kind: 'text' as const, path: [0] },
+					{ id: 'second', kind: 'text' as const, path: [1] }
+				]
+			}),
+			(index) => (index === 0 ? 'first' : 'second')
+		);
+		const invocation = readRenderProgram(vnode)!;
+		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
+		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
 	});
 });
