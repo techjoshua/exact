@@ -2,11 +2,14 @@ import {
 	Target,
 	TargetOverrides,
 	attachElementIdentity,
-	normalizeClassValue,
 	unwrap,
 	type ComponentInstance,
 	type RefBinding
 } from '@exactjs/core';
+import {
+	mergeTargetClassContributions,
+	mergeTargetTokenContributions
+} from '@exactjs/core/framework/target-contributions';
 import { computed, scheduleWork, watch } from '@exactjs/reactive';
 import { installOwnedEventSubscription } from '../events.js';
 import { isCompilerFormBindingProp, updateProps } from '../props.js';
@@ -215,7 +218,8 @@ function composeTargetProps(
 		const values = overrides.has(key)
 			? [...innerToOuter.map((layer) => layer.props[key]), authored[key]]
 			: [authored[key], ...innerToOuter.map((layer) => layer.props[key])];
-		if (key === 'class' || key === 'className') result[key] = computed(() => mergeClasses(values));
+		if (key === 'class' || key === 'className')
+			result[key] = computed(() => mergeTargetClassContributions(values));
 		else if (key === 'style')
 			result[key] = computed(() =>
 				mergeStyles(
@@ -223,7 +227,8 @@ function composeTargetProps(
 					innerToOuter.map((layer) => layer.props)
 				)
 			);
-		else if (tokenListProps.has(key)) result[key] = computed(() => mergeTokens(values));
+		else if (tokenListProps.has(key))
+			result[key] = computed(() => mergeTargetTokenContributions(values));
 		else result[key] = computed(() => firstDefined(values));
 	}
 	return { props: result, events };
@@ -235,38 +240,6 @@ function firstDefined(values: readonly unknown[]): unknown {
 		if (actual !== undefined) return actual;
 	}
 	return undefined;
-}
-
-function mergeClasses(values: readonly unknown[]): string | null | undefined {
-	const tokens: string[] = [];
-	let suppressed = false;
-	for (const value of values) {
-		const actual = unwrap(value);
-		if (actual === undefined) continue;
-		if (actual === null) {
-			suppressed = true;
-			continue;
-		}
-		for (const token of normalizeClassValue(actual).split(/\s+/))
-			if (token && !tokens.includes(token)) tokens.push(token);
-	}
-	return tokens.length ? tokens.join(' ') : suppressed ? null : undefined;
-}
-
-function mergeTokens(values: readonly unknown[]): string | null | undefined {
-	const tokens: string[] = [];
-	let suppressed = false;
-	for (const value of values) {
-		const actual = unwrap(value);
-		if (actual === undefined) continue;
-		if (actual === null) {
-			suppressed = true;
-			continue;
-		}
-		for (const token of String(actual).split(/\s+/))
-			if (token && !tokens.includes(token)) tokens.push(token);
-	}
-	return tokens.length ? tokens.join(' ') : suppressed ? null : undefined;
 }
 
 function mergeStyles(
