@@ -97,6 +97,8 @@ export function ThemeScopeEnhancement(
 	};
 	const state = this.state;
 	const environment = state.environment;
+	let next = initial;
+	let initialRender = true;
 	this.setContext(ThemeContext, environment);
 	this.setContext(
 		ThemeSurfaceContext,
@@ -114,11 +116,19 @@ export function ThemeScopeEnhancement(
 		})
 	);
 	return () => {
-		const next = resolveTheme({
+		// The revision read is the explicit reactive dependency for inherited source fields.
+		const parentRevision = parent?.revision ?? 0;
+		const resolutionInput = {
 			parent: parent?.current,
 			source: sourceFromProps(props),
-			environment: { appearance: state.appearance, contrast: state.contrast, motion: state.motion }
-		});
+			environment: {
+				appearance: state.appearance,
+				contrast: state.contrast,
+				motion: state.motion
+			}
+		} as const;
+		if (initialRender && parentRevision >= 0) initialRender = false;
+		else next = resolveTheme(resolutionInput);
 		if (next.fingerprint !== environment.current.fingerprint) {
 			environment.source = next.source;
 			environment.current = next;

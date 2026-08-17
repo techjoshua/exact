@@ -52,6 +52,10 @@
 			"types": "./dist/framework/component-execution.d.ts",
 			"default": "./dist/framework/component-execution.js"
 		},
+		"./framework/protocol-records": {
+			"types": "./dist/framework/protocol-records.d.ts",
+			"default": "./dist/framework/protocol-records.js"
+		},
 		"./framework/error-view": {
 			"types": "./dist/framework/error-view.d.ts",
 			"default": "./dist/framework/error-view.js"

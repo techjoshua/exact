@@ -152,7 +152,8 @@ describe('page host to component host integration', () => {
 			expect.objectContaining({ ok: true, state: { source: 'branding' } })
 		);
 		expect(pageAuthorize).toHaveBeenCalledTimes(2);
-		expect(billingAuthorize).toHaveBeenCalledOnce();
+		// Billing authorizes the forwarded batch envelope and both decoded operations.
+		expect(billingAuthorize).toHaveBeenCalledTimes(3);
 		expect(brandingAuthorize).toHaveBeenCalledOnce();
 		expect(areaAction).toHaveBeenCalledOnce();
 		expect(otherAction).toHaveBeenCalledOnce();

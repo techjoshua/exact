@@ -469,7 +469,9 @@ Built-in temperaments are named, versioned data. They control accent multiplier/
 surface interval, state interval, and status harmonization, while typography, density, shape,
 depth, contrast, appearance, and motion remain independent. Text candidates target 4.5:1 in
 standard contrast and 7:1 in increased contrast. Boundaries target 3:1 and 4.5:1 respectively.
-Solid colors search 1,001 lightness candidates and select a deterministic readable on-solid pair.
+Solid colors search the 1,001-value lightness grid nearest-first and stop after proving the closest
+valid distance. They select the same deterministic readable on-solid pair as a complete exhaustive
+scan; unattainable contrast still examines the whole grid to select the maximum.
 
 Surface lightness advances by the temperament interval and caps before white or dark washout.
 Status hues begin from fixed info, success, warning, and danger anchors and harmonize toward the key

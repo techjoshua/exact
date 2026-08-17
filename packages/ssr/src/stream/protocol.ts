@@ -8,10 +8,8 @@ import type {
 	RenderToProgressiveHtmlStreamOptions
 } from '../types.js';
 
-/** Performs the positive limit domain operation. */
-export function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
-}
+/** Shared wire-limit normalization used by progressive stream framing. */
+export { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 
 /** Runs all stream cleanup callbacks while retaining the first failure as the primary error. */
 export function cleanupAll(...callbacks: Array<() => void>): void {

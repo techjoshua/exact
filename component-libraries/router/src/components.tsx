@@ -400,7 +400,7 @@ function requestSource(request: RequestContextValue | undefined): LocationSource
 	};
 }
 
-function componentRequestContext(component: Component<any>): RequestContextValue | undefined {
+function componentRequestContext(component: Component<object>): RequestContextValue | undefined {
 	try {
 		return component.getContext(RequestContext);
 	} catch {

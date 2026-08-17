@@ -30,8 +30,8 @@ export function normalizeUsps(option: Json, index: number, request: RateRequest)
 		normalizeGeneric(
 			'usps',
 			'USPS',
-			rate.mailClass ?? rate.SKU ?? `service-${index}`,
-			rate.description ?? rate.productName ?? rate.mailClass ?? 'USPS service',
+			String(rate.mailClass ?? rate.SKU ?? `service-${index}`),
+			String(rate.description ?? rate.productName ?? rate.mailClass ?? 'USPS service'),
 			price,
 			undefined,
 			request,
@@ -151,6 +151,10 @@ export function array(value: unknown): Json[] {
 		: value && typeof value === 'object'
 			? [value as Json]
 			: [];
+}
+/** Narrows a decoded provider value to an object without trusting inherited properties. */
+export function record(value: unknown): Json {
+	return value && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {};
 }
 /** Performs the cents domain operation. */
 export function cents(value: unknown): number {

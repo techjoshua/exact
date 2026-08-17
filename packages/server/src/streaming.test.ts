@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createExpressHandler, createFetchHandler, handleExactRequest } from './index.js';
+import {
+	createExpressHandler,
+	createFetchHandler,
+	handleExactRequest,
+	unsafeExactHtml
+} from './index.js';
 import { context, readNextStreamLine, readStreamEvents } from './test-support/server.js';
 
 describe('@exactjs/server streaming', () => {
@@ -118,7 +123,7 @@ describe('@exactjs/server streaming', () => {
 			},
 			context({
 				limits: { maxResponseBytes: 64 },
-				invocations: { 'allowed-action': () => ({ html: 'x'.repeat(1_000) }) }
+				invocations: { 'allowed-action': () => ({ html: unsafeExactHtml('x'.repeat(1_000)) }) }
 			})
 		);
 		expect(rejectedResponse.status).toBe(500);
@@ -158,7 +163,7 @@ describe('@exactjs/server streaming', () => {
 			},
 			context({
 				limits: { maxStreamBytes: 80 },
-				invocations: { 'allowed-action': () => ({ html: 'x'.repeat(1_000) }) }
+				invocations: { 'allowed-action': () => ({ html: unsafeExactHtml('x'.repeat(1_000)) }) }
 			})
 		);
 		const reader = oversized.stream!.getReader();

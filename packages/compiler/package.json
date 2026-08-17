@@ -72,9 +72,10 @@
 	"dependencies": {
 		"@exactjs/config": "^0.1.0",
 		"@exactjs/devtools-protocol": "^0.1.0",
+		"@exactjs/instrumentation": "^0.1.0",
 		"@exactjs/language-extension-api": "^0.1.0",
 		"@exactjs/language-extension-host": "^0.1.0",
-		"@exactjs/instrumentation": "^0.1.0"
+		"@jridgewell/remapping": "^2.3.5"
 	},
 	"optionalDependencies": {
 		"@exactjs/compiler-native-darwin-arm64": "^0.1.0",

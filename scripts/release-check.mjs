@@ -43,6 +43,9 @@ const staticChecks = [
 	task('platform boundaries', ['run', 'check:platform-boundaries']),
 	task('source architecture', ['run', 'check:source-architecture']),
 	task('JSDoc contracts', ['run', 'check:jsdoc']),
+	task('explicit-any ratchet', ['run', 'check:explicit-any']),
+	task('core API ownership', ['run', 'check:core-api']),
+	task('security audit policy', ['run', 'check:security-audit']),
 	task('test typecheck', ['run', 'typecheck:tests']),
 	task('package contents', ['run', 'check:publish'])
 ];
@@ -52,7 +55,12 @@ const nativeCompilerCorpus = task('native compiler corpus', [
 ]);
 const sampleBuilds = [
 	task('Kanban build', ['run', 'build:kanban']),
-	task('Workbench build', ['run', 'build:workbench'])
+	task('Workbench build', ['run', 'build:workbench']),
+	task('Sudoku build', ['run', 'build:sudoku']),
+	task('Puzzle generator build', ['run', 'build:puzzle-generator']),
+	task('Microfrontend build', ['run', 'build:microfrontends']),
+	task('Intl testbed build', ['run', 'build:intl']),
+	task('Docs verification', ['run', 'verify', '-w', '@exactjs/docs'])
 ];
 const testSuite = task('test suite', ['test']);
 const reactCompatibility = task('React compatibility', ['run', 'check:react-compat:built']);
@@ -65,6 +73,7 @@ const performanceChecks = [
 	task('reactive benchmarks', ['run', 'benchmark:reactive']),
 	task('framework client/server benchmarks', ['run', 'benchmark:framework']),
 	task('compiler benchmarks', ['run', 'benchmark:compiler']),
+	task('theme performance', ['run', 'check:performance', '-w', '@exactjs/theme']),
 	task('DevTools inspection benchmarks', ['run', 'benchmark:devtools']),
 	task('React compatibility benchmark', ['run', 'benchmark:react-compat'])
 ];
@@ -87,6 +96,8 @@ try {
 			await run(reactCompatibility);
 			await run(r3fBrowser);
 		}
+		if (profile === 'full')
+			await run(task('Theme Lab browser acceptance', ['run', 'test:e2e:theme']));
 	}
 	if (profile === 'full' || profile === 'performance') {
 		for (const benchmark of performanceChecks) await run(benchmark);
@@ -172,6 +183,9 @@ async function runAffected() {
 		task('platform boundaries', ['run', 'check:platform-boundaries']),
 		task('source architecture', ['run', 'check:source-architecture']),
 		task('JSDoc contracts', ['run', 'check:jsdoc']),
+		task('explicit-any ratchet', ['run', 'check:explicit-any']),
+		task('core API ownership', ['run', 'check:core-api']),
+		task('security audit policy', ['run', 'check:security-audit']),
 		task('test typecheck', ['run', 'typecheck:tests']),
 		task('package contents', ['run', 'check:publish'])
 	];
@@ -195,6 +209,26 @@ async function runAffected() {
 	if (plan.apps.serverComponents)
 		verification.push(task('server-component tests', ['run', 'test:server-components']));
 	if (plan.apps.shipping) verification.push(task('shipping tests', ['run', 'test:shipping']));
+	if (plan.apps.docs) {
+		verification.push(task('docs tests', ['run', 'test', '-w', '@exactjs/docs']));
+		verification.push(task('docs verification', ['run', 'verify', '-w', '@exactjs/docs']));
+	}
+	if (plan.apps.sudoku) {
+		verification.push(task('Sudoku tests', ['run', 'test:sudoku']));
+		verification.push(task('Sudoku build', ['run', 'build:sudoku']));
+	}
+	if (plan.apps.puzzleGenerator) {
+		verification.push(task('puzzle generator tests', ['run', 'test:puzzle-generator']));
+		verification.push(task('puzzle generator build', ['run', 'build:puzzle-generator']));
+	}
+	if (plan.apps.microfrontends) {
+		verification.push(task('microfrontend tests', ['run', 'test:microfrontends']));
+		verification.push(task('microfrontend build', ['run', 'build:microfrontends']));
+	}
+	if (plan.apps.intl) {
+		verification.push(task('intl tests', ['run', 'test:intl']));
+		verification.push(task('intl build', ['run', 'build:intl']));
+	}
 	if (plan.apps.kanban) verification.push(task('Kanban build', ['run', 'build:kanban']));
 	if (plan.apps.workbench) verification.push(task('Workbench build', ['run', 'build:workbench']));
 	await runPool(verification, 2);
@@ -202,4 +236,5 @@ async function runAffected() {
 	if (plan.reactCompatibility) await run(reactCompatibility);
 	if (plan.r3fBrowser) await run(r3fBrowser);
 	if (plan.compilerAcceptance) await run(compilerAcceptance);
+	if (plan.themeBrowser) await run(task('Theme Lab browser acceptance', ['run', 'test:e2e:theme']));
 }

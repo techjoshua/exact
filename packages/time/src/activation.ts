@@ -23,6 +23,14 @@ import {
 	type TimeRegistration
 } from './scheduler.js';
 
+type TemporalInstant = {
+	toZonedDateTimeISO(zone: unknown): {
+		toPlainDateTime(): unknown;
+		toPlainDate(): unknown;
+		toPlainTime(): unknown;
+	};
+};
+
 const activationBrand = Symbol.for('@exactjs/time.activation');
 
 /** Internal mutable range binding created only by generated code. */
@@ -149,7 +157,14 @@ export function createTimeActivation(
 				inputs = argument;
 				argument = undefined;
 			}
-			const temporal = (globalThis as typeof globalThis & { Temporal?: any }).Temporal;
+			const temporal = (
+				globalThis as typeof globalThis & {
+					Temporal?: {
+						Instant?: { fromEpochMilliseconds(value: number): TemporalInstant };
+						Now?: { timeZoneId?(): string };
+					};
+				}
+			).Temporal;
 			if (!temporal?.Instant?.fromEpochMilliseconds)
 				throw new Error('Temporal clock reads require a Temporal implementation');
 			const instant = temporal.Instant.fromEpochMilliseconds(this.readEpochMilliseconds(inputs));

@@ -16,6 +16,10 @@
 			"types": "./dist/plugins.d.ts",
 			"node": "./dist/plugins.js",
 			"default": "./dist/plugins.js"
+		},
+		"./framework/trusted-handler": {
+			"types": "./dist/framework/trusted-handler.d.ts",
+			"default": "./dist/framework/trusted-handler.js"
 		}
 	},
 	"main": "./dist/index.js",

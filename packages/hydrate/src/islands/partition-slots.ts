@@ -2,6 +2,8 @@ import { createServerSlot } from '@exactjs/core';
 import { isSafeObjectKey } from '../safety.js';
 import type { HydrateOptions } from '../types.js';
 
+type RevivedContainer = unknown[] | Record<string, unknown>;
+
 /** Revives serialized server ranges and invalidates only markers with mismatched authority. */
 export function revivePartitionServerSlots(
 	value: unknown,
@@ -11,24 +13,26 @@ export function revivePartitionServerSlots(
 	if (!value || typeof value !== 'object') return value;
 	const rootSlot = serverSlot(value, options, boundary);
 	if (rootSlot) return rootSlot;
-	const root: any = Array.isArray(value) ? new Array(value.length) : {};
-	const pending: Array<{ source: any; target: any }> = [{ source: value, target: root }];
+	const root: RevivedContainer = Array.isArray(value) ? new Array(value.length) : {};
+	const pending: Array<{ source: object; target: RevivedContainer }> = [
+		{ source: value, target: root }
+	];
 	while (pending.length) {
 		const { source, target } = pending.pop()!;
 		for (const key of Object.keys(source)) {
 			if (!Array.isArray(source) && !isSafeObjectKey(key)) continue;
-			const child = source[key];
+			const child = Reflect.get(source, key) as unknown;
 			if (!child || typeof child !== 'object') {
-				target[key] = child;
+				Reflect.set(target, key, child);
 				continue;
 			}
 			const slot = serverSlot(child, options, boundary);
 			if (slot) {
-				target[key] = slot;
+				Reflect.set(target, key, slot);
 				continue;
 			}
-			const revived: any = Array.isArray(child) ? new Array(child.length) : {};
-			target[key] = revived;
+			const revived: RevivedContainer = Array.isArray(child) ? new Array(child.length) : {};
+			Reflect.set(target, key, revived);
 			pending.push({ source: child, target: revived });
 		}
 	}

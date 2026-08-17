@@ -211,10 +211,7 @@ export type InvocationRefreshBoundaryOptions = BoundaryRefreshOptions & {
 
 /** Configures an invocation refresh. */
 export type InvocationRefreshOptions = {
-	invoke(
-		input: ExactInvocationRequest,
-		context: ExactServerContext
-	): Promise<ExactInvocationResult | void> | ExactInvocationResult | void;
+	invoke: NonNullable<ExactServerContext['invocations']>[string];
 	boundaries: readonly InvocationRefreshBoundaryOptions[];
 };
 
@@ -226,13 +223,7 @@ export type ExactBoundaryRenderer =
 /** Configures exact server handler registry. */
 export type ExactServerHandlerRegistryOptions = RenderToStringOptions & {
 	contract: ExactServerContext['contract'];
-	invocations?: Record<
-		string,
-		(
-			input: ExactInvocationRequest,
-			context: ExactServerContext
-		) => Promise<ExactInvocationResult | void> | ExactInvocationResult | void
-	>;
+	invocations?: ExactServerContext['invocations'];
 	boundaries?: Record<string, ExactBoundaryRenderer>;
 	patchStrategy?: BoundaryRefreshOptions['patchStrategy'];
 };

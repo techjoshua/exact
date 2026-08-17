@@ -49,6 +49,17 @@ export type ExactRenderProgramInvocation = Readonly<{
 }>;
 
 const programs = new Map<string, BrandedRenderProgram>();
+const maximumCachedPrograms = 2_048;
+
+/** Clears compiler artifacts retained by an obsolete build/HMR generation. */
+export function clearCompiledRenderPrograms(): void {
+	programs.clear();
+}
+
+/** Returns cache occupancy for framework diagnostics and bounded-cache tests. */
+export function compiledRenderProgramCacheSize(): number {
+	return programs.size;
+}
 
 /**
  * Creates a branded compiled render result. The revision-specific cache key
@@ -85,6 +96,7 @@ export function createCompiledRenderProgram(
 			[renderProgramBrand]: true as const
 		});
 		programs.set(cacheKey, branded);
+		if (programs.size > maximumCachedPrograms) programs.delete(programs.keys().next().value!);
 	}
 	const domain = currentComponentDomain();
 	return {

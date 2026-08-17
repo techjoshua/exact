@@ -22,7 +22,7 @@ export type ControlProps = Record<string, unknown> & {
 	id?: string;
 	name?: string;
 	required?: boolean;
-	ref?: RefBinding<any>;
+	ref?: RefBinding<HTMLElement>;
 	onInput?: (event: InputEvent) => unknown;
 	onBlur?: (event: FocusEvent) => unknown;
 	children?: Child | Child[];

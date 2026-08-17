@@ -20,7 +20,7 @@ type RequestWithoutId = ExactExtensionRequest extends infer Request
 
 type PendingRequest = {
 	message: ExactExtensionRequest;
-	resolve(value: any): void;
+	resolve(value: unknown): void;
 	reject(error: unknown): void;
 	timeout?: ReturnType<typeof setTimeout>;
 	recoveries: number;

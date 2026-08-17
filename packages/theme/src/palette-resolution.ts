@@ -13,6 +13,7 @@ import {
 	contrastRatio,
 	ensureColorContrast,
 	harmonizeHue,
+	orderedLightnessCandidates,
 	resolveColor
 } from './color.js';
 import { themeSurfaceBundles, themeToneRoles, themeTones } from './token-contract.js';
@@ -224,21 +225,21 @@ function resolveSolid(
 	const white = resolveColor({ l: 0.98, c: 0, h: 0 }),
 		black = resolveColor({ l: 0.12, c: 0, h: 0 });
 	let best: { solid: ResolvedColor; onSolid: ResolvedColor; distance: number } | undefined;
-	for (let index = 0; index <= 1000; index++) {
-		const solid = resolveColor({ ...requested, l: index / 1000 });
+	for (const candidate of orderedLightnessCandidates(requested.l)) {
+		if (best && candidate.distance > best.distance) break;
+		const solid = resolveColor({ ...requested, l: candidate.lightness });
 		const onSolid =
 			forcedForeground ?? (contrast(solid, white) >= contrast(solid, black) ? white : black);
 		if (contrast(solid, onSolid) < 4.5) continue;
-		const distance = Math.abs(index / 1000 - requested.l);
 		if (
 			!best ||
-			distance < best.distance ||
-			(distance === best.distance &&
+			candidate.distance < best.distance ||
+			(candidate.distance === best.distance &&
 				(appearance === 'light'
 					? solid.oklch.l < best.solid.oklch.l
 					: solid.oklch.l > best.solid.oklch.l))
 		)
-			best = { solid, onSolid, distance };
+			best = { solid, onSolid, distance: candidate.distance };
 	}
 	return best ?? { solid: resolveColor(requested), onSolid: forcedForeground ?? white };
 }

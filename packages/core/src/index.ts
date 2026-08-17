@@ -293,6 +293,8 @@ export {
 	UnsafeHtml
 } from './symbols.js';
 export {
+	clearCompiledRenderPrograms,
+	compiledRenderProgramCacheSize,
 	createCompiledRenderProgram,
 	readRenderProgram,
 	renderProgramFallback,

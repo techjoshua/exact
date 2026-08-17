@@ -1,5 +1,10 @@
 import { logFrameworkEvent } from '@exactjs/core';
+import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
+import {
+	isExactFrameworkInvocationHandler,
+	normalizeExactHandlerResult
+} from './framework/trusted-handler.js';
 import { jsonResponse } from './protocol.js';
 import {
 	continuationDependencies,
@@ -194,6 +199,39 @@ async function dispatchExactOperationAfterSecurity(
 	if (!publicContextMatchesContract(input.publicContext, invocation?.publicContexts ?? [])) {
 		return reject(400, 'bad_request', 'rejected mismatched public context projection');
 	}
+	const manualHandler =
+		input.type === 'invoke'
+			? context.invocations?.[input.id]
+			: context.refreshBoundaries?.[input.id];
+	const payloadDecoder =
+		input.type === 'invoke'
+			? context.payloadDecoders?.invocations?.[input.id]
+			: context.payloadDecoders?.boundaries?.[input.id];
+	if (
+		manualHandler &&
+		!isExactFrameworkInvocationHandler(manualHandler) &&
+		input.payload !== undefined &&
+		!payloadDecoder
+	)
+		return reject(
+			400,
+			'bad_request',
+			'rejected manual exact operation payload without a registered decoder'
+		);
+	if (payloadDecoder && input.payload !== undefined) {
+		try {
+			const decoded = payloadDecoder(input.payload, input, context);
+			input = {
+				...input,
+				payload:
+					decoded && typeof (decoded as PromiseLike<unknown>).then === 'function'
+						? await decoded
+						: decoded
+			};
+		} catch {
+			return reject(400, 'bad_request', 'rejected invalid exact operation payload');
+		}
+	}
 
 	if (!securityChecked) {
 		const security = await checkSecurityHooks(request, input, context);
@@ -205,9 +243,9 @@ async function dispatchExactOperationAfterSecurity(
 
 	const handler =
 		input.type === 'invoke'
-			? (context.invocations?.[input.id] ??
+			? (manualHandler ??
 				(invocation && executor ? createExactContinuationHandler(invocation, executor) : undefined))
-			: context.refreshBoundaries?.[input.id];
+			: manualHandler;
 	if (!handler)
 		return reject(404, 'not_found', 'rejected exact invocation without registered handler');
 
@@ -241,7 +279,8 @@ async function dispatchExactOperationAfterSecurity(
 					}
 				}
 			: requestContext;
-		const result = await handler(input, observedRequestContext);
+		const handled = await handler(input, observedRequestContext);
+		const result = manualHandler ? normalizeExactHandlerResult(manualHandler, handled) : handled;
 		context.debugRuntime?.observe({
 			kind: executor ? 'continuation.respond' : 'task.settle',
 			...observation
@@ -372,8 +411,4 @@ function observationIdentity(
 			: {}),
 		...(context.requestContext?.traceId ? { requestId: context.requestContext.traceId } : {})
 	};
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }

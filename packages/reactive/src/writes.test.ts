@@ -119,11 +119,14 @@ describe('@exactjs/reactive writes', () => {
 	it('preserves JavaScript assignment results for prefix, postfix, and compound updates', () => {
 		const state = reactive({ count: 2 });
 
-		expect(updateReactiveValue(state, ['count'], (value) => value + 1, true)).toBe(2);
+		expect(updateReactiveValue(state, ['count'], (value) => Number(value) + 1, true)).toBe(2);
 		expect(state.count).toBe(3);
-		expect(updateReactiveValue(state, ['count'], (value) => value * 2)).toBe(6);
+		expect(updateReactiveValue(state, ['count'], (value) => Number(value) * 2)).toBe(6);
 		expect(
-			updateReactiveValueWithResult(state, ['count'], (value) => [value + 4, `was:${value}`])
+			updateReactiveValueWithResult(state, ['count'], (value) => [
+				Number(value) + 4,
+				`was:${value}`
+			])
 		).toBe('was:6');
 		expect(state.count).toBe(10);
 	});

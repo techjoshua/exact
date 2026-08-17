@@ -212,13 +212,15 @@ function sequential(
 		typeof source === 'string' && source in theme.tones
 			? theme.tones[source as ThemeTone].solid
 			: resolveColor(compositeColor(parseThemeColor(source as ThemeColor), background));
-	const retained: ResolvedColor[] = [];
-	for (let index = 0; index <= 1000; index++) {
-		const color = resolveColor({ l: index / 1000, c: base.oklch.c, h: base.oklch.h });
-		if (contrastRatio(color, background) >= 3) retained.push(color);
-	}
-	const first = retained[0] ?? resolveColor({ l: 0, c: base.oklch.c, h: base.oklch.h }),
-		last = retained.at(-1) ?? resolveColor({ l: 1, c: base.oklch.c, h: base.oklch.h });
+	const findBoundary = (start: number, direction: 1 | -1) => {
+		for (let index = start; index >= 0 && index <= 1000; index += direction) {
+			const color = resolveColor({ l: index / 1000, c: base.oklch.c, h: base.oklch.h });
+			if (contrastRatio(color, background) >= 3) return color;
+		}
+		return undefined;
+	};
+	const first = findBoundary(0, 1) ?? resolveColor({ l: 0, c: base.oklch.c, h: base.oklch.h }),
+		last = findBoundary(1000, -1) ?? resolveColor({ l: 1, c: base.oklch.c, h: base.oklch.h });
 	const output = Array.from({ length: steps }, (_, index) =>
 		resolveColor({
 			l: first.oklch.l + ((last.oklch.l - first.oklch.l) * index) / (steps - 1),

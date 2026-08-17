@@ -1,5 +1,28 @@
 # eXact repository code audit
 
+## Remediation completion — 2026-08-17
+
+Remediation-order items 1–6 have been implemented and promoted into maintained gates:
+
+1. **Acceptance gates:** source architecture, test typechecking, and formatting are restored.
+2. **Trust and dependencies:** reserved protocol keys are rejected recursively, manual payloads
+   require decoders before authorization, authored HTML patches require `unsafeExactHtml()`, and
+   dependency findings are upgraded or governed by owner/expiry policy with no high/critical items.
+3. **Theme performance:** nearest-first bounded search preserves exhaustive-grid results, initial
+   scope resolution is reused, parent revisions are observed, and release budgets cover resolution.
+4. **Release coverage:** all maintained application tests/builds and docs verification are in the
+   full profile; affected planning includes docs/theme browser acceptance and maintained samples.
+5. **Public contracts:** 50 production `any` erasures were removed (625 to 575) in the deeper
+   remediation pass and the new lower baseline ratchets downward. Adapter/JSON generics are retained,
+   core root modules have enforced ownership classifications, and payload decoding is typed.
+6. **Drift/tooling:** Go and large CSS domains have no-growth ceilings, transform maps compose,
+   the render-program cache is bounded and invalidatable, wire policy is shared, and DOM/SSR target
+   contribution semantics have differential coverage.
+
+Large Go/CSS ceilings are migration controls, not approval of current size: new large domains fail
+immediately and listed legacy files cannot grow while cohesive phase splits proceed. Root
+compiler/framework aliases likewise remain only for the documented 0.x compatibility window.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,

@@ -329,10 +329,10 @@ export function ensureColorContrast(
 ): { color: ResolvedColor; maximized: boolean } {
 	let selected: { color: ResolvedColor; distance: number; minimum: number } | undefined;
 	let fallback: { color: ResolvedColor; distance: number; minimum: number } | undefined;
-	for (let step = 0; step <= 1000; step++) {
-		const color = resolveColor({ ...requested, l: step / 1000 });
+	for (const candidate of orderedLightnessCandidates(requested.l)) {
+		if (selected && candidate.distance > selected.distance) break;
+		const color = resolveColor({ ...requested, l: candidate.lightness });
 		const minimum = Math.min(...backgrounds.map((background) => contrastRatio(color, background)));
-		const distance = Math.abs(step / 1000 - requested.l);
 		const tie = (candidate: { color: ResolvedColor }) =>
 			appearance === 'light'
 				? color.oklch.l < candidate.color.oklch.l
@@ -340,16 +340,41 @@ export function ensureColorContrast(
 		if (
 			minimum >= ratio &&
 			(!selected ||
-				distance < selected.distance ||
-				(distance === selected.distance && tie(selected)))
+				candidate.distance < selected.distance ||
+				(candidate.distance === selected.distance && tie(selected)))
 		)
-			selected = { color, distance, minimum };
+			selected = { color, distance: candidate.distance, minimum };
 		if (!fallback || minimum > fallback.minimum || (minimum === fallback.minimum && tie(fallback)))
-			fallback = { color, distance, minimum };
+			fallback = { color, distance: candidate.distance, minimum };
 	}
 	return selected
 		? { color: selected.color, maximized: false }
 		: { color: fallback!.color, maximized: true };
+}
+
+/**
+ * Visits the exact-theme/1 lightness grid nearest-first without allocating or sorting it.
+ * Equal-distance candidates remain adjacent so callers preserve appearance tie-breaking.
+ */
+export function* orderedLightnessCandidates(
+	requested: number
+): Generator<{ readonly lightness: number; readonly distance: number }> {
+	let lower = Math.min(1000, Math.floor(requested * 1000));
+	let upper = Math.max(0, Math.ceil(requested * 1000));
+	while (lower >= 0 || upper <= 1000) {
+		const lowerLightness = lower / 1000;
+		const upperLightness = upper / 1000;
+		const lowerDistance = lower >= 0 ? Math.abs(lowerLightness - requested) : Infinity;
+		const upperDistance = upper <= 1000 ? Math.abs(upperLightness - requested) : Infinity;
+		if (lowerDistance <= upperDistance) {
+			yield { lightness: lowerLightness, distance: lowerDistance };
+			if (lower === upper) upper++;
+			lower--;
+		} else {
+			yield { lightness: upperLightness, distance: upperDistance };
+			upper++;
+		}
+	}
 }
 
 /** Moves a hue toward another along the shortest deterministic arc. */

@@ -7,7 +7,8 @@ import { render } from '@exactjs/dom';
 import {
 	defineExactOperationContract,
 	defineExactBoundaryContract,
-	handleExactRequest
+	handleExactRequest,
+	unsafeExactHtml
 } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrateClientIslands } from './index.js';
@@ -275,7 +276,9 @@ describe('@exactjs/hydrate islands', () => {
 								{
 									type: 'replace',
 									id: 'panel',
-									html: '<div data-exact-client-boundary="counter" data-exact-client-name="Counter_ExactClient_1" data-exact-client-props=\'{"props":{"count":8}}\'></div>'
+									html: unsafeExactHtml(
+										'<div data-exact-client-boundary="counter" data-exact-client-name="Counter_ExactClient_1" data-exact-client-props=\'{"props":{"count":8}}\'></div>'
+									)
 								}
 							]
 						})
@@ -469,7 +472,9 @@ describe('@exactjs/hydrate islands', () => {
 								{
 									type: 'replace',
 									id: 'panel',
-									html: '<div data-exact-client-boundary="counter" data-exact-client-name="Counter_ExactClient_1" data-exact-client-props=\'{"props":{"count":4}}\'></div>'
+									html: unsafeExactHtml(
+										'<div data-exact-client-boundary="counter" data-exact-client-name="Counter_ExactClient_1" data-exact-client-props=\'{"props":{"count":4}}\'></div>'
+									)
 								}
 							]
 						})
@@ -529,7 +534,9 @@ describe('@exactjs/hydrate islands', () => {
 								{
 									type: 'replace',
 									id: 'panel',
-									html: '<div data-exact-client-boundary="counter" data-exact-client-name="Counter_ExactClient_1" data-exact-client-props=\'{"props":{"count":7}}\'></div>'
+									html: unsafeExactHtml(
+										'<div data-exact-client-boundary="counter" data-exact-client-name="Counter_ExactClient_1" data-exact-client-props=\'{"props":{"count":7}}\'></div>'
+									)
 								}
 							]
 						})
@@ -589,7 +596,7 @@ describe('@exactjs/hydrate islands', () => {
 								{
 									type: 'replace',
 									id: 'island-children:children',
-									html: '<p>New child</p>'
+									html: unsafeExactHtml('<p>New child</p>')
 								}
 							]
 						})

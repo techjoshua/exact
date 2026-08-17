@@ -57,7 +57,7 @@ export function commitReactiveWrite(parent: object, key: PropertyKey, next: unkn
 export function updateReactiveValue(
 	target: object,
 	path: readonly PropertyKey[],
-	operation: (previous: any) => unknown,
+	operation: (previous: unknown) => unknown,
 	returnPrevious = false
 ): unknown {
 	const { parent, key } = resolveReactivePath(target, path);
@@ -71,7 +71,7 @@ export function updateReactiveValue(
 export function updateReactiveValueWithResult(
 	target: object,
 	path: readonly PropertyKey[],
-	operation: (previous: any) => readonly [next: unknown, result: unknown]
+	operation: (previous: unknown) => readonly [next: unknown, result: unknown]
 ): unknown {
 	const { parent, key } = resolveReactivePath(target, path);
 	const previous = Reflect.get(parent, key);

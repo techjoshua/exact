@@ -59,7 +59,7 @@ export default tseslint.config(
 		files: maintainedSource,
 		rules: {
 			'@typescript-eslint/no-empty-object-type': 'off',
-			'@typescript-eslint/no-explicit-any': 'off',
+			'@typescript-eslint/no-explicit-any': 'warn',
 			'@typescript-eslint/no-this-alias': 'off'
 		}
 	},

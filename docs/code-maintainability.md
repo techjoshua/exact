@@ -52,6 +52,14 @@ signature. Include relevant details about:
 - security or trust-boundary assumptions;
 - algorithmic complexity where it affects callers.
 
+## Type erasure
+
+Prefer generics when a public adapter can preserve the source contract, and use `unknown` plus
+validation for data crossing a trust boundary. Explicit `any` remains legitimate for narrow
+existential component and compatibility internals where callers must accept every state or props
+shape. The repository ratchet prevents the production total from increasing; remove or lower its
+baseline as erasure is replaced, and do not hide new `any` behind casts or broad lint exclusions.
+
 Use `@param`, `@returns`, `@throws`, `@example`, and `@deprecated` only when they
 add information beyond the signature.
 

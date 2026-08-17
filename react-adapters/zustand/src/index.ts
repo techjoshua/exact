@@ -22,7 +22,7 @@ export function createZustandSource<T, Slice = T>(
 
 /** Creates a component store. */
 export function createComponentStore<T, Slice = T>(
-	component: Component<any>,
+	component: Component<object>,
 	store: StoreApi<T>,
 	selector?: (state: T) => Slice,
 	equality?: (left: Slice, right: Slice) => boolean
