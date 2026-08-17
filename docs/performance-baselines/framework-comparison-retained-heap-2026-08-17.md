@@ -338,3 +338,19 @@ the accepted effects are the smaller artifact and retained heap. The realized re
 the original estimate because component-domain checks and ordinary optional logging remain in the
 hot path: they preserve late owner lookup and application-provided logging without retaining the
 heavy task projection implementation. Raw after-run: `raw-1786986648026.json`.
+
+### Recommendation 3: trusted compiler-contract fast path not implemented
+
+The current component artifact model has no runtime-private, build-scoped credential connecting a
+compiler-emitted JavaScript contract literal to the runtime that consumes it. Deep freezing,
+non-enumerable properties, `Symbol.for` brands, generated string tokens, and an exported trust
+helper are all reproducible by authored JavaScript. Treating any of them as validation authority
+would allow a forged or mixed-build contract to bypass continuation, boundary, and metadata
+validation.
+
+No runtime change was made and no performance delta is claimed. A viable implementation first
+requires an artifact-loader capability that creates an unexported per-build credential, proves the
+component module belongs to that build, and rejects cross-build registration before populating a
+runtime-private `WeakMap`. That is a component artifact protocol change rather than a local
+contract-cache optimization and must be designed and adversarially tested independently. Until
+then, generated and foreign contracts continue through the same validate-once cache.
