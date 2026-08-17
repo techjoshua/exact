@@ -262,7 +262,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Generate reactive semantic themes from compact visual primitives, compose nested surfaces, and derive specialized palettes.',
 				keywords:
-					'theme theming proposal temperament palette OKLCH color CSS variables semantic action surface field text status selection nested reactive chart data colors component library enhancement depth hover active dragging interactive busy disabled overlay',
+					'theme theming proposal provider Tailwind Bootstrap adapter class manifest temperament palette OKLCH color CSS variables semantic action surface field text status selection nested reactive chart data colors component library enhancement depth hover active dragging interactive busy disabled overlay',
 				component: ThemeProposalPage
 			},
 			{
