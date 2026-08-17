@@ -369,3 +369,22 @@ add a conservative compiler fact for collection-bearing state and reactive conte
 fact into component construction. Only then can the runtime select an object/array proxy entry
 without silently returning an unobserved nested Map or Set. The public general `reactive()` API
 must continue to support collections unchanged.
+
+### Recommendation 5: scalar marker release experiment rejected
+
+A closed-program adoption experiment removed generic dynamic marker pairs only after direct scalar
+Text-node ownership was established. The focused hydration behavior passed, including generic
+fallback preservation. On the controlled route, however, compiler-planned SSR already writes
+scalar slots directly and therefore supplies no dynamic marker pairs for this path to release.
+
+The seven-sample experiment changed retained heap from 2,838,644 B to 2,843,136 B (+4,492 B), and
+the client artifact from 219,061 B / 65,687 B gzip to 219,446 B / 65,758 B gzip. Navigation was
+effectively flat (35.5 ms to 35.3 ms), FCP moved from 48 ms to 52 ms, optimistic feedback remained
+1.9 ms, settlement moved from 13.6 ms to 13.4 ms, and clean build moved from 4,602.6 ms to
+4,311.1 ms. The cleanup added code without serving the measured DOM, so it was reverted. Raw
+experiment: `raw-1786987111923.json`.
+
+The remaining cell, component, fragment, and keyed markers are structural ownership or protocol
+addresses, not redundant scalar-program markers. Removing them still requires the broader mounted
+range rebasing and server-refresh proof described in the original recommendation; recommendation
+1 alone does not establish that proof.
