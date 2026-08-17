@@ -7,7 +7,8 @@ import type {
 	ExactRemoteBuildRegistration,
 	ExactRequestLike,
 	ExactServerContext,
-	ExactExecutorContract
+	ExactExecutorContract,
+	ExactTrustedHtml
 } from '@exactjs/server';
 import {
 	defineExactBoundaryContract,
@@ -274,7 +275,10 @@ function account(input: ExactInvocationRequest): string {
 	return String(payloadRecord(input).accountId ?? 'unknown account');
 }
 
-async function serverComponentHtml(label: string, input: ExactInvocationRequest): Promise<string> {
+async function serverComponentHtml(
+	label: string,
+	input: ExactInvocationRequest
+): Promise<ExactTrustedHtml> {
 	const rendered = await renderToStringAsync(
 		createVNode(
 			'article',
