@@ -67,6 +67,13 @@ export function ThemeProposalPage(this: Component<{}>) {
 					boundaries, focus indicators, and interaction states before publication.
 				</p>
 				<p>
+					Version two makes those names perceptually distinct rather than treating them as a
+					saturation scale. Restrained and soft keep surfaces and states close; expressive uses
+					vivid accents and statuses; dramatic and stark establish progressively stronger tonal and
+					interaction intervals; and monochrome removes chroma without flattening hierarchy. Light
+					and dark preserve the same ordered relationships.
+				</p>
+				<p>
 					Nested scopes may omit any source axis or select <code>inherit</code> explicitly,
 					including for the tonic and temperament fields.
 				</p>

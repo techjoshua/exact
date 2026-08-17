@@ -16,18 +16,36 @@ const SYSTEM_CODE = 'ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono"
 const SYSTEM_BODY =
 	'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
-const temperamentData: Record<
-	BuiltInTemperament,
-	readonly [number, number, number, number, number, number]
-> = {
-	balanced: [1, 0.18, 0.018, 0.025, 0.04, 0.15],
-	restrained: [0.72, 0.13, 0.01, 0.018, 0.03, 0.25],
-	expressive: [1.22, 0.25, 0.03, 0.035, 0.055, 0.08],
-	dramatic: [1.05, 0.21, 0.02, 0.055, 0.07, 0.12],
-	soft: [0.62, 0.11, 0.022, 0.014, 0.025, 0.3],
-	stark: [0.88, 0.16, 0, 0.07, 0.08, 0],
-	monochrome: [0, 0, 0, 0.035, 0.05, 1]
+const temperamentData: Record<BuiltInTemperament, Omit<ThemeTemperament, 'id'>> = {
+	balanced: temperament(1, 0.18, 0.018, 0.025, 0.04, 0.15),
+	restrained: temperament(0.72, 0.13, 0.01, 0.018, 0.025, 0.15),
+	expressive: temperament(1.35, 0.28, 0.03, 0.035, 0.06, 0.04),
+	// Dramatic relies on large tonal and state intervals instead of masquerading as extra saturation.
+	dramatic: temperament(0.88, 0.18, 0.012, 0.055, 0.08, 0.08),
+	soft: temperament(0.55, 0.1, 0.025, 0.012, 0.018, 0.25),
+	stark: temperament(0.78, 0.14, 0, 0.07, 0.095, 0),
+	monochrome: temperament(0, 0, 0, 0.04, 0.065, 1)
 };
+
+/** Builds one version-two preset while keeping its relationship parameters named at publication. */
+function temperament(
+	accentChromaMultiplier: number,
+	accentChromaCap: number,
+	neutralChromaCap: number,
+	surfaceInterval: number,
+	stateInterval: number,
+	statusHarmonization: number
+): Omit<ThemeTemperament, 'id'> {
+	return {
+		version: 2,
+		accentChromaMultiplier,
+		accentChromaCap,
+		neutralChromaCap,
+		surfaceInterval,
+		stateInterval,
+		statusHarmonization
+	};
+}
 
 /** Frozen built-in temperament definitions keyed by their public IDs. */
 export const builtInTemperaments: Readonly<Record<BuiltInTemperament, ThemeTemperament>> =
@@ -37,13 +55,7 @@ export const builtInTemperaments: Readonly<Record<BuiltInTemperament, ThemeTempe
 				id,
 				Object.freeze({
 					id,
-					version: 1,
-					accentChromaMultiplier: values[0],
-					accentChromaCap: values[1],
-					neutralChromaCap: values[2],
-					surfaceInterval: values[3],
-					stateInterval: values[4],
-					statusHarmonization: values[5]
+					...values
 				})
 			])
 		) as Record<BuiltInTemperament, ThemeTemperament>

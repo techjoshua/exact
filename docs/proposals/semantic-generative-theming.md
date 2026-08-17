@@ -465,7 +465,7 @@ composites translucent authored colors over an opaque canvas, converts to OKLCH,
 with 24 fixed chroma bisections. Output is recursively frozen and carries a SHA-256-derived,
 base64url source fingerprint.
 
-Built-in temperaments are named, versioned data. They control accent multiplier/cap, neutral cap,
+Built-in temperaments are named, versioned data. The current built-ins are version two. They control accent multiplier/cap, neutral cap,
 surface interval, state interval, and status harmonization, while typography, density, shape,
 depth, contrast, appearance, and motion remain independent. Text candidates target 4.5:1 in
 standard contrast and 7:1 in increased contrast. Boundaries target 3:1 and 4.5:1 respectively.
@@ -473,10 +473,14 @@ Solid colors search the 1,001-value lightness grid nearest-first and stop after 
 valid distance. They select the same deterministic readable on-solid pair as a complete exhaustive
 scan; unattainable contrast still examines the whole grid to select the maximum.
 
-Surface lightness advances by the temperament interval and caps before white or dark washout.
-Status hues begin from fixed info, success, warning, and danger anchors and harmonize toward the key
-hue by the temperament amount. Structural values are deterministic functions of their independent
-source axes. Serialization uses stable token order and canonical finite decimal output.
+Surface lightness advances by the temperament interval and caps before white or dark washout. The
+light hierarchy begins below the near-white canvas headroom so all four ordered levels remain
+distinct instead of clipping to the same cap. Status hues begin from fixed info, success, warning,
+and danger anchors and harmonize toward the key hue by the temperament amount; status chroma scales
+from the resolved accent relationship without a common saturation floor. Solid interaction states
+move away from their selected on-solid foreground, preserving the state interval without violating
+contrast. Structural values remain deterministic functions of their independent source axes.
+Serialization uses stable token order and canonical finite decimal output.
 
 ## Element-role contract
 
