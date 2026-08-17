@@ -24,7 +24,6 @@ const ignoredDirectories = new Set([
 ]);
 const violations = [];
 const legacyArchitectureCeilings = new Map([
-	['native/typescript-go/overlay/internal/exactcompiler/intl_extension.go', 2816],
 	['apps/docs/src/styles.css', 1942],
 	['apps/sudoku/src/styles.css', 1887],
 	['packages/theme/styles.css', 1510],
