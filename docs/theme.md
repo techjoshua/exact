@@ -19,6 +19,8 @@ An application may activate the enhancement namespace package-wide from `exact.c
 The eXact documentation shell uses this same contract for its application chrome. Its persisted
 light, dark, or system preference drives a reactive root `theme:scope`; layout remains docs-owned,
 while shell colors, surfaces, fields, actions, focus, and shadows come from generated theme values.
+Documentation code blocks use the nearest theme's sunken surface, code typography, semantic tone
+colors, and themed copy action rather than maintaining a separate fixed light or dark palette.
 Workbench, Enhancement Playground, Kanban, Shipping Calculator, and Puzzle Foundry also consume the
 package in their application shells. They retain application-owned layout, drag behavior, route
 maps, and printable document styling rather than treating the theme package as a general UI runtime.

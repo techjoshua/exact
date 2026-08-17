@@ -16,4 +16,12 @@ describe('documentation theme isolation', () => {
 		);
 		expect(stylesheet).not.toMatch(/(?:^|\n)button:hover:not\(:disabled\)/);
 	});
+
+	it('derives code surfaces and syntax roles from the active semantic theme', () => {
+		expect(stylesheet).toContain('--code-surface: var(--exact-theme-neutral-subtle)');
+		expect(stylesheet).toContain('--syntax-keyword: var(--exact-theme-accent-text)');
+		expect(stylesheet).toContain('--syntax-string: var(--exact-theme-success-text)');
+		expect(stylesheet).toContain('--syntax-invalid: var(--exact-theme-danger-solid)');
+		expect(stylesheet).not.toMatch(/--syntax-(?:keyword|type|function|string|number):\s*#/);
+	});
 });

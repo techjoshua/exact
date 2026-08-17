@@ -31,16 +31,25 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 	};
 
 	return () => (
-		<figure className="code-block" className:code-block--compact={props.compact}>
+		<figure
+			theme:surface="sunken"
+			className="code-block"
+			className:code-block--compact={props.compact}
+		>
 			<figcaption className="code-toolbar">
 				<span>
 					{props.title ?? 'Example'} <small>{language}</small>
 				</span>
-				<button className="copy-button" type="button" onClick={() => void copy()}>
+				<button
+					theme:action="quiet"
+					className="copy-button"
+					type="button"
+					onClick={() => void copy()}
+				>
 					{this.state.copied ? 'Copied' : 'Copy'}
 				</button>
 			</figcaption>
-			<pre tabindex="0" aria-label={`${props.title ?? 'Code'} in ${language}`}>
+			<pre theme:text="code" tabindex="0" aria-label={`${props.title ?? 'Code'} in ${language}`}>
 				<code>
 					{lines.map((line) => (
 						<span className="code-line" className:is-highlighted={highlighted.has(line.number)}>

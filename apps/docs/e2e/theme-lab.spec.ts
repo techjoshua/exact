@@ -159,8 +159,49 @@ test('lets Chromium paint native controls and interaction depth from the active 
 	await expect(checkbox).toBeChecked();
 });
 
+test('keeps documentation code blocks on the reactive application theme', async ({ page }) => {
+	await page.goto('/#/components/theme');
+	await expect(
+		page.getByRole('heading', { name: 'Theme by meaning, not selector surgery' })
+	).toBeVisible();
+	const appearance = page.getByLabel('Appearance');
+	const codeBlock = page.locator('.code-block').first();
+
+	await appearance.selectOption('light');
+	await expect(page.locator('#app > [data-exact-theme]')).toHaveAttribute(
+		'data-exact-theme-appearance',
+		'light'
+	);
+	const light = await codeThemeReport(codeBlock);
+
+	await appearance.selectOption('dark');
+	await expect(page.locator('#app > [data-exact-theme]')).toHaveAttribute(
+		'data-exact-theme-appearance',
+		'dark'
+	);
+	const dark = await codeThemeReport(codeBlock);
+
+	expect(light.surface).toBe(light.neutralSubtle);
+	expect(dark.surface).toBe(dark.neutralSubtle);
+	expect(light.keyword).toBe(light.accentText);
+	expect(dark.keyword).toBe(dark.accentText);
+	expect(dark.surface).not.toBe(light.surface);
+});
+
 function themeScope(page: Page, index: number): Locator {
 	return page.locator('.theme-lab-workbench [data-exact-theme]').nth(index);
+}
+
+async function codeThemeReport(codeBlock: Locator) {
+	return codeBlock.evaluate((element) => {
+		const style = getComputedStyle(element);
+		return {
+			surface: style.getPropertyValue('--code-surface').trim(),
+			neutralSubtle: style.getPropertyValue('--exact-theme-neutral-subtle').trim(),
+			keyword: style.getPropertyValue('--syntax-keyword').trim(),
+			accentText: style.getPropertyValue('--exact-theme-accent-text').trim()
+		};
+	});
 }
 
 async function fingerprint(scope: Locator): Promise<string | null> {
