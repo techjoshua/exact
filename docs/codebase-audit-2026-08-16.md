@@ -43,6 +43,10 @@ Task reactive/environment dependency analysis was separated from collection, pol
 state-effect normalization. `tasks.go` fell from 1,417 to 1,098 checker-counted lines and no longer
 requires a legacy ceiling.
 
+Component contract descriptor/continuation metadata formation was separated from component
+branding and wrapper lowering. `component_contract_lowering.go` fell from 1,733 to 943
+checker-counted lines, eliminating its legacy ceiling.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,
