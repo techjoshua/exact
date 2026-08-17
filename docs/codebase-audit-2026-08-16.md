@@ -25,10 +25,11 @@ Large Go/CSS ceilings are migration controls, not approval of current size: new 
 immediately and listed legacy files cannot grow while cohesive phase splits proceed. Root
 compiler/framework aliases likewise remain only for the documented 0.x compatibility window.
 
-The first follow-on Go decomposition moved normalized-source edit ordering and authored-position
-projection out of `source_normalization.go` into the focused `source_edit_mapping.go` owner. This
-reduced the legacy module from 1,791 to 1,634 checker-counted lines and lowered its enforced ceiling to
-match; state-destructuring and component-computation phases remain the next cohesive split points.
+The follow-on Go decomposition moved normalized-source edit ordering/authored-position projection
+into `source_edit_mapping.go` and state-destructuring validation/rewriting into
+`component_state_destructuring_normalization.go`. This reduced `source_normalization.go` from 1,791
+to 1,061 checker-counted lines, below the standard 1,200-line Go limit, so its legacy ceiling was
+removed rather than merely lowered.
 
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
