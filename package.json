@@ -118,8 +118,6 @@
 		"react": "18.3.1",
 		"react-dom": "18.3.1",
 		"react-router-dom-v5": "npm:react-router-dom@5.3.4",
-		"react-router-dom-v6": "npm:react-router-dom@6.30.4",
-		"react-router-dom-v63": "npm:react-router-dom@6.3.0",
 		"react-router-dom-v7": "npm:react-router-dom@7.18.2",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"typescript-eslint": "8.65.0",

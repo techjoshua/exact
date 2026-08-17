@@ -1,20 +1,6 @@
 {
 	"exceptions": [
 		{
-			"package": "react-router",
-			"maximumSeverity": "moderate",
-			"exposure": "Historical v6/v6.3 compatibility aliases used only by the local comparison corpus; never published or deployed.",
-			"owner": "React compatibility",
-			"expires": "2026-11-30"
-		},
-		{
-			"package": "react-router-dom",
-			"maximumSeverity": "moderate",
-			"exposure": "Historical v6/v6.3 compatibility aliases used only by the local comparison corpus; never published or deployed.",
-			"owner": "React compatibility",
-			"expires": "2026-11-30"
-		},
-		{
 			"package": "@sveltejs/adapter-node",
 			"maximumSeverity": "low",
 			"exposure": "Pinned comparison-only Svelte fixture; it does not serve untrusted production traffic.",
