@@ -35,6 +35,10 @@ Time lowering was subsequently split into diagnostics, activation construction, 
 and plan inference owners. `time_lowering.go` fell from 1,734 to 1,094 checker-counted lines, and its
 legacy ceiling was also removed.
 
+Element-island capture/index analysis was then separated from client/server AST emission.
+`element_islands.go` fell from 1,314 to 881 checker-counted lines, removing another legacy ceiling
+without adding an analysis traversal.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,
