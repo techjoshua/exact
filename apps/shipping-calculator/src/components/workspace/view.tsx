@@ -33,7 +33,10 @@ export function renderWorkspace(
 	return (
 		<section className="calculator" aria-label="Shipping calculator">
 			<div className="calculator-grid">
-				<form className="shipment-card" onSubmit={(event) => event.preventDefault()}>
+				<form
+					className="shipment-card"
+					onSubmit={(event) => event.preventDefault()}
+				>
 					<div className="section-heading">
 						<div>
 							<p className="step">01</p>
