@@ -149,7 +149,7 @@ export function EnhancementsPage(this: Component<{}>) {
 					runtime composition and authoring guidance without teaching those rules to the core
 					compiler.
 				</p>
-				<Link className="secondary-link" to="/learn/language-tools">
+				<Link theme:action="secondary" className="secondary-link" to="/learn/language-tools">
 					See package-owned editor assistance
 				</Link>
 			</section>
@@ -157,32 +157,62 @@ export function EnhancementsPage(this: Component<{}>) {
 			<section>
 				<h2>Component libraries in this repository</h2>
 				<div className="card-grid">
-					<Link className="topic-card" to="/components/accessibility">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/accessibility"
+					>
 						<span className="topic-index">Native semantics + guidance</span>
 						<strong>Accessibility</strong>
 						<p>Connect refs, coordinate focus, and navigate complete custom composites.</p>
 					</Link>
-					<Link className="topic-card" to="/plugins/internationalization">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/plugins/internationalization"
+					>
 						<span className="topic-index">Language + build integration</span>
 						<strong>Internationalization</strong>
 						<p>Author semantic messages while build tooling coordinates extraction and catalogs.</p>
 					</Link>
-					<Link className="topic-card" to="/components/motion">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/motion"
+					>
 						<span className="topic-index">Visual behavior</span>
 						<strong>Motion</strong>
 						<p>Animate committed state with prepared definitions and task-owned playback.</p>
 					</Link>
-					<Link className="topic-card" to="/components/gestures">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/gestures"
+					>
 						<span className="topic-index">Semantic input</span>
 						<strong>Gestures</strong>
 						<p>Recognize pointer and keyboard intent with bounded component-owned sessions.</p>
 					</Link>
-					<Link className="topic-card" to="/components/physics">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/physics"
+					>
 						<span className="topic-index">Deterministic simulation</span>
 						<strong>Physics</strong>
 						<p>Advance owned 2D worlds and optionally project body poses.</p>
 					</Link>
-					<Link className="topic-card" to="/components/gravity">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/gravity"
+					>
 						<span className="topic-index">Force policy</span>
 						<strong>Gravity</strong>
 						<p>Compose finite acceleration fields through the physics force seam.</p>

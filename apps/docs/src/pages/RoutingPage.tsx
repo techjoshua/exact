@@ -78,7 +78,7 @@ export function RoutingPage(this: Component<{}>) {
 					the durable component instance rather than relying on positional hooks.
 				</p>
 				<CodeBlock source={routeContextSource} language="tsx" title="UserPage.tsx" />
-				<div className="definition-grid">
+				<div theme:surface="raised" className="definition-grid">
 					<code>useParams()</code>
 					<p>
 						<code>route.params</code>

@@ -27,7 +27,12 @@ export function Article(this: Component<{}>, props: ArticleProps) {
 			{children}
 			<nav className="page-navigation" aria-label="Page navigation">
 				{props.previous ? (
-					<Link className="page-nav-link" to={props.previous.path}>
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="page-nav-link"
+						to={props.previous.path}
+					>
 						<small>Previous</small>
 						<strong>{props.previous.label}</strong>
 					</Link>
@@ -35,7 +40,12 @@ export function Article(this: Component<{}>, props: ArticleProps) {
 					<span />
 				)}
 				{props.next ? (
-					<Link className="page-nav-link page-nav-link--next" to={props.next.path}>
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="page-nav-link page-nav-link--next"
+						to={props.next.path}
+					>
 						<small>Next</small>
 						<strong>{props.next.label}</strong>
 					</Link>

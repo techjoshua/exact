@@ -20,7 +20,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					server invocation remain native to each framework.
 				</p>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Controlled service</span>
 						<strong>Hold the server contract steady</strong>
 						<p>
@@ -28,7 +28,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 							delivery, startup, rendering, and interaction behavior can be compared directly.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Native full stack</span>
 						<strong>Let every framework own its architecture</strong>
 						<p>

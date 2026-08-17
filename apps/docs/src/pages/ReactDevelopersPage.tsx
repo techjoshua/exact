@@ -559,7 +559,7 @@ export function ReactDevelopersPage(this: Component<{}>) {
 					description. The authored function neither executes as a setup callback nor reruns to
 					produce updates; the generated state machine owns runtime behavior.
 				</p>
-				<div className="definition-grid">
+				<div theme:surface="raised" className="definition-grid">
 					<code>useState()</code>
 					<p>
 						Use fields on the instance-owned <code>this.state</code> object.
@@ -697,7 +697,11 @@ export function ReactDevelopersPage(this: Component<{}>) {
 						/>
 					</div>
 				</div>
-				<div className="continuation-comparison" aria-label="Client and server flow comparison">
+				<div
+					theme:surface="raised"
+					className="continuation-comparison"
+					aria-label="Client and server flow comparison"
+				>
 					<div>
 						<strong>Initial request</strong>
 						<p>
@@ -737,7 +741,7 @@ export function ReactDevelopersPage(this: Component<{}>) {
 						boundary—they organize component ownership and updates differently around it.
 					</p>
 				</Callout>
-				<Link className="secondary-link" to="/learn/server-execution">
+				<Link theme:action="secondary" className="secondary-link" to="/learn/server-execution">
 					Follow the generated continuation boundary
 				</Link>
 			</section>
@@ -773,10 +777,14 @@ export function ReactDevelopersPage(this: Component<{}>) {
 					guides when a comparison introduces a feature you need.
 				</p>
 				<div className="hero-actions">
-					<Link className="primary-link" to="/learn/components">
+					<Link theme:action="primary" className="primary-link" to="/learn/components">
 						Learn native components
 					</Link>
-					<Link className="secondary-link" to="/guides/react-compatibility">
+					<Link
+						theme:action="secondary"
+						className="secondary-link"
+						to="/guides/react-compatibility"
+					>
 						Keep existing React components
 					</Link>
 				</div>

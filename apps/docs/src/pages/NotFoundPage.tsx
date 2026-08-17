@@ -10,7 +10,7 @@ export function NotFoundPage(this: Component<{}>) {
 			<p className="lede">
 				The documentation may have moved, or the turtle may have taken an ambitious turn.
 			</p>
-			<Link className="primary-link" to="/">
+			<Link theme:action="primary" className="primary-link" to="/">
 				Return to the introduction
 			</Link>
 		</article>

@@ -83,12 +83,17 @@ export function ThemeLabPage(this: Component<LabState>) {
 			next={{ path: '/components/date-time', label: 'Date & time' }}
 		>
 			<div className="theme-lab-workbench">
-				<aside className="theme-lab-root-controls" aria-label="Root theme configuration">
+				<aside
+					theme:surface="raised"
+					className="theme-lab-root-controls"
+					aria-label="Root theme configuration"
+				>
 					<h2>Root theme source</h2>
 					<div className="theme-lab-controls">
 						<label>
 							Tonic preset{' '}
 							<select
+								theme:field
 								value={this.state.keyChoice}
 								onChange={(event: Event) => {
 									const value = (event.currentTarget as HTMLSelectElement).value as KeyChoice;
@@ -110,6 +115,7 @@ export function ThemeLabPage(this: Component<LabState>) {
 							Custom tonic
 							<span>
 								<input
+									theme:field
 									type="color"
 									aria-label="Root custom tonic color"
 									value={this.state.keyColor}
@@ -125,7 +131,7 @@ export function ThemeLabPage(this: Component<LabState>) {
 						</label>
 						<label>
 							Temperament{' '}
-							<select value:onChange={this.state.temperament}>
+							<select theme:field value:onChange={this.state.temperament}>
 								{temperaments.map((value) => (
 									<option value={value}>{value}</option>
 								))}
@@ -133,7 +139,7 @@ export function ThemeLabPage(this: Component<LabState>) {
 						</label>
 						<label>
 							Mode{' '}
-							<select value:onChange={this.state.appearance}>
+							<select theme:field value:onChange={this.state.appearance}>
 								<option value="system">system</option>
 								<option value="light">light</option>
 								<option value="dark">dark</option>
@@ -141,7 +147,7 @@ export function ThemeLabPage(this: Component<LabState>) {
 						</label>
 						<label>
 							Density{' '}
-							<select value:onChange={this.state.density}>
+							<select theme:field value:onChange={this.state.density}>
 								<option value="compact">compact</option>
 								<option value="comfortable">comfortable</option>
 								<option value="spacious">spacious</option>
@@ -149,7 +155,7 @@ export function ThemeLabPage(this: Component<LabState>) {
 						</label>
 						<label>
 							Shape{' '}
-							<select value:onChange={this.state.shape}>
+							<select theme:field value:onChange={this.state.shape}>
 								<option value="square">square</option>
 								<option value="soft">soft</option>
 								<option value="round">round</option>
@@ -158,7 +164,7 @@ export function ThemeLabPage(this: Component<LabState>) {
 						</label>
 						<label>
 							Depth{' '}
-							<select value:onChange={this.state.depth}>
+							<select theme:field value:onChange={this.state.depth}>
 								<option value="flat">flat</option>
 								<option value="bordered">bordered</option>
 								<option value="elevated">elevated</option>
@@ -166,7 +172,7 @@ export function ThemeLabPage(this: Component<LabState>) {
 						</label>
 						<label>
 							Typography{' '}
-							<select value:onChange={this.state.typography}>
+							<select theme:field value:onChange={this.state.typography}>
 								<option value="system">system</option>
 								<option value="humanist">humanist</option>
 								<option value="geometric">geometric</option>
@@ -175,10 +181,12 @@ export function ThemeLabPage(this: Component<LabState>) {
 							</select>
 						</label>
 						<label>
-							<input type="checkbox" checked:onChange={this.state.highContrast} /> High contrast
+							<input theme:selection type="checkbox" checked:onChange={this.state.highContrast} />{' '}
+							High contrast
 						</label>
 						<label>
-							<input type="checkbox" checked:onChange={this.state.reducedMotion} /> Reduced motion
+							<input theme:selection type="checkbox" checked:onChange={this.state.reducedMotion} />{' '}
+							Reduced motion
 						</label>
 					</div>
 				</aside>
