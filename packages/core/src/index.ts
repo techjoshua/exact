@@ -292,18 +292,6 @@ export {
 	Text,
 	UnsafeHtml
 } from './symbols.js';
-export {
-	clearCompiledRenderPrograms,
-	compiledRenderProgramCacheSize,
-	createCompiledRenderProgram,
-	readRenderProgram,
-	renderProgramFallback,
-	type ExactRenderProgram,
-	type ExactRenderProgramInvocation,
-	type ExactRenderProgramNode,
-	type ExactRenderProgramSlot,
-	type ExactRenderProgramSsrOperation
-} from './render-program.js';
 export { withTaskObserver } from './tasks/observers.js';
 export {
 	markComponentContinuationTask,

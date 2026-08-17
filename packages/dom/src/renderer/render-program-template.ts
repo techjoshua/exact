@@ -1,4 +1,4 @@
-import type { ExactRenderProgram } from '@exactjs/core';
+import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
 
 const templateCaches = new WeakMap<Document, WeakMap<ExactRenderProgram, HTMLTemplateElement>>();
 

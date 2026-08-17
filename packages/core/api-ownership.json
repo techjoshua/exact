@@ -52,7 +52,6 @@
 		"./component-contracts.js",
 		"./hydration-boundary.js",
 		"./protocol.js",
-		"./render-program.js",
 		"./ssr-independence.js",
 		"./tasks/component-continuation.js",
 		"./tasks/component-execution.js",
