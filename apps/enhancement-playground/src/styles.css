@@ -1,7 +1,9 @@
+@import '@exactjs/theme/styles.css';
+
 :root {
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-	color: #edf5ff;
-	background: #07111f;
+	color: var(--exact-theme-on-canvas);
+	background: var(--exact-theme-canvas);
 }
 
 * {
@@ -12,10 +14,15 @@ body {
 	margin: 0;
 	min-width: 320px;
 	min-height: 100vh;
+	background: var(--exact-theme-canvas);
+}
+
+.exact-theme-scope {
+	min-block-size: 100vh;
 	background:
-		radial-gradient(circle at 15% 0%, #17345c 0, transparent 34%),
-		radial-gradient(circle at 95% 28%, #162b4f 0, transparent 24%),
-		linear-gradient(160deg, #07111f, #0b172a 70%);
+		radial-gradient(circle at 15% 0%, var(--exact-theme-accent-subtle) 0, transparent 34%),
+		radial-gradient(circle at 95% 28%, var(--exact-theme-info-subtle) 0, transparent 24%),
+		var(--exact-theme-canvas);
 }
 
 button {
@@ -24,7 +31,7 @@ button {
 
 button:focus-visible,
 [tabindex]:focus-visible {
-	outline: 3px solid #7dd3fc;
+	outline: var(--exact-theme-focus-width) solid var(--exact-theme-accent-focus);
 	outline-offset: 3px;
 }
 
@@ -41,7 +48,7 @@ main {
 
 .eyebrow {
 	margin: 0 0 8px;
-	color: #7dd3fc;
+	color: var(--exact-theme-accent-text);
 	font-size: 0.75rem;
 	font-weight: 850;
 	letter-spacing: 0.14em;
@@ -69,7 +76,7 @@ h2 {
 
 .hero > p:not(.eyebrow),
 .demo-description {
-	color: #b7c8df;
+	color: var(--exact-theme-surface-foreground-muted);
 	line-height: 1.65;
 }
 
@@ -90,11 +97,11 @@ h2 {
 
 .plugin-key span,
 .package-label {
-	border: 1px solid #31527c;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-accent-border);
 	border-radius: 999px;
 	padding: 6px 11px;
-	color: #bcecff;
-	background: #10233ccc;
+	color: var(--exact-theme-accent-text);
+	background: var(--exact-theme-accent-subtle);
 	font-size: 0.76rem;
 	font-weight: 750;
 }
@@ -107,11 +114,11 @@ h2 {
 .demo-card {
 	position: relative;
 	overflow: hidden;
-	border: 1px solid #284463;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
 	border-radius: 28px;
 	padding: clamp(22px, 4vw, 36px);
-	background: linear-gradient(145deg, #0d1e34e8, #091625e8);
-	box-shadow: 0 28px 80px #0005;
+	background: var(--exact-theme-surface-background);
+	box-shadow: var(--exact-theme-shadow-lg);
 }
 
 .demo-card::before {
@@ -120,7 +127,7 @@ h2 {
 	left: 28px;
 	width: 110px;
 	height: 2px;
-	background: linear-gradient(90deg, #7dd3fc, transparent);
+	background: linear-gradient(90deg, var(--exact-theme-accent-solid), transparent);
 	content: '';
 }
 

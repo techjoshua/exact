@@ -16,6 +16,10 @@ into portrait layouts instead of exposing a horizontally scrollable partial worl
 reset remains available after aggressive dragging or repeated launches. Each example keeps
 application state authoritative and labels the package responsible for each behavior.
 
+The playground uses `@exactjs/theme` for its root source, generated tokens, surfaces, actions, and
+selections. Theme roles intentionally share elements with motion and gesture attributes to verify
+that independently attributed enhancements compose on ordinary intrinsic controls.
+
 Run `npm run dev --workspace @exactjs/sample-enhancement-playground` for the interactive sample or
 `npm run build --workspace @exactjs/sample-enhancement-playground` to verify attributed-import catalog
 generation and bundling.
