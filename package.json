@@ -59,6 +59,7 @@
 		"benchmark:devtools": "node scripts/benchmark-devtools.mjs",
 		"check:framework-comparison": "npm run check -w @exactjs/framework-comparison-suite",
 		"test:framework-comparison": "npm run test -w @exactjs/framework-comparison-suite",
+		"test:router-v63": "node scripts/test-router-v63-compatibility.mjs",
 		"start:framework-comparison-service": "npm run start:service -w @exactjs/framework-comparison-suite",
 		"check:native-compiler-corpus": "node scripts/check-native-compiler-corpus.mjs",
 		"check:native-compiler-corpus:baseline": "node scripts/check-native-compiler-corpus.mjs --update-baseline",
