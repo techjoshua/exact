@@ -42,7 +42,9 @@ export function SamplesPage(this: Component<{}>) {
 						<p>
 							This application demonstrates native server rendering, hydration, client islands, and
 							server continuations through a production-shaped server. It is the best sample for
-							understanding how compiler-selected data and work move between runtimes.
+							understanding how compiler-selected data and work move between runtimes. Its
+							server-rendered application shell also publishes the semantic theme consumed by its
+							calculator UI.
 						</p>
 					</div>
 					<div className="topic-card">
@@ -51,6 +53,8 @@ export function SamplesPage(this: Component<{}>) {
 						<p>
 							The board exercises keyed collections, direct mutation, forms, and focused updates in
 							an interface where cards and columns must retain their identity as they move.
+							Generated theme tokens drive the palette without owning its board layout or drag
+							behavior.
 						</p>
 					</div>
 					<div className="topic-card">
@@ -58,7 +62,31 @@ export function SamplesPage(this: Component<{}>) {
 						<strong>Compose a larger stateful workspace</strong>
 						<p>
 							Workbench brings several component-owned tools together to demonstrate forms, derived
-							values, tasks, and fine-grained updates across a denser application shell.
+							values, tasks, fine-grained updates, and package-scoped semantic theme roles across a
+							denser application shell.
+						</p>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>Visual systems without hidden ownership</h2>
+				<div className="card-grid">
+					<div className="topic-card">
+						<span className="topic-index">Enhancement Playground</span>
+						<strong>Compose theme, motion, gestures, and physics</strong>
+						<p>
+							Theme actions and selections share ordinary intrinsic elements with independent motion
+							and gesture enhancements. The sample demonstrates composition without a shared
+							component runtime or hidden state system.
+						</p>
+					</div>
+					<div className="topic-card">
+						<span className="topic-index">Puzzle Foundry</span>
+						<strong>Separate application theme from document design</strong>
+						<p>
+							The authoring shell uses semantic theme sources and roles, while printable puzzle
+							artwork and user-selected publication colors remain explicit document data.
 						</p>
 					</div>
 				</div>
@@ -89,9 +117,9 @@ export function SamplesPage(this: Component<{}>) {
 
 			<Callout title="Repository examples">
 				<p>
-					Shipping Calculator, Kanban, Project Workbench, Microfrontend Portal, and Server
-					Components are source examples in the eXact repository. They are not deployed as routes on
-					this documentation site.
+					Shipping Calculator, Kanban, Project Workbench, Enhancement Playground, Puzzle Foundry,
+					Microfrontend Portal, and Server Components are source examples in the eXact repository.
+					They are not deployed as routes on this documentation site.
 				</p>
 			</Callout>
 		</Article>
