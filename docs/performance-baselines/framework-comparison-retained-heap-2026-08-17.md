@@ -354,3 +354,18 @@ component module belongs to that build, and rejects cross-build registration bef
 runtime-private `WeakMap`. That is a component artifact protocol change rather than a local
 contract-cache optimization and must be designed and adversarially tested independently. Until
 then, generated and foreign contracts continue through the same validate-once cache.
+
+### Recommendation 4: object/array proxy entry deferred pending capability facts
+
+Map/Set member interception is already isolated in `proxy/collections.ts`, but the general
+`reactive()` contract and reactive component-context APIs synchronously accept opaque values. The
+component runtime statically retains those APIs even when the authored state on this route happens
+to contain only objects and arrays. Adding a second object-only export would therefore add surface
+area without making the collection module unreachable or changing measured heap.
+
+No runtime change was made and no performance delta is claimed. A viable implementation must first
+add a conservative compiler fact for collection-bearing state and reactive contexts, treat
+`unknown`, `any`, external contexts, and compatibility inputs as collection-capable, and carry that
+fact into component construction. Only then can the runtime select an object/array proxy entry
+without silently returning an unobserved nested Map or Set. The public general `reactive()` API
+must continue to support collections unchanged.
