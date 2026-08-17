@@ -39,6 +39,10 @@ Element-island capture/index analysis was then separated from client/server AST 
 `element_islands.go` fell from 1,314 to 881 checker-counted lines, removing another legacy ceiling
 without adding an analysis traversal.
 
+Task reactive/environment dependency analysis was separated from collection, policy formation, and
+state-effect normalization. `tasks.go` fell from 1,417 to 1,098 checker-counted lines and no longer
+requires a legacy ceiling.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,
