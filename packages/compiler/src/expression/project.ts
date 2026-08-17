@@ -39,7 +39,8 @@ export class ExactCompilerSession {
 		const response = this.nativeCompiler.request(request);
 		this.profile('native-request', started, {
 			cached: response.cacheHit ? 1 : 0,
-			dependencies: response.analysis.imports.length
+			dependencies: response.analysis.imports.length,
+			...(response.counters ?? {})
 		});
 		return response;
 	}

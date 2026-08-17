@@ -73,7 +73,15 @@ export function nativeBaselineComparison(baseline, current) {
 					config: entry.current.config,
 					ratio: entry.current.elapsedMs / entry.baseline.elapsedMs,
 					baselineMs: entry.baseline.elapsedMs,
-					currentMs: entry.current.elapsedMs
+					currentMs: entry.current.elapsedMs,
+					...(Number.isFinite(entry.baseline.incrementalElapsedMs) &&
+					Number.isFinite(entry.current.incrementalElapsedMs) &&
+					entry.baseline.incrementalElapsedMs > 0
+						? {
+								incrementalRatio:
+									entry.current.incrementalElapsedMs / entry.baseline.incrementalElapsedMs
+							}
+						: {})
 				}))
 				.sort((left, right) => right.ratio - left.ratio)
 		};
@@ -135,7 +143,10 @@ export async function writeNativeCompilerCorpusBaseline(root, record) {
 					fileCount: project.fileCount,
 					elapsedMs: project.elapsedMs,
 					phaseMicroseconds: project.phaseMicroseconds,
-					counters: project.counters
+					counters: project.counters,
+					incrementalElapsedMs: project.incrementalElapsedMs,
+					incrementalPhaseMicroseconds: project.incrementalPhaseMicroseconds,
+					incrementalCounters: project.incrementalCounters
 				})),
 				node: record.node,
 				platform: record.platform,

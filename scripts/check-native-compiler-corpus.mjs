@@ -81,6 +81,10 @@ for (let sample = 0; sample < sampleCount; sample += 1) {
 	samples.push({ ...result, elapsedMs: performance.now() - started });
 }
 const result = medianNativeCorpusResult(samples);
+const incrementalResult = await runNativeCorpus({ ...corpusInput, mode: 'incremental' });
+const incrementalByConfig = new Map(
+	incrementalResult.projects.map((project) => [project.config, project])
+);
 const elapsedMs = result.elapsedMs;
 const fileCount = result.fileCount;
 const projectCount = groups.size;
@@ -90,7 +94,10 @@ const counters = result.counters;
 const projects = result.projects
 	.map((project) => ({
 		...project,
-		config: path.relative(root, project.config).replaceAll('\\', '/')
+		config: path.relative(root, project.config).replaceAll('\\', '/'),
+		incrementalElapsedMs: incrementalByConfig.get(project.config)?.elapsedMs,
+		incrementalPhaseMicroseconds: incrementalByConfig.get(project.config)?.phaseMicroseconds,
+		incrementalCounters: incrementalByConfig.get(project.config)?.counters
 	}))
 	.sort((left, right) => right.elapsedMs - left.elapsedMs);
 const baseline = await readNativeCompilerCorpusBaseline(root);
@@ -99,7 +106,7 @@ const significantProjectRatio = Math.max(
 	0,
 	...(comparison?.projectRatios ?? [])
 		.filter((project) => project.baselineMs >= 250)
-		.map((project) => project.ratio)
+		.flatMap((project) => [project.ratio, project.incrementalRatio ?? 0])
 );
 const record = {
 	schemaVersion: 3,
@@ -111,6 +118,8 @@ const record = {
 	outputBytes,
 	phaseMicroseconds,
 	counters,
+	incrementalPhaseMicroseconds: incrementalResult.phaseMicroseconds,
+	incrementalCounters: incrementalResult.counters,
 	projects,
 	sampleCount,
 	sampleElapsedMs: samples.map((sample) => sample.elapsedMs),
@@ -152,10 +161,19 @@ for (const [phase, microseconds] of Object.entries(phaseMicroseconds).sort(
 	console.log(`  ${phase.padEnd(28)} ${(microseconds / 1_000_000).toFixed(2)}s worker time`);
 for (const [counter, value] of Object.entries(counters).sort(([, left], [, right]) => right - left))
 	console.log(`  ${counter.padEnd(28)} ${value}`);
+console.log('  incremental edit totals');
+for (const [phase, microseconds] of Object.entries(incrementalResult.phaseMicroseconds).sort(
+	([, left], [, right]) => right - left
+))
+	console.log(`    ${phase.padEnd(26)} ${(microseconds / 1_000_000).toFixed(2)}s worker time`);
+for (const [counter, value] of Object.entries(incrementalResult.counters).sort(
+	([, left], [, right]) => right - left
+))
+	console.log(`    ${counter.padEnd(26)} ${value}`);
 console.log('  slowest projects');
 for (const project of projects.slice(0, 5))
 	console.log(
-		`    ${project.config.padEnd(44)} ${(project.elapsedMs / 1_000).toFixed(2)}s (${project.fileCount} files, ${(project.phaseMicroseconds.projectLinkMicroseconds / 1_000_000).toFixed(2)}s link, ${(project.callableMicroseconds / 1_000_000).toFixed(2)}s callable)`
+		`    ${project.config.padEnd(44)} ${(project.elapsedMs / 1_000).toFixed(2)}s cold, ${project.incrementalElapsedMs.toFixed(0)}ms edit (${project.fileCount} files, ${(project.phaseMicroseconds.projectLinkMicroseconds / 1_000_000).toFixed(2)}s link)`
 	);
 if (updateBaseline) {
 	console.log('updated docs/performance-baselines/native-compiler-corpus.json');
@@ -205,6 +223,8 @@ function runNativeCorpus(input) {
 				reject(new Error(`native compiler corpus worker returned invalid JSON`, { cause: error }));
 			}
 		});
-		child.stdin.end(JSON.stringify({ groups: input.groups, workers: input.workers }));
+		child.stdin.end(
+			JSON.stringify({ groups: input.groups, workers: input.workers, mode: input.mode })
+		);
 	});
 }

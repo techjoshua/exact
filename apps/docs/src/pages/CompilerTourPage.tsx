@@ -120,7 +120,9 @@ export function CompilerTourPage(this: Component<{}>) {
 					identities, and placement links once for that TypeScript program generation. Each module
 					still receives its target-specific output, while unchanged project facts are reused
 					instead of rediscovered for every file. A watched source change creates a new generation
-					before affected output is published.
+					before affected output is published; unchanged sources outside its reverse import closure
+					retain reusable analysis. Projects with path remapping, open dynamic imports, or global
+					module augmentation use conservative generation invalidation.
 				</p>
 			</section>
 			<Callout title="Generated code is an implementation contract, not an authoring API">

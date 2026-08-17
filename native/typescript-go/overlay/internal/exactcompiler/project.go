@@ -175,7 +175,7 @@ func (state *projectState) advance(
 			state.program = next
 		}
 		state.sources[sourceKey] = source
-		state.invalidateAnalysisCaches()
+		state.invalidateChangedProjectSources(fileName)
 	}
 	state.initialized = true
 	state.program.BindSourceFiles()
