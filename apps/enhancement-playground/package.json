@@ -16,6 +16,7 @@
 		"@exactjs/jsx": "^0.1.0",
 		"@exactjs/motion": "^0.1.0",
 		"@exactjs/physics": "^0.1.0",
+		"@exactjs/theme": "^0.1.0",
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {

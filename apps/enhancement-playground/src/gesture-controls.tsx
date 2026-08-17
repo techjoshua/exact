@@ -148,7 +148,11 @@ export function GestureControls(this: Component<GestureControlsState>) {
 	};
 
 	return () => (
-		<section className="demo-card gesture-demo" aria-labelledby="gesture-title">
+		<section
+			theme:surface="raised"
+			className="demo-card gesture-demo"
+			aria-labelledby="gesture-title"
+		>
 			<div className="demo-heading">
 				<div>
 					<p className="eyebrow">Gestures</p>
@@ -160,7 +164,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 			<div className="gesture-grid">
 				<div className="control-sample">
 					<span className="sample-label">Press</span>
-					<button className="applause-button" gesture:apply={pressControl}>
+					<button theme:action="primary" className="applause-button" gesture:apply={pressControl}>
 						<span
 							key={String(this.state.presses)}
 							className={this.state.presses ? 'applause-icon is-active' : 'applause-icon'}
@@ -194,8 +198,8 @@ export function GestureControls(this: Component<GestureControlsState>) {
 						</div>
 						{this.state.hovered ? (
 							<div className="preview-actions">
-								<button>Message</button>
-								<button>View profile</button>
+								<button theme:action="secondary">Message</button>
+								<button theme:action="primary">View profile</button>
 							</div>
 						) : null}
 					</div>
@@ -208,6 +212,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 					<strong>{this.state.slider}%</strong>
 				</div>
 				<button
+					theme:selection="strong"
 					className="semantic-slider"
 					role="slider"
 					aria-label="Volume"
@@ -225,6 +230,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 				<div className="control-sample">
 					<span className="sample-label">Long press</span>
 					<button
+						theme:action="secondary"
 						className="hold-button"
 						data-confirmed={this.state.held}
 						gesture:apply={holdControl}
@@ -239,7 +245,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 				<div className="control-sample media-sample">
 					<div className="sample-title-row">
 						<span className="sample-label">Pan + pinch / twist</span>
-						<button className="text-button" onClick={resetMedia}>
+						<button theme:action="quiet" className="text-button" onClick={resetMedia}>
 							Reset
 						</button>
 					</div>

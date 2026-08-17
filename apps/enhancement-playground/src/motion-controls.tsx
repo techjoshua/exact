@@ -71,7 +71,11 @@ export function MotionControls(this: Component<MotionControlsState>) {
 	};
 
 	return () => (
-		<section className="demo-card motion-demo" aria-labelledby="motion-title">
+		<section
+			theme:surface="raised"
+			className="demo-card motion-demo"
+			aria-labelledby="motion-title"
+		>
 			<div className="demo-heading">
 				<div>
 					<p className="eyebrow">Motion</p>
@@ -88,6 +92,7 @@ export function MotionControls(this: Component<MotionControlsState>) {
 					style={{ transform: indicatorTransforms[this.state.activeTab] }}
 				/>
 				<button
+					theme:selection="strong"
 					role="tab"
 					aria-selected={this.state.activeTab === 'profile'}
 					onClick={() => selectTab('profile')}
@@ -95,6 +100,7 @@ export function MotionControls(this: Component<MotionControlsState>) {
 					<span className="tab-label">Profile</span>
 				</button>
 				<button
+					theme:selection="strong"
 					role="tab"
 					aria-selected={this.state.activeTab === 'activity'}
 					onClick={() => selectTab('activity')}
@@ -120,12 +126,14 @@ export function MotionControls(this: Component<MotionControlsState>) {
 
 			<div className="control-row">
 				<button
+					theme:action="primary"
 					className="primary-button"
 					onClick={() => (this.state.toastVisible = !this.state.toastVisible)}
 				>
 					{this.state.toastVisible ? 'Dismiss toast' : 'Save changes'}
 				</button>
 				<button
+					theme:action="secondary"
 					className="secondary-button"
 					aria-expanded={this.state.expanded}
 					onClick={() => (this.state.expanded = !this.state.expanded)}

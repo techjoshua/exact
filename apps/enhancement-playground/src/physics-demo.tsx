@@ -124,7 +124,11 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 
 	this.onUnmount(() => world[Symbol.dispose]());
 	return () => (
-		<section className="demo-card physics-demo" aria-labelledby="physics-title">
+		<section
+			theme:surface="raised"
+			className="demo-card physics-demo"
+			aria-labelledby="physics-title"
+		>
 			<div className="demo-heading">
 				<div>
 					<p className="eyebrow">All four together</p>
@@ -137,13 +141,21 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 				gestures own intent, physics owns pose and collision, and gravity contributes force.
 			</p>
 			<div className="control-row">
-				<button className="primary-button" onClick={() => (this.state.shown = !this.state.shown)}>
+				<button
+					theme:action="primary"
+					className="primary-button"
+					onClick={() => (this.state.shown = !this.state.shown)}
+				>
 					{this.state.shown ? 'Remove orb' : 'Restore orb'}
 				</button>
-				<button className="secondary-button" onClick={() => orb.applyImpulse({ x: 92, y: -255 })}>
+				<button
+					theme:action="secondary"
+					className="secondary-button"
+					onClick={() => orb.applyImpulse({ x: 92, y: -255 })}
+				>
 					Launch orb
 				</button>
-				<button className="secondary-button" onClick={resetOrb}>
+				<button theme:action="secondary" className="secondary-button" onClick={resetOrb}>
 					Reset position
 				</button>
 			</div>
