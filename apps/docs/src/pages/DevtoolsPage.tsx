@@ -74,6 +74,12 @@ export function DevtoolsPage(this: Component<{}>) {
 					Session, catalog, event-buffer, and observation ownership is allocated lazily only after a
 					valid debug message.
 				</p>
+				<p>
+					Constructing an inspection owner activates task-frame snapshots, bounded history, value
+					previews, and event publication. Inspection-free production artifacts retain only the
+					optional dispatch point, while the durable component state itself remains inspectable when
+					the capability is present.
+				</p>
 				<CodeBlock source={authorization} language="ts" title="server.ts" />
 			</section>
 			<section>

@@ -1,7 +1,7 @@
 import type { ScheduledWorkContext } from '@exactjs/reactive';
 import { TaskCancellation } from './cancellation.js';
 import { taskFrameTokenBrand, type TaskFrameRecord } from './frame-contracts.js';
-import { taskFrameInspectionAttached } from './frame-inspection.js';
+import { taskFrameInspectionAttached } from './frame-inspection-capability.js';
 import {
 	allocateTaskFrameId,
 	attachTaskFrameSettlement,
