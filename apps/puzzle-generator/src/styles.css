@@ -1,3 +1,5 @@
+@import '@exactjs/theme/styles.css';
+
 :root {
 	font-family:
 		Inter,
@@ -7,8 +9,8 @@
 		BlinkMacSystemFont,
 		'Segoe UI',
 		sans-serif;
-	color: #17251e;
-	background: #f1eee5;
+	color: var(--exact-theme-on-canvas);
+	background: var(--exact-theme-canvas);
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
 }
@@ -24,8 +26,14 @@ html {
 body {
 	margin: 0;
 	min-width: 320px;
+	background: var(--exact-theme-canvas);
+}
+
+.exact-theme-scope {
+	min-block-size: 100vh;
 	background:
-		radial-gradient(circle at 85% 4%, rgba(208, 219, 195, 0.85), transparent 24rem), #f1eee5;
+		radial-gradient(circle at 85% 4%, var(--exact-theme-accent-subtle), transparent 24rem),
+		var(--exact-theme-canvas);
 }
 
 button,
@@ -47,7 +55,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
-	outline: 3px solid #de6b48;
+	outline: var(--exact-theme-focus-width) solid var(--exact-theme-accent-focus);
 	outline-offset: 3px;
 }
 
@@ -62,7 +70,7 @@ a:focus-visible {
 	max-width: 1480px;
 	margin: 0 auto;
 	padding: 24px clamp(22px, 5vw, 72px);
-	border-bottom: 1px solid rgba(23, 37, 30, 0.18);
+	border-bottom: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
 }
 
 .brand {
@@ -79,8 +87,8 @@ a:focus-visible {
 	width: 43px;
 	height: 43px;
 	border-radius: 50% 50% 50% 8px;
-	background: #17251e;
-	color: #fffdf6;
+	background: var(--exact-theme-neutral-solid);
+	color: var(--exact-theme-neutral-on-solid);
 	font-family: Georgia, serif;
 	font-size: 14px;
 	font-weight: 800;
@@ -100,7 +108,7 @@ a:focus-visible {
 
 .brand small {
 	margin-top: 2px;
-	color: #68746d;
+	color: var(--exact-theme-surface-foreground-muted);
 	font-size: 11px;
 	letter-spacing: 0.06em;
 }

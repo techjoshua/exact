@@ -217,7 +217,7 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 
 	return () => (
 		<div className="app-shell">
-			<header className="masthead">
+			<header theme:surface="raised" className="masthead">
 				<a className="brand" href="#top" aria-label="Puzzle Foundry home">
 					<span className="brand-mark" aria-hidden="true">
 						PF
@@ -234,23 +234,23 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 			</header>
 
 			<main id="top">
-				<section className="hero">
+				<section theme:surface="base" className="hero">
 					<div>
 						<span className="eyebrow">A small press for big thinkers</span>
-						<h1>
+						<h1 theme:text="display">
 							Build a puzzle.
 							<br />
 							<span>Keep the answer.</span>
 						</h1>
 					</div>
-					<p>
+					<p theme:text="body">
 						Generate polished, printable puzzles without sending a word or seed anywhere. Export the
 						challenge and its answer key as separate, infinitely sharp SVG files.
 					</p>
 				</section>
 
 				<div className="workspace">
-					<aside className="controls-panel">
+					<aside theme:surface="sunken" className="controls-panel">
 						<GeneratorControls
 							kind={this.state.kind}
 							difficulty={this.state.difficulty}

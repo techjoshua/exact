@@ -27,7 +27,11 @@ export function StyleControls(props: StyleControlsProps) {
 		});
 	};
 	return () => (
-		<section className="control-section style-section" aria-labelledby="style-heading">
+		<section
+			theme:surface="raised"
+			className="control-section style-section"
+			aria-labelledby="style-heading"
+		>
 			<div className="section-heading">
 				<span>02</span>
 				<div>

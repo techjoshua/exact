@@ -13,7 +13,7 @@ type PuzzlePreviewProps = {
 /** Shows the generated artifact and exposes separate puzzle/solution downloads. */
 export function PuzzlePreview(props: PuzzlePreviewProps) {
 	return () => (
-		<section className="preview-panel" aria-labelledby="preview-heading">
+		<section theme:surface="raised" className="preview-panel" aria-labelledby="preview-heading">
 			<div className="preview-toolbar">
 				<div>
 					<span className="eyebrow">Live proof</span>
@@ -21,6 +21,7 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 				</div>
 				<div className="view-switch" role="group" aria-label="Preview document">
 					<button
+						theme:action="secondary"
 						type="button"
 						className:active={!props.solution}
 						onClick={() => props.onSolution(false)}
@@ -28,6 +29,7 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 						Puzzle
 					</button>
 					<button
+						theme:action="secondary"
 						type="button"
 						className:active={props.solution}
 						onClick={() => props.onSolution(true)}

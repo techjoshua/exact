@@ -51,7 +51,7 @@ const puzzleKinds: ReadonlyArray<{ id: PuzzleKind; label: string; note: string }
 /** Renders puzzle-specific inputs without owning their durable values. */
 export function GeneratorControls(props: GeneratorControlsProps) {
 	return () => (
-		<section className="control-section" aria-labelledby="puzzle-heading">
+		<section theme:surface="raised" className="control-section" aria-labelledby="puzzle-heading">
 			<div className="section-heading">
 				<span>01</span>
 				<div>
@@ -63,6 +63,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 			<div className="kind-grid">
 				{puzzleKinds.map((kind) => (
 					<button
+						theme:selection="strong"
 						type="button"
 						className="kind-card"
 						className:active={props.kind === kind.id}
@@ -183,7 +184,12 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						onInput={(event) => props.onSeed(Number(event.currentTarget.value) >>> 0)}
 					/>
 				</label>
-				<button type="button" className="shuffle-button" onClick={props.onRandomize}>
+				<button
+					theme:action="primary"
+					type="button"
+					className="shuffle-button"
+					onClick={props.onRandomize}
+				>
 					<span>Shuffle</span>
 					<span aria-hidden="true">↻</span>
 				</button>

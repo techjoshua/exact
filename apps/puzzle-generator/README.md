@@ -59,6 +59,10 @@ exactly as received, including malformed output and separate initial and repair 
 reports the model's finish reason and explains when the output limit interrupted an incomplete JSON
 object; failed validation never hides the model's response.
 
+The application shell uses `@exactjs/theme` for its generated canvas, focus, typography, surfaces,
+actions, and selection roles. Print-preview artwork and user-selected puzzle colors remain part of
+the publishing document model rather than inheriting the application theme.
+
 ## Build one portable file
 
 ```sh
