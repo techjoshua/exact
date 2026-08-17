@@ -31,7 +31,7 @@ export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 				<small>docs</small>
 			</Link>
 			<div className="topbar-actions">
-				<a className="sudoku-link" href="./sudoku.html">
+				<a theme:action="primary" className="sudoku-link" href="./sudoku.html">
 					<span>Play Sudoku</span> <span aria-hidden="true">{'\u2192'}</span>
 				</a>
 				<button
@@ -43,7 +43,13 @@ export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 					<span aria-hidden="true">{'\u2315'}</span> Search
 				</button>
 				<ThemeControl />
-				<a className="github-link" href="https://github.com" target="_blank" rel="noreferrer">
+				<a
+					theme:action="quiet"
+					className="github-link"
+					href="https://github.com"
+					target="_blank"
+					rel="noreferrer"
+				>
 					GitHub <span aria-hidden="true">{'\u2197'}</span>
 				</a>
 			</div>

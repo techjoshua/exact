@@ -11,7 +11,7 @@ export function SamplesPage(this: Component<{}>) {
 			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Sudoku Atelier is the hosted demo; the others are repository examples you can build locally."
 			next={{ path: '/getting-started', label: 'Create an eXact app' }}
 		>
-			<section className="sudoku-showcase">
+			<section theme:surface="raised" className="sudoku-showcase">
 				<div>
 					<p className="demo-kicker">Hosted demo</p>
 					<h2>Sudoku Atelier</h2>
@@ -28,7 +28,7 @@ export function SamplesPage(this: Component<{}>) {
 						application feels before exploring the source in the repository.
 					</p>
 				</div>
-				<a className="primary-link" href="./sudoku.html">
+				<a theme:action="primary" className="primary-link" href="./sudoku.html">
 					Play Sudoku Atelier <span aria-hidden="true">{'→'}</span>
 				</a>
 			</section>
@@ -36,7 +36,7 @@ export function SamplesPage(this: Component<{}>) {
 			<section>
 				<h2>Production-shaped client and server work</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Shipping Calculator</span>
 						<strong>Follow one feature across the network</strong>
 						<p>
@@ -47,7 +47,7 @@ export function SamplesPage(this: Component<{}>) {
 							calculator UI.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Kanban</span>
 						<strong>Preserve identity through busy list updates</strong>
 						<p>
@@ -57,7 +57,7 @@ export function SamplesPage(this: Component<{}>) {
 							behavior.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Project Workbench</span>
 						<strong>Compose a larger stateful workspace</strong>
 						<p>
@@ -72,7 +72,7 @@ export function SamplesPage(this: Component<{}>) {
 			<section>
 				<h2>Visual systems without hidden ownership</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Enhancement Playground</span>
 						<strong>Compose theme, motion, gestures, and physics</strong>
 						<p>
@@ -81,7 +81,7 @@ export function SamplesPage(this: Component<{}>) {
 							component runtime or hidden state system.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Puzzle Foundry</span>
 						<strong>Separate application theme from document design</strong>
 						<p>
@@ -95,7 +95,7 @@ export function SamplesPage(this: Component<{}>) {
 			<section>
 				<h2>Distributed ownership and placement</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Microfrontend Portal</span>
 						<strong>Compose independently delivered features</strong>
 						<p>
@@ -104,7 +104,7 @@ export function SamplesPage(this: Component<{}>) {
 							safe.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Server Components</span>
 						<strong>Inspect compiler-planned server artifacts</strong>
 						<p>

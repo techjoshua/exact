@@ -38,7 +38,7 @@ export function PluginsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>One package, several bounded hosts</h2>
-				<div className="definition-grid">
+				<div theme:surface="raised" className="definition-grid">
 					<code>config</code>
 					<p>Defines defaults, validation, typed transforms, and host-specific projections.</p>
 					<code>build</code>
@@ -96,7 +96,12 @@ export function PluginsPage(this: Component<{}>) {
 					build or server host lifecycles.
 				</p>
 				<div className="card-grid">
-					<Link className="topic-card" to="/plugins/internationalization">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/plugins/internationalization"
+					>
 						<span className="topic-index">Build + enhancement</span>
 						<strong>Internationalization</strong>
 						<p>
@@ -104,7 +109,12 @@ export function PluginsPage(this: Component<{}>) {
 							formatters, and load only reachable locale data.
 						</p>
 					</Link>
-					<Link className="topic-card" to="/plugins/microfrontends">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/plugins/microfrontends"
+					>
 						<span className="topic-index">Build + runtime</span>
 						<strong>Microfrontends</strong>
 						<p>
@@ -112,7 +122,12 @@ export function PluginsPage(this: Component<{}>) {
 							roots, and recover across deployments.
 						</p>
 					</Link>
-					<Link className="topic-card" to="/plugins/secrets">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/plugins/secrets"
+					>
 						<span className="topic-index">Policy + server</span>
 						<strong>Secrets</strong>
 						<p>

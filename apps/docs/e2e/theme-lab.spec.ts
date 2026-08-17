@@ -166,6 +166,7 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	).toBeVisible();
 	await page.locator('.theme-control > summary').click();
 	const appearance = page.getByLabel('Appearance');
+	const depth = page.locator('.theme-control-panel').getByLabel('Depth');
 	const codeBlock = page.locator('.code-block').first();
 
 	await appearance.selectOption('light');
@@ -189,9 +190,21 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	expect(dark.surface).not.toBe(light.surface);
 	expect(light.rootColorScheme).toBe('light');
 	expect(dark.rootColorScheme).toBe('dark');
+
+	await depth.selectOption('flat');
+	const flat = await codeThemeReport(codeBlock);
+	await depth.selectOption('bordered');
+	const bordered = await codeThemeReport(codeBlock);
+	await depth.selectOption('elevated');
+	const elevated = await codeThemeReport(codeBlock);
+	expect(flat.borderWidth).toBe('0px');
+	expect(bordered.borderWidth).not.toBe('0px');
+	expect(elevated.shadow).not.toBe('none');
 });
 
-test('keeps theme customization inside the viewport and themes article callouts', async ({ page }) => {
+test('keeps theme customization inside the viewport and themes article callouts', async ({
+	page
+}) => {
 	await page.goto('/#/story');
 	await page.locator('.theme-control > summary').click();
 	const panel = page.locator('.theme-control-panel');
@@ -207,7 +220,9 @@ test('keeps theme customization inside the viewport and themes article callouts'
 	await panel.getByLabel('Color').selectOption('violet');
 	await panel.getByLabel('Shape').selectOption('pill');
 	await expect
-		.poll(() => page.locator('#app > [data-exact-theme]').getAttribute('data-exact-theme-fingerprint'))
+		.poll(() =>
+			page.locator('#app > [data-exact-theme]').getAttribute('data-exact-theme-fingerprint')
+		)
 		.not.toBe(originalFingerprint);
 	expect(await page.evaluate(() => localStorage.getItem('exact-docs-theme-settings'))).toContain(
 		'"shape":"pill"'
@@ -238,7 +253,9 @@ async function codeThemeReport(codeBlock: Locator) {
 			keyword: style.getPropertyValue('--syntax-keyword').trim(),
 			accentText: style.getPropertyValue('--exact-theme-accent-text').trim(),
 			accentSolidActive: style.getPropertyValue('--exact-theme-accent-solid-active').trim(),
-			rootColorScheme: getComputedStyle(document.documentElement).colorScheme
+			rootColorScheme: getComputedStyle(document.documentElement).colorScheme,
+			borderWidth: style.borderTopWidth,
+			shadow: style.boxShadow
 		};
 	});
 }

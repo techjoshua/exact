@@ -12,22 +12,33 @@ export function PriceDemo(this: Component<PriceState>) {
 	const total = subtotal + shipping;
 
 	return () => (
-		<section className="demo price-demo" aria-label="Reactive price calculator">
+		<section
+			theme:surface="raised"
+			className="demo price-demo"
+			aria-label="Reactive price calculator"
+		>
 			<div className="price-controls">
 				<label>
 					Quantity <strong>{this.state.quantity}</strong>
-					<input type="range" min="1" max="8" value:onInput={this.state.quantity} />
+					<input theme:field type="range" min="1" max="8" value:onInput={this.state.quantity} />
 				</label>
 				<label>
 					Unit price <strong>${this.state.price}</strong>
-					<input type="range" min="8" max="60" step="2" value:onInput={this.state.price} />
+					<input
+						theme:field
+						type="range"
+						min="8"
+						max="60"
+						step="2"
+						value:onInput={this.state.price}
+					/>
 				</label>
 				<label className="check-row">
-					<input type="checkbox" checked:onChange={this.state.express} />
+					<input theme:selection type="checkbox" checked:onChange={this.state.express} />
 					Express delivery
 				</label>
 			</div>
-			<dl className="receipt">
+			<dl theme:surface="sunken" className="receipt">
 				<div>
 					<dt>Subtotal</dt>
 					<dd>${subtotal}</dd>

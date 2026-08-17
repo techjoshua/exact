@@ -167,7 +167,7 @@ export function PackagesPage(this: Component<{}>) {
 				<section className="package-group">
 					<h2>{group.title}</h2>
 					<p>{group.intro}</p>
-					<div className="package-list">
+					<div theme:surface="raised" className="package-list">
 						{group.packages.map((item) => (
 							<div>
 								<code>{item.name}</code>

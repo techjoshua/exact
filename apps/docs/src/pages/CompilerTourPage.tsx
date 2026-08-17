@@ -85,7 +85,7 @@ export function CompilerTourPage(this: Component<{}>) {
 			<section>
 				<h2>What to notice</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Precise updates</span>
 						<strong>Each dependency keeps a narrow destination</strong>
 						<p>
@@ -93,7 +93,7 @@ export function CompilerTourPage(this: Component<{}>) {
 							ranges that depend on them without rerunning the component.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">One task across the boundary</span>
 						<strong>The compiler owns placement and cancellation</strong>
 						<p>
@@ -101,7 +101,7 @@ export function CompilerTourPage(this: Component<{}>) {
 							and trusted context stays server-side. The browser title task remains local.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Stable identity and resumption</span>
 						<strong>Annotations remove repeated view ceremony</strong>
 						<p>

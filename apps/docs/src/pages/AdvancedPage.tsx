@@ -58,7 +58,7 @@ export function AdvancedPage(this: Component<{}>) {
 				<h2>The wider system</h2>
 				<div className="card-grid advanced-grid">
 					{advancedCards.map((card) => (
-						<div className="topic-card">
+						<div theme:surface="raised" className="topic-card">
 							<strong>{card.title}</strong>
 							<p>{card.text}</p>
 							<code>{card.packages}</code>

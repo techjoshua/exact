@@ -34,7 +34,10 @@ The Theme Lab pairs tonic presets with native color-picker controls for both roo
 The public documentation shell also uses a root theme scope. Its header menu persists appearance,
 tonic, temperament, density, shape, depth, typography, contrast, and motion choices. Explicit light
 and dark appearances are reflected on the document root so browser-owned chrome such as scrollbars
-uses the same color scheme; `system` continues to follow the operating-system preference.
+uses the same color scheme; `system` continues to follow the operating-system preference. Documentation
+chrome, cards, demos, dialogs, navigation targets, callouts, and code blocks use the semantic
+enhancements directly. Code blocks are sunken surfaces, so flat, bordered, and elevated depth choices
+control their exterior border and shadow without changing syntax semantics or internal separators.
 The lab's host-page control rules explicitly exclude themed actions, fields, and selections, so page-level hover, focus, and disabled colors cannot replace the generated contract while inspecting a theme.
 
 Every runtime theme scope establishes `font-body`, `font-size-md`, and `line-height-body` on its wrapper. Native descendants and themed controls that use `font: inherit` therefore follow the selected typography preset, while heading/display and code roles switch to their dedicated generated families and scales.
