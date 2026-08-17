@@ -79,7 +79,9 @@ export function nativeBaselineComparison(baseline, current) {
 					entry.baseline.incrementalElapsedMs > 0
 						? {
 								incrementalRatio:
-									entry.current.incrementalElapsedMs / entry.baseline.incrementalElapsedMs
+									entry.current.incrementalElapsedMs / entry.baseline.incrementalElapsedMs,
+								baselineIncrementalMs: entry.baseline.incrementalElapsedMs,
+								currentIncrementalMs: entry.current.incrementalElapsedMs
 							}
 						: {})
 				}))

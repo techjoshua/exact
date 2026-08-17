@@ -12,6 +12,7 @@ test('normalizes only execution-specific native response fields', () => {
 			id: 'fixture',
 			code: 'output',
 			timings: { totalMicroseconds: 1 },
+			counters: { programRebuilds: 1 },
 			cacheHit: true,
 			analysis: { components: [] }
 		}),
@@ -20,6 +21,21 @@ test('normalizes only execution-specific native response fields', () => {
 			code: 'output',
 			analysis: { components: [] }
 		}
+	);
+});
+
+test('can compare semantic output across protocol versions', () => {
+	assert.deepEqual(
+		normalizeNativeCompilerResponse(
+			{
+				protocolVersion: '2.0.0',
+				backendVersion: '2.0.0',
+				typescriptVersion: '7.1.0',
+				code: 'output'
+			},
+			true
+		),
+		{ code: 'output' }
 	);
 });
 
