@@ -55,6 +55,11 @@ Policy analysis was separated into graph coordination/annotations, secret-flow a
 subject propagation/task enforcement. `policy.go` fell from 2,167 to 871 checker-counted lines;
 each resulting owner is below the standard limit.
 
+The intl extension was separated into extension/diagnostic coordination, locale-unit inference,
+message-pattern construction, and expression/Temporal analysis. `intl_extension.go` fell from 2,816
+to 708 checker-counted lines, and all resulting files are below the standard limit. No oversized Go
+module now relies on a legacy architecture ceiling.
+
 **Audit date:** 2026-08-16  
 **Audited state:** the current working tree, including its pre-existing tracked and untracked changes  
 **Scope:** the full eXact monorepo, with manual depth weighted toward compiler, runtime, hydration,
