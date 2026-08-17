@@ -186,6 +186,11 @@ Every resolved theme publishes all 164 tokens described by `exactThemeContract.t
 
 The exact variable names, formulas, parsing matrices, preset values, validation ranges, override serialization, and role selectors remain normative in the [implemented design record](proposals/semantic-generative-theming.md). The exported `exactThemeContract` is the machine-readable token authority.
 
+Application-selected translation of these same semantic roles into Tailwind, Bootstrap, or another
+CSS system is designed in the [thematic presentation provider proposal](proposals/thematic-presentation-providers.md).
+That proposal preserves `theme:*` as the portable component-library contract and separates runtime
+presentation from finite build-time class discovery; it is not implemented API.
+
 ## Exterior derivation
 
 Charts, editors, maps, and other specialized components read the nearest `ThemeContext.current` and optional `ThemeSurfaceContext.bundle`. `createThemeDeriver()` defines a synchronous versioned derivation, while `deriveTheme()` supplies immutable palette, harmonization, conversion, and contrast helpers. Derivers never scrape computed CSS and therefore work identically during SSR.

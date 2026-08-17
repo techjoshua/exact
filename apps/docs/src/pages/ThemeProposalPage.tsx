@@ -26,6 +26,15 @@ const enhancementSource = `<section>
   <button theme:action="quiet" theme:tone="danger">Delete</button>
 </section>`;
 
+const providerSource = `export default defineConfig({
+  plugins: {
+    theme: tailwindThematicProvider({
+      mode: 'hybrid',
+      stylesheet: './src/app.css'
+    })
+  }
+});`;
+
 /** Documents the semantic and generative @exactjs/theme contract. */
 export function ThemeProposalPage(this: Component<{}>) {
 	return () => (
@@ -420,6 +429,36 @@ export function ThemeProposalPage(this: Component<{}>) {
 					surface aliasing, actions, fields, text, statuses, separators, selections, forced colors,
 					and reduced motion. A default root declaration is generated from the same golden resolver
 					fixture used by SSR rather than maintained as a second palette.
+				</p>
+			</section>
+
+			<section>
+				<h2>External thematic providers are proposed</h2>
+				<p>
+					A future provider boundary can translate the same semantic requests into Tailwind,
+					Bootstrap, or organization-owned class names and typed style values. Component libraries
+					would continue to publish meaning such as <code>theme:action=&quot;primary&quot;</code>;
+					the consuming application would select the presentation system because it owns the CSS
+					build.
+				</p>
+				<CodeBlock source={providerSource} language="ts" title="Proposed exact.config.ts" />
+				<p>
+					The proposal separates a runtime-safe semantic presenter from a finite build manifest.
+					Tailwind can therefore discover complete candidate strings before compilation, while
+					Bootstrap can use its classes, color-mode attributes, variables, and optional Sass utility
+					build. Dynamic class fragments are not part of the contract.
+				</p>
+				<p>
+					The recommended Tailwind mode is hybrid: external utilities point to stable
+					<code>exact-theme/1</code> variables, preserving arbitrary tonic colors, contrast
+					validation, nested inheritance, and live scope changes. Strict native-palette modes may
+					instead expose a finite external palette, but must diagnose unsupported theme inputs
+					rather than silently approximate them.
+				</p>
+				<p>
+					This is a design proposal, not implemented API. The baseline recipes must first move
+					behind the provider contract with equivalent SSR, hydration, computed styles, and
+					performance; Tailwind and Bootstrap then serve as two independent conformance adapters.
 				</p>
 			</section>
 

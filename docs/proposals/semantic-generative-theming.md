@@ -825,4 +825,6 @@ No unresolved choice in this section blocks v1:
 Possible later hashed publication, CSP adapters, additional temperament data fields, new role
 activators, wider-gamut output contracts, or typography presets are additive proposals or a new
 contract version. Implementers must not introduce them opportunistically while delivering v1.
+Translation of semantic roles through application-selected external CSS systems is specified
+separately in [thematic presentation providers](thematic-presentation-providers.md).
 ```
