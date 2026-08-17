@@ -421,3 +421,24 @@ build from 4,602.6 ms to 4,209.9 ms. The result is retained because it removes e
 decoder work with neutral normal-path timing; the 0.32% gzip increase and duplicated schema surface
 remain costs to revisit if a generated decoder can share more primitives without restoring general
 field reachability. Raw after-run: `raw-1786987873152.json`.
+
+## Final committed result
+
+The final committed-state run passed all 28 browser checks with a clean worktree. Relative to the
+original baseline, the three retained changes produced:
+
+| Metric                   |    Original |       Final |             Change |
+| ------------------------ | ----------: | ----------: | -----------------: |
+| Post-GC retained heap    | 2,847,044 B | 2,836,420 B | -10,624 B (-0.37%) |
+| Navigation               |     35.4 ms |     33.6 ms |            -1.8 ms |
+| First contentful paint   |       48 ms |       48 ms |               0 ms |
+| Optimistic feedback      |      1.8 ms |      1.9 ms |            +0.1 ms |
+| Authoritative settlement |     13.5 ms |     13.1 ms |            -0.4 ms |
+| Clean comparison build   |  4,649.7 ms |  4,313.8 ms |          -335.9 ms |
+| Client artifact, raw     |   225,662 B |   222,356 B |  -3,306 B (-1.47%) |
+| Client artifact, gzip    |    66,856 B |    65,896 B |    -960 B (-1.44%) |
+| Client artifact, Brotli  |    58,060 B |    57,269 B |    -791 B (-1.36%) |
+
+Short-run timing differences remain descriptive rather than causal claims. The accepted cumulative
+result improves retained heap and transfer size without a measured FCP regression; interaction
+medians remain within sub-millisecond variation. Final raw run: `raw-1786988056665.json`.
