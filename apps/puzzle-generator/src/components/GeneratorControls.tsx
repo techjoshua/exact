@@ -80,6 +80,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 					<label>
 						<span>House size</span>
 						<select
+							theme:field="default"
 							value={String(props.boxSize)}
 							onChange={(event) => props.onBoxSize(Number(event.currentTarget.value) as 2 | 3)}
 						>
@@ -93,6 +94,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 					<label>
 						<span>Difficulty</span>
 						<select
+							theme:field="default"
 							value={props.difficulty}
 							onChange={(event) => props.onDifficulty(event.currentTarget.value as Difficulty)}
 						>
@@ -108,6 +110,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						<label>
 							<span>Rows</span>
 							<input
+								theme:field="default"
 								type="number"
 								min="5"
 								max="30"
@@ -118,6 +121,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						<label>
 							<span>Columns</span>
 							<input
+								theme:field="default"
 								type="number"
 								min="5"
 								max="30"
@@ -134,6 +138,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 					<label className="word-field">
 						<span>{props.kind === 'crossword' ? 'Crossword words' : 'Words to hide'}</span>
 						<textarea
+							theme:field="default"
 							rows={6}
 							value={props.wordText}
 							onChange={(event) => props.onWordText(event.currentTarget.value)}
@@ -177,6 +182,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 				<label>
 					<span>Seed</span>
 					<input
+						theme:field="default"
 						type="number"
 						min="0"
 						max="4294967295"
