@@ -165,6 +165,27 @@ requires repeated component execution, hides state behind a runtime dispatcher, 
 React-derived ceremony should have a specific eXact reason rather than familiarity as its
 justification.
 
+## Validate build-script tests without generated package outputs
+
+Build-script tests must pass from a clean checkout before workspace package outputs exist. Do not
+import `packages/*/dist`, generated application artifacts, or other build outputs from modules
+loaded by `test:build-scripts`.
+
+Keep dependency-free helpers used by build-script tests in source-independent script modules.
+Executable scripts may load built package artifacts only inside the execution path that requires
+them; importing a script for unit testing must not require those artifacts.
+
+Before pushing changes to repository scripts:
+
+1. Inspect every new transitive import used by `test:build-scripts`.
+2. Verify that no required module resolves only because a local `dist`, cache, or generated file
+   remains from an earlier build.
+3. When practical, reproduce the CI ordering or test from a clean checkout rather than relying on
+   an already-built working tree.
+
+Treat a test that passes only after `npm run build` as a build-order defect unless that prerequisite
+is explicitly part of the test contract and CI workflow.
+
 ## Run platform-boundary checks outside the Windows sandbox
 
 `npm.cmd run check:platform-boundaries` uses esbuild's JavaScript API to launch its native helper
