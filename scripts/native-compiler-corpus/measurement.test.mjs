@@ -5,6 +5,7 @@ import {
 	isNativeCompilerCorpusProject,
 	isNativeCompilerCorpusSource,
 	medianNativeCorpusResult,
+	medianNativeProjectElapsedMs,
 	nativeBaselineComparison,
 	normalizedNativeBaselineElapsedMs,
 	positiveInteger
@@ -38,6 +39,36 @@ test('selects the median corpus sample by elapsed time', () => {
 	assert.equal(
 		medianNativeCorpusResult([{ elapsedMs: 30 }, { elapsedMs: 10 }, { elapsedMs: 20 }]).elapsedMs,
 		20
+	);
+});
+
+test('selects project medians independently of whole-corpus sample order', () => {
+	const medians = medianNativeProjectElapsedMs([
+		{
+			projects: [
+				{ config: 'a', elapsedMs: 10 },
+				{ config: 'b', elapsedMs: 90 }
+			]
+		},
+		{
+			projects: [
+				{ config: 'a', elapsedMs: 80 },
+				{ config: 'b', elapsedMs: 20 }
+			]
+		},
+		{
+			projects: [
+				{ config: 'a', elapsedMs: 20 },
+				{ config: 'b', elapsedMs: 10 }
+			]
+		}
+	]);
+	assert.deepEqual(
+		[...medians],
+		[
+			['a', 20],
+			['b', 20]
+		]
 	);
 });
 
