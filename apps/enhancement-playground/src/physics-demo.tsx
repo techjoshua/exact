@@ -174,9 +174,9 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 				<span className="package-label">motion · gestures · physics · gravity</span>
 			</div>
 			<p className="demo-description">
-				Drag and throw the orb, or move it by keyboard, then release it back to gravity. Motion
-				owns presence, gestures own intent and release velocity, physics owns pose and collision,
-				and gravity contributes force.
+				Drag and throw the orb, or move it by keyboard, then release it back to gravity. Motion owns
+				presence, gestures own intent and release velocity, physics owns pose and collision, and
+				gravity contributes force.
 			</p>
 			<div className="control-row">
 				<button
