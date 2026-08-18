@@ -5,7 +5,6 @@ import {
 	ThemePreferenceProvider
 } from '@exactjs/app-theme-preference';
 import { render } from '@exactjs/dom';
-import { _ } from '@exactjs/jsx';
 import { AppBoundary } from './components/AppBoundary.jsx';
 import { Workbench } from './components/Workbench.jsx';
 import './styles.css';
@@ -15,7 +14,8 @@ const logger = createConsoleLogger({ level: 'debug' });
 function ThemedApplication(this: Component<Record<string, never>>) {
 	const preference = this.getContext(ThemePreferenceContext);
 	return () => (
-		<_
+		<div
+			className="app-theme"
 			theme:scope
 			theme:appearance={preference.appearance}
 			theme:tonic="blue"
@@ -29,7 +29,7 @@ function ThemedApplication(this: Component<Record<string, never>>) {
 			<AppBoundary logger={logger}>
 				<Workbench logger={logger} />
 			</AppBoundary>
-		</_>
+		</div>
 	);
 }
 
