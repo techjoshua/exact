@@ -516,10 +516,23 @@ h2 {
 		background 150ms;
 }
 
+.preview-identity small {
+	white-space: nowrap;
+}
+
+.preview-actions-slot {
+	display: flex;
+	width: 220px;
+	flex: 0 0 220px;
+	min-height: var(--exact-theme-control-height-md);
+	align-items: center;
+	margin-left: auto;
+}
+
 .preview-actions {
 	display: flex;
+	width: 100%;
 	gap: 6px;
-	margin-left: auto;
 }
 
 .avatar {
@@ -840,8 +853,9 @@ h2 {
 		flex-wrap: wrap;
 	}
 
-	.preview-actions {
-		width: 100%;
+	.preview-actions-slot {
+		width: calc(100% - 52px);
+		flex-basis: calc(100% - 52px);
 		margin-left: 52px;
 	}
 }

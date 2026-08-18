@@ -85,8 +85,13 @@ test('uses an on-solid foreground while hold confirmation is filled', async ({ p
 test('animates hover and focus preview actions in both directions', async ({ page }) => {
 	const preview = page.locator('.preview-card');
 	const actions = preview.locator('.preview-actions');
+	const restingBounds = await preview.boundingBox();
+	if (restingBounds === null) throw new Error('Preview card has no rendered bounds');
 	await preview.focus();
 	await expect(actions).toBeVisible();
+	const activeBounds = await preview.boundingBox();
+	expect(activeBounds?.width).toBeCloseTo(restingBounds.width, 1);
+	expect(activeBounds?.height).toBeCloseTo(restingBounds.height, 1);
 	const retainedFor = await preview.evaluate((element: HTMLElement) => {
 		const started = performance.now();
 		return new Promise<number>((resolve) => {
@@ -101,6 +106,9 @@ test('animates hover and focus preview actions in both directions', async ({ pag
 	});
 	expect(retainedFor).toBeGreaterThanOrEqual(100);
 	await expect(actions).toHaveCount(0);
+	const settledBounds = await preview.boundingBox();
+	expect(settledBounds?.width).toBeCloseTo(restingBounds.width, 1);
+	expect(settledBounds?.height).toBeCloseTo(restingBounds.height, 1);
 });
 
 test('carries sampled drag velocity into the released orb', async ({ page }) => {

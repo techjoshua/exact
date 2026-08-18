@@ -211,7 +211,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 						gesture:apply={hoverIntent}
 					>
 						<span className="avatar">JL</span>
-						<div>
+						<div className="preview-identity">
 							<strong>Jordan Lee</strong>
 							<small>
 								{this.state.hovered
@@ -219,17 +219,19 @@ export function GestureControls(this: Component<GestureControlsState>) {
 									: 'Focus or point here'}
 							</small>
 						</div>
-						<Presence when={this.state.hovered}>
-							<div
-								key="preview-actions"
-								className="preview-actions"
-								motion:apply={previewActionsMotion}
-								motion:appear
-							>
-								<button theme:action="secondary">Message</button>
-								<button theme:action="primary">View profile</button>
-							</div>
-						</Presence>
+						<div className="preview-actions-slot">
+							<Presence when={this.state.hovered}>
+								<div
+									key="preview-actions"
+									className="preview-actions"
+									motion:apply={previewActionsMotion}
+									motion:appear
+								>
+									<button theme:action="secondary">Message</button>
+									<button theme:action="primary">View profile</button>
+								</div>
+							</Presence>
+						</div>
 					</div>
 				</div>
 			</div>
