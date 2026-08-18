@@ -72,9 +72,10 @@ HTML meaning. The consuming application can select the theme provider, and `_tar
 the stable recipe class and data attributes to the actual semantic intrinsic.
 
 The theme should also be generative. As a musical temperament establishes consistent interval
-relationships around a tonic, a visual temperament establishes tonal, chromatic, and state
-relationships around a key color. The same key color can therefore produce restrained,
-expressive, soft, or stark palettes while retaining a common semantic output contract.
+relationships around a tonic, a visual temperament establishes related color, surface, state,
+typographic, spatial, shape, depth, and temporal intervals around independently selected base axes.
+The same source can therefore produce restrained, expressive, soft, or stark visual rhythm while
+retaining a common semantic output contract.
 
 The result is an interoperability protocol:
 
@@ -184,6 +185,27 @@ export type ThemeAppearance = 'light' | 'dark';
 export type ThemeContrast = 'standard' | 'more';
 export type ThemeTone = 'neutral' | 'accent' | 'info' | 'success' | 'warning' | 'danger';
 export type ThemeSurfaceBundle = 0 | 1 | 2 | 3 | 'sunken' | 'overlay';
+
+export type ThemeTemperament = Readonly<{
+	id: string;
+	version: number;
+	accentChromaMultiplier: number;
+	accentChromaCap: number;
+	neutralChromaCap: number;
+	surfaceIntervals: readonly [number, number, number];
+	stateIntervals: readonly [number, number];
+	statusHarmonization: number;
+	typeScaleMultiplier: number;
+	trackingInterval: number;
+	weightIntervals: readonly [number, number];
+	lineHeightDelta: number;
+	spacingExponent: number;
+	controlScaleRatio: number;
+	radiusScaleRatio: number;
+	depthScaleRatio: number;
+	motionScaleRatio: number;
+	easingTension: number;
+}>;
 
 export type OklchColor = Readonly<{
 	l: number; // 0..1
@@ -354,7 +376,7 @@ Omitted values and explicit `inherit` values inherit. At a root without an ances
 | `keyColor`     | `oklch(0.54 0.09 185)` | eXact teal tonic                                        |
 | `neutralColor` | `auto`                 | key-hued neutral under the temperament's chroma cap     |
 | `canvasColor`  | `auto`                 | generated appearance canvas                             |
-| `temperament`  | `balanced`             | moderate chroma, surface, and state intervals           |
+| `temperament`  | `balanced`             | moderate visual intervals across every selected axis    |
 | `appearance`   | `system`               | reactive `prefers-color-scheme`, light when unavailable |
 | `density`      | `comfortable`          | medium spacing and control targets                      |
 | `shape`        | `soft`                 | restrained rounded corners                              |
@@ -465,21 +487,25 @@ composites translucent authored colors over an opaque canvas, converts to OKLCH,
 with 24 fixed chroma bisections. Output is recursively frozen and carries a SHA-256-derived,
 base64url source fingerprint.
 
-Built-in temperaments are named, versioned data. The current built-ins are version two. They control accent multiplier/cap, neutral cap,
-surface interval, state interval, and status harmonization, while typography, density, shape,
-depth, contrast, appearance, and motion remain independent. Text candidates target 4.5:1 in
+Built-in temperaments are named, frozen data. They control accent multiplier/cap, neutral cap,
+surface and state interval sequences, status harmonization, type-scale multiplication, tracking and
+weight intervals, line-height adjustment, spacing progression, control and radius ratios, depth
+progression, motion cadence, and easing tension. Typography, density, shape, depth, contrast,
+appearance, and motion remain independent base selections. Text candidates target 4.5:1 in
 standard contrast and 7:1 in increased contrast. Boundaries target 3:1 and 4.5:1 respectively.
 Solid colors search the 1,001-value lightness grid nearest-first and stop after proving the closest
 valid distance. They select the same deterministic readable on-solid pair as a complete exhaustive
 scan; unattainable contrast still examines the whole grid to select the maximum.
 
-Surface lightness advances by the temperament interval and caps before white or dark washout. The
+Surface lightness advances by the temperament's three-step interval sequence and caps before white or dark washout. The
 light hierarchy begins below the near-white canvas headroom so all four ordered levels remain
 distinct instead of clipping to the same cap. Status hues begin from fixed info, success, warning,
 and danger anchors and harmonize toward the key hue by the temperament amount; status chroma scales
 from the resolved accent relationship without a common saturation floor. Solid interaction states
 move away from their selected on-solid foreground, preserving the state interval without violating
-contrast. Structural values remain deterministic functions of their independent source axes.
+contrast. Structural values combine the independent axis anchor with temperament intervals. Flat
+depth still suppresses every shadow, reduced motion still publishes zero durations, square shape
+remains square, and typography retains its selected font families and base measurements.
 Serialization uses stable token order and canonical finite decimal output.
 
 ## Element-role contract

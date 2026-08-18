@@ -58,10 +58,11 @@ export function ThemeProposalPage(this: Component<{}>) {
 			<section>
 				<h2>A small source, a complete live theme</h2>
 				<p>
-					The key color acts as a visual tonic. A versioned temperament controls tonal, chromatic,
-					surface, and interaction-state intervals. Appearance, density, shape, depth, typography,
-					contrast, and motion remain independent so a color algorithm cannot unexpectedly change
-					structural personality.
+					The key color acts as a visual tonic. Temperament supplies a coherent interval system for
+					color, surfaces, interaction states, typography, spacing, controls, shape, depth, and
+					motion. Appearance, density, shape, depth, typography, contrast, and motion remain
+					independent base choices; temperament changes their internal rhythm rather than selecting
+					them.
 				</p>
 				<p>
 					The built-in tonic names are convenient presets, not a closed palette. A scope may instead
@@ -76,11 +77,11 @@ export function ThemeProposalPage(this: Component<{}>) {
 					boundaries, focus indicators, and interaction states before publication.
 				</p>
 				<p>
-					Version two makes those names perceptually distinct rather than treating them as a
-					saturation scale. Restrained and soft keep surfaces and states close; expressive uses
-					vivid accents and statuses; dramatic and stark establish progressively stronger tonal and
-					interaction intervals; and monochrome removes chroma without flattening hierarchy. Light
-					and dark preserve the same ordered relationships.
+					The names are perceptually and structurally distinct rather than forming a saturation
+					scale. Restrained compresses most intervals; expressive broadens color, type, space, and
+					state rhythm; dramatic and stark establish progressively stronger hierarchy; soft combines
+					gentle steps with generous line height; and monochrome removes chroma without flattening
+					structure. Light and dark preserve the same ordered relationships.
 				</p>
 				<p>
 					Nested scopes may omit any source axis or select <code>inherit</code> explicitly,
