@@ -207,6 +207,13 @@ Charts, editors, maps, and other specialized components read the nearest `ThemeC
 
 The public docs applicationâ€™s [Theme Lab](../apps/docs/src/pages/ThemeLabPage.tsx) exercises live root and nested configuration, native controls and statuses from a separately built fixture package, and overlapping translucent area charts derived from each active scope.
 
+Categorical colors advance around the key hue by the golden angle, harmonize through the active
+temperament, and alternate between two appearance-specific lightness bands. In both light and dark
+appearance the second band is lighter than the first; this preserves categorical separation without
+turning yellow and green candidates into muddy low-lightness browns on light surfaces. Each result
+is contrast-corrected against the requested surface and selected for OKLab distance within that
+request.
+
 ## Browser verification
 
 Run the Theme Lab's rendered Chromium acceptance gate from the repository root:
