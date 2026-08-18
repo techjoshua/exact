@@ -5,7 +5,6 @@ import {
 	ThemePreferenceContext,
 	ThemePreferenceProvider
 } from '@exactjs/app-theme-preference';
-import { _ } from '@exactjs/jsx';
 import { GestureControls } from './gesture-controls.js';
 import { MotionControls } from './motion-controls.js';
 import { PhysicsDemo } from './physics-demo.js';
@@ -15,7 +14,8 @@ import './styles.css';
 function ThemedPlayground(this: Component<Record<string, never>>) {
 	const preference = this.getContext(ThemePreferenceContext);
 	return () => (
-		<_
+		<div
+			className="app-theme"
 			theme:scope
 			theme:appearance={preference.appearance}
 			theme:tonic="blue"
@@ -58,7 +58,7 @@ function ThemedPlayground(this: Component<Record<string, never>>) {
 				</div>
 				<ThemeLab />
 			</main>
-		</_>
+		</div>
 	);
 }
 
