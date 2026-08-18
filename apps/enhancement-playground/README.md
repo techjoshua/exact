@@ -5,9 +5,9 @@ A practical eXact gallery showing how optional renderer enhancements improve fam
 - motion attributes add a sliding tab indicator, single-panel change continuity, and preset
   enter/leave continuity to disclosures and toast elements; explicit `Presence` remains where
   conditional retention is structurally meaningful;
-- gestures recognizes press, hover/focus intent with retained action motion, long press, drag and
-  keyboard sliders, and pan/pinch media navigation with explicit desktop zoom and rotation
-  equivalents;
+- gestures recognizes press, hover/focus intent with stable-layout retained action motion, long
+  press, drag and keyboard sliders, and pan/pinch media navigation with explicit desktop zoom and
+  rotation equivalents;
 - physics owns a fixed-step, bounded direct-manipulation and throwable body with playful
   collisions; and
 - gravity contributes a deliberately lively force through physics context.
