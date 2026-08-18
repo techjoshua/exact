@@ -1,6 +1,8 @@
 import type { Component } from '@exactjs/core';
+import { ThemeModeToggle } from '@exactjs/app-theme-preference';
 import { Link } from '@exactjs/router';
 import { ThemeControl } from './ThemeControl.jsx';
+import { ThemeContext } from './theme-context.js';
 
 type DocsHeaderProps = {
 	mobileOpen: boolean;
@@ -11,6 +13,7 @@ type DocsHeaderProps = {
 
 /** Renders the documentation masthead and delegates shell navigation controls. */
 export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
+	const theme = this.getContext(ThemeContext);
 	return () => (
 		<header theme:surface="raised" className="topbar">
 			<button
@@ -43,6 +46,10 @@ export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 					<span aria-hidden="true">{'\u2315'}</span> Search
 				</button>
 				<ThemeControl />
+				<ThemeModeToggle
+					appearance={theme.effectiveAppearance}
+					onToggle={() => theme.toggleAppearance()}
+				/>
 				<a
 					theme:action="quiet"
 					className="github-link"

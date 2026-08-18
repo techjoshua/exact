@@ -1,5 +1,18 @@
 import type { Component } from '@exactjs/core';
 import {
+	parseStoredThemeAppearance,
+	persistThemeAppearance,
+	resolveThemeAppearance,
+	themeAppearanceStorageKey,
+	ThemeModeToggle,
+	toggleThemeAppearance,
+	type EffectiveThemeAppearance,
+	type ThemeAppearancePreference
+} from '@exactjs/app-theme-preference';
+// The compiler consumes this namespace through the theme:* enhancement syntax below.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement' };
+import {
 	comparisonLocales,
 	localeEnvironments,
 	setComparisonUnitPolicy
@@ -20,6 +33,8 @@ interface TestbedState {
 	unitPolicy: 'locale' | 'metric' | 'us';
 	lazyRegion: LazyRegionKey;
 	lazyLoading: boolean;
+	themePreference: ThemeAppearancePreference;
+	systemAppearance: EffectiveThemeAppearance;
 }
 
 const publishedAgo = {
@@ -47,6 +62,29 @@ export function IntlTestbed(this: Component<TestbedState>) {
 	this.state.unitPolicy = 'locale';
 	this.state.lazyRegion = 'empty';
 	this.state.lazyLoading = false;
+	this.state.themePreference = 'system';
+	this.state.systemAppearance = 'light';
+
+	const appearance = () =>
+		resolveThemeAppearance(this.state.themePreference, this.state.systemAppearance);
+	const toggleAppearance = () => {
+		this.state.themePreference = toggleThemeAppearance(appearance(), this.state.systemAppearance);
+		persistThemeAppearance(this.state.themePreference);
+	};
+	this.onMount(({ signal }) => {
+		const query = matchMedia('(prefers-color-scheme: dark)');
+		const syncSystem = () => (this.state.systemAppearance = query.matches ? 'dark' : 'light');
+		const syncStorage = (event: StorageEvent) => {
+			if (event.key === themeAppearanceStorageKey)
+				this.state.themePreference = parseStoredThemeAppearance(event.newValue);
+		};
+		syncSystem();
+		this.state.themePreference = parseStoredThemeAppearance(
+			localStorage.getItem(themeAppearanceStorageKey)
+		);
+		query.addEventListener('change', syncSystem, { signal });
+		window.addEventListener('storage', syncStorage, { signal });
+	});
 
 	const setUnitPolicy = (policy: TestbedState['unitPolicy']) => {
 		this.state.unitPolicy = policy;
@@ -60,7 +98,15 @@ export function IntlTestbed(this: Component<TestbedState>) {
 	};
 
 	return () => (
-		<main>
+		<main
+			theme:scope
+			theme:appearance={appearance()}
+			theme:tonic="green"
+			theme:temperament="balanced"
+			theme:depth="elevated"
+			theme:typography="humanist"
+		>
+			<ThemeModeToggle appearance={appearance()} onToggle={toggleAppearance} />
 			<header className="hero">
 				<a className="docs-link" href="../">
 					Documentation

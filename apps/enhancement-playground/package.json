@@ -10,6 +10,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@exactjs/app-theme-preference": "^0.0.0",
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",
 		"@exactjs/gestures": "^0.1.0",

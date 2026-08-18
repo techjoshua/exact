@@ -1,4 +1,10 @@
+import type { Component } from '@exactjs/core';
 import { render } from '@exactjs/dom';
+import {
+	ThemeModeToggle,
+	ThemePreferenceContext,
+	ThemePreferenceProvider
+} from '@exactjs/app-theme-preference';
 import { _ } from '@exactjs/jsx';
 import { GestureControls } from './gesture-controls.js';
 import { MotionControls } from './motion-controls.js';
@@ -6,9 +12,19 @@ import { PhysicsDemo } from './physics-demo.js';
 import { ThemeLab } from './theme-lab.js';
 import './styles.css';
 
-function PluginPlayground() {
+function ThemedPlayground(this: Component<Record<string, never>>) {
+	const preference = this.getContext(ThemePreferenceContext);
 	return () => (
-		<_ theme:scope theme:appearance="dark" theme:tonic="blue" theme:temperament="expressive">
+		<_
+			theme:scope
+			theme:appearance={preference.appearance}
+			theme:tonic="blue"
+			theme:temperament="expressive"
+		>
+			<ThemeModeToggle
+				appearance={preference.appearance}
+				onToggle={() => preference.toggleAppearance()}
+			/>
 			<main>
 				<header className="hero">
 					<nav className="app-nav" aria-label="Application links">
@@ -46,4 +62,9 @@ function PluginPlayground() {
 	);
 }
 
-render(<PluginPlayground />, document.getElementById('app')!);
+render(
+	<ThemePreferenceProvider>
+		<ThemedPlayground />
+	</ThemePreferenceProvider>,
+	document.getElementById('app')!
+);

@@ -58,6 +58,15 @@ export function ThemeProposalPage(this: Component<{}>) {
 			</Callout>
 
 			<section>
+				<h2>One appearance preference across repository applications</h2>
+				<p>
+					The docs and hosted samples share a compact sun/moon toggle and one origin-wide stored
+					appearance. Choosing the appearance already preferred by the operating system removes the
+					override and resumes system tracking; the docs customization selector uses that same
+					state.
+				</p>
+			</section>
+			<section>
 				<h2>A small source, a complete live theme</h2>
 				<p>
 					The key color acts as a visual tonic. Temperament supplies a coherent interval system for

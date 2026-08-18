@@ -228,6 +228,19 @@ semantic accent and the other colors in that request.
 
 ## Browser verification
 
+## Shared repository-application appearance
+
+The private `@exactjs/app-theme-preference` component library gives the documentation and hosted
+sample applications one origin-wide appearance override under the `exact-theme-appearance`
+local-storage key. The icon toggle shows the appearance a click will activate: a sun while dark
+and a moon while light. Each click flips the effective appearance. When that target matches the
+current operating-system preference, the override is removed and the application returns to
+system tracking automatically. System preference changes and cross-tab storage events update
+mounted applications without remounting their contents.
+
+The documentation customization selector uses the same contract. Its richer theme settings remain
+docs-specific, but its light, dark, and system choice no longer lives in a separate preference key.
+
 Run the Theme Lab's rendered Chromium acceptance gate from the repository root:
 
 ```sh

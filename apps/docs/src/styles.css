@@ -1,4 +1,5 @@
 @import '@exactjs/theme/styles.css';
+@import '@exactjs/app-theme-preference/styles.css';
 
 :root {
 	--page: var(--exact-theme-canvas);

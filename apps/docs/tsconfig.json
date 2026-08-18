@@ -9,6 +9,7 @@
 		"types": ["node", "@exactjs/react-compat/types19"]
 	},
 	"references": [
+		{ "path": "../../component-libraries/app-theme-preference" },
 		{ "path": "../../packages/core" },
 		{ "path": "../../packages/dom" },
 		{ "path": "../../packages/hydrate" },
