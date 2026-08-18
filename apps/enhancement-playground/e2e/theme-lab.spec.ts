@@ -85,13 +85,20 @@ test('uses an on-solid foreground while hold confirmation is filled', async ({ p
 test('animates hover and focus preview actions in both directions', async ({ page }) => {
 	const preview = page.locator('.preview-card');
 	const actions = preview.locator('.preview-actions');
+	const avatar = preview.locator('.avatar');
 	const restingBounds = await preview.boundingBox();
-	if (restingBounds === null) throw new Error('Preview card has no rendered bounds');
+	const restingAvatarBounds = await avatar.boundingBox();
+	if (restingBounds === null || restingAvatarBounds === null) {
+		throw new Error('Preview card has no rendered bounds');
+	}
 	await preview.focus();
 	await expect(actions).toBeVisible();
 	const activeBounds = await preview.boundingBox();
 	expect(activeBounds?.width).toBeCloseTo(restingBounds.width, 1);
 	expect(activeBounds?.height).toBeCloseTo(restingBounds.height, 1);
+	const activeAvatarBounds = await avatar.boundingBox();
+	expect(activeAvatarBounds?.width).toBeCloseTo(restingAvatarBounds.width, 1);
+	expect(activeAvatarBounds?.height).toBeCloseTo(restingAvatarBounds.height, 1);
 	const retainedFor = await preview.evaluate((element: HTMLElement) => {
 		const started = performance.now();
 		return new Promise<number>((resolve) => {

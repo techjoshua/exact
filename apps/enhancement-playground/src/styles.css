@@ -539,6 +539,7 @@ h2 {
 	display: grid;
 	width: 40px;
 	height: 40px;
+	flex: 0 0 40px;
 	place-items: center;
 	border-radius: 12px;
 	color: var(--exact-theme-accent-on-solid);
