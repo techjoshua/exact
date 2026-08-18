@@ -14,7 +14,11 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 
 	return () => (
 		<article theme:surface="raised" className="task-card" className:compact={props.compact}>
-			<span className={['task-priority', 'priority', props.task.priority]}>
+			<span
+				theme:status={priorityTone(props.task.priority)}
+				theme:size="small"
+				className="task-priority"
+			>
 				{props.task.priority}
 			</span>
 			<button
@@ -43,10 +47,18 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 			{props.task.labels.length ? (
 				<div className="label-row">
 					{props.task.labels.map((label) => (
-						<span>{label}</span>
+						<span theme:status="neutral" theme:size="small">
+							{label}
+						</span>
 					))}
 				</div>
 			) : null}
 		</article>
 	);
+}
+
+function priorityTone(priority: Task['priority']): 'danger' | 'warning' | 'success' {
+	if (priority === 'high') return 'danger';
+	if (priority === 'medium') return 'warning';
+	return 'success';
 }
