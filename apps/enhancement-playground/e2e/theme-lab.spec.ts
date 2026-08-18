@@ -60,6 +60,28 @@ test('changes tab content without overlapping or shifting layout', async ({ page
 	expect(transition.samples.at(-1)?.text).toContain('Three updates today');
 });
 
+test('uses an on-solid foreground while hold confirmation is filled', async ({ page }) => {
+	await page.getByRole('button', { name: 'Hold to confirm' }).press('Enter');
+	const hold = page.locator('.hold-button');
+	await expect(hold).toHaveAccessibleName('Confirmed ✓');
+	await expect(hold).toHaveAttribute('data-exact-theme-variant', 'primary');
+	await expect
+		.poll(() =>
+			hold.evaluate((element) => {
+				const reference = document.createElement('span');
+				reference.style.color = 'var(--exact-theme-accent-on-solid)';
+				element.append(reference);
+				const colors = {
+					label: getComputedStyle(element.querySelector('.hold-label')!).color,
+					onSolid: getComputedStyle(reference).color
+				};
+				reference.remove();
+				return colors.label === colors.onSolid;
+			})
+		)
+		.toBe(true);
+});
+
 test('reactively republishes root and inherited nested themes without replacing content', async ({
 	page
 }) => {
