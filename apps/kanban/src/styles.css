@@ -33,17 +33,10 @@ textarea {
 }
 
 button {
-	border: 0;
-	border-radius: 6px;
-	padding: 10px 12px;
-	background: var(--exact-theme-accent-solid);
-	color: var(--exact-theme-accent-on-solid);
 	cursor: pointer;
 }
 
 button:disabled {
-	background: var(--exact-theme-disabled-background);
-	color: var(--exact-theme-disabled-foreground);
 	cursor: default;
 }
 
@@ -88,18 +81,8 @@ h1 {
 	gap: 8px;
 }
 
-.new-task input,
-.task-dialog input,
-.task-dialog select,
-.task-dialog textarea {
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
-	border-radius: 6px;
-	background: var(--exact-theme-surface-background);
-}
-
 .new-task input {
 	width: min(360px, 42vw);
-	padding: 10px 12px;
 }
 
 .board {
@@ -109,21 +92,7 @@ h1 {
 
 .column {
 	min-height: 440px;
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 8px;
 	padding: 14px;
-	background: var(--exact-theme-neutral-subtle);
-	transition:
-		background 140ms ease,
-		border-color 140ms ease;
-}
-
-.column:hover {
-	border-color: var(--exact-theme-surface-border-strong);
-}
-
-.column.empty {
-	background: var(--exact-theme-surface-background);
 }
 
 .column header {
@@ -149,11 +118,7 @@ h1 {
 }
 
 .card {
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 8px;
 	padding: 12px;
-	background: white;
-	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 	cursor: grab;
 	user-select: none;
 }
@@ -226,15 +191,6 @@ h1 {
 	padding: 7px 9px;
 }
 
-.card-actions button:last-child {
-	background: var(--exact-theme-danger-solid);
-}
-
-.secondary-button {
-	background: var(--exact-theme-neutral-subtle);
-	color: var(--exact-theme-neutral-text);
-}
-
 .card-drag-image {
 	position: fixed;
 	top: -1000px;
@@ -265,11 +221,7 @@ h1 {
 
 .task-dialog {
 	width: min(560px, 100%);
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 8px;
 	padding: 18px;
-	background: white;
-	box-shadow: 0 18px 50px rgba(15, 23, 42, 0.24);
 }
 
 .task-dialog header {
@@ -295,24 +247,14 @@ h1 {
 .task-dialog select,
 .task-dialog textarea {
 	width: 100%;
-	padding: 10px 12px;
 }
 
 .task-dialog textarea {
 	resize: vertical;
 }
 
-.quiet-button {
-	background: var(--exact-theme-neutral-subtle);
-	color: var(--exact-theme-neutral-text);
-}
-
 .error-panel {
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 8px;
 	padding: 18px;
-	background: white;
-	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .error-panel header {
@@ -334,10 +276,7 @@ h1 {
 }
 
 .error-item {
-	border: var(--exact-theme-border-width) solid var(--exact-theme-danger-border);
-	border-radius: 8px;
 	padding: 14px;
-	background: var(--exact-theme-danger-subtle);
 }
 
 .error-item h2 {

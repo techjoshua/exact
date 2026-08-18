@@ -29,6 +29,7 @@ export function TaskDetailsDialog(
 	return () => (
 		<div className="dialog-backdrop" onClick={board.closeTask}>
 			<section
+				theme:surface="overlay"
 				className="task-dialog"
 				onClick={(event) => {
 					event.stopPropagation();
@@ -51,7 +52,7 @@ export function TaskDetailsDialog(
 			>
 				<header>
 					<h2>Edit card</h2>
-					<button type="button" className="quiet-button" onClick={board.closeTask}>
+					<button theme:action="quiet" type="button" onClick={board.closeTask}>
 						Close
 					</button>
 				</header>
@@ -59,6 +60,7 @@ export function TaskDetailsDialog(
 				<label>
 					<span>Title</span>
 					<input
+						theme:field="default"
 						defaultValue={title}
 						onFocusIn={(event) => {
 							this.log.debug('title focusin', {
@@ -91,6 +93,7 @@ export function TaskDetailsDialog(
 				<label>
 					<span>Status</span>
 					<select
+						theme:field="default"
 						value={status}
 						onChange={(event) => {
 							board.updateTask(taskId, {
@@ -107,6 +110,7 @@ export function TaskDetailsDialog(
 				<label>
 					<span>Notes</span>
 					<textarea
+						theme:field="default"
 						defaultValue={notes}
 						rows={8}
 						onFocusIn={(event) => {
