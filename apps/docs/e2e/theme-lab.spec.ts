@@ -164,8 +164,10 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	await expect(
 		page.getByRole('heading', { name: 'Theme by meaning, not selector surgery' })
 	).toBeVisible();
-	await page.locator('.theme-control > summary').click();
-	const appearance = page.getByLabel('Appearance');
+	const appearance = page.locator('.theme-appearance-control').getByLabel('Appearance');
+	await expect(appearance).toBeVisible();
+	await expect(appearance.locator('option')).toHaveText(['System', 'Light', 'Dark']);
+	await page.locator('.theme-customize-control > summary').click();
 	const depth = page.locator('.theme-control-panel').getByLabel('Depth');
 	const codeBlock = page.locator('.code-block').first();
 
@@ -206,7 +208,7 @@ test('keeps theme customization inside the viewport and themes article callouts'
 	page
 }) => {
 	await page.goto('/#/story');
-	await page.locator('.theme-control > summary').click();
+	await page.locator('.theme-customize-control > summary').click();
 	const panel = page.locator('.theme-control-panel');
 	await expect(panel).toBeVisible();
 	const bounds = await panel.boundingBox();

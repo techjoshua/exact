@@ -26,7 +26,9 @@ function ThemeField<Name extends ThemeSettingName>(props: {
 			<select
 				theme:field="subtle"
 				value={props.value}
-				onChange={(event) => props.onChange(props.name, event.currentTarget.value as DocsThemeSettings[Name])}
+				onChange={(event) =>
+					props.onChange(props.name, event.currentTarget.value as DocsThemeSettings[Name])
+				}
 			>
 				{options[props.name].map((value) => (
 					<option value={value}>{value[0].toUpperCase() + value.slice(1)}</option>
@@ -43,27 +45,65 @@ export function ThemeControl(this: Component<{}>) {
 		theme.setSetting(name, value);
 
 	return () => (
-		<details className="theme-control">
-			<summary theme:action="quiet">
-				Theme <span theme:text="supporting">{theme.settings.preference}</span>
-			</summary>
-			<div theme:surface="overlay" className="theme-control-panel">
-				<ThemeField label="Appearance" name="preference" value={theme.settings.preference} onChange={update} />
-				<div className="theme-customize-heading">
-					<strong theme:text="heading">Customize</strong>
-					<span theme:text="supporting">Tune the documentation theme.</span>
+		<div className="theme-control">
+			<label className="theme-appearance-control">
+				<span theme:text="supporting">Appearance</span>
+				<select
+					theme:field="subtle"
+					value={theme.settings.preference}
+					onChange={(event) =>
+						update('preference', event.currentTarget.value as DocsThemeSettings['preference'])
+					}
+				>
+					{options.preference.map((value) => (
+						<option value={value}>{value[0].toUpperCase() + value.slice(1)}</option>
+					))}
+				</select>
+			</label>
+			<details className="theme-customize-control">
+				<summary theme:action="quiet">Customize</summary>
+				<div theme:surface="overlay" className="theme-control-panel">
+					<div className="theme-customize-heading">
+						<strong theme:text="heading">Customize</strong>
+						<span theme:text="supporting">Tune the documentation theme.</span>
+					</div>
+					<div className="theme-customize-grid">
+						<ThemeField label="Color" name="tonic" value={theme.settings.tonic} onChange={update} />
+						<ThemeField
+							label="Temperament"
+							name="temperament"
+							value={theme.settings.temperament}
+							onChange={update}
+						/>
+						<ThemeField
+							label="Density"
+							name="density"
+							value={theme.settings.density}
+							onChange={update}
+						/>
+						<ThemeField label="Shape" name="shape" value={theme.settings.shape} onChange={update} />
+						<ThemeField label="Depth" name="depth" value={theme.settings.depth} onChange={update} />
+						<ThemeField
+							label="Typography"
+							name="typography"
+							value={theme.settings.typography}
+							onChange={update}
+						/>
+						<ThemeField
+							label="Contrast"
+							name="contrast"
+							value={theme.settings.contrast}
+							onChange={update}
+						/>
+						<ThemeField
+							label="Motion"
+							name="motion"
+							value={theme.settings.motion}
+							onChange={update}
+						/>
+					</div>
 				</div>
-				<div className="theme-customize-grid">
-					<ThemeField label="Color" name="tonic" value={theme.settings.tonic} onChange={update} />
-					<ThemeField label="Temperament" name="temperament" value={theme.settings.temperament} onChange={update} />
-					<ThemeField label="Density" name="density" value={theme.settings.density} onChange={update} />
-					<ThemeField label="Shape" name="shape" value={theme.settings.shape} onChange={update} />
-					<ThemeField label="Depth" name="depth" value={theme.settings.depth} onChange={update} />
-					<ThemeField label="Typography" name="typography" value={theme.settings.typography} onChange={update} />
-					<ThemeField label="Contrast" name="contrast" value={theme.settings.contrast} onChange={update} />
-					<ThemeField label="Motion" name="motion" value={theme.settings.motion} onChange={update} />
-				</div>
-			</div>
-		</details>
+			</details>
+		</div>
 	);
 }
