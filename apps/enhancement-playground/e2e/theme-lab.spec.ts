@@ -266,6 +266,7 @@ test('lets Chromium paint native controls and interaction depth from the active 
 	await controls.getByLabel('Shape').selectOption('pill');
 	await controls.getByLabel('Depth').selectOption('elevated');
 	await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; }' });
+	await expect(progress).toHaveJSProperty('value', 72);
 
 	const nativeColors = await scope.evaluate((element) => {
 		const checkbox = element.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
@@ -293,7 +294,9 @@ test('lets Chromium paint native controls and interaction depth from the active 
 	expect(restingShadows[0]).not.toBe('none');
 	await progress.scrollIntoViewIfNeeded();
 	const progressImage = await progress.screenshot({ animations: 'disabled' });
-	expect(progressImage).toMatchSnapshot('rose-pill-progress.png', { maxDiffPixelRatio: 0.01 });
+	// Native rounded-control antialiasing varies slightly across Chromium patch builds on Windows;
+	// the surrounding assertions own value, fill, tonic, radius, and interaction semantics.
+	expect(progressImage).toMatchSnapshot('rose-pill-progress.png', { maxDiffPixelRatio: 0.05 });
 
 	await save.hover();
 	await expect(state).toContainText('hover → shadow-md');

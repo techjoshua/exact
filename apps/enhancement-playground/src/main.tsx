@@ -9,7 +9,9 @@ import { GestureControls } from './gesture-controls.js';
 import { MotionControls } from './motion-controls.js';
 import { PhysicsDemo } from './physics-demo.js';
 import { ThemeLab } from './theme-lab.js';
-import './styles.css';
+import './theme-lab.css';
+import './interaction-demos.css';
+import './physics-demo.css';
 
 function ThemedPlayground(this: Component<Record<string, never>>) {
 	const preference = this.getContext(ThemePreferenceContext);
