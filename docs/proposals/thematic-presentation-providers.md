@@ -102,6 +102,9 @@ component library TSX
                     v
 compiler-normalized semantic request
                     |
+       enhancement Target resolution
+       (including component pass-through)
+                    |
           application-selected provider
           /                         \
 build candidate manifest       runtime-safe presenter
@@ -115,11 +118,11 @@ This is intentionally not a provider call from the browser to Tailwind or Bootst
 is ordinary authorized package code bundled with the application. Build-tool adapters consume only
 the provider's serializable manifest; they do not execute the browser presenter while scanning CSS.
 
-## Public semantic request
+## Public semantic and resolved-Target request
 
 The request is a discriminated union, not a string dictionary. It contains only visual semantics
-already represented by the theme enhancement contract plus the minimum target facts needed for a
-safe mapping.
+already represented by the theme enhancement contract plus a bounded description of the resolved
+enhancement Target.
 
 ```ts
 export type ThemePresentationRequest =
@@ -135,12 +138,33 @@ export interface ThemePresentationRequestBase {
 	readonly contract: 'exact-theme-presentation/1';
 	readonly tone: ThemeTone;
 	readonly size: 'small' | 'medium' | 'large';
-	readonly target: ThemeTargetDescriptor;
+	readonly location: ThemePresentationLocation;
 }
 
-export interface ThemeTargetDescriptor {
+export interface ThemePresentationLocation {
+	readonly authoredBy: ThemeCanonicalOwner;
+	readonly route: readonly ThemeTargetRouteEntry[];
+	readonly target: ThemeResolvedTargetDescriptor;
+}
+
+export interface ThemeCanonicalOwner {
+	readonly moduleId: string;
+	readonly componentId: string;
+}
+
+export interface ThemeTargetRouteEntry {
+	readonly owner: ThemeCanonicalOwner;
+	readonly ancestors: readonly ThemeIntrinsicAncestor[];
+}
+
+export interface ThemeIntrinsicAncestor {
 	readonly namespace: 'html' | 'svg' | 'mathml' | 'custom';
-	readonly name?: string;
+	readonly name: string;
+}
+
+export interface ThemeResolvedTargetDescriptor {
+	readonly namespace: 'html' | 'svg' | 'mathml' | 'custom';
+	readonly name: string;
 	readonly capabilities: readonly (
 		| 'button'
 		| 'editable'
@@ -159,9 +183,37 @@ export interface ThemeActionPresentationRequest extends ThemePresentationRequest
 ```
 
 The remaining variants mirror the implemented finite values. Defaults are normalized before the
-provider is called. The compiler derives target capabilities from the intrinsic or component-library
-build facts; a provider does not infer behavior from tag-name strings. Unknown custom elements have
-`namespace: 'custom'` and no capabilities unless their library publishes trusted static facts.
+provider is called.
+
+`target` uses the existing enhancement meaning of **Target**: the resolved intrinsic node around
+which the enhancement composes. It is not a new named styling part. If an enhancement is authored
+on a component, Target identity follows that component's exported `_target` through ordinary
+component invocations until routing reaches the authoritative intrinsic. Its `name` is therefore
+the intrinsic name such as `button`, `select`, or `path`, even when wrapper elements occur before it
+in component output.
+
+`authoredBy` identifies the component whose JSX selected the enhancement. `route` records the
+bounded component pass-through route used to reach the Target. Each route entry may include only
+the intrinsic ancestors within that component's materialized output which contain the next route
+entry or final Target. This gives a provider the relevant structure of a field, card, menu, table,
+or compound control without exposing or walking the complete live document ancestry.
+
+Module IDs are compiler-canonical logical identities: package name plus package-relative module for
+published code, and application-root-relative module for application code. They exclude absolute
+filesystem paths, platform separators, Vite queries, cachebusters, and generated output names.
+Component IDs are compiler identities, not `Function.name`. Neither raw identity needs to be
+serialized into production DOM or repeated in a production client table; compilation assigns
+compact location IDs where runtime Target resolution remains necessary.
+
+The resolved intrinsic supplies its namespace and name. Capabilities are derived from that
+intrinsic and trusted component-library build facts rather than guessed from provider-specific
+class rules. Unknown custom elements have `namespace: 'custom'` and no capabilities unless their
+library publishes trusted static facts.
+
+This hierarchy is deliberately narrower than arbitrary DOM ancestry. Structure outside the
+enhancement's bounded Target route is represented through explicit theme presentation contexts if
+an application needs cross-component information. Portals, unrelated application wrappers, and
+renderer-inserted ownership boundaries must not silently alter provider selection.
 
 Native state such as `disabled`, `checked`, `selected`, `aria-current`, `aria-invalid`, hover,
 focus, and active is deliberately absent. CSS selectors and variants continue to observe the live
@@ -219,7 +271,7 @@ The contribution is additive:
 
 Provider output must be pure for its request and current resolved theme. Development builds call a
 provider twice for sampled requests and diagnose nondeterministic output. Production caches by
-provider fingerprint, resolved theme fingerprint, normalized request, and target descriptor.
+provider fingerprint, resolved theme fingerprint, normalized request, and canonical Target route.
 
 ## Provider selection and scope inheritance
 
@@ -286,8 +338,17 @@ a Tailwind provider is selected but its candidate fragment is not included in th
 
 ## Static and reactive lowering
 
-When a request and provider selection are static, compilation should materialize its classes and
-styles directly in the compiled target. No provider function ships for that target.
+When a request, provider selection, and resolved intrinsic Target route are statically proven,
+compilation should materialize its classes and styles directly in the compiled Target contribution.
+No provider function ships for that target. A direct intrinsic usually qualifies; a component
+invocation qualifies only when its published build facts prove the exported Target and route.
+
+When the Target cannot be known before component construction, selection joins the existing
+bounded Target-routing step in DOM, SSR, hydration, and component testing. It runs after `_target`
+propagation has identified the intrinsic, not speculatively at the enhancement callsite. The
+provider receives a compact canonical route assembled while materializing output; it must not
+perform a second DOM traversal. Target replacement releases the old provider-owned contribution
+and evaluates the new Target generation once.
 
 When role props are reactive, the compiler emits one narrowly reactive presentation expression.
 The provider returns a frozen contribution selected from precomputed finite tables; it does not
@@ -372,7 +433,7 @@ Hybrid mode bridges validated resolved values into Bootstrap variables on the sc
 presentations use appropriate finite classes such as action, emphasis, background, border, radius,
 shadow, and spacing classes.
 
-The target descriptor is essential. A field request on a text input can select `.form-control`, a
+The resolved Target context is essential. A field request whose Target is a text input can select `.form-control`, a
 select can select `.form-select`, and a boolean choice must not be reshaped as either. A provider
 may return `unsupported-target` when the semantic role cannot be represented without changing
 markup. It may not insert Bootstrap wrapper elements, icons, labels, or JavaScript widget
@@ -520,7 +581,7 @@ it never changes mapping silently.
 ### Phase 1: freeze the provider-neutral contract
 
 1. Extract normalized semantic request types from the current enhancement props.
-2. Add the generic target descriptor/build facts needed by providers, without theme-specific
+2. Add the canonical Target-route context and build facts needed by providers, without theme-specific
    compiler branches.
 3. Define contribution ownership, validation, merging, diagnostics, and inspection records.
 4. Record the current baseline role/state matrix as conformance fixtures.
@@ -586,7 +647,7 @@ has no corresponding rule unless the build already knew about it.
 ### Have the compiler understand Tailwind and Bootstrap
 
 Rejected because provider packages own mapping/version churn. The compiler should know only the
-generic semantic request, target descriptor, and contribution ownership contracts.
+generic semantic request, resolved Target context, and contribution ownership contracts.
 
 ### Replace `exact-theme/1` with external palette names
 
@@ -610,8 +671,8 @@ compose external and baseline behavior with one declared coverage table.
 
 The following require prototypes, but do not alter the semantic boundary:
 
-1. whether generic target capabilities belong in component-library build facts or a new compiled
-   target metadata record;
+1. which canonical Target-route facts can be proven in component-library build facts and which
+   must remain renderer-resolved metadata;
 2. whether Tailwind 3 compatibility is worth a first-party generated candidate artifact or should
    remain community-owned;
 3. whether provider-specific style properties should be narrower than the initial shared allowlist;
