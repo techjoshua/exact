@@ -2,6 +2,27 @@ import { peek, type Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by gesture:* attributes.
 import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 import { defineGesture, type GestureSample, type PinchGestureSample } from '@exactjs/gestures';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
+import { defineMotion, Presence } from '@exactjs/motion';
+
+const previewActionsMotion = defineMotion({
+	enter: {
+		keyframes: [
+			{ opacity: 0, transform: 'translateX(8px)' },
+			{ opacity: 1, transform: 'none' }
+		],
+		options: { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }
+	},
+	leave: {
+		keyframes: [
+			{ opacity: 1, transform: 'none' },
+			{ opacity: 0, transform: 'translateX(6px)' }
+		],
+		options: { duration: 130, easing: 'ease-in' }
+	},
+	reduced: 'skip'
+});
 
 type GestureControlsState = {
 	presses: number;
@@ -198,12 +219,17 @@ export function GestureControls(this: Component<GestureControlsState>) {
 									: 'Focus or point here'}
 							</small>
 						</div>
-						{this.state.hovered ? (
-							<div className="preview-actions">
+						<Presence when={this.state.hovered}>
+							<div
+								key="preview-actions"
+								className="preview-actions"
+								motion:apply={previewActionsMotion}
+								motion:appear
+							>
 								<button theme:action="secondary">Message</button>
 								<button theme:action="primary">View profile</button>
 							</div>
-						) : null}
+						</Presence>
 					</div>
 				</div>
 			</div>
