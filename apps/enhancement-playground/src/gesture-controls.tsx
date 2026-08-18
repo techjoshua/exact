@@ -213,11 +213,6 @@ export function GestureControls(this: Component<GestureControlsState>) {
 						<span className="avatar">JL</span>
 						<div className="preview-identity">
 							<strong>Jordan Lee</strong>
-							<small>
-								{this.state.hovered
-									? `Preview active via ${this.state.previewInput}`
-									: 'Focus or point here'}
-							</small>
 						</div>
 						<div className="preview-actions-slot">
 							<Presence when={this.state.hovered}>
@@ -232,6 +227,11 @@ export function GestureControls(this: Component<GestureControlsState>) {
 								</div>
 							</Presence>
 						</div>
+						<small className="preview-status">
+							{this.state.hovered
+								? `Preview active via ${this.state.previewInput}`
+								: 'Focus or point here'}
+						</small>
 					</div>
 				</div>
 			</div>

@@ -509,6 +509,7 @@ h2 {
 .preview-card {
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
 	gap: 12px;
 	margin-top: 12px;
 	transition:
@@ -516,8 +517,9 @@ h2 {
 		background 150ms;
 }
 
-.preview-identity small {
-	white-space: nowrap;
+.preview-status {
+	width: calc(100% - 52px);
+	margin-left: 52px;
 }
 
 .preview-actions-slot {
@@ -851,7 +853,6 @@ h2 {
 
 	.preview-card {
 		align-items: flex-start;
-		flex-wrap: wrap;
 	}
 
 	.preview-actions-slot {
