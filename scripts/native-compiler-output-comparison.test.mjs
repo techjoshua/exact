@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
 	firstNativeCompilerDifference,
 	normalizeNativeCompilerResponse
-} from './compare-native-compiler-output.mjs';
+} from './native-compiler-output-comparison.mjs';
 
 test('normalizes only execution-specific native response fields', () => {
 	assert.deepEqual(
