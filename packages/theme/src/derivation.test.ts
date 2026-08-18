@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { parseThemeColor } from './color.js';
+import { builtInThemeKeys } from './components.js';
 import { createThemeDeriver, deriveDataColors, deriveTheme } from './derivation.js';
 import type { ThemeDerivationContext } from './derivation-contracts.js';
 import { resolveTheme } from './resolver.js';
@@ -48,6 +50,20 @@ describe('exterior theme derivation', () => {
 			]);
 			expect(Object.isFrozen(first.colors)).toBe(true);
 		}
+	});
+
+	it('moves the alternating categorical band lighter in both appearances', () => {
+		for (const appearance of ['light', 'dark'] as const)
+			for (const keyColor of Object.values(builtInThemeKeys)) {
+				const themed = resolveTheme({
+					source: { keyColor, temperament: 'balanced' },
+					environment: { appearance, contrast: 'standard', motion: 'full' }
+				});
+				const result = deriveDataColors(themed, { kind: 'categorical', count: 3 });
+				const lightness = result.colors.map((color) => parseThemeColor(color).l);
+				expect(lightness[1]).toBeGreaterThan(lightness[0]!);
+				expect(lightness[2]).toBe(lightness[0]);
+			}
 	});
 
 	it('validates bounded derivation inputs', () => {

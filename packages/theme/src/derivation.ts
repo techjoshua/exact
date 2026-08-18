@@ -162,7 +162,9 @@ function categorical(
 			theme.key.oklch.h,
 			theme.source.temperament.statusHarmonization
 		);
-		const lightness = (theme.source.appearance === 'light' ? [0.48, 0.32] : [0.68, 0.82])[k % 2]!;
+		// Both appearances move the alternating band toward higher lightness. Moving light themes
+		// downward made the second golden-angle hue muddy brown or olive for most tonic presets.
+		const lightness = (theme.source.appearance === 'light' ? [0.48, 0.62] : [0.68, 0.82])[k % 2]!;
 		const color = ensureColorContrast(
 			{ l: lightness, c: theme.tones.accent.solid.oklch.c, h: hue },
 			[background],

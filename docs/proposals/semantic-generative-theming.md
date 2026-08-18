@@ -564,6 +564,12 @@ diverging sets of 3–11. It returns opaque colors, readable foregrounds, stroke
 non-color patterns, and distance warnings. Inputs and output ordering are deterministic. Charts
 must retain labels, symbols, patterns, or a table whenever color carries meaning.
 
+Categorical candidates use golden-angle hue progression harmonized toward the key hue. Their two
+appearance-specific lightness bands both progress upward: `0.48` then `0.62` in light appearance
+and `0.68` then `0.82` in dark appearance. Contrast correction may move a candidate when its
+requested surface requires it. The light sequence deliberately avoids a lower second band because
+low-lightness yellow and green candidates become muddy brown or olive across common tonic colors.
+
 export const syntaxTheme = createThemeDeriver<SyntaxRequest, SyntaxTheme>({
 id: '@acme/editor/syntax',
 version: 1,
