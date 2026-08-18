@@ -2,7 +2,7 @@ import type { Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
 import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import { defineMotion, Presence, type MotionEffect } from '@exactjs/motion';
-import { slideLeft, slideUp } from '@exactjs/motion/presets';
+import { slideLeft } from '@exactjs/motion/presets';
 
 const disclosureMotion = defineMotion({
 	enter: {
@@ -58,6 +58,20 @@ function indicatorChange(
 	};
 }
 
+function panelChange(
+	from: MotionControlsState['activeTab'],
+	to: MotionControlsState['activeTab']
+): MotionEffect {
+	const offset = from === 'profile' && to === 'activity' ? '8px' : '-8px';
+	return {
+		keyframes: [
+			{ opacity: 0, transform: `translateX(${offset})` },
+			{ opacity: 1, transform: 'none' }
+		],
+		options: { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' }
+	};
+}
+
 /** Common state-driven controls enhanced with optional motion. */
 export function MotionControls(this: Component<MotionControlsState>) {
 	this.state.activeTab = 'profile';
@@ -109,19 +123,22 @@ export function MotionControls(this: Component<MotionControlsState>) {
 				</button>
 			</div>
 			<div theme:surface="sunken" className="tab-panel">
-				<Presence when mode="out-in">
+				<div
+					role="tabpanel"
+					motion:change={panelChange(previousTab, this.state.activeTab)}
+				>
 					{this.state.activeTab === 'profile' ? (
-						<div key="profile" motion:apply={slideUp} role="tabpanel">
+						<>
 							<strong>Jordan Lee</strong>
 							<p>Design systems · Pacific time · Available for review</p>
-						</div>
+						</>
 					) : (
-						<div key="activity" motion:apply={slideUp} role="tabpanel">
+						<>
 							<strong>Three updates today</strong>
 							<p>Published tokens, reviewed navigation, and resolved two comments.</p>
-						</div>
+						</>
 					)}
-				</Presence>
+				</div>
 			</div>
 
 			<div className="control-row">

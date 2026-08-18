@@ -28,6 +28,38 @@ test('starts with the documentation theme defaults', async ({ page }) => {
 	await expect(controls.getByLabel('Typography')).toHaveValue('humanist');
 });
 
+test('changes tab content without overlapping or shifting layout', async ({ page }) => {
+	const panel = page.locator('.tab-panel');
+	const transition = await panel.evaluate(async (element) => {
+		const initialHeight = element.getBoundingClientRect().height;
+		const samples: Array<{ count: number; height: number; text: string }> = [];
+		const sample = () => {
+			const panels = element.querySelectorAll('[role="tabpanel"]');
+			samples.push({
+				count: panels.length,
+				height: element.getBoundingClientRect().height,
+				text: element.textContent ?? ''
+			});
+		};
+		const activity = [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find(
+			(tab) => tab.textContent?.trim() === 'Activity'
+		)!;
+		activity.click();
+		for (let elapsed = 0; elapsed <= 400; elapsed += 10) {
+			sample();
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		return { initialHeight, samples };
+	});
+
+	expect(Math.max(...transition.samples.map((sample) => sample.count))).toBe(1);
+	expect(Math.max(...transition.samples.map((sample) => sample.height))).toBeCloseTo(
+		transition.initialHeight,
+		1
+	);
+	expect(transition.samples.at(-1)?.text).toContain('Three updates today');
+});
+
 test('reactively republishes root and inherited nested themes without replacing content', async ({
 	page
 }) => {
