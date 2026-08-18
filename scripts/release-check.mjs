@@ -49,10 +49,6 @@ const staticChecks = [
 	task('test typecheck', ['run', 'typecheck:tests']),
 	task('package contents', ['run', 'check:publish'])
 ];
-const nativeCompilerCorpus = task('native compiler corpus', [
-	'run',
-	'check:native-compiler-corpus'
-]);
 const sampleBuilds = [
 	task('Kanban build', ['run', 'build:kanban']),
 	task('Workbench build', ['run', 'build:workbench']),
@@ -89,7 +85,6 @@ try {
 		await runAffected();
 	} else if (profile !== 'performance') {
 		await runPool(staticChecks, 3);
-		await run(nativeCompilerCorpus);
 		await runPool(sampleBuilds, 2);
 		await run(testSuite);
 		if (profile !== 'quick') {
@@ -191,8 +186,6 @@ async function runAffected() {
 		task('test typecheck', ['run', 'typecheck:tests']),
 		task('package contents', ['run', 'check:publish'])
 	];
-	if (plan.nativeCompilerCorpus)
-		checks.push(task('native compiler corpus', ['run', 'check:native-compiler-corpus']));
 	await runPool(checks, 3);
 
 	const verification = [];

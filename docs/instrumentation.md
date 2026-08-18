@@ -84,6 +84,12 @@ accepting a new native baseline. `EXACT_NATIVE_CORPUS_WORKERS`,
 `EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO` provide focused investigation
 overrides without changing repository policy.
 
+Corpus throughput is a controlled-machine diagnostic, not a release requirement. Hosted runners have
+variable CPU allocation and worker availability, so GitHub workflows and aggregate release profiles do not
+invoke the corpus or compare their timing with the tracked local baseline. Run
+`npm run check:native-compiler-corpus` explicitly on a stable machine when investigating compiler performance;
+its unchanged guard still fails meaningful regressions in that controlled environment.
+
 ## Isolation
 
 Option-bearing runtimes receive sinks directly. Reactive and React compatibility

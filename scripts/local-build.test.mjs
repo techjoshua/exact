@@ -49,6 +49,17 @@ test('shipping artifact generation builds the theme metadata it consumes', async
 	);
 });
 
+test('machine-specific native corpus timing remains an explicit local diagnostic', async () => {
+	const workflow = await readFile(
+		path.resolve('.github/workflows/native-compiler-packages.yml'),
+		'utf8'
+	);
+	const releaseCheck = await readFile(path.resolve('scripts/release-check.mjs'), 'utf8');
+
+	assert.doesNotMatch(workflow, /check:native-compiler-corpus/);
+	assert.doesNotMatch(releaseCheck, /check:native-compiler-corpus/);
+});
+
 test('Pages publishes Puzzle Foundry and advertises its hosted entry point', async () => {
 	const workflow = await readFile(
 		path.resolve('.github/workflows/native-compiler-packages.yml'),
