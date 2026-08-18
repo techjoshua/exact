@@ -105,6 +105,8 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 
 	return () => (
 		<div
+			theme:surface="raised"
+			theme:interactive
 			className="card"
 			data-task-id={props.task.id}
 			onMouseDown={(event) => {
@@ -132,6 +134,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 			<div className="card-actions">
 				<button
 					theme:action="quiet"
+					theme:tone="danger"
 					type="button"
 					className="secondary-button"
 					onClick={(event) => {
