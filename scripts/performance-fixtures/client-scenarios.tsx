@@ -280,7 +280,10 @@ async function suspenseCycle(): Promise<ClientScenarioResult> {
 	const container = createContainer();
 	releaseSuspenseInstance();
 	render(<SuspenseBoundary />, container);
-	assert(container.textContent === 'loading', 'Suspense fixture did not publish fallback');
+	assert(
+		container.textContent === 'loading',
+		`Suspense fixture did not publish fallback: ${container.innerHTML}`
+	);
 	assert(settleSuspense, 'Suspense fixture did not activate blocking work');
 	const started = performance.now();
 	settleSuspense();
