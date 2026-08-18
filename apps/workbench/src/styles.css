@@ -15,12 +15,21 @@
 	font-weight: var(--exact-theme-font-weight-strong);
 }
 
+html,
+body,
+#app,
+#app > div,
+.app-theme {
+	min-block-size: 100%;
+}
+
 body {
 	margin: 0;
 }
 
-.exact-theme-scope {
+.app-theme {
 	min-block-size: 100vh;
+	background: var(--exact-theme-canvas);
 }
 
 button,
@@ -240,7 +249,7 @@ textarea {
 	border-radius: 8px;
 	padding: 18px 12px;
 	text-align: center;
-	background: rgba(255, 255, 255, 0.72);
+	background: var(--exact-theme-neutral-subtle);
 }
 
 .side-pane {
