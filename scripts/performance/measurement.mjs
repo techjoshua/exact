@@ -43,9 +43,11 @@ export function summarizeBuildSamples(samples) {
 	if (!Array.isArray(samples) || samples.length === 0)
 		throw new Error('build measurement requires samples');
 	const expectedBytes = JSON.stringify(samples[0].bytes);
-	for (const sample of samples) {
+	for (const [index, sample] of samples.entries()) {
 		if (JSON.stringify(sample.bytes) !== expectedBytes)
-			throw new Error('production fixture build emitted nondeterministic byte sizes');
+			throw new Error(
+				`production fixture build emitted nondeterministic byte sizes: sample 1 ${expectedBytes}; sample ${index + 1} ${JSON.stringify(sample.bytes)}`
+			);
 	}
 	return {
 		samples: samples.length,
