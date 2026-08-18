@@ -103,6 +103,30 @@ test('carries sampled drag velocity into the released orb', async ({ page }) => 
 	expect(continuedAt.x).toBeGreaterThan(releasedAt.x + 4);
 });
 
+test('keeps direct orb manipulation inside the physics walls', async ({ page }) => {
+	await page.getByRole('button', { name: 'Reset position' }).click();
+	const orb = page.getByRole('button', { name: 'Movable physics orb' });
+	const stage = page.locator('.stage');
+	const floor = page.locator('.floor');
+	const initial = await orb.boundingBox();
+	const stageBounds = await stage.boundingBox();
+	const floorBounds = await floor.boundingBox();
+	if (initial === null || stageBounds === null || floorBounds === null) {
+		throw new Error('Physics stage has no rendered bounds');
+	}
+
+	await page.mouse.move(initial.x + initial.width / 2, initial.y + initial.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(stageBounds.x + stageBounds.width + 200, floorBounds.y + 200, {
+		steps: 4
+	});
+	const dragged = await orb.boundingBox();
+	if (dragged === null) throw new Error('Physics orb disappeared during bounded drag');
+	expect(dragged.x + dragged.width).toBeLessThanOrEqual(stageBounds.x + stageBounds.width + 1);
+	expect(dragged.y + dragged.height).toBeLessThanOrEqual(floorBounds.y + 1);
+	await page.mouse.up();
+});
+
 test('reactively republishes root and inherited nested themes without replacing content', async ({
 	page
 }) => {
