@@ -199,14 +199,14 @@ test('keeps documentation code blocks on the reactive application theme', async 
 
 	expect(light.surface).not.toBe(light.neutralSubtle);
 	expect(dark.surface).not.toBe(dark.neutralSubtle);
-	expect(light.surface).toMatch(/^oklch\(0\.12 /);
+	expect(light.surface).toMatch(/^oklch\(0\.95 /);
 	expect(dark.surface).toMatch(/^oklch\(0\.12 /);
 	expect(light.keyword).not.toBe(light.accentSolidActive);
-	expect(light.keywordChroma).toBeGreaterThanOrEqual(0.11);
+	expect(light.keywordChroma).toBeGreaterThanOrEqual(0.08);
 	expect(light.keywordContrast).toBeGreaterThanOrEqual(4.5);
 	expect(light.copyContrast).toBeGreaterThanOrEqual(4.5);
 	expect(dark.keyword).not.toBe(dark.accentText);
-	expect(dark.keywordChroma).toBeGreaterThanOrEqual(0.11);
+	expect(dark.keywordChroma).toBeGreaterThanOrEqual(0.08);
 	expect(dark.keywordContrast).toBeGreaterThanOrEqual(4.5);
 	expect(dark.copyContrast).toBeGreaterThanOrEqual(4.5);
 	expect(light.rootColorScheme).toBe('light');

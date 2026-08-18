@@ -58,9 +58,10 @@ chrome, cards, demos, dialogs, navigation targets, callouts, and code blocks use
 enhancements directly. Code blocks are sunken surfaces, so flat, bordered, and elevated depth choices
 control their exterior border and shadow without changing syntax semantics or internal separators.
 Documentation code blocks request a local vivid syntax palette from the active theme. The deriver
-preserves semantic hues, applies a syntax-specific OKLCH chroma floor, and enforces text contrast
-against its derived inverse surface; monochrome temperament remains achromatic. The surrounding
-semantic surface still owns the code block's border, radius, and depth behavior.
+follows the selected appearance by default, searches each semantic hue's accessible sRGB gamut for
+the most chromatic color that retains text contrast, and keeps inverse presentation as an explicit
+option. Monochrome temperament remains achromatic. The surrounding semantic surface still owns the
+code block's border, radius, and depth behavior.
 The lab's host-page control rules explicitly exclude themed actions, fields, and selections, so page-level hover, focus, and disabled colors cannot replace the generated contract while inspecting a theme.
 
 Every runtime theme scope establishes `font-body`, `font-size-md`, and `line-height-body` on its wrapper. Native descendants and themed controls that use `font: inherit` therefore follow the selected typography preset, while heading/display and code roles switch to their dedicated generated families and scales.
