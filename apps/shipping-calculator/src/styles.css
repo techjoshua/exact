@@ -24,23 +24,6 @@
 		--radius-lg: var(--exact-theme-radius-lg);
 		--page: min(92rem, calc(100% - clamp(1rem, 4vw, 4rem)));
 	}
-	[data-exact-theme] {
-		--ink: var(--exact-theme-on-canvas);
-		--muted: var(--exact-theme-surface-foreground-muted);
-		--canvas: var(--exact-theme-canvas);
-		--surface: var(--exact-theme-surface-background);
-		--surface-soft: var(--exact-theme-neutral-subtle);
-		--line: var(--exact-theme-surface-border);
-		--accent: var(--exact-theme-accent-solid);
-		--accent-deep: var(--exact-theme-accent-text);
-		--accent-soft: var(--exact-theme-accent-subtle);
-		--green: var(--exact-theme-success-text);
-		--green-soft: var(--exact-theme-success-subtle);
-		--blue: var(--exact-theme-info-text);
-		--warning: var(--exact-theme-warning-text);
-		--danger: var(--exact-theme-danger-text);
-		--shadow: var(--exact-theme-shadow-lg);
-	}
 }
 
 @layer reset {
