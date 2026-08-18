@@ -94,8 +94,15 @@ test('animates hover and focus preview actions in both directions', async ({ pag
 	await preview.focus();
 	await expect(actions).toBeVisible();
 	const activeBounds = await preview.boundingBox();
+	const activeActionsBounds = await actions.boundingBox();
 	expect(activeBounds?.width).toBeCloseTo(restingBounds.width, 1);
 	expect(activeBounds?.height).toBeCloseTo(restingBounds.height, 1);
+	if (activeBounds === null || activeActionsBounds === null) {
+		throw new Error('Active preview has no rendered bounds');
+	}
+	expect(activeActionsBounds.x + activeActionsBounds.width).toBeLessThanOrEqual(
+		activeBounds.x + activeBounds.width
+	);
 	const activeAvatarBounds = await avatar.boundingBox();
 	expect(activeAvatarBounds?.width).toBeCloseTo(restingAvatarBounds.width, 1);
 	expect(activeAvatarBounds?.height).toBeCloseTo(restingAvatarBounds.height, 1);
