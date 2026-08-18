@@ -619,6 +619,11 @@ h2 {
 .hold-label {
 	position: relative;
 	z-index: 1;
+	transition: color var(--exact-theme-duration-fast) var(--exact-theme-easing-standard);
+}
+
+.hold-button:is(:active, [data-confirmed='true']) .hold-label {
+	color: var(--exact-theme-accent-on-solid);
 }
 
 @keyframes hold-progress {

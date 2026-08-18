@@ -232,7 +232,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 				<div theme:surface="sunken" className="control-sample">
 					<span className="sample-label">Long press</span>
 					<button
-						theme:action="secondary"
+						theme:action={this.state.held ? 'primary' : 'secondary'}
 						className="hold-button"
 						data-confirmed={this.state.held}
 						gesture:apply={holdControl}
