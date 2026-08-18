@@ -36,3 +36,29 @@ func TestJSXLoweringEmitsNativeRuntimeOperations(t *testing.T) {
 		t.Fatalf("unused fragment helper escaped into native output:\n%s", response.Code)
 	}
 }
+
+func TestModuleDeclarativeCollectionRetainsReactiveComponentProps(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "C:/tmp/declarative-component-props.tsx",
+		Kind: "compile",
+		Source: `const columns = [{ id: "todo" }, { id: "done" }];
+			declare function Column(props: { id: string; placement?: { status: string } }): unknown;
+			export function Board(this: Component<{ placement?: { status: string } }>) {
+				return () => <section>{columns.map(column => (
+					<Column id={column.id} placement={this.state.placement} />
+				))}</section>;
+			}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(
+		response.Code,
+		`placement: __exactExpression(() => this.state.placement)`,
+	) {
+		t.Fatalf("module declarative component prop lost reactivity:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `id: __exactExpression(() => column.id)`) {
+		t.Fatalf("module collection value gained a redundant subscription:\n%s", response.Code)
+	}
+}
