@@ -38,6 +38,17 @@ test('the root build includes the enhancement playground and its component libra
 	}
 });
 
+test('shipping artifact generation builds the theme metadata it consumes', async () => {
+	const manifest = JSON.parse(
+		await readFile(path.resolve('apps/shipping-calculator/package.json'), 'utf8')
+	);
+
+	assert.equal(
+		manifest.scripts.pregenerate,
+		'npm run build -w @exactjs/compiler && npm run build -w @exactjs/theme'
+	);
+});
+
 test('Pages publishes Puzzle Foundry and advertises its hosted entry point', async () => {
 	const workflow = await readFile(
 		path.resolve('.github/workflows/native-compiler-packages.yml'),
