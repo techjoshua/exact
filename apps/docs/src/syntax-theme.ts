@@ -28,7 +28,9 @@ export type SyntaxPalette = Readonly<{
 }>;
 
 /** Selects whether syntax follows or deliberately inverts the surrounding appearance. */
-export type SyntaxPaletteRequest = Readonly<{ appearance: 'follow' | 'inverse' }>;
+export type SyntaxPaletteRequest = Readonly<{
+	appearance: 'light' | 'dark' | 'follow' | 'inverse';
+}>;
 
 const paletteCache = new WeakMap<
 	ResolvedTheme,
@@ -41,11 +43,13 @@ export const vividSyntaxTheme = createThemeDeriver<SyntaxPaletteRequest, SyntaxP
 	version: 2,
 	derive(theme, request) {
 		const appearance =
-			request.appearance === 'inverse'
-				? theme.appearance === 'light'
-					? 'dark'
-					: 'light'
-				: theme.appearance;
+			request.appearance === 'light' || request.appearance === 'dark'
+				? request.appearance
+				: request.appearance === 'inverse'
+					? theme.appearance === 'light'
+						? 'dark'
+						: 'light'
+					: theme.appearance;
 		const dark = appearance === 'dark',
 			surface = neutralAt(theme, dark ? 0.12 : 0.95),
 			text = theme.toCss(neutralAt(theme, dark ? 0.9 : 0.18)),
