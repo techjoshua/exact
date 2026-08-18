@@ -123,10 +123,7 @@ export function MotionControls(this: Component<MotionControlsState>) {
 				</button>
 			</div>
 			<div theme:surface="sunken" className="tab-panel">
-				<div
-					role="tabpanel"
-					motion:change={panelChange(previousTab, this.state.activeTab)}
-				>
+				<div role="tabpanel" motion:change={panelChange(previousTab, this.state.activeTab)}>
 					{this.state.activeTab === 'profile' ? (
 						<>
 							<strong>Jordan Lee</strong>

@@ -550,15 +550,15 @@ Across the pooled 150 browser samples per commit, the combined-reader result cha
 from 2,836,420 B to 2,833,392 B (-3,028 B, -0.11%). FCP p50 through p95 remained unchanged. The
 remaining timing distributions were mixed:
 
-| Metric              | Percentile |   Before |    After |       Change |
-| ------------------- | ---------: | -------: | -------: | -----------: |
-| Navigation          |        p50 |  33.5 ms |  33.3 ms | -0.2 ms     |
-| Navigation          |        p90 |  35.9 ms |  36.4 ms | +0.5 ms     |
-| Navigation          |        p95 |  37.0 ms |  37.5 ms | +0.5 ms     |
-| Optimistic feedback |        p50 |   1.9 ms |   1.8 ms | -0.1 ms     |
-| Optimistic feedback |        p95 |   2.7 ms |   2.8 ms | +0.1 ms     |
-| Settlement          |        p50 |  13.5 ms |  13.6 ms | +0.1 ms     |
-| Settlement          |        p95 |  15.0 ms |  14.7 ms | -0.3 ms     |
+| Metric              | Percentile |  Before |   After |  Change |
+| ------------------- | ---------: | ------: | ------: | ------: |
+| Navigation          |        p50 | 33.5 ms | 33.3 ms | -0.2 ms |
+| Navigation          |        p90 | 35.9 ms | 36.4 ms | +0.5 ms |
+| Navigation          |        p95 | 37.0 ms | 37.5 ms | +0.5 ms |
+| Optimistic feedback |        p50 |  1.9 ms |  1.8 ms | -0.1 ms |
+| Optimistic feedback |        p95 |  2.7 ms |  2.8 ms | +0.1 ms |
+| Settlement          |        p50 | 13.5 ms | 13.6 ms | +0.1 ms |
+| Settlement          |        p95 | 15.0 ms | 14.7 ms | -0.3 ms |
 
 The three clean-build observations were 4,265.2/4,192.8/4,115.9 ms before and
 4,184.6/4,370.2/4,282.3 ms after. Their medians differ by +89.4 ms (+2.13%), but the paired deltas
