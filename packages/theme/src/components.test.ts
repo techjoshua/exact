@@ -190,6 +190,7 @@ describe('reactive theme scopes', () => {
 		parent.state.tonic = 'amber';
 		flushSync();
 		expect(scope.dataset.exactThemeFingerprint).not.toBe(before);
+		expect(input.dataset.fingerprint).toBe(scope.dataset.exactThemeFingerprint);
 		expect(container.querySelector('[data-exact-theme]')).toBe(scope);
 		expect(container.querySelector('#stable')).toBe(input);
 		expect(input.value).toBe('Preserved');

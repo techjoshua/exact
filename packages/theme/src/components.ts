@@ -133,6 +133,9 @@ export function ThemeScopeEnhancement(
 			environment.source = next.source;
 			environment.current = next;
 			environment.revision++;
+			// Reactive contexts publish through setContext(). Mutating only the raw backing object updates
+			// scope CSS but leaves descendant exterior derivations subscribed to the previous snapshot.
+			this.setContext(ThemeContext, environment);
 		}
 		const variables = serializeThemeVariables(next);
 		return createVNode(

@@ -1,5 +1,5 @@
 import { TaskContext, type Component } from '@exactjs/core';
-import { ThemeContext, type ResolvedTheme } from '@exactjs/theme';
+import { ThemeContext } from '@exactjs/theme';
 import { tokenize, type CodeLanguage } from './code-highlighting.js';
 import { deriveSyntaxPalette } from './syntax-theme.js';
 
@@ -32,9 +32,9 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 		this.state.copied = true;
 		clearCopiedFeedback();
 	};
-	const syntaxStyle = (resolvedTheme: ResolvedTheme) => {
-		const light = deriveSyntaxPalette(resolvedTheme, 'light'),
-			dark = deriveSyntaxPalette(resolvedTheme, 'dark'),
+	const syntaxStyle = () => {
+		const light = deriveSyntaxPalette(theme.current, 'light'),
+			dark = deriveSyntaxPalette(theme.current, 'dark'),
 			adaptive = (lightColor: string, darkColor: string) =>
 				`light-dark(${lightColor}, ${darkColor})`;
 		return {
@@ -64,14 +64,14 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 			className="code-block"
 			className:code-block--compact={props.compact}
 		>
-			<figcaption className="code-toolbar" style={syntaxStyle(theme.current)}>
+			<figcaption className="code-toolbar" style={theme.revision >= 0 ? syntaxStyle() : undefined}>
 				<span>
 					{props.title ?? 'Example'} <small>{language}</small>
 				</span>
 				<button
 					theme:action="quiet"
 					className="copy-button"
-					style={{ color: syntaxStyle(theme.current)['--code-text'] }}
+					style={theme.revision >= 0 ? { color: syntaxStyle()['--code-text'] } : undefined}
 					type="button"
 					onClick={() => void copy()}
 				>
@@ -80,7 +80,7 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 			</figcaption>
 			<pre
 				theme:text="code"
-				style={syntaxStyle(theme.current)}
+				style={theme.revision >= 0 ? syntaxStyle() : undefined}
 				tabindex="0"
 				aria-label={`${props.title ?? 'Code'} in ${language}`}
 			>
