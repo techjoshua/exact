@@ -7,7 +7,7 @@ A practical eXact gallery showing how optional renderer enhancements improve fam
   conditional retention is structurally meaningful;
 - gestures recognizes press, hover/focus intent, long press, drag and keyboard sliders, and
   pan/pinch media navigation with explicit desktop zoom and rotation equivalents;
-- physics owns a fixed-step, directly manipulated and throwable body with playful bounded
+- physics owns a fixed-step, bounded direct-manipulation and throwable body with playful
   collisions; and
 - gravity contributes a deliberately lively force through physics context.
 
