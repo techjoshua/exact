@@ -178,7 +178,10 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	await expect(appearance.locator('option')).toHaveText(['System', 'Light', 'Dark']);
 	await page.locator('.theme-customize-control > summary').click();
 	const depth = page.locator('.theme-control-panel').getByLabel('Depth');
-	const codeBlock = page.locator('.code-block').first();
+	const codeBlock = page
+		.locator('.code-block')
+		.filter({ has: page.locator('.syntax--keyword') })
+		.first();
 
 	await appearance.selectOption('light');
 	await expect(page.locator('#app > [data-exact-theme]')).toHaveAttribute(
@@ -196,7 +199,9 @@ test('keeps documentation code blocks on the reactive application theme', async 
 
 	expect(light.surface).toBe(light.neutralSubtle);
 	expect(dark.surface).toBe(dark.neutralSubtle);
-	expect(light.keyword).toBe(light.accentSolidActive);
+	expect(light.keyword).toContain('calc(c * 1.55)');
+	expect(light.keywordColor).not.toBe(light.accentSolidActiveColor);
+	expect(light.keywordContrast).toBeGreaterThanOrEqual(4.5);
 	expect(dark.keyword).toBe(dark.accentText);
 	expect(dark.surface).not.toBe(light.surface);
 	expect(light.rootColorScheme).toBe('light');
@@ -258,16 +263,48 @@ function themeScope(page: Page, index: number): Locator {
 async function codeThemeReport(codeBlock: Locator) {
 	return codeBlock.evaluate((element) => {
 		const style = getComputedStyle(element);
+		const keywordColor = getComputedStyle(element.querySelector('.syntax--keyword')!).color;
+		const surfaceColor = style.backgroundColor;
 		return {
 			surface: style.getPropertyValue('--code-surface').trim(),
 			neutralSubtle: style.getPropertyValue('--exact-theme-neutral-subtle').trim(),
 			keyword: style.getPropertyValue('--syntax-keyword').trim(),
 			accentText: style.getPropertyValue('--exact-theme-accent-text').trim(),
 			accentSolidActive: style.getPropertyValue('--exact-theme-accent-solid-active').trim(),
+			accentSolidActiveColor: rasterizeCss(
+				style.getPropertyValue('--exact-theme-accent-solid-active').trim()
+			),
+			keywordColor,
+			keywordContrast: contrastRatio(keywordColor, surfaceColor),
 			rootColorScheme: getComputedStyle(document.documentElement).colorScheme,
 			borderWidth: style.borderTopWidth,
 			shadow: style.boxShadow
 		};
+
+		function rasterizeCss(color: string): string {
+			const context = document.createElement('canvas').getContext('2d')!;
+			context.fillStyle = color;
+			return context.fillStyle;
+		}
+
+		function contrastRatio(foreground: string, background: string): number {
+			const luminance = (color: string) => {
+				const context = document.createElement('canvas').getContext('2d', {
+					willReadFrequently: true
+				})!;
+				context.fillStyle = color;
+				context.fillRect(0, 0, 1, 1);
+				const rgb = context.getImageData(0, 0, 1, 1).data;
+				const channels = [rgb[0]!, rgb[1]!, rgb[2]!].map((channel) => {
+					const value = channel / 255;
+					return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+				});
+				return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
+			};
+			const a = luminance(foreground),
+				b = luminance(background);
+			return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+		}
 	});
 }
 

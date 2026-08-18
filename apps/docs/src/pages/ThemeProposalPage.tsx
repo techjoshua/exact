@@ -52,7 +52,8 @@ export function ThemeProposalPage(this: Component<{}>) {
 				theme scope for its persisted appearance and customization preferences, including
 				browser-owned chrome such as scrollbars. Its cards, dialogs, navigation, demos, callouts,
 				and code blocks use semantic theme enhancements, so depth and the other source axes remain
-				visible throughout the app.
+				visible throughout the app. Light syntax expands the active semantic hues' OKLCH chroma
+				without changing their lightness or breaking monochrome temperament.
 			</Callout>
 
 			<section>
