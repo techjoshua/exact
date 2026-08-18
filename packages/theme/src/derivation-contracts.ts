@@ -45,7 +45,6 @@ export type DataColorRequest =
 			kind: 'categorical';
 			count: number;
 			surface?: ThemeSurfaceBundle;
-			emphasis?: 'balanced' | 'accent-first';
 	  }>
 	| Readonly<{
 			kind: 'sequential';

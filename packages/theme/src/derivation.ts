@@ -115,12 +115,7 @@ export function deriveDataColors(theme: ResolvedTheme, request: DataColorRequest
 	let colors: ResolvedColor[],
 		warnings: Array<{ code: 'categorical-distance'; message: string }> = [];
 	if (request.kind === 'categorical')
-		({ colors, warnings } = categorical(
-			theme,
-			request.count,
-			surface.background,
-			request.emphasis
-		));
+		({ colors, warnings } = categorical(theme, request.count, surface.background));
 	else if (request.kind === 'sequential')
 		colors = sequential(
 			theme,
@@ -149,31 +144,36 @@ export function deriveDataColors(theme: ResolvedTheme, request: DataColorRequest
 function categorical(
 	theme: ResolvedTheme,
 	count: number,
-	background: ResolvedColor,
-	emphasis: 'balanced' | 'accent-first' = 'balanced'
+	background: ResolvedColor
 ): { colors: ResolvedColor[]; warnings: Array<{ code: 'categorical-distance'; message: string }> } {
-	const candidates: Array<{ index: number; color: ResolvedColor }> = [],
-		accepted: Array<{ index: number; color: ResolvedColor }> = [];
+	const accent = theme.tones.accent.solid;
+	const candidates: Array<{ index: number; band: number; color: ResolvedColor }> = [],
+		accepted: Array<{ index: number; band: number; color: ResolvedColor }> = [];
 	for (let k = 0; k < 72; k++) {
 		const hue = harmonizeHue(
-			theme.tones.accent.solid.oklch.h +
-				(emphasis === 'balanced' ? 137.507764 / 2 : 0) +
-				k * 137.507764,
+			accent.oklch.h + 137.507764 / 2 + k * 137.507764,
 			theme.key.oklch.h,
 			theme.source.temperament.statusHarmonization
 		);
-		// Both appearances move the alternating band toward higher lightness. Moving light themes
-		// downward made the second golden-angle hue muddy brown or olive for most tonic presets.
-		const lightness = (theme.source.appearance === 'light' ? [0.48, 0.62] : [0.68, 0.82])[k % 2]!;
+		// Candidate exploration alternates independently so rejecting one accent-adjacent band cannot
+		// starve monochrome themes. Acceptance below still preserves the visible low/high cadence.
+		const band = k % 2;
+		const lightness = (theme.source.appearance === 'light' ? [0.48, 0.62] : [0.68, 0.82])[band]!;
 		const color = ensureColorContrast(
-			{ l: lightness, c: theme.tones.accent.solid.oklch.c, h: hue },
+			{ l: lightness, c: accent.oklch.c, h: hue },
 			[background],
 			3,
 			theme.source.appearance
 		).color;
-		const candidate = { index: k, color };
+		const candidate = { index: k, band, color };
+		// Accent communicates interaction and emphasis. Keeping categorical series outside the same
+		// perceptual neighborhood prevents data identity from borrowing that semantic role.
+		if (oklabDistance(accent, color) < 0.08) continue;
 		candidates.push(candidate);
-		if (accepted.length === 0 || accepted.every((item) => oklabDistance(item.color, color) >= 0.08))
+		if (
+			band === accepted.length % 2 &&
+			(accepted.length === 0 || accepted.every((item) => oklabDistance(item.color, color) >= 0.08))
+		)
 			accepted.push(candidate);
 		if (accepted.length === count) return { colors: accepted.map((x) => x.color), warnings: [] };
 	}
@@ -181,14 +181,8 @@ function categorical(
 	while (accepted.length < count && remaining.length) {
 		remaining.sort(
 			(a, b) =>
-				minimumDistance(
-					b.color,
-					accepted.map((x) => x.color)
-				) -
-					minimumDistance(
-						a.color,
-						accepted.map((x) => x.color)
-					) || a.index - b.index
+				minimumDistance(b.color, [accent, ...accepted.map((x) => x.color)]) -
+					minimumDistance(a.color, [accent, ...accepted.map((x) => x.color)]) || a.index - b.index
 		);
 		accepted.push(remaining.shift()!);
 	}
@@ -286,12 +280,6 @@ function validateRequest(request: DataColorRequest): void {
 	if (!valid) throw new RangeError('Data color count is outside the supported range');
 	if (request.surface !== undefined && ![0, 1, 2, 3, 'sunken', 'overlay'].includes(request.surface))
 		throw new RangeError('Unknown data-color surface');
-	if (
-		request.kind === 'categorical' &&
-		request.emphasis !== undefined &&
-		!['balanced', 'accent-first'].includes(request.emphasis)
-	)
-		throw new TypeError('Unknown categorical emphasis');
 	if (
 		request.kind === 'sequential' &&
 		request.direction !== undefined &&
