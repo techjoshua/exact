@@ -106,6 +106,7 @@ test('lets Chromium paint native controls and interaction depth from the active 
 	const progress = specimen.getByRole('progressbar', { name: 'Confidence' });
 	const checkbox = specimen.getByRole('checkbox', { name: 'Receive updates' });
 	const save = specimen.getByRole('button', { name: 'Save changes' });
+	const drag = specimen.getByRole('button', { name: 'Drag me' });
 	const state = specimen.getByRole('status', { name: 'Current depth demonstration state' });
 
 	await controls.getByLabel('Tonic preset').selectOption('rose');
@@ -130,6 +131,14 @@ test('lets Chromium paint native controls and interaction depth from the active 
 	expect(nativeColors.checkbox).toBe(nativeColors.accent);
 	expect(nativeColors.progressAppearance).toBe('none');
 	expect(nativeColors.progressFill).toBe(nativeColors.accent);
+	const restingShadows = await Promise.all([
+		save.evaluate((element) => getComputedStyle(element).boxShadow),
+		drag.evaluate((element) => getComputedStyle(element).boxShadow)
+	]);
+	// A saturated primary fill needs an appearance-aware contact layer in addition to the generic
+	// depth shadow used by secondary and draggable actions.
+	expect(restingShadows[0]).not.toBe(restingShadows[1]);
+	expect(restingShadows[0]).not.toBe('none');
 	await progress.scrollIntoViewIfNeeded();
 	const progressImage = await progress.screenshot({ animations: 'disabled' });
 	expect(progressImage).toMatchSnapshot('rose-pill-progress.png', { maxDiffPixelRatio: 0.01 });

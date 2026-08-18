@@ -984,7 +984,11 @@
 .exact-theme-action[data-exact-theme-variant='primary'] {
 	color: var(--_exact-theme-tone-on-solid);
 	background: var(--_exact-theme-tone-solid);
-	box-shadow: var(--exact-theme-shadow-sm);
+	/* Saturated fills absorb the generic neutral shadow. An appearance-aware contact shadow keeps
+	   the first elevation step legible without making the semantic tone own depth. */
+	box-shadow:
+		0 1px 2px color-mix(in oklch, var(--exact-theme-surface-foreground) 28%, transparent),
+		var(--exact-theme-shadow-sm);
 }
 .exact-theme-action[data-exact-theme-variant='primary']:active:not(:disabled):not(
 		[aria-disabled='true']
@@ -1235,7 +1239,7 @@
 		):not(:active):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
 		background: var(--_exact-theme-tone-solid-hover);
 		box-shadow:
-			0 0 0 2px color-mix(in oklch, var(--_exact-theme-tone-on-solid) 38%, transparent),
+			0 2px 4px color-mix(in oklch, var(--exact-theme-surface-foreground) 32%, transparent),
 			var(--exact-theme-shadow-md);
 	}
 	.exact-theme-action[data-exact-theme-variant='secondary']:hover:not(:disabled):not(

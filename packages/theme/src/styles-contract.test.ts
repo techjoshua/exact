@@ -14,7 +14,7 @@ describe('exact-theme/1 stylesheet contract', () => {
 			[]
 		);
 		expect(createHash('sha256').update(stylesheet).digest('hex')).toBe(
-			'19bc3c6aea6bc224ede2977ac283f1977157d42ce5d408170b9585e84b0a0eef'
+			'de38ddfa78175a5b511768e0642dfb6f8dd34d2f279148b47294e2d180f7333a'
 		);
 	});
 
@@ -69,7 +69,7 @@ describe('exact-theme/1 stylesheet contract', () => {
 		expect(stylesheet).toContain('@media (hover: hover)');
 		expect(stylesheet).toMatch(/:hover[^\{]+:not\(:active\)[^\{]+\{/);
 		expect(stylesheet).toMatch(
-			/\.exact-theme-action\[data-exact-theme-variant='primary'\]\s*\{[^}]*box-shadow: var\(--exact-theme-shadow-sm\);/
+			/\.exact-theme-action\[data-exact-theme-variant='primary'\]\s*\{[^}]*var\(--exact-theme-surface-foreground\) 28%[^}]*var\(--exact-theme-shadow-sm\);/
 		);
 		expect(stylesheet).toMatch(
 			/\[data-exact-theme-dragging='true'\][\s\S]*?box-shadow: var\(--exact-theme-shadow-lg\);/
@@ -78,7 +78,7 @@ describe('exact-theme/1 stylesheet contract', () => {
 			/:active:not\(:disabled\)[\s\S]*?box-shadow: var\(--exact-theme-surface-sunken-shadow\);/
 		);
 		expect(stylesheet).toContain(
-			'color-mix(in oklch, var(--_exact-theme-tone-on-solid) 38%, transparent)'
+			'0 2px 4px color-mix(in oklch, var(--exact-theme-surface-foreground) 32%, transparent)'
 		);
 		expect(stylesheet).toContain(":not([aria-busy='true'])");
 		expect(stylesheet).toContain('background-color: var(--exact-theme-neutral-subtle-hover);');

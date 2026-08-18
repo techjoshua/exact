@@ -395,7 +395,9 @@ export function ThemeProposalPage(this: Component<{}>) {
 					Actions and selections are inherently interactive. <code>theme:interactive</code> marks an
 					interactive surface, while reactive <code>theme:dragging</code> raises an action,
 					selection, or surface to the drag depth. Native disabled and <code>aria-busy</code> states
-					suppress transient depth changes without another theme prop.
+					suppress transient depth changes without another theme prop. Elevated solid actions add an
+					appearance-aware contact shadow so saturated fills retain visible depth in light and dark
+					appearances.
 				</p>
 				<p>
 					Elevated themes raise physical controls on pointer hover, press them into an inset shadow
