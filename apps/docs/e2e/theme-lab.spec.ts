@@ -178,6 +178,7 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	await expect(appearance.locator('option')).toHaveText(['System', 'Light', 'Dark']);
 	await page.locator('.theme-customize-control > summary').click();
 	const depth = page.locator('.theme-control-panel').getByLabel('Depth');
+	const tonic = page.locator('.theme-control-panel').getByLabel('Color');
 	const codeBlock = page
 		.locator('.code-block')
 		.filter({ has: page.locator('.syntax--keyword') })
@@ -189,6 +190,10 @@ test('keeps documentation code blocks on the reactive application theme', async 
 		'light'
 	);
 	const light = await codeThemeReport(codeBlock);
+	await tonic.selectOption('rose');
+	await expect
+		.poll(async () => (await codeThemeReport(codeBlock)).keywordColor)
+		.not.toBe(light.keywordColor);
 
 	await appearance.selectOption('dark');
 	await expect(page.locator('#app > [data-exact-theme]')).toHaveAttribute(
