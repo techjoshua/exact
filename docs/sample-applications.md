@@ -12,6 +12,9 @@ the documentation site at `sudoku.html`.
 
 The Enhancement Playground and Theme Lab, Kanban, Project Workbench, and Intl Testbed are also
 published with the documentation site under `enhancements/`, `kanban/`, `workbench/`, and `intl/`.
+[`apps/puzzle-generator`](../apps/puzzle-generator) is published as Puzzle Foundry at
+`puzzle-foundry.html`; its themed authoring shell keeps printable artwork and publication colors as
+explicit document data.
 
 ## Repository examples
 

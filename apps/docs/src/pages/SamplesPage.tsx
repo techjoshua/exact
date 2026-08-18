@@ -8,7 +8,7 @@ export function SamplesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Complete applications"
 			title="Beyond the counter"
-			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Four browser applications are published with these docs; the remaining examples can be built locally."
+			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Six browser applications are published with these docs; the remaining examples can be built locally."
 			next={{ path: '/getting-started', label: 'Create an eXact app' }}
 		>
 			<section theme:surface="raised" className="sudoku-showcase">
@@ -97,6 +97,9 @@ export function SamplesPage(this: Component<{}>) {
 							The authoring shell uses semantic theme sources and roles, while printable puzzle
 							artwork and user-selected publication colors remain explicit document data.
 						</p>
+						<a theme:action="secondary" href="./puzzle-foundry.html">
+							Open Puzzle Foundry
+						</a>
 					</div>
 				</div>
 			</section>
