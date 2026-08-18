@@ -57,6 +57,8 @@ uses the same color scheme; `system` continues to follow the operating-system pr
 chrome, cards, demos, dialogs, navigation targets, callouts, and code blocks use the semantic
 enhancements directly. Code blocks are sunken surfaces, so flat, bordered, and elevated depth choices
 control their exterior border and shadow without changing syntax semantics or internal separators.
+Light-appearance syntax preserves the semantic solid-active hues and lightness values while
+expanding their OKLCH chroma for useful token separation. Monochrome temperament remains achromatic.
 The lab's host-page control rules explicitly exclude themed actions, fields, and selections, so page-level hover, focus, and disabled colors cannot replace the generated contract while inspecting a theme.
 
 Every runtime theme scope establishes `font-body`, `font-size-md`, and `line-height-body` on its wrapper. Native descendants and themed controls that use `font: inherit` therefore follow the selected typography preset, while heading/display and code roles switch to their dedicated generated families and scales.
