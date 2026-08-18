@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"pregenerate": "npm run build -w @exactjs/compiler",
+		"pregenerate": "npm run build -w @exactjs/compiler && npm run build -w @exactjs/theme",
 		"generate": "node scripts/generate-artifacts.mjs",
 		"dev": "npm run generate && node scripts/dev.mjs",
 		"build:client": "vite build",
