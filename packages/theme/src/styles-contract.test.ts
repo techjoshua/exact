@@ -14,7 +14,7 @@ describe('exact-theme/1 stylesheet contract', () => {
 			[]
 		);
 		expect(createHash('sha256').update(stylesheet).digest('hex')).toBe(
-			'16d3d3e419a39a07a825f25f39d7a6a811280f51b444668c5cef794c34bcd38c'
+			'19bc3c6aea6bc224ede2977ac283f1977157d42ce5d408170b9585e84b0a0eef'
 		);
 	});
 

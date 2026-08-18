@@ -27,18 +27,26 @@ maps, and printable document styling rather than treating the theme package as a
 
 ## Source and reactivity
 
-Declarative scopes accept the curated tonic names `teal`, `blue`, `violet`, `amber`, `rose`, and `green`, or any opaque context-free CSS Color 4 or DTCG color accepted by `ThemeColor`. The names are conveniences rather than a closed palette. A temperament—`balanced`, `restrained`, `expressive`, `dramatic`, `soft`, `stark`, or `monochrome`—controls chroma, surface, state, and status relationships. Appearance, density, shape, depth, typography, contrast, and motion are independent axes. Every nested source axis inherits when omitted, and each accepts explicit `inherit`, including `theme:tonic` and `theme:temperament`. `system` appearance, contrast, and motion follow their media queries.
+Declarative scopes accept the curated tonic names `teal`, `blue`, `violet`, `amber`, `rose`, and `green`, or any opaque context-free CSS Color 4 or DTCG color accepted by `ThemeColor`. The names are conveniences rather than a closed palette. A temperament—`balanced`, `restrained`, `expressive`, `dramatic`, `soft`, `stark`, or `monochrome`—controls the intervals among color, surface, state, typography, spacing, control, shape, depth, and motion values. Appearance, density, shape, depth, typography, contrast, and motion remain independent base axes. Every nested source axis inherits when omitted, and each accepts explicit `inherit`, including `theme:tonic` and `theme:temperament`. `system` appearance, contrast, and motion follow their media queries.
 
-The version-two built-in temperaments are calibrated as perceptual relationship systems rather
-than saturation presets. `restrained` keeps surface and interaction intervals close; `expressive`
-uses vivid accents and statuses with lively states; `dramatic` uses a larger tonal hierarchy and
-decisive states without maximizing chroma; `soft` uses the closest surfaces and gentlest states;
-`stark` uses achromatic neutrals with the strongest surface and state boundaries; and `monochrome`
-removes chroma while retaining a clear tonal hierarchy. `balanced` remains the moderate baseline.
+The built-in temperaments are calibrated as visual interval systems rather than saturation presets.
+`restrained` compresses hierarchy, scale, spacing, elevation, and timing intervals; `expressive`
+uses vivid accents with broader typographic, spatial, and state progression; `dramatic` makes
+hierarchy and cadence more decisive without maximizing chroma; `soft` combines the closest color
+and state steps with gentle type, shape, depth, and generous line-height relationships; `stark`
+uses achromatic neutrals and the strongest tonal, typographic, spatial, and depth separation; and
+`monochrome` removes chroma while retaining its own structural rhythm. `balanced` remains the
+moderate baseline.
 Light surfaces are distributed around the canvas before the near-white cap, so raised levels do
 not collapse together. Solid hover and active states move away from their selected readable
 foreground, preserving the temperament interval in both appearances. Status chroma follows the
 temperament's accent relationship instead of using one common saturation floor.
+
+The categorical source axes remain authoritative. A flat theme never gains shadows, reduced motion
+never gains duration, square shape remains square, and an editorial typography choice retains its
+font families. Temperament tunes the scale ratios, tracking and weight separation, line-height
+cadence, spacing ladder, control-size progression, radius ladder, shadow progression, and duration
+ladder available inside those choices.
 
 The Theme Lab pairs tonic presets with native color-picker controls for both root and nested scopes. Choosing a color switches that scope to `custom` and applies the selected color reactively without remounting its contents.
 

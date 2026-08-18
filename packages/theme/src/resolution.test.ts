@@ -16,6 +16,7 @@ describe('deterministic theme resolution', () => {
 		expect(Object.getPrototypeOf(variables)).toBeNull();
 		expect(Object.isFrozen(theme)).toBe(true);
 		expect(Object.isFrozen(theme.tones.accent)).toBe(true);
+		expect(Object.isFrozen(theme.source.temperament.surfaceIntervals)).toBe(true);
 	});
 
 	it('keeps all built-in foreground, boundary, focus, and solid pairs above their contract ratios', () => {
@@ -93,6 +94,38 @@ describe('deterministic theme resolution', () => {
 		}
 	});
 
+	it('tunes typographic, spatial, shape, depth, and motion intervals without selecting axes', () => {
+		const ordered = ['soft', 'restrained', 'balanced', 'expressive', 'dramatic', 'stark'] as const;
+		const themes = ordered.map((temperament) =>
+			resolveTheme({
+				source: { temperament, depth: 'elevated', density: 'comfortable', shape: 'soft' },
+				environment
+			})
+		);
+		for (const measure of [typeSpan, spacingSpan, controlSpan, radiusSpan, depthSpan]) {
+			const values = themes.map(measure);
+			for (let index = 1; index < values.length; index++)
+				expect(values[index]).toBeGreaterThan(values[index - 1]!);
+		}
+		expect(themes[0]!.tokens['line-height-body']).toBe('1.6');
+		expect(themes.at(-1)!.tokens['line-height-body']).toBe('1.4');
+		expect(motionSpan(themes[1]!)).toBeLessThan(motionSpan(themes[0]!));
+		expect(motionSpan(themes[0]!)).toBeLessThan(motionSpan(themes[2]!));
+		expect(motionSpan(themes[2]!)).toBeLessThan(motionSpan(themes[3]!));
+		expect(motionSpan(themes[3]!)).toBeLessThan(motionSpan(themes[4]!));
+		expect(motionSpan(themes[4]!)).toBeLessThan(motionSpan(themes[5]!));
+
+		for (const temperament of ordered) {
+			const flat = resolveTheme({
+				source: { temperament, depth: 'flat', motion: 'reduced' },
+				environment
+			});
+			expect(flat.tokens['shadow-lg']).toBe('none');
+			expect(flat.tokens['duration-fast']).toBe('0ms');
+			expect(flat.tokens['duration-slow']).toBe('0ms');
+		}
+	});
+
 	it('accepts every documented context-free color family and DTCG shape', () => {
 		const values = [
 			'#16737a',
@@ -161,7 +194,7 @@ describe('deterministic theme resolution', () => {
 			accent: theme.tokens['accent-solid'],
 			medium: theme.tokens['control-height-md']
 		}).toEqual({
-			fingerprint: 'nhaoymziq8-mlyc5msugfmy_6iu3wnwfqwn-sbcxig8',
+			fingerprint: 'z5ngtv9wk_8zsd7ktibyohhtl0pkeqt5j1vtcvk2jtm',
 			key: 'oklch(0.54 0.09 185)',
 			canvas: 'oklch(0.97 0.0108 185)',
 			accent: 'oklch(0.54 0.09 185)',
@@ -198,6 +231,18 @@ describe('deterministic theme resolution', () => {
 				environment
 			})
 		).toThrow(ThemeResolutionError);
+		expect(() =>
+			resolveTheme({
+				source: {
+					temperament: {
+						...builtInTemperaments.balanced,
+						id: 'invalid-intervals',
+						stateIntervals: [0.08, 0.04]
+					}
+				},
+				environment
+			})
+		).toThrow(/active-state interval must exceed/);
 	});
 });
 
@@ -217,4 +262,33 @@ function surfaceSpan(theme: ResolvedTheme): number {
 
 function stateSpan(theme: ResolvedTheme): number {
 	return Math.abs(theme.tones.accent.solidActive.oklch.l - theme.tones.accent.solid.oklch.l);
+}
+
+function tokenNumber(theme: ResolvedTheme, token: keyof ResolvedTheme['tokens']): number {
+	return Number.parseFloat(theme.tokens[token]);
+}
+
+function typeSpan(theme: ResolvedTheme): number {
+	return tokenNumber(theme, 'font-size-3xl') / tokenNumber(theme, 'font-size-sm');
+}
+
+function spacingSpan(theme: ResolvedTheme): number {
+	return tokenNumber(theme, 'space-8') / tokenNumber(theme, 'space-1');
+}
+
+function controlSpan(theme: ResolvedTheme): number {
+	return tokenNumber(theme, 'control-height-lg') - tokenNumber(theme, 'control-height-sm');
+}
+
+function radiusSpan(theme: ResolvedTheme): number {
+	return tokenNumber(theme, 'radius-lg') / tokenNumber(theme, 'radius-sm');
+}
+
+function depthSpan(theme: ResolvedTheme): number {
+	const shadow = theme.tokens['shadow-lg'].match(/0 ([\d.]+)px ([\d.]+)px/);
+	return Number(shadow?.[1]) + Number(shadow?.[2]);
+}
+
+function motionSpan(theme: ResolvedTheme): number {
+	return tokenNumber(theme, 'duration-slow') - tokenNumber(theme, 'duration-fast');
 }

@@ -56,16 +56,26 @@ export type ThemeColor =
 			alpha?: number;
 	  }>;
 
-/** Data-only color relationship algorithm. */
+/** Data-only visual interval system applied within independently selected theme axes. */
 export type ThemeTemperament = Readonly<{
 	id: string;
 	version: number;
 	accentChromaMultiplier: number;
 	accentChromaCap: number;
 	neutralChromaCap: number;
-	surfaceInterval: number;
-	stateInterval: number;
+	surfaceIntervals: readonly [number, number, number];
+	stateIntervals: readonly [number, number];
 	statusHarmonization: number;
+	typeScaleMultiplier: number;
+	trackingInterval: number;
+	weightIntervals: readonly [number, number];
+	lineHeightDelta: number;
+	spacingExponent: number;
+	controlScaleRatio: number;
+	radiusScaleRatio: number;
+	depthScaleRatio: number;
+	motionScaleRatio: number;
+	easingTension: number;
 }>;
 
 /** Complete portable typography input. */

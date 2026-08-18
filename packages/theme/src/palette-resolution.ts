@@ -11,6 +11,7 @@ import type {
 } from './contracts.js';
 import {
 	contrastRatio,
+	decimal,
 	ensureColorContrast,
 	harmonizeHue,
 	orderedLightnessCandidates,
@@ -28,19 +29,28 @@ export function createSurfaces(
 	warnings: ThemeWarning[]
 ): Record<0 | 1 | 2 | 3 | 'sunken' | 'overlay', ResolvedSurface> {
 	const light = source.appearance === 'light',
-		interval = source.temperament.surfaceInterval,
+		intervals = source.temperament.surfaceIntervals,
+		interval = intervals[0],
 		cap = light ? 0.995 : 0.42,
 		origin = light
 			? clamp(canvas.oklch.l - interval * 0.75, 0.04, cap - 0.015)
 			: clamp(canvas.oklch.l + 0.02, 0.04, cap - 0.015),
 		// Light canvases have little headroom before white. Centering the hierarchy around the canvas
 		// preserves every temperament's interval instead of clipping all raised surfaces to one value.
-		step = Math.min(Math.max(interval * (light ? 0.45 : 0.65), 0.004), (cap - origin) / 3);
+		available = cap - origin,
+		scale = Math.min(
+			light ? 0.55 : 0.72,
+			available / intervals.reduce((sum, value) => sum + value, 0)
+		),
+		steps = intervals.map((value) => Math.max(0.004, value * scale)),
+		level1 = origin + steps[0]!,
+		level2 = level1 + steps[1]!,
+		level3 = level2 + steps[2]!;
 	const levels: Record<string, readonly [number, number]> = {
 		0: [origin, 1],
-		1: [origin + step, 0.92],
-		2: [origin + 2 * step, 0.84],
-		3: [origin + 3 * step, 0.76],
+		1: [Math.min(cap, level1), 0.92],
+		2: [Math.min(cap, level2), 0.84],
+		3: [Math.min(cap, level3), 0.76],
 		sunken: [
 			clamp(
 				light ? origin - Math.max(0.008, interval * 0.5) : canvas.oklch.l - interval,
@@ -99,7 +109,12 @@ export function createSurfaces(
 			foregroundMuted,
 			border,
 			borderStrong,
-			shadow: surfaceShadow(bundle, source.depth, source.appearance)
+			shadow: surfaceShadow(
+				bundle,
+				source.depth,
+				source.appearance,
+				source.temperament.depthScaleRatio
+			)
 		});
 	}
 	return result;
@@ -107,26 +122,28 @@ export function createSurfaces(
 function surfaceShadow(
 	bundle: (typeof themeSurfaceBundles)[number],
 	depth: ResolvedThemeSource['depth'],
-	appearance: ThemeAppearance
+	appearance: ThemeAppearance,
+	scale: number
 ): string {
 	if (depth !== 'elevated' || bundle === 0) return 'none';
+	const px = (value: number) => `${decimal(value * scale, 2)}px`;
 	if (appearance === 'dark') {
 		if (bundle === 'sunken')
-			return 'inset 0 0 0 1px rgb(255 255 255 / 0.14), inset 0 2px 4px rgb(0 0 0 / 0.42)';
+			return `inset 0 0 0 1px rgb(255 255 255 / 0.14), inset 0 ${px(2)} ${px(4)} rgb(0 0 0 / 0.42)`;
 		if (bundle === 1)
-			return '0 0 0 1px rgb(255 255 255 / 0.14), 0 2px 6px rgb(255 255 255 / 0.10), 0 1px 2px rgb(0 0 0 / 0.35)';
+			return `0 0 0 1px rgb(255 255 255 / 0.14), 0 ${px(2)} ${px(6)} rgb(255 255 255 / 0.10), 0 ${px(1)} ${px(2)} rgb(0 0 0 / 0.35)`;
 		if (bundle === 2 || bundle === 'overlay')
-			return '0 0 0 1px rgb(255 255 255 / 0.22), 0 5px 16px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.38)';
-		return '0 0 0 2px rgb(255 255 255 / 0.28), 0 12px 32px rgb(255 255 255 / 0.18), 0 4px 10px rgb(0 0 0 / 0.42)';
+			return `0 0 0 1px rgb(255 255 255 / 0.22), 0 ${px(5)} ${px(16)} rgb(255 255 255 / 0.14), 0 ${px(2)} ${px(4)} rgb(0 0 0 / 0.38)`;
+		return `0 0 0 2px rgb(255 255 255 / 0.28), 0 ${px(12)} ${px(32)} rgb(255 255 255 / 0.18), 0 ${px(4)} ${px(10)} rgb(0 0 0 / 0.42)`;
 	}
 	const value =
 		bundle === 'sunken'
-			? 'inset 0 1px 2px rgb(0 0 0 / 0.08)'
+			? `inset 0 ${px(1)} ${px(2)} rgb(0 0 0 / 0.08)`
 			: bundle === 1
-				? '0 1px 2px rgb(0 0 0 / 0.12), 0 1px 4px rgb(0 0 0 / 0.08)'
+				? `0 ${px(1)} ${px(2)} rgb(0 0 0 / 0.12), 0 ${px(1)} ${px(4)} rgb(0 0 0 / 0.08)`
 				: bundle === 2
-					? '0 4px 12px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.10)'
-					: '0 12px 32px rgb(0 0 0 / 0.22), 0 3px 8px rgb(0 0 0 / 0.12)';
+					? `0 ${px(4)} ${px(12)} rgb(0 0 0 / 0.16), 0 ${px(1)} ${px(3)} rgb(0 0 0 / 0.10)`
+					: `0 ${px(12)} ${px(32)} rgb(0 0 0 / 0.22), 0 ${px(3)} ${px(8)} rgb(0 0 0 / 0.12)`;
 	return value;
 }
 /** Derives the neutral, accent, and harmonized status hue families. */
@@ -163,13 +180,13 @@ export function createTone(
 	const surfaceList = themeSurfaceBundles.map((bundle) => surfaces[bundle]!.background),
 		sl = surfaces[0]!.background.oklch.l;
 	const d = source.appearance === 'light' ? -1 : 1,
-		i = source.temperament.surfaceInterval,
-		s = source.temperament.stateInterval;
+		i = source.temperament.surfaceIntervals[0],
+		[hoverInterval, activeInterval] = source.temperament.stateIntervals;
 	const role = (offset: number, chroma: number) =>
 		resolveColor({ l: clamp(sl + d * offset, 0.001, 0.999), c: family.c * chroma, h: family.h });
 	const subtle = role(i, 0.35),
-		subtleHover = role(i + s, 0.35),
-		subtleActive = role(i + 2 * s, 0.35),
+		subtleHover = role(i + hoverInterval, 0.35),
+		subtleActive = role(i + activeInterval, 0.35),
 		surface = role(2 * i, 0.55);
 	const boundaryRatio = source.contrast === 'more' ? 4.5 : 3,
 		textRatio = source.contrast === 'more' ? 7 : 4.5;
@@ -205,7 +222,7 @@ export function createTone(
 	const solidDirection = solidPair.onSolid.oklch.l > 0.5 ? -1 : 1;
 	const solidHover = resolveSolid(
 		{
-			l: clamp(solidPair.solid.oklch.l + solidDirection * s, 0.001, 0.999),
+			l: clamp(solidPair.solid.oklch.l + solidDirection * hoverInterval, 0.001, 0.999),
 			c: family.c,
 			h: family.h
 		},
@@ -214,7 +231,7 @@ export function createTone(
 	).solid;
 	const solidActive = resolveSolid(
 		{
-			l: clamp(solidPair.solid.oklch.l + solidDirection * 2 * s, 0.001, 0.999),
+			l: clamp(solidPair.solid.oklch.l + solidDirection * activeInterval, 0.001, 0.999),
 			c: family.c,
 			h: family.h
 		},

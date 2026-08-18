@@ -17,6 +17,7 @@ export type DocsThemeSettings = {
 	motion: 'system' | 'full' | 'reduced';
 };
 
+/** Name of one independently persisted documentation theme axis. */
 export type ThemeSettingName = keyof DocsThemeSettings;
 
 /** The theme preference and mutation operation shared by the docs shell. */
