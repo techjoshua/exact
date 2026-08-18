@@ -11,12 +11,12 @@ import {
 
 const defaultSettings: DocsThemeSettings = {
 	preference: 'system',
-	tonic: 'teal',
-	temperament: 'restrained',
+	tonic: 'blue',
+	temperament: 'balanced',
 	density: 'comfortable',
 	shape: 'soft',
-	depth: 'bordered',
-	typography: 'system',
+	depth: 'elevated',
+	typography: 'humanist',
 	contrast: 'system',
 	motion: 'system'
 };
