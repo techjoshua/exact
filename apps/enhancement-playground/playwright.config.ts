@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
 	testDir: './e2e',
 	outputDir: '../../.tmp/playwright/theme-lab',
-	grep: /changes tab content|hold confirmation|released orb|physics walls|reactively republishes|renders every temperament|lets Chromium paint/,
+	grep: /changes tab content|hold confirmation|preview actions|released orb|physics walls|reactively republishes|renders every temperament|lets Chromium paint/,
 	snapshotPathTemplate: '../docs/e2e/{testFileName}-snapshots/{arg}-{projectName}-{platform}{ext}',
 	fullyParallel: false,
 	timeout: 90_000,

@@ -82,6 +82,27 @@ test('uses an on-solid foreground while hold confirmation is filled', async ({ p
 		.toBe(true);
 });
 
+test('animates hover and focus preview actions in both directions', async ({ page }) => {
+	const preview = page.locator('.preview-card');
+	const actions = preview.locator('.preview-actions');
+	await preview.focus();
+	await expect(actions).toBeVisible();
+	const retainedFor = await preview.evaluate((element: HTMLElement) => {
+		const started = performance.now();
+		return new Promise<number>((resolve) => {
+			const observer = new MutationObserver(() => {
+				if (element.querySelector('.preview-actions')) return;
+				observer.disconnect();
+				resolve(performance.now() - started);
+			});
+			observer.observe(element, { childList: true, subtree: true });
+			element.blur();
+		});
+	});
+	expect(retainedFor).toBeGreaterThanOrEqual(100);
+	await expect(actions).toHaveCount(0);
+});
+
 test('carries sampled drag velocity into the released orb', async ({ page }) => {
 	await page.getByRole('button', { name: 'Reset position' }).click();
 	const orb = page.getByRole('button', { name: 'Movable physics orb' });
