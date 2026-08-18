@@ -1,4 +1,12 @@
 import type { Child, Component } from '@exactjs/core';
+import {
+	parseStoredThemeAppearance,
+	persistThemeAppearance,
+	resolveThemeAppearance,
+	themeAppearanceStorageKey,
+	toggleThemeAppearance,
+	type EffectiveThemeAppearance
+} from '@exactjs/app-theme-preference';
 import { _ } from '@exactjs/jsx';
 import { builtInTemperaments, builtInThemeKeys } from '@exactjs/theme';
 import {
@@ -34,7 +42,10 @@ const optionValues = {
 } as const;
 
 function persistTheme(settings: Readonly<DocsThemeSettings>) {
-	localStorage.setItem('exact-docs-theme-settings', JSON.stringify(settings));
+	localStorage.setItem(
+		'exact-docs-theme-settings',
+		JSON.stringify({ ...settings, preference: 'system' })
+	);
 	localStorage.removeItem('exact-docs-theme');
 }
 
@@ -70,39 +81,70 @@ function applyRootColorScheme(preference: DocsThemeSettings['preference']) {
 
 /** Owns theme persistence and provides the reactive preference to descendants. */
 export function ThemeProvider(
-	this: Component<DocsThemeSettings>,
+	this: Component<DocsThemeSettings & { systemAppearance: EffectiveThemeAppearance }>,
 	props: { children?: Child | Child[] }
 ) {
 	Object.assign(this.state, defaultSettings);
+	this.state.systemAppearance = 'light';
 	const state = this.state;
 	const theme: ThemeContextValue = {
 		get settings() {
 			return state;
 		},
+		get effectiveAppearance() {
+			return resolveThemeAppearance(state.preference, state.systemAppearance);
+		},
 		setSetting(name, value) {
 			Object.assign(state, { [name]: value });
 			persistTheme(state);
-			if (name === 'preference') applyRootColorScheme(state.preference);
+			if (name === 'preference') {
+				persistThemeAppearance(state.preference);
+				applyRootColorScheme(state.preference);
+			}
+		},
+		toggleAppearance() {
+			const preference = toggleThemeAppearance(
+				resolveThemeAppearance(state.preference, state.systemAppearance),
+				state.systemAppearance
+			);
+			state.preference = preference;
+			persistThemeAppearance(preference);
+			persistTheme(state);
+			applyRootColorScheme(preference);
 		}
 	};
 	this.setContext(ThemeContext, theme);
 
 	this.onMount(({ signal }) => {
 		const stored = parseSettings(localStorage.getItem('exact-docs-theme-settings'));
-		if (stored) Object.assign(state, stored);
-		else {
+		if (stored) {
+			Object.assign(state, stored);
+			if (!localStorage.getItem(themeAppearanceStorageKey) && stored.preference !== 'system') {
+				persistThemeAppearance(stored.preference);
+			}
+		} else {
 			const legacyPreference = localStorage.getItem('exact-docs-theme');
 			if (legacyPreference && isThemePreference(legacyPreference)) {
 				state.preference = legacyPreference;
+				persistThemeAppearance(legacyPreference);
 				persistTheme(state);
 			}
 		}
 
+		state.preference = parseStoredThemeAppearance(localStorage.getItem(themeAppearanceStorageKey));
 		const systemAppearance = matchMedia('(prefers-color-scheme: dark)');
 		const syncSystemAppearance = () => {
+			state.systemAppearance = systemAppearance.matches ? 'dark' : 'light';
 			if (state.preference === 'system') applyRootColorScheme('system');
 		};
+		const syncStoredAppearance = (event: StorageEvent) => {
+			if (event.key !== themeAppearanceStorageKey) return;
+			state.preference = parseStoredThemeAppearance(event.newValue);
+			applyRootColorScheme(state.preference);
+		};
 		systemAppearance.addEventListener('change', syncSystemAppearance, { signal });
+		window.addEventListener('storage', syncStoredAppearance, { signal });
+		syncSystemAppearance();
 		applyRootColorScheme(state.preference);
 		signal.addEventListener(
 			'abort',

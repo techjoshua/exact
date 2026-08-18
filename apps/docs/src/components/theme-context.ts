@@ -1,5 +1,6 @@
 import { createContext } from '@exactjs/core';
 import type { BuiltInTemperament, BuiltInThemeKey, TypographyPreset } from '@exactjs/theme';
+import type { EffectiveThemeAppearance } from '@exactjs/app-theme-preference';
 
 /** A persisted documentation color preference or delegation to the operating system. */
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -23,7 +24,9 @@ export type ThemeSettingName = keyof DocsThemeSettings;
 /** The theme preference and mutation operation shared by the docs shell. */
 export type ThemeContextValue = {
 	readonly settings: Readonly<DocsThemeSettings>;
+	readonly effectiveAppearance: EffectiveThemeAppearance;
 	setSetting<Name extends ThemeSettingName>(name: Name, value: DocsThemeSettings[Name]): void;
+	toggleAppearance(): void;
 };
 
 /** Shares the current documentation theme and its persistent mutation operation. */
