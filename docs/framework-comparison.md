@@ -62,6 +62,11 @@ Interaction latency is measured from the browser's captured click to the corresp
 automation actionability waits and assertion polling are therefore excluded, while interaction-triggered
 hydration remains included.
 
+Controlled FCP samples require cross-origin isolation so Chromium does not coarsen presentation timestamps to
+four-millisecond boundaries. The standard paint entry `startTime` remains the canonical FCP measurement. When the
+benchmark Chromium exposes them, the same entry's experimental `paintTime` and `presentationTime` are retained as
+separate render-completion and frame-presentation measurements; unsupported values are reported as `null`.
+
 Heap samples are taken after semantic readiness, one rendering opportunity, and explicit garbage collection.
 They are labeled as post-GC retained heap so ordinary allocation and collection timing is not mistaken for
 cross-sample growth. Dedicated repeated-lifecycle profiling is still required to diagnose an actual leak.
