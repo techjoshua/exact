@@ -108,6 +108,25 @@ export function medianNativeCorpusResult(results) {
 	];
 }
 
+/** Returns per-project median timings so one noisy project cannot dominate an otherwise stable run. */
+export function medianNativeProjectElapsedMs(results) {
+	if (results.length === 0) throw new Error('native corpus measurement requires a sample');
+	const elapsedByConfig = new Map();
+	for (const result of results) {
+		for (const project of result.projects ?? []) {
+			const elapsed = elapsedByConfig.get(project.config) ?? [];
+			elapsed.push(project.elapsedMs);
+			elapsedByConfig.set(project.config, elapsed);
+		}
+	}
+	return new Map(
+		[...elapsedByConfig].map(([config, elapsed]) => [
+			config,
+			[...elapsed].sort((left, right) => left - right)[Math.floor(elapsed.length / 2)]
+		])
+	);
+}
+
 /** Reads the tracked native compiler throughput baseline. */
 export async function readNativeCompilerCorpusBaseline(root) {
 	try {

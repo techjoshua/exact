@@ -11,6 +11,7 @@ import { discoverNativeCompilerCorpus } from './native-compiler-corpus/discovery
 import {
 	nativeBaselineComparison,
 	medianNativeCorpusResult,
+	medianNativeProjectElapsedMs,
 	positiveInteger,
 	readNativeCompilerCorpusBaseline,
 	writeNativeCompilerCorpusBaseline
@@ -81,7 +82,13 @@ for (let sample = 0; sample < sampleCount; sample += 1) {
 	samples.push({ ...result, elapsedMs: performance.now() - started });
 }
 const result = medianNativeCorpusResult(samples);
-const incrementalResult = await runNativeCorpus({ ...corpusInput, mode: 'incremental' });
+const projectElapsedByConfig = medianNativeProjectElapsedMs(samples);
+const incrementalSamples = [];
+for (let sample = 0; sample < sampleCount; sample += 1) {
+	incrementalSamples.push(await runNativeCorpus({ ...corpusInput, mode: 'incremental' }));
+}
+const incrementalResult = medianNativeCorpusResult(incrementalSamples);
+const incrementalElapsedByConfig = medianNativeProjectElapsedMs(incrementalSamples);
 const incrementalByConfig = new Map(
 	incrementalResult.projects.map((project) => [project.config, project])
 );
@@ -94,8 +101,13 @@ const counters = result.counters;
 const projects = result.projects
 	.map((project) => ({
 		...project,
+		// Project guards need their own medians: selecting by aggregate wall time can retain an
+		// unrelated per-project scheduling outlier and falsely fail an otherwise stable corpus.
+		elapsedMs: projectElapsedByConfig.get(project.config) ?? project.elapsedMs,
 		config: path.relative(root, project.config).replaceAll('\\', '/'),
-		incrementalElapsedMs: incrementalByConfig.get(project.config)?.elapsedMs,
+		incrementalElapsedMs:
+			incrementalElapsedByConfig.get(project.config) ??
+			incrementalByConfig.get(project.config)?.elapsedMs,
 		incrementalPhaseMicroseconds: incrementalByConfig.get(project.config)?.phaseMicroseconds,
 		incrementalCounters: incrementalByConfig.get(project.config)?.counters
 	}))
