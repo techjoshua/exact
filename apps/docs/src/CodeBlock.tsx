@@ -1,7 +1,7 @@
 import { TaskContext, type Component } from '@exactjs/core';
-import { deriveTheme, ThemeContext } from '@exactjs/theme';
+import { ThemeContext } from '@exactjs/theme';
 import { tokenize, type CodeLanguage } from './code-highlighting.js';
-import { vividSyntaxTheme } from './syntax-theme.js';
+import { deriveSyntaxPalette } from './syntax-theme.js';
 
 type CodeBlockProps = {
 	source: string;
@@ -17,7 +17,7 @@ type CodeBlockState = { copied: boolean };
 export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps) {
 	this.state.copied = false;
 	const theme = this.getContext(ThemeContext);
-	const syntax = this.reactive(() => deriveTheme(theme.current, vividSyntaxTheme, {}));
+	const syntax = this.reactive(() => deriveSyntaxPalette(theme.current, 'follow'));
 	const language = props.language ?? 'tsx';
 	const lines = tokenize(props.source.trim(), language);
 	const highlighted = new Set(props.highlightLines ?? []);

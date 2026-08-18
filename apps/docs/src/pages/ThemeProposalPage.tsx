@@ -52,8 +52,8 @@ export function ThemeProposalPage(this: Component<{}>) {
 				theme scope for its persisted appearance and customization preferences, including
 				browser-owned chrome such as scrollbars. Its cards, dialogs, navigation, demos, callouts,
 				and code blocks use semantic theme enhancements, so depth and the other source axes remain
-				visible throughout the app. Code blocks derive a local vivid, contrast-safe palette from the
-				active semantic hues without breaking monochrome temperament.
+				visible throughout the app. Code blocks derive a local vivid, contrast-safe palette that
+				follows the selected appearance by default without breaking monochrome temperament.
 			</Callout>
 
 			<section>

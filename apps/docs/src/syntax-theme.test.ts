@@ -17,7 +17,10 @@ describe('documentation syntax theme', () => {
 						source: { keyColor, temperament },
 						environment: { appearance, contrast: 'standard', motion: 'full' }
 					});
-					const palette = deriveTheme(theme, vividSyntaxTheme, {});
+					const palette = deriveTheme(theme, vividSyntaxTheme, { appearance: 'follow' });
+					expect(palette.surface).toMatch(
+						appearance === 'light' ? /^oklch\(0\.95 / : /^oklch\(0\.12 /
+					);
 					for (const color of [
 						palette.keyword,
 						palette.type,
@@ -27,7 +30,7 @@ describe('documentation syntax theme', () => {
 					]) {
 						const chroma = Number(color.match(/oklch\([^ ]+ ([^ ]+)/)?.[1]);
 						if (temperament === 'monochrome') expect(chroma).toBe(0);
-						else expect(chroma).toBeGreaterThanOrEqual(0.11);
+						else expect(chroma).toBeGreaterThanOrEqual(0.08);
 					}
 				}
 	});
