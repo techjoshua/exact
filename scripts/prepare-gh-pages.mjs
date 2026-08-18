@@ -7,6 +7,7 @@ const sudokuRoot = resolve(root, 'apps/sudoku/dist');
 const puzzleFoundryRoot = resolve(root, 'apps/puzzle-generator/dist');
 const hostedApplications = new Map([
 	['enhancements', resolve(root, 'apps/enhancement-playground/dist')],
+	['intl', resolve(root, 'apps/intl-testbed/dist')],
 	['kanban', resolve(root, 'apps/kanban/dist')],
 	['workbench', resolve(root, 'apps/workbench/dist')]
 ]);
@@ -45,6 +46,7 @@ for (const file of htmlFiles) {
 const expectedFiles = [
 	'enhancements',
 	'index.html',
+	'intl',
 	'kanban',
 	'puzzle-foundry.html',
 	...sudokuFiles,

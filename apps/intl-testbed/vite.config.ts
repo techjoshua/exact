@@ -6,6 +6,7 @@ const catalogs = JSON.parse(
 ) as unknown[];
 
 export default {
+	base: './',
 	plugins: [
 		exact({
 			applicationRoot: import.meta.dirname,

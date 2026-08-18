@@ -23,6 +23,8 @@ Run `npm run dev:intl` from the repository root. The generated, checked-in
 `locales/en-US.xlf` is the targetless set of source-locale messages a developer sends for
 translation. The
 locale-named XLIFF files are the returned bilingual catalogs and the translation source of truth.
+The GitHub Pages deployment also publishes the production build under `intl/`, linked from the
+documentation application.
 Before development and production builds, synchronization refreshes their analyzer-derived source
 units while preserving translated targets and history;
 `npm --workspace @exactjs/sample-intl-testbed test` checks that they are current.
