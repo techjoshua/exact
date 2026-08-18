@@ -108,7 +108,7 @@ export function MotionControls(this: Component<MotionControlsState>) {
 					<span className="tab-label">Activity</span>
 				</button>
 			</div>
-			<div className="tab-panel">
+			<div theme:surface="sunken" className="tab-panel">
 				<Presence when mode="out-in">
 					{this.state.activeTab === 'profile' ? (
 						<div key="profile" motion:apply={slideUp} role="tabpanel">
@@ -148,7 +148,13 @@ export function MotionControls(this: Component<MotionControlsState>) {
 				</div>
 			</Presence>
 			<Presence when={this.state.toastVisible}>
-				<div className="toast" key="saved" role="status" motion:apply={slideLeft}>
+				<div
+					theme:status="success"
+					className="toast"
+					key="saved"
+					role="status"
+					motion:apply={slideLeft}
+				>
 					<span className="toast-icon">✓</span>
 					<div>
 						<strong>Changes saved</strong>

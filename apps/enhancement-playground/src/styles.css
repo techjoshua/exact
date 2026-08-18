@@ -141,12 +141,7 @@ h2 {
 	flex: 0 0 auto;
 }
 
-.primary-button,
-.secondary-button,
-.tab-list button,
-.text-button,
-.hold-button,
-.applause-button {
+.tab-list button {
 	border: 1px solid #31527c;
 	border-radius: 999px;
 	color: #edf5ff;
@@ -154,25 +149,8 @@ h2 {
 	cursor: pointer;
 }
 
-.primary-button,
-.secondary-button,
-.hold-button,
-.applause-button {
-	padding: 10px 16px;
-}
-
 .primary-button {
-	border-color: #38bdf8;
-	color: #061521;
-	background: linear-gradient(135deg, #bdf3ff, #38bdf8);
 	font-weight: 800;
-}
-
-.primary-button:hover,
-.applause-button:hover,
-.hold-button:hover,
-.secondary-button:hover {
-	filter: brightness(1.12);
 }
 
 .control-row {
@@ -224,10 +202,6 @@ h2 {
 .tab-panel {
 	min-height: 106px;
 	margin-top: 14px;
-	border: 1px solid #243d5c;
-	border-radius: 18px;
-	padding: 20px;
-	background: #091725;
 }
 
 .tab-panel strong {
@@ -252,11 +226,6 @@ h2 {
 	align-items: center;
 	gap: 12px;
 	margin-top: 20px;
-	border: 1px solid #2f675d;
-	border-radius: 16px;
-	padding: 13px 15px;
-	background: #0c2929;
-	box-shadow: 0 16px 35px #0005;
 }
 
 .toast-icon {
@@ -286,14 +255,6 @@ h2 {
 
 .lower-grid {
 	margin-top: 14px;
-}
-
-.control-sample,
-.slider-sample {
-	border: 1px solid #243d5c;
-	border-radius: 18px;
-	padding: 18px;
-	background: #091725;
 }
 
 .sample-label,
@@ -347,34 +308,15 @@ h2 {
 	align-items: center;
 	gap: 12px;
 	margin-top: 12px;
-	border: 1px solid transparent;
-	border-radius: 14px;
-	padding: 10px;
 	transition:
 		border-color 150ms,
 		background 150ms;
-}
-
-.preview-card[data-active='true'] {
-	border-color: #35648e;
-	background: #102740;
-	box-shadow: 0 10px 28px #0004;
 }
 
 .preview-actions {
 	display: flex;
 	gap: 6px;
 	margin-left: auto;
-}
-
-.preview-actions button,
-.media-controls button {
-	border: 1px solid #35648e;
-	border-radius: 999px;
-	padding: 5px 9px;
-	color: #bcecff;
-	background: #0b1b2e;
-	cursor: pointer;
 }
 
 .avatar {
@@ -472,13 +414,6 @@ h2 {
 	to {
 		transform: scaleX(1);
 	}
-}
-
-.text-button {
-	border: 0;
-	padding: 4px 7px;
-	color: #7dd3fc;
-	background: transparent;
 }
 
 .media-viewport {
