@@ -23,12 +23,21 @@
 	font-weight: var(--exact-theme-font-weight-strong);
 }
 
+html,
+body,
+#app,
+#app > div,
+.app-theme {
+	min-block-size: 100%;
+}
+
 body {
 	margin: 0;
 }
 
-.exact-theme-scope {
+.app-theme {
 	min-block-size: 100vh;
+	background: var(--exact-theme-canvas);
 }
 
 button,

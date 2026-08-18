@@ -20,7 +20,10 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 	expression *ast.Node,
 	forwardLiveSlot bool,
 ) *ast.Node {
-	if lowering.declarativeRenderDepth > 0 {
+	// A module-owned collection is stable, so values derived only from its callback
+	// parameters do not need subscriptions. Captures from the component are different:
+	// suppressing their wrappers freezes child props at the collection's first render.
+	if lowering.declarativeRenderDepth > 0 && !lowering.hasReactiveComponentCapture(source) {
 		return expression
 	}
 	closure := lowering.reactiveClosure(source)
@@ -54,6 +57,27 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 		})
 	}
 	return value
+}
+
+func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool {
+	for _, read := range lowering.stateReads {
+		if read.Start >= source.Pos() && read.Start+read.Length <= source.End() {
+			return true
+		}
+	}
+	for _, binding := range lowering.bindings {
+		if binding.Provenance != "props" && binding.Provenance != "context" &&
+			binding.Provenance != "derived" && binding.Provenance != "cell" {
+			continue
+		}
+		for _, reference := range binding.References {
+			if reference.Start >= source.Pos() &&
+				reference.Start+reference.Length <= source.End() {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) liveSlotForwarding(source *ast.Node) bool {
