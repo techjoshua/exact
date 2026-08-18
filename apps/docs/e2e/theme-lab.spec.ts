@@ -197,10 +197,8 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	);
 	const dark = await codeThemeReport(codeBlock);
 
-	expect(light.surface).not.toBe(light.neutralSubtle);
-	expect(dark.surface).not.toBe(dark.neutralSubtle);
-	expect(light.surface).toMatch(/^oklch\(0\.95 /);
-	expect(dark.surface).toMatch(/^oklch\(0\.12 /);
+	expect(light.surfaceColor).not.toBe(light.neutralSubtle);
+	expect(dark.surfaceColor).not.toBe(dark.neutralSubtle);
 	expect(light.keyword).not.toBe(light.accentSolidActive);
 	expect(light.keywordChroma).toBeGreaterThanOrEqual(0.08);
 	expect(light.keywordContrast).toBeGreaterThanOrEqual(4.5);
@@ -209,6 +207,7 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	expect(dark.keywordChroma).toBeGreaterThanOrEqual(0.08);
 	expect(dark.keywordContrast).toBeGreaterThanOrEqual(4.5);
 	expect(dark.copyContrast).toBeGreaterThanOrEqual(4.5);
+	expect(dark.surfaceColor).not.toBe(light.surfaceColor);
 	expect(light.rootColorScheme).toBe('light');
 	expect(dark.rootColorScheme).toBe('dark');
 
@@ -261,6 +260,30 @@ test('keeps theme customization inside the viewport and themes article callouts'
 	expect(colors.background).toBe(colors.infoSubtle);
 });
 
+test('clips definition-grid cells to the rounded semantic surface', async ({ page }) => {
+	await page.goto('/#/react-developers');
+	const grid = page.locator('.definition-grid').first();
+	await expect(grid).toBeVisible();
+	const geometry = await grid.evaluate((element) => {
+		const codes = element.querySelectorAll(':scope > code');
+		const first = getComputedStyle(codes[0]!);
+		const last = getComputedStyle(codes[codes.length - 1]!);
+		const container = getComputedStyle(element);
+		return {
+			overflow: container.overflow,
+			radius: container.borderTopLeftRadius,
+			firstTop: first.borderTopWidth,
+			firstLeft: first.borderLeftWidth,
+			lastBottom: last.borderBottomWidth
+		};
+	});
+	expect(geometry.overflow).toBe('hidden');
+	expect(geometry.radius).not.toBe('0px');
+	expect(geometry.firstTop).toBe('0px');
+	expect(geometry.firstLeft).toBe('0px');
+	expect(geometry.lastBottom).toBe('0px');
+});
+
 function themeScope(page: Page, index: number): Locator {
 	return page.locator('.theme-lab-workbench [data-exact-theme]').nth(index);
 }
@@ -275,13 +298,12 @@ async function codeThemeReport(codeBlock: Locator) {
 		const surfaceColor = style.backgroundColor;
 		return {
 			surface: style.getPropertyValue('--code-surface').trim(),
+			surfaceColor,
 			neutralSubtle: style.getPropertyValue('--exact-theme-neutral-subtle').trim(),
 			keyword: style.getPropertyValue('--syntax-keyword').trim(),
 			accentText: style.getPropertyValue('--exact-theme-accent-text').trim(),
 			accentSolidActive: style.getPropertyValue('--exact-theme-accent-solid-active').trim(),
-			keywordChroma: Number(
-				style.getPropertyValue('--syntax-keyword').match(/oklch\([^ ]+ ([^ ]+)/)?.[1]
-			),
+			keywordChroma: Number(keywordColor.match(/oklch\([^ ]+ ([^ ]+)/)?.[1]),
 			keywordColor,
 			keywordContrast: contrastRatio(keywordColor, surfaceColor),
 			copyContrast: contrastRatio(copyColor, surfaceColor),

@@ -1,5 +1,5 @@
 import { TaskContext, type Component } from '@exactjs/core';
-import { ThemeContext } from '@exactjs/theme';
+import { ThemeContext, type ResolvedTheme } from '@exactjs/theme';
 import { tokenize, type CodeLanguage } from './code-highlighting.js';
 import { deriveSyntaxPalette } from './syntax-theme.js';
 
@@ -17,7 +17,6 @@ type CodeBlockState = { copied: boolean };
 export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps) {
 	this.state.copied = false;
 	const theme = this.getContext(ThemeContext);
-	const syntax = this.reactive(() => deriveSyntaxPalette(theme.current, 'follow'));
 	const language = props.language ?? 'tsx';
 	const lines = tokenize(props.source.trim(), language);
 	const highlighted = new Set(props.highlightLines ?? []);
@@ -33,26 +32,29 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 		this.state.copied = true;
 		clearCopiedFeedback();
 	};
-	const syntaxStyle = () => {
-		const current = syntax.get();
+	const syntaxStyle = (resolvedTheme: ResolvedTheme) => {
+		const light = deriveSyntaxPalette(resolvedTheme, 'light'),
+			dark = deriveSyntaxPalette(resolvedTheme, 'dark'),
+			adaptive = (lightColor: string, darkColor: string) =>
+				`light-dark(${lightColor}, ${darkColor})`;
 		return {
-			backgroundColor: current.surface,
-			'--code-surface': current.surface,
-			'--code-surface-raised': current.surfaceRaised,
-			'--code-text': current.text,
-			'--code-muted': current.muted,
-			'--syntax-keyword': current.keyword,
-			'--syntax-type': current.type,
-			'--syntax-function': current.function,
-			'--syntax-string': current.string,
-			'--syntax-number': current.number,
-			'--syntax-tag': current.tag,
-			'--syntax-property': current.property,
-			'--syntax-command': current.command,
-			'--syntax-bracket': current.bracket,
-			'--syntax-comment': current.comment,
-			'--syntax-operator': current.operator,
-			'--syntax-invalid': current.invalid
+			backgroundColor: adaptive(light.surface, dark.surface),
+			'--code-surface': adaptive(light.surface, dark.surface),
+			'--code-surface-raised': adaptive(light.surfaceRaised, dark.surfaceRaised),
+			'--code-text': adaptive(light.text, dark.text),
+			'--code-muted': adaptive(light.muted, dark.muted),
+			'--syntax-keyword': adaptive(light.keyword, dark.keyword),
+			'--syntax-type': adaptive(light.type, dark.type),
+			'--syntax-function': adaptive(light.function, dark.function),
+			'--syntax-string': adaptive(light.string, dark.string),
+			'--syntax-number': adaptive(light.number, dark.number),
+			'--syntax-tag': adaptive(light.tag, dark.tag),
+			'--syntax-property': adaptive(light.property, dark.property),
+			'--syntax-command': adaptive(light.command, dark.command),
+			'--syntax-bracket': adaptive(light.bracket, dark.bracket),
+			'--syntax-comment': adaptive(light.comment, dark.comment),
+			'--syntax-operator': adaptive(light.operator, dark.operator),
+			'--syntax-invalid': adaptive(light.invalid, dark.invalid)
 		};
 	};
 
@@ -62,14 +64,14 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 			className="code-block"
 			className:code-block--compact={props.compact}
 		>
-			<figcaption className="code-toolbar" style={syntaxStyle()}>
+			<figcaption className="code-toolbar" style={syntaxStyle(theme.current)}>
 				<span>
 					{props.title ?? 'Example'} <small>{language}</small>
 				</span>
 				<button
 					theme:action="quiet"
 					className="copy-button"
-					style={{ color: syntaxStyle()['--code-text'] }}
+					style={{ color: syntaxStyle(theme.current)['--code-text'] }}
 					type="button"
 					onClick={() => void copy()}
 				>
@@ -78,7 +80,7 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 			</figcaption>
 			<pre
 				theme:text="code"
-				style={syntaxStyle()}
+				style={syntaxStyle(theme.current)}
 				tabindex="0"
 				aria-label={`${props.title ?? 'Code'} in ${language}`}
 			>

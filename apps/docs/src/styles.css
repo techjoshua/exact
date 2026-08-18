@@ -1056,8 +1056,14 @@ a.topic-card:hover {
 }
 
 .definition-grid code {
+	border: 0 !important;
 	border-right: 1px solid var(--border) !important;
+	border-bottom: 1px solid var(--border) !important;
 	border-radius: 0 !important;
+}
+
+.definition-grid > :is(:nth-last-child(1), :nth-last-child(2)) {
+	border-bottom: 0 !important;
 }
 
 .definition-grid p {

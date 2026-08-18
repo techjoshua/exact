@@ -24,4 +24,11 @@ describe('documentation theme isolation', () => {
 		expect(stylesheet).toContain('--syntax-invalid: var(--exact-theme-danger-solid)');
 		expect(stylesheet).not.toMatch(/--syntax-(?:keyword|type|function|string|number):\s*#/);
 	});
+
+	it('keeps definition-grid code cells inside the rounded surface boundary', () => {
+		expect(stylesheet).toMatch(
+			/\.definition-grid code\s*\{[^}]*border: 0 !important;[^}]*border-right:[^}]*border-bottom:/
+		);
+		expect(stylesheet).toContain('.definition-grid > :is(:nth-last-child(1), :nth-last-child(2))');
+	});
 });
