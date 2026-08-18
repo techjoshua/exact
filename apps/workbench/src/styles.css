@@ -25,11 +25,6 @@ textarea {
 }
 
 button {
-	border: 0;
-	border-radius: 6px;
-	padding: 9px 11px;
-	background: var(--exact-theme-accent-solid);
-	color: var(--exact-theme-accent-on-solid);
 	cursor: pointer;
 }
 
@@ -86,11 +81,6 @@ input,
 select,
 textarea {
 	width: 100%;
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
-	border-radius: 6px;
-	padding: 9px 11px;
-	background: var(--exact-theme-surface-background);
-	color: var(--exact-theme-surface-foreground);
 }
 
 textarea {
@@ -100,21 +90,7 @@ textarea {
 .segmented {
 	display: inline-grid;
 	grid-template-columns: 1fr 1fr;
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
-	border-radius: 6px;
 	overflow: hidden;
-	background: white;
-}
-
-.segmented button {
-	border-radius: 0;
-	background: white;
-	color: var(--exact-theme-surface-foreground-muted);
-}
-
-.segmented button.active {
-	background: var(--exact-theme-neutral-solid);
-	color: white;
 }
 
 .new-task {
@@ -136,24 +112,9 @@ textarea {
 	gap: 12px;
 }
 
-.column,
-.detail-panel,
-.activity-panel,
-.error-panel {
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 8px;
-	background: white;
-	box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
-}
-
 .column {
 	min-height: 460px;
 	padding: 12px;
-	background: var(--exact-theme-neutral-subtle);
-}
-
-.column.empty {
-	background: var(--exact-theme-surface-background);
 }
 
 .column header,
@@ -182,10 +143,7 @@ textarea {
 }
 
 .task-card {
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 8px;
 	padding: 12px;
-	background: white;
 	min-width: 0;
 	overflow: hidden;
 }
@@ -200,9 +158,6 @@ textarea {
 .task-title {
 	display: block;
 	width: 100%;
-	padding: 0;
-	background: transparent;
-	color: var(--exact-theme-surface-foreground);
 	font-weight: 700;
 	text-align: left;
 	overflow-wrap: anywhere;
@@ -221,9 +176,6 @@ textarea {
 	justify-self: start;
 	width: fit-content;
 	margin-bottom: 8px;
-	border-radius: 999px;
-	padding: 3px 7px;
-	font-size: 12px;
 }
 
 .task-card.compact .task-priority {
@@ -265,50 +217,11 @@ textarea {
 	margin-top: 10px;
 }
 
-.meta-row span,
-.label-row span {
-	border-radius: 999px;
-	padding: 3px 7px;
-	background: var(--exact-theme-neutral-subtle);
-	color: var(--exact-theme-neutral-text);
-	font-size: 12px;
-}
-
-.priority.high {
-	background: var(--exact-theme-danger-subtle);
-	color: var(--exact-theme-danger-text);
-}
-
-.priority.medium {
-	background: var(--exact-theme-warning-subtle);
-	color: var(--exact-theme-warning-text);
-}
-
-.priority.low {
-	background: var(--exact-theme-success-subtle);
-	color: var(--exact-theme-success-text);
-}
-
 .move-row button {
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
 	min-width: 0;
-	padding: 6px 7px;
-	background: white;
-	color: var(--exact-theme-surface-foreground-muted);
 	font-size: 12px;
 	line-height: 1.2;
 	white-space: nowrap;
-}
-
-.move-row button.active {
-	border-color: var(--exact-theme-neutral-solid);
-	background: var(--exact-theme-neutral-solid);
-	color: white;
-}
-
-.quiet-button {
-	background: var(--exact-theme-neutral-subtle);
-	color: var(--exact-theme-neutral-text);
 }
 
 .fill-button {
@@ -373,13 +286,7 @@ textarea {
 	margin-top: 13px;
 }
 
-.label-row.editable button,
-.label-row.editable span {
-	border: 0;
-	border-radius: 999px;
-	padding: 5px 8px;
-	background: var(--exact-theme-neutral-subtle);
-	color: var(--exact-theme-neutral-text);
+.label-row.editable button {
 	font-size: 12px;
 }
 
@@ -438,11 +345,7 @@ textarea {
 .command-palette,
 .import-dialog {
 	width: min(720px, 100%);
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 8px;
 	padding: 16px;
-	background: white;
-	box-shadow: 0 24px 70px rgba(16, 24, 40, 0.24);
 }
 
 .command-palette header,
@@ -468,19 +371,7 @@ textarea {
 
 .command-list button,
 .command-grid button {
-	background: var(--exact-theme-surface-background);
-	color: var(--exact-theme-surface-foreground);
 	text-align: left;
-}
-
-.command-list button:hover,
-.command-grid button:hover {
-	background: var(--exact-theme-neutral-subtle);
-}
-
-.command-list .danger-command {
-	background: var(--exact-theme-danger-subtle);
-	color: var(--exact-theme-danger-text);
 }
 
 .command-section {
@@ -510,11 +401,6 @@ textarea {
 
 .form-error {
 	margin-top: 10px;
-	border: var(--exact-theme-border-width) solid var(--exact-theme-danger-border);
-	border-radius: 6px;
-	padding: 9px 11px;
-	background: var(--exact-theme-danger-subtle);
-	color: var(--exact-theme-danger-text);
 }
 
 .error-panel p {
@@ -522,10 +408,7 @@ textarea {
 }
 
 .error-item {
-	border: var(--exact-theme-border-width) solid var(--exact-theme-danger-border);
-	border-radius: 8px;
 	padding: 12px;
-	background: var(--exact-theme-danger-subtle);
 }
 
 .error-item pre {

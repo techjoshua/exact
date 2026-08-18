@@ -32,7 +32,7 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 					value={props.query}
 					onInput={(event) => workbench.setQuery(event.currentTarget.value)}
 				/>
-				<div className="segmented" role="group" aria-label="View mode">
+				<div theme:surface="sunken" className="segmented" role="group" aria-label="View mode">
 					<button
 						theme:selection="strong"
 						type="button"
@@ -50,12 +50,7 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 						List
 					</button>
 				</div>
-				<button
-					theme:action="quiet"
-					type="button"
-					className="quiet-button"
-					onClick={() => workbench.openPalette()}
-				>
+				<button theme:action="quiet" type="button" onClick={() => workbench.openPalette()}>
 					Actions
 				</button>
 				<form
