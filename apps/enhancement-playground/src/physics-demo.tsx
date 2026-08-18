@@ -70,6 +70,7 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 	}
 	const downward = uniformGravity({ x: 0, y: 245 });
 	let dragOrigin = { x: 0, y: 0 };
+	let releaseVelocity = { x: 0, y: 0 };
 	const directManipulation = defineGesture({
 		name: 'orb-direct-manipulation',
 		semantics: 'control',
@@ -77,10 +78,15 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 			threshold: 2,
 			onStart() {
 				dragOrigin = { ...orb.pose.position };
+				releaseVelocity = { x: 0, y: 0 };
 				orb.setKinematic(true);
 			},
 			onMove(sample) {
 				const scale = Math.max(0.01, stageScale);
+				releaseVelocity = {
+					x: sample.velocity.x / scale,
+					y: sample.velocity.y / scale
+				};
 				orb.setPose({
 					position: {
 						x: dragOrigin.x + sample.delta.x / scale,
@@ -90,8 +96,15 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 			},
 			onEnd() {
 				orb.setKinematic(false);
+				// Preserve the user's final sampled drag velocity when simulation resumes. Physics accepts
+				// impulse (momentum), so scale the desired world velocity by the body's mass.
+				orb.applyImpulse({
+					x: releaseVelocity.x * orb.mass,
+					y: releaseVelocity.y * orb.mass
+				});
 			},
 			onCancel() {
+				releaseVelocity = { x: 0, y: 0 };
 				orb.setKinematic(false);
 			}
 		},
@@ -137,8 +150,9 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 				<span className="package-label">motion · gestures · physics · gravity</span>
 			</div>
 			<p className="demo-description">
-				Drag or keyboard-move the orb, then release it back to gravity. Motion owns presence,
-				gestures own intent, physics owns pose and collision, and gravity contributes force.
+				Drag and throw the orb, or move it by keyboard, then release it back to gravity. Motion
+				owns presence, gestures own intent and release velocity, physics owns pose and collision,
+				and gravity contributes force.
 			</p>
 			<div className="control-row">
 				<button

@@ -7,7 +7,8 @@ A practical eXact gallery showing how optional renderer enhancements improve fam
   conditional retention is structurally meaningful;
 - gestures recognizes press, hover/focus intent, long press, drag and keyboard sliders, and
   pan/pinch media navigation with explicit desktop zoom and rotation equivalents;
-- physics owns a fixed-step, directly manipulated body with playful bounded collisions; and
+- physics owns a fixed-step, directly manipulated and throwable body with playful bounded
+  collisions; and
 - gravity contributes a deliberately lively force through physics context.
 
 The same deployed application owns Theme Lab, the interactive acceptance surface for generated

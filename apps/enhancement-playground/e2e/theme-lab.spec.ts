@@ -82,6 +82,27 @@ test('uses an on-solid foreground while hold confirmation is filled', async ({ p
 		.toBe(true);
 });
 
+test('carries sampled drag velocity into the released orb', async ({ page }) => {
+	await page.getByRole('button', { name: 'Reset position' }).click();
+	const orb = page.getByRole('button', { name: 'Movable physics orb' });
+	const initial = await orb.boundingBox();
+	if (initial === null) throw new Error('Physics orb has no rendered bounds');
+	const center = { x: initial.x + initial.width / 2, y: initial.y + initial.height / 2 };
+	await page.mouse.move(center.x, center.y);
+	await page.mouse.down();
+	await page.mouse.move(center.x + 10, center.y, { steps: 2 });
+	await page.waitForTimeout(24);
+	await page.mouse.move(center.x + 30, center.y, { steps: 2 });
+	const releasedAt = await orb.boundingBox();
+	await page.mouse.up();
+	await page.waitForTimeout(40);
+	const continuedAt = await orb.boundingBox();
+	if (releasedAt === null || continuedAt === null) {
+		throw new Error('Physics orb disappeared during drag release');
+	}
+	expect(continuedAt.x).toBeGreaterThan(releasedAt.x + 4);
+});
+
 test('reactively republishes root and inherited nested themes without replacing content', async ({
 	page
 }) => {
