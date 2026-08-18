@@ -162,7 +162,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 			</div>
 
 			<div className="gesture-grid">
-				<div className="control-sample">
+				<div theme:surface="sunken" className="control-sample">
 					<span className="sample-label">Press</span>
 					<button theme:action="primary" className="applause-button" gesture:apply={pressControl}>
 						<span
@@ -179,9 +179,11 @@ export function GestureControls(this: Component<GestureControlsState>) {
 							: `Recognized one ${this.state.lastPress} press`}
 					</small>
 				</div>
-				<div className="control-sample">
+				<div theme:surface="sunken" className="control-sample">
 					<span className="sample-label">Hover + focus</span>
 					<div
+						theme:surface="raised"
+						theme:interactive
 						className="preview-card"
 						data-active={this.state.hovered}
 						tabIndex={0}
@@ -206,7 +208,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 				</div>
 			</div>
 
-			<div className="slider-sample">
+			<div theme:surface="sunken" className="slider-sample">
 				<div className="slider-labels">
 					<span>Drag + keyboard slider</span>
 					<strong>{this.state.slider}%</strong>
@@ -227,7 +229,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 			</div>
 
 			<div className="gesture-grid lower-grid">
-				<div className="control-sample">
+				<div theme:surface="sunken" className="control-sample">
 					<span className="sample-label">Long press</span>
 					<button
 						theme:action="secondary"
@@ -242,7 +244,7 @@ export function GestureControls(this: Component<GestureControlsState>) {
 					</button>
 					<small>Hold while the bar fills; keyboard activation remains immediate</small>
 				</div>
-				<div className="control-sample media-sample">
+				<div theme:surface="sunken" className="control-sample media-sample">
 					<div className="sample-title-row">
 						<span className="sample-label">Pan + pinch / twist</span>
 						<button theme:action="quiet" className="text-button" onClick={resetMedia}>
@@ -266,18 +268,38 @@ export function GestureControls(this: Component<GestureControlsState>) {
 						</div>
 					</div>
 					<div className="media-controls" aria-label="Desktop map controls">
-						<button aria-label="Zoom out" onClick={() => zoomMedia(-0.2)}>
+						<button
+							theme:action="quiet"
+							theme:size="small"
+							aria-label="Zoom out"
+							onClick={() => zoomMedia(-0.2)}
+						>
 							−
 						</button>
 						<span>{Math.round(this.state.zoom * 100)}%</span>
-						<button aria-label="Zoom in" onClick={() => zoomMedia(0.2)}>
+						<button
+							theme:action="quiet"
+							theme:size="small"
+							aria-label="Zoom in"
+							onClick={() => zoomMedia(0.2)}
+						>
 							+
 						</button>
-						<button aria-label="Rotate left" onClick={() => rotateMedia(-Math.PI / 12)}>
+						<button
+							theme:action="quiet"
+							theme:size="small"
+							aria-label="Rotate left"
+							onClick={() => rotateMedia(-Math.PI / 12)}
+						>
 							↶
 						</button>
 						<span>{Math.round((this.state.rotation * 180) / Math.PI)}°</span>
-						<button aria-label="Rotate right" onClick={() => rotateMedia(Math.PI / 12)}>
+						<button
+							theme:action="quiet"
+							theme:size="small"
+							aria-label="Rotate right"
+							onClick={() => rotateMedia(Math.PI / 12)}
+						>
 							↷
 						</button>
 					</div>
