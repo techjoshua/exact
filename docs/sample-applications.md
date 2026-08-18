@@ -4,11 +4,14 @@ The repository's native applications exercise eXact as complete products rather 
 examples. They use durable component instances, direct observable state, precise compiler-owned
 updates, and the framework's normal build and runtime adapters.
 
-## Hosted demo
+## Hosted applications
 
 [`apps/sudoku`](../apps/sudoku) is an installable interactive Sudoku game with persistence,
 responsive controls, theming, and optional gesture and motion enhancements. It is published with
 the documentation site at `sudoku.html`.
+
+The Enhancement Playground and Theme Lab, Kanban, Project Workbench, and Intl Testbed are also
+published with the documentation site under `enhancements/`, `kanban/`, `workbench/`, and `intl/`.
 
 ## Repository examples
 
@@ -26,5 +29,6 @@ the documentation site at `sudoku.html`.
   French, Japanese, and Arabic to exercise catalogs, structural reordering, formatting, and
   diagnostics.
 
-Only Sudoku Atelier is presented through the documentation application. The remaining applications
-are local repository examples and should not be presented as navigable documentation routes.
+The documentation application links to every hosted application. Shipping Calculator,
+Microfrontend Portal, and Server Components remain local repository examples because they require
+server or multi-runtime infrastructure that GitHub Pages cannot provide.

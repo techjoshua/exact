@@ -124,11 +124,30 @@ export function SamplesPage(this: Component<{}>) {
 				</div>
 			</section>
 
+			<section>
+				<h2>Internationalization across real locale structures</h2>
+				<div className="card-grid">
+					<div theme:surface="raised" className="topic-card">
+						<span className="topic-index">Intl Testbed</span>
+						<strong>Compare four cultural interpretations side by side</strong>
+						<p>
+							The testbed renders shared reactive values through English, French, Japanese, and
+							Arabic catalogs, including structural reordering, plural and ordinal projection,
+							semantic units, dates, durations, and lazy catalog adoption.
+						</p>
+						<a theme:action="secondary" href="./intl/">
+							Open the Intl Testbed
+						</a>
+					</div>
+				</div>
+			</section>
+
 			<Callout title="Repository examples">
 				<p>
 					Shipping Calculator, Microfrontend Portal, and Server Components remain source examples in
 					the eXact repository. Kanban, Project Workbench, Enhancement Playground with Theme Lab,
-					Puzzle Foundry, and Sudoku Atelier are published alongside this documentation site.
+					Intl Testbed, Puzzle Foundry, and Sudoku Atelier are published alongside this
+					documentation site.
 				</p>
 			</Callout>
 		</Article>

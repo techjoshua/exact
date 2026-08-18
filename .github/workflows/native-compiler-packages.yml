@@ -296,6 +296,7 @@ jobs:
           npm run build -w @exactjs/sample-enhancement-playground
           npm run build:kanban
           npm run build:workbench
+          npm run build:intl
       - name: Assemble Pages branch
         run: node scripts/prepare-gh-pages.mjs
       - name: Publish gh-pages branch

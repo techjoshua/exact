@@ -62,6 +62,9 @@ export function IntlTestbed(this: Component<TestbedState>) {
 	return () => (
 		<main>
 			<header className="hero">
+				<a className="docs-link" href="../">
+					Documentation
+				</a>
 				<p className="eyebrow">eXact internationalization test bed</p>
 				<h1>Ordinary JSX, four cultural interpretations</h1>
 				<p className="hero-copy">
