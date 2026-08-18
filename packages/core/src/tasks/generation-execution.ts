@@ -26,7 +26,9 @@ export function executeScheduledTaskGeneration<Args extends unknown[], Result>(
 				placement: options.placement,
 				concurrency: options.concurrency,
 				inspectionArguments: record.args,
-				detached: options.detached,
+				// Setup activations are durable-owner roots even if their scheduled computation runs
+				// while an earlier task continuation is temporarily restored.
+				detached: record.activation !== 'invoked' || options.detached,
 				priority: record.priority,
 				readiness: record.readiness,
 				optimistic: (work) => applyTaskOptimistic(record, options.concurrency, work),

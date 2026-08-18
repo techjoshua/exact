@@ -51,7 +51,7 @@ const puzzleKinds: ReadonlyArray<{ id: PuzzleKind; label: string; note: string }
 /** Renders puzzle-specific inputs without owning their durable values. */
 export function GeneratorControls(props: GeneratorControlsProps) {
 	return () => (
-		<section className="control-section" aria-labelledby="puzzle-heading">
+		<section theme:surface="raised" className="control-section" aria-labelledby="puzzle-heading">
 			<div className="section-heading">
 				<span>01</span>
 				<div>
@@ -63,6 +63,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 			<div className="kind-grid">
 				{puzzleKinds.map((kind) => (
 					<button
+						theme:selection="strong"
 						type="button"
 						className="kind-card"
 						className:active={props.kind === kind.id}
@@ -79,6 +80,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 					<label>
 						<span>House size</span>
 						<select
+							theme:field="default"
 							value={String(props.boxSize)}
 							onChange={(event) => props.onBoxSize(Number(event.currentTarget.value) as 2 | 3)}
 						>
@@ -92,6 +94,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 					<label>
 						<span>Difficulty</span>
 						<select
+							theme:field="default"
 							value={props.difficulty}
 							onChange={(event) => props.onDifficulty(event.currentTarget.value as Difficulty)}
 						>
@@ -107,6 +110,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						<label>
 							<span>Rows</span>
 							<input
+								theme:field="default"
 								type="number"
 								min="5"
 								max="30"
@@ -117,6 +121,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						<label>
 							<span>Columns</span>
 							<input
+								theme:field="default"
 								type="number"
 								min="5"
 								max="30"
@@ -133,6 +138,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 					<label className="word-field">
 						<span>{props.kind === 'crossword' ? 'Crossword words' : 'Words to hide'}</span>
 						<textarea
+							theme:field="default"
 							rows={6}
 							value={props.wordText}
 							onChange={(event) => props.onWordText(event.currentTarget.value)}
@@ -176,6 +182,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 				<label>
 					<span>Seed</span>
 					<input
+						theme:field="default"
 						type="number"
 						min="0"
 						max="4294967295"
@@ -183,7 +190,12 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						onInput={(event) => props.onSeed(Number(event.currentTarget.value) >>> 0)}
 					/>
 				</label>
-				<button type="button" className="shuffle-button" onClick={props.onRandomize}>
+				<button
+					theme:action="primary"
+					type="button"
+					className="shuffle-button"
+					onClick={props.onRandomize}
+				>
 					<span>Shuffle</span>
 					<span aria-hidden="true">↻</span>
 				</button>

@@ -1,8 +1,4 @@
-import {
-	createCleanupFailure,
-	throwCleanupFailure,
-	type Logger
-} from '@exactjs/core';
+import { createCleanupFailure, throwCleanupFailure, type Logger } from '@exactjs/core';
 import {
 	createDomWorkBudget,
 	findNodeOwnerInstance,

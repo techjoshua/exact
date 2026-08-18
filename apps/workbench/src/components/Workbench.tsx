@@ -240,7 +240,7 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 					)}
 				</div>
 
-				<aside className="side-pane">
+				<aside theme:surface="sunken" className="side-pane">
 					{selectedTask ? (
 						<DetailPanel
 							key={selectedTask.id}
@@ -250,7 +250,7 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
 					) : (
 						<EmptyDetailPanel />
 					)}
-					<section className="activity-panel">
+					<section theme:surface="raised" className="activity-panel">
 						<h2>Activity</h2>
 						{this.state.activity.length ? (
 							<ol>

@@ -258,7 +258,7 @@ export function StatePage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Where reactive values can flow</h2>
-				<div className="definition-grid">
+				<div theme:surface="raised" className="definition-grid">
 					<code>Text and props</code>
 					<p>Update a text node, property, attribute, class, or style at its own boundary.</p>
 					<code>Branches</code>

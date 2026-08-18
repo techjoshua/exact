@@ -1,4 +1,5 @@
 import { withTaskObserver, type VNode } from '@exactjs/core';
+import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
 import { processExactOutput } from '@exactjs/plugin-host/runtime';
 import { renderHydrationScript } from '../hydration.js';
 import { createSsrResumptionCapture } from '../resumption.js';
@@ -57,7 +58,10 @@ export async function renderToStringAsync(
 		chunks,
 		options.state,
 		hydrationTable,
-		context.resourceLinkHeaders
+		context.resourceLinkHeaders,
+		context.componentDomain && componentDomainUsesWallClock(context.componentDomain)
+			? context.wallClockSnapshot
+			: undefined
 	);
 }
 
@@ -78,6 +82,7 @@ export async function renderToHydratableStringAsync(
 		continuations: options.continuations,
 		resumptions: emittedResumptions,
 		publicContexts: options.publicContexts,
+		wallClockSnapshot: result.wallClockSnapshot,
 		hydrationTable: result.hydrationTable,
 		executionRoot: options.executionRoot,
 		binding: options.binding,
@@ -150,6 +155,7 @@ export async function streamDocumentRender(
 					continuations: options.continuations,
 					resumptions: resumptions.length > 0 ? resumptions : options.resumptions,
 					publicContexts: options.publicContexts,
+					wallClockSnapshot: final.wallClockSnapshot,
 					hydrationTable: final.hydrationTable,
 					executionRoot: options.executionRoot,
 					binding: options.binding,

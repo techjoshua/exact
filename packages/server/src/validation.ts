@@ -1,4 +1,8 @@
 import { hasOnlyKeys, isJsonSafe } from './protocol.js';
+import {
+	isSafeProtocolKey as isSafeObjectKey,
+	normalizeProtocolLimit as positiveLimit
+} from '@exactjs/core/framework/protocol-records';
 import type {
 	ExactExecutorContract,
 	ExactCollectionMutation,
@@ -114,10 +118,6 @@ function isTransportableMapKey(value: unknown): boolean {
 		typeof value === 'string' ||
 		(typeof value === 'number' && Number.isFinite(value))
 	);
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 /** Returns whether submitted boundary snapshots are allowed for the invocation. */
@@ -271,8 +271,4 @@ function stateNodeMatchesWrites(value: object, path: string, writes: readonly st
 
 function isArrayIndex(segment: string): boolean {
 	return /^(0|[1-9]\d*)$/.test(segment);
-}
-
-function isSafeObjectKey(key: string): boolean {
-	return key !== '__proto__' && key !== 'prototype' && key !== 'constructor';
 }

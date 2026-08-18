@@ -245,8 +245,10 @@ function validRootCatalog(value: unknown, key: string): value is ExactInspection
 			!Array.isArray(file.components)
 		)
 			return false;
+		const path = file.path;
+		const hash = file.sourceHash;
 		return file.components.every((component) =>
-			validEntity(component, file.path, file.sourceHash, entityIds, () => ++entities <= 100_000)
+			validEntity(component, path, hash, entityIds, () => ++entities <= 100_000)
 		);
 	});
 	return valid && entityIds.has(value.rootComponentId);
@@ -317,7 +319,9 @@ function validRedactions(value: unknown): value is ExactInspectionRedactionCatal
 				record(token) &&
 				!hasValueField(token) &&
 				boundedString(token.name, 512) &&
+				typeof token.scope === 'string' &&
 				['component', 'request', 'application'].includes(token.scope) &&
+				typeof token.kind === 'string' &&
 				['secret', 'server-resource'].includes(token.kind)
 		)
 	);
@@ -374,7 +378,7 @@ function validLocation(value: unknown, path: string, hash: string): boolean {
 	return value.start.offset <= value.end.offset;
 }
 
-function validPoint(value: unknown): boolean {
+function validPoint(value: unknown): value is { offset: number; line: number; column: number } {
 	return (
 		record(value) &&
 		nonnegativeInteger(value.offset) &&
@@ -428,6 +432,6 @@ function boundedString(value: unknown, maximum: number): value is string {
 	return typeof value === 'string' && value.length > 0 && value.length <= maximum;
 }
 
-function record(value: unknown): value is Record<string, any> {
+function record(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

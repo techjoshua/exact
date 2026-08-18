@@ -22,6 +22,14 @@ export type EnhancementPatchOperation = (
 export type DomEnhancementCapability = Readonly<{
 	abi: 1;
 	install(root: Root, mount: EnhancementMountOperation): void;
+	/** Constructs a direct intrinsic or fragment wrapper before mounting its descendants. */
+	mountDirect?(
+		root: Root,
+		vnode: VNode,
+		parentInstance: ComponentInstance<any> | undefined,
+		parentScope: EffectScope | undefined,
+		mount: EnhancementMountOperation
+	): Mounted | undefined;
 	activate(
 		root: Root,
 		mounted: Mounted,

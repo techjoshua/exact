@@ -92,7 +92,7 @@ async function dispatch(message: ExactExtensionRequest): Promise<void> {
 }
 
 function readHook(): ExactDevtoolsPageHook | undefined {
-	return (globalThis as any)[Symbol.for('@exactjs/devtools-hook')] as
+	return Reflect.get(globalThis, Symbol.for('@exactjs/devtools-hook')) as
 		| ExactDevtoolsPageHook
 		| undefined;
 }

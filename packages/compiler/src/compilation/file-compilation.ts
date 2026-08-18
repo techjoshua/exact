@@ -15,6 +15,7 @@ import { validateExactLanguageProjections } from './language-validation.js';
 import { loadExactPackageEnhancements } from '@exactjs/config/node';
 import { prependExactEnhancementRegistrations } from './enhancement-registrations.js';
 import { materializeExactPhysicalEnhancementFacades } from './physical-enhancement-facades.js';
+import { synchronizeNativeProject } from './project-synchronization.js';
 
 /** Compiles one input file and optionally writes code and its source map. */
 export async function compileFile(
@@ -37,9 +38,10 @@ export async function compileFile(
 
 async function prepareFile(
 	inputFile: string,
-	options: CompileFileOptions
+	options: CompileFileOptions,
+	loadedSource?: string
 ): Promise<PreparedCompileFile> {
-	const source = await readFile(inputFile, 'utf8');
+	const source = loadedSource ?? (await readFile(inputFile, 'utf8'));
 	const packageEnhancements =
 		options.packageEnhancements ??
 		loadExactPackageEnhancements({
@@ -129,28 +131,43 @@ export async function compileProject(
 	const files = await collectInputFiles(inputs, options.includeAllModules);
 	const rootDir = options.rootDir ?? commonRoot(files);
 	const prepared: PreparedCompileFile[] = [];
+	const packageEnhancements =
+		options.packageEnhancements ??
+		loadExactPackageEnhancements({
+			applicationRoot: options.root ?? rootDir
+		}).packageEnhancements;
+	const synchronizedSources = await synchronizeNativeProject(files, {
+		root: options.root,
+		configFile: options.configFile,
+		packageEnhancements,
+		session: options.session
+	});
 
 	for (const file of files) {
 		prepared.push(
-			await prepareFile(file, {
-				outDir: options.outDir,
-				rootDir,
-				root: options.root,
-				configFile: options.configFile,
-				target: options.target,
-				serverComponents: options.serverComponents,
-				sourceMap: options.sourceMap,
-				session: options.session,
-				moduleRewrite: options.moduleRewrite,
-				moduleTransform: options.moduleTransform,
-				jsxInterop: options.jsxInterop,
-				assetRules: options.assetRules,
-				preserveClientAssetImports: options.preserveClientAssetImports,
-				generatedValidation: options.generatedValidation,
-				languageExtensions: options.languageExtensions,
-				packageEnhancements: options.packageEnhancements,
-				...capabilityCompilationOptions(options)
-			})
+			await prepareFile(
+				file,
+				{
+					outDir: options.outDir,
+					rootDir,
+					root: options.root,
+					configFile: options.configFile,
+					target: options.target,
+					serverComponents: options.serverComponents,
+					sourceMap: options.sourceMap,
+					session: options.session,
+					moduleRewrite: options.moduleRewrite,
+					moduleTransform: options.moduleTransform,
+					jsxInterop: options.jsxInterop,
+					assetRules: options.assetRules,
+					preserveClientAssetImports: options.preserveClientAssetImports,
+					generatedValidation: options.generatedValidation,
+					languageExtensions: options.languageExtensions,
+					packageEnhancements,
+					...capabilityCompilationOptions(options)
+				},
+				synchronizedSources.get(file)
+			)
 		);
 	}
 	await validatePreparedFiles(prepared, options.root ?? rootDir, options);

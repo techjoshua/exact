@@ -31,7 +31,7 @@ export function AppBoundary(this: Component<AppBoundaryState>, props: AppBoundar
 	return () =>
 		this.state.errors.length ? (
 			<main className="shell">
-				<section className="error-panel" role="alert">
+				<section theme:surface="raised" className="error-panel" role="alert">
 					<header>
 						<div>
 							<h1>Something went wrong</h1>
@@ -40,21 +40,21 @@ export function AppBoundary(this: Component<AppBoundaryState>, props: AppBoundar
 								reported by the board.
 							</p>
 						</div>
-						<button type="button" className="quiet-button" onClick={clearErrors}>
+						<button theme:action="quiet" type="button" onClick={clearErrors}>
 							Return to board
 						</button>
 					</header>
 
 					<div className="error-list">
 						{this.state.errors.map((error) => (
-							<article className="error-item">
+							<article theme:status="danger" className="error-item">
 								<h2>{error.component?.name ?? 'Application'}</h2>
 								<p>
 									{error.source}
 									{error.phase ? `:${error.phase}` : ''}
 								</p>
 								<pre>{formatError(error.error)}</pre>
-								<button type="button" className="quiet-button" onClick={() => errors.clear(error)}>
+								<button theme:action="quiet" type="button" onClick={() => errors.clear(error)}>
 									Clear
 								</button>
 							</article>

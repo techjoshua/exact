@@ -1,13 +1,11 @@
+import { isVNode, unwrap, type ComponentInstance, type VNode } from '@exactjs/core';
 import {
-	isVNode,
 	readRenderProgram,
+	readRenderProgramSlot,
 	renderProgramFallback,
-	unwrap,
-	type ComponentInstance,
 	type ExactRenderProgram,
-	type ExactRenderProgramInvocation,
-	type VNode
-} from '@exactjs/core';
+	type ExactRenderProgramInvocation
+} from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import type { EffectScope } from '@exactjs/reactive';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
@@ -134,15 +132,12 @@ export function adoptRenderProgramOrFallback(
 		: undefined;
 	if (adopted) return { mounted: adopted, next: cursor + 1 };
 	scope.stop();
-	return adoptFallback(
-		root,
-		fallbackRenderProgram(vnode),
-		nodes,
-		cursor,
-		parentInstance,
-		parentScope,
-		end
-	);
+	const fallback = fallbackRenderProgram(vnode);
+	// Client-closed programs deliberately recover at the hydration-root boundary. Keeping a
+	// region-local VNode factory in every successful program costs more than the rare full-root
+	// recovery, while the root still preserves the same fail-closed malformed-SSR behavior.
+	if (!fallback) return undefined;
+	return adoptFallback(root, fallback, nodes, cursor, parentInstance, parentScope, end);
 }
 
 /** Adopts compiler-addressed program nodes inside the marker ranges required by generic SSR. */
@@ -280,7 +275,7 @@ export function patchRenderProgram(mounted: Mounted, vnode: VNode): boolean {
 }
 
 /** Returns the lazy fallback without exposing its compiler-owned brand. */
-export function fallbackRenderProgram(vnode: VNode): VNode {
+export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 	return renderProgramFallback(vnode);
 }
 
@@ -307,7 +302,7 @@ function bindRenderProgram(mounted: Mounted): boolean {
 	const apply = () => {
 		const nextProps = new Map<Element, Record<string, unknown>>();
 		for (let index = 0; index < state.slotNodes.length; index++) {
-			const value = unwrap(state.invocation.readers[index]!());
+			const value = unwrap(readRenderProgramSlot(state.invocation, index));
 			const slot = state.invocation.program.slots[index]!;
 			const target = state.slotNodes[index];
 			if (slot.kind !== 'text') {

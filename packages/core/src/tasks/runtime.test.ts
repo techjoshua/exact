@@ -11,6 +11,7 @@ import { activateTask } from './activation.js';
 import {
 	createTaskOwnerRecord,
 	currentTaskFrameRecord,
+	resumeTaskFrame,
 	withTaskOwnerRecord
 } from './frame-runtime.js';
 import { createTaskOwner } from './owners.js';
@@ -283,6 +284,40 @@ describe('unified task runtime', () => {
 		expect(started).toEqual([1, 2]);
 		expect(aborted).toEqual([1]);
 		activation[Symbol.dispose]();
+		await owner[Symbol.asyncDispose]();
+	});
+
+	it('keeps a replacement activation independent of the generation it supersedes', async () => {
+		const owner = createTaskOwnerRecord('continuation supersession test');
+		const state = reactive({ value: 1 });
+		const started: number[] = [];
+		const first = deferred<void>();
+		const task = defineTask({ concurrency: 'latest' }, (value: number, context: TaskContext) => {
+			started.push(value);
+			if (value !== 1) return;
+			queueMicrotask(() =>
+				resumeTaskFrame(context.signal, () => {
+					state.value = 2;
+					flushSync();
+				})
+			);
+			return first.promise;
+		});
+		const activation = withTaskOwnerRecord(owner, () =>
+			activateTask(
+				task,
+				computed(() => state.value)
+			)
+		);
+		flushSync();
+		await Promise.resolve();
+		await Promise.resolve();
+		flushSync();
+		await Promise.resolve();
+
+		expect(started).toEqual([1, 2]);
+		activation[Symbol.dispose]();
+		first.resolve();
 		await owner[Symbol.asyncDispose]();
 	});
 

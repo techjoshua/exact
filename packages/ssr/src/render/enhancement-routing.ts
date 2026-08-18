@@ -96,12 +96,31 @@ export function resolveSsrTargetBoundary(
 	boundary: VNode,
 	parent: ComponentInstance<any> | undefined
 ): VNode | undefined {
-	const nested = findFirstTargetExport(context, boundary, parent, true);
-	if (nested) return nested;
 	for (const child of plannedChildren(context, boundary, parent)) {
 		if (!isVNode(child)) continue;
-		const routed = findFirstRoot(context, child, parent, boundary);
-		if (routed) return routed.target;
+		const target = findTargetBoundaryChild(context, child, parent);
+		if (target) return target;
+	}
+	return undefined;
+}
+
+function findTargetBoundaryChild(
+	context: SsrContext,
+	child: VNode,
+	parent: ComponentInstance<any> | undefined
+): VNode | undefined {
+	const vnode = isCellVNode(child) ? getCellVNode(child) : child;
+	if (typeof vnode.type === 'string') return vnode;
+	if (vnode.type === Target) return resolveSsrTargetBoundary(context, vnode, parent);
+	if (typeof vnode.type === 'function')
+		return (
+			findFirstTargetExport(context, vnode, parent) ??
+			findRootBearingFrame(context, vnode, parent)?.target
+		);
+	for (const nested of plannedChildren(context, vnode, parent)) {
+		if (!isVNode(nested)) continue;
+		const target = findTargetBoundaryChild(context, nested, parent);
+		if (target) return target;
 	}
 	return undefined;
 }

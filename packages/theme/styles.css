@@ -1,0 +1,1370 @@
+/* exact-theme/1 static fallback and semantic recipes. Generated scopes override every public token. */
+/* BEGIN GENERATED FALLBACK */
+:root {
+	--exact-theme-accent-border: rgb(81 150 142);
+	--exact-theme-accent-border: oklch(0.626 0.072 185);
+	--exact-theme-accent-focus: rgb(0 78 71);
+	--exact-theme-accent-focus: oklch(0.38 0.06696 185);
+	--exact-theme-accent-on-solid: rgb(248 248 248);
+	--exact-theme-accent-on-solid: oklch(0.98 0 0);
+	--exact-theme-accent-solid: rgb(22 127 117);
+	--exact-theme-accent-solid: oklch(0.54 0.09 185);
+	--exact-theme-accent-solid-active: rgb(0 112 103);
+	--exact-theme-accent-solid-active: oklch(0.49 0.08635 185);
+	--exact-theme-accent-solid-hover: rgb(4 120 110);
+	--exact-theme-accent-solid-hover: oklch(0.515 0.09 185);
+	--exact-theme-accent-subtle: rgb(216 246 241);
+	--exact-theme-accent-subtle: oklch(0.949 0.0315 185);
+	--exact-theme-accent-subtle-active: rgb(200 229 224);
+	--exact-theme-accent-subtle-active: oklch(0.899 0.0315 185);
+	--exact-theme-accent-subtle-hover: rgb(208 237 232);
+	--exact-theme-accent-subtle-hover: oklch(0.924 0.0315 185);
+	--exact-theme-accent-surface: rgb(198 246 238);
+	--exact-theme-accent-surface: oklch(0.937 0.0495 185);
+	--exact-theme-accent-text: rgb(0 78 71);
+	--exact-theme-accent-text: oklch(0.38 0.06696 185);
+	--exact-theme-border-width: 0.0625rem;
+	--exact-theme-canvas: rgb(238 248 246);
+	--exact-theme-canvas: oklch(0.97 0.0108 185);
+	--exact-theme-control-gap: 0.5rem;
+	--exact-theme-control-height-lg: 3rem;
+	--exact-theme-control-height-md: 2.5rem;
+	--exact-theme-control-height-sm: 2.083rem;
+	--exact-theme-control-padding-inline-lg: 0.9rem;
+	--exact-theme-control-padding-inline-md: 0.75rem;
+	--exact-theme-control-padding-inline-sm: 0.625rem;
+	--exact-theme-danger-border: rgb(171 127 104);
+	--exact-theme-danger-border: oklch(0.634 0.0648 49);
+	--exact-theme-danger-focus: rgb(100 51 23);
+	--exact-theme-danger-focus: oklch(0.38 0.081 49);
+	--exact-theme-danger-on-solid: rgb(248 248 248);
+	--exact-theme-danger-on-solid: oklch(0.98 0 0);
+	--exact-theme-danger-solid: rgb(149 96 67);
+	--exact-theme-danger-solid: oklch(0.54 0.081 49);
+	--exact-theme-danger-solid-active: rgb(133 82 53);
+	--exact-theme-danger-solid-active: oklch(0.49 0.081 49);
+	--exact-theme-danger-solid-hover: rgb(141 89 60);
+	--exact-theme-danger-solid-hover: oklch(0.515 0.081 49);
+	--exact-theme-danger-subtle: rgb(255 233 222);
+	--exact-theme-danger-subtle: oklch(0.949 0.02829 49);
+	--exact-theme-danger-subtle-active: rgb(238 217 206);
+	--exact-theme-danger-subtle-active: oklch(0.899 0.02835 49);
+	--exact-theme-danger-subtle-hover: rgb(247 225 214);
+	--exact-theme-danger-subtle-hover: oklch(0.924 0.02835 49);
+	--exact-theme-danger-surface: rgb(255 228 214);
+	--exact-theme-danger-surface: oklch(0.937 0.03527 49);
+	--exact-theme-danger-text: rgb(100 51 23);
+	--exact-theme-danger-text: oklch(0.38 0.081 49);
+	--exact-theme-disabled-background: rgb(235 239 238);
+	--exact-theme-disabled-background: oklch(0.949 0.00378 185);
+	--exact-theme-disabled-border: rgb(131 139 137);
+	--exact-theme-disabled-border: oklch(0.629 0.00864 185);
+	--exact-theme-disabled-foreground: rgb(71 79 78);
+	--exact-theme-disabled-foreground: oklch(0.42 0.0108 185);
+	--exact-theme-duration-base: 180ms;
+	--exact-theme-duration-fast: 113ms;
+	--exact-theme-duration-slow: 288ms;
+	--exact-theme-easing-emphasized: cubic-bezier(0.2, 0, 0, 1.2);
+	--exact-theme-easing-standard: cubic-bezier(0.22, 0, 0, 1);
+	--exact-theme-focus-offset: 0.125rem;
+	--exact-theme-focus-width: 0.125rem;
+	--exact-theme-font-body:
+		ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--exact-theme-font-code: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+	--exact-theme-font-display:
+		ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--exact-theme-font-size-2xl: 1.728rem;
+	--exact-theme-font-size-3xl: 2.074rem;
+	--exact-theme-font-size-lg: 1.2rem;
+	--exact-theme-font-size-md: 1rem;
+	--exact-theme-font-size-sm: 0.833rem;
+	--exact-theme-font-size-xl: 1.44rem;
+	--exact-theme-font-size-xs: 0.694rem;
+	--exact-theme-font-weight-medium: 500;
+	--exact-theme-font-weight-regular: 400;
+	--exact-theme-font-weight-strong: 700;
+	--exact-theme-info-border: rgb(100 142 173);
+	--exact-theme-info-border: oklch(0.629 0.0648 240.25);
+	--exact-theme-info-focus: rgb(11 71 105);
+	--exact-theme-info-focus: oklch(0.38 0.081 240.25);
+	--exact-theme-info-on-solid: rgb(248 248 248);
+	--exact-theme-info-on-solid: oklch(0.98 0 0);
+	--exact-theme-info-solid: rgb(63 117 153);
+	--exact-theme-info-solid: oklch(0.54 0.081 240.25);
+	--exact-theme-info-solid-active: rgb(48 102 138);
+	--exact-theme-info-solid-active: oklch(0.49 0.081 240.25);
+	--exact-theme-info-solid-hover: rgb(56 109 145);
+	--exact-theme-info-solid-hover: oklch(0.515 0.081 240.25);
+	--exact-theme-info-subtle: rgb(223 241 255);
+	--exact-theme-info-subtle: oklch(0.949 0.02712 240.25);
+	--exact-theme-info-subtle-active: rgb(206 225 239);
+	--exact-theme-info-subtle-active: oklch(0.899 0.02835 240.25);
+	--exact-theme-info-subtle-hover: rgb(214 233 247);
+	--exact-theme-info-subtle-hover: oklch(0.924 0.02835 240.25);
+	--exact-theme-info-surface: rgb(215 238 255);
+	--exact-theme-info-surface: oklch(0.937 0.03366 240.25);
+	--exact-theme-info-text: rgb(11 71 105);
+	--exact-theme-info-text: oklch(0.38 0.081 240.25);
+	--exact-theme-letter-spacing-normal: 0em;
+	--exact-theme-letter-spacing-tight: -0.015em;
+	--exact-theme-letter-spacing-wide: 0.025em;
+	--exact-theme-line-height-body: 1.5;
+	--exact-theme-line-height-loose: 1.75;
+	--exact-theme-line-height-tight: 1.2;
+	--exact-theme-neutral-border: rgb(131 139 137);
+	--exact-theme-neutral-border: oklch(0.629 0.00864 185);
+	--exact-theme-neutral-focus: rgb(60 68 67);
+	--exact-theme-neutral-focus: oklch(0.38 0.0108 185);
+	--exact-theme-neutral-on-solid: rgb(248 248 248);
+	--exact-theme-neutral-on-solid: oklch(0.98 0 0);
+	--exact-theme-neutral-solid: rgb(104 113 111);
+	--exact-theme-neutral-solid: oklch(0.54 0.0108 185);
+	--exact-theme-neutral-solid-active: rgb(90 98 97);
+	--exact-theme-neutral-solid-active: oklch(0.49 0.0108 185);
+	--exact-theme-neutral-solid-hover: rgb(97 106 104);
+	--exact-theme-neutral-solid-hover: oklch(0.515 0.0108 185);
+	--exact-theme-neutral-subtle: rgb(235 239 238);
+	--exact-theme-neutral-subtle: oklch(0.949 0.00378 185);
+	--exact-theme-neutral-subtle-active: rgb(219 222 222);
+	--exact-theme-neutral-subtle-active: oklch(0.899 0.00378 185);
+	--exact-theme-neutral-subtle-hover: rgb(227 231 230);
+	--exact-theme-neutral-subtle-hover: oklch(0.924 0.00378 185);
+	--exact-theme-neutral-surface: rgb(230 235 235);
+	--exact-theme-neutral-surface: oklch(0.937 0.00594 185);
+	--exact-theme-neutral-text: rgb(60 68 67);
+	--exact-theme-neutral-text: oklch(0.38 0.0108 185);
+	--exact-theme-on-canvas: rgb(17 24 23);
+	--exact-theme-on-canvas: oklch(0.2 0.0108 185);
+	--exact-theme-on-canvas-muted: rgb(71 79 78);
+	--exact-theme-on-canvas-muted: oklch(0.42 0.0108 185);
+	--exact-theme-radius-lg: 0.75rem;
+	--exact-theme-radius-md: 0.375rem;
+	--exact-theme-radius-pill: 9999px;
+	--exact-theme-radius-sm: 0.188rem;
+	--exact-theme-shadow-lg: none;
+	--exact-theme-shadow-md: none;
+	--exact-theme-shadow-sm: none;
+	--exact-theme-space-0: 0rem;
+	--exact-theme-space-1: 0.25rem;
+	--exact-theme-space-2: 0.5rem;
+	--exact-theme-space-3: 0.75rem;
+	--exact-theme-space-4: 1rem;
+	--exact-theme-space-5: 1.25rem;
+	--exact-theme-space-6: 1.5rem;
+	--exact-theme-space-7: 1.75rem;
+	--exact-theme-space-8: 2rem;
+	--exact-theme-success-border: rgb(107 147 116);
+	--exact-theme-success-border: oklch(0.626 0.0648 151);
+	--exact-theme-success-focus: rgb(27 78 43);
+	--exact-theme-success-focus: oklch(0.38 0.081 151);
+	--exact-theme-success-on-solid: rgb(248 248 248);
+	--exact-theme-success-on-solid: oklch(0.98 0 0);
+	--exact-theme-success-solid: rgb(73 124 86);
+	--exact-theme-success-solid: oklch(0.54 0.081 151);
+	--exact-theme-success-solid-active: rgb(59 109 72);
+	--exact-theme-success-solid-active: oklch(0.49 0.081 151);
+	--exact-theme-success-solid-hover: rgb(66 117 79);
+	--exact-theme-success-solid-hover: oklch(0.515 0.081 151);
+	--exact-theme-success-subtle: rgb(225 244 229);
+	--exact-theme-success-subtle: oklch(0.949 0.02835 151);
+	--exact-theme-success-subtle-active: rgb(209 227 212);
+	--exact-theme-success-subtle-active: oklch(0.899 0.02835 151);
+	--exact-theme-success-subtle-hover: rgb(217 236 220);
+	--exact-theme-success-subtle-hover: oklch(0.924 0.02835 151);
+	--exact-theme-success-surface: rgb(214 243 219);
+	--exact-theme-success-surface: oklch(0.937 0.04455 151);
+	--exact-theme-success-text: rgb(27 78 43);
+	--exact-theme-success-text: oklch(0.38 0.081 151);
+	--exact-theme-surface-0-background: rgb(235 245 243);
+	--exact-theme-surface-0-background: oklch(0.961 0.0108 185);
+	--exact-theme-surface-0-border: rgb(133 142 141);
+	--exact-theme-surface-0-border: oklch(0.64 0.0108 185);
+	--exact-theme-surface-0-border-strong: rgb(133 142 141);
+	--exact-theme-surface-0-border-strong: oklch(0.64 0.0108 185);
+	--exact-theme-surface-0-foreground: rgb(17 24 23);
+	--exact-theme-surface-0-foreground: oklch(0.2 0.0108 185);
+	--exact-theme-surface-0-foreground-muted: rgb(71 79 78);
+	--exact-theme-surface-0-foreground-muted: oklch(0.42 0.0108 185);
+	--exact-theme-surface-0-shadow: none;
+	--exact-theme-surface-1-background: rgb(237 247 245);
+	--exact-theme-surface-1-background: oklch(0.9676 0.00994 185);
+	--exact-theme-surface-1-border: rgb(134 144 142);
+	--exact-theme-surface-1-border: oklch(0.644 0.0108 185);
+	--exact-theme-surface-1-border-strong: rgb(134 144 142);
+	--exact-theme-surface-1-border-strong: oklch(0.644 0.0108 185);
+	--exact-theme-surface-1-foreground: rgb(17 24 23);
+	--exact-theme-surface-1-foreground: oklch(0.2 0.0108 185);
+	--exact-theme-surface-1-foreground-muted: rgb(71 79 78);
+	--exact-theme-surface-1-foreground-muted: oklch(0.42 0.0108 185);
+	--exact-theme-surface-1-shadow: none;
+	--exact-theme-surface-2-background: rgb(241 249 248);
+	--exact-theme-surface-2-background: oklch(0.9753 0.00907 185);
+	--exact-theme-surface-2-border: rgb(136 145 144);
+	--exact-theme-surface-2-border: oklch(0.65 0.0108 185);
+	--exact-theme-surface-2-border-strong: rgb(136 145 144);
+	--exact-theme-surface-2-border-strong: oklch(0.65 0.0108 185);
+	--exact-theme-surface-2-foreground: rgb(17 24 23);
+	--exact-theme-surface-2-foreground: oklch(0.2 0.0108 185);
+	--exact-theme-surface-2-foreground-muted: rgb(71 79 78);
+	--exact-theme-surface-2-foreground-muted: oklch(0.42 0.0108 185);
+	--exact-theme-surface-2-shadow: none;
+	--exact-theme-surface-3-background: rgb(244 252 250);
+	--exact-theme-surface-3-background: oklch(0.9841 0.00821 185);
+	--exact-theme-surface-3-border: rgb(138 147 146);
+	--exact-theme-surface-3-border: oklch(0.656 0.0108 185);
+	--exact-theme-surface-3-border-strong: rgb(138 147 146);
+	--exact-theme-surface-3-border-strong: oklch(0.656 0.0108 185);
+	--exact-theme-surface-3-foreground: rgb(17 24 23);
+	--exact-theme-surface-3-foreground: oklch(0.2 0.0108 185);
+	--exact-theme-surface-3-foreground-muted: rgb(71 79 78);
+	--exact-theme-surface-3-foreground-muted: oklch(0.42 0.0108 185);
+	--exact-theme-surface-3-shadow: none;
+	--exact-theme-surface-background: rgb(235 245 243);
+	--exact-theme-surface-background: oklch(0.961 0.0108 185);
+	--exact-theme-surface-border: rgb(133 142 141);
+	--exact-theme-surface-border: oklch(0.64 0.0108 185);
+	--exact-theme-surface-border-strong: rgb(133 142 141);
+	--exact-theme-surface-border-strong: oklch(0.64 0.0108 185);
+	--exact-theme-surface-foreground: rgb(17 24 23);
+	--exact-theme-surface-foreground: oklch(0.2 0.0108 185);
+	--exact-theme-surface-foreground-muted: rgb(71 79 78);
+	--exact-theme-surface-foreground-muted: oklch(0.42 0.0108 185);
+	--exact-theme-surface-overlay-background: rgb(241 249 248);
+	--exact-theme-surface-overlay-background: oklch(0.9753 0.00907 185);
+	--exact-theme-surface-overlay-border: rgb(136 145 144);
+	--exact-theme-surface-overlay-border: oklch(0.65 0.0108 185);
+	--exact-theme-surface-overlay-border-strong: rgb(136 145 144);
+	--exact-theme-surface-overlay-border-strong: oklch(0.65 0.0108 185);
+	--exact-theme-surface-overlay-foreground: rgb(17 24 23);
+	--exact-theme-surface-overlay-foreground: oklch(0.2 0.0108 185);
+	--exact-theme-surface-overlay-foreground-muted: rgb(71 79 78);
+	--exact-theme-surface-overlay-foreground-muted: oklch(0.42 0.0108 185);
+	--exact-theme-surface-overlay-shadow: none;
+	--exact-theme-surface-shadow: none;
+	--exact-theme-surface-sunken-background: rgb(232 242 240);
+	--exact-theme-surface-sunken-background: oklch(0.953 0.0108 185);
+	--exact-theme-surface-sunken-border: rgb(131 140 139);
+	--exact-theme-surface-sunken-border: oklch(0.633 0.0108 185);
+	--exact-theme-surface-sunken-border-strong: rgb(131 140 139);
+	--exact-theme-surface-sunken-border-strong: oklch(0.633 0.0108 185);
+	--exact-theme-surface-sunken-foreground: rgb(17 24 23);
+	--exact-theme-surface-sunken-foreground: oklch(0.2 0.0108 185);
+	--exact-theme-surface-sunken-foreground-muted: rgb(71 79 78);
+	--exact-theme-surface-sunken-foreground-muted: oklch(0.42 0.0108 185);
+	--exact-theme-surface-sunken-shadow: none;
+	--exact-theme-warning-border: rgb(146 138 92);
+	--exact-theme-warning-border: oklch(0.63 0.0648 100);
+	--exact-theme-warning-focus: rgb(76 67 0);
+	--exact-theme-warning-focus: oklch(0.38 0.079 100);
+	--exact-theme-warning-on-solid: rgb(248 248 248);
+	--exact-theme-warning-on-solid: oklch(0.98 0 0);
+	--exact-theme-warning-solid: rgb(122 112 52);
+	--exact-theme-warning-solid: oklch(0.54 0.081 100);
+	--exact-theme-warning-solid-active: rgb(107 97 37);
+	--exact-theme-warning-solid-active: oklch(0.49 0.081 100);
+	--exact-theme-warning-solid-hover: rgb(114 104 45);
+	--exact-theme-warning-solid-hover: oklch(0.515 0.081 100);
+	--exact-theme-warning-subtle: rgb(242 239 218);
+	--exact-theme-warning-subtle: oklch(0.949 0.02835 100);
+	--exact-theme-warning-subtle-active: rgb(226 223 201);
+	--exact-theme-warning-subtle-active: oklch(0.899 0.02835 100);
+	--exact-theme-warning-subtle-hover: rgb(234 231 210);
+	--exact-theme-warning-subtle-hover: oklch(0.924 0.02835 100);
+	--exact-theme-warning-surface: rgb(241 236 202);
+	--exact-theme-warning-surface: oklch(0.937 0.04455 100);
+	--exact-theme-warning-text: rgb(76 67 0);
+	--exact-theme-warning-text: oklch(0.38 0.079 100);
+	color: var(--exact-theme-surface-foreground);
+	accent-color: var(--exact-theme-accent-solid);
+	font-family: var(--exact-theme-font-body);
+	font-size: var(--exact-theme-font-size-md);
+	line-height: var(--exact-theme-line-height-body);
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-exact-theme]) {
+		--exact-theme-accent-border: rgb(31 105 97);
+		--exact-theme-accent-border: oklch(0.473 0.072 185);
+		--exact-theme-accent-focus: rgb(111 202 191);
+		--exact-theme-accent-focus: oklch(0.78 0.09 185);
+		--exact-theme-accent-subtle: rgb(0 13 11);
+		--exact-theme-accent-subtle: oklch(0.142 0.02502 185);
+		--exact-theme-accent-subtle-active: rgb(2 25 22);
+		--exact-theme-accent-subtle-active: oklch(0.192 0.0315 185);
+		--exact-theme-accent-subtle-hover: rgb(0 19 16);
+		--exact-theme-accent-subtle-hover: oklch(0.167 0.02943 185);
+		--exact-theme-accent-surface: rgb(0 16 13);
+		--exact-theme-accent-surface: oklch(0.154 0.02714 185);
+		--exact-theme-accent-text: rgb(111 202 191);
+		--exact-theme-accent-text: oklch(0.78 0.09 185);
+		--exact-theme-canvas: rgb(2 5 5);
+		--exact-theme-canvas: oklch(0.11 0.0108 185);
+		--exact-theme-danger-border: rgb(126 85 62);
+		--exact-theme-danger-border: oklch(0.488 0.0648 49);
+		--exact-theme-danger-focus: rgb(227 168 138);
+		--exact-theme-danger-focus: oklch(0.78 0.081 49);
+		--exact-theme-danger-subtle: rgb(19 6 2);
+		--exact-theme-danger-subtle: oklch(0.142 0.02835 49);
+		--exact-theme-danger-subtle-active: rgb(31 16 9);
+		--exact-theme-danger-subtle-active: oklch(0.192 0.02835 49);
+		--exact-theme-danger-subtle-hover: rgb(25 11 4);
+		--exact-theme-danger-subtle-hover: oklch(0.167 0.02835 49);
+		--exact-theme-danger-surface: rgb(25 6 0);
+		--exact-theme-danger-surface: oklch(0.154 0.04131 49);
+		--exact-theme-danger-text: rgb(227 168 138);
+		--exact-theme-danger-text: oklch(0.78 0.081 49);
+		--exact-theme-disabled-background: rgb(8 10 10);
+		--exact-theme-disabled-background: oklch(0.142 0.00378 185);
+		--exact-theme-disabled-border: rgb(89 96 94);
+		--exact-theme-disabled-border: oklch(0.481 0.00864 185);
+		--exact-theme-disabled-foreground: rgb(151 161 159);
+		--exact-theme-disabled-foreground: oklch(0.7 0.0108 185);
+		--exact-theme-info-border: rgb(58 99 127);
+		--exact-theme-info-border: oklch(0.481 0.0648 240.25);
+		--exact-theme-info-focus: rgb(135 191 230);
+		--exact-theme-info-focus: oklch(0.78 0.081 240.25);
+		--exact-theme-info-subtle: rgb(1 11 20);
+		--exact-theme-info-subtle: oklch(0.142 0.02835 240.25);
+		--exact-theme-info-subtle-active: rgb(8 22 32);
+		--exact-theme-info-subtle-active: oklch(0.192 0.02835 240.25);
+		--exact-theme-info-subtle-hover: rgb(4 16 26);
+		--exact-theme-info-subtle-hover: oklch(0.167 0.02835 240.25);
+		--exact-theme-info-surface: rgb(0 14 25);
+		--exact-theme-info-surface: oklch(0.154 0.03543 240.25);
+		--exact-theme-info-text: rgb(135 191 230);
+		--exact-theme-info-text: oklch(0.78 0.081 240.25);
+		--exact-theme-neutral-border: rgb(89 96 94);
+		--exact-theme-neutral-border: oklch(0.481 0.00864 185);
+		--exact-theme-neutral-focus: rgb(176 186 184);
+		--exact-theme-neutral-focus: oklch(0.78 0.0108 185);
+		--exact-theme-neutral-subtle: rgb(8 10 10);
+		--exact-theme-neutral-subtle: oklch(0.142 0.00378 185);
+		--exact-theme-neutral-subtle-active: rgb(18 21 20);
+		--exact-theme-neutral-subtle-active: oklch(0.192 0.00378 185);
+		--exact-theme-neutral-subtle-hover: rgb(13 15 15);
+		--exact-theme-neutral-subtle-hover: oklch(0.167 0.00378 185);
+		--exact-theme-neutral-surface: rgb(9 13 12);
+		--exact-theme-neutral-surface: oklch(0.154 0.00594 185);
+		--exact-theme-neutral-text: rgb(176 186 184);
+		--exact-theme-neutral-text: oklch(0.78 0.0108 185);
+		--exact-theme-on-canvas: rgb(221 231 229);
+		--exact-theme-on-canvas: oklch(0.92 0.0108 185);
+		--exact-theme-on-canvas-muted: rgb(151 161 159);
+		--exact-theme-on-canvas-muted: oklch(0.7 0.0108 185);
+		--exact-theme-success-border: rgb(64 103 73);
+		--exact-theme-success-border: oklch(0.475 0.0648 151);
+		--exact-theme-success-focus: rgb(145 199 157);
+		--exact-theme-success-focus: oklch(0.78 0.081 151);
+		--exact-theme-success-subtle: rgb(2 13 4);
+		--exact-theme-success-subtle: oklch(0.142 0.02835 151);
+		--exact-theme-success-subtle-active: rgb(10 24 14);
+		--exact-theme-success-subtle-active: oklch(0.192 0.02835 151);
+		--exact-theme-success-subtle-hover: rgb(5 18 8);
+		--exact-theme-success-subtle-hover: oklch(0.167 0.02835 151);
+		--exact-theme-success-surface: rgb(0 17 4);
+		--exact-theme-success-surface: oklch(0.154 0.04143 151);
+		--exact-theme-success-text: rgb(145 199 157);
+		--exact-theme-success-text: oklch(0.78 0.081 151);
+		--exact-theme-surface-0-background: rgb(4 9 8);
+		--exact-theme-surface-0-background: oklch(0.13 0.0108 185);
+		--exact-theme-surface-0-border: rgb(86 94 93);
+		--exact-theme-surface-0-border: oklch(0.474 0.0108 185);
+		--exact-theme-surface-0-border-strong: rgb(86 94 93);
+		--exact-theme-surface-0-border-strong: oklch(0.474 0.0108 185);
+		--exact-theme-surface-0-foreground: rgb(221 231 229);
+		--exact-theme-surface-0-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-0-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-0-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-1-background: rgb(5 10 9);
+		--exact-theme-surface-1-background: oklch(0.13864 0.00994 185);
+		--exact-theme-surface-1-border: rgb(86 95 93);
+		--exact-theme-surface-1-border: oklch(0.476 0.0108 185);
+		--exact-theme-surface-1-border-strong: rgb(86 95 93);
+		--exact-theme-surface-1-border-strong: oklch(0.476 0.0108 185);
+		--exact-theme-surface-1-foreground: rgb(221 231 229);
+		--exact-theme-surface-1-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-1-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-1-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-2-background: rgb(7 12 11);
+		--exact-theme-surface-2-background: oklch(0.14872 0.00907 185);
+		--exact-theme-surface-2-border: rgb(87 95 94);
+		--exact-theme-surface-2-border: oklch(0.478 0.0108 185);
+		--exact-theme-surface-2-border-strong: rgb(87 95 94);
+		--exact-theme-surface-2-border-strong: oklch(0.478 0.0108 185);
+		--exact-theme-surface-2-foreground: rgb(221 231 229);
+		--exact-theme-surface-2-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-2-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-2-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-3-background: rgb(9 14 14);
+		--exact-theme-surface-3-background: oklch(0.16024 0.00821 185);
+		--exact-theme-surface-3-border: rgb(87 96 95);
+		--exact-theme-surface-3-border: oklch(0.481 0.0108 185);
+		--exact-theme-surface-3-border-strong: rgb(87 96 95);
+		--exact-theme-surface-3-border-strong: oklch(0.481 0.0108 185);
+		--exact-theme-surface-3-foreground: rgb(221 231 229);
+		--exact-theme-surface-3-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-3-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-3-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-background: rgb(4 9 8);
+		--exact-theme-surface-background: oklch(0.13 0.0108 185);
+		--exact-theme-surface-border: rgb(86 94 93);
+		--exact-theme-surface-border: oklch(0.474 0.0108 185);
+		--exact-theme-surface-border-strong: rgb(86 94 93);
+		--exact-theme-surface-border-strong: oklch(0.474 0.0108 185);
+		--exact-theme-surface-foreground: rgb(221 231 229);
+		--exact-theme-surface-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-overlay-background: rgb(7 12 11);
+		--exact-theme-surface-overlay-background: oklch(0.14872 0.00907 185);
+		--exact-theme-surface-overlay-border: rgb(87 95 94);
+		--exact-theme-surface-overlay-border: oklch(0.478 0.0108 185);
+		--exact-theme-surface-overlay-border-strong: rgb(87 95 94);
+		--exact-theme-surface-overlay-border-strong: oklch(0.478 0.0108 185);
+		--exact-theme-surface-overlay-foreground: rgb(221 231 229);
+		--exact-theme-surface-overlay-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-overlay-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-overlay-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-sunken-background: rgb(1 4 3);
+		--exact-theme-surface-sunken-background: oklch(0.098 0.0108 185);
+		--exact-theme-surface-sunken-border: rgb(84 93 91);
+		--exact-theme-surface-sunken-border: oklch(0.469 0.0108 185);
+		--exact-theme-surface-sunken-border-strong: rgb(84 93 91);
+		--exact-theme-surface-sunken-border-strong: oklch(0.469 0.0108 185);
+		--exact-theme-surface-sunken-foreground: rgb(221 231 229);
+		--exact-theme-surface-sunken-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-sunken-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-sunken-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-warning-border: rgb(102 95 49);
+		--exact-theme-warning-border: oklch(0.48 0.0648 100);
+		--exact-theme-warning-focus: rgb(195 185 124);
+		--exact-theme-warning-focus: oklch(0.78 0.081 100);
+		--exact-theme-warning-subtle: rgb(12 10 0);
+		--exact-theme-warning-subtle: oklch(0.142 0.02835 100);
+		--exact-theme-warning-subtle-active: rgb(23 20 5);
+		--exact-theme-warning-subtle-active: oklch(0.192 0.02835 100);
+		--exact-theme-warning-subtle-hover: rgb(18 15 2);
+		--exact-theme-warning-subtle-hover: oklch(0.167 0.02835 100);
+		--exact-theme-warning-surface: rgb(15 12 0);
+		--exact-theme-warning-surface: oklch(0.154 0.03202 100);
+		--exact-theme-warning-text: rgb(195 185 124);
+		--exact-theme-warning-text: oklch(0.78 0.081 100);
+		color: var(--exact-theme-surface-foreground);
+		accent-color: var(--exact-theme-accent-solid);
+		font-family: var(--exact-theme-font-body);
+		font-size: var(--exact-theme-font-size-md);
+		line-height: var(--exact-theme-line-height-body);
+	}
+}
+@media (prefers-contrast: more) {
+	:root:not([data-exact-theme]) {
+		--exact-theme-accent-border: rgb(50 120 112);
+		--exact-theme-accent-border: oklch(0.527 0.072 185);
+		--exact-theme-danger-border: rgb(141 98 76);
+		--exact-theme-danger-border: oklch(0.536 0.0648 49);
+		--exact-theme-disabled-border: rgb(103 109 108);
+		--exact-theme-disabled-border: oklch(0.53 0.00864 185);
+		--exact-theme-focus-width: 0.1875rem;
+		--exact-theme-info-border: rgb(72 113 142);
+		--exact-theme-info-border: oklch(0.532 0.0648 240.25);
+		--exact-theme-neutral-border: rgb(103 109 108);
+		--exact-theme-neutral-border: oklch(0.53 0.00864 185);
+		--exact-theme-success-border: rgb(78 118 87);
+		--exact-theme-success-border: oklch(0.526 0.0648 151);
+		--exact-theme-surface-0-border: rgb(105 113 112);
+		--exact-theme-surface-0-border: oklch(0.542 0.0108 185);
+		--exact-theme-surface-0-border-strong: rgb(105 113 112);
+		--exact-theme-surface-0-border-strong: oklch(0.542 0.0108 185);
+		--exact-theme-surface-1-border: rgb(106 114 113);
+		--exact-theme-surface-1-border: oklch(0.545 0.0108 185);
+		--exact-theme-surface-1-border-strong: rgb(106 114 113);
+		--exact-theme-surface-1-border-strong: oklch(0.545 0.0108 185);
+		--exact-theme-surface-2-border: rgb(107 115 114);
+		--exact-theme-surface-2-border: oklch(0.549 0.0108 185);
+		--exact-theme-surface-2-border-strong: rgb(107 115 114);
+		--exact-theme-surface-2-border-strong: oklch(0.549 0.0108 185);
+		--exact-theme-surface-3-border: rgb(109 117 116);
+		--exact-theme-surface-3-border: oklch(0.556 0.0108 185);
+		--exact-theme-surface-3-border-strong: rgb(109 117 116);
+		--exact-theme-surface-3-border-strong: oklch(0.556 0.0108 185);
+		--exact-theme-surface-border: rgb(105 113 112);
+		--exact-theme-surface-border: oklch(0.542 0.0108 185);
+		--exact-theme-surface-border-strong: rgb(105 113 112);
+		--exact-theme-surface-border-strong: oklch(0.542 0.0108 185);
+		--exact-theme-surface-overlay-border: rgb(107 115 114);
+		--exact-theme-surface-overlay-border: oklch(0.549 0.0108 185);
+		--exact-theme-surface-overlay-border-strong: rgb(107 115 114);
+		--exact-theme-surface-overlay-border-strong: oklch(0.549 0.0108 185);
+		--exact-theme-surface-sunken-border: rgb(103 111 110);
+		--exact-theme-surface-sunken-border: oklch(0.535 0.0108 185);
+		--exact-theme-surface-sunken-border-strong: rgb(103 111 110);
+		--exact-theme-surface-sunken-border-strong: oklch(0.535 0.0108 185);
+		--exact-theme-warning-border: rgb(117 109 64);
+		--exact-theme-warning-border: oklch(0.532 0.0648 100);
+		color: var(--exact-theme-surface-foreground);
+		accent-color: var(--exact-theme-accent-solid);
+		font-family: var(--exact-theme-font-body);
+		font-size: var(--exact-theme-font-size-md);
+		line-height: var(--exact-theme-line-height-body);
+	}
+}
+@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
+	:root:not([data-exact-theme]) {
+		--exact-theme-accent-border: rgb(64 134 125);
+		--exact-theme-accent-border: oklch(0.571 0.072 185);
+		--exact-theme-accent-focus: rgb(111 202 191);
+		--exact-theme-accent-focus: oklch(0.78 0.09 185);
+		--exact-theme-accent-on-solid: rgb(248 248 248);
+		--exact-theme-accent-on-solid: oklch(0.98 0 0);
+		--exact-theme-accent-solid: rgb(22 127 117);
+		--exact-theme-accent-solid: oklch(0.54 0.09 185);
+		--exact-theme-accent-solid-active: rgb(0 112 103);
+		--exact-theme-accent-solid-active: oklch(0.49 0.08635 185);
+		--exact-theme-accent-solid-hover: rgb(4 120 110);
+		--exact-theme-accent-solid-hover: oklch(0.515 0.09 185);
+		--exact-theme-accent-subtle: rgb(0 13 11);
+		--exact-theme-accent-subtle: oklch(0.142 0.02502 185);
+		--exact-theme-accent-subtle-active: rgb(2 25 22);
+		--exact-theme-accent-subtle-active: oklch(0.192 0.0315 185);
+		--exact-theme-accent-subtle-hover: rgb(0 19 16);
+		--exact-theme-accent-subtle-hover: oklch(0.167 0.02943 185);
+		--exact-theme-accent-surface: rgb(0 16 13);
+		--exact-theme-accent-surface: oklch(0.154 0.02714 185);
+		--exact-theme-accent-text: rgb(111 202 191);
+		--exact-theme-accent-text: oklch(0.78 0.09 185);
+		--exact-theme-border-width: 0.0625rem;
+		--exact-theme-canvas: rgb(2 5 5);
+		--exact-theme-canvas: oklch(0.11 0.0108 185);
+		--exact-theme-control-gap: 0.5rem;
+		--exact-theme-control-height-lg: 3rem;
+		--exact-theme-control-height-md: 2.5rem;
+		--exact-theme-control-height-sm: 2.083rem;
+		--exact-theme-control-padding-inline-lg: 0.9rem;
+		--exact-theme-control-padding-inline-md: 0.75rem;
+		--exact-theme-control-padding-inline-sm: 0.625rem;
+		--exact-theme-danger-border: rgb(156 112 89);
+		--exact-theme-danger-border: oklch(0.584 0.0648 49);
+		--exact-theme-danger-focus: rgb(227 168 138);
+		--exact-theme-danger-focus: oklch(0.78 0.081 49);
+		--exact-theme-danger-on-solid: rgb(248 248 248);
+		--exact-theme-danger-on-solid: oklch(0.98 0 0);
+		--exact-theme-danger-solid: rgb(149 96 67);
+		--exact-theme-danger-solid: oklch(0.54 0.081 49);
+		--exact-theme-danger-solid-active: rgb(133 82 53);
+		--exact-theme-danger-solid-active: oklch(0.49 0.081 49);
+		--exact-theme-danger-solid-hover: rgb(141 89 60);
+		--exact-theme-danger-solid-hover: oklch(0.515 0.081 49);
+		--exact-theme-danger-subtle: rgb(19 6 2);
+		--exact-theme-danger-subtle: oklch(0.142 0.02835 49);
+		--exact-theme-danger-subtle-active: rgb(31 16 9);
+		--exact-theme-danger-subtle-active: oklch(0.192 0.02835 49);
+		--exact-theme-danger-subtle-hover: rgb(25 11 4);
+		--exact-theme-danger-subtle-hover: oklch(0.167 0.02835 49);
+		--exact-theme-danger-surface: rgb(25 6 0);
+		--exact-theme-danger-surface: oklch(0.154 0.04131 49);
+		--exact-theme-danger-text: rgb(227 168 138);
+		--exact-theme-danger-text: oklch(0.78 0.081 49);
+		--exact-theme-disabled-background: rgb(8 10 10);
+		--exact-theme-disabled-background: oklch(0.142 0.00378 185);
+		--exact-theme-disabled-border: rgb(117 124 123);
+		--exact-theme-disabled-border: oklch(0.579 0.00864 185);
+		--exact-theme-disabled-foreground: rgb(151 161 159);
+		--exact-theme-disabled-foreground: oklch(0.7 0.0108 185);
+		--exact-theme-duration-base: 180ms;
+		--exact-theme-duration-fast: 113ms;
+		--exact-theme-duration-slow: 288ms;
+		--exact-theme-easing-emphasized: cubic-bezier(0.2, 0, 0, 1.2);
+		--exact-theme-easing-standard: cubic-bezier(0.22, 0, 0, 1);
+		--exact-theme-focus-offset: 0.125rem;
+		--exact-theme-focus-width: 0.1875rem;
+		--exact-theme-font-body:
+			ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		--exact-theme-font-code: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+		--exact-theme-font-display:
+			ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		--exact-theme-font-size-2xl: 1.728rem;
+		--exact-theme-font-size-3xl: 2.074rem;
+		--exact-theme-font-size-lg: 1.2rem;
+		--exact-theme-font-size-md: 1rem;
+		--exact-theme-font-size-sm: 0.833rem;
+		--exact-theme-font-size-xl: 1.44rem;
+		--exact-theme-font-size-xs: 0.694rem;
+		--exact-theme-font-weight-medium: 500;
+		--exact-theme-font-weight-regular: 400;
+		--exact-theme-font-weight-strong: 700;
+		--exact-theme-info-border: rgb(85 127 156);
+		--exact-theme-info-border: oklch(0.577 0.0648 240.25);
+		--exact-theme-info-focus: rgb(135 191 230);
+		--exact-theme-info-focus: oklch(0.78 0.081 240.25);
+		--exact-theme-info-on-solid: rgb(248 248 248);
+		--exact-theme-info-on-solid: oklch(0.98 0 0);
+		--exact-theme-info-solid: rgb(63 117 153);
+		--exact-theme-info-solid: oklch(0.54 0.081 240.25);
+		--exact-theme-info-solid-active: rgb(48 102 138);
+		--exact-theme-info-solid-active: oklch(0.49 0.081 240.25);
+		--exact-theme-info-solid-hover: rgb(56 109 145);
+		--exact-theme-info-solid-hover: oklch(0.515 0.081 240.25);
+		--exact-theme-info-subtle: rgb(1 11 20);
+		--exact-theme-info-subtle: oklch(0.142 0.02835 240.25);
+		--exact-theme-info-subtle-active: rgb(8 22 32);
+		--exact-theme-info-subtle-active: oklch(0.192 0.02835 240.25);
+		--exact-theme-info-subtle-hover: rgb(4 16 26);
+		--exact-theme-info-subtle-hover: oklch(0.167 0.02835 240.25);
+		--exact-theme-info-surface: rgb(0 14 25);
+		--exact-theme-info-surface: oklch(0.154 0.03543 240.25);
+		--exact-theme-info-text: rgb(135 191 230);
+		--exact-theme-info-text: oklch(0.78 0.081 240.25);
+		--exact-theme-letter-spacing-normal: 0em;
+		--exact-theme-letter-spacing-tight: -0.015em;
+		--exact-theme-letter-spacing-wide: 0.025em;
+		--exact-theme-line-height-body: 1.5;
+		--exact-theme-line-height-loose: 1.75;
+		--exact-theme-line-height-tight: 1.2;
+		--exact-theme-neutral-border: rgb(117 124 123);
+		--exact-theme-neutral-border: oklch(0.579 0.00864 185);
+		--exact-theme-neutral-focus: rgb(176 186 184);
+		--exact-theme-neutral-focus: oklch(0.78 0.0108 185);
+		--exact-theme-neutral-on-solid: rgb(248 248 248);
+		--exact-theme-neutral-on-solid: oklch(0.98 0 0);
+		--exact-theme-neutral-solid: rgb(104 113 111);
+		--exact-theme-neutral-solid: oklch(0.54 0.0108 185);
+		--exact-theme-neutral-solid-active: rgb(90 98 97);
+		--exact-theme-neutral-solid-active: oklch(0.49 0.0108 185);
+		--exact-theme-neutral-solid-hover: rgb(97 106 104);
+		--exact-theme-neutral-solid-hover: oklch(0.515 0.0108 185);
+		--exact-theme-neutral-subtle: rgb(8 10 10);
+		--exact-theme-neutral-subtle: oklch(0.142 0.00378 185);
+		--exact-theme-neutral-subtle-active: rgb(18 21 20);
+		--exact-theme-neutral-subtle-active: oklch(0.192 0.00378 185);
+		--exact-theme-neutral-subtle-hover: rgb(13 15 15);
+		--exact-theme-neutral-subtle-hover: oklch(0.167 0.00378 185);
+		--exact-theme-neutral-surface: rgb(9 13 12);
+		--exact-theme-neutral-surface: oklch(0.154 0.00594 185);
+		--exact-theme-neutral-text: rgb(176 186 184);
+		--exact-theme-neutral-text: oklch(0.78 0.0108 185);
+		--exact-theme-on-canvas: rgb(221 231 229);
+		--exact-theme-on-canvas: oklch(0.92 0.0108 185);
+		--exact-theme-on-canvas-muted: rgb(151 161 159);
+		--exact-theme-on-canvas-muted: oklch(0.7 0.0108 185);
+		--exact-theme-radius-lg: 0.75rem;
+		--exact-theme-radius-md: 0.375rem;
+		--exact-theme-radius-pill: 9999px;
+		--exact-theme-radius-sm: 0.188rem;
+		--exact-theme-shadow-lg: none;
+		--exact-theme-shadow-md: none;
+		--exact-theme-shadow-sm: none;
+		--exact-theme-space-0: 0rem;
+		--exact-theme-space-1: 0.25rem;
+		--exact-theme-space-2: 0.5rem;
+		--exact-theme-space-3: 0.75rem;
+		--exact-theme-space-4: 1rem;
+		--exact-theme-space-5: 1.25rem;
+		--exact-theme-space-6: 1.5rem;
+		--exact-theme-space-7: 1.75rem;
+		--exact-theme-space-8: 2rem;
+		--exact-theme-success-border: rgb(91 131 100);
+		--exact-theme-success-border: oklch(0.57 0.0648 151);
+		--exact-theme-success-focus: rgb(145 199 157);
+		--exact-theme-success-focus: oklch(0.78 0.081 151);
+		--exact-theme-success-on-solid: rgb(248 248 248);
+		--exact-theme-success-on-solid: oklch(0.98 0 0);
+		--exact-theme-success-solid: rgb(73 124 86);
+		--exact-theme-success-solid: oklch(0.54 0.081 151);
+		--exact-theme-success-solid-active: rgb(59 109 72);
+		--exact-theme-success-solid-active: oklch(0.49 0.081 151);
+		--exact-theme-success-solid-hover: rgb(66 117 79);
+		--exact-theme-success-solid-hover: oklch(0.515 0.081 151);
+		--exact-theme-success-subtle: rgb(2 13 4);
+		--exact-theme-success-subtle: oklch(0.142 0.02835 151);
+		--exact-theme-success-subtle-active: rgb(10 24 14);
+		--exact-theme-success-subtle-active: oklch(0.192 0.02835 151);
+		--exact-theme-success-subtle-hover: rgb(5 18 8);
+		--exact-theme-success-subtle-hover: oklch(0.167 0.02835 151);
+		--exact-theme-success-surface: rgb(0 17 4);
+		--exact-theme-success-surface: oklch(0.154 0.04143 151);
+		--exact-theme-success-text: rgb(145 199 157);
+		--exact-theme-success-text: oklch(0.78 0.081 151);
+		--exact-theme-surface-0-background: rgb(4 9 8);
+		--exact-theme-surface-0-background: oklch(0.13 0.0108 185);
+		--exact-theme-surface-0-border: rgb(113 122 120);
+		--exact-theme-surface-0-border: oklch(0.57 0.0108 185);
+		--exact-theme-surface-0-border-strong: rgb(113 122 120);
+		--exact-theme-surface-0-border-strong: oklch(0.57 0.0108 185);
+		--exact-theme-surface-0-foreground: rgb(221 231 229);
+		--exact-theme-surface-0-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-0-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-0-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-0-shadow: none;
+		--exact-theme-surface-1-background: rgb(5 10 9);
+		--exact-theme-surface-1-background: oklch(0.13864 0.00994 185);
+		--exact-theme-surface-1-border: rgb(113 122 120);
+		--exact-theme-surface-1-border: oklch(0.57 0.0108 185);
+		--exact-theme-surface-1-border-strong: rgb(113 122 120);
+		--exact-theme-surface-1-border-strong: oklch(0.57 0.0108 185);
+		--exact-theme-surface-1-foreground: rgb(221 231 229);
+		--exact-theme-surface-1-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-1-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-1-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-1-shadow: none;
+		--exact-theme-surface-2-background: rgb(7 12 11);
+		--exact-theme-surface-2-background: oklch(0.14872 0.00907 185);
+		--exact-theme-surface-2-border: rgb(114 123 121);
+		--exact-theme-surface-2-border: oklch(0.574 0.0108 185);
+		--exact-theme-surface-2-border-strong: rgb(114 123 121);
+		--exact-theme-surface-2-border-strong: oklch(0.574 0.0108 185);
+		--exact-theme-surface-2-foreground: rgb(221 231 229);
+		--exact-theme-surface-2-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-2-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-2-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-2-shadow: none;
+		--exact-theme-surface-3-background: rgb(9 14 14);
+		--exact-theme-surface-3-background: oklch(0.16024 0.00821 185);
+		--exact-theme-surface-3-border: rgb(115 124 122);
+		--exact-theme-surface-3-border: oklch(0.577 0.0108 185);
+		--exact-theme-surface-3-border-strong: rgb(115 124 122);
+		--exact-theme-surface-3-border-strong: oklch(0.577 0.0108 185);
+		--exact-theme-surface-3-foreground: rgb(221 231 229);
+		--exact-theme-surface-3-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-3-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-3-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-3-shadow: none;
+		--exact-theme-surface-background: rgb(4 9 8);
+		--exact-theme-surface-background: oklch(0.13 0.0108 185);
+		--exact-theme-surface-border: rgb(113 122 120);
+		--exact-theme-surface-border: oklch(0.57 0.0108 185);
+		--exact-theme-surface-border-strong: rgb(113 122 120);
+		--exact-theme-surface-border-strong: oklch(0.57 0.0108 185);
+		--exact-theme-surface-foreground: rgb(221 231 229);
+		--exact-theme-surface-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-overlay-background: rgb(7 12 11);
+		--exact-theme-surface-overlay-background: oklch(0.14872 0.00907 185);
+		--exact-theme-surface-overlay-border: rgb(114 123 121);
+		--exact-theme-surface-overlay-border: oklch(0.574 0.0108 185);
+		--exact-theme-surface-overlay-border-strong: rgb(114 123 121);
+		--exact-theme-surface-overlay-border-strong: oklch(0.574 0.0108 185);
+		--exact-theme-surface-overlay-foreground: rgb(221 231 229);
+		--exact-theme-surface-overlay-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-overlay-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-overlay-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-overlay-shadow: none;
+		--exact-theme-surface-shadow: none;
+		--exact-theme-surface-sunken-background: rgb(1 4 3);
+		--exact-theme-surface-sunken-background: oklch(0.098 0.0108 185);
+		--exact-theme-surface-sunken-border: rgb(111 120 118);
+		--exact-theme-surface-sunken-border: oklch(0.564 0.0108 185);
+		--exact-theme-surface-sunken-border-strong: rgb(111 120 118);
+		--exact-theme-surface-sunken-border-strong: oklch(0.564 0.0108 185);
+		--exact-theme-surface-sunken-foreground: rgb(221 231 229);
+		--exact-theme-surface-sunken-foreground: oklch(0.92 0.0108 185);
+		--exact-theme-surface-sunken-foreground-muted: rgb(151 161 159);
+		--exact-theme-surface-sunken-foreground-muted: oklch(0.7 0.0108 185);
+		--exact-theme-surface-sunken-shadow: none;
+		--exact-theme-warning-border: rgb(130 123 77);
+		--exact-theme-warning-border: oklch(0.577 0.0648 100);
+		--exact-theme-warning-focus: rgb(195 185 124);
+		--exact-theme-warning-focus: oklch(0.78 0.081 100);
+		--exact-theme-warning-on-solid: rgb(248 248 248);
+		--exact-theme-warning-on-solid: oklch(0.98 0 0);
+		--exact-theme-warning-solid: rgb(122 112 52);
+		--exact-theme-warning-solid: oklch(0.54 0.081 100);
+		--exact-theme-warning-solid-active: rgb(107 97 37);
+		--exact-theme-warning-solid-active: oklch(0.49 0.081 100);
+		--exact-theme-warning-solid-hover: rgb(114 104 45);
+		--exact-theme-warning-solid-hover: oklch(0.515 0.081 100);
+		--exact-theme-warning-subtle: rgb(12 10 0);
+		--exact-theme-warning-subtle: oklch(0.142 0.02835 100);
+		--exact-theme-warning-subtle-active: rgb(23 20 5);
+		--exact-theme-warning-subtle-active: oklch(0.192 0.02835 100);
+		--exact-theme-warning-subtle-hover: rgb(18 15 2);
+		--exact-theme-warning-subtle-hover: oklch(0.167 0.02835 100);
+		--exact-theme-warning-surface: rgb(15 12 0);
+		--exact-theme-warning-surface: oklch(0.154 0.03202 100);
+		--exact-theme-warning-text: rgb(195 185 124);
+		--exact-theme-warning-text: oklch(0.78 0.081 100);
+		color: var(--exact-theme-surface-foreground);
+		accent-color: var(--exact-theme-accent-solid);
+		font-family: var(--exact-theme-font-body);
+		font-size: var(--exact-theme-font-size-md);
+		line-height: var(--exact-theme-line-height-body);
+	}
+}
+/* END GENERATED FALLBACK */
+[data-exact-theme] {
+	accent-color: var(--exact-theme-accent-solid);
+	font-family: var(--exact-theme-font-body);
+	font-size: var(--exact-theme-font-size-md);
+	line-height: var(--exact-theme-line-height-body);
+}
+[data-exact-theme][data-exact-theme-background='canvas'] {
+	background-color: var(--exact-theme-canvas);
+	color: var(--exact-theme-on-canvas);
+}
+
+.exact-theme-action,
+.exact-theme-field,
+.exact-theme-text,
+.exact-theme-status,
+.exact-theme-selection {
+	--_exact-theme-tone-subtle: var(--exact-theme-neutral-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-neutral-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-neutral-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-neutral-surface);
+	--_exact-theme-tone-border: var(--exact-theme-neutral-border);
+	--_exact-theme-tone-text: var(--exact-theme-neutral-text);
+	--_exact-theme-tone-solid: var(--exact-theme-neutral-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-neutral-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-neutral-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-neutral-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-neutral-focus);
+}
+.exact-theme-action[data-exact-theme-variant='primary'],
+.exact-theme-selection {
+	--_exact-theme-tone-subtle: var(--exact-theme-accent-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-accent-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-accent-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-accent-surface);
+	--_exact-theme-tone-border: var(--exact-theme-accent-border);
+	--_exact-theme-tone-text: var(--exact-theme-accent-text);
+	--_exact-theme-tone-solid: var(--exact-theme-accent-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-accent-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-accent-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-accent-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-accent-focus);
+}
+.exact-theme-field:is(:invalid, [aria-invalid='true']):not([data-exact-theme-tone]) {
+	--_exact-theme-tone-subtle: var(--exact-theme-danger-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-danger-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-danger-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-danger-surface);
+	--_exact-theme-tone-border: var(--exact-theme-danger-border);
+	--_exact-theme-tone-text: var(--exact-theme-danger-text);
+	--_exact-theme-tone-solid: var(--exact-theme-danger-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-danger-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-danger-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-danger-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-danger-focus);
+}
+[data-exact-theme-tone='neutral'] {
+	--_exact-theme-tone-subtle: var(--exact-theme-neutral-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-neutral-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-neutral-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-neutral-surface);
+	--_exact-theme-tone-border: var(--exact-theme-neutral-border);
+	--_exact-theme-tone-text: var(--exact-theme-neutral-text);
+	--_exact-theme-tone-solid: var(--exact-theme-neutral-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-neutral-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-neutral-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-neutral-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-neutral-focus);
+}
+[data-exact-theme-tone='accent'] {
+	--_exact-theme-tone-subtle: var(--exact-theme-accent-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-accent-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-accent-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-accent-surface);
+	--_exact-theme-tone-border: var(--exact-theme-accent-border);
+	--_exact-theme-tone-text: var(--exact-theme-accent-text);
+	--_exact-theme-tone-solid: var(--exact-theme-accent-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-accent-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-accent-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-accent-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-accent-focus);
+}
+[data-exact-theme-tone='info'] {
+	--_exact-theme-tone-subtle: var(--exact-theme-info-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-info-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-info-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-info-surface);
+	--_exact-theme-tone-border: var(--exact-theme-info-border);
+	--_exact-theme-tone-text: var(--exact-theme-info-text);
+	--_exact-theme-tone-solid: var(--exact-theme-info-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-info-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-info-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-info-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-info-focus);
+}
+[data-exact-theme-tone='success'] {
+	--_exact-theme-tone-subtle: var(--exact-theme-success-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-success-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-success-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-success-surface);
+	--_exact-theme-tone-border: var(--exact-theme-success-border);
+	--_exact-theme-tone-text: var(--exact-theme-success-text);
+	--_exact-theme-tone-solid: var(--exact-theme-success-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-success-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-success-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-success-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-success-focus);
+}
+[data-exact-theme-tone='warning'] {
+	--_exact-theme-tone-subtle: var(--exact-theme-warning-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-warning-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-warning-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-warning-surface);
+	--_exact-theme-tone-border: var(--exact-theme-warning-border);
+	--_exact-theme-tone-text: var(--exact-theme-warning-text);
+	--_exact-theme-tone-solid: var(--exact-theme-warning-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-warning-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-warning-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-warning-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-warning-focus);
+}
+[data-exact-theme-tone='danger'] {
+	--_exact-theme-tone-subtle: var(--exact-theme-danger-subtle);
+	--_exact-theme-tone-subtle-hover: var(--exact-theme-danger-subtle-hover);
+	--_exact-theme-tone-subtle-active: var(--exact-theme-danger-subtle-active);
+	--_exact-theme-tone-surface: var(--exact-theme-danger-surface);
+	--_exact-theme-tone-border: var(--exact-theme-danger-border);
+	--_exact-theme-tone-text: var(--exact-theme-danger-text);
+	--_exact-theme-tone-solid: var(--exact-theme-danger-solid);
+	--_exact-theme-tone-solid-hover: var(--exact-theme-danger-solid-hover);
+	--_exact-theme-tone-solid-active: var(--exact-theme-danger-solid-active);
+	--_exact-theme-tone-on-solid: var(--exact-theme-danger-on-solid);
+	--_exact-theme-tone-focus: var(--exact-theme-danger-focus);
+}
+
+[data-exact-theme-size='small'] {
+	--_exact-theme-control-height: var(--exact-theme-control-height-sm);
+	--_exact-theme-control-padding-inline: var(--exact-theme-control-padding-inline-sm);
+}
+:where(.exact-theme-action, .exact-theme-field, .exact-theme-status, .exact-theme-selection):not(
+	[data-exact-theme-size]
+),
+[data-exact-theme-size='medium'] {
+	--_exact-theme-control-height: var(--exact-theme-control-height-md);
+	--_exact-theme-control-padding-inline: var(--exact-theme-control-padding-inline-md);
+}
+[data-exact-theme-size='large'] {
+	--_exact-theme-control-height: var(--exact-theme-control-height-lg);
+	--_exact-theme-control-padding-inline: var(--exact-theme-control-padding-inline-lg);
+}
+.exact-theme-surface {
+	padding: max(var(--exact-theme-space-4), var(--exact-theme-radius-lg));
+	color: var(--exact-theme-surface-foreground);
+	background-color: var(--exact-theme-surface-background);
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
+	border-radius: var(--exact-theme-radius-lg);
+	box-shadow: var(--exact-theme-surface-shadow);
+}
+.exact-theme-surface[data-exact-theme-variant='transparent'] {
+	padding: 0;
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+}
+.exact-theme-surface[data-exact-theme-interactive='true'] {
+	cursor: pointer;
+	transition:
+		background-color var(--exact-theme-duration-fast) var(--exact-theme-easing-standard),
+		border-color var(--exact-theme-duration-fast) var(--exact-theme-easing-standard),
+		box-shadow var(--exact-theme-duration-fast) var(--exact-theme-easing-standard);
+}
+.exact-theme-action {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--exact-theme-control-gap);
+	min-block-size: var(--_exact-theme-control-height);
+	padding-inline: var(--_exact-theme-control-padding-inline);
+	border: var(--exact-theme-border-width) solid transparent;
+	border-radius: var(--exact-theme-radius-md);
+	font: inherit;
+	font-weight: var(--exact-theme-font-weight-medium);
+	line-height: var(--exact-theme-line-height-tight);
+	cursor: pointer;
+	text-decoration: none;
+	box-shadow: none;
+	transition:
+		background-color var(--exact-theme-duration-fast) var(--exact-theme-easing-standard),
+		border-color var(--exact-theme-duration-fast) var(--exact-theme-easing-standard),
+		box-shadow var(--exact-theme-duration-fast) var(--exact-theme-easing-standard);
+}
+.exact-theme-action[data-exact-theme-variant='primary'] {
+	color: var(--_exact-theme-tone-on-solid);
+	background: var(--_exact-theme-tone-solid);
+	/* Saturated fills absorb the generic neutral shadow. An appearance-aware contact shadow keeps
+	   the first elevation step legible without making the semantic tone own depth. */
+	box-shadow:
+		0 1px 2px color-mix(in oklch, var(--exact-theme-surface-foreground) 28%, transparent),
+		var(--exact-theme-shadow-sm);
+}
+.exact-theme-action[data-exact-theme-variant='primary']:active:not(:disabled):not(
+		[aria-disabled='true']
+	):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
+	background: var(--_exact-theme-tone-solid-active);
+	box-shadow:
+		inset 0 0 0 2px color-mix(in oklch, currentColor 28%, transparent),
+		var(--exact-theme-surface-sunken-shadow);
+}
+.exact-theme-action[data-exact-theme-variant='secondary'] {
+	color: var(--_exact-theme-tone-text);
+	background: var(--_exact-theme-tone-subtle);
+	border-color: var(--_exact-theme-tone-border);
+	box-shadow: var(--exact-theme-shadow-sm);
+}
+.exact-theme-action[data-exact-theme-variant='secondary']:active:not(:disabled):not(
+		[aria-disabled='true']
+	):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
+	background: var(--_exact-theme-tone-subtle-active);
+	box-shadow: var(--exact-theme-surface-sunken-shadow);
+}
+.exact-theme-action[data-exact-theme-variant='quiet'] {
+	color: var(--_exact-theme-tone-text);
+	background: transparent;
+}
+.exact-theme-action[data-exact-theme-variant='quiet']:active:not(:disabled):not(
+		[aria-disabled='true']
+	):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
+	background: var(--_exact-theme-tone-subtle-active);
+	box-shadow: var(--exact-theme-surface-sunken-shadow);
+}
+:where(.exact-theme-action, .exact-theme-field, .exact-theme-selection):focus-visible {
+	outline: var(--exact-theme-focus-width) solid var(--_exact-theme-tone-focus);
+	outline-offset: var(--exact-theme-focus-offset);
+}
+:is(.exact-theme-action, .exact-theme-field, .exact-theme-selection):disabled,
+:is(.exact-theme-action, .exact-theme-field, .exact-theme-selection)[aria-disabled='true'] {
+	color: var(--exact-theme-disabled-foreground);
+	background: var(--exact-theme-disabled-background);
+	border-color: var(--exact-theme-disabled-border);
+	box-shadow: none;
+	cursor: not-allowed;
+}
+.exact-theme-field {
+	box-sizing: border-box;
+	min-block-size: var(--_exact-theme-control-height);
+	padding-inline: var(--_exact-theme-control-padding-inline);
+	color: var(--exact-theme-surface-foreground);
+	background: var(--exact-theme-surface-background);
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
+	border-radius: var(--exact-theme-radius-md);
+	font: inherit;
+	accent-color: var(--exact-theme-accent-solid);
+}
+.exact-theme-field::placeholder {
+	color: var(--exact-theme-surface-foreground-muted);
+}
+.exact-theme-field[data-exact-theme-variant='subtle'] {
+	background: var(--exact-theme-neutral-subtle);
+}
+.exact-theme-field[data-exact-theme-variant='bare'] {
+	background: transparent;
+	border-color: transparent;
+}
+.exact-theme-field:is(:invalid, [aria-invalid='true']) {
+	border-color: var(--_exact-theme-tone-border);
+}
+.exact-theme-field:is(progress, meter) {
+	padding: 0;
+	clip-path: inset(0 round var(--exact-theme-radius-md));
+}
+.exact-theme-field:is(progress) {
+	--_exact-theme-progress-fill: var(--exact-theme-accent-solid);
+	appearance: none;
+	overflow: hidden;
+	accent-color: var(--_exact-theme-progress-fill);
+	background: var(--exact-theme-neutral-subtle);
+}
+.exact-theme-field:is(progress)[data-exact-theme-tone] {
+	--_exact-theme-progress-fill: var(--_exact-theme-tone-solid);
+}
+.exact-theme-field:is(progress)::-webkit-progress-bar {
+	background: var(--exact-theme-neutral-subtle);
+}
+.exact-theme-field:is(progress)::-webkit-progress-value {
+	background: var(--_exact-theme-progress-fill);
+}
+.exact-theme-field:is(progress)::-moz-progress-bar {
+	background: var(--_exact-theme-progress-fill);
+}
+.exact-theme-field:is(meter) {
+	accent-color: var(--_exact-theme-tone-solid);
+}
+.exact-theme-field:is(input[type='checkbox'], input[type='radio']) {
+	inline-size: var(--exact-theme-font-size-lg);
+	block-size: var(--exact-theme-font-size-lg);
+	min-block-size: 0;
+	padding: 0;
+}
+.exact-theme-field:is(input[type='range']) {
+	min-block-size: var(--_exact-theme-control-height);
+	padding: 0;
+}
+.exact-theme-field:is(select) {
+	padding-inline-end: var(--_exact-theme-control-padding-inline);
+}
+.exact-theme-field:is(textarea) {
+	min-block-size: calc(var(--_exact-theme-control-height) * 2);
+	padding-block: var(--exact-theme-space-2);
+}
+.exact-theme-field:is(input[type='color']) {
+	padding: var(--exact-theme-space-1);
+}
+.exact-theme-field::file-selector-button {
+	min-block-size: calc(var(--_exact-theme-control-height) - 2 * var(--exact-theme-border-width));
+	margin-inline-start: calc(-1 * var(--_exact-theme-control-padding-inline));
+	margin-inline-end: var(--exact-theme-control-gap);
+	padding-inline: var(--_exact-theme-control-padding-inline);
+	color: var(--_exact-theme-tone-text);
+	background: var(--_exact-theme-tone-subtle);
+	border: 0;
+	border-inline-end: var(--exact-theme-border-width) solid var(--_exact-theme-tone-border);
+	font: inherit;
+}
+.exact-theme-text {
+	color: var(--exact-theme-surface-foreground);
+}
+.exact-theme-text[data-exact-theme-variant='supporting'],
+.exact-theme-text[data-exact-theme-variant='muted'] {
+	color: var(--exact-theme-surface-foreground-muted);
+}
+.exact-theme-text[data-exact-theme-variant='supporting'] {
+	font-size: var(--exact-theme-font-size-sm);
+}
+.exact-theme-text[data-exact-theme-variant='heading'] {
+	font-family: var(--exact-theme-font-display);
+	font-size: var(--exact-theme-font-size-xl);
+	font-weight: var(--exact-theme-font-weight-strong);
+	line-height: var(--exact-theme-line-height-tight);
+}
+.exact-theme-text[data-exact-theme-variant='display'] {
+	font-family: var(--exact-theme-font-display);
+	font-size: var(--exact-theme-font-size-3xl);
+	font-weight: var(--exact-theme-font-weight-strong);
+	line-height: var(--exact-theme-line-height-tight);
+	letter-spacing: var(--exact-theme-letter-spacing-tight);
+}
+.exact-theme-text[data-exact-theme-variant='code'] {
+	font-family: var(--exact-theme-font-code);
+}
+.exact-theme-text[data-exact-theme-tone] {
+	color: var(--_exact-theme-tone-text);
+}
+.exact-theme-status {
+	display: inline-flex;
+	align-items: center;
+	min-block-size: calc(var(--_exact-theme-control-height) * 0.65);
+	padding-inline: calc(var(--_exact-theme-control-padding-inline) * 0.75);
+	color: var(--_exact-theme-tone-text);
+	background: var(--_exact-theme-tone-subtle);
+	border: var(--exact-theme-border-width) solid var(--_exact-theme-tone-border);
+	border-radius: var(--exact-theme-radius-pill);
+	font-size: var(--exact-theme-font-size-sm);
+	font-weight: var(--exact-theme-font-weight-medium);
+}
+.exact-theme-separator {
+	border: 0;
+	block-size: var(--exact-theme-border-width);
+	background: var(--exact-theme-surface-border);
+}
+.exact-theme-separator[data-exact-theme-variant='strong'] {
+	background: var(--exact-theme-surface-border-strong);
+}
+.exact-theme-selection {
+	min-block-size: var(--_exact-theme-control-height);
+	padding-inline: var(--_exact-theme-control-padding-inline);
+	color: var(--exact-theme-surface-foreground);
+	background: transparent;
+	border: var(--exact-theme-border-width) solid transparent;
+	border-radius: var(--exact-theme-radius-sm);
+	box-shadow: none;
+	cursor: pointer;
+	transition:
+		background-color var(--exact-theme-duration-fast) var(--exact-theme-easing-standard),
+		border-color var(--exact-theme-duration-fast) var(--exact-theme-easing-standard),
+		box-shadow var(--exact-theme-duration-fast) var(--exact-theme-easing-standard);
+}
+.exact-theme-selection:is(
+	[aria-selected='true'],
+	[aria-current]:not([aria-current='false']),
+	[aria-pressed='true'],
+	:checked
+) {
+	color: var(--_exact-theme-tone-text);
+	background: var(--_exact-theme-tone-subtle);
+	border-color: var(--_exact-theme-tone-border);
+}
+.exact-theme-selection[data-exact-theme-variant='strong']:is(
+		[aria-selected='true'],
+		[aria-current]:not([aria-current='false']),
+		[aria-pressed='true'],
+		:checked
+	) {
+	color: var(--_exact-theme-tone-on-solid);
+	background: var(--_exact-theme-tone-solid);
+}
+.exact-theme-selection:active:not(:disabled):not([aria-disabled='true']):not(
+		[aria-busy='true']
+	):not([data-exact-theme-dragging='true']) {
+	background: var(--_exact-theme-tone-subtle-active);
+	box-shadow: var(--exact-theme-surface-sunken-shadow);
+}
+.exact-theme-selection[data-exact-theme-variant='strong']:is(
+		[aria-selected='true'],
+		[aria-current]:not([aria-current='false']),
+		[aria-pressed='true'],
+		:checked
+	):active:not(:disabled):not([aria-disabled='true']):not([aria-busy='true']):not(
+		[data-exact-theme-dragging='true']
+	) {
+	background: var(--_exact-theme-tone-solid-active);
+}
+:is(.exact-theme-action, .exact-theme-selection)[draggable='true']:not(:disabled):not(
+		[aria-disabled='true']
+	),
+.exact-theme-surface[data-exact-theme-interactive='true'][draggable='true']:not(:disabled):not(
+		[aria-disabled='true']
+	) {
+	cursor: grab;
+}
+:is(.exact-theme-action, .exact-theme-selection)[data-exact-theme-dragging='true']:not(
+		:disabled
+	):not([aria-disabled='true']):not([aria-busy='true']),
+.exact-theme-surface[data-exact-theme-interactive='true'][data-exact-theme-dragging='true']:not(
+		[data-exact-theme-variant='transparent']
+	):not(:disabled):not([aria-disabled='true']):not([aria-busy='true']) {
+	box-shadow: var(--exact-theme-shadow-lg);
+	cursor: grabbing;
+}
+.exact-theme-surface[data-exact-theme-interactive='true']:is(:disabled, [aria-disabled='true']) {
+	box-shadow: none;
+	cursor: not-allowed;
+}
+
+@media (hover: hover) {
+	.exact-theme-action[data-exact-theme-variant='primary']:hover:not(:disabled):not(
+			[aria-disabled='true']
+		):not(:active):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
+		background: var(--_exact-theme-tone-solid-hover);
+		box-shadow:
+			0 2px 4px color-mix(in oklch, var(--exact-theme-surface-foreground) 32%, transparent),
+			var(--exact-theme-shadow-md);
+	}
+	.exact-theme-action[data-exact-theme-variant='secondary']:hover:not(:disabled):not(
+			[aria-disabled='true']
+		):not(:active):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
+		background: var(--_exact-theme-tone-subtle-hover);
+		box-shadow: var(--exact-theme-shadow-md);
+	}
+	.exact-theme-action[data-exact-theme-variant='quiet']:hover:not(:disabled):not(
+			[aria-disabled='true']
+		):not(:active):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
+		background: var(--_exact-theme-tone-subtle-hover);
+		box-shadow: var(--exact-theme-shadow-sm);
+	}
+	.exact-theme-selection:hover:not(:disabled):not([aria-disabled='true']):not(
+			[aria-busy='true']
+		):not(:active):not([data-exact-theme-dragging='true']) {
+		background: var(--_exact-theme-tone-subtle-hover);
+		box-shadow: var(--exact-theme-shadow-sm);
+	}
+	.exact-theme-selection[data-exact-theme-variant='strong']:is(
+			[aria-selected='true'],
+			[aria-current]:not([aria-current='false']),
+			[aria-pressed='true'],
+			:checked
+		):hover:not(:disabled):not([aria-disabled='true']):not([aria-busy='true']):not(:active):not(
+			[data-exact-theme-dragging='true']
+		) {
+		background: var(--_exact-theme-tone-solid-hover);
+	}
+	.exact-theme-surface[data-exact-theme-interactive='true']:not(
+			[data-exact-theme-variant='transparent']
+		):hover:not(:disabled):not([aria-disabled='true']):not([aria-busy='true']):not(:active):not(
+			[data-exact-theme-dragging='true']
+		) {
+		background-color: var(--exact-theme-neutral-subtle-hover);
+		border-color: var(--exact-theme-surface-border-strong);
+		box-shadow: var(--exact-theme-shadow-lg);
+	}
+	.exact-theme-surface[data-exact-theme-interactive='true'][data-exact-theme-surface='0']:hover:not(
+			:disabled
+		):not(:active):not([aria-disabled='true']):not([aria-busy='true']):not(
+			[data-exact-theme-dragging='true']
+		),
+	.exact-theme-surface[data-exact-theme-interactive='true'][data-exact-theme-surface='sunken']:hover:not(
+			:disabled
+		):not(:active):not([aria-disabled='true']):not([aria-busy='true']):not(
+			[data-exact-theme-dragging='true']
+		) {
+		box-shadow: var(--exact-theme-shadow-sm);
+	}
+	.exact-theme-surface[data-exact-theme-interactive='true'][data-exact-theme-surface='1']:hover:not(
+			:disabled
+		):not(:active):not([aria-disabled='true']):not([aria-busy='true']):not(
+			[data-exact-theme-dragging='true']
+		) {
+		box-shadow: var(--exact-theme-shadow-md);
+	}
+}
+
+.exact-theme-surface[data-exact-theme-interactive='true']:not(
+		[data-exact-theme-variant='transparent']
+	):active:not(:disabled):not([aria-disabled='true']):not([aria-busy='true']):not(
+		[data-exact-theme-dragging='true']
+	) {
+	background-color: var(--exact-theme-neutral-subtle-active);
+	box-shadow: var(--exact-theme-shadow-sm);
+}
+.exact-theme-surface[data-exact-theme-interactive='true']:is(
+		[data-exact-theme-surface='0'],
+		[data-exact-theme-surface='1']
+	):active:not(:disabled):not([aria-disabled='true']):not([aria-busy='true']):not(
+		[data-exact-theme-dragging='true']
+	) {
+	box-shadow: var(--exact-theme-surface-sunken-shadow);
+}
+.exact-theme-surface[data-exact-theme-interactive='true'][data-exact-theme-surface='3']:active:not(
+		:disabled
+	):not([aria-disabled='true']):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
+	box-shadow: var(--exact-theme-shadow-md);
+}
+.exact-theme-surface[data-exact-theme-interactive='true'][data-exact-theme-surface='sunken']:active:not(
+		:disabled
+	):not([aria-disabled='true']):not([aria-busy='true']):not([data-exact-theme-dragging='true']) {
+	box-shadow: var(--exact-theme-surface-shadow);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-exact-theme-appearance]) {
+		color-scheme: dark;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--exact-theme-duration-fast: 0ms;
+		--exact-theme-duration-base: 0ms;
+		--exact-theme-duration-slow: 0ms;
+	}
+}
+@media (forced-colors: active) {
+	.exact-theme-surface {
+		color: CanvasText;
+		background: Canvas;
+		border-color: CanvasText;
+		box-shadow: none !important;
+	}
+	.exact-theme-action,
+	.exact-theme-field,
+	.exact-theme-selection {
+		color: ButtonText;
+		background: ButtonFace;
+		border-color: ButtonText;
+		box-shadow: none !important;
+	}
+	.exact-theme-action:focus-visible,
+	.exact-theme-field:focus-visible,
+	.exact-theme-selection:focus-visible {
+		outline-color: Highlight;
+	}
+	.exact-theme-status {
+		color: CanvasText;
+		background: Canvas;
+		border-color: CanvasText;
+	}
+	.exact-theme-separator {
+		background: CanvasText;
+	}
+}

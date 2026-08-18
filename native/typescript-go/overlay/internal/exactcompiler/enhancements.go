@@ -331,7 +331,11 @@ func resolveEnhancementNamespace(
 	namespaceType := typeChecker.GetTypeAtLocation(localName)
 	diagnostics := []enhancementResolutionDiagnostic{}
 	canonicalComponents := make(map[string]*enhancementComponent)
-	for _, exported := range typeChecker.GetExportsOfModule(module) {
+	exports := typeChecker.GetExportsOfModule(module)
+	sort.Slice(exports, func(left int, right int) bool {
+		return ast.SymbolName(exports[left]) < ast.SymbolName(exports[right])
+	})
+	for _, exported := range exports {
 		exportName := ast.SymbolName(exported)
 		identities := traceEnhancementExport(
 			module,

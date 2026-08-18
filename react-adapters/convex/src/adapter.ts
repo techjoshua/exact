@@ -117,7 +117,7 @@ export function createConvexConnectionSource<State = unknown>(
 
 /** Creates a component convex query. */
 export function createComponentConvexQuery<Value>(
-	component: Component<any>,
+	component: Component<object>,
 	query: unknown,
 	...argsAndOptions: unknown[]
 ): ExternalSource<Value | undefined> {

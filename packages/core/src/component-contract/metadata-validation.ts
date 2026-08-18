@@ -13,7 +13,7 @@ export function isSafeContractStringList(value: unknown): value is string[] {
 }
 
 /** Narrows generated metadata to a non-array record. */
-export function isContractRecord(value: unknown): value is Record<string, any> {
+export function isContractRecord(value: unknown): value is Record<string, unknown> {
 	return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -24,7 +24,7 @@ export function isContractString(value: unknown): value is string {
 
 /** Rejects unexpected fields in versioned generated metadata. */
 export function hasOnlyContractKeys(
-	value: Record<string, any>,
+	value: Record<string, unknown>,
 	allowed: readonly string[]
 ): boolean {
 	return Object.keys(value).every((key) => allowed.includes(key));

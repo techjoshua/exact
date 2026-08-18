@@ -2,11 +2,9 @@ import {
 	Activity,
 	Fragment,
 	Suspense,
-	activateTaskForHost,
+	TaskContext,
 	createVNode,
-	defineTask,
 	markExactComponent,
-	stageTaskMutation,
 	type ActivityMode,
 	type Child,
 	type Component
@@ -152,15 +150,11 @@ export function SuspendedPanel(this: Component<{ ready: boolean }>) {
 	const pending = new Promise<void>((resolve) => {
 		settleSuspense = resolve;
 	});
-	activateTaskForHost(
-		this,
-		defineTask({ readiness: 'blocking' }, async ({ signal }) => {
-			await pending;
-			stageTaskMutation(signal, () => {
-				this.state.ready = true;
-			});
-		})
-	);
+	const settle = async (_task: TaskContext = TaskContext.blocking()) => {
+		await pending;
+		this.state.ready = true;
+	};
+	settle();
 	return () => <p>{this.state.ready ? 'ready' : 'waiting'}</p>;
 }
 

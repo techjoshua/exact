@@ -21,6 +21,11 @@ Dispatch only compiler-generated contracts. Component labels, module names, debu
 and client payloads are not operation authority. Keep application services, private captures,
 request resources, and secrets in trusted server context.
 
+Register a payload decoder for every manual operation that accepts client data. It runs before
+authorization and the handler. Manual replacement/list HTML must be wrapped with
+`unsafeExactHtml()`; raw strings are rejected, while compiler/SSR output retains framework-owned
+provenance. The unsafe constructor is an explicit audit capability, not an escaping function.
+
 Optional DevTools access uses the same endpoint but requires explicit `allowDebug` authorization
 and server-owned inspection catalogs.
 

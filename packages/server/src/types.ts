@@ -26,6 +26,7 @@ export type {
 	ExactDebugSessionIdentity,
 	ExactServerDebugRuntime
 } from './debug-types.js';
+import type { ExactTrustedHtml } from './trusted-html.js';
 import type {
 	ExactAllowDebug,
 	ExactDebugAuditEvent,
@@ -266,20 +267,6 @@ export type ExactInvocationRequest = {
 /** Full top-level protocol union accepted at the configured eXact endpoint. */
 export type ExactProtocolRequest = ExactInvocationRequest | ExactBatchRequest | ExactDebugRequest;
 
-/** Selects the manifest and handlers for one execution root in a retained build. */
-export type ExactRemoteRootDispatch = {
-	contract: ExactExecutorContract;
-	invocations?: ExactServerContext['invocations'];
-	refreshBoundaries?: ExactServerContext['refreshBoundaries'];
-};
-
-/** Registers the executor artifacts retained for one immutable client build. */
-export type ExactRemoteBuildRegistration = {
-	buildKey: string;
-	componentAuthorization?: ExactComponentAuthorizationIdentity;
-	roots: Readonly<Record<string, ExactRemoteRootDispatch>>;
-};
-
 /** Reports a bounded page-gateway rejection without request credentials or payloads. */
 export type ExactGatewayRejectEvent = {
 	reason:
@@ -434,23 +421,47 @@ export type ExactPatch =
 	| { type: 'state'; id: string; value: unknown }
 	| { type: 'replace'; id: string; html: string };
 
+/** Patch authored by an application handler; structural HTML requires explicit trust. */
+export type ExactManualPatch =
+	| Exclude<ExactPatch, { type: 'replace' } | { type: 'list' }>
+	| { type: 'replace'; id: string; html: ExactTrustedHtml }
+	| {
+			type: 'list';
+			id: string;
+			op: 'insert' | 'move' | 'remove';
+			key: string;
+			before?: string;
+			html?: ExactTrustedHtml;
+	  };
+
+/** Application-owned operation result before trusted HTML is unwrapped for transport. */
+export type ExactManualInvocationResult = Omit<ExactInvocationResult, 'html' | 'patches'> & {
+	html?: ExactTrustedHtml;
+	patches?: ExactManualPatch[];
+};
+
+/** Application-owned operation implementation. */
+export type ExactManualInvocationHandler = (
+	input: ExactInvocationRequest,
+	context: ExactServerContext
+) => Promise<ExactManualInvocationResult> | ExactManualInvocationResult;
+
+/** Common runtime handler shape spanning authored and framework-owned provenance. */
+export type ExactInvocationHandler = (
+	input: ExactInvocationRequest,
+	context: ExactServerContext
+) =>
+	| ExactInvocationResult
+	| ExactManualInvocationResult
+	| Promise<ExactInvocationResult | ExactManualInvocationResult>;
+
 /** Carries the context required by exact server. */
 export type ExactServerContext = ExactServerContextConfiguration & {
 	contract: ExactExecutorContract;
-	invocations?: Record<
-		string,
-		(
-			input: ExactInvocationRequest,
-			context: ExactServerContext
-		) => Promise<ExactInvocationResult> | ExactInvocationResult
-	>;
-	refreshBoundaries?: Record<
-		string,
-		(
-			input: ExactInvocationRequest,
-			context: ExactServerContext
-		) => Promise<ExactInvocationResult> | ExactInvocationResult
-	>;
+	invocations?: Record<string, ExactInvocationHandler>;
+	refreshBoundaries?: Record<string, ExactInvocationHandler>;
+	/** Required business validation for manual operations that accept a payload. */
+	payloadDecoders?: import('./payload-decoding.js').ExactPayloadDecoders;
 	/**
 	 * Resolves the currently mounted authority for dynamic branch/keyed ranges.
 	 * Returning no instance rejects the refresh before handler lookup.
@@ -460,7 +471,9 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 		context: ExactServerContext
 	): Promise<ExactPartitionAuthority | undefined> | ExactPartitionAuthority | undefined;
 	/** Build-keyed remote executor registrations installed by the application. */
-	remoteBuilds?: Readonly<Record<string, ExactRemoteBuildRegistration>>;
+	remoteBuilds?: Readonly<
+		Record<string, import('./remote-build-contracts.js').ExactRemoteBuildRegistration>
+	>;
 	/** Advisory retained build advertised for a future client root replacement. */
 	preferredBuildKey?: string;
 	/** Optional page-host alternate dispatch configured for trusted remote bindings. */

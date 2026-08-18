@@ -7,7 +7,10 @@ import {
 	resumeTaskFrameContinuation
 } from './frame-continuation.js';
 import { createTaskFrameContext, frameForTaskContext } from './frame-context.js';
-import { publishTaskFrameEvent, taskFrameInspectionAttached } from './frame-inspection.js';
+import {
+	publishTaskFrameEvent,
+	taskFrameInspectionAttached
+} from './frame-inspection-capability.js';
 import {
 	registerTaskFrameSettlement,
 	runTaskFrameCleanups,

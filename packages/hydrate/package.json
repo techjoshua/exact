@@ -35,7 +35,8 @@
 	},
 	"devDependencies": {
 		"@exactjs/accessibility": "^0.1.0",
-		"@exactjs/testing": "^0.1.0"
+		"@exactjs/testing": "^0.1.0",
+		"@exactjs/time": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b",

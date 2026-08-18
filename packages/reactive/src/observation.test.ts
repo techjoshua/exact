@@ -135,6 +135,15 @@ describe('@exactjs/reactive observation', () => {
 		}).not.toThrow();
 	});
 
+	it('preserves an own __proto__ data property without changing the snapshot prototype', () => {
+		const value = JSON.parse('{"__proto__":{"polluted":true},"safe":1}') as Record<string, unknown>;
+		const copy = snapshot(value);
+
+		expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
+		expect(Object.prototype.hasOwnProperty.call(copy, '__proto__')).toBe(true);
+		expect(copy.__proto__).toEqual({ polluted: true });
+	});
+
 	it('reads with peek without tracking', () => {
 		const state = reactive({ count: 0, ignored: 0 });
 		const render = vi.fn(() => {

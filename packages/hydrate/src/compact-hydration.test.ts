@@ -24,6 +24,7 @@ it('resolves compiler-finite island props from a grouped response table', () => 
 	const container = document.createElement('main');
 	container.innerHTML = rendered.htmlWithHydration;
 	const config = readExactHydrationConfig(container);
+	expect(config.wallClockSnapshot).toBe(rendered.wallClockSnapshot);
 	expect(config.hydrationTable).toEqual([1, [['Counter', ['label'], [['counter-1', 'Compact']]]]]);
 	expect(
 		hydrateClientIslands(container, markTestComponents({ Counter }), {

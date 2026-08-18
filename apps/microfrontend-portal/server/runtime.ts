@@ -7,9 +7,14 @@ import type {
 	ExactRemoteBuildRegistration,
 	ExactRequestLike,
 	ExactServerContext,
-	ExactExecutorContract
+	ExactExecutorContract,
+	ExactTrustedHtml
 } from '@exactjs/server';
-import { defineExactBoundaryContract, defineExactOperationContract } from '@exactjs/server';
+import {
+	defineExactBoundaryContract,
+	defineExactOperationContract,
+	unsafeExactHtml
+} from '@exactjs/server';
 
 /** Immutable protocol root for the billing exposure. */
 export const billingRoot = '@exactjs/sample-microfrontend-billing#./Billing';
@@ -139,6 +144,10 @@ export function createSampleRuntimes(options: SampleRuntimeOptions): SampleRunti
 				};
 			}
 		},
+		payloadDecoders: {
+			invocations: { 'page.audit': decodePayloadRecord },
+			boundaries: { 'page.summary': decodePayloadRecord }
+		},
 		refreshBoundaries: {
 			'page.summary': async (input) => {
 				observations.pageServerRenders++;
@@ -196,8 +205,20 @@ function rootRegistration(
 	return {
 		contract: actionContract(ids, Object.keys(refreshBoundaries)),
 		invocations,
-		refreshBoundaries
+		refreshBoundaries,
+		payloadDecoders: {
+			invocations: Object.fromEntries(ids.map((id) => [id, decodePayloadRecord])),
+			boundaries: Object.fromEntries(
+				Object.keys(refreshBoundaries).map((id) => [id, decodePayloadRecord])
+			)
+		}
 	};
+}
+
+function decodePayloadRecord(payload: unknown): Record<string, unknown> {
+	if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+		throw new TypeError('Expected an object payload');
+	return payload as Record<string, unknown>;
 }
 
 function actionContract(
@@ -254,23 +275,17 @@ function account(input: ExactInvocationRequest): string {
 	return String(payloadRecord(input).accountId ?? 'unknown account');
 }
 
-async function serverComponentHtml(label: string, input: ExactInvocationRequest): Promise<string> {
+async function serverComponentHtml(
+	label: string,
+	input: ExactInvocationRequest
+): Promise<ExactTrustedHtml> {
 	const rendered = await renderToStringAsync(
-		createVNode(ServerSummary, {
-			label,
-			accountId: account(input),
-			tenant: String(payloadRecord(input).tenant ?? 'unknown tenant')
-		}),
-		{ markers: false }
-	);
-	return rendered.html;
-}
-
-function ServerSummary(props: { label: string; accountId: string; tenant: string }) {
-	return () =>
 		createVNode(
 			'article',
-			{ 'data-server-component': props.label },
-			`${props.label}: ${props.tenant} / ${props.accountId}`
-		);
+			{ 'data-server-component': label },
+			`${label}: ${String(payloadRecord(input).tenant ?? 'unknown tenant')} / ${account(input)}`
+		),
+		{ markers: false }
+	);
+	return unsafeExactHtml(rendered.html);
 }

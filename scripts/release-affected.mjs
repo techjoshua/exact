@@ -49,6 +49,9 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 			)
 		) || changedScripts.some((filename) => /r3f|react-reconciler/.test(filename));
 	const compilerAcceptance = compilerAcceptanceAffected(changedFiles);
+	const themeBrowser = selected.some((workspace) =>
+		['@exactjs/theme', '@exactjs/theme-fixture', '@exactjs/docs'].includes(workspace.name)
+	);
 
 	return Object.freeze({
 		base,
@@ -61,8 +64,17 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 				.map((workspace) => workspace.directory)
 		),
 		apps: Object.freeze({
+			docs: selected.some((workspace) => workspace.directory === 'apps/docs'),
 			kanban: selected.some((workspace) => workspace.directory === 'apps/kanban'),
 			workbench: selected.some((workspace) => workspace.directory === 'apps/workbench'),
+			sudoku: selected.some((workspace) => workspace.directory === 'apps/sudoku'),
+			puzzleGenerator: selected.some(
+				(workspace) => workspace.directory === 'apps/puzzle-generator'
+			),
+			microfrontends: selected.some(
+				(workspace) => workspace.directory === 'apps/microfrontend-portal'
+			),
+			intl: selected.some((workspace) => workspace.directory === 'apps/intl-testbed'),
 			serverComponents: selected.some(
 				(workspace) => workspace.directory === 'apps/server-components'
 			),
@@ -71,6 +83,7 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 		reactCompatibility,
 		r3fBrowser,
 		compilerAcceptance,
+		themeBrowser,
 		nativeCompilerCorpus:
 			selected.some((workspace) => workspace.name === '@exactjs/compiler') ||
 			changedFiles.some(

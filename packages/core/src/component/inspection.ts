@@ -11,7 +11,10 @@ import {
 	type ExactValueRedactor
 } from '@exactjs/devtools-protocol';
 import { exactComponentIdentity, isExactComponent } from '../component-contracts.js';
-import { inspectTaskFrameSnapshotsForHost } from '../tasks/frame-inspection.js';
+import {
+	activateTaskFrameInspection,
+	inspectTaskFrameSnapshotsForHost
+} from '../tasks/frame-inspection.js';
 import type { ComponentInstance } from './contracts.js';
 import { componentDomainInspection } from './domain.js';
 import {
@@ -76,6 +79,9 @@ export interface ExactRuntimeInspectionOwner {
 export function createExactRuntimeInspectionOwner(
 	options: ExactRuntimeInspectionOwnerOptions
 ): ExactRuntimeInspectionOwner {
+	// Task-frame projection is intentionally installed here, rather than at module evaluation, so
+	// an inspection-free artifact can tree-shake snapshot/history code from its execution hot path.
+	activateTaskFrameInspection();
 	let sessionId: string | undefined;
 	let sink: ExactRuntimeInspectionSink | undefined;
 	let sequence = 0;

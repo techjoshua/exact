@@ -25,7 +25,7 @@ export function DocsLayout(this: Component<LayoutState>) {
 	};
 
 	return () => (
-		<div className="docs-app">
+		<div theme:surface="base" className="docs-app">
 			<a className="skip-link" href="#article">
 				Skip to content
 			</a>
@@ -41,7 +41,7 @@ export function DocsLayout(this: Component<LayoutState>) {
 			/>
 			<div className="docs-frame">
 				<DocsSidebar open={this.state.mobileOpen} onNavigate={closeNavigation} />
-				<main id="article" className="content-panel" tabindex="-1">
+				<main theme:surface="base" id="article" className="content-panel" tabindex="-1">
 					<Outlet />
 				</main>
 			</div>

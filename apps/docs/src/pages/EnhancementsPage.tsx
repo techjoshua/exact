@@ -49,7 +49,7 @@ export function EnhancementsPage(this: Component<{}>) {
 			title="Extend JSX. Enrich the experience."
 			description="An enhancement is an optional component around authored output. Namespaced JSX selects it, and the consuming application decides whether its provider participates."
 			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
-			next={{ path: '/components/accessibility', label: 'Accessibility' }}
+			next={{ path: '/components/theme', label: 'Theme proposal' }}
 		>
 			<section>
 				<h2>An optional component around authored output</h2>
@@ -103,7 +103,8 @@ export function EnhancementsPage(this: Component<{}>) {
 					it. Static components include it in their normal graph; lazy components and microfrontends
 					carry it in their later-loaded graph and can activate it after the host root exists. An
 					application with no selected enhancements does not ship the enhancement mounting, routing,
-					or reconciliation implementation.
+					or reconciliation implementation. In Vite development, components that resolve to the same
+					provider share its generated facade while authorization remains scoped to each importer.
 				</p>
 			</section>
 
@@ -113,8 +114,15 @@ export function EnhancementsPage(this: Component<{}>) {
 					Enhancements on <code>_</code> occupy that transparent fragment boundary directly,
 					including text and multi-node output. Nested <code>_target</code> layers compose classes,
 					styles, token-list attributes, refs, events, and singular properties without mutating the
-					authored child. Target routing follows the active logical output path and stops at the
-					first root-bearing component frame.
+					authored child. Compiler-owned native-control bindings remain attached verbatim when a
+					layer styles or augments a bound input or select. Target routing follows the active
+					logical output path and stops at the first root-bearing component frame.
+				</p>
+				<p>
+					During client DOM mounting, a direct intrinsic or <code>_</code> chain that declares a
+					provided context constructs before that target&apos;s descendants. It can consequently
+					establish services, themes, or policies that descendant components consume during setup,
+					with nested enhanced targets constructing inside the outer provider chain.
 				</p>
 				<CodeBlock source={packageScopeSource} language="ts" title="exact.config.ts" />
 				<p>
@@ -142,7 +150,7 @@ export function EnhancementsPage(this: Component<{}>) {
 					runtime composition and authoring guidance without teaching those rules to the core
 					compiler.
 				</p>
-				<Link className="secondary-link" to="/learn/language-tools">
+				<Link theme:action="secondary" className="secondary-link" to="/learn/language-tools">
 					See package-owned editor assistance
 				</Link>
 			</section>
@@ -150,32 +158,62 @@ export function EnhancementsPage(this: Component<{}>) {
 			<section>
 				<h2>Component libraries in this repository</h2>
 				<div className="card-grid">
-					<Link className="topic-card" to="/components/accessibility">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/accessibility"
+					>
 						<span className="topic-index">Native semantics + guidance</span>
 						<strong>Accessibility</strong>
 						<p>Connect refs, coordinate focus, and navigate complete custom composites.</p>
 					</Link>
-					<Link className="topic-card" to="/plugins/internationalization">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/plugins/internationalization"
+					>
 						<span className="topic-index">Language + build integration</span>
 						<strong>Internationalization</strong>
 						<p>Author semantic messages while build tooling coordinates extraction and catalogs.</p>
 					</Link>
-					<Link className="topic-card" to="/components/motion">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/motion"
+					>
 						<span className="topic-index">Visual behavior</span>
 						<strong>Motion</strong>
 						<p>Animate committed state with prepared definitions and task-owned playback.</p>
 					</Link>
-					<Link className="topic-card" to="/components/gestures">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/gestures"
+					>
 						<span className="topic-index">Semantic input</span>
 						<strong>Gestures</strong>
 						<p>Recognize pointer and keyboard intent with bounded component-owned sessions.</p>
 					</Link>
-					<Link className="topic-card" to="/components/physics">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/physics"
+					>
 						<span className="topic-index">Deterministic simulation</span>
 						<strong>Physics</strong>
 						<p>Advance owned 2D worlds and optionally project body poses.</p>
 					</Link>
-					<Link className="topic-card" to="/components/gravity">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/components/gravity"
+					>
 						<span className="topic-index">Force policy</span>
 						<strong>Gravity</strong>
 						<p>Compose finite acceleration fields through the physics force seam.</p>

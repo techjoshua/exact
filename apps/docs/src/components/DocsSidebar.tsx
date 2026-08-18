@@ -10,11 +10,11 @@ type DocsSidebarProps = {
 /** Renders grouped documentation routes and closes mobile navigation after selection. */
 export function DocsSidebar(this: Component<{}>, props: DocsSidebarProps) {
 	return () => (
-		<aside className="sidebar" className:is-open={props.open}>
+		<aside theme:surface="sunken" className="sidebar" className:is-open={props.open}>
 			<nav aria-label="Documentation">
 				{docGroups.map((group) => (
 					<section className="nav-group">
-						<h2>{group.label}</h2>
+						<h2 theme:text="supporting">{group.label}</h2>
 						{group.pages.map((page) => (
 							<NavLink
 								to={page.path}
@@ -28,7 +28,9 @@ export function DocsSidebar(this: Component<{}>, props: DocsSidebarProps) {
 					</section>
 				))}
 			</nav>
-			<p className="sidebar-note">Compiler-led components, from state to server boundaries.</p>
+			<p theme:text="supporting" className="sidebar-note">
+				Compiler-led components, from state to server boundaries.
+			</p>
 		</aside>
 	);
 }

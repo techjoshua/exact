@@ -1,4 +1,4 @@
-import { activateTaskForHost, defineTask, TaskContext, type Component } from '@exactjs/core';
+import { TaskContext, taskTimeout, type Component } from '@exactjs/core';
 import { renderToProgressiveHtmlStream, renderToString, renderToStringAsync } from '@exactjs/ssr';
 import {
 	defineExactBoundaryContract,
@@ -83,25 +83,25 @@ function CpuPanel(this: Component<{ value: number }>, props: { iterations: numbe
 
 function IoPanel(this: Component<{ ready: boolean }>, props: { delayMs: number }) {
 	this.state.ready = false;
-	activateTaskForHost(
-		this,
-		defineTask({ readiness: 'blocking' }, async () => {
-			await new Promise<void>((resolve) => setTimeout(resolve, props.delayMs));
-			this.state.ready = true;
-		})
-	);
+	const load = async (task: TaskContext = TaskContext.blocking()) => {
+		await new Promise<void>((resolve) => {
+			taskTimeout(task.signal, resolve, props.delayMs);
+		});
+		this.state.ready = true;
+	};
+	void load();
 	return () => <output>{this.state.ready ? 'ready' : 'waiting'}</output>;
 }
 
 function ProgressivePanel(this: Component<{ ready: boolean }>) {
 	this.state.ready = false;
-	activateTaskForHost(
-		this,
-		defineTask({}, async () => {
-			await new Promise<void>((resolve) => setTimeout(resolve, 1));
-			this.state.ready = true;
-		})
-	);
+	const load = async (task: TaskContext = TaskContext.deferred()) => {
+		await new Promise<void>((resolve) => {
+			taskTimeout(task.signal, resolve, 1);
+		});
+		this.state.ready = true;
+	};
+	void load();
 	return () => <p>{this.state.ready ? 'ready' : 'loading'}</p>;
 }
 
@@ -313,6 +313,15 @@ function serverContext(): ExactServerContext {
 					}
 				]
 			})
+		},
+		payloadDecoders: {
+			invocations: {
+				'performance-action': (payload) => {
+					if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+						throw new TypeError('Expected an operation payload object');
+					return payload;
+				}
+			}
 		},
 		refreshBoundaries: {
 			'performance-boundary': () => ({

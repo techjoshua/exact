@@ -44,11 +44,23 @@ type BrandedRenderProgram = ExactRenderProgram & { readonly [renderProgramBrand]
 /** Per-instance readers and generic fallback joined to one cached compiled program. */
 export type ExactRenderProgramInvocation = Readonly<{
 	program: BrandedRenderProgram;
-	readers: readonly (() => unknown)[];
-	fallback: () => VNode;
+	readers: readonly (() => unknown)[] | ((index: number) => unknown);
+	/** Generic recovery retained only when the artifact can execute outside the closed client path. */
+	fallback?: () => VNode;
 }>;
 
 const programs = new Map<string, BrandedRenderProgram>();
+const maximumCachedPrograms = 2_048;
+
+/** Clears compiler artifacts retained by an obsolete build/HMR generation. */
+export function clearCompiledRenderPrograms(): void {
+	programs.clear();
+}
+
+/** Returns cache occupancy for framework diagnostics and bounded-cache tests. */
+export function compiledRenderProgramCacheSize(): number {
+	return programs.size;
+}
 
 /**
  * Creates a branded compiled render result. The revision-specific cache key
@@ -59,8 +71,8 @@ const programs = new Map<string, BrandedRenderProgram>();
 export function createCompiledRenderProgram(
 	cacheKey: string,
 	createProgram: () => ExactRenderProgram,
-	readers: readonly (() => unknown)[],
-	fallback: () => VNode
+	readers: readonly (() => unknown)[] | ((index: number) => unknown),
+	fallback?: () => VNode
 ): VNode {
 	let branded = programs.get(cacheKey);
 	if (!branded) {
@@ -85,11 +97,12 @@ export function createCompiledRenderProgram(
 			[renderProgramBrand]: true as const
 		});
 		programs.set(cacheKey, branded);
+		if (programs.size > maximumCachedPrograms) programs.delete(programs.keys().next().value!);
 	}
 	const domain = currentComponentDomain();
 	return {
 		type: RenderProgram,
-		props: { program: branded, readers, fallback },
+		props: { program: branded, readers, ...(fallback ? { fallback } : {}) },
 		children: [],
 		...(domain ? { domain } : {})
 	};
@@ -103,17 +116,28 @@ export function readRenderProgram(vnode: VNode): ExactRenderProgramInvocation | 
 		!invocation.program ||
 		invocation.program[renderProgramBrand] !== true ||
 		invocation.program.version !== 1 ||
-		!Array.isArray(invocation.readers) ||
-		typeof invocation.fallback !== 'function' ||
-		invocation.readers.length !== invocation.program.slots.length
+		(!Array.isArray(invocation.readers) && typeof invocation.readers !== 'function') ||
+		(invocation.fallback !== undefined && typeof invocation.fallback !== 'function') ||
+		(Array.isArray(invocation.readers) &&
+			invocation.readers.length !== invocation.program.slots.length)
 	)
 		return undefined;
 	return invocation as ExactRenderProgramInvocation;
 }
 
+/** Evaluates one invocation-local slot through either legacy readers or a combined dispatcher. */
+export function readRenderProgramSlot(
+	invocation: ExactRenderProgramInvocation,
+	index: number
+): unknown {
+	return typeof invocation.readers === 'function'
+		? invocation.readers(index)
+		: invocation.readers[index]!();
+}
+
 /** Materializes the region-local generic path after an executor rejection. */
-export function renderProgramFallback(vnode: VNode): VNode {
+export function renderProgramFallback(vnode: VNode): VNode | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) throw new Error('Invalid compiler-owned render program');
-	return invocation.fallback();
+	return invocation.fallback?.();
 }

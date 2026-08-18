@@ -17,12 +17,7 @@ export function refreshComponentRoot(
 	const target = mounted ? firstTargetElement(mounted) : undefined;
 	const host = mounted ? firstHostElement(mounted) : undefined;
 	if (mounted) mounted.componentRootCache = { target, host };
-	publishComponentRoot(
-		instance,
-		target ?? host,
-		presented,
-		introduction
-	);
+	publishComponentRoot(instance, target ?? host, presented, introduction);
 }
 
 function firstTargetElement(mounted: Mounted): Element | undefined {

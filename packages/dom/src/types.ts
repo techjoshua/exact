@@ -15,7 +15,7 @@ import type {
 	UnsafeHtmlAuditEvent,
 	VNode
 } from '@exactjs/core';
-import type { ExactRenderProgramInvocation } from '@exactjs/core';
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render';
 import type { ReadinessCoordinator } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { EffectScope } from '@exactjs/reactive';

@@ -1,6 +1,6 @@
 import { capabilityCompilationOptions } from '../compilation/capability-options.js';
 import { createExactCompilerExplanation } from '../explanation.js';
-import { createLineSourceMap } from '../source-maps.js';
+import { composeExactSourceMaps, createLineSourceMap, isExactSourceMap } from '../source-maps.js';
 import { createExactSourceInspection } from '../language-tools/source-inspection.js';
 import {
 	appendExactRuntimeInspectionRegistration,
@@ -108,15 +108,21 @@ export function transformSourceWithNativeCompiler(
 		correlation && target !== 'server'
 			? appendExactRuntimeInspectionRegistration(response.code, correlation)
 			: response.code;
-	const output = options.moduleTransform
-		? options.moduleTransform({ id: filename, source: instrumented, target }).code
-		: instrumented;
+	const transformed = options.moduleTransform?.({ id: filename, source: instrumented, target });
+	const output = transformed?.code ?? instrumented;
+	const transformedMap = isExactSourceMap(transformed?.map) ? transformed.map : null;
+	const nativeMap =
+		options.sourceMap && (!transformed || transformedMap)
+			? nativeSourceMap(response.sourceMap, filename, normalized)
+			: null;
 	return {
 		code: output,
 		map: options.sourceMap
-			? options.moduleTransform
-				? createLineSourceMap(filename, normalized, output)
-				: nativeSourceMap(response.sourceMap, filename, normalized)
+			? transformed
+				? transformedMap && nativeMap
+					? composeExactSourceMaps(transformedMap, nativeMap)
+					: createLineSourceMap(filename, normalized, output)
+				: nativeMap
 			: null,
 		filename,
 		componentBuild: createExactComponentBuildFacts(analysis),

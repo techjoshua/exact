@@ -5,6 +5,7 @@ import {
 	renderInstance
 } from '@exactjs/core';
 import { adoptStatic, render, unmount, type RenderOptions } from '@exactjs/dom';
+import { registerDomEnhancementIntegration } from '@exactjs/dom/framework/enhancements';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import {
 	ActivityBoundary,
@@ -221,6 +222,7 @@ function keyedListUpdate(count: number): ClientScenarioResult {
 }
 
 function enhancementReroute(): ClientScenarioResult {
+	registerDomEnhancementIntegration();
 	const rootState = reactive({ left: true });
 	const left = computed(() => rootState.left);
 	const right = computed(() => !rootState.left);
@@ -250,10 +252,8 @@ function enhancementReroute(): ClientScenarioResult {
 	rootState.left = false;
 	flushSync();
 	const elapsed = performance.now() - started;
-	assert(
-		container.querySelectorAll('button').length === 2,
-		'enhancement reroute changed target DOM'
-	);
+	const buttonCount = container.querySelectorAll('button').length;
+	assert(buttonCount === 2, `enhancement reroute changed target DOM (${buttonCount} buttons)`);
 	unmount(container);
 	return elapsedResult('updateMs', elapsed, 1);
 }
@@ -280,7 +280,10 @@ async function suspenseCycle(): Promise<ClientScenarioResult> {
 	const container = createContainer();
 	releaseSuspenseInstance();
 	render(<SuspenseBoundary />, container);
-	assert(container.textContent === 'loading', 'Suspense fixture did not publish fallback');
+	assert(
+		container.textContent === 'loading',
+		`Suspense fixture did not publish fallback: ${container.innerHTML}`
+	);
 	assert(settleSuspense, 'Suspense fixture did not activate blocking work');
 	const started = performance.now();
 	settleSuspense();

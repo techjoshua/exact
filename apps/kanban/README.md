@@ -19,4 +19,6 @@ npm run build:kanban
 ```
 
 The sample is intentionally compact and is a useful starting point for understanding durable
-component instances and fine-grained updates.
+component instances and fine-grained updates. It uses `@exactjs/theme` for its application scope,
+generated visual tokens, semantic fields and actions, and column surfaces while retaining its
+board-specific layout and drag presentation.

@@ -322,10 +322,10 @@ export function StoryPage(this: Component<{}>) {
 					of the program, then let the compiler manage the machinery.
 				</p>
 				<div className="hero-actions">
-					<Link className="primary-link" to="/getting-started">
+					<Link theme:action="primary" className="primary-link" to="/getting-started">
 						Build your first eXact app <span aria-hidden="true">{'->'}</span>
 					</Link>
-					<Link className="secondary-link" to="/learn/compiler-tour">
+					<Link theme:action="secondary" className="secondary-link" to="/learn/compiler-tour">
 						See what the compiler generates
 					</Link>
 				</div>

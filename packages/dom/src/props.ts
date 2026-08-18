@@ -111,13 +111,7 @@ function setProp(
 		return;
 	}
 
-	if (
-		key === '__exactBindInput' ||
-		key === '__exactBindChange' ||
-		key === '__exactBindToggle' ||
-		key === '__exactBindModalToggle' ||
-		key === '__exactBindModalClose'
-	) {
+	if (isCompilerFormBindingProp(key)) {
 		setDirectEventHandler(
 			root,
 			element,
@@ -190,6 +184,17 @@ function setProp(
 		{ scope, onRelease: () => releasePropBinding(element, key) }
 	);
 	if (stop) setPropBinding(element, key, stop);
+}
+
+/** Identifies compiler-owned native-control bindings that enhancements must preserve verbatim. */
+export function isCompilerFormBindingProp(key: string): boolean {
+	return (
+		key === '__exactBindInput' ||
+		key === '__exactBindChange' ||
+		key === '__exactBindToggle' ||
+		key === '__exactBindModalToggle' ||
+		key === '__exactBindModalClose'
+	);
 }
 
 /** Applies one ordinary prop after the caller has selected static or observed execution. */

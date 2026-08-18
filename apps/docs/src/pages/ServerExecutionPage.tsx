@@ -254,6 +254,13 @@ export function ServerExecutionPage(this: Component<{}>) {
 					flow through normal fine-grained reactivity.
 				</p>
 				<p>
+					Manual server operations with client payloads register a typed decoder that runs before
+					authorization and handler execution. Protocol allowlisting is not business validation.
+					Authored HTML patches require the explicit <code>unsafeExactHtml()</code> audit
+					capability; raw strings are rejected, while compiler and SSR output keeps framework-owned
+					provenance.
+				</p>
+				<p>
 					Reactive JSX children have stable compiler-owned marker ranges. When a server refresh
 					changes one of those structures, eXact can replace that range while retaining unaffected
 					siblings, component instances, and DOM state. Element, list, and property patches remain

@@ -18,10 +18,10 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 	});
 
 	return () => (
-		<section className="detail-panel">
+		<section theme:surface="raised" className="detail-panel">
 			<header>
 				<h2>Task Detail</h2>
-				<button type="button" className="quiet-button" onClick={() => workbench.closeTask()}>
+				<button theme:action="quiet" type="button" onClick={() => workbench.closeTask()}>
 					Close
 				</button>
 			</header>
@@ -29,6 +29,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 			<label>
 				<span>Title</span>
 				<input
+					theme:field="default"
 					ref={this.ref(titleRef)}
 					value={props.task.title}
 					onInput={(event) =>
@@ -42,6 +43,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 			<label>
 				<span>Notes</span>
 				<textarea
+					theme:field="default"
 					rows={6}
 					value={props.task.notes}
 					onInput={(event) =>
@@ -55,6 +57,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 			<label>
 				<span>Owner</span>
 				<input
+					theme:field="default"
 					value={props.task.owner}
 					onInput={(event) =>
 						workbench.updateTask(props.task.id, {
@@ -68,6 +71,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 				<label>
 					<span>Status</span>
 					<select
+						theme:field="default"
 						value={props.task.status}
 						onChange={(event) =>
 							workbench.updateTask(props.task.id, {
@@ -84,6 +88,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 				<label>
 					<span>Priority</span>
 					<select
+						theme:field="default"
 						value={props.task.priority}
 						onChange={(event) =>
 							workbench.updateTask(props.task.id, {
@@ -108,23 +113,30 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 				<label>
 					<span>Labels</span>
 					<input
+						theme:field="default"
 						value={props.draftLabel}
 						placeholder="Add label"
 						onInput={(event) => workbench.setDraftLabel(event.currentTarget.value)}
 					/>
 				</label>
-				<button type="submit">Add</button>
+				<button theme:action="primary" type="submit">
+					Add
+				</button>
 			</form>
 
 			<div className="label-row editable">
 				{props.task.labels.length ? (
 					props.task.labels.map((label) => (
-						<button type="button" onClick={() => workbench.removeLabel(props.task.id, label)}>
+						<button
+							theme:selection="subtle"
+							type="button"
+							onClick={() => workbench.removeLabel(props.task.id, label)}
+						>
 							{label} x
 						</button>
 					))
 				) : (
-					<span>No labels</span>
+					<span theme:text="muted">No labels</span>
 				)}
 			</div>
 		</section>
@@ -134,7 +146,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 /** Renders the empty task detail panel state when no task is selected. */
 export function EmptyDetailPanel(this: Component<{}>) {
 	return () => (
-		<section className="detail-panel empty-detail">
+		<section theme:surface="raised" className="detail-panel empty-detail">
 			<h2>Task Detail</h2>
 			<p>Select a task to edit title, owner, notes, status, priority, and labels.</p>
 		</section>

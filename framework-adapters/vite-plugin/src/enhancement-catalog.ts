@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
 	exactAvailableEnhancementFacadeSource,
 	exactEnhancementFacadeImports,
@@ -16,7 +17,6 @@ const resolvedFacadePrefix = '\0exact:optional-enhancement:';
 /** Build-local optional enhancement facades resolved in the authored importer's scope. */
 export class ExactViteEnhancementFacadeCatalog {
 	readonly #sources = new Map<string, string>();
-	#generation = 0;
 
 	/** Resolves a compiler request without making an absent optional package a build error. */
 	async resolve(
@@ -47,7 +47,12 @@ export class ExactViteEnhancementFacadeCatalog {
 					activationModule
 				);
 		}
-		const id = `${resolvedFacadePrefix}${this.#generation}:${encodeURIComponent(source)}:${encodeURIComponent(importer ?? '')}`;
+		// Authorization remains importer-scoped, but importer identity must not fragment Vite's
+		// module graph once two requests have selected the same executable facade.
+		const id = `${resolvedFacadePrefix}${createHash('sha256').update(facadeSource).digest('base64url')}`;
+		const existing = this.#sources.get(id);
+		if (existing !== undefined && existing !== facadeSource)
+			throw new Error(`Conflicting eXact enhancement facade content for ${id}`);
 		this.#sources.set(id, facadeSource);
 		return id;
 	}
@@ -55,12 +60,6 @@ export class ExactViteEnhancementFacadeCatalog {
 	/** Loads one facade created by this build generation. */
 	load(id: string): string | undefined {
 		return this.#sources.get(id);
-	}
-
-	/** Fences stale facade modules after source/configuration changes. */
-	advanceGeneration(): void {
-		this.#generation += 1;
-		this.#sources.clear();
 	}
 }
 

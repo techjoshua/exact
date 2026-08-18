@@ -1,4 +1,25 @@
 import type { ExactSourceMap } from './types.js';
+import remapping from '@jridgewell/remapping';
+
+/** Composes a post-transform map with the compiler map it consumed. */
+export function composeExactSourceMaps(
+	transformed: ExactSourceMap,
+	compiled: ExactSourceMap
+): ExactSourceMap {
+	return remapping([transformed, compiled], () => null) as ExactSourceMap;
+}
+
+/** Narrows a host transform's optional source-map value. */
+export function isExactSourceMap(value: unknown): value is ExactSourceMap {
+	if (!value || typeof value !== 'object') return false;
+	const map = value as Partial<ExactSourceMap>;
+	return (
+		map.version === 3 &&
+		Array.isArray(map.sources) &&
+		Array.isArray(map.names) &&
+		typeof map.mappings === 'string'
+	);
+}
 
 /** Creates a conservative line-to-line source map without loading a JavaScript compiler. */
 export function createLineSourceMap(

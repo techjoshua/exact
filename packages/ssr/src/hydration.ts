@@ -1,4 +1,5 @@
 import { encodeReactiveProtocolValue } from '@exactjs/core';
+import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
 import { escapeAttr } from './html.js';
@@ -21,6 +22,7 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 			continuations: options.continuations,
 			resumptions: options.resumptions,
 			publicContexts: options.publicContexts,
+			wallClockSnapshot: options.wallClockSnapshot,
 			h: options.hydrationTable,
 			executionRoot: options.executionRoot,
 			binding: options.binding,
@@ -223,8 +225,4 @@ function findJsonUnsafePath(
 	} catch {
 		return path;
 	}
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }

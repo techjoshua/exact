@@ -85,7 +85,7 @@ export function CompilerTourPage(this: Component<{}>) {
 			<section>
 				<h2>What to notice</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Precise updates</span>
 						<strong>Each dependency keeps a narrow destination</strong>
 						<p>
@@ -93,7 +93,7 @@ export function CompilerTourPage(this: Component<{}>) {
 							ranges that depend on them without rerunning the component.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">One task across the boundary</span>
 						<strong>The compiler owns placement and cancellation</strong>
 						<p>
@@ -101,7 +101,7 @@ export function CompilerTourPage(this: Component<{}>) {
 							and trusted context stays server-side. The browser title task remains local.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Stable identity and resumption</span>
 						<strong>Annotations remove repeated view ceremony</strong>
 						<p>
@@ -111,6 +111,19 @@ export function CompilerTourPage(this: Component<{}>) {
 						</p>
 					</div>
 				</div>
+			</section>
+			<section>
+				<h2>Project work is shared across modules</h2>
+				<p>
+					Project compilation installs the complete prepared source set before emitting modules. The
+					native compiler then builds callable effects, component relationships, expression
+					identities, and placement links once for that TypeScript program generation. Each module
+					still receives its target-specific output, while unchanged project facts are reused
+					instead of rediscovered for every file. A watched source change creates a new generation
+					before affected output is published; unchanged sources outside its reverse import closure
+					retain reusable analysis. Projects with path remapping, open dynamic imports, or global
+					module augmentation use conservative generation invalidation.
+				</p>
 			</section>
 			<Callout title="Generated code is an implementation contract, not an authoring API">
 				<p>

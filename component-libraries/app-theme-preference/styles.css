@@ -1,0 +1,41 @@
+.exact-app-theme-toggle {
+	position: fixed;
+	z-index: 1000;
+	inset-block-end: var(--exact-theme-space-4);
+	inset-inline-end: var(--exact-theme-space-4);
+	display: grid;
+	inline-size: var(--exact-theme-control-height-md);
+	block-size: var(--exact-theme-control-height-md);
+	place-items: center;
+	padding: 0;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
+	border-radius: var(--exact-theme-radius-pill);
+	color: var(--exact-theme-accent-text);
+	background: var(--exact-theme-surface-background);
+	box-shadow: var(--exact-theme-shadow-md);
+	cursor: pointer;
+}
+
+.exact-app-theme-toggle:hover {
+	background: var(--exact-theme-accent-subtle-hover);
+}
+
+.exact-app-theme-toggle:focus-visible {
+	outline: var(--exact-theme-focus-width) solid var(--exact-theme-accent-focus);
+	outline-offset: var(--exact-theme-focus-offset);
+}
+
+.exact-app-theme-toggle svg {
+	inline-size: 1.2rem;
+	block-size: 1.2rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 1.8;
+}
+
+.exact-app-theme-toggle svg circle {
+	fill: currentColor;
+	stroke: none;
+}

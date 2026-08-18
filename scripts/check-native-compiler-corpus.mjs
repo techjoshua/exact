@@ -9,7 +9,9 @@ import { preparePackageEnhancementSource } from '../packages/compiler/dist/compi
 
 import { discoverNativeCompilerCorpus } from './native-compiler-corpus/discovery.mjs';
 import {
-	normalizedNativeBaselineElapsedMs,
+	nativeBaselineComparison,
+	medianNativeCorpusResult,
+	medianNativeProjectElapsedMs,
 	positiveInteger,
 	readNativeCompilerCorpusBaseline,
 	writeNativeCompilerCorpusBaseline
@@ -41,6 +43,11 @@ const maxBaselineRatio = positiveNumber(
 	1.5,
 	'EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO'
 );
+const sampleCount = positiveInteger(
+	process.env.EXACT_NATIVE_CORPUS_SAMPLES,
+	3,
+	'EXACT_NATIVE_CORPUS_SAMPLES'
+);
 const executable =
 	process.env.EXACT_NATIVE_COMPILER ??
 	path.join(
@@ -49,8 +56,7 @@ const executable =
 		'native-compiler',
 		process.platform === 'win32' ? 'exactc-native.exe' : 'exactc-native'
 	);
-const started = performance.now();
-const result = await runNativeCorpus({
+const corpusInput = {
 	executable,
 	workers,
 	groups: [...groups].map(([config, filenames]) => {
@@ -68,17 +74,57 @@ const result = await runNativeCorpus({
 			)
 		};
 	})
-});
-const elapsedMs = performance.now() - started;
+};
+const samples = [];
+for (let sample = 0; sample < sampleCount; sample += 1) {
+	const started = performance.now();
+	const result = await runNativeCorpus(corpusInput);
+	samples.push({ ...result, elapsedMs: performance.now() - started });
+}
+const result = medianNativeCorpusResult(samples);
+const projectElapsedByConfig = medianNativeProjectElapsedMs(samples);
+const incrementalSamples = [];
+for (let sample = 0; sample < sampleCount; sample += 1) {
+	incrementalSamples.push(await runNativeCorpus({ ...corpusInput, mode: 'incremental' }));
+}
+const incrementalResult = medianNativeCorpusResult(incrementalSamples);
+const incrementalElapsedByConfig = medianNativeProjectElapsedMs(incrementalSamples);
+const incrementalByConfig = new Map(
+	incrementalResult.projects.map((project) => [project.config, project])
+);
+const elapsedMs = result.elapsedMs;
 const fileCount = result.fileCount;
 const projectCount = groups.size;
 const outputBytes = result.outputBytes;
 const phaseMicroseconds = result.phaseMicroseconds;
-const projects = result.projects.sort((left, right) => right.elapsedMs - left.elapsedMs);
+const counters = result.counters;
+const projects = result.projects
+	.map((project) => ({
+		...project,
+		// Project guards need their own medians: selecting by aggregate wall time can retain an
+		// unrelated per-project scheduling outlier and falsely fail an otherwise stable corpus.
+		elapsedMs: projectElapsedByConfig.get(project.config) ?? project.elapsedMs,
+		config: path.relative(root, project.config).replaceAll('\\', '/'),
+		incrementalElapsedMs:
+			incrementalElapsedByConfig.get(project.config) ??
+			incrementalByConfig.get(project.config)?.elapsedMs,
+		incrementalPhaseMicroseconds: incrementalByConfig.get(project.config)?.phaseMicroseconds,
+		incrementalCounters: incrementalByConfig.get(project.config)?.counters
+	}))
+	.sort((left, right) => right.elapsedMs - left.elapsedMs);
 const baseline = await readNativeCompilerCorpusBaseline(root);
-const normalizedBaselineMs = normalizedNativeBaselineElapsedMs(baseline, result);
+const comparison = nativeBaselineComparison(baseline, { ...result, elapsedMs, projects });
+const significantProjectRatio = Math.max(
+	0,
+	...(comparison?.projectRatios ?? [])
+		.filter((project) => project.baselineMs >= 250)
+		.flatMap((project) => [
+			project.ratio,
+			project.baselineIncrementalMs >= 50 ? (project.incrementalRatio ?? 0) : 0
+		])
+);
 const record = {
-	schemaVersion: 2,
+	schemaVersion: 3,
 	generatedAt: new Date().toISOString(),
 	elapsedMs,
 	workers: result.workers,
@@ -86,13 +132,18 @@ const record = {
 	projectCount,
 	outputBytes,
 	phaseMicroseconds,
+	counters,
+	incrementalPhaseMicroseconds: incrementalResult.phaseMicroseconds,
+	incrementalCounters: incrementalResult.counters,
 	projects,
+	sampleCount,
+	sampleElapsedMs: samples.map((sample) => sample.elapsedMs),
 	maxBaselineRatio,
-	...(normalizedBaselineMs
+	...(comparison
 		? {
-				nativeBaselineElapsedMs: baseline.elapsedMs,
-				normalizedNativeBaselineMs: normalizedBaselineMs,
-				baselineRatio: elapsedMs / normalizedBaselineMs
+				baselineRatio: comparison.ratio,
+				guardRatio: Math.max(comparison.ratio, significantProjectRatio),
+				baselineComparison: comparison
 			}
 		: {}),
 	node: process.version,
@@ -116,17 +167,28 @@ if (record.baselineRatio !== undefined) {
 			? `${speedup.toFixed(2)}x faster than`
 			: `${record.baselineRatio.toFixed(2)}x slower than`;
 	console.log(
-		`native compiler corpus is ${comparison} its tracked baseline normalized to ${fileCount} files (${(record.normalizedNativeBaselineMs / 1_000).toFixed(2)}s)`
+		`native compiler corpus is ${comparison} its tracked baseline (${record.baselineComparison.basis}, ${record.baselineComparison.matchedProjects || projectCount} projects)`
 	);
 }
 for (const [phase, microseconds] of Object.entries(phaseMicroseconds).sort(
 	([, left], [, right]) => right - left
 ))
 	console.log(`  ${phase.padEnd(28)} ${(microseconds / 1_000_000).toFixed(2)}s worker time`);
+for (const [counter, value] of Object.entries(counters).sort(([, left], [, right]) => right - left))
+	console.log(`  ${counter.padEnd(28)} ${value}`);
+console.log('  incremental edit totals');
+for (const [phase, microseconds] of Object.entries(incrementalResult.phaseMicroseconds).sort(
+	([, left], [, right]) => right - left
+))
+	console.log(`    ${phase.padEnd(26)} ${(microseconds / 1_000_000).toFixed(2)}s worker time`);
+for (const [counter, value] of Object.entries(incrementalResult.counters).sort(
+	([, left], [, right]) => right - left
+))
+	console.log(`    ${counter.padEnd(26)} ${value}`);
 console.log('  slowest projects');
 for (const project of projects.slice(0, 5))
 	console.log(
-		`    ${path.relative(root, project.config).padEnd(44)} ${(project.elapsedMs / 1_000).toFixed(2)}s (${project.fileCount} files, ${(project.callableMicroseconds / 1_000_000).toFixed(2)}s callable)`
+		`    ${project.config.padEnd(44)} ${(project.elapsedMs / 1_000).toFixed(2)}s cold, ${project.incrementalElapsedMs.toFixed(0)}ms edit (${project.fileCount} files, ${(project.phaseMicroseconds.projectLinkMicroseconds / 1_000_000).toFixed(2)}s link)`
 	);
 if (updateBaseline) {
 	console.log('updated docs/performance-baselines/native-compiler-corpus.json');
@@ -135,9 +197,9 @@ if (updateBaseline) {
 		'native compiler performance guard requires a comparable tracked native baseline'
 	);
 }
-if (!updateBaseline && record.baselineRatio > maxBaselineRatio) {
+if (!updateBaseline && record.guardRatio > maxBaselineRatio) {
 	throw new Error(
-		`native compiler corpus ratio ${record.baselineRatio.toFixed(2)} exceeded ${maxBaselineRatio.toFixed(2)}`
+		`native compiler corpus guard ratio ${record.guardRatio.toFixed(2)} exceeded ${maxBaselineRatio.toFixed(2)}`
 	);
 }
 
@@ -176,6 +238,8 @@ function runNativeCorpus(input) {
 				reject(new Error(`native compiler corpus worker returned invalid JSON`, { cause: error }));
 			}
 		});
-		child.stdin.end(JSON.stringify({ groups: input.groups, workers: input.workers }));
+		child.stdin.end(
+			JSON.stringify({ groups: input.groups, workers: input.workers, mode: input.mode })
+		);
 	});
 }

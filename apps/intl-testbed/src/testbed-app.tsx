@@ -1,5 +1,18 @@
 import type { Component } from '@exactjs/core';
 import {
+	parseStoredThemeAppearance,
+	persistThemeAppearance,
+	resolveThemeAppearance,
+	themeAppearanceStorageKey,
+	ThemeModeToggle,
+	toggleThemeAppearance,
+	type EffectiveThemeAppearance,
+	type ThemeAppearancePreference
+} from '@exactjs/app-theme-preference';
+// The compiler consumes this namespace through the theme:* enhancement syntax below.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement' };
+import {
 	comparisonLocales,
 	localeEnvironments,
 	setComparisonUnitPolicy
@@ -20,6 +33,8 @@ interface TestbedState {
 	unitPolicy: 'locale' | 'metric' | 'us';
 	lazyRegion: LazyRegionKey;
 	lazyLoading: boolean;
+	themePreference: ThemeAppearancePreference;
+	systemAppearance: EffectiveThemeAppearance;
 }
 
 const publishedAgo = {
@@ -47,6 +62,29 @@ export function IntlTestbed(this: Component<TestbedState>) {
 	this.state.unitPolicy = 'locale';
 	this.state.lazyRegion = 'empty';
 	this.state.lazyLoading = false;
+	this.state.themePreference = 'system';
+	this.state.systemAppearance = 'light';
+
+	const appearance = () =>
+		resolveThemeAppearance(this.state.themePreference, this.state.systemAppearance);
+	const toggleAppearance = () => {
+		this.state.themePreference = toggleThemeAppearance(appearance(), this.state.systemAppearance);
+		persistThemeAppearance(this.state.themePreference);
+	};
+	this.onMount(({ signal }) => {
+		const query = matchMedia('(prefers-color-scheme: dark)');
+		const syncSystem = () => (this.state.systemAppearance = query.matches ? 'dark' : 'light');
+		const syncStorage = (event: StorageEvent) => {
+			if (event.key === themeAppearanceStorageKey)
+				this.state.themePreference = parseStoredThemeAppearance(event.newValue);
+		};
+		syncSystem();
+		this.state.themePreference = parseStoredThemeAppearance(
+			localStorage.getItem(themeAppearanceStorageKey)
+		);
+		query.addEventListener('change', syncSystem, { signal });
+		window.addEventListener('storage', syncStorage, { signal });
+	});
 
 	const setUnitPolicy = (policy: TestbedState['unitPolicy']) => {
 		this.state.unitPolicy = policy;
@@ -60,8 +98,19 @@ export function IntlTestbed(this: Component<TestbedState>) {
 	};
 
 	return () => (
-		<main>
+		<main
+			theme:scope
+			theme:appearance={appearance()}
+			theme:tonic="green"
+			theme:temperament="balanced"
+			theme:depth="elevated"
+			theme:typography="humanist"
+		>
+			<ThemeModeToggle appearance={appearance()} onToggle={toggleAppearance} />
 			<header className="hero">
+				<a className="docs-link" href="../">
+					Documentation
+				</a>
 				<p className="eyebrow">eXact internationalization test bed</p>
 				<h1>Ordinary JSX, four cultural interpretations</h1>
 				<p className="hero-copy">
@@ -69,7 +118,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 					structural reordering visible; the source remains a normal fallback when no catalog entry
 					exists.
 				</p>
-				<pre aria-label="Representative enhancement source">
+				<pre theme:surface="sunken" aria-label="Representative enhancement source">
 					<code>{`<p intl:message="transfer-order">
   Send <strong intl:fragment="report">the quarterly report</strong> to
   <_ intl:fragment="recipient"><RecipientBadge /></_>.
@@ -77,10 +126,15 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				</pre>
 			</header>
 
-			<section className="control-deck" aria-label="Shared scenario controls">
+			<section
+				theme:surface="overlay"
+				className="control-deck"
+				aria-label="Shared scenario controls"
+			>
 				<label>
 					Name
 					<input
+						theme:field
 						value={this.state.name}
 						onInput={(event) => (this.state.name = event.currentTarget.value)}
 					/>
@@ -88,6 +142,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				<label>
 					Messages
 					<input
+						theme:field
 						type="number"
 						min="0"
 						value={this.state.count}
@@ -97,6 +152,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				<label>
 					Queue position
 					<input
+						theme:field
 						type="number"
 						min="1"
 						value={this.state.position}
@@ -106,6 +162,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				<label>
 					Role
 					<select
+						theme:field
 						value={this.state.role}
 						onChange={(event) =>
 							(this.state.role = event.currentTarget.value as TestbedState['role'])
@@ -117,6 +174,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				</label>
 				<label className="checkbox-control">
 					<input
+						theme:field
 						type="checkbox"
 						checked={this.state.ready}
 						onChange={(event) => (this.state.ready = event.currentTarget.checked)}
@@ -126,6 +184,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				<label>
 					Unit policy
 					<select
+						theme:field
 						value={this.state.unitPolicy}
 						onChange={(event) =>
 							setUnitPolicy(event.currentTarget.value as TestbedState['unitPolicy'])
@@ -137,6 +196,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 					</select>
 				</label>
 				<button
+					theme:action="secondary"
 					type="button"
 					className="lazy-button"
 					onClick={loadLazyRegion}

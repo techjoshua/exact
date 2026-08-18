@@ -57,6 +57,7 @@ export async function awaitWithAbort<T>(
 
 /** Creates a ssr context. */
 export function createSsrContext(options: RenderToStringOptions): SsrContext {
+	const wallClockSnapshot = Date.now();
 	return {
 		executionRoot: options.executionRoot ?? 'page',
 		buildKey: options.buildKey,
@@ -96,14 +97,12 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		preparedEnhancementChildren: new WeakMap(),
 		preparedEnhancementSuspense: new WeakMap(),
 		componentContexts: options.contexts,
-		...(options.inspection
-			? {
-					componentDomain: createFrameworkComponentDomain({
-						executionRoot: options.inspection.executionRoot,
-						inspection: options.inspection
-					})
-				}
-			: {}),
+		componentDomain: createFrameworkComponentDomain({
+			executionRoot: options.inspection?.executionRoot ?? options.executionRoot ?? 'page',
+			...(options.inspection ? { inspection: options.inspection } : {}),
+			wallClockSnapshot
+		}),
+		wallClockSnapshot,
 		onComponentCreated: options.onComponentCreated,
 		onComponentRendered: options.onComponentRendered,
 		onComponentAttemptCheckpoint: options.onComponentAttemptCheckpoint,

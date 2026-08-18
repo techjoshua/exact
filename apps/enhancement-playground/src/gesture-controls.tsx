@@ -2,6 +2,27 @@ import { peek, type Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by gesture:* attributes.
 import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 import { defineGesture, type GestureSample, type PinchGestureSample } from '@exactjs/gestures';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
+import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
+import { defineMotion, Presence } from '@exactjs/motion';
+
+const previewActionsMotion = defineMotion({
+	enter: {
+		keyframes: [
+			{ opacity: 0, transform: 'translateX(8px)' },
+			{ opacity: 1, transform: 'none' }
+		],
+		options: { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }
+	},
+	leave: {
+		keyframes: [
+			{ opacity: 1, transform: 'none' },
+			{ opacity: 0, transform: 'translateX(6px)' }
+		],
+		options: { duration: 130, easing: 'ease-in' }
+	},
+	reduced: 'skip'
+});
 
 type GestureControlsState = {
 	presses: number;
@@ -148,7 +169,11 @@ export function GestureControls(this: Component<GestureControlsState>) {
 	};
 
 	return () => (
-		<section className="demo-card gesture-demo" aria-labelledby="gesture-title">
+		<section
+			theme:surface="raised"
+			className="demo-card gesture-demo"
+			aria-labelledby="gesture-title"
+		>
 			<div className="demo-heading">
 				<div>
 					<p className="eyebrow">Gestures</p>
@@ -158,9 +183,9 @@ export function GestureControls(this: Component<GestureControlsState>) {
 			</div>
 
 			<div className="gesture-grid">
-				<div className="control-sample">
+				<div theme:surface="sunken" className="control-sample">
 					<span className="sample-label">Press</span>
-					<button className="applause-button" gesture:apply={pressControl}>
+					<button theme:action="primary" className="applause-button" gesture:apply={pressControl}>
 						<span
 							key={String(this.state.presses)}
 							className={this.state.presses ? 'applause-icon is-active' : 'applause-icon'}
@@ -175,39 +200,49 @@ export function GestureControls(this: Component<GestureControlsState>) {
 							: `Recognized one ${this.state.lastPress} press`}
 					</small>
 				</div>
-				<div className="control-sample">
+				<div theme:surface="sunken" className="control-sample">
 					<span className="sample-label">Hover + focus</span>
 					<div
+						theme:surface="raised"
+						theme:interactive
 						className="preview-card"
 						data-active={this.state.hovered}
 						tabIndex={0}
 						gesture:apply={hoverIntent}
 					>
 						<span className="avatar">JL</span>
-						<div>
+						<div className="preview-identity">
 							<strong>Jordan Lee</strong>
-							<small>
-								{this.state.hovered
-									? `Preview active via ${this.state.previewInput}`
-									: 'Focus or point here'}
-							</small>
 						</div>
-						{this.state.hovered ? (
-							<div className="preview-actions">
-								<button>Message</button>
-								<button>View profile</button>
-							</div>
-						) : null}
+						<div className="preview-actions-slot">
+							<Presence when={this.state.hovered}>
+								<div
+									key="preview-actions"
+									className="preview-actions"
+									motion:apply={previewActionsMotion}
+									motion:appear
+								>
+									<button theme:action="secondary">Message</button>
+									<button theme:action="primary">View profile</button>
+								</div>
+							</Presence>
+						</div>
+						<small className="preview-status">
+							{this.state.hovered
+								? `Preview active via ${this.state.previewInput}`
+								: 'Focus or point here'}
+						</small>
 					</div>
 				</div>
 			</div>
 
-			<div className="slider-sample">
+			<div theme:surface="sunken" className="slider-sample">
 				<div className="slider-labels">
 					<span>Drag + keyboard slider</span>
 					<strong>{this.state.slider}%</strong>
 				</div>
 				<button
+					theme:selection="strong"
 					className="semantic-slider"
 					role="slider"
 					aria-label="Volume"
@@ -222,9 +257,10 @@ export function GestureControls(this: Component<GestureControlsState>) {
 			</div>
 
 			<div className="gesture-grid lower-grid">
-				<div className="control-sample">
+				<div theme:surface="sunken" className="control-sample">
 					<span className="sample-label">Long press</span>
 					<button
+						theme:action={this.state.held ? 'primary' : 'secondary'}
 						className="hold-button"
 						data-confirmed={this.state.held}
 						gesture:apply={holdControl}
@@ -236,10 +272,10 @@ export function GestureControls(this: Component<GestureControlsState>) {
 					</button>
 					<small>Hold while the bar fills; keyboard activation remains immediate</small>
 				</div>
-				<div className="control-sample media-sample">
+				<div theme:surface="sunken" className="control-sample media-sample">
 					<div className="sample-title-row">
 						<span className="sample-label">Pan + pinch / twist</span>
-						<button className="text-button" onClick={resetMedia}>
+						<button theme:action="quiet" className="text-button" onClick={resetMedia}>
 							Reset
 						</button>
 					</div>
@@ -260,18 +296,38 @@ export function GestureControls(this: Component<GestureControlsState>) {
 						</div>
 					</div>
 					<div className="media-controls" aria-label="Desktop map controls">
-						<button aria-label="Zoom out" onClick={() => zoomMedia(-0.2)}>
+						<button
+							theme:action="quiet"
+							theme:size="small"
+							aria-label="Zoom out"
+							onClick={() => zoomMedia(-0.2)}
+						>
 							−
 						</button>
 						<span>{Math.round(this.state.zoom * 100)}%</span>
-						<button aria-label="Zoom in" onClick={() => zoomMedia(0.2)}>
+						<button
+							theme:action="quiet"
+							theme:size="small"
+							aria-label="Zoom in"
+							onClick={() => zoomMedia(0.2)}
+						>
 							+
 						</button>
-						<button aria-label="Rotate left" onClick={() => rotateMedia(-Math.PI / 12)}>
+						<button
+							theme:action="quiet"
+							theme:size="small"
+							aria-label="Rotate left"
+							onClick={() => rotateMedia(-Math.PI / 12)}
+						>
 							↶
 						</button>
 						<span>{Math.round((this.state.rotation * 180) / Math.PI)}°</span>
-						<button aria-label="Rotate right" onClick={() => rotateMedia(Math.PI / 12)}>
+						<button
+							theme:action="quiet"
+							theme:size="small"
+							aria-label="Rotate right"
+							onClick={() => rotateMedia(Math.PI / 12)}
+						>
 							↷
 						</button>
 					</div>

@@ -1,0 +1,152 @@
+.physics-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 520px) minmax(220px, 1fr);
+	gap: 22px;
+	align-items: stretch;
+	margin-top: 18px;
+}
+
+.stage-viewport {
+	position: relative;
+	overflow: hidden;
+	width: 100%;
+	max-width: 520px;
+	border-radius: 24px;
+}
+
+.stage {
+	position: relative;
+	width: 520px;
+	height: 330px;
+	overflow: hidden;
+	border: 1px solid #284463;
+	border-radius: 24px;
+	background:
+		linear-gradient(#10223a 1px, transparent 1px),
+		linear-gradient(90deg, #10223a 1px, transparent 1px), #091625;
+	background-size: 28px 28px;
+	box-shadow: inset 0 0 40px #0005;
+	transform-origin: top left;
+}
+
+.orb {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: grid;
+	width: 64px;
+	height: 64px;
+	margin: -32px 0 0 -32px;
+	place-items: center;
+	border: 1px solid #b7f3ff;
+	border-radius: 50%;
+	color: #082036;
+	background: linear-gradient(145deg, #e5fbff, #38bdf8 65%, #2563eb);
+	box-shadow:
+		0 12px 28px #38bdf855,
+		inset 0 2px 7px #fff;
+	font-weight: 900;
+	cursor: grab;
+	user-select: none;
+	will-change: translate, rotate, opacity, scale;
+}
+
+.orb:active {
+	cursor: grabbing;
+}
+
+.floor {
+	position: absolute;
+	left: 0;
+	top: 286px;
+	width: 100%;
+	height: 24px;
+	border-top: 2px solid #7dd3fc;
+	background: #17304d;
+}
+
+.ownership-list {
+	display: grid;
+	align-content: center;
+	gap: 10px;
+}
+
+.ownership-list > div {
+	display: grid;
+	grid-template-columns: 34px 1fr;
+	align-items: center;
+	gap: 10px;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
+	border-radius: 14px;
+	padding: 11px;
+	background: var(--exact-theme-surface-background);
+}
+
+.ownership-list span {
+	display: grid;
+	width: 34px;
+	height: 34px;
+	place-items: center;
+	border-radius: 10px;
+	color: var(--exact-theme-accent-on-solid);
+	background: var(--exact-theme-accent-solid);
+	font-weight: 900;
+}
+
+.ownership-list p {
+	margin: 0;
+	color: var(--exact-theme-surface-foreground-muted);
+	font-size: 0.83rem;
+	line-height: 1.4;
+}
+
+.ownership-list strong {
+	color: var(--exact-theme-surface-foreground);
+}
+
+@media (max-width: 700px) {
+	.theme-lab-workbench {
+		grid-template-columns: 1fr;
+	}
+
+	.theme-lab-root-controls {
+		position: static;
+		max-height: none;
+		overflow: visible;
+	}
+
+	.theme-lab-controls {
+		grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+	}
+
+	main {
+		padding-top: 38px;
+	}
+
+	.demo-heading {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.gesture-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.physics-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.stage-viewport {
+		border: 1px solid #284463;
+	}
+
+	.preview-card {
+		align-items: flex-start;
+	}
+
+	.preview-actions-slot {
+		width: calc(100% - 52px);
+		flex-basis: calc(100% - 52px);
+		margin-left: 52px;
+	}
+}

@@ -15,6 +15,7 @@ import (
 type corpusInput struct {
 	Groups  []corpusGroup `json:"groups"`
 	Workers int           `json:"workers"`
+	Mode    string        `json:"mode,omitempty"`
 }
 
 type corpusGroup struct {
@@ -24,10 +25,12 @@ type corpusGroup struct {
 }
 
 type corpusProjectResult struct {
-	Config               string  `json:"config"`
-	FileCount            int     `json:"fileCount"`
-	ElapsedMilliseconds  float64 `json:"elapsedMs"`
-	CallableMicroseconds int64   `json:"callableMicroseconds"`
+	Config               string           `json:"config"`
+	FileCount            int              `json:"fileCount"`
+	ElapsedMilliseconds  float64          `json:"elapsedMs"`
+	CallableMicroseconds int64            `json:"callableMicroseconds"`
+	PhaseMicroseconds    map[string]int64 `json:"phaseMicroseconds"`
+	Counters             map[string]int64 `json:"counters"`
 }
 
 type corpusResult struct {
@@ -36,6 +39,7 @@ type corpusResult struct {
 	Workers           int                   `json:"workers"`
 	PhaseMicroseconds map[string]int64      `json:"phaseMicroseconds"`
 	Projects          []corpusProjectResult `json:"projects"`
+	Counters          map[string]int64      `json:"counters"`
 }
 
 type projectOutcome struct {
@@ -81,6 +85,7 @@ func compileCorpus(
 	result := corpusResult{
 		Workers:           workers,
 		PhaseMicroseconds: make(map[string]int64),
+		Counters:          make(map[string]int64),
 		Projects:          make([]corpusProjectResult, 0, len(request.Groups)),
 	}
 	if workers == 0 {
@@ -96,7 +101,7 @@ func compileCorpus(
 			defer workerGroup.Done()
 			session := exactcompiler.NewSession()
 			for project := range jobs {
-				outcomes <- compileCorpusProject(project, session)
+				outcomes <- compileCorpusProject(project, session, request.Mode)
 			}
 		}()
 	}
@@ -117,6 +122,7 @@ func compileCorpus(
 		result.OutputBytes += outcome.bytes
 		result.Projects = append(result.Projects, outcome.result)
 		addCorpusTimings(result.PhaseMicroseconds, outcome.timing)
+		addCorpusCounterMap(result.Counters, outcome.result.Counters)
 	}
 	return result, nil
 }
@@ -124,10 +130,13 @@ func compileCorpus(
 func compileCorpusProject(
 	group corpusGroup,
 	session *exactcompiler.Session,
+	mode string,
 ) projectOutcome {
 	projectStarted := time.Now()
 	var timings exactcompiler.Timings
 	outputBytes := 0
+	counters := make(map[string]int64)
+	requests := make([]exactcompiler.Request, 0, len(group.Filenames))
 	for _, filename := range group.Filenames {
 		source, err := os.ReadFile(filename)
 		if err != nil {
@@ -140,7 +149,7 @@ func compileCorpusProject(
 			packageEnhancementBoundary = len(authoredSource)
 			preparedSource += suffix
 		}
-		response := session.Execute(exactcompiler.Request{
+		requests = append(requests, exactcompiler.Request{
 			ID:                         filename,
 			Kind:                       "compile",
 			Source:                     preparedSource,
@@ -148,14 +157,35 @@ func compileCorpusProject(
 			Diagnostics:                "syntax",
 			PackageEnhancementBoundary: packageEnhancementBoundary,
 		})
+	}
+	sources := make([]exactcompiler.ProjectSource, 0, len(requests))
+	for _, request := range requests {
+		sources = append(sources, exactcompiler.ProjectSource{
+			ID:                         request.ID,
+			Source:                     request.Source,
+			PackageEnhancementBoundary: request.PackageEnhancementBoundary,
+		})
+	}
+	synchronized := session.Execute(exactcompiler.Request{
+		Kind:       "synchronize",
+		ConfigFile: group.Config,
+		Sources:    sources,
+	})
+	if synchronized.Error != "" {
+		return projectOutcome{err: fmt.Errorf("%s: %s", group.Config, synchronized.Error)}
+	}
+	accumulateCorpusTimings(&timings, synchronized.Timings)
+	addCorpusCounters(counters, synchronized.Counters)
+	for _, request := range requests {
+		response := session.Execute(request)
 		if response.Error != "" {
-			return projectOutcome{err: fmt.Errorf("%s: %s", filename, response.Error)}
+			return projectOutcome{err: fmt.Errorf("%s: %s", request.ID, response.Error)}
 		}
 		for _, diagnostic := range response.Diagnostics {
 			if diagnostic.Severity == "error" {
 				return projectOutcome{err: fmt.Errorf(
 					"%s: %s %s",
-					filename,
+					request.ID,
 					diagnostic.Code,
 					diagnostic.Message,
 				)}
@@ -163,17 +193,70 @@ func compileCorpusProject(
 		}
 		outputBytes += len(response.Code)
 		accumulateCorpusTimings(&timings, response.Timings)
+		addCorpusCounters(counters, response.Counters)
+	}
+	measuredFileCount := len(group.Filenames)
+	if mode == "incremental" {
+		measuredFileCount = 1
+		timings = exactcompiler.Timings{}
+		counters = make(map[string]int64)
+		outputBytes = 0
+		projectStarted = time.Now()
+		request := requests[len(requests)/2]
+		request.Source += "\n"
+		response := session.Execute(request)
+		if response.Error != "" {
+			return projectOutcome{err: fmt.Errorf("%s: %s", request.ID, response.Error)}
+		}
+		for _, diagnostic := range response.Diagnostics {
+			if diagnostic.Severity == "error" {
+				return projectOutcome{err: fmt.Errorf(
+					"%s: %s %s",
+					request.ID,
+					diagnostic.Code,
+					diagnostic.Message,
+				)}
+			}
+		}
+		outputBytes = len(response.Code)
+		accumulateCorpusTimings(&timings, response.Timings)
+		addCorpusCounters(counters, response.Counters)
 	}
 	return projectOutcome{
 		result: corpusProjectResult{
 			Config:               group.Config,
-			FileCount:            len(group.Filenames),
+			FileCount:            measuredFileCount,
 			ElapsedMilliseconds:  float64(time.Since(projectStarted).Microseconds()) / 1_000,
 			CallableMicroseconds: timings.CallableMicroseconds,
+			PhaseMicroseconds:    corpusTimingMap(timings),
+			Counters:             counters,
 		},
 		timing: timings,
 		bytes:  outputBytes,
 	}
+}
+
+func addCorpusCounters(target map[string]int64, counters exactcompiler.WorkCounters) {
+	target["programRebuilds"] += counters.ProgramRebuilds
+	target["callableSourceAnalyses"] += counters.CallableSourceAnalyses
+	target["componentSourceAnalyses"] += counters.ComponentSourceAnalyses
+	target["componentLinkWalks"] += counters.ComponentLinkWalks
+	target["componentResultCacheHits"] += counters.ComponentResultCacheHits
+	target["fullInvalidations"] += counters.FullInvalidations
+	target["affectedSourceCount"] += counters.AffectedSourceCount
+	target["reusedSourceCount"] += counters.ReusedSourceCount
+}
+
+func addCorpusCounterMap(target map[string]int64, counters map[string]int64) {
+	for name, value := range counters {
+		target[name] += value
+	}
+}
+
+func corpusTimingMap(timings exactcompiler.Timings) map[string]int64 {
+	result := make(map[string]int64)
+	addCorpusTimings(result, timings)
+	return result
 }
 
 func accumulateCorpusTimings(target *exactcompiler.Timings, value exactcompiler.Timings) {

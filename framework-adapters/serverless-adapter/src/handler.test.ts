@@ -20,6 +20,9 @@ describe('@exactjs/serverless-adapter', () => {
 						platformMethod: (context.platformRequest as { httpMethod?: string }).httpMethod
 					}
 				})
+			},
+			payloadDecoders: {
+				invocations: { save: (payload) => payload }
 			}
 		});
 
@@ -60,6 +63,9 @@ describe('@exactjs/serverless-adapter', () => {
 						url: context.requestContext?.url.href
 					}
 				})
+			},
+			payloadDecoders: {
+				invocations: { save: (payload) => payload }
 			}
 		});
 		const body = Buffer.from(

@@ -13,7 +13,7 @@ type PuzzlePreviewProps = {
 /** Shows the generated artifact and exposes separate puzzle/solution downloads. */
 export function PuzzlePreview(props: PuzzlePreviewProps) {
 	return () => (
-		<section className="preview-panel" aria-labelledby="preview-heading">
+		<section theme:surface="raised" className="preview-panel" aria-labelledby="preview-heading">
 			<div className="preview-toolbar">
 				<div>
 					<span className="eyebrow">Live proof</span>
@@ -21,6 +21,7 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 				</div>
 				<div className="view-switch" role="group" aria-label="Preview document">
 					<button
+						theme:action="secondary"
 						type="button"
 						className:active={!props.solution}
 						onClick={() => props.onSolution(false)}
@@ -28,6 +29,7 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 						Puzzle
 					</button>
 					<button
+						theme:action="secondary"
 						type="button"
 						className:active={props.solution}
 						onClick={() => props.onSolution(true)}
@@ -48,7 +50,7 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 				<div>
 					<strong>{props.status}</strong>
 					{props.error ? (
-						<p className="generation-error" role="alert">
+						<p theme:status="danger" className="generation-error" role="alert">
 							{props.error}
 						</p>
 					) : null}
@@ -57,13 +59,14 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 				</div>
 				<div className="download-actions">
 					<button
+						theme:action="secondary"
 						type="button"
 						className="secondary-button"
 						onClick={() => props.onDownload(false)}
 					>
 						Puzzle SVG
 					</button>
-					<button type="button" className="download-button" onClick={() => props.onDownload(true)}>
+					<button theme:action="primary" type="button" onClick={() => props.onDownload(true)}>
 						Solution SVG ↓
 					</button>
 				</div>

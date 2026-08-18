@@ -1,0 +1,31 @@
+{
+	"name": "@exactjs/app-theme-preference",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Private shared appearance preference for eXact repository applications",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./styles.css": "./styles.css"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": [
+		"./styles.css"
+	],
+	"exactComponentLibrary": {
+		"protocol": 1,
+		"build": "./dist/exact-component-build.json"
+	},
+	"dependencies": {
+		"@exactjs/component-library": "^0.1.0",
+		"@exactjs/core": "^0.1.0"
+	},
+	"scripts": {
+		"build": "tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"test": "vitest run"
+	}
+}

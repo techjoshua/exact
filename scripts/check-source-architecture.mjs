@@ -23,6 +23,16 @@ const ignoredDirectories = new Set([
 	'reference'
 ]);
 const violations = [];
+const legacyArchitectureCeilings = new Map([
+	['apps/docs/src/styles.css', 1942],
+	['apps/sudoku/src/styles.css', 1887],
+	['packages/theme/styles.css', 1510],
+	['apps/shipping-calculator/src/styles.css', 950],
+	['apps/puzzle-generator/src/styles.css', 800],
+	['apps/enhancement-playground/src/styles.css', 710],
+	['apps/workbench/src/styles.css', 572],
+	['packages/chromium-devtools/src/static/panel.css', 630]
+]);
 
 for (const maintainedRoot of maintainedRoots) {
 	for (const file of await sourceFiles(path.join(root, maintainedRoot))) inspectSource(file);
@@ -32,12 +42,36 @@ for (const maintainedRoot of maintainedRoots) {
 for (const file of await scriptFiles(path.join(root, 'scripts'))) {
 	inspectSize(file, await readFile(file, 'utf8'), /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file));
 }
+await inspectLargeNonTypeScriptDomains();
 
 if (violations.length) {
 	throw new Error(`Source architecture violations:\n${violations.join('\n')}`);
 }
 
 console.log('source architecture ok');
+
+async function inspectLargeNonTypeScriptDomains() {
+	const files = await matchingFiles(root, /\.(?:go|css)$/);
+	for (const file of files) {
+		const relative = repositoryPath(file);
+		if (
+			!relative.startsWith('native/typescript-go/overlay/internal/exactcompiler/') &&
+			!maintainedRoots.some((maintainedRoot) => relative.startsWith(`${maintainedRoot}/`))
+		)
+			continue;
+		if (/_test\.go$/.test(relative)) continue;
+		const lines = (await readFile(file, 'utf8')).split(/\r?\n/).length;
+		const limit = file.endsWith('.go') ? 1_200 : 500;
+		if (lines <= limit) continue;
+		const ceiling = legacyArchitectureCeilings.get(relative);
+		if (ceiling === undefined)
+			violations.push(
+				`${relative}: ${lines} lines requires a cohesive-domain split or owned ceiling`
+			);
+		else if (lines > ceiling)
+			violations.push(`${relative}: ${lines} lines exceeds its legacy ceiling of ${ceiling}`);
+	}
+}
 
 async function inspectSource(file) {
 	const relative = repositoryPath(file);
@@ -129,14 +163,42 @@ function inspectOwnershipName(relative) {
 
 function inspectSize(file, source, isTest = false) {
 	const relative = repositoryPath(file);
-	const logicalLines = logicalLineCount(source ?? '');
+	const logicalLines = logicalLineCount(file, source ?? '');
 	const limit = isTest ? 600 : 400;
 	if (logicalLines > limit) {
 		violations.push(`${relative}: ${logicalLines} logical lines exceeds the ${limit}-line limit`);
 	}
 }
 
-function logicalLineCount(source) {
+function logicalLineCount(file, source) {
+	const sourceFile = ts.createSourceFile(
+		file,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+	);
+	const literalSpans = [];
+	const collectLiteralSpans = (node) => {
+		if (
+			ts.isStringLiteralLike(node) ||
+			node.kind === ts.SyntaxKind.TemplateHead ||
+			node.kind === ts.SyntaxKind.TemplateMiddle ||
+			node.kind === ts.SyntaxKind.TemplateTail
+		) {
+			literalSpans.push([node.getStart(sourceFile), node.end]);
+		}
+		ts.forEachChild(node, collectLiteralSpans);
+	};
+	collectLiteralSpans(sourceFile);
+	const withoutLiteralPayloads = source.split('');
+	for (const [start, end] of literalSpans) {
+		for (let offset = start + 1; offset < end; offset++) {
+			if (withoutLiteralPayloads[offset] !== '\n' && withoutLiteralPayloads[offset] !== '\r')
+				withoutLiteralPayloads[offset] = ' ';
+		}
+	}
+	source = withoutLiteralPayloads.join('');
 	let inBlockComment = false;
 	let count = 0;
 	for (const line of source.split(/\r?\n/)) {
@@ -231,6 +293,17 @@ async function sourceFiles(directory) {
 		const filename = path.join(directory, entry.name);
 		if (entry.isDirectory()) files.push(...(await sourceFiles(filename)));
 		else if (/\.[cm]?[jt]sx?$/.test(entry.name)) files.push(filename);
+	}
+	return files;
+}
+
+async function matchingFiles(directory, pattern) {
+	const files = [];
+	for (const entry of await readdir(directory, { withFileTypes: true })) {
+		if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue;
+		const filename = path.join(directory, entry.name);
+		if (entry.isDirectory()) files.push(...(await matchingFiles(filename, pattern)));
+		else if (pattern.test(entry.name)) files.push(filename);
 	}
 	return files;
 }

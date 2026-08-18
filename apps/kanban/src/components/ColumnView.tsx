@@ -1,4 +1,5 @@
 import type { Component } from '@exactjs/core';
+import { _ } from '@exactjs/jsx';
 import { BoardContext } from '../context.js';
 import type { Column, DragPlacement, Task } from '../types.js';
 import { TaskCard } from './TaskCard.jsx';
@@ -38,6 +39,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 
 	return () => (
 		<article
+			theme:surface="sunken"
 			id={`column-${props.column.id}`}
 			className="column"
 			className:empty={columnTasks.length === 0}
@@ -53,32 +55,28 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 			<div className="cards">
 				{columnTasks.length === 0 ? (
 					props.dragPlacement?.status === props.column.id ? (
-						<DropMarker />
+						<div className="drop-marker" />
 					) : (
 						<p className="empty-state">Drop a card here</p>
 					)
 				) : (
 					<>
 						{columnTasks.map((task) => (
-							<>
+							<_ key={task.id}>
 								{props.dragPlacement?.status === props.column.id &&
 								props.dragPlacement.beforeTaskId === task.id ? (
-									<DropMarker />
+									<div className="drop-marker" />
 								) : null}
 								<TaskCard task={task} />
-							</>
+							</_>
 						))}
 						{props.dragPlacement?.status === props.column.id &&
 						props.dragPlacement.beforeTaskId === undefined ? (
-							<DropMarker />
+							<div className="drop-marker" />
 						) : null}
 					</>
 				)}
 			</div>
 		</article>
 	);
-}
-
-function DropMarker() {
-	return () => <div className="drop-marker" />;
 }

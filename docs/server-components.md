@@ -244,6 +244,15 @@ The client does not send module paths, function bodies, export names, server
 context values, database clients, credentials, or arbitrary component names.
 Unknown operation and boundary IDs are rejected.
 
+Manual operations that accept a payload must register an operation-specific decoder. Decoding runs
+after transport limits and before authorization, so authorization and business logic receive the
+same validated value. The protocol allowlist and structural checks do not validate business rules.
+Compiler-generated operations carry their framework-owned contract automatically.
+
+Authored HTML patches require `unsafeExactHtml()`. Ordinary strings are rejected before transport;
+SSR/compiler handlers are branded internally after framework escaping. Treat the unsafe constructor
+as a review boundary: never pass unvalidated user content to it.
+
 ## Testing and explainability
 
 `@exactjs/testing` supports both halves without requiring tests to know

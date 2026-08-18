@@ -193,7 +193,10 @@ export function createExactClientFromResolvedOptions(
 			).then((result) => result.value),
 		resumeComponent: resumptionResolver,
 		inspection,
-		inspectionActivation: 'hydration'
+		inspectionActivation: 'hydration',
+		...(runtimeOptions.wallClockSnapshot === undefined
+			? {}
+			: { wallClockSnapshot: runtimeOptions.wallClockSnapshot })
 	});
 	runtimeOptions.componentDomain = domain;
 	const existing = roots.get(container);

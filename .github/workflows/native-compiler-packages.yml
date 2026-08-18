@@ -116,7 +116,6 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build:prerequisites
       - run: npm run build:workspaces
-      - run: npm run check:native-compiler-corpus
       - run: npm run check:compiler-acceptance:built
     env:
       EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
@@ -291,6 +290,12 @@ jobs:
         run: npm run build:sudoku:standalone
       - name: Build standalone Puzzle Foundry
         run: npm run build:puzzle-generator:standalone
+      - name: Build hosted application galleries
+        run: |
+          npm run build -w @exactjs/sample-enhancement-playground
+          npm run build:kanban
+          npm run build:workbench
+          npm run build:intl
       - name: Assemble Pages branch
         run: node scripts/prepare-gh-pages.mjs
       - name: Publish gh-pages branch

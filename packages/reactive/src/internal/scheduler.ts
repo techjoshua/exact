@@ -41,6 +41,17 @@ const priorityOrder: Record<WorkPriority, number> = {
 let captureScheduledWorkContext:
 	| ((priority: WorkPriority) => ScheduledWorkContext | undefined)
 	| undefined;
+const settlementCallbacks = new Set<() => void>();
+let settlementScheduled = false;
+let settling = false;
+
+/** Queues one coalesced callback for the first stable point after reactive work drains. */
+export function requestSchedulerSettlement(callback: () => void): void {
+	settlementCallbacks.add(callback);
+	if (settlementScheduled) return;
+	settlementScheduled = true;
+	queueMicrotask(settleScheduler);
+}
 
 /** Installs framework ownership capture for subsequently scheduled reactive work. */
 export function setScheduledWorkContextCapture(
@@ -245,6 +256,7 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 		// Overflow deliberately clears both queues above; ordinary failures may
 		// have queued new work while their error was being handled.
 		scheduleRemainingWork();
+		if (!hasEligibleWork('deferred')) settleScheduler();
 		if (profileStarted !== undefined) {
 			for (const [sink, reactions] of profiledReactions) {
 				sink(
@@ -259,6 +271,25 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 		}
 	}
 	if (hasError) throw firstError;
+}
+
+/** Publishes one stable settlement generation without admitting recursive reconciliation. */
+function settleScheduler(): void {
+	if (settling || hasEligibleWork('deferred')) return;
+	settlementScheduled = false;
+	if (!settlementCallbacks.size) return;
+	const callbacks = [...settlementCallbacks];
+	settlementCallbacks.clear();
+	settling = true;
+	try {
+		for (const callback of callbacks) callback();
+	} finally {
+		settling = false;
+		if (settlementCallbacks.size && !settlementScheduled) {
+			settlementScheduled = true;
+			queueMicrotask(settleScheduler);
+		}
+	}
 }
 
 /** Clears a runaway generation and reports it once to each owning scope. */

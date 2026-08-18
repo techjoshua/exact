@@ -1,4 +1,5 @@
 import { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '@exactjs/core';
+import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import { parseExactDebugRequest } from '@exactjs/devtools-protocol';
 import type {
 	ExactBatchRequest,
@@ -188,10 +189,6 @@ function parseBatch(record: Record<string, unknown>, maxOperations: number): Exa
 		version: record.version === 1 ? 1 : undefined,
 		operations
 	};
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 function utf8Length(value: string): number {
