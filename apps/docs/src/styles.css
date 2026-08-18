@@ -91,21 +91,6 @@
 	--syntax-invalid: var(--exact-theme-danger-solid);
 }
 
-[data-exact-theme-appearance='light'] {
-	/* Solid-active tones supply sufficient luminance contrast but balanced themes deliberately keep
-	   them restrained. Syntax needs stronger hue separation, so preserve hue/lightness and expand
-	   chroma; monochrome remains monochrome because multiplying zero still yields zero. */
-	--syntax-keyword: oklch(from var(--exact-theme-accent-solid-active) l calc(c * 1.55) h);
-	--syntax-type: oklch(from var(--exact-theme-warning-solid-active) l calc(c * 1.55) h);
-	--syntax-function: oklch(from var(--exact-theme-info-solid-active) l calc(c * 1.55) h);
-	--syntax-string: oklch(from var(--exact-theme-success-solid-active) l calc(c * 1.55) h);
-	--syntax-number: oklch(from var(--exact-theme-danger-solid-active) l calc(c * 1.55) h);
-	--syntax-tag: oklch(from var(--exact-theme-danger-solid-active) l calc(c * 1.55) h);
-	--syntax-property: oklch(from var(--exact-theme-info-solid-active) l calc(c * 1.55) h);
-	--syntax-command: oklch(from var(--exact-theme-accent-solid-active) l calc(c * 1.55) h);
-	--syntax-bracket: oklch(from var(--exact-theme-warning-solid-active) l calc(c * 1.55) h);
-}
-
 .theme-lab-workbench {
 	display: grid;
 	grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);

@@ -197,13 +197,18 @@ test('keeps documentation code blocks on the reactive application theme', async 
 	);
 	const dark = await codeThemeReport(codeBlock);
 
-	expect(light.surface).toBe(light.neutralSubtle);
-	expect(dark.surface).toBe(dark.neutralSubtle);
-	expect(light.keyword).toContain('calc(c * 1.55)');
-	expect(light.keywordColor).not.toBe(light.accentSolidActiveColor);
+	expect(light.surface).not.toBe(light.neutralSubtle);
+	expect(dark.surface).not.toBe(dark.neutralSubtle);
+	expect(light.surface).toMatch(/^oklch\(0\.12 /);
+	expect(dark.surface).toMatch(/^oklch\(0\.12 /);
+	expect(light.keyword).not.toBe(light.accentSolidActive);
+	expect(light.keywordChroma).toBeGreaterThanOrEqual(0.11);
 	expect(light.keywordContrast).toBeGreaterThanOrEqual(4.5);
-	expect(dark.keyword).toBe(dark.accentText);
-	expect(dark.surface).not.toBe(light.surface);
+	expect(light.copyContrast).toBeGreaterThanOrEqual(4.5);
+	expect(dark.keyword).not.toBe(dark.accentText);
+	expect(dark.keywordChroma).toBeGreaterThanOrEqual(0.11);
+	expect(dark.keywordContrast).toBeGreaterThanOrEqual(4.5);
+	expect(dark.copyContrast).toBeGreaterThanOrEqual(4.5);
 	expect(light.rootColorScheme).toBe('light');
 	expect(dark.rootColorScheme).toBe('dark');
 
@@ -262,8 +267,11 @@ function themeScope(page: Page, index: number): Locator {
 
 async function codeThemeReport(codeBlock: Locator) {
 	return codeBlock.evaluate((element) => {
-		const style = getComputedStyle(element);
+		const surface = element.querySelector('pre')!;
+		const style = getComputedStyle(surface);
+		const containerStyle = getComputedStyle(element);
 		const keywordColor = getComputedStyle(element.querySelector('.syntax--keyword')!).color;
+		const copyColor = getComputedStyle(element.querySelector('.copy-button')!).color;
 		const surfaceColor = style.backgroundColor;
 		return {
 			surface: style.getPropertyValue('--code-surface').trim(),
@@ -271,21 +279,16 @@ async function codeThemeReport(codeBlock: Locator) {
 			keyword: style.getPropertyValue('--syntax-keyword').trim(),
 			accentText: style.getPropertyValue('--exact-theme-accent-text').trim(),
 			accentSolidActive: style.getPropertyValue('--exact-theme-accent-solid-active').trim(),
-			accentSolidActiveColor: rasterizeCss(
-				style.getPropertyValue('--exact-theme-accent-solid-active').trim()
+			keywordChroma: Number(
+				style.getPropertyValue('--syntax-keyword').match(/oklch\([^ ]+ ([^ ]+)/)?.[1]
 			),
 			keywordColor,
 			keywordContrast: contrastRatio(keywordColor, surfaceColor),
+			copyContrast: contrastRatio(copyColor, surfaceColor),
 			rootColorScheme: getComputedStyle(document.documentElement).colorScheme,
-			borderWidth: style.borderTopWidth,
-			shadow: style.boxShadow
+			borderWidth: containerStyle.borderTopWidth,
+			shadow: containerStyle.boxShadow
 		};
-
-		function rasterizeCss(color: string): string {
-			const context = document.createElement('canvas').getContext('2d')!;
-			context.fillStyle = color;
-			return context.fillStyle;
-		}
 
 		function contrastRatio(foreground: string, background: string): number {
 			const luminance = (color: string) => {

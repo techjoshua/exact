@@ -7,7 +7,7 @@
 		"dev": "vite",
 		"build": "node scripts/build.mjs",
 		"preview": "node scripts/preview.mjs",
-		"test": "vitest run src/code-highlighting.test.ts src/theme-isolation.test.ts",
+		"test": "vitest run src/code-highlighting.test.ts src/theme-isolation.test.ts src/syntax-theme.test.ts",
 		"test:e2e": "node scripts/test-theme-lab.mjs",
 		"typecheck": "tsc --noEmit",
 		"verify": "npm run typecheck && npm run build"
