@@ -13,7 +13,7 @@ const test = base.extend<{ browserErrors: string[] }>({
 });
 
 test.beforeEach(async ({ page, browserErrors: _browserErrors }) => {
-	await page.goto('/#/examples/theme-lab');
+	await page.goto('/#theme-lab');
 	await expect(page.getByRole('heading', { name: 'Theme Lab', exact: true })).toBeVisible();
 	await expect(page.locator('.theme-lab-workbench [data-exact-theme]')).toHaveCount(2);
 });

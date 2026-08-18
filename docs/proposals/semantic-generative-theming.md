@@ -623,8 +623,8 @@ implementation must add a public, production-built Theme Lab sample page that co
 portable vocabulary in a realistic interface. A swatch sheet or static Storybook story does not
 satisfy this requirement.
 
-The preferred docs route is `/examples/theme-lab`. The sample may live in the documentation
-application or in a separately built sample application linked from that route, but it must use the
+The Theme Lab lives in the separately built enhancement playground and is linked from the
+documentation application. It must use the
 published `@exactjs/theme` package and enhancement facade rather than repository-private imports.
 
 ### Root theme controls

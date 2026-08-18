@@ -1,10 +1,15 @@
-import { copyFile, mkdir, readFile, readdir, rm } from 'node:fs/promises';
+import { copyFile, cp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
 const docsRoot = resolve(root, 'apps/docs/dist');
 const sudokuRoot = resolve(root, 'apps/sudoku/dist');
 const puzzleFoundryRoot = resolve(root, 'apps/puzzle-generator/dist');
+const hostedApplications = new Map([
+	['enhancements', resolve(root, 'apps/enhancement-playground/dist')],
+	['kanban', resolve(root, 'apps/kanban/dist')],
+	['workbench', resolve(root, 'apps/workbench/dist')]
+]);
 const outputRoot = resolve(root, '.tmp/gh-pages');
 const sudokuFiles = [
 	'manifest.webmanifest',
@@ -25,6 +30,9 @@ await copyFile(
 	resolve(puzzleFoundryRoot, 'puzzle-foundry.html'),
 	resolve(outputRoot, 'puzzle-foundry.html')
 );
+for (const [directory, source] of hostedApplications) {
+	await cp(source, resolve(outputRoot, directory), { recursive: true });
+}
 
 const htmlFiles = ['index.html', 'puzzle-foundry.html', 'sudoku.html'];
 for (const file of htmlFiles) {
@@ -34,7 +42,14 @@ for (const file of htmlFiles) {
 	}
 }
 
-const expectedFiles = ['index.html', 'puzzle-foundry.html', ...sudokuFiles].sort();
+const expectedFiles = [
+	'enhancements',
+	'index.html',
+	'kanban',
+	'puzzle-foundry.html',
+	...sudokuFiles,
+	'workbench'
+].sort();
 const outputFiles = (await readdir(outputRoot)).sort();
 if (JSON.stringify(outputFiles) !== JSON.stringify(expectedFiles)) {
 	throw new Error(`Unexpected GitHub Pages files: ${outputFiles.join(', ')}`);
