@@ -36,7 +36,6 @@ import { StoryPage } from './pages/StoryPage.jsx';
 import { TasksPage } from './pages/TasksPage.jsx';
 import { TestingPage } from './pages/TestingPage.jsx';
 import { ThemeProposalPage } from './pages/ThemeProposalPage.jsx';
-import { ThemeLabPage } from './pages/ThemeLabPage.jsx';
 
 /** Describes one routable and searchable documentation article. */
 export type DocPage = {
@@ -359,15 +358,6 @@ export const docGroups: DocGroup[] = [
 	{
 		label: 'Explore',
 		pages: [
-			{
-				path: '/examples/theme-lab',
-				label: 'Theme lab',
-				summary:
-					'Interactively validate generated root and nested themes with portable controls and a derived translucent chart.',
-				keywords:
-					'theme lab interactive key temperament mode contrast nested chart controls semantic',
-				component: ThemeLabPage
-			},
 			{
 				path: '/examples/logo-lab',
 				label: 'Logo lab',

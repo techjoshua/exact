@@ -102,7 +102,7 @@
 		"build:shipping": "npm run build -w @exactjs/sample-shipping-calculator",
 		"test:shipping": "npm run test -w @exactjs/sample-shipping-calculator",
 		"test:e2e:shipping": "npm run test:e2e -w @exactjs/sample-shipping-calculator",
-		"test:e2e:theme": "npm run test:e2e -w @exactjs/docs",
+		"test:e2e:theme": "npm run test:e2e -w @exactjs/sample-enhancement-playground",
 		"start:shipping": "npm run start -w @exactjs/sample-shipping-calculator"
 	},
 	"devDependencies": {

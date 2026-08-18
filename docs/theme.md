@@ -217,7 +217,7 @@ interaction and emphasis instead of returning that semantic color as a data seri
 
 `deriveDataColors()` provides categorical sets of 1â€“12 colors, sequential sets of 2â€“12, and odd diverging sets of 3â€“11. Results include opaque colors, foregrounds, strokes, repeating non-color patterns, and distance warnings. Components still need labels, symbols, patterns, or a data table whenever color identity is necessary to understand the content.
 
-The public docs applicationâ€™s [Theme Lab](../apps/docs/src/pages/ThemeLabPage.tsx) exercises live root and nested configuration, native controls and statuses from a separately built fixture package, and overlapping translucent area charts derived from each active scope.
+The [Theme Lab](../apps/enhancement-playground/src/theme-lab.tsx) in the enhancement playground exercises live root and nested configuration, native controls and statuses from a separately built fixture package, and overlapping translucent area charts derived from each active scope. The public docs application links to that independently deployed sample.
 
 Categorical colors advance around the key hue by the golden angle, harmonize through the active
 temperament, and alternate between two appearance-specific lightness bands. In both light and dark
@@ -234,7 +234,7 @@ Run the Theme Lab's rendered Chromium acceptance gate from the repository root:
 npm run test:e2e:theme
 ```
 
-This gate starts the production docs source through Vite, owns and closes that server reliably on
+This gate starts the enhancement playground source through Vite, owns and closes that server reliably on
 Windows, and exercises real Chromium computed styles and accessibility output. It currently checks
 reactive root publication, inherited and explicit nested scopes, stable DOM identity and native
 state, all seven temperaments in light and dark, generated text and primary-action contrast,

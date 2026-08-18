@@ -5,7 +5,6 @@ import { builtInThemeKeys } from '@exactjs/theme';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement' };
 import { ThemeSpecimen } from '@exactjs/theme-fixture';
-import { Article } from './Article.jsx';
 
 type Temperament =
 	| 'balanced'
@@ -56,7 +55,7 @@ const temperaments: readonly Temperament[] = [
 const keys: readonly Key[] = ['teal', 'blue', 'violet', 'amber', 'rose', 'green'];
 
 /** Interactive acceptance application for generated, nested, and externally derived themes. */
-export function ThemeLabPage(this: Component<LabState>) {
+export function ThemeLab(this: Component<LabState>) {
 	this.state.key = 'teal';
 	this.state.keyChoice = 'teal';
 	this.state.keyColor = builtInThemeKeys.teal;
@@ -75,13 +74,19 @@ export function ThemeLabPage(this: Component<LabState>) {
 	this.state.nestedAppearance = 'inherit';
 	this.state.nestedHighContrast = false;
 	return () => (
-		<Article
-			eyebrow="Example / @exactjs/theme"
-			title="Theme Lab"
-			description="Change a compact visual source and watch native controls, nested scopes, portable components, and derived chart colors react without remounting."
-			previous={{ path: '/components/theme', label: 'Theming' }}
-			next={{ path: '/components/date-time', label: 'Date & time' }}
-		>
+		<section id="theme-lab" className="theme-lab" aria-labelledby="theme-lab-heading">
+			<header className="theme-lab-heading">
+				<p theme:text="supporting" className="eyebrow">
+					Example / @exactjs/theme
+				</p>
+				<h2 theme:text="display" id="theme-lab-heading">
+					Theme Lab
+				</h2>
+				<p theme:text="body">
+					Change a compact visual source and watch native controls, nested scopes, portable
+					components, and derived chart colors react without remounting.
+				</p>
+			</header>
 			<div className="theme-lab-workbench">
 				<aside
 					theme:surface="raised"
@@ -310,6 +315,6 @@ export function ThemeLabPage(this: Component<LabState>) {
 					</div>
 				</_>
 			</div>
-		</Article>
+		</section>
 	);
 }

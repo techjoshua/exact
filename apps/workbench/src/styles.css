@@ -9,6 +9,11 @@
 	box-sizing: border-box;
 }
 
+.docs-link {
+	color: var(--exact-theme-accent-text);
+	font-weight: var(--exact-theme-font-weight-strong);
+}
+
 body {
 	margin: 0;
 }

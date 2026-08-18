@@ -10,6 +10,11 @@ A practical eXact gallery showing how optional renderer enhancements improve fam
 - physics owns a fixed-step, directly manipulated body with playful bounded collisions; and
 - gravity contributes a deliberately lively force through physics context.
 
+The same deployed application owns Theme Lab, the interactive acceptance surface for generated
+root and nested themes, native controls, portable fixture components, and derived chart palettes.
+The documentation site links directly to the lab while keeping this independently built sample as
+the package-consumer boundary.
+
 The final stage composes all four packages on one intrinsic target. Physical ceiling and side
 walls keep the high-restitution orb recoverable, and the complete fixed simulation stage scales
 into portrait layouts instead of exposing a horizontally scrollable partial world. An explicit

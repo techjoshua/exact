@@ -3,6 +3,7 @@ import { _ } from '@exactjs/jsx';
 import { GestureControls } from './gesture-controls.js';
 import { MotionControls } from './motion-controls.js';
 import { PhysicsDemo } from './physics-demo.js';
+import { ThemeLab } from './theme-lab.js';
 import './styles.css';
 
 function PluginPlayground() {
@@ -10,6 +11,14 @@ function PluginPlayground() {
 		<_ theme:scope theme:appearance="dark" theme:tonic="blue" theme:temperament="expressive">
 			<main>
 				<header className="hero">
+					<nav className="app-nav" aria-label="Application links">
+						<a className="app-link" href="../">
+							Documentation
+						</a>
+						<a className="app-link" href="#theme-lab">
+							Theme Lab
+						</a>
+					</nav>
 					<p theme:text="supporting" className="eyebrow">
 						Attributed renderer enhancements
 					</p>
@@ -31,6 +40,7 @@ function PluginPlayground() {
 					<GestureControls />
 					<PhysicsDemo />
 				</div>
+				<ThemeLab />
 			</main>
 		</_>
 	);

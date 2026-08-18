@@ -8,7 +8,6 @@
 		"build": "node scripts/build.mjs",
 		"preview": "node scripts/preview.mjs",
 		"test": "vitest run src/code-highlighting.test.ts src/theme-isolation.test.ts src/syntax-theme.test.ts",
-		"test:e2e": "node scripts/test-theme-lab.mjs",
 		"typecheck": "tsc --noEmit",
 		"verify": "npm run typecheck && npm run build"
 	},
@@ -20,11 +19,9 @@
 		"@exactjs/react-dom-compat": "^0.1.0",
 		"@exactjs/router": "^0.1.0",
 		"@exactjs/theme": "^0.1.0",
-		"@exactjs/theme-fixture": "^0.1.0",
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {
-		"@playwright/test": "^1.52.0",
 		"@types/react": "^19.2.17",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",

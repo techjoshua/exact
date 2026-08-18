@@ -2,10 +2,10 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
 
-const docsRoot = resolve(import.meta.dirname, '..');
-const playwrightCli = resolve(docsRoot, '../../node_modules/@playwright/test/cli.js');
+const applicationRoot = resolve(import.meta.dirname, '..');
+const playwrightCli = resolve(applicationRoot, '../../node_modules/@playwright/test/cli.js');
 const server = await createServer({
-	root: docsRoot,
+	root: applicationRoot,
 	server: { host: '127.0.0.1', port: 4176, strictPort: true }
 });
 
@@ -29,7 +29,7 @@ if (result.signal) {
 function runPlaywright(arguments_) {
 	return new Promise((resolveResult, reject) => {
 		const child = spawn(process.execPath, [playwrightCli, 'test', ...arguments_], {
-			cwd: docsRoot,
+			cwd: applicationRoot,
 			stdio: 'inherit',
 			env: { ...process.env, THEME_LAB_MANAGED_SERVER: '1' }
 		});

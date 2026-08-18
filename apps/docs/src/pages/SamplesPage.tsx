@@ -8,7 +8,7 @@ export function SamplesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Complete applications"
 			title="Beyond the counter"
-			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Sudoku Atelier is the hosted demo; the others are repository examples you can build locally."
+			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Four browser applications are published with these docs; the remaining examples can be built locally."
 			next={{ path: '/getting-started', label: 'Create an eXact app' }}
 		>
 			<section theme:surface="raised" className="sudoku-showcase">
@@ -56,6 +56,9 @@ export function SamplesPage(this: Component<{}>) {
 							Generated theme tokens drive the palette without owning its board layout or drag
 							behavior.
 						</p>
+						<a theme:action="secondary" href="./kanban/">
+							Open Kanban
+						</a>
 					</div>
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Project Workbench</span>
@@ -65,6 +68,9 @@ export function SamplesPage(this: Component<{}>) {
 							values, tasks, fine-grained updates, and package-scoped semantic theme roles across a
 							denser application shell.
 						</p>
+						<a theme:action="secondary" href="./workbench/">
+							Open Project Workbench
+						</a>
 					</div>
 				</div>
 			</section>
@@ -80,6 +86,9 @@ export function SamplesPage(this: Component<{}>) {
 							and gesture enhancements. The sample demonstrates composition without a shared
 							component runtime or hidden state system.
 						</p>
+						<a theme:action="secondary" href="./enhancements/">
+							Open the playground and Theme Lab
+						</a>
 					</div>
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Puzzle Foundry</span>
@@ -117,9 +126,9 @@ export function SamplesPage(this: Component<{}>) {
 
 			<Callout title="Repository examples">
 				<p>
-					Shipping Calculator, Kanban, Project Workbench, Enhancement Playground, Puzzle Foundry,
-					Microfrontend Portal, and Server Components are source examples in the eXact repository.
-					They are not deployed as routes on this documentation site.
+					Shipping Calculator, Microfrontend Portal, and Server Components remain source examples in
+					the eXact repository. Kanban, Project Workbench, Enhancement Playground with Theme Lab,
+					Puzzle Foundry, and Sudoku Atelier are published alongside this documentation site.
 				</p>
 			</Callout>
 		</Article>
