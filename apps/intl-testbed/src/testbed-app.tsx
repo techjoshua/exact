@@ -72,7 +72,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 					structural reordering visible; the source remains a normal fallback when no catalog entry
 					exists.
 				</p>
-				<pre aria-label="Representative enhancement source">
+				<pre theme:surface="sunken" aria-label="Representative enhancement source">
 					<code>{`<p intl:message="transfer-order">
   Send <strong intl:fragment="report">the quarterly report</strong> to
   <_ intl:fragment="recipient"><RecipientBadge /></_>.
@@ -80,10 +80,15 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				</pre>
 			</header>
 
-			<section className="control-deck" aria-label="Shared scenario controls">
+			<section
+				theme:surface="overlay"
+				className="control-deck"
+				aria-label="Shared scenario controls"
+			>
 				<label>
 					Name
 					<input
+						theme:field
 						value={this.state.name}
 						onInput={(event) => (this.state.name = event.currentTarget.value)}
 					/>
@@ -91,6 +96,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				<label>
 					Messages
 					<input
+						theme:field
 						type="number"
 						min="0"
 						value={this.state.count}
@@ -100,6 +106,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				<label>
 					Queue position
 					<input
+						theme:field
 						type="number"
 						min="1"
 						value={this.state.position}
@@ -109,6 +116,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				<label>
 					Role
 					<select
+						theme:field
 						value={this.state.role}
 						onChange={(event) =>
 							(this.state.role = event.currentTarget.value as TestbedState['role'])
@@ -120,6 +128,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				</label>
 				<label className="checkbox-control">
 					<input
+						theme:field
 						type="checkbox"
 						checked={this.state.ready}
 						onChange={(event) => (this.state.ready = event.currentTarget.checked)}
@@ -129,6 +138,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 				<label>
 					Unit policy
 					<select
+						theme:field
 						value={this.state.unitPolicy}
 						onChange={(event) =>
 							setUnitPolicy(event.currentTarget.value as TestbedState['unitPolicy'])
@@ -140,6 +150,7 @@ export function IntlTestbed(this: Component<TestbedState>) {
 					</select>
 				</label>
 				<button
+					theme:action="secondary"
 					type="button"
 					className="lazy-button"
 					onClick={loadLazyRegion}

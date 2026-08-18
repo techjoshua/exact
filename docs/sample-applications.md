@@ -27,7 +27,8 @@ published with the documentation site under `enhancements/`, `kanban/`, `workben
   server resources, generated artifacts, and public data crossing the client/server boundary.
 - [`apps/intl-testbed`](../apps/intl-testbed) renders one enhancement-authored scenario in English,
   French, Japanese, and Arabic to exercise catalogs, structural reordering, formatting, and
-  diagnostics.
+  diagnostics. Semantic theme enhancements own its application chrome while fixed fragment colors
+  remain part of the translation-reordering legend.
 
 The documentation application links to every hosted application. Shipping Calculator,
 Microfrontend Portal, and Server Components remain local repository examples because they require
