@@ -51,9 +51,8 @@ main {
 h1 {
 	grid-column: 1;
 	margin: 0;
-	font:
-		700 clamp(2.5rem, 5vw, 5.6rem) / 0.92 Georgia,
-		serif;
+	font: var(--exact-theme-font-weight-strong) clamp(2.5rem, 5vw, 5.6rem) / 0.92
+		var(--exact-theme-font-display);
 	letter-spacing: -0.05em;
 }
 .hero-copy {
@@ -71,18 +70,9 @@ pre {
 	margin: 0;
 	padding: 24px;
 	overflow: auto;
-	border: var(--exact-theme-border-width) solid var(--exact-theme-neutral-border);
-	border-radius: 16px;
-	color: var(--exact-theme-neutral-text);
-	background: var(--exact-theme-neutral-subtle);
-	box-shadow: var(--exact-theme-shadow-lg);
 }
 code {
-	font:
-		0.86rem/1.65 ui-monospace,
-		SFMono-Regular,
-		Consolas,
-		monospace;
+	font: 0.86rem/1.65 var(--exact-theme-font-code);
 }
 .control-deck {
 	position: sticky;
@@ -94,10 +84,6 @@ code {
 	max-width: 1500px;
 	margin: 0 auto 12px;
 	padding: 14px;
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 16px;
-	background: color-mix(in oklch, var(--exact-theme-surface-background) 92%, transparent);
-	box-shadow: var(--exact-theme-shadow-md);
 	backdrop-filter: blur(16px);
 }
 .control-deck label {
@@ -110,14 +96,8 @@ code {
 	text-transform: uppercase;
 }
 .control-deck input,
-.control-deck select,
-.control-deck button {
+.control-deck select {
 	min-height: 38px;
-	padding: 7px 9px;
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
-	border-radius: 8px;
-	color: var(--exact-theme-surface-foreground);
-	background: var(--exact-theme-surface-background);
 }
 .control-deck input[type='number'] {
 	width: 92px;
@@ -170,10 +150,6 @@ code {
 .locale-panel {
 	min-width: 0;
 	overflow: hidden;
-	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border);
-	border-radius: 18px;
-	background: var(--exact-theme-surface-background);
-	box-shadow: var(--exact-theme-shadow-md);
 }
 .locale-heading {
 	display: flex;
@@ -184,24 +160,18 @@ code {
 	background: var(--exact-theme-accent-solid);
 }
 .locale-code {
-	font:
-		700 0.72rem ui-monospace,
-		monospace;
+	font: var(--exact-theme-font-weight-strong) 0.72rem var(--exact-theme-font-code);
 	opacity: 0.72;
 }
 .locale-heading h2 {
 	margin: 5px 0 0;
-	font:
-		700 1.35rem/1.1 Georgia,
-		serif;
+	font: var(--exact-theme-font-weight-strong) 1.35rem/1.1 var(--exact-theme-font-display);
 }
 .direction-chip {
 	padding: 4px 6px;
 	border: 1px solid color-mix(in oklch, var(--exact-theme-accent-on-solid) 34%, transparent);
 	border-radius: 5px;
-	font:
-		700 0.62rem ui-monospace,
-		monospace;
+	font: var(--exact-theme-font-weight-strong) 0.62rem var(--exact-theme-font-code);
 }
 .scenario {
 	padding: 17px 20px;
@@ -221,15 +191,14 @@ code {
 .reorder-example {
 	min-height: 78px;
 	padding: 10px;
-	border: var(--exact-theme-border-width) dashed var(--exact-theme-surface-border-strong);
-	border-radius: 9px;
-	background: var(--exact-theme-neutral-subtle);
+	border-style: dashed;
 }
 .reorder-example strong {
 	display: inline-block;
 	padding: 2px 5px;
 	outline: 2px solid #ffc857;
 	border-radius: 3px;
+	color: #172022;
 	background: #fff7dd;
 }
 .person-badge {
@@ -237,6 +206,7 @@ code {
 	padding: 2px 7px;
 	outline: 2px solid #7bdff2;
 	border-radius: 999px;
+	color: #172022;
 	background: #e8fbff;
 	font-weight: 750;
 }
@@ -253,8 +223,6 @@ code {
 .value-grid div {
 	min-width: 0;
 	padding: 9px;
-	border-radius: 8px;
-	background: var(--exact-theme-neutral-subtle);
 }
 .value-grid dt {
 	color: var(--exact-theme-surface-foreground-muted);
@@ -274,14 +242,9 @@ code {
 .property-row input {
 	min-width: 0;
 	width: 100%;
-	padding: 8px;
 }
 .property-row button {
 	min-width: 38px;
-	border: 0;
-	border-radius: 8px;
-	color: var(--exact-theme-accent-on-solid);
-	background: var(--exact-theme-accent-solid);
 }
 .missing-scenario {
 	background: repeating-linear-gradient(
@@ -293,15 +256,10 @@ code {
 .lazy-result {
 	margin: 0;
 	padding: 18px 20px;
-	border-top: var(--exact-theme-border-width) solid var(--exact-theme-success-border);
-	color: var(--exact-theme-success-text);
-	background: var(--exact-theme-success-subtle);
+	border-width: var(--exact-theme-border-width) 0 0;
 	font-weight: 700;
 }
 .lazy-idle {
-	color: var(--exact-theme-surface-foreground-muted);
-	border-top-color: var(--exact-theme-surface-border);
-	background: var(--exact-theme-neutral-subtle);
 	font-weight: 500;
 }
 @media (max-width: 1250px) {
