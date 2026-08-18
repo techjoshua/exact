@@ -561,14 +561,19 @@ Derivers do not inspect computed style or register global callbacks.
 
 `deriveDataColors()` provides categorical sets of 1–12 colors, sequential sets of 2–12, and odd
 diverging sets of 3–11. It returns opaque colors, readable foregrounds, strokes, repeating
-non-color patterns, and distance warnings. Inputs and output ordering are deterministic. Charts
-must retain labels, symbols, patterns, or a table whenever color carries meaning.
+non-color patterns, and distance warnings. Inputs and output ordering are deterministic.
+Categorical palettes reserve the semantic accent and its immediate OKLab neighborhood rather than
+using interaction emphasis as data identity. Charts must retain labels, symbols, patterns, or a
+table whenever color carries meaning.
 
 Categorical candidates use golden-angle hue progression harmonized toward the key hue. Their two
 appearance-specific lightness bands both progress upward: `0.48` then `0.62` in light appearance
 and `0.68` then `0.82` in dark appearance. Contrast correction may move a candidate when its
 requested surface requires it. The light sequence deliberately avoids a lower second band because
 low-lightness yellow and green candidates become muddy brown or olive across common tonic colors.
+After contrast correction, candidates within the categorical distance threshold of the resolved
+accent are discarded. Selection and fallback ranking then maximize distance from both accent and
+already selected series colors.
 
 export const syntaxTheme = createThemeDeriver<SyntaxRequest, SyntaxTheme>({
 id: '@acme/editor/syntax',

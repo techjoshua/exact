@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseThemeColor } from './color.js';
+import { parseThemeColor, resolveColor } from './color.js';
 import { builtInThemeKeys } from './components.js';
 import { createThemeDeriver, deriveDataColors, deriveTheme } from './derivation.js';
 import type { ThemeDerivationContext } from './derivation-contracts.js';
@@ -66,6 +66,22 @@ describe('exterior theme derivation', () => {
 			}
 	});
 
+	it('reserves semantic accent outside every categorical palette', () => {
+		for (const appearance of ['light', 'dark'] as const)
+			for (const keyColor of Object.values(builtInThemeKeys)) {
+				const themed = resolveTheme({
+					source: { keyColor, temperament: 'balanced' },
+					environment: { appearance, contrast: 'standard', motion: 'full' }
+				});
+				const result = deriveDataColors(themed, { kind: 'categorical', count: 12 });
+				expect(result.colors).toHaveLength(12);
+				for (const color of result.colors)
+					expect(
+						oklabDistance(themed.tones.accent.solid, resolveColor(parseThemeColor(color)))
+					).toBeGreaterThanOrEqual(0.0799);
+			}
+	});
+
 	it('validates bounded derivation inputs', () => {
 		expect(() => createThemeDeriver({ id: '', version: 1, derive: () => ({}) })).toThrow(TypeError);
 		expect(() => deriveDataColors(theme, { kind: 'categorical', count: 13 })).toThrow(RangeError);
@@ -77,3 +93,20 @@ describe('exterior theme derivation', () => {
 		expect(() => deriveTheme(theme, reserved, {})).toThrow(/reserved CSS variables/);
 	});
 });
+
+function oklabDistance(
+	a: ReturnType<typeof resolveColor>,
+	b: ReturnType<typeof resolveColor>
+): number {
+	const coordinates = (color: ReturnType<typeof resolveColor>) => {
+		const angle = (color.oklch.h * Math.PI) / 180;
+		return [
+			color.oklch.l,
+			color.oklch.c * Math.cos(angle),
+			color.oklch.c * Math.sin(angle)
+		] as const;
+	};
+	const x = coordinates(a),
+		y = coordinates(b);
+	return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+}

@@ -203,6 +203,9 @@ presentation from finite build-time class discovery; it is not implemented API.
 
 Charts, editors, maps, and other specialized components read the nearest `ThemeContext.current` and optional `ThemeSurfaceContext.bundle`. `createThemeDeriver()` defines a synchronous versioned derivation, while `deriveTheme()` supplies immutable palette, harmonization, conversion, and contrast helpers. Derivers never scrape computed CSS and therefore work identically during SSR.
 
+Categorical data palettes reserve the theme accent and its immediate perceptual neighborhood for
+interaction and emphasis instead of returning that semantic color as a data series.
+
 `deriveDataColors()` provides categorical sets of 1â€“12 colors, sequential sets of 2â€“12, and odd diverging sets of 3â€“11. Results include opaque colors, foregrounds, strokes, repeating non-color patterns, and distance warnings. Components still need labels, symbols, patterns, or a data table whenever color identity is necessary to understand the content.
 
 The public docs applicationâ€™s [Theme Lab](../apps/docs/src/pages/ThemeLabPage.tsx) exercises live root and nested configuration, native controls and statuses from a separately built fixture package, and overlapping translucent area charts derived from each active scope.
@@ -211,8 +214,8 @@ Categorical colors advance around the key hue by the golden angle, harmonize thr
 temperament, and alternate between two appearance-specific lightness bands. In both light and dark
 appearance the second band is lighter than the first; this preserves categorical separation without
 turning yellow and green candidates into muddy low-lightness browns on light surfaces. Each result
-is contrast-corrected against the requested surface and selected for OKLab distance within that
-request.
+is contrast-corrected against the requested surface and selected for OKLab distance from both the
+semantic accent and the other colors in that request.
 
 ## Browser verification
 
