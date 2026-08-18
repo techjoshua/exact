@@ -18,6 +18,16 @@ test.beforeEach(async ({ page, browserErrors: _browserErrors }) => {
 	await expect(page.locator('.theme-lab-workbench [data-exact-theme]')).toHaveCount(2);
 });
 
+test('starts with the documentation theme defaults', async ({ page }) => {
+	await page.locator('.theme-customize-control > summary').click();
+	const controls = page.locator('.theme-control-panel');
+
+	await expect(controls.getByLabel('Color')).toHaveValue('blue');
+	await expect(controls.getByLabel('Temperament')).toHaveValue('balanced');
+	await expect(controls.getByLabel('Depth')).toHaveValue('elevated');
+	await expect(controls.getByLabel('Typography')).toHaveValue('humanist');
+});
+
 test('reactively republishes root and inherited nested themes without replacing content', async ({
 	page
 }) => {
