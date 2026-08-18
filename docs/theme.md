@@ -171,6 +171,10 @@ The `flat` and `bordered` sources resolve the shadow scale to `none`, so their i
 
 Dark elevation uses a restrained light halo that grows across `shadow-sm`, `shadow-md`, and `shadow-lg`, plus a dark contact shadow for separation. Pressed controls switch to a contrasting inset ring and light-edged inset shadow. Hover recipes explicitly stop applying during `:active`, so the pressed treatment wins while the pointer or activation key is held. This keeps every depth change perceptible against near-black surfaces instead of merely increasing an invisible black shadow.
 
+Solid primary actions add an appearance-aware contact shadow derived from the current surface
+foreground. This keeps elevation visible against saturated fills in both light and dark appearances
+while secondary actions continue to use the shared surface depth scale directly.
+
 The Theme Lab specimen includes a live textual depth readout. Hover or press **Save changes**, or drag **Drag me**, to see the active interaction state and effective shadow token; flat and bordered modes report `none`.
 
 Native `progress` and `meter` fields clip their internal fill to `radius-md`, so round and pill shapes cannot paint through the track's curved edges.
