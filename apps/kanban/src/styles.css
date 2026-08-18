@@ -222,7 +222,7 @@ h1 {
 	padding: 24px 12px;
 	color: var(--exact-theme-surface-foreground-muted);
 	text-align: center;
-	background: rgba(255, 255, 255, 0.58);
+	background: var(--exact-theme-neutral-subtle);
 }
 
 .dialog-backdrop {
