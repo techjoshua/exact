@@ -30,7 +30,11 @@ type AiWordControlsProps = {
 /** Renders the explicit opt-in controls for browser-local word and clue generation. */
 export function AiWordControls(props: AiWordControlsProps) {
 	return () => (
-		<div className="option-box ai-option" aria-busy={props.busy ? 'true' : 'false'}>
+		<div
+			theme:surface="sunken"
+			className="option-box ai-option"
+			aria-busy={props.busy ? 'true' : 'false'}
+		>
 			<strong>Local AI helper</strong>
 			<p>
 				Generate {props.kind === 'crossword' ? 'answers and clues' : 'a word list'} from a topic.
@@ -39,6 +43,7 @@ export function AiWordControls(props: AiWordControlsProps) {
 			<label className="wide-field">
 				<span>Topic</span>
 				<input
+					theme:field="default"
 					type="text"
 					maxlength="80"
 					placeholder="For example: deep-sea animals"
@@ -50,6 +55,7 @@ export function AiWordControls(props: AiWordControlsProps) {
 			<label className="wide-field">
 				<span>Local model</span>
 				<select
+					theme:field="default"
 					value={props.model}
 					disabled={props.busy}
 					onChange={(event) => props.onModel(event.currentTarget.value as LocalAiModelId)}
@@ -65,6 +71,7 @@ export function AiWordControls(props: AiWordControlsProps) {
 			<div className="ai-prompt-toolbar">
 				<div>
 					<button
+						theme:action="quiet"
 						type="button"
 						className="text-button"
 						aria-expanded={props.promptVisible ? 'true' : 'false'}
@@ -75,6 +82,7 @@ export function AiWordControls(props: AiWordControlsProps) {
 					</button>
 					{props.response ? (
 						<button
+							theme:action="quiet"
 							type="button"
 							className="text-button"
 							aria-expanded={props.responseVisible ? 'true' : 'false'}
@@ -87,6 +95,7 @@ export function AiWordControls(props: AiWordControlsProps) {
 				</div>
 				{props.promptVisible ? (
 					<button
+						theme:action="quiet"
 						type="button"
 						className="text-button"
 						disabled={props.busy || props.promptTemplate === props.defaultPromptTemplate}
@@ -100,6 +109,7 @@ export function AiWordControls(props: AiWordControlsProps) {
 				<label className="ai-prompt-editor" id={`ai-prompt-${props.kind}`}>
 					<span>Prompt template</span>
 					<textarea
+						theme:field="default"
 						rows={12}
 						maxlength="4000"
 						value={props.promptTemplate}
@@ -114,9 +124,9 @@ export function AiWordControls(props: AiWordControlsProps) {
 				</label>
 			) : null}
 			{props.responseVisible && props.response ? (
-				<div className="ai-response-viewer" id={`ai-response-${props.kind}`}>
+				<div theme:surface="sunken" className="ai-response-viewer" id={`ai-response-${props.kind}`}>
 					<span>Raw model response</span>
-					<pre>{props.response}</pre>
+					<pre theme:text="code">{props.response}</pre>
 					<small>Shown exactly as received, before parsing and safety checks.</small>
 				</div>
 			) : null}
@@ -126,17 +136,18 @@ export function AiWordControls(props: AiWordControlsProps) {
 					<span>{props.status}</span>
 				</div>
 			) : props.status !== 'Ready' ? (
-				<p className="ai-status" aria-live="polite">
+				<p theme:status="info" className="ai-status" aria-live="polite">
 					{props.status}
 				</p>
 			) : null}
 			{props.error ? (
-				<p className="ai-error" role="alert">
+				<p theme:status="danger" className="ai-error" role="alert">
 					{props.error}
 				</p>
 			) : null}
 			<div className="ai-actions">
 				<button
+					theme:action="secondary"
 					type="button"
 					className="secondary-button"
 					disabled={
@@ -147,11 +158,16 @@ export function AiWordControls(props: AiWordControlsProps) {
 					Generate with local AI
 				</button>
 				{props.busy ? (
-					<button type="button" className="text-button" onClick={props.onCancel}>
+					<button theme:action="quiet" type="button" onClick={props.onCancel}>
 						Cancel
 					</button>
 				) : props.modelReady ? (
-					<button type="button" className="text-button" onClick={props.onRemoveModel}>
+					<button
+						theme:action="quiet"
+						theme:tone="danger"
+						type="button"
+						onClick={props.onRemoveModel}
+					>
 						Remove model
 					</button>
 				) : null}

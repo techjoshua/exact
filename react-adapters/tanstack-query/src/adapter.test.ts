@@ -8,7 +8,12 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { createComponentQuery, ExactQueryClientProvider, QueryClientContext } from './index.js';
+import {
+	createComponentQuery,
+	ExactQueryClientProvider,
+	QueryClientContext,
+	type ExactQuerySource
+} from './index.js';
 import { QueryClientProvider } from './provider.js';
 
 describe('@exactjs/tanstack-query', () => {
@@ -34,7 +39,7 @@ describe('@exactjs/tanstack-query', () => {
 	it('bridges QueryObserver updates and owns disposal with the component', async () => {
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 		const provider = createComponentInstance(ExactQueryClientProvider, { client });
-		let query!: ReturnType<typeof createComponentQuery<number>>;
+		let query!: ExactQuerySource<number, Error, number, number, string[]>;
 		const child = createComponentInstance(
 			function Child(this: Component<{}>) {
 				query = createComponentQuery(this, { queryKey: ['value'], queryFn: async () => 42 });

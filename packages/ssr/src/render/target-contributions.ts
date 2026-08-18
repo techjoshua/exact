@@ -4,10 +4,13 @@ import {
 	getCellVNode,
 	isCellVNode,
 	isVNode,
-	normalizeClassValue,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import {
+	mergeTargetClassContributions,
+	mergeTargetTokenContributions
+} from '@exactjs/core/framework/target-contributions';
 import { unwrap } from '@exactjs/reactive';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 import { prepareSsrTargetBoundary, prepareSsrTargetBoundaryAsync } from './enhancement-planning.js';
@@ -93,21 +96,11 @@ function composeTargetProps(
 			continue;
 		}
 		if (key === 'class' || key === 'className') {
-			const tokens = `${authored == null ? '' : normalizeClassValue(authored)} ${
-				contributed == null ? '' : normalizeClassValue(contributed)
-			}`
-				.trim()
-				.split(/\s+/)
-				.filter((token, index, all) => token && all.indexOf(token) === index);
-			result[key] = tokens.length ? tokens.join(' ') : authored === null ? null : undefined;
+			result[key] = mergeTargetClassContributions([authored, contributed]);
 			continue;
 		}
 		if (tokenListProps.has(key)) {
-			const tokens = `${authored ?? ''} ${contributed ?? ''}`
-				.trim()
-				.split(/\s+/)
-				.filter((token, index, all) => token && all.indexOf(token) === index);
-			result[key] = tokens.length ? tokens.join(' ') : authored === null ? null : undefined;
+			result[key] = mergeTargetTokenContributions([authored, contributed]);
 			continue;
 		}
 		if (key === 'style' && isRecord(contributed) && isRecord(authored)) {

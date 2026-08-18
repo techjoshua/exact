@@ -4,10 +4,97 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 )
+
+func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
+	root := t.TempDir()
+	childFile := filepath.Join(root, "Child.tsx")
+	pageFile := filepath.Join(root, "Page.tsx")
+	unrelatedFile := filepath.Join(root, "Unrelated.tsx")
+	configFile := filepath.Join(root, "tsconfig.json")
+	childSource := `export function Child() { return () => <span>child</span>; }`
+	pageSource := `
+		import { Child } from "./Child.js";
+		export function Page() {
+			document.title = "page";
+			return () => <main><Child /></main>;
+		}
+	`
+	unrelatedSource := `export function Unrelated() { return () => <aside>stable</aside>; }`
+	for filename, source := range map[string]string{
+		childFile:     childSource,
+		pageFile:      pageSource,
+		unrelatedFile: unrelatedSource,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(configFile, []byte(`{"compilerOptions":{"jsx":"preserve"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	session := NewSession()
+	synchronized := session.Execute(Request{
+		Kind:       "synchronize",
+		Root:       root,
+		ConfigFile: configFile,
+		Sources: []ProjectSource{
+			{ID: childFile, Source: childSource},
+			{ID: pageFile, Source: pageSource},
+			{ID: unrelatedFile, Source: unrelatedSource},
+		},
+	})
+	if synchronized.Error != "" {
+		t.Fatal(synchronized.Error)
+	}
+
+	for _, request := range []Request{
+		{ID: pageFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: pageSource},
+		{ID: childFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: childSource},
+	} {
+		cached := session.Execute(request)
+		fresh := NewSession().Execute(request)
+		if cached.Error != "" || fresh.Error != "" {
+			t.Fatalf("cached error %q; fresh error %q", cached.Error, fresh.Error)
+		}
+		if !cached.CacheHit {
+			t.Fatalf("synchronized source %s did not reuse its program generation", request.ID)
+		}
+		if cached.Code != fresh.Code ||
+			!reflect.DeepEqual(cached.Analysis.Components, fresh.Analysis.Components) {
+			t.Fatalf("synchronized output for %s diverged from fresh compilation", request.ID)
+		}
+	}
+
+	changedChildSource := `export function Child() { window.name = "child"; return () => <span>changed</span>; }`
+	if err := os.WriteFile(childFile, []byte(changedChildSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	changedChild := session.Execute(Request{
+		ID: childFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: changedChildSource,
+	})
+	if changedChild.Error != "" {
+		t.Fatal(changedChild.Error)
+	}
+	if changedChild.Counters.CallableSourceAnalyses >= 4 ||
+		changedChild.Counters.ComponentSourceAnalyses >= 2 {
+		t.Fatalf("unrelated project facts were rebuilt after a leaf edit: %#v", changedChild.Counters)
+	}
+	pageRequest := Request{
+		ID: pageFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: pageSource,
+	}
+	incrementalPage := session.Execute(pageRequest)
+	freshPage := NewSession().Execute(pageRequest)
+	if incrementalPage.Code != freshPage.Code ||
+		!reflect.DeepEqual(incrementalPage.Analysis.Components, freshPage.Analysis.Components) {
+		t.Fatal("reverse-dependent page diverged after incremental child edit")
+	}
+}
 
 func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 	response := NewSession().Execute(Request{Kind: "version"})
@@ -15,6 +102,21 @@ func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 		response.BackendVersion != BackendVersion ||
 		!strings.HasPrefix(response.TypeScriptVersion, "7.") {
 		t.Fatalf("native version response is incomplete: %#v", response)
+	}
+}
+
+func TestUTF16PackageEnhancementBoundaryConversion(t *testing.T) {
+	source := "const label = '°😀';\nimport * as time from 'enhancement';"
+	authored := "const label = '°😀';"
+	boundary, valid := utf16OffsetToByteOffset(source, len([]rune(authored))+1)
+	if !valid || source[:boundary] != authored {
+		t.Fatalf("UTF-16 boundary did not preserve authored source: valid=%v prefix=%q", valid, source[:boundary])
+	}
+	if _, valid := utf16OffsetToByteOffset("😀", 1); valid {
+		t.Fatal("boundary inside a surrogate pair was accepted")
+	}
+	if units := utf16Length("°😀"); units != 3 {
+		t.Fatalf("UTF-16 length was %d, want 3", units)
 	}
 }
 
@@ -48,6 +150,7 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-client.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
 		Source: `
 			export function Planned(props: { label: string }) {
 				return () => <span>{props.label}</span>;
@@ -59,7 +162,8 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, "createCompiledRenderProgram") ||
 		strings.Contains(response.Code, "ssrParts:") ||
-		strings.Contains(response.Code, "ssrOperations:") {
+		strings.Contains(response.Code, "ssrOperations:") ||
+		strings.Contains(response.Code, `() => __exactVNode("span"`) {
 		t.Fatalf("client render program retained server marker metadata:\n%s", response.Code)
 	}
 }
@@ -838,7 +942,6 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		t.Fatalf("client component has no root symbol: %#v", response.Analysis.Symbols)
 	}
 	for _, expected := range []string{
-		`import "@exactjs/core/runtime/tasks"`,
 		`const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract")`,
 		`const __exactImplementation_Button_1 = function Button()`,
 		`export const Button =`,
@@ -860,6 +963,9 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 				response.Code,
 			)
 		}
+	}
+	if !strings.Contains(response.Code, `import "@exactjs/core/runtime/tasks"`) {
+		t.Fatalf("complete client projection lost its generic fallback dependency:\n%s", response.Code)
 	}
 	if strings.Count(response.Code, "boundaries: []") < 2 {
 		t.Fatalf(
@@ -4846,7 +4952,7 @@ func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *test
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "rows.map((row) => __exactRenderProgram") ||
-		!strings.Contains(response.Code, "[() => row.id, () => row.id]") ||
+		!strings.Contains(response.Code, "__exactSlot => __exactSlot === 0 ? row.id : row.id") ||
 		!strings.Contains(response.Code, "title: row.id }, row.id") {
 		t.Fatalf("declarative collection did not preserve direct values: %s", response.Code)
 	}
@@ -6894,6 +7000,10 @@ func TestSessionGroupsEnhancementActivatorAliasesByCanonicalComponent(t *testing
 	if len(response.Analysis.Enhancements) != 1 {
 		t.Fatalf("canonical activator aliases produced duplicate metadata: %#v", response.Analysis.Enhancements)
 	}
+	if response.Analysis.Enhancements[0].Identity != "./motion-capability.js#fade" ||
+		response.Analysis.Enhancements[0].ExportName != "fade" {
+		t.Fatalf("canonical activator aliases selected an unstable representative: %#v", response.Analysis.Enhancements)
+	}
 }
 
 func TestSessionSuppressesDefaultEnhancementWhenNamedActivatorIsPresent(t *testing.T) {
@@ -7065,6 +7175,253 @@ func TestSessionAcceptsTypedAnalyzerOnlyEnhancementFieldsWithoutRuntimeCompositi
 	invalid := compile(`import intl from "./enhancements.js" with { type: "exact-enhancement" }; export const view = <strong intl:fragment={42}>Report</strong>;`)
 	if !containsDiagnosticCode(invalid.Diagnostics, "EXACT6011") {
 		t.Fatalf("invalid analyzer-only enhancement field value was accepted: %#v", invalid.Diagnostics)
+	}
+}
+
+func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "entry.tsx")
+	packageRoot := filepath.Join(root, "node_modules", "@exactjs", "time")
+	intlRoot := filepath.Join(root, "node_modules", "@exactjs", "intl")
+	entrySource := `
+		import * as time from "@exactjs/time/enhancements" with { type: "exact-enhancement" };
+		import * as intl from "@exactjs/intl/enhancements" with { type: "exact-enhancement" };
+		declare namespace Temporal {
+			interface Instant {
+				readonly epochMilliseconds: number;
+				until(other: Instant): Duration;
+				since(other: Instant): Duration;
+			}
+			class Duration { constructor(...values: number[]); round(options: { smallestUnit: string; roundingMode?: string }): Duration }
+			namespace Now { function instant(): Instant }
+		}
+		declare namespace Intl {
+			class DurationFormat { constructor(locale?: string, options?: object); format(value: Temporal.Duration): string }
+		}
+		const elapsedSeconds = (startedAt: number, now: number) => Math.floor((now - startedAt) / 1000);
+		export function Countdown(deadline: Date) {
+			return () => <time time:update="second">{Math.ceil((deadline.getTime() - Date.now()) / 1000)}</time>;
+		}
+		export function Sliding(startedAt: number) {
+			const seconds = Math.floor((Date.now() - startedAt) / 1000);
+			return () => <time time:update>{seconds < 60 ? seconds + " seconds ago" : Math.floor((Date.now() - startedAt) / 60000) + " minutes ago"}</time>;
+		}
+		export function SignedSliding(anchor: number) {
+			const seconds = Math.floor((Date.now() - anchor) / 1000);
+			const minutes = Math.floor((Date.now() - anchor) / 60000);
+			return () => <time time:update>{Math.abs(seconds) < 60 ? seconds + " seconds" : minutes + " minutes"}</time>;
+		}
+		export function CalendarYear() {
+			return () => <time time:update>{new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "UTC" }).format(new Date())}</time>;
+		}
+		export function NativeClock() {
+			return () => <time time:update>{new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", second: "numeric", timeZone: "UTC" })}</time>;
+		}
+		export function TemporalElapsed(startedAt: Temporal.Instant) {
+			return () => <time time:update>{Math.floor((Temporal.Now.instant().epochMilliseconds - startedAt.epochMilliseconds) / 1000)}</time>;
+		}
+		export function DurationElapsed(startedAt: number) {
+			const seconds = Math.floor((Date.now() - startedAt) / 1000);
+			return () => <time time:update>{new Intl.DurationFormat("en-US", { style: "short" }).format(new Temporal.Duration(0, 0, 0, 0, 0, 0, seconds))}</time>;
+		}
+		export function TemporalCountdown(deadline: Temporal.Instant) {
+			return () => <time time:update>{new Intl.DurationFormat("en-US", { style: "short" }).format(
+				Temporal.Now.instant().until(deadline).round({ smallestUnit: "second" })
+			)}</time>;
+		}
+		export function HelperElapsed(startedAt: number) {
+			return () => <time time:update>{elapsedSeconds(startedAt, Date.now())}</time>;
+		}
+		export function DestructuredElapsed(startedAt: number) {
+			const timing = { seconds: Math.floor((Date.now() - startedAt) / 1000) };
+			const { seconds } = timing;
+			return () => <time time:update>{seconds}</time>;
+		}
+		export function ArrayElapsed(startedAt: number) {
+			const timing = [Math.floor((Date.now() - startedAt) / 1000)] as const;
+			const [seconds] = timing;
+			return () => <time time:update>{seconds}</time>;
+		}
+		export function ReusedCountdown(first: Date, second: Date) {
+			const Countdown = (props: { deadline: Date }) => (
+				<time time:update>{Math.ceil((props.deadline.getTime() - Date.now()) / 1000)}</time>
+			);
+			return () => <><Countdown deadline={first} /><Countdown deadline={second} /></>;
+		}
+		export function LocalizedRelease(releaseDate: Date) {
+			const releaseSeconds = Math.floor((Date.now() - releaseDate.getTime()) / 1000);
+			const releaseMinutes = Math.floor((Date.now() - releaseDate.getTime()) / 60000);
+			const releaseHours = Math.floor((Date.now() - releaseDate.getTime()) / 3600000);
+			const releaseDays = Math.floor((Date.now() - releaseDate.getTime()) / 86400000);
+			const releaseWeeks = Math.floor((Date.now() - releaseDate.getTime()) / 604800000);
+			const releaseMonths = Math.floor((Date.now() - releaseDate.getTime()) / 2592000000);
+			const releaseYears = Math.floor((Date.now() - releaseDate.getTime()) / 31536000000);
+			return () => <p intl:message="live-relative-time">Testbed release: <time time:update>{Math.abs(releaseSeconds) < 60
+				? new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }).format(-releaseSeconds, "second")
+				: Math.abs(releaseMinutes) < 60
+					? new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }).format(-releaseMinutes, "minute")
+					: Math.abs(releaseHours) < 24
+						? new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }).format(-releaseHours, "hour")
+						: Math.abs(releaseDays) < 7
+							? new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }).format(-releaseDays, "day")
+							: Math.abs(releaseWeeks) < 5
+								? new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }).format(-releaseWeeks, "week")
+								: Math.abs(releaseMonths) < 12
+									? new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }).format(-releaseMonths, "month")
+									: new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }).format(-releaseYears, "year")}</time>.</p>;
+		}
+		export function LocalizedPair(first: Date, second: Date) {
+			return () => <p intl:message>
+				First <time time:update="second">{Math.ceil((first.getTime() - Date.now()) / 1000)}</time>,
+				second <time time:update="minute">{Math.ceil((second.getTime() - Date.now()) / 60000)}</time>.
+			</p>;
+		}
+	`
+	if err := os.MkdirAll(filepath.Join(packageRoot, "dist"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(intlRoot, "dist"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for filename, source := range map[string]string{
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.tsx"]}`,
+		entryFile:  entrySource,
+		filepath.Join(packageRoot, "package.json"):            `{"name":"@exactjs/time","type":"module","exports":{"./enhancements":{"types":"./capability.d.ts","default":"./dist/components.js"}}}`,
+		filepath.Join(packageRoot, "capability.d.ts"):         `export { TimeUpdate as update } from "./dist/components.js" with { type: "exact-enhancement" };`,
+		filepath.Join(packageRoot, "dist", "components.d.ts"): `export type TimeUpdatePolicy = true | "auto" | "second" | "minute" | "disabled"; export declare function TimeUpdate(props: { update?: TimeUpdatePolicy; children?: unknown }): unknown;`,
+		filepath.Join(intlRoot, "package.json"):               `{"name":"@exactjs/intl","type":"module","exports":{"./enhancements":{"types":"./capability.d.ts","default":"./dist/components.js"}}}`,
+		filepath.Join(intlRoot, "capability.d.ts"):            `export { message } from "./dist/components.js" with { type: "exact-enhancement" };`,
+		filepath.Join(intlRoot, "dist", "components.d.ts"):    `export declare function message(props: { message?: true | string; children?: unknown }): unknown;`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: entrySource, ConfigFile: configFile,
+	})
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("time enhancement lowering produced an error: %#v", response.Diagnostics)
+		}
+	}
+	for _, expected := range []string{
+		`from "@exactjs/time/internal"`,
+		"createTimeActivation",
+		"readEpochMilliseconds",
+		`kind: "quantized"`,
+		`kind: "threshold"`,
+		`kind: "calendar"`,
+		`unit: "year"`,
+		`timeZone: "UTC"`,
+		"startedAt + 60000",
+		"anchor - 59000",
+		"anchor + 60000",
+		"anchorMilliseconds: { binding: 0 }",
+		"quantumMilliseconds: 1000",
+		`boundary: "half-expand-decreasing"`,
+		"deadline.epochMilliseconds",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("time lowering omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if !strings.Contains(response.Code, "const seconds = __exactDerived(") ||
+		!strings.Contains(response.Code, "const releaseMinutes = __exactDerived(") {
+		t.Fatalf("retained clock-derived aliases lost their backing cells:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "cached_seconds") || strings.Contains(response.Code, "releaseMinutes.get()") {
+		t.Fatalf("time ranges read a setup snapshot instead of their range-local clock sample:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `readEpochMilliseconds([`) {
+		t.Fatalf("adaptive range reads did not refresh compact plan inputs:\n%s", response.Code)
+	}
+	if activations := strings.Count(response.Code, "__exactCreateTimeActivation("); activations != 15 {
+		t.Fatalf("time ranges allocated %d activations, want one per authored range:\n%s", activations, response.Code)
+	}
+	localizedStart := strings.Index(response.Code, "export function LocalizedRelease")
+	if localizedStart < 0 {
+		t.Fatalf("localized time range was not emitted:\n%s", response.Code)
+	}
+	localized := response.Code[localizedStart:]
+	if !strings.Contains(localized, `kind: "quantized"`) || strings.Contains(localized, `kind: "continuous"`) {
+		t.Fatalf("localized time range did not retain its inferred minute plan:\n%s", localized)
+	}
+	pairStart := strings.Index(response.Code, "export function LocalizedPair")
+	if pairStart < 0 {
+		t.Fatalf("localized time pair was not emitted:\n%s", response.Code)
+	}
+	localizedSingle := response.Code[localizedStart:pairStart]
+	if activations := strings.Count(localizedSingle, "__exactCreateTimeActivation("); activations != 1 {
+		t.Fatalf("one localized authored range allocated %d activations, want one:\n%s", activations, localizedSingle)
+	}
+	if strings.Contains(localizedSingle, "__exactTimeRange[") {
+		t.Fatalf("one localized authored range was incorrectly lowered as an activation array:\n%s", localizedSingle)
+	}
+	pair := response.Code[pairStart:]
+	for _, expected := range []string{
+		`update: __exactTimeRange[0]`,
+		`update: __exactTimeRange[1]`,
+		`__exactTimeRange[0].readEpochMilliseconds([first.getTime()])`,
+		`__exactTimeRange[1].readEpochMilliseconds([second.getTime()])`,
+	} {
+		if !strings.Contains(pair, expected) {
+			t.Fatalf("localized time pair did not retain independent range %q:\n%s", expected, pair)
+		}
+	}
+	authoredPackageSource := `
+		export function PackageLocalizedRelease(releaseDate: Date) {
+			const releaseMinutes = Math.round((releaseDate.getTime() - Date.now()) / 60000);
+			return () => <p intl:message><time time:update>{new Intl.RelativeTimeFormat("en-US", { numeric: "auto" }).format(releaseMinutes, "minute")}</time></p>;
+		}
+	`
+	packageSource := authoredPackageSource + `
+		import * as time from "@exactjs/time/enhancements" with { type: "exact-enhancement" };
+		import * as intl from "@exactjs/intl/enhancements" with { type: "exact-enhancement" };
+	`
+	packageResponse := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: packageSource, ConfigFile: configFile,
+		PackageEnhancementBoundary: len(authoredPackageSource),
+	})
+	for _, diagnostic := range packageResponse.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("package-scoped Intl/time alias lowering produced an error: %#v", packageResponse.Diagnostics)
+		}
+	}
+	opaqueSource := `
+		import * as time from "@exactjs/time/enhancements" with { type: "exact-enhancement" };
+		declare function arbitraryFormatter(value: number): string;
+		declare const ordinaryValue: number;
+		declare namespace Temporal {
+			interface Instant { until(other: Instant): Duration }
+			interface Duration { round(options: { smallestUnit: string }): Duration }
+			namespace Now { function instant(): Instant }
+		}
+		declare const deadline: Temporal.Instant;
+		export const opaque = <output time:update>{arbitraryFormatter(Date.now())}</output>;
+		export const explicitOpaque = <output time:update="second">{arbitraryFormatter(Date.now())}</output>;
+		export const unavailablePrecision = <output time:update>{Temporal.Now.instant().until(deadline).round({ smallestUnit: "microsecond" })}</output>;
+		export const missing = <output time:update="second">Static</output>;
+		export const missingExpression = <output time:update="second">{ordinaryValue}</output>;
+	`
+	if err := os.WriteFile(entryFile, []byte(opaqueSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	invalid := NewSession().Execute(Request{
+		ID: entryFile, Kind: "compile", Source: opaqueSource, ConfigFile: configFile,
+	})
+	if !containsDiagnosticCode(invalid.Diagnostics, "EXACT_TIME_AUTO") {
+		t.Fatalf("unbounded automatic time update was accepted: %#v", invalid.Diagnostics)
+	}
+	if !containsDiagnosticCode(invalid.Diagnostics, "EXACT_TIME_UNSAFE") {
+		t.Fatalf("effectful clock reevaluation was accepted: %#v", invalid.Diagnostics)
+	}
+	if !containsDiagnosticCode(invalid.Diagnostics, "EXACT_TIME_PRECISION") {
+		t.Fatalf("unavailable clock precision was accepted: %#v", invalid.Diagnostics)
+	}
+	if !containsDiagnosticCode(invalid.Diagnostics, "EXACT_TIME_NO_CLOCK") {
+		t.Fatalf("clock-free time update was accepted: %#v", invalid.Diagnostics)
 	}
 }
 

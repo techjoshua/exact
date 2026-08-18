@@ -2,7 +2,7 @@ import type { RateProvider } from '../../types.js';
 
 import type { Json } from './contracts.js';
 import { bearer, oauthFedex, oauthForm, oauthJson, requestJson } from './http.js';
-import { array, normalizeGeneric, normalizeUsps, provider } from './normalization.js';
+import { array, normalizeGeneric, normalizeUsps, provider, record } from './normalization.js';
 
 /** Creates an usps provider. */
 export function createUspsProvider(env: NodeJS.ProcessEnv): RateProvider {
@@ -113,14 +113,17 @@ export function createUpsProvider(env: NodeJS.ProcessEnv): RateProvider {
 				},
 				context.fetch
 			);
-			return array(response.RateResponse?.RatedShipment).map((item: Json, index) =>
+			return array(record(response.RateResponse).RatedShipment).map((item: Json, index) =>
 				normalizeGeneric(
 					'ups',
 					'UPS',
-					item.Service?.Code ?? `service-${index}`,
-					item.Service?.Description ?? `UPS service ${item.Service?.Code ?? index + 1}`,
-					item.TotalCharges?.MonetaryValue,
-					item.GuaranteedDelivery?.BusinessDaysInTransit,
+					String(record(item.Service).Code ?? `service-${index}`),
+					String(
+						record(item.Service).Description ??
+							`UPS service ${record(item.Service).Code ?? index + 1}`
+					),
+					record(item.TotalCharges).MonetaryValue,
+					record(item.GuaranteedDelivery).BusinessDaysInTransit,
 					request,
 					true,
 					array(item.ItemizedCharges)
@@ -189,15 +192,16 @@ export function createFedexProvider(env: NodeJS.ProcessEnv): RateProvider {
 				},
 				context.fetch
 			);
-			return array(response.output?.rateReplyDetails).map((item: Json, index) => {
+			return array(record(response.output).rateReplyDetails).map((item: Json, index) => {
 				const detail = array(item.ratedShipmentDetails)[0] ?? {};
 				return normalizeGeneric(
 					'fedex',
 					'FedEx',
-					item.serviceType ?? `service-${index}`,
-					item.serviceName ?? item.serviceType ?? 'FedEx service',
+					String(item.serviceType ?? `service-${index}`),
+					String(item.serviceName ?? item.serviceType ?? 'FedEx service'),
 					detail.totalNetCharge ?? detail.totalNetFedExCharge,
-					item.commit?.transitDays?.minimumTransitTime ?? item.operationalDetail?.transitTime,
+					record(record(item.commit).transitDays).minimumTransitTime ??
+						record(item.operationalDetail).transitTime,
 					request,
 					true,
 					array(detail.surcharges)
@@ -246,10 +250,10 @@ export function createDhlProvider(env: NodeJS.ProcessEnv): RateProvider {
 				normalizeGeneric(
 					'dhl',
 					'DHL Express',
-					item.productCode ?? `service-${index}`,
-					item.productName ?? 'DHL Express',
-					item.totalPrice?.[0]?.price ?? item.totalPrice,
-					item.deliveryCapabilities?.totalTransitDays,
+					String(item.productCode ?? `service-${index}`),
+					String(item.productName ?? 'DHL Express'),
+					array(item.totalPrice)[0]?.price ?? item.totalPrice,
+					record(item.deliveryCapabilities).totalTransitDays,
 					request,
 					true,
 					array(item.detailedPriceBreakdown)

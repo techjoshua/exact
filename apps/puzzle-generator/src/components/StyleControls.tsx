@@ -27,7 +27,11 @@ export function StyleControls(props: StyleControlsProps) {
 		});
 	};
 	return () => (
-		<section className="control-section style-section" aria-labelledby="style-heading">
+		<section
+			theme:surface="raised"
+			className="control-section style-section"
+			aria-labelledby="style-heading"
+		>
 			<div className="section-heading">
 				<span>02</span>
 				<div>
@@ -39,6 +43,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Printed title · optional</span>
 					<input
+						theme:field="default"
 						type="text"
 						maxlength="80"
 						placeholder="No title"
@@ -49,6 +54,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Title alignment</span>
 					<select
+						theme:field="default"
 						value={props.style.titleAlignment}
 						onChange={(event) =>
 							change('titleAlignment', event.currentTarget.value as PuzzleStyle['titleAlignment'])
@@ -64,6 +70,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Title typeface</span>
 					<select
+						theme:field="default"
 						value={props.style.titleFontFamily}
 						onChange={(event) =>
 							change('titleFontFamily', event.currentTarget.value as PuzzleStyle['titleFontFamily'])
@@ -79,6 +86,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Title size · {props.style.titleFontSize}px</span>
 					<input
+						theme:field="default"
 						type="range"
 						min="16"
 						max="96"
@@ -91,6 +99,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Puzzle typeface</span>
 					<select
+						theme:field="default"
 						value={props.style.fontFamily}
 						onChange={(event) =>
 							change('fontFamily', event.currentTarget.value as PuzzleStyle['fontFamily'])
@@ -106,6 +115,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Puzzle type size · {props.style.fontSize}px</span>
 					<input
+						theme:field="default"
 						type="range"
 						min="14"
 						max="64"
@@ -116,6 +126,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Line weight · {props.style.lineWidth}px</span>
 					<input
+						theme:field="default"
 						type="range"
 						min="1"
 						max="4"
@@ -126,12 +137,13 @@ export function StyleControls(props: StyleControlsProps) {
 				</label>
 			</div>
 			{props.kind !== 'sudoku' ? (
-				<div className="option-box">
+				<div theme:surface="sunken" className="option-box">
 					<strong>{props.kind === 'crossword' ? 'Crossword clues' : 'Word list'}</strong>
 					<div className="field-grid">
 						<label>
 							<span>{props.kind === 'crossword' ? 'Clue typeface' : 'List typeface'}</span>
 							<select
+								theme:field="default"
 								value={props.style.supplementaryFontFamily}
 								onChange={(event) =>
 									change(
@@ -153,6 +165,7 @@ export function StyleControls(props: StyleControlsProps) {
 								{props.style.supplementaryFontSize}px
 							</span>
 							<input
+								theme:field="default"
 								type="range"
 								min="8"
 								max="48"
@@ -165,12 +178,13 @@ export function StyleControls(props: StyleControlsProps) {
 					</div>
 				</div>
 			) : null}
-			<div className="option-box">
+			<div theme:surface="sunken" className="option-box">
 				<strong>Page</strong>
 				<div className="field-grid">
 					<label>
 						<span>Page size</span>
 						<select
+							theme:field="default"
 							value={props.style.pageSize || 'letter'}
 							onChange={(event) => changePageSize(event.currentTarget.value)}
 						>
@@ -183,6 +197,7 @@ export function StyleControls(props: StyleControlsProps) {
 					<label>
 						<span>Margins · {resolvePageMargin(props.style).toFixed(2)} in</span>
 						<select
+							theme:field="default"
 							value={props.style.pageMarginPreset}
 							onChange={(event) => changeMarginPreset(event.currentTarget.value)}
 						>
@@ -198,6 +213,7 @@ export function StyleControls(props: StyleControlsProps) {
 						<label>
 							<span>Page width · inches</span>
 							<input
+								theme:field="default"
 								type="number"
 								min="1"
 								max="48"
@@ -211,6 +227,7 @@ export function StyleControls(props: StyleControlsProps) {
 						<label>
 							<span>Page height · inches</span>
 							<input
+								theme:field="default"
 								type="number"
 								min="1"
 								max="48"
@@ -228,6 +245,7 @@ export function StyleControls(props: StyleControlsProps) {
 						<label>
 							<span>Custom margin · inches</span>
 							<input
+								theme:field="default"
 								type="number"
 								min="0"
 								max="24"
@@ -245,6 +263,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Ink</span>
 					<input
+						theme:field="default"
 						type="color"
 						value={props.style.ink}
 						onInput={(event) => change('ink', event.currentTarget.value)}
@@ -253,6 +272,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>Answer accent</span>
 					<input
+						theme:field="default"
 						type="color"
 						value={props.style.accent}
 						onInput={(event) => change('accent', event.currentTarget.value)}
@@ -261,6 +281,7 @@ export function StyleControls(props: StyleControlsProps) {
 				<label>
 					<span>{props.kind === 'crossword' ? 'Puzzle background' : 'Paper'}</span>
 					<input
+						theme:field="default"
 						type="color"
 						value={props.style.paper}
 						onInput={(event) => change('paper', event.currentTarget.value)}
@@ -270,6 +291,7 @@ export function StyleControls(props: StyleControlsProps) {
 
 			<label className="check-field">
 				<input
+					theme:field="default"
 					type="checkbox"
 					checked={props.style.monochromeSolution}
 					onChange={(event) => change('monochromeSolution', event.currentTarget.checked)}
@@ -278,12 +300,13 @@ export function StyleControls(props: StyleControlsProps) {
 			</label>
 
 			{props.kind === 'sudoku' ? (
-				<div className="option-box">
+				<div theme:surface="sunken" className="option-box">
 					<strong>Answer digits</strong>
 					<div className="field-grid">
 						<label>
 							<span>Solution typeface</span>
 							<select
+								theme:field="default"
 								value={props.style.sudokuSolutionFont}
 								onChange={(event) =>
 									change(
@@ -302,6 +325,7 @@ export function StyleControls(props: StyleControlsProps) {
 						</label>
 						<label className="check-field compact-check">
 							<input
+								theme:field="default"
 								type="checkbox"
 								checked={props.style.sudokuSolutionBold}
 								onChange={(event) => change('sudokuSolutionBold', event.currentTarget.checked)}
@@ -313,12 +337,13 @@ export function StyleControls(props: StyleControlsProps) {
 			) : null}
 
 			{props.kind === 'crossword' ? (
-				<div className="option-box">
+				<div theme:surface="sunken" className="option-box">
 					<strong>Crossword grid</strong>
 					<div className="color-grid crossword-colors">
 						<label>
 							<span>Grid lines</span>
 							<input
+								theme:field="default"
 								type="color"
 								value={props.style.crosswordGrid}
 								onInput={(event) => change('crosswordGrid', event.currentTarget.value)}
@@ -327,6 +352,7 @@ export function StyleControls(props: StyleControlsProps) {
 						<label>
 							<span>Unused background</span>
 							<input
+								theme:field="default"
 								type="color"
 								value={props.style.crosswordBlocks}
 								onInput={(event) => change('crosswordBlocks', event.currentTarget.value)}

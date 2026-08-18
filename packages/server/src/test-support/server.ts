@@ -1,6 +1,7 @@
 import {
 	defineExactOperationContract,
 	defineExactBoundaryContract,
+	unsafeExactHtml,
 	type ExactServerContext
 } from '../index.js';
 
@@ -34,8 +35,24 @@ export function context(overrides: Partial<ExactServerContext> = {}): ExactServe
 		},
 		refreshBoundaries: {
 			'allowed-boundary': () => ({
-				patches: [{ type: 'replace', id: 'allowed-boundary', html: '<section>Updated</section>' }]
+				patches: [
+					{
+						type: 'replace',
+						id: 'allowed-boundary',
+						html: unsafeExactHtml('<section>Updated</section>')
+					}
+				]
 			})
+		},
+		payloadDecoders: {
+			invocations: {
+				'allowed-action': (payload) => {
+					if (payload === undefined) return {};
+					if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+						throw new TypeError('Expected an action object');
+					return payload;
+				}
+			}
 		},
 		logger: noopLogger,
 		...overrides

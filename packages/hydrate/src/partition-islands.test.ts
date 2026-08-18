@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { type Component } from '@exactjs/core';
-import { defineExactBoundaryContract, handleExactRequest } from '@exactjs/server';
+import { defineExactBoundaryContract, handleExactRequest, unsafeExactHtml } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrateClientIslands } from './index.js';
 import { partitionAuthority } from './patching/api.js';
@@ -194,7 +194,13 @@ describe('@exactjs/hydrate partition islands', () => {
 					resolvePartitionAuthority: () => authority,
 					refreshBoundaries: {
 						'item-edge': () => ({
-							patches: [{ type: 'replace', id: 'item-edge', html: '<p>New row</p>' }]
+							patches: [
+								{
+									type: 'replace',
+									id: 'item-edge',
+									html: unsafeExactHtml('<p>New row</p>')
+								}
+							]
 						})
 					}
 				}

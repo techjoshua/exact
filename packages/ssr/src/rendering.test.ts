@@ -163,6 +163,26 @@ describe('@exactjs/ssr rendering', () => {
 		expect(asyncOutput.html).toBe(output.html);
 	});
 
+	it('keeps a direct intrinsic authoritative before a later nested target in a fragment', async () => {
+		const vnode = createVNode(
+			TargetBoundary,
+			{ className: 'outer' },
+			createVNode(
+				Fragment,
+				null,
+				createVNode('section', { id: 'host' }, 'Host'),
+				createVNode(TargetBoundary, { className: 'inner' }, createVNode('h2', null, 'Heading'))
+			)
+		);
+		const output = renderToString(vnode, { markers: false });
+		const asyncOutput = await renderToStringAsync(vnode, { markers: false });
+
+		expect(output.html).toBe(
+			'<section id="host" class="outer">Host</section><h2 class="inner">Heading</h2>'
+		);
+		expect(asyncOutput.html).toBe(output.html);
+	});
+
 	it('serializes framework-owned target fallback overrides', () => {
 		const output = renderToString(
 			createVNode(

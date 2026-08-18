@@ -7,6 +7,7 @@ import {
 	isExactContinuationInvocation,
 	isExactContinuationStatePath
 } from '@exactjs/core/framework/component-contract-validation';
+import { createProtocolRecord, isSafeProtocolKey } from '@exactjs/core/framework/protocol-records';
 
 import type {
 	ExactEndpointRoutes,
@@ -28,8 +29,9 @@ export function normalizeContinuationMap(
 		throw new TypeError('Malformed eXact hydration continuations');
 	const entries = Object.entries(value as Record<string, unknown>);
 	if (!entries.length) return emptyRecord;
-	const output: Record<string, ExactComponentContinuationContract> = {};
+	const output = createProtocolRecord<ExactComponentContinuationContract>();
 	for (const [id, continuation] of entries) {
+		if (!isSafeProtocolKey(id)) throw new TypeError(`Malformed eXact hydration continuation ${id}`);
 		if (!isContinuation(continuation))
 			throw new TypeError(`Malformed eXact hydration continuation ${id}`);
 		output[id] = normalizeContinuation(continuation);

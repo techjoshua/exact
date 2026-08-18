@@ -31,6 +31,7 @@ import { artifactAnalysis, retainArtifactAnalysis } from './analysis-results.js'
 import { validateExactLanguageProjections } from './language-validation.js';
 import { loadExactPackageEnhancements } from '@exactjs/config/node';
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
+import { synchronizeNativeProject } from './project-synchronization.js';
 
 const preparedLanguageProjections = new WeakMap<
 	CompileArtifactsResult,
@@ -242,6 +243,14 @@ async function compileArtifactPlanEntriesInternal(
 			[...sources].map(([filename, source]) => ({ filename, source }))
 		);
 	const dependencyAnalysis = await collectPlacementAnalysisDependencies(sources, options.session);
+	await synchronizeNativeProject(
+		[...sources.keys()],
+		{
+			packageEnhancements: options.packageEnhancements,
+			session: options.session
+		},
+		sources
+	);
 	const dependencyGraph = dependencyAnalysis.graph;
 	const localDependencies = dependencyAnalysis.localDependencies;
 	const capabilityOptions = capabilityCompilationOptions(options);

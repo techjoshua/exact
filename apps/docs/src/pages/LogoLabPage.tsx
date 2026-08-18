@@ -16,19 +16,19 @@ export function LogoLabPage(this: Component<{}>) {
 			<section>
 				<h2>Why this is an eXact-shaped example</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">State</span>
 						<strong>The program is data</strong>
 						<p>
 							Source, instructions, position, heading, segments, and progress are reactive fields.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Life</span>
 						<strong>The timer has an owner</strong>
 						<p>Animation starts after mount and is aborted when its component leaves the page.</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">View</span>
 						<strong>The inspector stays precise</strong>
 						<p>Coordinates and progress update independently while keyed segments accumulate.</p>

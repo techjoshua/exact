@@ -29,6 +29,7 @@ const guidedPackages = [
 	'packages/server',
 	'packages/ssr',
 	'packages/testing',
+	'packages/theme',
 	'packages/vscode-extension',
 	'plugins/microfrontends',
 	'plugins/secrets',

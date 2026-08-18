@@ -9,6 +9,7 @@
 		"types": ["node", "@exactjs/react-compat/types19"]
 	},
 	"references": [
+		{ "path": "../../component-libraries/app-theme-preference" },
 		{ "path": "../../packages/core" },
 		{ "path": "../../packages/dom" },
 		{ "path": "../../packages/hydrate" },
@@ -16,6 +17,8 @@
 		{ "path": "../../packages/react-compat" },
 		{ "path": "../../packages/ssr" },
 		{ "path": "../../component-libraries/router" },
+		{ "path": "../../packages/theme" },
+		{ "path": "../../component-libraries/theme-fixture" },
 		{ "path": "../../framework-adapters/vite-plugin" }
 	],
 	"include": ["src", "vite.config.ts", "exact-options.mjs"]

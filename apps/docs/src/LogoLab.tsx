@@ -124,11 +124,12 @@ export function LogoLab(this: Component<LogoState>) {
 		? Math.round((this.state.cursor / this.state.instructions.length) * 100)
 		: 0;
 	return () => (
-		<section className="logo-lab" aria-label="Logo turtle interpreter">
+		<section theme:surface="raised" className="logo-lab" aria-label="Logo turtle interpreter">
 			<div className="logo-toolbar">
 				<label>
 					Preset
 					<select
+						theme:field
 						value:onChange={this.state.preset}
 						onChange={() => {
 							this.state.source = presets[this.state.preset]!;
@@ -142,10 +143,11 @@ export function LogoLab(this: Component<LogoState>) {
 					</select>
 				</label>
 				<div className="button-row">
-					<button type="button" onClick={run} disabled={this.state.running}>
+					<button theme:action="primary" type="button" onClick={run} disabled={this.state.running}>
 						Run
 					</button>
 					<button
+						theme:action="secondary"
 						type="button"
 						onClick={() => {
 							this.state.running = false;
@@ -154,10 +156,15 @@ export function LogoLab(this: Component<LogoState>) {
 					>
 						Pause
 					</button>
-					<button type="button" onClick={step} disabled={this.state.running}>
+					<button
+						theme:action="secondary"
+						type="button"
+						onClick={step}
+						disabled={this.state.running}
+					>
 						Step
 					</button>
-					<button type="button" onClick={reset}>
+					<button theme:action="quiet" type="button" onClick={reset}>
 						Reset
 					</button>
 				</div>
@@ -167,6 +174,7 @@ export function LogoLab(this: Component<LogoState>) {
 				<div className="logo-editor-panel">
 					<label for="logo-source">Program</label>
 					<textarea
+						theme:field
 						id="logo-source"
 						spellcheck="false"
 						value:onInput={this.state.source}
@@ -181,7 +189,7 @@ export function LogoLab(this: Component<LogoState>) {
 					</details>
 				</div>
 
-				<div className="turtle-stage">
+				<div theme:surface="sunken" className="turtle-stage">
 					<svg
 						viewBox="-220 -180 440 360"
 						role="img"

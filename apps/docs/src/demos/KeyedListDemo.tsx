@@ -30,13 +30,17 @@ export function KeyedListDemo(this: Component<ListState>) {
 	};
 
 	return () => (
-		<section className="demo list-demo" aria-label="Keyed list identity example">
+		<section
+			theme:surface="raised"
+			className="demo list-demo"
+			aria-label="Keyed list identity example"
+		>
 			<div className="demo-heading-row">
 				<div>
 					<p className="demo-kicker">Reading queue</p>
 					<h3>Identity survives movement</h3>
 				</div>
-				<button type="button" onClick={rotate}>
+				<button theme:action="secondary" type="button" onClick={rotate}>
 					Move first to last
 				</button>
 			</div>
@@ -54,8 +58,9 @@ function ReadingRow(this: Component<ReadingRowState>, props: { item: ReadingItem
 	this.state.expanded = peek(() => props.item.id === 'compiler');
 
 	return () => (
-		<li>
+		<li theme:surface="base">
 			<button
+				theme:action="quiet"
 				type="button"
 				aria-expanded={this.state.expanded}
 				onClick={() => {

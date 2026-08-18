@@ -2,12 +2,12 @@
  * @vitest-environment jsdom
  */
 import {
-	createCompiledRenderProgram,
 	createCompiledVNode,
 	createDynamicChild,
 	markExactComponent,
 	type Component
 } from '@exactjs/core';
+import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate, hydrateAfterNavigation } from './root.js';

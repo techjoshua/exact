@@ -46,5 +46,9 @@ Parcel Lab combines client-owned form state, route calculation, parallel carrier
 progressive results, cancellation, generated server operations, and server-only provider modules.
 Real-provider credentials and OAuth tokens remain on the server.
 
+The server-rendered page also owns an `@exactjs/theme` scope. Generated theme values drive its
+application palette, surfaces, status tones, controls, and system appearance while route-map and
+calculator layout remain application-owned.
+
 The app compares rates only; it does not buy labels or generate tracking numbers. Review each
 carrier's current API and display terms before operating a public comparison service.

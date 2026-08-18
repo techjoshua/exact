@@ -38,24 +38,41 @@ test('the root build includes the enhancement playground and its component libra
 	}
 });
 
-test('Pages publishes Puzzle Foundry without advertising it in documentation', async () => {
+test('shipping artifact generation builds the theme metadata it consumes', async () => {
+	const manifest = JSON.parse(
+		await readFile(path.resolve('apps/shipping-calculator/package.json'), 'utf8')
+	);
+
+	assert.equal(
+		manifest.scripts.pregenerate,
+		'npm run build -w @exactjs/compiler && npm run build -w @exactjs/theme'
+	);
+});
+
+test('machine-specific native corpus timing remains an explicit local diagnostic', async () => {
+	const workflow = await readFile(
+		path.resolve('.github/workflows/native-compiler-packages.yml'),
+		'utf8'
+	);
+	const releaseCheck = await readFile(path.resolve('scripts/release-check.mjs'), 'utf8');
+
+	assert.doesNotMatch(workflow, /check:native-compiler-corpus/);
+	assert.doesNotMatch(releaseCheck, /check:native-compiler-corpus/);
+});
+
+test('Pages publishes Puzzle Foundry and advertises its hosted entry point', async () => {
 	const workflow = await readFile(
 		path.resolve('.github/workflows/native-compiler-packages.yml'),
 		'utf8'
 	);
 	const assembler = await readFile(path.resolve('scripts/prepare-gh-pages.mjs'), 'utf8');
-	const documentationSources = await Promise.all(
-		[
-			'README.md',
-			'docs/sample-applications.md',
-			'apps/docs/src/docs-manifest.ts',
-			'apps/docs/src/pages/SamplesPage.tsx'
-		].map((filename) => readFile(path.resolve(filename), 'utf8'))
-	);
+	const samplesReference = await readFile(path.resolve('docs/sample-applications.md'), 'utf8');
+	const samplesPage = await readFile(path.resolve('apps/docs/src/pages/SamplesPage.tsx'), 'utf8');
 
 	assert.match(workflow, /npm run build:puzzle-generator:standalone/);
 	assert.match(assembler, /puzzle-foundry\.html/);
-	for (const source of documentationSources) {
-		assert.doesNotMatch(source, /Puzzle Foundry|puzzle-foundry\.html|apps\/puzzle-generator/);
-	}
+	assert.match(samplesReference, /apps\/puzzle-generator/);
+	assert.match(samplesReference, /puzzle-foundry\.html/);
+	assert.match(samplesPage, /Puzzle Foundry/);
+	assert.match(samplesPage, /href="\.\/puzzle-foundry\.html"/);
 });

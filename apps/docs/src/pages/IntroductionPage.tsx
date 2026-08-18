@@ -38,7 +38,7 @@ export function IntroductionPage(this: Component<{}>) {
 			description="eXact lets you describe a component using ordinary TypeScript, then compiles it into a reactive state machine with seamless client and server execution defined in the same component."
 			next={{ path: '/story', label: 'The story behind eXact' }}
 		>
-			<section className="sudoku-showcase">
+			<section theme:surface="raised" className="sudoku-showcase">
 				<div>
 					<p className="demo-kicker">Built with eXact</p>
 					<h2>See the model at play.</h2>
@@ -49,7 +49,7 @@ export function IntroductionPage(this: Component<{}>) {
 						keeps the same controls and design while removing only its added interaction layer.
 					</p>
 				</div>
-				<a className="primary-link" href="./sudoku.html">
+				<a theme:action="primary" className="primary-link" href="./sudoku.html">
 					Play Sudoku Atelier <span aria-hidden="true">{'\u2192'}</span>
 				</a>
 			</section>
@@ -84,7 +84,7 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>The alternatives move the tradeoff</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">React</span>
 						<strong>Familiar JSX, positional state</strong>
 						<p>
@@ -92,7 +92,7 @@ export function IntroductionPage(this: Component<{}>) {
 							remains indirectly owned by React.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Vue</span>
 						<strong>Reactivity, with another authoring model</strong>
 						<p>
@@ -101,7 +101,7 @@ export function IntroductionPage(this: Component<{}>) {
 							unwrap them.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Svelte</span>
 						<strong>Compilation, with a framework dialect</strong>
 						<p>
@@ -122,7 +122,7 @@ export function IntroductionPage(this: Component<{}>) {
 				</p>
 			</Callout>
 
-			<section className="hero-grid">
+			<section theme:surface="raised" className="hero-grid">
 				<div className="hero-copy">
 					<p className="demo-kicker">See the model</p>
 					<h2>One instance, precise updates</h2>
@@ -132,10 +132,10 @@ export function IntroductionPage(this: Component<{}>) {
 						inspectable, and only the affected transitions run after a click.
 					</p>
 					<div className="hero-actions">
-						<Link className="primary-link" to="/learn/components">
+						<Link theme:action="primary" className="primary-link" to="/learn/components">
 							Understand the component <span aria-hidden="true">{'->'}</span>
 						</Link>
-						<Link className="secondary-link" to="/examples/logo-lab">
+						<Link theme:action="secondary" className="secondary-link" to="/examples/logo-lab">
 							Try a larger demo
 						</Link>
 					</div>
@@ -157,7 +157,7 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>Why use this model?</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">State</span>
 						<strong>Write normal-looking TypeScript</strong>
 						<p>
@@ -165,7 +165,7 @@ export function IntroductionPage(this: Component<{}>) {
 							expressions in source.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Updates</span>
 						<strong>Update only what changed</strong>
 						<p>
@@ -173,7 +173,7 @@ export function IntroductionPage(this: Component<{}>) {
 							update boundaries.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Lifetime</span>
 						<strong>Keep work tied to the component</strong>
 						<p>
@@ -205,7 +205,12 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>Learn more about eXact</h2>
 				<div className="card-grid">
-					<Link className="topic-card" to="/learn/components">
+					<Link
+						theme:surface="raised"
+						theme:interactive
+						className="topic-card"
+						to="/learn/components"
+					>
 						<span className="topic-index">01</span>
 						<strong>Understand components</strong>
 						<p>
@@ -213,12 +218,12 @@ export function IntroductionPage(this: Component<{}>) {
 							surface.
 						</p>
 					</Link>
-					<Link className="topic-card" to="/learn/state">
+					<Link theme:surface="raised" theme:interactive className="topic-card" to="/learn/state">
 						<span className="topic-index">02</span>
 						<strong>Follow reactivity</strong>
 						<p>See what the compiler infers and how direct state becomes precise DOM work.</p>
 					</Link>
-					<Link className="topic-card" to="/plugins">
+					<Link theme:surface="raised" theme:interactive className="topic-card" to="/plugins">
 						<span className="topic-index">03</span>
 						<strong>Explore the platform</strong>
 						<p>

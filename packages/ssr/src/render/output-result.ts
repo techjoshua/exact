@@ -12,11 +12,13 @@ export function createChunkedStringResult(
 	chunks: readonly string[],
 	state: unknown,
 	hydrationTable?: RenderToStringResult['hydrationTable'],
-	preloadLinks?: readonly string[]
+	preloadLinks?: readonly string[],
+	wallClockSnapshot?: number
 ): RenderToStringResult {
 	let materialized: string | undefined;
 	const result = {
 		state,
+		...(wallClockSnapshot === undefined ? {} : { wallClockSnapshot }),
 		...(hydrationTable ? { hydrationTable } : {}),
 		...(preloadLinks?.length ? { preloadLinks: Object.freeze([...preloadLinks]) } : {})
 	} as RenderToStringResult & SsrChunkedResult;
@@ -46,6 +48,9 @@ export function createChunkedHydratableResult(
 			return result.html;
 		},
 		state: result.state,
+		...(result.wallClockSnapshot === undefined
+			? {}
+			: { wallClockSnapshot: result.wallClockSnapshot }),
 		...(result.hydrationTable ? { hydrationTable: result.hydrationTable } : {}),
 		...(result.preloadLinks ? { preloadLinks: result.preloadLinks } : {}),
 		resumptions,

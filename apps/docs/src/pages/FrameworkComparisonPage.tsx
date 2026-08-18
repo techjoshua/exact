@@ -20,7 +20,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					server invocation remain native to each framework.
 				</p>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Controlled service</span>
 						<strong>Hold the server contract steady</strong>
 						<p>
@@ -28,7 +28,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 							delivery, startup, rendering, and interaction behavior can be compared directly.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Native full stack</span>
 						<strong>Let every framework own its architecture</strong>
 						<p>
@@ -51,6 +51,12 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					Controlled browser samples are labeled warm after one equivalent discarded scenario per
 					participant. Interaction timings run from the captured browser event to the visible DOM
 					mutation, excluding automation waits while retaining any interaction-triggered hydration.
+				</p>
+				<p>
+					Paint samples require cross-origin isolation and keep the standard first-contentful-paint
+					start time as the canonical FCP metric. Chromium&apos;s optional render-completion and
+					frame presentation timestamps are recorded separately when the browser exposes them,
+					without substituting one definition for another.
 				</p>
 				<p>
 					Heap samples follow semantic readiness, one rendering opportunity, and explicit garbage

@@ -135,6 +135,12 @@ resolved immutable inputs into client construction. Static scalar DOM props bypa
 construction; compiler expressions and supported composite class or `srcdoc` values retain observed
 bindings.
 
+The `@exactjs/hydrate/root` entry uses a bounded hydration-only field projection. Operation
+endpoints, continuations, islands, and transports belong to the complete runtime; their presence in
+a root-only document configuration fails closed. Build identity, component authorization,
+resumptions, public contexts, state, wall-clock activation, and the compact hydration table retain
+the same validation and resource ceilings.
+
 Finite component-registry selections retain the registry binding, selected
 key, and opaque compiled entry identity in their component marker. A matching
 selection adopts normally. A nested mismatch remounts only that owned

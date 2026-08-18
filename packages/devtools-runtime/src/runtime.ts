@@ -168,8 +168,8 @@ export function installExactDevtoolsRuntime(
 		async dispose() {
 			await hook.disconnect();
 			clearInspectionFactory();
-			if ((globalThis as any)[exactDevtoolsHookSymbol] === hook)
-				delete (globalThis as any)[exactDevtoolsHookSymbol];
+			if (Reflect.get(globalThis, exactDevtoolsHookSymbol) === hook)
+				Reflect.deleteProperty(globalThis, exactDevtoolsHookSymbol);
 		}
 	});
 

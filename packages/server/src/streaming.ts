@@ -5,6 +5,7 @@ import {
 	encodeReactiveProtocolValue,
 	throwCleanupFailure
 } from '@exactjs/core';
+import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import type {
 	ExactBatchRequest,
 	ExactInvocationRequest,
@@ -178,10 +179,6 @@ async function dispatchReadyOperations(
 		await Promise.allSettled(running.values());
 		linked.dispose();
 	}
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 async function emitOperationStreamEvents(

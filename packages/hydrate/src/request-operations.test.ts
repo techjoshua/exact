@@ -3,7 +3,7 @@
  */
 import { Fragment } from '@exactjs/core';
 import { render } from '@exactjs/dom';
-import { defineExactBoundaryContract, handleExactRequest } from '@exactjs/server';
+import { defineExactBoundaryContract, handleExactRequest, unsafeExactHtml } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
 import { invokeExact, invokeExactBatch } from './invocations.js';
@@ -221,7 +221,7 @@ describe('@exactjs/hydrate request-operations', () => {
 					refreshBoundaries: {
 						panel: () => ({
 							patches: [{ type: 'text', id: 'missing', value: 'No target' }],
-							html: '<section>Fallback</section>'
+							html: unsafeExactHtml('<section>Fallback</section>')
 						})
 					}
 				}

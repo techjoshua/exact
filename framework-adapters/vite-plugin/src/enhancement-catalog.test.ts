@@ -88,7 +88,7 @@ describe('Vite enhancement catalog emission', () => {
 		}
 	});
 
-	it('loads pass-through and provider facades without retaining stale generations', async () => {
+	it('shares equivalent facades without discarding importer-scoped authorization', async () => {
 		const catalog = new ExactViteEnhancementFacadeCatalog();
 		const request = exactEnhancementFacadeRequest({
 			identity: '@acme/motion#default',
@@ -113,7 +113,26 @@ describe('Vite enhancement catalog emission', () => {
 		);
 		expect(catalog.load(available!)).toContain('from "/packages/motion.js"');
 		expect(catalog.load(available!)).toContain('@exactjs/dom/framework/enhancements');
-		catalog.advanceGeneration();
-		expect(catalog.load(available!)).toBeUndefined();
+		const sameProviderFromAnotherImporter = await catalog.resolve(
+			request,
+			'/app/another-view.tsx',
+			async () => '/packages/motion.js',
+			async (id) => id,
+			'@exactjs/dom/framework/enhancements'
+		);
+		expect(sameProviderFromAnotherImporter).toBe(available);
+		expect(available).toMatch(/^\0exact:optional-enhancement:[A-Za-z0-9_-]{43}$/);
+		expect(available).not.toContain(encodeURIComponent(request));
+		expect(available).not.toContain(encodeURIComponent('/app/view.tsx'));
+
+		const differentProvider = await catalog.resolve(
+			request,
+			'/library/view.tsx',
+			async () => '/library/motion.js',
+			async (id) => id,
+			'@exactjs/dom/framework/enhancements'
+		);
+		expect(differentProvider).not.toBe(available);
+		expect(catalog.load(differentProvider!)).toContain('from "/library/motion.js"');
 	});
 });

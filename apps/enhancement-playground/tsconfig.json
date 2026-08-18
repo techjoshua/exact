@@ -9,6 +9,7 @@
 		"jsxImportSource": "@exactjs/jsx"
 	},
 	"references": [
+		{ "path": "../../component-libraries/app-theme-preference" },
 		{ "path": "../../packages/core" },
 		{ "path": "../../packages/dom" },
 		{ "path": "../../packages/jsx-runtime" },

@@ -35,20 +35,25 @@ export async function discoverNativeCompilerCorpus(root) {
 async function collectSources(directory) {
 	const output = [];
 	for (const entry of await readdir(directory, { withFileTypes: true })) {
-		if (
-			entry.name === 'node_modules' ||
-			entry.name === 'dist' ||
-			entry.name === '.build' ||
-			entry.name === '.exact' ||
-			entry.name === '.git' ||
-			entry.name === '.tmp'
-		)
-			continue;
+		if (entry.isDirectory() && isExcludedNativeCompilerCorpusDirectory(entry.name)) continue;
 		const filename = path.join(directory, entry.name);
 		if (entry.isDirectory()) output.push(...(await collectSources(filename)));
 		else if (isNativeCompilerCorpusSource(entry.name)) output.push(filename);
 	}
 	return output;
+}
+
+/** Identifies dependency, generated-output, and compiler-work directories outside the source corpus. */
+export function isExcludedNativeCompilerCorpusDirectory(name) {
+	return (
+		name === 'node_modules' ||
+		name === 'dist' ||
+		name.startsWith('dist-') ||
+		name === '.build' ||
+		name === '.exact' ||
+		name === '.git' ||
+		name === '.tmp'
+	);
 }
 
 async function nativeCompilerCorpusProject(root, config) {

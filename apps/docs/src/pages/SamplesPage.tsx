@@ -8,10 +8,10 @@ export function SamplesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Complete applications"
 			title="Beyond the counter"
-			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Sudoku Atelier is the hosted demo; the others are repository examples you can build locally."
+			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Six browser applications are published with these docs; the remaining examples can be built locally."
 			next={{ path: '/getting-started', label: 'Create an eXact app' }}
 		>
-			<section className="sudoku-showcase">
+			<section theme:surface="raised" className="sudoku-showcase">
 				<div>
 					<p className="demo-kicker">Hosted demo</p>
 					<h2>Sudoku Atelier</h2>
@@ -28,7 +28,7 @@ export function SamplesPage(this: Component<{}>) {
 						application feels before exploring the source in the repository.
 					</p>
 				</div>
-				<a className="primary-link" href="./sudoku.html">
+				<a theme:action="primary" className="primary-link" href="./sudoku.html">
 					Play Sudoku Atelier <span aria-hidden="true">{'→'}</span>
 				</a>
 			</section>
@@ -36,30 +36,70 @@ export function SamplesPage(this: Component<{}>) {
 			<section>
 				<h2>Production-shaped client and server work</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Shipping Calculator</span>
 						<strong>Follow one feature across the network</strong>
 						<p>
 							This application demonstrates native server rendering, hydration, client islands, and
 							server continuations through a production-shaped server. It is the best sample for
-							understanding how compiler-selected data and work move between runtimes.
+							understanding how compiler-selected data and work move between runtimes. Its
+							server-rendered application shell also publishes the semantic theme consumed by its
+							calculator UI.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Kanban</span>
 						<strong>Preserve identity through busy list updates</strong>
 						<p>
 							The board exercises keyed collections, direct mutation, forms, and focused updates in
 							an interface where cards and columns must retain their identity as they move.
+							Generated theme tokens drive the palette without owning its board layout or drag
+							behavior.
 						</p>
+						<a theme:action="secondary" href="./kanban/">
+							Open Kanban
+						</a>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Project Workbench</span>
 						<strong>Compose a larger stateful workspace</strong>
 						<p>
 							Workbench brings several component-owned tools together to demonstrate forms, derived
-							values, tasks, and fine-grained updates across a denser application shell.
+							values, tasks, fine-grained updates, and package-scoped semantic theme roles across a
+							denser application shell.
 						</p>
+						<a theme:action="secondary" href="./workbench/">
+							Open Project Workbench
+						</a>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>Visual systems without hidden ownership</h2>
+				<div className="card-grid">
+					<div theme:surface="raised" className="topic-card">
+						<span className="topic-index">Enhancement Playground</span>
+						<strong>Compose theme, motion, gestures, and physics</strong>
+						<p>
+							Theme actions and selections share ordinary intrinsic elements with independent motion
+							and gesture enhancements. The sample demonstrates composition without a shared
+							component runtime or hidden state system.
+						</p>
+						<a theme:action="secondary" href="./enhancements/">
+							Open the playground and Theme Lab
+						</a>
+					</div>
+					<div theme:surface="raised" className="topic-card">
+						<span className="topic-index">Puzzle Foundry</span>
+						<strong>Separate application theme from document design</strong>
+						<p>
+							The authoring shell uses semantic theme sources and roles, while printable puzzle
+							artwork and user-selected publication colors remain explicit document data.
+						</p>
+						<a theme:action="secondary" href="./puzzle-foundry.html">
+							Open Puzzle Foundry
+						</a>
 					</div>
 				</div>
 			</section>
@@ -67,7 +107,7 @@ export function SamplesPage(this: Component<{}>) {
 			<section>
 				<h2>Distributed ownership and placement</h2>
 				<div className="card-grid">
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Microfrontend Portal</span>
 						<strong>Compose independently delivered features</strong>
 						<p>
@@ -76,7 +116,7 @@ export function SamplesPage(this: Component<{}>) {
 							safe.
 						</p>
 					</div>
-					<div className="topic-card">
+					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Server Components</span>
 						<strong>Inspect compiler-planned server artifacts</strong>
 						<p>
@@ -87,11 +127,30 @@ export function SamplesPage(this: Component<{}>) {
 				</div>
 			</section>
 
+			<section>
+				<h2>Internationalization across real locale structures</h2>
+				<div className="card-grid">
+					<div theme:surface="raised" className="topic-card">
+						<span className="topic-index">Intl Testbed</span>
+						<strong>Compare four cultural interpretations side by side</strong>
+						<p>
+							The testbed renders shared reactive values through English, French, Japanese, and
+							Arabic catalogs, including structural reordering, plural and ordinal projection,
+							semantic units, dates, durations, and lazy catalog adoption.
+						</p>
+						<a theme:action="secondary" href="./intl/">
+							Open the Intl Testbed
+						</a>
+					</div>
+				</div>
+			</section>
+
 			<Callout title="Repository examples">
 				<p>
-					Shipping Calculator, Kanban, Project Workbench, Microfrontend Portal, and Server
-					Components are source examples in the eXact repository. They are not deployed as routes on
-					this documentation site.
+					Shipping Calculator, Microfrontend Portal, and Server Components remain source examples in
+					the eXact repository. Kanban, Project Workbench, Enhancement Playground with Theme Lab,
+					Intl Testbed, Puzzle Foundry, and Sudoku Atelier are published alongside this
+					documentation site.
 				</p>
 			</Callout>
 		</Article>

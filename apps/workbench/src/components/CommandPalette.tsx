@@ -25,6 +25,7 @@ export function CommandPalette(this: Component<{}>, props: CommandPaletteProps) 
 	return () => (
 		<div className="dialog-backdrop" onClick={() => workbench.closePalette()}>
 			<section
+				theme:surface="overlay"
 				className="command-palette"
 				role="dialog"
 				aria-modal="true"
@@ -36,32 +37,51 @@ export function CommandPalette(this: Component<{}>, props: CommandPaletteProps) 
 						<h2>Actions</h2>
 						<p>{props.tasks.length} tasks in the current filter.</p>
 					</div>
-					<button type="button" className="quiet-button" onClick={() => workbench.closePalette()}>
+					<button theme:action="quiet" type="button" onClick={() => workbench.closePalette()}>
 						Close
 					</button>
 				</header>
 
 				<div className="command-list">
 					<button
+						theme:action="secondary"
 						type="button"
 						ref={this.ref(firstActionRef)}
 						onClick={() => run(() => workbench.setView('board'))}
 					>
 						Switch to board view
 					</button>
-					<button type="button" onClick={() => run(() => workbench.setView('list'))}>
+					<button
+						theme:action="secondary"
+						type="button"
+						onClick={() => run(() => workbench.setView('list'))}
+					>
 						Switch to list view
 					</button>
-					<button type="button" onClick={() => run(() => workbench.openImport())}>
+					<button
+						theme:action="secondary"
+						type="button"
+						onClick={() => run(() => workbench.openImport())}
+					>
 						Import JSON
 					</button>
-					<button type="button" onClick={() => run(() => workbench.exportTasks())}>
+					<button
+						theme:action="secondary"
+						type="button"
+						onClick={() => run(() => workbench.exportTasks())}
+					>
 						Export JSON
 					</button>
-					<button type="button" onClick={() => run(() => workbench.resetSampleData())}>
+					<button
+						theme:action="secondary"
+						type="button"
+						onClick={() => run(() => workbench.resetSampleData())}
+					>
 						Reset sample data
 					</button>
 					<button
+						theme:action="secondary"
+						theme:tone="danger"
 						type="button"
 						className="danger-command"
 						onClick={() => run(() => workbench.raiseDemoError())}
@@ -76,6 +96,7 @@ export function CommandPalette(this: Component<{}>, props: CommandPaletteProps) 
 						<div className="command-grid">
 							{columns.map((column) => (
 								<button
+									theme:action="secondary"
 									type="button"
 									disabled={props.selectedTask!.status === column.id}
 									onClick={() => run(() => workbench.moveSelected(column.id))}

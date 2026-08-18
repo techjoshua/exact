@@ -15,11 +15,15 @@ export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
 	return () => (
 		<header className="toolbar">
 			<div>
-				<h1>eXact Kanban</h1>
-				<p>{summary}</p>
+				<a className="docs-link" href="../">
+					Documentation
+				</a>
+				<h1 theme:text="display">eXact Kanban</h1>
+				<p theme:text="supporting">{summary}</p>
 			</div>
 			<div className="toolbar-actions">
 				<button
+					theme:action="quiet"
 					type="button"
 					className="quiet-button"
 					onClick={() => {
@@ -32,6 +36,7 @@ export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
 					Report error
 				</button>
 				<button
+					theme:action="quiet"
 					type="button"
 					className="quiet-button"
 					onClick={() => {
@@ -48,13 +53,14 @@ export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
 					}}
 				>
 					<input
+						theme:field="default"
 						value={props.draft}
 						placeholder="Add a task"
 						onInput={(event) => {
 							board.setDraft(event.currentTarget.value);
 						}}
 					/>
-					<button type="submit" disabled={props.draft.trim().length === 0}>
+					<button theme:action="primary" type="submit" disabled={props.draft.trim().length === 0}>
 						Add
 					</button>
 				</form>

@@ -21,6 +21,7 @@ export function DocsSearch(this: Component<{ query: string }>, props: { onClose(
 	return () => (
 		<div className="search-backdrop" role="presentation">
 			<section
+				theme:surface="overlay"
 				className="search-dialog"
 				role="dialog"
 				aria-modal="true"
@@ -30,19 +31,26 @@ export function DocsSearch(this: Component<{ query: string }>, props: { onClose(
 					<label>
 						<span className="visually-hidden">Search documentation</span>
 						<input
+							theme:field
 							autofocus
 							type="search"
 							placeholder="Search components, tasks, routing\u2026"
 							value:onInput={this.state.query}
 						/>
 					</label>
-					<button type="button" onClick={close}>
+					<button theme:action="secondary" type="button" onClick={close}>
 						Close
 					</button>
 				</div>
 				<div className="search-results">
 					{matches.map((page) => (
-						<Link className="search-result" to={page.path} onClick={close}>
+						<Link
+							theme:surface="transparent"
+							theme:interactive
+							className="search-result"
+							to={page.path}
+							onClick={close}
+						>
 							<strong>{page.label}</strong>
 							<span>{page.summary}</span>
 						</Link>

@@ -1,0 +1,441 @@
+package exactcompiler
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/checker"
+)
+
+type jsxRuntimeNames struct {
+	element                string
+	componentElement       string
+	renderProgram          string
+	fragment               string
+	target                 string
+	expression             string
+	forwardedExpression    string
+	componentOutput        string
+	dynamic                string
+	dynamicComponent       string
+	serverDynamicComponent string
+	dynamicComponentValue  string
+	boundary               string
+	finiteBoundary         string
+	asyncSiblings          string
+	serverSlot             string
+	keyedServerSlot        string
+	clientProps            string
+	derived                string
+	write                  string
+	update                 string
+	updateResult           string
+	abortOptions           string
+	taskSignal             string
+	taskTimeout            string
+	taskInterval           string
+	taskAnimation          string
+	taskIdle               string
+	taskObserver           string
+	taskFetch              string
+	taskResource           string
+	taskAwait              string
+	taskMutation           string
+	stageTaskMutation      string
+	taskCollectionMutation string
+	taskContinuation       string
+	dispatchContinuation   string
+	registerContexts       string
+	inspectionSource       string
+	defineTask             string
+	bindTask               string
+	invokeTask             string
+	activateTask           string
+	taskOptions            string
+	taskCombined           string
+	delete                 string
+	arrayMutation          string
+	collectionMutation     string
+	componentRegistry      string
+	enhancements           string
+	omitEnhancementProps   string
+	componentLog           string
+	interop                string
+	timeActivation         string
+	createTimeActivation   string
+}
+
+func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
+	type importGroup struct {
+		module     string
+		specifiers []*ast.Node
+	}
+	groups := []importGroup{
+		{module: "@exactjs/core/runtime/render"},
+		{module: "@exactjs/core/runtime/reactivity"},
+		{module: "@exactjs/core/runtime/tasks"},
+		{module: "@exactjs/core/runtime/inspection"},
+		{module: "@exactjs/core/runtime/registry"},
+		{module: "@exactjs/core/runtime/enhancements"},
+		{module: "@exactjs/core/runtime/dynamic-components"},
+		{module: "@exactjs/core/runtime/logging"},
+		{module: "@exactjs/core/runtime/localization"},
+		{module: "@exactjs/dom/runtime/modal"},
+		{module: "@exactjs/dom/runtime/unsafe-html"},
+		{module: "@exactjs/dom/runtime/structural-boundaries"},
+		{module: "@exactjs/time/internal"},
+	}
+	add := func(group int, imported string, local string) {
+		groups[group].specifiers = append(
+			groups[group].specifiers,
+			lowering.importSpecifier(imported, local),
+		)
+	}
+	helpers := []struct {
+		imported string
+		local    string
+		group    int
+	}{
+		{"createCompiledVNode", lowering.names.element, 0},
+		{"createCompiledComponentVNode", lowering.names.componentElement, 0},
+		{"createCompiledRenderProgram", lowering.names.renderProgram, 0},
+		{"createCompiledFragment", lowering.names.fragment, 0},
+		{"createCompiledTarget", lowering.names.target, 0},
+		{"createExpression", lowering.names.expression, 0},
+		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
+		{"componentExecutionValueForHost", lowering.names.componentOutput, 2},
+		{"createDynamicChild", lowering.names.dynamic, 0},
+		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, 6},
+		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, 6},
+		{"dynamicComponentValue", lowering.names.dynamicComponentValue, 6},
+		{"createServerBoundary", lowering.names.boundary, 0},
+		{"markFiniteClientBoundary", lowering.names.finiteBoundary, 0},
+		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings, 0},
+		{"createServerSlot", lowering.names.serverSlot, 0},
+		{"createKeyedServerSlot", lowering.names.keyedServerSlot, 0},
+		{"createDerived", lowering.names.derived, 1},
+		{"writeReactiveLazy", lowering.names.write, 1},
+		{"updateReactiveValue", lowering.names.update, 1},
+		{"updateReactiveValueWithResult", lowering.names.updateResult, 1},
+		{"deleteReactiveValue", lowering.names.delete, 1},
+		{"mutateReactiveArray", lowering.names.arrayMutation, 1},
+		{"mutateReactiveCollection", lowering.names.collectionMutation, 1},
+		{"createCompiledComponentRegistry", lowering.names.componentRegistry, 4},
+		{"createEnhancementNode", lowering.names.enhancements, 5},
+		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
+		{"componentLogMethod", lowering.names.componentLog, 7},
+		{"createTimeActivation", lowering.names.createTimeActivation, 12},
+	}
+	for _, helper := range helpers {
+		used := containsIdentifier(root, helper.local)
+		if helper.imported == "createDynamicChild" &&
+			containsIdentifier(root, lowering.names.expression) {
+			used = true
+		}
+		if used {
+			add(helper.group, helper.imported, helper.local)
+		}
+	}
+	taskHelperOrder := []string{
+		"withAbortSignal",
+		"ownTaskResource",
+		"taskAnimationFrame",
+		"taskFetch",
+		"taskIdleCallback",
+		"taskInterval",
+		"taskObserver",
+		"taskTimeout",
+		"withTaskSignal",
+		"combineTaskSignal",
+		"taskAwait",
+		"taskMutation",
+		"stageTaskMutation",
+		"mutateTaskCollection",
+		"markComponentContinuationTask",
+		"dispatchComponentContinuation",
+		"registerComponentContinuationContexts",
+		"markExactInspectionSource",
+		"defineTask",
+		"bindTaskForHost",
+		"invokeTask",
+		"activateTaskForHost",
+	}
+	for _, imported := range taskHelperOrder {
+		if local, used := lowering.taskHelpers[imported]; used {
+			if !containsIdentifier(root, local) {
+				continue
+			}
+			group := 2
+			if imported == "markExactInspectionSource" {
+				group = 3
+			}
+			add(group, imported, local)
+		}
+	}
+	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
+	interactionUsed := containsInteractionRuntimeUse(root)
+	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root)
+	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
+	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
+		lowering.sourceFile,
+		lowering.checker,
+	)
+	structuralBoundariesUsed := lowering.target != TargetServer &&
+		(partitionUsesStructuralBoundaries(lowering.partitionPlan) ||
+			containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker))
+	result := make([]*ast.Node, 0, len(groups))
+	for index, group := range groups {
+		if len(group.specifiers) == 0 {
+			if (index == 2 && (interopUsed || interactionUsed)) ||
+				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) ||
+				(group.module == "@exactjs/dom/runtime/modal" && modalBindingUsed) ||
+				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
+				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) {
+				declaration := lowering.factory.NewImportDeclaration(
+					nil,
+					nil,
+					lowering.factory.NewStringLiteral(group.module, ast.TokenFlagsNone),
+					nil,
+				)
+				ast.SetParentInChildren(declaration)
+				result = append(result, declaration)
+			}
+			continue
+		}
+		declaration := lowering.factory.NewImportDeclaration(
+			nil,
+			lowering.factory.NewImportClause(
+				ast.KindUnknown,
+				nil,
+				lowering.factory.NewNamedImports(
+					lowering.factory.NewNodeList(group.specifiers),
+				),
+			),
+			lowering.factory.NewStringLiteral(group.module, ast.TokenFlagsNone),
+			nil,
+		)
+		ast.SetParentInChildren(declaration)
+		result = append(result, declaration)
+	}
+	return result
+}
+
+func partitionUsesStructuralBoundaries(plan PartitionPlan) bool {
+	for _, node := range plan.Nodes {
+		if node.Kind == "readiness-boundary" ||
+			(node.Kind == "region" && node.Reason == "Activity retention boundary") {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCoreStructuralBoundaryImport(
+	root *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	for local, reference := range bindings.byName {
+		if reference.moduleSpecifier == "@exactjs/core" &&
+			(reference.exportName == "Activity" || reference.exportName == "Suspense") &&
+			containsIdentifier(root, local) {
+			return true
+		}
+	}
+	found := false
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
+			(reference.exportName == "Activity" || reference.exportName == "Suspense")
+		return !found
+	})
+	return found
+}
+
+func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
+	found := false
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(
+			node.AsCallExpression().Expression,
+			bindings,
+			typeChecker,
+		)
+		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
+			reference.exportName == "unsafeHtml"
+		return !found
+	})
+	return found
+}
+
+func containsComponentLocalizationUse(root *ast.Node) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		member := node.AsPropertyAccessExpression()
+		found = member.Expression.Kind == ast.KindThisKeyword && member.Name().Text() == "intl"
+		return !found
+	})
+	return found
+}
+
+func containsInteractionRuntimeUse(root *ast.Node) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsPropertyAssignment(node) {
+			return true
+		}
+		propertyName := node.AsPropertyAssignment().Name()
+		if !ast.IsIdentifier(propertyName) && !ast.IsStringLiteral(propertyName) {
+			return true
+		}
+		name := propertyName.Text()
+		found = jsxEventAttribute(name) || strings.HasPrefix(name, "__exactBind")
+		return !found
+	})
+	return found
+}
+
+func (lowering *jsxLowering) interopImport(root *ast.Node) *ast.Node {
+	if lowering.interop == nil ||
+		lowering.interop.AdapterModule == "" ||
+		lowering.interop.AdapterExport == "" ||
+		!containsIdentifier(root, lowering.names.interop) {
+		return nil
+	}
+	result := lowering.factory.NewImportDeclaration(
+		nil,
+		lowering.factory.NewImportClause(
+			ast.KindUnknown,
+			nil,
+			lowering.factory.NewNamedImports(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.importSpecifier(
+						lowering.interop.AdapterExport,
+						lowering.names.interop,
+					),
+				}),
+			),
+		),
+		lowering.factory.NewStringLiteral(
+			lowering.interop.AdapterModule,
+			ast.TokenFlagsNone,
+		),
+		nil,
+	)
+	ast.SetParentInChildren(result)
+	return result
+}
+
+func containsIdentifier(root *ast.Node, name string) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if ast.IsIdentifier(node) && node.Text() == name {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+func (lowering *jsxLowering) importSpecifier(
+	imported string,
+	local string,
+) *ast.Node {
+	return lowering.factory.NewImportSpecifier(
+		false,
+		lowering.factory.NewIdentifier(imported),
+		lowering.factory.NewIdentifier(local),
+	)
+}
+
+func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
+	used := make(map[string]struct{})
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if ast.IsIdentifier(node) {
+			used[node.Text()] = struct{}{}
+		}
+		return true
+	})
+	allocate := func(base string) string {
+		if _, exists := used[base]; !exists {
+			used[base] = struct{}{}
+			return base
+		}
+		for suffix := 1; ; suffix++ {
+			candidate := fmt.Sprintf("%s_%d", base, suffix)
+			if _, exists := used[candidate]; !exists {
+				used[candidate] = struct{}{}
+				return candidate
+			}
+		}
+	}
+	return jsxRuntimeNames{
+		element:                allocate("__exactVNode"),
+		componentElement:       allocate("__exactComponentVNode"),
+		renderProgram:          allocate("__exactRenderProgram"),
+		fragment:               allocate("__exactFragment"),
+		target:                 allocate("__exactTarget"),
+		expression:             allocate("__exactExpression"),
+		forwardedExpression:    allocate("__exactForwardedExpression"),
+		componentOutput:        allocate("__exactComponentOutput"),
+		dynamic:                allocate("__exactDynamic"),
+		dynamicComponent:       allocate("__exactDynamicComponent"),
+		serverDynamicComponent: allocate("__exactServerDynamicComponent"),
+		dynamicComponentValue:  allocate("__exactDynamicComponentValue"),
+		boundary:               allocate("__exactBoundary"),
+		finiteBoundary:         allocate("__exactFiniteBoundary"),
+		asyncSiblings:          allocate("__exactAsyncSiblings"),
+		serverSlot:             allocate("__exactServerSlot"),
+		keyedServerSlot:        allocate("__exactKeyedServerSlot"),
+		clientProps:            allocate("__exactElementProps"),
+		derived:                allocate("__exactDerived"),
+		write:                  allocate("__exactWrite"),
+		update:                 allocate("__exactUpdate"),
+		updateResult:           allocate("__exactUpdateResult"),
+		abortOptions:           allocate("__exactAbortOptions"),
+		taskSignal:             allocate("__exactSignal"),
+		taskTimeout:            allocate("__exactTaskTimeout"),
+		taskInterval:           allocate("__exactTaskInterval"),
+		taskAnimation:          allocate("__exactTaskAnimationFrame"),
+		taskIdle:               allocate("__exactTaskIdleCallback"),
+		taskObserver:           allocate("__exactTaskObserver"),
+		taskFetch:              allocate("__exactTaskFetch"),
+		taskResource:           allocate("__exactTaskResource"),
+		taskOptions:            allocate("__exactTaskOptionsSignal"),
+		taskCombined:           allocate("__exactTaskCombinedSignal"),
+		taskAwait:              allocate("__exactTaskAwait"),
+		taskMutation:           allocate("__exactTaskMutation"),
+		stageTaskMutation:      allocate("__exactStageTaskMutation"),
+		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),
+		taskContinuation:       allocate("__exactContinuationTask"),
+		dispatchContinuation:   allocate("__exactDispatchContinuation"),
+		registerContexts:       allocate("__exactRegisterContinuationContexts"),
+		inspectionSource:       allocate("__exactInspectionSource"),
+		defineTask:             allocate("__exactDefineTask"),
+		bindTask:               allocate("__exactBindTask"),
+		invokeTask:             allocate("__exactInvokeTask"),
+		activateTask:           allocate("__exactActivateTask"),
+		delete:                 allocate("__exactDelete"),
+		arrayMutation:          allocate("__exactArrayMutation"),
+		collectionMutation:     allocate("__exactCollectionMutation"),
+		componentRegistry:      allocate("__exactComponentRegistry"),
+		enhancements:           allocate("__exactEnhancements"),
+		omitEnhancementProps:   allocate("__exactOmitEnhancementProps"),
+		componentLog:           allocate("__exactComponentLog"),
+		interop:                allocate("__exactInteropComponent"),
+		timeActivation:         allocate("__exactTimeRange"),
+		createTimeActivation:   allocate("__exactCreateTimeActivation"),
+	}
+}

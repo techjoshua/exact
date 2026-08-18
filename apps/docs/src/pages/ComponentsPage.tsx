@@ -162,6 +162,11 @@ export function ComponentsPage(this: Component<{}>) {
 					receives no separate component identity, state, lifecycle, or task scope. Module-level
 					shared or bound render callables are not component views.
 				</p>
+				<p>
+					Lexical capabilities remain attributed to that owner. A reusable micro-component may, for
+					example, contain a <code>time:update</code> range; each call receives its own range inputs
+					without acquiring component lifecycle or identity.
+				</p>
 			</section>
 			<section>
 				<h2>JS-eXtra</h2>
@@ -222,7 +227,7 @@ export function ComponentsPage(this: Component<{}>) {
 					conversion from the element and state type. Use explicit value and callback props when the
 					callback needs to validate, transform, refuse, log, await, or return a result.
 				</p>
-				<Link className="secondary-link" to="/guides/forms">
+				<Link theme:action="secondary" className="secondary-link" to="/guides/forms">
 					Explore reactive inputs and component bindings
 				</Link>
 				<CodeBlock
@@ -263,7 +268,7 @@ export function ComponentsPage(this: Component<{}>) {
 					only intentionally with <code>createDynamicComponent()</code> or a narrow
 					<code>@exact dynamic</code> annotation. Invalid component values remain errors.
 				</p>
-				<Link className="secondary-link" to="/learn/component-registries">
+				<Link theme:action="secondary" className="secondary-link" to="/learn/component-registries">
 					Read the dynamic component guide
 				</Link>
 				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
@@ -284,7 +289,7 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code>. Contradictory
 					placement is a compile error rather than a runtime surprise.
 				</p>
-				<Link className="secondary-link" to="/learn/tasks">
+				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
 					Follow task inference and cleanup
 				</Link>
 			</section>
@@ -303,7 +308,7 @@ export function ComponentsPage(this: Component<{}>) {
 					attached tasks and cleanup settle. The retained subtree deactivates after release
 					observers attach and reactivates only when exact-generation reversal restores it.
 				</p>
-				<div className="definition-grid">
+				<div theme:surface="raised" className="definition-grid">
 					<code>this.state</code>
 					<p>Reactive, instance-owned data.</p>
 					<code>this.reactive()</code>

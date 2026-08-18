@@ -67,13 +67,28 @@ attributes. Enabling the logger at runtime affects the next operation.
 `stats()` remains the retained-state interface. Profiling events describe where
 time was spent, while benchmark scripts determine whether performance changed.
 
-The native compiler corpus records end-to-end elapsed time, output size, and
-compiler phase timings in `.tmp/native-compiler-corpus.json`. Its throughput is
-compared with `docs/performance-baselines/native-compiler-corpus.json`; run
+The native compiler corpus records median end-to-end elapsed time, individual
+samples, output size, and compiler phase timings for both the corpus and each
+project in `.tmp/native-compiler-corpus.json`. A separate warmed single-edit
+pass records program rebuilds, affected and reused sources, component link
+walks, callable analyses, and cache hits. Its throughput is compared with
+stable project/file-count pairs in
+`docs/performance-baselines/native-compiler-corpus.json`, so adding a large
+project does not masquerade as a compiler regression. The guard considers both
+aggregate matched-project worker time and significant individual-project
+regressions; per-project incremental ratios below a 50 ms baseline are reported
+but excluded from the ratio guard because scheduler noise dominates them. Run
 `npm run check:native-compiler-corpus:baseline` only when intentionally
 accepting a new native baseline. `EXACT_NATIVE_CORPUS_WORKERS`,
-`EXACT_NATIVE_CORPUS_PROJECT`, and `EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO`
-provide focused investigation overrides without changing repository policy.
+`EXACT_NATIVE_CORPUS_PROJECT`, `EXACT_NATIVE_CORPUS_SAMPLES`, and
+`EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO` provide focused investigation
+overrides without changing repository policy.
+
+Corpus throughput is a controlled-machine diagnostic, not a release requirement. Hosted runners have
+variable CPU allocation and worker availability, so GitHub workflows and aggregate release profiles do not
+invoke the corpus or compare their timing with the tracked local baseline. Run
+`npm run check:native-compiler-corpus` explicitly on a stable machine when investigating compiler performance;
+its unchanged guard still fails meaningful regressions in that controlled environment.
 
 ## Isolation
 

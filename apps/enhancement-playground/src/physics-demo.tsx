@@ -32,6 +32,17 @@ const orbMotion = defineMotion({
 
 const initialOrbPosition = { x: 260, y: 62 };
 const stageSize = { width: 520, height: 330 };
+const orbRadius = 32;
+const floorTop = 286;
+const orbDragBounds = {
+	minimumX: orbRadius,
+	maximumX: stageSize.width - orbRadius,
+	minimumY: orbRadius,
+	maximumY: floorTop - orbRadius
+} as const;
+
+const clamp = (value: number, minimum: number, maximum: number) =>
+	Math.min(maximum, Math.max(minimum, value));
 
 type PhysicsDemoState = {
 	shown: boolean;
@@ -47,14 +58,19 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 	const world = createPhysicsWorld({ fixedStep: 1 / 120, maxCatchUpSteps: 8 });
 	const orb = world.createBody({
 		id: 'orb',
-		shape: { kind: 'circle', radius: 32 },
+		shape: { kind: 'circle', radius: orbRadius },
 		position: initialOrbPosition,
 		restitution: 0.96,
 		damping: 0.006,
 		angularDamping: 0.01
 	});
 	for (const boundary of [
-		{ id: 'floor', shape: { kind: 'box' as const, width: 520, height: 24 }, x: 260, y: 298 },
+		{
+			id: 'floor',
+			shape: { kind: 'box' as const, width: stageSize.width, height: 24 },
+			x: stageSize.width / 2,
+			y: floorTop + 12
+		},
 		{ id: 'ceiling', shape: { kind: 'box' as const, width: 520, height: 24 }, x: 260, y: -12 },
 		{ id: 'left-wall', shape: { kind: 'box' as const, width: 24, height: 310 }, x: -12, y: 143 },
 		{ id: 'right-wall', shape: { kind: 'box' as const, width: 24, height: 310 }, x: 532, y: 143 }
@@ -70,6 +86,7 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 	}
 	const downward = uniformGravity({ x: 0, y: 245 });
 	let dragOrigin = { x: 0, y: 0 };
+	let releaseVelocity = { x: 0, y: 0 };
 	const directManipulation = defineGesture({
 		name: 'orb-direct-manipulation',
 		semantics: 'control',
@@ -77,21 +94,41 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 			threshold: 2,
 			onStart() {
 				dragOrigin = { ...orb.pose.position };
+				releaseVelocity = { x: 0, y: 0 };
 				orb.setKinematic(true);
 			},
 			onMove(sample) {
 				const scale = Math.max(0.01, stageScale);
+				releaseVelocity = {
+					x: sample.velocity.x / scale,
+					y: sample.velocity.y / scale
+				};
 				orb.setPose({
 					position: {
-						x: dragOrigin.x + sample.delta.x / scale,
-						y: dragOrigin.y + sample.delta.y / scale
+						x: clamp(
+							dragOrigin.x + sample.delta.x / scale,
+							orbDragBounds.minimumX,
+							orbDragBounds.maximumX
+						),
+						y: clamp(
+							dragOrigin.y + sample.delta.y / scale,
+							orbDragBounds.minimumY,
+							orbDragBounds.maximumY
+						)
 					}
 				});
 			},
 			onEnd() {
 				orb.setKinematic(false);
+				// Preserve the user's final sampled drag velocity when simulation resumes. Physics accepts
+				// impulse (momentum), so scale the desired world velocity by the body's mass.
+				orb.applyImpulse({
+					x: releaseVelocity.x * orb.mass,
+					y: releaseVelocity.y * orb.mass
+				});
 			},
 			onCancel() {
+				releaseVelocity = { x: 0, y: 0 };
 				orb.setKinematic(false);
 			}
 		},
@@ -124,7 +161,11 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 
 	this.onUnmount(() => world[Symbol.dispose]());
 	return () => (
-		<section className="demo-card physics-demo" aria-labelledby="physics-title">
+		<section
+			theme:surface="raised"
+			className="demo-card physics-demo"
+			aria-labelledby="physics-title"
+		>
 			<div className="demo-heading">
 				<div>
 					<p className="eyebrow">All four together</p>
@@ -133,17 +174,26 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 				<span className="package-label">motion · gestures · physics · gravity</span>
 			</div>
 			<p className="demo-description">
-				Drag or keyboard-move the orb, then release it back to gravity. Motion owns presence,
-				gestures own intent, physics owns pose and collision, and gravity contributes force.
+				Drag and throw the orb, or move it by keyboard, then release it back to gravity. Motion owns
+				presence, gestures own intent and release velocity, physics owns pose and collision, and
+				gravity contributes force.
 			</p>
 			<div className="control-row">
-				<button className="primary-button" onClick={() => (this.state.shown = !this.state.shown)}>
+				<button
+					theme:action="primary"
+					className="primary-button"
+					onClick={() => (this.state.shown = !this.state.shown)}
+				>
 					{this.state.shown ? 'Remove orb' : 'Restore orb'}
 				</button>
-				<button className="secondary-button" onClick={() => orb.applyImpulse({ x: 92, y: -255 })}>
+				<button
+					theme:action="secondary"
+					className="secondary-button"
+					onClick={() => orb.applyImpulse({ x: 92, y: -255 })}
+				>
 					Launch orb
 				</button>
-				<button className="secondary-button" onClick={resetOrb}>
+				<button theme:action="secondary" className="secondary-button" onClick={resetOrb}>
 					Reset position
 				</button>
 			</div>

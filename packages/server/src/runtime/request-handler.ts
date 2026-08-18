@@ -2,7 +2,6 @@ import { runWithExactRequestScope } from '../context.js';
 import {
 	checkSecurityHooks,
 	dispatchExactOperation,
-	dispatchSecurityCheckedExactOperation,
 	isOperationError,
 	limitedJsonResponse,
 	logReject,
@@ -16,11 +15,11 @@ import type {
 	ExactInvocationRequest,
 	ExactProtocolRequest,
 	ExactRequestLike,
-	ExactRemoteBuildRegistration,
 	ExactResponseLike,
 	ExactServerContext,
 	ServerProfileEvent
 } from '../types.js';
+import type { ExactRemoteBuildRegistration } from '../remote-build-contracts.js';
 
 export {
 	createExpressHandler,
@@ -43,6 +42,7 @@ export {
 	openExactRequestScope,
 	runWithExactRequestScope
 } from '../context.js';
+export { unsafeExactHtml, type ExactTrustedHtml } from '../trusted-html.js';
 export {
 	createExactBufferedResponse,
 	exactResponseBody,
@@ -74,6 +74,8 @@ export {
 	registerExactInspectionCatalog
 } from '../debug/runtime.js';
 export type * from '../types.js';
+export type * from '../payload-decoding.js';
+export type * from '../remote-build-contracts.js';
 export type * from '../hydration-types.js';
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
@@ -137,9 +139,13 @@ async function handleExactRequestOwned(
 			? (debugOwnerContext.debugRuntime ?? exactServerDebugRuntime(debugOwnerContext))
 			: undefined;
 
-	// Top-level security hooks reject the entire request before any manifest dispatch.
-	// Single operations reuse that result; batches still validate each operation during dispatch.
-	const security = await checkSecurityHooks(request, input, context);
+	// Batches, debug requests, and gateway forwarding require an envelope-level decision.
+	// Local operations authorize again after their operation-specific payload decoder runs.
+	const bindingRequest = requestHeader(request, 'x-exact-binding') !== undefined;
+	const security =
+		input.type === 'batch' || input.type === 'debug' || bindingRequest
+			? await checkSecurityHooks(request, input, context)
+			: 'allowed';
 	if (security === 'unauthorized') {
 		logReject(context, 'rejected unauthorized exact invocation');
 		return jsonResponse(403, { error: 'forbidden' });
@@ -150,7 +156,7 @@ async function handleExactRequestOwned(
 		return jsonResponse(403, { error: 'forbidden' });
 	}
 
-	if (requestHeader(request, 'x-exact-binding') !== undefined) {
+	if (bindingRequest) {
 		if (!context.gateway) {
 			logReject(context, 'rejected exact invocation for unknown binding');
 			return jsonResponse(404, { error: 'unknown_binding' });
@@ -179,32 +185,22 @@ async function handleExactRequestOwned(
 				operation: ExactInvocationRequest,
 				_base: ExactServerContext
 			) =>
-				dispatchSecurityCheckedExactOperation(
+				dispatchExactOperation(
 					operationRequest,
 					operation,
 					contextForRemoteOperation(responseContext, build, operation)
 				)
-		: dispatchSecurityCheckedExactOperation;
+		: dispatchExactOperation;
 
 	if (wantsStreaming(request)) {
 		return withBuildHeaders(
-			await streamExactResponse(
-				request,
-				input,
-				responseContext,
-				build ? dispatch : input.type === 'batch' ? dispatchExactOperation : dispatch
-			),
+			await streamExactResponse(request, input, responseContext, dispatch),
 			context
 		);
 	}
 
 	if (input.type === 'batch') {
-		const results = await dispatchExactBatch(
-			request,
-			input.operations,
-			responseContext,
-			build ? dispatch : dispatchExactOperation
-		);
+		const results = await dispatchExactBatch(request, input.operations, responseContext, dispatch);
 		return withBuildHeaders(
 			limitedJsonResponse(responseContext, 200, {
 				ok: true,
@@ -240,14 +236,21 @@ function contextForRemoteOperation(
 ): ExactServerContext {
 	const root = input.root ? build.roots[input.root] : undefined;
 	if (!root) {
-		return { ...context, contract: emptyContract(context), invocations: {}, refreshBoundaries: {} };
+		return {
+			...context,
+			contract: emptyContract(context),
+			invocations: {},
+			refreshBoundaries: {},
+			payloadDecoders: {}
+		};
 	}
 	return {
 		...context,
 		debugBuildKey: build.buildKey,
 		contract: root.contract,
 		invocations: root.invocations,
-		refreshBoundaries: root.refreshBoundaries
+		refreshBoundaries: root.refreshBoundaries,
+		payloadDecoders: root.payloadDecoders
 	};
 }
 

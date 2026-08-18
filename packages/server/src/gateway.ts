@@ -1,4 +1,5 @@
 import { jsonResponse } from './protocol.js';
+import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import {
 	exactDebugCapabilityForRequest,
 	type ExactDebugCapability
@@ -372,8 +373,4 @@ function headerValue(headers: ExactRequestLike['headers'], name: string): string
 		return Array.isArray(value) ? value[0] : value;
 	}
 	return undefined;
-}
-
-function positiveLimit(value: number | undefined, fallback: number): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }

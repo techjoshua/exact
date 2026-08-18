@@ -11,6 +11,10 @@ import {
 	recordInspectedTask
 } from '../component/task-inspection-history.js';
 import type { TaskFrameRecord } from './frame-runtime.js';
+import {
+	installTaskFrameInspectionCapability,
+	type TaskFrameEventObservation
+} from './frame-inspection-capability.js';
 import { taskOwnerForHost } from './owner-hosts.js';
 
 /** Immutable task-frame projection used by authorized runtime inspection. */
@@ -129,14 +133,6 @@ type InspectedFrameTarget = Readonly<{
 	inspection: ExactRuntimeInspectionOwner;
 }>;
 
-type TaskFrameEventObservation =
-	| Readonly<{ kind: 'start'; arguments?: readonly unknown[] }>
-	| Readonly<{
-			kind: 'outcome';
-			status: 'settled' | 'failed' | 'cancelled';
-			value: unknown;
-	  }>;
-
 type TaskSnapshotOutcome = Readonly<{
 	arguments?: ExactValuePreview;
 	result?: ExactValuePreview;
@@ -234,4 +230,12 @@ function taskPath(frame: TaskFrameRecord, field: string): readonly string[] {
 
 function monotonicTimestamp(): number {
 	return globalThis.performance?.now() ?? Date.now();
+}
+
+/** Activates the full task diagnostic path only for builds that construct an inspection owner. */
+export function activateTaskFrameInspection(): void {
+	installTaskFrameInspectionCapability({
+		publish: publishTaskFrameEvent,
+		attached: taskFrameInspectionAttached
+	});
 }

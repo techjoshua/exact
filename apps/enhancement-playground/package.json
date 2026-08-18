@@ -6,9 +6,11 @@
 	"scripts": {
 		"dev": "vite --host 0.0.0.0",
 		"build": "vite build",
+		"test:e2e": "node scripts/test-theme-lab.mjs",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@exactjs/app-theme-preference": "^0.0.0",
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",
 		"@exactjs/gestures": "^0.1.0",
@@ -16,9 +18,12 @@
 		"@exactjs/jsx": "^0.1.0",
 		"@exactjs/motion": "^0.1.0",
 		"@exactjs/physics": "^0.1.0",
+		"@exactjs/theme": "^0.1.0",
+		"@exactjs/theme-fixture": "^0.1.0",
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.52.0",
 		"typescript": "^7.0.2",
 		"vite": "^8.1.5"
 	}

@@ -94,7 +94,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 					dependencies, captures, effects, supplied signal, resources, cleanup, and typed inference
 					reasons. Broad and unknown paths remain visibly qualified.
 				</p>
-				<figure className="editor-capture">
+				<figure theme:surface="raised" className="editor-capture">
 					<img
 						src={languageToolsIntlScreenshot}
 						alt="VS Code showing eXact internationalization enhancement attributes, message and unit inlay hints, and a hover listing Arabic, French, and Japanese translations."
@@ -260,7 +260,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 					extension inspects the live side of the same model: durable component instances, state,
 					tasks, reactive dependencies, client/server work, and microfrontend ownership.
 				</p>
-				<Link className="secondary-link" to="/learn/devtools">
+				<Link theme:action="secondary" className="secondary-link" to="/learn/devtools">
 					Inspect a running eXact application
 				</Link>
 			</section>

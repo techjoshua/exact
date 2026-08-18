@@ -9,8 +9,8 @@ type CalloutProps = {
 /** Renders a semantically titled aside for important article guidance. */
 export function Callout(this: Component<{}>, props: CalloutProps) {
 	return () => (
-		<aside className={['callout', `callout--${props.tone ?? 'note'}`]}>
-			<strong>{props.title}</strong>
+		<aside theme:surface="sunken" className={['callout', `callout--${props.tone ?? 'note'}`]}>
+			<strong theme:text="heading">{props.title}</strong>
 			<div>{props.children}</div>
 		</aside>
 	);

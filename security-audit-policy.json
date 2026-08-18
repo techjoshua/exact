@@ -1,0 +1,25 @@
+{
+	"exceptions": [
+		{
+			"package": "@sveltejs/adapter-node",
+			"maximumSeverity": "low",
+			"exposure": "Pinned comparison-only Svelte fixture; it does not serve untrusted production traffic.",
+			"owner": "Framework comparison",
+			"expires": "2026-11-30"
+		},
+		{
+			"package": "@sveltejs/kit",
+			"maximumSeverity": "low",
+			"exposure": "Pinned comparison-only Svelte fixture; it does not serve untrusted production traffic.",
+			"owner": "Framework comparison",
+			"expires": "2026-11-30"
+		},
+		{
+			"package": "cookie",
+			"maximumSeverity": "low",
+			"exposure": "Transitive dependency of the comparison-only Svelte fixture.",
+			"owner": "Framework comparison",
+			"expires": "2026-11-30"
+		}
+	]
+}

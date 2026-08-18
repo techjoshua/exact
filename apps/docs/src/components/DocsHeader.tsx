@@ -1,6 +1,8 @@
 import type { Component } from '@exactjs/core';
+import { ThemeModeToggle } from '@exactjs/app-theme-preference';
 import { Link } from '@exactjs/router';
 import { ThemeControl } from './ThemeControl.jsx';
+import { ThemeContext } from './theme-context.js';
 
 type DocsHeaderProps = {
 	mobileOpen: boolean;
@@ -11,9 +13,11 @@ type DocsHeaderProps = {
 
 /** Renders the documentation masthead and delegates shell navigation controls. */
 export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
+	const theme = this.getContext(ThemeContext);
 	return () => (
-		<header className="topbar">
+		<header theme:surface="raised" className="topbar">
 			<button
+				theme:action="quiet"
 				className="mobile-menu-button"
 				type="button"
 				aria-label="Open documentation navigation"
@@ -30,14 +34,29 @@ export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 				<small>docs</small>
 			</Link>
 			<div className="topbar-actions">
-				<a className="sudoku-link" href="./sudoku.html">
+				<a theme:action="primary" className="sudoku-link" href="./sudoku.html">
 					<span>Play Sudoku</span> <span aria-hidden="true">{'\u2192'}</span>
 				</a>
-				<button className="search-trigger" type="button" onClick={props.onOpenSearch}>
+				<button
+					theme:action="secondary"
+					className="search-trigger"
+					type="button"
+					onClick={props.onOpenSearch}
+				>
 					<span aria-hidden="true">{'\u2315'}</span> Search
 				</button>
 				<ThemeControl />
-				<a className="github-link" href="https://github.com" target="_blank" rel="noreferrer">
+				<ThemeModeToggle
+					appearance={theme.effectiveAppearance}
+					onToggle={() => theme.toggleAppearance()}
+				/>
+				<a
+					theme:action="quiet"
+					className="github-link"
+					href="https://github.com"
+					target="_blank"
+					rel="noreferrer"
+				>
 					GitHub <span aria-hidden="true">{'\u2197'}</span>
 				</a>
 			</div>

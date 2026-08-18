@@ -187,7 +187,15 @@ export function patchInner(
 
 	if (next.type === RenderProgram) {
 		if (patchRenderProgram(mounted, next)) return mounted;
-		return patch(root, parent, mounted, fallbackRenderProgram(next), parentInstance, parentScope);
+		const fallback = fallbackRenderProgram(next);
+		if (fallback) return patch(root, parent, mounted, fallback, parentInstance, parentScope);
+		// Distinct closed programs have no generic VNode representation. Replace them through the
+		// ordinary ownership transaction so the optimization cannot bypass placement or teardown.
+		const replacement = mount(root, next, parentInstance, parentScope, parent, false);
+		placeMountedBefore(root, parent, replacement, mounted.dom);
+		if (!releaseMountedRange(root, parent, mounted, 'reconcile-replaced'))
+			disposeMounted(parent, mounted);
+		return replacement;
 	}
 
 	if (next.type === Text) {

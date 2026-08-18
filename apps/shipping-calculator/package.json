@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"pregenerate": "npm run build -w @exactjs/compiler",
+		"pregenerate": "npm run build -w @exactjs/compiler && npm run build -w @exactjs/theme",
 		"generate": "node scripts/generate-artifacts.mjs",
 		"dev": "npm run generate && node scripts/dev.mjs",
 		"build:client": "vite build",
@@ -26,6 +26,7 @@
 		"@exactjs/request": "^0.1.0",
 		"@exactjs/server": "^0.1.0",
 		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/theme": "^0.1.0",
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {

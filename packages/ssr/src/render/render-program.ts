@@ -1,13 +1,16 @@
 import {
 	RenderProgram,
 	isVNode,
-	readRenderProgram,
-	renderProgramFallback,
 	unwrap,
 	withComponentDomain,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import {
+	readRenderProgram,
+	readRenderProgramSlot,
+	renderProgramFallback
+} from '@exactjs/core/runtime/render';
 import { withEffectScope } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';
@@ -23,15 +26,15 @@ export function renderSsrProgram(
 	const invocation = readRenderProgram(vnode);
 	if (!invocation || context.reactMarkup)
 		return { fallback: materializeProgramFallback(vnode, owner) };
-	const { program, readers } = invocation;
-	if (program.parts.length !== readers.length + 1)
+	const { program } = invocation;
+	if (program.parts.length !== program.slots.length + 1)
 		return { fallback: materializeProgramFallback(vnode, owner) };
 	if (context.markers && !hasValidSsrOperations(program))
 		return { fallback: materializeProgramFallback(vnode, owner) };
-	const values = new Array<unknown>(readers.length);
-	for (let index = 0; index < readers.length; index++) {
+	const values = new Array<unknown>(program.slots.length);
+	for (let index = 0; index < program.slots.length; index++) {
 		const slot = program.slots[index]!;
-		const value = unwrap(readers[index]!());
+		const value = unwrap(readRenderProgramSlot(invocation, index));
 		if (
 			value instanceof Promise ||
 			(slot.kind === 'text' && (isVNode(value) || Array.isArray(value)))
@@ -170,8 +173,12 @@ function materializeProgramFallback(
 	vnode: VNode,
 	owner: ComponentInstance<any> | undefined
 ): VNode {
-	if (!owner) return renderProgramFallback(vnode);
-	return withEffectScope(owner.scope, () =>
-		withComponentDomain(owner.domain, () => renderProgramFallback(vnode))
-	);
+	const fallback = !owner
+		? renderProgramFallback(vnode)
+		: withEffectScope(owner.scope, () =>
+				withComponentDomain(owner.domain, () => renderProgramFallback(vnode))
+			);
+	if (!fallback)
+		throw new Error('Client-only compiler render programs cannot execute through SSR fallback');
+	return fallback;
 }

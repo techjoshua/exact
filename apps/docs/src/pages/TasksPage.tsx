@@ -178,7 +178,8 @@ export function TasksPage(this: Component<{}>) {
 						<strong>Concurrency:</strong> <code>parallel()</code> overlaps invoked generations,
 						<code>latest()</code> supersedes the previous one, and <code>queue()</code> preserves
 						order. <code>key(value)</code> creates an independent lane per key. Reactive activations
-						always supersede their prior generation.
+						always supersede their prior generation as a new durable-owner root, so the replacement
+						does not inherit cancellation from the work it replaces.
 					</li>
 					<li>
 						<strong>Priority:</strong> <code>immediate()</code>, <code>normal()</code>, and

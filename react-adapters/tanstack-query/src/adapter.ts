@@ -49,11 +49,19 @@ export function ExactQueryClientProvider(
 markExactComponent(ExactQueryClientProvider, '@exactjs/tanstack-query:ExactQueryClientProvider');
 
 /** Defines the exact query source interface contract. */
-export interface ExactQuerySource<TData = unknown, TError = DefaultError> {
-	readonly observer: QueryObserver<any, TError, TData, any, any>;
+export interface ExactQuerySource<
+	TData = unknown,
+	TError = DefaultError,
+	TQueryFnData = TData,
+	TQueryData = TQueryFnData,
+	TQueryKey extends QueryKey = QueryKey
+> {
+	readonly observer: QueryObserver<TQueryFnData, TError, TData, TQueryData, TQueryKey>;
 	readonly result: ReactiveValue<QueryObserverResult<TData, TError>>;
 	readonly external: ExternalSource<QueryObserverResult<TData, TError>>;
-	setOptions(options: QueryObserverOptions<any, TError, TData, any, any>): void;
+	setOptions(
+		options: QueryObserverOptions<TQueryFnData, TError, TData, TQueryData, TQueryKey>
+	): void;
 	dispose(): void;
 }
 
@@ -76,33 +84,41 @@ export function createQuerySource<
 >(
 	client: QueryClient,
 	options: QueryObserverOptions<TQueryFnData, TError, TData, TQueryData, TQueryKey>
-): ExactQuerySource<TData, TError> {
-	return createObserverSource(new QueryObserver(client, options)) as ExactQuerySource<
-		TData,
-		TError
-	>;
+): ExactQuerySource<TData, TError, TQueryFnData, TQueryData, TQueryKey> {
+	return createObserverSource(new QueryObserver(client, options));
 }
 
 /** Native infinite-query observer integration backed only by query-core. */
-export function createInfiniteQuerySource(
+export function createInfiniteQuerySource<
+	TQueryFnData = unknown,
+	TError = DefaultError,
+	TData = TQueryFnData,
+	TQueryKey extends QueryKey = QueryKey,
+	TPageParam = unknown
+>(
 	client: QueryClient,
-	options: InfiniteQueryObserverOptions<any, any, any, any, any>
+	options: InfiniteQueryObserverOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>
 ): ExactObserverSource<
-	InfiniteQueryObserverResult<any, any>,
-	InfiniteQueryObserverOptions<any, any, any, any, any>,
-	InfiniteQueryObserver<any, any, any, any, any>
+	InfiniteQueryObserverResult<TData, TError>,
+	InfiniteQueryObserverOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
+	InfiniteQueryObserver<TQueryFnData, TError, TData, TQueryKey, TPageParam>
 > {
 	return createObserverSource(new InfiniteQueryObserver(client, options));
 }
 
 /** Native mutation observer integration backed only by query-core. */
-export function createMutationSource(
+export function createMutationSource<
+	TData = unknown,
+	TError = DefaultError,
+	TVariables = void,
+	TOnMutateResult = unknown
+>(
 	client: QueryClient,
-	options: MutationObserverOptions<any, any, any, any>
+	options: MutationObserverOptions<TData, TError, TVariables, TOnMutateResult>
 ): ExactObserverSource<
-	MutationObserverResult<any, any, any, any>,
-	MutationObserverOptions<any, any, any, any>,
-	MutationObserver<any, any, any, any>
+	MutationObserverResult<TData, TError, TVariables, TOnMutateResult>,
+	MutationObserverOptions<TData, TError, TVariables, TOnMutateResult>,
+	MutationObserver<TData, TError, TVariables, TOnMutateResult>
 > {
 	return createObserverSource(new MutationObserver(client, options));
 }
@@ -140,9 +156,9 @@ export function createComponentQuery<
 	TQueryData = TQueryFnData,
 	TQueryKey extends QueryKey = QueryKey
 >(
-	component: Component<any>,
+	component: Component<Record<string, unknown>>,
 	options: QueryObserverOptions<TQueryFnData, TError, TData, TQueryData, TQueryKey>
-): ExactQuerySource<TData, TError> {
+): ExactQuerySource<TData, TError, TQueryFnData, TQueryData, TQueryKey> {
 	const source = createQuerySource(component.getContext(QueryClientContext), options);
 	component.onUnmount(source.dispose);
 	return source;

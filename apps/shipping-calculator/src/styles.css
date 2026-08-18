@@ -1,46 +1,28 @@
+@import '@exactjs/theme/styles.css';
+
 @layer reset, tokens, base, components, utilities;
 
 @layer tokens {
 	:root {
-		color-scheme: light dark;
-		--ink: #18231f;
-		--muted: #68746f;
-		--canvas: #f3f5f1;
-		--surface: #ffffff;
-		--surface-soft: #edf1eb;
-		--line: #d8dfd8;
-		--accent: #ff6b35;
-		--accent-deep: #d9481b;
-		--accent-soft: #fff0e9;
-		--green: #1f6b4f;
-		--green-soft: #e5f3eb;
-		--blue: #315f8c;
-		--warning: #8a5a00;
-		--danger: #9f2d24;
-		--shadow: 0 16px 50px rgb(29 46 38 / 8%);
-		--radius-sm: 0.65rem;
-		--radius: 1rem;
-		--radius-lg: 1.4rem;
+		--ink: var(--exact-theme-on-canvas);
+		--muted: var(--exact-theme-surface-foreground-muted);
+		--canvas: var(--exact-theme-canvas);
+		--surface: var(--exact-theme-surface-background);
+		--surface-soft: var(--exact-theme-neutral-subtle);
+		--line: var(--exact-theme-surface-border);
+		--accent: var(--exact-theme-accent-solid);
+		--accent-deep: var(--exact-theme-accent-text);
+		--accent-soft: var(--exact-theme-accent-subtle);
+		--green: var(--exact-theme-success-text);
+		--green-soft: var(--exact-theme-success-subtle);
+		--blue: var(--exact-theme-info-text);
+		--warning: var(--exact-theme-warning-text);
+		--danger: var(--exact-theme-danger-text);
+		--shadow: var(--exact-theme-shadow-lg);
+		--radius-sm: var(--exact-theme-radius-sm);
+		--radius: var(--exact-theme-radius-md);
+		--radius-lg: var(--exact-theme-radius-lg);
 		--page: min(92rem, calc(100% - clamp(1rem, 4vw, 4rem)));
-	}
-	@media (prefers-color-scheme: dark) {
-		:root {
-			--ink: #edf5f0;
-			--muted: #a8b6ae;
-			--canvas: #101713;
-			--surface: #17211c;
-			--surface-soft: #202d26;
-			--line: #33423a;
-			--accent: #ff8356;
-			--accent-deep: #ff9a73;
-			--accent-soft: #3e241b;
-			--green: #72d5aa;
-			--green-soft: #19372a;
-			--blue: #8bbbea;
-			--warning: #f3c56e;
-			--danger: #ff9c93;
-			--shadow: 0 18px 60px rgb(0 0 0 / 24%);
-		}
 	}
 }
 

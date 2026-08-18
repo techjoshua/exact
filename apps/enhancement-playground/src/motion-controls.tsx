@@ -2,7 +2,7 @@ import type { Component } from '@exactjs/core';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Consumed by motion:* attributes.
 import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
 import { defineMotion, Presence, type MotionEffect } from '@exactjs/motion';
-import { slideLeft, slideUp } from '@exactjs/motion/presets';
+import { slideLeft } from '@exactjs/motion/presets';
 
 const disclosureMotion = defineMotion({
 	enter: {
@@ -58,6 +58,20 @@ function indicatorChange(
 	};
 }
 
+function panelChange(
+	from: MotionControlsState['activeTab'],
+	to: MotionControlsState['activeTab']
+): MotionEffect {
+	const offset = from === 'profile' && to === 'activity' ? '8px' : '-8px';
+	return {
+		keyframes: [
+			{ opacity: 0, transform: `translateX(${offset})` },
+			{ opacity: 1, transform: 'none' }
+		],
+		options: { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' }
+	};
+}
+
 /** Common state-driven controls enhanced with optional motion. */
 export function MotionControls(this: Component<MotionControlsState>) {
 	this.state.activeTab = 'profile';
@@ -71,7 +85,11 @@ export function MotionControls(this: Component<MotionControlsState>) {
 	};
 
 	return () => (
-		<section className="demo-card motion-demo" aria-labelledby="motion-title">
+		<section
+			theme:surface="raised"
+			className="demo-card motion-demo"
+			aria-labelledby="motion-title"
+		>
 			<div className="demo-heading">
 				<div>
 					<p className="eyebrow">Motion</p>
@@ -88,6 +106,7 @@ export function MotionControls(this: Component<MotionControlsState>) {
 					style={{ transform: indicatorTransforms[this.state.activeTab] }}
 				/>
 				<button
+					theme:selection="strong"
 					role="tab"
 					aria-selected={this.state.activeTab === 'profile'}
 					onClick={() => selectTab('profile')}
@@ -95,6 +114,7 @@ export function MotionControls(this: Component<MotionControlsState>) {
 					<span className="tab-label">Profile</span>
 				</button>
 				<button
+					theme:selection="strong"
 					role="tab"
 					aria-selected={this.state.activeTab === 'activity'}
 					onClick={() => selectTab('activity')}
@@ -102,30 +122,32 @@ export function MotionControls(this: Component<MotionControlsState>) {
 					<span className="tab-label">Activity</span>
 				</button>
 			</div>
-			<div className="tab-panel">
-				<Presence when mode="out-in">
+			<div theme:surface="sunken" className="tab-panel">
+				<div role="tabpanel" motion:change={panelChange(previousTab, this.state.activeTab)}>
 					{this.state.activeTab === 'profile' ? (
-						<div key="profile" motion:apply={slideUp} role="tabpanel">
+						<>
 							<strong>Jordan Lee</strong>
 							<p>Design systems · Pacific time · Available for review</p>
-						</div>
+						</>
 					) : (
-						<div key="activity" motion:apply={slideUp} role="tabpanel">
+						<>
 							<strong>Three updates today</strong>
 							<p>Published tokens, reviewed navigation, and resolved two comments.</p>
-						</div>
+						</>
 					)}
-				</Presence>
+				</div>
 			</div>
 
 			<div className="control-row">
 				<button
+					theme:action="primary"
 					className="primary-button"
 					onClick={() => (this.state.toastVisible = !this.state.toastVisible)}
 				>
 					{this.state.toastVisible ? 'Dismiss toast' : 'Save changes'}
 				</button>
 				<button
+					theme:action="secondary"
 					className="secondary-button"
 					aria-expanded={this.state.expanded}
 					onClick={() => (this.state.expanded = !this.state.expanded)}
@@ -140,7 +162,13 @@ export function MotionControls(this: Component<MotionControlsState>) {
 				</div>
 			</Presence>
 			<Presence when={this.state.toastVisible}>
-				<div className="toast" key="saved" role="status" motion:apply={slideLeft}>
+				<div
+					theme:status="success"
+					className="toast"
+					key="saved"
+					role="status"
+					motion:apply={slideLeft}
+				>
 					<span className="toast-icon">✓</span>
 					<div>
 						<strong>Changes saved</strong>

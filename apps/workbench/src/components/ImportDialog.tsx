@@ -18,6 +18,7 @@ export function ImportDialog(this: Component<{}>, props: ImportDialogProps) {
 	return () => (
 		<div className="dialog-backdrop" onClick={() => workbench.closeImport()}>
 			<section
+				theme:surface="overlay"
 				className="import-dialog"
 				role="dialog"
 				aria-modal="true"
@@ -29,25 +30,30 @@ export function ImportDialog(this: Component<{}>, props: ImportDialogProps) {
 						<h2>Import / Export Tasks</h2>
 						<p>Paste a task JSON array, or use the current text as an export snapshot.</p>
 					</div>
-					<button type="button" className="quiet-button" onClick={() => workbench.closeImport()}>
+					<button theme:action="quiet" type="button" onClick={() => workbench.closeImport()}>
 						Close
 					</button>
 				</header>
 
 				<textarea
+					theme:field="default"
 					ref={this.ref(importRef)}
 					rows={16}
 					value={props.value}
 					onInput={(event) => workbench.setImportText(event.currentTarget.value)}
 				/>
 
-				{props.error ? <p className="form-error">{props.error}</p> : null}
+				{props.error ? (
+					<p theme:status="danger" className="form-error">
+						{props.error}
+					</p>
+				) : null}
 
 				<footer>
-					<button type="button" className="quiet-button" onClick={() => workbench.exportTasks()}>
+					<button theme:action="secondary" type="button" onClick={() => workbench.exportTasks()}>
 						Refresh Export
 					</button>
-					<button type="button" onClick={() => workbench.importTasks()}>
+					<button theme:action="primary" type="button" onClick={() => workbench.importTasks()}>
 						Import Tasks
 					</button>
 				</footer>

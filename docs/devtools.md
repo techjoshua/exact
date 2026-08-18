@@ -37,6 +37,12 @@ bootstrap remains a fallback for pages without transformed native roots. Compile
 reactive cells are transparent at that boundary: a root inspection domain continues into the
 authored component tree when the renderer unwraps the compiled root.
 
+Constructing the first inspection owner also activates task-frame event projection. Production
+artifacts that omit runtime inspection retain only a small optional dispatch point; task snapshot,
+history, value-preview, and event-publication machinery remains outside their execution graph.
+This does not make component state opaque, and an instrumented build still installs the capability
+before its first root is evaluated.
+
 Vite development mode enables those defaults through `@exactjs/vite-plugin`, not through Vite
 itself. Custom middleware servers must include `exact()` in the Vite configuration they load;
 calling `createServer()` or `transformIndexHtml()` without the plugin cannot install runtime

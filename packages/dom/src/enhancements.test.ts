@@ -3,9 +3,13 @@
  */
 import './framework/enhancements.js';
 import {
+	createContext,
+	createCompiledTarget,
 	createDynamicChild,
 	createEnhancementMarker,
+	createExpression,
 	Fragment,
+	markExactEnhancementContexts,
 	Target,
 	TargetOverrides,
 	type Child,
@@ -84,6 +88,30 @@ describe('renderer enhancements', () => {
 		expect(released).toHaveBeenCalledOnce();
 	});
 
+	it('preserves compiler-owned form bindings through target contributions', () => {
+		const publish = vi.fn();
+		const Field = markTestComponent(function Field(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () => createCompiledTarget({ className: 'field' }, props.children);
+		});
+		const container = document.createElement('div');
+
+		render(
+			createVNode('select', {
+				__exactBindChange: publish,
+				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+			}),
+			container,
+			{ enhancementCatalog: new Map([[identity, Field]]) }
+		);
+		container.querySelector('select')!.dispatchEvent(new Event('change', { bubbles: true }));
+
+		expect(publish).toHaveBeenCalledOnce();
+		expect(container.querySelector('select')?.className).toBe('field');
+	});
+
 	it('composes an enhancement directly around an underscore fragment boundary', () => {
 		const Wrapper = markTestComponent(function Wrapper(
 			this: Component<{}>,
@@ -105,6 +133,147 @@ describe('renderer enhancements', () => {
 		);
 
 		expect(container.innerHTML).toBe('<aside>Before<strong>After</strong></aside>');
+	});
+
+	it('constructs direct target descendants beneath enhancement-provided context', () => {
+		const token = createContext<{ readonly value: string }>('@test/direct-enhancement-provider');
+		const consumerSetups = vi.fn();
+		const Provider = markTestComponent(function Provider(
+			this: Component<{}>,
+			props: { children?: Child; value?: string }
+		) {
+			this.setContext(token, {
+				get value() {
+					return props.value ?? 'missing';
+				}
+			});
+			return () => createVNode('section', null, props.children);
+		});
+		markExactEnhancementContexts(Provider, { provides: [token] });
+		const Consumer = markTestComponent(function Consumer(this: Component<{}>) {
+			consumerSetups();
+			const value = this.getContext(token);
+			return () => createVNode('output', null, value.value);
+		});
+		const marker = createEnhancementMarker([{ identity, props: { value: 'ready' } }]);
+		const container = document.createElement('div');
+
+		render(
+			createVNode(
+				Fragment,
+				{ __exactEnhancements: marker },
+				createVNode('div', null, createVNode(Consumer, null))
+			),
+			container,
+			{ enhancementCatalog: new Map([[identity, Provider]]) }
+		);
+
+		expect(container.innerHTML).toBe('<section><div><output>ready</output></div></section>');
+
+		render(
+			createVNode(
+				Fragment,
+				{
+					__exactEnhancements: createEnhancementMarker([{ identity, props: { value: 'updated' } }])
+				},
+				createVNode('div', null, createVNode(Consumer, null))
+			),
+			container,
+			{ enhancementCatalog: new Map([[identity, Provider]]) }
+		);
+
+		expect(container.innerHTML).toBe('<section><div><output>updated</output></div></section>');
+		expect(consumerSetups).toHaveBeenCalledOnce();
+	});
+
+	it('nests direct enhancement providers through fragment and intrinsic targets', () => {
+		const token = createContext<string>('@test/nested-direct-enhancement-provider');
+		const Provider = markTestComponent(function Provider(
+			this: Component<{}>,
+			props: { children?: Child; value?: string }
+		) {
+			const parent = this.hasContext(token) ? this.getContext(token) : undefined;
+			this.setContext(token, `${parent ? `${parent}/` : ''}${props.value}`);
+			return () => createVNode('div', null, props.children);
+		});
+		markExactEnhancementContexts(Provider, {
+			provides: [token],
+			optionallyConsumes: [token]
+		});
+		const Consumer = markTestComponent(function Consumer(this: Component<{}>) {
+			const value = this.getContext(token);
+			return () => createVNode('output', null, value);
+		});
+		const enhanced = (value: string, child: Child) =>
+			createVNode(
+				Fragment,
+				{
+					__exactEnhancements: createEnhancementMarker([{ identity, props: { value } }])
+				},
+				child
+			);
+		const container = document.createElement('div');
+
+		render(
+			enhanced('outer', createVNode('main', null, enhanced('inner', createVNode(Consumer, null)))),
+			container,
+			{ enhancementCatalog: new Map([[identity, Provider]]) }
+		);
+
+		expect(container.querySelector('output')?.textContent).toBe('outer/inner');
+	});
+
+	it('tracks reactive props owned outside a nested direct provider chain', () => {
+		const token = createContext<{ readonly value: string }>(
+			'@test/reactive-nested-direct-provider'
+		);
+		const Provider = markTestComponent(function Provider(
+			this: Component<{}>,
+			props: { children?: Child; value?: string }
+		) {
+			this.setContext(token, {
+				get value() {
+					return props.value ?? 'missing';
+				}
+			});
+			return () => createVNode('div', null, props.children);
+		});
+		markExactEnhancementContexts(Provider, { provides: [token] });
+		const Consumer = markTestComponent(function Consumer(this: Component<{}>) {
+			const value = this.getContext(token);
+			return () => createVNode('output', null, value.value);
+		});
+		let owner!: Component<{ outer: string; inner: string }>;
+		const enhanced = (value: unknown, child: Child) =>
+			createVNode(
+				Fragment,
+				{
+					__exactEnhancements: createEnhancementMarker([{ identity, props: { value } }])
+				},
+				child
+			);
+		const App = markTestComponent(function App(this: Component<{ outer: string; inner: string }>) {
+			owner = this;
+			this.state.outer = 'outer';
+			this.state.inner = 'inner';
+			return () =>
+				enhanced(
+					createExpression(() => this.state.outer),
+					enhanced(
+						createExpression(() => this.state.inner),
+						createVNode(Consumer, null)
+					)
+				);
+		});
+		const container = document.createElement('div');
+		render(createVNode(App, null), container, {
+			enhancementCatalog: new Map([[identity, Provider]])
+		});
+
+		owner.state.inner = 'updated';
+		flushSync();
+
+		expect(container.querySelector('output')?.textContent).toBe('updated');
 	});
 
 	it('forwards layered target properties through ordinary component composition', () => {
@@ -408,5 +577,34 @@ describe('renderer enhancements', () => {
 		flushSync();
 		expect(container.querySelector('a')?.className).toBe('inner outer');
 		expect(outerRefs.at(-1)).toBe(container.querySelector('a'));
+	});
+
+	it('keeps the first direct intrinsic authoritative through transparent conditional output', () => {
+		const state = reactive({ direct: true });
+		const container = document.createElement('div');
+		render(
+			createVNode(
+				Target,
+				{ className: 'outer' },
+				createDynamicChild(() =>
+					createVNode(
+						Fragment,
+						null,
+						state.direct ? createVNode('section', { id: 'host' }, 'Host') : 'No host',
+						createVNode(Target, { className: 'inner' }, createVNode('h2', null, 'Heading'))
+					)
+				)
+			),
+			container
+		);
+
+		expect(container.querySelector('#host')?.className).toBe('outer');
+		expect(container.querySelector('h2')?.className).toBe('inner');
+
+		state.direct = false;
+		flushSync();
+
+		expect(container.querySelector('#host')).toBeNull();
+		expect(container.querySelector('h2')?.className).toBe('inner outer');
 	});
 });

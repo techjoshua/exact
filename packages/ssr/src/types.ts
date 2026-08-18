@@ -98,6 +98,8 @@ export type SsrProfileEvent = ExactProfileEvent<'ssr', 'render-to-string' | 'cre
 export type RenderToStringResult = {
 	html: string;
 	state?: unknown;
+	/** Internal request-owned clock sample transferred to hydrating framework domains. */
+	wallClockSnapshot?: number;
 	resumptions?: readonly ComponentResumptionActivation[];
 	/** Internal response-local table consumed by hydratable entry points. */
 	hydrationTable?: import('./render/hydration-table.js').ExactHydrationTable;
@@ -114,6 +116,8 @@ export type HydrationScriptOptions = {
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
+	/** Internal request-owned clock sample emitted by a paired SSR render. */
+	wallClockSnapshot?: number;
 	/** Compiler-finite client boundary rows grouped by component prop schema. */
 	hydrationTable?: import('./render/hydration-table.js').ExactHydrationTable;
 	executionRoot?: string;
@@ -207,10 +211,7 @@ export type InvocationRefreshBoundaryOptions = BoundaryRefreshOptions & {
 
 /** Configures an invocation refresh. */
 export type InvocationRefreshOptions = {
-	invoke(
-		input: ExactInvocationRequest,
-		context: ExactServerContext
-	): Promise<ExactInvocationResult | void> | ExactInvocationResult | void;
+	invoke: NonNullable<ExactServerContext['invocations']>[string];
 	boundaries: readonly InvocationRefreshBoundaryOptions[];
 };
 
@@ -222,13 +223,7 @@ export type ExactBoundaryRenderer =
 /** Configures exact server handler registry. */
 export type ExactServerHandlerRegistryOptions = RenderToStringOptions & {
 	contract: ExactServerContext['contract'];
-	invocations?: Record<
-		string,
-		(
-			input: ExactInvocationRequest,
-			context: ExactServerContext
-		) => Promise<ExactInvocationResult | void> | ExactInvocationResult | void
-	>;
+	invocations?: ExactServerContext['invocations'];
 	boundaries?: Record<string, ExactBoundaryRenderer>;
 	patchStrategy?: BoundaryRefreshOptions['patchStrategy'];
 };
@@ -364,6 +359,8 @@ export type SsrContext = {
 	>;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
+	/** Immutable wall-clock sample shared by the request render. */
+	wallClockSnapshot: number;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
 	onComponentAttemptCheckpoint?: () => unknown;

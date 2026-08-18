@@ -42,7 +42,8 @@ export function InternationalizationPage(this: Component<{}>) {
 					catalog-driven reordering directly, alongside plural, ordinal, unit, date, duration,
 					property, lazy-catalog, and ordinary unenhanced-content scenarios. The latter demonstrates
 					that content outside an intl enhancement never enters the translation workload. Run it
-					with <code>npm run dev:intl</code>.
+					with <code>npm run dev:intl</code>, or{' '}
+					<a href="./intl/">open the deployed Intl Testbed</a>.
 				</p>
 			</section>
 			<section>

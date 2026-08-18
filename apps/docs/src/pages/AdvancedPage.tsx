@@ -58,7 +58,7 @@ export function AdvancedPage(this: Component<{}>) {
 				<h2>The wider system</h2>
 				<div className="card-grid advanced-grid">
 					{advancedCards.map((card) => (
-						<div className="topic-card">
+						<div theme:surface="raised" className="topic-card">
 							<strong>{card.title}</strong>
 							<p>{card.text}</p>
 							<code>{card.packages}</code>
@@ -123,6 +123,11 @@ export function AdvancedPage(this: Component<{}>) {
 					same local fallback and ownership behavior.
 				</p>
 				<p>
+					A hydrate-only client artifact also omits the duplicate generic VNode factory for a
+					compiler-closed intrinsic program. Complete and server-capable artifacts retain that
+					fallback, and a malformed document still enters deterministic root hydration recovery.
+				</p>
+				<p>
 					Document config, island props, JSON responses, and streamed events pass through the same
 					bounded reactive-protocol decoder. Static repair also uses the DOM renderer&apos;s
 					intrinsic namespace, attribute, URL, class, and unsafe-HTML contract, so eager and
@@ -132,6 +137,11 @@ export function AdvancedPage(this: Component<{}>) {
 					The root bootstrap is parsed once before client ownership is created. Static scalar DOM
 					properties apply directly; only compiler expressions and supported composite reactive
 					values allocate retained property observers.
+				</p>
+				<p>
+					The hydration-only client accepts only its compiler-declared root configuration fields.
+					Transport, continuation, and island fields remain exclusive to the complete runtime and
+					cause the narrow document configuration to fail closed rather than being ignored.
 				</p>
 				<p>
 					The compiler recognizes client islands whose initial browser responsibility is limited to

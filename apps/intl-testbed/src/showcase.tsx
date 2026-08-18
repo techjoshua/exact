@@ -72,7 +72,7 @@ function RecipientBadge(this: Component<Record<string, never>>) {
 /** Empty eager registry entry shown before the lazy example is requested. */
 function EmptyLazyRegion(this: Component<Record<string, never>>) {
 	return () => (
-		<aside className="lazy-result lazy-idle" intl:message="lazy-idle">
+		<aside theme:status="neutral" className="lazy-result lazy-idle" intl:message="lazy-idle">
 			Lazy locale chunk not requested.
 		</aside>
 	);
@@ -84,10 +84,23 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 	const eventDate = new Date('2026-08-08T16:30:00Z');
 	const rangeStart = new Date('2026-08-08T16:30:00Z');
 	const rangeEnd = new Date('2026-08-12T19:00:00Z');
+	const releaseDate = new Date('2026-08-15T12:00:00Z');
+	const releaseSeconds = Math.floor((Date.now() - releaseDate.getTime()) / 1_000);
+	const releaseMinutes = Math.floor((Date.now() - releaseDate.getTime()) / 60_000);
+	const releaseHours = Math.floor((Date.now() - releaseDate.getTime()) / 3_600_000);
+	const releaseDays = Math.floor((Date.now() - releaseDate.getTime()) / 86_400_000);
+	const releaseWeeks = Math.floor((Date.now() - releaseDate.getTime()) / 604_800_000);
+	const releaseMonths = Math.floor((Date.now() - releaseDate.getTime()) / 2_592_000_000);
+	const releaseYears = Math.floor((Date.now() - releaseDate.getTime()) / 31_536_000_000);
 
 	return () => (
 		<IntlProvider environment={props.environment}>
-			<article className="locale-panel" intl:locale data-locale={props.locale}>
+			<article
+				theme:surface="raised"
+				className="locale-panel"
+				intl:locale
+				data-locale={props.locale}
+			>
 				<header className="locale-heading">
 					<div>
 						<span className="locale-code">{props.locale}</span>
@@ -109,7 +122,7 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 						</a>
 						.
 					</p>
-					<p intl:message="transfer-order" className="reorder-example">
+					<p theme:surface="sunken" intl:message="transfer-order" className="reorder-example">
 						Send <strong intl:fragment="report">the quarterly report</strong> to
 						<_ intl:fragment="recipient">
 							<RecipientBadge />
@@ -144,11 +157,11 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 						Native intent inference
 					</p>
 					<dl className="value-grid">
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-currency">Currency</dt>
 							<dd intl:currency>${props.total}</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-road-range">Road range</dt>
 							<dd intl:message="road-range-value">
 								Route coverage:
@@ -158,47 +171,47 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 								.
 							</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-height">Person height</dt>
 							<dd intl:cldr="length/person-height">{props.height} inches</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-temperature">Temperature</dt>
 							<dd intl:cldr="temperature/weather">{props.temperature} °C</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-land-area">Land area</dt>
 							<dd intl:unit="area-land">{2} acres</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-person-mass">Person mass</dt>
 							<dd intl:unit="mass-person">{180} pounds</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-liquid-volume">Liquid volume</dt>
 							<dd intl:unit="volume-liquid">{12} gallons</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-road-speed">Road speed</dt>
 							<dd intl:unit="speed-road">{65} mph</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-weather-pressure">Weather pressure</dt>
 							<dd intl:unit="pressure-weather">{29.92} inHg</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-food-energy">Food energy</dt>
 							<dd intl:unit="energy-food">{500} kcal</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-engine-power">Engine power</dt>
 							<dd intl:unit="power-engine">{150} hp</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-fuel-economy">Fuel economy</dt>
 							<dd intl:unit="fuel-economy-road">{30} mpg</dd>
 						</div>
-						<div>
+						<div theme:surface="sunken">
 							<dt intl:message="label-digital-storage">Digital storage</dt>
 							<dd intl:unit="digital-storage">{512} GB</dd>
 						</div>
@@ -239,6 +252,46 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 													: 'just now'}
 						.
 					</p>
+					<p intl:message="live-relative-time">
+						Testbed release:
+						<time time:update>
+							{Math.abs(releaseSeconds) < 60
+								? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+										-releaseSeconds,
+										'second'
+									)
+								: Math.abs(releaseMinutes) < 60
+									? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+											-releaseMinutes,
+											'minute'
+										)
+									: Math.abs(releaseHours) < 24
+										? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+												-releaseHours,
+												'hour'
+											)
+										: Math.abs(releaseDays) < 7
+											? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+													-releaseDays,
+													'day'
+												)
+											: Math.abs(releaseWeeks) < 5
+												? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+														-releaseWeeks,
+														'week'
+													)
+												: Math.abs(releaseMonths) < 12
+													? new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+															-releaseMonths,
+															'month'
+														)
+													: new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' }).format(
+															-releaseYears,
+															'year'
+														)}
+						</time>
+						.
+					</p>
 					<p intl:message="display-list">
 						Language: {new Intl.DisplayNames('en-US', { type: 'language' }).of(props.languageCode)}.
 						Team:
@@ -252,12 +305,14 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 					</p>
 					<div className="property-row">
 						<input
+							theme:field
 							placeholder="Search messages"
 							intl:placeholder
 							title="Search the localized inbox"
 							intl:title
 						/>
 						<button
+							theme:action="primary"
 							type="button"
 							aria-label={props.languageCode}
 							intl:aria-label="display-name:languageCode"
@@ -278,7 +333,7 @@ export function LocaleShowcase(this: Component<Record<string, never>>, props: Lo
 
 				<Suspense
 					fallback={
-						<aside className="lazy-result" intl:message="lazy-loading">
+						<aside theme:status="success" className="lazy-result" intl:message="lazy-loading">
 							Loading locale chunk…
 						</aside>
 					}

@@ -50,6 +50,8 @@ export type HydrateOptions = {
 	resumptions?: readonly ComponentResumptionActivation[];
 	/** Shared context projections available for compiler-selected operations. */
 	publicContexts?: Record<string, unknown>;
+	/** Internal SSR clock sample used only while adopting the initial view. */
+	wallClockSnapshot?: number;
 	/** Validated response-local compiler-finite boundary table. */
 	hydrationTable?: ExactHydrationTable;
 	islands?: ClientIslandRegistry;
@@ -152,6 +154,7 @@ export type ExactHydrationConfig = {
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
+	wallClockSnapshot?: number;
 	hydrationTable?: ExactHydrationTable;
 	executionRoot?: string;
 	binding?: string;

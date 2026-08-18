@@ -20,7 +20,7 @@ export function AccessibilityPage(this: Component<{}>) {
 			eyebrow="Component library / @exactjs/accessibility"
 			title="Let the browser lead"
 			description="Use ordinary semantic HTML first. The accessibility enhancement adds stable ref relationships, bounded focus lifecycle, complete custom-composite navigation, and package-owned guidance without replacing browser accessibility systems."
-			previous={{ path: '/components/enhancements', label: 'Enhancements' }}
+			previous={{ path: '/components/date-time', label: 'Date & time' }}
 			next={{ path: '/components/trust', label: 'Server trust' }}
 		>
 			<section>
