@@ -53,6 +53,12 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					mutation, excluding automation waits while retaining any interaction-triggered hydration.
 				</p>
 				<p>
+					Paint samples require cross-origin isolation and keep the standard first-contentful-paint
+					start time as the canonical FCP metric. Chromium&apos;s optional render-completion and
+					frame presentation timestamps are recorded separately when the browser exposes them,
+					without substituting one definition for another.
+				</p>
+				<p>
 					Heap samples follow semantic readiness, one rendering opportunity, and explicit garbage
 					collection. Results label this as post-GC retained heap rather than treating live
 					allocation noise as evidence of a leak.
