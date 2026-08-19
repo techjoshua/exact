@@ -7241,6 +7241,11 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 		export function FormattedElapsed(startedAt: number) {
 			return () => <time time:update="second">{formatElapsed(Math.floor((Date.now() - startedAt) / 1000))}</time>;
 		}
+		export function ControlledElapsed(props: { running: boolean; startedAt: number }) {
+			return () => <time time:update={props.running ? "second" : "disabled"}>{formatElapsed(
+				props.running ? Math.floor((Date.now() - props.startedAt) / 1000) : 0
+			)}</time>;
+		}
 		export function DestructuredElapsed(startedAt: number) {
 			const timing = { seconds: Math.floor((Date.now() - startedAt) / 1000) };
 			const { seconds } = timing;
@@ -7317,6 +7322,7 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 	for _, expected := range []string{
 		`from "@exactjs/time/internal"`,
 		"createTimeActivation",
+		"__exactPeek",
 		"readEpochMilliseconds",
 		`kind: "quantized"`,
 		`kind: "threshold"`,
@@ -7345,8 +7351,11 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 	if !strings.Contains(response.Code, `readEpochMilliseconds([`) {
 		t.Fatalf("adaptive range reads did not refresh compact plan inputs:\n%s", response.Code)
 	}
-	if activations := strings.Count(response.Code, "__exactCreateTimeActivation("); activations != 16 {
+	if activations := strings.Count(response.Code, "__exactCreateTimeActivation("); activations != 17 {
 		t.Fatalf("time ranges allocated %d activations, want one per authored range:\n%s", activations, response.Code)
+	}
+	if snapshots := strings.Count(response.Code, "__exactPeek(() => __exactCreateTimeActivation("); snapshots != 17 {
+		t.Fatalf("time activation preparation tracked render dependencies for %d ranges:\n%s", 17-snapshots, response.Code)
 	}
 	localizedStart := strings.Index(response.Code, "export function LocalizedRelease")
 	if localizedStart < 0 {

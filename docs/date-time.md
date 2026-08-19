@@ -109,7 +109,9 @@ sample.
 
 The policy may be reactive. `disabled` withdraws scheduling but retains the range's last sample;
 ordinary props and state remain reactive. Reenabling queues one current sample after the policy
-cycle settles rather than replaying missed ticks.
+cycle settles rather than replaying missed ticks. Policy and clock-plan preparation do not subscribe
+the enclosing component render; the enhancement policy and clock-derived expression retain their
+own precise reactive boundaries, so changing an anchor or policy does not require a keyed remount.
 
 ```tsx
 <time time:update={this.state.live ? 'auto' : 'disabled'}>
