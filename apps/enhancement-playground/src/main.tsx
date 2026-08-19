@@ -30,8 +30,8 @@ function ThemedPlayground(this: Component<Record<string, never>>) {
 			<main>
 				<header className="hero">
 					<nav className="app-nav" aria-label="Application links">
-						<a className="app-link" href="../">
-							Documentation
+						<a className="app-link" href="../#/components/enhancements">
+							Enhancement documentation
 						</a>
 						<a className="app-link" href="#theme-lab">
 							Theme Lab

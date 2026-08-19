@@ -1,4 +1,5 @@
 @import '@exactjs/theme/styles.css';
+@import '@exactjs/app-theme-preference/styles.css';
 
 :root {
 	font-family:
@@ -29,7 +30,7 @@ body {
 	background: var(--exact-theme-canvas);
 }
 
-.exact-theme-scope {
+.app-theme {
 	min-block-size: 100vh;
 	background:
 		radial-gradient(circle at 85% 4%, var(--exact-theme-accent-subtle), transparent 24rem),
@@ -140,7 +141,7 @@ main {
 	grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
 	align-items: end;
 	gap: 56px;
-	padding: clamp(62px, 9vw, 118px) 0 62px;
+	margin-block: clamp(40px, 7vw, 84px) 48px;
 }
 
 .eyebrow {
@@ -204,7 +205,7 @@ main {
 	place-items: center;
 	width: 34px;
 	height: 34px;
-	border: 1px solid #17251e;
+	border: var(--exact-theme-border-width) solid var(--exact-theme-surface-border-strong);
 	border-radius: 50%;
 	font-family: Georgia, serif;
 	font-size: 12px;
@@ -554,8 +555,16 @@ input:disabled {
 	min-height: 620px;
 	padding: clamp(24px, 4vw, 55px);
 	background:
-		linear-gradient(90deg, rgba(23, 37, 30, 0.035) 1px, transparent 1px),
-		linear-gradient(rgba(23, 37, 30, 0.035) 1px, transparent 1px), #dcd8cc;
+		linear-gradient(
+			90deg,
+			color-mix(in oklch, var(--exact-theme-surface-foreground) 7%, transparent) 1px,
+			transparent 1px
+		),
+		linear-gradient(
+			color-mix(in oklch, var(--exact-theme-surface-foreground) 7%, transparent) 1px,
+			transparent 1px
+		),
+		var(--exact-theme-surface-background);
 	background-size: 18px 18px;
 }
 
@@ -564,7 +573,7 @@ input:disabled {
 	max-width: 100%;
 	max-height: 720px;
 	background: white;
-	box-shadow: 0 22px 50px rgba(31, 39, 34, 0.2);
+	box-shadow: var(--exact-theme-shadow-lg);
 }
 
 .artifact-info {
@@ -657,7 +666,7 @@ footer {
 	}
 
 	.hero {
-		padding-top: 48px;
+		margin-block-start: 36px;
 	}
 
 	.kind-grid,

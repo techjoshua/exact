@@ -19,8 +19,12 @@ var safeDerivedCollectionMethods = map[string]struct{}{
 
 var safeDerivedStringMethods = map[string]struct{}{
 	"endsWith": {}, "includes": {}, "localeCompare": {}, "slice": {},
-	"startsWith": {}, "substr": {}, "substring": {}, "toLowerCase": {},
+	"padEnd": {}, "padStart": {}, "startsWith": {}, "substr": {}, "substring": {}, "toLowerCase": {},
 	"toUpperCase": {}, "trim": {}, "trimEnd": {}, "trimStart": {},
+}
+
+var safeDerivedNumericMethods = map[string]struct{}{
+	"toExponential": {}, "toFixed": {}, "toPrecision": {}, "toString": {},
 }
 
 var safeDerivedScalarFunctions = map[string]struct{}{
@@ -703,6 +707,10 @@ func safeDerivedCall(
 	}
 	if _, safe := safeDerivedStringMethods[name]; safe &&
 		(display == "string" || strings.Contains(display, "String")) {
+		return true
+	}
+	if _, safe := safeDerivedNumericMethods[name]; safe &&
+		(display == "number" || display == "bigint" || strings.Contains(display, "Number")) {
 		return true
 	}
 	if _, safe := safeDerivedCollectionMethods[name]; safe &&

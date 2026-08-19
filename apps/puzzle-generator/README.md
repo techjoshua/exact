@@ -60,8 +60,10 @@ reports the model's finish reason and explains when the output limit interrupted
 object; failed validation never hides the model's response.
 
 The application shell uses `@exactjs/theme` for its generated canvas, focus, typography, surfaces,
-actions, and selection roles. Print-preview artwork and user-selected puzzle colors remain part of
-the publishing document model rather than inheriting the application theme.
+actions, and selection roles. Its shared appearance control follows the system preference by
+default and stores only an explicit light or dark override. Print-preview artwork and user-selected
+puzzle colors remain part of the publishing document model rather than inheriting the application
+theme.
 
 ## Build one portable file
 

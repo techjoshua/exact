@@ -163,6 +163,13 @@ func (lowering *jsxLowering) timeExpressionHasUnsafeClockCall(node *ast.Node) bo
 		if _, _, _, supported := lowering.timeQuantizationForExpression(candidate, make(map[ast.SymbolId]struct{})); supported {
 			return false
 		}
+		// A locally defined formatter is no more opaque than the arithmetic around it when
+		// the compiler can prove its complete call graph safe for reactive reevaluation.
+		// This keeps ordinary TypeScript helpers usable for clocks and counters while
+		// imported, ambient, stateful, or otherwise effectful calls remain diagnostic.
+		if safeReactiveInitializer(candidate, lowering.sourceFile, lowering.checker) {
+			return false
+		}
 		if ast.IsPropertyAccessExpression(candidate.AsCallExpression().Expression) {
 			member := candidate.AsCallExpression().Expression.AsPropertyAccessExpression()
 			if ast.IsIdentifier(member.Expression) && member.Expression.Text() == "Math" {

@@ -53,7 +53,7 @@ export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 				<a
 					theme:action="quiet"
 					className="github-link"
-					href="https://github.com"
+					href="https://github.com/techjoshua/exact"
 					target="_blank"
 					rel="noreferrer"
 				>
