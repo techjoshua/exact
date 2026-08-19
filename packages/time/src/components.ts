@@ -67,7 +67,9 @@ export function TimeUpdate(this: Component<{}>, props: TimeUpdateProps) {
 	const hydration = isHydrationComponentDomain((this as ComponentInstance<{}>).domain);
 	let mountedActivation: ReturnType<typeof resolveActivation>;
 	this.onMount(() => {
-		mountedActivation = resolveActivation(props.update);
+		// Component props can expose object values through a reactive proxy. Retain the same raw
+		// activation identity used during render so a policy update cannot dispose its own range.
+		mountedActivation = resolveActivation(unwrap(props.update));
 		mountedActivation?.mount(resolveTimeEnvironment(this), { deferInitialPublish: hydration });
 	});
 	this.onUnmount(() => mountedActivation?.dispose());

@@ -194,7 +194,7 @@ describe('SudokuApp runtime', () => {
 		}
 	});
 
-	it('freezes the clock at completion and includes the final time in the victory text', async () => {
+	it('freezes the clock at completion and restarts it for the next game', async () => {
 		vi.useFakeTimers();
 		const clock = createManualTimeClock(Date.now());
 		const container = document.createElement('div');
@@ -227,7 +227,8 @@ describe('SudokuApp runtime', () => {
 			await vi.advanceTimersByTimeAsync(0);
 			flushSync();
 			await Promise.resolve();
-			expect(container.querySelector('.mobile-timer .elapsed-clock')?.textContent).toBe('01:06');
+			const runningClock = container.querySelector('.mobile-timer .elapsed-clock');
+			expect(runningClock?.textContent).toBe('01:06');
 
 			const digit = Number(puzzle.solution[target.index]) as Digit;
 			container.querySelectorAll<HTMLButtonElement>('.number-key')[digit - 1]!.click();
@@ -237,9 +238,28 @@ describe('SudokuApp runtime', () => {
 			flushSync();
 
 			expect(container.querySelector('.victory-banner')?.textContent).toContain('01:06');
+			expect(container.querySelector('.mobile-timer .elapsed-clock')).toBe(runningClock);
 			await vi.advanceTimersByTimeAsync(3_000);
+			clock.advance(3_000);
 			flushSync();
 			expect(container.querySelector('.mobile-timer .elapsed-clock')?.textContent).toBe('01:06');
+
+			container.querySelector<HTMLButtonElement>('.new-game-button')!.click();
+			flushSync();
+			await Promise.resolve();
+			await Promise.resolve();
+			clock.runDue();
+			flushSync();
+			expect(container.querySelector('.mobile-timer .elapsed-clock')?.textContent).toBe('00:00');
+			expect(clock.pendingTimerCount).toBeGreaterThan(0);
+			expect(clock.nextDeadline?.epochMilliseconds).toBe(clock.now().epochMilliseconds + 1_000);
+
+			await vi.advanceTimersByTimeAsync(1_000);
+			clock.advance(1_000);
+			clock.runDue();
+			await vi.runAllTicks();
+			flushSync();
+			expect(container.querySelector('.mobile-timer .elapsed-clock')?.textContent).toBe('00:01');
 		} finally {
 			unmount(container);
 			vi.useRealTimers();
