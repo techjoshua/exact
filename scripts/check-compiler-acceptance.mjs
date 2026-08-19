@@ -77,7 +77,7 @@ async function checkSudoku(page, origin) {
 
 async function checkDocs(page, origin) {
 	await page.goto(origin, { waitUntil: 'networkidle' });
-	await page.getByRole('heading', { name: 'Expressive by design. eXact by execution.' }).waitFor();
+	await page.getByRole('heading', { name: 'Build reactive apps with TypeScript' }).waitFor();
 	await page.locator('.copy-button').first().waitFor();
 	await page.getByRole('button', { name: '+1' }).click();
 	await expectEventually(
