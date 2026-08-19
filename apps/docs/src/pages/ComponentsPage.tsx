@@ -202,7 +202,7 @@ export function ComponentsPage(this: Component<{}>) {
 				<h3>Compact value bindings</h3>
 				<p>
 					The compact <code>property:eventHandler</code> form connects a writable state location to
-					a value prop and the callback that publishes its replacement. On a component, both names
+					a value prop and the callback that publishes its replacement. Both names
 					must be ordinary declared props on the child component. Here, <code>expanded</code> is an
 					ordinary value prop and <code>onExpandedChanged</code> is an ordinary callback prop. The
 					parent still owns <code>this.state.settingsExpanded</code>; the shorthand passes its
@@ -336,7 +336,7 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>
 						A component-scoped, runtime-configurable logger. Canonical level calls defer all
 						argument evaluation until that level is enabled, and read reactive values through
-						<code>peek()</code> so diagnostics do not create dependencies. Builds never erase them.
+						<code>peek()</code> so logging does not create dependencies. Builds never erase them.
 						Enabling <code>trace</code> also exposes correlated interaction start, synchronous
 						handler completion, feedback commit, reconciliation work, optimistic task, and
 						structural-settlement timings. A logger passed to a render or hydration root is

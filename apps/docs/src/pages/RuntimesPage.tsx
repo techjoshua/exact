@@ -22,7 +22,7 @@ const buildIntegrations: Integration[] = [
 		name: 'Webpack 5',
 		package: '@exactjs/webpack-plugin',
 		coverage:
-			'Compiler loader, source maps, resolver conditions, diagnostics, and React compatibility.',
+			'Compiler loader, source maps, resolver conditions, compiler feedback, and React compatibility.',
 		application: 'Configure serving and the surrounding Webpack asset pipeline.'
 	},
 	{
@@ -162,7 +162,7 @@ export function RuntimesPage(this: Component<{}>) {
 			previous={{ path: '/getting-started', label: 'Quick start' }}
 			next={{ path: '/learn/components', label: 'Components' }}
 		>
-			<Callout title="Two choices, not one" tone="tip">
+			<Callout title="Choose a compiler host and server runtime" tone="tip">
 				<p>
 					A compiler integration handles TSX and client/server artifacts. A runtime adapter connects
 					eXact task invocations and refreshes to an HTTP host. For example, an application can
@@ -196,7 +196,7 @@ export function RuntimesPage(this: Component<{}>) {
 				<p>
 					There are no dedicated Rollup, esbuild, Rspack, or Parcel plugins today. Those pipelines
 					can consume <code>exactc</code> output, but they do not yet receive automatic target
-					conditions, asset coordination, HMR behavior, or eXact diagnostics from a native plugin.
+					conditions, asset coordination, HMR behavior, or compiler feedback from a native plugin.
 					Provider-specific adapters for platforms such as Vercel Functions, Netlify Functions, and
 					individual AWS streaming modes are also future integration work; use the Fetch or generic
 					serverless adapter only when its documented request and response model fits.

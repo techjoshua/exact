@@ -6,7 +6,7 @@ import { TaskBasics } from './TaskBasics.jsx';
 import { TaskIntroduction } from './TaskIntroduction.jsx';
 import { taskSources } from './task-sources.js';
 
-/** Documents function-defined tasks, structured lifetime, policy, and the public task ABI. */
+/** Documents function-defined tasks, scheduling, readiness, and cleanup. */
 export function TasksPage(this: Component<{}>) {
 	return () => (
 		<Article
@@ -19,7 +19,7 @@ export function TasksPage(this: Component<{}>) {
 			<TaskIntroduction />
 			<TaskBasics />
 			<section>
-				<h2>The compiler wires discoverable cancellation and ownership</h2>
+				<h2>Cancellation and cleanup follow the task</h2>
 				<p>
 					Every generation already has an <code>AbortSignal</code>. When a call&apos;s TypeScript
 					signature exposes an optional direct <code>AbortSignal</code> parameter or an options
@@ -34,59 +34,33 @@ export function TasksPage(this: Component<{}>) {
 					title="FeedConnection.tsx"
 				/>
 				<p>
-					Conceptually, the generated task generation supplies its abort signal to recognized
-					listener options and owns the socket&apos;s cleanup. The names below are explanatory
-					placeholders, not public APIs or emitted-code guarantees.
-				</p>
-				<CodeBlock
-					source={taskSources.inferredLifetimeWiringSource}
-					language="ts"
-					title="Conceptual generated lifetime wiring"
-				/>
-				<p>
-					The compiler also owns resources whose cleanup protocol and lifetime are visible. This
-					includes timers, animation and idle callbacks, observers, sockets, workers, subscription
-					results with a callable cleanup or <code>unsubscribe()</code>/<code>dispose()</code>, and
-					local <code>Disposable</code> or <code>AsyncDisposable</code> values. It releases them
-					when the generation settles or is cancelled.
+					eXact also cleans up recognized timers, observers, sockets, workers, subscriptions, and
+					disposable values when the task settles or is cancelled.
 				</p>
 				<p>
-					Automatic ownership is deliberately conservative. The resource must stay local to the
-					generation, and its disposal contract must be discoverable from a known API, its return
-					type, or an eXact ownership annotation. If a resource escapes, the compiler reports a
-					diagnostic instead of guessing its lifetime.
+					Automatic cleanup applies when the resource stays local and has a known cleanup method.
+					The compiler reports resources whose lifetime is unclear.
 				</p>
 				<Callout title="Use TaskContext at opaque boundaries">
 					<p>
-						Pass <code>task.signal</code> when a wrapper hides its cancellable signature. Use
-						<code>task.cleanup()</code> for an opaque cleanup callback and <code>task.own()</code>
-						for a disposable value the compiler cannot associate safely. The language tools show
-						recognized signal injection and owned resources, so inferred lifetime is inspectable.
+						Pass <code>task.signal</code> through custom wrappers. Use <code>task.cleanup()</code> for
+						cleanup callbacks and <code>task.own()</code> for disposable values.
 					</p>
 				</Callout>
 			</section>
 			<section>
 				<h2>TaskContext makes policy and capabilities explicit</h2>
 				<p>
-					Most tasks should begin without an explicit context. Add a final <code>TaskContext</code>
-					parameter when the compiler cannot infer an architectural choice, when you want to
-					override a default, or when the body needs a generation capability such as cancellation,
-					optimistic state, cleanup, owned disposal, or an untracked read.
+					Most tasks need no explicit context. Add a final <code>TaskContext</code> parameter for
+					placement, scheduling, cancellation, optimistic state, cleanup, or untracked reads.
 				</p>
 				<CodeBlock source={taskSources.reactiveTaskSource} language="tsx" title="Search.tsx" />
 				<p>
-					The final declaration has two distinct jobs. Inside the function, <code>task</code> is the
-					real context for the current generation, which is why the request can use
-					<code>task.signal</code>. In the parameter default, the chain rooted at the imported
-					<code>TaskContext</code> value is <strong>declarative compiler syntax</strong>. Here it
-					states that the work belongs on the client.
+					Inside the function, <code>task</code> describes the current run. Its default value declares
+					policy; this example places the task on the client.
 				</p>
 				<p>
-					Application code never supplies that final argument. The compiler recognizes and validates
-					the default expression, records its policy on the generated task definition, erases the
-					policy builder from emitted application code, and supplies a fresh runtime context
-					whenever a generation starts. A lookalike object or an ordinary default parameter does not
-					receive this treatment.
+					Application code omits the final argument. eXact supplies it for each run.
 				</p>
 				<ul>
 					<li>
@@ -106,10 +80,8 @@ export function TasksPage(this: Component<{}>) {
 					</li>
 				</ul>
 				<p>
-					Without those modifiers, placement and readiness are inferred, invoked generations run in
-					parallel at normal priority, reactive generations are latest-wins, and child work attaches
-					to its ambient task. The <code>query</code> argument in this example is the reactive
-					input; a changed query supersedes the prior generation.
+					By default, eXact infers placement and readiness. Invoked runs are parallel at normal
+					priority, reactive runs use the latest value, and child work joins its parent task.
 				</p>
 			</section>
 			<section>
@@ -208,8 +180,8 @@ export function TasksPage(this: Component<{}>) {
 				<h2>Async, await, and Suspense are different decisions</h2>
 				<p>
 					<code>async</code> is JavaScript syntax: it permits <code>await</code> and makes the
-					function return a promise. It does not by itself select task readiness or show a Suspense
-					fallback. <code>await</code> is a suspension point inside an eXact task: the generation
+					function return a promise. Task policy selects readiness and Suspense behavior.
+					<code>await</code> is a suspension point inside an eXact task: the generation
 					stays pending, its continuation retains cancellation and ownership, and later state writes
 					are fenced against stale generations.
 				</p>
@@ -295,7 +267,7 @@ export function TasksPage(this: Component<{}>) {
 					unhandled rejection fails the structural parent. Adding <code>.catch()</code> observes and
 					can recover that result without changing attachment.
 				</p>
-				<Callout title="Await does not authorize effects or control Suspense">
+				<Callout title="Effects and Suspense use task policy">
 					<p>
 						The compiler fences staged framework effects so cancelled or stale generations cannot
 						publish them. External effects cannot be rolled back automatically, so pass
@@ -319,7 +291,7 @@ export function TasksPage(this: Component<{}>) {
 					a frame. Use <code>task.cleanup()</code> for callbacks and <code>task.own()</code> for
 					disposable resources.
 				</p>
-				<Callout title="Cleanup follows the generation, not just the component">
+				<Callout title="Cleanup follows each task run">
 					<p>
 						A synchronous task that registers cleanup and then returns runs that cleanup immediately
 						as the generation settles. Keep the task pending for the resource&apos;s intended
@@ -342,24 +314,6 @@ export function TasksPage(this: Component<{}>) {
 					Server continuations run through the same frame contract. Their trusted
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
 					attached-child settlement without serializing task authority through the browser.
-				</p>
-			</section>
-			<section>
-				<h2>Compilerless libraries use the same runtime</h2>
-				<p>
-					Published libraries and adapters can import the versioned
-					<code>@exactjs/core/tasks/v1</code> ABI. <code>defineTask()</code> creates a stable
-					definition, <code>bindTask()</code> captures durable ownership, and
-					<code>createTaskOwner()</code> makes an explicit lifetime for cross-root concurrency.
-				</p>
-				<CodeBlock source={taskSources.librarySource} language="ts" title="catalog-task.ts" />
-				<p>
-					Explicit owners are async-disposable: disposal cancels their queued and active generations
-					and waits for structural cleanup. Framework packages use the narrower opaque frame SPI at
-					<code>@exactjs/core/framework/task-frames</code>. Its executions are cancelable:
-					cancellation aborts attached descendants and reports completion only after their
-					cooperative cleanup. Structural finalizers remain attached to the parent task, while
-					semantic frame kinds and human labels remain visible to inspection tools.
 				</p>
 			</section>
 		</Article>

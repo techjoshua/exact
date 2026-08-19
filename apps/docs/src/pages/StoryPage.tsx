@@ -116,12 +116,12 @@ export function StoryPage(this: Component<{}>) {
 		<Article
 			eyebrow="The story behind eXact"
 			title="From async/await to eXact"
-			description="Clear source code and sophisticated runtime machinery do not have to be enemies. Sometimes the compiler can carry the complexity so the programmer does not have to."
+			description="A compiler can turn clear source code into the sophisticated machinery needed to run it. That idea led from async/await to eXact."
 			previous={{ path: '/', label: 'Introduction' }}
 			next={{ path: '/getting-started', label: 'Quick start' }}
 		>
 			<section>
-				<h2>When asynchronous code started reading like ordinary code</h2>
+				<h2>Async code became readable</h2>
 				<p>
 					I remember when <code>async</code>/<code>await</code> arrived in JavaScript. My coworkers
 					were in awe of how naturally it expressed complicated asynchronous work. There were no
@@ -134,13 +134,12 @@ export function StoryPage(this: Component<{}>) {
 					My background was in C#, starting with .NET 1.0. When C# async support was previewed for
 					.NET 4.5, I was excited for the same reason. My work was still on .NET 4, so I could not
 					use it yet, but I read everything I could find from Eric Lippert, Mads Torgersen, and
-					Stephen Toub. The important lesson was not merely how to spell <code>await</code>. It was
-					what a compiler could make that spelling mean.
+					Stephen Toub. The syntax mattered less than what the compiler could make it mean.
 				</p>
 			</section>
 
 			<section>
-				<h2>The machinery can be stranger than the source</h2>
+				<h2>Compilers can hide complex machinery</h2>
 				<p>
 					C# lowers an async method into a resumable state machine. It preserves local data between
 					steps, records where execution should continue, and advances the method when awaited work
@@ -162,19 +161,19 @@ export function StoryPage(this: Component<{}>) {
 				<p>
 					It was a toy, but it taught me something durable: a programmer can write the clearest
 					version of an idea while the compiler generates the bookkeeping. The transformed program
-					may contain states, continuations, and careful error handling; the authored program does
-					not need to advertise all of that machinery.
+					may contain states, continuations, and careful error handling while the authored program
+					stays clear.
 				</p>
 			</section>
 
 			<section>
-				<h2>JavaScript completed the circle</h2>
+				<h2>JavaScript adopted the same idea</h2>
 				<p>
 					JavaScript standardized generators before <code>async</code>/<code>await</code>. During
 					the long period when browser support varied, tools such as Babel and TypeScript could
 					lower newer syntax into generator-like or explicit state-machine code for older targets.
 					Modern engines support async functions directly and may optimize them in different ways;
-					the language specification defines their observable behavior, not one mandatory internal
+					the language specification defines their observable behavior while engines choose the
 					implementation.
 				</p>
 				<CodeBlock
@@ -183,14 +182,13 @@ export function StoryPage(this: Component<{}>) {
 					title="A generator-shaped JavaScript lowering"
 				/>
 				<p>
-					That distinction matters. The gift of compilation is not a particular <code>switch</code>
-					statement hidden in generated output. It is the freedom to separate an expressive source
-					model from the detailed mechanism that makes the model work.
+					That distinction matters. Compilation gives us the freedom to separate an expressive
+					source model from the detailed mechanism that makes it work.
 				</p>
 			</section>
 
 			<section>
-				<h2>Then I looked at components</h2>
+				<h2>Applying the lesson to components</h2>
 				<p>
 					React proved that components and declarative views could transform web development. Its
 					modern function components are concise and composable, and Hooks make state, effects, and
@@ -201,8 +199,8 @@ export function StoryPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={reactCounterSource} language="tsx" title="A React counter" />
 				<p>
-					That is a coherent architecture, not an accident. It also puts your code in a box:
-					repeated component execution shapes how state, effects, closures, identity, and
+					That is a deliberate architecture. Repeated component execution shapes how state,
+					effects, closures, identity, and
 					memoization must be handled, and Hooks must be called in the same order on every render.
 				</p>
 				<p>
@@ -220,11 +218,11 @@ export function StoryPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Describe once... update only what depends on state</h2>
+				<h2>Define once, update precisely</h2>
 				<p>
-					In eXact, the component body is a compiler-analyzed definition of initial state, tasks,
-					reactive relationships, and view preparation—not a callback executed linearly. The
-					compiler turns that description into a reactive state machine, and each mounted component
+					In eXact, the compiler treats the component body as a definition of initial state, tasks,
+					reactive relationships, and view preparation. The compiler turns that description into a
+					reactive state machine, and each mounted component
 					owns one durable instance. Every state read connects to the DOM expression, derived value,
 					task, or server operation that consumes it.
 				</p>
@@ -269,38 +267,36 @@ export function StoryPage(this: Component<{}>) {
 					record, stages permitted writes, and returns a transport-safe result.
 				</p>
 				<p>
-					The component author does not hand-build an endpoint for each continuation or reproduce
-					the protocol in application code. The compiler and server runtime own operation IDs,
+					The compiler and server runtime provide the endpoint and protocol for each continuation.
+					They own operation IDs,
 					allowlisting, serialization checks, cancellation, state publication, and the connection
 					back to reactive UI work.
 				</p>
 			</section>
 
 			<section>
-				<h2>The split is also a bundle boundary</h2>
+				<h2>Server placement shapes the browser bundle</h2>
 				<p>
 					A database SDK, GraphQL parser, Apollo Client instance, or TanStack Query cache used only
-					by server work does not belong in the browser artifact. eXact&apos;s compiler plans that
-					separation, and its bundler integrations can verify the final client graph so server-only
-					modules do not leak into runtime chunks or assets. The browser receives public data and a
-					small generated continuation contract—not the server&apos;s data stack or credentials.
+					by server work stays in the server artifact. eXact&apos;s compiler plans that separation, and
+					its bundler integrations verify the final client graph. The browser receives public data
+					and a small generated continuation contract. Server data clients and credentials remain on
+					the server.
 				</p>
 				<p>
-					The same ownership model improves diagnostics. An eXact component is a real, long-lived
+					The same ownership model improves debugging. An eXact component is a real, long-lived
 					object whose state, tasks, contexts, resources, and lifecycle can be inspected. Tests
 					should prefer stable public behavior, because implementation-coupled tests are expensive
-					to maintain. But inspectability still matters when debugging a failed invariant, checking
+					to maintain. Inspectability still matters when debugging a failed invariant, checking
 					cleanup, or understanding why a transition produced the wrong behavior.
 				</p>
 			</section>
 
 			<section>
-				<h2>React is a bridge, not the blueprint</h2>
+				<h2>React compatibility supports gradual adoption</h2>
 				<p>
-					None of this diminishes React&apos;s contribution. React changed how the industry thinks
-					about interface composition and built an ecosystem that a new framework should not ask
-					people to abandon overnight. eXact therefore includes an optional compatibility layer for
-					supported React 18 and 19 components.
+					React changed how the industry builds interfaces and supports a vast ecosystem. eXact&apos;s
+					optional compatibility layer lets applications use supported React 18 and 19 components.
 				</p>
 				<CodeBlock
 					source={reactCompatibilitySource}
@@ -312,8 +308,8 @@ export function StoryPage(this: Component<{}>) {
 					retain React semantics internally while their reactive inputs can come from eXact state.
 					Mixed trees, context bridges, SSR, hydration, Hooks, class components, refs, Suspense, and
 					portals are supported within the documented compatibility boundary. Packages that depend
-					on private Fiber or host-renderer behavior may still be rejected, and React Server
-					Components are not the architecture eXact is trying to reproduce.
+					on private Fiber or host-renderer behavior may still be rejected. Native eXact components
+					continue to use eXact&apos;s component and server model.
 				</p>
 				<p>
 					The goal is straightforward: make eXact the framework people want to build with, while
