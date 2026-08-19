@@ -60,7 +60,7 @@ test('machine-specific native corpus timing remains an explicit local diagnostic
 	assert.doesNotMatch(releaseCheck, /check:native-compiler-corpus/);
 });
 
-test('Pages publishes Puzzle Foundry and advertises its hosted entry point', async () => {
+test('Pages publishes Puzzle Foundry without advertising its hosted entry point', async () => {
 	const workflow = await readFile(
 		path.resolve('.github/workflows/native-compiler-packages.yml'),
 		'utf8'
@@ -71,8 +71,7 @@ test('Pages publishes Puzzle Foundry and advertises its hosted entry point', asy
 
 	assert.match(workflow, /npm run build:puzzle-generator:standalone/);
 	assert.match(assembler, /puzzle-foundry\.html/);
-	assert.match(samplesReference, /apps\/puzzle-generator/);
-	assert.match(samplesReference, /puzzle-foundry\.html/);
-	assert.match(samplesPage, /Puzzle Foundry/);
-	assert.match(samplesPage, /href="\.\/puzzle-foundry\.html"/);
+	assert.match(samplesReference, /intentionally unadvertised `puzzle-foundry\.html`/);
+	assert.doesNotMatch(samplesPage, /puzzle-foundry\.html/);
+	assert.doesNotMatch(samplesPage, /Puzzle Foundry/);
 });

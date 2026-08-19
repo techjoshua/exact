@@ -1,4 +1,5 @@
 import { peek, type Component } from '@exactjs/core';
+import { ThemeModeToggle, ThemePreferenceContext } from '@exactjs/app-theme-preference';
 import { GeneratorControls } from './components/GeneratorControls.jsx';
 import { PuzzlePreview } from './components/PuzzlePreview.jsx';
 import { StyleControls } from './components/StyleControls.jsx';
@@ -62,6 +63,7 @@ const initialStyle: PuzzleStyle = {
 
 /** Owns the browser-local generator inputs and the current pair of SVG artifacts. */
 export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
+	const themePreference = this.getContext(ThemePreferenceContext);
 	this.state.kind = 'sudoku';
 	this.state.difficulty = 'medium';
 	this.state.seed = createSeed();
@@ -217,6 +219,10 @@ export function PuzzleGeneratorApp(this: Component<PuzzleGeneratorState>) {
 
 	return () => (
 		<div className="app-shell">
+			<ThemeModeToggle
+				appearance={themePreference.appearance}
+				onToggle={() => themePreference.toggleAppearance()}
+			/>
 			<header theme:surface="raised" className="masthead">
 				<a className="brand" href="#top" aria-label="Puzzle Foundry home">
 					<span className="brand-mark" aria-hidden="true">

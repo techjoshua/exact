@@ -26,6 +26,8 @@ change cannot be proven instead of silently polling. Analysis follows safe alias
 record/array projections, destructuring, and prop-bearing lexical micro-views. Fixed-unit Temporal
 rounding preserves authored anchors and half-expand boundaries; calendar-relative Temporal
 duration rounding requires an explicit calendar policy rather than a fixed-millisecond guess.
+Local pure TypeScript formatters are followed through their call graph, including ordinary numeric
+and string formatting; opaque, imported, or effectful helpers remain diagnostic.
 `TimeProvider` accepts separate clock, time-zone, calendar, and week-start fields. The package also
 contributes policy completions, activation inspection, and targeted diagnostics. See the
 [date/time reference](../../docs/date-time.md).

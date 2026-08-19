@@ -15,8 +15,8 @@ export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
 	return () => (
 		<header className="toolbar">
 			<div>
-				<a className="docs-link" href="../">
-					Documentation
+				<a className="docs-link" href="../#/learn/lists">
+					Keyed-list documentation
 				</a>
 				<h1 theme:text="display">eXact Kanban</h1>
 				<p theme:text="supporting">{summary}</p>

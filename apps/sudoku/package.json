@@ -16,6 +16,7 @@
 		"@exactjs/gestures": "^0.1.0",
 		"@exactjs/jsx": "^0.1.0",
 		"@exactjs/motion": "^0.1.0",
+		"@exactjs/time": "^0.1.0",
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {

@@ -18,8 +18,8 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 	return () => (
 		<header className="workbench-header">
 			<div>
-				<a className="docs-link" href="../">
-					Documentation
+				<a className="docs-link" href="../#/learn/tasks">
+					Task documentation
 				</a>
 				<h1 theme:text="display">Project Workbench</h1>
 				<p theme:text="supporting">

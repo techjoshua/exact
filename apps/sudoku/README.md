@@ -1,7 +1,8 @@
 # eXact Sudoku sample
 
 An installable Sudoku game demonstrating compiler-backed TSX, fine-grained grid updates, keyboard
-and pointer input, local persistence, optional attributed motion enhancements, and offline
+and pointer input, local persistence, clock-derived time updates, optional attributed motion
+enhancements, and offline
 standalone builds. Theme, pause, victory, and inspector elements remain ordinary functional JSX;
 when the motion capability is bundled they gain preset or reactive transitions, and when it is
 excluded they fall back to their authored states without replacement components. The portrait
@@ -22,7 +23,10 @@ click-to-enter; selecting it again clears both the number and cell selection. Mo
 right-click an editable cell to toggle a pencil mark for the selected number. Each board cell
 retains stable value and nine-slot pencil-mark DOM layers, while board-root CSS state controls their
 visibility and matching-number highlights. Solving a puzzle stops its clock and includes the final
-elapsed time in the victory message.
+elapsed time in the victory message. The displayed clock is ordinary TypeScript formatting over an
+absolute running anchor, advanced by the shared `time:update` scheduler. Elapsed duration is settled
+on pause or completion and persisted with game changes or when the page hides, rather than writing
+storage once per second.
 
 ## Build
 
