@@ -52,9 +52,41 @@ describe('@exactjs/time language analyzer', () => {
 		);
 		expect(diagnostics.map(({ code }) => code)).toContain('time-clock-precision-unavailable');
 	});
+
+	it('follows clock dependencies through local TypeScript formatters', async () => {
+		const analyzer = await createExactLanguageAnalyzer({} as never);
+		const signal = new AbortController().signal;
+		const prefix = `function formatElapsed(totalSeconds: number) {
+			const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+			const seconds = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+			return \`${'${minutes}'}:${'${seconds}'}\`;
+		}\n`;
+		const element = `<time time:update="second">{formatElapsed(Math.floor(Date.now() / 1000))}</time>`;
+		const diagnostics = await analyzer.diagnostics(
+			{ projection: timeProjection(prefix + element, 'second', prefix.length), scope: 'document' },
+			signal
+		);
+		expect(diagnostics.map(({ code }) => code)).not.toContain('time-update-without-clock');
+	});
+
+	it('recognizes the compiler-owned clock read during post-transform validation', async () => {
+		const analyzer = await createExactLanguageAnalyzer({} as never);
+		const signal = new AbortController().signal;
+		const source = `<time time:update="second">{clock.readEpochMilliseconds()}</time>`;
+		const diagnostics = await analyzer.diagnostics(
+			{ projection: timeProjection(source, 'second'), scope: 'document' },
+			signal
+		);
+		expect(diagnostics.map(({ code }) => code)).not.toContain('time-update-without-clock');
+	});
 });
 
-function timeProjection(text: string, constant: string): ExactLanguageProjectionV1 {
+function timeProjection(
+	text: string,
+	constant: string,
+	elementStart = 0
+): ExactLanguageProjectionV1 {
+	const elementEnd = text.length;
 	return {
 		protocol: 1,
 		generation: 1,
@@ -67,9 +99,9 @@ function timeProjection(text: string, constant: string): ExactLanguageProjection
 		jsx: [
 			{
 				id: 'jsx-1',
-				range: { start: 0, end: text.length },
-				openingRange: { start: 0, end: text.length },
-				tagRange: { start: 1, end: 5 },
+				range: { start: elementStart, end: elementEnd },
+				openingRange: { start: elementStart, end: elementEnd },
+				tagRange: { start: elementStart + 1, end: elementStart + 5 },
 				kind: 'intrinsic',
 				tag: 'time',
 				attributes: [

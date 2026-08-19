@@ -365,6 +365,12 @@ button {
 	gap: 10px;
 }
 
+.docs-link {
+	color: var(--accent-deep);
+	font-size: 12px;
+	font-weight: 800;
+}
+
 .theme-label {
 	color: var(--muted);
 	font-size: 12px;
@@ -482,7 +488,8 @@ p {
 	text-transform: uppercase;
 }
 
-.game-meta strong {
+.game-meta strong,
+.game-meta .elapsed-clock {
 	font-size: 15px;
 	font-variant-numeric: tabular-nums;
 }
@@ -1491,7 +1498,8 @@ p {
 		text-transform: uppercase;
 	}
 
-	.mobile-timer strong {
+	.mobile-timer strong,
+	.mobile-timer .elapsed-clock {
 		font-size: 14px;
 		font-variant-numeric: tabular-nums;
 	}

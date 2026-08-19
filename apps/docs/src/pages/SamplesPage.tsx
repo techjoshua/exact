@@ -11,6 +11,39 @@ export function SamplesPage(this: Component<{}>) {
 			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Six browser applications are published with these docs; the remaining examples can be built locally."
 			next={{ path: '/getting-started', label: 'Create an eXact app' }}
 		>
+			<section aria-labelledby="hosted-applications">
+				<h2 id="hosted-applications">Open a hosted application</h2>
+				<p>
+					These browser applications are deployed alongside the documentation. Each one links back
+					to the framework guide most relevant to what it demonstrates.
+				</p>
+				<div className="card-grid application-directory">
+					<a theme:surface="raised" className="topic-card" href="./sudoku.html">
+						<strong>Sudoku Atelier</strong>
+						<p>
+							Persistent state, clock-derived elapsed time, precise board updates, gestures, motion,
+							and responsive play.
+						</p>
+					</a>
+					<a theme:surface="raised" className="topic-card" href="./kanban/">
+						<strong>eXact Kanban</strong>
+						<p>Keyed identity, direct mutation, forms, and drag-and-drop list updates.</p>
+					</a>
+					<a theme:surface="raised" className="topic-card" href="./workbench/">
+						<strong>Project Workbench</strong>
+						<p>Tasks, derived values, forms, and several component-owned workspace tools.</p>
+					</a>
+					<a theme:surface="raised" className="topic-card" href="./enhancements/">
+						<strong>Enhancement Playground</strong>
+						<p>Theme Lab, motion, gestures, physics, and gravity on ordinary elements.</p>
+					</a>
+					<a theme:surface="raised" className="topic-card" href="./intl/">
+						<strong>Intl Testbed</strong>
+						<p>Translation structure, plural rules, formatting, and right-to-left layout.</p>
+					</a>
+				</div>
+			</section>
+
 			<section theme:surface="raised" className="sudoku-showcase">
 				<div>
 					<p className="demo-kicker">Hosted demo</p>
@@ -90,17 +123,6 @@ export function SamplesPage(this: Component<{}>) {
 							Open the playground and Theme Lab
 						</a>
 					</div>
-					<div theme:surface="raised" className="topic-card">
-						<span className="topic-index">Puzzle Foundry</span>
-						<strong>Separate application theme from document design</strong>
-						<p>
-							The authoring shell uses semantic theme sources and roles, while printable puzzle
-							artwork and user-selected publication colors remain explicit document data.
-						</p>
-						<a theme:action="secondary" href="./puzzle-foundry.html">
-							Open Puzzle Foundry
-						</a>
-					</div>
 				</div>
 			</section>
 
@@ -149,8 +171,7 @@ export function SamplesPage(this: Component<{}>) {
 				<p>
 					Shipping Calculator, Microfrontend Portal, and Server Components remain source examples in
 					the eXact repository. Kanban, Project Workbench, Enhancement Playground with Theme Lab,
-					Intl Testbed, Puzzle Foundry, and Sudoku Atelier are published alongside this
-					documentation site.
+					Intl Testbed and Sudoku Atelier are published alongside this documentation site.
 				</p>
 			</Callout>
 		</Article>

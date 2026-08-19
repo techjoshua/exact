@@ -67,7 +67,7 @@ async function checkSudoku(page, origin) {
 	await page.goto(origin, { waitUntil: 'networkidle' });
 	await page.getByRole('heading', { name: 'A quiet place to think.' }).waitFor();
 	await page.getByRole('grid', { name: 'Sudoku puzzle' }).waitFor();
-	const timer = page.locator('.game-meta strong');
+	const timer = page.locator('.game-meta .elapsed-clock');
 	const before = await timer.textContent();
 	await expectEventually(
 		async () => (await timer.textContent()) !== before,

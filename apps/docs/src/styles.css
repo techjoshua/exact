@@ -865,6 +865,10 @@ a.topic-card:hover {
 	line-height: 1.55;
 }
 
+.application-directory .topic-card {
+	min-height: 8rem;
+}
+
 .topic-card code {
 	margin-top: auto;
 	padding-top: 0.9rem !important;

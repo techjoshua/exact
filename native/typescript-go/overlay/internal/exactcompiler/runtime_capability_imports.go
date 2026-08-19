@@ -28,6 +28,7 @@ type jsxRuntimeNames struct {
 	keyedServerSlot        string
 	clientProps            string
 	derived                string
+	peek                   string
 	write                  string
 	update                 string
 	updateResult           string
@@ -115,6 +116,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createServerSlot", lowering.names.serverSlot, 0},
 		{"createKeyedServerSlot", lowering.names.keyedServerSlot, 0},
 		{"createDerived", lowering.names.derived, 1},
+		{"peek", lowering.names.peek, 1},
 		{"writeReactiveLazy", lowering.names.write, 1},
 		{"updateReactiveValue", lowering.names.update, 1},
 		{"updateReactiveValueWithResult", lowering.names.updateResult, 1},
@@ -401,6 +403,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		keyedServerSlot:        allocate("__exactKeyedServerSlot"),
 		clientProps:            allocate("__exactElementProps"),
 		derived:                allocate("__exactDerived"),
+		peek:                   allocate("__exactPeek"),
 		write:                  allocate("__exactWrite"),
 		update:                 allocate("__exactUpdate"),
 		updateResult:           allocate("__exactUpdateResult"),

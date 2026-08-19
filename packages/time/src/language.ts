@@ -208,8 +208,10 @@ function activationAnalysisSource(
 				`\\b(?:const|let)\\s+${escapeRegExp(name)}(?:\\s*:[^=;]+)?\\s*=\\s*([^;]+)`,
 				'u'
 			).exec(source);
-			if (!declaration?.[1]) continue;
-			analysis += `\n${declaration[1]}`;
+			const callable = localCallableSource(source, name);
+			const dependency = callable ?? declaration?.[1];
+			if (!dependency) continue;
+			analysis += `\n${dependency}`;
 			expanded = true;
 		}
 		if (!expanded) break;
@@ -217,12 +219,47 @@ function activationAnalysisSource(
 	return analysis;
 }
 
+function localCallableSource(source: string, name: string): string | undefined {
+	const functionMatch = new RegExp(`\\bfunction\\s+${escapeRegExp(name)}\\s*\\(`, 'u').exec(source);
+	if (functionMatch) return balancedCallableSource(source, functionMatch.index);
+
+	const variableMatch = new RegExp(
+		`\\b(?:const|let)\\s+${escapeRegExp(name)}(?:\\s*:[^=;]+)?\\s*=`,
+		'u'
+	).exec(source);
+	if (!variableMatch) return undefined;
+	const arrow = source.indexOf('=>', variableMatch.index + variableMatch[0].length);
+	if (arrow < 0) return undefined;
+	const block = source.indexOf('{', arrow + 2);
+	if (block >= 0) return balancedCallableSource(source, variableMatch.index, block);
+	const end = source.indexOf(';', arrow + 2);
+	return source.slice(variableMatch.index, end < 0 ? source.length : end + 1);
+}
+
+function balancedCallableSource(
+	source: string,
+	start: number,
+	opening = source.indexOf('{', start)
+) {
+	if (opening < 0) return undefined;
+	let depth = 0;
+	for (let index = opening; index < source.length; index++) {
+		if (source[index] === '{') depth++;
+		if (source[index] !== '}') continue;
+		depth--;
+		if (depth === 0) return source.slice(start, index + 1);
+	}
+	return undefined;
+}
+
 function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 function hasClockSource(source: string): boolean {
-	return /\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\)|\bTemporal\.Now\.[A-Za-z]+\s*\(/u.test(source);
+	return /\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\)|\bTemporal\.Now\.[A-Za-z]+\s*\(|\.readEpochMilliseconds\s*\(/u.test(
+		source
+	);
 }
 
 function hasBoundedAutoEvidence(source: string): boolean {

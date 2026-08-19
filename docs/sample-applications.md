@@ -7,14 +7,20 @@ updates, and the framework's normal build and runtime adapters.
 ## Hosted applications
 
 [`apps/sudoku`](../apps/sudoku) is an installable interactive Sudoku game with persistence,
-responsive controls, theming, and optional gesture and motion enhancements. It is published with
-the documentation site at `sudoku.html`.
+responsive controls, theming, clock-derived elapsed-time updates, and optional gesture and motion
+enhancements. Its timer uses ordinary TypeScript formatting over an absolute anchor while the shared
+`time:update` scheduler publishes second boundaries; it persists accumulated duration at game or
+page-lifecycle boundaries instead of on display ticks. It is published with the documentation site
+at `sudoku.html`.
 
-The Enhancement Playground and Theme Lab, Kanban, Project Workbench, and Intl Testbed are also
-published with the documentation site under `enhancements/`, `kanban/`, `workbench/`, and `intl/`.
-[`apps/puzzle-generator`](../apps/puzzle-generator) is published as Puzzle Foundry at
-`puzzle-foundry.html`; its themed authoring shell keeps printable artwork and publication colors as
-explicit document data.
+The documentation application's **Sample applications** page is the directory for every hosted
+application. The Enhancement Playground and Theme Lab, Kanban, Project Workbench, and Intl Testbed
+are published under `enhancements/`, `kanban/`, `workbench/`, and `intl/`. The Pages assembly also
+deploys Puzzle Foundry as an intentionally unadvertised `puzzle-foundry.html` artifact; neither the
+documentation application nor Puzzle Foundry links to it or from it. Its themed authoring shell
+keeps printable artwork and publication colors as explicit document data. Advertised hosted
+applications link back with a GitHub Pages-relative URL to the documentation page for the framework
+behavior they demonstrate.
 
 ## Repository examples
 
@@ -33,6 +39,6 @@ explicit document data.
   diagnostics. Semantic theme enhancements own its application chrome while fixed fragment colors
   remain part of the translation-reordering legend.
 
-The documentation application links to every hosted application. Shipping Calculator,
+The documentation application links to every advertised hosted application. Shipping Calculator,
 Microfrontend Portal, and Server Components remain local repository examples because they require
 server or multi-runtime infrastructure that GitHub Pages cannot provide.

@@ -62,8 +62,10 @@ export function DateTimePage(this: Component<{}>) {
 					optional capability.
 				</p>
 				<p>
-					Clock math may live directly in JSX, in safe component-body aliases, or in reusable
-					lexical micro-components. Ordinary durable children remain independent owners and opt in
+					Clock math may live directly in JSX, in safe component-body aliases, or in local pure
+					TypeScript formatter functions. The compiler follows the formatter's call graph rather
+					than requiring display strings to be assembled in JSX; opaque, imported, or effectful
+					helpers remain diagnostic. Ordinary durable children remain independent owners and opt in
 					themselves.
 				</p>
 			</section>
@@ -83,7 +85,9 @@ export function DateTimePage(this: Component<{}>) {
 				<p>
 					A reactive <code>disabled</code> policy withdraws scheduling and retains the last sample
 					while ordinary state and props continue to update. Reenabling samples current time once;
-					Activity deactivation and range disposal release the same owned registration.
+					Activity deactivation and range disposal release the same owned registration. Policy and
+					anchor changes update those precise readers without rerendering the enclosing component or
+					requiring a keyed remount.
 				</p>
 				<p>
 					Automatic analysis also follows statically selected record and array members,

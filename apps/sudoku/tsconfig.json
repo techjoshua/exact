@@ -12,6 +12,7 @@
 		{ "path": "../../packages/core" },
 		{ "path": "../../packages/dom" },
 		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../packages/time" },
 		{ "path": "../../framework-adapters/vite-plugin" }
 	],
 	"include": ["src", "vite.config.ts"]

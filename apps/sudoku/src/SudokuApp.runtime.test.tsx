@@ -3,6 +3,8 @@
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
+import { TimeProvider } from '@exactjs/time';
+import { createManualTimeClock } from '@exactjs/time/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SudokuApp } from './SudokuApp.jsx';
 import { createCells } from './game-engine.js';
@@ -192,8 +194,9 @@ describe('SudokuApp runtime', () => {
 		}
 	});
 
-	it('freezes the clock at completion and includes the final time in the victory text', async () => {
+	it('freezes the clock at completion and restarts it for the next game', async () => {
 		vi.useFakeTimers();
+		const clock = createManualTimeClock(Date.now());
 		const container = document.createElement('div');
 		const puzzle = puzzles[0]!;
 		const cells = createCells(puzzle);
@@ -209,23 +212,112 @@ describe('SudokuApp runtime', () => {
 		);
 
 		try {
-			render(<SudokuApp />, container);
+			render(
+				<TimeProvider clock={clock}>
+					<SudokuApp />
+				</TimeProvider>,
+				container
+			);
+			await Promise.resolve();
+			await Promise.resolve();
 			await vi.advanceTimersByTimeAsync(1_000);
+			clock.advance(1_000);
+			clock.runDue();
+			await vi.runAllTicks();
+			await vi.advanceTimersByTimeAsync(0);
 			flushSync();
-			expect(container.querySelector('.mobile-timer strong')?.textContent).toBe('01:06');
+			await Promise.resolve();
+			const runningClock = container.querySelector('.mobile-timer .elapsed-clock');
+			expect(runningClock?.textContent).toBe('01:06');
 
 			const digit = Number(puzzle.solution[target.index]) as Digit;
 			container.querySelectorAll<HTMLButtonElement>('.number-key')[digit - 1]!.click();
 			container.querySelectorAll<HTMLButtonElement>('[role="gridcell"]')[target.index]!.click();
 			flushSync();
-			await vi.advanceTimersByTimeAsync(0);
+			await Promise.resolve();
+			flushSync();
 
 			expect(container.querySelector('.victory-banner')?.textContent).toContain('01:06');
+			expect(container.querySelector('.mobile-timer .elapsed-clock')).toBe(runningClock);
 			await vi.advanceTimersByTimeAsync(3_000);
+			clock.advance(3_000);
 			flushSync();
-			expect(container.querySelector('.mobile-timer strong')?.textContent).toBe('01:06');
+			expect(container.querySelector('.mobile-timer .elapsed-clock')?.textContent).toBe('01:06');
+
+			container.querySelector<HTMLButtonElement>('.new-game-button')!.click();
+			flushSync();
+			await Promise.resolve();
+			await Promise.resolve();
+			clock.runDue();
+			flushSync();
+			expect(container.querySelector('.mobile-timer .elapsed-clock')?.textContent).toBe('00:00');
+			expect(clock.pendingTimerCount).toBeGreaterThan(0);
+			expect(clock.nextDeadline?.epochMilliseconds).toBe(clock.now().epochMilliseconds + 1_000);
+
+			await vi.advanceTimersByTimeAsync(1_000);
+			clock.advance(1_000);
+			clock.runDue();
+			await vi.runAllTicks();
+			flushSync();
+			expect(container.querySelector('.mobile-timer .elapsed-clock')?.textContent).toBe('00:01');
 		} finally {
 			unmount(container);
+			vi.useRealTimers();
+		}
+	});
+
+	it('keeps one-second clock speed across repeated new games without tick persistence', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-08-18T12:00:00.000Z'));
+		const clock = createManualTimeClock(Date.now());
+		const interval = vi.spyOn(window, 'setInterval');
+		const persist = vi.spyOn(Storage.prototype, 'setItem');
+		const container = document.createElement('div');
+
+		try {
+			render(
+				<TimeProvider clock={clock}>
+					<SudokuApp />
+				</TimeProvider>,
+				container
+			);
+			await Promise.resolve();
+			const ownedTimerCount = clock.pendingTimerCount;
+			expect(ownedTimerCount).toBeGreaterThan(0);
+			expect(clock.nextDeadline?.epochMilliseconds).toBe(Date.now() + 1_000);
+
+			for (let game = 0; game < 3; game++) {
+				if (game > 0) {
+					container.querySelector<HTMLButtonElement>('.new-game-button')!.click();
+					flushSync();
+					await Promise.resolve();
+					await Promise.resolve();
+				}
+				const writesBeforeTick = persist.mock.calls.length;
+				await vi.advanceTimersByTimeAsync(1_000);
+				clock.advance(1_000);
+				clock.runDue();
+				await Promise.resolve();
+				await Promise.resolve();
+				clock.runDue();
+				flushSync();
+				await Promise.resolve();
+				expect(
+					container.querySelector('.mobile-timer .elapsed-clock')?.textContent,
+					`game ${game}`
+				).toBe('00:01');
+				expect(clock.pendingTimerCount).toBeLessThanOrEqual(ownedTimerCount);
+				expect(persist.mock.calls.length).toBe(writesBeforeTick);
+			}
+
+			expect(interval).not.toHaveBeenCalled();
+			const writesBeforePageHide = persist.mock.calls.length;
+			window.dispatchEvent(new PageTransitionEvent('pagehide'));
+			expect(persist.mock.calls.length).toBe(writesBeforePageHide + 1);
+		} finally {
+			unmount(container);
+			interval.mockRestore();
+			persist.mockRestore();
 			vi.useRealTimers();
 		}
 	});
@@ -241,6 +333,8 @@ describe('SudokuApp runtime', () => {
 
 		try {
 			render(<SudokuApp />, container, { inspection });
+			await Promise.resolve();
+			await Promise.resolve();
 			events.length = 0;
 			const button = container.querySelector<HTMLButtonElement>('.new-game-button');
 			const previousTitle = container.querySelector('.game-heading .eyebrow')?.textContent;

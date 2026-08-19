@@ -44,6 +44,26 @@ destructuring, and reusable lexical micro-components may accept different props 
 call receives its own range sample and registration without becoming a durable child component.
 Ordinary durable children remain opaque and declare their own enhancement.
 
+Local formatter functions may contain ordinary pure TypeScript statements and calls. The compiler
+follows their local call graph, so formatting does not have to be flattened into JSX:
+
+```tsx
+function formatElapsed(totalSeconds: number) {
+	const minutes = Math.floor(totalSeconds / 60)
+		.toString()
+		.padStart(2, '0');
+	const seconds = Math.floor(totalSeconds % 60)
+		.toString()
+		.padStart(2, '0');
+	return `${minutes}:${seconds}`;
+}
+
+<time time:update="second">{formatElapsed(Math.floor((Date.now() - startedAt) / 1_000))}</time>;
+```
+
+Ambient, imported, stateful, or otherwise effectful helpers remain opaque unless their declaration
+provides an explicit eXact purity contract.
+
 Finite conditional views adapt their accuracy as the active branch changes. The compiler includes
 both the active branch's next visible boundary and the exact threshold that selects the next branch:
 
@@ -89,7 +109,9 @@ sample.
 
 The policy may be reactive. `disabled` withdraws scheduling but retains the range's last sample;
 ordinary props and state remain reactive. Reenabling queues one current sample after the policy
-cycle settles rather than replaying missed ticks.
+cycle settles rather than replaying missed ticks. Policy and clock-plan preparation do not subscribe
+the enclosing component render; the enhancement policy and clock-derived expression retain their
+own precise reactive boundaries, so changing an anchor or policy does not require a keyed remount.
 
 ```tsx
 <time time:update={this.state.live ? 'auto' : 'disabled'}>
@@ -167,8 +189,8 @@ projections share the matching authored activation rather than allocating clocks
 The package contributes completions for every update policy, hover and inlay summaries with inferred
 plan evidence, and errors for invalid policies, clock-free ranges, and automatic expressions whose
 next visible change cannot be proven. `auto` never silently falls back to millisecond or second
-polling. An explicit cadence controls accuracy but does not make a helper with hidden clock reads
-safe to repeat. Expose the clock as a pure argument:
+polling. An explicit cadence controls accuracy but does not make an opaque helper with hidden clock
+reads safe to repeat. Expose the clock as an argument to a compiler-proven local pure helper:
 
 ```tsx
 <time time:update="second">{formatCountdown(Date.now(), props.deadline)}</time>

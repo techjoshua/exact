@@ -2,6 +2,7 @@ export {
 	deleteReactiveValue,
 	mutateReactiveArray,
 	mutateReactiveCollection,
+	peek,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
 	writeReactiveLazy

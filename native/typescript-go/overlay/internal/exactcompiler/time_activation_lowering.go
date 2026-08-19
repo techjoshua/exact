@@ -178,7 +178,8 @@ func (lowering *jsxLowering) directTimeUpdateActivationWithPlan(opening *ast.Nod
 	if len(inputs) != 0 {
 		arguments = append(arguments, lowering.timePlanInputArray(inputs))
 	}
-	return lowering.call(lowering.names.createTimeActivation, arguments), inputs
+	activation := lowering.call(lowering.names.createTimeActivation, arguments)
+	return lowering.call(lowering.names.peek, []*ast.Node{lowering.arrow(activation)}), inputs
 }
 
 func (lowering *jsxLowering) compileTimeChangePlan(rangeNode *ast.Node) (*ast.Node, []*ast.Node) {
