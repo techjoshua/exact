@@ -85,7 +85,9 @@ export function DateTimePage(this: Component<{}>) {
 				<p>
 					A reactive <code>disabled</code> policy withdraws scheduling and retains the last sample
 					while ordinary state and props continue to update. Reenabling samples current time once;
-					Activity deactivation and range disposal release the same owned registration.
+					Activity deactivation and range disposal release the same owned registration. Policy and
+					anchor changes update those precise readers without rerendering the enclosing component or
+					requiring a keyed remount.
 				</p>
 				<p>
 					Automatic analysis also follows statically selected record and array members,

@@ -11,14 +11,14 @@ type GameClockProps = {
 
 /** Formats an absolute elapsed-time anchor through the shared time scheduler. */
 export function GameClock(props: GameClockProps) {
-	return () =>
-		!props.running ? (
-			<time className="elapsed-clock">{formatElapsed(props.accumulatedSeconds)}</time>
-		) : (
-			<time className="elapsed-clock" key={String(props.startedAt)} time:update="second">
-				{formatElapsed(
-					props.accumulatedSeconds + Math.max(0, Math.floor((Date.now() - props.startedAt) / 1_000))
-				)}
-			</time>
-		);
+	return () => (
+		<time className="elapsed-clock" time:update={props.running ? 'second' : 'disabled'}>
+			{formatElapsed(
+				props.running
+					? props.accumulatedSeconds +
+							Math.max(0, Math.floor((Date.now() - props.startedAt) / 1_000))
+					: props.accumulatedSeconds
+			)}
+		</time>
+	);
 }
