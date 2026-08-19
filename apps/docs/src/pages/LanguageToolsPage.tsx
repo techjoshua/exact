@@ -22,25 +22,6 @@ const policyTaskSource = `export function ProductPage(
   return () => <ProductDetails product={this.state.product} />;
 }`;
 
-const serviceSource = `import { createExactLanguageService } from '@exactjs/compiler';
-
-const language = createExactLanguageService({
-  root: process.cwd(),
-  noEmit: true,
-  maxCachedAnalyses: 128,
-  maxCachedAnalysisBytes: 32 * 1024 * 1024
-});
-
-await language.synchronize([{
-  kind: 'upsert',
-  filename: 'src/ProductPage.tsx',
-  version: 4,
-  source: unsavedEditorText
-}]);
-
-const inspection = await language.inspect('src/ProductPage.tsx');
-await language.dispose();`;
-
 const settingsSource = `{
   "exact.languageTools.enabled": true,
   "exact.languageTools.codeLens": true,
@@ -49,11 +30,6 @@ const settingsSource = `{
   "exact.languageTools.semanticsView": true,
   "exact.languageTools.trace.server": "off"
 }`;
-
-const extensionLauncherSource = `npm run dev:vscode-extension
-
-# VS Code Insiders or a focused sample workspace
-npm run dev:vscode-extension -- --code code-insiders --workspace apps/kanban`;
 
 const languageExtensionConfig = `import { defineConfig } from '@exactjs/config';
 
@@ -69,7 +45,7 @@ export default defineConfig({
   }
 });`;
 
-/** Documents compiler-owned editor semantics, diagnostics, and task refactors. */
+/** Documents compiler-owned editor feedback and task refactors. */
 export function LanguageToolsPage(this: Component<{}>) {
 	return () => (
 		<Article
@@ -82,7 +58,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 			<section>
 				<h2>Compiler meaning inside VS Code</h2>
 				<p>
-					CodeLens, operation badges, hovers, diagnostics, and region decorations explain the
+					CodeLens, operation badges, hovers, errors, warnings, and region decorations explain the
 					compiler&apos;s conclusions without replacing TypeScript&apos;s ordinary editor behavior.
 					An awaited state assignment can show its inferred placement and readiness; a task call can
 					show its activation inputs; and a derived declaration can lead directly to every connected
@@ -115,52 +91,43 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={policyTaskSource} language="tsx" title="Compiler-planned refactor" />
 				<p>
-					The plan preserves placement, readiness, priority, dependency order, cancellation, state
-					publication, and diagnostics, then analyzes the proposed source in memory. The reverse
+					The plan preserves placement, readiness, priority, dependency order, cancellation, and
+					state publication. It carries errors and warnings forward, then analyzes the proposed
+					source in memory. The reverse
 					refactor is offered only when the task has no authored resource ownership, cleanup,
 					external effect, deliberate nonblocking policy, opaque signal use, or other semantic
 					difference that inference could not reproduce.
 				</p>
 			</section>
 			<section>
-				<h2>The language service is no-emit</h2>
-				<CodeBlock source={serviceSource} language="ts" title="Compiler API" />
+				<h2>Your files stay unchanged</h2>
 				<p>
-					Unsaved text overlays disk files without writing them. Every synchronization receives an
-					immutable generation; rapid edits cancel or supersede older work, and stale diagnostics or
-					refactor edits are never published. The server also captures the document version and text
-					before awaiting analysis, then rejects the result if another edit has arrived. Closing a
-					workspace disposes its overlays, dependency indexes, pending requests, and native compiler
-					process.
-				</p>
-				<p>
-					Cold disk analyses use an access-ordered cache bounded by count and estimated bytes. Open
-					overlays are pinned even when they exceed that budget, and <code>language.stats()</code>
-					reports snapshot, analysis, import-graph, eviction, and over-budget telemetry. Cold source
-					is reread from disk instead of being retained only as a snapshot.
+					Language Tools analyzes your latest edits, including unsaved changes. It never generates or
+					overwrites source files. Your code changes only when you accept a suggested edit or
+					refactor.
 				</p>
 			</section>
 			<section>
 				<h2>Works beside TypeScript</h2>
 				<p>
 					VS Code's TypeScript extension continues to provide completion, rename, navigation,
-					formatting, and ordinary type diagnostics. A narrow bundled TypeScript plugin gives local
+					formatting, and ordinary type errors and warnings. A narrow bundled TypeScript plugin gives local
 					component functions the enclosing authored receiver for <code>this.</code> completion and
 					removes the corresponding implicit-<code>this</code> false positive. Attributed
 					enhancement imports count as used, and typing a prefix such as <code>motion:</code>
 					completes the callable&apos;s finite public props in kebab-case plus the reserved
-					<code>root</code> selector. Unrelated TypeScript diagnostics remain unchanged.
+					<code>root</code> selector. Unrelated TypeScript errors and warnings remain unchanged.
 				</p>
 				<p>
-					The separate eXact language server adds framework-owned diagnostics, semantic modifiers,
+					The separate eXact language server adds its own errors and warnings, semantic modifiers,
 					hovers, operation badges, CodeLens, symbols, code actions, and the read-only Compiler
-					Separation view. It filters ordinary TypeScript diagnostics from compiler inspection so
+					Separation view. It filters ordinary TypeScript errors and warnings from compiler inspection so
 					refactors do not leave a duplicate squiggle behind.
 				</p>
 				<p>
-					Task diagnostics describe local task functions, activation sites, and final
-					<code>TaskContext</code> policy. Removed component registration APIs receive no special
-					parsing, classification, diagnostics, or migration behavior.
+					Task errors and warnings describe local task functions, activation sites, and final
+					<code>TaskContext</code> policy. The language server gives removed component registration
+					APIs no special treatment or migration guidance.
 				</p>
 				<p>
 					Badges sit at token boundaries: before an assignment or immediately after a call's opening
@@ -216,41 +183,28 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					Presentation choices never change compiler semantics. In untrusted workspaces the
 					extension does not execute workspace binaries, configuration modules, or plugins. Source,
-					diagnostics, and inspection facts remain local.
+					errors, warnings, and inspection facts remain local.
 				</p>
 			</section>
 			<section>
 				<h2>Package-owned assistance</h2>
 				<p>
 					<Link to="/components/enhancements">Enhancement libraries</Link> and framework plugins can
-					use the generic language-extension contract to contribute bounded diagnostics,
-					completions, hovers, hints, and safe edits. Routine rules remain inert package metadata;
-					deeper analysis runs only from an independently trusted provider behind a cancellable,
-					failure-isolated protocol.
+					report errors and warnings, offer completions and hovers, add hints, and suggest safe edits.
+					Enable only providers you trust.
 				</p>
 				<CodeBlock source={languageExtensionConfig} language="ts" title="exact.config.ts" />
 				<p>
-					Language-provider trust and ignore rules are separate from plugin discovery and runtime
-					activation, including per-role controls for diagnostics, completion, hover, hints, and
-					code actions. Enabled provider errors participate in compilation and reject an invalid
-					output generation without letting the provider transform compiler output. The compiler,
-					Vite, Webpack, and Bun all use the same Node-only validation host.
+					You can enable provider features by role, including error and warning reporting,
+					completion, hover, hints, and code actions. Provider errors can stop an invalid build.
 				</p>
 				<p>
-					The <code>@exactjs/intl</code> provider shows the practical result: hover explains
-					inferred message behavior, optional name, durable key, and placeholder guide, then lists
-					the configured JSON or XLIFF locales that already contain that exact message. It also
-					diagnoses invalid messages and missing required locales, malformed or stale catalogs,
-					protected-placeholder damage, and literal locale contradictions. It completes semantic and
-					concrete units, currencies, display styles, and property formatter roles, and can add
-					compact inference hints. This tooling never ships in the browser application.
+					The <code>@exactjs/intl</code> provider explains messages, shows translation coverage,
+					checks catalogs and placeholders, and completes units, currencies, and display styles.
 				</p>
 				<p>
-					The <code>@exactjs/accessibility</code> provider applies the same model to finite ARIA,
-					accessible-name evidence, native commands, labels and IDs, focus order, dialogs, custom
-					interactions, and complete composite structure. It adds role and property completions,
-					evidence-aware hovers, inferred keyboard-policy hints, and safe bounded edits without
-					teaching the compiler or language server accessibility rules.
+					The <code>@exactjs/accessibility</code> provider checks ARIA, labels, focus order, dialogs,
+					keyboard behavior, and composite widgets. It also offers completions and safe fixes.
 				</p>
 			</section>
 			<section>
@@ -264,38 +218,10 @@ export function LanguageToolsPage(this: Component<{}>) {
 					Inspect a running eXact application
 				</Link>
 			</section>
-			<section>
-				<h2>Run the extension from a checkout</h2>
-				<CodeBlock
-					source={extensionLauncherSource}
-					language="shell"
-					title="Extension Development Host"
-				/>
+			<Callout title="Tooling matches the build">
 				<p>
-					The launcher builds the language server and bundles the VS Code client beneath its
-					registered extension path, leaving only VS Code&apos;s host API external. It prefers the
-					freshly built sibling server over any installed dependency copy and opens a fresh
-					development host. Use <code>--skip-build</code> when reusing current output or
-					<code>--dry-run</code> to inspect the launch plan. Trust the opened workspace and open a
-					TypeScript or TSX file to activate eXact Language Tools.
-				</p>
-				<p>
-					The universal VSIX resolves the native compiler from the owning project&apos;s
-					<code>node_modules</code>, using the platform package npm already selected for that
-					machine. It does not carry a separate compiler binary.
-				</p>
-			</section>
-			<Callout title="One compiler authority">
-				<p>
-					The extension and language server contain no second eXact classifier. The pinned native
-					compiler owns placement, scheduling, effects, diagnostics, and refactors, so the
-					explanation you read is the behavior that will build.
-				</p>
-				<p>
-					Static component imports remain conservative during per-module analysis until the shared
-					build host validates their published component catalog. That temporary state is not shown
-					as an unresolved-foreign-component warning; genuinely unresolvable local or dynamic values
-					still receive a compiler diagnostic.
+					Language Tools uses the project&apos;s eXact compiler, so its feedback and refactors match the
+					build.
 				</p>
 			</Callout>
 		</Article>

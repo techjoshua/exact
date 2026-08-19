@@ -38,7 +38,7 @@ export function TaskBasics() {
 				An uncontended awaited continuation restores its frame in the promise-resolution job;
 				overlapping resumptions remain serialized so they cannot exchange ownership.
 			</p>
-			<Callout title="Async is not the marker">
+			<Callout title="Use tasks when work needs coordination">
 				<p>
 					A function does not become a task merely because it is <code>async</code>. Coordination
 					needs—not promise syntax—are what make the function a task.

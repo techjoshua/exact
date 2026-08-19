@@ -37,34 +37,6 @@ function BookingForm(this: Component<{ date: Date | null }>) {
   );
 }`;
 
-const conceptualOutputSource = `import { createCompiledVNode, createExpression } from '@exactjs/core';
-import { adaptReactComponent } from '@exactjs/react-compat/exact';
-import { DatePicker } from 'react-date-picker';
-
-// The adapter first returns compiler-branded eXact components unchanged.
-// Every unbranded value belongs to the one active compatibility layer.
-// The result is cached by component identity.
-const CompatibleDatePicker = adaptReactComponent(DatePicker);
-
-function BookingForm() {
-  this.state.date = null;
-
-  return () =>
-    createCompiledVNode('section', {},
-      createCompiledVNode(CompatibleDatePicker, {
-        // Only this prop is reevaluated when date changes.
-        value: createExpression(() => this.state.date),
-        onChange: (date) => (this.state.date = date)
-      }),
-      createCompiledVNode('p', {},
-        'Selected: ',
-        createExpression(
-          () => this.state.date?.toLocaleDateString() ?? 'none'
-        )
-      )
-    );
-}`;
-
 const explicitInteropSource = `import { ReactHost, adaptReactComponent } from '@exactjs/react-compat/exact';
 
 // Native compiled JSX normally inserts this adapter automatically.
@@ -106,23 +78,6 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			<ReactCompatibilityDemo />
 
 			<section>
-				<h2>What the compiler supplies</h2>
-				<p>
-					The generated boundary is conceptually equivalent to the code below. Reactive props are
-					ordinary eXact expression cells, so only affected values are sampled again. The adapter is
-					cached by component identity. A compiled eXact component carries an opaque identity string
-					under <code>Symbol.for('@exactjs/component')</code> and passes through unchanged; an
-					unbranded value belongs to the enabled React layer. The compatibility runtime identifies
-					its internal native adapter separately without branding the original React function.
-				</p>
-				<CodeBlock
-					source={conceptualOutputSource}
-					language="ts"
-					title="Conceptual generated output"
-				/>
-			</section>
-
-			<section>
 				<h2>Choose the React target once</h2>
 				<CodeBlock source={reactCompatibilitySource} language="ts" title="vite.config.ts" />
 				<p>
@@ -135,26 +90,16 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Published packages are not recompiled</h2>
+				<h2>Use published React packages directly</h2>
 				<p>
-					The eXact compiler does not run compilation over a package's implementation in
-					<code>node_modules</code>. Instead, compiled eXact component exports carry their opaque ID
-					under <code>Symbol.for('@exactjs/component')</code>. Optional executable metadata lives
-					under <code>Symbol.for('@exactjs/component-contract')</code>. The generated compatibility
-					boundary checks the identity brand at runtime. Build aliases redirect React, the JSX
-					runtimes, React DOM, and supported package adapters to the selected compatibility runtime.
+					Install and import supported packages from <code>node_modules</code>. The build integration
+					routes React, React DOM, and JSX through the selected compatibility runtime.
 				</p>
 				<p>
 					Use the <code>source</code> option only for React-owned source that your application
 					authors or compiles itself. An explicit <code>@jsxImportSource react</code> directive can
 					mark an individual source module; <code>@jsxImportSource @exactjs/jsx</code> keeps native
 					eXact ownership explicit.
-				</p>
-				<p>
-					The native compiler still keeps an explicitly React-owned module in its TypeScript project
-					and release corpus. It passes that source through without applying eXact component
-					diagnostics or JSX lowering, leaving transformation to the selected React compatibility
-					pipeline.
 				</p>
 			</section>
 
@@ -203,10 +148,11 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			<section>
 				<h2>Compatibility boundary</h2>
 				<p>
-					This is an adoption bridge, not a second architecture for native eXact code. Packages that
-					depend on private Fiber or host-renderer behavior can still be rejected. Supported public
-					behavior includes function and class components, Hooks, context, refs, portals, Suspense,
-					scheduling, compatible roots, SSR, and hydration.
+					Use compatibility for existing React components. Build new native components with eXact
+					APIs. Supported public behavior includes function and class components, Hooks, context,
+					refs, portals, Suspense, scheduling, compatible roots, SSR, and hydration. While most
+					React compnents will work fine, components that depend on private Fiber or host-renderer
+					behavior are not yet compatible.
 				</p>
 			</section>
 		</Article>

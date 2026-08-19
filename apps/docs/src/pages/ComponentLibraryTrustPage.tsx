@@ -1,6 +1,7 @@
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
+import { Callout } from './Callout.jsx';
 
 const policySource = `import { defineConfig } from '@exactjs/config';
 
@@ -16,95 +17,48 @@ export default defineConfig({
   }
 });`;
 
-const markerSource = `{
-  "dependencies": {
-    "@exactjs/component-library": "^0.1.0"
-  },
-  "exactComponentLibrary": {
-    "protocol": 1,
-    "build": "./dist/exact-component-build.json"
-  }
-}`;
-
-const pairingSource = `import { readExactComponentAuthorizationIdentity } from '@exactjs/component-library-policy';
-import { exact } from '@exactjs/vite-plugin';
-
-const componentAuthorization = await readExactComponentAuthorizationIdentity(
-  'dist/server/.exact/component-library-authorization.json'
-);
-
-export default {
-  plugins: [exact({ componentAuthorization })]
-};`;
-
-/** Explains package participation and bundler-owned server execution authorization. */
+/** Explains how applications authorize component libraries for server execution. */
 export function ComponentLibraryTrustPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Component libraries"
-			title="Authorize before execution"
-			description="eXact build adapters combine compiler component facts with the physical package graph they resolved. The shared policy admits reviewed component libraries before evaluation and leaves client-only code outside this additional server boundary."
+			title="Authorize server libraries"
+			description="Choose which component packages may run during server rendering and server tasks."
 			previous={{ path: '/components/accessibility', label: 'Accessibility' }}
 			next={{ path: '/components/motion', label: 'Motion' }}
 		>
 			<section>
-				<h2>One application policy</h2>
+				<h2>Set one application policy</h2>
 				<p>
-					The default <code>trusted</code> mode admits compatible direct dependencies, explicit
-					packages and scopes, official eXact libraries, and production dependencies delegated by an
-					already authorized library. A deny rule always wins. Rules may constrain a resolved
-					package version or lockfile integrity.
+					Server rendering executes package code in your process. Review component libraries before
+					allowing them to run there. Client-only packages do not need this authorization.
 				</p>
 				<CodeBlock source={policySource} language="ts" title="exact.config.ts" />
+				<p>
+					Allow individual packages, version ranges, or trusted scopes. Deny rules take priority.
+					You can also pin lockfile integrity for stricter deployments.
+				</p>
 			</section>
+
 			<section>
-				<h2>Participation is inert</h2>
+				<h2>Use the same policy across tools</h2>
 				<p>
-					Library authors publish a production marker dependency and static protocol-1 build facts.
-					The marker has no JavaScript entry, lifecycle, registration, or trust grant. Build tools
-					validate both files as data without importing candidate component code.
-				</p>
-				<CodeBlock source={markerSource} language="json" title="package.json" />
-			</section>
-			<section>
-				<h2>The bundler is authoritative</h2>
-				<p>
-					Vite/Rollup, Webpack, Bun, Vitest, and Jest enforce the same policy before server
-					evaluation. Successful server builds emit a compact authorization manifest and a redacted
-					audit under <code>.exact/</code>. Client-only component code requires no additional eXact
-					authorization.
+					Vite, Webpack, Bun, Vitest, and Jest enforce the policy before server code runs. A rejected
+					package produces a build error that names the package and matching rule.
 				</p>
 				<p>
-					Validated package build facts become part of the active component graph. Packaged
-					component and enhancement imports are recursively authorized even when their parent
-					package remains external to the server bundle.
-				</p>
-				<p>
-					Development revalidates the complete last-committed candidate set when policy or package
-					inputs change. A rejected generation cannot replace the active graph and recovers normally
-					after the input is corrected.
-				</p>
-				<p>
-					Participation metadata is validated once per resolved package instance in each generation,
-					and every generation-owned cache is released on commit or rejection. Build-only telemetry
-					reports value-free entry counts for performance verification; none enters runtime output.
-				</p>
-				<p>
-					When server inspection catalogs are enabled, they include that redacted decision data
-					under the same build key. It is available only through the authorized DevTools path and is
-					never emitted into client code.
-				</p>
-				<p>
-					Paired hydration and retained remote artifacts carry only the manifest protocol, build
-					key, and fingerprint. A mismatch follows the existing unsupported-build recovery path;
-					package and policy provenance stays server-private.
-				</p>
-				<CodeBlock source={pairingSource} language="ts" title="vite.config.ts" />
-				<p>
-					This authorizes ordinary in-process JavaScript; it is not a sandbox. Framework-plugin
-					discovery is a separate decision even when one package offers both roles.
+					Development builds recheck packages when dependencies or policy change. Production builds
+					write a redacted audit under <code>.exact/</code> for deployment review.
 				</p>
 			</section>
+
+			<Callout title="Authorization allows in-process code">
+				<p>
+					This policy approves a package to run with your server&apos;s process permissions. The package
+					runs without isolation, so review its code and dependencies as you would any server
+					dependency.
+				</p>
+			</Callout>
 		</Article>
 	);
 }

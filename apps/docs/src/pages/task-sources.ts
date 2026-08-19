@@ -33,20 +33,6 @@ const inferredLifetimeSource = `function FeedConnection(this: Component<FeedStat
   );
 }`;
 
-const inferredLifetimeWiringSource = `// Conceptual compiler wiring—not authored or public runtime API.
-async function watchFeed(url: string, generation: GeneratedTaskContext) {
-  const socket = ownForGeneration(
-    new WebSocket(url),
-    generation,
-    (ownedSocket) => ownedSocket.close()
-  );
-
-  socket.addEventListener('message', receiveMessage, {
-    signal: generation.signal
-  });
-  // Other recognized listeners receive the same generation signal.
-}`;
-
 const reactiveTaskSource = `import { TaskContext } from '@exactjs/core';
 
 function Search(this: Component<SearchState>) {
@@ -191,34 +177,14 @@ const ownedResourcesSource = `async function watch(
   return socket.ready;
 }`;
 
-const librarySource = `import {
-  createTaskOwner,
-  defineTask,
-  bindTask
-} from '@exactjs/core/tasks/v1';
-
-const owner = createTaskOwner({ label: 'catalog session' });
-const search = bindTask(
-  defineTask(
-    { concurrency: 'latest', priority: 'deferred' },
-    async (query: string, task) => catalog.search(query, task.signal)
-  ),
-  { owner }
-);
-
-const results = await search(query);
-await owner[Symbol.asyncDispose]();`;
-
 /** Code samples rendered by the task guide, grouped away from its article structure. */
 export const taskSources = Object.freeze({
 	capturedInputSource,
 	effectsAndResultsSource,
 	inferredLifetimeSource,
-	inferredLifetimeWiringSource,
 	inferredTaskSource,
 	invokedTaskSource,
 	keyedStatusSource,
-	librarySource,
 	ownedResourcesSource,
 	reactiveTaskSource,
 	readinessSource,

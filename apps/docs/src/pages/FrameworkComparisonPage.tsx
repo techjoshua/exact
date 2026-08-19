@@ -7,7 +7,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Reproducible evidence"
-			title="Compare complete applications, not toy loops"
+			title="Compare complete applications"
 			description="The framework comparison suite gives eXact and other frameworks the same incident-operations experience while preserving each framework's idiomatic architecture."
 			next={{ path: '/runtimes', label: 'Review runtime support' }}
 		>

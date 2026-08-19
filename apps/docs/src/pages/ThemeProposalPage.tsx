@@ -31,7 +31,7 @@ export function ThemeProposalPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Component library / @exactjs/theme"
-			title="Theme by meaning, not selector surgery"
+			title="Theme with semantic roles"
 			description="A compact theme source resolves into a live semantic CSS contract, while attributed enhancements let portable components state what each element means."
 			previous={{ path: '/components/enhancements', label: 'Enhancements' }}
 			next={{ path: '/components/date-time', label: 'Date & time' }}
