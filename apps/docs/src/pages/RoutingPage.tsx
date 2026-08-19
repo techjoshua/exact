@@ -78,31 +78,52 @@ export function RoutingPage(this: Component<{}>) {
 					the durable component instance rather than relying on positional hooks.
 				</p>
 				<CodeBlock source={routeContextSource} language="tsx" title="UserPage.tsx" />
-				<div theme:surface="raised" className="definition-grid">
-					<code>useParams()</code>
-					<p>
-						<code>route.params</code>
-					</p>
-					<code>useLocation()</code>
-					<p>
-						<code>route.location</code>
-					</p>
-					<code>useSearchParams()</code>
-					<p>
-						<code>route.searchParams()</code>
-					</p>
-					<code>useNavigate()</code>
-					<p>
-						<code>route.navigate()</code>
-					</p>
-					<code>useHref()</code>
-					<p>
-						<code>route.href()</code>
-					</p>
-					<code>useMatches()</code>
-					<p>
-						<code>route.matches</code>
-					</p>
+				<p>
+					For developers familiar with React Router, <code>RouteContext</code> groups the common hook
+					capabilities on one component-owned value.
+				</p>
+				<div className="table-scroll route-api-scroll">
+					<table className="route-api-table">
+						<thead>
+							<tr>
+								<th>React Router hook</th>
+								<th>eXact API</th>
+								<th>Purpose</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td><code>useParams()</code></td>
+								<td><code>route.params</code></td>
+								<td>Read parameters captured from the current path.</td>
+							</tr>
+							<tr>
+								<td><code>useLocation()</code></td>
+								<td><code>route.location</code></td>
+								<td>Read the active pathname, query, hash, and navigation state.</td>
+							</tr>
+							<tr>
+								<td><code>useSearchParams()</code></td>
+								<td><code>route.searchParams()</code></td>
+								<td>Read the current query through <code>URLSearchParams</code>.</td>
+							</tr>
+							<tr>
+								<td><code>useNavigate()</code></td>
+								<td><code>route.navigate()</code></td>
+								<td>Start navigation from an interaction or task.</td>
+							</tr>
+							<tr>
+								<td><code>useHref()</code></td>
+								<td><code>route.href()</code></td>
+								<td>Create an href for the router&apos;s location source and base path.</td>
+							</tr>
+							<tr>
+								<td><code>useMatches()</code></td>
+								<td><code>route.matches</code></td>
+								<td>Inspect the matched route chain for the current location.</td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 				<p>
 					Prefer <code>Link</code> and <code>NavLink</code> for navigation controls. Use

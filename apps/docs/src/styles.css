@@ -225,6 +225,12 @@ a {
 	gap: 0.65rem;
 }
 
+.topbar-actions > .exact-app-theme-toggle {
+	position: static;
+	inset: auto;
+	flex: 0 0 auto;
+}
+
 .search-trigger,
 .theme-control,
 .github-link,
@@ -1098,6 +1104,22 @@ a.topic-card:hover {
 
 .table-scroll table {
 	min-width: 0;
+}
+
+.route-api-scroll {
+	overflow-x: auto;
+}
+
+.route-api-table {
+	min-width: 42rem !important;
+}
+
+.route-api-table :is(th, td):nth-child(1) {
+	width: 22%;
+}
+
+.route-api-table :is(th, td):nth-child(2) {
+	width: 28%;
 }
 
 :is(.docs-table, .table-scroll table, .table-wrap table, .integration-table table) :is(th, td) {

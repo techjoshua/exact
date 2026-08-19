@@ -142,8 +142,8 @@ export function EnhancementsPage(this: Component<{}>) {
 					central registration, special base class, or private compiler API is required.
 				</p>
 				<p>
-					Enhancement packages can also participate in the language-server process with bounded
-					completions, hovers, hints, diagnostics, and safe edits. The intl package explains
+					Enhancement packages can also provide completions, hovers, hints, safe edits, and bounded
+					errors and warnings. The intl package explains
 					inferred messages and warns about invalid placeholders or missing catalogs. The
 					accessibility package provides ARIA guidance and warns about invalid names, relationships,
 					focus, and composite structures. Third-party packages can provide the same combination of

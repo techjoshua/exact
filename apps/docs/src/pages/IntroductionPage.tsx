@@ -13,7 +13,7 @@ export function CounterDemo(this: Component<CounterState>) {
   // Default state for each new component instance.
   this.state.count = 0;
 
-  // The compiler turns this expression into a lazy reactive value.
+  // eXact updates this value when count changes.
   const doubled = this.state.count * 2;
 
   return () => (
@@ -34,19 +34,17 @@ export function IntroductionPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Welcome to eXact"
-			title="Expressive by design. eXact by execution."
-			description="eXact lets you describe a component using ordinary TypeScript, then compiles it into a reactive state machine with seamless client and server execution defined in the same component."
+			title="Build reactive apps with TypeScript"
+			description="eXact compiles TypeScript and TSX into precise client and server updates. Components keep direct, inspectable state."
 			next={{ path: '/story', label: 'The story behind eXact' }}
 		>
 			<section theme:surface="raised" className="sudoku-showcase">
 				<div>
 					<p className="demo-kicker">Built with eXact</p>
-					<h2>See the model at play.</h2>
+					<h2>See eXact in action</h2>
 					<p>
-						Sudoku Atelier turns direct state, precise updates, tasks, persistence, responsive
-						layout, full theming, optional attributed motion and long-press gestures, and steady
-						one-pass board derivation into one polished application. Excluding either enhancement
-						keeps the same controls and design while removing only its added interaction layer.
+						Sudoku Atelier combines direct state, tasks, persistence, responsive layout, theming,
+						motion, and gestures in a complete application.
 					</p>
 				</div>
 				<a theme:action="primary" className="primary-link" href="./sudoku.html">
@@ -68,7 +66,7 @@ export function IntroductionPage(this: Component<{}>) {
 					containing its state. React owns that state behind the Hook dispatcher. Testing visible
 					behavior is excellent discipline, but it does not make internal state irrelevant: when a
 					component misbehaves, being able to inspect its actual state, tasks, and resources is
-					useful for tests, diagnostics, and plain old debugging.
+					useful for tests, development tools, and plain old debugging.
 				</p>
 				<p>
 					React calls component functions repeatedly to produce a new description of the interface.
@@ -177,8 +175,7 @@ export function IntroductionPage(this: Component<{}>) {
 						<span className="topic-index">Lifetime</span>
 						<strong>Keep work tied to the component</strong>
 						<p>
-							Tasks, cancellation, disposable resources, context, refs, and cleanup belong to a
-							long-lived component instance.
+							Tasks, resources, context, refs, and cleanup share the component lifetime.
 						</p>
 					</div>
 				</div>
@@ -214,14 +211,13 @@ export function IntroductionPage(this: Component<{}>) {
 						<span className="topic-index">01</span>
 						<strong>Understand components</strong>
 						<p>
-							See initialization, views, props, context, tasks, refs, and the complete instance
-							surface.
+							Learn about initialization, views, props, events, context, and refs.
 						</p>
 					</Link>
 					<Link theme:surface="raised" theme:interactive className="topic-card" to="/learn/state">
 						<span className="topic-index">02</span>
 						<strong>Follow reactivity</strong>
-						<p>See what the compiler infers and how direct state becomes precise DOM work.</p>
+						<p>Learn how direct state updates derived values and the DOM.</p>
 					</Link>
 					<Link theme:surface="raised" theme:interactive className="topic-card" to="/plugins">
 						<span className="topic-index">03</span>

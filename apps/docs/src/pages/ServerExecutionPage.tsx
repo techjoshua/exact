@@ -36,23 +36,6 @@ async function ProductPage(
   );
 }`;
 
-const exchangeSource = `// Conceptual generated client transition
-await invokeServerContinuation({
-  operation: '<opaque generated id>',
-  props: { productId: 'p-42' }
-});
-
-// Conceptual validated server result
-{
-  state: {
-    product: { id: 'p-42', name: 'Desk', price: 499 }
-  }
-}
-
-// Not present in either protocol direction:
-// ProductRepository, database credentials, ApolloClient, GraphQL parser,
-// TanStack Query cache, request objects, or server context values.`;
-
 const sharedProjectionSource = `interface Database {
   // Database and its credentials stay server-only.
   /** @exact shared */
@@ -71,12 +54,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="One component across runtimes"
-			description="Server work remains ordinary component code. The compiler separates the client and server transitions, carries only required public values, and keeps server libraries and resources out of the browser."
+			description="Use server resources from a component while eXact keeps private code and data out of the browser."
 			previous={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
 			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
 		>
 			<section>
-				<h2>Server execution is task placement, not a second component model</h2>
+				<h2>Use server resources in component code</h2>
 				<p>
 					A component may need a database, request-scoped service, secret, or server-only library
 					that must never enter the browser bundle. eXact keeps the component as one authored unit
@@ -90,7 +73,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 					task authority never cross the boundary.
 				</p>
 				<p>
-					This is why server execution participates in the same task concepts as local work:
+					Server execution participates in the same task concepts as local work:
 					activation, cancellation, dependencies, readiness, stale-generation fencing, structural
 					children, and cleanup remain coordinated even though execution crosses runtimes.
 				</p>
@@ -114,175 +97,44 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<h2>Server context stays on the server</h2>
 				<CodeBlock source={authoredSource} language="tsx" title="ProductPage.tsx" />
 				<p>
-					The repository is created by the application&apos;s server runtime and resolved again for
-					each server transition. Its use makes the awaited continuation server-only without an
-					explicit placement call. It is not serialized from the browser. The product ID is a
-					compiler-selected input, and the returned product is a deliberately shared, transport-safe
-					result that updates component state.
+					The server runtime supplies the base context for each request. The compiler sends the product
+					ID and returns the shared product data to component state. The server context stays private.
 				</p>
-				<CodeBlock source={exchangeSource} language="ts" title="Conceptual protocol boundary" />
 			</section>
 			<section>
-				<h2>Heavy data clients contribute zero browser runtime modules</h2>
+				<h2>Keep server dependencies out of the browser</h2>
 				<p>
 					If Apollo Client, TanStack Query, a database SDK, a GraphQL parser, or a schema asset is
-					reachable only from server work, its entire transitive graph stays in the server build.
-					The client receives plain public data and the small generated continuation stub. It does
-					not need a browser copy of the server&apos;s data stack.
-				</p>
-				<p>
-					The final client-bundle verifier checks this after bundling, including dynamic imports and
-					emitted runtime assets. Private development source maps may remain complete for debugging;
-					they are developer artifacts and ordinarily are not published with the application.
+					only used by server work, it stays in the server build. The browser receives plain public
+					data. Build checks catch server modules that leak into browser output.
 				</p>
 			</section>
 			<section>
-				<h2>Shared is a narrow projection, not a change of ownership</h2>
+				<h2>Choose what may cross the boundary</h2>
 				<CodeBlock
 					source={sharedProjectionSource}
 					language="ts"
 					title="Server resource contracts"
 				/>
 				<p>
-					Application and request contexts default to server residency. <code>@exact shared</code>
-					on a return contract authorizes that result to cross after policy and serialization
-					checks; it does not make the receiver, credentials, or other methods public. Secret
-					qualification always wins and cannot be released by a shared annotation.
+					Application and request contexts stay on the server by default. <code>@exact shared</code>
+					allows a return value to cross after policy and serialization checks. Secret data always
+					stays private.
 				</p>
 			</section>
 			<section>
-				<h2>SSR is the first transition</h2>
+				<h2>Server rendering uses the same work</h2>
 				<p>
-					During SSR, the server machine can resolve context, settle server tasks, and produce the
-					initial HTML. It emits only the client-visible state and context needed to reconstruct the
-					durable browser instance. Hydration adopts the existing DOM and arms settled work instead
-					of repeating the initial query just to rediscover the same state.
-				</p>
-				<p>
-					A browser entry with no compiler-generated server operations, response patches, or client
-					islands may import <code>@exactjs/hydrate/root</code>. That static hydration-only facade
-					still adopts and owns the durable component tree while allowing bundlers to remove the
-					unused transport, patch, and island runtimes. Applications using any of those capabilities
-					must import the main hydration entry.
-				</p>
-				<p>
-					Its <code>hydrateAfterNavigation()</code> form gives visible SSR content one rendering
-					opportunity after <code>DOMContentLoaded</code>, then schedules user-visible activation. A
-					pointer, keyboard, input, change, or submit event arriving first activates synchronously
-					from capture, so deferring adoption does not create an inert interaction window. Hidden
-					documents activate from a task because animation frames may be throttled indefinitely.
-					Scheduling follows the root container&apos;s own document and window, including embedded
-					realms. Scheduling and hydration failures remove pending hooks and settle once without a
-					later retry.
-				</p>
-				<p>
-					An opt-in hydration profile reports DOM capture, adoption, form-control restoration, and
-					total hydration independently, making scheduling delay distinguishable from adoption work.
-				</p>
-				<p>
-					The compiler attaches a small execution subgraph to each generated component: indexed
-					value ports, setup and interaction transitions, placement, readiness, and concurrency.
-					Setup continuations wait until every constant, reactive input, or predecessor output is
-					available. A completed output wakes only its direct consumers; a newer generation makes
-					that output pending and fences stale completion. Available <code>undefined</code> remains
-					a real value rather than being confused with an unresolved slot.
-				</p>
-				<p>
-					A child prop may combine several planned outputs into one object. The generated reactive
-					value carries every contributing output path, so server rendering waits for the complete
-					aggregate before child setup instead of initializing the child from a partially populated
-					object.
-				</p>
-				<p>
-					Rendering the selected root wires each reachable compiled child before waiting for parent
-					work. Independent nested continuations can therefore enter the same request-wide bounded
-					scheduler immediately, with no startup planner or flattened application graph. Conditional
-					branches, keyed lists, registries, and lazy components still follow normal render
-					reachability, so unselected work stays inactive. Client-only async tasks reuse the same
-					dependency watcher but never create a server transition.
-				</p>
-				<p>
-					The server reuses an immutable execution blueprint for each selected root. Validated
-					contracts and port, transition, output-path, and setup-prop indexes are prepared once;
-					dynamic components join that root&apos;s blueprint only when rendering reaches them. Weak
-					keys permit replaced components to be collected, and changed compiler metadata is
-					revalidated. Props, state, contexts, task generations, cancellation, and dependency
-					watchers remain request-owned, so the cache cannot leak one request into another.
-				</p>
-				<p>
-					For compiler-proven intrinsic regions, eXact can skip generic VNode traversal: the server
-					writes escaped text and finite host slots directly, the browser clones a cached HTML, SVG,
-					or MathML template, and hydration adopts with compiler paths. Properties, styles, URLs,
-					forms, events, and refs retain ordinary host semantics. Conditional intrinsic regions keep
-					their enclosing SVG or MathML namespace across SSR, hydration, and later client mounts;
-					structural and otherwise unproven regions retain a lazy region-local fallback.
-				</p>
-				<p>
-					When marked SSR is required, hydration addresses the same planned intrinsic nodes and
-					scalar slots by their compiler identities. It retains the server DOM and marker protocol
-					without constructing an equivalent generic cell tree, while one root-level snapshot
-					protects focus and form state during activation. Completed nested components also publish
-					cached target and host candidates so parent root discovery does not repeat their
-					traversal.
-				</p>
-				<p>
-					Independent local, context-free component siblings may settle concurrently during
-					markerless async SSR. <code>maxAsyncSsrConcurrency</code> defaults to <code>4</code>,
-					<code>1</code>
-					forces serial work, and the renderer caps the value at <code>32</code>. Results still
-					publish in source order. Nested proven groups share the same request-wide bound;
-					marker-bearing, callback-observed, and unproven groups remain serial.
-				</p>
-				<p>
-					Finite client islands share one grouped hydration table instead of repeating their
-					component name and props on every boundary. Opaque spreads keep the self-describing
-					fallback. Compact interaction islands keep no decoded prop shell while dormant and release
-					the shared table after final activation. Their generated registry carries bounded target
-					and event policies rather than publishing event names in HTML; inert server ranges inside
-					them keep independent refresh ownership. Progressive inline responses install one
-					root-confined reveal helper and use compact calls afterward; hydration claims that helper,
-					and inert mode remains available when policy forbids inline code.
-				</p>
-				<p>
-					A lazily loaded island may expose a continuation already present in the generated startup
-					registration. eXact normalizes omitted empty client fields, accepts an equivalent repeat
-					registration, and still rejects a different contract that reuses the same identity.
-				</p>
-				<p>
-					Later dependency changes send fresh compiler-selected snapshots to the same generated
-					server continuation. Validated state and shared context results return to the client and
-					flow through normal fine-grained reactivity.
-				</p>
-				<p>
-					Manual server operations with client payloads register a typed decoder that runs before
-					authorization and handler execution. Protocol allowlisting is not business validation.
-					Authored HTML patches require the explicit <code>unsafeExactHtml()</code> audit
-					capability; raw strings are rejected, while compiler and SSR output keeps framework-owned
-					provenance.
-				</p>
-				<p>
-					Reactive JSX children have stable compiler-owned marker ranges. When a server refresh
-					changes one of those structures, eXact can replace that range while retaining unaffected
-					siblings, component instances, and DOM state. Element, list, and property patches remain
-					available, and an authoritative boundary replacement is retained as the safe fallback when
-					a finer patch cannot be proven.
-				</p>
-				<p>
-					Alternating client and server descendants retain independent partition-edge ranges.
-					Hydration can therefore adopt matching siblings while a nested range is refreshed or
-					recovered. Refresh responses are confined to the requested range and its declared
-					descendants. Dynamic branch and keyed generations are checked against the host's current
-					partition authority before refresh dispatch. Attributed enhancements participate as
-					ordinary component owners, with the same lifecycle and cleanup model as authored
-					components.
+					During SSR, the server can resolve context and finish server tasks before sending HTML.
+					Hydration adopts that HTML and restores the browser component without repeating settled
+					work. Later dependency changes run the server task again and update the same component.
 				</p>
 			</section>
 			<Callout title="Compiler errors protect the boundary">
 				<p>
-					Expect compilation to reject an arbitrary derived two-way value, an undeclared
-					cross-runtime capture, a server resource assigned into client-visible state, a
-					non-serializable result, or any attempt to release secret-qualified data. Fix the
-					ownership or projection; do not work around the framework boundary in application code.
+					Compilation rejects undeclared captures, non-serializable results, server resources in
+					client state, and attempts to expose secrets. Follow the error message to the value that
+					crossed the boundary.
 				</p>
 			</Callout>
 		</Article>

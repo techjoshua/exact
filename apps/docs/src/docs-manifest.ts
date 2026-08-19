@@ -62,8 +62,7 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/',
 				label: 'Introduction',
-				summary:
-					'How eXact compiles ordinary TypeScript components into inspectable reactive state machines spanning client and server.',
+				summary: 'Build precise client and server interfaces with TypeScript and TSX.',
 				keywords:
 					'overview component compiler reactive TypeScript JSX state precise updates client server',
 				component: IntroductionPage
@@ -141,17 +140,15 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/learn/tasks',
 				label: 'Tasks, dependencies & scheduling',
-				summary:
-					'Understand task definitions and generations, compiler inference, explicit policy, dependencies, scheduling, and Suspense readiness.',
+				summary: 'Run async work with status, cancellation, scheduling, and Suspense.',
 				keywords:
 					'task function create captured parameter default snapshot dependency effect result async await Suspense readiness blocking nonblocking priority deferred abort signal cleanup optimistic invocation concurrency latest queue key keyed status pending aggregate owner tree structured',
 				component: TasksPage
 			},
 			{
 				path: '/learn/compiler-tour',
-				label: 'Inside the compiler',
-				summary:
-					'Compare an ordinary eXact component with the precise runtime machinery generated for it.',
+				label: 'How compilation helps',
+				summary: 'See how eXact connects state, DOM updates, tasks, and server work.',
 				keywords:
 					'compiler native TypeScript Go generated output lowering transform reactive helpers task binding map JSX',
 				component: CompilerTourPage
@@ -183,8 +180,7 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/learn/server-execution',
 				label: 'Server execution',
-				summary:
-					'Understand distributed continuations, dependency-driven SSR execution, and server-only isolation.',
+				summary: 'Use server resources safely from components and tasks.',
 				keywords:
 					'server task continuation dependency watcher component execution subgraph root blueprint cache slot state machine C# async SSR scheduler hydration context Apollo TanStack bundle shared secret',
 				component: ServerExecutionPage
@@ -193,9 +189,9 @@ export const docGroups: DocGroup[] = [
 				path: '/learn/language-tools',
 				label: 'Language tools',
 				summary:
-					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
+					'See compiler reasoning, fix errors and warnings, and safely refactor tasks.',
 				keywords:
-					'language tools VS Code extension LSP TypeScript plugin IntelliSense completion component this enhancement namespace props semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred authored TaskContext policy task no emit',
+					'language tools VS Code extension LSP TypeScript plugin IntelliSense completion component this enhancement namespace props semantic tokens hover CodeLens inlay hints errors warnings refactor compiler inspection inferred authored TaskContext policy task no emit',
 				component: LanguageToolsPage
 			},
 			{
@@ -267,7 +263,7 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/components/date-time',
 				label: 'Date & time',
-				summary: 'Progress clock-derived views with compiler-planned shared scheduling.',
+				summary: 'Build dates, clocks, countdowns, and relative-time views.',
 				keywords:
 					'time date clock countdown stopwatch relative time Temporal Intl scheduler auto accuracy disabled manual clock enhancement',
 				component: DateTimePage
@@ -278,13 +274,13 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Add ref relationships, bounded focus lifecycle, composite navigation, and package-owned guidance while preserving native HTML behavior.',
 				keywords:
-					'accessibility a11y ARIA label description relationship ref focus dialog modal command keyboard navigation roving tabindex active descendant listbox tablist radiogroup toolbar grid LSP diagnostics enhancement',
+					'accessibility a11y ARIA label description relationship ref focus dialog modal command keyboard navigation roving tabindex active descendant listbox tablist radiogroup toolbar grid LSP errors warnings enhancement',
 				component: AccessibilityPage
 			},
 			{
 				path: '/components/trust',
 				label: 'Server trust',
-				summary: 'Authorize resolved component packages before server execution.',
+				summary: 'Allow trusted component packages to run on the server.',
 				keywords:
 					'component library trust authorization marker policy allow deny server bundler supply chain',
 				component: ComponentLibraryTrustPage

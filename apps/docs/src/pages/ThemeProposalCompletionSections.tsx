@@ -19,7 +19,7 @@ export function ThemeProposalCompletionSections(this: Component<{}>) {
 	return () => (
 		<>
 			<section>
-				<h2>Specialized components derive; they do not scrape CSS</h2>
+				<h2>Derive themes for specialized components</h2>
 				<p>
 					Charts, editors, maps, diagrams, and other domain components receive a pure immutable
 					derivation context containing the key color, tone families, surfaces, gamut conversion,

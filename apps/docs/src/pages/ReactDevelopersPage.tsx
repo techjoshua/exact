@@ -762,11 +762,10 @@ export function ReactDevelopersPage(this: Component<{}>) {
 				</div>
 			</section>
 
-			<Callout title="React still has a place" tone="note">
+			<Callout title="Use React components where they help" tone="note">
 				<p>
-					These examples show native eXact authoring, not a requirement to rewrite everything at
-					once. The optional compatibility boundary can host supported React 18 and 19 components
-					with their React semantics intact.
+					These examples show native eXact authoring. The optional compatibility boundary lets
+					applications keep supported React 18 and 19 components with their React semantics intact.
 				</p>
 			</Callout>
 
