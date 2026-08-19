@@ -15,7 +15,7 @@ export function GameClock(props: GameClockProps) {
 		!props.running ? (
 			<time className="elapsed-clock">{formatElapsed(props.accumulatedSeconds)}</time>
 		) : (
-			<time className="elapsed-clock" key={props.startedAt} time:update="second">
+			<time className="elapsed-clock" key={String(props.startedAt)} time:update="second">
 				{formatElapsed(
 					props.accumulatedSeconds + Math.max(0, Math.floor((Date.now() - props.startedAt) / 1_000))
 				)}
