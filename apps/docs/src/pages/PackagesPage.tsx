@@ -31,7 +31,7 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/accessibility',
 				purpose:
-					'Native-first ARIA relationships, focus lifecycle, composite navigation, and trusted accessibility diagnostics.'
+					'Native-first ARIA relationships, focus lifecycle, composite navigation, and trusted accessibility errors and warnings.'
 			},
 			{
 				name: '@exactjs/router',
@@ -183,10 +183,10 @@ export function PackagesPage(this: Component<{}>) {
 					microfrontend applications. They are executable companions to these guides.
 				</p>
 			</Callout>
-			<Callout title="Platform packages are selected, not bundled together">
+			<Callout title="Platform-specific executables are selected automatically">
 				<p>
 					<code>@exactjs/compiler</code> declares six optional target packages so npm can select the
-					one matching macOS, Linux, or Windows on ARM64 or x64. The JavaScript host tarball
+					one matching macOS, Linux, or Windows on ARM64 or x64. The JavaScript host package
 					contains no native executables, and a normal install receives only one matching binary
 					package.
 				</p>

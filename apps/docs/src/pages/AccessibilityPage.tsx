@@ -34,7 +34,7 @@ export function AccessibilityPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Connect elements with refs, not handwritten IDs</h2>
+				<h2>Connect elements with refs</h2>
 				<CodeBlock source={accessibilityRelationshipSource} language="tsx" title="Password.tsx" />
 				<p>
 					<code>labelledBy</code>, <code>describedBy</code>, <code>controls</code>,
@@ -120,8 +120,8 @@ export function AccessibilityPage(this: Component<{}>) {
 					native commands, positive focus order, pointer-only custom interactions, focus companion
 					props, dialogs, live-region conflicts, and composite structure. Hovers explain evidence
 					and uncertainty, completions use pinned ARIA data, and navigation inlays show inferred
-					policy. Enabled errors use the same generic build gate as editor diagnostics. No analyzer
-					code is bundled for the browser.
+					policy. Enabled errors and warnings use the same build gate in the editor and build. No
+					analyzer code is bundled for the browser.
 				</p>
 			</section>
 		</Article>

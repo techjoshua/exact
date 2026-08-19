@@ -1,7 +1,6 @@
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
-import { Callout } from './Callout.jsx';
 import {
 	intlConfigurationSource,
 	intlCardinalSource,
@@ -19,21 +18,16 @@ import {
 	intlXliffSource
 } from './internationalization-sources.js';
 
-/** Documents the enhancement-first internationalization implementation. */
+/** Explains how to localize an eXact application. */
 export function InternationalizationPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Plugin + enhancement / @exactjs/intl"
 			title="Localize with intent"
-			description="The intl plugin coordinates analysis, XLIFF catalogs, bundlers, and runtime locale data; its enhancement surface keeps that machinery nearly invisible in application components."
+			description="Translate TSX, format locale-aware values, manage XLIFF catalogs, and preview coverage in the editor."
 			previous={{ path: '/plugins', label: 'Plugin system' }}
 			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
 		>
-			<Callout title="Build-owned contracts">
-				Message IR and prepared catalog inputs are versioned build contracts, not application APIs.
-				Application code should use the public components, enhancements, environment, and adapter
-				configuration described here.
-			</Callout>
 			<section>
 				<h2>Compare locale structure side by side</h2>
 				<p>
@@ -147,7 +141,7 @@ export function InternationalizationPage(this: Component<{}>) {
 					plural-range decision for the active locale, with cardinal and ordinal rules supported.
 					Authored native <code>Intl</code> locales are checked against the package source locale:
 					language-only tags may omit specificity, while conflicting languages or regions produce a
-					source-linked diagnostic.
+					source-linked error.
 				</p>
 				<p>
 					Generic native <code>Intl</code> profiles provide source-locale unit and currency
@@ -213,79 +207,33 @@ export function InternationalizationPage(this: Component<{}>) {
 				<CodeBlock source={intlDurationSource} language="tsx" title="Published.tsx" />
 			</section>
 			<section>
-				<h2>A build stage before the compiler</h2>
+				<h2>Configure internationalization</h2>
 				<CodeBlock source={intlConfigurationSource} language="ts" title="vite.config.ts" />
 				<p>
-					The analyzer emits canonical protocol-1 descriptors and prepared props. The normal eXact
-					compiler then sees an ordinary trusted enhancement component, reactive values, and
-					functions. Shared companion modules validate and register reachable catalog slices in
-					Vite, Bun, and Webpack; the compiler output contains no locale, message, catalog, or CLDR
-					protocol.
+					Set the source locale, supported locales, and catalog paths in the build integration. Vite,
+					Webpack, and Bun use the same options.
 				</p>
 				<p>
-					The intl runtime is published as a standard compiled eXact component library. Its normal
-					build facts carry component identity, and <code>@exactjs/intl/enhancements</code> exports
-					the namespaced message, selection, formatter, CLDR, and translated-property enhancements.
-					No component or Suspense allowlist is specific to intl; the compiler&apos;s native
-					ECMA-402 cache lowering is independent of message and catalog analysis.
-				</p>
-				<p>
-					Native <code>Intl</code> formatter instances are reused by one bounded, lazily created
-					realm-wide cache in core. Each provider resolves omitted or source-locale requests to its
-					current locale before lookup, while preserving unrelated explicit locales, so provider
-					roots share equivalent formatter objects without sharing active-locale state.
+					Import <code>@exactjs/intl/enhancements</code> for messages, selections, formatters, and
+					translated properties. Native <code>Intl</code> formatters are cached automatically.
 				</p>
 				<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
 				<p>
-					The compiler lowers proven native constructor chains, finite formatter bindings, and
-					native number, bigint, and <code>Date</code> locale-string calls to <code>this.intl</code>
-					. A formatter declaration disappears when every use becomes a cached operation; escaping
-					objects remain observable but are constructed through the cache. A component reference
-					also selects the localization integration for that component&apos;s bundle, including lazy
-					and microfrontend bundles; components that do not use it omit the formatter pool.
-					Compilerless components opt in through <code>@exactjs/core/localization</code>, while
-					helpers without a component owner import the public <code>intl</code> facade directly.
-				</p>
-				<p>
-					Each message is joined to a public compiler component identity after compilation. Watched
-					XLIFF or protocol-JSON catalog files can then relink and invalidate the generated
-					companions without recompiling component source. Component-owned companions also let the
-					bundler remove an unused component's messages from a shared source module.
-				</p>
-				<p>
-					An entry package may omit build-local owner and source-locale options when its package
-					metadata declares them. Its source locale becomes the default development target, while
-					dependency messages retain their own package identity and fallback locale.
+					Components use the active locale. Helpers without a component can import the public
+					<code>intl</code> facade.
 				</p>
 			</section>
 			<section>
 				<h2>Publish and exchange catalogs</h2>
 				<CodeBlock source={intlXliffSource} language="xml" title="translations/en-US.xlf" />
 				<p>
-					The workflow begins with a targetless XLIFF extraction: analyzed TSX becomes
-					<code>&lt;source&gt;</code> units with <code>srcLang</code>, placeholders, branches, and
-					structural inline codes, but no chosen target locale or invented translations. That file
-					omits standalone formatter/value descriptors because locale-aware runtime formatting is
-					not translation work; the same placeholders remain when embedded in linguistic content.
-					Naming the request after its source locale, such as <code>en-US.xlf</code>, keeps it
-					aligned with the destination catalog names; the absence of <code>trgLang</code>
-					distinguishes it. The file can be sent to an AI service, translation platform, or human
-					translator. Each returned locale file adds <code>trgLang</code> and translated
-					<code>&lt;target&gt;</code> units.
+					Extract a source XLIFF file, send it to a translation service or translator, then add one
+					returned file per locale. Placeholders and movable inline content remain explicit.
 				</p>
 				<p>
-					Dependencies may publish inert message contracts and selected locale catalogs through
-					fixed package metadata. The build coordinator discovers and validates those public data
-					exports without evaluating package code. XLIFF 2.1 is the persisted translation source of
-					truth: ordinary text and generic standard inline codes remain visible to translation
-					tools. Runtime bindings and formatter intent remain in a separately hashed build contract
-					and never enter the translator file. Required codes cannot be deleted, but translators may
-					still reorder them. The files use XLIFF 2.1&apos;s unchanged 2.0 core namespace and are
-					validated structurally. Synchronization keeps compatible targets, notes, and review state,
-					and removes obsolete units. Protocol JSON is derived runtime data for generated
-					integrations, and every import lowers into the same validated message IR. Regional targets
-					fall back through matching script and language catalogs. Existing root environments also
-					adopt validated descriptor/catalog slices when a lazy component companion arrives.
+					XLIFF 2.1 is the editable translation source. Catalog synchronization keeps compatible
+					targets and notes, removes obsolete messages, and validates required placeholders. Regional
+					locales fall back through matching script and language catalogs.
 				</p>
 			</section>
 			<section>
@@ -312,14 +260,10 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Polyfills are a generator decision</h2>
+				<h2>Configure required polyfills</h2>
 				<p>
-					Every adapter reports finite <code>temporal</code> and <code>intl-duration-format</code>
-					client requirements for each analyzed module. Shared
-					<code>clientCapabilityProviders</code> configuration can satisfy them natively, with a
-					bundled module, or with a pinned HTTPS CDN script allowed by the application&apos;s CSP. A
-					provider runs before its dependent client companion and CDN loads deduplicate globally.
-					Server builds emit no polyfill, and the analyzer never embeds a provider or URL.
+					Use <code>clientCapabilityProviders</code> to supply Temporal or Intl.DurationFormat from
+					the browser, a bundled module, or a pinned HTTPS script allowed by your CSP.
 				</p>
 			</section>
 			<section>

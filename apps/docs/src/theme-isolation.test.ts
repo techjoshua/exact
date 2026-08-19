@@ -31,4 +31,10 @@ describe('documentation theme isolation', () => {
 		);
 		expect(stylesheet).toContain('.definition-grid > :is(:nth-last-child(1), :nth-last-child(2))');
 	});
+
+	it('keeps the appearance toggle in the header action flow', () => {
+		expect(stylesheet).toMatch(
+			/\.topbar-actions > \.exact-app-theme-toggle\s*\{[^}]*position: static;[^}]*flex: 0 0 auto;/
+		);
+	});
 });

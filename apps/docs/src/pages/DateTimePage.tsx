@@ -65,7 +65,7 @@ export function DateTimePage(this: Component<{}>) {
 					Clock math may live directly in JSX, in safe component-body aliases, or in local pure
 					TypeScript formatter functions. The compiler follows the formatter's call graph rather
 					than requiring display strings to be assembled in JSX; opaque, imported, or effectful
-					helpers remain diagnostic. Ordinary durable children remain independent owners and opt in
+					helpers produce an error. Ordinary durable children remain independent owners and opt in
 					themselves.
 				</p>
 			</section>
@@ -123,11 +123,11 @@ export function DateTimePage(this: Component<{}>) {
 			<section>
 				<h2>Compiler and editor guidance</h2>
 				<p>
-					The package supplies update-policy completions, activation hover and inlay summaries, and
-					invalid-policy, missing-clock, and unbounded-auto diagnostics. Automatic mode never hides
-					a millisecond or second polling fallback. Pass the current clock value into a pure helper
-					so dependency analysis can safely repeat only the affected view; an explicit cadence does
-					not make hidden clock reads safe.
+					The package supplies update-policy completions plus activation summaries in hovers and
+					inlay hints. It reports invalid policies, missing clocks, and unbounded automatic updates.
+					Automatic mode never hides a millisecond or second polling fallback. Pass the current
+					clock value into a pure helper so dependency analysis can safely repeat only the affected
+					view; an explicit cadence does not make hidden clock reads safe.
 				</p>
 			</section>
 		</Article>

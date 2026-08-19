@@ -30,38 +30,6 @@ expect(view.root.state().loaded).toBe(true);
 expect(view.root.find(AccountSummary).context(CurrentUser)).toBe(user);
 expect(view.root.providedContext(AccountContext)).toEqual(account);`;
 
-const clientServerTestingSource = `const protocol = new ExactProtocolRecorder();
-const runtime = createExactServerRuntime({
-  ...serverOptions,
-  onContextAccess: (observation) =>
-    protocol.observeServerContextAccess(observation)
-});
-
-const server = await testServerComponent(AccountPage)
-  .requestContext(CurrentUser, user)
-  .render({ hydration: { endpoint: '/__exact' } });
-
-const view = await mountClientServerTest({
-  server,
-  protocol,
-  handle: (request) => handleExactRequest(request, runtime),
-  islands,
-});
-
-// Generated client code initiates the real in-memory request.
-await view.getByRole('button', { name: 'Save' }).click();
-
-// IDs stay opaque: interrogate what actually crossed the boundary.
-const exchange = view.protocol.exchanges[0];
-expect(exchange.operations[0]?.type).toBe('invoke');
-expect(exchange.clientOperations[0]?.patchesApplied).toBe(true);
-expect(view.hydration[0]?.outcome).toBe('mounted');
-expect(server.resumptions).toEqual(expect.any(Array));
-expect(protocol.serverContextAccesses().map(({ token }) => token))
-  .toContain('CurrentUser');
-expect(view.component(AccountEditor).providedContext(EditorContext)).toBeDefined();
-view.unmount();`;
-
 /** Documents behavior-focused component, server, and client/server testing workflows. */
 export function TestingPage(this: Component<{}>) {
 	return () => (
@@ -92,37 +60,25 @@ export function TestingPage(this: Component<{}>) {
 				<h2>Inspect the real server component</h2>
 				<CodeBlock source={serverTestingSource} language="ts" title="AccountPage.server.test.ts" />
 				<p>
-					Import the compiler&apos;s server artifact so the test proves server placement rather than
-					running the unsplit source as an ordinary component. Server tasks settle before the
-					snapshot is captured. State, props, component ancestry, inherited context, and context
-					provided for descendants remain inspectable after SSR disposes the live instances.
+					Import the compiled server component to test its real placement. Server tasks settle before
+					the result is captured. State, props, ancestry, and context remain inspectable.
 				</p>
 				<p>
-					Application and request values use their real scoped context runtime. Component-scoped
-					values use <code>context()</code>; incorrectly supplying an application or request token
-					there produces an error that points to the matching setup method.
+					Supply application and request context with their matching setup methods. Use
+					<code>context()</code> for component-scoped values.
 				</p>
 			</section>
 			<section>
-				<h2>Exercise both halves and inspect the exchange</h2>
-				<CodeBlock
-					source={clientServerTestingSource}
-					language="ts"
-					title="AccountPage.client-server.test.ts"
-				/>
+				<h2>Test client and server together</h2>
 				<p>
-					The paired view hydrates generated client islands and sends their requests directly to the
-					application&apos;s server handler. It records request and response envelopes as well as
-					whether response patches were applied, rejected, or ignored as stale. The server render
-					exposes the public resumption records it emitted, and the paired view records whether each
-					hydration target adopted existing DOM or mounted new DOM.
+					Use <code>mountClientServerTest()</code> to render on the server, hydrate in a test DOM, and
+					send task requests to the application&apos;s server handler. Trigger controls through accessible
+					queries and assert the resulting page state.
 				</p>
 				<p>
-					Tests do not need a handwritten registry or compiler analysis to discover generated names.
-					Trigger the behavior through the component, then inspect the recorded operation. Generated
-					identifiers remain available as opaque protocol evidence without becoming part of the test
-					contract. A shared recorder can also receive server-context access observations. Those
-					records contain the authored token and operation identity, never the server-owned value.
+					The paired view can also report whether hydration adopted existing DOM and whether a server
+					response was applied. Use those details when diagnosing a boundary failure; keep ordinary
+					tests focused on user-visible behavior.
 				</p>
 			</section>
 		</Article>
