@@ -62,8 +62,10 @@ export function DateTimePage(this: Component<{}>) {
 					optional capability.
 				</p>
 				<p>
-					Clock math may live directly in JSX, in safe component-body aliases, or in reusable
-					lexical micro-components. Ordinary durable children remain independent owners and opt in
+					Clock math may live directly in JSX, in safe component-body aliases, or in local pure
+					TypeScript formatter functions. The compiler follows the formatter's call graph rather
+					than requiring display strings to be assembled in JSX; opaque, imported, or effectful
+					helpers remain diagnostic. Ordinary durable children remain independent owners and opt in
 					themselves.
 				</p>
 			</section>

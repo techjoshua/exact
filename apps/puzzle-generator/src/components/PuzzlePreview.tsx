@@ -39,7 +39,7 @@ export function PuzzlePreview(props: PuzzlePreviewProps) {
 				</div>
 			</div>
 
-			<div className="paper-stage">
+			<div theme:surface="sunken" className="paper-stage">
 				<img
 					src={svgDataUrl(props.solution ? props.documents.solutionSvg : props.documents.puzzleSvg)}
 					alt={props.solution ? 'Generated puzzle solution' : 'Generated printable puzzle'}

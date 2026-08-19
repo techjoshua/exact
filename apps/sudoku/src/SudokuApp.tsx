@@ -1,4 +1,4 @@
-import { TaskContext, type Component } from '@exactjs/core';
+import type { Component } from '@exactjs/core';
 import { SudokuContext } from './context.js';
 import {
 	applyMove,
@@ -13,17 +13,13 @@ import {
 	planNoteToggle,
 	planValueEntry
 } from './game-engine.js';
-import {
-	difficultyLabel,
-	firstEditableIndex,
-	formatElapsed,
-	keyboardSelection
-} from './presentation.js';
+import { difficultyLabel, firstEditableIndex, keyboardSelection } from './presentation.js';
 import { findPuzzle, nextPuzzle } from './puzzles.js';
 import { createSavedGame, loadSavedGame, storageKey } from './storage.js';
 import { themeName } from './themes.js';
 import type { Difficulty, Digit, GameMove, SudokuCommands, SudokuState } from './types.js';
 import { ExactLens } from './components/ExactLens.jsx';
+import { GameClock } from './components/GameClock.jsx';
 import { GameControls } from './components/GameControls.jsx';
 import { ProgressOrbit } from './components/ProgressOrbit.jsx';
 import { SudokuBrand } from './components/SudokuBrand.jsx';
@@ -47,12 +43,29 @@ export function SudokuApp(this: Component<SudokuState>) {
 	this.state.future = [];
 	this.state.nextMoveId = 1;
 	this.state.elapsedSeconds = restored?.saved.elapsedSeconds ?? 0;
+	this.state.timerStartedAt = isSolved(initialCells) ? undefined : Date.now();
 	this.state.paused = false;
 	this.state.theme = restored?.saved.theme ?? 'paper';
 	this.state.lensOpen = false;
 	this.state.themeMenuOpen = false;
 
 	const complete = isSolved(this.state.cells);
+	const elapsedSecondsNow = () => {
+		const startedAt = this.state.timerStartedAt;
+		if (startedAt === undefined) return this.state.elapsedSeconds;
+		return this.state.elapsedSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1_000));
+	};
+
+	const stopTimer = () => {
+		if (this.state.timerStartedAt === undefined) return;
+		this.state.elapsedSeconds = elapsedSecondsNow();
+		this.state.timerStartedAt = undefined;
+	};
+
+	const startTimer = () => {
+		if (this.state.timerStartedAt !== undefined) return;
+		this.state.timerStartedAt = Date.now();
+	};
 
 	const commit = (label: string, changes: GameMove['changes']) => {
 		if (!changes.length || complete) return;
@@ -62,6 +75,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 			changes
 		};
 		applyMove(this.state.cells, move, 'forward');
+		if (isSolved(this.state.cells)) stopTimer();
 		this.state.history.push(move);
 		this.state.future = [];
 	};
@@ -115,6 +129,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 		this.state.history = [];
 		this.state.future = [];
 		this.state.elapsedSeconds = 0;
+		this.state.timerStartedAt = Date.now();
 		this.state.paused = false;
 	};
 
@@ -163,7 +178,13 @@ export function SudokuApp(this: Component<SudokuState>) {
 		},
 		togglePause: () => {
 			if (complete) return;
-			this.state.paused = !this.state.paused;
+			if (this.state.paused) {
+				this.state.paused = false;
+				startTimer();
+			} else {
+				stopTimer();
+				this.state.paused = true;
+			}
 		},
 		toggleLens: () => {
 			this.state.lensOpen = !this.state.lensOpen;
@@ -178,26 +199,12 @@ export function SudokuApp(this: Component<SudokuState>) {
 				createSavedGame(
 					this.state.puzzleId,
 					this.state.cells,
-					this.state.elapsedSeconds,
+					elapsedSecondsNow(),
 					this.state.theme
 				)
 			)
 		);
 	};
-
-	const runTimer = (
-		paused: boolean,
-		solved: boolean,
-		_task: TaskContext = TaskContext.client().latest()
-	) => {
-		if (paused || solved) return;
-		setInterval(() => {
-			// The latest task cancels this interval on pause or completion. The
-			// guard also prevents a tick already queued at that transition.
-			if (!this.state.paused && !isSolved(this.state.cells)) this.state.elapsedSeconds++;
-		}, 1000);
-	};
-	runTimer(this.state.paused, complete);
 
 	const persistChangedGame = (_puzzleId: string, _cells: string, _theme: string) => {
 		persistGame();
@@ -212,6 +219,10 @@ export function SudokuApp(this: Component<SudokuState>) {
 		};
 		document.addEventListener('visibilitychange', persistWhenHidden);
 		window.addEventListener('pagehide', persistGame);
+		this.onUnmount(() => {
+			document.removeEventListener('visibilitychange', persistWhenHidden);
+			window.removeEventListener('pagehide', persistGame);
+		});
 	};
 	observePageLifetime();
 
@@ -286,6 +297,9 @@ export function SudokuApp(this: Component<SudokuState>) {
 			<header className="topbar">
 				<SudokuBrand />
 				<div className="topbar-actions">
+					<a className="docs-link" href="./#/learn/state">
+						State docs
+					</a>
 					<span className="theme-label">{themeName(this.state.theme)}</span>
 					<button
 						type="button"
@@ -317,7 +331,11 @@ export function SudokuApp(this: Component<SudokuState>) {
 					<div className="mobile-game-status">
 						<div className="mobile-timer">
 							<span>Time</span>
-							<strong>{formatElapsed(this.state.elapsedSeconds)}</strong>
+							<GameClock
+								accumulatedSeconds={this.state.elapsedSeconds}
+								running={this.state.timerStartedAt !== undefined}
+								startedAt={this.state.timerStartedAt ?? 0}
+							/>
 						</div>
 						<ProgressOrbit progress={progress} compact />
 					</div>
@@ -335,7 +353,11 @@ export function SudokuApp(this: Component<SudokuState>) {
 						</label>
 						<div>
 							<span>Time</span>
-							<strong>{formatElapsed(this.state.elapsedSeconds)}</strong>
+							<GameClock
+								accumulatedSeconds={this.state.elapsedSeconds}
+								running={this.state.timerStartedAt !== undefined}
+								startedAt={this.state.timerStartedAt ?? 0}
+							/>
 						</div>
 					</div>
 				</header>

@@ -131,8 +131,9 @@ function jsxFact(
 	index: number,
 	components: readonly Readonly<{ id: string; range: ExactLanguageRange }>[]
 ): ExactJsxLanguageFactV1 {
-	const range = sourceRange(element.start, element.length);
-	const tagOffset = source.indexOf(element.tag, range.start);
+	const openingRange = sourceRange(element.start, element.length);
+	const range = jsxElementRange(source, openingRange, element.tag);
+	const tagOffset = source.indexOf(element.tag, openingRange.start);
 	const tagRange = Object.freeze({
 		start: tagOffset >= range.start && tagOffset < range.end ? tagOffset : range.start,
 		end:
@@ -148,7 +149,7 @@ function jsxFact(
 	return Object.freeze({
 		id: `jsx:${element.start}:${index}`,
 		range,
-		openingRange: range,
+		openingRange,
 		tagRange,
 		kind:
 			element.tag === '_' ? 'enhancement-target' : element.intrinsic ? 'intrinsic' : 'component',
@@ -160,6 +161,34 @@ function jsxFact(
 			)
 		)
 	});
+}
+
+/** Expands the native opening-element span to the complete authored JSX element. */
+function jsxElementRange(
+	source: string,
+	openingRange: ExactLanguageRange,
+	tag: string
+): ExactLanguageRange {
+	const opening = source.slice(openingRange.start, openingRange.end);
+	if (/\/\s*>\s*$/u.test(opening)) return openingRange;
+	const token = new RegExp(`<\\/?${escapeRegExp(tag)}(?=[\\s>/])`, 'gu');
+	token.lastIndex = openingRange.end;
+	let depth = 1;
+	for (let match = token.exec(source); match; match = token.exec(source)) {
+		const end = source.indexOf('>', match.index + match[0].length);
+		if (end < 0) break;
+		const closing = source[match.index + 1] === '/';
+		const selfClosing = source.slice(match.index, end + 1).match(/\/\s*>$/u) !== null;
+		if (closing) depth--;
+		else if (!selfClosing) depth++;
+		if (depth === 0) return Object.freeze({ start: openingRange.start, end: end + 1 });
+		token.lastIndex = end + 1;
+	}
+	return openingRange;
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 function attributeFact(

@@ -108,8 +108,8 @@ export function IntlTestbed(this: Component<TestbedState>) {
 		>
 			<ThemeModeToggle appearance={appearance()} onToggle={toggleAppearance} />
 			<header className="hero">
-				<a className="docs-link" href="../">
-					Documentation
+				<a className="docs-link" href="../#/plugins/internationalization">
+					Internationalization documentation
 				</a>
 				<p className="eyebrow">eXact internationalization test bed</p>
 				<h1>Ordinary JSX, four cultural interpretations</h1>

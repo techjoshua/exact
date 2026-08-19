@@ -3,7 +3,7 @@ import type { Component } from '@exactjs/core';
 /** Renders the static application identity shared by the game shell. */
 export function SudokuBrand(this: Component<{}>) {
 	return () => (
-		<a className="brand" href="/" aria-label="Sudoku Atelier home">
+		<a className="brand" href="#top" aria-label="Sudoku Atelier home">
 			<span className="brand-mark" aria-hidden="true">
 				<span>9</span>
 				<span>3</span>

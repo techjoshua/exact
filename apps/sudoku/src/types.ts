@@ -74,7 +74,10 @@ export type SudokuState = {
 	history: GameMove[];
 	future: GameMove[];
 	nextMoveId: number;
+	/** Accumulated whole seconds before the current running segment. */
 	elapsedSeconds: number;
+	/** Wall-clock anchor for the current segment; absent while paused or complete. */
+	timerStartedAt?: number;
 	paused: boolean;
 	theme: ThemeId;
 	lensOpen: boolean;
