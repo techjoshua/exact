@@ -107,5 +107,13 @@ async function invokeAnalyzer(
 }
 
 function respond(frame: ExactLanguageRunnerResponse): void {
-	process.stdout.write(`${JSON.stringify(frame)}\n`);
+	let encoded = JSON.stringify(frame);
+	if (Buffer.byteLength(encoded) > exactLanguageProtocolLimits.responseBytes) {
+		encoded = JSON.stringify({
+			protocol: 1,
+			id: frame.id,
+			error: { message: 'Language provider result exceeded its byte limit' }
+		} satisfies ExactLanguageRunnerResponse);
+	}
+	process.stdout.write(`${encoded}\n`);
 }
