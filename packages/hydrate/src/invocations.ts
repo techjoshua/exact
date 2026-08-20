@@ -249,6 +249,8 @@ async function readBoundedResponseBody(
 			if (signal?.aborted)
 				throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
 			const next = await reader.read();
+			if (signal?.aborted)
+				throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
 			if (next.done) break;
 			length += next.value.byteLength;
 			if (length > maxBytes) throw new Error('eXact response exceeded maxBytes');
