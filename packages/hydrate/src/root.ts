@@ -3,6 +3,7 @@ import type { CoreHydrationRoot, HydrateOptions } from './types.js';
 import { hydrateWithClient } from './runtime/hydration.js';
 import { createHydrationOnlyClient } from './runtime/root-client.js';
 import { resolveRootHydrateOptions } from './root-config.js';
+import { assertCurrentDocumentContainer } from './runtime/current-document.js';
 
 /**
  * Hydrates an SSR root while excluding optional server-operation, patch, and island runtimes.
@@ -31,6 +32,11 @@ export function hydrateAfterNavigation(
 	container: Element,
 	options: HydrateOptions = {}
 ): Promise<CoreHydrationRoot> {
+	try {
+		assertCurrentDocumentContainer(container);
+	} catch (error) {
+		return Promise.reject(error);
+	}
 	const ownerDocument = container.ownerDocument;
 	const ownerWindow = ownerDocument.defaultView;
 	const requestFrame =

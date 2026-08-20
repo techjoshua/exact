@@ -15,8 +15,9 @@ Status: implemented foundation with the explicit limits listed below.
   scheduling user-visible adoption outside the DOMContentLoaded critical path. An
   interaction-capture fallback still activates the root synchronously when a user acts first, and
   hidden documents use a task fallback because animation frames may be throttled indefinitely.
-  Scheduling uses the container's document and window, so roots in embedded realms do not depend on
-  the host page's readiness, frame, timer, or task queues. Activation has one terminal settlement:
+  Hydration roots must belong to the executing window's current document. An embedded document runs
+  its own eXact runtime instead of transferring DOM ownership to its parent window. Scheduling uses
+  that current document's readiness and queues. Activation has one terminal settlement:
   scheduling and hydration failures remove pending hooks and cannot trigger a later retry.
   An opt-in hydration profile reports DOM capture, adoption, control restoration, and total
   hydration separately so applications can distinguish scheduling delay from adoption work.

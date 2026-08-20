@@ -62,8 +62,8 @@ export function AdvancedPage(this: Component<{}>) {
 			<section>
 				<h2>Start with a client component</h2>
 				<p>
-					Build the component, add routing and forms, then test its behavior. Add server rendering or
-					server tasks when they improve startup, data access, or security.
+					Build the component, add routing and forms, then test its behavior. Add server rendering
+					or server tasks when they improve startup, data access, or security.
 				</p>
 			</section>
 
@@ -71,7 +71,9 @@ export function AdvancedPage(this: Component<{}>) {
 				<h2>Server rendering and hydration</h2>
 				<p>
 					Server rendering produces HTML and public component state. Hydration adopts the existing
-					DOM, preserves form state and focus, and continues the same component in the browser.
+					DOM, preserves form state and focus, and continues the same component in the browser. The
+					root must belong to that window&apos;s current document; embedded documents hydrate from
+					their own runtime rather than transferring DOM ownership to a parent window.
 				</p>
 				<p>
 					Use <code>renderMode: 'hydrate'</code> for browser builds that adopt server HTML,
