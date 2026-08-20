@@ -148,9 +148,9 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/learn/compiler-tour',
 				label: 'How compilation helps',
-				summary: 'See how eXact connects state, DOM updates, tasks, and server work.',
+				summary: 'Trace authored code into annotated browser and server artifacts.',
 				keywords:
-					'compiler native TypeScript Go generated output lowering transform reactive helpers task binding map JSX',
+					'compiler native TypeScript Go generated output lowering browser server artifact pseudocode reactive helpers task binding continuation executor map JSX',
 				component: CompilerTourPage
 			},
 			{

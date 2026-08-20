@@ -2,7 +2,9 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import {
 	compilerTourAuthoredSource,
-	compilerTourContextSource
+	compilerTourContextSource,
+	compilerTourGeneratedClientSource,
+	compilerTourGeneratedServerSource
 } from '../examples/compiler-tour.js';
 import { Article } from './Article.jsx';
 
@@ -34,16 +36,43 @@ export function CompilerTourPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>What compilation adds</h2>
+				<h2>What the compiler generates</h2>
 				<p>
-					The compiler tracks which state feeds each attribute, text value, condition, binding, and
-					list. A state change can update those destinations directly. It also separates client and
-					server code, carries safe inputs, and connects server results to the component.
+					These are annotated pseudocode views of the current compiler contracts, not stable output
+					for applications to import. Private helper names and opaque operation identities are
+					shortened so the ownership and data flow are visible.
 				</p>
+				<h3>Browser artifact: state machine, DOM boundaries, and a transport stub</h3>
+				<p>
+					The browser keeps state defaults, precise reactive dependencies, bindings, event handlers,
+					and the generated view. The server task becomes a continuation that sends only the query
+					dependency selected by the compiler; the repository itself is absent.
+				</p>
+				<CodeBlock
+					source={compilerTourGeneratedClientSource}
+					language="ts"
+					title="Generated browser artifact, annotated pseudocode"
+				/>
+				<h3>Server artifact: an allowlisted request executor</h3>
+				<p>
+					The server retains the executable task and resolves trusted context inside the current
+					request. It injects cancellation, validates the shared result, and returns only the state
+					projection that the browser applies to the same durable component instance.
+				</p>
+				<CodeBlock
+					source={compilerTourGeneratedServerSource}
+					language="ts"
+					title="Generated server artifact, annotated pseudocode"
+				/>
 				<p>
 					Generated code imports compiled rendering and contract machinery through framework-owned
 					Core subpaths. Those implementation capabilities are not part of the application-facing
 					<code>@exactjs/core</code> root.
+				</p>
+				<p>
+					The exact representation is private, but the semantic contract is not: state consumers
+					keep narrow update boundaries, server resources remain server-side, transport inputs are
+					compiler-selected, and every task stays owned and cancelable.
 				</p>
 			</section>
 			<section>
