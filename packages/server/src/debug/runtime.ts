@@ -58,9 +58,7 @@ export function createExactServerDebugRuntime(
 				const session = await sessions.open(request, requested);
 				if (!session) return unavailable();
 				sessions.onClose(session, () => {
-					const closure = Promise.resolve(
-						context.gateway?.closeDebugSession?.(session.id, context)
-					)
+					const closure = Promise.resolve(context.gateway?.closeDebugSession?.(session.id, context))
 						.catch(() => undefined)
 						.finally(() => gatewayClosures.delete(session.id));
 					gatewayClosures.set(session.id, closure);
@@ -216,7 +214,8 @@ function createRequestDebugRuntime(
 
 function sameOrigin(request: ExactRequestLike, context: ExactServerContext): boolean {
 	const origin = requestHeader(request, 'origin');
-	if (!origin) return context.allowDebug !== undefined || context.debugSessionIdentity !== undefined;
+	if (!origin)
+		return context.allowDebug !== undefined || context.debugSessionIdentity !== undefined;
 	try {
 		const configured =
 			typeof context.publicOrigin === 'string' || context.publicOrigin instanceof URL

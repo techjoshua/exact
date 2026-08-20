@@ -10,10 +10,10 @@ testing, and change-acceptance rules as required review criteria rather than opt
 
 Every feature addition, removal, or behavior change must update all relevant engineering
 documentation under [`docs`](docs) and the public documentation application under
-[`apps/docs`](apps/docs).  Keep in mid the documentation app is not you personal blog. The audience
+[`apps/docs`](apps/docs). Keep in mid the documentation app is not you personal blog. The audience
 for the documentation application is external developers and generally it should only explain public
 facing features of the framework... unless the page in question is explaining the internal framework
-workings intentionally.  Also keep in mind that the story page is hand-written content that should
+workings intentionally. Also keep in mind that the story page is hand-written content that should
 not be changed at all unless it becomes incorrect or misleading, and even then the corrections should
 be measured and follow the same tone and style as the underlying document. Treat those updates as part
 of the feature, not optional follow-up work. Create, remove, split, combine, or reorganize reference

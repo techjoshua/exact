@@ -43,7 +43,10 @@ export async function copyValidatedGatewayResponse(
 	return { status: upstream.status, headers, body };
 }
 
-async function readBoundedText(source: ReadableStream<Uint8Array>, maximum: number): Promise<string> {
+async function readBoundedText(
+	source: ReadableStream<Uint8Array>,
+	maximum: number
+): Promise<string> {
 	const reader = source.getReader();
 	const decoder = new TextDecoder('utf-8', { fatal: true });
 	let body = '';

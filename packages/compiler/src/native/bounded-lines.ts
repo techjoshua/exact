@@ -20,7 +20,8 @@ export function readBoundedLines(
 			const newline = chunk.indexOf(10);
 			const segment = newline < 0 ? chunk : chunk.subarray(0, newline);
 			bytes += segment.length;
-			if (bytes > options.maxBytes) return fail('Subprocess response frame exceeded its byte limit');
+			if (bytes > options.maxBytes)
+				return fail('Subprocess response frame exceeded its byte limit');
 			if (segment.length) chunks.push(segment);
 			if (newline < 0) return;
 			try {

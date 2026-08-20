@@ -307,10 +307,7 @@ describe('server-cooperative debug protocol', () => {
 	});
 
 	it('requires an explicit debug policy for requests without an origin', async () => {
-		const response = await handleExactRequest(
-			{ ...debugOpen(), headers: undefined },
-			server()
-		);
+		const response = await handleExactRequest({ ...debugOpen(), headers: undefined }, server());
 		expect(response.status).toBe(404);
 	});
 
