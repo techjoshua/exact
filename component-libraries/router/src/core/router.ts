@@ -361,10 +361,13 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 				return;
 			}
 			fetchers.set(key, Object.freeze({ state: 'idle', error }));
+		} finally {
+			if (fetcherAborts.get(key) === abort) {
+				fetcherAborts.delete(key);
+				snapshot = buildSnapshot(snapshot.historyAction);
+				notify();
+			}
 		}
-		snapshot = buildSnapshot(snapshot.historyAction);
-		notify();
-		if (fetcherAborts.get(key) === abort) fetcherAborts.delete(key);
 	}
 
 	return Object.freeze({
@@ -384,6 +387,14 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 			routerOperation.assertRouterActive(disposed);
 			routes = normalizeRouteIds(nextRoutes);
 			refresh(snapshot.historyAction);
+		},
+		releaseFetcher(key: string) {
+			routerOperation.assertRouterActive(disposed);
+			fetcherAborts.get(key)?.abort();
+			fetcherAborts.delete(key);
+			if (!fetchers.delete(key)) return;
+			snapshot = buildSnapshot(snapshot.historyAction);
+			notify();
 		},
 		createHref: (to: string | URL) => hrefFor(to, source.location(), basename, mode),
 		navigate(to: string | URL | number, navigationOptions?: NavigationOptions) {

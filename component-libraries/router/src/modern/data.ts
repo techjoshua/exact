@@ -1,6 +1,7 @@
 import {
 	createElement,
 	useContext,
+	useEffect,
 	useId,
 	useState,
 	type ReactComponentType,
@@ -107,6 +108,7 @@ export function useFetcher<T = unknown>(): {
 	const routeId = useContext(RouteIdContext);
 	const generated = useId();
 	const [key] = useState(() => `fetcher-${generated}`);
+	useEffect(() => () => router.releaseFetcher(key), [router, key]);
 	const state = snapshot.fetchers.get(key) ?? { state: 'idle' as const };
 	if (!routeId) throw new Error('useFetcher must be used within a matched route');
 	return {
