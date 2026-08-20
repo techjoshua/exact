@@ -11,6 +11,7 @@
 	],
 	"scripts": {
 		"build": "tsc -b && node build.mjs",
+		"check:artifact": "node check-artifact.mjs",
 		"test": "vitest run"
 	},
 	"dependencies": {
