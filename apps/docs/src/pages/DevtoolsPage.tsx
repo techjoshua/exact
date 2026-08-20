@@ -114,6 +114,10 @@ export function DevtoolsPage(this: Component<{}>) {
 					The browser merges them into the page timeline without creating a server-side remote
 					history.
 				</p>
+				<p>
+					The development default accepts only matching browser origins. Origin-less tooling must
+					configure an explicit <code>allowDebug</code> policy or authenticated session identity.
+				</p>
 			</section>
 			<section>
 				<h2>Humans and agents use the same protocol</h2>
@@ -136,7 +140,9 @@ export function DevtoolsPage(this: Component<{}>) {
 					cursor, so delayed subscription delivery cannot leave a silent gap. The Microfrontends
 					view summarizes independently deployed roots. The CDP agent sends the same validated
 					requests through fixed functions. Neither surface can evaluate caller JavaScript, mutate
-					state, invoke tasks, or receive raw component instances.
+					state, invoke tasks, or receive raw component instances. CDP discovery, messages, pending
+					requests, and connection lifetimes are bounded, and automation can supply a cancellation
+					signal.
 				</p>
 				<p>
 					For local use, build the Chromium package and load its package directory as an unpacked

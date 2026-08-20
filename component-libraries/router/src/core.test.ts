@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { describe, expect, it, vi } from 'vitest';
 import { runComponentInteraction } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
@@ -342,6 +343,8 @@ describe('renderer-neutral router core', () => {
 		firstResolve('1');
 		await Promise.all([stale, current]);
 		expect(router.getSnapshot().fetchers.get('same')).toEqual({ state: 'idle', data: '2' });
+		router.releaseFetcher('same');
+		expect(router.getSnapshot().fetchers.has('same')).toBe(false);
 	});
 
 	it('rejects stale initialization, action, and revalidation commits even when handlers ignore abort', async () => {

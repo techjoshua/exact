@@ -1,4 +1,6 @@
 import {
+	type AnyAuthoredComponentFunction,
+	type AnyComponentFunction,
 	createContext,
 	createVNode,
 	Dynamic,
@@ -7,7 +9,6 @@ import {
 	unwrap,
 	type Child,
 	type Component,
-	type AuthoredComponentFunction,
 	type ComponentFunction,
 	type InteractionHandler,
 	type VNode
@@ -170,7 +171,7 @@ export type RouteProps = {
 	path?: string;
 	index?: boolean;
 	caseSensitive?: boolean;
-	component?: AuthoredComponentFunction<any, any>;
+	component?: AnyAuthoredComponentFunction;
 	componentProps?: Record<string, unknown>;
 	children?: Child | Child[];
 };
@@ -216,7 +217,7 @@ function routeChildren(children: Child | Child[] | undefined, parentId = 'root')
 				? { caseSensitive: unwrap(rawProps.caseSensitive) as boolean }
 				: {}),
 			...(rawProps.component !== undefined
-				? { component: unwrap(rawProps.component) as AuthoredComponentFunction<any, any> }
+				? { component: unwrap(rawProps.component) as AnyAuthoredComponentFunction }
 				: {}),
 			...(rawProps.componentProps !== undefined
 				? {
@@ -253,10 +254,7 @@ function renderBranch(routes: RouteRecord[], context: RouteContextValue): Child 
 				key: route.id,
 				render: () =>
 					route.component
-						? createVNode(
-								route.component as ComponentFunction<any, any>,
-								route.componentProps ?? {}
-							)
+						? createVNode(route.component as AnyComponentFunction, route.componentProps ?? {})
 						: child
 			},
 			child

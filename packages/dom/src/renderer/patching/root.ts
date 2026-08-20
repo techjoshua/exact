@@ -1,4 +1,5 @@
 import {
+	type AnyComponentInstance,
 	Activity,
 	Dynamic,
 	Fragment,
@@ -9,7 +10,6 @@ import {
 	Text,
 	UnsafeHtml,
 	watch,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { isCellVNode, RenderProgram, ServerSlot } from '@exactjs/core/runtime/render';
@@ -45,7 +45,7 @@ export function patch(
 	parent: Node,
 	mounted: Mounted | undefined,
 	next: VNode,
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope
 ): Mounted {
 	// Compiler-owned keyed-list caches return the exact retained VNode when an
@@ -75,7 +75,7 @@ export function patchInner(
 	parent: Node,
 	mounted: Mounted | undefined,
 	next: VNode,
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope
 ): Mounted {
 	if (

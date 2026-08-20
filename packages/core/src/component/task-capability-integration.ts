@@ -2,7 +2,7 @@ import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks
 import { componentContinuationTaskId } from '../tasks/component-continuation.js';
 import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
 import { releaseTaskObserver, retainTaskObserver } from '../tasks/observers.js';
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 import { configureComponentTaskOwner } from './task-owner-integration.js';
 import {
 	registerComponentTaskCapability,
@@ -37,14 +37,14 @@ const taskCapability: ComponentTaskCapability = Object.freeze({
 			return continuationId !== undefined && settled.has(continuationId);
 		});
 	},
-	retain(state: ComponentTaskCapabilityState | undefined, instance: ComponentInstance<any>): void {
+	retain(state: ComponentTaskCapabilityState | undefined, instance: AnyComponentInstance): void {
 		const observer = state?.observer as
-			| { retain?(instance: ComponentInstance<any>): void }
+			| { retain?(instance: AnyComponentInstance): void }
 			| undefined;
 		observer?.retain?.(instance);
 		if (observer?.retain) retainTaskObserver(instance, observer as never);
 	},
-	release(state: ComponentTaskCapabilityState | undefined, instance: ComponentInstance<any>): void {
+	release(state: ComponentTaskCapabilityState | undefined, instance: AnyComponentInstance): void {
 		if (state)
 			void (state.owner as { [Symbol.asyncDispose](): Promise<void> })[Symbol.asyncDispose]();
 		releaseTaskObserver(instance);

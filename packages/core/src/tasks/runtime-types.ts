@@ -1,6 +1,6 @@
 import type { ReactiveMutationJournal } from '@exactjs/reactive';
 
-import type { ComponentInstance } from '../component/contracts.js';
+import type { AnyComponentInstance } from '../component/contracts.js';
 import type { ComponentTraceSpan } from '../component/performance-trace.js';
 import type { TaskActivation } from './contracts.js';
 import type { TaskFrameRecord } from './frame-runtime.js';
@@ -28,7 +28,7 @@ export type InternalTaskGeneration<Result> = {
 	started: boolean;
 	executing: boolean;
 	trace?: {
-		readonly owner: ComponentInstance<any>;
+		readonly owner: AnyComponentInstance;
 		readonly span: ComponentTraceSpan;
 	};
 };

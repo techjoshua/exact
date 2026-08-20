@@ -1,11 +1,11 @@
-import { Target, type ComponentInstance } from '@exactjs/core';
+import { type AnyComponentInstance, Target } from '@exactjs/core';
 import type { Mounted } from '../types.js';
 
 /** One mounted semantic target and the logical owner frame that selected it. */
 export type MountedTarget = {
 	readonly mounted: Mounted;
 	readonly owner?: Mounted;
-	readonly parentInstance?: ComponentInstance<any>;
+	readonly parentInstance?: AnyComponentInstance;
 	readonly depth: number;
 };
 
@@ -15,7 +15,7 @@ export type RoutedTarget = MountedTarget & { readonly frame: Mounted };
 /** Resolves one `_target` boundary's children without treating the boundary itself as output. */
 export function resolveTargetBoundary(
 	boundary: Mounted,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	dependencies?: Set<Mounted>
 ): MountedTarget | undefined {
 	for (const child of boundary.children) {
@@ -29,7 +29,7 @@ export function resolveTargetBoundary(
 function findTargetBoundaryChild(
 	mounted: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
 	dependencies?: Set<Mounted>
 ): MountedTarget | undefined {
@@ -67,7 +67,7 @@ function findTargetBoundaryChild(
 export function findFirstTargetExport(
 	boundary: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
 	skipBoundary = false,
 	dependencies?: Set<Mounted>
@@ -101,7 +101,7 @@ export function findFirstTargetExport(
 export function findRootBearingFrame(
 	boundary: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
 	dependencies?: Set<Mounted>
 ): RoutedTarget | undefined {
@@ -127,7 +127,7 @@ function locateMountedTarget(
 	boundary: Mounted,
 	target: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
 	dependencies?: Set<Mounted>
 ): MountedTarget | undefined {
@@ -151,7 +151,7 @@ function locateMountedTarget(
 function findFirstRoot(
 	mounted: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
 	frame: Mounted | undefined,
 	dependencies?: Set<Mounted>

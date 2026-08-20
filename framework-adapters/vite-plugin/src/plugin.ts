@@ -68,6 +68,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	let preparedRegistry: ExactPreparedPluginRegistry | undefined;
 	let loadedConfig: ExactLoadedConfig | undefined;
 	let languageValidation: ExactLanguageValidationSession | undefined;
+	let disposed = false;
 	const componentAuthorization = new ExactViteComponentAuthorization();
 	const enhancementFacadeCatalog = new ExactViteEnhancementFacadeCatalog();
 	let viteCommand: 'build' | 'serve' = 'build';
@@ -78,11 +79,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		configuration: options.internationalization || undefined,
 		target: options.target === 'server' ? 'server' : 'client'
 	});
-	const disposeBuildProcesses = (): void => {
+	const disposeBuildProcesses = async (): Promise<void> => {
+		disposed = true;
 		componentAuthorization.dispose();
 		compiler.dispose();
 		intl.dispose();
-		void languageValidation?.dispose();
+		await languageValidation?.dispose();
 		languageValidation = undefined;
 	};
 	const microfrontends = createExactViteMicrofrontendIntegration(options);
@@ -118,11 +120,13 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			compiler.configure(options.diagnostics ?? config.command === 'serve');
 		},
 		async buildStart() {
+			if (disposed) throw new Error('eXact Vite plugin has been disposed');
 			inspectionModules.clear();
 			for (const file of compatibilityEngine?.watchFiles ?? []) this.addWatchFile(file);
 			await intl.beginBuild();
 			for (const file of intl.catalogFiles) this.addWatchFile(file);
 			const registry = await prepareRegistry();
+			if (disposed) throw new Error('eXact Vite plugin was disposed during startup');
 			await languageValidation?.dispose();
 			languageValidation = createExactLanguageValidationSession({
 				workspaceRoot: registry.applicationRoot,
@@ -147,8 +151,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		configureServer(server) {
-			server.httpServer?.once('close', disposeBuildProcesses);
-			server.watcher?.once('close', disposeBuildProcesses);
+			server.httpServer?.once('close', () => void disposeBuildProcesses());
+			server.watcher?.once('close', () => void disposeBuildProcesses());
 		},
 		async buildEnd(error) {
 			if (!error) intl.validateCatalogs();
@@ -367,7 +371,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				this.warn?.(message)
 			);
 		},
-		closeBundle: disposeBuildProcesses,
+		closeBundle: async () => disposeBuildProcesses(),
 		transform(code, id) {
 			const transformed = transformExactViteModule({
 				code,

@@ -1,4 +1,5 @@
 import {
+	type AnyComponentFunction,
 	Activity as ExactActivity,
 	Fragment as ExactFragment,
 	Suspense as ExactSuspense,
@@ -44,6 +45,7 @@ import {
 } from '../internals.js';
 import { EXACT_COMPONENT_TYPE } from './shared.js';
 import type {
+	AnyReactComponentType,
 	ReactComponentType,
 	ReactElement,
 	ReactNode,
@@ -188,10 +190,10 @@ export function reactElementToVNode(element: ReactElement): VNode {
 /** Performs the exact component type domain operation. */
 export function exactComponentType(
 	type: unknown
-): { component: ComponentFunction<any, any>; refProp?: PropertyKey } | undefined {
+): { component: AnyComponentFunction; refProp?: PropertyKey } | undefined {
 	if ((typeof type !== 'function' && typeof type !== 'object') || type === null) return undefined;
 	if (typeof type === 'function' && isExactComponent(type))
-		return { component: type as ComponentFunction<any, any> };
+		return { component: type as AnyComponentFunction };
 	const candidate = type as {
 		$$typeof?: unknown;
 		exactComponent?: unknown;
@@ -200,7 +202,7 @@ export function exactComponentType(
 	return candidate.$$typeof === EXACT_COMPONENT_TYPE &&
 		typeof candidate.exactComponent === 'function'
 		? {
-				component: candidate.exactComponent as ComponentFunction<any, any>,
+				component: candidate.exactComponent as AnyComponentFunction,
 				...(typeof candidate.exactRefProp === 'string' || typeof candidate.exactRefProp === 'symbol'
 					? { refProp: candidate.exactRefProp }
 					: {})
@@ -210,7 +212,7 @@ export function exactComponentType(
 
 /** Runs react type with the supplied execution context. */
 export function invokeReactType(
-	type: ReactComponentType<any>,
+	type: AnyReactComponentType,
 	props: Record<string, unknown>,
 	ref?: unknown
 ): ReactNode {
@@ -225,7 +227,7 @@ export function invokeReactType(
 	if (special.$$typeof === REACT_MEMO_TYPE && special.type)
 		return invokeReactType(special.type, props, ref);
 	if (special.$$typeof === REACT_LAZY_TYPE && special._init) {
-		return invokeReactType(special._init(special._payload) as ReactComponentType<any>, props, ref);
+		return invokeReactType(special._init(special._payload) as AnyReactComponentType, props, ref);
 	}
 	if (
 		special.$$typeof === REACT_PROVIDER_TYPE ||

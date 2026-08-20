@@ -3,14 +3,14 @@ import { initializeComponentExecution } from '../tasks/component-execution.js';
 import type { TaskOwnerRecord } from '../tasks/frame-contracts.js';
 import { taskObserverFor } from '../tasks/observers.js';
 import { registerTaskOwnerHost } from '../tasks/owner-hosts.js';
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 import { componentReadinessContext } from './readiness.js';
 import type { TaskObserver } from './task-observer.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 
 /** Connects a new component owner to plan execution, readiness, and renderer task observation. */
 export function configureComponentTaskOwner(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	owner: TaskOwnerRecord,
 	execution: PreparedComponentExecution | undefined,
 	props: Record<string, unknown>

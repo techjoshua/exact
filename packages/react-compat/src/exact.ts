@@ -12,13 +12,13 @@ export {
 } from './internals.js';
 import type { Component } from '@exactjs/core';
 import { adaptReactType, toExactNode } from './internals.js';
-import type { ReactComponentType, ReactNode } from './types.js';
+import type { AnyReactComponentType, ReactNode } from './types.js';
 
 /** Performs the react host domain operation. */
 export function ReactHost(
 	this: Component<Record<string, unknown>>,
 	props: {
-		component: ReactComponentType<any>;
+		component: AnyReactComponentType;
 		componentProps?: Record<string, unknown>;
 		children?: ReactNode;
 	}

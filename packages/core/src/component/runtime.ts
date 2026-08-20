@@ -12,6 +12,7 @@ import { getComponentContext, hasComponentContext, setComponentContext } from '.
 import { publishContextAccess } from './context-inspection.js';
 import { prepareComponentContextResumption } from './context-resumption.js';
 import type {
+	AnyComponentInstance,
 	ComponentContextValues,
 	ComponentFunction,
 	ComponentInstance,
@@ -62,7 +63,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	implements ComponentInstance<State>
 {
 	readonly type: ComponentFunction<State, Props>;
-	parent?: ComponentInstance<any>;
+	parent?: AnyComponentInstance;
 	readonly domain: ComponentInstance<State>['domain'];
 	readonly id: string;
 	readonly scope: ComponentInstance<State>['scope'];
@@ -94,7 +95,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	constructor(
 		type: ComponentFunction<State, Props>,
 		rawProps: Props,
-		parent: ComponentInstance<any> | undefined,
+		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
 		execution?: PreparedComponentExecution
@@ -388,7 +389,7 @@ export function createComponentInstance<
 >(
 	type: ComponentFunction<State, Props>,
 	rawProps: Props,
-	parent?: ComponentInstance<any>,
+	parent?: AnyComponentInstance,
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
@@ -403,7 +404,7 @@ export function createPreparedComponentInstance<
 	type: ComponentFunction<State, Props>,
 	rawProps: Props,
 	execution: PreparedComponentExecution | undefined,
-	parent?: ComponentInstance<any>,
+	parent?: AnyComponentInstance,
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {

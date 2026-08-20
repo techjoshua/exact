@@ -1,4 +1,4 @@
-import { sameJsonData, type ComponentFunction } from '@exactjs/core';
+import { type AnyComponentFunction, sameJsonData } from '@exactjs/core';
 import {
 	composeExactComponentContracts,
 	type ExactComponentBoundaryContract,
@@ -19,7 +19,7 @@ import type { CreateExactHydrationConfigOptions, ExactHydrationConfig } from './
  * application-owned entries are registered.
  */
 export function composeExactExecutorContract(
-	components: readonly ComponentFunction<any, any>[],
+	components: readonly AnyComponentFunction[],
 	options: ComposeExactExecutorContractOptions = {}
 ): ExactExecutorContract {
 	const composed = composeExactComponentContracts(components, 'executor');

@@ -2,11 +2,11 @@ import {
 	createVNode,
 	isExactEnhancementPassThrough,
 	readExactEnhancementContexts,
-	type ComponentFunction,
+	type AnyEnhancementComponentFunction,
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
-import type { ComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
+import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
 import {
 	planSsrEnhancementBoundary,
 	planSsrEnhancementBoundaryAsync
@@ -16,7 +16,7 @@ import {
 export function activateSsrEnhancements(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): VNode {
 	planBoundaryIfNeeded(context, vnode, parent);
 	return activatePlannedTarget(context, vnode);
@@ -26,7 +26,7 @@ export function activateSsrEnhancements(
 export async function activateSsrEnhancementsAsync(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<VNode> {
 	const declarations = localDeclarations(vnode);
@@ -44,7 +44,7 @@ export async function activateSsrEnhancementsAsync(
 function planBoundaryIfNeeded(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): void {
 	const declarations = localDeclarations(vnode);
 	if (!declarations.length) return;
@@ -93,7 +93,7 @@ function routingOnlyEntry(entry: EnhancementEntry): boolean {
 
 function enhancementVNode(
 	context: SsrContext,
-	component: ComponentFunction<any, Record<string, unknown>>,
+	component: AnyEnhancementComponentFunction,
 	entry: EnhancementEntry,
 	child: VNode,
 	domain: VNode['domain']

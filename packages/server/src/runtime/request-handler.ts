@@ -126,7 +126,7 @@ async function handleExactRequestOwned(
 
 	let input: ExactProtocolRequest;
 	try {
-		input = parseExactRequestBody(await readBody(request), {
+		input = parseExactRequestBody(await readBody(request, context.limits?.maxRequestBytes), {
 			maxBatchOperations: context.limits?.maxBatchOperations,
 			maxJsonDepth: context.limits?.maxJsonDepth,
 			maxJsonNodes: context.limits?.maxJsonNodes,
@@ -260,15 +260,29 @@ function withRequestObservations(
 		const observations = [...runtime.drain()];
 		if (!observations.length) return response;
 		const body = JSON.parse(response.body) as Record<string, unknown>;
-		body.__exactObservations = observations;
 		const maximum = context.limits?.maxResponseBytes ?? 16 * 1024 * 1024;
-		let encoded = JSON.stringify(body);
-		while (new TextEncoder().encode(encoded).byteLength > maximum && observations.length) {
-			observations.shift();
-			encoded = JSON.stringify(body);
+		const encoder = new TextEncoder();
+		let start = 0;
+		let encoded = encodeObservations(start);
+		if (encoder.encode(encoded).byteLength > maximum) {
+			let low = 1;
+			let high = observations.length;
+			while (low < high) {
+				const middle = Math.floor((low + high) / 2);
+				if (encoder.encode(encodeObservations(middle)).byteLength <= maximum) high = middle;
+				else low = middle + 1;
+			}
+			start = low;
+			encoded = encodeObservations(start);
 		}
-		if (!observations.length) return response;
+		if (start === observations.length || encoder.encode(encoded).byteLength > maximum)
+			return response;
 		return { ...response, body: encoded };
+
+		function encodeObservations(index: number): string {
+			body.__exactObservations = observations.slice(index);
+			return JSON.stringify(body);
+		}
 	} finally {
 		runtime.dispose();
 	}

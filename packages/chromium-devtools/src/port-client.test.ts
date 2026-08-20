@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createExactExtensionQueryClient } from './port-client.js';
 
@@ -60,6 +61,17 @@ it('reconnects a service-worker port and replays unresolved work', async () => {
 
 	await expect(connection).resolves.toEqual({ id: 'session' });
 	expect(statuses).toEqual(['connecting', 'reconnecting', 'ready']);
+});
+
+it('bounds locally retained requests while the page bridge is unavailable', async () => {
+	const runtime = panelRuntime();
+	vi.stubGlobal('chrome', runtime.chrome);
+	const client = createExactExtensionQueryClient(4, 50);
+	const requests = Array.from({ length: 32 }, () => client.connect());
+	await expect(client.connect()).rejects.toThrow('request queue is full');
+	const disconnected = client.disconnect();
+	await Promise.all(requests.map((request) => request.catch(() => undefined)));
+	await disconnected;
 });
 
 function status(value: 'ready' | 'waiting-for-page') {

@@ -10,7 +10,7 @@ export function createExactBunHandler(
 				method: request.method,
 				url: request.url,
 				headers: request.headers,
-				text: () => request.text(),
+				bodyStream: request.body,
 				signal: request.signal,
 				platformRequest: request
 			},

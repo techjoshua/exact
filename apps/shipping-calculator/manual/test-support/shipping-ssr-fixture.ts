@@ -1,4 +1,4 @@
-import { createVNode, type ComponentInstance } from '@exactjs/core';
+import { type AnyComponentInstance, createVNode } from '@exactjs/core';
 import { writeNodeResponseBody } from '@exactjs/node-adapter';
 import {
 	createExactServerRuntime,
@@ -21,7 +21,7 @@ export function createShippingSsrFixture() {
 	const runtime = createExactServerRuntime({ contract, patchStrategy: 'element' });
 
 	return {
-		async render(onComponentCreated?: (instance: ComponentInstance<any>) => void): Promise<void> {
+		async render(onComponentCreated?: (instance: AnyComponentInstance) => void): Promise<void> {
 			const url = 'http://localhost:4175/';
 			const hydration = createExactHydrationConfig(contract, {
 				state: { configuredProviders: configuredProviderIds() },

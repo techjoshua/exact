@@ -1,6 +1,11 @@
 import type { Component, ContextToken } from '@exactjs/core';
 import { reactive, scheduleWork, type Reactive } from '@exactjs/reactive';
-import type { DependencyList, ExternalStoreSubscribe, ReactContext } from '../types.js';
+import type {
+	AnyReactCallback,
+	DependencyList,
+	ExternalStoreSubscribe,
+	ReactContext
+} from '../types.js';
 import { contextToken, readComponentReactContext } from './class-support.js';
 import {
 	assertHookKind,
@@ -229,14 +234,14 @@ export abstract class HookState {
 	}
 
 	/** Performs the effect event domain operation for this hook state instance. */
-	effectEvent<T extends (...args: any[]) => unknown>(implementation: T): T {
+	effectEvent<T extends AnyReactCallback>(implementation: T): T {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
 		if (!slot) {
 			const state: EffectEventSlot = {
 				kind: 'effect-event',
 				implementation,
-				callback: (...args: any[]) => state.implementation(...args)
+				callback: (...args: Parameters<T>) => state.implementation(...args)
 			};
 			slot = state;
 			this.setSlot(index, slot);

@@ -2,6 +2,30 @@ import { describe, expect, it } from 'vitest';
 import { sourceLocaleProfile } from './source-locale-profile.js';
 
 describe('native Intl source-locale profile', () => {
+	it('evicts least-recently-used profiles from its bounded process cache', () => {
+		const original = sourceLocaleProfile('en-US');
+		for (const locale of [
+			'en-GB',
+			'fr-FR',
+			'de-DE',
+			'es-ES',
+			'it-IT',
+			'pt-BR',
+			'nl-NL',
+			'pl-PL',
+			'uk-UA',
+			'ru-RU',
+			'ar-EG',
+			'hi-IN',
+			'ja-JP',
+			'ko-KR',
+			'tr-TR',
+			'id-ID'
+		])
+			sourceLocaleProfile(locale);
+		expect(sourceLocaleProfile('en-US')).not.toBe(original);
+	});
+
 	it('collects localized currency names, symbols, and unit morphology', () => {
 		const english = sourceLocaleProfile('en-US');
 		const french = sourceLocaleProfile('fr-FR');

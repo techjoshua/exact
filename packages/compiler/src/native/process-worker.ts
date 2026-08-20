@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline';
+import type { Readable } from 'node:stream';
 import { parentPort, workerData } from 'node:worker_threads';
 
 type NativeWorkerData = Readonly<{
@@ -22,15 +22,19 @@ const child = spawn(data.executable, [], {
 	stdio: ['pipe', 'pipe', 'inherit'],
 	windowsHide: true
 });
-const lines = createInterface({ input: child.stdout });
 const pendingLines: Array<(line: string) => void> = [];
 const queuedLines: string[] = [];
 let closing = false;
 
-lines.on('line', (line) => {
-	const pending = pendingLines.shift();
-	if (pending) pending(line);
-	else queuedLines.push(line);
+const stopLines = readBoundedLines(child.stdout, {
+	maxBytes: payload.byteLength,
+	onLine: (line) => {
+		const pending = pendingLines.shift();
+		if (pending) pending(line);
+		else if (!queuedLines.length) queuedLines.push(line);
+		else publishError(new Error('Native compiler returned an unsolicited response frame'));
+	},
+	onError: publishError
 });
 
 child.once('error', (error) => publishError(error));
@@ -81,7 +85,7 @@ function closeNativeProcess(): void {
 	try {
 		if (child.stdin.writable) child.stdin.write(`${JSON.stringify({ kind: 'shutdown' })}\n`);
 	} finally {
-		lines.close();
+		stopLines();
 		child.kill();
 		parentPort?.close();
 	}
@@ -113,4 +117,58 @@ function publishError(error: unknown): void {
 	Atomics.store(header, 2, length);
 	Atomics.store(header, 0, stateError);
 	Atomics.notify(header, 0);
+}
+
+// This worker is also executed directly from TypeScript by the test/dev loader, so its framing
+// stays self-contained rather than introducing a runtime sibling-module resolution requirement.
+function readBoundedLines(
+	stream: Readable,
+	options: Readonly<{
+		maxBytes: number;
+		onLine(line: string): void;
+		onError(error: Error): void;
+	}>
+): () => void {
+	let chunks: Buffer[] = [];
+	let length = 0;
+	let stopped = false;
+	const data = (input: Buffer | string) => {
+		if (stopped) return;
+		let chunk = Buffer.isBuffer(input) ? input : Buffer.from(input);
+		while (chunk.length) {
+			const newline = chunk.indexOf(10);
+			const part = newline < 0 ? chunk : chunk.subarray(0, newline);
+			length += part.length;
+			if (length > options.maxBytes)
+				return fail('Subprocess response frame exceeded its byte limit');
+			if (part.length) chunks.push(part);
+			if (newline < 0) return;
+			try {
+				options.onLine(
+					new TextDecoder('utf-8', { fatal: true })
+						.decode(Buffer.concat(chunks, length))
+						.replace(/\r$/, '')
+				);
+			} catch {
+				return fail('Subprocess returned an invalid UTF-8 response frame');
+			}
+			chunks = [];
+			length = 0;
+			chunk = chunk.subarray(newline + 1);
+		}
+	};
+	stream.on('data', data);
+	return () => {
+		stopped = true;
+		stream.off('data', data);
+		chunks = [];
+		length = 0;
+	};
+
+	function fail(message: string): void {
+		if (stopped) return;
+		stopped = true;
+		stream.off('data', data);
+		options.onError(new Error(message));
+	}
 }

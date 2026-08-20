@@ -1,4 +1,4 @@
-import type { ExactComponentContract } from '../component-contracts.js';
+import type { AnyExactComponentCallable, ExactComponentContract } from '../component-contracts.js';
 import { isExactComponentContract } from './contract-validation.js';
 
 type CachedComponentContract = Readonly<{
@@ -6,11 +6,11 @@ type CachedComponentContract = Readonly<{
 	componentId: string;
 }>;
 
-const validatedContracts = new WeakMap<(...args: any[]) => unknown, CachedComponentContract>();
+const validatedContracts = new WeakMap<AnyExactComponentCallable, CachedComponentContract>();
 
 /** Validates and freezes compiler authority once while detecting later attachment replacement. */
 export function validatedComponentContract(
-	component: (...args: any[]) => unknown,
+	component: AnyExactComponentCallable,
 	raw: unknown,
 	componentId: string
 ): ExactComponentContract {

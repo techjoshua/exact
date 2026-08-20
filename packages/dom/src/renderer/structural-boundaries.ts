@@ -1,6 +1,6 @@
 import { normalizeActivityMode, unwrap, type VNode } from '@exactjs/core';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
-import type { ComponentInstance } from '@exactjs/core';
+import type { AnyComponentInstance } from '@exactjs/core';
 import type { Mounted, Root } from '../types.js';
 import { patchChildren } from './patching/children.js';
 import { mountDetachedChildren } from './mounting/children.js';
@@ -15,7 +15,7 @@ function mountActivity(
 	root: Root,
 	vnode: VNode,
 	scope: EffectScope,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentNode: Node | undefined
 ): Mounted {
 	const start = createMarker(root, 'activity');
@@ -40,7 +40,7 @@ function mountSuspense(
 	root: Root,
 	vnode: VNode,
 	scope: EffectScope,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentNode: Node | undefined
 ): Mounted {
 	const mounted: Mounted = {
@@ -82,7 +82,7 @@ function patchSuspense(
 	parent: Node,
 	mounted: Mounted,
 	next: VNode,
-	parentInstance: ComponentInstance<any> | undefined
+	parentInstance: AnyComponentInstance | undefined
 ): Mounted {
 	updateSuspense(root, parent, mounted, next, parentInstance);
 	return mounted;

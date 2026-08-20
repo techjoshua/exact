@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineExactOperationContract, handleExactRequest } from './index.js';
@@ -264,6 +265,34 @@ describe('server-cooperative debug protocol', () => {
 		expect(responseJson(ordinary)).not.toHaveProperty('__exactObservations');
 	});
 
+	it('fits the newest request observations within the response byte ceiling', async () => {
+		const maximum = 700;
+		const context = server({
+			allowDebug: true,
+			limits: { maxResponseBytes: maximum },
+			invocations: { 'component:Page:task:save': () => ({}) }
+		});
+		const opened = await handleExactRequest(debugOpen(), context);
+		const sessionId = responseJson(opened).session.id as string;
+		const response = await handleExactRequest(
+			{
+				method: 'POST',
+				url: '/__exact',
+				headers: { 'x-exact-debug-session': sessionId },
+				body: {
+					type: 'invoke',
+					id: 'component:Page:task:save',
+					opId: 'operation-with-a-long-stable-name'
+				}
+			},
+			context
+		);
+		const observations = responseJson(response).__exactObservations as Array<{ kind: string }>;
+
+		expect(new TextEncoder().encode(response.body).byteLength).toBeLessThanOrEqual(maximum);
+		expect(observations.at(-1)?.kind).toBe('task.settle');
+	});
+
 	it('rejects cross-origin debug requests before authorization', async () => {
 		const allowDebug = vi.fn(() => true);
 		const response = await handleExactRequest(
@@ -276,6 +305,11 @@ describe('server-cooperative debug protocol', () => {
 		);
 		expect(response.status).toBe(404);
 		expect(allowDebug).not.toHaveBeenCalled();
+	});
+
+	it('requires an explicit debug policy for requests without an origin', async () => {
+		const response = await handleExactRequest({ ...debugOpen(), headers: undefined }, server());
+		expect(response.status).toBe(404);
 	});
 
 	it('binds a session to the application-selected authenticated identity', async () => {
@@ -353,6 +387,7 @@ function debugOpen(capabilities = ['catalog', 'snapshot', 'events', 'source']): 
 	return {
 		method: 'POST',
 		url: '/__exact',
+		headers: { origin: 'http://localhost' },
 		body: {
 			type: 'debug',
 			version: 1,
@@ -370,6 +405,7 @@ function debugQuery(
 	return {
 		method: 'POST',
 		url: '/__exact',
+		headers: { origin: 'http://localhost' },
 		body: {
 			type: 'debug',
 			version: 1,

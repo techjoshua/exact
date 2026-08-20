@@ -1,8 +1,9 @@
 import {
+	type AnyComponentInstance,
+	type AnyComponentFunction,
+	type AnyEnhancementComponentFunction,
 	normalizeRenderResult,
 	type Child,
-	type ComponentFunction,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { renderInstance } from '@exactjs/core/runtime/render';
@@ -23,7 +24,7 @@ export type SyncComponentOperations = Readonly<{
 	renderChildren(
 		context: SsrContext,
 		children: readonly Child[],
-		parent?: ComponentInstance<any>
+		parent?: AnyComponentInstance
 	): string;
 	componentMarkerId(context: SsrContext, vnode: VNode): string;
 	renderResumable(
@@ -39,13 +40,13 @@ export type SyncComponentOperations = Readonly<{
 export function renderSyncComponent(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	operations: SyncComponentOperations
 ): string {
 	const componentId = operations.componentMarkerId(context, vnode);
 	const enhancement = context.enhancementVNodes.has(vnode);
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
-	let instance: ComponentInstance<any> | undefined;
+	let instance: AnyComponentInstance | undefined;
 	let output!: string;
 	try {
 		const prepared = context.preparedEnhancementComponents.get(vnode);
@@ -72,10 +73,10 @@ export function renderSyncComponent(
 			return output;
 		}
 		const componentProps = getComponentProps(vnode);
-		const blueprint = resolveSsrComponentExecution(context, vnode.type as ComponentFunction<any>);
+		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
 		instance = createSsrComponentInstance(
 			context,
-			vnode.type as ComponentFunction<any, Record<string, unknown>>,
+			vnode.type as AnyEnhancementComponentFunction,
 			componentProps,
 			parent,
 			blueprint
@@ -149,7 +150,7 @@ export function* renderRootComponentChunks(
 function componentOutput(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	componentId: string,
 	html: string,
 	props: Record<string, unknown>,

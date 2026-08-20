@@ -1,4 +1,4 @@
-import { createVNode, type ComponentInstance, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, createVNode, type VNode } from '@exactjs/core';
 import { createComponentInstance, isCellVNode, renderInstance } from '@exactjs/core/runtime/render';
 import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
@@ -198,9 +198,9 @@ function completeRootAdoption(
 	root: Root,
 	mounted: Mounted,
 	nodes: readonly Node[],
-	construct: () => ComponentInstance<any>,
+	construct: () => AnyComponentInstance,
 	adoptSpecializedChildren?: (
-		instance: ComponentInstance<any>,
+		instance: AnyComponentInstance,
 		scope: EffectScope,
 		nodes: readonly Node[]
 	) => Mounted[] | undefined

@@ -1,7 +1,8 @@
 import {
+	type AnyAuthoredComponentFunction,
+	type AnyStateAuthoredComponentFunction,
 	createVNode,
 	type Activity,
-	type AuthoredComponentFunction,
 	type Child,
 	type Fragment,
 	type Suspense,
@@ -10,6 +11,7 @@ import {
 } from '@exactjs/core';
 import { createCompiledVNode } from '@exactjs/core/runtime/render';
 import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
+import type { AnyExactComponentCallable } from '@exactjs/core/framework/component-contracts';
 import { jsx, jsxs } from '@exactjs/jsx';
 
 let nextFixtureId = 0;
@@ -19,7 +21,7 @@ type TestJsxProps = Record<string, unknown> & {
 	key?: string;
 };
 
-type TestJsxType = VNodeType | AuthoredComponentFunction<any, any>;
+type TestJsxType = VNodeType | AnyAuthoredComponentFunction;
 
 /** Gives a raw renderer-test function the identity application components receive from the compiler. */
 function testType<T extends TestJsxType>(type: T): T {
@@ -33,14 +35,14 @@ function testType<T extends TestJsxType>(type: T): T {
 }
 
 /** Explicitly brands one raw function for a low-level framework test. */
-export function markTestComponent<T extends (...args: any[]) => any>(component: T): T {
+export function markTestComponent<T extends AnyExactComponentCallable>(component: T): T {
 	return testType(component) as T;
 }
 
 /** Explicitly brands every raw function in a low-level component registry fixture. */
 export function markTestComponents<T extends Record<string, unknown>>(components: T): T {
 	for (const component of Object.values(components)) {
-		if (typeof component === 'function') markTestComponent(component as (...args: any[]) => any);
+		if (typeof component === 'function') markTestComponent(component as AnyExactComponentCallable);
 	}
 	return components;
 }
@@ -65,7 +67,7 @@ export function createCompiledTestVNode(
 
 /** Creates an automatic-JSX-shaped renderer fixture with an explicit test component identity. */
 export function createTestJsx<P extends TestJsxProps>(
-	type: AuthoredComponentFunction<any, P>,
+	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
 	key?: string
 ): VNode<P>;
@@ -88,7 +90,7 @@ export function createTestJsx(
 
 /** Multi-child counterpart to {@link createTestJsx}. */
 export function createTestJsxs<P extends TestJsxProps>(
-	type: AuthoredComponentFunction<any, P>,
+	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
 	key?: string
 ): VNode<P>;

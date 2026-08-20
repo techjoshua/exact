@@ -4,10 +4,10 @@
 import { render, unmount } from '@exactjs/dom/enhanced';
 import '@exactjs/dom/structural-boundaries';
 import {
+	type AnyComponentFunction,
 	Activity,
 	createEnhancementMarker,
-	type Component,
-	type ComponentFunction
+	type Component
 } from '@exactjs/core';
 import { PhysicsElement, PhysicsWorld, createPhysicsWorld } from '@exactjs/physics';
 import { flushSync } from '@exactjs/reactive';
@@ -96,7 +96,7 @@ describe('GravityElement', () => {
 			),
 			container,
 			{
-				enhancementCatalog: new Map<string, ComponentFunction<any, any>>([
+				enhancementCatalog: new Map<string, AnyComponentFunction>([
 					[gravityIdentity, GravityElement],
 					[physicsIdentity, PhysicsElement]
 				])

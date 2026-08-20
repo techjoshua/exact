@@ -3,7 +3,7 @@ import {
 	createElement,
 	useContext,
 	useSyncExternalStore,
-	type ReactComponentType,
+	type AnyReactComponentType,
 	type ReactNode
 } from '@exactjs/react-compat';
 import { bridgeReactContext } from '@exactjs/react-compat/interop';
@@ -28,11 +28,11 @@ export type NavigateOptions = NavigationOptions & {
 /** Defines the route object type contract. */
 export type RouteObject = Omit<ExactRouteDefinition, 'children' | 'lazy'> & {
 	element?: ReactNode;
-	Component?: ReactComponentType<any>;
+	Component?: AnyReactComponentType;
 	errorElement?: ReactNode;
-	ErrorBoundary?: ReactComponentType<any>;
+	ErrorBoundary?: AnyReactComponentType;
 	hydrateFallbackElement?: ReactNode;
-	HydrateFallback?: ReactComponentType<any>;
+	HydrateFallback?: AnyReactComponentType;
 	lazy?: () => Promise<Partial<Omit<RouteObject, 'children' | 'lazy'>>>;
 	children?: readonly RouteObject[];
 };
@@ -83,7 +83,7 @@ export const RouteSnapshotOverrideContext = createContext<
 	ExactRouterSnapshot<RouteObject> | undefined
 >(undefined);
 /** Provides the canonical configured routes value. */
-export const configuredRoutes = new WeakMap<ExactRouter<any>, unknown>();
+export const configuredRoutes = new WeakMap<ExactRouter<RouteObject>, unknown>();
 
 /** Performs the use router domain operation. */
 export function useRouter(): ExactRouter<RouteObject> {

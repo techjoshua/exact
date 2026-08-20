@@ -73,8 +73,7 @@ export function createFetchHandler(
 				method: request.method,
 				url: request.url,
 				headers: request.headers,
-				json: () => request.json(),
-				text: () => request.text(),
+				bodyStream: request.body,
 				signal: request.signal,
 				platformRequest: request
 			},

@@ -12,7 +12,7 @@ import type { ExactWebpackPluginOptions } from './plugin.js';
 export type ExactWebpackLanguageIntegration = Readonly<{
 	validation(): Promise<ExactLanguageValidationSession>;
 	packageEnhancements(): Promise<readonly ExactPackageEnhancementImport[]>;
-	dispose(): void;
+	dispose(): Promise<void>;
 }>;
 
 /** Loads package bindings once and lazily starts executable validation providers. */
@@ -20,7 +20,9 @@ export function createExactWebpackLanguageIntegration(
 	options: ExactWebpackPluginOptions
 ): ExactWebpackLanguageIntegration {
 	const applicationRoot = path.resolve(options.applicationRoot ?? process.cwd());
-	const loaded = loadExactConfig({ applicationRoot, configPath: options.configPath });
+	let loaded: ReturnType<typeof loadExactConfig> | undefined;
+	const config = () =>
+		(loaded ??= loadExactConfig({ applicationRoot, configPath: options.configPath }));
 	let validation: Promise<ExactLanguageValidationSession> | undefined;
 	return Object.freeze({
 		validation: () =>
@@ -30,7 +32,7 @@ export function createExactWebpackLanguageIntegration(
 					configPath: options.configPath,
 					hostMode: 'build'
 				}),
-				loaded
+				config()
 			]).then(([registry, config]) =>
 				createExactLanguageValidationSession({
 					workspaceRoot: registry.applicationRoot,
@@ -38,8 +40,11 @@ export function createExactWebpackLanguageIntegration(
 					packageEnhancements: config.packageEnhancements
 				})
 			)),
-		packageEnhancements: async () => (await loaded).packageEnhancements,
-		dispose: () => void validation?.then((session) => session.dispose())
+		packageEnhancements: async () => (await config()).packageEnhancements,
+		dispose: async () => {
+			const session = await validation?.catch(() => undefined);
+			await session?.dispose();
+		}
 	});
 }
 

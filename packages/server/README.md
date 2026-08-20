@@ -8,6 +8,10 @@ Transport-neutral server runtime for eXact operations, refreshes, patches, and s
 authorization, CSRF policy, payload limits, batching, cancellation, and response shape. Platform
 adapters translate their native request objects into this shared runtime.
 
+Fetch-compatible adapters pass the native request stream through to the runtime. The runtime
+enforces `limits.maxRequestBytes` while reading and cancels the stream on overflow, so an oversized
+body is rejected before it can be fully buffered.
+
 Most applications compose a runtime through `@exactjs/ssr` and connect it with the adapter for
 Fetch, Node, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, or a serverless host.
 
@@ -27,7 +31,8 @@ authorization and the handler. Manual replacement/list HTML must be wrapped with
 provenance. The unsafe constructor is an explicit audit capability, not an escaping function.
 
 Optional DevTools access uses the same endpoint but requires explicit `allowDebug` authorization
-and server-owned inspection catalogs. Runtime observations are bounded to one authorized operation
+for origin-less clients and server-owned inspection catalogs. Same-origin development browsers may
+use the catalog-based default. Runtime observations are bounded to one authorized operation
 request, returned with that response, and disposed at response completion; the browser DevTools
 runtime owns all cross-request history and subscriptions.
 

@@ -4,7 +4,7 @@ import {
 	type TaskFrameExecution,
 	type TaskFrameToken
 } from '@exactjs/core/framework/task-frames';
-import type { GestureCallback, GestureSample } from './contracts.js';
+import type { AnyGestureCallback, GestureSample } from './contracts.js';
 
 /** Owns task framing and latest-only callback delivery for one gesture session. */
 export class GestureCallbackDelivery {
@@ -65,7 +65,7 @@ export class GestureCallbackDelivery {
 	/** Delivers a callback immediately or through the latest-only move queue. */
 	invoke(
 		kind: string,
-		callback: GestureCallback<any> | undefined,
+		callback: AnyGestureCallback | undefined,
 		sample: GestureSample,
 		coalesce = false
 	): void {
@@ -93,7 +93,7 @@ export class GestureCallbackDelivery {
 	}
 
 	/** Runs one callback as named nonblocking work beneath the active gesture session. */
-	async #run(kind: string, callback: GestureCallback<any>, sample: GestureSample): Promise<void> {
+	async #run(kind: string, callback: AnyGestureCallback, sample: GestureSample): Promise<void> {
 		try {
 			const execution = runTaskFrame(
 				{

@@ -1,4 +1,6 @@
 import type {
+	AnyComponentInstance,
+	AnyEnhancementComponentFunction,
 	Child,
 	ComponentDomain,
 	DynamicComponentArtifact,
@@ -14,6 +16,7 @@ import type {
 	UnsafeHtmlAuditEvent,
 	VNode
 } from '@exactjs/core';
+export type { AnyComponentInstance };
 import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
@@ -59,7 +62,7 @@ export type RenderToStringOptions = {
 	/** Prepared render output policies. Transformations run before all final validators. */
 	outputExtensions?: readonly ExactOutputExtension[];
 	/** Bundle-local compiler-generated enhancement components available to this server artifact. */
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 	/** Allows unsafeHtml() ranges. The application accepts responsibility for their contents. */
 	allowUnsafeHtml?: boolean;
 	/** Receives an audit notification whenever an unsafe HTML range is rendered. */
@@ -70,9 +73,9 @@ export type RenderToStringOptions = {
 	 * Observes a component after its SSR output has stabilized and before the
 	 * renderer disposes it. Intended for diagnostics and test tooling.
 	 */
-	onComponentRendered?: (instance: ComponentInstance<any>) => void;
+	onComponentRendered?: (instance: AnyComponentInstance) => void;
 	/** Observes deterministic component construction order before descendants render. */
-	onComponentCreated?: (instance: ComponentInstance<any>) => void;
+	onComponentCreated?: (instance: AnyComponentInstance) => void;
 	/** @internal Checkpoints speculative descendant observations during sync stabilization. */
 	onComponentAttemptCheckpoint?: () => unknown;
 	/** @internal Discards observations produced by an invalidated sync render attempt. */
@@ -327,7 +330,7 @@ export type SsrContext = {
 	documentHeadSeen: boolean;
 	documentBodySeen: boolean;
 	hostStack: string[];
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 	unavailableEnhancements: Set<string>;
 	/** Generated ordinary component vnodes whose internal SSR boundary is not authored hydration data. */
 	enhancementVNodes: WeakSet<VNode>;
@@ -345,7 +348,7 @@ export type SsrContext = {
 	preparedEnhancementComponents: WeakMap<
 		VNode,
 		{
-			readonly instance?: ComponentInstance<any>;
+			readonly instance?: AnyComponentInstance;
 			readonly props: Record<string, unknown>;
 			readonly children: readonly Child[];
 			readonly failed: boolean;
@@ -358,7 +361,7 @@ export type SsrContext = {
 		VNode,
 		{
 			readonly children: readonly Child[];
-			readonly parent?: ComponentInstance<any>;
+			readonly parent?: AnyComponentInstance;
 			readonly status: 'content' | 'fallback';
 			dispose(): void;
 		}
@@ -367,8 +370,8 @@ export type SsrContext = {
 	componentDomain?: ComponentDomain;
 	/** Immutable wall-clock sample shared by the request render. */
 	wallClockSnapshot: number;
-	onComponentCreated?: (instance: ComponentInstance<any>) => void;
-	onComponentRendered?: (instance: ComponentInstance<any>) => void;
+	onComponentCreated?: (instance: AnyComponentInstance) => void;
+	onComponentRendered?: (instance: AnyComponentInstance) => void;
 	onComponentAttemptCheckpoint?: () => unknown;
 	onComponentAttemptRollback?: (checkpoint: unknown) => void;
 	/** Request-local scheduler shared by every eligible sibling group. */

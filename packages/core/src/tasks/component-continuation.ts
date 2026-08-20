@@ -1,14 +1,18 @@
-import type { ComponentInstance } from '../component/contracts.js';
+import type { AnyComponentInstance } from '../component/contracts.js';
 import { taskOwnerForHost } from './owner-hosts.js';
 
 const exactContinuationTask = Symbol.for('@exactjs/continuation-task');
 
-type TaggedContinuationTask = ((...args: any[]) => unknown) & {
+/** Existential continuation callable whose concrete signature is retained by branding helpers. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Continuations may accept heterogeneous authored arguments that these helpers never inspect.
+type AnyContinuationCallable = (...args: any[]) => unknown;
+
+type TaggedContinuationTask = AnyContinuationCallable & {
 	[exactContinuationTask]?: string;
 };
 
 /** Tags compiler-generated task work with its opaque cross-runtime continuation identity. */
-export function markComponentContinuationTask<T extends (...args: any[]) => unknown>(
+export function markComponentContinuationTask<T extends AnyContinuationCallable>(
 	id: string,
 	work: T
 ): T {
@@ -16,7 +20,7 @@ export function markComponentContinuationTask<T extends (...args: any[]) => unkn
 }
 
 /** Applies the shared non-enumerable continuation identity without changing callable behavior. */
-function markContinuationWork<T extends (...args: any[]) => unknown>(id: string, work: T): T {
+function markContinuationWork<T extends AnyContinuationCallable>(id: string, work: T): T {
 	if (!id) throw new Error('eXact continuation id must be non-empty');
 	Object.defineProperty(work, exactContinuationTask, {
 		value: id,
@@ -28,23 +32,21 @@ function markContinuationWork<T extends (...args: any[]) => unknown>(id: string,
 }
 
 /** Returns the private continuation identity attached by compiler output. */
-export function componentContinuationTaskId(work: (...args: any[]) => unknown): string | undefined {
+export function componentContinuationTaskId(work: AnyContinuationCallable): string | undefined {
 	return (work as TaggedContinuationTask)[exactContinuationTask];
 }
 
 /** Copies compiler-owned continuation identity through a runtime callable wrapper. */
 export function inheritComponentContinuationIdentity(
-	source: (...args: any[]) => unknown,
-	target: (...args: any[]) => unknown
+	source: AnyContinuationCallable,
+	target: AnyContinuationCallable
 ): void {
 	const id = componentContinuationTaskId(source);
 	if (id) markContinuationWork(id, target);
 }
 
 /** Lists continuation generations that completed successfully on one component instance. */
-export function settledComponentContinuationIds(
-	instance: ComponentInstance<any>
-): readonly string[] {
+export function settledComponentContinuationIds(instance: AnyComponentInstance): readonly string[] {
 	const owner = taskOwnerForHost(instance);
 	if (!owner) return [];
 	const taskIds = [...owner.activationRegistrations]

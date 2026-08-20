@@ -1,7 +1,12 @@
-import { attachSuppressedCleanupFailure, type ContextToken } from '@exactjs/core';
+import { attachSuppressedCleanupFailure, type AnyContextToken } from '@exactjs/core';
 import { commitRequestResponseState, type RequestResponseState } from '@exactjs/request';
-import type { ExactContextFactory, ExactRequestLike, ExactResponseLike } from '../types.js';
-import { type AnyRegistration, type OwnedValue, type ScopeKind } from './scope.js';
+import type {
+	AnyExactContextRegistration,
+	ExactContextFactory,
+	ExactRequestLike,
+	ExactResponseLike
+} from '../types.js';
+import { type OwnedValue, type ScopeKind } from './scope.js';
 
 /** Applies a response state to the owned runtime state. */
 export function applyResponseState(response: ExactResponseLike, state: RequestResponseState): void {
@@ -14,11 +19,11 @@ export function applyResponseState(response: ExactResponseLike, state: RequestRe
 
 /** Applies an overrides to the owned runtime state. */
 export function applyOverrides(
-	registrations: readonly AnyRegistration[],
-	overrides: readonly (readonly [ContextToken<any>, unknown])[],
+	registrations: readonly AnyExactContextRegistration[],
+	overrides: readonly (readonly [AnyContextToken, unknown])[],
 	scope: ScopeKind
-): AnyRegistration[] {
-	const result = new Map<symbol, AnyRegistration>();
+): AnyExactContextRegistration[] {
+	const result = new Map<symbol, AnyExactContextRegistration>();
 	for (const registration of registrations) {
 		const token = registration[0];
 		if (result.has(token.id)) {

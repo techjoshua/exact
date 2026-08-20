@@ -1,4 +1,4 @@
-import type { ComponentInstance, VNode } from '@exactjs/core';
+import type { AnyComponentInstance, VNode } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../../types.js';
 import { countDomWork, withTreeDepth } from '../limits.js';
@@ -10,7 +10,7 @@ export function adoptStaticMounted(
 	vnode: VNode,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	end = nodes.length
 ): { mounted: Mounted; next: number } | undefined {

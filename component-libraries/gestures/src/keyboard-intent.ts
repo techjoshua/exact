@@ -1,12 +1,12 @@
 import { unwrap } from '@exactjs/core';
-import type { GestureCallback, GestureSample } from './contracts.js';
+import type { AnyGestureCallback, GestureSample } from './contracts.js';
 import { freezeGestureSample } from './gesture-samples.js';
 import { resolveGestureRecognizers, type SessionConfiguration } from './session-policy.js';
 
 /** Resolved semantic callback and immutable sample for one supported keyboard gesture. */
 export type KeyboardGestureIntent = Readonly<{
 	kind: 'keyboard' | 'keyboard-press';
-	callback: GestureCallback<any>;
+	callback: AnyGestureCallback;
 	sample: GestureSample;
 }>;
 

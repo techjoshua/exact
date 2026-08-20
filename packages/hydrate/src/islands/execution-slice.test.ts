@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type ComponentFunction } from '@exactjs/core';
+import { type AnyComponentFunction } from '@exactjs/core';
 import {
 	exactComponentContract,
 	exactComponentType,
@@ -55,7 +55,7 @@ function transition(
 	};
 }
 
-function compiledIsland(execution: ExactComponentExecutionContract): ComponentFunction<any, any> {
+function compiledIsland(execution: ExactComponentExecutionContract): AnyComponentFunction {
 	const implementation = function Island() {
 		return () => null;
 	};
@@ -73,5 +73,5 @@ function compiledIsland(execution: ExactComponentExecutionContract): ComponentFu
 			boundaries: [],
 			execution
 		}
-	}) as ComponentFunction<any, any>;
+	}) as AnyComponentFunction;
 }

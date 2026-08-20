@@ -1,7 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createVNode, type Component, type ComponentInstance } from '@exactjs/core';
+import {
+	type AnyComponentInstance,
+	createContext,
+	createVNode,
+	type Component
+} from '@exactjs/core';
 import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@exactjs/dom';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { getHydrationRoot, type CoreHydrationRoot, type ExactClient } from '@exactjs/hydrate';
@@ -172,6 +177,31 @@ describe('RemoteComponent', () => {
 		resolveRejectedEntry.mockClear();
 		delete (globalThis as Record<string, unknown>).__releaseSlowRemote;
 		delete (globalThis as Record<string, unknown>).__releaseUnmountedRemote;
+	});
+
+	it('times out a stalled shared remote entry load', async () => {
+		vi.useFakeTimers();
+		const loaderSymbol = Symbol.for('@exactjs/microfrontends/remote-loader');
+		(globalThis as Record<PropertyKey, unknown>)[loaderSymbol] = {
+			load(_url: string, _integrity: string, signal: AbortSignal) {
+				return new Promise((_resolve, reject) => {
+					signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+				});
+			},
+			publish() {}
+		};
+		try {
+			const loaded = loadExactRemoteModule(
+				'https://remote.test/stalled-timeout.js',
+				'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+			);
+			const rejected = expect(loaded).rejects.toThrow('timed out');
+			await vi.advanceTimersByTimeAsync(30_000);
+			await rejected;
+		} finally {
+			delete (globalThis as Record<PropertyKey, unknown>)[loaderSymbol];
+			vi.useRealTimers();
+		}
 	});
 
 	it.each([
@@ -650,7 +680,7 @@ function namedInstanceRoot(node: DomInspectionNode | undefined, name: string): s
 function namedInstance(
 	node: DomInspectionNode | undefined,
 	name: string
-): ComponentInstance<any> | undefined {
+): AnyComponentInstance | undefined {
 	if (!node) return undefined;
 	if (node.instance?.type.name === name) return node.instance;
 	for (const child of node.children) {

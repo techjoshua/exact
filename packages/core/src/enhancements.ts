@@ -1,16 +1,20 @@
 import type {
+	AnyComponentFunction,
 	ComponentFunction,
 	CompiledEnhancementNode,
 	ContextToken,
 	EnhancementEntry,
-	EnhancementMarker
+	EnhancementMarker,
+	RenderResult
 } from './component/contracts.js';
 
 /** Global property carrying compiler-derived context effects needed before enhancement activation. */
 export const exactEnhancementContexts = Symbol.for('@exactjs/enhancement-contexts');
 const exactEnhancementPassThroughBrand = Symbol.for('@exactjs/enhancement-pass-through');
 
-type BrandedEnhancementComponent = ComponentFunction<any, Record<string, unknown>> & {
+type EnhancementComponent = ComponentFunction<Record<string, never>, Record<string, unknown>>;
+
+type BrandedEnhancementComponent = EnhancementComponent & {
 	[exactEnhancementPassThroughBrand]?: true;
 };
 
@@ -20,16 +24,13 @@ type BrandedEnhancementComponent = ComponentFunction<any, Record<string, unknown
  * Enhanced renderers recognize its brand before component construction, so this function is an
  * ordinary facade value without creating an instance, scope, wrapper, marker, or inspection event.
  */
-export const exactEnhancementPassThrough: ComponentFunction<
-	any,
-	Record<string, unknown>
-> = Object.defineProperty(
+export const exactEnhancementPassThrough: EnhancementComponent = Object.defineProperty(
 	function ExactEnhancementPassThrough(_props: Record<string, unknown>) {
-		return () => _props.children as any;
+		return () => _props.children as RenderResult;
 	},
 	exactEnhancementPassThroughBrand,
 	{ value: true }
-) as ComponentFunction<any, Record<string, unknown>>;
+) as EnhancementComponent;
 
 /** Reports whether a generated facade selected the shared zero-instance pass-through provider. */
 export function isExactEnhancementPassThrough(value: unknown): boolean {
@@ -92,7 +93,7 @@ export function omitKnownProps(
  * Native compilation emits the same token-identity contract from `setContext`, `getContext`, and
  * `hasContext` analysis. This helper exists for packages distributed as ordinary TypeScript output.
  */
-export function markExactEnhancementContexts<Component extends ComponentFunction<any, any>>(
+export function markExactEnhancementContexts<Component extends AnyComponentFunction>(
 	component: Component,
 	contract: Readonly<{
 		provides?: readonly ContextToken<unknown>[];
@@ -124,10 +125,10 @@ export function markExactEnhancementContexts<Component extends ComponentFunction
 
 /** Reads the pre-activation context effects carried by one component value. */
 export function readExactEnhancementContexts(
-	component: ComponentFunction<any, any>
+	component: AnyComponentFunction
 ): EnhancementContextContract | undefined {
 	return (
-		component as ComponentFunction<any, any> & {
+		component as AnyComponentFunction & {
 			readonly [exactEnhancementContexts]?: EnhancementContextContract;
 		}
 	)[exactEnhancementContexts];

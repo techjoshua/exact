@@ -1,4 +1,4 @@
-import { Text, type ComponentInstance, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, Text, type VNode } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
 import { setElementOwner } from '../../ownership.js';
 import { updateProps } from '../../props.js';
@@ -12,7 +12,7 @@ export function adoptStaticLeaf(
 	node: Node,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	scope: EffectScope
 ): { mounted: Mounted; next: number } | undefined {
 	if (vnode.type === Text) {

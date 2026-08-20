@@ -1,6 +1,6 @@
 import { reactive } from '@exactjs/reactive';
 import type {
-	ComponentInstance,
+	AnyComponentInstance,
 	RefBinding,
 	RootBinding,
 	RootLifecycle,
@@ -24,12 +24,12 @@ type ComponentRootRecord = {
 	observed: boolean;
 };
 
-const componentRoots = new WeakMap<ComponentInstance<any>, ComponentRootRecord>();
+const componentRoots = new WeakMap<AnyComponentInstance, ComponentRootRecord>();
 const augmentedBindings = new WeakMap<RefBinding<object>, RootBinding<object>>();
 
 /** Returns the stable reactive intrinsic-root lifecycle for a component. */
 export function componentRootLifecycle<T extends object>(
-	instance: ComponentInstance<any>
+	instance: AnyComponentInstance
 ): RootLifecycle<T> {
 	const record = rootRecord(instance);
 	record.observed = true;
@@ -38,7 +38,7 @@ export function componentRootLifecycle<T extends object>(
 
 /** Selects one stable element ref as the component's explicit intrinsic root. */
 export function bindComponentRoot<T extends object>(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	binding: RefBinding<T>
 ): RootBinding<T> {
 	if (binding.owner !== instance)
@@ -63,7 +63,7 @@ export function bindComponentRoot<T extends object>(
 
 /** Publishes the current renderer-discovered intrinsic root for a component. */
 export function publishComponentRoot(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	discovered: object | undefined,
 	presented = true,
 	introduction: RootIntroduction = 'update'
@@ -81,7 +81,7 @@ export function publishComponentRoot(
 
 /** Publishes whether a retained component root belongs to the presented logical range. */
 export function publishComponentRootPresentation(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	presented: boolean
 ): void {
 	const record = componentRoots.get(instance);
@@ -89,13 +89,13 @@ export function publishComponentRootPresentation(
 }
 
 /** Reports whether authored component work observes this root lifecycle. */
-export function componentRootReleaseObserved(instance: ComponentInstance<any>): boolean {
+export function componentRootReleaseObserved(instance: AnyComponentInstance): boolean {
 	return componentRoots.get(instance)?.observed === true;
 }
 
 /** Publishes structural loss of the current root generation without discarding its target. */
 export function publishComponentRootRelease(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	reason: StructuralReleaseReason
 ): RootRelease<object> | undefined {
 	const record = componentRoots.get(instance);
@@ -115,7 +115,7 @@ export function publishComponentRootRelease(
 
 /** Restores an exactly retained root generation after its structural release is reversed. */
 export function reverseComponentRootRelease(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	generation: number
 ): boolean {
 	const record = componentRoots.get(instance);
@@ -129,7 +129,7 @@ export function reverseComponentRootRelease(
 
 /** Clears a settled release when it still belongs to the specified root generation. */
 export function settleComponentRootRelease(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	generation: number
 ): void {
 	const record = componentRoots.get(instance);
@@ -137,7 +137,7 @@ export function settleComponentRootRelease(
 }
 
 /** Discards root lifecycle state after final component disposal. */
-export function disposeComponentRoot(instance: ComponentInstance<any>): void {
+export function disposeComponentRoot(instance: AnyComponentInstance): void {
 	const record = componentRoots.get(instance);
 	if (record) {
 		record.state.current = undefined;
@@ -149,7 +149,7 @@ export function disposeComponentRoot(instance: ComponentInstance<any>): void {
 }
 
 /** Creates the component-owned reactive record on first observation or renderer publication. */
-function rootRecord(instance: ComponentInstance<any>): ComponentRootRecord {
+function rootRecord(instance: AnyComponentInstance): ComponentRootRecord {
 	const existing = componentRoots.get(instance);
 	if (existing) return existing;
 	const state = reactive(

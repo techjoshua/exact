@@ -1,7 +1,8 @@
-import type { AuthoredComponentFunction, ComponentFunction } from '../component/contracts.js';
+import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../component/contracts.js';
 import { markExactComponent } from '../component-contracts.js';
 import { createVNode } from '../vnode.js';
 import type {
+	AnyComponentRegistry,
 	ComponentRegistry,
 	ComponentRegistryBuilder,
 	ComponentRegistryDefinition,
@@ -24,7 +25,7 @@ const registryValues = new WeakMap<object, ComponentRegistryRuntime>();
 
 type RuntimeLazyEntry = {
 	readonly [lazyDescriptor]: true;
-	readonly load: () => Promise<AuthoredComponentFunction<any, any>>;
+	readonly load: () => Promise<AnyAuthoredComponentFunction>;
 };
 
 /**
@@ -66,7 +67,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 		throw new TypeError('createComponentRegistry() requires a definition callback');
 	let defining = true;
 	const builder: ComponentRegistryBuilder = {
-		lazy<Component extends AuthoredComponentFunction<any, any>>(
+		lazy<Component extends AnyAuthoredComponentFunction>(
 			load: () => Promise<Component>
 		): LazyRegistryEntry<Component> {
 			if (!defining)
@@ -116,7 +117,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 					key: `exact-registry:${entry.key}`
 				});
 			};
-		} as ComponentFunction<any, any>;
+		} as AnyComponentFunction;
 		Object.defineProperty(facade, 'name', {
 			configurable: true,
 			value: `${name ?? 'ComponentRegistry'}.${key}${id ? `#${id}` : ''}`
@@ -126,8 +127,8 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			registry: runtime,
 			key,
 			facade,
-			eager: lazy ? undefined : (authored as ComponentFunction<any, any>),
-			load: lazy?.load as (() => Promise<ComponentFunction<any, any>>) | undefined,
+			eager: lazy ? undefined : (authored as AnyComponentFunction),
+			load: lazy?.load as (() => Promise<AnyComponentFunction>) | undefined,
 			loadGeneration: 0
 		};
 		if (entry.eager) entry.resolved = entry.eager;
@@ -145,7 +146,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 
 /** Returns a frozen diagnostic snapshot without exposing loaders or component functions. */
 export function inspectComponentRegistry(
-	registry: ComponentRegistry<any>
+	registry: AnyComponentRegistry
 ): ComponentRegistryInspection {
 	const runtime = registryValues.get(registry as object);
 	if (!runtime) throw new TypeError('inspectComponentRegistry() requires a component registry');
@@ -172,7 +173,7 @@ export function inspectComponentRegistry(
 }
 
 /** Narrows an untrusted string to the finite keys owned by a branded registry. */
-export function hasComponent<Registry extends ComponentRegistry<any>>(
+export function hasComponent<Registry extends AnyComponentRegistry>(
 	registry: Registry,
 	value: string
 ): value is Extract<keyof Registry, string> {
@@ -188,18 +189,16 @@ export function hasComponent<Registry extends ComponentRegistry<any>>(
  *
  * Eager components and ordinary component functions resolve immediately.
  */
-export async function preloadComponent(
-	component: AuthoredComponentFunction<any, any>
-): Promise<void> {
+export async function preloadComponent(component: AnyAuthoredComponentFunction): Promise<void> {
 	if (typeof component !== 'function')
 		throw new TypeError('preloadComponent() requires a component');
-	const entry = registryEntryFor(component as ComponentFunction<any, any>);
+	const entry = registryEntryFor(component as AnyComponentFunction);
 	if (!entry) return;
 	await loadRegistryEntry(entry);
 }
 
 /** Renders one correlated heterogeneous registry selection as an ordinary component vnode. */
-export function renderComponent<Registry extends ComponentRegistry<any>>(
+export function renderComponent<Registry extends AnyComponentRegistry>(
 	registry: Registry,
 	selection: ComponentSelection<Registry>
 ) {
@@ -208,7 +207,7 @@ export function renderComponent<Registry extends ComponentRegistry<any>>(
 	const selected = selection as { component: string; props: Record<string, unknown> };
 	if (!hasComponent(registry, selected.component))
 		throw invalidRegistryEntry(selected.component, 'key is not present in this registry');
-	return createVNode(registry[selected.component] as ComponentFunction<any, any>, selected.props);
+	return createVNode(registry[selected.component] as AnyComponentFunction, selected.props);
 }
 
 function isRuntimeLazyEntry(value: unknown): value is RuntimeLazyEntry {

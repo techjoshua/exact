@@ -1,6 +1,6 @@
 import type { ContextToken } from './contracts.js';
 
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 
 import { ErrorContext, LoggerContext } from './contexts.js';
 
@@ -11,7 +11,7 @@ import { createComponentLog, defaultConsoleLogger } from './log.js';
 type InternalPlugin = {
 	readonly name: string;
 	readonly defaultContexts?: readonly DefaultContextProvider[];
-	augmentComponent?(instance: ComponentInstance<any>): void;
+	augmentComponent?(instance: AnyComponentInstance): void;
 };
 
 type DefaultContextProvider = {
@@ -47,7 +47,7 @@ for (const plugin of internalPlugins) {
 }
 
 /** Applies an internal plugins to the owned runtime state. */
-export function applyInternalPlugins(instance: ComponentInstance<any>): void {
+export function applyInternalPlugins(instance: AnyComponentInstance): void {
 	for (const plugin of internalPlugins) {
 		plugin.augmentComponent?.(instance);
 	}

@@ -1,4 +1,4 @@
-import { Fragment, unwrap, type ComponentInstance, type EnhancementEntry } from '@exactjs/core';
+import { type AnyComponentInstance, Fragment, unwrap, type EnhancementEntry } from '@exactjs/core';
 import type { Mounted } from '../types.js';
 import {
 	findFirstTargetExport,
@@ -20,7 +20,7 @@ export type TargetEnhancements = {
 /** Resolves each declaration independently, then groups declarations sharing one bounded target. */
 export function collectTargetEnhancements(
 	boundary: Mounted,
-	parentInstance: ComponentInstance<any> | undefined
+	parentInstance: AnyComponentInstance | undefined
 ): Map<Mounted, TargetEnhancements> {
 	const grouped = new Map<Mounted, TargetEnhancements>();
 	const orders = new Map<Mounted, Map<string, number>>();
@@ -88,7 +88,7 @@ function mergeEntry(
 export function resolveEnhancementTarget(
 	boundary: Mounted,
 	identity: string,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	owner?: Mounted,
 	depth = 0
 ): EnhancementTarget | undefined {
@@ -104,7 +104,7 @@ export function resolveEnhancementTarget(
 function findExplicitTarget(
 	frame: Mounted,
 	identity: string,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number
 ): EnhancementTarget | undefined {
 	const children = typeof frame.vnode.type === 'function' ? frame.children : [frame];
@@ -124,7 +124,7 @@ function findExplicitTarget(
 function findExplicitInTransparentOutput(
 	mounted: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
 	identity: string
 ): EnhancementTarget | undefined {
@@ -161,12 +161,12 @@ function findExplicitInTransparentOutput(
 export function walkMounted(
 	mounted: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
 	visit: (
 		mounted: Mounted,
 		owner: Mounted | undefined,
-		parentInstance: ComponentInstance<any> | undefined,
+		parentInstance: AnyComponentInstance | undefined,
 		depth: number
 	) => void
 ): void {
@@ -180,12 +180,12 @@ export function walkMounted(
 export function walkLogicalMounted(
 	mounted: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
 	visit: (
 		mounted: Mounted,
 		owner: Mounted | undefined,
-		parentInstance: ComponentInstance<any> | undefined,
+		parentInstance: AnyComponentInstance | undefined,
 		depth: number
 	) => void
 ): void {

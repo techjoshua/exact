@@ -101,7 +101,9 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<p>
 					<code>RemoteComponent</code> loads and validates the generated registration, establishes
 					an isolated execution root, passes props and children, and owns disposal. A binding change
-					replaces the remote generation. Failed loads render the supplied fallback.
+					replaces the remote generation. Failed or stalled loads render the supplied fallback;
+					unmounting stops that component's wait without cancelling a load shared by another
+					boundary.
 				</p>
 				<p>
 					The component domain exposes only its immutable <code>executionRoot</code> identity.

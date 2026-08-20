@@ -7,7 +7,6 @@ import {
 	type Child,
 	type Component,
 	type ComponentDomain,
-	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
 import { markExactComponent } from '@exactjs/core/framework/component-contracts';
@@ -38,8 +37,12 @@ export type RemoteComponentProps = {
 
 const bindingsSymbol = Symbol.for('@exactjs/microfrontends/client-bindings');
 const remoteLoaderSymbol = Symbol.for('@exactjs/microfrontends/remote-loader');
-const moduleLoads = new Map<string, Promise<ExactRemoteModule>>();
+const moduleLoads = new Map<
+	string,
+	Readonly<{ promise: Promise<ExactRemoteModule>; abort: AbortController }>
+>();
 const maxModuleLoads = 64;
+const remoteLoadTimeoutMilliseconds = 30_000;
 
 type BindingHost = typeof globalThis & {
 	[bindingsSymbol]?: Readonly<Record<string, ExactRemoteClientBinding>>;
@@ -47,7 +50,7 @@ type BindingHost = typeof globalThis & {
 };
 
 type ExactRemoteIntegrityLoader = Readonly<{
-	load(url: string, integrity: string): Promise<unknown>;
+	load(url: string, integrity: string, signal: AbortSignal): Promise<unknown>;
 	publish(token: string | null, value: unknown): void;
 }>;
 
@@ -62,15 +65,26 @@ export function registerExactRemoteClientBindings(
 }
 
 /** Loads and validates the public shape of one canonical remote entry. */
-export function loadExactRemoteModule(url: string, integrity?: string): Promise<ExactRemoteModule> {
+export function loadExactRemoteModule(
+	url: string,
+	integrity?: string,
+	signal?: AbortSignal
+): Promise<ExactRemoteModule> {
 	if (!url) return Promise.reject(new Error('Remote client entry must be a non-empty URL'));
 	if (integrity !== undefined && !isValidIntegrity(integrity))
 		return Promise.reject(new Error('Remote client entry has invalid integrity metadata'));
 	const cacheKey = JSON.stringify([url, integrity ?? '']);
-	let pending = moduleLoads.get(cacheKey);
-	if (!pending) {
-		pending = (
-			integrity ? importIntegrityPinnedRemoteModule(url, integrity) : importExactRemoteModule(url)
+	let entry = moduleLoads.get(cacheKey);
+	if (!entry) {
+		const abort = new AbortController();
+		const timeout = setTimeout(
+			() => abort.abort(new Error('Remote client entry loading timed out')),
+			remoteLoadTimeoutMilliseconds
+		);
+		const promise = (
+			integrity
+				? importIntegrityPinnedRemoteModule(url, integrity, abort.signal)
+				: abortableImport(url, abort.signal)
 		)
 			.then((module) => {
 				const validated = validateRemoteModule(
@@ -80,21 +94,24 @@ export function loadExactRemoteModule(url: string, integrity?: string): Promise<
 				// change across generations, so an unbounded process cache would
 				// otherwise retain every deployed entry for the shell's lifetime.
 				moduleLoads.delete(cacheKey);
-				moduleLoads.set(cacheKey, Promise.resolve(validated));
-				while (moduleLoads.size > maxModuleLoads) {
-					const oldest = moduleLoads.keys().next().value;
-					if (oldest === undefined || oldest === cacheKey) break;
-					moduleLoads.delete(oldest);
-				}
 				return validated;
 			})
 			.catch((error) => {
 				moduleLoads.delete(cacheKey);
 				throw error;
-			});
-		moduleLoads.set(cacheKey, pending);
+			})
+			.finally(() => clearTimeout(timeout));
+		entry = { promise, abort };
+		moduleLoads.set(cacheKey, entry);
+		while (moduleLoads.size > maxModuleLoads) {
+			const oldest = moduleLoads.keys().next().value;
+			if (oldest === undefined || oldest === cacheKey) break;
+			const evicted = moduleLoads.get(oldest);
+			moduleLoads.delete(oldest);
+			evicted?.abort.abort(new Error('Remote client entry was evicted from the load cache'));
+		}
 	}
-	return pending;
+	return signal ? waitForRemoteModule(entry.promise, signal) : entry.promise;
 }
 
 /** Mounts one client-loaded exposure as an ordinary logical eXact child. */
@@ -160,7 +177,7 @@ export function RemoteComponent(
 			return;
 		}
 		try {
-			const loaded = await loadExactRemoteModule(binding.clientEntry, binding.integrity);
+			const loaded = await loadExactRemoteModule(binding.clientEntry, binding.integrity, signal);
 			if (signal.aborted || generation !== loadGeneration) return;
 			const nextClient = installModule(bindingName, binding, loaded, container, signal, generation);
 			if (signal.aborted || generation !== loadGeneration) {
@@ -239,7 +256,9 @@ export function RemoteComponent(
 				? [
 						createExactRoot(
 							client,
-							remote!.component as ComponentFunction<any, Record<string, unknown>>,
+							remote!.component as import('@exactjs/core').AnyStateComponentFunction<
+								Record<string, unknown>
+							>,
 							props.props,
 							props.children,
 							renderDomain
@@ -266,8 +285,35 @@ async function importExactRemoteModule(url: string): Promise<{ default: unknown 
 	return import(/* @vite-ignore */ url) as Promise<{ default: unknown }>;
 }
 
-function importIntegrityPinnedRemoteModule(url: string, integrity: string): Promise<unknown> {
-	return exactRemoteIntegrityLoader().load(url, integrity);
+function abortableImport(url: string, signal: AbortSignal): Promise<{ default: unknown }> {
+	return waitForRemoteModule(importExactRemoteModule(url), signal);
+}
+
+function waitForRemoteModule<T>(load: Promise<T>, signal: AbortSignal): Promise<T> {
+	if (signal.aborted)
+		return Promise.reject(signal.reason ?? new Error('Remote module load aborted'));
+	return new Promise<T>((resolve, reject) => {
+		const abort = () => reject(signal.reason ?? new Error('Remote module load aborted'));
+		signal.addEventListener('abort', abort, { once: true });
+		load.then(
+			(value) => {
+				signal.removeEventListener('abort', abort);
+				resolve(value);
+			},
+			(error) => {
+				signal.removeEventListener('abort', abort);
+				reject(error);
+			}
+		);
+	});
+}
+
+function importIntegrityPinnedRemoteModule(
+	url: string,
+	integrity: string,
+	signal: AbortSignal
+): Promise<unknown> {
+	return exactRemoteIntegrityLoader().load(url, integrity, signal);
 }
 
 function exactRemoteIntegrityLoader(): ExactRemoteIntegrityLoader {
@@ -280,10 +326,11 @@ function exactRemoteIntegrityLoader(): ExactRemoteIntegrityLoader {
 			resolve(value: unknown): void;
 			reject(error: Error): void;
 			script: HTMLScriptElement;
+			cleanup(): void;
 		}>
 	>();
 	const loader: ExactRemoteIntegrityLoader = Object.freeze({
-		load(url, integrity) {
+		load(url, integrity, signal) {
 			if (typeof document === 'undefined')
 				return Promise.reject(
 					new Error('Integrity-pinned remote loading requires a browser document')
@@ -303,7 +350,21 @@ function exactRemoteIntegrityLoader(): ExactRemoteIntegrityLoader {
 						pending,
 						new Error('Remote client entry failed integrity-checked loading')
 					);
-				pending.set(token, { resolve, reject, script });
+				const abort = () =>
+					settleRemoteLoad(
+						token,
+						pending,
+						signal.reason instanceof Error
+							? signal.reason
+							: new Error('Remote client entry loading aborted')
+					);
+				pending.set(token, {
+					resolve,
+					reject,
+					script,
+					cleanup: () => signal.removeEventListener('abort', abort)
+				});
+				signal.addEventListener('abort', abort, { once: true });
 				script.addEventListener('error', fail, { once: true });
 				script.addEventListener(
 					'load',
@@ -313,6 +374,7 @@ function exactRemoteIntegrityLoader(): ExactRemoteIntegrityLoader {
 					{ once: true }
 				);
 				document.head.append(script);
+				if (signal.aborted) abort();
 			});
 		},
 		publish(token, value) {
@@ -320,6 +382,7 @@ function exactRemoteIntegrityLoader(): ExactRemoteIntegrityLoader {
 			const entry = pending.get(token);
 			if (!entry) return;
 			pending.delete(token);
+			entry.cleanup();
 			entry.script.remove();
 			entry.resolve(value);
 		}
@@ -330,12 +393,16 @@ function exactRemoteIntegrityLoader(): ExactRemoteIntegrityLoader {
 
 function settleRemoteLoad(
 	token: string,
-	pending: Map<string, Readonly<{ reject(error: Error): void; script: HTMLScriptElement }>>,
+	pending: Map<
+		string,
+		Readonly<{ reject(error: Error): void; script: HTMLScriptElement; cleanup(): void }>
+	>,
 	error: Error
 ): void {
 	const entry = pending.get(token);
 	if (!entry) return;
 	pending.delete(token);
+	entry.cleanup();
 	entry.script.remove();
 	entry.reject(error);
 }

@@ -1,8 +1,8 @@
 import {
+	type AnyComponentInstance,
 	Target,
 	TargetOverrides,
 	isVNode,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
@@ -29,7 +29,7 @@ const tokenListProps = new Set([
 export function applySsrTargetContributions(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): void {
 	prepareSsrTargetBoundary(context, boundary, parent);
 	applyPreparedTargetTree(context, boundary, parent);
@@ -39,7 +39,7 @@ export function applySsrTargetContributions(
 export async function applySsrTargetContributionsAsync(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<void> {
 	await prepareSsrTargetBoundaryAsync(context, boundary, parent, options);
@@ -49,7 +49,7 @@ export async function applySsrTargetContributionsAsync(
 function applyPreparedTargetTree(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): void {
 	if (isCellVNode(vnode)) {
 		applyPreparedTargetTree(context, getCellVNode(vnode), parent);

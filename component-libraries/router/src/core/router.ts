@@ -1,13 +1,4 @@
-import type {
-	CreateExactRouterOptions,
-	ExactRouteDefinition,
-	ExactRouter,
-	ExactRouterSnapshot,
-	FetcherSnapshot,
-	HistoryAction,
-	NavigationBlocker,
-	NavigationOptions
-} from './contracts.js';
+import type * as Contracts from './contracts.js';
 import {
 	hasDataWork,
 	hasOwnDataWork,
@@ -16,6 +7,7 @@ import {
 	redirectResult,
 	unwrapDataResult
 } from './data-operations.js';
+import { disposeRouterResources, releaseFetcherResources, subscribeResource } from './lifecycle.js';
 import {
 	createKey,
 	hrefFor,
@@ -31,9 +23,9 @@ import * as routerOperation from './operation-coordinator.js';
 import { createRouteLoader } from './route-loaders.js';
 
 /** Creates an exact router. */
-export function createExactRouter<Route extends ExactRouteDefinition>(
-	options: CreateExactRouterOptions<Route>
-): ExactRouter<Route> {
+export function createExactRouter<Route extends Contracts.ExactRouteDefinition>(
+	options: Contracts.CreateExactRouterOptions<Route>
+): Contracts.ExactRouter<Route> {
 	const source = options.source;
 	const publication = options.publication;
 	const basename = normalizeBasename(options.basename);
@@ -52,14 +44,14 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 		revalidation = 'idle';
 	});
 	const join = routerOperation.joinRouterOperation;
-	const fetchers = new Map<string, FetcherSnapshot>();
+	const fetchers = new Map<string, Contracts.FetcherSnapshot>();
 	const fetcherAborts = new Map<string, AbortController>();
 	const loaderRuntime = createRouteLoader<Route>(options.context);
 	const runLoaders = loaderRuntime.run;
 	const materializeLazy = loaderRuntime.materialize;
 	const hasInitialData = options.hydrationData !== undefined || !routes.some(hasDataWork);
 	const listeners = new Set<() => void>();
-	const blockers = new Set<NavigationBlocker>();
+	const blockers = new Set<Contracts.NavigationBlocker>();
 	let initialized = hasInitialData;
 	let snapshot = buildSnapshot(source.action?.() ?? 'POP');
 
@@ -73,11 +65,11 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 	const unsubscribe = source.subscribe?.(refresh);
 
 	function buildSnapshot(
-		action: HistoryAction,
-		navigation: ExactRouterSnapshot<Route>['navigation'] = idleRouterNavigation(
+		action: Contracts.HistoryAction,
+		navigation: Contracts.ExactRouterSnapshot<Route>['navigation'] = idleRouterNavigation(
 			operations.transitionId
 		)
-	): ExactRouterSnapshot<Route> {
+	): Contracts.ExactRouterSnapshot<Route> {
 		const location = locationValue(source, mode, basename);
 		const matches = matchRoutes(routes, location.pathname);
 		return Object.freeze({
@@ -100,7 +92,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 
 	async function navigate(
 		to: string | URL | number,
-		options: NavigationOptions = {},
+		options: Contracts.NavigationOptions = {},
 		redirectDepth = 0
 	): Promise<void> {
 		routerOperation.assertRouterActive(disposed);
@@ -112,7 +104,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 			return;
 		}
 		const target = resolveTarget(to, source.location(), basename, mode);
-		const action: HistoryAction = options.replace ? 'REPLACE' : 'PUSH';
+		const action: Contracts.HistoryAction = options.replace ? 'REPLACE' : 'PUSH';
 		const nextLocation = locationValue(
 			{
 				location: () => target,
@@ -361,20 +353,22 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 				return;
 			}
 			fetchers.set(key, Object.freeze({ state: 'idle', error }));
+		} finally {
+			if (fetcherAborts.get(key) === abort) {
+				fetcherAborts.delete(key);
+				snapshot = buildSnapshot(snapshot.historyAction);
+				notify();
+			}
 		}
-		snapshot = buildSnapshot(snapshot.historyAction);
-		notify();
-		if (fetcherAborts.get(key) === abort) fetcherAborts.delete(key);
 	}
 
 	return Object.freeze({
 		basename,
 		mode,
 		getSnapshot: () => snapshot,
-		subscribe(listener: () => void) {
+		subscribe: (listener: () => void) => {
 			routerOperation.assertRouterActive(disposed);
-			listeners.add(listener);
-			return () => listeners.delete(listener);
+			return subscribeResource(listeners, listener);
 		},
 		sync(action = source.action?.() ?? 'POP', publish = true) {
 			routerOperation.assertRouterActive(disposed);
@@ -385,8 +379,15 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 			routes = normalizeRouteIds(nextRoutes);
 			refresh(snapshot.historyAction);
 		},
+		releaseFetcher(key: string) {
+			routerOperation.assertRouterActive(disposed);
+			releaseFetcherResources(key, fetchers, fetcherAborts, () => {
+				snapshot = buildSnapshot(snapshot.historyAction);
+				notify();
+			});
+		},
 		createHref: (to: string | URL) => hrefFor(to, source.location(), basename, mode),
-		navigate(to: string | URL | number, navigationOptions?: NavigationOptions) {
+		navigate(to: string | URL | number, navigationOptions?: Contracts.NavigationOptions) {
 			return join(navigate(to, navigationOptions));
 		},
 		initialize: () => join(initialize()),
@@ -394,20 +395,14 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 		fetch: (key: string, routeId: string, target: string | URL, init?: RequestInit) =>
 			join(fetch(key, routeId, target, init)),
 		revalidate: () => join(revalidate()),
-		block(blocker: NavigationBlocker) {
+		block: (blocker: Contracts.NavigationBlocker) => {
 			routerOperation.assertRouterActive(disposed);
-			blockers.add(blocker);
-			return () => blockers.delete(blocker);
+			return subscribeResource(blockers, blocker);
 		},
 		dispose() {
 			if (disposed) return;
 			disposed = true;
-			operations.dispose();
-			for (const abort of fetcherAborts.values()) abort.abort();
-			fetcherAborts.clear();
-			unsubscribe?.();
-			listeners.clear();
-			blockers.clear();
+			disposeRouterResources(fetcherAborts, operations, unsubscribe, listeners, blockers);
 		}
 	});
 }

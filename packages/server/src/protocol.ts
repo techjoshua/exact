@@ -9,11 +9,71 @@ import type {
 	ExactResponseLike
 } from './types.js';
 
-/** Reads a runtime-neutral request body from body/json/text adapters. */
-export async function readBody(request: ExactRequestLike): Promise<unknown> {
+/** Reads a runtime-neutral request body without buffering beyond the configured byte limit. */
+export async function readBody(
+	request: ExactRequestLike,
+	maxRequestBytes?: number
+): Promise<unknown> {
 	if (request.body !== undefined) return request.body;
+	const limit = positiveLimit(maxRequestBytes, 4 * 1024 * 1024);
+	const declaredLength = requestHeader(request, 'content-length');
+	if (declaredLength !== undefined) {
+		const parsed = Number(declaredLength);
+		if (Number.isFinite(parsed) && parsed > limit) throw new Error('request byte limit exceeded');
+	}
+	if (request.bodyStream)
+		return readBoundedRequestStream(request.bodyStream, limit, request.signal);
 	if (request.text) return request.text();
 	if (request.json) return request.json();
+	return undefined;
+}
+
+async function readBoundedRequestStream(
+	stream: ReadableStream<Uint8Array>,
+	maxBytes: number,
+	signal?: AbortSignal
+): Promise<string> {
+	const reader = stream.getReader();
+	const chunks: Uint8Array[] = [];
+	let bytes = 0;
+	const abort = () => void reader.cancel(signal?.reason).catch(() => undefined);
+	if (signal?.aborted) abort();
+	else signal?.addEventListener('abort', abort, { once: true });
+	try {
+		while (true) {
+			if (signal?.aborted) throw signal.reason ?? new DOMException('Request aborted', 'AbortError');
+			const next = await reader.read();
+			if (signal?.aborted) throw signal.reason ?? new DOMException('Request aborted', 'AbortError');
+			if (next.done) break;
+			bytes += next.value.byteLength;
+			if (bytes > maxBytes) throw new Error('request byte limit exceeded');
+			chunks.push(next.value);
+		}
+		const body = new Uint8Array(bytes);
+		let offset = 0;
+		for (const chunk of chunks) {
+			body.set(chunk, offset);
+			offset += chunk.byteLength;
+		}
+		return new TextDecoder('utf-8', { fatal: true }).decode(body);
+	} catch (error) {
+		try {
+			await reader.cancel(error);
+		} catch {
+			/* preserve the validation failure */
+		}
+		throw error;
+	} finally {
+		signal?.removeEventListener('abort', abort);
+		reader.releaseLock();
+	}
+}
+
+function requestHeader(request: ExactRequestLike, name: string): string | undefined {
+	if (request.headers instanceof Headers) return request.headers.get(name) ?? undefined;
+	for (const [headerName, value] of Object.entries(request.headers ?? {})) {
+		if (headerName.toLowerCase() === name) return Array.isArray(value) ? value[0] : value;
+	}
 	return undefined;
 }
 

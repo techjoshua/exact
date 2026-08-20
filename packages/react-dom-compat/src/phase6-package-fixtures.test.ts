@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { createElement } from '@exactjs/react-compat';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderToString } from './server-node.js';

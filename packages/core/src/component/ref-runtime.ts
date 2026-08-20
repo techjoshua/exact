@@ -1,17 +1,17 @@
 import { reactive, type Reactive } from '@exactjs/reactive';
-import type { ComponentInstance, RefBinding, RefKey, RefRegistry } from './contracts.js';
+import type { AnyComponentInstance, RefBinding, RefKey, RefRegistry } from './contracts.js';
 import { bindComponentRoot, componentRootLifecycle } from './root-lifecycle.js';
 
-type RefOwner = ComponentInstance<any> & {
+type RefOwner = AnyComponentInstance & {
 	readRef<T>(key: RefKey<T>): T | undefined;
 };
 
 class ComponentRefBinding<T> implements RefBinding<T> {
-	readonly owner: ComponentInstance<any>;
+	readonly owner: AnyComponentInstance;
 	readonly key: RefKey<T>;
 	private readonly slot: Reactive<{ current: T | undefined }>;
 
-	constructor(owner: ComponentInstance<any>, key: RefKey<T>) {
+	constructor(owner: AnyComponentInstance, key: RefKey<T>) {
 		this.owner = owner;
 		this.key = key;
 		this.slot = reactive({ current: undefined as T | undefined }, { passthroughKeys: ['current'] });
@@ -47,7 +47,7 @@ export function createComponentRefRegistry(owner: RefOwner): RefRegistry {
 
 /** Creates a component-owned reactive ref binding with shared methods. */
 export function createComponentRefBinding<T>(
-	owner: ComponentInstance<any>,
+	owner: AnyComponentInstance,
 	key: RefKey<T>
 ): RefBinding<T> {
 	return new ComponentRefBinding(owner, key);

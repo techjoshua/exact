@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { describe, expect, it, vi } from 'vitest';
 import { createExactBindingGateway, handleExactRequest } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';
@@ -248,6 +249,27 @@ describe('exact binding gateway', () => {
 		expect(response.status).toBe(502);
 		expect(JSON.parse(response.body)).toEqual({ error: 'transform_failed' });
 		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it('cancels an upstream JSON body as soon as its byte limit is exceeded', async () => {
+		let cancelled = false;
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new TextEncoder().encode('{"value":"too large"}'));
+			},
+			cancel() {
+				cancelled = true;
+			}
+		});
+		const response = await invokeGateway(
+			{
+				fetch: async () => new Response(body, { headers: { 'content-type': 'application/json' } })
+			},
+			{ limits: { maxResponseBytes: 4 } }
+		);
+
+		expect(response.status).toBe(502);
+		expect(cancelled).toBe(true);
 	});
 
 	it.each([

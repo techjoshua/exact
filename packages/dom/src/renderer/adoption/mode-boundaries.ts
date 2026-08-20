@@ -1,9 +1,9 @@
 import {
+	type AnyComponentInstance,
 	normalizeActivityMode,
 	normalizeRenderResult,
 	unwrap,
 	type Child,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
@@ -19,7 +19,7 @@ type AdoptChildren = (
 	root: Root,
 	children: Child[],
 	nodes: readonly Node[],
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	start?: number,
 	end?: number
@@ -31,7 +31,7 @@ export function adoptActivityBoundary(
 	vnode: VNode,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	end: number,
 	adoptChildren: AdoptChildren
@@ -98,7 +98,7 @@ export function adoptSuspenseBoundary(
 	vnode: VNode,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	end: number,
 	adoptChildren: AdoptChildren

@@ -29,6 +29,7 @@ type PendingRequest = {
 const defaultResponseTimeoutMs = 5_000;
 const reconnectDelayMs = 100;
 const maximumSilentRecoveries = 1;
+const maximumPendingRequests = 32;
 
 /**
  * Creates a reconnecting request client for one inspected tab.
@@ -161,6 +162,8 @@ export function createExactExtensionQueryClient(
 
 	function send(message: RequestWithoutId): Promise<unknown> {
 		if (closed) return Promise.reject(new Error('DevTools panel disconnected'));
+		if (pending.size >= maximumPendingRequests)
+			return Promise.reject(new Error('DevTools panel request queue is full'));
 		const id = `panel-${requestPrefix}-${nextId++}`;
 		return new Promise((resolve, reject) => {
 			const request: PendingRequest = {

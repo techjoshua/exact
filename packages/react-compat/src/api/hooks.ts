@@ -4,6 +4,7 @@ import {
 	runReactTransitionScope
 } from '../internals.js';
 import type {
+	AnyReactCallback,
 	DependencyList,
 	Dispatch,
 	MutableRefObject,
@@ -46,10 +47,7 @@ export function useMemo<T>(factory: () => T, deps?: DependencyList): T {
 	return resolveDispatcher().useMemo(factory, deps) as T;
 }
 /** Memoizes a callback according to React dependency-list semantics. */
-export function useCallback<T extends (...args: any[]) => any>(
-	callback: T,
-	deps?: DependencyList
-): T {
+export function useCallback<T extends AnyReactCallback>(callback: T, deps?: DependencyList): T {
 	return resolveDispatcher().useCallback(callback, deps);
 }
 /** Records a developer-tools value without affecting rendering. */
@@ -137,6 +135,6 @@ export function useOptimistic<State, Action = State>(
 	) as readonly [State, (action: Action) => void];
 }
 /** Returns a stable effect callback that always invokes the latest implementation. */
-export function useEffectEvent<T extends (...args: any[]) => unknown>(implementation: T): T {
+export function useEffectEvent<T extends AnyReactCallback>(implementation: T): T {
 	return resolveDispatcher().useEffectEvent(implementation);
 }

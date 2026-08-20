@@ -1,4 +1,5 @@
 import {
+	type AnyComponentInstance,
 	Activity,
 	Dynamic,
 	Fragment,
@@ -6,7 +7,6 @@ import {
 	Target,
 	UnsafeHtml,
 	watch,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { RenderProgram, isCellVNode, renderInstance } from '@exactjs/core/runtime/render';
@@ -47,7 +47,7 @@ export function adoptStaticMountedInner(
 	vnode: VNode,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	rangeEnd = nodes.length
 ): { mounted: Mounted; next: number } | undefined {

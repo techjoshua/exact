@@ -1,7 +1,7 @@
 import {
+	type AnyComponentInstance,
 	inspectExactRuntimeComponent,
 	unwrap,
-	type ComponentInstance,
 	type ExactRuntimeInspectionOwner
 } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
@@ -271,7 +271,7 @@ function appendMounted(
 
 function inspectTargetContributions(
 	mounted: Mounted,
-	owner: ComponentInstance<any>
+	owner: AnyComponentInstance
 ): NonNullable<ExactInspectedRuntimeComponent['targetContributions']> {
 	const inspection = componentDomainInspection(owner.domain);
 	if (!inspection) return Object.freeze([]);
@@ -313,7 +313,7 @@ function inspectTargetContributions(
 
 function visitOwnedTargetBoundaries(
 	mounted: Mounted,
-	owner: ComponentInstance<any>,
+	owner: AnyComponentInstance,
 	visit: (boundary: Mounted) => void
 ): void {
 	for (const child of mounted.children) {

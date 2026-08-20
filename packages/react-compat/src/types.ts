@@ -20,41 +20,53 @@ export type ReactComponentType<P = Record<string, unknown>> =
 	| ReactClassType<P>
 	| ReactSpecialType<P>;
 
+/** Existential React component accepted by compatibility internals that forward props opaquely. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- React component props are contravariant and must retain DefinitelyTyped-compatible permissiveness at this boundary.
+export type AnyReactComponentType = ReactComponentType<any>;
+
+/** Existential callback shape required by React APIs that preserve each authored signature. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Callback parameters and results remain available through the surrounding generic type instead of being inspected here.
+export type AnyReactCallback = (...args: any[]) => any;
+
+/** Opaque mutable class value retained to match React's intentionally permissive class API. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- React class state supports arbitrary property access and updater inference in compatibility-authored code.
+export type ReactOpaqueValue = any;
+
 /** Component values accepted by the compatibility element pipeline. */
 export type ReactCompatibleComponentType<P = Record<string, unknown>> =
 	| ReactComponentType<P>
-	| ComponentFunction<any, P>;
+	| ComponentFunction<ReactOpaqueValue, P>;
 
 /** Defines the react class type interface contract. */
 export interface ReactClassType<P = Record<string, unknown>> {
 	new (props: P, context?: unknown): ReactClassInstance<P>;
-	readonly contextType?: ReactContext<any>;
+	readonly contextType?: ReactContext<ReactOpaqueValue>;
 	readonly contextTypes?: Record<string, unknown>;
 	readonly childContextTypes?: Record<string, unknown>;
 	readonly defaultProps?: Partial<P>;
 	readonly getDerivedStateFromProps?: (props: P, state: unknown) => object | null;
-	readonly getDerivedStateFromError?: (error: any) => object | null;
+	readonly getDerivedStateFromError?: (error: ReactOpaqueValue) => object | null;
 	readonly displayName?: string;
 }
 
 /** Defines the react class instance interface contract. */
 export interface ReactClassInstance<P = Record<string, unknown>> {
 	props: P;
-	state: any;
+	state: ReactOpaqueValue;
 	context: unknown;
 	refs: Record<string, unknown>;
 	render(): ReactNode;
 	setState(
-		state: object | null | ((previous: any, props: P) => object | null),
+		state: object | null | ((previous: ReactOpaqueValue, props: P) => object | null),
 		callback?: () => void
 	): void;
 	forceUpdate(callback?: () => void): void;
-	shouldComponentUpdate?(nextProps: P, nextState: any, nextContext: unknown): boolean;
+	shouldComponentUpdate?(nextProps: P, nextState: ReactOpaqueValue, nextContext: unknown): boolean;
 	componentDidMount?(): void;
-	componentDidUpdate?(previousProps: P, previousState: any, snapshot?: unknown): void;
+	componentDidUpdate?(previousProps: P, previousState: ReactOpaqueValue, snapshot?: unknown): void;
 	componentWillUnmount?(): void;
 	componentDidCatch?(error: unknown, info: { componentStack: string }): void;
-	getSnapshotBeforeUpdate?(previousProps: P, previousState: any): unknown;
+	getSnapshotBeforeUpdate?(previousProps: P, previousState: ReactOpaqueValue): unknown;
 	getChildContext?(): Record<string, unknown>;
 }
 
