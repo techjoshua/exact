@@ -51,10 +51,21 @@ export function patch(
 	// Compiler-owned keyed-list caches return the exact retained VNode when an
 	// item is unchanged. Its live readers already own subsequent updates, so
 	// descending into that subtree can neither rebind nor improve its output.
-	if (mounted?.vnode === next && mounted.scope.active) return mounted;
+	if (
+		mounted?.vnode === next &&
+		mounted.scope.active &&
+		!root.patchRecoveryRequired &&
+		root.errors.errors.length === 0
+	)
+		return mounted;
 	return withTreeDepth(root, () => {
 		countDomWork(root);
-		return patchInner(root, parent, mounted, next, parentInstance, parentScope);
+		try {
+			return patchInner(root, parent, mounted, next, parentInstance, parentScope);
+		} catch (error) {
+			root.patchRecoveryRequired = true;
+			throw error;
+		}
 	});
 }
 
