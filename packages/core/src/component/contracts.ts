@@ -276,6 +276,10 @@ export type ContextToken<T> = {
 	readonly __value?: T;
 };
 
+/** Existential context token retained alongside a separately validated or correlated value. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Heterogeneous context collections preserve value types at insertion but erase them for storage.
+export type AnyContextToken = ContextToken<any>;
+
 /** Defines the component context values type contract. */
 export type ComponentContextValues = ReadonlyMap<symbol, unknown>;
 

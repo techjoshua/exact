@@ -1,7 +1,9 @@
 import {
 	createVNode,
+	type AnyComponentFunction,
+	type AnyComponentInstance,
+	type AnyContextToken,
 	type ComponentFunction,
-	type ComponentInstance,
 	type ComponentResumptionActivation,
 	type ContextToken,
 	type VNode
@@ -9,7 +11,7 @@ import {
 import { snapshot, unwrap } from '@exactjs/reactive';
 import {
 	createExactContextRuntime,
-	type ExactContextRegistration,
+	type AnyExactContextRegistration,
 	type ExactRequestLike
 } from '@exactjs/server';
 import {
@@ -23,7 +25,7 @@ import type { PropsOf, StateOf } from '../contracts.js';
 
 type CapturedComponent = {
 	id: string;
-	type: ComponentFunction<any, any>;
+	type: AnyComponentFunction;
 	state: unknown;
 	props: unknown;
 	parentId?: string;
@@ -32,7 +34,12 @@ type CapturedComponent = {
 };
 
 /** Represents one settled component from a server render. */
-export class ServerTestComponent<State extends object = any, Props = any> {
+export class ServerTestComponent<
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- An unparameterized server test component intentionally exposes arbitrary captured state.
+	State extends object = any,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- An unparameterized server test component intentionally exposes arbitrary captured props.
+	Props = any
+> {
 	constructor(
 		readonly view: ServerTestView,
 		private readonly captured: CapturedComponent
@@ -79,7 +86,7 @@ export class ServerTestComponent<State extends object = any, Props = any> {
 		return this.captured.parentId ? this.view.componentById(this.captured.parentId) : undefined;
 	}
 	/** Returns direct captured children, optionally restricted to a component type. */
-	children<C extends ComponentFunction<any, any>>(
+	children<C extends AnyComponentFunction>(
 		type?: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
 		return this.view
@@ -89,19 +96,19 @@ export class ServerTestComponent<State extends object = any, Props = any> {
 			) as ServerTestComponent<StateOf<C>, PropsOf<C>>[];
 	}
 	/** Returns the sole direct child of a type or throws when the match is not unique. */
-	child<C extends ComponentFunction<any, any>>(
+	child<C extends AnyComponentFunction>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.children(type), `direct child ${type.name || 'anonymous'}`);
 	}
 	/** Returns the sole descendant of a type or throws when the match is not unique. */
-	find<C extends ComponentFunction<any, any>>(
+	find<C extends AnyComponentFunction>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.findAll(type), `descendant ${type.name || 'anonymous'}`);
 	}
 	/** Returns every captured descendant whose component type matches the requested type. */
-	findAll<C extends ComponentFunction<any, any>>(
+	findAll<C extends AnyComponentFunction>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
 		const output: ServerTestComponent<StateOf<C>, PropsOf<C>>[] = [];
@@ -117,7 +124,12 @@ export class ServerTestComponent<State extends object = any, Props = any> {
 }
 
 /** Describes a settled, disposed server component render. */
-export class ServerTestView<State extends object = any, Props = any> {
+export class ServerTestView<
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- An unparameterized server view intentionally exposes arbitrary captured root state.
+	State extends object = any,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- An unparameterized server view intentionally exposes arbitrary captured root props.
+	Props = any
+> {
 	readonly root: ServerTestComponent<State, Props>;
 	private readonly byId = new Map<string, ServerTestComponent>();
 
@@ -138,7 +150,7 @@ export class ServerTestView<State extends object = any, Props = any> {
 	}
 
 	/** Returns the sole captured component of a type, including the root when it matches. */
-	component<C extends ComponentFunction<any, any>>(
+	component<C extends AnyComponentFunction>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		if (this.root.type === type)
@@ -146,7 +158,7 @@ export class ServerTestView<State extends object = any, Props = any> {
 		return this.root.find(type);
 	}
 	/** Returns every captured component whose runtime type matches the requested component. */
-	components<C extends ComponentFunction<any, any>>(
+	components<C extends AnyComponentFunction>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
 		const roots =
@@ -184,13 +196,13 @@ export type ServerTestRenderOptions = Omit<
 };
 
 /** Builds manifest-independent tests around a compiled server component artifact. */
-export class ServerTestComponentBuilder<C extends ComponentFunction<any, any>> {
+export class ServerTestComponentBuilder<C extends AnyComponentFunction> {
 	private componentProps = {} as PropsOf<C>;
 	private readonly componentContexts = new Map<symbol, unknown>();
-	private readonly applicationOverrides: Array<readonly [ContextToken<any>, unknown]> = [];
-	private readonly requestOverrides: Array<readonly [ContextToken<any>, unknown]> = [];
-	private applicationRegistrations: readonly ExactContextRegistration<any>[] = [];
-	private requestRegistrations: readonly ExactContextRegistration<any>[] = [];
+	private readonly applicationOverrides: Array<readonly [AnyContextToken, unknown]> = [];
+	private readonly requestOverrides: Array<readonly [AnyContextToken, unknown]> = [];
+	private applicationRegistrations: readonly AnyExactContextRegistration[] = [];
+	private requestRegistrations: readonly AnyExactContextRegistration[] = [];
 
 	constructor(readonly component: C) {}
 	/** Sets the root component props used by subsequent renders. */
@@ -208,7 +220,7 @@ export class ServerTestComponentBuilder<C extends ComponentFunction<any, any>> {
 		return this;
 	}
 	/** Provides multiple component-scoped context values to the root component. */
-	contexts(entries: Iterable<readonly [ContextToken<any>, unknown]>): this {
+	contexts(entries: Iterable<readonly [AnyContextToken, unknown]>): this {
 		for (const [token, value] of entries) this.context(token, value);
 		return this;
 	}
@@ -223,12 +235,12 @@ export class ServerTestComponentBuilder<C extends ComponentFunction<any, any>> {
 		return this;
 	}
 	/** Registers application-scoped context factories used by subsequent renders. */
-	applicationContexts(registrations: readonly ExactContextRegistration<any>[]): this {
+	applicationContexts(registrations: readonly AnyExactContextRegistration[]): this {
 		this.applicationRegistrations = registrations;
 		return this;
 	}
 	/** Registers request-scoped context factories used by subsequent renders. */
-	requestContexts(registrations: readonly ExactContextRegistration<any>[]): this {
+	requestContexts(registrations: readonly AnyExactContextRegistration[]): this {
 		this.requestRegistrations = registrations;
 		return this;
 	}
@@ -251,7 +263,7 @@ export class ServerTestComponentBuilder<C extends ComponentFunction<any, any>> {
 }
 
 /** Creates a server test builder for a compiled `.exact.server` component export. */
-export function testServerComponent<C extends ComponentFunction<any, any>>(
+export function testServerComponent<C extends AnyComponentFunction>(
 	component: C
 ): ServerTestComponentBuilder<C> {
 	return new ServerTestComponentBuilder(component);
@@ -259,10 +271,10 @@ export function testServerComponent<C extends ComponentFunction<any, any>>(
 
 type ServerContextSetup = {
 	componentContexts?: ReadonlyMap<symbol, unknown>;
-	applicationRegistrations?: readonly ExactContextRegistration<any>[];
-	requestRegistrations?: readonly ExactContextRegistration<any>[];
-	applicationOverrides?: readonly (readonly [ContextToken<any>, unknown])[];
-	requestOverrides?: readonly (readonly [ContextToken<any>, unknown])[];
+	applicationRegistrations?: readonly AnyExactContextRegistration[];
+	requestRegistrations?: readonly AnyExactContextRegistration[];
+	applicationOverrides?: readonly (readonly [AnyContextToken, unknown])[];
+	requestOverrides?: readonly (readonly [AnyContextToken, unknown])[];
 };
 
 /** Renders an arbitrary server vnode while preserving inspectable component snapshots. */
@@ -295,7 +307,7 @@ export async function renderServerTest(
 	const contexts = new Map(opened.context.componentValues);
 	for (const [id, value] of setup.componentContexts ?? []) contexts.set(id, value);
 	const captured: CapturedComponent[] = [];
-	const capture = (instance: ComponentInstance<any>) => {
+	const capture = (instance: AnyComponentInstance) => {
 		captured.push({
 			id: instance.id,
 			type: instance.type,
