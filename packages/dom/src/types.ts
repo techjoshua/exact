@@ -1,4 +1,5 @@
 import type {
+	AnyEnhancementComponentFunction,
 	AnyComponentInstance,
 	EnhancementEntry,
 	Child,
@@ -143,7 +144,7 @@ export type Root = {
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	onProfile?: ExactProfileSink<DomProfileEvent>;
 	/** Trusted compiler-generated enhancement component catalog for this renderer root. */
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 	/** Canonical unavailable identities already reported by this renderer root. */
 	unavailableEnhancements?: Set<string>;
 	/** Nested authored marker depth used to activate one complete logical declaration subtree. */
@@ -193,7 +194,7 @@ export type RenderOptions = {
 	/** Receives coarse renderer timings and traversal counts. */
 	onProfile?: ExactProfileSink<DomProfileEvent>;
 	/** Compiler-generated mapping from canonical enhancement identity to component implementation. */
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 	/** Internal shared budget used when hydration combines DOM scans and renderer work. */
 	workBudget?: DomWorkBudget;
 	/** Internal logical parent used by a late island mounted in a nested DOM root. */

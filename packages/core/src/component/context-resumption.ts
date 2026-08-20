@@ -1,12 +1,12 @@
 import type {
+	AnyComponent,
 	AnyComponentInstance,
+	AnyContextToken,
 	ComponentContinuationContextBinding,
-	Component,
-	ComponentResumptionActivation,
-	ContextToken
+	ComponentResumptionActivation
 } from './contracts.js';
 
-const bindingsByInstance = new WeakMap<AnyComponentInstance, Map<string, ContextToken<any>>>();
+const bindingsByInstance = new WeakMap<AnyComponentInstance, Map<string, AnyContextToken>>();
 const resumptionsByInstance = new WeakMap<AnyComponentInstance, ComponentResumptionActivation>();
 const appliedByInstance = new WeakMap<AnyComponentInstance, Set<string>>();
 
@@ -26,7 +26,7 @@ export function prepareComponentContextResumption(
  * token objects. Any matching SSR value is installed before descendants render.
  */
 export function registerComponentContinuationContexts(
-	component: Component<any>,
+	component: AnyComponent,
 	bindings: readonly ComponentContinuationContextBinding[]
 ): void {
 	const instance = component as AnyComponentInstance;

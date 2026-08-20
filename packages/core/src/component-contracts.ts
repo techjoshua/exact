@@ -8,12 +8,16 @@ export const exactComponentContract = Symbol.for('@exactjs/component-contract');
 /** Global marker distinguishing a native eXact component from compatibility-owned functions. */
 export const exactComponentType = Symbol.for('@exactjs/component');
 
+/** Existential executable retained by compiler contracts without inspecting its parameters or result. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generated component implementations have heterogeneous callable signatures that are preserved by identity.
+export type AnyExactComponentCallable = (...args: any[]) => any;
+
 /** One executable implementation owned by a compiled component artifact. */
 export type ExactComponentImplementationContract = Readonly<{
 	id: string;
 	name: string;
 	role: 'root' | 'client-island' | 'server-part';
-	implementation: (...args: any[]) => any;
+	implementation: AnyExactComponentCallable;
 }>;
 
 /** Runtime-neutral state path used by a generated continuation contract. */
@@ -149,7 +153,7 @@ export type ExactComponentExecutionContract = Readonly<{
 /** Canonical compiler description from which one durable state-machine instance is created. */
 export type ExactCompiledComponentDefinitionContract = Readonly<{
 	version: 1;
-	instantiate: (...args: any[]) => any;
+	instantiate: AnyExactComponentCallable;
 	/** Build-inspection inventories omitted from render-mode-projected runtime bundles. */
 	state?: readonly string[];
 	tasks?: readonly string[];
@@ -185,8 +189,8 @@ export type ExactComponentContract = Readonly<{
 
 /** Composed target-local contracts indexed for runtime use. */
 export type ExactComposedComponentContracts = Readonly<{
-	implementations: Record<string, (...args: any[]) => any>;
-	implementationsById: Record<string, (...args: any[]) => any>;
+	implementations: Record<string, AnyExactComponentCallable>;
+	implementationsById: Record<string, AnyExactComponentCallable>;
 	continuations: Record<string, ExactComponentContinuationContract>;
 	executors: Record<string, ExactComponentContinuationExecutorContract>;
 	boundaries: Record<string, ExactComponentBoundaryContract>;
@@ -195,13 +199,13 @@ export type ExactComposedComponentContracts = Readonly<{
 	definitions: Record<string, ExactCompiledComponentDefinitionContract>;
 }>;
 
-type ContractComponent = ((...args: any[]) => any) & {
+type ContractComponent = AnyExactComponentCallable & {
 	[exactComponentContract]?: ExactComponentContract;
 	[exactComponentType]?: string;
 };
 
 /** Brands a compilerless framework component with an explicit stable native identity. */
-export function markExactComponent<T extends (...args: any[]) => any>(
+export function markExactComponent<T extends AnyExactComponentCallable>(
 	component: T,
 	identity: string
 ): T {
@@ -216,7 +220,7 @@ export function markExactComponent<T extends (...args: any[]) => any>(
 }
 
 /** Returns whether a callable carries a valid native eXact component identity. */
-export function isExactComponent(component: unknown): component is (...args: any[]) => unknown {
+export function isExactComponent(component: unknown): component is AnyExactComponentCallable {
 	if (typeof component !== 'function') return false;
 	const identity = (component as ContractComponent)[exactComponentType];
 	return typeof identity === 'string' && identity.length > 0;
@@ -224,7 +228,7 @@ export function isExactComponent(component: unknown): component is (...args: any
 
 /** Reads and validates compiler-attached metadata from one target-local component export. */
 export function readExactComponentContract(
-	component: (...args: any[]) => unknown
+	component: AnyExactComponentCallable
 ): ExactComponentContract | undefined {
 	const contract = (component as ContractComponent)[exactComponentContract];
 	if (!contract) return undefined;
@@ -233,7 +237,7 @@ export function readExactComponentContract(
 }
 
 /** Returns the stable compiler identity used to pair SSR and client component boundaries. */
-export function exactComponentIdentity(component: (...args: any[]) => unknown): string {
+export function exactComponentIdentity(component: AnyExactComponentCallable): string {
 	const identity = (component as ContractComponent)[exactComponentType];
 	if (typeof identity === 'string' && identity) return identity;
 	throw new Error('Native eXact components require compiler-owned identity');
@@ -246,11 +250,11 @@ export function exactComponentIdentity(component: (...args: any[]) => unknown): 
  * operations reachable from the supplied roots enter the result.
  */
 export function composeExactComponentContracts(
-	components: readonly ((...args: any[]) => any)[],
+	components: readonly AnyExactComponentCallable[],
 	role: ExactComponentContract['role']
 ): ExactComposedComponentContracts {
-	const implementations: Record<string, (...args: any[]) => any> = {};
-	const implementationsById: Record<string, (...args: any[]) => any> = {};
+	const implementations: Record<string, AnyExactComponentCallable> = {};
+	const implementationsById: Record<string, AnyExactComponentCallable> = {};
 	const continuations: Record<string, ExactComponentContinuationContract> = {};
 	const executors: Record<string, ExactComponentContinuationExecutorContract> = {};
 	const boundaries: Record<string, ExactComponentBoundaryContract> = {};
@@ -319,9 +323,9 @@ function addUniqueExecutor(
 
 /** Adds one implementation while rejecting ID or runtime-name collisions. */
 function addUniqueImplementation(
-	target: Record<string, (...args: any[]) => any>,
+	target: Record<string, AnyExactComponentCallable>,
 	key: string,
-	implementation: (...args: any[]) => any
+	implementation: AnyExactComponentCallable
 ): void {
 	const previous = target[key];
 	if (previous && previous !== implementation)

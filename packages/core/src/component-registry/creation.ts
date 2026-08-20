@@ -2,6 +2,7 @@ import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../comp
 import { markExactComponent } from '../component-contracts.js';
 import { createVNode } from '../vnode.js';
 import type {
+	AnyComponentRegistry,
 	ComponentRegistry,
 	ComponentRegistryBuilder,
 	ComponentRegistryDefinition,
@@ -145,7 +146,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 
 /** Returns a frozen diagnostic snapshot without exposing loaders or component functions. */
 export function inspectComponentRegistry(
-	registry: ComponentRegistry<any>
+	registry: AnyComponentRegistry
 ): ComponentRegistryInspection {
 	const runtime = registryValues.get(registry as object);
 	if (!runtime) throw new TypeError('inspectComponentRegistry() requires a component registry');
@@ -172,7 +173,7 @@ export function inspectComponentRegistry(
 }
 
 /** Narrows an untrusted string to the finite keys owned by a branded registry. */
-export function hasComponent<Registry extends ComponentRegistry<any>>(
+export function hasComponent<Registry extends AnyComponentRegistry>(
 	registry: Registry,
 	value: string
 ): value is Extract<keyof Registry, string> {
@@ -197,7 +198,7 @@ export async function preloadComponent(component: AnyAuthoredComponentFunction):
 }
 
 /** Renders one correlated heterogeneous registry selection as an ordinary component vnode. */
-export function renderComponent<Registry extends ComponentRegistry<any>>(
+export function renderComponent<Registry extends AnyComponentRegistry>(
 	registry: Registry,
 	selection: ComponentSelection<Registry>
 ) {

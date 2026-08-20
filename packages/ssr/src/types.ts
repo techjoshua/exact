@@ -1,5 +1,6 @@
 import type {
 	AnyComponentInstance,
+	AnyEnhancementComponentFunction,
 	Child,
 	ComponentDomain,
 	DynamicComponentArtifact,
@@ -61,7 +62,7 @@ export type RenderToStringOptions = {
 	/** Prepared render output policies. Transformations run before all final validators. */
 	outputExtensions?: readonly ExactOutputExtension[];
 	/** Bundle-local compiler-generated enhancement components available to this server artifact. */
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 	/** Allows unsafeHtml() ranges. The application accepts responsibility for their contents. */
 	allowUnsafeHtml?: boolean;
 	/** Receives an audit notification whenever an unsafe HTML range is rendered. */
@@ -329,7 +330,7 @@ export type SsrContext = {
 	documentHeadSeen: boolean;
 	documentBodySeen: boolean;
 	hostStack: string[];
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 	unavailableEnhancements: Set<string>;
 	/** Generated ordinary component vnodes whose internal SSR boundary is not authored hydration data. */
 	enhancementVNodes: WeakSet<VNode>;
