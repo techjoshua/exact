@@ -12,10 +12,8 @@ import type {
 import type {
 	ExactBatchRequest,
 	ExactEndpointRoutes,
-	ExactInvocationKind,
 	ExactInvocationRequest,
 	ExactInvocationResult,
-	ExactOperationResult,
 	ExactPartitionAuthority,
 	ExactPatch
 } from '@exactjs/core/framework/operation-protocol';
