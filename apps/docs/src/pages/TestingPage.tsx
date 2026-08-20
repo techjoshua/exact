@@ -60,8 +60,8 @@ export function TestingPage(this: Component<{}>) {
 				<h2>Inspect the real server component</h2>
 				<CodeBlock source={serverTestingSource} language="ts" title="AccountPage.server.test.ts" />
 				<p>
-					Import the compiled server component to test its real placement. Server tasks settle before
-					the result is captured. State, props, ancestry, and context remain inspectable.
+					Import the compiled server component to test its real placement. Server tasks settle
+					before the result is captured. State, props, ancestry, and context remain inspectable.
 				</p>
 				<p>
 					Supply application and request context with their matching setup methods. Use
@@ -71,14 +71,14 @@ export function TestingPage(this: Component<{}>) {
 			<section>
 				<h2>Test client and server together</h2>
 				<p>
-					Use <code>mountClientServerTest()</code> to render on the server, hydrate in a test DOM, and
-					send task requests to the application&apos;s server handler. Trigger controls through accessible
-					queries and assert the resulting page state.
+					Use <code>mountClientServerTest()</code> to render on the server, hydrate in a test DOM,
+					and send task requests to the application&apos;s server handler. Trigger controls through
+					accessible queries and assert the resulting page state.
 				</p>
 				<p>
-					The paired view can also report whether hydration adopted existing DOM and whether a server
-					response was applied. Use those details when diagnosing a boundary failure; keep ordinary
-					tests focused on user-visible behavior.
+					The paired view can also report whether hydration adopted existing DOM and whether a
+					server response was applied. Use those details when diagnosing a boundary failure; keep
+					ordinary tests focused on user-visible behavior.
 				</p>
 			</section>
 		</Article>

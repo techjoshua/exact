@@ -92,8 +92,8 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			<section>
 				<h2>Use published React packages directly</h2>
 				<p>
-					Install and import supported packages from <code>node_modules</code>. The build integration
-					routes React, React DOM, and JSX through the selected compatibility runtime.
+					Install and import supported packages from <code>node_modules</code>. The build
+					integration routes React, React DOM, and JSX through the selected compatibility runtime.
 				</p>
 				<p>
 					Use the <code>source</code> option only for React-owned source that your application

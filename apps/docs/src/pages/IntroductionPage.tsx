@@ -174,9 +174,7 @@ export function IntroductionPage(this: Component<{}>) {
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Lifetime</span>
 						<strong>Keep work tied to the component</strong>
-						<p>
-							Tasks, resources, context, refs, and cleanup share the component lifetime.
-						</p>
+						<p>Tasks, resources, context, refs, and cleanup share the component lifetime.</p>
 					</div>
 				</div>
 			</section>
@@ -210,9 +208,7 @@ export function IntroductionPage(this: Component<{}>) {
 					>
 						<span className="topic-index">01</span>
 						<strong>Understand components</strong>
-						<p>
-							Learn about initialization, views, props, events, context, and refs.
-						</p>
+						<p>Learn about initialization, views, props, events, context, and refs.</p>
 					</Link>
 					<Link theme:surface="raised" theme:interactive className="topic-card" to="/learn/state">
 						<span className="topic-index">02</span>

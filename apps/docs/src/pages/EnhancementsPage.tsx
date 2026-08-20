@@ -143,12 +143,11 @@ export function EnhancementsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Enhancement packages can also provide completions, hovers, hints, safe edits, and bounded
-					errors and warnings. The intl package explains
-					inferred messages and warns about invalid placeholders or missing catalogs. The
-					accessibility package provides ARIA guidance and warns about invalid names, relationships,
-					focus, and composite structures. Third-party packages can provide the same combination of
-					runtime composition and authoring guidance without teaching those rules to the core
-					compiler.
+					errors and warnings. The intl package explains inferred messages and warns about invalid
+					placeholders or missing catalogs. The accessibility package provides ARIA guidance and
+					warns about invalid names, relationships, focus, and composite structures. Third-party
+					packages can provide the same combination of runtime composition and authoring guidance
+					without teaching those rules to the core compiler.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/language-tools">
 					See package-owned editor assistance
