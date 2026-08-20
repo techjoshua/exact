@@ -29,7 +29,7 @@ const buildIntegrations: Integration[] = [
 		name: 'Bun 1.3+',
 		package: '@exactjs/bun-plugin',
 		coverage:
-			'Native Bun.build transforms, target conditions, source maps, and plugin composition.',
+			'Native Bun.build transforms, target conditions, source maps, and plugin composition, exercised in Bun CI.',
 		application: 'Add @exactjs/bun-adapter separately when Bun also serves the application.'
 	},
 	{
@@ -92,7 +92,7 @@ const runtimeIntegrations: Integration[] = [
 	{
 		name: 'Bun 1.3+',
 		package: '@exactjs/bun-adapter',
-		coverage: 'Bun.serve handler with integration coverage in the Bun runtime.',
+		coverage: 'Bun.serve handler with release-gating integration coverage in the Bun runtime.',
 		application: 'Add @exactjs/bun-plugin separately when Bun also performs the build.'
 	},
 	{

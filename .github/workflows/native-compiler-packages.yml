@@ -120,12 +120,37 @@ jobs:
     env:
       EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
 
+  bun:
+    name: Bun integration
+    needs: native-compiler
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.5
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-compiler
+          path: .tmp/native-artifact
+      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: npm ci
+      - run: npm run build:prerequisites
+      - run: npm run test:bun
+    env:
+      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+
   package:
     name: Package release artifacts
     needs:
       - native-compiler
       - compatibility
       - acceptance
+      - bun
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
