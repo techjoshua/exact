@@ -5,6 +5,7 @@ import path from 'node:path';
 
 type FacadeProvenance = Readonly<{ importer: string; request: string }>;
 const provenance = new Map<string, FacadeProvenance>();
+const maximumFacadeProvenanceEntries = 4_096;
 
 /** Materializes portable Webpack/Node ESM facades and retains authorization provenance. */
 export function materializeWebpackEnhancementFacades(
@@ -21,11 +22,16 @@ export function materializeWebpackEnhancementFacades(
 		applicationRoot,
 		target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
 	);
-	for (const facade of result.facades)
-		provenance.set(path.resolve(facade.filename), {
+	for (const facade of result.facades) {
+		const filename = path.resolve(facade.filename);
+		provenance.delete(filename);
+		provenance.set(filename, {
 			importer: facade.importer,
 			request: facade.request
 		});
+		while (provenance.size > maximumFacadeProvenanceEntries)
+			provenance.delete(provenance.keys().next().value!);
+	}
 	return result.code;
 }
 

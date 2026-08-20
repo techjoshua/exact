@@ -49,6 +49,7 @@ export interface ExactPreparedPluginRegistry {
 }
 
 const registryCache = new Map<string, Promise<ExactPreparedPluginRegistry>>();
+const maximumCachedRegistries = 64;
 
 /** Performs the prepare exact plugin registry domain operation. */
 export async function prepareExactPluginRegistry(
@@ -70,7 +71,11 @@ export async function prepareExactPluginRegistry(
 	const key = JSON.stringify([applicationRoot, configPath, environment, hostMode]);
 	if (!options.graph && !options.config && !options.loadedConfig && !options.signal) {
 		const cached = registryCache.get(key);
-		if (cached) return cached;
+		if (cached) {
+			registryCache.delete(key);
+			registryCache.set(key, cached);
+			return cached;
+		}
 	}
 	const promise = prepareUncached({
 		...options,
@@ -83,6 +88,8 @@ export async function prepareExactPluginRegistry(
 	});
 	if (!options.graph && !options.config && !options.loadedConfig && !options.signal)
 		registryCache.set(key, promise);
+	while (registryCache.size > maximumCachedRegistries)
+		registryCache.delete(registryCache.keys().next().value!);
 	try {
 		return await promise;
 	} catch (error) {
