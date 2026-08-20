@@ -10,11 +10,16 @@ testing, and change-acceptance rules as required review criteria rather than opt
 
 Every feature addition, removal, or behavior change must update all relevant engineering
 documentation under [`docs`](docs) and the public documentation application under
-[`apps/docs`](apps/docs). Treat those updates as part of the feature, not optional follow-up work.
-Create, remove, split, combine, or reorganize reference documents and docs-app pages when that
-best reflects the resulting framework. Keep proposal status, current references, docs-app route
-metadata, navigation, search terms, examples, and stated limitations consistent with the
-implemented behavior.
+[`apps/docs`](apps/docs).  Keep in mid the documentation app is not you personal blog. The audience
+for the documentation application is external developers and generally it should only explain public
+facing features of the framework... unless the page in question is explaining the internal framework
+workings intentionally.  Also keep in mind that the story page is hand-written content that should
+not be changed at all unless it becomes incorrect or misleading, and even then the corrections should
+be measured and follow the same tone and style as the underlying document. Treat those updates as part
+of the feature, not optional follow-up work. Create, remove, split, combine, or reorganize reference
+documents and docs-app pages when that best reflects the resulting framework. Keep proposal status,
+current references, docs-app route metadata, navigation, search terms, examples, and stated
+limitations consistent with the implemented behavior.
 
 Repository maintenance guidance belongs in this root `AGENTS.md`. Package-local `AGENTS.md` files
 are installed-package usage guides for the reusable eXact agent skill, not instructions for
