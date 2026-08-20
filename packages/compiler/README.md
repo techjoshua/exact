@@ -37,6 +37,8 @@ graph consolidates distributed task operations and boundaries once while retaini
 module-local dependencies and component identity on each artifact entry. Ephemeral semantic
 analysis is compiler-owned and is not part of compilation results or artifact graphs.
 Generated component, operation, continuation, and registry identities are opaque build output.
+When direct compilation supplies both `rootDir` and `outDir`, every input must be contained by the
+source root. The compiler rejects an outside input before deriving or writing an output path.
 
 Build-tool authors may set `componentContractProjection` only when producing a concrete runtime
 bundle. `hydrate` retains resumption metadata, `client` omits it, and both omit analysis-only
