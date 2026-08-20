@@ -6,6 +6,7 @@ import {
 	ownTaskResource,
 	registerTaskCleanup,
 	taskAwait,
+	taskFetch,
 	taskIdleCallback,
 	taskObserver,
 	taskTimeout,
@@ -97,6 +98,26 @@ describe('@exactjs/core task-resources', () => {
 		expect(options.cache).toBe('reload');
 		owner.abort('rerun');
 		expect(options.signal.aborted).toBe(true);
+	});
+
+	it('releases combined fetch cancellation listeners when the request settles', async () => {
+		const owner = new AbortController();
+		const external = new AbortController();
+		const removeOwner = vi.spyOn(owner.signal, 'removeEventListener');
+		const removeExternal = vi.spyOn(external.signal, 'removeEventListener');
+		let settle!: () => void;
+		const response = new Promise<void>((resolve) => (settle = resolve));
+		const fetcher = vi.fn(() => response);
+
+		expect(taskFetch(owner.signal, fetcher, '/records', { signal: external.signal })).toBe(
+			response
+		);
+		settle();
+		await response;
+		await Promise.resolve();
+
+		expect(removeOwner).toHaveBeenCalledWith('abort', expect.any(Function));
+		expect(removeExternal).toHaveBeenCalledWith('abort', expect.any(Function));
 	});
 	it('cancels compiler-owned idle callbacks', () => {
 		const request = vi.fn(() => 42);

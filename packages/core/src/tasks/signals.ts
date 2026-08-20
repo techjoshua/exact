@@ -41,6 +41,39 @@ export function combineAbortSignals(left: AbortSignal, right: AbortSignal): Abor
 	return controller.signal;
 }
 
+/**
+ * Combines two signals and returns explicit listener ownership for finite operations.
+ * Callers must dispose the handle when their operation settles before either input aborts.
+ */
+export function createDisposableAbortSignal(
+	left: AbortSignal,
+	right: AbortSignal
+): Readonly<{ signal: AbortSignal; dispose(): void }> {
+	const controller = new AbortController();
+	let disposed = false;
+	const dispose = () => {
+		if (disposed) return;
+		disposed = true;
+		left.removeEventListener('abort', abortLeft);
+		right.removeEventListener('abort', abortRight);
+	};
+	const abortLeft = () => {
+		dispose();
+		controller.abort(left.reason);
+	};
+	const abortRight = () => {
+		dispose();
+		controller.abort(right.reason);
+	};
+	if (left.aborted) controller.abort(left.reason);
+	else if (right.aborted) controller.abort(right.reason);
+	else {
+		left.addEventListener('abort', abortLeft, { once: true });
+		right.addEventListener('abort', abortRight, { once: true });
+	}
+	return Object.freeze({ signal: controller.signal, dispose });
+}
+
 /** Combines an author signal with the signal that owns a task generation. */
 export function combineTaskSignal(owner: AbortSignal, existing?: AbortSignal): AbortSignal {
 	if (!existing || existing === owner) return owner;
