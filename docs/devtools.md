@@ -65,12 +65,20 @@ const server = createExactServerRuntime({
 Omitted `allowDebug` is unavailable in production. Failed authorization returns the same `404`
 used when debug output does not exist. All messages are POSTed to the application's configured
 eXact endpoint and inherit its origin, CSRF, request-size, cancellation, and adapter policies.
-Sessions are opaque, expiring, bounded by count and retained bytes, and reauthorized while event
-streams remain open.
+Sessions are opaque, expiring, and bounded by count. The server uses them to authorize catalog,
+snapshot, source, and per-request observation capabilities; it does not retain a cross-request
+event timeline or keep an observation stream open.
 
-Ordinary endpoint traffic does not construct the debug runtime or decode catalogs. Session,
-catalog, event-buffer, and observation ownership is allocated lazily only after a valid `debug`
-message is parsed.
+While browser DevTools is attached, the hydration transport adds the opaque session ID to each
+ordinary eXact request. After reauthorization, that request alone creates a bounded observation
+collector. JSON responses carry a reserved observation attachment and NDJSON responses carry one
+observation frame before completion. Success, failure, cancellation, and stream closure all dispose
+the collector with the request. Requests without the header create no observation owner.
+
+The page runtime validates those events, assigns its own monotonic cursor, and owns the only
+cross-request history and subscription set. Disconnect clears that store and stops adding the
+session header. Consequently, a server response can never remain subscribed to later work and one
+operator's request cannot populate another request's collector.
 
 ## What is inspectable
 
@@ -146,9 +154,12 @@ existing binding gateway using its registered binding, build, and execution root
 5. strips browser cookies, authorization, origin, and referrer headers before forwarding; and
 6. translates child session IDs and remote event identities back to the page session and binding.
 
-Page, branding, billing, and other roots retain independent event cursors. Merged timelines
-round-robin bounded records while preserving each host's order; they do not invent a wall-clock
-total order. One unavailable remote remains visible without hiding healthy client or sibling roots.
+For remote operations, the page gateway reauthorizes the parent session, establishes the remote
+host's independently authorized child capability, forwards only that child ID, and rewrites the
+observations in the same response back to the page identity and binding. The browser then assigns
+one page-owned cursor across page, branding, billing, and other responses. It preserves arrival
+order but does not claim a cross-host wall-clock total order. One unavailable remote remains visible
+without hiding healthy client or sibling roots.
 
 ## Chromium and agent use
 
@@ -210,7 +221,8 @@ group, and closes page subscriptions.
 - `@exactjs/chromium-devtools`: Manifest V3 panel and inspected-page bridge.
 - `@exactjs/devtools-agent`: read-only CDP projection.
 - `@exactjs/compiler`: canonical source identities and server catalog construction.
-- `@exactjs/server`: authorization, sessions, queries, streams, catalogs, and binding federation.
+- `@exactjs/server`: authorization, static queries, catalogs, request collectors, and binding
+  federation; it owns no cross-request event history.
 - `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, and `@exactjs/bun-plugin`: paired client
   runtime and server-only catalog packaging.
 

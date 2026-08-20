@@ -3,9 +3,10 @@
 `@exactjs/compiler` is a JavaScript host for the native `exactc-native` compiler. Parsing,
 checking, eXact analysis, placement, policy enforcement, artifact partitioning, lowering,
 generated-code validation, and printing execute in one persistent TypeScript-Go process.
-After analysis and target transforms settle, the JavaScript artifact host publishes independent
-client, server, shared, and source-map files concurrently. Semantic work and deterministic
-diagnostics remain single-owned by the retained native session.
+After analysis and target transforms settle, the JavaScript artifact host stages the complete
+client, server, shared, source-map, and inspection set before publication. A filesystem failure
+restores the prior generation instead of leaving target files mixed. Semantic work and
+deterministic diagnostics remain single-owned by the retained native session.
 
 There is no JavaScript compiler fallback and no public backend selector. Native failures remain
 visible instead of silently changing compiler semantics.
@@ -29,6 +30,12 @@ Language sessions are permanently `noEmit: true`: they never write JavaScript,
 target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
+
+Build source maps preserve the native compiler map through later framework prefixes by composing
+an exact generated-to-compiled suffix map. Host `moduleTransform` callbacks must return a version
+3 map whenever they change code with source maps enabled; an unmapped rewrite is rejected rather
+than approximated line-for-line. Vite, Webpack, and Bun recovery paths use token-position mappings
+and leave generated-only regions unmapped.
 Native protocol 1.34 and generated component-contract version 2 carry the normalized recursive
 partition plan, including ordinary enhancement-component owners, structural templates,
 crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains
@@ -85,6 +92,10 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
+
+Precompiled pipelines treat `rootDir` as an output-containment boundary. Every input must resolve
+beneath that root before the compiler derives a path under `outDir`; an outside input fails without
+writing through `..` segments or an absolute path.
 
 The Vite adapter authorizes each optional provider in its importing component's scope, then gives
 equivalent resolved facades one content-derived module identity. Components that select the same

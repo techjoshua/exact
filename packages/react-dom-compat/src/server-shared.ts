@@ -1,4 +1,5 @@
-import { createVNode, markExactComponent, type ComponentFunction } from '@exactjs/core';
+import { createVNode, type ComponentFunction } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { ReactNode } from '@exactjs/react-compat';
 import {
 	ReactCacheContext,

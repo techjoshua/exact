@@ -1874,21 +1874,3 @@ p {
 		display: none;
 	}
 }
-
-@media (prefers-reduced-motion: reduce) {
-	* {
-		scroll-behavior: auto !important;
-		transition-duration: 0.01ms !important;
-		animation-duration: 0.01ms !important;
-		animation-iteration-count: 1 !important;
-	}
-}
-
-@media (forced-colors: active) {
-	.sudoku-cell.is-selected,
-	.sudoku-cell.is-conflict,
-	.tool-button.is-active {
-		outline: 3px solid CanvasText;
-		outline-offset: -3px;
-	}
-}

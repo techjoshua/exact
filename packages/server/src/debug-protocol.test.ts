@@ -1,6 +1,6 @@
 import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { exactServerDebugRuntime, handleExactRequest } from './index.js';
+import { defineExactOperationContract, handleExactRequest } from './index.js';
 import type { ExactRequestLike, ExactServerContext } from './types.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
@@ -222,7 +222,7 @@ describe('server-cooperative debug protocol', () => {
 		]);
 	});
 
-	it('keeps debug IDs out of invocation dispatch and records bounded observations', async () => {
+	it('returns bounded observations only with the request that produced them', async () => {
 		let invoked = 0;
 		const context = server({
 			allowDebug: true,
@@ -235,22 +235,33 @@ describe('server-cooperative debug protocol', () => {
 		});
 		const opened = await handleExactRequest(debugOpen(), context);
 		const sessionId = responseJson(opened).session.id as string;
-		exactServerDebugRuntime(context).observe({
-			kind: 'continuation.execute',
-			buildKey,
-			executionRoot: 'page',
-			componentTypeId: 'component:Page',
-			operationId: 'operation-1'
-		});
+		const invokedResponse = await handleExactRequest(
+			{
+				method: 'POST',
+				url: '/__exact',
+				headers: { 'x-exact-debug-session': sessionId },
+				body: { type: 'invoke', id: 'component:Page:task:load', opId: 'operation-1' }
+			},
+			context
+		);
+		const observations = responseJson(invokedResponse).__exactObservations as unknown[];
 		const timeline = await handleExactRequest(
 			debugQuery(sessionId, 'timeline.query', { page: { limit: 10 } }),
 			context
 		);
 
-		expect(invoked).toBe(0);
-		expect(responseJson(timeline).result).toEqual([
-			expect.objectContaining({ kind: 'continuation.execute' })
+		expect(invoked).toBe(1);
+		expect(observations).toEqual([
+			expect.objectContaining({ kind: 'task.start' }),
+			expect.objectContaining({ kind: 'task.settle' })
 		]);
+		expect(timeline.status).toBe(404);
+		expect(responseJson(timeline)).toMatchObject({ reason: 'timeline-is-browser-owned' });
+		const ordinary = await handleExactRequest(
+			{ method: 'POST', url: '/__exact', body: { type: 'invoke', id: 'component:Page:task:load' } },
+			context
+		);
+		expect(responseJson(ordinary)).not.toHaveProperty('__exactObservations');
 	});
 
 	it('rejects cross-origin debug requests before authorization', async () => {
@@ -298,10 +309,8 @@ describe('server-cooperative debug protocol', () => {
 		expect(originalAfterTransfer.status).toBe(404);
 	});
 
-	it('reauthorizes idle event streams and closes them after resolver revocation', async () => {
-		vi.useFakeTimers();
-		let authorized = true;
-		const context = server({ allowDebug: async () => authorized });
+	it('does not expose an application-lifetime server event subscription', async () => {
+		const context = server({ allowDebug: true });
 		const opened = await handleExactRequest(debugOpen(['events']), context);
 		const sessionId = responseJson(opened).session.id as string;
 		const subscribed = await handleExactRequest(
@@ -318,21 +327,20 @@ describe('server-cooperative debug protocol', () => {
 			},
 			context
 		);
-		const reader = subscribed.stream!.getReader();
-		await Promise.resolve();
-		authorized = false;
-		await vi.advanceTimersByTimeAsync(1_000);
-
-		await expect(reader.read()).resolves.toEqual({ done: true, value: undefined });
+		expect(subscribed.status).toBe(404);
+		expect(subscribed.stream).toBeUndefined();
 	});
 });
 
 function server(overrides: Partial<ExactServerContext> = {}): ExactServerContext {
+	const invocationContracts = Object.fromEntries(
+		Object.keys(overrides.invocations ?? {}).map((id) => [id, defineExactOperationContract(id)])
+	);
 	return {
 		contract: {
 			version: 1,
 			endpoint: '/__exact',
-			invocations: {},
+			invocations: invocationContracts,
 			executors: {},
 			boundaries: {}
 		},

@@ -3,12 +3,11 @@ import {
 	Activity,
 	createComponentRegistry,
 	createRef,
-	getCellVNode,
-	isCellVNode,
 	Suspense,
 	type Component,
 	type RefBinding
 } from '@exactjs/core';
+import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
 import { describe, expect, it } from 'vitest';
 import type { JSX } from './jsx-runtime.js';
 import { _ } from './jsx-runtime.js';

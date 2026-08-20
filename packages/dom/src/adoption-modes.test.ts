@@ -4,8 +4,6 @@
 import {
 	Activity,
 	activateTaskForHost,
-	createDynamicChild,
-	createServerSlot,
 	defineTask,
 	Fragment,
 	Suspense,
@@ -14,6 +12,7 @@ import {
 	type TaskContext,
 	unsafeHtml
 } from '@exactjs/core';
+import { createDynamicChild, createServerSlot } from '@exactjs/core/runtime/render';
 import './unsafe-html.js';
 import './structural-boundaries.js';
 import { createVNode } from './test-support/native-vnode.js';

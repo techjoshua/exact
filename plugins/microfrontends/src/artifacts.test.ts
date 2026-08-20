@@ -36,6 +36,7 @@ describe('provided-package artifact generation', () => {
 					'billing',
 					{
 						clientEntry: 'https://cdn.example.test/billing.js',
+						integrity: 'sha384-YWJj',
 						clientEntryResolver: './src/resolve-billing.ts'
 					}
 				]
@@ -45,6 +46,7 @@ describe('provided-package artifact generation', () => {
 		expect(source).toContain('registerExactRemoteClientBindings');
 		expect(source).toContain('/workspace/page/src/resolve-billing.ts');
 		expect(source).toContain('resolveClientEntry: __exactResolveEntry0');
+		expect(source).toContain('integrity: "sha384-YWJj"');
 		expect(source).toContain('https://cdn.example.test/billing.js');
 		expect(source).not.toContain('endpoint');
 	});
@@ -82,6 +84,8 @@ describe('provided-package artifact generation', () => {
 		});
 		expect(source).toContain('buildKey: "0123456789abcdef0123456789abcdef01234567"');
 		expect(source).toContain('root: "@company/billing#./BillingArea"');
+		expect(source).toContain("Symbol.for('@exactjs/microfrontends/remote-loader')");
+		expect(source).toContain("searchParams.get('__exact_module_token')");
 		expect(source).not.toContain('contractVersion');
 		expect(source).not.toContain('revision');
 	});

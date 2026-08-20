@@ -2,13 +2,12 @@ import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	ErrorContext,
-	createComponentInstance,
 	createErrorContext,
 	createVNode,
-	renderInstance,
 	type Component,
 	type ErrorReport
 } from './index.js';
+import { createComponentInstance, renderInstance } from './runtime/render.js';
 
 describe('@exactjs/core lifecycle', () => {
 	it('constructs once and renders repeatedly from tracked state', () => {

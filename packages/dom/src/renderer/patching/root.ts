@@ -2,11 +2,8 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
-	isCellVNode,
 	normalizeDocumentVNode,
 	Portal,
-	RenderProgram,
-	ServerSlot,
 	Suspense,
 	Target,
 	Text,
@@ -15,6 +12,7 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { isCellVNode, RenderProgram, ServerSlot } from '@exactjs/core/runtime/render';
 import { type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
 import { getComponentProps, getListBinding, materializeList } from '../../children.js';
@@ -53,10 +51,21 @@ export function patch(
 	// Compiler-owned keyed-list caches return the exact retained VNode when an
 	// item is unchanged. Its live readers already own subsequent updates, so
 	// descending into that subtree can neither rebind nor improve its output.
-	if (mounted?.vnode === next && mounted.scope.active) return mounted;
+	if (
+		mounted?.vnode === next &&
+		mounted.scope.active &&
+		!root.patchRecoveryRequired &&
+		root.errors.errors.length === 0
+	)
+		return mounted;
 	return withTreeDepth(root, () => {
 		countDomWork(root);
-		return patchInner(root, parent, mounted, next, parentInstance, parentScope);
+		try {
+			return patchInner(root, parent, mounted, next, parentInstance, parentScope);
+		} catch (error) {
+			root.patchRecoveryRequired = true;
+			throw error;
+		}
 	});
 }
 

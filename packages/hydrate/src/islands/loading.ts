@@ -1,4 +1,5 @@
-import { composeExactComponentContracts, type ComponentFunction } from '@exactjs/core';
+import { type ComponentFunction } from '@exactjs/core';
+import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { mergeHydrationRegistration } from '../config.js';
 import type { ClientIslandLoader, ExactActivationDecision, HydrateOptions } from '../types.js';
 

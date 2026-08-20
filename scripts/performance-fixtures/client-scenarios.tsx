@@ -1,9 +1,5 @@
-import {
-	createComponentInstance,
-	createEnhancementMarker,
-	createVNode,
-	renderInstance
-} from '@exactjs/core';
+import { createEnhancementMarker, createVNode } from '@exactjs/core';
+import { createComponentInstance, renderInstance } from '@exactjs/core/runtime/render';
 import { adoptStatic, render, unmount, type RenderOptions } from '@exactjs/dom';
 import { registerDomEnhancementIntegration } from '@exactjs/dom/framework/enhancements';
 import { computed, flushSync, reactive } from '@exactjs/reactive';

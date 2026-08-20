@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createComponentInstance, runComponentInteraction } from '@exactjs/core';
+import { runComponentInteraction } from '@exactjs/core';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
 import {
 	createExactRouter,
 	generatePath,

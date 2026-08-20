@@ -1,6 +1,4 @@
 import {
-	createComponentInstance,
-	exactComponentIdentity,
 	pageComponentDomain,
 	withComponentResumption,
 	type ComponentContextValues,
@@ -8,6 +6,8 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 
 import { getComponentProps } from '../../children.js';
 

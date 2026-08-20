@@ -7,12 +7,12 @@ import { createExactClientEventStore } from './client-events.js';
 import { createExactClientInspectionQueryService } from './query-service.js';
 
 describe('shared client/server inspection query service', () => {
-	it('merges host timelines without inventing wall-clock order and resumes each cursor', async () => {
+	it('pages client-aggregated client and server observations with one browser cursor', async () => {
 		const events = createExactClientEventStore(100, 100_000);
 		events.publish(event('client', 1));
+		events.publish(event('server', 1));
 		events.publish(event('client', 2));
-		const serverEvents = [event('server', 1), event('server', 2)];
-		const serverCursors: Array<string | undefined> = [];
+		events.publish(event('server', 2));
 		const service = createExactClientInspectionQueryService({
 			sessionId: 'session',
 			dom: {
@@ -23,26 +23,7 @@ describe('shared client/server inspection query service', () => {
 				ownedElements: () => []
 			},
 			events,
-			serverConnected: true,
-			server: {
-				open: async () => undefined,
-				async query(_sessionId, request) {
-					const cursor = request.params?.page?.cursor;
-					serverCursors.push(cursor);
-					const offset = cursor ? Number.parseInt(cursor, 36) : 0;
-					const result = serverEvents.filter((entry) => entry.sequence > offset);
-					return {
-						protocol: 1,
-						id: request.id,
-						ok: true,
-						identity: { sessionId: 'session' },
-						result,
-						page: { nextCursor: result.at(-1)?.cursor, count: result.length }
-					};
-				},
-				subscribe: () => ({ closed: false, close() {} }),
-				close: async () => {}
-			}
+			serverConnected: false
 		});
 
 		const first = await service.request(timeline('first', undefined));
@@ -53,15 +34,17 @@ describe('shared client/server inspection query service', () => {
 		);
 		const secondEvents = second.ok ? (second.result as ExactRuntimeInspectionEvent[]) : [];
 		expect(secondEvents.map((entry) => [entry.id.side, entry.sequence])).toEqual([
-			['client', 2],
-			['server', 2]
+			['client', 3],
+			['server', 4]
 		]);
-		expect(serverCursors).toEqual([undefined, '1']);
 	});
 
 	it('keeps page, branding, and billing cursors and subscriptions independent', async () => {
 		const events = createExactClientEventStore(100, 100_000);
 		events.publish(event('client', 1));
+		events.publish(hostEvent('page', 1));
+		events.publish(hostEvent('branding', 1));
+		events.publish(hostEvent('billing', 1));
 		const roots = [
 			{
 				side: 'client' as const,
@@ -88,8 +71,6 @@ describe('shared client/server inspection query service', () => {
 			}
 		];
 		const requested: string[] = [];
-		const subscriptions: string[] = [];
-		let closed = 0;
 		const service = createExactClientInspectionQueryService({
 			sessionId: 'session',
 			dom: {
@@ -115,15 +96,6 @@ describe('shared client/server inspection query service', () => {
 						result: [hostEvent(binding, request.params?.page?.cursor ? 2 : 1)]
 					};
 				},
-				subscribe(request) {
-					subscriptions.push(request.filter?.binding ?? 'page');
-					return {
-						closed: false,
-						close() {
-							closed++;
-						}
-					};
-				},
 				close: async () => {}
 			}
 		});
@@ -136,18 +108,13 @@ describe('shared client/server inspection query service', () => {
 			'branding',
 			'billing'
 		]);
+		events.publish(hostEvent('branding', 2));
 		const second = await service.request(
 			timeline('second', first.ok ? first.page?.nextCursor : undefined, 4)
 		);
-		expect(second.ok).toBe(true);
-		expect(requested).toEqual([
-			'page:-',
-			'branding:-',
-			'billing:-',
-			'page:1',
-			'branding:1',
-			'billing:1'
-		]);
+		expect(
+			second.ok && (second.result as ExactRuntimeInspectionEvent[]).map((entry) => entry.id.binding)
+		).toEqual(['branding']);
 		const tree = await service.request({
 			protocol: 1,
 			id: 'tree',
@@ -159,11 +126,18 @@ describe('shared client/server inspection query service', () => {
 					(entry) => entry.id.binding ?? entry.id.side
 				)
 		).toEqual(['server', 'branding', 'billing']);
+		expect(requested).toEqual(['page:-', 'branding:-', 'billing:-']);
 
-		const subscription = service.subscribe({ protocol: 1, sessionId: 'session' }, () => {});
-		expect(subscriptions).toEqual(['page', 'branding', 'billing']);
+		const delivered: ExactRuntimeInspectionEvent[] = [];
+		const subscription = service.subscribe(
+			{ protocol: 1, sessionId: 'session', cursor: '5' },
+			(event) => delivered.push(event)
+		);
+		events.publish(hostEvent('billing', 3));
+		expect(delivered.map((entry) => entry.id.binding)).toEqual(['billing']);
 		subscription.close();
-		expect(closed).toBe(3);
+		events.publish(hostEvent('billing', 4));
+		expect(delivered).toHaveLength(1);
 	});
 
 	it('exposes the bounded live partition instance tree', async () => {

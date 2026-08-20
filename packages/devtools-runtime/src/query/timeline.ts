@@ -1,14 +1,13 @@
 import {
-	isExactRuntimeInspectionEvent,
 	type ExactInspectionRequest,
 	type ExactInspectionResponse,
 	type ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
 import type { ExactClientQueryServiceOptions } from '../query-service.js';
-import { CLIENT_HOST, joinHostCursors, serverTargets, splitHostCursors } from './hosts.js';
+import { CLIENT_HOST, joinHostCursors, splitHostCursors } from './hosts.js';
 import { successfulInspectionResponse } from './response.js';
 
-/** Merges paged client and server timelines without allowing one host to starve another. */
+/** Pages the browser-owned timeline that already aggregates client and per-response server events. */
 export async function mergedTimeline(
 	request: ExactInspectionRequest,
 	options: ExactClientQueryServiceOptions,
@@ -22,34 +21,6 @@ export async function mergedTimeline(
 	const hosts: Array<Readonly<{ key: string; events: readonly ExactRuntimeInspectionEvent[] }>> = [
 		{ key: CLIENT_HOST, events: options.events.query(cursors.get(CLIENT_HOST), filter) }
 	];
-	if (options.serverConnected && options.server) {
-		hosts.push(
-			...(await Promise.all(
-				serverTargets(options.dom.snapshot().roots, filter).map(async (target) => {
-					try {
-						const cursor = cursors.get(target.key);
-						const remote = await options.server!.query(options.sessionId, {
-							...request,
-							params: {
-								...request.params,
-								filter: target.filter,
-								page: { limit: maximum, ...(cursor ? { cursor } : {}) }
-							}
-						});
-						return Object.freeze({
-							key: target.key,
-							events:
-								remote.ok && Array.isArray(remote.result)
-									? remote.result.filter(isExactRuntimeInspectionEvent)
-									: []
-						});
-					} catch {
-						return Object.freeze({ key: target.key, events: [] });
-					}
-				})
-			))
-		);
-	}
 	const limit = Math.min(request.params?.page?.limit ?? 100, maximum);
 	const selected: ExactRuntimeInspectionEvent[] = [];
 	const indexes = new Map(hosts.map((host) => [host.key, 0]));

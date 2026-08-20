@@ -5,13 +5,15 @@ import {
 	activateTaskForHost,
 	createContext,
 	defineTask,
-	exactComponentContract,
-	exactComponentType,
 	markComponentContinuationTask,
 	registerComponentContinuationContexts,
 	type Component,
 	type TaskContext
 } from '@exactjs/core';
+import {
+	exactComponentContract,
+	exactComponentType
+} from '@exactjs/core/framework/component-contracts';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';

@@ -1,11 +1,5 @@
-import {
-	createContext,
-	createVNode,
-	markExactComponent,
-	type Child,
-	type Component,
-	type VNode
-} from '@exactjs/core';
+import { createContext, createVNode, type Child, type Component, type VNode } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import {
 	parseStoredThemeAppearance,
 	persistThemeAppearance,

@@ -1,4 +1,4 @@
-import type { ExactProfileSink } from '@exactjs/instrumentation';
+import { publishExactProfile, type ExactProfileSink } from '@exactjs/instrumentation';
 import { profileTimestamp } from '@exactjs/instrumentation';
 import type {
 	EffectScope,
@@ -259,7 +259,8 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 		if (!hasEligibleWork('deferred')) settleScheduler();
 		if (profileStarted !== undefined) {
 			for (const [sink, reactions] of profiledReactions) {
-				sink(
+				publishExactProfile(
+					sink,
 					Object.freeze({
 						subsystem: 'reactive',
 						phase: 'flush',

@@ -110,3 +110,139 @@ export function CatalogEditor(this: Component<CatalogState>) {
     </section>
   );
 }`;
+
+/** Annotated pseudocode for the browser artifact produced by the compiler tour. */
+export const compilerTourGeneratedClientSource = `import {
+  createDynamicChild as __exactDynamic,
+  createExpression as __exactExpression,
+  createCompiledVNode as __exactVNode
+} from '@exactjs/core/runtime/render';
+import {
+  activateTaskForHost as __exactActivateTask,
+  defineTask as __exactDefineTask,
+  dispatchComponentContinuation as __exactDispatch,
+  markComponentContinuationTask as __exactContinuation
+} from '@exactjs/core/runtime/tasks';
+import { writeReactiveLazy as __exactWrite }
+  from '@exactjs/core/runtime/reactivity';
+
+// Conceptual output: private helper names and opaque IDs are shortened.
+// The repository context and server implementation are absent here.
+export function CatalogEditor(this: Component<CatalogState>) {
+  // Defaults initialize one durable component state machine.
+  __exactWrite(this.state, ['query'], () => '');
+  __exactWrite(this.state, ['quantity'], () => 1);
+  __exactWrite(this.state, ['products'], () => []);
+
+  // A derived assignment becomes owned reactive work. Only these two
+  // dependencies can invalidate the subtotal computation.
+  __exactActivateTask(this, __exactDefineTask({ label: 'derived subtotal' },
+    (quantity, price) => {
+      __exactWrite(this.state, ['subtotal'],
+        () => quantity * (price ?? 0));
+    }
+  ),
+    this.reactive(() => this.state.quantity),
+    this.reactive(() => this.state.selected?.price)
+  );
+
+  // The server task body is replaced by a transport continuation. The
+  // compiler captures query, not the component or server repository.
+  __exactActivateTask(this, __exactDefineTask({
+    label: 'searchCatalog', priority: 'deferred', concurrency: 'latest'
+  }, __exactContinuation('<catalog-search>',
+    (query, task) => __exactDispatch(
+      this, '<catalog-search>', [query], task.signal, []
+    )
+  )), this.reactive(() => this.state.query));
+
+  // Browser-only work stays local and observes selected.name directly.
+  __exactActivateTask(this, __exactDefineTask({ label: 'updateTitle' },
+    (name) => { document.title = name ?? 'Catalog'; }
+  ), this.reactive(() => this.state.selected?.name));
+
+  return () => __exactVNode('section', null,
+    __exactVNode('input', {
+      type: 'search',
+      // A binding is a reactive read paired with a typed state write.
+      value: __exactExpression(() => this.state.query),
+      __exactBindInput: (event) => {
+        this.state.query = event.currentTarget.value;
+      }
+    }),
+    __exactVNode('output', null,
+      // Each dynamic child owns a narrow DOM marker range.
+      __exactDynamic(() => this.state.quantity, '<quantity>'),
+      ' × ',
+      __exactDynamic(() => this.state.selected?.price ?? 0, '<price>'),
+      ' = ',
+      __exactDynamic(() => this.state.subtotal, '<subtotal>')
+    ),
+    __exactDynamic(() =>
+      this.state.query && this.state.products.length === 0
+        ? __exactVNode('p', { role: 'status' }, 'No matches')
+        : null,
+      '<empty-status>'
+    ),
+    // The Product @exact key annotation supplies stable row identity.
+    __exactDynamic(() => this.map(
+      this.state.products,
+      (product) => product.id,
+      (product) => __exactVNode('button', {
+        onClick: () => { this.state.selected = product; }
+      }, product.name)
+    ), '<product-list>')
+  );
+}`;
+
+/** Annotated pseudocode for the server artifact produced by the compiler tour. */
+export const compilerTourGeneratedServerSource = `import { CatalogRepositoryContext }
+  from './catalog-context.js';
+import { taskAwait, withTaskSignal }
+  from '@exactjs/core/runtime/tasks';
+import { writeReactiveLazy as __exactWrite }
+  from '@exactjs/core/runtime/reactivity';
+
+// The operation is registered in the server artifact's allowlisted catalog.
+export const CatalogEditorContract = {
+  continuations: [{
+    id: '<catalog-search>',
+    dependencies: [{ source: 'state', path: ['query'] }],
+    stateWrites: [{ path: ['products'] }],
+    serverContexts: ['CatalogRepositoryContext']
+  }],
+
+  executors: [{
+    id: '<catalog-search>',
+    async execute(activation, request) {
+      // Only the compiler-selected public dependency crossed the wire.
+      const query = activation.dependencies[0];
+
+      // Trusted request context resolves the repository on the server. It
+      // is never accepted from or serialized back to the browser.
+      const catalog = request.getContext(
+        CatalogRepositoryContext,
+        'CatalogRepositoryContext'
+      );
+
+      const products = query
+        ? await taskAwait(request.signal, catalog.search(
+            query,
+            // Cancellation is injected into the declared signal slot.
+            withTaskSignal(undefined, request.signal)
+          ))
+        : [];
+
+      const state = { ...activation.state };
+      __exactWrite(state, ['products'], () => products);
+
+      // Serialization and the @exact shared result contract are validated
+      // before this state projection leaves the server request.
+      return { state, contexts: {} };
+    }
+  }]
+};
+
+// request  -> { operation: '<catalog-search>', dependencies: ['desk'] }
+// response <- { state: { products: [{ id: 'p1', name: 'Desk' }] } }
+// Credentials, clients, and CatalogRepositoryContext never cross.`;

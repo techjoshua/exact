@@ -3,12 +3,12 @@
  */
 import {
 	activateTaskForHost,
-	createDynamicChild,
 	createRef,
 	defineTask,
 	unsafeHtml,
 	type Component
 } from '@exactjs/core';
+import { createDynamicChild } from '@exactjs/core/runtime/render';
 import './unsafe-html.js';
 import { jsx, jsxs } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';

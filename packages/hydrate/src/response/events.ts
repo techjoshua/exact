@@ -1,4 +1,4 @@
-import type { ExactStreamEvent } from '@exactjs/server';
+import type { ExactStreamEvent } from '@exactjs/core/framework/operation-protocol';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { isCollectionMutationLike, isPatchLike } from './result.js';
 
@@ -126,5 +126,20 @@ export function isExactStreamCompleteEvent(
 	const record = value as Record<string, unknown>;
 	return (
 		hasOnlyKeys(record, ['event', 'version']) && record.event === 'complete' && record.version === 1
+	);
+}
+
+/** Reports whether an exact stream event carries observations owned by this response. */
+export function isExactStreamObservationsEvent(
+	value: unknown
+): value is Extract<ExactStreamEvent, { event: 'observations' }> {
+	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+		return false;
+	const record = value as Record<string, unknown>;
+	return (
+		hasOnlyKeys(record, ['event', 'version', 'observations']) &&
+		record.event === 'observations' &&
+		record.version === 1 &&
+		Array.isArray(record.observations)
 	);
 }

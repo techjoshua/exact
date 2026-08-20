@@ -1,8 +1,9 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { collectInputFiles, commonRoot, outputPathFor } from '../paths.js';
 import {
-	createLineSourceMap,
+	composeExactSourceMaps,
+	createGeneratedSuffixSourceMap,
 	sourceMapPathFor,
 	withSourceMapFile,
 	withSourceMappingUrl
@@ -16,6 +17,7 @@ import { loadExactPackageEnhancements } from '@exactjs/config/node';
 import { prependExactEnhancementRegistrations } from './enhancement-registrations.js';
 import { materializeExactPhysicalEnhancementFacades } from './physical-enhancement-facades.js';
 import { synchronizeNativeProject } from './project-synchronization.js';
+import { publishOutputTransaction, type CompilerOutputMutation } from './output-transaction.js';
 
 /** Compiles one input file and optionally writes code and its source map. */
 export async function compileFile(
@@ -86,7 +88,10 @@ async function prepareFile(
 		code: executable,
 		map:
 			result.map && executable !== result.code
-				? createLineSourceMap(options.filename ?? inputFile, source, executable)
+				? composeExactSourceMaps(
+						createGeneratedSuffixSourceMap(result.filename, result.code, executable),
+						result.map
+					)
 				: result.map,
 		source,
 		inputFile,
@@ -96,23 +101,29 @@ async function prepareFile(
 }
 
 async function publishPreparedFile(prepared: PreparedCompileFile): Promise<void> {
+	await publishOutputTransaction(preparedFileMutations(prepared));
+}
+
+/** Prepares code and map replacements so they publish as one generation. */
+function preparedFileMutations(prepared: PreparedCompileFile): CompilerOutputMutation[] {
 	const { outputFile, sourceMapFile, map } = prepared;
-	if (outputFile) {
-		await mkdir(path.dirname(outputFile), { recursive: true });
-		await writeFile(
-			outputFile,
-			sourceMapFile
+	if (!outputFile) return [];
+	return [
+		{
+			file: outputFile,
+			content: sourceMapFile
 				? withSourceMappingUrl(prepared.code, path.basename(sourceMapFile))
 				: prepared.code
-		);
-	}
-	if (sourceMapFile && map) {
-		await mkdir(path.dirname(sourceMapFile), { recursive: true });
-		await writeFile(
-			sourceMapFile,
-			`${JSON.stringify(withSourceMapFile(map, path.basename(outputFile!)), null, 2)}\n`
-		);
-	}
+		},
+		...(sourceMapFile && map
+			? [
+					{
+						file: sourceMapFile,
+						content: `${JSON.stringify(withSourceMapFile(map, path.basename(outputFile)), null, 2)}\n`
+					}
+				]
+			: [])
+	];
 }
 
 /** Compiles all transformable files found under the provided input paths. */
@@ -171,7 +182,7 @@ export async function compileProject(
 		);
 	}
 	await validatePreparedFiles(prepared, options.root ?? rootDir, options);
-	for (const result of prepared) await publishPreparedFile(result);
+	await publishOutputTransaction(prepared.flatMap(preparedFileMutations));
 	return prepared.map((result) => publicPreparedResult(result, options.emitInspection));
 }
 

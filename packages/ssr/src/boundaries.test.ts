@@ -1,9 +1,5 @@
-import {
-	createKeyedServerSlot,
-	createServerBoundary,
-	createTextVNode,
-	type Component
-} from '@exactjs/core';
+import { createTextVNode, type Component } from '@exactjs/core';
+import { createKeyedServerSlot, createServerBoundary } from '@exactjs/core/runtime/render';
 import { createVNode } from './test-support/native-vnode.js';
 import {
 	defineExactOperationContract,

@@ -1,4 +1,5 @@
-import { renderInstance, withTaskObserver, normalizeRenderResult, type VNode } from '@exactjs/core';
+import { withTaskObserver, normalizeRenderResult, type VNode } from '@exactjs/core';
+import { renderInstance } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
 import type { ComponentFunction, ComponentInstance, SsrContext, TaskObserver } from '../types.js';
 import { isSsrRenderInterruption } from './limits.js';

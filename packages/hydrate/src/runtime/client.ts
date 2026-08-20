@@ -16,6 +16,7 @@ import { hydrateClientIslands } from '../islands.js';
 import { disposeInteractionHydration } from '../islands/interaction.js';
 import { applyPatches } from '../patches.js';
 import type { CoreHydrationRoot, ExactClient, HydrateOptions } from '../types.js';
+import { assertCurrentDocumentContainer } from './current-document.js';
 import { createComponentResumptionResolver } from './resumption.js';
 import { invokeAndApply } from './operations.js';
 import { requestVersions, roots } from './state.js';
@@ -55,6 +56,7 @@ export function requestClientForComponentDomain(
 
 /** Creates an exact client. */
 export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
+	assertCurrentDocumentContainer(container);
 	const resolvedOptions = resolveHydrateOptions(container, options);
 	return createExactClientFromResolvedOptions(container, resolvedOptions);
 }

@@ -1,10 +1,10 @@
 import {
 	createVNode,
-	markExactComponent,
 	type Component,
 	type ComponentFunction,
 	type ErrorReport
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 // React client roots can produce Suspense and Activity VNodes without compiler lowering.
 import '@exactjs/dom/structural-boundaries';
 import { render as renderExact, unmount as unmountExact } from '@exactjs/dom';

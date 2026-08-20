@@ -15,6 +15,7 @@ import type {
 import { renderVNodeAsync } from './async-tree.js';
 import { shouldEmitDocumentHydration } from './boundaries.js';
 import { createSsrContext, drainTasks } from './context.js';
+import { hydrationScriptOptions } from './hydration-options.js';
 import { renderToStringOwned } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
@@ -74,26 +75,9 @@ export async function renderToHydratableStringAsync(
 	const result = await renderToStringAsync(vnode, capture.options);
 	const resumptions = capture.records();
 	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
-	const hydrationScript = renderHydrationScript({
-		pluginRegistryFingerprint: options.pluginRegistryFingerprint,
-		endpoint: options.endpoint,
-		endpoints: options.endpoints,
-		state: result.state,
-		continuations: options.continuations,
-		resumptions: emittedResumptions,
-		publicContexts: options.publicContexts,
-		wallClockSnapshot: result.wallClockSnapshot,
-		hydrationTable: result.hydrationTable,
-		executionRoot: options.executionRoot,
-		binding: options.binding,
-		buildKey: options.buildKey,
-		scriptId: options.scriptId,
-		nonce: options.nonce,
-		maxHydrationDepth: options.maxHydrationDepth,
-		maxHydrationNodes: options.maxHydrationNodes,
-		maxHydrationBytes: options.maxHydrationBytes,
-		outputExtensions: options.outputExtensions
-	});
+	const hydrationScript = renderHydrationScript(
+		hydrationScriptOptions(options, result, emittedResumptions)
+	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
 
@@ -147,26 +131,13 @@ export async function streamDocumentRender(
 			await emit({
 				event: 'hydration',
 				version: 1,
-				html: renderHydrationScript({
-					pluginRegistryFingerprint: options.pluginRegistryFingerprint,
-					endpoint: options.endpoint,
-					endpoints: options.endpoints,
-					state: final.state,
-					continuations: options.continuations,
-					resumptions: resumptions.length > 0 ? resumptions : options.resumptions,
-					publicContexts: options.publicContexts,
-					wallClockSnapshot: final.wallClockSnapshot,
-					hydrationTable: final.hydrationTable,
-					executionRoot: options.executionRoot,
-					binding: options.binding,
-					buildKey: options.buildKey,
-					scriptId: options.scriptId,
-					nonce: options.nonce,
-					maxHydrationDepth: options.maxHydrationDepth,
-					maxHydrationNodes: options.maxHydrationNodes,
-					maxHydrationBytes: options.maxHydrationBytes,
-					outputExtensions: options.outputExtensions
-				})
+				html: renderHydrationScript(
+					hydrationScriptOptions(
+						options,
+						final,
+						resumptions.length > 0 ? resumptions : options.resumptions
+					)
+				)
 			});
 		}
 

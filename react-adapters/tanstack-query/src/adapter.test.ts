@@ -1,4 +1,5 @@
-import { createComponentInstance, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { createElement } from '@exactjs/react-compat';
 import { toExactNode } from '@exactjs/react-compat/exact';
 import { flushSync } from '@exactjs/reactive';

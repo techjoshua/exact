@@ -8,6 +8,7 @@ import {
 	type ExactValueRedactor
 } from '@exactjs/devtools-protocol';
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
+import { setExactServerObservationBridge } from '@exactjs/core/framework/inspection-transport';
 import { createExactDomInspectionHost, setExactDomInspectionOwnerFactory } from '@exactjs/dom';
 import { createExactClientEventStore, type ExactClientEventStore } from './client-events.js';
 import type {
@@ -36,6 +37,7 @@ export function installExactDevtoolsRuntime(
 	let serverConnected = false;
 	let session: ExactInspectionSessionDescription | undefined;
 	let events: ExactClientEventStore | undefined;
+	let clearServerObservationBridge: (() => void) | undefined;
 	const owners = new Map<string, ReturnType<typeof createExactRuntimeInspectionOwner>>();
 	const inspectionOwner = (
 		input: Readonly<{ buildKey?: string; executionRoot?: string; binding?: string }>
@@ -85,6 +87,11 @@ export function installExactDevtoolsRuntime(
 				positive(options.maxEvents, 10_000),
 				positive(options.maxEventBytes, 2 * 1024 * 1024)
 			);
+			if (serverConnected)
+				clearServerObservationBridge = setExactServerObservationBridge({
+					sessionId: session.id,
+					publish: (event) => events?.publish(event)
+				});
 			dom.attach(session.id, events);
 			for (const owner of owners.values()) owner.attach(session.id, events);
 			service = createExactClientInspectionQueryService({
@@ -103,6 +110,8 @@ export function installExactDevtoolsRuntime(
 			subscriptions.clear();
 			dom.detach(session.id);
 			for (const owner of owners.values()) owner.detach(session.id);
+			clearServerObservationBridge?.();
+			clearServerObservationBridge = undefined;
 			events?.clear();
 			clearHighlight();
 			if (server && serverConnected) await server.close(session.id);

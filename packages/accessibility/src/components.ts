@@ -1,4 +1,6 @@
-import { createCompiledTarget, createRef, markExactComponent, type Component } from '@exactjs/core';
+import { createRef, type Component } from '@exactjs/core';
+import { createCompiledTarget } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { AccessibilityProps } from './contracts.js';
 import { FocusScopeSession } from './focus-scope.js';
 import { CompositeNavigationSession } from './navigation.js';

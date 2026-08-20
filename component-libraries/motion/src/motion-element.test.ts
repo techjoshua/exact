@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { Activity, createEnhancementMarker, createExpression, type Component } from '@exactjs/core';
+import { Activity, createEnhancementMarker, type Component } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import { render, unmount } from '@exactjs/dom/enhanced';
 import '@exactjs/dom/structural-boundaries';

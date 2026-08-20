@@ -36,7 +36,7 @@ function isCheckableModulePath(file: string): boolean {
 /** Returns the single-target output path for an input file. */
 export function outputPathFor(inputFile: string, outDir: string, rootDir?: string): string {
 	const root = rootDir ?? path.dirname(inputFile);
-	const relative = path.relative(root, inputFile);
+	const relative = containedInputPath(inputFile, root);
 	return path
 		.join(outDir, relative)
 		.replace(/\.(tsx|jsx)$/i, (_match, ext: string) =>
@@ -55,7 +55,7 @@ export function artifactPathsFor(
 	sharedFile: string;
 } {
 	const root = rootDir ?? path.dirname(inputFile);
-	const relative = path.relative(root, inputFile);
+	const relative = containedInputPath(inputFile, root);
 	const parsed = path.parse(relative);
 	const extension = parsed.ext.toLowerCase() === '.tsx' ? '.ts' : '.js';
 	const base = path.join(outDir, parsed.dir, parsed.name);
@@ -64,6 +64,20 @@ export function artifactPathsFor(
 		serverFile: `${base}.exact.server${extension}`,
 		sharedFile: `${base}.exact.shared${extension}`
 	};
+}
+
+/**
+ * Returns an input path relative to its declared source root.
+ * @throws When the input is outside that root and could escape the output directory.
+ */
+export function containedInputPath(inputFile: string, rootDir: string): string {
+	const relative = path.relative(path.resolve(rootDir), path.resolve(inputFile));
+	if (path.isAbsolute(relative) || relative === '..' || relative.startsWith(`..${path.sep}`)) {
+		throw new Error(
+			`Compiler input ${path.resolve(inputFile)} is outside rootDir ${path.resolve(rootDir)}.`
+		);
+	}
+	return relative;
 }
 
 /** Returns the package export specifier for a source file. */

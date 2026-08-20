@@ -125,5 +125,10 @@ Pass the same identity to SSR hydration options and retained server build regist
 option forwards it into server-executing microfrontend exposure metadata; it never forwards the
 full manifest or audit.
 
+When using `createExactServerRuntime()`, supply that identity as the flat
+`componentAuthorization` option. The runtime forwards it to both server dispatch and every
+hydratable rendering mode (string, async string, streaming, and progressive), preventing a render
+entry point from silently omitting the authorization handshake.
+
 Framework-plugin discovery remains independent. A package can separately be a component library
 and a framework plugin, but authorizing either role never authorizes the other.

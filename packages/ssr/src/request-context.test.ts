@@ -77,6 +77,123 @@ describe('@exactjs/ssr request-context', () => {
 		await runtime.dispose?.();
 	});
 
+	it('projects the trusted public origin through the high-level runtime', async () => {
+		const runtime = createExactServerRuntime({
+			contract: { version: 1, invocations: {}, boundaries: {} },
+			publicOrigin: 'https://public.example.test'
+		});
+		let requestUrl: URL | undefined;
+		let publicOrigin: URL | undefined;
+
+		const response = await renderExactRequestToHtmlResponse(
+			{
+				method: 'GET',
+				url: 'http://adapter.internal/account?tab=profile',
+				headers: { host: 'attacker.example' }
+			},
+			runtime,
+			(context) => {
+				requestUrl = context.requestContext?.url;
+				publicOrigin = context.requestContext?.publicOrigin;
+				return createVNode('p', null, 'Account');
+			},
+			{ hydration: false }
+		);
+
+		expect(response.status).toBe(200);
+		expect(requestUrl?.href).toBe('https://public.example.test/account?tab=profile');
+		expect(publicOrigin?.href).toBe('https://public.example.test/');
+		await runtime.dispose?.();
+	});
+
+	it('retains component authorization on the high-level server context', async () => {
+		const runtime = createExactServerRuntime({
+			contract: {
+				version: 1,
+				invocations: { read: defineExactOperationContract('read') },
+				boundaries: {}
+			},
+			componentAuthorization: {
+				protocol: 1,
+				buildKey: 'authorized-build',
+				fingerprint: 'authorized-fingerprint'
+			},
+			invocations: { read: () => ({}) }
+		});
+		const body = { type: 'invoke' as const, id: 'read' };
+
+		const missing = await handleExactRequest({ method: 'POST', body }, runtime);
+		const accepted = await handleExactRequest(
+			{
+				method: 'POST',
+				headers: { 'x-exact-component-authorization': 'authorized-fingerprint' },
+				body
+			},
+			runtime
+		);
+
+		expect(missing.status).toBe(410);
+		expect(JSON.parse(missing.body)).toEqual({ error: 'exact_build_unsupported' });
+		expect(accepted.status).toBe(200);
+		await runtime.dispose?.();
+	});
+
+	it('projects dispatch limits through the high-level server runtime', async () => {
+		const runtime = createExactServerRuntime({
+			contract: { version: 1, invocations: {}, boundaries: {} },
+			limits: { maxRequestBytes: 1024, maxBatchOperations: 4 }
+		});
+
+		expect(runtime.limits).toEqual({ maxRequestBytes: 1024, maxBatchOperations: 4 });
+		await runtime.dispose?.();
+	});
+
+	it('aborts active operations when the high-level runtime closes', async () => {
+		const requestAbort = new AbortController();
+		let started!: () => void;
+		const operationStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		let operationSignal: AbortSignal | undefined;
+		const runtime = createExactServerRuntime({
+			contract: {
+				version: 1,
+				invocations: { wait: defineExactOperationContract('wait') },
+				boundaries: {}
+			},
+			invocations: {
+				async wait(_input, context) {
+					operationSignal = context.signal;
+					started();
+					await new Promise<void>((resolve) =>
+						context.signal?.addEventListener('abort', () => resolve(), { once: true })
+					);
+					return {};
+				}
+			}
+		});
+		const response = handleExactRequest(
+			{
+				method: 'POST',
+				signal: requestAbort.signal,
+				body: { type: 'invoke', id: 'wait' }
+			},
+			runtime
+		);
+
+		try {
+			await operationStarted;
+			await runtime.dispose?.();
+			expect(operationSignal?.aborted).toBe(true);
+			expect(operationSignal?.reason).toBe('eXact server runtime disposed');
+			expect(requestAbort.signal.aborted).toBe(false);
+			expect((await response).status).toBe(200);
+		} finally {
+			requestAbort.abort('test cleanup');
+			await runtime.dispose?.();
+		}
+	});
+
 	it('settles request providers before exposing a progressive response', async () => {
 		let release!: () => void;
 		const ready = new Promise<void>((resolve) => {

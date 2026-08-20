@@ -1,4 +1,4 @@
-import { getCellVNode, isCellVNode } from '@exactjs/core';
+import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
 import { describe, expect, it } from 'vitest';
 import { _, Fragment, jsx, jsxs } from './jsx-runtime.js';
 

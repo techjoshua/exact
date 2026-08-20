@@ -2,13 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { Component } from './index.js';
 import {
 	createComponentDomain,
-	createComponentInstance,
 	createVNode,
 	isVNode,
 	pageComponentDomain,
-	renderInstance,
 	withComponentDomain
 } from './index.js';
+import { createComponentInstance, renderInstance } from './runtime/render.js';
 import { componentDomainInspection, createFrameworkComponentDomain } from './component/domain.js';
 
 describe('component domains', () => {

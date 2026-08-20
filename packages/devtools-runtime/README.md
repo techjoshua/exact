@@ -9,7 +9,9 @@ enabled. Custom integrations can call `installExactDevtoolsRuntime()` and dispos
 installation with the application root.
 
 The runtime combines renderer inspection, compiler source correlation, bounded event history, and
-optional authorized server data behind the versioned eXact page hook.
+optional authorized server data behind the versioned eXact page hook. It owns the cross-request
+timeline in the page: each server request returns only its own observations, which this runtime
+validates, resequences, and retains while the inspection session remains attached.
 
 ## Deployment
 

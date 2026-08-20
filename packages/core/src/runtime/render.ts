@@ -1,5 +1,8 @@
 export { isFiniteClientBoundary, markFiniteClientBoundary } from '../hydration-boundary.js';
 export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from '../ssr-independence.js';
+export { createComponentInstance, reparentComponentInstance } from '../component/runtime.js';
+export { renderInstance } from '../component/render.js';
+export { RenderProgram, ServerBoundary, ServerSlot } from '../symbols.js';
 export {
 	clearCompiledRenderPrograms,
 	compiledRenderProgramCacheSize,
@@ -18,10 +21,13 @@ export {
 	createCompiledComponentVNode,
 	createCompiledTarget,
 	createCompiledVNode,
+	createCellVNode,
 	createDynamicChild,
 	createExpression,
 	createForwardedExpression,
 	createKeyedServerSlot,
 	createServerBoundary,
-	createServerSlot
+	createServerSlot,
+	getCellVNode,
+	isCellVNode
 } from '../vnode.js';

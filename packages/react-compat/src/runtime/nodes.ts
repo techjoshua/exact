@@ -5,13 +5,12 @@ import {
 	createPortal,
 	createVNode,
 	isVNode,
-	isExactComponent,
-	markExactComponent,
 	type Child,
 	type Component,
 	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
+import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { currentWorkPriority } from '@exactjs/reactive';
 import {
 	REACT_ACTIVITY_TYPE,

@@ -156,6 +156,8 @@ export type Root = {
 	mode?: 'client' | 'hydrated' | 'document';
 	/** Becomes true after the root's first client mount or hydration adoption finishes. */
 	initialCommitComplete?: boolean;
+	/** Forces one complete retry after a patch failed with partially advanced mounted metadata. */
+	patchRecoveryRequired?: boolean;
 	/** Component ranges are inferred when the public server format omits eXact markers. */
 	markerlessHydration?: boolean;
 	/** Renderer-internal mounts parked during one cross-domain replacement transaction. */

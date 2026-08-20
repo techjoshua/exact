@@ -16,7 +16,10 @@ export default defineConfig({
 ```
 
 `defineConfig()` validates the shared schema while preserving plugin-specific types added through
-TypeScript declaration merging. One configuration can supply compiler, server, renderer, client,
+TypeScript declaration merging. It rejects unknown or invalid built-in options and freezes the
+validated graph so consumers cannot observe different policy through later mutation. The Node
+loader applies the same normalization to plain JavaScript and TypeScript configs, including configs
+that do not call `defineConfig()`. One configuration can supply compiler, server, renderer, client,
 testing, and plugin settings.
 
 `componentLibraries` is the one shared policy used by server bundlers and test adapters. Its

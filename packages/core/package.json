@@ -48,6 +48,10 @@
 			"types": "./dist/framework/component-contract-validation.d.ts",
 			"default": "./dist/framework/component-contract-validation.js"
 		},
+		"./framework/component-contracts": {
+			"types": "./dist/framework/component-contracts.d.ts",
+			"default": "./dist/framework/component-contracts.js"
+		},
 		"./framework/component-execution": {
 			"types": "./dist/framework/component-execution.d.ts",
 			"default": "./dist/framework/component-execution.js"
@@ -63,6 +67,14 @@
 		"./framework/error-view": {
 			"types": "./dist/framework/error-view.d.ts",
 			"default": "./dist/framework/error-view.js"
+		},
+		"./framework/operation-protocol": {
+			"types": "./dist/framework/operation-protocol.d.ts",
+			"default": "./dist/framework/operation-protocol.js"
+		},
+		"./framework/inspection-transport": {
+			"types": "./dist/framework/inspection-transport.d.ts",
+			"default": "./dist/framework/inspection-transport.js"
 		},
 		"./runtime/render": {
 			"types": "./dist/runtime/render.d.ts",

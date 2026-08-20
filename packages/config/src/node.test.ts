@@ -63,6 +63,18 @@ describe('@exactjs/config/node', () => {
 		expect(readdirSync(root).filter((file) => file.startsWith('.exact-config-'))).toEqual([]);
 	});
 
+	it('normalizes JavaScript configuration through the same schema boundary', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-config-schema-'));
+		writeFileSync(
+			path.join(root, 'exact.config.mjs'),
+			"export default { componentLibraries: { mode: 'trusted', typo: true } };\n"
+		);
+
+		await expect(loadExactConfig({ applicationRoot: root })).rejects.toThrow(
+			'componentLibraries contains unknown option "typo"'
+		);
+	});
+
 	it('extracts package-scoped enhancements without executing their modules', async () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-config-enhancements-'));
 		writeFileSync(

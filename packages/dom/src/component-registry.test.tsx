@@ -2,12 +2,9 @@
  * @vitest-environment jsdom
  */
 import './structural-boundaries.js';
-import {
-	Suspense,
-	createCompiledComponentRegistry,
-	markExactComponent,
-	type Component
-} from '@exactjs/core';
+import { Suspense, type Component } from '@exactjs/core';
+import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 

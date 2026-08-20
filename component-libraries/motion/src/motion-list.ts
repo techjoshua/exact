@@ -1,4 +1,5 @@
-import { markExactComponent, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { watch } from '@exactjs/core';
 import { LayoutContext } from './layout.js';
 import { keyedPresenceChild } from './presence.js';

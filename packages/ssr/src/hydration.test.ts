@@ -1,8 +1,16 @@
-import { createDynamicChild, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { renderHydrationScript, renderToHydratableString, renderToString } from './index.js';
+import {
+	renderHydrationScript,
+	renderToHydratableProgressiveHtmlStream,
+	renderToHydratableString,
+	renderToHydratableStringAsync,
+	renderToString
+} from './index.js';
 import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
+import { readStreamText } from './test-support/streams.js';
 
 describe('@exactjs/ssr hydration', () => {
 	it('places framework hydration data inside the normalized body region', () => {
@@ -57,6 +65,27 @@ describe('@exactjs/ssr hydration', () => {
 			fingerprint: 'authorization-one'
 		});
 		expect(script).not.toContain('packages');
+	});
+
+	it('publishes component authorization through every hydratable entry point', async () => {
+		const componentAuthorization = {
+			protocol: 1 as const,
+			buildKey: 'build-one',
+			fingerprint: 'authorization-one'
+		};
+		const vnode = createVNode('p', null, 'ready');
+		const options = { buildKey: 'build-one', componentAuthorization };
+
+		const sync = renderToHydratableString(vnode, options).hydrationScript;
+		const async = (await renderToHydratableStringAsync(vnode, options)).hydrationScript;
+		const progressive = await readStreamText(
+			renderToHydratableProgressiveHtmlStream(vnode, options)
+		);
+
+		for (const output of [sync, async, progressive]) {
+			expect(output).toContain('authorization-one');
+			expect(output).toContain('componentAuthorization');
+		}
 	});
 
 	it('omits empty hydration metadata without removing authored empty state', () => {

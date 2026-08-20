@@ -1,4 +1,4 @@
-import type { ExactProfileSink } from '@exactjs/instrumentation';
+import { publishExactProfile, type ExactProfileSink } from '@exactjs/instrumentation';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -137,7 +137,8 @@ export class ExactCompilerSession {
 		counts?: Readonly<Record<string, number>>
 	): void {
 		if (started === undefined) return;
-		this.onProfile?.(
+		publishExactProfile(
+			this.onProfile,
 			Object.freeze({
 				subsystem: 'compiler',
 				phase,

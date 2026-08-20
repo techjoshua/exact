@@ -1,10 +1,9 @@
+import { sameJsonData, type ComponentFunction } from '@exactjs/core';
 import {
 	composeExactComponentContracts,
-	sameJsonData,
-	type ComponentFunction,
 	type ExactComponentBoundaryContract,
 	type ExactComponentContinuationContract
-} from '@exactjs/core';
+} from '@exactjs/core/framework/component-contracts';
 import type {
 	ComposeExactExecutorContractOptions,
 	ExactEndpointRoutes,

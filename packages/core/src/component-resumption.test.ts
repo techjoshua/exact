@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flushSync } from '@exactjs/reactive';
 import {
-	createComponentInstance,
 	activateTask,
 	defineTask,
 	markComponentContinuationTask,
@@ -10,6 +9,7 @@ import {
 	type Component,
 	type TaskContext
 } from './index.js';
+import { createComponentInstance } from './runtime/render.js';
 import { createFrameworkComponentDomain } from './component/domain.js';
 
 describe('@exactjs/core component resumption', () => {

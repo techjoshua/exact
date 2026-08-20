@@ -1,10 +1,6 @@
-import {
-	createCompiledTarget,
-	markExactComponent,
-	markExactEnhancementContexts,
-	type Child,
-	type Component
-} from '@exactjs/core';
+import { markExactEnhancementContexts, type Child, type Component } from '@exactjs/core';
+import { createCompiledTarget } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { ThemeSurfaceBundle, ThemeTone } from './contracts.js';
 import { ThemeSurfaceContext, type ThemeSurfaceEnvironment } from './components.js';
 

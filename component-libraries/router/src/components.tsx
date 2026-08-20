@@ -3,9 +3,6 @@ import {
 	createVNode,
 	Dynamic,
 	Fragment,
-	getCellVNode,
-	isCellVNode,
-	markExactComponent,
 	peek,
 	unwrap,
 	type Child,
@@ -15,6 +12,8 @@ import {
 	type InteractionHandler,
 	type VNode
 } from '@exactjs/core';
+import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { reactive } from '@exactjs/reactive';
 import { getRequestContext, RequestContext, type RequestContextValue } from '@exactjs/request';
 import { RouterControllerContext } from './context.js';

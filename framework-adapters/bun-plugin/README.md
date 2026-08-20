@@ -57,6 +57,9 @@ The plugin compiles eXact source, resolves generated `.exact` facades, selects c
 exports, and participates in Bun watch builds. Use `@exactjs/bun-adapter` separately to connect
 the generated server runtime to `Bun.serve()`.
 
+The repository's release workflow runs the native `Bun.build`, `Bun.serve`, and Bun test-runner
+integration suites on Bun 1.3.5; packaging is gated on that job.
+
 Server builds authorize compiler-reached component packages before their `onLoad` hooks run and
 write private authorization and audit manifests under `.exact/`. Configure the shared policy with
 `componentLibraries` in `exact.config.*`. Bun server `--hot` is rejected because Bun cannot yet

@@ -3,7 +3,6 @@ import {
 	createRef,
 	createVNode,
 	isExactComponentAuthorizationIdentity,
-	markExactComponent,
 	watch,
 	type Child,
 	type Component,
@@ -11,6 +10,7 @@ import {
 	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createExactClient, type ExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
 import type { ExactRemoteModule } from './artifacts.js';
@@ -19,8 +19,14 @@ import { registerExactRemoteRecovery, type ExactRemoteRecoveryRegistration } fro
 /** Browser-safe projection for one page-configured remote binding. */
 export type ExactRemoteClientBinding = {
 	clientEntry: string;
-	resolveClientEntry?: (buildKey: string) => string | Promise<string>;
+	integrity?: string;
+	resolveClientEntry?: (
+		buildKey: string
+	) => ExactRemoteClientEntry | Promise<ExactRemoteClientEntry>;
 };
+
+/** One recovery-safe browser entry and its optional browser-enforced integrity pin. */
+export type ExactRemoteClientEntry = string | Readonly<{ clientEntry: string; integrity?: string }>;
 
 /** Props accepted by the ordinary eXact RemoteComponent wrapper. */
 export type RemoteComponentProps = {
@@ -31,12 +37,19 @@ export type RemoteComponentProps = {
 };
 
 const bindingsSymbol = Symbol.for('@exactjs/microfrontends/client-bindings');
+const remoteLoaderSymbol = Symbol.for('@exactjs/microfrontends/remote-loader');
 const moduleLoads = new Map<string, Promise<ExactRemoteModule>>();
 const maxModuleLoads = 64;
 
 type BindingHost = typeof globalThis & {
 	[bindingsSymbol]?: Readonly<Record<string, ExactRemoteClientBinding>>;
+	[remoteLoaderSymbol]?: ExactRemoteIntegrityLoader;
 };
+
+type ExactRemoteIntegrityLoader = Readonly<{
+	load(url: string, integrity: string): Promise<unknown>;
+	publish(token: string | null, value: unknown): void;
+}>;
 
 /** Publishes the generated browser-only binding projection before remote mounts. */
 export function registerExactRemoteClientBindings(
@@ -49,30 +62,37 @@ export function registerExactRemoteClientBindings(
 }
 
 /** Loads and validates the public shape of one canonical remote entry. */
-export function loadExactRemoteModule(url: string): Promise<ExactRemoteModule> {
+export function loadExactRemoteModule(url: string, integrity?: string): Promise<ExactRemoteModule> {
 	if (!url) return Promise.reject(new Error('Remote client entry must be a non-empty URL'));
-	let pending = moduleLoads.get(url);
+	if (integrity !== undefined && !isValidIntegrity(integrity))
+		return Promise.reject(new Error('Remote client entry has invalid integrity metadata'));
+	const cacheKey = JSON.stringify([url, integrity ?? '']);
+	let pending = moduleLoads.get(cacheKey);
 	if (!pending) {
-		pending = importExactRemoteModule(url)
+		pending = (
+			integrity ? importIntegrityPinnedRemoteModule(url, integrity) : importExactRemoteModule(url)
+		)
 			.then((module) => {
-				const validated = validateRemoteModule(module.default);
+				const validated = validateRemoteModule(
+					integrity ? module : (module as { default: unknown }).default
+				);
 				// Keep successful deployments bounded. Recovery URLs deliberately
 				// change across generations, so an unbounded process cache would
 				// otherwise retain every deployed entry for the shell's lifetime.
-				moduleLoads.delete(url);
-				moduleLoads.set(url, Promise.resolve(validated));
+				moduleLoads.delete(cacheKey);
+				moduleLoads.set(cacheKey, Promise.resolve(validated));
 				while (moduleLoads.size > maxModuleLoads) {
 					const oldest = moduleLoads.keys().next().value;
-					if (oldest === undefined || oldest === url) break;
+					if (oldest === undefined || oldest === cacheKey) break;
 					moduleLoads.delete(oldest);
 				}
 				return validated;
 			})
 			.catch((error) => {
-				moduleLoads.delete(url);
+				moduleLoads.delete(cacheKey);
 				throw error;
 			});
-		moduleLoads.set(url, pending);
+		moduleLoads.set(cacheKey, pending);
 	}
 	return pending;
 }
@@ -140,7 +160,7 @@ export function RemoteComponent(
 			return;
 		}
 		try {
-			const loaded = await loadExactRemoteModule(binding.clientEntry);
+			const loaded = await loadExactRemoteModule(binding.clientEntry, binding.integrity);
 			if (signal.aborted || generation !== loadGeneration) return;
 			const nextClient = installModule(bindingName, binding, loaded, container, signal, generation);
 			if (signal.aborted || generation !== loadGeneration) {
@@ -244,6 +264,88 @@ markExactComponent(RemoteComponent, '@exactjs/microfrontends:RemoteComponent');
 
 async function importExactRemoteModule(url: string): Promise<{ default: unknown }> {
 	return import(/* @vite-ignore */ url) as Promise<{ default: unknown }>;
+}
+
+function importIntegrityPinnedRemoteModule(url: string, integrity: string): Promise<unknown> {
+	return exactRemoteIntegrityLoader().load(url, integrity);
+}
+
+function exactRemoteIntegrityLoader(): ExactRemoteIntegrityLoader {
+	const host = globalThis as BindingHost;
+	if (host[remoteLoaderSymbol]) return host[remoteLoaderSymbol];
+	let sequence = 0;
+	const pending = new Map<
+		string,
+		Readonly<{
+			resolve(value: unknown): void;
+			reject(error: Error): void;
+			script: HTMLScriptElement;
+		}>
+	>();
+	const loader: ExactRemoteIntegrityLoader = Object.freeze({
+		load(url, integrity) {
+			if (typeof document === 'undefined')
+				return Promise.reject(
+					new Error('Integrity-pinned remote loading requires a browser document')
+				);
+			const token = `${Date.now().toString(36)}-${(++sequence).toString(36)}`;
+			const source = new URL(url, document.baseURI);
+			source.searchParams.set('__exact_module_token', token);
+			const script = document.createElement('script');
+			script.type = 'module';
+			script.src = source.href;
+			script.integrity = integrity;
+			if (source.origin !== document.location.origin) script.crossOrigin = 'anonymous';
+			return new Promise((resolve, reject) => {
+				const fail = () =>
+					settleRemoteLoad(
+						token,
+						pending,
+						new Error('Remote client entry failed integrity-checked loading')
+					);
+				pending.set(token, { resolve, reject, script });
+				script.addEventListener('error', fail, { once: true });
+				script.addEventListener(
+					'load',
+					() => {
+						if (pending.has(token)) fail();
+					},
+					{ once: true }
+				);
+				document.head.append(script);
+			});
+		},
+		publish(token, value) {
+			if (!token) return;
+			const entry = pending.get(token);
+			if (!entry) return;
+			pending.delete(token);
+			entry.script.remove();
+			entry.resolve(value);
+		}
+	});
+	host[remoteLoaderSymbol] = loader;
+	return loader;
+}
+
+function settleRemoteLoad(
+	token: string,
+	pending: Map<string, Readonly<{ reject(error: Error): void; script: HTMLScriptElement }>>,
+	error: Error
+): void {
+	const entry = pending.get(token);
+	if (!entry) return;
+	pending.delete(token);
+	entry.script.remove();
+	entry.reject(error);
+}
+
+function isValidIntegrity(value: string): boolean {
+	const entries = value.trim().split(/\s+/);
+	return (
+		!!entries.length &&
+		entries.every((entry) => /^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}$/.test(entry))
+	);
 }
 
 function validateRemoteModule(value: unknown): ExactRemoteModule {

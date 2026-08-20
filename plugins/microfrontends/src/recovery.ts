@@ -48,6 +48,7 @@ class RecoveryCoordinator {
 	#preparation: Promise<ExactRemoteModule> | undefined;
 	#replacement: Promise<void> | undefined;
 	#attempted = false;
+	#entryAttempted = false;
 	#stale = false;
 
 	constructor(
@@ -95,6 +96,10 @@ class RecoveryCoordinator {
 
 	#schedule(preferred: string | undefined): void {
 		if (this.#replacement) return;
+		if (this.#entryAttempted) {
+			if (this.#stale) for (const member of [...this.#members]) member.fail();
+			return;
+		}
 		let failed = false;
 		this.#replacement = this.#prepare(preferred)
 			.then((module) => this.#commitWhenSettled(module))
@@ -112,8 +117,10 @@ class RecoveryCoordinator {
 
 	#prepare(preferred: string | undefined): Promise<ExactRemoteModule> {
 		if (this.#preparation) return this.#preparation;
-		this.#preparation = this.#resolveEntry(preferred)
-			.then(loadExactRemoteModule)
+		this.#entryAttempted = true;
+		this.#preparation = Promise.resolve(this.#resolveEntry(preferred))
+			.then((resolved) => (typeof resolved === 'string' ? { clientEntry: resolved } : resolved))
+			.then((entry) => loadExactRemoteModule(entry.clientEntry, entry.integrity))
 			.then((module) => {
 				if (module.buildKey === this.currentBuild)
 					throw new Error('Replacement eXact remote module did not change its build key');
@@ -126,10 +133,18 @@ class RecoveryCoordinator {
 		return this.#preparation;
 	}
 
-	async #resolveEntry(preferred: string | undefined): Promise<string> {
+	#resolveEntry(preferred: string | undefined):
+		| ReturnType<NonNullable<ExactRemoteClientBinding['resolveClientEntry']>>
+		| Readonly<{
+				clientEntry: string;
+				integrity?: string;
+		  }> {
 		if (preferred && this.binding.resolveClientEntry)
 			return this.binding.resolveClientEntry(preferred);
-		return cacheBustedEntry(this.binding.clientEntry, this.currentBuild);
+		return {
+			clientEntry: cacheBustedEntry(this.binding.clientEntry, this.currentBuild),
+			...(this.binding.integrity ? { integrity: this.binding.integrity } : {})
+		};
 	}
 
 	async #commitWhenSettled(module: ExactRemoteModule): Promise<void> {

@@ -1,10 +1,5 @@
-import {
-	markExactComponent,
-	unwrap,
-	watch,
-	type Component,
-	type ComponentInstance
-} from '@exactjs/core';
+import { unwrap, watch, type Component, type ComponentInstance } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { defaultGestureSettings, GestureContext } from './context.js';
 import type { GestureDefinition, GestureElementProps } from './contracts.js';
 import { GestureSession } from './session.js';

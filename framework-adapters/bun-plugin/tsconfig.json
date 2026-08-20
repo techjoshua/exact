@@ -16,7 +16,8 @@
 		{ "path": "../../packages/plugin-api" },
 		{ "path": "../../packages/plugin-host" },
 		{ "path": "../../packages/compiler" },
-		{ "path": "../../packages/react-compat" }
+		{ "path": "../../packages/react-compat" },
+		{ "path": "../../plugins/microfrontends" }
 	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

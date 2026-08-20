@@ -1,4 +1,4 @@
-import { createLineSourceMap, type ExactCompilerSession } from '@exactjs/compiler';
+import { createTokenSourceMap, type ExactCompilerSession } from '@exactjs/compiler';
 import {
 	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
@@ -43,7 +43,7 @@ export function transformExactWebpackModule(
 					map:
 						options.sourceMap === false
 							? null
-							: createLineSourceMap(filename, source, reachedPublication.code)
+							: createTokenSourceMap(filename, source, reachedPublication.code)
 				}
 			: null;
 	let componentBuild: ExactWebpackTransformResult['componentBuild'] | undefined;
@@ -122,7 +122,7 @@ export function transformExactWebpackModule(
 						: enhanced;
 				return {
 					code,
-					map: options.sourceMap === false ? null : createLineSourceMap(filename, source, code)
+					map: options.sourceMap === false ? null : createTokenSourceMap(filename, source, code)
 				};
 			},
 			inspection: (result) =>

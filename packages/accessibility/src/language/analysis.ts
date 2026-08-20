@@ -44,9 +44,11 @@ export function accessibilityHover(
 	projection: ExactLanguageProjectionV1,
 	position: number
 ): { range: { start: number; end: number }; markdown: string } | undefined {
-	const element = projection.jsx.find(
-		(candidate) => candidate.range.start <= position && position <= candidate.range.end
-	);
+	const element = projection.jsx
+		.filter((candidate) => candidate.range.start <= position && position <= candidate.range.end)
+		.sort(
+			(left, right) => left.range.end - left.range.start - (right.range.end - right.range.start)
+		)[0];
 	if (!element) return undefined;
 	const activations = projection.enhancements.filter(
 		(candidate) => candidate.targetJsxId === element.id && isAccessibilityActivation(candidate)

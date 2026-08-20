@@ -47,4 +47,4 @@ export function testContinuation(
 import type {
 	ExactComponentContinuationContract,
 	ExactContinuationStatePathContract
-} from '@exactjs/core';
+} from '@exactjs/core/framework/component-contracts';

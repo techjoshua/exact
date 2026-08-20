@@ -2,21 +2,23 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
-	RenderProgram,
-	ServerBoundary,
-	ServerSlot,
 	Suspense,
 	Target,
 	Text,
 	UnsafeHtml,
-	createComponentInstance,
 	createReadinessCoordinator,
-	getCellVNode,
 	hasIndependentAsyncSiblings,
-	isCellVNode,
 	isVNode,
 	type VNode
 } from '@exactjs/core';
+import {
+	RenderProgram,
+	ServerBoundary,
+	ServerSlot,
+	createComponentInstance,
+	getCellVNode,
+	isCellVNode
+} from '@exactjs/core/runtime/render';
 import { unwrap } from '@exactjs/reactive';
 import { escapeText, voidElements } from '../html.js';
 import {

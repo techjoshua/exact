@@ -1,11 +1,5 @@
-import {
-	createComponentInstance,
-	createVNode,
-	isCellVNode,
-	renderInstance,
-	type ComponentInstance,
-	type VNode
-} from '@exactjs/core';
+import { createVNode, type ComponentInstance, type VNode } from '@exactjs/core';
+import { createComponentInstance, isCellVNode, renderInstance } from '@exactjs/core/runtime/render';
 import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
 import { clearDelegated } from '../../events.js';

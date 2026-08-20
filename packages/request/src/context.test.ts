@@ -1,4 +1,5 @@
-import { createComponentInstance, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { describe, expect, it } from 'vitest';
 import {
 	commitRequestResponseState,

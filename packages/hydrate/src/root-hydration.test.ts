@@ -1,12 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createCompiledVNode,
-	createDynamicChild,
-	markExactComponent,
-	type Component
-} from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createCompiledVNode, createDynamicChild } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
@@ -70,44 +67,22 @@ describe('hydration-only root capability', () => {
 		}
 	});
 
-	it('uses the container document and window for deferred scheduling', async () => {
+	it('rejects deferred hydration owned by another window realm', async () => {
 		const frame = document.createElement('iframe');
 		document.body.append(frame);
 		const ownerDocument = frame.contentDocument!;
-		const ownerWindow = frame.contentWindow!;
-		const frames: FrameRequestCallback[] = [];
-		const tasks: Array<() => void> = [];
-		const visibility = vi.spyOn(ownerDocument, 'visibilityState', 'get').mockReturnValue('visible');
-		vi.spyOn(ownerWindow, 'requestAnimationFrame').mockImplementation((callback) => {
-			frames.push(callback);
-			return frames.length;
-		});
-		Object.defineProperty(ownerWindow, 'scheduler', {
-			configurable: true,
-			value: {
-				postTask(work: () => void) {
-					tasks.push(work);
-					return Promise.resolve();
-				}
-			}
-		});
 		try {
 			const vnode = createVNode('p', null, 'Ready');
 			const container = ownerDocument.createElement('main');
 			container.innerHTML = renderToString(vnode).html;
 			ownerDocument.body.append(container);
 
-			const pending = hydrateAfterNavigation(vnode, container);
-			expect(frames).toHaveLength(1);
-			frames.shift()!(performance.now());
-			expect(tasks).toHaveLength(1);
-			tasks.shift()!();
-
-			const root = await pending;
-			expect(container.dataset.exactHydrated).toBe('true');
-			root.dispose();
+			await expect(hydrateAfterNavigation(vnode, container)).rejects.toThrow(
+				'container owned by the current document'
+			);
+			expect(() => hydrate(vnode, container)).toThrow('container owned by the current document');
+			expect(container.dataset.exactHydrated).toBeUndefined();
 		} finally {
-			visibility.mockRestore();
 			frame.remove();
 		}
 	});
