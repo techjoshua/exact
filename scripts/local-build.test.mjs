@@ -16,7 +16,11 @@ test('the root build prepares package-export prerequisites before building depen
 	);
 	assert.equal(
 		manifest.scripts['build:workspaces'],
-		'npm run generate:app-artifacts && tsc6 -b && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator'
+		'npm run generate:app-artifacts && tsc6 -b && npm run build:chromium-devtools && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator'
+	);
+	assert.equal(
+		manifest.scripts['build:chromium-devtools'],
+		'node packages/chromium-devtools/build.mjs'
 	);
 	assert.equal(
 		manifest.scripts['generate:component-library-build-facts'],
