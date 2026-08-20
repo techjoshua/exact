@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
+import type { Readable } from 'node:stream';
 import { parentPort, workerData } from 'node:worker_threads';
-import { readBoundedLines } from './bounded-lines.js';
 
 type NativeWorkerData = Readonly<{
 	executable: string;
@@ -117,4 +117,53 @@ function publishError(error: unknown): void {
 	Atomics.store(header, 2, length);
 	Atomics.store(header, 0, stateError);
 	Atomics.notify(header, 0);
+}
+
+// This worker is also executed directly from TypeScript by the test/dev loader, so its framing
+// stays self-contained rather than introducing a runtime sibling-module resolution requirement.
+function readBoundedLines(
+	stream: Readable,
+	options: Readonly<{
+		maxBytes: number;
+		onLine(line: string): void;
+		onError(error: Error): void;
+	}>
+): () => void {
+	let buffered = Buffer.alloc(0);
+	let stopped = false;
+	const data = (input: Buffer | string) => {
+		if (stopped) return;
+		buffered = Buffer.concat([buffered, Buffer.isBuffer(input) ? input : Buffer.from(input)]);
+		let newline = buffered.indexOf(10);
+		while (newline >= 0) {
+			if (newline > options.maxBytes)
+				return fail('Subprocess response frame exceeded its byte limit');
+			try {
+				options.onLine(
+					new TextDecoder('utf-8', { fatal: true })
+						.decode(buffered.subarray(0, newline))
+						.replace(/\r$/, '')
+				);
+			} catch {
+				return fail('Subprocess returned an invalid UTF-8 response frame');
+			}
+			buffered = buffered.subarray(newline + 1);
+			newline = buffered.indexOf(10);
+		}
+		if (buffered.length > options.maxBytes)
+			fail('Subprocess response frame exceeded its byte limit');
+	};
+	stream.on('data', data);
+	return () => {
+		stopped = true;
+		stream.off('data', data);
+		buffered = Buffer.alloc(0);
+	};
+
+	function fail(message: string): void {
+		if (stopped) return;
+		stopped = true;
+		stream.off('data', data);
+		options.onError(new Error(message));
+	}
 }
