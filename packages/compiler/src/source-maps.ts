@@ -91,7 +91,10 @@ export function createTokenSourceMap(
 	};
 }
 
-/** @deprecated Use createTokenSourceMap; retained for adapter source compatibility. */
+/**
+ * Creates token-position mappings under the legacy source-map helper name.
+ * @deprecated Use createTokenSourceMap; retained for adapter source compatibility.
+ */
 export const createLineSourceMap = createTokenSourceMap;
 
 /** Returns the source map file path for an emitted output file. */
