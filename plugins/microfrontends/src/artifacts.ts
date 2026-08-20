@@ -39,8 +39,15 @@ export function generateProvidedPackageBootstrap(keys: readonly string[]): strin
 /** Generates the browser-safe binding table registered before page hydration. */
 export function generateExactClientBindingsBootstrap(
 	bindings: readonly (
-		| readonly [string, { readonly clientEntry: string }]
-		| readonly [string, { readonly clientEntry: string; readonly clientEntryResolver: string }]
+		| readonly [string, { readonly clientEntry: string; readonly integrity?: string }]
+		| readonly [
+				string,
+				{
+					readonly clientEntry: string;
+					readonly integrity?: string;
+					readonly clientEntryResolver: string;
+				}
+		  ]
 	)[],
 	options: { applicationRoot: string }
 ): string {
@@ -52,6 +59,7 @@ export function generateExactClientBindingsBootstrap(
 	for (const [index, [binding, config]] of bindings.entries()) {
 		validateKey(binding);
 		validateKey(config.clientEntry);
+		if (config.integrity !== undefined) validateKey(config.integrity);
 		let resolver: string | undefined;
 		if ('clientEntryResolver' in config) {
 			validateKey(config.clientEntryResolver);
@@ -61,7 +69,7 @@ export function generateExactClientBindingsBootstrap(
 			);
 		}
 		properties.push(
-			`${quote(binding)}: Object.freeze({ clientEntry: ${quote(config.clientEntry)}${resolver ? `, resolveClientEntry: ${resolver}` : ''} })`
+			`${quote(binding)}: Object.freeze({ clientEntry: ${quote(config.clientEntry)}${config.integrity ? `, integrity: ${quote(config.integrity)}` : ''}${resolver ? `, resolveClientEntry: ${resolver}` : ''} })`
 		);
 	}
 	return [
@@ -97,6 +105,7 @@ export function generateRemoteEntryModule(options: ExactRemoteEntryModuleOptions
 		'\tcomponent: __exactComponent,',
 		'\tregistration: __exactRegistration',
 		'});',
+		`globalThis[Symbol.for('@exactjs/microfrontends/remote-loader')]?.publish(new URL(import.meta.url).searchParams.get('__exact_module_token'), __exactRemoteModule);`,
 		'',
 		'export default __exactRemoteModule;',
 		''

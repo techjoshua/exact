@@ -1,6 +1,6 @@
 import { batch, mutateReactiveCollection, unwrap, whenEffectScopeResumed } from '@exactjs/reactive';
 
-import { combineAbortSignals, isAbortSignal } from './signals.js';
+import { createDisposableAbortSignal, isAbortSignal } from './signals.js';
 import { isPromiseLike } from '../component/async-value.js';
 
 import type {
@@ -350,9 +350,23 @@ export function taskFetch<T>(
 ): T {
 	const options = init ? { ...init } : {};
 	const existing = options.signal;
-	options.signal = isAbortSignal(existing) ? combineAbortSignals(existing, signal) : signal;
-	return fetcher(input, options);
+	const combined = isAbortSignal(existing)
+		? createDisposableAbortSignal(existing, signal)
+		: undefined;
+	options.signal = combined?.signal ?? signal;
+	try {
+		const result = fetcher(input, options);
+		if (combined && isPromiseLike(result)) {
+			void Promise.resolve(result).finally(combined.dispose).catch(ignoreSettlement);
+		} else combined?.dispose();
+		return result;
+	} catch (error) {
+		combined?.dispose();
+		throw error;
+	}
 }
+
+function ignoreSettlement(): void {}
 
 /**
  * Awaits a value while retaining task cancellation and Activity parking semantics.

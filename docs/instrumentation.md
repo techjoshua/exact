@@ -95,3 +95,6 @@ its unchanged guard still fails meaningful regressions in that controlled enviro
 Option-bearing runtimes receive sinks directly. Reactive and React compatibility
 use explicit ownership scopes so profiling from concurrent roots is not sent to
 an unrelated application. No package enables a process-wide profiler.
+All framework publishers contain sink exceptions. An application profiler may lose its own event,
+but it cannot replace an operation error or change a successful render, request, compilation,
+hydration, SSR pass, compatibility commit, or reactive flush into a failure.

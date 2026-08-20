@@ -85,6 +85,28 @@ describe('@exactjs/hydrate patch-application', () => {
 		expect(paragraph.textContent).toBe('Ready');
 	});
 
+	it('rejects structural, executable, and prototype property patches before mutation', () => {
+		const forbidden = [
+			['innerHTML', '<img src=x onerror=alert(1)>'],
+			['outerHTML', '<script>alert(1)</script>'],
+			['textContent', 'replacement'],
+			['onclick', 'alert(1)'],
+			['srcdoc', '<script>alert(1)</script>'],
+			['__proto__', { compromised: true }]
+		] as const;
+		for (const [name, value] of forbidden) {
+			const container = document.createElement('div');
+			container.innerHTML = '<button data-exact-id="save">Save</button>';
+			const before = container.innerHTML;
+			expect(
+				applyPatches(container, [{ type: 'prop', id: 'save', name, value }], {
+					logger: noopLogger
+				})
+			).toBe(false);
+			expect(container.innerHTML).toBe(before);
+		}
+	});
+
 	it('applies keyed list insert, move, and remove patches', () => {
 		const container = document.createElement('div');
 		container.innerHTML =

@@ -4,10 +4,7 @@
 import './framework/enhancements.js';
 import {
 	createContext,
-	createCompiledTarget,
-	createDynamicChild,
 	createEnhancementMarker,
-	createExpression,
 	Fragment,
 	markExactEnhancementContexts,
 	Target,
@@ -16,6 +13,11 @@ import {
 	type Component,
 	type RootLifecycle
 } from '@exactjs/core';
+import {
+	createCompiledTarget,
+	createDynamicChild,
+	createExpression
+} from '@exactjs/core/runtime/render';
 import { markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';

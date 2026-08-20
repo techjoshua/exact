@@ -8,14 +8,12 @@ import {
 } from '@exactjs/devtools-protocol';
 import type { ExactServerContext } from '../types.js';
 import type { ExactInspectionCatalogRegistry } from './catalog-registry.js';
-import type { ExactInspectionEventBuffer } from './event-buffer.js';
 import type { ExactDebugSession, ExactDebugSessionManager } from './sessions.js';
 
 /** Dependencies needed by the server-owned read-only query projection. */
 export type ExactServerInspectionQueryContext = Readonly<{
 	context: ExactServerContext;
 	catalogs: ExactInspectionCatalogRegistry;
-	events: ExactInspectionEventBuffer;
 	sessions: ExactDebugSessionManager;
 	maxResults: number;
 	maxQueryDepth: number;
@@ -49,7 +47,7 @@ export async function dispatchExactInspectionQuery(
 	} else if (request.method === 'catalog.entity' || request.method === 'dependencies.explain') {
 		response = catalogEntityResponse(request, session.id, queryContext);
 	} else if (request.method === 'timeline.query' || request.method === 'errors.list') {
-		response = timelineResponse(request, session.id, queryContext);
+		response = failure(request.id, 'unavailable', 'timeline-is-browser-owned');
 	} else if (request.method === 'source.excerpt') {
 		response = sourceResponse(request, session.id, queryContext);
 	} else if (queryContext.context.inspectionQueryService) {
@@ -123,25 +121,6 @@ function catalogEntityResponse(
 				})
 			: entity;
 	return success(request, sessionId, result);
-}
-
-function timelineResponse(
-	request: ExactInspectionRequest,
-	sessionId: string,
-	queryContext: ExactServerInspectionQueryContext
-): ExactInspectionResponse {
-	const queried = queryContext.events.query(
-		request.params?.page?.cursor,
-		request.method === 'errors.list'
-			? { ...request.params?.filter, kinds: ['error'] }
-			: request.params?.filter
-	);
-	const page = paginateExactInspection(
-		queried.events,
-		{ limit: request.params?.page?.limit },
-		queryContext.maxResults
-	);
-	return success(request, sessionId, page.values, page.nextCursor ?? queried.cursor);
 }
 
 function sourceResponse(

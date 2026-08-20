@@ -1,4 +1,8 @@
-import { profileTimestamp, type ExactProfileEvent } from '@exactjs/instrumentation';
+import {
+	profileTimestamp,
+	publishExactProfile,
+	type ExactProfileEvent
+} from '@exactjs/instrumentation';
 import type { TransformOptions, TransformResult } from '../contracts/transform.js';
 import { transformSource } from './transformation.js';
 
@@ -76,7 +80,8 @@ export function transformExactAdapterModule<Inspection = never>(
 		);
 	} finally {
 		if (startedAt !== undefined && options.profile)
-			options.profile.sink(
+			publishExactProfile(
+				options.profile.sink,
 				Object.freeze({
 					subsystem: options.profile.subsystem,
 					phase: 'transform',

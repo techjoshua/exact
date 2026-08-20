@@ -16,7 +16,11 @@ test('the root build prepares package-export prerequisites before building depen
 	);
 	assert.equal(
 		manifest.scripts['build:workspaces'],
-		'npm run generate:app-artifacts && tsc6 -b && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator'
+		'npm run generate:app-artifacts && tsc6 -b && npm run build:chromium-devtools && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator'
+	);
+	assert.equal(
+		manifest.scripts['build:chromium-devtools'],
+		'node packages/chromium-devtools/build.mjs'
 	);
 	assert.equal(
 		manifest.scripts['generate:component-library-build-facts'],
@@ -46,6 +50,18 @@ test('shipping artifact generation builds the theme metadata it consumes', async
 	assert.equal(
 		manifest.scripts.pregenerate,
 		'npm run build -w @exactjs/compiler && npm run build -w @exactjs/theme'
+	);
+});
+
+test('the Bun plugin builds its production microfrontend dependency from a clean checkout', async () => {
+	const config = JSON.parse(
+		await readFile(path.resolve('framework-adapters/bun-plugin/tsconfig.json'), 'utf8')
+	);
+	const references = new Set(config.references.map((reference) => reference.path));
+
+	assert.ok(
+		references.has('../../plugins/microfrontends'),
+		'missing Bun plugin TypeScript reference for @exactjs/microfrontends'
 	);
 });
 

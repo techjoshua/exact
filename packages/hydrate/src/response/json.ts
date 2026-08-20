@@ -3,7 +3,7 @@ import type {
 	ExactInvocationResult,
 	ExactOperationResult,
 	ExactPatch
-} from '@exactjs/server';
+} from '@exactjs/core/framework/operation-protocol';
 import { hasOnlyKeys } from '../validation.js';
 import { decodeBoundedReactiveProtocolValue } from '../protocol-decoding.js';
 import { positiveLimit } from './ndjson.js';

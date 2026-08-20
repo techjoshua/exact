@@ -1,18 +1,11 @@
 import {
 	Activity,
-	createComponentInstance,
 	createErrorReport,
 	Dynamic,
-	exactComponentIdentity,
 	Fragment,
 	handleComponentError,
-	isCellVNode,
 	normalizeRenderResult,
 	Portal,
-	RenderProgram,
-	reparentComponentInstance,
-	renderInstance,
-	ServerSlot,
 	Suspense,
 	Target,
 	Text,
@@ -22,6 +15,15 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import {
+	createComponentInstance,
+	isCellVNode,
+	RenderProgram,
+	reparentComponentInstance,
+	renderInstance,
+	ServerSlot
+} from '@exactjs/core/runtime/render';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import {
 	createEffectScope,
 	flushSync,

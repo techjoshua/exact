@@ -1,4 +1,5 @@
-import { markExactComponent, peek, type Component } from '@exactjs/core';
+import { peek, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 
 import { FieldContext, FormContext } from './context.js';
 import type { FieldContextValue, FieldProps, FieldState, FormContextValue } from './contracts.js';

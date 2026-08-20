@@ -2,12 +2,14 @@ import {
 	activateTaskForHost,
 	createContext,
 	defineTask,
-	exactComponentContract,
-	exactComponentType,
 	markComponentContinuationTask,
 	registerComponentContinuationContexts,
 	type Component
 } from '@exactjs/core';
+import {
+	exactComponentContract,
+	exactComponentType
+} from '@exactjs/core/framework/component-contracts';
 import { computed } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import {

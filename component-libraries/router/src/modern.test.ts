@@ -508,8 +508,9 @@ describe('React Router modern facade', () => {
 		);
 		const container = document.createElement('div');
 		createRoot(container).render(createElement(RouterProvider, { router }));
-		await settle();
-		await settle();
+		await act(async () => {
+			await settle();
+		});
 		expect(container.textContent).toBe('Lazy ready');
 	});
 

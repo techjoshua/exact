@@ -1,7 +1,6 @@
 import {
 	ReadinessContext,
 	componentReadinessContext,
-	createComponentInstance,
 	createReadinessCoordinator,
 	normalizeActivityMode,
 	unwrap,
@@ -11,6 +10,7 @@ import {
 	type ComponentInstance,
 	type ReadinessContextValue
 } from '@exactjs/core';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import {
 	flushSync,

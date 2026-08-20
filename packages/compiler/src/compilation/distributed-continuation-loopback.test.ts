@@ -1,12 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	composeExactComponentContracts,
-	createVNode,
-	type Component,
-	type ComponentFunction
-} from '@exactjs/core';
+import { createVNode, type Component, type ComponentFunction } from '@exactjs/core';
+import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate, type FetchLike } from '@exactjs/hydrate';
 import { RemoteComponent, registerExactRemoteClientBindings } from '@exactjs/microfrontends/client';

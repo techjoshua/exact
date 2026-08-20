@@ -87,6 +87,10 @@ export function AccessibilityPage(this: Component<{}>) {
 					application state.
 				</p>
 				<p>
+					Editor hover follows the innermost JSX element at the cursor, so an outer layout element
+					cannot hide guidance for a nested <code>a11y:*</code> activation.
+				</p>
+				<p>
 					Tree, menu, menubar, and treegrid are deliberately rejected until the package can expose a
 					complete expand/submenu/action contract. One bounded observer follows eligible
 					descendants; there is no document observer or renderer-wide notification hook.

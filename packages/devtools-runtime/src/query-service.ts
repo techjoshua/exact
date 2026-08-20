@@ -139,21 +139,6 @@ export function createExactClientInspectionQueryService(
 			const closes: Array<() => void> = [
 				options.events.subscribe(cursors.get(CLIENT_HOST), request.filter, listener)
 			];
-			if (options.serverConnected && options.server) {
-				for (const target of serverTargets(options.dom.snapshot().roots, request.filter)) {
-					const cursor = cursors.get(target.key);
-					const remote = options.server.subscribe(
-						{
-							protocol: 1,
-							sessionId: request.sessionId,
-							...(cursor ? { cursor } : {}),
-							...(target.filter ? { filter: target.filter } : {})
-						},
-						listener
-					);
-					closes.push(() => remote.close());
-				}
-			}
 			return Object.freeze({
 				get closed() {
 					return closed;

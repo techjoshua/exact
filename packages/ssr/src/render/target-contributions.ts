@@ -1,12 +1,11 @@
 import {
 	Target,
 	TargetOverrides,
-	getCellVNode,
-	isCellVNode,
 	isVNode,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
 import {
 	mergeTargetClassContributions,
 	mergeTargetTokenContributions

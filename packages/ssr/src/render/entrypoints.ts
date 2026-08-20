@@ -1,11 +1,8 @@
 import { logFrameworkEvent, withTaskObserver, type VNode } from '@exactjs/core';
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
+import { publishExactProfile } from '@exactjs/instrumentation';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
-import {
-	createExactBufferedResponse,
-	exactServerDebugRuntime,
-	runWithExactRequestScope
-} from '@exactjs/server';
+import { createExactBufferedResponse, runWithExactRequestScope } from '@exactjs/server';
 import { escapeAttr } from '../html.js';
 import { renderHydrationScript } from '../hydration.js';
 import { createSsrResumptionCapture } from '../resumption.js';
@@ -37,7 +34,9 @@ import {
 	streamDocumentRender
 } from './async-rendering.js';
 import { createSsrContext } from './context.js';
+import { hydrationScriptOptions } from './hydration-options.js';
 import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
+import { renderSignal } from './signals.js';
 import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderVNode, renderVNodeChunks } from './sync-tree.js';
@@ -69,7 +68,8 @@ export function renderToString(
 	} finally {
 		disposePreservingPrimary(() => owner.dispose('ssr render complete'), primary);
 		if (profileStarted !== undefined) {
-			options.onProfile?.(
+			publishExactProfile(
+				options.onProfile,
 				Object.freeze({
 					subsystem: 'ssr',
 					phase: 'render-to-string',
@@ -129,26 +129,9 @@ export function renderToHydratableString(
 	const result = renderToString(vnode, capture.options);
 	const resumptions = capture.records();
 	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
-	const hydrationScript = renderHydrationScript({
-		pluginRegistryFingerprint: options.pluginRegistryFingerprint,
-		endpoint: options.endpoint,
-		endpoints: options.endpoints,
-		state: result.state,
-		continuations: options.continuations,
-		resumptions: emittedResumptions,
-		publicContexts: options.publicContexts,
-		wallClockSnapshot: result.wallClockSnapshot,
-		hydrationTable: result.hydrationTable,
-		executionRoot: options.executionRoot,
-		binding: options.binding,
-		buildKey: options.buildKey,
-		scriptId: options.scriptId,
-		nonce: options.nonce,
-		maxHydrationDepth: options.maxHydrationDepth,
-		maxHydrationNodes: options.maxHydrationNodes,
-		maxHydrationBytes: options.maxHydrationBytes,
-		outputExtensions: options.outputExtensions
-	});
+	const hydrationScript = renderHydrationScript(
+		hydrationScriptOptions(options, result, emittedResumptions)
+	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
 
@@ -194,7 +177,8 @@ export function renderToStream(
 		close: () => owner.dispose(options.signal?.reason ?? 'ssr stream complete')
 	});
 	if (profileStarted !== undefined) {
-		options.onProfile?.(
+		publishExactProfile(
+			options.onProfile,
 			Object.freeze({
 				subsystem: 'ssr',
 				phase: 'create-stream',
@@ -285,9 +269,9 @@ export async function renderExactRequestToHtmlResponse(
 			const vnode = await render(context);
 			const renderOptions = {
 				...options,
-				...requestInspectionOptions(server, context, options),
+				...requestInspectionOptions(context, options),
 				contexts: context.contexts?.componentValues,
-				signal: options.signal ?? context.signal
+				signal: renderSignal(context.signal, options.signal)
 			};
 			let body: string;
 			let preloadLinks: readonly string[] | undefined;
@@ -330,9 +314,9 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 			const vnode = await render(context);
 			const renderOptions = {
 				...options,
-				...requestInspectionOptions(server, context, options),
+				...requestInspectionOptions(context, options),
 				contexts: context.contexts?.componentValues,
-				signal: options.signal ?? context.signal
+				signal: renderSignal(context.signal, options.signal)
 			};
 			// A response's status, headers, and authored head are committed before its
 			// body is consumed. Conservatively settle the root before returning the
@@ -388,11 +372,11 @@ function withPreloadLinks(
 }
 
 function requestInspectionOptions(
-	server: ExactServerContext,
 	context: ExactServerContext,
 	options: RenderExactRequestToHtmlResponseOptions
 ): Pick<RenderToStringOptions, 'inspection'> {
 	if (options.inspection) return { inspection: options.inspection };
+	if (!context.requestDebugRuntime) return {};
 	const catalogs = context.inspectionCatalogs;
 	if (!catalogs?.length) return {};
 	const buildKey =
@@ -406,7 +390,7 @@ function requestInspectionOptions(
 	const executionRoot = options.executionRoot ?? (roots.length === 1 ? roots[0] : undefined);
 	if (!executionRoot || !catalog.roots[executionRoot]) return {};
 	return {
-		inspection: exactServerDebugRuntime(server).inspectionOwner({
+		inspection: context.requestDebugRuntime!.inspectionOwner({
 			buildKey,
 			executionRoot,
 			...(options.binding ? { binding: options.binding } : {})

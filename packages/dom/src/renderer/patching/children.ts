@@ -1,11 +1,5 @@
-import {
-	normalizeRenderResult,
-	renderInstance,
-	ServerSlot,
-	unwrap,
-	type Child,
-	type ComponentInstance
-} from '@exactjs/core';
+import { normalizeRenderResult, unwrap, type Child, type ComponentInstance } from '@exactjs/core';
+import { renderInstance, ServerSlot } from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { childToVNode, childrenToVNodes, planChildReconciliation } from '../../children.js';

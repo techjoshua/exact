@@ -66,6 +66,17 @@ The domain's application-visible shape is only its `executionRoot` identity;
 transport, resumption, inspection, and activation capabilities remain private
 to framework render and hydration boundaries.
 
+A remote entry is executable authority, so validating its exported object after `import()` is not
+a security boundary. Configure `integrity` with standard `sha256-`, `sha384-`, or `sha512-` SRI
+metadata when the page must verify entry bytes before execution. eXact then loads the canonical
+generated entry through a cross-origin-capable module script, lets the browser enforce SRI first,
+and accepts only the token-matched module published by that entry. Without `integrity`, the page is
+explicitly trusting the configured URL to execute. A build-replacement resolver should return
+`{ clientEntry, integrity }` so every new generation receives its own pin; returning only a URL is
+an explicit unpinned replacement. SRI covers the canonical entry response, not arbitrary mutable
+dependencies it imports, so production entries must reference immutable content-addressed chunks
+or keep their complete dependency graph under the same deployment trust boundary.
+
 ## Protocol and recovery
 
 The browser continues to use the page host's `/__exact` endpoint. The gateway

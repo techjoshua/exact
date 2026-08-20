@@ -1,4 +1,8 @@
-import { createVNode, exactComponentIdentity, readExactComponentContract } from '@exactjs/core';
+import { createVNode } from '@exactjs/core';
+import {
+	exactComponentIdentity,
+	readExactComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import {
 	composeExactExecutorContract,
 	createExactHydrationConfig,

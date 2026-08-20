@@ -1,4 +1,5 @@
-import { RenderProgram, isCellVNode, type ComponentDomain, type VNode } from '@exactjs/core';
+import { type ComponentDomain, type VNode } from '@exactjs/core';
+import { RenderProgram, isCellVNode } from '@exactjs/core/runtime/render';
 import {
 	adoptComponentRoot,
 	adoptCellRoot,
@@ -19,6 +20,8 @@ import { reportMismatch } from '../mismatch.js';
 import type { CoreHydrationRoot, HydrateOptions, HydrateProfileEvent } from '../types.js';
 import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
 import { roots } from './state.js';
+import { assertCurrentDocumentContainer } from './current-document.js';
+import { publishExactProfile } from '@exactjs/instrumentation';
 
 /** Hydrates a server-rendered container and returns ownership of its client root. */
 export function hydrateWithClient<T extends CoreHydrationRoot>(
@@ -36,7 +39,8 @@ export function hydrateWithClient<T extends CoreHydrationRoot>(
 		return hydrateRootWithClient(vnode, container, options, createClient, resolveOptions);
 	} finally {
 		if (started !== undefined) {
-			options.onProfile?.(
+			publishExactProfile(
+				options.onProfile,
 				Object.freeze({
 					subsystem: 'hydrate',
 					phase: 'hydrate',
@@ -58,8 +62,7 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 		options: HydrateOptions
 	) => HydrateOptions = resolveHydrateOptions
 ): T {
-	// A DOM can be supplied by a window that is not installed on globalThis.
-	// nodeType avoids coupling hydration to that realm's Document constructor.
+	assertCurrentDocumentContainer(container);
 	const documentNode = container.nodeType === 9 ? (container as Document) : undefined;
 	const rootContainer = documentNode?.documentElement ?? (container as Element);
 	const existing = roots.get(rootContainer);
@@ -136,7 +139,8 @@ function reportHydrationPhase(
 	started: number | undefined
 ): void {
 	if (started === undefined) return;
-	options.onProfile?.(
+	publishExactProfile(
+		options.onProfile,
 		Object.freeze({ subsystem: 'hydrate', phase, elapsedMs: performance.now() - started })
 	);
 }

@@ -2,10 +2,10 @@ import {
 	activateTaskForHost,
 	createEnhancementMarker,
 	defineTask,
-	markExactComponent,
 	type Child,
 	type Component
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import {
 	renderToDocumentStream,

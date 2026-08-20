@@ -1,6 +1,10 @@
 import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
 import { describe, expect, it, vi } from 'vitest';
-import { createExactBindingGateway, exactServerDebugRuntime, handleExactRequest } from './index.js';
+import {
+	createExactBindingGateway,
+	defineExactOperationContract,
+	handleExactRequest
+} from './index.js';
 import type { ExactRequestLike, ExactResponseLike, ExactServerContext } from './types.js';
 
 const brandingBuild = '1'.repeat(40);
@@ -74,24 +78,28 @@ describe('federated server inspection', () => {
 		expect(forwardedHeaders.every((headers) => !headers.has('authorization'))).toBe(true);
 		expect(forwardedHeaders.every((headers) => !headers.has('origin'))).toBe(true);
 
-		exactServerDebugRuntime(branding).observe({
-			kind: 'continuation.execute',
-			buildKey: brandingBuild,
-			executionRoot: '@company/branding#./Shell',
-			componentTypeId: 'component:Shared'
-		});
-		const subscribed = await handleExactRequest(
-			federatedSubscription(
-				parentSessionId,
-				'branding',
-				brandingBuild,
-				'@company/branding#./Shell'
-			),
+		const observed = await handleExactRequest(
+			{
+				method: 'POST',
+				url: '/__exact',
+				headers: {
+					'x-exact-binding': 'branding',
+					'x-exact-build': brandingBuild,
+					'x-exact-debug-session': parentSessionId
+				},
+				body: {
+					type: 'invoke',
+					root: '@company/branding#./Shell',
+					id: 'observe'
+				}
+			},
 			page
 		);
-		const streamed = await subscribed.stream!.getReader().read();
-		const streamedEvent = JSON.parse(new TextDecoder().decode(streamed.value));
-		expect(streamedEvent.id).toMatchObject({
+		expect(observed.status, observed.body).toBe(200);
+		expect(forwardedHeaders.some((headers) => headers.has('x-exact-debug-session'))).toBe(true);
+		expect(json(observed)).toHaveProperty('__exactObservations');
+		const observedEvent = (json(observed).__exactObservations as Array<{ id: unknown }>)[0]!;
+		expect(observedEvent.id).toMatchObject({
 			sessionId: parentSessionId,
 			binding: 'branding',
 			buildKey: brandingBuild,
@@ -111,7 +119,9 @@ describe('federated server inspection', () => {
 			},
 			page
 		);
-		expect(remoteCloses).toHaveLength(2);
+		// The branding catalog-only child is rotated once to add request-observation authority,
+		// then both active child sessions close with the parent.
+		expect(remoteCloses).toHaveLength(3);
 	});
 
 	it('requires independent remote authorization and registered binding/build/root routing', async () => {
@@ -170,11 +180,12 @@ function host(
 		contract: {
 			version: 1,
 			endpoint: '/__exact',
-			invocations: {},
+			invocations: { observe: defineExactOperationContract('observe') },
 			executors: {},
 			boundaries: {}
 		},
 		allowDebug: true,
+		invocations: { observe: () => ({}) },
 		inspectionCatalogs: [catalog(buildKey, root)],
 		...overrides
 	};
@@ -225,7 +236,7 @@ function debugOpen(): ExactRequestLike {
 			type: 'debug',
 			version: 1,
 			request: 'open',
-			capabilities: ['catalog']
+			capabilities: ['catalog', 'events']
 		}
 	};
 }
@@ -267,29 +278,6 @@ function federatedQuery(
 					sourceEntityId: 'component:Shared'
 				}
 			}
-		}
-	};
-}
-
-function federatedSubscription(
-	sessionId: string,
-	binding: string,
-	buildKey: string,
-	executionRoot: string
-): ExactRequestLike {
-	return {
-		method: 'POST',
-		url: '/__exact',
-		headers: {
-			'x-exact-binding': binding,
-			'x-exact-build': buildKey
-		},
-		body: {
-			type: 'debug',
-			version: 1,
-			request: 'subscribe',
-			sessionId,
-			filter: { side: 'server', binding, buildKey, executionRoot }
 		}
 	};
 }

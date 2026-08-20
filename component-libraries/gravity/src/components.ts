@@ -1,10 +1,5 @@
-import {
-	markExactComponent,
-	markExactEnhancementContexts,
-	unwrap,
-	watch,
-	type Component
-} from '@exactjs/core';
+import { markExactEnhancementContexts, unwrap, watch, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { PhysicsBodyContext, PhysicsWorldContext, type PhysicsWorld } from '@exactjs/physics';
 import { applyGravity } from './application.js';
 import type {

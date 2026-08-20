@@ -44,6 +44,18 @@ describe('@exactjs/dom root-lifecycle', () => {
 		);
 	});
 
+	it('does not let a profiling callback replace a successful render', () => {
+		const container = document.createElement('div');
+		expect(() =>
+			render(createVNode('p', null, 'committed'), container, {
+				onProfile() {
+					throw new Error('profiler failed');
+				}
+			})
+		).not.toThrow();
+		expect(container.textContent).toBe('committed');
+	});
+
 	it('mounts and updates a component', () => {
 		let instance!: Component<{ count: number }>;
 		const rendered = vi.fn();

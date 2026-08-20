@@ -1,8 +1,5 @@
 import {
-	createCompiledVNode,
 	createVNode,
-	isExactComponent,
-	markExactComponent,
 	type Activity,
 	type AuthoredComponentFunction,
 	type Child,
@@ -11,6 +8,8 @@ import {
 	type VNode,
 	type VNodeType
 } from '@exactjs/core';
+import { createCompiledVNode } from '@exactjs/core/runtime/render';
+import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { jsx, jsxs } from '@exactjs/jsx';
 
 let nextFixtureId = 0;

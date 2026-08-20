@@ -1,12 +1,5 @@
-import {
-	RenderProgram,
-	Text,
-	UnsafeHtml,
-	getCellVNode,
-	isCellVNode,
-	isVNode,
-	type VNode
-} from '@exactjs/core';
+import { Text, UnsafeHtml, isVNode, type VNode } from '@exactjs/core';
+import { RenderProgram, getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
 import type { SsrContext } from '../types.js';
 
 /**

@@ -8,12 +8,12 @@ import {
 	createEnhancementMarker,
 	createContext,
 	defineTask,
-	markExactComponent,
 	markExactEnhancementContexts,
 	stageTaskMutation,
 	type Child,
 	type Component
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { diffBoundaryHtml, renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';

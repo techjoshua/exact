@@ -1,10 +1,6 @@
 import { Accessibility } from '@exactjs/accessibility';
-import {
-	createEnhancementMarker,
-	createRef,
-	markExactComponent,
-	type Component
-} from '@exactjs/core';
+import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';

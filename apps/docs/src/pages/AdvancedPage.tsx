@@ -72,6 +72,8 @@ export function AdvancedPage(this: Component<{}>) {
 				<p>
 					Server rendering produces HTML and public component state. Hydration adopts the existing
 					DOM, preserves form state and focus, and continues the same component in the browser.
+					Hydrate an embedded document from its own window; hydration does not transfer a root across
+					document boundaries.
 				</p>
 				<p>
 					Use <code>renderMode: 'hydrate'</code> for browser builds that adopt server HTML,

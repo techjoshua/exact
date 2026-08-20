@@ -69,6 +69,9 @@ Use ordinary callbacks and inferred tasks when they are sufficient. Reach for ex
 work needs placement, scheduling, cancellation capabilities, a stable key, or a human-readable
 identity.
 
+Framework integrations use the `runtime/render`, `runtime/registry`, and
+`framework/component-contracts` subpaths. These SPIs are absent from the application root.
+
 ## Learn more
 
 See the [component language](../../docs/component-language.md),

@@ -1,11 +1,13 @@
 import {
-	exactComponentIdentity,
-	readExactComponentContract,
 	withComponentResumption,
 	type ComponentDomain,
 	type ComponentFunction,
 	type ComponentResumptionActivation
 } from '@exactjs/core';
+import {
+	exactComponentIdentity,
+	readExactComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import { componentDomainResumption } from '@exactjs/core/framework/component-domains';
 
 /** Ordered resolver with checkpoints for fallible DOM adoption. */

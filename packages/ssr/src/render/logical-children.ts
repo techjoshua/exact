@@ -2,7 +2,6 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
-	ServerSlot,
 	Text,
 	UnsafeHtml,
 	normalizeActivityMode,
@@ -10,6 +9,7 @@ import {
 	type Child,
 	type VNode
 } from '@exactjs/core';
+import { ServerSlot } from '@exactjs/core/runtime/render';
 import { unwrap } from '@exactjs/reactive';
 import type { SsrContext } from '../types.js';
 import { registerDynamicComponentPreload } from './resource-hints.js';

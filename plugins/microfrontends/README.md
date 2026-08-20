@@ -12,7 +12,10 @@ integrates with the eXact build and server runtimes rather than replacing them.
 
 Keep host names, remote exposures, shared versions, and server gateways explicit. Load remote
 components from their compiler-produced artifacts, and keep page-authored child content owned by
-the page root.
+the page root. Configure each remote's `integrity` when its entry bytes must be verified before
+execution. The browser enforces that SRI pin through the generated module-entry loader; an unpinned
+entry is explicitly trusted executable authority. Replacement resolvers should return
+`{ clientEntry, integrity }` for pinned build rotation.
 
 Server-executing remote builds may carry the compact component-library authorization identity
 created by `@exactjs/component-library-policy`. The remote entry, hydration client, gateway, and

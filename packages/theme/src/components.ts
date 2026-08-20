@@ -1,12 +1,12 @@
 import {
 	createContext,
 	createVNode,
-	markExactComponent,
 	markExactEnhancementContexts,
 	type Child,
 	type Component,
 	type ContextToken
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type {
 	ResolvedTheme,
 	ResolvedThemeSource,

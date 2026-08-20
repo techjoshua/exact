@@ -161,7 +161,9 @@ validates finite ARIA names and values, IDs and relationships, labels and access
 native commands, positive tab order, pointer-only custom interactions, focus companion props,
 dialog usage, live-region conflicts, and supported composite structure. It provides ARIA/role/
 command completions, effective-name and enhancement hovers, inferred navigation hints, and a safe
-positive-`tabIndex` edit. Provider errors participate in the generic build validation gate.
+positive-`tabIndex` edit. Hover ownership selects the innermost JSX element at the cursor, so a
+containing layout element cannot mask a nested attribute or enhancement. Provider errors
+participate in the generic build validation gate.
 
 Dynamic text, opaque component output, and runtime-created IDs are described as unproven rather
 than guessed invalid. Ignore and trust policy use the shared `languageExtensions` configuration;

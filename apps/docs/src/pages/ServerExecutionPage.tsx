@@ -73,9 +73,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					task authority never cross the boundary.
 				</p>
 				<p>
-					Server execution participates in the same task concepts as local work:
-					activation, cancellation, dependencies, readiness, stale-generation fencing, structural
-					children, and cleanup remain coordinated even though execution crosses runtimes.
+					Server execution participates in the same task concepts as local work: activation,
+					cancellation, dependencies, readiness, stale-generation fencing, structural children, and
+					cleanup remain coordinated even though execution crosses runtimes.
 				</p>
 			</section>
 			<section>
@@ -92,13 +92,18 @@ export function ServerExecutionPage(this: Component<{}>) {
 					record, cancellation plumbing, response contract, state commit, and DOM update machinery.
 					The generated operation identifier is deliberately opaque.
 				</p>
+				<p>
+					The browser and server share a neutral Core protocol contract. Hydration validates and
+					applies those responses without taking a production dependency on the server runtime.
+				</p>
 			</section>
 			<section>
 				<h2>Server context stays on the server</h2>
 				<CodeBlock source={authoredSource} language="tsx" title="ProductPage.tsx" />
 				<p>
-					The server runtime supplies the base context for each request. The compiler sends the product
-					ID and returns the shared product data to component state. The server context stays private.
+					The server runtime supplies the base context for each request. The compiler sends the
+					product ID and returns the shared product data to component state. The server context
+					stays private.
 				</p>
 			</section>
 			<section>
@@ -128,6 +133,15 @@ export function ServerExecutionPage(this: Component<{}>) {
 					During SSR, the server can resolve context and finish server tasks before sending HTML.
 					Hydration adopts that HTML and restores the browser component without repeating settled
 					work. Later dependency changes run the server task again and update the same component.
+				</p>
+			</section>
+			<section>
+				<h2>Keep one request lifetime</h2>
+				<p>
+					The composed server runtime applies context, rendering, authorization, protocol, and
+					resource-limit policy from one configuration. Its request signal remains authoritative
+					through rendering and operation dispatch. A narrower render signal may stop work early,
+					but it cannot detach work from a disconnected request or a shutting-down runtime.
 				</p>
 			</section>
 			<Callout title="Compiler errors protect the boundary">

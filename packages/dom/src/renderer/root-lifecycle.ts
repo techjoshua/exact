@@ -32,6 +32,7 @@ import {
 	unmountMounted
 } from './teardown.js';
 import { disposeRetainedReleases } from './retained-release.js';
+import { publishExactProfile } from '@exactjs/instrumentation';
 
 /** Resolves a component dom node. */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
@@ -85,6 +86,9 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 		roots.set(container, root);
 		if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	}
+	if (root.errors.errors.length) root.errors.clearAll();
+	const previousCurrent = root.current;
+	const previousVersion = root.version;
 	root.current = vnode;
 	if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	root.version++;
@@ -120,10 +124,20 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 			);
 			flushSync();
 		});
+		if (!root.errors.errors.length) root.patchRecoveryRequired = false;
 		root.initialCommitComplete = true;
+	} catch (error) {
+		// A patch may mutate DOM before a later child/prop operation fails. Roll the public root
+		// identity back and force the next attempt through every exact-VNode fast path so the
+		// partially advanced mounted metadata cannot make an identical retry a no-op.
+		root.current = previousCurrent;
+		root.version = previousVersion;
+		root.patchRecoveryRequired = true;
+		throw error;
 	} finally {
 		if (profileStarted !== undefined) {
-			root.onProfile?.(
+			publishExactProfile(
+				root.onProfile,
 				Object.freeze({
 					subsystem: 'dom',
 					phase: 'render',

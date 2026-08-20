@@ -92,7 +92,6 @@ export {
 } from './component/inspection.js';
 export { markExactInspectionSource } from './component/inspection-source.js';
 export {
-	createCompiledComponentRegistry,
 	createComponentRegistry,
 	hasComponent,
 	inspectComponentRegistry,
@@ -235,31 +234,6 @@ export {
 	normalizeRenderResult
 } from './component/errors.js';
 export { logFrameworkEvent } from './component/log.js';
-export { renderInstance } from './component/render.js';
-export { createComponentInstance, reparentComponentInstance } from './component/runtime.js';
-export {
-	composeExactComponentContracts,
-	exactComponentIdentity,
-	exactComponentContract,
-	exactComponentType,
-	isExactComponent,
-	markExactComponent,
-	readExactComponentContract,
-	type ExactComponentBoundaryContract,
-	type ExactCompiledComponentDefinitionContract,
-	type ExactCollectionMutation,
-	type ExactComponentContinuationActivation,
-	type ExactComponentContinuationContract,
-	type ExactComponentContinuationExecution,
-	type ExactComponentContinuationExecutionResult,
-	type ExactComponentContinuationExecutorContract,
-	type ExactComponentContract,
-	type ExactComponentExecutionContract,
-	type ExactComponentImplementationContract,
-	type ExactComponentResumptionContract,
-	type ExactComposedComponentContracts,
-	type ExactContinuationStatePathContract
-} from './component-contracts.js';
 export { sameJsonData, type JsonComparisonOptions } from './json.js';
 export { createContext, createRef, type ContextOptions } from './keys.js';
 export {
@@ -283,9 +257,6 @@ export {
 	Dynamic,
 	Fragment,
 	Portal,
-	RenderProgram,
-	ServerBoundary,
-	ServerSlot,
 	Suspense,
 	Target,
 	TargetOverrides,
@@ -322,22 +293,9 @@ export {
 } from './tasks/signals.js';
 export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './url.js';
 export {
-	createCellVNode,
-	createCompiledFragment,
-	createCompiledComponentVNode,
-	createCompiledTarget,
-	createCompiledVNode,
-	createDynamicChild,
-	createExpression,
-	createForwardedExpression,
 	createPortal,
-	createServerBoundary,
-	createServerSlot,
-	createKeyedServerSlot,
 	createTextVNode,
 	createVNode,
-	getCellVNode,
-	isCellVNode,
 	isVNode,
 	normalizeChildren,
 	normalizeDocumentVNode,

@@ -1,5 +1,9 @@
 import { encodeReactiveProtocolValue, logFrameworkEvent } from '@exactjs/core';
 import {
+	consumeExactServerObservations,
+	exactServerObservationRequestHeaders
+} from '@exactjs/core/framework/inspection-transport';
+import {
 	parseExactBatchResponse,
 	parseExactInvocationResponse,
 	readExactStreamResponse
@@ -40,7 +44,8 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 			headers: {
 				'content-type': 'application/json',
 				...(options.stream ? { accept: 'application/x-ndjson', 'x-exact-stream': '1' } : {}),
-				...options.headers
+				...options.headers,
+				...exactServerObservationRequestHeaders()
 			},
 			signal: options.signal,
 			body: requestBody
@@ -101,7 +106,8 @@ export async function invokeExactBatch(
 			headers: {
 				'content-type': 'application/json',
 				...(options.stream ? { accept: 'application/x-ndjson', 'x-exact-stream': '1' } : {}),
-				...options.headers
+				...options.headers,
+				...exactServerObservationRequestHeaders()
 			},
 			signal: options.signal,
 			body: requestBody
@@ -146,17 +152,18 @@ async function invocationFailure(
 	fallback: string,
 	options: Pick<InvokeExactOptions, 'signal' | 'streamLimits'>
 ): Promise<Error> {
-	if (response.status !== 410) return new Error(fallback);
 	try {
 		const value = await readJsonResponse(response, options.streamLimits, options.signal);
 		if (
+			response.status === 410 &&
 			value !== null &&
 			typeof value === 'object' &&
 			(value as { error?: unknown }).error === 'exact_build_unsupported'
 		)
 			return new ExactBuildUnsupportedError();
 	} catch {
-		// Malformed failure bodies retain the ordinary transport failure contract.
+		// Malformed failure bodies retain the ordinary transport failure contract. Valid
+		// failure bodies are still consumed so request-owned observations reach DevTools.
 	}
 	return new Error(fallback);
 }
@@ -198,7 +205,7 @@ async function readJsonResponse(
 	if (response.text) {
 		const text = await withAbort(response.text(), signal);
 		assertResponseBytes(text, limits?.maxBytes);
-		return JSON.parse(text);
+		return consumeExactServerObservations(JSON.parse(text));
 	}
 	// Runtime-neutral/custom fetch implementations may expose only json(). The
 	// decoded value must still obey the same serialized byte contract; otherwise
@@ -211,7 +218,7 @@ async function readJsonResponse(
 		/* parsed validators report malformed graphs */
 	}
 	if (encoded !== undefined) assertResponseBytes(encoded, limits?.maxBytes);
-	return value;
+	return consumeExactServerObservations(value);
 }
 
 function assertResponseBytes(value: string, configured?: number): void {

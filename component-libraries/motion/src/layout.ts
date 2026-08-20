@@ -1,10 +1,5 @@
-import {
-	createContext,
-	isTaskCancellation,
-	markExactComponent,
-	type Child,
-	type Component
-} from '@exactjs/core';
+import { createContext, isTaskCancellation, type Child, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { LayoutGroupProps, MotionElementProps, MotionPlayback } from './contracts.js';
 import { defaultMotionSettings, MotionContext } from './context.js';
 import { animateInFrame, resolveMotionEffect } from './playback.js';

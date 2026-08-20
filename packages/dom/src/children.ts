@@ -1,11 +1,5 @@
-import {
-	createTextVNode,
-	isCellVNode,
-	isVNode,
-	type Child,
-	type ListBinding,
-	type VNode
-} from '@exactjs/core';
+import { createTextVNode, isVNode, type Child, type ListBinding, type VNode } from '@exactjs/core';
+import { isCellVNode } from '@exactjs/core/runtime/render';
 import { peek } from '@exactjs/reactive';
 import { getOwnedCellVNode } from './cells.js';
 import type { Mounted } from './types.js';

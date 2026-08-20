@@ -1,5 +1,5 @@
 import { render, unmount } from '@exactjs/dom';
-import { createCompiledComponentVNode } from '@exactjs/core';
+import { createCompiledComponentVNode } from '@exactjs/core/runtime/render';
 import {
 	batch,
 	createEffectScope,

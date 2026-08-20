@@ -1,7 +1,6 @@
 import type {
 	ComponentDomain,
 	ComponentResumptionActivation,
-	ExactComponentContinuationContract,
 	ExactRuntimeInspectionOwner,
 	ComponentFunction,
 	ExactComponentAuthorizationIdentity,
@@ -9,6 +8,7 @@ import type {
 	Logger,
 	UnsafeHtmlAuditEvent
 } from '@exactjs/core';
+import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type {
 	ExactInvocationKind,
@@ -18,7 +18,7 @@ import type {
 	ExactPartitionAuthority,
 	ExactPartitionDiscriminator,
 	ExactPatch
-} from '@exactjs/server';
+} from '@exactjs/core/framework/operation-protocol';
 
 /** Configures hydrate. */
 export type HydrateOptions = {

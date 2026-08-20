@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { createExpression, createRef, type Component } from '@exactjs/core';
+import { createRef, type Component } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import {

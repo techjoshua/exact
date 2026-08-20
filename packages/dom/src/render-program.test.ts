@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { createCompiledVNode } from '@exactjs/core';
+import { createCompiledVNode } from '@exactjs/core/runtime/render';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { expect, it } from 'vitest';

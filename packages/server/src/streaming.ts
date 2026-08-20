@@ -37,20 +37,26 @@ export function streamExactResponse(
 	const streamRequest = { ...request, signal: linked.signal };
 	const stream = createNdjsonStream(
 		async (emit) => {
-			await emit({ event: 'start', version: 1, operations: operations.length });
-			if (input.type === 'batch') {
-				await dispatchExactBatchStreaming(
-					streamRequest,
-					input.operations,
-					context,
-					dispatch,
-					(index, result) => emitOperationStreamEvents(emit, index, result)
-				);
-			} else {
-				const result = await dispatch(streamRequest, input, context);
-				await emitOperationStreamEvents(emit, 0, result);
+			try {
+				await emit({ event: 'start', version: 1, operations: operations.length });
+				if (input.type === 'batch') {
+					await dispatchExactBatchStreaming(
+						streamRequest,
+						input.operations,
+						context,
+						dispatch,
+						(index, result) => emitOperationStreamEvents(emit, index, result)
+					);
+				} else {
+					const result = await dispatch(streamRequest, input, context);
+					await emitOperationStreamEvents(emit, 0, result);
+				}
+				const observations = context.requestDebugRuntime?.drain();
+				if (observations?.length) await emit({ event: 'observations', version: 1, observations });
+				await emit({ event: 'complete', version: 1 });
+			} finally {
+				context.requestDebugRuntime?.dispose();
 			}
-			await emit({ event: 'complete', version: 1 });
 		},
 		linked.signal,
 		(reason) => operationAbort.abort(reason),
@@ -282,9 +288,13 @@ function createNdjsonStream(
 			start(controller) {
 				const emit = async (event: ExactStreamEvent): Promise<void> => {
 					const chunk = encoder.encode(`${JSON.stringify(encodeReactiveProtocolValue(event))}\n`);
-					if (++events > maxEvents) throw new Error('eXact stream event limit exceeded');
+					if (events + 1 > maxEvents || bytes + chunk.byteLength > maxBytes) {
+						if (event.event === 'observations') return;
+						if (events + 1 > maxEvents) throw new Error('eXact stream event limit exceeded');
+						throw new Error('eXact stream byte limit exceeded');
+					}
+					events++;
 					bytes += chunk.byteLength;
-					if (bytes > maxBytes) throw new Error('eXact stream byte limit exceeded');
 					while (active && demand <= 0) {
 						await new Promise<void>((resolve) => {
 							resume = resolve;

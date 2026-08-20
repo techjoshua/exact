@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createProfileCollector, summarizeProfile, type ExactProfileEvent } from './index.js';
+import {
+	createProfileCollector,
+	publishExactProfile,
+	summarizeProfile,
+	type ExactProfileEvent
+} from './index.js';
 
 describe('@exactjs/instrumentation', () => {
 	it('collects immutable snapshots and clears without global state', () => {
@@ -34,5 +39,16 @@ describe('@exactjs/instrumentation', () => {
 			{ subsystem: 'dom', phase: 'render', elapsedMs: 5, events: 2 },
 			{ subsystem: 'ssr', phase: 'render', elapsedMs: 1, events: 1 }
 		]);
+	});
+
+	it('contains sink failures because profiling is observational', () => {
+		expect(() =>
+			publishExactProfile(
+				() => {
+					throw new Error('profiler failed');
+				},
+				{ subsystem: 'dom', phase: 'render', elapsedMs: 1 }
+			)
+		).not.toThrow();
 	});
 });

@@ -1,13 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createErrorContext,
-	createExpression,
-	createVNode,
-	isExactComponent,
-	type ComponentFunction
-} from '@exactjs/core';
+import { createErrorContext, createVNode, type ComponentFunction } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
+import { isExactComponent } from '@exactjs/core/framework/component-contracts';
 import { render } from '@exactjs/dom';
 import {
 	createRequestContextValue,

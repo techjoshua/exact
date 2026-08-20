@@ -7,6 +7,7 @@ import {
 	unsafeExactHtml
 } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';
+import { isInvocationResultSafe } from './validation.js';
 
 describe('@exactjs/server security-validation', () => {
 	it('requires business-payload validation for manual operations', async () => {
@@ -408,6 +409,15 @@ describe('@exactjs/server security-validation', () => {
 
 		expect(undefinedStatePatch.status).toBe(500);
 		expect(JSON.parse(undefinedStatePatch.body)).toEqual({ error: 'internal_error' });
+	});
+
+	it('rejects property patches that can execute code or replace owned DOM structure', () => {
+		for (const name of ['innerHTML', 'outerHTML', 'textContent', 'onclick', 'srcdoc', '__proto__'])
+			expect(
+				isInvocationResultSafe({
+					patches: [{ type: 'prop', id: 'panel', name, value: 'untrusted' }]
+				})
+			).toBe(false);
 	});
 
 	it('rejects invocation results and patches with unknown protocol fields', async () => {

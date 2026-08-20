@@ -6,11 +6,11 @@ import {
 	createContext,
 	createExactRuntimeInspectionOwner,
 	currentComponentDomain,
-	markExactComponent,
 	Target,
 	withComponentDomain,
 	type Component
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { describe, expect, it, vi } from 'vitest';

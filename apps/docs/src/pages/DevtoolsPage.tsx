@@ -70,9 +70,9 @@ export function DevtoolsPage(this: Component<{}>) {
 					keep catalog assets in their server output and outside public client graphs.
 				</p>
 				<p>
-					Ordinary endpoint traffic does not construct the debug runtime or decode catalogs.
-					Session, catalog, event-buffer, and observation ownership is allocated lazily only after a
-					valid debug message.
+					While DevTools is attached, each server response carries only the observations produced by
+					that request. Browser DevTools combines those responses into its bounded timeline; the
+					server does not retain cross-request history.
 				</p>
 				<p>
 					Constructing an inspection owner activates task-frame snapshots, bounded history, value
@@ -110,8 +110,9 @@ export function DevtoolsPage(this: Component<{}>) {
 					credentials are never copied to the component host.
 				</p>
 				<p>
-					Page and remote timelines retain independent cursors, so reconnecting one producer does
-					not duplicate or reorder another producer's records.
+					Remote observations return with the operation response after independent authorization.
+					The browser merges them into the page timeline without creating a server-side remote
+					history.
 				</p>
 			</section>
 			<section>

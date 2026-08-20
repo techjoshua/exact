@@ -4,8 +4,30 @@ import type {
 } from '@exactjs/language-extension-api';
 import { describe, expect, it } from 'vitest';
 import { createExactLanguageAnalyzer } from './language.js';
+import { accessibilityHover } from './language/analysis.js';
 
 describe('@exactjs/accessibility language analyzer', () => {
+	it('selects the innermost JSX owner for nested hover positions', () => {
+		const document = projection({
+			text: '<main><div role="tree" a11y:navigate /></main>',
+			jsx: [element('main', 0, 49, []), element('div', 6, 42, [attribute('role', 'tree', 11, 22)])],
+			enhancements: [
+				{
+					id: 'a1',
+					namespace: 'a11y',
+					activator: 'navigate',
+					range: { start: 23, end: 37 },
+					nameRange: { start: 23, end: 37 },
+					package: { name: '@exactjs/accessibility' },
+					targetJsxId: 'jsx-6',
+					application: 'direct'
+				}
+			]
+		});
+
+		expect(accessibilityHover(document, 30)?.markdown).toContain('a11y:navigate');
+	});
+
 	it('reports finite ARIA, naming, focus-order, ID, and navigation failures', async () => {
 		const analyzer = await createExactLanguageAnalyzer(context());
 		const diagnostics = await analyzer.diagnostics(

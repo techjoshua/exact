@@ -1,13 +1,13 @@
 import {
 	createErrorContext,
 	ErrorContext,
-	markExactComponent,
 	type Component,
 	type ComponentFunction,
 	type ErrorContextValue,
 	type ErrorReport,
 	type VNode
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createDefaultErrorView } from '@exactjs/core/framework/error-view';
 import { namespaceForTag } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';

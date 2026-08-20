@@ -17,6 +17,7 @@ import type {
 	ExactRequestLike,
 	ExactResponseLike,
 	ExactServerContext,
+	ExactServerRequestDebugRuntime,
 	ServerProfileEvent
 } from '../types.js';
 import type { ExactRemoteBuildRegistration } from '../remote-build-contracts.js';
@@ -73,6 +74,7 @@ export {
 	exactServerDebugRuntime,
 	registerExactInspectionCatalog
 } from '../debug/runtime.js';
+import { publishExactProfile } from '@exactjs/instrumentation';
 export type * from '../types.js';
 export type * from '../payload-decoding.js';
 export type * from '../remote-build-contracts.js';
@@ -88,7 +90,8 @@ export async function handleExactRequest(
 		return await handleExactRequestOwned(request, context, context);
 	} finally {
 		if (profileStarted !== undefined) {
-			context.onProfile?.(
+			publishExactProfile(
+				context.onProfile,
 				Object.freeze({
 					subsystem: 'server',
 					phase: 'request',
@@ -163,7 +166,10 @@ async function handleExactRequestOwned(
 		}
 		if (input.type === 'debug' && !(await debugRuntime!.authorize(request, input)))
 			return jsonResponse(404, { error: 'not_found' });
-		return context.gateway.forward(request, input, context);
+		return context.gateway.forward(request, input, {
+			...context,
+			debugRuntime: debugOwnerContext.debugRuntime ?? exactServerDebugRuntime(debugOwnerContext)
+		});
 	}
 
 	if (input.type === 'debug') return debugRuntime!.handle(request, input);
@@ -178,7 +184,11 @@ async function handleExactRequestOwned(
 		requestHeader(request, 'x-exact-component-authorization') !== componentAuthorization.fingerprint
 	)
 		return withBuildHeaders(jsonResponse(410, { error: 'exact_build_unsupported' }), context);
-	const responseContext = context;
+	const debugSessionId = requestHeader(request, 'x-exact-debug-session');
+	const requestDebugRuntime = debugSessionId
+		? await exactServerDebugRuntime(debugOwnerContext).createRequestRuntime(request, debugSessionId)
+		: undefined;
+	const responseContext = requestDebugRuntime ? { ...context, requestDebugRuntime } : context;
 	const dispatch = build
 		? (
 				operationRequest: ExactRequestLike,
@@ -200,21 +210,68 @@ async function handleExactRequestOwned(
 	}
 
 	if (input.type === 'batch') {
-		const results = await dispatchExactBatch(request, input.operations, responseContext, dispatch);
-		return withBuildHeaders(
-			limitedJsonResponse(responseContext, 200, {
-				ok: true,
-				version: 1,
-				results
-			} satisfies ExactBatchResult),
-			context
-		);
+		try {
+			const results = await dispatchExactBatch(
+				request,
+				input.operations,
+				responseContext,
+				dispatch
+			);
+			return withBuildHeaders(
+				withRequestObservations(
+					limitedJsonResponse(responseContext, 200, {
+						ok: true,
+						version: 1,
+						results
+					} satisfies ExactBatchResult),
+					requestDebugRuntime,
+					responseContext
+				),
+				context
+			);
+		} catch (error) {
+			requestDebugRuntime?.dispose();
+			throw error;
+		}
 	}
 
-	const result = await dispatch(request, input, responseContext);
-	if (isOperationError(result))
-		return withBuildHeaders(jsonResponse(result.status, { error: result.error }), context);
-	return withBuildHeaders(limitedJsonResponse(responseContext, 200, result), context);
+	try {
+		const result = await dispatch(request, input, responseContext);
+		const response = isOperationError(result)
+			? jsonResponse(result.status, { error: result.error })
+			: limitedJsonResponse(responseContext, 200, result);
+		return withBuildHeaders(
+			withRequestObservations(response, requestDebugRuntime, responseContext),
+			context
+		);
+	} catch (error) {
+		requestDebugRuntime?.dispose();
+		throw error;
+	}
+}
+
+function withRequestObservations(
+	response: ExactResponseLike,
+	runtime: ExactServerRequestDebugRuntime | undefined,
+	context: ExactServerContext
+): ExactResponseLike {
+	if (!runtime) return response;
+	try {
+		const observations = [...runtime.drain()];
+		if (!observations.length) return response;
+		const body = JSON.parse(response.body) as Record<string, unknown>;
+		body.__exactObservations = observations;
+		const maximum = context.limits?.maxResponseBytes ?? 16 * 1024 * 1024;
+		let encoded = JSON.stringify(body);
+		while (new TextEncoder().encode(encoded).byteLength > maximum && observations.length) {
+			observations.shift();
+			encoded = JSON.stringify(body);
+		}
+		if (!observations.length) return response;
+		return { ...response, body: encoded };
+	} finally {
+		runtime.dispose();
+	}
 }
 
 function resolveRemoteBuild(

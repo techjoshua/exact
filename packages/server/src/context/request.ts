@@ -1,9 +1,9 @@
 import { type RequestResponseState } from '@exactjs/request';
 import type {
+	ExactContextRuntimeConfiguration,
 	ExactContextRuntime,
 	ExactRequestLike,
-	ExactServerContext,
-	ExactServerContextConfiguration
+	ExactServerContext
 } from '../types.js';
 import { exactResponseBodyOf } from '../response-body.js';
 import {
@@ -51,7 +51,7 @@ export const contextRuntimes = new WeakMap<ExactServerContext, ExactContextRunti
 
 /** Creates an exact context runtime. */
 export function createExactContextRuntime(
-	configuration: ExactServerContextConfiguration = {}
+	configuration: ExactContextRuntimeConfiguration = {}
 ): ExactContextRuntime {
 	return new ContextRuntime(configuration);
 }

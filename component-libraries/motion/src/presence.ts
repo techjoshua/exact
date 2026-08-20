@@ -2,12 +2,12 @@ import {
 	createContext,
 	createVNode,
 	isVNode,
-	markExactComponent,
 	watch,
 	type Child,
 	type Component,
 	type VNode
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { PresenceProps } from './contracts.js';
 import type { MotionPlayback } from './contracts.js';
 import { acquireSemanticAbsence, releaseSemanticAbsence } from './semantics.js';

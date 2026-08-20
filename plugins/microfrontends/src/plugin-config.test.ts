@@ -60,6 +60,7 @@ describe('microfrontends build configuration', () => {
 				billing: {
 					endpoint: 'https://server.example.test/billing',
 					clientEntry: 'https://cdn.example.test/billing.js',
+					integrity: 'sha384-YWJj',
 					clientEntryResolver: './resolve-billing.js'
 				}
 			},
@@ -78,6 +79,7 @@ describe('microfrontends build configuration', () => {
 					'billing',
 					{
 						clientEntry: 'https://cdn.example.test/billing.js',
+						integrity: 'sha384-YWJj',
 						clientEntryResolver: './resolve-billing.js'
 					}
 				]
@@ -90,6 +92,7 @@ describe('microfrontends build configuration', () => {
 			bindings: {
 				billing: {
 					clientEntry: 'https://cdn.example.test/billing.js',
+					integrity: 'sha384-YWJj',
 					clientEntryResolver: './resolve-billing.js'
 				}
 			}
@@ -143,6 +146,15 @@ describe('microfrontends build configuration', () => {
 						'billing',
 						{ clientEntry: 'https://cdn.example.test/billing.js', clientEntryResolver: '' }
 					]
+				]
+			})
+		).toThrow('Invalid microfrontends build configuration');
+		expect(() =>
+			readExactMicrofrontendBuildConfig({
+				exposes: [],
+				providedPackages: [],
+				remoteBindings: [
+					['billing', { clientEntry: 'https://cdn.example.test/billing.js', integrity: 'md5-nope' }]
 				]
 			})
 		).toThrow('Invalid microfrontends build configuration');
