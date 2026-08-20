@@ -8,6 +8,10 @@ Transport-neutral server runtime for eXact operations, refreshes, patches, and s
 authorization, CSRF policy, payload limits, batching, cancellation, and response shape. Platform
 adapters translate their native request objects into this shared runtime.
 
+Fetch-compatible adapters pass the native request stream through to the runtime. The runtime
+enforces `limits.maxRequestBytes` while reading and cancels the stream on overflow, so an oversized
+body is rejected before it can be fully buffered.
+
 Most applications compose a runtime through `@exactjs/ssr` and connect it with the adapter for
 Fetch, Node, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, or a serverless host.
 
