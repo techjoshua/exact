@@ -51,6 +51,14 @@ const runtime = createExactServerRuntime({
 });
 ```
 
+`createExactServerRuntime()` is the composition boundary for the complete server
+policy. Flat runtime options are normalized once and forwarded to their owning
+subsystems: context lifetime options configure request/application context,
+render options configure SSR, and authorization, decoding, partition, retained
+build, gateway, and resource-limit options configure operation dispatch. The
+runtime also forwards `componentAuthorization` into every hydratable render so
+the document and operation endpoints advertise the same build identity.
+
 eXact never treats `Host` or `X-Forwarded-Proto` as deployment authority. A
 multi-tenant application may supply a `publicOrigin(request)` resolver that
 uses `request.platformRequest` after the host adapter has applied its trusted
@@ -69,6 +77,11 @@ eXact propagates that signal through:
 - Initial rendering and task stabilization.
 - Invocations, refreshes, batches, and response streams.
 - Provider and request-scope disposal.
+
+An explicit per-render signal narrows the request lifetime; it does not replace
+it. Rendering stops when either the host request or the explicit signal aborts.
+The runtime shutdown signal is likewise combined with the incoming request
+signal before handlers execute, so disposal cancels work already in flight.
 
 Request resources remain alive until a non-stream response finishes or a genuinely
 producer-backed stream closes, errors, or is cancelled. A settled buffered SSR

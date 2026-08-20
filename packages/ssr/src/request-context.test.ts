@@ -138,6 +138,16 @@ describe('@exactjs/ssr request-context', () => {
 		await runtime.dispose?.();
 	});
 
+	it('projects dispatch limits through the high-level server runtime', async () => {
+		const runtime = createExactServerRuntime({
+			contract: { version: 1, invocations: {}, boundaries: {} },
+			limits: { maxRequestBytes: 1024, maxBatchOperations: 4 }
+		});
+
+		expect(runtime.limits).toEqual({ maxRequestBytes: 1024, maxBatchOperations: 4 });
+		await runtime.dispose?.();
+	});
+
 	it('aborts active operations when the high-level runtime closes', async () => {
 		const requestAbort = new AbortController();
 		let started!: () => void;

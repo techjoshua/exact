@@ -6,10 +6,10 @@ import {
 } from '@exactjs/request';
 import type {
 	ExactContextFactoryContext,
+	ExactContextRuntimeConfiguration,
 	ExactContextRuntime,
 	ExactContextScope,
-	ExactRequestLike,
-	ExactServerContextConfiguration
+	ExactRequestLike
 } from '../types.js';
 import { createRequestLifetime } from './request.js';
 import { abortReason, applyOverrides, awaitWithAbort, headerValue } from './response.js';
@@ -23,7 +23,7 @@ export class ContextRuntime implements ExactContextRuntime {
 	private initializing?: Promise<ContextScope>;
 	private disposed = false;
 
-	constructor(private readonly configuration: ExactServerContextConfiguration) {}
+	constructor(private readonly configuration: ExactContextRuntimeConfiguration) {}
 
 	/** Performs the open domain operation for this context runtime instance. */
 	async open(

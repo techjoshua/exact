@@ -37,7 +37,9 @@ import {
 	streamDocumentRender
 } from './async-rendering.js';
 import { createSsrContext } from './context.js';
+import { hydrationScriptOptions } from './hydration-options.js';
 import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
+import { renderSignal } from './signals.js';
 import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderVNode, renderVNodeChunks } from './sync-tree.js';
@@ -129,26 +131,9 @@ export function renderToHydratableString(
 	const result = renderToString(vnode, capture.options);
 	const resumptions = capture.records();
 	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
-	const hydrationScript = renderHydrationScript({
-		pluginRegistryFingerprint: options.pluginRegistryFingerprint,
-		endpoint: options.endpoint,
-		endpoints: options.endpoints,
-		state: result.state,
-		continuations: options.continuations,
-		resumptions: emittedResumptions,
-		publicContexts: options.publicContexts,
-		wallClockSnapshot: result.wallClockSnapshot,
-		hydrationTable: result.hydrationTable,
-		executionRoot: options.executionRoot,
-		binding: options.binding,
-		buildKey: options.buildKey,
-		scriptId: options.scriptId,
-		nonce: options.nonce,
-		maxHydrationDepth: options.maxHydrationDepth,
-		maxHydrationNodes: options.maxHydrationNodes,
-		maxHydrationBytes: options.maxHydrationBytes,
-		outputExtensions: options.outputExtensions
-	});
+	const hydrationScript = renderHydrationScript(
+		hydrationScriptOptions(options, result, emittedResumptions)
+	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
 
@@ -287,7 +272,7 @@ export async function renderExactRequestToHtmlResponse(
 				...options,
 				...requestInspectionOptions(server, context, options),
 				contexts: context.contexts?.componentValues,
-				signal: options.signal ?? context.signal
+				signal: renderSignal(context.signal, options.signal)
 			};
 			let body: string;
 			let preloadLinks: readonly string[] | undefined;
@@ -332,7 +317,7 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 				...options,
 				...requestInspectionOptions(server, context, options),
 				contexts: context.contexts?.componentValues,
-				signal: options.signal ?? context.signal
+				signal: renderSignal(context.signal, options.signal)
 			};
 			// A response's status, headers, and authored head are committed before its
 			// body is consumed. Conservatively settle the root before returning the
