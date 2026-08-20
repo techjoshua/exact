@@ -16,6 +16,7 @@ import {
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import '@exactjs/dom/unsafe-html';
 import {
 	createCompiledDynamicComponent,
@@ -31,6 +32,42 @@ import { hydrate as hydrateEnhanced } from './enhanced.js';
 import { noopLogger } from './test-support/responses.js';
 
 describe('@exactjs/hydrate adoption', () => {
+	it('retries an identical vnode after a partially applied hydrated patch fails', () => {
+		const container = document.createElement('div');
+		container.innerHTML = '<section><span>before</span></section>';
+		const domain = createFrameworkComponentDomain({ executionRoot: 'retry-test' });
+		hydrate(
+			{ ...createVNode('section', null, createVNode('span', null, 'before')), domain },
+			container,
+			{
+				logger: noopLogger
+			}
+		);
+		const next = {
+			...createVNode('section', null, createVNode('span', null, 'after')),
+			domain
+		};
+		const children = next.children;
+		let reject = true;
+		let reads = 0;
+		Object.defineProperty(next, 'children', {
+			configurable: true,
+			get() {
+				reads++;
+				if (reject) throw new Error('transient child read failure');
+				return children;
+			}
+		});
+
+		render(next, container);
+		expect(reads).toBeGreaterThan(0);
+		expect(container.textContent).not.toBe('after');
+		reject = false;
+		render(next, container);
+
+		expect(container.textContent).toBe('after');
+	});
+
 	it('claims the deterministic progressive helper when the root hydrates', () => {
 		const root = document.createElement('div');
 		root.id = 'page';

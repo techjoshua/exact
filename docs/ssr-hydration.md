@@ -78,7 +78,10 @@ transitions; components without transitions skip continuation-frame allocation e
 
 Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
-ranges, and component ownership.
+ranges, and component ownership. If a client patch throws after partially changing DOM, the root
+keeps the last committed input and forces the next render through reconciliation even when the
+caller retries the same VNode object; partially advanced renderer metadata cannot make that retry
+an identity no-op.
 
 Compiler-cell roots adopt their existing cell range directly; they do not pass through static-tree
 repair or clear the root container. Compiler-proven native component calls use the component's own
