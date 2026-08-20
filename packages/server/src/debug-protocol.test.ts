@@ -264,6 +264,34 @@ describe('server-cooperative debug protocol', () => {
 		expect(responseJson(ordinary)).not.toHaveProperty('__exactObservations');
 	});
 
+	it('fits the newest request observations within the response byte ceiling', async () => {
+		const maximum = 700;
+		const context = server({
+			allowDebug: true,
+			limits: { maxResponseBytes: maximum },
+			invocations: { 'component:Page:task:save': () => ({}) }
+		});
+		const opened = await handleExactRequest(debugOpen(), context);
+		const sessionId = responseJson(opened).session.id as string;
+		const response = await handleExactRequest(
+			{
+				method: 'POST',
+				url: '/__exact',
+				headers: { 'x-exact-debug-session': sessionId },
+				body: {
+					type: 'invoke',
+					id: 'component:Page:task:save',
+					opId: 'operation-with-a-long-stable-name'
+				}
+			},
+			context
+		);
+		const observations = responseJson(response).__exactObservations as Array<{ kind: string }>;
+
+		expect(new TextEncoder().encode(response.body).byteLength).toBeLessThanOrEqual(maximum);
+		expect(observations.at(-1)?.kind).toBe('task.settle');
+	});
+
 	it('rejects cross-origin debug requests before authorization', async () => {
 		const allowDebug = vi.fn(() => true);
 		const response = await handleExactRequest(
