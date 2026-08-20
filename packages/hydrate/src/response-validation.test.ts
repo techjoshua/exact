@@ -93,6 +93,35 @@ describe('@exactjs/hydrate response-validation', () => {
 		).rejects.toThrow('exceeded maxEvents');
 	});
 
+	it('cancels a non-streaming response as soon as its byte ceiling is exceeded', async () => {
+		let cancelled = false;
+		const body = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				controller.enqueue(new Uint8Array(9));
+			},
+			cancel() {
+				cancelled = true;
+			}
+		});
+		await expect(
+			invokeExact({
+				endpoint: '/__exact',
+				type: 'invoke',
+				id: 'save',
+				streamLimits: { maxBytes: 16 },
+				fetch: async () => ({
+					ok: true,
+					status: 200,
+					body,
+					async json() {
+						throw new Error('json should not be read');
+					}
+				})
+			})
+		).rejects.toThrow('exceeded maxBytes');
+		expect(cancelled).toBe(true);
+	});
+
 	it('rejects stream chunks emitted after an operation result', async () => {
 		await expect(
 			invokeExact({
