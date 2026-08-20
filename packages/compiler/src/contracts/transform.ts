@@ -122,7 +122,10 @@ export type ExactJsxInterop = {
 	classify(candidate: ExactJsxInteropCandidate): 'exact' | 'component' | 'unknown' | 'ambiguous';
 };
 
-/** Host-neutral final module pass applied after eXact lowering and before maps. */
+/**
+ * Host-neutral final module pass applied after eXact lowering.
+ * A pass that changes code must return a version 3 map when source maps are requested.
+ */
 export type ModuleTransform = (
 	input: Readonly<{
 		id: string;

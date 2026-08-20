@@ -29,6 +29,12 @@ Language sessions are permanently `noEmit: true`: they never write JavaScript,
 target artifacts, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
+
+Build source maps preserve the native compiler map through later framework prefixes by composing
+an exact generated-to-compiled suffix map. Host `moduleTransform` callbacks must return a version
+3 map whenever they change code with source maps enabled; an unmapped rewrite is rejected rather
+than approximated line-for-line. Vite, Webpack, and Bun recovery paths use token-position mappings
+and leave generated-only regions unmapped.
 Native protocol 1.34 and generated component-contract version 2 carry the normalized recursive
 partition plan, including ordinary enhancement-component owners, structural templates,
 crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains

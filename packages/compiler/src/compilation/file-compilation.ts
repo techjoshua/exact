@@ -2,7 +2,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { collectInputFiles, commonRoot, outputPathFor } from '../paths.js';
 import {
-	createLineSourceMap,
+	composeExactSourceMaps,
+	createGeneratedSuffixSourceMap,
 	sourceMapPathFor,
 	withSourceMapFile,
 	withSourceMappingUrl
@@ -86,7 +87,10 @@ async function prepareFile(
 		code: executable,
 		map:
 			result.map && executable !== result.code
-				? createLineSourceMap(options.filename ?? inputFile, source, executable)
+				? composeExactSourceMaps(
+						createGeneratedSuffixSourceMap(result.filename, result.code, executable),
+						result.map
+					)
 				: result.map,
 		source,
 		inputFile,

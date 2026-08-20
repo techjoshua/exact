@@ -1,4 +1,4 @@
-import { createLineSourceMap, type TransformTarget } from '@exactjs/compiler';
+import { createTokenSourceMap, type TransformTarget } from '@exactjs/compiler';
 import type { ReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
 import type { ResolvedReactCompatibility } from '@exactjs/react-compat/plugin';
 
@@ -20,7 +20,7 @@ export function rewriteWithCompatibility(
 	});
 	return {
 		code: rewritten.code,
-		map: sourceMap === false ? null : createLineSourceMap(id, original, rewritten.code)
+		map: sourceMap === false ? null : createTokenSourceMap(id, original, rewritten.code)
 	};
 }
 

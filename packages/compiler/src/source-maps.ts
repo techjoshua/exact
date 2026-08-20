@@ -21,23 +21,25 @@ export function isExactSourceMap(value: unknown): value is ExactSourceMap {
 	);
 }
 
-/** Creates a conservative line-to-line source map without loading a JavaScript compiler. */
-export function createLineSourceMap(
+/** Maps an unchanged generated suffix back to the exact code that preceded it. */
+export function createGeneratedSuffixSourceMap(
 	filename: string,
 	source: string,
 	generated: string
 ): ExactSourceMap {
-	const sourceLines = Math.max(1, source.split(/\r\n|\r|\n/).length);
-	const generatedLines = Math.max(1, generated.split(/\r\n|\r|\n/).length);
-	let previousSourceLine = 0;
-	const mappings: string[] = [];
-	for (let line = 0; line < generatedLines; line++) {
-		const sourceLine = Math.min(line, sourceLines - 1);
-		mappings.push(`AA${encodeVlq(sourceLine - previousSourceLine)}A`);
-		previousSourceLine = sourceLine;
+	if (!generated.endsWith(source)) {
+		throw new Error(`Generated output does not retain ${filename} as an unchanged suffix`);
 	}
-	// The first segment has no previous source position.
-	mappings[0] = 'AAAA';
+	const prefix = generated.slice(0, generated.length - source.length);
+	if (prefix.length && !prefix.endsWith('\n') && !prefix.endsWith('\r')) {
+		throw new Error(`Generated prefix for ${filename} must end at a line boundary`);
+	}
+	const prefixLines = prefix.length ? prefix.split(/\r\n|\r|\n/).length - 1 : 0;
+	const sourceLines = Math.max(1, source.split(/\r\n|\r|\n/).length);
+	const mappings = Array.from({ length: prefixLines }, () => '');
+	for (let line = 0; line < sourceLines; line++) {
+		mappings.push(line === 0 ? 'AAAA' : 'AACA');
+	}
 	return {
 		version: 3,
 		sources: [filename],
@@ -46,6 +48,51 @@ export function createLineSourceMap(
 		mappings: mappings.join(';')
 	};
 }
+
+/** Creates token-position mappings while leaving generated-only regions unmapped. */
+export function createTokenSourceMap(
+	filename: string,
+	source: string,
+	generated: string
+): ExactSourceMap {
+	const originals = scanSourceTokens(source);
+	const generatedTokens = scanSourceTokens(generated);
+	const segments = new Map<
+		number,
+		Array<{ column: number; sourceLine: number; sourceColumn: number }>
+	>();
+	let sourceCursor = 0;
+	for (const token of generatedTokens) {
+		let match = -1;
+		const limit = Math.min(originals.length, sourceCursor + 256);
+		for (let index = sourceCursor; index < limit; index++) {
+			if (originals[index]!.text === token.text) {
+				match = index;
+				break;
+			}
+		}
+		if (match < 0) continue;
+		const original = originals[match]!;
+		sourceCursor = match + 1;
+		let line = segments.get(token.line);
+		if (!line) segments.set(token.line, (line = []));
+		line.push({
+			column: token.column,
+			sourceLine: original.line,
+			sourceColumn: original.column
+		});
+	}
+	return {
+		version: 3,
+		sources: [filename],
+		sourcesContent: [source],
+		names: [],
+		mappings: encodeTokenMappings(lineCount(generated), segments)
+	};
+}
+
+/** @deprecated Use createTokenSourceMap; retained for adapter source compatibility. */
+export const createLineSourceMap = createTokenSourceMap;
 
 /** Returns the source map file path for an emitted output file. */
 export function sourceMapPathFor(outputFile: string): string {
@@ -61,6 +108,90 @@ export function withSourceMappingUrl(code: string, mapFileName: string): string 
 /** Adds or replaces the file field on a source map object. */
 export function withSourceMapFile(map: ExactSourceMap, file: string): ExactSourceMap {
 	return { ...map, file };
+}
+
+type SourceToken = Readonly<{ text: string; line: number; column: number }>;
+
+function scanSourceTokens(source: string): SourceToken[] {
+	const tokens: SourceToken[] = [];
+	let offset = 0;
+	let line = 0;
+	let column = 0;
+	while (offset < source.length) {
+		const startLine = line;
+		const startColumn = column;
+		const rest = source.slice(offset);
+		const trivia = /^(?:\s+|\/\/[^\r\n]*(?:\r\n|\r|\n|$)|\/\*[\s\S]*?\*\/)/.exec(rest);
+		if (trivia) {
+			({ offset, line, column } = advancePosition(trivia[0], offset, line, column));
+			continue;
+		}
+		const token =
+			/^(?:[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*|(?:0[xob])?[\da-f]+(?:[._][\da-z]+)*(?:e[+-]?\d+)?n?|"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|`(?:\\.|[^`\\])*`|===|!==|>>>|\*\*|=>|==|!=|<=|>=|&&|\|\||\?\?|\?\.|\+\+|--|<<|>>|\+=|-=|\*=|\/=|%=|&=|\|=|\^=|\.\.\.|.)/iu.exec(
+				rest
+			)?.[0];
+		if (!token) break;
+		tokens.push({ text: token, line: startLine, column: startColumn });
+		({ offset, line, column } = advancePosition(token, offset, line, column));
+	}
+	return tokens;
+}
+
+function advancePosition(
+	value: string,
+	offset: number,
+	line: number,
+	column: number
+): { offset: number; line: number; column: number } {
+	for (let index = 0; index < value.length; index++) {
+		const character = value[index]!;
+		if (character === '\r') {
+			if (value[index + 1] === '\n') index++;
+			line++;
+			column = 0;
+		} else if (character === '\n') {
+			line++;
+			column = 0;
+		} else {
+			column++;
+		}
+	}
+	return { offset: offset + value.length, line, column };
+}
+
+function encodeTokenMappings(
+	generatedLines: number,
+	segments: ReadonlyMap<
+		number,
+		readonly { column: number; sourceLine: number; sourceColumn: number }[]
+	>
+): string {
+	let previousSourceLine = 0;
+	let previousSourceColumn = 0;
+	const lines: string[] = [];
+	for (let line = 0; line < generatedLines; line++) {
+		let previousGeneratedColumn = 0;
+		lines.push(
+			(segments.get(line) ?? [])
+				.map((segment) => {
+					const encoded =
+						encodeVlq(segment.column - previousGeneratedColumn) +
+						encodeVlq(0) +
+						encodeVlq(segment.sourceLine - previousSourceLine) +
+						encodeVlq(segment.sourceColumn - previousSourceColumn);
+					previousGeneratedColumn = segment.column;
+					previousSourceLine = segment.sourceLine;
+					previousSourceColumn = segment.sourceColumn;
+					return encoded;
+				})
+				.join(',')
+		);
+	}
+	return lines.join(';');
+}
+
+function lineCount(value: string): number {
+	return value.length ? value.split(/\r\n|\r|\n/).length : 1;
 }
 
 const base64Digits = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';

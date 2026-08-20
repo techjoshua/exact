@@ -1,6 +1,6 @@
 import { capabilityCompilationOptions } from '../compilation/capability-options.js';
 import { createExactCompilerExplanation } from '../explanation.js';
-import { composeExactSourceMaps, createLineSourceMap, isExactSourceMap } from '../source-maps.js';
+import { composeExactSourceMaps, isExactSourceMap } from '../source-maps.js';
 import { createExactSourceInspection } from '../language-tools/source-inspection.js';
 import {
 	appendExactRuntimeInspectionRegistration,
@@ -111,17 +111,19 @@ export function transformSourceWithNativeCompiler(
 	const transformed = options.moduleTransform?.({ id: filename, source: instrumented, target });
 	const output = transformed?.code ?? instrumented;
 	const transformedMap = isExactSourceMap(transformed?.map) ? transformed.map : null;
-	const nativeMap =
-		options.sourceMap && (!transformed || transformedMap)
-			? nativeSourceMap(response.sourceMap, filename, normalized)
-			: null;
+	const nativeMap = options.sourceMap
+		? nativeSourceMap(response.sourceMap, filename, normalized)
+		: null;
+	if (options.sourceMap && transformed && output !== instrumented && !transformedMap) {
+		throw new Error(
+			`moduleTransform changed ${filename} without returning a valid version 3 source map`
+		);
+	}
 	return {
 		code: output,
 		map: options.sourceMap
-			? transformed
-				? transformedMap && nativeMap
-					? composeExactSourceMaps(transformedMap, nativeMap)
-					: createLineSourceMap(filename, normalized, output)
+			? transformedMap && nativeMap
+				? composeExactSourceMaps(transformedMap, nativeMap)
 				: nativeMap
 			: null,
 		filename,

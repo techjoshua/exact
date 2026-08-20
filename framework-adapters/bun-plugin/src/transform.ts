@@ -1,5 +1,5 @@
 import {
-	createLineSourceMap,
+	createTokenSourceMap,
 	type ExactCompilerSession,
 	type ExactComponentBuildFacts,
 	type ExactSourceInspection
@@ -52,7 +52,7 @@ export function transformExactBunSource(
 					map:
 						options.sourceMap === false
 							? null
-							: createLineSourceMap(filename, source, reachedPublication.code)
+							: createTokenSourceMap(filename, source, reachedPublication.code)
 				}
 			: null;
 	let componentBuild: ExactComponentBuildFacts | undefined;
@@ -124,7 +124,7 @@ export function transformExactBunSource(
 						: enhanced;
 				return {
 					code,
-					map: options.sourceMap === false ? null : createLineSourceMap(filename, source, code)
+					map: options.sourceMap === false ? null : createTokenSourceMap(filename, source, code)
 				};
 			},
 			inspection: (result) =>
