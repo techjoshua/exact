@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	createExactBindingGateway,
 	defineExactOperationContract,
+	exactServerDebugRuntime,
 	handleExactRequest
 } from './index.js';
 import type { ExactRequestLike, ExactResponseLike, ExactServerContext } from './types.js';
@@ -106,21 +107,9 @@ describe('federated server inspection', () => {
 			executionRoot: '@company/branding#./Shell'
 		});
 
-		await handleExactRequest(
-			{
-				method: 'POST',
-				url: '/__exact',
-				body: {
-					type: 'debug',
-					version: 1,
-					request: 'close',
-					sessionId: parentSessionId
-				}
-			},
-			page
-		);
+		await exactServerDebugRuntime(page).close();
 		// The branding catalog-only child is rotated once to add request-observation authority,
-		// then both active child sessions close with the parent.
+		// then both active child sessions close when the parent runtime closes all sessions.
 		expect(remoteCloses).toHaveLength(3);
 	});
 
