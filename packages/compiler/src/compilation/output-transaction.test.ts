@@ -17,14 +17,16 @@ describe('compiler output transaction', () => {
 		const directory = await mkdtemp(path.join(os.tmpdir(), 'exact-output-transaction-'));
 		temporaryDirectories.push(directory);
 		const file = path.join(directory, 'page.client.js');
+		const blocker = path.join(directory, 'blocker');
+		await writeFile(blocker, 'not a directory');
 
 		await expect(
 			publishOutputTransaction([
 				{ file, content: 'staged' },
-				{ file: directory, content: 'cannot replace a directory' }
+				{ file: path.join(blocker, 'child.js'), content: 'cannot create this parent' }
 			])
 		).rejects.toThrow();
-		expect(await readdir(directory)).toEqual([]);
+		expect(await readdir(directory)).toEqual(['blocker']);
 	});
 
 	it('serializes overlapping publications that target the same output', async () => {
