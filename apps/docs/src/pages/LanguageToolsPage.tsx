@@ -93,16 +93,17 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					The plan preserves placement, readiness, priority, dependency order, cancellation, and
 					state publication. It carries errors and warnings forward, then analyzes the proposed
-					source in memory. The reverse refactor is offered only when the task has no authored
-					resource ownership, cleanup, external effect, deliberate nonblocking policy, opaque signal
-					use, or other semantic difference that inference could not reproduce.
+					source in memory. The reverse
+					refactor is offered only when the task has no authored resource ownership, cleanup,
+					external effect, deliberate nonblocking policy, opaque signal use, or other semantic
+					difference that inference could not reproduce.
 				</p>
 			</section>
 			<section>
 				<h2>Your files stay unchanged</h2>
 				<p>
-					Language Tools analyzes your latest edits, including unsaved changes. It never generates
-					or overwrites source files. Your code changes only when you accept a suggested edit or
+					Language Tools analyzes your latest edits, including unsaved changes. It never generates or
+					overwrites source files. Your code changes only when you accept a suggested edit or
 					refactor.
 				</p>
 			</section>
@@ -110,19 +111,18 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<h2>Works beside TypeScript</h2>
 				<p>
 					VS Code's TypeScript extension continues to provide completion, rename, navigation,
-					formatting, and ordinary type errors and warnings. A narrow bundled TypeScript plugin
-					gives local component functions the enclosing authored receiver for <code>this.</code>{' '}
-					completion and removes the corresponding implicit-<code>this</code> false positive.
-					Attributed enhancement imports count as used, and typing a prefix such as{' '}
-					<code>motion:</code>
+					formatting, and ordinary type errors and warnings. A narrow bundled TypeScript plugin gives local
+					component functions the enclosing authored receiver for <code>this.</code> completion and
+					removes the corresponding implicit-<code>this</code> false positive. Attributed
+					enhancement imports count as used, and typing a prefix such as <code>motion:</code>
 					completes the callable&apos;s finite public props in kebab-case plus the reserved
 					<code>root</code> selector. Unrelated TypeScript errors and warnings remain unchanged.
 				</p>
 				<p>
 					The separate eXact language server adds its own errors and warnings, semantic modifiers,
 					hovers, operation badges, CodeLens, symbols, code actions, and the read-only Compiler
-					Separation view. It filters ordinary TypeScript errors and warnings from compiler
-					inspection so refactors do not leave a duplicate squiggle behind.
+					Separation view. It filters ordinary TypeScript errors and warnings from compiler inspection so
+					refactors do not leave a duplicate squiggle behind.
 				</p>
 				<p>
 					Task errors and warnings describe local task functions, activation sites, and final
@@ -190,8 +190,8 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<h2>Package-owned assistance</h2>
 				<p>
 					<Link to="/components/enhancements">Enhancement libraries</Link> and framework plugins can
-					report errors and warnings, offer completions and hovers, add hints, and suggest safe
-					edits. Enable only providers you trust.
+					report errors and warnings, offer completions and hovers, add hints, and suggest safe edits.
+					Enable only providers you trust.
 				</p>
 				<CodeBlock source={languageExtensionConfig} language="ts" title="exact.config.ts" />
 				<p>
@@ -203,9 +203,8 @@ export function LanguageToolsPage(this: Component<{}>) {
 					checks catalogs and placeholders, and completes units, currencies, and display styles.
 				</p>
 				<p>
-					The <code>@exactjs/accessibility</code> provider checks ARIA, labels, focus order,
-					dialogs, keyboard behavior, and composite widgets. It also offers completions and safe
-					fixes.
+					The <code>@exactjs/accessibility</code> provider checks ARIA, labels, focus order, dialogs,
+					keyboard behavior, and composite widgets. It also offers completions and safe fixes.
 				</p>
 			</section>
 			<section>
@@ -221,8 +220,8 @@ export function LanguageToolsPage(this: Component<{}>) {
 			</section>
 			<Callout title="Tooling matches the build">
 				<p>
-					Language Tools uses the project&apos;s eXact compiler, so its feedback and refactors match
-					the build.
+					Language Tools uses the project&apos;s eXact compiler, so its feedback and refactors match the
+					build.
 				</p>
 			</Callout>
 		</Article>

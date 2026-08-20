@@ -70,12 +70,9 @@ export function DevtoolsPage(this: Component<{}>) {
 					keep catalog assets in their server output and outside public client graphs.
 				</p>
 				<p>
-					The server retains authorization sessions and catalogs, but no cross-request event buffer
-					or observation stream. While DevTools is attached, each ordinary eXact request carries its
-					opaque session ID, creates one reauthorized bounded collector, returns those observations
-					with its JSON or streaming response, and disposes the collector when that response
-					finishes. The browser alone aggregates those independent responses into a timeline and
-					clears it on disconnect.
+					While DevTools is attached, each server response carries only the observations produced by
+					that request. Browser DevTools combines those responses into its bounded timeline; the
+					server does not retain cross-request history.
 				</p>
 				<p>
 					Constructing an inspection owner activates task-frame snapshots, bounded history, value
@@ -113,10 +110,9 @@ export function DevtoolsPage(this: Component<{}>) {
 					credentials are never copied to the component host.
 				</p>
 				<p>
-					Remote operations use independently authorized child capabilities, but their request-owned
-					observations return in the same response and are translated to the page binding. The
-					browser assigns the single cross-request cursor; the servers do not retain remote
-					timelines.
+					Remote observations return with the operation response after independent authorization.
+					The browser merges them into the page timeline without creating a server-side remote
+					history.
 				</p>
 			</section>
 			<section>

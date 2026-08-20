@@ -199,9 +199,9 @@ export function StoryPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={reactCounterSource} language="tsx" title="A React counter" />
 				<p>
-					That is a deliberate architecture. Repeated component execution shapes how state, effects,
-					closures, identity, and memoization must be handled, and Hooks must be called in the same
-					order on every render.
+					That is a deliberate architecture. Repeated component execution shapes how state,
+					effects, closures, identity, and
+					memoization must be handled, and Hooks must be called in the same order on every render.
 				</p>
 				<p>
 					Every framework makes tradeoffs as it balances its goals against reality. Some achieve
@@ -222,9 +222,9 @@ export function StoryPage(this: Component<{}>) {
 				<p>
 					In eXact, the compiler treats the component body as a definition of initial state, tasks,
 					reactive relationships, and view preparation. The compiler turns that description into a
-					reactive state machine, and each mounted component owns one durable instance. Every state
-					read connects to the DOM expression, derived value, task, or server operation that
-					consumes it.
+					reactive state machine, and each mounted component
+					owns one durable instance. Every state read connects to the DOM expression, derived value,
+					task, or server operation that consumes it.
 				</p>
 				<CodeBlock source={exactCounterSource} language="tsx" title="The same idea in eXact" />
 				<p>
@@ -268,8 +268,9 @@ export function StoryPage(this: Component<{}>) {
 				</p>
 				<p>
 					The compiler and server runtime provide the endpoint and protocol for each continuation.
-					They own operation IDs, allowlisting, serialization checks, cancellation, state
-					publication, and the connection back to reactive UI work.
+					They own operation IDs,
+					allowlisting, serialization checks, cancellation, state publication, and the connection
+					back to reactive UI work.
 				</p>
 			</section>
 
@@ -277,10 +278,10 @@ export function StoryPage(this: Component<{}>) {
 				<h2>Server placement shapes the browser bundle</h2>
 				<p>
 					A database SDK, GraphQL parser, Apollo Client instance, or TanStack Query cache used only
-					by server work stays in the server artifact. eXact&apos;s compiler plans that separation,
-					and its bundler integrations verify the final client graph. The browser receives public
-					data and a small generated continuation contract. Server data clients and credentials
-					remain on the server.
+					by server work stays in the server artifact. eXact&apos;s compiler plans that separation, and
+					its bundler integrations verify the final client graph. The browser receives public data
+					and a small generated continuation contract. Server data clients and credentials remain on
+					the server.
 				</p>
 				<p>
 					The same ownership model improves debugging. An eXact component is a real, long-lived
@@ -294,9 +295,8 @@ export function StoryPage(this: Component<{}>) {
 			<section>
 				<h2>React compatibility supports gradual adoption</h2>
 				<p>
-					React changed how the industry builds interfaces and supports a vast ecosystem.
-					eXact&apos;s optional compatibility layer lets applications use supported React 18 and 19
-					components.
+					React changed how the industry builds interfaces and supports a vast ecosystem. eXact&apos;s
+					optional compatibility layer lets applications use supported React 18 and 19 components.
 				</p>
 				<CodeBlock
 					source={reactCompatibilitySource}
