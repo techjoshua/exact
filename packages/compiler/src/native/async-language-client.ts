@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { createInterface, type Interface } from 'node:readline';
 import { resolveNativeCompilerExecutable } from './executable.js';
+import { readBoundedLines } from './bounded-lines.js';
 import {
 	nativeCompilerProtocolVersion,
 	type NativeCompilerRequest,
@@ -8,12 +8,14 @@ import {
 } from './process-contracts.js';
 
 const defaultTimeoutMs = 30_000;
+const defaultMaxResponseBytes = 32 * 1024 * 1024;
 
 /** Options for the nonblocking native transport used by editor workloads. */
 export type ExactNativeLanguageClientOptions = Readonly<{
 	executable?: string;
 	args?: readonly string[];
 	timeoutMs?: number;
+	maxResponseBytes?: number;
 }>;
 
 /** Asynchronous transport contract for a retained native language session. */
@@ -32,7 +34,7 @@ export interface ExactNativeLanguageClient {
  */
 export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 	private child: ChildProcessWithoutNullStreams | undefined;
-	private lines: Interface | undefined;
+	private stopLines: (() => void) | undefined;
 	private readonly pendingLines: Array<{
 		resolve(line: string): void;
 		reject(error: Error): void;
@@ -41,6 +43,7 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 	private readonly executable: string;
 	private readonly args: readonly string[];
 	private readonly timeoutMs: number;
+	private readonly maxResponseBytes: number;
 	private tail: Promise<void> = Promise.resolve();
 	private activeSignal: AbortSignal | undefined;
 	private synchronization: NativeCompilerRequest | undefined;
@@ -51,8 +54,11 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 		this.executable = options.executable ?? resolveNativeCompilerExecutable();
 		this.args = options.args ?? [];
 		this.timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
+		this.maxResponseBytes = options.maxResponseBytes ?? defaultMaxResponseBytes;
 		if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs <= 0)
 			throw new Error('Native compiler timeoutMs must be a positive integer');
+		if (!Number.isSafeInteger(this.maxResponseBytes) || this.maxResponseBytes <= 0)
+			throw new Error('Native compiler maxResponseBytes must be a positive integer');
 		this.startProcess();
 	}
 
@@ -126,16 +132,20 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 			stdio: ['pipe', 'pipe', 'pipe'],
 			windowsHide: true
 		});
-		const lines = createInterface({ input: child.stdout });
 		this.child = child;
-		this.lines = lines;
 		this.failed = undefined;
 		child.stderr.resume();
-		lines.on('line', (line) => {
-			if (this.child !== child) return;
-			const pending = this.pendingLines.shift();
-			if (pending) pending.resolve(line);
-			else this.queuedLines.push(line);
+		this.stopLines = readBoundedLines(child.stdout, {
+			maxBytes: this.maxResponseBytes,
+			onLine: (line) => {
+				if (this.child !== child) return;
+				const pending = this.pendingLines.shift();
+				if (pending) pending.resolve(line);
+				else if (!this.queuedLines.length) this.queuedLines.push(line);
+				else
+					this.interruptProcess(new Error('Native compiler returned an unsolicited response frame'));
+			},
+			onError: (error) => this.interruptProcess(error)
 		});
 		child.once('error', (error) => {
 			if (this.child === child) this.interruptProcess(error);
@@ -191,8 +201,8 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 	private stopProcess(error: Error): void {
 		const child = this.child;
 		this.child = undefined;
-		this.lines?.close();
-		this.lines = undefined;
+		this.stopLines?.();
+		this.stopLines = undefined;
 		this.queuedLines.length = 0;
 		for (const pending of this.pendingLines.splice(0)) pending.reject(error);
 		if (child?.exitCode === null) child.kill();

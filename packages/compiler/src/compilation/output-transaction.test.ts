@@ -13,6 +13,40 @@ afterEach(async () => {
 });
 
 describe('compiler output transaction', () => {
+	it('serializes overlapping publications that target the same output', async () => {
+		const directory = await mkdtemp(path.join(os.tmpdir(), 'exact-output-transaction-'));
+		temporaryDirectories.push(directory);
+		const file = path.join(directory, 'page.client.js');
+		await writeFile(file, 'old');
+		let releaseFirst!: () => void;
+		const firstPaused = new Promise<void>((resolve) => (releaseFirst = resolve));
+		let firstEntered!: () => void;
+		const entered = new Promise<void>((resolve) => (firstEntered = resolve));
+		let secondMoves = 0;
+
+		const first = publishOutputTransaction([{ file, content: 'first' }], {
+			async rename(from, to) {
+				firstEntered();
+				await firstPaused;
+				await rename(from, to);
+			}
+		});
+		await entered;
+		const second = publishOutputTransaction([{ file, content: 'second' }], {
+			async rename(from, to) {
+				secondMoves++;
+				await rename(from, to);
+			}
+		});
+		await Promise.resolve();
+		expect(secondMoves).toBe(0);
+		releaseFirst();
+		await Promise.all([first, second]);
+
+		expect(await readFile(file, 'utf8')).toBe('second');
+		expect(await readdir(directory)).toEqual(['page.client.js']);
+	});
+
 	it('restores the complete prior generation when publication fails midway', async () => {
 		const directory = await mkdtemp(path.join(os.tmpdir(), 'exact-output-transaction-'));
 		temporaryDirectories.push(directory);
