@@ -20,7 +20,9 @@ export function createExactWebpackLanguageIntegration(
 	options: ExactWebpackPluginOptions
 ): ExactWebpackLanguageIntegration {
 	const applicationRoot = path.resolve(options.applicationRoot ?? process.cwd());
-	const loaded = loadExactConfig({ applicationRoot, configPath: options.configPath });
+	let loaded: ReturnType<typeof loadExactConfig> | undefined;
+	const config = () =>
+		(loaded ??= loadExactConfig({ applicationRoot, configPath: options.configPath }));
 	let validation: Promise<ExactLanguageValidationSession> | undefined;
 	return Object.freeze({
 		validation: () =>
@@ -30,7 +32,7 @@ export function createExactWebpackLanguageIntegration(
 					configPath: options.configPath,
 					hostMode: 'build'
 				}),
-				loaded
+				config()
 			]).then(([registry, config]) =>
 				createExactLanguageValidationSession({
 					workspaceRoot: registry.applicationRoot,
@@ -38,7 +40,7 @@ export function createExactWebpackLanguageIntegration(
 					packageEnhancements: config.packageEnhancements
 				})
 			)),
-		packageEnhancements: async () => (await loaded).packageEnhancements,
+		packageEnhancements: async () => (await config()).packageEnhancements,
 		dispose: () => void validation?.then((session) => session.dispose())
 	});
 }
