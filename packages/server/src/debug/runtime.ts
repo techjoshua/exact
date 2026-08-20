@@ -46,6 +46,7 @@ export function createExactServerDebugRuntime(
 	const limits = normalizeLimits(context.debugLimits);
 	const catalogs = createExactInspectionCatalogRegistry(context.inspectionCatalogs);
 	const sessions = createExactDebugSessionManager(context, limits);
+	const gatewayClosures = new Map<string, Promise<void>>();
 	let closed = false;
 	const runtime: ExactServerDebugRuntime = {
 		async handle(request, input) {
@@ -56,6 +57,14 @@ export function createExactServerDebugRuntime(
 					: (['catalog', 'snapshot', 'events'] satisfies ExactDebugCapability[]);
 				const session = await sessions.open(request, requested);
 				if (!session) return unavailable();
+				sessions.onClose(session, () => {
+					const closure = Promise.resolve(
+						context.gateway?.closeDebugSession?.(session.id, context)
+					)
+						.catch(() => undefined)
+						.finally(() => gatewayClosures.delete(session.id));
+					gatewayClosures.set(session.id, closure);
+				});
 				return jsonResponse(200, {
 					ok: true,
 					session: sessions.describe(session),
@@ -67,7 +76,7 @@ export function createExactServerDebugRuntime(
 			}
 			if (input.request === 'close') {
 				const existed = sessions.close(input.sessionId);
-				if (existed) await context.gateway?.closeDebugSession?.(input.sessionId, context);
+				if (existed) await gatewayClosures.get(input.sessionId);
 				return existed ? jsonResponse(200, { ok: true }) : unavailable();
 			}
 			if (input.request === 'subscribe') return unavailable();
@@ -111,6 +120,7 @@ export function createExactServerDebugRuntime(
 			if (closed) return;
 			closed = true;
 			sessions.closeAll();
+			await Promise.all(gatewayClosures.values());
 			catalogs.dispose();
 		},
 		registerCatalog(catalog) {
