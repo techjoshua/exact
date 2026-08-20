@@ -12,6 +12,10 @@ Most applications should use the compiler through `@exactjs/vite-plugin`,
 `@exactjs/webpack-plugin`, or `@exactjs/bun-plugin`. Direct use is intended for build-tool authors,
 language tools, and custom artifact pipelines.
 
+Editor-oriented native sessions bound every response wait. Cancellation terminates an active
+native phase immediately, and the next request restarts the process with the last successful full
+project synchronization instead of remaining queued behind a wedged operation.
+
 ## Command line
 
 ```sh

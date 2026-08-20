@@ -54,6 +54,11 @@ export function CompilerTourPage(this: Component<{}>) {
 					derived or written. Client, server, shared, map, and inspection outputs are staged as one
 					publication; a failed commit restores the previous generation.
 				</p>
+				<p>
+					Editor compiler sessions bound native response time and settle cancellation immediately.
+					If a native phase wedges, the next request starts a clean process and replays the last
+					complete project synchronization.
+				</p>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Precise updates</span>

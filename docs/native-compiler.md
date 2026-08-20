@@ -20,10 +20,11 @@ retained project. Each synchronization publishes one immutable generation with
 changed files, affected dependents, and eXact diagnostics.
 
 The language transport is asynchronous and serializes semantic mutations
-without blocking the language server's JSON-RPC loop. Cancellation fences
-native results even when a compiler phase cannot yet be interrupted internally,
-and document-version checks prevent an older response from replacing newer
-editor state. Disposal releases overlays, dependency indexes, pending work, and
+without blocking the language server's JSON-RPC loop. Cancellation settles immediately and stops
+the active native process; every response also has a bounded wait. A later request starts a clean
+process and replays the last successful complete project synchronization before analysis.
+Document-version checks prevent an older response from replacing newer editor state. Disposal
+releases overlays, dependency indexes, pending work, and
 the native process.
 
 Language sessions are permanently `noEmit: true`: they never write JavaScript,
