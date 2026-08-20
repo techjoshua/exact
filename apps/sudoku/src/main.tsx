@@ -4,6 +4,7 @@ import { SudokuApp } from './SudokuApp.jsx';
 import { AppBoundary } from './components/AppBoundary.jsx';
 import { registerSudokuServiceWorker } from './pwa-registration.js';
 import './styles.css';
+import './accessibility.css';
 
 const logger = createConsoleLogger({ level: 'debug' });
 

@@ -16,15 +16,13 @@ import {
 import { difficultyLabel, firstEditableIndex, keyboardSelection } from './presentation.js';
 import { findPuzzle, nextPuzzle } from './puzzles.js';
 import { createSavedGame, loadSavedGame, storageKey } from './storage.js';
-import { themeName } from './themes.js';
 import type { Difficulty, Digit, GameMove, SudokuCommands, SudokuState } from './types.js';
 import { ExactLens } from './components/ExactLens.jsx';
 import { GameClock } from './components/GameClock.jsx';
 import { GameControls } from './components/GameControls.jsx';
 import { ProgressOrbit } from './components/ProgressOrbit.jsx';
-import { SudokuBrand } from './components/SudokuBrand.jsx';
 import { SudokuGrid } from './components/SudokuGrid.jsx';
-import { ThemePicker } from './components/ThemePicker.jsx';
+import { SudokuTopbar } from './components/SudokuTopbar.jsx';
 
 /** Owns the complete browser-local game, history, timer, preferences, and command surface. */
 export function SudokuApp(this: Component<SudokuState>) {
@@ -294,33 +292,12 @@ export function SudokuApp(this: Component<SudokuState>) {
 		<div className={['sudoku-app', `theme-${this.state.theme}`]}>
 			<div className="ambient ambient-one" aria-hidden="true" />
 			<div className="ambient ambient-two" aria-hidden="true" />
-			<header className="topbar">
-				<SudokuBrand />
-				<div className="topbar-actions">
-					<a className="docs-link" href="./#/learn/state">
-						State docs
-					</a>
-					<span className="theme-label">{themeName(this.state.theme)}</span>
-					<button
-						type="button"
-						className="icon-button mobile-lens-trigger"
-						aria-label={this.state.lensOpen ? 'Close eXact Lens' : 'Open eXact Lens'}
-						aria-expanded={this.state.lensOpen}
-						onClick={() => commands.toggleLens()}
-					>
-						<span aria-hidden="true">⌁</span>
-					</button>
-					<ThemePicker current={this.state.theme} open={this.state.themeMenuOpen} />
-					<button
-						type="button"
-						className="icon-button"
-						aria-label={this.state.paused ? 'Resume game' : 'Pause game'}
-						onClick={() => commands.togglePause()}
-					>
-						<span aria-hidden="true">{this.state.paused ? '▶' : 'Ⅱ'}</span>
-					</button>
-				</div>
-			</header>
+			<SudokuTopbar
+				theme={this.state.theme}
+				lensOpen={this.state.lensOpen}
+				themeMenuOpen={this.state.themeMenuOpen}
+				paused={this.state.paused}
+			/>
 
 			<main className="game-layout">
 				<header className="game-heading">
