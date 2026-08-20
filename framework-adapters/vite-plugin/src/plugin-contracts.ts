@@ -162,5 +162,5 @@ export type ExactPlugin = {
 		_options: unknown,
 		bundle: Readonly<Record<string, ExactRollupOutputLike>>
 	): void | Promise<void>;
-	closeBundle?(): void | Promise<void>;
+	closeBundle?(): Promise<void>;
 };
