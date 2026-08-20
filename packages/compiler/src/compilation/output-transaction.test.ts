@@ -13,6 +13,20 @@ afterEach(async () => {
 });
 
 describe('compiler output transaction', () => {
+	it('removes earlier stage files when staging a later mutation fails', async () => {
+		const directory = await mkdtemp(path.join(os.tmpdir(), 'exact-output-transaction-'));
+		temporaryDirectories.push(directory);
+		const file = path.join(directory, 'page.client.js');
+
+		await expect(
+			publishOutputTransaction([
+				{ file, content: 'staged' },
+				{ file: directory, content: 'cannot replace a directory' }
+			])
+		).rejects.toThrow();
+		expect(await readdir(directory)).toEqual([]);
+	});
+
 	it('serializes overlapping publications that target the same output', async () => {
 		const directory = await mkdtemp(path.join(os.tmpdir(), 'exact-output-transaction-'));
 		temporaryDirectories.push(directory);

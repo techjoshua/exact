@@ -47,23 +47,28 @@ async function publishLockedOutputTransaction(
 ): Promise<void> {
 	const nonce = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 	const staged: StagedMutation[] = [];
-	for (let index = 0; index < mutations.length; index++) {
-		const mutation = mutations[index]!;
-		const file = path.resolve(mutation.file);
-		await mkdir(path.dirname(file), { recursive: true });
-		const content = mutation.content;
-		let stageFile: string | undefined;
-		if (content !== undefined) {
-			stageFile = `${file}.exact-stage-${nonce}-${index}`;
-			await writeFile(stageFile, content, { flag: 'wx' });
+	try {
+		for (let index = 0; index < mutations.length; index++) {
+			const mutation = mutations[index]!;
+			const file = path.resolve(mutation.file);
+			await mkdir(path.dirname(file), { recursive: true });
+			const content = mutation.content;
+			let stageFile: string | undefined;
+			if (content !== undefined) {
+				stageFile = `${file}.exact-stage-${nonce}-${index}`;
+				await writeFile(stageFile, content, { flag: 'wx' });
+			}
+			staged.push({
+				mutation: { ...mutation, file },
+				stageFile,
+				backupFile: `${file}.exact-backup-${nonce}-${index}`,
+				backupMoved: false,
+				stagePublished: false
+			});
 		}
-		staged.push({
-			mutation: { ...mutation, file },
-			stageFile,
-			backupFile: `${file}.exact-backup-${nonce}-${index}`,
-			backupMoved: false,
-			stagePublished: false
-		});
+	} catch (error) {
+		await cleanupTransactionFiles(staged);
+		throw error;
 	}
 
 	try {
