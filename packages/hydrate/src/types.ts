@@ -18,7 +18,7 @@ import type {
 	ExactPartitionAuthority,
 	ExactPartitionDiscriminator,
 	ExactPatch
-} from '@exactjs/server';
+} from '@exactjs/core/framework/operation-protocol';
 
 /** Configures hydrate. */
 export type HydrateOptions = {

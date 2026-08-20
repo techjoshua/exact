@@ -3,7 +3,7 @@ import type {
 	ExactInvocationRequest,
 	ExactOperationResult,
 	ExactPatch
-} from '@exactjs/server';
+} from '@exactjs/core/framework/operation-protocol';
 import { isTransportableReactiveMapKey } from '@exactjs/core';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { type ResponseLimits, parseExactInvocationResponse } from './json.js';

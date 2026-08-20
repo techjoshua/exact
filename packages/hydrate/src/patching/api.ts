@@ -6,7 +6,10 @@ import {
 	type DomWorkBudget
 } from '@exactjs/dom';
 import { readExactPartitionDiscriminator } from '@exactjs/dom/framework/hydration';
-import type { ExactPartitionAuthority, ExactPatch } from '@exactjs/server';
+import type {
+	ExactPartitionAuthority,
+	ExactPatch
+} from '@exactjs/core/framework/operation-protocol';
 import { reportMismatch } from '../mismatch.js';
 import type { HydrationDiagnostic } from '../types.js';
 import { applyPatch } from './application.js';

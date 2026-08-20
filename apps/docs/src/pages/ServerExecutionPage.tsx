@@ -92,6 +92,10 @@ export function ServerExecutionPage(this: Component<{}>) {
 					record, cancellation plumbing, response contract, state commit, and DOM update machinery.
 					The generated operation identifier is deliberately opaque.
 				</p>
+				<p>
+					The browser and server share a neutral Core protocol contract. Hydration validates and
+					applies those responses without taking a production dependency on the server runtime.
+				</p>
 			</section>
 			<section>
 				<h2>Server context stays on the server</h2>

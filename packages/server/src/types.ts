@@ -4,10 +4,19 @@ import type {
 	ExactComponentBoundaryContract,
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract,
-	ExactCollectionMutation,
 	ExactComponentAuthorizationIdentity,
 	Logger
 } from '@exactjs/core';
+import type {
+	ExactBatchRequest,
+	ExactEndpointRoutes,
+	ExactInvocationKind,
+	ExactInvocationRequest,
+	ExactInvocationResult,
+	ExactOperationResult,
+	ExactPartitionAuthority,
+	ExactPatch
+} from '@exactjs/core/framework/operation-protocol';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type {
 	ExactBuildInspectionCatalog,
@@ -17,7 +26,22 @@ import type {
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import type { RequestContextValue, RequestResponseState } from '@exactjs/request';
 
-export type { ExactCollectionMutation } from '@exactjs/core';
+export type {
+	ExactBatchRequest,
+	ExactBatchResult,
+	ExactCollectionMutation,
+	ExactEndpointRoutes,
+	ExactInvocationKind,
+	ExactInvocationRequest,
+	ExactInvocationResult,
+	ExactOperationError,
+	ExactOperationResult,
+	ExactOperationSuccess,
+	ExactPartitionAuthority,
+	ExactPartitionDiscriminator,
+	ExactPatch,
+	ExactStreamEvent
+} from '@exactjs/core/framework/operation-protocol';
 export type {
 	ExactAllowDebug,
 	ExactDebugAuditEvent,
@@ -35,26 +59,6 @@ import type {
 	ExactServerDebugRuntime
 } from './debug-types.js';
 
-/** Defines the exact invocation kind type contract. */
-export type ExactInvocationKind = 'invoke' | 'refresh';
-
-/** Runtime authority for one concrete compiler-planned partition instance. */
-export type ExactPartitionDiscriminator =
-	| Readonly<{ kind: 'single' }>
-	| Readonly<{ kind: 'branch'; branch: string }>
-	| Readonly<{ kind: 'keyed'; list: string; keyToken: string }>;
-
-/** Runtime authority for one concrete compiler-planned partition instance. */
-export type ExactPartitionAuthority = Readonly<{
-	version: 1;
-	buildKey: string;
-	executionRoot: string;
-	planEdgeId: string;
-	ownerComponentId: string;
-	discriminator: ExactPartitionDiscriminator;
-	generation: number;
-}>;
-
 /** Immutable allowlist composed from explicitly imported executor artifacts. */
 export type ExactExecutorContract = {
 	version: 1;
@@ -64,12 +68,6 @@ export type ExactExecutorContract = {
 	/** Compiler-generated handlers; absent when a contract contains only application invocations. */
 	executors?: Record<string, ExactComponentContinuationExecutorContract>;
 	boundaries: Record<string, ExactComponentBoundaryContract>;
-};
-
-/** Defines the exact endpoint routes type contract. */
-export type ExactEndpointRoutes = {
-	invocations?: Record<string, string>;
-	boundaries?: Record<string, string>;
 };
 
 /** Defines the exact state contract type contract. */
@@ -252,24 +250,6 @@ export type ExactResponseLike = {
 	stream?: ReadableStream<Uint8Array>;
 };
 
-/** Defines the exact invocation request type contract. */
-export type ExactInvocationRequest = {
-	type: ExactInvocationKind;
-	/** Compiler-generated namespace in which id and patch targets are interpreted. */
-	root?: string;
-	id: string;
-	/** Required when refreshing a compiler-planned partition range. */
-	partition?: ExactPartitionAuthority;
-	opId?: string;
-	dependsOn?: string[];
-	payload?: unknown;
-	state?: unknown;
-	/** Compiler-approved shared context projections; never server resource values. */
-	publicContext?: Record<string, unknown>;
-	boundaryHtml?: string;
-	boundaryHtmls?: Record<string, string>;
-};
-
 /** Full top-level protocol union accepted at the configured eXact endpoint. */
 export type ExactProtocolRequest = ExactInvocationRequest | ExactBatchRequest | ExactDebugRequest;
 
@@ -320,112 +300,6 @@ export type ExactBindingGateway = {
 	/** Closes every remote child debug session owned by one page session. */
 	closeDebugSession?(sessionId: string, context: ExactServerContext): Promise<void>;
 };
-
-/** Defines the exact batch request type contract. */
-export type ExactBatchRequest = {
-	type: 'batch';
-	version?: 1;
-	operations: ExactInvocationRequest[];
-};
-
-/** Describes the result produced by exact invocation. */
-export type ExactInvocationResult = {
-	patches?: ExactPatch[];
-	state?: unknown;
-	/** Ordered fine-grained Map and Set changes produced by a generated continuation. */
-	mutations?: ExactCollectionMutation[];
-	/** Compiler-approved component-context projections returned to the owning client instance. */
-	contexts?: Record<string, unknown>;
-	/** Serializable return value of an explicitly invoked distributed task. */
-	value?: unknown;
-	html?: string;
-};
-
-/** Defines the exact operation success type contract. */
-export type ExactOperationSuccess = {
-	ok: true;
-	type: ExactInvocationKind;
-	id: string;
-	opId?: string;
-} & ExactInvocationResult;
-
-/** Represents a failure raised by exact operation. */
-export type ExactOperationError = {
-	ok: false;
-	type: ExactInvocationKind;
-	id: string;
-	opId?: string;
-	status: number;
-	error: 'bad_request' | 'not_found' | 'forbidden' | 'internal_error' | 'dependency_failed';
-};
-
-/** Describes the result produced by exact operation. */
-export type ExactOperationResult = ExactOperationSuccess | ExactOperationError;
-
-/** Describes the result produced by exact batch. */
-export type ExactBatchResult = {
-	ok: true;
-	version: 1;
-	results: ExactOperationResult[];
-};
-
-/** Reports an observable exact stream event. */
-export type ExactStreamEvent =
-	| { event: 'start'; version: 1; operations: number }
-	| {
-			event: 'patch';
-			version: 1;
-			index: number;
-			type: ExactInvocationKind;
-			id: string;
-			opId?: string;
-			patch: ExactPatch;
-	  }
-	| {
-			event: 'state';
-			version: 1;
-			index: number;
-			type: ExactInvocationKind;
-			id: string;
-			opId?: string;
-			value: unknown;
-	  }
-	| {
-			event: 'mutations';
-			version: 1;
-			index: number;
-			type: ExactInvocationKind;
-			id: string;
-			opId?: string;
-			mutations: ExactCollectionMutation[];
-	  }
-	| {
-			event: 'html';
-			version: 1;
-			index: number;
-			type: ExactInvocationKind;
-			id: string;
-			opId?: string;
-			html: string;
-	  }
-	| { event: 'result'; version: 1; index: number; result: ExactOperationResult }
-	| { event: 'complete'; version: 1 };
-
-/** Defines the exact patch type contract. */
-export type ExactPatch =
-	| { type: 'text'; id: string; value: string }
-	| { type: 'prop'; id: string; name: string; value: unknown }
-	| { type: 'style'; id: string; name: string; value: string | null }
-	| {
-			type: 'list';
-			id: string;
-			op: 'insert' | 'move' | 'remove';
-			key: string;
-			before?: string;
-			html?: string;
-	  }
-	| { type: 'state'; id: string; value: unknown }
-	| { type: 'replace'; id: string; html: string };
 
 /** Patch authored by an application handler; structural HTML requires explicit trust. */
 export type ExactManualPatch =
