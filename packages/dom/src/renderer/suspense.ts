@@ -1,7 +1,6 @@
 import {
 	ReadinessContext,
 	SuspensionContext,
-	createComponentInstance,
 	createReadinessCoordinator,
 	normalizeRenderResult,
 	trackComponentAsync,
@@ -11,6 +10,7 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../types.js';

@@ -1,4 +1,5 @@
-import { createContext, markExactComponent, type Child, type Component } from '@exactjs/core';
+import { createContext, type Child, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createExternalSource, type ExternalSource } from '@exactjs/reactive';
 import { atom, createStore, getDefaultStore, type Atom } from 'jotai/vanilla';
 

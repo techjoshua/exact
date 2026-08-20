@@ -5,10 +5,7 @@ import {
 	Fragment,
 	Target,
 	createEnhancementMarker,
-	createCompiledComponentRegistry,
-	createDynamicChild,
 	createRef,
-	markExactComponent,
 	unsafeHtml,
 	type Child,
 	type Component,
@@ -16,6 +13,9 @@ import {
 	type Logger,
 	type RootLifecycle
 } from '@exactjs/core';
+import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
+import { createDynamicChild } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import '@exactjs/dom/unsafe-html';
 import {
 	createCompiledDynamicComponent,

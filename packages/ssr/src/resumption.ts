@@ -1,11 +1,13 @@
 import {
 	componentContinuationContextValues,
-	exactComponentIdentity,
-	readExactComponentContract,
 	settledComponentContinuationIds,
 	type ComponentInstance,
 	type ComponentResumptionActivation
 } from '@exactjs/core';
+import {
+	exactComponentIdentity,
+	readExactComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import type { RenderToStringOptions } from './types.js';
 
 type MutableResumption = {

@@ -2,12 +2,11 @@ import {
 	ErrorContext,
 	createErrorContext,
 	createVNode,
-	isExactComponent,
-	markExactComponent,
 	type Component,
 	type ComponentFunction,
 	type ComponentInstance
 } from '@exactjs/core';
+import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type {
 	ReactClassInstance,
 	ReactClassType,

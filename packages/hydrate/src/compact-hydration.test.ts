@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
-import { createServerBoundary, markFiniteClientBoundary } from '@exactjs/core';
+import { markFiniteClientBoundary } from '@exactjs/core';
+import { createServerBoundary } from '@exactjs/core/runtime/render';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { expect, it } from 'vitest';
 import { hydrateClientIslands, readExactHydrationConfig } from './index.js';

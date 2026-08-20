@@ -3,15 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
 	ErrorContext,
 	LoggerContext,
-	createComponentInstance,
 	createContext,
 	createRef,
 	createVNode,
 	isVNode,
-	renderInstance,
 	type Component,
 	type VNode
 } from './index.js';
+import { createComponentInstance, renderInstance } from './runtime/render.js';
 
 describe('@exactjs/core context-reactive', () => {
 	it('scopes contexts to descendants and stores refs', () => {

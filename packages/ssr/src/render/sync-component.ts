@@ -1,11 +1,11 @@
 import {
 	normalizeRenderResult,
-	renderInstance,
 	type Child,
 	type ComponentFunction,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { renderInstance } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';

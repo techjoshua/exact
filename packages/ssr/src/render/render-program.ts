@@ -1,11 +1,11 @@
 import {
-	RenderProgram,
 	isVNode,
 	unwrap,
 	withComponentDomain,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { RenderProgram } from '@exactjs/core/runtime/render';
 import {
 	readRenderProgram,
 	readRenderProgramSlot,

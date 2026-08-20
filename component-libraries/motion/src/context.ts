@@ -1,10 +1,5 @@
-import {
-	createContext,
-	createVNode,
-	markExactComponent,
-	type Child,
-	type Component
-} from '@exactjs/core';
+import { createContext, createVNode, type Child, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { MotionConfigProps, MotionSettings } from './contracts.js';
 
 /** Package defaults used outside a `MotionConfig` boundary. */

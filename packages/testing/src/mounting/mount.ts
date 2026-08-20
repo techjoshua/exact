@@ -1,6 +1,5 @@
 import {
 	createVNode,
-	markExactComponent,
 	withTaskObserver,
 	type Child,
 	type Component,
@@ -10,6 +9,7 @@ import {
 	type TaskObserver,
 	type VNode
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { inspectDomRoot } from '@exactjs/dom/testing';
 import { flushSync } from '@exactjs/reactive';

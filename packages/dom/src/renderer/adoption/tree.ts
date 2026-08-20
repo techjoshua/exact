@@ -2,9 +2,6 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
-	RenderProgram,
-	isCellVNode,
-	renderInstance,
 	Suspense,
 	Target,
 	UnsafeHtml,
@@ -12,6 +9,7 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { RenderProgram, isCellVNode, renderInstance } from '@exactjs/core/runtime/render';
 import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
 import { getListBinding, materializeList, stopReplacedChildren } from '../../children.js';

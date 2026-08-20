@@ -1,4 +1,5 @@
-import { RenderProgram, isCellVNode, type ComponentDomain, type VNode } from '@exactjs/core';
+import { type ComponentDomain, type VNode } from '@exactjs/core';
+import { RenderProgram, isCellVNode } from '@exactjs/core/runtime/render';
 import {
 	adoptComponentRoot,
 	adoptCellRoot,

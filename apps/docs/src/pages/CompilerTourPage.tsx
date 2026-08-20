@@ -24,8 +24,8 @@ export function CompilerTourPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={compilerTourAuthoredSource} language="tsx" title="CatalogEditor.tsx" />
 				<p>
-					The server runtime supplies this context. <code>@exact shared</code> allows the plain product
-					data returned by <code>search()</code> to reach the browser.
+					The server runtime supplies this context. <code>@exact shared</code> allows the plain
+					product data returned by <code>search()</code> to reach the browser.
 				</p>
 				<CodeBlock source={compilerTourContextSource} language="ts" title="catalog-context.ts" />
 				<p>
@@ -39,6 +39,11 @@ export function CompilerTourPage(this: Component<{}>) {
 					The compiler tracks which state feeds each attribute, text value, condition, binding, and
 					list. A state change can update those destinations directly. It also separates client and
 					server code, carries safe inputs, and connects server results to the component.
+				</p>
+				<p>
+					Generated code imports compiled rendering and contract machinery through framework-owned
+					Core subpaths. Those implementation capabilities are not part of the application-facing
+					<code>@exactjs/core</code> root.
 				</p>
 			</section>
 			<section>
@@ -62,8 +67,8 @@ export function CompilerTourPage(this: Component<{}>) {
 						<span className="topic-index">Stable identity and resumption</span>
 						<strong>Keys preserve list items</strong>
 						<p>
-							The product type&apos;s <code>@exact key</code> annotation preserves rows as results change.
-							SSR can finish the search before the browser adopts the page.
+							The product type&apos;s <code>@exact key</code> annotation preserves rows as results
+							change. SSR can finish the search before the browser adopts the page.
 						</p>
 					</div>
 				</div>

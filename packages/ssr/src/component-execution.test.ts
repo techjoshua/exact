@@ -1,15 +1,17 @@
 import {
 	activateTaskForHost,
 	componentExecutionValueForHost,
-	createExpression,
 	defineTask,
-	exactComponentContract,
-	exactComponentType,
 	markComponentContinuationTask,
 	type Component,
-	type ExactComponentExecutionContract,
 	type TaskContext
 } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
+import {
+	exactComponentContract,
+	exactComponentType,
+	type ExactComponentExecutionContract
+} from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';

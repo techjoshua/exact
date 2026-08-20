@@ -6,7 +6,6 @@ import './framework/enhancements.js';
 import {
 	Activity,
 	createContext,
-	createDynamicChild,
 	createEnhancementMarker,
 	createPortal,
 	Fragment,
@@ -18,6 +17,7 @@ import {
 	type Logger,
 	type RootLifecycle
 } from '@exactjs/core';
+import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';

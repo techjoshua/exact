@@ -1,4 +1,5 @@
-import { createContext, markExactComponent, type Child, type Component } from '@exactjs/core';
+import { createContext, type Child, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createSelectedExternalSource, unwrap, type ExternalSource } from '@exactjs/reactive';
 
 /** Defines the redux store interface contract. */

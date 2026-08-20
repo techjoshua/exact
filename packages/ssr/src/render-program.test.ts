@@ -1,12 +1,11 @@
 import {
 	activateTaskForHost,
-	createDynamicChild,
-	createCompiledVNode,
 	defineTask,
 	markIndependentAsyncSiblings,
 	type Component,
 	type TaskContext
 } from '@exactjs/core';
+import { createDynamicChild, createCompiledVNode } from '@exactjs/core/runtime/render';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';

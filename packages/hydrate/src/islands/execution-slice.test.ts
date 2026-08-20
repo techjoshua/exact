@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { type ComponentFunction } from '@exactjs/core';
 import {
 	exactComponentContract,
 	exactComponentType,
-	type ComponentFunction,
 	type ExactComponentExecutionContract
-} from '@exactjs/core';
+} from '@exactjs/core/framework/component-contracts';
 import { prepareClientIslandExecutionSlice } from './execution-slice.js';
 
 describe('lazy island execution slices', () => {

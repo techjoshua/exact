@@ -3,13 +3,13 @@
  */
 import {
 	createErrorContext,
-	createExpression,
 	ErrorBoundary,
 	ErrorContext,
 	type Component,
 	type ErrorContextValue,
 	type ErrorReport
 } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';

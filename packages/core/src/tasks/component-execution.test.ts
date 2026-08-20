@@ -4,14 +4,12 @@ import {
 	activateTask,
 	activationInputDependency,
 	componentExecutionValueForHost,
-	createComponentInstance,
-	createExpression,
 	defineTask,
-	exactComponentContract,
-	exactComponentType,
 	type Component,
 	type TaskContext
 } from '../index.js';
+import { createComponentInstance, createExpression } from '../runtime/render.js';
+import { exactComponentContract, exactComponentType } from '../framework/component-contracts.js';
 import { markComponentContinuationTask } from './component-continuation.js';
 import { createContinuationDependencySlot } from './dependency-source.js';
 import { markContinuationDependencyValue } from './dependency-provenance.js';

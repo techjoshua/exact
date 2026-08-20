@@ -2,12 +2,12 @@ import {
 	createTaskOwner,
 	defineTask,
 	markExactEnhancementContexts,
-	markExactComponent,
 	taskAnimationFrame,
 	unwrap,
 	watch,
 	type Component
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { PhysicsBodyContext, PhysicsWorldContext } from './context.js';
 import type {
 	PhysicsElementProps,

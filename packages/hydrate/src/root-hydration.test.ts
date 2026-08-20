@@ -1,12 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createCompiledVNode,
-	createDynamicChild,
-	markExactComponent,
-	type Component
-} from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createCompiledVNode, createDynamicChild } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';

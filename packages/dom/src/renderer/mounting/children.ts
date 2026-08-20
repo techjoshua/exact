@@ -1,10 +1,10 @@
 import {
-	ServerSlot,
 	attachSuppressedCleanupFailure,
 	type Child,
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { ServerSlot } from '@exactjs/core/runtime/render';
 import { type EffectScope } from '@exactjs/reactive';
 import { childToVNode } from '../../children.js';
 import { placeMountedBefore } from '../../placement.js';

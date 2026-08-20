@@ -1,11 +1,5 @@
-import {
-	isTaskCancellation,
-	markExactComponent,
-	unwrap,
-	watch,
-	type Component,
-	type RootRelease
-} from '@exactjs/core';
+import { isTaskCancellation, unwrap, watch, type Component, type RootRelease } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { defaultMotionSettings, MotionContext } from './context.js';
 import { LayoutContext } from './layout.js';
 import { ExitLayoutContext, PresenceEnterContext } from './presence.js';

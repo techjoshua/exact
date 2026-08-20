@@ -1,10 +1,5 @@
-import {
-	createVNode,
-	markExactComponent,
-	type Child,
-	type Component,
-	type RefBinding
-} from '@exactjs/core';
+import { createVNode, type Child, type Component, type RefBinding } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 
 import { ControlRef, FieldContext, FormContext } from './context.js';
 import type { LabelProps, SubmitProps } from './contracts.js';

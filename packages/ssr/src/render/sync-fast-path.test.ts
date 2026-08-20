@@ -1,4 +1,4 @@
-import { createCompiledVNode, createDynamicChild } from '@exactjs/core';
+import { createCompiledVNode, createDynamicChild } from '@exactjs/core/runtime/render';
 import { describe, expect, it } from 'vitest';
 import type { SsrContext } from '../types.js';
 import { createVNode } from '../test-support/native-vnode.js';

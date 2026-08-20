@@ -1,4 +1,5 @@
-import { createVNode, ErrorContext, markExactComponent, type Component } from '@exactjs/core';
+import { createVNode, ErrorContext, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 
 import { FormContext } from './context.js';
 import type { FieldContextValue, FormContextValue, FormProps, FormState } from './contracts.js';

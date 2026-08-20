@@ -1,8 +1,8 @@
+import { type ComponentFunction } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactComponentContract,
-	type ComponentFunction
-} from '@exactjs/core';
+	readExactComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import type { ComponentExecutionSlice } from '@exactjs/core/framework/component-execution';
 
 const slices = new WeakMap<ComponentFunction<any, any>, ComponentExecutionSlice>();

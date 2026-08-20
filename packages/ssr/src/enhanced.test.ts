@@ -1,9 +1,5 @@
-import {
-	createEnhancementMarker,
-	markExactComponent,
-	type Child,
-	type Component
-} from '@exactjs/core';
+import { createEnhancementMarker, type Child, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './enhanced.js';

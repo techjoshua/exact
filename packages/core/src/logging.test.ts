@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { flushSync, reactive, watch } from '@exactjs/reactive';
 import {
 	LoggerContext,
-	createComponentInstance,
 	logFrameworkEvent,
 	type Component,
 	type LogEvent,
 	type Logger
 } from './index.js';
+import { createComponentInstance } from './runtime/render.js';
 import { componentLogMethod } from './runtime/logging.js';
 
 describe('@exactjs/core logging', () => {

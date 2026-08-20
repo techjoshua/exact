@@ -1,4 +1,4 @@
-import { isExactComponent } from '@exactjs/core';
+import { isExactComponent } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { IntlCurrency, IntlMessage, IntlPlural, IntlSelect, IntlUnit } from './components.js';
 import { cldr, currency, message, plural, select, unit } from './enhancements.js';

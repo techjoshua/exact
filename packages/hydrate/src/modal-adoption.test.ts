@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import '@exactjs/dom/runtime/modal';
-import { createExpression } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { afterEach, describe, expect, it } from 'vitest';
 import { hydrate } from './index.js';
 import { installDialogPlatform } from './test-support/dialog-platform.js';

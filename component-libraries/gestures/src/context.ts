@@ -1,4 +1,5 @@
-import { createContext, markExactComponent, type Child, type Component } from '@exactjs/core';
+import { createContext, type Child, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { GestureConfigProps, GestureSettings } from './contracts.js';
 
 /** Defaults used outside an authored GestureConfig boundary. */

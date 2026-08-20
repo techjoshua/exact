@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { createExpression, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { jsx } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';

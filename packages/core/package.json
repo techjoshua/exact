@@ -48,6 +48,10 @@
 			"types": "./dist/framework/component-contract-validation.d.ts",
 			"default": "./dist/framework/component-contract-validation.js"
 		},
+		"./framework/component-contracts": {
+			"types": "./dist/framework/component-contracts.d.ts",
+			"default": "./dist/framework/component-contracts.js"
+		},
 		"./framework/component-execution": {
 			"types": "./dist/framework/component-execution.d.ts",
 			"default": "./dist/framework/component-execution.js"

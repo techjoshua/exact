@@ -1,12 +1,14 @@
 import type {
 	ComponentContextValues,
 	ContextToken,
-	ExactComponentBoundaryContract,
-	ExactComponentContinuationContract,
-	ExactComponentContinuationExecutorContract,
 	ExactComponentAuthorizationIdentity,
 	Logger
 } from '@exactjs/core';
+import type {
+	ExactComponentBoundaryContract,
+	ExactComponentContinuationContract,
+	ExactComponentContinuationExecutorContract
+} from '@exactjs/core/framework/component-contracts';
 import type {
 	ExactBatchRequest,
 	ExactEndpointRoutes,

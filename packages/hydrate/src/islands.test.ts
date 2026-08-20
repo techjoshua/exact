@@ -1,7 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { exactComponentContract, exactComponentType, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import {
+	exactComponentContract,
+	exactComponentType
+} from '@exactjs/core/framework/component-contracts';
 import { createVNode, markTestComponents } from './test-support/native-vnode.js';
 import { render } from '@exactjs/dom';
 import {

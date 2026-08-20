@@ -1,4 +1,5 @@
-import { createDynamicChild, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import {

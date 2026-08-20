@@ -2,11 +2,8 @@ import {
 	Activity,
 	Dynamic,
 	Fragment,
-	isCellVNode,
 	normalizeDocumentVNode,
 	Portal,
-	RenderProgram,
-	ServerSlot,
 	Suspense,
 	Target,
 	Text,
@@ -15,6 +12,7 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { isCellVNode, RenderProgram, ServerSlot } from '@exactjs/core/runtime/render';
 import { type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
 import { getComponentProps, getListBinding, materializeList } from '../../children.js';

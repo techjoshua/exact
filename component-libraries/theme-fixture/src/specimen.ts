@@ -1,10 +1,5 @@
-import {
-	createEnhancementNode,
-	createVNode,
-	markExactComponent,
-	type Component,
-	type VNode
-} from '@exactjs/core';
+import { createEnhancementNode, createVNode, type Component, type VNode } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { deriveDataColors, ThemeContext, ThemeSurfaceContext } from '@exactjs/theme';
 
 const values = [
