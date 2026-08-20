@@ -214,7 +214,9 @@ are not resolved relative to `dist/devtools.html`.
 `@exactjs/devtools-agent` attaches to an existing Chromium target through CDP. It accepts only
 validated read-only methods and uses fixed function declarations; callers cannot provide
 JavaScript or invoke application behavior. Disconnect removes its CDP binding, releases its object
-group, and closes page subscriptions.
+group, and closes page subscriptions. Connection, discovery, request, response, and shutdown waits
+are bounded; `ExactCdpConnectionOptions` exposes the operational ceilings and cancellation signal
+for automation that needs stricter limits.
 
 ## Package ownership
 

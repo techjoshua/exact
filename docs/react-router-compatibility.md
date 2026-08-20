@@ -32,7 +32,9 @@ router version from runtime props.
 Navigation, initialization, submission, fetcher, and revalidation operations
 carry transition identity. Stale work cannot commit even when user handlers
 ignore abort signals. Fetchers can run beside navigation without sharing a
-single cancellation channel.
+single cancellation channel. `useFetcher()` releases its snapshot and cancels active work when its
+owning component unmounts. Framework-neutral callers of `router.fetch()` pair that ownership with
+`router.releaseFetcher(key)`.
 
 Returned and thrown `Response` objects retain status and headers. Route data
 errors select the nearest route error UI while successful ancestor layouts
