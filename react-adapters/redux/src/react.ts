@@ -35,7 +35,7 @@ function CustomContextProvider(props: ExactReduxProviderProps): ReactNode {
 		return subscription.tryUnsubscribe;
 	}, [subscription]);
 	const native = createElement(NativeProvider, { ...props, context: undefined });
-	const context = props.context as ReactContext<any>;
+	const context = props.context as ReactContext<unknown>;
 	return createElement(context.Provider, {
 		value: new ReduxContextValue(store, subscription, props.serverState),
 		children: native
@@ -45,7 +45,7 @@ function CustomContextProvider(props: ExactReduxProviderProps): ReactNode {
 class ReduxContextValue {
 	readonly getServerState?: () => unknown;
 	constructor(
-		readonly store: ReduxStore<any, any>,
+		readonly store: ReduxStore<unknown, unknown>,
 		readonly subscription: ReturnType<typeof createReduxSubscription>,
 		serverState: unknown
 	) {

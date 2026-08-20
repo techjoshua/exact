@@ -7,7 +7,6 @@ import {
 	type Child,
 	type Component,
 	type ComponentDomain,
-	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
 import { markExactComponent } from '@exactjs/core/framework/component-contracts';
@@ -257,7 +256,9 @@ export function RemoteComponent(
 				? [
 						createExactRoot(
 							client,
-							remote!.component as ComponentFunction<any, Record<string, unknown>>,
+							remote!.component as import('@exactjs/core').AnyStateComponentFunction<
+								Record<string, unknown>
+							>,
 							props.props,
 							props.children,
 							renderDomain

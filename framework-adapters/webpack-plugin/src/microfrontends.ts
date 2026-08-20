@@ -13,6 +13,23 @@ type RemoteAdapter = ReturnType<
 	(typeof import('@exactjs/microfrontends/webpack'))['createExactRemoteWebpackAdapter']
 >;
 
+type RemoteResolveData = {
+	contextInfo?: { issuer?: string };
+	request: string;
+	createData?: { resource?: string };
+};
+
+type RemoteResolutionFactory = {
+	hooks: {
+		beforeResolve: {
+			tap(name: string, handler: (data: RemoteResolveData | undefined) => void): void;
+		};
+		afterResolve: {
+			tap(name: string, handler: (data: RemoteResolveData | undefined) => void): void;
+		};
+	};
+};
+
 const virtualScheme = 'exact-remote:';
 
 /** Owns one Webpack compiler's remote plan, virtual modules, and accepted generations. */
@@ -41,7 +58,9 @@ export class ExactWebpackMicrofrontendIntegration {
 		});
 		hooks.thisCompilation.tap('ExactWebpackMicrofrontends', (compilation, params) => {
 			this.installVirtualModules(compilation);
-			this.installRemoteResolution(params.normalModuleFactory as any);
+			this.installRemoteResolution(
+				params.normalModuleFactory as unknown as RemoteResolutionFactory
+			);
 			compilation.hooks.processAssets.tap(
 				{
 					name: 'ExactWebpackMicrofrontends',
@@ -178,8 +197,8 @@ export class ExactWebpackMicrofrontendIntegration {
 			.tap('ExactWebpackMicrofrontends', (resource) => this.virtualSources.get(resource) ?? null);
 	}
 
-	private installRemoteResolution(factory: any): void {
-		factory.hooks.beforeResolve.tap('ExactWebpackMicrofrontends', (data: any) => {
+	private installRemoteResolution(factory: RemoteResolutionFactory): void {
+		factory.hooks.beforeResolve.tap('ExactWebpackMicrofrontends', (data) => {
 			if (!data) return;
 			const scope = this.scopeFor(data.contextInfo?.issuer);
 			if (!scope) return;
@@ -195,11 +214,12 @@ export class ExactWebpackMicrofrontendIntegration {
 				data.request = id;
 			}
 		});
-		factory.hooks.afterResolve.tap('ExactWebpackMicrofrontends', (data: any) => {
+		factory.hooks.afterResolve.tap('ExactWebpackMicrofrontends', (data) => {
 			const scope = data ? this.scopeFor(data.contextInfo?.issuer) : undefined;
-			const resource = data?.createData?.resource;
+			const createData = data?.createData;
+			const resource = createData?.resource;
 			if (scope && resource && !resource.startsWith(virtualScheme))
-				data.createData.resource = addScope(resource, scope);
+				createData.resource = addScope(resource, scope);
 		});
 	}
 

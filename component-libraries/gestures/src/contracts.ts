@@ -27,6 +27,10 @@ export type GestureCallback<Sample extends GestureSample = GestureSample> = (
 	sample: Sample
 ) => unknown | PromiseLike<unknown>;
 
+/** Existential callback retained while recognizer-specific sample types are carried by runtime kind. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Callback parameters are contravariant, so a heterogeneous delivery queue cannot use GestureSample directly.
+export type AnyGestureCallback = GestureCallback<any>;
+
 /** Priority and competition policy shared by prepared recognizers. */
 export type GestureRecognizerBase = Readonly<{
 	priority?: number;
