@@ -207,6 +207,12 @@ export type ExactServerContextConfiguration = {
 	onDebugAudit?: (event: ExactDebugAuditEvent) => void;
 };
 
+/** Configures only the application and request lifetimes owned by a context runtime. */
+export type ExactContextRuntimeConfiguration = Pick<
+	ExactServerContextConfiguration,
+	'publicOrigin' | 'applicationContexts' | 'requestContexts' | 'contextOverrides'
+>;
+
 /** Untrusted request metadata available to an application-owned public-origin resolver. */
 export type ExactPublicOriginRequest = Readonly<{
 	url?: string | URL;

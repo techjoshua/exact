@@ -40,6 +40,8 @@ import type {
 import { renderToStringAsync } from './async-rendering.js';
 import { createSsrContext } from './context.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
+import { normalizeExactServerRuntimeOptions } from './runtime-configuration.js';
+import { renderSignal } from './signals.js';
 import { renderVNode } from './sync-tree.js';
 
 /** Creates a boundary refresh handler. */
@@ -52,7 +54,7 @@ export function createBoundaryRefreshHandler(
 		const result = await renderToStringAsync(vnode, {
 			...options,
 			contexts: context.contexts?.componentValues ?? options.contexts,
-			signal: options.signal ?? context.signal
+			signal: renderSignal(context.signal, options.signal)
 		});
 		const previousHtml = (await options.previousHtml?.(input, context)) ?? input.boundaryHtml;
 		return {
@@ -83,7 +85,7 @@ export function createInvocationRefreshHandler(
 			const result = await renderToStringAsync(vnode, {
 				...boundary,
 				contexts: context.contexts?.componentValues ?? boundary.contexts,
-				signal: boundary.signal ?? context.signal
+				signal: renderSignal(context.signal, boundary.signal)
 			});
 			const previousHtml =
 				(await boundary.previousHtml?.(input, context)) ??
@@ -159,33 +161,13 @@ export function createExactServerHandlerRegistry(
 
 /** Creates an exact server runtime. */
 export function createExactServerRuntime(options: ExactServerRuntimeOptions): ExactServerContext {
-	const registry = createExactServerHandlerRegistry(options);
-	const contextRuntime = createExactContextRuntime({
-		publicOrigin: options.publicOrigin,
-		applicationContexts: options.applicationContexts,
-		requestContexts: options.requestContexts,
-		contextOverrides: options.contextOverrides
-	});
+	const configuration = normalizeExactServerRuntimeOptions(options);
+	const registry = createExactServerHandlerRegistry(configuration.registry);
+	const contextRuntime = createExactContextRuntime(configuration.context);
 	const server: ExactServerContext = {
 		contract: options.contract,
 		...registry,
-		componentAuthorization: options.componentAuthorization,
-		publicOrigin: options.publicOrigin,
-		authorize: options.authorize,
-		validateCsrf: options.validateCsrf,
-		logger: options.logger,
-		outputExtensions: options.outputExtensions,
-		applicationContexts: options.applicationContexts,
-		requestContexts: options.requestContexts,
-		contextOverrides: options.contextOverrides,
-		onContextAccess: options.onContextAccess,
-		inspectionCatalogs: options.inspectionCatalogs,
-		allowDebug: options.allowDebug,
-		debugSessionIdentity: options.debugSessionIdentity,
-		debugLimits: options.debugLimits,
-		inspectionQueryService: options.inspectionQueryService,
-		inspectionSources: options.inspectionSources,
-		onDebugAudit: options.onDebugAudit,
+		...configuration.server,
 		contextRuntime,
 		async dispose() {
 			await contextRuntime.dispose();

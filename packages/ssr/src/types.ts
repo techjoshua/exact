@@ -239,6 +239,12 @@ export type ExactServerRuntimeOptions = ExactServerHandlerRegistryOptions &
 	ExactServerContextConfiguration & {
 		authorize?: ExactServerContext['authorize'];
 		validateCsrf?: ExactServerContext['validateCsrf'];
+		payloadDecoders?: ExactServerContext['payloadDecoders'];
+		resolvePartitionAuthority?: ExactServerContext['resolvePartitionAuthority'];
+		remoteBuilds?: ExactServerContext['remoteBuilds'];
+		preferredBuildKey?: ExactServerContext['preferredBuildKey'];
+		gateway?: ExactServerContext['gateway'];
+		limits?: ExactServerContext['limits'];
 	};
 
 /** Defines the keyed list snapshot item type contract. */

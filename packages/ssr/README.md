@@ -31,5 +31,10 @@ leave authored output unchanged and warn once per identity.
 Generated task handlers, component identities, resumption records, and registry selections are
 opaque contracts shared with the client runtime.
 
+`createExactServerRuntime()` accepts the complete server policy as one flat options object. It
+normalizes context, rendering, authorization, decoding, partition, retained-build, gateway, and
+limit settings to their owning runtimes. Request cancellation always remains authoritative: an
+optional render signal can cancel work earlier but cannot detach it from the request lifetime.
+
 See [SSR and hydration](../../docs/ssr-hydration.md), [tasks](../../docs/tasks.md), and
 [component registries](../../docs/component-registries.md).
