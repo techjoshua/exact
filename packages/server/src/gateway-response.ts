@@ -34,14 +34,34 @@ export async function copyValidatedGatewayResponse(
 		};
 	}
 	if (!contentType.startsWith('application/json')) throw new Error('Invalid upstream content type');
-	const body = await upstream.text();
-	if (
-		new TextEncoder().encode(body).byteLength >
+	if (!upstream.body) throw new Error('Missing upstream response body');
+	const body = await readBoundedText(
+		upstream.body,
 		positiveLimit(context.limits?.maxResponseBytes, 16 * 1024 * 1024)
-	)
-		throw new Error('Upstream response too large');
+	);
 	JSON.parse(body);
 	return { status: upstream.status, headers, body };
+}
+
+async function readBoundedText(source: ReadableStream<Uint8Array>, maximum: number): Promise<string> {
+	const reader = source.getReader();
+	const decoder = new TextDecoder('utf-8', { fatal: true });
+	let body = '';
+	let bytes = 0;
+	try {
+		while (true) {
+			const next = await reader.read();
+			if (next.done) return body + decoder.decode();
+			bytes += next.value.byteLength;
+			if (bytes > maximum) throw new Error('Upstream response too large');
+			body += decoder.decode(next.value, { stream: true });
+		}
+	} catch (error) {
+		void reader.cancel(error).catch(() => undefined);
+		throw error;
+	} finally {
+		reader.releaseLock();
+	}
 }
 
 function validateNdjsonStream(
