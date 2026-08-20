@@ -13,7 +13,7 @@ import type { ExactRequestLike, ExactResponseLike } from '@exactjs/server';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 
 import type { ActionOptions, PropsOf, StateOf } from './contracts.js';
-import { TestComponent, type ComponentTestView } from './mounting/views.js';
+import { TestComponent, type AnyTestComponent, type ComponentTestView } from './mounting/views.js';
 import { ExactProtocolRecorder } from './protocol.js';
 import { QueryHost, allElements } from './queries/host.js';
 
@@ -158,7 +158,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		return undefined;
 	}
 	/** Wraps a mounted component instance with component-scoped test operations. */
-	componentFor(instance: AnyComponentInstance): TestComponent<any, any> {
+	componentFor(instance: AnyComponentInstance): AnyTestComponent {
 		if (!this.nodeFor(instance))
 			throw new Error(`Component ${instance.type.name || instance.id} is not mounted in this view`);
 		return new TestComponent(this, instance);

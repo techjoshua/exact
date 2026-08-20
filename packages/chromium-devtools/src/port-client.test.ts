@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createExactExtensionQueryClient } from './port-client.js';
 

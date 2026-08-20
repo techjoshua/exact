@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { type Component } from '@exactjs/core';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { registerReactiveListKey } from '@exactjs/reactive';

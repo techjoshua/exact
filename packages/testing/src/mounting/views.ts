@@ -312,4 +312,4 @@ export type AnyTestView = TestView<any, any>;
 
 /** Existential test component used by heterogeneous tree traversal. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test traversal must accept components for every authored state and props shape.
-type AnyTestComponent = TestComponent<any, any>;
+export type AnyTestComponent = TestComponent<any, any>;
