@@ -36,6 +36,9 @@ async function readBoundedRequestStream(
 	const reader = stream.getReader();
 	const chunks: Uint8Array[] = [];
 	let bytes = 0;
+	const abort = () => void reader.cancel(signal?.reason).catch(() => undefined);
+	if (signal?.aborted) abort();
+	else signal?.addEventListener('abort', abort, { once: true });
 	try {
 		while (true) {
 			if (signal?.aborted) throw signal.reason ?? new DOMException('Request aborted', 'AbortError');
@@ -60,6 +63,7 @@ async function readBoundedRequestStream(
 		}
 		throw error;
 	} finally {
+		signal?.removeEventListener('abort', abort);
 		reader.releaseLock();
 	}
 }

@@ -162,9 +162,20 @@ export async function connectExactCdp(
 		async close() {
 			if (socket.readyState === WebSocket.CLOSED) return;
 			socket.close();
-			await new Promise<void>((resolve) =>
-				socket.addEventListener('close', () => resolve(), { once: true })
-			);
+			await new Promise<void>((resolve, reject) => {
+				const timer = setTimeout(
+					() => reject(new Error('CDP WebSocket close timed out')),
+					connectTimeoutMs
+				);
+				socket.addEventListener(
+					'close',
+					() => {
+						clearTimeout(timer);
+						resolve();
+					},
+					{ once: true }
+				);
+			});
 		}
 	};
 	return Object.freeze(transport);
