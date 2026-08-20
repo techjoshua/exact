@@ -152,7 +152,11 @@ export async function connectExactCdp(
 				pending.set(id, { resolve, reject, timer, cleanup });
 				if (signal?.aborted) return abort();
 				signal?.addEventListener('abort', abort, { once: true });
-				socket.send(JSON.stringify({ id, method, params }));
+				try {
+					socket.send(JSON.stringify({ id, method, params }));
+				} catch (error) {
+					settle(() => reject(error));
+				}
 			});
 		},
 		onEvent(listener) {
