@@ -174,6 +174,31 @@ describe('RemoteComponent', () => {
 		delete (globalThis as Record<string, unknown>).__releaseUnmountedRemote;
 	});
 
+	it('times out a stalled shared remote entry load', async () => {
+		vi.useFakeTimers();
+		const loaderSymbol = Symbol.for('@exactjs/microfrontends/remote-loader');
+		(globalThis as Record<PropertyKey, unknown>)[loaderSymbol] = {
+			load(_url: string, _integrity: string, signal: AbortSignal) {
+				return new Promise((_resolve, reject) => {
+					signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+				});
+			},
+			publish() {}
+		};
+		try {
+			const loaded = loadExactRemoteModule(
+				'https://remote.test/stalled-timeout.js',
+				'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+			);
+			const rejected = expect(loaded).rejects.toThrow('timed out');
+			await vi.advanceTimersByTimeAsync(30_000);
+			await rejected;
+		} finally {
+			delete (globalThis as Record<PropertyKey, unknown>)[loaderSymbol];
+			vi.useRealTimers();
+		}
+	});
+
 	it.each([
 		['empty URL', ''],
 		['missing module value', dataModule('export default undefined;')],

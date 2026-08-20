@@ -16,6 +16,8 @@ the page root. Configure each remote's `integrity` when its entry bytes must be 
 execution. The browser enforces that SRI pin through the generated module-entry loader; an unpinned
 entry is explicitly trusted executable authority. Replacement resolvers should return
 `{ clientEntry, integrity }` for pinned build rotation.
+Remote entry waits stop with their owning component. Shared loads have a 30-second timeout and a
+64-entry cache ceiling so stalled deployments cannot accumulate indefinitely.
 
 Server-executing remote builds may carry the compact component-library authorization identity
 created by `@exactjs/component-library-policy`. The remote entry, hydration client, gateway, and
