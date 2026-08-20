@@ -1,6 +1,6 @@
 import { batch, mutateReactiveCollection, unwrap, whenEffectScopeResumed } from '@exactjs/reactive';
 
-import { combineAbortSignals, createDisposableAbortSignal, isAbortSignal } from './signals.js';
+import { createDisposableAbortSignal, isAbortSignal } from './signals.js';
 import { isPromiseLike } from '../component/async-value.js';
 
 import type {
