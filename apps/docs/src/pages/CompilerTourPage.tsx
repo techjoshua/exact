@@ -48,6 +48,11 @@ export function CompilerTourPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>What to notice</h2>
+				<p>
+					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment
+					boundary. Inputs outside it are rejected before any path beneath <code>outDir</code> is
+					derived or written.
+				</p>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Precise updates</span>

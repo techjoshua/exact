@@ -92,6 +92,10 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
 
+Precompiled pipelines treat `rootDir` as an output-containment boundary. Every input must resolve
+beneath that root before the compiler derives a path under `outDir`; an outside input fails without
+writing through `..` segments or an absolute path.
+
 The Vite adapter authorizes each optional provider in its importing component's scope, then gives
 equivalent resolved facades one content-derived module identity. Components that select the same
 provider therefore share one browser module without weakening package-scoped authorization.
