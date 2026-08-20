@@ -45,6 +45,10 @@ export type ComponentRegistry<Definition extends ComponentRegistryDefinition> =
 		readonly [componentRegistryBrand]: Definition;
 	};
 
+/** Existential registry accepted by operations that preserve its branded definition. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Runtime registry operations preserve the concrete definition through their own generic parameter.
+export type AnyComponentRegistry = ComponentRegistry<any>;
+
 /** String component keys declared by a registry, excluding compiler-private symbols. */
 export type KeyOf<Registry> =
 	Registry extends ComponentRegistry<infer Definition> ? Extract<keyof Definition, string> : never;

@@ -1,9 +1,9 @@
 import type {
+	AnyEnhancementComponentFunction,
 	AnyComponentFunction,
 	ComponentDomain,
 	ComponentResumptionActivation,
 	ExactRuntimeInspectionOwner,
-	ComponentFunction,
 	ExactComponentAuthorizationIdentity,
 	ErrorReport,
 	Logger,
@@ -94,7 +94,7 @@ export type HydrateOptions = {
 	/** Receives hydration and nested renderer profiling observations. */
 	onProfile?: ExactProfileSink;
 	/** Bundle-local compiler-generated enhancement components used by the hydrated renderer. */
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 };
 
 /** One concrete acyclic runtime projection of a compiler partition edge. */

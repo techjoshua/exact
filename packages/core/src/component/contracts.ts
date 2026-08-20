@@ -182,6 +182,10 @@ export type AnyComponentFunction = ComponentFunction<any, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Authored components are contravariant in props, so unknown cannot represent every authored component.
 export type AnyAuthoredComponentFunction = AuthoredComponentFunction<any, any>;
 
+/** Enhancement component with arbitrary internal state and the canonical open props record. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Enhancement state is private to each implementation while renderer props share one open record contract.
+export type AnyEnhancementComponentFunction = ComponentFunction<any, Record<string, unknown>>;
+
 /** Defines the error source type contract. */
 export type ErrorSource =
 	| 'component'
@@ -382,6 +386,10 @@ export interface Component<State extends object> {
 	onUnmount(handler: LifecycleHandler): void;
 	onRender(handler: RenderEventHandler): void;
 }
+
+/** Existential component capability used before a full runtime instance has been constructed. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Construction helpers preserve arbitrary state shapes while operating only on shared component capabilities.
+export type AnyComponent = Component<any>;
 
 /** Defines the component instance type contract. */
 export type ComponentInstance<State extends object> = Component<State> & {

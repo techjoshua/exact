@@ -1,4 +1,8 @@
-import type { ComponentFunction, ContextToken } from '@exactjs/core';
+import type {
+	AnyEnhancementComponentFunction,
+	ComponentFunction,
+	ContextToken
+} from '@exactjs/core';
 
 /** Defines the state of type contract. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Props are erased only so the conditional type can infer component state.
@@ -12,8 +16,7 @@ export type TestConfiguration = {
 	settleTasks?: boolean;
 	attachToDocument?: boolean;
 	/** Bundle-local enhancement components installed for this test renderer. */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Catalog entries may own any internal state while accepting the canonical enhancement props record.
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 };
 /** Configures action. */
 export type ActionOptions = { settleTasks?: boolean };
