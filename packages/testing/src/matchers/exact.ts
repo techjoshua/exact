@@ -1,7 +1,7 @@
 import { type AnyComponentFunction, type ContextToken } from '@exactjs/core';
 
 import type { AccessibleName } from '../contracts.js';
-import { TestComponent } from '../mounting/views.js';
+import { TestComponent, type AnyTestComponent } from '../mounting/views.js';
 import { matchesName } from '../queries/accessibility.js';
 import { TestElement } from '../queries/host.js';
 
@@ -31,7 +31,7 @@ const result = (pass: boolean, positive: string, negative: string): MatcherResul
 	pass,
 	message: () => (pass ? negative : positive)
 });
-const componentValue = (value: unknown): TestComponent<any, any> | undefined =>
+const componentValue = (value: unknown): AnyTestComponent | undefined =>
 	value instanceof TestComponent ? value : undefined;
 const elementValue = (value: unknown): Element | undefined =>
 	value instanceof TestElement

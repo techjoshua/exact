@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { describe, expect, it, vi } from 'vitest';
 import { createExactBindingGateway, handleExactRequest } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';

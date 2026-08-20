@@ -87,7 +87,18 @@ const MatchContext = createContext<Readonly<{
 const StaticContext = createContext<Record<string, unknown> | null>(null);
 
 /** Performs the router domain operation. */
-export function Router(props: { history: V5History; children?: ReactNode }): ReactNode {
+export function Router(props: {
+	history: {
+		location: unknown;
+		action?: unknown;
+		push(to: To, state?: unknown): void;
+		replace(to: To, state?: unknown): void;
+		go(delta: number): void;
+		createHref(to: To): string;
+		listen(listener: () => void): () => unknown;
+	};
+	children?: ReactNode;
+}): ReactNode {
 	const location = useSyncExternalStore(
 		(notify) => props.history.listen(notify),
 		() => historyLocation(props.history.location),

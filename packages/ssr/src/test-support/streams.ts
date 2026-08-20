@@ -1,6 +1,10 @@
+/** Parsed test protocol value whose shape is asserted by each consuming test. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- This helper intentionally leaves JSON member access unconstrained so tests can assert different wire shapes.
+type ParsedStreamEvent = any;
+
 export async function readStreamEvent(
 	reader: ReadableStreamDefaultReader<Uint8Array>
-): Promise<any> {
+): Promise<ParsedStreamEvent> {
 	const next = await reader.read();
 	if (next.done) throw new Error('stream ended');
 	return JSON.parse(new TextDecoder().decode(next.value).trim());
@@ -8,8 +12,8 @@ export async function readStreamEvent(
 
 export async function readRemainingStreamEvents(
 	reader: ReadableStreamDefaultReader<Uint8Array>
-): Promise<any[]> {
-	const events: any[] = [];
+): Promise<ParsedStreamEvent[]> {
+	const events: ParsedStreamEvent[] = [];
 	while (true) {
 		const next = await reader.read();
 		if (next.done) return events;
