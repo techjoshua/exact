@@ -165,7 +165,8 @@ export class ProviderConnection {
 		);
 		let stderr = '';
 		child.stderr.on('data', (chunk: Buffer) => {
-			if (stderr.length < 64 * 1024) stderr += chunk.toString('utf8');
+			const remaining = 64 * 1024 - Buffer.byteLength(stderr);
+			if (remaining > 0) stderr += chunk.subarray(0, remaining).toString('utf8');
 		});
 		child.once('exit', (code) => {
 			this.childFailure(
