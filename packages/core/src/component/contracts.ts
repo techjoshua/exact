@@ -40,7 +40,7 @@ export type VNodeType =
 	| typeof Suspense
 	| typeof Target
 	| typeof UnsafeHtml
-	| ComponentFunction<any, any>;
+	| AnyComponentFunction;
 
 /** Controls whether a native Activity subtree is connected, parked, or prepared in background. */
 export type ActivityMode = 'active' | 'parked' | 'background';
@@ -64,12 +64,12 @@ export type ComponentResumptionActivation = Readonly<{
 /** Client-local token identity paired with a compiler-stable context contract name. */
 export type ComponentContinuationContextBinding = Readonly<{
 	name: string;
-	token: ContextToken<any>;
+	token: ContextToken<unknown>;
 }>;
 
 /** Compiler-generated request to advance the server half of a component machine. */
 export type ComponentContinuationDispatch = {
-	readonly instance: ComponentInstance<any>;
+	readonly instance: AnyComponentInstance;
 	readonly id: string;
 	readonly dependencies: readonly unknown[];
 	readonly contextWrites: readonly ComponentContinuationContextBinding[];
@@ -139,13 +139,21 @@ export type UnsafeHtmlAuditEvent = {
 	characters: number;
 };
 /** Defines the component function type contract. */
-export type ComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
+export type ComponentFunction<
+	State extends object = Record<string, unknown>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Omitted props must accept every authored props shape; unknown would make the function contravariant and unusable.
+	Props = any
+> = (
 	this: Component<State>,
 	props: Props
 ) => RenderFunction;
 
 /** Authored direct-view component or lexical micro-component shape normalized by the compiler. */
-export type DirectComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
+export type DirectComponentFunction<
+	State extends object = Record<string, unknown>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Omitted props must accept every authored props shape; unknown would make the function contravariant and unusable.
+	Props = any
+> = (
 	this: Component<State>,
 	props: Props
 ) => RenderResult;
@@ -156,7 +164,11 @@ export type DirectComponentFunction<State extends object = Record<string, unknow
  * Compiled artifacts lower this function to a synchronous {@link ComponentFunction} plus owned
  * continuations. Runtime renderers intentionally do not accept an uncompiled async component.
  */
-export type AsyncComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
+export type AsyncComponentFunction<
+	State extends object = Record<string, unknown>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Omitted props must accept every authored props shape; unknown would make the function contravariant and unusable.
+	Props = any
+> = (
 	this: Component<State>,
 	props: Props
 ) => Promise<RenderFunction | RenderResult>;
@@ -164,11 +176,20 @@ export type AsyncComponentFunction<State extends object = Record<string, unknown
 /** Component source forms accepted by JSX and normalized before entering a renderer. */
 export type AuthoredComponentFunction<
 	State extends object = Record<string, unknown>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Omitted props must accept every authored props shape across all source component forms.
 	Props = any
 > =
 	| ComponentFunction<State, Props>
 	| DirectComponentFunction<State, Props>
 	| AsyncComponentFunction<State, Props>;
+
+/** Existential component function accepted by infrastructure that preserves but does not inspect its state or props shape. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Component functions are contravariant in props, so unknown cannot represent every authored component.
+export type AnyComponentFunction = ComponentFunction<any, any>;
+
+/** Existential authored component accepted before the compiler normalizes its source form. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Authored components are contravariant in props, so unknown cannot represent every authored component.
+export type AnyAuthoredComponentFunction = AuthoredComponentFunction<any, any>;
 
 /** Defines the error source type contract. */
 export type ErrorSource =
@@ -206,7 +227,7 @@ export type ErrorReportOptions = {
 export type ErrorContextValue = {
 	errors: ErrorReport[];
 	/** Optional owning boundary; errors thrown by that boundary itself skip this context. */
-	boundary?: ComponentInstance<any>;
+	boundary?: AnyComponentInstance;
 	report(error: unknown, options?: ErrorReportOptions): ErrorReport;
 	clear(error: ErrorReport | string): void;
 	clearAll(): void;
@@ -219,7 +240,7 @@ export type SuspensionContextValue = {
 
 /** Describes one task generation that participates in a readiness boundary. */
 export type BlockingWork = {
-	readonly owner: ComponentInstance<any>;
+	readonly owner: AnyComponentInstance;
 	readonly taskGeneration: number;
 	readonly settlement: PromiseLike<unknown>;
 	/** Whether settlement requires reconstructing the candidate rather than committing it directly. */
@@ -271,7 +292,7 @@ export type RefBinding<T> = {
 	/** Current value published for this component-owned binding. */
 	readonly current: T | undefined;
 	readonly key: RefKey<T>;
-	readonly owner: ComponentInstance<any>;
+	readonly owner: AnyComponentInstance;
 	/** Publishes an imperative value without assigning it component-root lifecycle semantics. */
 	fulfill(value: T | undefined): void;
 };
@@ -369,8 +390,8 @@ export interface Component<State extends object> {
 
 /** Defines the component instance type contract. */
 export type ComponentInstance<State extends object> = Component<State> & {
-	readonly type: ComponentFunction<State, any>;
-	parent?: ComponentInstance<any>;
+	readonly type: ComponentFunction<State>;
+	parent?: AnyComponentInstance;
 	readonly domain: ComponentDomain;
 	readonly props: Reactive<Record<string, unknown>>;
 	readonly contexts: Map<symbol, unknown>;
@@ -399,3 +420,7 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	updateProps(props: Record<string, unknown>): void;
 	unmount(reason?: string): void;
 };
+
+/** Existential component instance used where runtime ownership is independent of its state shape. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Component state is intentionally erased at heterogeneous ownership boundaries.
+export type AnyComponentInstance = ComponentInstance<any>;
