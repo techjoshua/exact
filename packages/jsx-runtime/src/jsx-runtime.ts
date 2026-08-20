@@ -3,10 +3,10 @@ import { createCellVNode } from '@exactjs/core/runtime/render';
 import type {
 	AnyAuthoredComponentFunction,
 	AnyComponentFunction,
+	AnyStateAuthoredComponentFunction,
+	AnyStateComponentFunction,
 	Activity,
-	AuthoredComponentFunction,
 	Child,
-	ComponentFunction,
 	InteractionHandler,
 	RefBinding,
 	Suspense,
@@ -16,7 +16,9 @@ import type {
 export { Fragment };
 
 /** Provides the canonical  value. */
-export const _ = Fragment as unknown as ComponentFunction<any, { children?: Child | Child[] }>;
+export const _ = Fragment as unknown as AnyStateComponentFunction<{
+	children?: Child | Child[];
+}>;
 
 type Props = Record<string, unknown> & {
 	children?: Child | Child[];
@@ -46,7 +48,7 @@ type InteropElementType =
 
 /** Creates a vnode for the automatic JSX runtime's single-child entrypoint. */
 export function jsx<P extends Props>(
-	type: AuthoredComponentFunction<any, P>,
+	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
 	key?: string
 ): VNode<P>;
@@ -61,7 +63,7 @@ export function jsx(type: JsxType, props: Props | null, key?: string): VNode {
 
 /** Creates a vnode for the automatic JSX runtime's multi-child entrypoint. */
 export function jsxs<P extends Props>(
-	type: AuthoredComponentFunction<any, P>,
+	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
 	key?: string
 ): VNode<P>;
@@ -279,6 +281,7 @@ export namespace JSX {
 
 	export interface IntrinsicElements extends HTMLIntrinsicElements {
 		_target: IntrinsicElementProps<EventTarget> & { children: Child | Child[] };
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- The custom-element fallback must be a bivariant supertype of every specifically typed HTML intrinsic entry.
 		[elementName: string]: IntrinsicElementProps<any>;
 	}
 }

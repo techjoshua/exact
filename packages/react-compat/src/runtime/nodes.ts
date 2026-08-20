@@ -45,6 +45,7 @@ import {
 } from '../internals.js';
 import { EXACT_COMPONENT_TYPE } from './shared.js';
 import type {
+	AnyReactComponentType,
 	ReactComponentType,
 	ReactElement,
 	ReactNode,
@@ -211,7 +212,7 @@ export function exactComponentType(
 
 /** Runs react type with the supplied execution context. */
 export function invokeReactType(
-	type: ReactComponentType<any>,
+	type: AnyReactComponentType,
 	props: Record<string, unknown>,
 	ref?: unknown
 ): ReactNode {
@@ -226,7 +227,7 @@ export function invokeReactType(
 	if (special.$$typeof === REACT_MEMO_TYPE && special.type)
 		return invokeReactType(special.type, props, ref);
 	if (special.$$typeof === REACT_LAZY_TYPE && special._init) {
-		return invokeReactType(special._init(special._payload) as ReactComponentType<any>, props, ref);
+		return invokeReactType(special._init(special._payload) as AnyReactComponentType, props, ref);
 	}
 	if (
 		special.$$typeof === REACT_PROVIDER_TYPE ||

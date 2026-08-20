@@ -73,9 +73,9 @@ export type RouteProps = {
 	exact?: boolean;
 	strict?: boolean;
 	sensitive?: boolean;
-	component?: ReactComponentType<RouteComponentProps<any>>;
-	render?: (props: RouteComponentProps<any>) => ReactNode;
-	children?: ReactNode | ((props: RouteComponentProps<any>) => ReactNode);
+	component?: ReactComponentType<RouteComponentProps>;
+	render?: (props: RouteComponentProps) => ReactNode;
+	children?: ReactNode | ((props: RouteComponentProps) => ReactNode);
 	computedMatch?: V5Match | null;
 	location?: RouteLocation;
 };
@@ -87,7 +87,7 @@ const MatchContext = createContext<Readonly<{
 const StaticContext = createContext<Record<string, unknown> | null>(null);
 
 /** Performs the router domain operation. */
-export function Router(props: { history: any; children?: ReactNode }): ReactNode {
+export function Router(props: { history: V5History; children?: ReactNode }): ReactNode {
 	const location = useSyncExternalStore(
 		(notify) => props.history.listen(notify),
 		() => historyLocation(props.history.location),
@@ -337,10 +337,10 @@ export function useRouteMatch<
 }
 
 /** Performs the with router domain operation. */
-export function withRouter<P extends RouteComponentProps<any>>(
+export function withRouter<P extends RouteComponentProps>(
 	Component: ReactComponentType<P>
-): ReactComponentType<Omit<P, keyof RouteComponentProps<any>>> {
-	function WithRouter(props: Omit<P, keyof RouteComponentProps<any>>): ReactNode {
+): ReactComponentType<Omit<P, keyof RouteComponentProps>> {
+	function WithRouter(props: Omit<P, keyof RouteComponentProps>): ReactNode {
 		UNSAFE_useExactRouter();
 		const routed = useContext(MatchContext);
 		const current = useLocation();
@@ -391,7 +391,7 @@ function rootMatch(pathname: string): V5Match {
 function normalizeAction(value: unknown): 'POP' | 'PUSH' | 'REPLACE' {
 	return value === 'PUSH' || value === 'REPLACE' ? value : 'POP';
 }
-function historyLocation(value: any): Partial<RouteLocation> {
+function historyLocation(value: unknown): Partial<RouteLocation> {
 	return typeof value === 'string' ? { pathname: value } : (value ?? { pathname: '/' });
 }
 function toString(to: To): string {

@@ -1,12 +1,13 @@
-import { withTaskObserver, normalizeRenderResult, type VNode } from '@exactjs/core';
+import {
+	type AnyComponentFunction,
+	type AnyEnhancementComponentFunction,
+	withTaskObserver,
+	normalizeRenderResult,
+	type VNode
+} from '@exactjs/core';
 import { renderInstance } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
-import type {
-	AnyComponentInstance,
-	ComponentFunction,
-	SsrContext,
-	TaskObserver
-} from '../types.js';
+import type { AnyComponentInstance, SsrContext, TaskObserver } from '../types.js';
 import { isSsrRenderInterruption } from './limits.js';
 import { componentMarkerId, renderResumableComponentBoundary } from './boundaries.js';
 import { componentName, getComponentProps } from './component-vnode.js';
@@ -70,7 +71,7 @@ export async function renderComponentAsync(
 						}),
 				retain: retainSsrComponent
 			};
-			const blueprint = resolveSsrComponentExecution(context, vnode.type as ComponentFunction<any>);
+			const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
 			const componentProps = await prepareComponentProps(
 				getComponentProps(vnode),
 				blueprint.execution,
@@ -79,7 +80,7 @@ export async function renderComponentAsync(
 			instance = withTaskObserver(observer, () =>
 				createSsrComponentInstance(
 					context,
-					vnode.type as ComponentFunction<any, Record<string, unknown>>,
+					vnode.type as AnyEnhancementComponentFunction,
 					componentProps,
 					parent,
 					blueprint

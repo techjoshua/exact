@@ -1,12 +1,12 @@
 import {
 	type AnyComponentInstance,
+	type AnyEnhancementComponentFunction,
 	Suspense,
 	createReadinessCoordinator,
 	isVNode,
 	normalizeRenderResult,
 	withTaskObserver,
 	type Child,
-	type ComponentFunction,
 	type TaskObserver,
 	type VNode
 } from '@exactjs/core';
@@ -143,7 +143,7 @@ function materializeSync(
 		try {
 			instance = createSsrComponentInstance(
 				context,
-				vnode.type as ComponentFunction<any, Record<string, unknown>>,
+				vnode.type as AnyEnhancementComponentFunction,
 				props,
 				parent
 			);
@@ -251,7 +251,7 @@ async function materializeAsync(
 			instance = withTaskObserver(observer, () =>
 				createSsrComponentInstance(
 					context,
-					vnode.type as ComponentFunction<any, Record<string, unknown>>,
+					vnode.type as AnyEnhancementComponentFunction,
 					props,
 					parent
 				)

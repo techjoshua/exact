@@ -186,6 +186,14 @@ export type AnyAuthoredComponentFunction = AuthoredComponentFunction<any, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Enhancement state is private to each implementation while renderer props share one open record contract.
 export type AnyEnhancementComponentFunction = ComponentFunction<any, Record<string, unknown>>;
 
+/** Component function with a known props contract and arbitrary private state. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- State is existential while the caller-facing props contract remains generic and checked.
+export type AnyStateComponentFunction<Props> = ComponentFunction<any, Props>;
+
+/** Authored component with a known props contract and arbitrary private state. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- State is existential while authored source forms retain their generic props contract.
+export type AnyStateAuthoredComponentFunction<Props> = AuthoredComponentFunction<any, Props>;
+
 /** Defines the error source type contract. */
 export type ErrorSource =
 	| 'component'

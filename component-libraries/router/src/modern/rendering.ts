@@ -1,7 +1,7 @@
 import {
 	createElement,
 	Component as ReactComponent,
-	type ReactComponentType,
+	type AnyReactComponentType,
 	type ReactNode
 } from '@exactjs/react-compat';
 import {
@@ -76,7 +76,10 @@ export function renderMatches(
 export function unstable_HistoryRouter(props: {
 	basename?: string;
 	children?: ReactNode;
-	history: any;
+	history: Parameters<typeof Router>[0]['navigator'] & {
+		location: string | Partial<RouteLocation>;
+		action?: 'POP' | 'PUSH' | 'REPLACE';
+	};
 }): ReactNode {
 	return createElement(Router, {
 		basename: props.basename,
@@ -182,7 +185,7 @@ function renderMatchedRoute(
 
 class RouteRenderBoundary extends ReactComponent<
 	{
-		ErrorBoundary?: ReactComponentType<any>;
+		ErrorBoundary?: AnyReactComponentType;
 		errorElement?: ReactNode;
 		children?: ReactNode;
 	},
