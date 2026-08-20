@@ -7,10 +7,10 @@ import {
 } from '@exactjs/language-extension-api';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import type { ExactLanguageProviderDescriptor, ExactLanguageProviderStatus } from './contracts.js';
 import type { ExactLanguageRunnerResponse } from './runner-protocol.js';
+import { readBoundedLines } from './bounded-lines.js';
 
 /** Workspace inputs used to initialize an isolated language-provider process. */
 export type ProviderConnectionOptions = Readonly<{
@@ -35,6 +35,7 @@ export class ProviderConnection {
 	private readonly failures: number[] = [];
 	private disposed = false;
 	private readonly lifetime = new AbortController();
+	private stopOutput: (() => void) | undefined;
 
 	constructor(
 		readonly descriptor: ExactLanguageProviderDescriptor,
@@ -109,6 +110,8 @@ export class ProviderConnection {
 			);
 		} catch {}
 		this.process = undefined;
+		this.stopOutput?.();
+		this.stopOutput = undefined;
 		if (!child.killed) child.kill();
 		for (const pending of this.pending.values())
 			pending.reject(new Error('Language provider disposed'));
@@ -154,8 +157,11 @@ export class ProviderConnection {
 			throw new Error('Language provider disposed');
 		}
 		child.stdin.on('error', (error) => this.childFailure(child, error));
-		createInterface({ input: child.stdout, crlfDelay: Infinity }).on('line', (line) =>
-			this.receive(child, line)
+		this.stopOutput = readBoundedLines(
+			child.stdout,
+			exactLanguageProtocolLimits.responseBytes,
+			(line) => this.receive(child, line),
+			(error) => this.childFailure(child, error)
 		);
 		let stderr = '';
 		child.stderr.on('data', (chunk: Buffer) => {
@@ -296,6 +302,8 @@ export class ProviderConnection {
 	private childFailure(child: ChildProcessWithoutNullStreams, error: Error): void {
 		if (this.process !== child) return;
 		this.process = undefined;
+		this.stopOutput?.();
+		this.stopOutput = undefined;
 		this.initialize = undefined;
 		for (const pending of this.pending.values()) pending.reject(error);
 		this.pending.clear();
