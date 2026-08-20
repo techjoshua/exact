@@ -1,6 +1,6 @@
 import { peek, type ReactiveValue } from '@exactjs/reactive';
 
-import type { TaskFunction } from './contracts.js';
+import type { AnyTaskFunction, TaskFunction } from './contracts.js';
 import {
 	currentTaskOwnerRecord,
 	registerTaskOwnerCleanup,
@@ -183,7 +183,7 @@ export function deferTaskOwnerActivations(owner: TaskOwnerRecord): void {
  */
 export function releaseTaskOwnerActivations(
 	owner: TaskOwnerRecord,
-	skipInitial: (task: TaskFunction<any[], unknown>) => boolean
+	skipInitial: (task: AnyTaskFunction) => boolean
 ): void {
 	owner.activationsDeferred = false;
 	for (const registration of owner.activationRegistrations) {

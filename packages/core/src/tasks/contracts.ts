@@ -69,6 +69,10 @@ export interface TaskFunction<Args extends unknown[], Result> {
 	(...args: Args): TaskInvocation<Result>;
 }
 
+/** Existential task function retained where authored argument tuples are not inspected. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Runtime task registries preserve arbitrary authored argument tuples through callable identity.
+export type AnyTaskFunction<Result = unknown> = TaskFunction<any[], Result>;
+
 /** Owner-bound task callable with aggregate status. */
 export interface BoundTaskFunction<Args extends unknown[], Result>
 	extends TaskFunction<Args, Result>,

@@ -1,8 +1,8 @@
 import type { AuthoredComponentFunction } from '../component/contracts.js';
 import { currentComponentDomain } from '../component/domain.js';
-import type { DynamicComponentResolver } from './contracts.js';
+import type { AnyDynamicComponentResolver, DynamicComponentResolver } from './contracts.js';
 
-const definitions = new WeakMap<(...args: never[]) => unknown, DynamicComponentResolver<any>>();
+const definitions = new WeakMap<(...args: never[]) => unknown, AnyDynamicComponentResolver>();
 
 /**
  * Declares a stable JSX component facade whose implementation is selected at runtime on the client.

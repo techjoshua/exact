@@ -14,6 +14,10 @@ import {
 
 import type { StopHandle } from './internal/types.js';
 
+/** Compiler-emitted update callback whose source value type is supplied by the authored expression. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Contextual any preserves ordinary arithmetic and property access in generated compound-assignment callbacks.
+type ReactiveUpdateOperation<Result> = (previous: any) => Result;
+
 /**
  * Compiler runtime hook for a statically-known state assignment.  Unlike a
  * normal proxy write, plain JSON-shaped replacements are reconciled in place:
@@ -57,7 +61,7 @@ export function commitReactiveWrite(parent: object, key: PropertyKey, next: unkn
 export function updateReactiveValue(
 	target: object,
 	path: readonly PropertyKey[],
-	operation: (previous: any) => unknown,
+	operation: ReactiveUpdateOperation<unknown>,
 	returnPrevious = false
 ): unknown {
 	const { parent, key } = resolveReactivePath(target, path);
@@ -71,7 +75,7 @@ export function updateReactiveValue(
 export function updateReactiveValueWithResult(
 	target: object,
 	path: readonly PropertyKey[],
-	operation: (previous: any) => readonly [next: unknown, result: unknown]
+	operation: ReactiveUpdateOperation<readonly [next: unknown, result: unknown]>
 ): unknown {
 	const { parent, key } = resolveReactivePath(target, path);
 	const previous = Reflect.get(parent, key);

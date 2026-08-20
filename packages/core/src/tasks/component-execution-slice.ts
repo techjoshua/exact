@@ -1,4 +1,4 @@
-import type { TaskFunction } from './contracts.js';
+import type { AnyTaskFunction } from './contracts.js';
 import type { TaskOwnerRecord } from './frame-contracts.js';
 import { componentContinuationTaskId } from './component-continuation.js';
 import { exactComponentIdentity } from '../component-contracts.js';
@@ -23,7 +23,7 @@ export function withComponentExecutionSlice<T>(slice: ComponentExecutionSlice, w
 /** Reports whether the active island slice admits this setup activation site. */
 export function componentExecutionSliceAllows(
 	owner: TaskOwnerRecord,
-	task: TaskFunction<any, unknown>
+	task: AnyTaskFunction
 ): boolean {
 	if (!activeSlice) return true;
 	const host = owner.host as AnyComponentInstance | undefined;

@@ -14,6 +14,7 @@ import type {
 import { createDynamicChild, createVNode } from '../vnode.js';
 import { dynamicComponentResolverFor } from './creation.js';
 import type {
+	AnyDynamicComponentCandidate,
 	DynamicComponentCandidate,
 	DynamicComponentInspection,
 	DynamicComponentResolution,
@@ -114,7 +115,7 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 		void state.revision;
 		switch (state.status) {
 			case 'available':
-				return createVNode(state.candidate! as ComponentFunction<any, Props>, {
+				return createVNode(state.candidate! as ComponentFunction<Record<string, unknown>, Props>, {
 					...options.props,
 					key: `exact-dynamic:${options.id}:${state.generation}`
 				});
@@ -197,7 +198,7 @@ function bumpRevision(state: { revision: number }): void {
 	state.revision = peek(() => state.revision) + 1;
 }
 
-function validateCandidate(candidate: DynamicComponentCandidate<any>): void {
+function validateCandidate(candidate: AnyDynamicComponentCandidate): void {
 	if (!isExactComponent(candidate))
 		throw new TypeError(
 			'Dynamic component resolution requires a native or explicitly adapted component'

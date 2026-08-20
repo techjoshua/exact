@@ -1,5 +1,4 @@
-import type { TaskActivation, TaskContext, TaskOwner } from './contracts.js';
-import type { TaskFunction } from './contracts.js';
+import type { AnyTaskFunction, TaskActivation, TaskContext, TaskOwner } from './contracts.js';
 
 /** Brands internal task frame records without exposing their representation publicly. */
 export const taskFrameTokenBrand = Symbol('exact.task-frame-token');
@@ -10,7 +9,7 @@ export type TaskFrameCleanup = () => void | Promise<void>;
 
 /** Deferred setup activation held while a durable host restores SSR state. */
 export type TaskActivationRegistration = {
-	readonly task: TaskFunction<any[], unknown>;
+	readonly task: AnyTaskFunction;
 	settled: boolean;
 	start(skipInitial: boolean): void;
 };

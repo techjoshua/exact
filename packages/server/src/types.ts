@@ -132,6 +132,10 @@ export type ExactContextFactory<T> = {
 	dispose?(value: T, reason?: unknown): void | Promise<void>;
 };
 
+/** Existential factory retained with its correlated token and owned value in heterogeneous scopes. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Scope storage preserves each factory's value correlation but contains multiple value types.
+export type AnyExactContextFactory = ExactContextFactory<any>;
+
 /** Defines the exact context value type contract. */
 export type ExactContextValue<T> = {
 	value: T;
