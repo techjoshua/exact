@@ -119,11 +119,6 @@ export type ExactWebpackDebugOptions = {
 export type ExactWebpackProfileEvent = ExactProfileEvent<'webpack-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
-type WebpackShutdownHook = {
-	tap?(name: string, handler: () => void): void;
-	tapPromise?(name: string, handler: () => Promise<void>): void;
-};
-
 /** Defines the webpack compiler like type contract. */
 export type WebpackCompilerLike = {
 	options: {
@@ -171,8 +166,8 @@ export type WebpackCompilerLike = {
 				}) => void
 			): void;
 		};
-		watchClose?: WebpackShutdownHook;
-		shutdown?: WebpackShutdownHook;
+		watchClose?: { tap?(name: string, handler: () => void): void };
+		shutdown?: { tap?(name: string, handler: () => void): void };
 		thisCompilation?: {
 			tap?(
 				name: string,
@@ -371,10 +366,8 @@ export class ExactWebpackPlugin {
 			intl.dispose();
 			await language.dispose();
 		};
-		for (const hook of [compiler.hooks?.watchClose, compiler.hooks?.shutdown]) {
-			if (hook?.tapPromise) hook.tapPromise('ExactWebpackPlugin', dispose);
-			else hook?.tap?.('ExactWebpackPlugin', () => void dispose());
-		}
+		for (const hook of [compiler.hooks?.watchClose, compiler.hooks?.shutdown])
+			hook?.tap?.('ExactWebpackPlugin', () => void dispose().catch(() => undefined));
 	}
 }
 
