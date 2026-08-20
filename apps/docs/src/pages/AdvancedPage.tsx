@@ -74,8 +74,8 @@ export function AdvancedPage(this: Component<{}>) {
 					DOM, preserves form state and focus, and continues the same component in the browser. The
 					root must belong to that window&apos;s current document; embedded documents hydrate from
 					their own runtime rather than transferring DOM ownership to a parent window. A failed DOM
-					update can be retried with the same VNode; the renderer does not publish failed patch state
-					as a completed render.
+					update can be retried with the same VNode; the renderer does not publish failed patch
+					state as a completed render.
 				</p>
 				<p>
 					Use <code>renderMode: 'hydrate'</code> for browser builds that adopt server HTML,
