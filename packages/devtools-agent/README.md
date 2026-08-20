@@ -17,3 +17,7 @@ target. The returned connection implements the shared inspection query service a
 The adapter uses fixed CDP functions and validated by-value arguments. It cannot invoke component
 work, mutate state, widen redaction, request unbounded data, or evaluate caller-provided
 JavaScript.
+
+Connection establishment, target discovery, and individual CDP requests are time-bounded. Target
+discovery responses and the number of pending requests are bounded as well; advanced callers may
+tune these ceilings with `ExactCdpConnectionOptions` and cancel work with an `AbortSignal`.
