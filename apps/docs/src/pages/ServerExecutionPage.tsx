@@ -95,6 +95,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					The browser and server share a neutral Core protocol contract. Hydration validates and
 					applies those responses without taking a production dependency on the server runtime.
+					Property patches cannot contain inline handlers, iframe documents, prototype controls, or
+					structural DOM setters; text and HTML changes travel through dedicated operations that
+					preserve framework ownership and unsafe-HTML policy.
 				</p>
 			</section>
 			<section>

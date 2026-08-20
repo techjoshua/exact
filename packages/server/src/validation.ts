@@ -3,6 +3,7 @@ import {
 	isSafeProtocolKey as isSafeObjectKey,
 	normalizeProtocolLimit as positiveLimit
 } from '@exactjs/core/framework/protocol-records';
+import { isSafeDomPatchProperty } from '@exactjs/core/framework/operation-protocol';
 import type {
 	ExactExecutorContract,
 	ExactCollectionMutation,
@@ -206,6 +207,7 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
 			return (
 				hasOnlyKeys(record, ['type', 'id', 'name', 'value']) &&
 				typeof record.name === 'string' &&
+				isSafeDomPatchProperty(record.name) &&
 				'value' in record &&
 				record.value !== undefined
 			);

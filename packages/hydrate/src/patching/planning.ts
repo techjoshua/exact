@@ -1,6 +1,9 @@
 import { encodeExactMarkerPart } from '@exactjs/core';
+import {
+	isSafeDomPatchProperty,
+	type ExactPatch
+} from '@exactjs/core/framework/operation-protocol';
 import { reserveDomWork, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
-import type { ExactPatch } from '@exactjs/core/framework/operation-protocol';
 import {
 	findClientBoundaryElement,
 	findExactElement,
@@ -173,6 +176,8 @@ export function preparePatchBatch(
 			fragmentNodes = parsed.nodeCount;
 		}
 		if (patch.type === 'prop') {
+			if (!isSafeDomPatchProperty(patch.name))
+				return { ok: false, detail: `forbidden prop patch ${patch.name}` };
 			const target = findExactElementTarget(container, patch.id, index);
 			if (!target) return { ok: false, detail: `missing prop target ${patch.id}` };
 			target.ownerDocument.createAttribute(patch.name);

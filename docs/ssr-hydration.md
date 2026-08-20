@@ -178,6 +178,12 @@ application. Available patches include:
 - independent nested element replacement; and
 - authoritative boundary replacement.
 
+Property patches are limited to non-executable, non-structural DOM properties. Inline event
+handlers, `srcdoc`, prototype controls, and setters such as `innerHTML`, `outerHTML`, and
+`textContent` are rejected by both the server response validator and the hydration commit planner.
+Text and structural changes must use their dedicated operations so ownership cleanup and unsafe
+HTML policy cannot be bypassed.
+
 Stable dynamic markers let a server refresh replace one structural expression
 without recreating unaffected siblings or component instances. Partition refresh
 contracts authorize only their declared range and descendant ranges; a response

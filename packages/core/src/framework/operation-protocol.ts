@@ -144,4 +144,29 @@ export type ExactPatch =
 	| { type: 'state'; id: string; value: unknown }
 	| { type: 'replace'; id: string; html: string };
 
+const forbiddenDomPatchProperties = new Set([
+	'__proto__',
+	'constructor',
+	'dangerouslysetinnerhtml',
+	'innerhtml',
+	'innertext',
+	'outerhtml',
+	'outertext',
+	'prototype',
+	'srcdoc',
+	'textcontent'
+]);
+
+/**
+ * Reports whether a server property patch may cross the operation boundary.
+ * Structural HTML/text setters, inline event handlers, iframe documents, and
+ * JavaScript prototype controls require dedicated framework-owned operations.
+ */
+export function isSafeDomPatchProperty(name: string): boolean {
+	const normalized = name.toLowerCase();
+	return (
+		!!normalized && !normalized.startsWith('on') && !forbiddenDomPatchProperties.has(normalized)
+	);
+}
+
 export type { ExactCollectionMutation } from '../component-contracts.js';

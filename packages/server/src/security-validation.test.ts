@@ -410,6 +410,34 @@ describe('@exactjs/server security-validation', () => {
 		expect(JSON.parse(undefinedStatePatch.body)).toEqual({ error: 'internal_error' });
 	});
 
+	it('rejects property patches that can execute code or replace owned DOM structure', async () => {
+		for (const name of [
+			'innerHTML',
+			'outerHTML',
+			'textContent',
+			'onclick',
+			'srcdoc',
+			'__proto__'
+		]) {
+			const result = await handleExactRequest(
+				{
+					method: 'POST',
+					body: { type: 'invoke', id: 'allowed-action' }
+				},
+				context({
+					invocations: {
+						'allowed-action': () => ({
+							patches: [{ type: 'prop', id: 'panel', name, value: 'untrusted' }]
+						})
+					}
+				})
+			);
+
+			expect(result.status).toBe(500);
+			expect(JSON.parse(result.body)).toEqual({ error: 'internal_error' });
+		}
+	});
+
 	it('rejects invocation results and patches with unknown protocol fields', async () => {
 		const extraResult = await handleExactRequest(
 			{
