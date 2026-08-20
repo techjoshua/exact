@@ -1,10 +1,10 @@
 import {
 	createVNode,
 	withTaskObserver,
+	type AnyComponentFunction,
+	type AnyComponentInstance,
 	type Child,
 	type Component,
-	type ComponentFunction,
-	type ComponentInstance,
 	type ContextToken,
 	type TaskObserver,
 	type VNode
@@ -16,13 +16,13 @@ import { flushSync } from '@exactjs/reactive';
 
 import type { ContextEntry, PropsOf, StateOf, TestConfiguration } from '../contracts.js';
 import { attachCleanupError } from '../control/settling.js';
-import { TestView } from './views.js';
+import { TestView, type AnyTestView } from './views.js';
 
 /** Defines the task tracker class contract. */
 export class TaskTracker implements TaskObserver {
-	readonly pending = new Map<Promise<unknown>, ComponentInstance<any>>();
+	readonly pending = new Map<Promise<unknown>, AnyComponentInstance>();
 	/** Performs the register domain operation for this task tracker instance. */
-	register(promise: Promise<unknown>, instance: ComponentInstance<any>): void {
+	register(promise: Promise<unknown>, instance: AnyComponentInstance): void {
 		this.pending.set(promise, instance);
 		void promise.then(
 			() => this.pending.delete(promise),
@@ -34,7 +34,7 @@ export class TaskTracker implements TaskObserver {
 }
 
 /** Defines the test component builder class contract. */
-export class TestComponentBuilder<C extends ComponentFunction<any, any>> {
+export class TestComponentBuilder<C extends AnyComponentFunction> {
 	private componentProps = {} as PropsOf<C>;
 	private contextEntries: ContextEntry[] = [];
 	private targetContainer?: Element;
@@ -52,7 +52,7 @@ export class TestComponentBuilder<C extends ComponentFunction<any, any>> {
 		return this;
 	}
 	/** Performs the contexts domain operation for this test component builder instance. */
-	contexts(entries: Iterable<readonly [ContextToken<any>, unknown]>): this {
+	contexts(entries: Iterable<readonly [ContextToken<unknown>, unknown]>): this {
 		for (const [token, value] of entries) this.contextEntries.push({ token, value });
 		return this;
 	}
@@ -77,7 +77,7 @@ export class TestComponentBuilder<C extends ComponentFunction<any, any>> {
 }
 
 /** Performs the test component domain operation. */
-export function testComponent<C extends ComponentFunction<any, any>>(
+export function testComponent<C extends AnyComponentFunction>(
 	component: C
 ): TestComponentBuilder<C> {
 	return new TestComponentBuilder(component);
@@ -86,20 +86,20 @@ export function testComponent<C extends ComponentFunction<any, any>>(
 /** Configures mount test. */
 export type MountTestOptions = TestConfiguration & {
 	container?: Element;
-	contexts?: Iterable<readonly [ContextToken<any>, unknown]>;
+	contexts?: Iterable<readonly [ContextToken<unknown>, unknown]>;
 };
 
 /** Performs the mount test domain operation. */
 export async function mountTest(
 	vnode: VNode,
 	options: MountTestOptions = {}
-): Promise<TestView<any, any>> {
+): Promise<AnyTestView> {
 	return mountVNode(vnode, options);
 }
 
 type InternalMountOptions = Omit<MountTestOptions, 'contexts'> & { contexts?: ContextEntry[] };
 
-async function mountComponent<C extends ComponentFunction<any, any>>(
+async function mountComponent<C extends AnyComponentFunction>(
 	component: C,
 	props: PropsOf<C>,
 	options: InternalMountOptions
@@ -116,8 +116,8 @@ type MountVNodeOptions = Omit<MountTestOptions, 'contexts'> & {
 async function mountVNode(
 	vnode: VNode,
 	options: MountVNodeOptions,
-	targetType?: ComponentFunction<any, any>
-): Promise<TestView<any, any>> {
+	targetType?: AnyComponentFunction
+): Promise<AnyTestView> {
 	const container = options.container ?? document.createElement('div');
 	if (inspectDomRoot(container))
 		throw new Error('The test container already has a mounted eXact root');
@@ -157,7 +157,7 @@ function normalizeContexts(
 ): ContextEntry[] {
 	if (!input) return [];
 	const values = Array.from(
-		input as Iterable<ContextEntry | readonly [ContextToken<any>, unknown]>
+		input as Iterable<ContextEntry | readonly [ContextToken<unknown>, unknown]>
 	);
 	return values.map((value) =>
 		Array.isArray(value) ? { token: value[0], value: value[1] } : (value as ContextEntry)

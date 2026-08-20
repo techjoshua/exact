@@ -119,6 +119,10 @@ export {
 } from './component/readiness.js';
 export type {
 	ActivityMode,
+	AnyAuthoredComponentFunction,
+	AnyComponentFunction,
+	AnyComponentInstance,
+	AnyContextToken,
 	AsyncComponentFunction,
 	AuthoredComponentFunction,
 	Child,
