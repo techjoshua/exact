@@ -126,7 +126,7 @@ async function handleExactRequestOwned(
 
 	let input: ExactProtocolRequest;
 	try {
-		input = parseExactRequestBody(await readBody(request), {
+		input = parseExactRequestBody(await readBody(request, context.limits?.maxRequestBytes), {
 			maxBatchOperations: context.limits?.maxBatchOperations,
 			maxJsonDepth: context.limits?.maxJsonDepth,
 			maxJsonNodes: context.limits?.maxJsonNodes,

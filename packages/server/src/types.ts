@@ -107,6 +107,8 @@ export type ExactRequestLike = {
 	url?: string | URL;
 	headers?: Headers | Record<string, string | string[] | undefined>;
 	body?: unknown;
+	/** Incremental request bytes, used by Fetch-compatible adapters to enforce limits before buffering. */
+	bodyStream?: ReadableStream<Uint8Array> | null;
 	text?(): Promise<string>;
 	json?(): Promise<unknown>;
 	signal?: AbortSignal;

@@ -27,6 +27,28 @@ describe('@exactjs/server adapters', () => {
 		});
 	});
 
+	it('stops reading Fetch request bodies at the configured byte limit', async () => {
+		let cancelled = false;
+		const body = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				controller.enqueue(new Uint8Array(9));
+			},
+			cancel() {
+				cancelled = true;
+			}
+		});
+		const response = await createFetchHandler(context({ limits: { maxRequestBytes: 16 } }))(
+			new Request('https://app.test/__exact', {
+				method: 'POST',
+				body,
+				duplex: 'half'
+			} as RequestInit)
+		);
+
+		expect(response.status).toBe(400);
+		expect(cancelled).toBe(true);
+	});
+
 	it('dispatches through express-style adapters', async () => {
 		const sent = new Promise<{ status: number; headers: Record<string, string>; body: string }>(
 			(resolve) => {

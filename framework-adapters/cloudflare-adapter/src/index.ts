@@ -17,7 +17,7 @@ export function createExactCloudflareHandler<Env = unknown, CfContext = unknown>
 				method: request.method,
 				url: request.url,
 				headers: request.headers,
-				text: () => request.text(),
+				bodyStream: request.body,
 				signal: request.signal,
 				platformRequest: { request, env, context: ctx }
 			},
