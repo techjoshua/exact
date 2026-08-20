@@ -12,10 +12,6 @@ Most applications should use the compiler through `@exactjs/vite-plugin`,
 `@exactjs/webpack-plugin`, or `@exactjs/bun-plugin`. Direct use is intended for build-tool authors,
 language tools, and custom artifact pipelines.
 
-Editor-oriented native sessions bound every response wait. Cancellation terminates an active
-native phase immediately, and the next request restarts the process with the last successful full
-project synchronization instead of remaining queued behind a wedged operation.
-
 ## Command line
 
 ```sh
@@ -41,10 +37,12 @@ graph consolidates distributed task operations and boundaries once while retaini
 module-local dependencies and component identity on each artifact entry. Ephemeral semantic
 analysis is compiler-owned and is not part of compilation results or artifact graphs.
 Generated component, operation, continuation, and registry identities are opaque build output.
+
 When direct compilation supplies both `rootDir` and `outDir`, every input must be contained by the
 source root. The compiler rejects an outside input before deriving or writing an output path.
 Artifact projects stage their complete client, server, shared, map, and inspection output set. A
 publication failure restores the previous files rather than leaving a partially updated build.
+
 Build-tool authors may set `componentContractProjection` only when producing a concrete runtime
 bundle. `hydrate` retains resumption metadata, `client` omits it, and both omit analysis-only
 component inventories already present in `componentBuild`. Leaving the option unset preserves the

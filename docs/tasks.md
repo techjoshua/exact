@@ -60,9 +60,6 @@ resource must remain local and expose a known, typed, or annotated disposal
 contract. An escape is a diagnostic rather than an inferred longer lifetime.
 Use explicit `task.signal`, `task.cleanup()`, or `task.own()` when a wrapper or
 third-party boundary hides those contracts.
-When task-owned fetch combines an authored signal with the generation signal, it releases both
-forwarding listeners as soon as the request settles; completed requests do not remain retained
-until a later component cancellation.
 
 Add `TaskContext` only when policy must be explicit or the body needs a
 generation capability:
