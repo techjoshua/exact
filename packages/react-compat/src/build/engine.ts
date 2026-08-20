@@ -48,6 +48,7 @@ type CachedDiscovery = {
 };
 
 const discoveryCache = new Map<string, CachedDiscovery>();
+const maximumDiscoveryRoots = 64;
 
 export function createReactCompatibilityBuildEngine(
 	options: ReactCompatibilityOptions = {}
@@ -62,8 +63,11 @@ export function createReactCompatibilityBuildEngine(
 	const ownershipFiles = new Set<string>();
 	const state = (): CachedDiscovery => {
 		const existing = discoveryCache.get(buildRoot);
-		if (!invalidated && existing && existing.signature === fileSignature(existing.watchFiles))
+		if (!invalidated && existing && existing.signature === fileSignature(existing.watchFiles)) {
+			discoveryCache.delete(buildRoot);
+			discoveryCache.set(buildRoot, existing);
 			return existing;
+		}
 		invalidated = false;
 		const graph = createReactCompatPackageGraph(buildRoot);
 		const registry = discoverReactCompatAdapters(graph);
@@ -82,6 +86,8 @@ export function createReactCompatibilityBuildEngine(
 			hash
 		};
 		discoveryCache.set(buildRoot, next);
+		while (discoveryCache.size > maximumDiscoveryRoots)
+			discoveryCache.delete(discoveryCache.keys().next().value!);
 		return next;
 	};
 	const engine: ReactCompatibilityBuildEngine = {
