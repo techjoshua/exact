@@ -1,6 +1,9 @@
 import { attemptCleanup, type CleanupFailure } from '@exactjs/core';
 import { applyDomProp, disposeOwnedSubtree, type DomWorkBudget } from '@exactjs/dom';
-import type { ExactPatch } from '@exactjs/core/framework/operation-protocol';
+import {
+	isSafeDomPatchProperty,
+	type ExactPatch
+} from '@exactjs/core/framework/operation-protocol';
 import { reindexList } from './indexing.js';
 import {
 	findClientBoundaryElement,
@@ -42,6 +45,7 @@ export function applyPatch(
 	}
 
 	if (patch.type === 'prop') {
+		if (!isSafeDomPatchProperty(patch.name)) return false;
 		const target = findExactElementTarget(container, patch.id, index);
 		if (!target) return false;
 		applyDomProp(target, patch.name, patch.value);
