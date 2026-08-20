@@ -216,7 +216,7 @@ function createRequestDebugRuntime(
 
 function sameOrigin(request: ExactRequestLike, context: ExactServerContext): boolean {
 	const origin = requestHeader(request, 'origin');
-	if (!origin) return true;
+	if (!origin) return context.allowDebug !== undefined || context.debugSessionIdentity !== undefined;
 	try {
 		const configured =
 			typeof context.publicOrigin === 'string' || context.publicOrigin instanceof URL

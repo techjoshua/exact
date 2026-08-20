@@ -306,6 +306,14 @@ describe('server-cooperative debug protocol', () => {
 		expect(allowDebug).not.toHaveBeenCalled();
 	});
 
+	it('requires an explicit debug policy for requests without an origin', async () => {
+		const response = await handleExactRequest(
+			{ ...debugOpen(), headers: undefined },
+			server()
+		);
+		expect(response.status).toBe(404);
+	});
+
 	it('binds a session to the application-selected authenticated identity', async () => {
 		const context = server({
 			allowDebug: true,
@@ -381,6 +389,7 @@ function debugOpen(capabilities = ['catalog', 'snapshot', 'events', 'source']): 
 	return {
 		method: 'POST',
 		url: '/__exact',
+		headers: { origin: 'http://localhost' },
 		body: {
 			type: 'debug',
 			version: 1,
@@ -398,6 +407,7 @@ function debugQuery(
 	return {
 		method: 'POST',
 		url: '/__exact',
+		headers: { origin: 'http://localhost' },
 		body: {
 			type: 'debug',
 			version: 1,

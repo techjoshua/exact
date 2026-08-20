@@ -62,7 +62,9 @@ const server = createExactServerRuntime({
 });
 ```
 
-Omitted `allowDebug` is unavailable in production. Failed authorization returns the same `404`
+Omitted `allowDebug` is unavailable in production. In development, its catalog-based default is
+available only to requests with a matching browser `Origin`; origin-less clients require an
+explicit `allowDebug` policy or `debugSessionIdentity`. Failed authorization returns the same `404`
 used when debug output does not exist. All messages are POSTed to the application's configured
 eXact endpoint and inherit its origin, CSRF, request-size, cancellation, and adapter policies.
 Sessions are opaque, expiring, and bounded by count. The server uses them to authorize catalog,
