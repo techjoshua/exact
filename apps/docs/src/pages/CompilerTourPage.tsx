@@ -51,7 +51,8 @@ export function CompilerTourPage(this: Component<{}>) {
 				<p>
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment
 					boundary. Inputs outside it are rejected before any path beneath <code>outDir</code> is
-					derived or written.
+					derived or written. Client, server, shared, map, and inspection outputs are staged as one
+					publication; a failed commit restores the previous generation.
 				</p>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">

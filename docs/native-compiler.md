@@ -3,9 +3,10 @@
 `@exactjs/compiler` is a JavaScript host for the native `exactc-native` compiler. Parsing,
 checking, eXact analysis, placement, policy enforcement, artifact partitioning, lowering,
 generated-code validation, and printing execute in one persistent TypeScript-Go process.
-After analysis and target transforms settle, the JavaScript artifact host publishes independent
-client, server, shared, and source-map files concurrently. Semantic work and deterministic
-diagnostics remain single-owned by the retained native session.
+After analysis and target transforms settle, the JavaScript artifact host stages the complete
+client, server, shared, source-map, and inspection set before publication. A filesystem failure
+restores the prior generation instead of leaving target files mixed. Semantic work and
+deterministic diagnostics remain single-owned by the retained native session.
 
 There is no JavaScript compiler fallback and no public backend selector. Native failures remain
 visible instead of silently changing compiler semantics.

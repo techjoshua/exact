@@ -1,4 +1,3 @@
-import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
 	createExactBuildInspectionCatalog,
@@ -9,24 +8,31 @@ import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import { commonRoot } from '../paths.js';
 import type { CompileArtifactsOptions, CompileArtifactsResult } from '../types.js';
 import { artifactAnalysis, retainArtifactAnalysis } from './analysis-results.js';
+import type { CompilerOutputMutation } from './output-transaction.js';
 
-/** Finalizes the shared inspection catalog after every project artifact has compiled. */
-export async function finalizeArtifactInspection(
+/** Carries finalized artifact results and their optional catalog publication. */
+export type PreparedArtifactInspection = Readonly<{
+	results: CompileArtifactsResult[];
+	mutation?: CompilerOutputMutation;
+}>;
+
+/** Prepares the shared inspection catalog after every project artifact has compiled. */
+export function prepareArtifactInspection(
 	results: readonly CompileArtifactsResult[],
 	options: CompileArtifactsOptions,
 	sources: ReadonlyMap<string, string>
-): Promise<CompileArtifactsResult[]> {
+): PreparedArtifactInspection {
 	const inspected = results.filter(
 		(
 			result
 		): result is CompileArtifactsResult & { inspection: { inspection: ExactSourceInspection } } =>
 			result.inspection !== undefined
 	);
-	if (!inspected.length) return [...results];
+	if (!inspected.length) return { results: [...results] };
 	const rootComponentId =
 		options.inspection?.rootComponentId ??
 		inspected.flatMap((result) => result.inspection.inspection.components)[0]?.id;
-	if (!rootComponentId) return [...results];
+	if (!rootComponentId) return { results: [...results] };
 	const projectRoot = path.resolve(
 		options.inspection?.projectRoot ??
 			options.rootDir ??
@@ -70,9 +76,7 @@ export async function finalizeArtifactInspection(
 	);
 	if (!isWithinDirectory(path.resolve(options.outDir), inspectionFile))
 		throw new Error(`Inspection output ${inspectionFile} must remain inside artifact output`);
-	await mkdir(path.dirname(inspectionFile), { recursive: true });
-	await writeFile(inspectionFile, `${JSON.stringify(catalog, null, 2)}\n`);
-	return results.map((result) => {
+	const finalized = results.map((result) => {
 		if (!result.inspection) return result;
 		return retainArtifactAnalysis(
 			{
@@ -85,6 +89,10 @@ export async function finalizeArtifactInspection(
 			artifactAnalysis(result)
 		);
 	});
+	return {
+		results: finalized,
+		mutation: { file: inspectionFile, content: `${JSON.stringify(catalog, null, 2)}\n` }
+	};
 }
 
 function isWithinDirectory(directory: string, candidate: string): boolean {

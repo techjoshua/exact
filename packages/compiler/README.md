@@ -39,6 +39,8 @@ analysis is compiler-owned and is not part of compilation results or artifact gr
 Generated component, operation, continuation, and registry identities are opaque build output.
 When direct compilation supplies both `rootDir` and `outDir`, every input must be contained by the
 source root. The compiler rejects an outside input before deriving or writing an output path.
+Artifact projects stage their complete client, server, shared, map, and inspection output set. A
+publication failure restores the previous files rather than leaving a partially updated build.
 
 Build-tool authors may set `componentContractProjection` only when producing a concrete runtime
 bundle. `hydrate` retains resumption metadata, `client` omits it, and both omit analysis-only

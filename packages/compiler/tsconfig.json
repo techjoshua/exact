@@ -42,6 +42,7 @@
 		"src/compilation/file-compilation.ts",
 		"src/compilation/language-validation.ts",
 		"src/compilation/native-session.ts",
+		"src/compilation/output-transaction.ts",
 		"src/compilation/package-enhancements.ts",
 		"src/compilation/shared-artifact.ts",
 		"src/compilation/source-analysis.ts",
