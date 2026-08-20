@@ -16,6 +16,8 @@ type StagedMutation = {
 	stagePublished: boolean;
 };
 
+const publicationTails = new Map<string, Promise<void>>();
+
 /**
  * Stages a complete compiler output set before replacing its published files.
  * A commit failure restores every prior file before rejecting, preventing a
@@ -26,13 +28,28 @@ export async function publishOutputTransaction(
 	host: OutputTransactionHost = { rename }
 ): Promise<void> {
 	const files = new Set<string>();
+	for (const mutation of mutations) {
+		const file = path.resolve(mutation.file);
+		if (files.has(file)) throw new Error(`Compiler output transaction contains duplicate ${file}`);
+		files.add(file);
+	}
+	const release = await acquirePublicationPaths([...files].sort());
+	try {
+		await publishLockedOutputTransaction(mutations, host);
+	} finally {
+		release();
+	}
+}
+
+async function publishLockedOutputTransaction(
+	mutations: readonly CompilerOutputMutation[],
+	host: OutputTransactionHost
+): Promise<void> {
 	const nonce = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 	const staged: StagedMutation[] = [];
 	for (let index = 0; index < mutations.length; index++) {
 		const mutation = mutations[index]!;
 		const file = path.resolve(mutation.file);
-		if (files.has(file)) throw new Error(`Compiler output transaction contains duplicate ${file}`);
-		files.add(file);
 		await mkdir(path.dirname(file), { recursive: true });
 		const content = mutation.content;
 		let stageFile: string | undefined;
@@ -77,6 +94,25 @@ export async function publishOutputTransaction(
 	}
 
 	await cleanupTransactionFiles(staged);
+}
+
+async function acquirePublicationPaths(files: readonly string[]): Promise<() => void> {
+	const releases: Array<() => void> = [];
+	for (const file of files) {
+		const previous = publicationTails.get(file) ?? Promise.resolve();
+		let release!: () => void;
+		const current = new Promise<void>((resolve) => (release = resolve));
+		const tail = previous.catch(() => undefined).then(() => current);
+		publicationTails.set(file, tail);
+		await previous.catch(() => undefined);
+		releases.push(() => {
+			release();
+			if (publicationTails.get(file) === tail) publicationTails.delete(file);
+		});
+	}
+	return () => {
+		for (let index = releases.length - 1; index >= 0; index--) releases[index]!();
+	};
 }
 
 async function pathExists(file: string): Promise<boolean> {

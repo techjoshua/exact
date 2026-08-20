@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline';
 import { parentPort, workerData } from 'node:worker_threads';
+import { readBoundedLines } from './bounded-lines.js';
 
 type NativeWorkerData = Readonly<{
 	executable: string;
@@ -22,15 +22,19 @@ const child = spawn(data.executable, [], {
 	stdio: ['pipe', 'pipe', 'inherit'],
 	windowsHide: true
 });
-const lines = createInterface({ input: child.stdout });
 const pendingLines: Array<(line: string) => void> = [];
 const queuedLines: string[] = [];
 let closing = false;
 
-lines.on('line', (line) => {
-	const pending = pendingLines.shift();
-	if (pending) pending(line);
-	else queuedLines.push(line);
+const stopLines = readBoundedLines(child.stdout, {
+	maxBytes: payload.byteLength,
+	onLine: (line) => {
+		const pending = pendingLines.shift();
+		if (pending) pending(line);
+		else if (!queuedLines.length) queuedLines.push(line);
+		else publishError(new Error('Native compiler returned an unsolicited response frame'));
+	},
+	onError: publishError
 });
 
 child.once('error', (error) => publishError(error));
@@ -81,7 +85,7 @@ function closeNativeProcess(): void {
 	try {
 		if (child.stdin.writable) child.stdin.write(`${JSON.stringify({ kind: 'shutdown' })}\n`);
 	} finally {
-		lines.close();
+		stopLines();
 		child.kill();
 		parentPort?.close();
 	}

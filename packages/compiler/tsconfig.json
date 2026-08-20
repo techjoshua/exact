@@ -68,6 +68,7 @@
 		"src/names.ts",
 		"src/native/executable.ts",
 		"src/native/async-language-client.ts",
+		"src/native/bounded-lines.ts",
 		"src/native/module-analysis.ts",
 		"src/native/process-activation-contracts.ts",
 		"src/native/process-continuation-contracts.ts",
