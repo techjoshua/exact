@@ -251,7 +251,7 @@ async function dispatchExactOperationAfterSecurity(
 		return reject(404, 'not_found', 'rejected exact invocation without registered handler');
 
 	const observation = observationIdentity(context, input, invocation?.componentId);
-	context.debugRuntime?.observe({
+	context.requestDebugRuntime?.observe({
 		kind: executor ? 'continuation.receive' : 'task.start',
 		...observation
 	});
@@ -263,14 +263,14 @@ async function dispatchExactOperationAfterSecurity(
 		const requestContext = operationLifetime
 			? { ...context, signal: operationLifetime.signal }
 			: context;
-		const observedRequestContext = context.debugRuntime
+		const observedRequestContext = context.requestDebugRuntime
 			? {
 					...requestContext,
 					onContextAccess(
 						observed: Parameters<NonNullable<ExactServerContext['onContextAccess']>>[0]
 					) {
 						requestContext.onContextAccess?.(observed);
-						context.debugRuntime!.observe({
+						context.requestDebugRuntime!.observe({
 							kind: 'context.access',
 							...observation,
 							componentTypeId: observed.componentId,
@@ -285,7 +285,7 @@ async function dispatchExactOperationAfterSecurity(
 			: requestContext;
 		const handled = await handler(input, observedRequestContext);
 		const result = manualHandler ? normalizeExactHandlerResult(manualHandler, handled) : handled;
-		context.debugRuntime?.observe({
+		context.requestDebugRuntime?.observe({
 			kind: executor ? 'continuation.respond' : 'task.settle',
 			...observation
 		});
@@ -326,7 +326,7 @@ async function dispatchExactOperationAfterSecurity(
 		}
 		return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };
 	} catch (error) {
-		context.debugRuntime?.observe({
+		context.requestDebugRuntime?.observe({
 			kind: 'error',
 			...observation,
 			reason: 'server-operation-failed'

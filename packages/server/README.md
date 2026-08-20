@@ -27,7 +27,9 @@ authorization and the handler. Manual replacement/list HTML must be wrapped with
 provenance. The unsafe constructor is an explicit audit capability, not an escaping function.
 
 Optional DevTools access uses the same endpoint but requires explicit `allowDebug` authorization
-and server-owned inspection catalogs.
+and server-owned inspection catalogs. Runtime observations are bounded to one authorized operation
+request, returned with that response, and disposed at response completion; the browser DevTools
+runtime owns all cross-request history and subscriptions.
 
 See [server components](../../docs/server-components.md) and
 [eXact DevTools](../../docs/devtools.md).

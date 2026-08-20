@@ -14,6 +14,8 @@ import type {
 	ExactServerContext
 } from './types.js';
 import { debugRoute, remoteDebugRequest, translateDebugResponse } from './gateway-debug.js';
+import { exactServerDebugRuntime } from './debug/runtime.js';
+import { copyValidatedGatewayResponse } from './gateway-response.js';
 
 const hopByHopHeaders = new Set([
 	'connection',
@@ -52,8 +54,60 @@ export function createExactBindingGateway(
 			const buildKey = headerValue(request.headers, 'x-exact-build');
 			if (!buildKey || !/^[0-9a-f]{40}$/i.test(buildKey))
 				return reject(options, 'invalid_build', binding, 400);
-			if (input.type !== 'debug')
-				return forwardEnvelope(request, input, binding, buildKey, target.endpoint, context);
+			if (input.type !== 'debug') {
+				const parentSessionId = headerValue(request.headers, 'x-exact-debug-session');
+				const forwardedHeaders = new Headers(request.headers as HeadersInit | undefined);
+				forwardedHeaders.delete('x-exact-debug-session');
+				if (!parentSessionId)
+					return forwardEnvelope(
+						{ ...request, headers: forwardedHeaders },
+						input,
+						binding,
+						buildKey,
+						target.endpoint,
+						context
+					);
+				const authorization = await exactServerDebugRuntime(context).createRequestRuntime(
+					request,
+					parentSessionId
+				);
+				if (!authorization)
+					return forwardEnvelope(
+						{ ...request, headers: forwardedHeaders },
+						input,
+						binding,
+						buildKey,
+						target.endpoint,
+						context
+					);
+				authorization.dispose();
+				const child = await ensureChildSession(
+					request,
+					parentSessionId,
+					binding,
+					buildKey,
+					target.endpoint,
+					'events',
+					context
+				);
+				if (!child) return reject(options, 'upstream_unavailable', binding, 404);
+				forwardedHeaders.set('x-exact-debug-session', child.childSessionId);
+				const response = await forwardEnvelope(
+					{ ...request, headers: forwardedHeaders },
+					input,
+					binding,
+					buildKey,
+					target.endpoint,
+					context
+				);
+				return translateDebugResponse(
+					response,
+					child.childSessionId,
+					parentSessionId,
+					binding,
+					buildKey
+				);
+			}
 			if (input.request === 'open' || input.request === 'close')
 				return reject(options, 'invalid_binding', binding, 400);
 			const route = debugRoute(input);
@@ -140,13 +194,13 @@ export function createExactBindingGateway(
 	> {
 		const key = `${parentSessionId}\0${binding}\0${buildKey}`;
 		const existing = children.get(key);
-		if (existing) {
-			existing.capabilities.add(capability);
-			return existing;
-		}
+		if (existing?.capabilities.has(capability)) return existing;
+		const capabilities = existing
+			? [...new Set([...existing.capabilities, capability])]
+			: [capability];
 		const response = await forwardEnvelope(
 			request,
-			{ type: 'debug', version: 1, request: 'open', capabilities: [capability] },
+			{ type: 'debug', version: 1, request: 'open', capabilities },
 			binding,
 			buildKey,
 			endpoint,
@@ -163,9 +217,24 @@ export function createExactBindingGateway(
 				childSessionId: parsed.session.id,
 				binding,
 				buildKey,
-				capabilities: new Set([capability])
+				capabilities: new Set(capabilities)
 			};
 			children.set(key, child);
+			if (existing) {
+				void forwardEnvelope(
+					request,
+					{
+						type: 'debug',
+						version: 1,
+						request: 'close',
+						sessionId: existing.childSessionId
+					},
+					binding,
+					buildKey,
+					endpoint,
+					context
+				).catch(() => undefined);
+			}
 			return child;
 		} catch {
 			return undefined;
@@ -219,7 +288,7 @@ export function createExactBindingGateway(
 			return reject(options, 'upstream_unavailable', binding, 502);
 		}
 		try {
-			return await copyValidatedResponse(upstream, context);
+			return await copyValidatedGatewayResponse(upstream, context);
 		} catch {
 			return reject(options, 'upstream_invalid_response', binding, 502);
 		}
@@ -244,86 +313,6 @@ function assertSafeTransform(
 		throw new Error('Unsafe forwarded eXact request transform');
 }
 
-async function copyValidatedResponse(
-	upstream: Response,
-	context: ExactServerContext
-): Promise<ExactResponseLike> {
-	const contentType = upstream.headers.get('content-type')?.toLowerCase() ?? '';
-	const headers = responseHeaders(upstream.headers);
-	if (contentType.startsWith('application/x-ndjson')) {
-		if (!upstream.body) throw new Error('Missing upstream stream');
-		return {
-			status: upstream.status,
-			headers,
-			body: '',
-			stream: validateNdjsonStream(upstream.body, {
-				maxBytes: positiveLimit(context.limits?.maxStreamBytes, 16 * 1024 * 1024),
-				maxEvents: positiveLimit(context.limits?.maxStreamEvents, 100_000)
-			})
-		};
-	}
-	if (!contentType.startsWith('application/json')) throw new Error('Invalid upstream content type');
-	const body = await upstream.text();
-	if (
-		new TextEncoder().encode(body).byteLength >
-		positiveLimit(context.limits?.maxResponseBytes, 16 * 1024 * 1024)
-	)
-		throw new Error('Upstream response too large');
-	JSON.parse(body);
-	return { status: upstream.status, headers, body };
-}
-
-function validateNdjsonStream(
-	source: ReadableStream<Uint8Array>,
-	limits: { maxBytes: number; maxEvents: number }
-): ReadableStream<Uint8Array> {
-	const reader = source.getReader();
-	const decoder = new TextDecoder('utf-8', { fatal: true });
-	let buffer = '';
-	let bytes = 0;
-	let events = 0;
-	return new ReadableStream<Uint8Array>({
-		async pull(controller) {
-			try {
-				const next = await reader.read();
-				if (next.done) {
-					buffer += decoder.decode();
-					validateLines(true);
-					controller.close();
-					reader.releaseLock();
-					return;
-				}
-				bytes += next.value.byteLength;
-				if (bytes > limits.maxBytes) throw new Error('Upstream stream too large');
-				buffer += decoder.decode(next.value, { stream: true });
-				validateLines(false);
-				controller.enqueue(next.value);
-			} catch (error) {
-				await reader.cancel(error).catch(() => undefined);
-				controller.error(error);
-			}
-		},
-		async cancel(reason) {
-			await reader.cancel(reason);
-		}
-	});
-
-	function validateLines(final: boolean): void {
-		let newline: number;
-		while ((newline = buffer.indexOf('\n')) >= 0) {
-			validateLine(buffer.slice(0, newline).replace(/\r$/, ''));
-			buffer = buffer.slice(newline + 1);
-		}
-		if (final && buffer.trim()) validateLine(buffer.replace(/\r$/, ''));
-	}
-
-	function validateLine(line: string): void {
-		if (!line.trim()) return;
-		if (++events > limits.maxEvents) throw new Error('Upstream stream has too many events');
-		JSON.parse(line);
-	}
-}
-
 function sanitizedRequestHeaders(headers: ExactRequestLike['headers']): Headers {
 	const result = new Headers(headers as HeadersInit | undefined);
 	result.delete('x-exact-binding');
@@ -334,20 +323,6 @@ function sanitizedRequestHeaders(headers: ExactRequestLike['headers']): Headers 
 	result.delete('host');
 	result.delete('content-length');
 	for (const header of hopByHopHeaders) result.delete(header);
-	return result;
-}
-
-function responseHeaders(headers: Headers): Record<string, string> {
-	const result: Record<string, string> = {};
-	headers.forEach((value, name) => {
-		if (
-			hopByHopHeaders.has(name.toLowerCase()) ||
-			name.toLowerCase() === 'content-length' ||
-			name.toLowerCase() === 'content-encoding'
-		)
-			return;
-		result[name] = value;
-	});
 	return result;
 }
 

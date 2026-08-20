@@ -3,10 +3,12 @@ import type {
 	ExactInvocationResult,
 	ExactOperationResult
 } from '@exactjs/core/framework/operation-protocol';
+import { publishExactServerObservations } from '@exactjs/core/framework/inspection-transport';
 import { decodeBoundedReactiveProtocolValue } from '../protocol-decoding.js';
 import {
 	isExactStreamCompleteEvent,
 	isExactStreamHtmlEvent,
+	isExactStreamObservationsEvent,
 	isExactStreamMutationsEvent,
 	isExactStreamPatchEvent,
 	isExactStreamResultEvent,
@@ -60,6 +62,10 @@ export async function readExactStreamResponse(
 			}
 			if (isExactStreamCompleteEvent(event)) {
 				completed = true;
+				return;
+			}
+			if (isExactStreamObservationsEvent(event)) {
+				publishExactServerObservations(event.observations);
 				return;
 			}
 			if (isExactStreamPatchEvent(event)) {

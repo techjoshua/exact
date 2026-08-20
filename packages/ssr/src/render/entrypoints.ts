@@ -2,11 +2,7 @@ import { logFrameworkEvent, withTaskObserver, type VNode } from '@exactjs/core';
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
 import { publishExactProfile } from '@exactjs/instrumentation';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
-import {
-	createExactBufferedResponse,
-	exactServerDebugRuntime,
-	runWithExactRequestScope
-} from '@exactjs/server';
+import { createExactBufferedResponse, runWithExactRequestScope } from '@exactjs/server';
 import { escapeAttr } from '../html.js';
 import { renderHydrationScript } from '../hydration.js';
 import { createSsrResumptionCapture } from '../resumption.js';
@@ -273,7 +269,7 @@ export async function renderExactRequestToHtmlResponse(
 			const vnode = await render(context);
 			const renderOptions = {
 				...options,
-				...requestInspectionOptions(server, context, options),
+				...requestInspectionOptions(context, options),
 				contexts: context.contexts?.componentValues,
 				signal: renderSignal(context.signal, options.signal)
 			};
@@ -318,7 +314,7 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 			const vnode = await render(context);
 			const renderOptions = {
 				...options,
-				...requestInspectionOptions(server, context, options),
+				...requestInspectionOptions(context, options),
 				contexts: context.contexts?.componentValues,
 				signal: renderSignal(context.signal, options.signal)
 			};
@@ -376,11 +372,11 @@ function withPreloadLinks(
 }
 
 function requestInspectionOptions(
-	server: ExactServerContext,
 	context: ExactServerContext,
 	options: RenderExactRequestToHtmlResponseOptions
 ): Pick<RenderToStringOptions, 'inspection'> {
 	if (options.inspection) return { inspection: options.inspection };
+	if (!context.requestDebugRuntime) return {};
 	const catalogs = context.inspectionCatalogs;
 	if (!catalogs?.length) return {};
 	const buildKey =
@@ -394,7 +390,7 @@ function requestInspectionOptions(
 	const executionRoot = options.executionRoot ?? (roots.length === 1 ? roots[0] : undefined);
 	if (!executionRoot || !catalog.roots[executionRoot]) return {};
 	return {
-		inspection: exactServerDebugRuntime(server).inspectionOwner({
+		inspection: context.requestDebugRuntime!.inspectionOwner({
 			buildKey,
 			executionRoot,
 			...(options.binding ? { binding: options.binding } : {})

@@ -1,4 +1,5 @@
 import type { ExactCollectionMutation } from '../component-contracts.js';
+import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 
 /** Identifies the operation represented by a framework protocol request. */
 export type ExactInvocationKind = 'invoke' | 'refresh';
@@ -126,6 +127,7 @@ export type ExactStreamEvent =
 			html: string;
 	  }
 	| { event: 'result'; version: 1; index: number; result: ExactOperationResult }
+	| { event: 'observations'; version: 1; observations: readonly ExactRuntimeInspectionEvent[] }
 	| { event: 'complete'; version: 1 };
 
 /** Describes one client-applied operation patch. */

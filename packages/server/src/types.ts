@@ -48,7 +48,8 @@ export type {
 	ExactDebugAuthorizationContext,
 	ExactDebugLimits,
 	ExactDebugSessionIdentity,
-	ExactServerDebugRuntime
+	ExactServerDebugRuntime,
+	ExactServerRequestDebugRuntime
 } from './debug-types.js';
 import type { ExactTrustedHtml } from './trusted-html.js';
 import type {
@@ -56,7 +57,8 @@ import type {
 	ExactDebugAuditEvent,
 	ExactDebugLimits,
 	ExactDebugSessionIdentity,
-	ExactServerDebugRuntime
+	ExactServerDebugRuntime,
+	ExactServerRequestDebugRuntime
 } from './debug-types.js';
 
 /** Immutable allowlist composed from explicitly imported executor artifacts. */
@@ -407,6 +409,8 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 	onProfile?: ExactProfileSink;
 	/** Internal stable owner reused by request-scoped context clones. */
 	debugRuntime?: ExactServerDebugRuntime;
+	/** Present only for a request authorized to return bounded server observations. */
+	requestDebugRuntime?: ExactServerRequestDebugRuntime;
 	/** Internal immutable build selection used only for observation correlation. */
 	debugBuildKey?: string;
 	/** Disposes application-scoped resources owned by this server runtime. */

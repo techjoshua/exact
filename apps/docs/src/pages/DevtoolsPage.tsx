@@ -70,9 +70,12 @@ export function DevtoolsPage(this: Component<{}>) {
 					keep catalog assets in their server output and outside public client graphs.
 				</p>
 				<p>
-					Ordinary endpoint traffic does not construct the debug runtime or decode catalogs.
-					Session, catalog, event-buffer, and observation ownership is allocated lazily only after a
-					valid debug message.
+					The server retains authorization sessions and catalogs, but no cross-request event buffer
+					or observation stream. While DevTools is attached, each ordinary eXact request carries its
+					opaque session ID, creates one reauthorized bounded collector, returns those observations
+					with its JSON or streaming response, and disposes the collector when that response
+					finishes. The browser alone aggregates those independent responses into a timeline and
+					clears it on disconnect.
 				</p>
 				<p>
 					Constructing an inspection owner activates task-frame snapshots, bounded history, value
@@ -110,8 +113,10 @@ export function DevtoolsPage(this: Component<{}>) {
 					credentials are never copied to the component host.
 				</p>
 				<p>
-					Page and remote timelines retain independent cursors, so reconnecting one producer does
-					not duplicate or reorder another producer's records.
+					Remote operations use independently authorized child capabilities, but their request-owned
+					observations return in the same response and are translated to the page binding. The
+					browser assigns the single cross-request cursor; the servers do not retain remote
+					timelines.
 				</p>
 			</section>
 			<section>
