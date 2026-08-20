@@ -43,8 +43,8 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 			<section>
 				<h2>Use the same policy across tools</h2>
 				<p>
-					Vite, Webpack, Bun, Vitest, and Jest enforce the policy before server code runs. A
-					rejected package produces a build error that names the package and matching rule.
+					Vite, Webpack, Bun, Vitest, and Jest enforce the policy before server code runs. A rejected
+					package produces a build error that names the package and matching rule.
 				</p>
 				<p>
 					Development builds recheck packages when dependencies or policy change. Production builds
@@ -54,9 +54,9 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 
 			<Callout title="Authorization allows in-process code">
 				<p>
-					This policy approves a package to run with your server&apos;s process permissions. The
-					package runs without isolation, so review its code and dependencies as you would any
-					server dependency.
+					This policy approves a package to run with your server&apos;s process permissions. The package
+					runs without isolation, so review its code and dependencies as you would any server
+					dependency.
 				</p>
 			</Callout>
 		</Article>

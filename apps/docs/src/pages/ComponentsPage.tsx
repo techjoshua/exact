@@ -202,11 +202,11 @@ export function ComponentsPage(this: Component<{}>) {
 				<h3>Compact value bindings</h3>
 				<p>
 					The compact <code>property:eventHandler</code> form connects a writable state location to
-					a value prop and the callback that publishes its replacement. Both names must be ordinary
-					declared props on the child component. Here, <code>expanded</code> is an ordinary value
-					prop and <code>onExpandedChanged</code> is an ordinary callback prop. The parent still
-					owns <code>this.state.settingsExpanded</code>; the shorthand passes its current value down
-					and assigns the callback&apos;s first argument back to that state path.
+					a value prop and the callback that publishes its replacement. Both names
+					must be ordinary declared props on the child component. Here, <code>expanded</code> is an
+					ordinary value prop and <code>onExpandedChanged</code> is an ordinary callback prop. The
+					parent still owns <code>this.state.settingsExpanded</code>; the shorthand passes its
+					current value down and assigns the callback&apos;s first argument back to that state path.
 				</p>
 				<CodeBlock
 					source={compactBindingSource}

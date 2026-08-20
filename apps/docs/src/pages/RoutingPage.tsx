@@ -79,8 +79,8 @@ export function RoutingPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={routeContextSource} language="tsx" title="UserPage.tsx" />
 				<p>
-					For developers familiar with React Router, <code>RouteContext</code> groups the common
-					hook capabilities on one component-owned value.
+					For developers familiar with React Router, <code>RouteContext</code> groups the common hook
+					capabilities on one component-owned value.
 				</p>
 				<div className="table-scroll route-api-scroll">
 					<table className="route-api-table">
@@ -93,59 +93,33 @@ export function RoutingPage(this: Component<{}>) {
 						</thead>
 						<tbody>
 							<tr>
-								<td>
-									<code>useParams()</code>
-								</td>
-								<td>
-									<code>route.params</code>
-								</td>
+								<td><code>useParams()</code></td>
+								<td><code>route.params</code></td>
 								<td>Read parameters captured from the current path.</td>
 							</tr>
 							<tr>
-								<td>
-									<code>useLocation()</code>
-								</td>
-								<td>
-									<code>route.location</code>
-								</td>
+								<td><code>useLocation()</code></td>
+								<td><code>route.location</code></td>
 								<td>Read the active pathname, query, hash, and navigation state.</td>
 							</tr>
 							<tr>
-								<td>
-									<code>useSearchParams()</code>
-								</td>
-								<td>
-									<code>route.searchParams()</code>
-								</td>
-								<td>
-									Read the current query through <code>URLSearchParams</code>.
-								</td>
+								<td><code>useSearchParams()</code></td>
+								<td><code>route.searchParams()</code></td>
+								<td>Read the current query through <code>URLSearchParams</code>.</td>
 							</tr>
 							<tr>
-								<td>
-									<code>useNavigate()</code>
-								</td>
-								<td>
-									<code>route.navigate()</code>
-								</td>
+								<td><code>useNavigate()</code></td>
+								<td><code>route.navigate()</code></td>
 								<td>Start navigation from an interaction or task.</td>
 							</tr>
 							<tr>
-								<td>
-									<code>useHref()</code>
-								</td>
-								<td>
-									<code>route.href()</code>
-								</td>
+								<td><code>useHref()</code></td>
+								<td><code>route.href()</code></td>
 								<td>Create an href for the router&apos;s location source and base path.</td>
 							</tr>
 							<tr>
-								<td>
-									<code>useMatches()</code>
-								</td>
-								<td>
-									<code>route.matches</code>
-								</td>
+								<td><code>useMatches()</code></td>
+								<td><code>route.matches</code></td>
 								<td>Inspect the matched route chain for the current location.</td>
 							</tr>
 						</tbody>

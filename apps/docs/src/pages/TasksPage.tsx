@@ -43,8 +43,8 @@ export function TasksPage(this: Component<{}>) {
 				</p>
 				<Callout title="Use TaskContext at opaque boundaries">
 					<p>
-						Pass <code>task.signal</code> through custom wrappers. Use <code>task.cleanup()</code>{' '}
-						for cleanup callbacks and <code>task.own()</code> for disposable values.
+						Pass <code>task.signal</code> through custom wrappers. Use <code>task.cleanup()</code> for
+						cleanup callbacks and <code>task.own()</code> for disposable values.
 					</p>
 				</Callout>
 			</section>
@@ -53,15 +53,15 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					Most tasks need no explicit context. Add a final <code>TaskContext</code> parameter for
 					placement, scheduling, cancellation, optimistic state, cleanup, or untracked reads.
-					Task-owned fetch combines authored and generation cancellation only for the request
-					lifetime, releasing its forwarding listeners when that request settles.
 				</p>
 				<CodeBlock source={taskSources.reactiveTaskSource} language="tsx" title="Search.tsx" />
 				<p>
-					Inside the function, <code>task</code> describes the current run. Its default value
-					declares policy; this example places the task on the client.
+					Inside the function, <code>task</code> describes the current run. Its default value declares
+					policy; this example places the task on the client.
 				</p>
-				<p>Application code omits the final argument. eXact supplies it for each run.</p>
+				<p>
+					Application code omits the final argument. eXact supplies it for each run.
+				</p>
 				<ul>
 					<li>
 						Use <code>client()</code> or <code>server()</code> when placement should be explicit.
@@ -181,9 +181,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					<code>async</code> is JavaScript syntax: it permits <code>await</code> and makes the
 					function return a promise. Task policy selects readiness and Suspense behavior.
-					<code>await</code> is a suspension point inside an eXact task: the generation stays
-					pending, its continuation retains cancellation and ownership, and later state writes are
-					fenced against stale generations.
+					<code>await</code> is a suspension point inside an eXact task: the generation
+					stays pending, its continuation retains cancellation and ownership, and later state writes
+					are fenced against stale generations.
 				</p>
 				<p>
 					Suspense waits only for a <strong>blocking task generation</strong> owned by a descendant

@@ -210,8 +210,8 @@ export function InternationalizationPage(this: Component<{}>) {
 				<h2>Configure internationalization</h2>
 				<CodeBlock source={intlConfigurationSource} language="ts" title="vite.config.ts" />
 				<p>
-					Set the source locale, supported locales, and catalog paths in the build integration.
-					Vite, Webpack, and Bun use the same options.
+					Set the source locale, supported locales, and catalog paths in the build integration. Vite,
+					Webpack, and Bun use the same options.
 				</p>
 				<p>
 					Import <code>@exactjs/intl/enhancements</code> for messages, selections, formatters, and
@@ -232,8 +232,8 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 				<p>
 					XLIFF 2.1 is the editable translation source. Catalog synchronization keeps compatible
-					targets and notes, removes obsolete messages, and validates required placeholders.
-					Regional locales fall back through matching script and language catalogs.
+					targets and notes, removes obsolete messages, and validates required placeholders. Regional
+					locales fall back through matching script and language catalogs.
 				</p>
 			</section>
 			<section>
