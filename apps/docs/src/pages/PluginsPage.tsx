@@ -74,6 +74,12 @@ export function PluginsPage(this: Component<{}>) {
 					type augmentation makes installed plugin keys available through
 					<code>@exactjs/config</code>.
 				</p>
+				<p>
+					The shared loader validates built-in options once and freezes the application config
+					before discovery. Typos, invalid mode-specific fields, and malformed plugin entries
+					therefore fail at the configuration boundary instead of reaching hosts with different
+					interpretations.
+				</p>
 			</section>
 			<section>
 				<h2>Language participation is independent</h2>

@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import type { ExactConfig } from './contracts.js';
 import type { ExactPackageEnhancementImport } from './contracts.js';
+import { normalizeExactConfig } from './normalization.js';
 
 const configNames = Object.freeze([
 	'exact.config.ts',
@@ -160,7 +161,7 @@ async function importExactConfig(configPath: string): Promise<
 	if (!config || typeof config !== 'object' || Array.isArray(config))
 		throw new Error(`${configPath} must default-export an eXact configuration object`);
 	return Object.freeze({
-		config: config as ExactConfig,
+		config: normalizeExactConfig(config as ExactConfig, configPath),
 		packageEnhancements: declaration.packageEnhancements
 	});
 }

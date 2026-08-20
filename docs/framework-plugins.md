@@ -1,5 +1,12 @@
 # Framework plugins
 
+The application configuration has one runtime normalization boundary. `defineConfig()` and the
+Node configuration loader validate the same built-in schema and freeze the result before plugin
+discovery or adapter projection. Unknown built-in keys and invalid mode-specific fields fail at the
+configuration file instead of being interpreted differently by separate consumers. Plugin-owned
+configuration remains extensible through the registered `plugins` keys, whose values must be a
+configuration transform or `false`.
+
 Status: implemented.
 
 eXact framework plugins add cross-cutting behavior to build, server, rendering,
