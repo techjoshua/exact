@@ -129,35 +129,40 @@ function readBoundedLines(
 		onError(error: Error): void;
 	}>
 ): () => void {
-	let buffered = Buffer.alloc(0);
+	let chunks: Buffer[] = [];
+	let length = 0;
 	let stopped = false;
 	const data = (input: Buffer | string) => {
 		if (stopped) return;
-		buffered = Buffer.concat([buffered, Buffer.isBuffer(input) ? input : Buffer.from(input)]);
-		let newline = buffered.indexOf(10);
-		while (newline >= 0) {
-			if (newline > options.maxBytes)
+		let chunk = Buffer.isBuffer(input) ? input : Buffer.from(input);
+		while (chunk.length) {
+			const newline = chunk.indexOf(10);
+			const part = newline < 0 ? chunk : chunk.subarray(0, newline);
+			length += part.length;
+			if (length > options.maxBytes)
 				return fail('Subprocess response frame exceeded its byte limit');
+			if (part.length) chunks.push(part);
+			if (newline < 0) return;
 			try {
 				options.onLine(
 					new TextDecoder('utf-8', { fatal: true })
-						.decode(buffered.subarray(0, newline))
+						.decode(Buffer.concat(chunks, length))
 						.replace(/\r$/, '')
 				);
 			} catch {
 				return fail('Subprocess returned an invalid UTF-8 response frame');
 			}
-			buffered = buffered.subarray(newline + 1);
-			newline = buffered.indexOf(10);
+			chunks = [];
+			length = 0;
+			chunk = chunk.subarray(newline + 1);
 		}
-		if (buffered.length > options.maxBytes)
-			fail('Subprocess response frame exceeded its byte limit');
 	};
 	stream.on('data', data);
 	return () => {
 		stopped = true;
 		stream.off('data', data);
-		buffered = Buffer.alloc(0);
+		chunks = [];
+		length = 0;
 	};
 
 	function fail(message: string): void {
