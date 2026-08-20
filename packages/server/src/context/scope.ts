@@ -1,35 +1,34 @@
 import {
 	attachSuppressedCleanupFailure,
+	type AnyContextToken,
 	type ComponentContextValues,
 	type ContextToken
 } from '@exactjs/core';
 import { type RequestContextValue } from '@exactjs/request';
 import type {
-	ExactContextFactory,
+	AnyExactContextFactory,
+	AnyExactContextRegistration,
 	ExactContextFactoryContext,
 	ExactContextRegistration,
 	ExactContextScope
 } from '../types.js';
 import { abortReason, awaitWithAbort, disposeOwnedValue, isFactory } from './response.js';
 
-/** Defines the any registration type contract. */
-export type AnyRegistration = ExactContextRegistration<any>;
-
 /** Defines the scope kind type contract. */
 export type ScopeKind = 'application' | 'request';
 
 /** Defines the owned value type contract. */
 export type OwnedValue = {
-	token: ContextToken<any>;
+	token: AnyContextToken;
 	value: unknown;
-	factory: ExactContextFactory<any>;
+	factory: AnyExactContextFactory;
 };
 
 /** Defines the context scope class contract. */
 export class ContextScope implements ExactContextScope {
 	readonly values = new Map<symbol, unknown>();
 	readonly componentValues: ComponentContextValues;
-	private readonly providers = new Map<symbol, AnyRegistration>();
+	private readonly providers = new Map<symbol, AnyExactContextRegistration>();
 	private readonly providerOrder: symbol[] = [];
 	private readonly owned = new Map<symbol, OwnedValue>();
 	private readonly dependencies = new Map<symbol, Set<symbol>>();
@@ -38,10 +37,10 @@ export class ContextScope implements ExactContextScope {
 
 	constructor(
 		readonly kind: ScopeKind,
-		registrations: readonly AnyRegistration[],
+		registrations: readonly AnyExactContextRegistration[],
 		private readonly signal: AbortSignal,
 		private readonly parent?: ContextScope,
-		initialValues: readonly (readonly [ContextToken<any>, unknown])[] = [],
+		initialValues: readonly (readonly [AnyContextToken, unknown])[] = [],
 		private readonly request?: RequestContextValue,
 		private readonly platformRequest?: unknown
 	) {
@@ -130,7 +129,7 @@ export class ContextScope implements ExactContextScope {
 
 	private async resolve<T>(
 		token: ContextToken<T>,
-		path: readonly ContextToken<any>[] = []
+		path: readonly AnyContextToken[] = []
 	): Promise<T> {
 		if (this.disposed) throw new Error(`Cannot read disposed ${this.kind} context scope`);
 		if (this.values.has(token.id)) return this.values.get(token.id) as T;
@@ -159,7 +158,7 @@ export class ContextScope implements ExactContextScope {
 	private async resolveRegistration<T>(
 		token: ContextToken<T>,
 		registration: ExactContextRegistration<T>,
-		path: readonly ContextToken<any>[]
+		path: readonly AnyContextToken[]
 	): Promise<T> {
 		const source = registration[1];
 		let value: T;

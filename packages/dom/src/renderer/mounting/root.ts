@@ -1,5 +1,6 @@
 import {
 	type AnyComponentInstance,
+	type AnyEnhancementComponentFunction,
 	Activity,
 	createErrorReport,
 	Dynamic,
@@ -12,7 +13,6 @@ import {
 	Text,
 	UnsafeHtml,
 	watch,
-	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
 import {
@@ -299,7 +299,7 @@ export function mountInner(
 		try {
 			const instance = withEffectScope(mounted.scope, () =>
 				createComponentInstance(
-					vnode.type as ComponentFunction<any, Record<string, unknown>>,
+					vnode.type as AnyEnhancementComponentFunction,
 					getComponentProps(vnode),
 					parentInstance,
 					parentInstance?.ambientContexts ?? root.ambientContexts,

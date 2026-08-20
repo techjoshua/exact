@@ -1,7 +1,7 @@
 import {
 	createVNode,
 	readExactEnhancementContexts,
-	type ComponentFunction,
+	type AnyEnhancementComponentFunction,
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
@@ -81,7 +81,7 @@ function orderEnhancementEntries(
 }
 
 function enhancementVNode(
-	component: ComponentFunction<any, Record<string, unknown>>,
+	component: AnyEnhancementComponentFunction,
 	entry: EnhancementEntry,
 	child: VNode,
 	domain: VNode['domain']

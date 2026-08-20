@@ -23,7 +23,7 @@ const ignoredDirectories = new Set([
 	'node_modules',
 	'reference'
 ]);
-const baseline = 136;
+const baseline = 126;
 let total = 0;
 const counts = [];
 
