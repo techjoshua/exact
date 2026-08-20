@@ -5,10 +5,14 @@ import type { ExactMicrofrontendConfig } from './config.js';
 export type ExactMicrofrontendBuildConfig = {
 	exposes: readonly (readonly [string, { readonly component: string }])[];
 	providedPackages: readonly string[];
-	remoteBindings: readonly (
-		| readonly [string, { readonly clientEntry: string }]
-		| readonly [string, { readonly clientEntry: string; readonly clientEntryResolver: string }]
-	)[];
+	remoteBindings: readonly (readonly [
+		string,
+		{
+			readonly clientEntry: string;
+			readonly integrity?: string;
+			readonly clientEntryResolver?: string;
+		}
+	])[];
 };
 
 /** Packages whose identity must be shared by every eXact remote client. */
@@ -45,6 +49,7 @@ const controller: ExactPluginConfigController<ExactMicrofrontendConfig> = {
 					binding,
 					{
 						clientEntry: remote.clientEntry,
+						...(remote.integrity ? { integrity: remote.integrity } : {}),
 						...(remote.clientEntryResolver
 							? { clientEntryResolver: remote.clientEntryResolver }
 							: {})
@@ -72,6 +77,7 @@ const controller: ExactPluginConfigController<ExactMicrofrontendConfig> = {
 						binding,
 						Object.freeze({
 							clientEntry: remote.clientEntry,
+							...(remote.integrity ? { integrity: remote.integrity } : {}),
 							...(remote.clientEntryResolver
 								? { clientEntryResolver: remote.clientEntryResolver }
 								: {})
@@ -124,6 +130,7 @@ export function readExactMicrofrontendBuildConfig(
 					entry[0],
 					Object.freeze({
 						clientEntry: entry[1].clientEntry,
+						...(entry[1].integrity ? { integrity: entry[1].integrity } : {}),
 						...(entry[1].clientEntryResolver
 							? { clientEntryResolver: entry[1].clientEntryResolver }
 							: {})
@@ -147,7 +154,7 @@ function isCompilerExposure(value: ExactJsonValue): value is [string, { componen
 
 function isCompilerRemoteBinding(
 	value: ExactJsonValue
-): value is [string, { clientEntry: string; clientEntryResolver?: string }] {
+): value is [string, { clientEntry: string; integrity?: string; clientEntryResolver?: string }] {
 	if (!Array.isArray(value) || value.length !== 2 || !nonempty(value[0])) return false;
 	const binding = value[1];
 	return (
@@ -155,6 +162,7 @@ function isCompilerRemoteBinding(
 		typeof binding === 'object' &&
 		!Array.isArray(binding) &&
 		nonempty(binding.clientEntry) &&
+		(binding.integrity === undefined || validIntegrity(binding.integrity)) &&
 		(binding.clientEntryResolver === undefined || nonempty(binding.clientEntryResolver))
 	);
 }
@@ -175,6 +183,7 @@ function validateConfig(config: ExactMicrofrontendConfig): undefined {
 			typeof remote !== 'object' ||
 			!nonempty(remote.endpoint) ||
 			!nonempty(remote.clientEntry) ||
+			(remote.integrity !== undefined && !validIntegrity(remote.integrity)) ||
 			(remote.clientEntryResolver !== undefined && !nonempty(remote.clientEntryResolver))
 		)
 			throw new Error(`Invalid microfrontend remote binding ${JSON.stringify(name)}`);
@@ -205,6 +214,16 @@ function validateName(value: string, kind: string): void {
 
 function nonempty(value: unknown): value is string {
 	return typeof value === 'string' && value.length > 0;
+}
+
+function validIntegrity(value: unknown): value is string {
+	return (
+		nonempty(value) &&
+		value
+			.trim()
+			.split(/\s+/)
+			.every((entry) => /^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}$/.test(entry))
+	);
 }
 
 type ExactRemoteExposureConfig = ExactMicrofrontendConfig['exposes'][string];

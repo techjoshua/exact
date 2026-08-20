@@ -24,6 +24,7 @@ const remoteConsumerSource = `export default {
       // The public client entry and private operation endpoint are separate.
       config.remotes.billing = {
         clientEntry: 'https://cdn.acme.test/billing/remote.js',
+        integrity: 'sha384-<deployment-generated-digest>',
         endpoint: 'https://billing.internal/__exact'
       };
     }
@@ -88,7 +89,10 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<p>
 					The browser receives only the client entry binding it needs. The private endpoint remains
 					a server concern, where the eXact binding gateway validates and forwards task invocation
-					and refresh traffic.
+					and refresh traffic. An integrity pin is enforced by the browser before the generated
+					module executes. Without one, the configured entry URL is intentionally trusted executable
+					code; replacement resolvers should return both the new URL and its generation-specific
+					integrity.
 				</p>
 			</section>
 			<section>
