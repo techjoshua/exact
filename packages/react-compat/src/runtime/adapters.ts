@@ -1,5 +1,6 @@
 import {
 	type AnyComponentFunction,
+	type AnyStateComponentFunction,
 	ErrorContext,
 	createErrorContext,
 	createVNode,
@@ -9,6 +10,7 @@ import {
 } from '@exactjs/core';
 import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type {
+	AnyReactComponentType,
 	ReactClassInstance,
 	ReactClassType,
 	ReactComponentType,
@@ -83,7 +85,7 @@ function markCompatibilityAdapter<T extends AnyComponentFunction>(adapter: T): T
  * @exact pure
  */
 export function adaptReactType<P>(
-	type: ReactComponentType<P> | ComponentFunction<any, P>
+	type: ReactComponentType<P> | AnyStateComponentFunction<P>
 ): ComponentFunction<Record<string, unknown>, P> {
 	const identity = type as object;
 	const cached = adapterCache.get(identity);
@@ -136,7 +138,7 @@ export function adaptReactType<P>(
 		adapterCache.set(identity, classAdapter);
 		return classAdapter as ComponentFunction<Record<string, unknown>, P>;
 	}
-	const adapter = markCompatibilityAdapter(createFunctionAdapter(type as ReactComponentType<any>));
+	const adapter = markCompatibilityAdapter(createFunctionAdapter(type as AnyReactComponentType));
 	adapterCache.set(identity, adapter);
 	return adapter as ComponentFunction<Record<string, unknown>, P>;
 }

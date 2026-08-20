@@ -1,8 +1,9 @@
 import {
 	type AnyComponentInstance,
+	type AnyComponentFunction,
+	type AnyEnhancementComponentFunction,
 	normalizeRenderResult,
 	type Child,
-	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
 import { renderInstance } from '@exactjs/core/runtime/render';
@@ -72,10 +73,10 @@ export function renderSyncComponent(
 			return output;
 		}
 		const componentProps = getComponentProps(vnode);
-		const blueprint = resolveSsrComponentExecution(context, vnode.type as ComponentFunction<any>);
+		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
 		instance = createSsrComponentInstance(
 			context,
-			vnode.type as ComponentFunction<any, Record<string, unknown>>,
+			vnode.type as AnyEnhancementComponentFunction,
 			componentProps,
 			parent,
 			blueprint

@@ -1,4 +1,4 @@
-import { type VNode } from '@exactjs/core';
+import { type AnyComponentFunction, type VNode } from '@exactjs/core';
 import {
 	exactComponentContract,
 	exactComponentType,
@@ -26,10 +26,10 @@ export type SsrComponentExecutionBlueprint = Readonly<{
 
 /** Root-scoped cache whose weak expansion entries accommodate dynamic component selection. */
 export type SsrRootExecutionBlueprint = {
-	resolve(component: ComponentFunction<any>): SsrComponentExecutionBlueprint;
+	resolve(component: AnyComponentFunction): SsrComponentExecutionBlueprint;
 };
 
-const rootBlueprints = new WeakMap<ComponentFunction<any>, SsrRootExecutionBlueprint>();
+const rootBlueprints = new WeakMap<AnyComponentFunction, SsrRootExecutionBlueprint>();
 
 /** Attaches the reusable blueprint for a component root after output extensions select it. */
 export function attachSsrRootExecutionBlueprint(context: SsrContext, vnode: VNode): void {
@@ -40,7 +40,7 @@ export function attachSsrRootExecutionBlueprint(context: SsrContext, vnode: VNod
 /** Resolves cached validated metadata for one component reached beneath the active root. */
 export function resolveSsrComponentExecution(
 	context: SsrContext,
-	component: ComponentFunction<any>
+	component: AnyComponentFunction
 ): SsrComponentExecutionBlueprint {
 	return context.rootExecutionBlueprint?.resolve(component) ?? prepareComponentBlueprint(component);
 }
@@ -67,10 +67,10 @@ export function createSsrComponentInstance<
 }
 
 /** Returns the stable cache object owned by one root component function. */
-export function ssrRootExecutionBlueprint(root: ComponentFunction<any>): SsrRootExecutionBlueprint {
+export function ssrRootExecutionBlueprint(root: AnyComponentFunction): SsrRootExecutionBlueprint {
 	let blueprint = rootBlueprints.get(root);
 	if (!blueprint) {
-		const components = new WeakMap<ComponentFunction<any>, CachedBlueprint>();
+		const components = new WeakMap<AnyComponentFunction, CachedBlueprint>();
 		blueprint = {
 			resolve(component) {
 				const rawContract = attachedValue(component, exactComponentContract);
@@ -95,7 +95,7 @@ type CachedBlueprint = Readonly<{
 }>;
 
 function prepareComponentBlueprint(
-	component: ComponentFunction<any>
+	component: AnyComponentFunction
 ): SsrComponentExecutionBlueprint {
 	const contract = readExactComponentContract(component);
 	const componentId = attachedValue(component, exactComponentType);
@@ -106,6 +106,6 @@ function prepareComponentBlueprint(
 	});
 }
 
-function attachedValue(component: ComponentFunction<any>, key: symbol): unknown {
+function attachedValue(component: AnyComponentFunction, key: symbol): unknown {
 	return (component as unknown as Record<symbol, unknown>)[key];
 }

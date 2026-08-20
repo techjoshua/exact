@@ -2,7 +2,7 @@ import {
 	createVNode,
 	isExactEnhancementPassThrough,
 	readExactEnhancementContexts,
-	type ComponentFunction,
+	type AnyEnhancementComponentFunction,
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
@@ -93,7 +93,7 @@ function routingOnlyEntry(entry: EnhancementEntry): boolean {
 
 function enhancementVNode(
 	context: SsrContext,
-	component: ComponentFunction<any, Record<string, unknown>>,
+	component: AnyEnhancementComponentFunction,
 	entry: EnhancementEntry,
 	child: VNode,
 	domain: VNode['domain']

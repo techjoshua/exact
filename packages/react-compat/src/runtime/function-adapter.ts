@@ -1,5 +1,5 @@
 import type { Component, ComponentFunction, ComponentInstance } from '@exactjs/core';
-import type { ReactComponentType, ReactNode, ReactSpecialType } from '../types.js';
+import type { AnyReactComponentType, ReactNode, ReactSpecialType } from '../types.js';
 import { HookHost, createOwnerFrame, removeOwnerFrame } from '../internals.js';
 import { reactTypeName, shallowEqualProps, snapshotProps } from './class-support.js';
 import { invokeReactType, toExactNode, toReactNode } from './nodes.js';
@@ -10,7 +10,7 @@ const unsetRef = Symbol('exact.react.unset-ref');
 
 /** Creates the durable eXact adapter that hosts one React function component type. */
 export function createFunctionAdapter(
-	type: ReactComponentType<any>
+	type: AnyReactComponentType
 ): ComponentFunction<Record<string, unknown>, Record<string, unknown>> {
 	const displayName = reactTypeName(type);
 	const adapter = function ReactCompatibilityAdapter(

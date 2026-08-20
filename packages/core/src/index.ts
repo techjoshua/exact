@@ -125,6 +125,8 @@ export type {
 	AnyComponentInstance,
 	AnyContextToken,
 	AnyEnhancementComponentFunction,
+	AnyStateAuthoredComponentFunction,
+	AnyStateComponentFunction,
 	AsyncComponentFunction,
 	AuthoredComponentFunction,
 	Child,
