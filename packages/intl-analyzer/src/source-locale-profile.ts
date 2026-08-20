@@ -8,6 +8,7 @@ import {
 const profiledUnitDisplays = ['long', 'short', 'narrow'] as const;
 const baselineOperands = [0, 1, 2, 3, 5, 10, 11, 21, 22, 100, 1.5] as const;
 const profileCache = new Map<string, SourceLocaleProfile>();
+const maxCachedProfiles = 16;
 
 /** Locale evidence supplied by one localized currency label. */
 export interface SourceCurrencyLabel {
@@ -31,7 +32,11 @@ export interface SourceLocaleProfile {
 export function sourceLocaleProfile(sourceLocale: string): SourceLocaleProfile {
 	const locale = intl.Locale(sourceLocale).toString();
 	const cached = profileCache.get(locale);
-	if (cached) return cached;
+	if (cached) {
+		profileCache.delete(locale);
+		profileCache.set(locale, cached);
+		return cached;
+	}
 
 	const operands = pluralOperands(locale);
 	const languageInference = sourceLanguageInference(locale);
@@ -46,6 +51,11 @@ export function sourceLocaleProfile(sourceLocale: string): SourceLocaleProfile {
 		ordinalWrappers: Object.freeze([...(languageInference.ordinalWrappers ?? [])])
 	});
 	profileCache.set(locale, result);
+	while (profileCache.size > maxCachedProfiles) {
+		const oldest = profileCache.keys().next().value as string | undefined;
+		if (oldest === undefined) break;
+		profileCache.delete(oldest);
+	}
 	return result;
 }
 

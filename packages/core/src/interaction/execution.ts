@@ -1,4 +1,4 @@
-import type { ComponentInstance } from '../component/contracts.js';
+import type { AnyComponentInstance } from '../component/contracts.js';
 import {
 	markComponentTrace,
 	componentTraceStarter,
@@ -22,7 +22,7 @@ export type InteractionPriority = 'interactive' | 'normal' | 'deferred';
 /** Diagnostic metadata associated with an interaction-root task frame. */
 export type InteractionScope = {
 	readonly id: number;
-	readonly owner: ComponentInstance<any>;
+	readonly owner: AnyComponentInstance;
 	readonly source: InteractionSource;
 	readonly priority: InteractionPriority;
 	readonly generation: number;
@@ -59,7 +59,7 @@ export function traceInteractionPhase(
  * structural settlement. Interaction state exists only as inspection metadata associated with it.
  */
 export function runComponentInteraction<Result>(
-	owner: ComponentInstance<any>,
+	owner: AnyComponentInstance,
 	source: InteractionSource,
 	generation: number,
 	priority: InteractionPriority,

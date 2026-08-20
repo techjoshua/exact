@@ -1,6 +1,6 @@
 import type { ComponentFunction } from '../component/contracts.js';
 
-type EnhancementComponent = ComponentFunction<any, Record<string, unknown>>;
+type EnhancementComponent = ComponentFunction<Record<string, never>, Record<string, unknown>>;
 
 const catalog = new Map<string, EnhancementComponent>();
 

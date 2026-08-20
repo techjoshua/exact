@@ -2,6 +2,7 @@ import { createContext as createExactContext, type ContextToken } from '@exactjs
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import { runWithPriority } from '@exactjs/reactive';
 import type {
+	AnyReactCallback,
 	DependencyList,
 	ExternalStoreSubscribe,
 	ReactContext,
@@ -228,7 +229,7 @@ export type ReactDispatcher = {
 	): readonly [unknown, (action: unknown) => void];
 	useRef(initial: unknown): { current: unknown };
 	useMemo(factory: () => unknown, deps?: DependencyList): unknown;
-	useCallback<T extends (...args: any[]) => unknown>(callback: T, deps?: DependencyList): T;
+	useCallback<T extends AnyReactCallback>(callback: T, deps?: DependencyList): T;
 	useDebugValue(value: unknown, format?: (value: unknown) => unknown): void;
 	useContext<T>(context: ReactContext<T>): T;
 	useEffect(create: () => void | (() => void), deps?: DependencyList): void;
@@ -257,7 +258,7 @@ export type ReactDispatcher = {
 		passthrough: unknown,
 		reducer?: (state: unknown, action: unknown) => unknown
 	): readonly [unknown, (action: unknown) => void];
-	useEffectEvent<T extends (...args: any[]) => unknown>(implementation: T): T;
+	useEffectEvent<T extends AnyReactCallback>(implementation: T): T;
 	useMemoCache(size: number): unknown[];
 	readContext?<T>(context: ReactContext<T>): T;
 };

@@ -1,4 +1,5 @@
 import type {
+	AnyContextToken,
 	ComponentContextValues,
 	ContextToken,
 	ExactComponentAuthorizationIdentity,
@@ -107,6 +108,8 @@ export type ExactRequestLike = {
 	url?: string | URL;
 	headers?: Headers | Record<string, string | string[] | undefined>;
 	body?: unknown;
+	/** Incremental request bytes, used by Fetch-compatible adapters to enforce limits before buffering. */
+	bodyStream?: ReadableStream<Uint8Array> | null;
 	text?(): Promise<string>;
 	json?(): Promise<unknown>;
 	signal?: AbortSignal;
@@ -129,6 +132,10 @@ export type ExactContextFactory<T> = {
 	dispose?(value: T, reason?: unknown): void | Promise<void>;
 };
 
+/** Existential factory retained with its correlated token and owned value in heterogeneous scopes. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Scope storage preserves each factory's value correlation but contains multiple value types.
+export type AnyExactContextFactory = ExactContextFactory<any>;
+
 /** Defines the exact context value type contract. */
 export type ExactContextValue<T> = {
 	value: T;
@@ -140,21 +147,23 @@ export type ExactContextRegistration<T = unknown> = readonly [
 	source: ExactContextValue<T> | ExactContextFactory<T>
 ];
 
+/** Existential registration retained in heterogeneous context configuration collections. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Each tuple remains internally correlated even though collections contain multiple value types.
+export type AnyExactContextRegistration = ExactContextRegistration<any>;
+
 /** Defines the exact request context registration source type contract. */
 export type ExactRequestContextRegistrationSource =
-	| readonly ExactContextRegistration<any>[]
+	| readonly AnyExactContextRegistration[]
 	| ((
 			context: ExactContextFactoryContext
-	  ) =>
-			| readonly ExactContextRegistration<any>[]
-			| Promise<readonly ExactContextRegistration<any>[]>);
+	  ) => readonly AnyExactContextRegistration[] | Promise<readonly AnyExactContextRegistration[]>);
 
 /** Defines the exact context overrides type contract. */
 export type ExactContextOverrides = {
 	/** Trusted application-supplied test values; never populated from request data. */
-	application?: readonly (readonly [ContextToken<any>, unknown])[];
+	application?: readonly (readonly [AnyContextToken, unknown])[];
 	/** Trusted application-supplied test values; never populated from request data. */
-	request?: readonly (readonly [ContextToken<any>, unknown])[];
+	request?: readonly (readonly [AnyContextToken, unknown])[];
 };
 
 /** Reports a server-owned context token used by one generated continuation, never its value. */
@@ -162,7 +171,7 @@ export type ExactServerContextAccessObservation = Readonly<{
 	operationId: string;
 	componentId: string;
 	token: string;
-	scope: ContextToken<any>['scope'];
+	scope: ContextToken<unknown>['scope'];
 }>;
 
 /** Configures exact server context. */
@@ -174,7 +183,7 @@ export type ExactServerContextConfiguration = {
 	 * deployment trust boundary and must apply the host server's proxy policy.
 	 */
 	publicOrigin?: string | URL | ((request: ExactPublicOriginRequest) => string | URL);
-	applicationContexts?: readonly ExactContextRegistration<any>[];
+	applicationContexts?: readonly AnyExactContextRegistration[];
 	requestContexts?: ExactRequestContextRegistrationSource;
 	contextOverrides?: ExactContextOverrides;
 	/** Observes generated continuation context access without disclosing the resolved value. */

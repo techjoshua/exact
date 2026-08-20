@@ -198,10 +198,22 @@ function encodeRequest(value: unknown, maxBytes?: number): string {
 }
 
 async function readJsonResponse(
-	response: { json(): Promise<unknown>; text?(): Promise<string> },
+	response: {
+		body?: ReadableStream<Uint8Array> | null;
+		json(): Promise<unknown>;
+		text?(): Promise<string>;
+	},
 	limits: InvokeExactOptions['streamLimits'],
 	signal?: AbortSignal
 ): Promise<unknown> {
+	if (response.body) {
+		const text = await readBoundedResponseBody(
+			response.body,
+			positiveLimit(limits?.maxBytes, 16 * 1024 * 1024),
+			signal
+		);
+		return consumeExactServerObservations(JSON.parse(text));
+	}
 	if (response.text) {
 		const text = await withAbort(response.text(), signal);
 		assertResponseBytes(text, limits?.maxBytes);
@@ -219,6 +231,49 @@ async function readJsonResponse(
 	}
 	if (encoded !== undefined) assertResponseBytes(encoded, limits?.maxBytes);
 	return consumeExactServerObservations(value);
+}
+
+async function readBoundedResponseBody(
+	body: ReadableStream<Uint8Array>,
+	maxBytes: number,
+	signal?: AbortSignal
+): Promise<string> {
+	const reader = body.getReader();
+	const chunks: Uint8Array[] = [];
+	let length = 0;
+	const abort = () => void reader.cancel(signal?.reason).catch(() => undefined);
+	if (signal?.aborted) abort();
+	else signal?.addEventListener('abort', abort, { once: true });
+	try {
+		while (true) {
+			if (signal?.aborted)
+				throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
+			const next = await reader.read();
+			if (signal?.aborted)
+				throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
+			if (next.done) break;
+			length += next.value.byteLength;
+			if (length > maxBytes) throw new Error('eXact response exceeded maxBytes');
+			chunks.push(next.value);
+		}
+		const bytes = new Uint8Array(length);
+		let offset = 0;
+		for (const chunk of chunks) {
+			bytes.set(chunk, offset);
+			offset += chunk.byteLength;
+		}
+		return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+	} catch (error) {
+		try {
+			await reader.cancel(error);
+		} catch {
+			/* preserve the response validation failure */
+		}
+		throw error;
+	} finally {
+		signal?.removeEventListener('abort', abort);
+		reader.releaseLock();
+	}
 }
 
 function assertResponseBytes(value: string, configured?: number): void {

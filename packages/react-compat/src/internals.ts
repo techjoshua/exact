@@ -1,4 +1,4 @@
-import { type Component, type ComponentInstance } from '@exactjs/core';
+import { type AnyComponentInstance, type Component } from '@exactjs/core';
 import { publishExactProfile } from '@exactjs/instrumentation';
 import {
 	cloneHookSlot,
@@ -37,7 +37,7 @@ export * from './runtime/shared.js';
 
 import { createExactDispatcher } from './runtime/dispatcher.js';
 
-const ownerFrames = new WeakMap<ComponentInstance<any>, ReactOwnerFrame>();
+const ownerFrames = new WeakMap<AnyComponentInstance, ReactOwnerFrame>();
 let currentOwnerFrame: ReactOwnerFrame | null = null;
 
 /** Performs the current react owner frame domain operation. */
@@ -48,7 +48,7 @@ export function currentReactOwnerFrame(): ReactOwnerFrame | unknown | null {
 
 /** Creates an owner frame. */
 export function createOwnerFrame(
-	component: ComponentInstance<any>,
+	component: AnyComponentInstance,
 	type: unknown,
 	stateNode: unknown = null
 ): ReactOwnerFrame {
@@ -80,7 +80,7 @@ export function createOwnerFrame(
 }
 
 /** Releases owner frame and its owned resources. */
-export function removeOwnerFrame(component: ComponentInstance<any>): void {
+export function removeOwnerFrame(component: AnyComponentInstance): void {
 	const frame = ownerFrames.get(component);
 	if (!frame) return;
 	const parent = frame.return;
@@ -138,7 +138,7 @@ export class HookHost extends HookState {
 		const previousDispatcher = setCurrentDispatcher(createExactDispatcher(this));
 		const previousOwnerFrame = currentOwnerFrame;
 		const previousReact18Owner = ReactSharedInternals18.ReactCurrentOwner.current;
-		currentOwnerFrame = ownerFrames.get(this.component as ComponentInstance<any>) ?? null;
+		currentOwnerFrame = ownerFrames.get(this.component as AnyComponentInstance) ?? null;
 		ReactSharedInternals18.ReactCurrentOwner.current = currentOwnerFrame;
 		currentHost = this;
 		currentRootRuntime = readReactRootRuntime(this.component);
@@ -306,7 +306,7 @@ export class HookHost extends HookState {
 	}
 
 	protected syncOwnerHooks(): void {
-		const frame = ownerFrames.get(this.component as ComponentInstance<any>);
+		const frame = ownerFrames.get(this.component as AnyComponentInstance);
 		if (frame && this.working) frame.memoizedState = ownerHookList(this.working);
 	}
 }

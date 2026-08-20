@@ -1,9 +1,9 @@
 import {
+	type AnyComponentInstance,
+	type AnyEnhancementComponentFunction,
 	pageComponentDomain,
 	withComponentResumption,
 	type ComponentContextValues,
-	type ComponentFunction,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
@@ -14,14 +14,14 @@ import { getComponentProps } from '../../children.js';
 /** Constructs one component after DOM adoption has validated its server marker identity. */
 export function constructAdoptedComponent(
 	vnode: VNode,
-	parent?: ComponentInstance<any>,
+	parent?: AnyComponentInstance,
 	ambientContexts?: ComponentContextValues
-): ComponentInstance<any> {
-	exactComponentIdentity(vnode.type as ComponentFunction<any, Record<string, unknown>>);
+): AnyComponentInstance {
+	exactComponentIdentity(vnode.type as AnyEnhancementComponentFunction);
 	const domain = vnode.domain ?? parent?.domain ?? pageComponentDomain;
 	return withComponentResumption(domain, () =>
 		createComponentInstance(
-			vnode.type as ComponentFunction<any, Record<string, unknown>>,
+			vnode.type as AnyEnhancementComponentFunction,
 			getComponentProps(vnode),
 			parent,
 			parent?.ambientContexts ?? ambientContexts,

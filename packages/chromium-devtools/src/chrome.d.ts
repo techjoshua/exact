@@ -1,9 +1,12 @@
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chrome runtime ports are untyped message buses; each owning protocol validates or narrows its channel payload.
+type ChromeRuntimeMessage = any;
+
 declare namespace chrome {
 	namespace runtime {
 		interface Port {
 			name: string;
 			sender?: { tab?: { id?: number } };
-			onMessage: { addListener(listener: (message: any) => void): void };
+			onMessage: { addListener(listener: (message: ChromeRuntimeMessage) => void): void };
 			onDisconnect: { addListener(listener: () => void): void };
 			postMessage(message: unknown): void;
 			disconnect(): void;

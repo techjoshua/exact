@@ -1,6 +1,7 @@
 import type {
+	AnyAuthoredComponentFunction,
+	AnyComponentFunction,
 	AuthoredComponentFunction,
-	ComponentFunction,
 	ComponentInstance,
 	RenderResult
 } from '../component/contracts.js';
@@ -11,14 +12,14 @@ export declare const componentRegistryBrand: unique symbol;
 export declare const lazyRegistryEntryBrand: unique symbol;
 
 /** Declarative lazy component entry accepted only inside a registry definition callback. */
-export type LazyRegistryEntry<Component extends AuthoredComponentFunction<any, any>> = Readonly<{
+export type LazyRegistryEntry<Component extends AnyAuthoredComponentFunction> = Readonly<{
 	readonly [lazyRegistryEntryBrand]: Component;
 }>;
 
 /** One eager or scoped-lazy entry in a declarative component registry definition. */
 export type ComponentRegistryDefinitionEntry =
-	| AuthoredComponentFunction<any, any>
-	| LazyRegistryEntry<AuthoredComponentFunction<any, any>>;
+	| AnyAuthoredComponentFunction
+	| LazyRegistryEntry<AnyAuthoredComponentFunction>;
 
 /** Finite immutable definition accepted by {@link createComponentRegistry}. */
 export type ComponentRegistryDefinition = Readonly<
@@ -29,7 +30,7 @@ export type ComponentRegistryDefinition = Readonly<
 export type ResolveRegistryEntry<Entry> =
 	Entry extends LazyRegistryEntry<infer Component>
 		? Component
-		: Entry extends AuthoredComponentFunction<any, any>
+		: Entry extends AnyAuthoredComponentFunction
 			? Entry
 			: never;
 
@@ -44,12 +45,17 @@ export type ComponentRegistry<Definition extends ComponentRegistryDefinition> =
 		readonly [componentRegistryBrand]: Definition;
 	};
 
+/** Existential registry accepted by operations that preserve its branded definition. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Runtime registry operations preserve the concrete definition through their own generic parameter.
+export type AnyComponentRegistry = ComponentRegistry<any>;
+
 /** String component keys declared by a registry, excluding compiler-private symbols. */
 export type KeyOf<Registry> =
 	Registry extends ComponentRegistry<infer Definition> ? Extract<keyof Definition, string> : never;
 
 /** Props accepted by an eXact component function. */
 export type ComponentProps<Component> =
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- State is irrelevant while props are inferred from the heterogeneous component.
 	Component extends AuthoredComponentFunction<any, infer Props> ? Props : never;
 
 /** Builder available only while a registry definition callback executes. */
@@ -59,7 +65,7 @@ export type ComponentRegistryBuilder = {
 	 *
 	 * Reading the resulting registry entry does not load it; rendering or explicit preloading does.
 	 */
-	lazy<Component extends AuthoredComponentFunction<any, any>>(
+	lazy<Component extends AnyAuthoredComponentFunction>(
 		load: () => Promise<Component>
 	): LazyRegistryEntry<Component>;
 };
@@ -79,11 +85,11 @@ export type ComponentSelection<Registry> =
 export type ComponentRegistryEntryRuntime = {
 	readonly registry: ComponentRegistryRuntime;
 	readonly key: string;
-	readonly facade: ComponentFunction<any, any>;
-	readonly eager?: ComponentFunction<any, any>;
-	readonly load?: () => Promise<ComponentFunction<any, any>>;
-	resolved?: ComponentFunction<any, any>;
-	pending?: Promise<ComponentFunction<any, any>>;
+	readonly facade: AnyComponentFunction;
+	readonly eager?: AnyComponentFunction;
+	readonly load?: () => Promise<AnyComponentFunction>;
+	resolved?: AnyComponentFunction;
+	pending?: Promise<AnyComponentFunction>;
 	error?: unknown;
 	loadGeneration: number;
 };

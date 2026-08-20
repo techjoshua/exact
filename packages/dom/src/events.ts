@@ -1,4 +1,5 @@
 import {
+	type AnyComponentInstance,
 	batch,
 	createErrorReport,
 	handleComponentError,
@@ -6,7 +7,6 @@ import {
 	runComponentInteraction,
 	traceInteractionPhase,
 	unwrap,
-	type ComponentInstance,
 	type InteractionScope
 } from '@exactjs/core';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
@@ -105,7 +105,7 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
  * The caller retains responsibility for the synchronous reactive batch and error observation.
  */
 export function runEventInteraction<Result>(
-	owner: ComponentInstance<any> | undefined,
+	owner: AnyComponentInstance | undefined,
 	work: () => Result | PromiseLike<Result>,
 	onScope?: (scope: InteractionScope) => void
 ): Result | PromiseLike<Result> {
@@ -126,7 +126,7 @@ export function runEventInteraction<Result>(
 /** Publishes one event transaction and applies its interactive consequences before returning. */
 function runInteractiveEvent<Result>(
 	root: Root,
-	owner: ComponentInstance<any> | undefined,
+	owner: AnyComponentInstance | undefined,
 	work: () => Result | PromiseLike<Result>
 ): Result | PromiseLike<Result> {
 	let interaction: InteractionScope | undefined;
@@ -164,7 +164,7 @@ export function installOwnedEventSubscription(
 	element: Element,
 	key: string,
 	source: unknown,
-	owner: ComponentInstance<any> | undefined
+	owner: AnyComponentInstance | undefined
 ): () => void {
 	const { type, capture } = eventTypeForProp(key);
 	const listener: EventListener = (event) =>

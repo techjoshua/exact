@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 /**
  * @vitest-environment jsdom
  */

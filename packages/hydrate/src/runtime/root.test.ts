@@ -2,10 +2,10 @@
  * @vitest-environment jsdom
  */
 import {
+	type AnyComponentInstance,
 	createComponentDomain,
 	createContext,
-	type Component,
-	type ComponentInstance
+	type Component
 } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { describe, expect, it } from 'vitest';
@@ -21,24 +21,24 @@ describe('hidden exact roots', () => {
 			executionRoot: '@company/branding#./Shell'
 		});
 		const Theme = createContext<{ name: string }>('hidden-root-theme', { reactive: true });
-		let pageChild!: ComponentInstance<any>;
-		let remoteShell!: ComponentInstance<any>;
-		let remoteButton!: ComponentInstance<any>;
+		let pageChild!: AnyComponentInstance;
+		let remoteShell!: AnyComponentInstance;
+		let remoteButton!: AnyComponentInstance;
 
 		function SharedButton(this: Component<{}>) {
-			remoteButton = this as ComponentInstance<any>;
+			remoteButton = this as AnyComponentInstance;
 			const theme = this.getContext(Theme);
 			return () => createVNode('button', null, theme.name);
 		}
 
 		function PageChild(this: Component<{}>) {
-			pageChild = this as ComponentInstance<any>;
+			pageChild = this as AnyComponentInstance;
 			const theme = this.getContext(Theme);
 			return () => createVNode('strong', null, theme.name);
 		}
 
 		function RemoteShell(this: Component<{}>, props: { children?: unknown }) {
-			remoteShell = this as ComponentInstance<any>;
+			remoteShell = this as AnyComponentInstance;
 			return () => createVNode('section', null, createVNode(SharedButton, null), props.children);
 		}
 

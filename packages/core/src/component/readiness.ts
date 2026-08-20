@@ -1,8 +1,8 @@
 import { unwrap } from '@exactjs/reactive';
 import { ReadinessContext } from './contexts.js';
 import type {
+	AnyComponentInstance,
 	BlockingWork,
-	ComponentInstance,
 	ReadinessContextValue,
 	ReadinessRegistration
 } from './contracts.js';
@@ -145,7 +145,7 @@ export function createReadinessCoordinator(
 
 /** Resolves the nearest readiness context inherited by a component instance. */
 export function componentReadinessContext(
-	instance: ComponentInstance<any> | undefined
+	instance: AnyComponentInstance | undefined
 ): ReadinessContextValue | undefined {
 	for (let cursor = instance; cursor; cursor = cursor.parent) {
 		if (cursor.contexts.has(ReadinessContext.id))

@@ -7,10 +7,10 @@ import {
 } from '@exactjs/language-extension-api';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import type { ExactLanguageProviderDescriptor, ExactLanguageProviderStatus } from './contracts.js';
 import type { ExactLanguageRunnerResponse } from './runner-protocol.js';
+import { readBoundedLines } from './bounded-lines.js';
 
 /** Workspace inputs used to initialize an isolated language-provider process. */
 export type ProviderConnectionOptions = Readonly<{
@@ -33,6 +33,9 @@ export class ProviderConnection {
 	private message: string | undefined;
 	private initialize: Promise<void> | undefined;
 	private readonly failures: number[] = [];
+	private disposed = false;
+	private readonly lifetime = new AbortController();
+	private stopOutput: (() => void) | undefined;
 
 	constructor(
 		readonly descriptor: ExactLanguageProviderDescriptor,
@@ -91,8 +94,14 @@ export class ProviderConnection {
 
 	/** Gracefully shuts down the provider and rejects outstanding requests. */
 	async dispose(): Promise<void> {
+		if (this.disposed) return;
+		this.disposed = true;
+		this.lifetime.abort(new Error('Language provider disposed'));
 		const child = this.process;
-		if (!child) return;
+		if (!child) {
+			await this.initialize?.catch(() => undefined);
+			return;
+		}
 		try {
 			await this.send(
 				'shutdown' as never,
@@ -101,6 +110,8 @@ export class ProviderConnection {
 			);
 		} catch {}
 		this.process = undefined;
+		this.stopOutput?.();
+		this.stopOutput = undefined;
 		if (!child.killed) child.kill();
 		for (const pending of this.pending.values())
 			pending.reject(new Error('Language provider disposed'));
@@ -108,6 +119,7 @@ export class ProviderConnection {
 	}
 
 	private async ensureStarted(signal?: AbortSignal): Promise<void> {
+		if (this.disposed) throw new Error('Language provider disposed');
 		if (this.initialize) return this.initialize;
 		this.initialize = this.start(signal).catch((error) => {
 			this.initialize = undefined;
@@ -117,11 +129,18 @@ export class ProviderConnection {
 	}
 
 	private async start(signal?: AbortSignal): Promise<void> {
-		throwIfAborted(signal);
+		const startupSignal = AbortSignal.any(
+			[signal, this.lifetime.signal].filter((value): value is AbortSignal => value !== undefined)
+		);
+		throwIfAborted(startupSignal);
 		if (this.failures.length) {
 			const delays = [250, 1_000, 4_000] as const;
-			await abortableDelay(delays[Math.min(this.failures.length - 1, delays.length - 1)]!, signal);
+			await abortableDelay(
+				delays[Math.min(this.failures.length - 1, delays.length - 1)]!,
+				startupSignal
+			);
 		}
+		throwIfAborted(startupSignal);
 		const adjacentRunner = fileURLToPath(new URL('./runner.js', import.meta.url));
 		const runner = existsSync(adjacentRunner)
 			? adjacentRunner
@@ -132,13 +151,22 @@ export class ProviderConnection {
 			{ cwd: this.descriptor.packageRoot, stdio: ['pipe', 'pipe', 'pipe'] }
 		);
 		this.process = child;
+		if (this.disposed) {
+			this.process = undefined;
+			child.kill();
+			throw new Error('Language provider disposed');
+		}
 		child.stdin.on('error', (error) => this.childFailure(child, error));
-		createInterface({ input: child.stdout, crlfDelay: Infinity }).on('line', (line) =>
-			this.receive(child, line)
+		this.stopOutput = readBoundedLines(
+			child.stdout,
+			exactLanguageProtocolLimits.responseBytes,
+			(line) => this.receive(child, line),
+			(error) => this.childFailure(child, error)
 		);
 		let stderr = '';
 		child.stderr.on('data', (chunk: Buffer) => {
-			if (stderr.length < 64 * 1024) stderr += chunk.toString('utf8');
+			const remaining = 64 * 1024 - Buffer.byteLength(stderr);
+			if (remaining > 0) stderr += chunk.subarray(0, remaining).toString('utf8');
 		});
 		child.once('exit', (code) => {
 			this.childFailure(
@@ -168,7 +196,7 @@ export class ProviderConnection {
 			'initialize',
 			{ entry: this.descriptor.entry!, context },
 			exactLanguageProtocolLimits.initializationMilliseconds,
-			signal
+			startupSignal
 		);
 		this.health = 'ready';
 	}
@@ -275,6 +303,8 @@ export class ProviderConnection {
 	private childFailure(child: ChildProcessWithoutNullStreams, error: Error): void {
 		if (this.process !== child) return;
 		this.process = undefined;
+		this.stopOutput?.();
+		this.stopOutput = undefined;
 		this.initialize = undefined;
 		for (const pending of this.pending.values()) pending.reject(error);
 		this.pending.clear();

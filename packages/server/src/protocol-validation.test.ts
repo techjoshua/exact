@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { parseExactRequestBody } from './protocol.js';
+import { parseExactRequestBody, readBody } from './protocol.js';
 
 describe('server request graph validation', () => {
+	it('cancels a blocked request stream when its request lifetime aborts', async () => {
+		let cancelled = false;
+		const controller = new AbortController();
+		const body = new ReadableStream<Uint8Array>({
+			cancel() {
+				cancelled = true;
+			}
+		});
+		const reading = readBody({ method: 'POST', bodyStream: body, signal: controller.signal });
+		controller.abort(new Error('disconnected'));
+		await expect(reading).rejects.toThrow('disconnected');
+		expect(cancelled).toBe(true);
+	});
+
 	it('reconstructs validated reactive collection envelopes without a second graph pass', () => {
 		const request = parseExactRequestBody(
 			JSON.stringify({

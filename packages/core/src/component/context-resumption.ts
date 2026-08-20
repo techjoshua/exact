@@ -1,21 +1,21 @@
 import type {
+	AnyComponent,
+	AnyComponentInstance,
+	AnyContextToken,
 	ComponentContinuationContextBinding,
-	Component,
-	ComponentInstance,
-	ComponentResumptionActivation,
-	ContextToken
+	ComponentResumptionActivation
 } from './contracts.js';
 
-const bindingsByInstance = new WeakMap<ComponentInstance<any>, Map<string, ContextToken<any>>>();
-const resumptionsByInstance = new WeakMap<ComponentInstance<any>, ComponentResumptionActivation>();
-const appliedByInstance = new WeakMap<ComponentInstance<any>, Set<string>>();
+const bindingsByInstance = new WeakMap<AnyComponentInstance, Map<string, AnyContextToken>>();
+const resumptionsByInstance = new WeakMap<AnyComponentInstance, ComponentResumptionActivation>();
+const appliedByInstance = new WeakMap<AnyComponentInstance, Set<string>>();
 
 /**
  * Makes one validated SSR activation available while compiler-generated setup
  * registers the client-local token identities needed to apply its context values.
  */
 export function prepareComponentContextResumption(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	resumption: ComponentResumptionActivation
 ): void {
 	resumptionsByInstance.set(instance, resumption);
@@ -26,10 +26,10 @@ export function prepareComponentContextResumption(
  * token objects. Any matching SSR value is installed before descendants render.
  */
 export function registerComponentContinuationContexts(
-	component: Component<any>,
+	component: AnyComponent,
 	bindings: readonly ComponentContinuationContextBinding[]
 ): void {
-	const instance = component as ComponentInstance<any>;
+	const instance = component as AnyComponentInstance;
 	let registered = bindingsByInstance.get(instance);
 	if (!registered) {
 		registered = new Map();
@@ -66,7 +66,7 @@ export function registerComponentContinuationContexts(
  * resumption record. Missing values remain absent rather than becoming authority.
  */
 export function componentContinuationContextValues(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	names: readonly string[]
 ): Record<string, unknown> {
 	const registered = bindingsByInstance.get(instance);

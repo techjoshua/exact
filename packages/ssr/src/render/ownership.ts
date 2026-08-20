@@ -4,7 +4,7 @@ import {
 	createCleanupFailure,
 	throwCleanupFailure
 } from '@exactjs/core';
-import type { ComponentInstance, TaskObserver } from '../types.js';
+import type { AnyComponentInstance, TaskObserver } from '../types.js';
 
 /** Creates a ssr owner. */
 export function createSsrOwner(): {
@@ -13,7 +13,7 @@ export function createSsrOwner(): {
 	dispose(reason?: unknown): void;
 } {
 	const pending = new Set<Promise<unknown>>();
-	const instances = new Set<ComponentInstance<any>>();
+	const instances = new Set<AnyComponentInstance>();
 	return {
 		pending,
 		observer: {

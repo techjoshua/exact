@@ -1,9 +1,9 @@
 import {
+	type AnyComponentFunction,
 	createComponentDomain,
 	createVNode,
 	logFrameworkEvent,
-	withComponentDomain,
-	type ComponentFunction
+	withComponentDomain
 } from '@exactjs/core';
 import {
 	adoptMarkerlessComponentRoot,
@@ -229,7 +229,7 @@ function interactionPolicyForBoundary(
 function mountIslandBoundary(
 	boundary: Element,
 	name: string,
-	component: ComponentFunction<any, any>,
+	component: AnyComponentFunction,
 	options: HydrateOptions,
 	work: ReturnType<typeof createDomWorkBudget>,
 	domain: ReturnType<typeof createComponentDomain>,
@@ -253,7 +253,7 @@ function mountIslandBoundary(
 function mountIslandBoundaryInSlice(
 	boundary: Element,
 	name: string,
-	component: ComponentFunction<any, any>,
+	component: AnyComponentFunction,
 	options: HydrateOptions,
 	work: ReturnType<typeof createDomWorkBudget>,
 	domain: ReturnType<typeof createComponentDomain>,

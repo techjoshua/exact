@@ -1,8 +1,8 @@
 import {
+	type AnyComponentInstance,
 	isVNode,
 	unwrap,
 	withComponentDomain,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { RenderProgram } from '@exactjs/core/runtime/render';
@@ -21,7 +21,7 @@ import type { SsrContext } from '../types.js';
 export function renderSsrProgram(
 	context: SsrContext,
 	vnode: VNode,
-	owner?: ComponentInstance<any>
+	owner?: AnyComponentInstance
 ): { readonly html?: string; readonly fallback?: VNode } {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation || context.reactMarkup)
@@ -148,7 +148,7 @@ function samePath(left: readonly number[], right: readonly number[]): boolean {
 export function renderSsrProgramString(
 	context: SsrContext,
 	vnode: VNode,
-	owner: ComponentInstance<any> | undefined,
+	owner: AnyComponentInstance | undefined,
 	renderFallback: (fallback: VNode) => string
 ): string | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
@@ -160,7 +160,7 @@ export function renderSsrProgramString(
 export function renderSsrProgramChunks(
 	context: SsrContext,
 	vnode: VNode,
-	owner: ComponentInstance<any> | undefined,
+	owner: AnyComponentInstance | undefined,
 	renderFallback: (fallback: VNode) => Iterable<string>
 ): Iterable<string> | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
@@ -169,10 +169,7 @@ export function renderSsrProgramChunks(
 }
 
 /** Re-enters the component owner while a marker-mode fallback allocates reactive VNodes. */
-function materializeProgramFallback(
-	vnode: VNode,
-	owner: ComponentInstance<any> | undefined
-): VNode {
+function materializeProgramFallback(vnode: VNode, owner: AnyComponentInstance | undefined): VNode {
 	const fallback = !owner
 		? renderProgramFallback(vnode)
 		: withEffectScope(owner.scope, () =>

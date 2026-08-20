@@ -1,8 +1,8 @@
 import {
+	type AnyComponentInstance,
 	Fragment,
 	isExactEnhancementPassThrough,
 	readExactEnhancementContexts,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
@@ -17,7 +17,7 @@ import { disposeMounted } from './teardown.js';
 export function mountDirectEnhancementBoundary(
 	root: Root,
 	vnode: VNode,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	mount: EnhancementMountOperation
 ): Mounted | undefined {

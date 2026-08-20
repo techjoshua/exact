@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createErrorContext, createVNode, type ComponentFunction } from '@exactjs/core';
+import { type AnyComponentFunction, createErrorContext, createVNode } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
 import { isExactComponent } from '@exactjs/core/framework/component-contracts';
 import { render } from '@exactjs/dom';
@@ -83,7 +83,7 @@ describe('router', () => {
 	});
 
 	it('collects routes generated inside compiled fragments', async () => {
-		const routeType = Route as unknown as ComponentFunction<any, any>;
+		const routeType = Route as unknown as AnyComponentFunction;
 		const generated = [
 			createVNode(routeType, {
 				path: createExpression(() => 'guides/routing'),

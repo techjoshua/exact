@@ -150,6 +150,7 @@ export interface ExactRouter<Route extends ExactRouteDefinition = ExactRouteDefi
 	initialize(): Promise<void>;
 	submit(target: string | URL, init?: RequestInit): Promise<void>;
 	fetch(key: string, routeId: string, target: string | URL, init?: RequestInit): Promise<void>;
+	releaseFetcher(key: string): void;
 	revalidate(): Promise<void>;
 	block(blocker: NavigationBlocker): () => void;
 	dispose(): void;

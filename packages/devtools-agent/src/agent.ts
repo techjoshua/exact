@@ -11,6 +11,7 @@ import { connectExactCdp, type ExactCdpConnectionOptions, type ExactCdpTransport
 
 const bindingName = '__exactDevtoolsAgentBinding';
 const objectGroup = 'exact-devtools-agent';
+const maximumSubscriptionHosts = 1_024;
 
 /** Connected agent query service plus deterministic CDP cleanup. */
 export interface ExactDevtoolsAgentConnection extends ExactInspectionQueryService {
@@ -23,9 +24,15 @@ export async function connectExactDevtoolsAgent(
 	options: ExactCdpConnectionOptions
 ): Promise<ExactDevtoolsAgentConnection> {
 	const cdp = await connectExactCdp(options);
-	await cdp.request('Runtime.enable');
-	const hook = await evaluateHook(cdp);
-	await cdp.request('Runtime.addBinding', { name: bindingName });
+	let hook: string;
+	try {
+		await cdp.request('Runtime.enable');
+		hook = await evaluateHook(cdp);
+		await cdp.request('Runtime.addBinding', { name: bindingName });
+	} catch (error) {
+		await cdp.close().catch(() => undefined);
+		throw error;
+	}
 	const eventListeners = new Map<
 		string,
 		Readonly<{
@@ -56,13 +63,25 @@ export async function connectExactDevtoolsAgent(
 				message.event.id.executionRoot
 			]);
 			if (message.event.sequence <= (subscription.sequences.get(host) ?? 0)) return;
+			subscription.sequences.delete(host);
 			subscription.sequences.set(host, message.event.sequence);
+			while (subscription.sequences.size > maximumSubscriptionHosts)
+				subscription.sequences.delete(subscription.sequences.keys().next().value!);
 			subscription.listener(message.event);
 		} catch {
 			// Malformed page messages are ignored and never reflected into CDP evaluation.
 		}
 	});
-	const connected = await callHook<{ id: string }>(cdp, hook, connectFunction);
+	let connected: { id: string };
+	try {
+		connected = await callHook<{ id: string }>(cdp, hook, connectFunction);
+	} catch (error) {
+		removeEventListener();
+		await cdp.request('Runtime.removeBinding', { name: bindingName }).catch(() => undefined);
+		await cdp.request('Runtime.releaseObjectGroup', { objectGroup }).catch(() => undefined);
+		await cdp.close().catch(() => undefined);
+		throw error;
+	}
 	const connectedSessionId = connected.id;
 	const subscriptions = new Map<string, ExactInspectionSubscriptionHandle>();
 	let disconnected = false;

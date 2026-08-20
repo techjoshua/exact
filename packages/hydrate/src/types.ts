@@ -1,8 +1,9 @@
 import type {
+	AnyEnhancementComponentFunction,
+	AnyComponentFunction,
 	ComponentDomain,
 	ComponentResumptionActivation,
 	ExactRuntimeInspectionOwner,
-	ComponentFunction,
 	ExactComponentAuthorizationIdentity,
 	ErrorReport,
 	Logger,
@@ -93,7 +94,7 @@ export type HydrateOptions = {
 	/** Receives hydration and nested renderer profiling observations. */
 	onProfile?: ExactProfileSink;
 	/** Bundle-local compiler-generated enhancement components used by the hydrated renderer. */
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 };
 
 /** One concrete acyclic runtime projection of a compiler partition edge. */
@@ -243,7 +244,7 @@ export type ExactEndpointRoutes = {
 
 /** Defers loading one generated client-island implementation until activation. */
 export type ClientIslandLoader = Readonly<{
-	load(): Promise<ComponentFunction<any, any>>;
+	load(): Promise<AnyComponentFunction>;
 	activation?: ExactActivationDecision;
 }>;
 
@@ -275,7 +276,7 @@ export type ExactLazyEventPolicy = Readonly<{
 }>;
 
 /** One eager or compiler-generated lazy client-island implementation. */
-export type ClientIslandRegistryEntry = ComponentFunction<any, any> | ClientIslandLoader;
+export type ClientIslandRegistryEntry = AnyComponentFunction | ClientIslandLoader;
 
 /** Defines the client island registry type contract. */
 export type ClientIslandRegistry = Record<string, ClientIslandRegistryEntry>;

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import type { ComponentFunction } from '@exactjs/core';
+import type { AnyComponentFunction } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { createExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
@@ -220,7 +220,7 @@ describe('trusted microfrontend portal sample', () => {
 	});
 });
 
-function remoteModule(component: ComponentFunction<any, any>, root: string) {
+function remoteModule(component: AnyComponentFunction, root: string) {
 	const globalName = `__exactSample${root.replace(/\W/g, '_')}`;
 	(globalThis as Record<string, unknown>)[globalName] = component;
 	const source = `export default Object.freeze({ buildKey: ${JSON.stringify(buildKey)}, root: ${JSON.stringify(root)}, component: globalThis[${JSON.stringify(globalName)}], registration: {} });`;

@@ -1,4 +1,4 @@
-import { encodeExactMarkerPart, type ComponentInstance, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, encodeExactMarkerPart, type VNode } from '@exactjs/core';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';
@@ -9,7 +9,7 @@ export function adoptKeyedListChildren(
 	root: Root,
 	vnodes: VNode[],
 	nodes: readonly Node[],
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	startIndex = 0,
 	end = nodes.length

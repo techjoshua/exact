@@ -1,12 +1,12 @@
 import {
+	type AnyComponentInstance,
+	type AnyEnhancementComponentFunction,
 	Suspense,
 	createReadinessCoordinator,
 	isVNode,
 	normalizeRenderResult,
 	withTaskObserver,
 	type Child,
-	type ComponentFunction,
-	type ComponentInstance,
 	type TaskObserver,
 	type VNode
 } from '@exactjs/core';
@@ -34,7 +34,7 @@ type SsrAsyncOptions = RenderToStringOptions & { taskDeadline?: number };
 export function planSsrEnhancementBoundary(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): void {
 	if (context.plannedEnhancementBoundaries.has(boundary)) return;
 	const budget = { nodes: 0 };
@@ -46,7 +46,7 @@ export function planSsrEnhancementBoundary(
 export async function planSsrEnhancementBoundaryAsync(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: SsrAsyncOptions
 ): Promise<void> {
 	if (context.plannedEnhancementBoundaries.has(boundary)) return;
@@ -59,7 +59,7 @@ export async function planSsrEnhancementBoundaryAsync(
 export function prepareSsrTargetBoundary(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): void {
 	if (context.plannedTargetBoundaries.has(boundary)) return;
 	materializeSync(context, boundary, parent, 1, { nodes: 0 });
@@ -70,7 +70,7 @@ export function prepareSsrTargetBoundary(
 export async function prepareSsrTargetBoundaryAsync(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: SsrAsyncOptions
 ): Promise<void> {
 	if (context.plannedTargetBoundaries.has(boundary)) return;
@@ -85,7 +85,7 @@ export async function prepareSsrTargetBoundaryAsync(
 function materializeSync(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	depth: number,
 	budget: { nodes: number }
 ): void {
@@ -137,13 +137,13 @@ function materializeSync(
 	if (typeof vnode.type === 'function') {
 		if (context.preparedEnhancementComponents.has(vnode)) return;
 		const props = getComponentProps(vnode);
-		let instance: ComponentInstance<any> | undefined;
+		let instance: AnyComponentInstance | undefined;
 		let children: readonly Child[] = [];
 		let failed = false;
 		try {
 			instance = createSsrComponentInstance(
 				context,
-				vnode.type as ComponentFunction<any, Record<string, unknown>>,
+				vnode.type as AnyEnhancementComponentFunction,
 				props,
 				parent
 			);
@@ -194,7 +194,7 @@ function materializeSync(
 async function materializeAsync(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: SsrAsyncOptions,
 	depth: number,
 	budget: { nodes: number }
@@ -234,7 +234,7 @@ async function materializeAsync(
 	if (typeof vnode.type === 'function') {
 		if (context.preparedEnhancementComponents.has(vnode)) return;
 		const props = getComponentProps(vnode);
-		let instance: ComponentInstance<any> | undefined;
+		let instance: AnyComponentInstance | undefined;
 		let children: readonly Child[] = [];
 		let failed = false;
 		try {
@@ -251,7 +251,7 @@ async function materializeAsync(
 			instance = withTaskObserver(observer, () =>
 				createSsrComponentInstance(
 					context,
-					vnode.type as ComponentFunction<any, Record<string, unknown>>,
+					vnode.type as AnyEnhancementComponentFunction,
 					props,
 					parent
 				)
@@ -307,13 +307,13 @@ async function materializeAsync(
 /** Owns the readiness bridge until its prepared Suspense candidate has rendered. */
 function preparedSuspense(
 	children: readonly Child[],
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	status: 'content' | 'fallback',
 	coordinator: ReturnType<typeof createReadinessCoordinator>,
-	owner: ComponentInstance<any>
+	owner: AnyComponentInstance
 ): {
 	readonly children: readonly Child[];
-	readonly parent?: ComponentInstance<any>;
+	readonly parent?: AnyComponentInstance;
 	readonly status: 'content' | 'fallback';
 	dispose(): void;
 } {

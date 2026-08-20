@@ -1,4 +1,5 @@
 import {
+	type AnyComponentInstance,
 	createErrorReport,
 	handleComponentError,
 	handleComponentSuspension,
@@ -6,7 +7,6 @@ import {
 	unwrap,
 	watch,
 	type Child,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { peek, type EffectScope } from '@exactjs/reactive';
@@ -22,7 +22,7 @@ export function mountDynamic(
 	root: Root,
 	vnode: VNode,
 	scope: EffectScope,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentNode: Node | undefined
 ): Mounted {
 	const marker = createMarker(root, 'dynamic');
@@ -46,7 +46,7 @@ export function patchDynamic(
 	parent: Node,
 	mounted: Mounted,
 	next: VNode,
-	parentInstance: ComponentInstance<any> | undefined
+	parentInstance: AnyComponentInstance | undefined
 ): Mounted {
 	mounted.vnode = next;
 	mounted.stop?.();
@@ -70,7 +70,7 @@ function installDynamicWatch(
 	root: Root,
 	mounted: Mounted,
 	vnode: VNode,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	fallbackParent?: Node
 ): void {
 	mounted.stop = watch(
@@ -119,7 +119,7 @@ function sameDynamicChildren(
 /** Reads a compiler-authored dynamic range through native readiness and error ownership. */
 export function dynamicChildren(
 	vnode: VNode,
-	parentInstance: ComponentInstance<any> | undefined
+	parentInstance: AnyComponentInstance | undefined
 ): Child[] {
 	const inspection = vnode.props.__exactDynamicComponent as
 		| Readonly<{ status: string; error?: unknown }>
@@ -143,10 +143,7 @@ export function dynamicChildren(
 	}
 }
 
-function dynamicFailure(
-	error: unknown,
-	parentInstance: ComponentInstance<any> | undefined
-): Child[] {
+function dynamicFailure(error: unknown, parentInstance: AnyComponentInstance | undefined): Child[] {
 	const fallback = handleComponentError(
 		parentInstance,
 		createErrorReport(error, 'render', parentInstance, 'dynamic-component')

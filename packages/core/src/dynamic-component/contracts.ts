@@ -6,6 +6,10 @@ export type DynamicComponentCandidate<Props = Record<string, unknown>> = Authore
 	Props
 >;
 
+/** Existential dynamic candidate whose authored props are carried by its owning boundary. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Candidate props vary per boundary and are preserved by the surrounding generic contract.
+export type AnyDynamicComponentCandidate = DynamicComponentCandidate<any>;
+
 /** Value published by a dynamic component resolver. */
 export type DynamicComponentResolution<Props = Record<string, unknown>> =
 	| DynamicComponentCandidate<Props>
@@ -16,6 +20,10 @@ export type DynamicComponentResolution<Props = Record<string, unknown>> =
 export type DynamicComponentResolver<Props = Record<string, unknown>> = (
 	signal: AbortSignal
 ) => DynamicComponentResolution<Props> | Promise<DynamicComponentResolution<Props>>;
+
+/** Existential resolver stored by facade identity until a typed boundary retrieves it. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Resolver props remain correlated with the facade even though the private weak map is heterogeneous.
+export type AnyDynamicComponentResolver = DynamicComponentResolver<any>;
 
 /** Public availability states exposed to inspection without exposing candidate values. */
 export type DynamicComponentStatus = 'unassigned' | 'pending' | 'absent' | 'available' | 'failed';

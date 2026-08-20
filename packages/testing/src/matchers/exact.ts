@@ -1,7 +1,7 @@
-import { type ComponentFunction, type ContextToken } from '@exactjs/core';
+import { type AnyComponentFunction, type ContextToken } from '@exactjs/core';
 
 import type { AccessibleName } from '../contracts.js';
-import { TestComponent } from '../mounting/views.js';
+import { TestComponent, type AnyTestComponent } from '../mounting/views.js';
 import { matchesName } from '../queries/accessibility.js';
 import { TestElement } from '../queries/host.js';
 
@@ -13,7 +13,7 @@ export interface ExactMatcherDeclarations<R = void> {
 	toHaveState(expected: object): R;
 	toHaveProps(expected: object): R;
 	toHaveContext(token: ContextToken<unknown>, expected: unknown): R;
-	toContainComponent(type: ComponentFunction<any, any>): R;
+	toContainComponent(type: AnyComponentFunction): R;
 	toHaveText(expected: AccessibleName): R;
 	toHaveAttribute(name: string, expected?: string): R;
 	toHaveValue(expected: unknown): R;
@@ -31,7 +31,7 @@ const result = (pass: boolean, positive: string, negative: string): MatcherResul
 	pass,
 	message: () => (pass ? negative : positive)
 });
-const componentValue = (value: unknown): TestComponent<any, any> | undefined =>
+const componentValue = (value: unknown): AnyTestComponent | undefined =>
 	value instanceof TestComponent ? value : undefined;
 const elementValue = (value: unknown): Element | undefined =>
 	value instanceof TestElement
@@ -80,7 +80,7 @@ export const exactMatchers = {
 			`Expected context ${token.description} not to match`
 		);
 	},
-	toContainComponent(received: unknown, type: ComponentFunction<any, any>) {
+	toContainComponent(received: unknown, type: AnyComponentFunction) {
 		const pass = (componentValue(received)?.findAll(type).length ?? 0) > 0;
 		return result(
 			pass,

@@ -1,12 +1,12 @@
 import { updateReactive, type Reactive } from '@exactjs/reactive';
 
-import type { ComponentContextValues, ComponentInstance, ContextToken } from './contracts.js';
+import type { AnyComponentInstance, ComponentContextValues, ContextToken } from './contracts.js';
 import { defaultContexts } from './plugins.js';
 import { reactiveValue } from './reactive-value.js';
 
 /** Reports whether a component can resolve a context without materializing its value. */
 export function hasComponentContext(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	ambientContexts: ComponentContextValues | undefined,
 	token: ContextToken<unknown>
 ): boolean {
@@ -17,7 +17,7 @@ export function hasComponentContext(
 
 /** Resolves a context through logical parents, the ambient root, and framework defaults. */
 export function getComponentContext<T>(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	ambientContexts: ComponentContextValues | undefined,
 	token: ContextToken<T>
 ): Reactive<T> {
@@ -40,7 +40,7 @@ export function getComponentContext<T>(
 
 /** Publishes a component-owned context while preserving existing reactive object identity. */
 export function setComponentContext<T>(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	token: ContextToken<T>,
 	value: T
 ): void {

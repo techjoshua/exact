@@ -31,7 +31,7 @@ import {
 	enterSsrTreeDepth,
 	leaveSsrTreeDepth
 } from '../render/limits.js';
-import type { ComponentInstance, SsrContext } from '../types.js';
+import type { AnyComponentInstance, SsrContext } from '../types.js';
 import {
 	resolveSsrActivityChildren,
 	resolveSsrDynamicChildren,
@@ -66,7 +66,7 @@ const syncComponentOperations = {
 export function renderVNode(
 	context: SsrContext,
 	vnode: VNode,
-	parent?: ComponentInstance<any>
+	parent?: AnyComponentInstance
 ): string {
 	enterSsrTreeDepth(context);
 	try {
@@ -83,7 +83,7 @@ export function renderVNode(
 export function renderVNodeInner(
 	context: SsrContext,
 	vnode: VNode,
-	parent?: ComponentInstance<any>
+	parent?: AnyComponentInstance
 ): string {
 	const enhanced = activateSsrEnhancements(context, vnode, parent);
 	if (enhanced !== vnode) return renderVNode(context, enhanced, parent);

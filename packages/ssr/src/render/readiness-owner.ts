@@ -1,8 +1,8 @@
 import {
+	type AnyComponentInstance,
 	ReadinessContext,
 	SuspensionContext,
 	type Component,
-	type ComponentInstance,
 	type ReadinessCoordinator
 } from '@exactjs/core';
 
@@ -15,7 +15,7 @@ export function SsrReadinessOwner(
 	this.setContext(SuspensionContext, {
 		suspend: (settlement) =>
 			props.context.register({
-				owner: this as unknown as ComponentInstance<any>,
+				owner: this as unknown as AnyComponentInstance,
 				taskGeneration: 0,
 				settlement,
 				retry: true

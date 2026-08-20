@@ -1,27 +1,27 @@
-import type { ComponentInstance, TaskObserver } from '../component/contracts.js';
+import type { AnyComponentInstance, TaskObserver } from '../component/contracts.js';
 
 const taskObserverStack: TaskObserver[] = [];
-const retainedTaskObservers = new WeakMap<ComponentInstance<any>, TaskObserver>();
+const retainedTaskObservers = new WeakMap<AnyComponentInstance, TaskObserver>();
 
 /** Returns the observer that currently owns work for a component. */
-export function taskObserverFor(instance: ComponentInstance<any>): TaskObserver | undefined {
+export function taskObserverFor(instance: AnyComponentInstance): TaskObserver | undefined {
 	return taskObserverStack[taskObserverStack.length - 1] ?? retainedTaskObservers.get(instance);
 }
 
 /** Retains an observer for renderer-owned component work. */
-export function retainTaskObserver(instance: ComponentInstance<any>, observer: TaskObserver): void {
+export function retainTaskObserver(instance: AnyComponentInstance, observer: TaskObserver): void {
 	retainedTaskObservers.set(instance, observer);
 }
 
 /** Releases renderer-owned observation when a component unmounts. */
-export function releaseTaskObserver(instance: ComponentInstance<any>): void {
+export function releaseTaskObserver(instance: AnyComponentInstance): void {
 	retainedTaskObservers.delete(instance);
 }
 
 /** Registers promise settlement with the current component observer. */
 export function observeTaskPromise(
 	promise: Promise<unknown>,
-	instance: ComponentInstance<any>
+	instance: AnyComponentInstance
 ): void {
 	taskObserverFor(instance)?.register(promise, instance);
 }

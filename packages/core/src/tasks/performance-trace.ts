@@ -1,5 +1,5 @@
 import { componentTraceStarter, markComponentTrace } from '../component/performance-trace.js';
-import type { ComponentInstance } from '../component/contracts.js';
+import type { AnyComponentInstance } from '../component/contracts.js';
 import { currentInteraction } from '../interaction/execution.js';
 import type { TaskOwnerRecord } from './frame-contracts.js';
 import type { InternalTaskGeneration } from './runtime-types.js';
@@ -38,8 +38,8 @@ export function markTaskPerformanceTrace<Result>(
 	if (phase === 'settled') delete record.trace;
 }
 
-function componentTraceOwner(owner: TaskOwnerRecord): ComponentInstance<any> | undefined {
+function componentTraceOwner(owner: TaskOwnerRecord): AnyComponentInstance | undefined {
 	const host = owner.host;
 	if (!host || typeof host !== 'object' || !('log' in host) || !('id' in host)) return undefined;
-	return host as ComponentInstance<any>;
+	return host as AnyComponentInstance;
 }

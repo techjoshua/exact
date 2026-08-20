@@ -1,6 +1,6 @@
 import { watch, withEffectScope } from '@exactjs/reactive';
 
-import type { Child, ComponentInstance, RenderResult } from './contracts.js';
+import type { AnyComponentInstance, Child, RenderResult } from './contracts.js';
 
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
@@ -14,10 +14,7 @@ import { componentDomainInspection, withComponentDomain } from './domain.js';
 import { componentRenderHandlers } from './lifecycle-handlers.js';
 
 /** Renders a component instance inside a watcher and returns normalized child output. */
-export function renderInstance(
-	instance: ComponentInstance<any>,
-	onInvalidate: () => void
-): Child[] {
+export function renderInstance(instance: AnyComponentInstance, onInvalidate: () => void): Child[] {
 	let output: RenderResult = null;
 	const start = performanceNow();
 	const observedInvalidate = (): void => {

@@ -119,7 +119,6 @@ export type ExactWebpackDebugOptions = {
 export type ExactWebpackProfileEvent = ExactProfileEvent<'webpack-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
-
 /** Defines the webpack compiler like type contract. */
 export type WebpackCompilerLike = {
 	options: {
@@ -361,14 +360,14 @@ export class ExactWebpackPlugin {
 			});
 		});
 		installWebpackIntlModules(input as WebpackCompiler, intl);
-		const dispose = (): void => {
+		const dispose = async (): Promise<void> => {
 			removeExactWebpackLoaderBridge(bridgeCarrier);
 			disposeWebpackCompilerSession(owned.id);
 			intl.dispose();
-			language.dispose();
+			await language.dispose();
 		};
-		compiler.hooks?.watchClose?.tap?.('ExactWebpackPlugin', dispose);
-		compiler.hooks?.shutdown?.tap?.('ExactWebpackPlugin', dispose);
+		for (const hook of [compiler.hooks?.watchClose, compiler.hooks?.shutdown])
+			hook?.tap?.('ExactWebpackPlugin', () => void dispose().catch(() => undefined));
 	}
 }
 

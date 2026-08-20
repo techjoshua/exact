@@ -1,17 +1,17 @@
-import { type ComponentFunction } from '@exactjs/core';
+import { type AnyComponentFunction } from '@exactjs/core';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { mergeHydrationRegistration } from '../config.js';
 import type { ClientIslandLoader, ExactActivationDecision, HydrateOptions } from '../types.js';
 
-const pendingLoads = new WeakMap<ClientIslandLoader, Promise<ComponentFunction<any, any>>>();
+const pendingLoads = new WeakMap<ClientIslandLoader, Promise<AnyComponentFunction>>();
 const loadedContracts = new WeakMap<
-	ComponentFunction<any, any>,
+	AnyComponentFunction,
 	ReturnType<typeof composeExactComponentContracts>
 >();
 
 /** Creates a compiler-facing lazy island registry entry without conflating loaders and components. */
 export function lazyClientIsland(
-	load: () => Promise<ComponentFunction<any, any>>,
+	load: () => Promise<AnyComponentFunction>,
 	activation?: ExactActivationDecision
 ): ClientIslandLoader {
 	return Object.freeze({
@@ -69,7 +69,7 @@ function freezeActivation(activation: ExactActivationDecision): ExactActivationD
 export function loadClientIsland(
 	entry: ClientIslandLoader,
 	options: HydrateOptions
-): Promise<ComponentFunction<any, any>> {
+): Promise<AnyComponentFunction> {
 	let pending = pendingLoads.get(entry);
 	if (!pending) {
 		pending = entry

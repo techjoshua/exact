@@ -1,9 +1,9 @@
 import {
+	type AnyComponentInstance,
 	Fragment,
 	Suspense,
 	Target,
 	isVNode,
-	type ComponentInstance,
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
@@ -20,7 +20,7 @@ type RoutedTarget = { readonly target: VNode; readonly frame: VNode };
 export function collectSsrEnhancementRoutes(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	depth: number,
 	budget: { nodes: number }
 ): void {
@@ -73,7 +73,7 @@ function mergeEntry(group: TargetGroup, entry: EnhancementEntry, order: number):
 function resolveSsrEnhancementTarget(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	identity: string
 ): RoutedTarget | undefined {
 	const vnode = isCellVNode(boundary) ? getCellVNode(boundary) : boundary;
@@ -93,7 +93,7 @@ function resolveSsrEnhancementTarget(
 export function resolveSsrTargetBoundary(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): VNode | undefined {
 	for (const child of plannedChildren(context, boundary, parent)) {
 		if (!isVNode(child)) continue;
@@ -106,7 +106,7 @@ export function resolveSsrTargetBoundary(
 function findTargetBoundaryChild(
 	context: SsrContext,
 	child: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): VNode | undefined {
 	const vnode = isCellVNode(child) ? getCellVNode(child) : child;
 	if (typeof vnode.type === 'string') return vnode;
@@ -127,7 +127,7 @@ function findTargetBoundaryChild(
 function findFirstTargetExport(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	skipBoundary = false
 ): VNode | undefined {
 	if (isCellVNode(vnode)) return findFirstTargetExport(context, getCellVNode(vnode), parent);
@@ -149,7 +149,7 @@ function findFirstTargetExport(
 function findRootBearingFrame(
 	context: SsrContext,
 	boundary: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): RoutedTarget | undefined {
 	const prepared =
 		typeof boundary.type === 'function'
@@ -169,7 +169,7 @@ function findRootBearingFrame(
 function findFirstRoot(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	frame: VNode | undefined
 ): RoutedTarget | undefined {
 	if (isCellVNode(vnode)) return findFirstRoot(context, getCellVNode(vnode), parent, frame);
@@ -224,7 +224,7 @@ function findExplicitInTransparentOutput(
 function plannedChildren(
 	context: SsrContext,
 	vnode: VNode,
-	_parent: ComponentInstance<any> | undefined
+	_parent: AnyComponentInstance | undefined
 ): readonly unknown[] {
 	if (vnode.type === Suspense)
 		return context.preparedEnhancementSuspense.get(vnode)?.children ?? [];
@@ -236,10 +236,10 @@ function plannedChildren(
 function visitTree(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	depth: number,
 	budget: { nodes: number },
-	visit: (vnode: VNode, parent: ComponentInstance<any> | undefined) => void
+	visit: (vnode: VNode, parent: AnyComponentInstance | undefined) => void
 ): void {
 	chargeEnhancementPlanning(context, depth, budget);
 	visit(vnode, parent);

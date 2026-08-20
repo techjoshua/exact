@@ -1,4 +1,4 @@
-import type { ComponentFunction } from '@exactjs/core';
+import type { AnyComponentFunction } from '@exactjs/core';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
 import { AccessibilityPage } from './pages/AccessibilityPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
@@ -44,7 +44,7 @@ export type DocPage = {
 	label: string;
 	summary: string;
 	keywords: string;
-	component: ComponentFunction<any, any>;
+	component: AnyComponentFunction;
 };
 
 /** Groups related documentation pages under one navigation heading. */
@@ -188,8 +188,7 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/learn/language-tools',
 				label: 'Language tools',
-				summary:
-					'See compiler reasoning, fix errors and warnings, and safely refactor tasks.',
+				summary: 'See compiler reasoning, fix errors and warnings, and safely refactor tasks.',
 				keywords:
 					'language tools VS Code extension LSP TypeScript plugin IntelliSense completion component this enhancement namespace props semantic tokens hover CodeLens inlay hints errors warnings refactor compiler inspection inferred authored TaskContext policy task no emit',
 				component: LanguageToolsPage

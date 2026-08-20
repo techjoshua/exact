@@ -1,8 +1,14 @@
-import type { ComponentFunction, ContextToken } from '@exactjs/core';
+import type {
+	AnyEnhancementComponentFunction,
+	ComponentFunction,
+	ContextToken
+} from '@exactjs/core';
 
 /** Defines the state of type contract. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Props are erased only so the conditional type can infer component state.
 export type StateOf<C> = C extends ComponentFunction<infer State, any> ? State : never;
 /** Defines the props of type contract. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- State is erased only so the conditional type can infer component props.
 export type PropsOf<C> = C extends ComponentFunction<any, infer Props> ? Props : never;
 /** Configures test. */
 export type TestConfiguration = {
@@ -10,7 +16,7 @@ export type TestConfiguration = {
 	settleTasks?: boolean;
 	attachToDocument?: boolean;
 	/** Bundle-local enhancement components installed for this test renderer. */
-	enhancementCatalog?: ReadonlyMap<string, ComponentFunction<any, Record<string, unknown>>>;
+	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 };
 /** Configures action. */
 export type ActionOptions = { settleTasks?: boolean };
@@ -19,6 +25,6 @@ export type AccessibleName = string | RegExp;
 /** Configures role query. */
 export type RoleQueryOptions = { name?: AccessibleName };
 /** Defines the context entry type contract. */
-export type ContextEntry = { token: ContextToken<any>; value: unknown };
+export type ContextEntry = { token: ContextToken<unknown>; value: unknown };
 /** Configures internal. */
 export type InternalConfiguration = Required<Pick<TestConfiguration, 'timeout' | 'settleTasks'>>;

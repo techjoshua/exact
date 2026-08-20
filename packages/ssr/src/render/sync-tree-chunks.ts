@@ -8,6 +8,7 @@ import {
 	UnsafeHtml,
 	isVNode,
 	normalizeRenderResult,
+	type AnyEnhancementComponentFunction,
 	type VNode
 } from '@exactjs/core';
 import {
@@ -21,7 +22,7 @@ import { unwrap } from '@exactjs/reactive';
 import { escapeText, voidElements } from '../html.js';
 import { exactMarkerId, markerId, renderAttrs, suspenseStatusMarkerId } from '../markup.js';
 import { SsrTreeDepthError, boundedJoin, countSsrNode, isSsrRenderLimitError } from './limits.js';
-import type { Child, ComponentFunction, ComponentInstance, SsrContext } from '../types.js';
+import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
 import {
 	componentMarkerId,
 	renderResumableComponentBoundary,
@@ -62,7 +63,7 @@ import { applySsrTargetContributions } from './target-contributions.js';
 export function* renderVNodeChunks(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	depth: number
 ): Generator<string> {
 	if (depth > context.maxTreeDepth) throw new SsrTreeDepthError(context.maxTreeDepth);
@@ -217,11 +218,11 @@ export function* renderVNodeChunks(
 function* renderComponentChunks(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	depth: number,
 	marked: ReturnType<typeof createSsrChunkMarker>
 ): Generator<string> {
-	const component = vnode.type as ComponentFunction<any, Record<string, unknown>>;
+	const component = vnode.type as AnyEnhancementComponentFunction;
 	const blueprint = resolveSsrComponentExecution(context, component);
 	const componentId = componentMarkerId(context, vnode);
 	const enhancement = context.enhancementVNodes.has(vnode);
@@ -272,7 +273,7 @@ function* renderComponentChunks(
 export function* renderChildChunks(
 	context: SsrContext,
 	child: Child,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	depth: number
 ): Generator<string> {
 	if (isVNode(child)) yield* renderVNodeChunks(context, child, parent, depth);

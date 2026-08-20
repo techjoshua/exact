@@ -1,5 +1,7 @@
 import {
 	withTaskObserver,
+	type AnyComponentFunction,
+	type AnyComponentInstance,
 	type ComponentFunction,
 	type ComponentInstance,
 	type ContextToken
@@ -16,13 +18,18 @@ import { TestMountHost, type TaskTracker } from './mount.js';
 
 /** Defines the view capabilities required to inspect a live component instance. */
 export type ComponentTestView = TestElementView & {
-	nodeFor(instance: ComponentInstance<any>): DomInspectionNode | undefined;
-	componentFor(instance: ComponentInstance<any>): TestComponent<any, any>;
-	hasComponent(instance: ComponentInstance<any>): boolean;
+	nodeFor(instance: AnyComponentInstance): DomInspectionNode | undefined;
+	componentFor(instance: AnyComponentInstance): AnyTestComponent;
+	hasComponent(instance: AnyComponentInstance): boolean;
 };
 
 /** Defines the test view class contract. */
-export class TestView<State extends object = any, Props = any> extends QueryHost {
+export class TestView<
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- An unparameterized test view intentionally exposes arbitrary authored component state.
+	State extends object = any,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- An unparameterized test view intentionally exposes arbitrary authored component props.
+	Props = any
+> extends QueryHost {
 	readonly root: TestComponent<State, Props>;
 	private disposed = false;
 
@@ -31,7 +38,7 @@ export class TestView<State extends object = any, Props = any> extends QueryHost
 		private readonly tracker: TaskTracker,
 		readonly configuration: InternalConfiguration,
 		private readonly removeContainer: boolean,
-		targetType?: ComponentFunction<any, any>
+		targetType?: AnyComponentFunction
 	) {
 		super(
 			() => allElements(container),
@@ -62,29 +69,27 @@ export class TestView<State extends object = any, Props = any> extends QueryHost
 	}
 
 	/** Performs the component for domain operation for this test view instance. */
-	componentFor(instance: ComponentInstance<any>): TestComponent<any, any> {
+	componentFor(instance: AnyComponentInstance): AnyTestComponent {
 		return new TestComponent(this, instance);
 	}
 	/** Performs the node for domain operation for this test view instance. */
-	nodeFor(instance: ComponentInstance<any>): DomInspectionNode | undefined {
+	nodeFor(instance: AnyComponentInstance): DomInspectionNode | undefined {
 		if (this.disposed) return undefined;
 		return componentNodes(this.snapshot()).find((node) => node.instance === instance);
 	}
 	/** Reports whether an application component remains mounted and visible to this test view. */
-	hasComponent(instance: ComponentInstance<any>): boolean {
+	hasComponent(instance: AnyComponentInstance): boolean {
 		return (
 			instance.type !== TestMountHost &&
 			publicComponentNodes(this.snapshot()).some((node) => node.instance === instance)
 		);
 	}
 	/** Performs the component domain operation for this test view instance. */
-	component<C extends ComponentFunction<any, any>>(type: C): TestComponent<StateOf<C>, PropsOf<C>> {
+	component<C extends AnyComponentFunction>(type: C): TestComponent<StateOf<C>, PropsOf<C>> {
 		return this.root.find(type);
 	}
 	/** Performs the components domain operation for this test view instance. */
-	components<C extends ComponentFunction<any, any>>(
-		type: C
-	): TestComponent<StateOf<C>, PropsOf<C>>[] {
+	components<C extends AnyComponentFunction>(type: C): TestComponent<StateOf<C>, PropsOf<C>>[] {
 		return this.root.findAll(type);
 	}
 
@@ -132,7 +137,7 @@ export class TestView<State extends object = any, Props = any> extends QueryHost
 		}
 	}
 
-	protected ownerView(): TestView<any, any> {
+	protected ownerView(): AnyTestView {
 		return this;
 	}
 
@@ -149,7 +154,12 @@ export class TestView<State extends object = any, Props = any> extends QueryHost
 }
 
 /** Defines the test component class contract. */
-export class TestComponent<State extends object = any, Props = any> extends QueryHost {
+export class TestComponent<
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- An unparameterized test component intentionally exposes arbitrary authored component state.
+	State extends object = any,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- An unparameterized test component intentionally exposes arbitrary authored component props.
+	Props = any
+> extends QueryHost {
 	constructor(
 		readonly view: ComponentTestView,
 		readonly instance: ComponentInstance<State>
@@ -206,15 +216,13 @@ export class TestComponent<State extends object = any, Props = any> extends Quer
 		return unwrap(this.instance.contexts.get(token.id)) as T | undefined;
 	}
 	/** Performs the parent domain operation for this test component instance. */
-	parent(): TestComponent<any, any> | undefined {
+	parent(): AnyTestComponent | undefined {
 		this.assertMounted();
 		const parent = this.instance.parent;
 		return parent && this.view.hasComponent(parent) ? this.view.componentFor(parent) : undefined;
 	}
 	/** Performs the children domain operation for this test component instance. */
-	children<C extends ComponentFunction<any, any>>(
-		type?: C
-	): TestComponent<StateOf<C>, PropsOf<C>>[] {
+	children<C extends AnyComponentFunction>(type?: C): TestComponent<StateOf<C>, PropsOf<C>>[] {
 		const node = this.assertMounted();
 		const values = directComponentChildren(node).filter(
 			(child) => !type || child.instance?.type === type
@@ -222,15 +230,15 @@ export class TestComponent<State extends object = any, Props = any> extends Quer
 		return values.map((child) => this.view.componentFor(child.instance!));
 	}
 	/** Performs the child domain operation for this test component instance. */
-	child<C extends ComponentFunction<any, any>>(type: C): TestComponent<StateOf<C>, PropsOf<C>> {
+	child<C extends AnyComponentFunction>(type: C): TestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.children(type), `direct child ${type.name || 'anonymous'}`);
 	}
 	/** Resolves a find for this test component instance. */
-	find<C extends ComponentFunction<any, any>>(type: C): TestComponent<StateOf<C>, PropsOf<C>> {
+	find<C extends AnyComponentFunction>(type: C): TestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.findAll(type), `descendant ${type.name || 'anonymous'}`);
 	}
 	/** Resolves an all for this test component instance. */
-	findAll<C extends ComponentFunction<any, any>>(type: C): TestComponent<StateOf<C>, PropsOf<C>>[] {
+	findAll<C extends AnyComponentFunction>(type: C): TestComponent<StateOf<C>, PropsOf<C>>[] {
 		const node = this.assertMounted();
 		return componentNodes(node)
 			.slice(1)
@@ -281,7 +289,7 @@ function directComponentChildren(root: DomInspectionNode): DomInspectionNode[] {
 	}
 	return output;
 }
-function componentElements(view: ComponentTestView, instance: ComponentInstance<any>): Element[] {
+function componentElements(view: ComponentTestView, instance: AnyComponentInstance): Element[] {
 	const node = view.nodeFor(instance);
 	if (!node) throw new Error(`Component ${instance.type.name || instance.id} is no longer mounted`);
 	return [
@@ -291,9 +299,17 @@ function componentElements(view: ComponentTestView, instance: ComponentInstance<
 	];
 }
 
-function uniqueRoot(component: TestComponent<any, any>): TestElement {
+function uniqueRoot(component: AnyTestComponent): TestElement {
 	return new TestElement(
 		component.view,
 		requireOne([...component.elements()], `root element of ${component.name}`)
 	);
 }
+
+/** Existential test view used when traversal preserves but does not inspect root state or props. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test traversal must accept views for every authored state and props shape.
+export type AnyTestView = TestView<any, any>;
+
+/** Existential test component used by heterogeneous tree traversal. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test traversal must accept components for every authored state and props shape.
+export type AnyTestComponent = TestComponent<any, any>;

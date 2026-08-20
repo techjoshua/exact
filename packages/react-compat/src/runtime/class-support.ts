@@ -151,8 +151,8 @@ export function readComponentReactContext(
 }
 
 /** Performs the context token domain operation. */
-export function contextToken(context: ReactContext<any>): ContextToken<any> {
-	return context._exactToken as ContextToken<any>;
+export function contextToken<T>(context: ReactContext<T>): ContextToken<T> {
+	return context._exactToken as ContextToken<T>;
 }
 
 /** Performs the context for special domain operation. */

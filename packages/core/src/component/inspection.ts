@@ -15,7 +15,7 @@ import {
 	activateTaskFrameInspection,
 	inspectTaskFrameSnapshotsForHost
 } from '../tasks/frame-inspection.js';
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 import { componentDomainInspection } from './domain.js';
 import {
 	inspectRetainedTaskExecutions,
@@ -38,7 +38,7 @@ export type ExactRuntimeInspectionOwnerOptions = Readonly<{
 /** Input published by runtime packages before the owner adds sequence/session identity. */
 export type ExactRuntimeInspectionEventInput = Readonly<{
 	kind: ExactRuntimeInspectionEventKind;
-	component: ComponentInstance<any>;
+	component: AnyComponentInstance;
 	sourceEntityId?: string;
 	operationId?: string;
 	generation?: number;
@@ -65,7 +65,7 @@ export interface ExactRuntimeInspectionOwner {
 	detach(sessionId?: string): void;
 	publish(input: ExactRuntimeInspectionEventInput): void;
 	identity(
-		component: ComponentInstance<any>,
+		component: AnyComponentInstance,
 		details?: Readonly<{
 			sourceEntityId?: string;
 			operationId?: string;
@@ -166,7 +166,7 @@ export function createExactRuntimeInspectionOwner(
 
 /** Projects one component without exposing callbacks, controllers, scopes, or raw instances. */
 export function inspectExactRuntimeComponent(
-	component: ComponentInstance<any>,
+	component: AnyComponentInstance,
 	options: Readonly<{
 		status?: ExactInspectedRuntimeComponent['status'];
 		parent?: ExactInspectionRuntimeId;
@@ -218,7 +218,7 @@ function taskSnapshotKey(task: ExactTaskRuntimeSnapshot): string {
 }
 
 function inspectContexts(
-	component: ComponentInstance<any>,
+	component: AnyComponentInstance,
 	owner: ExactRuntimeInspectionOwner
 ): ExactContextPreview[] {
 	const contexts: ExactContextPreview[] = [];
@@ -261,7 +261,7 @@ function inspectContexts(
 }
 
 function resolveInspectedContext(
-	component: ComponentInstance<any>,
+	component: AnyComponentInstance,
 	token: symbol
 ): Readonly<{ found: boolean; value?: unknown }> {
 	if (component.contexts.has(token))

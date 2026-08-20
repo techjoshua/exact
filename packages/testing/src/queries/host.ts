@@ -1,8 +1,8 @@
-import type { ComponentInstance } from '@exactjs/core';
+import type { AnyComponentInstance } from '@exactjs/core';
 import { findElementOwner } from '@exactjs/dom/testing';
 
 import type { AccessibleName, ActionOptions, RoleQueryOptions } from '../contracts.js';
-import type { TestComponent } from '../mounting/views.js';
+import type { AnyTestComponent } from '../mounting/views.js';
 import {
 	accessibleName,
 	isElementVisible,
@@ -183,7 +183,7 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 		return isElementVisible(this.element);
 	}
 	/** Performs the owner domain operation for this test element instance. */
-	owner(): TestComponent<any, any> | undefined {
+	owner(): AnyTestComponent | undefined {
 		this.assertLive();
 		const owner = findElementOwner(this.element);
 		return owner ? this.view.componentFor(owner) : undefined;
@@ -313,7 +313,7 @@ export type TestElementView = {
 	readonly container: Element;
 	snapshot(): unknown;
 	action(work: () => unknown, options?: ActionOptions): Promise<void>;
-	componentFor(instance: ComponentInstance<any>): TestComponent<any, any>;
+	componentFor(instance: AnyComponentInstance): AnyTestComponent;
 };
 
 /** Performs the all elements domain operation. */

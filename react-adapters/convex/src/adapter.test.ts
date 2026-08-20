@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { createConvexQuery, type ConvexClient, type ConvexWatch } from './index.js';

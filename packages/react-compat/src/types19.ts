@@ -21,7 +21,8 @@ declare global {
 	interface ExactJsxInteropElementTypeRegistry {
 		react19: keyof ExactReactCompatibilityTypeTargetRegistry extends 'react19'
 			? bigint extends ReactNode
-				? JSXElementConstructor<any> | ExoticComponent<any>
+				? // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The probe mirrors the permissive generic defaults in @types/react 19.
+					JSXElementConstructor<any> | ExoticComponent<any>
 				: {
 						readonly __exactReactCompatibilityError: 'The React 19 facade requires @types/react 19';
 					}

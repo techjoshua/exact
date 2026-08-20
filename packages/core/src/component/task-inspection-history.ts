@@ -1,5 +1,5 @@
 import type { ExactTaskRuntimeSnapshot } from '@exactjs/devtools-protocol';
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
 
 type RetainedTaskExecution = Readonly<{
@@ -28,7 +28,7 @@ export class TaskInspectionHistory {
 	}
 
 	/** Adds or replaces one execution without retaining application-owned values. */
-	record(component: ComponentInstance<any>, snapshot: ExactTaskRuntimeSnapshot): void {
+	record(component: AnyComponentInstance, snapshot: ExactTaskRuntimeSnapshot): void {
 		const key = taskExecutionKey(snapshot);
 		const existing = this.#records.get(key);
 		if (!existing && this.#records.size >= this.#limit) {
@@ -45,7 +45,7 @@ export class TaskInspectionHistory {
 	}
 
 	/** Returns newest-first executions for one live component. */
-	list(component: ComponentInstance<any>): readonly ExactTaskRuntimeSnapshot[] {
+	list(component: AnyComponentInstance): readonly ExactTaskRuntimeSnapshot[] {
 		const snapshots: ExactTaskRuntimeSnapshot[] = [];
 		for (let index = this.#order.length - 1; index >= 0; index--) {
 			const record = this.#records.get(this.#order[index]!);
@@ -61,7 +61,7 @@ export class TaskInspectionHistory {
 	}
 
 	/** Releases execution previews for an unmounted component. */
-	deleteComponent(component: ComponentInstance<any>): void {
+	deleteComponent(component: AnyComponentInstance): void {
 		for (let index = this.#order.length - 1; index >= 0; index--) {
 			const key = this.#order[index]!;
 			if (this.#records.get(key)?.componentId !== component.id) continue;
@@ -98,7 +98,7 @@ export function releaseTaskInspectionHistory(owner: ExactRuntimeInspectionOwner)
 /** Retains one immutable, preview-only task execution for an attached internal owner. */
 export function recordInspectedTask(
 	owner: ExactRuntimeInspectionOwner,
-	component: ComponentInstance<any>,
+	component: AnyComponentInstance,
 	task: ExactTaskRuntimeSnapshot
 ): void {
 	if (owner.attached) taskHistories.get(owner)?.record(component, task);
@@ -107,7 +107,7 @@ export function recordInspectedTask(
 /** Returns bounded newest-first task history without exposing the mutable history store. */
 export function inspectRetainedTaskExecutions(
 	owner: ExactRuntimeInspectionOwner,
-	component: ComponentInstance<any>
+	component: AnyComponentInstance
 ): readonly ExactTaskRuntimeSnapshot[] {
 	return owner.attached
 		? (taskHistories.get(owner)?.list(component) ?? Object.freeze([]))
