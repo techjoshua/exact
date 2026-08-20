@@ -188,8 +188,7 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/learn/language-tools',
 				label: 'Language tools',
-				summary:
-					'See compiler reasoning, fix errors and warnings, and safely refactor tasks.',
+				summary: 'See compiler reasoning, fix errors and warnings, and safely refactor tasks.',
 				keywords:
 					'language tools VS Code extension LSP TypeScript plugin IntelliSense completion component this enhancement namespace props semantic tokens hover CodeLens inlay hints errors warnings refactor compiler inspection inferred authored TaskContext policy task no emit',
 				component: LanguageToolsPage

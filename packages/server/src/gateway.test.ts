@@ -248,7 +248,7 @@ describe('exact binding gateway', () => {
 		expect(response.status).toBe(502);
 		expect(JSON.parse(response.body)).toEqual({ error: 'transform_failed' });
 		expect(fetch).not.toHaveBeenCalled();
-		});
+	});
 
 	it('cancels an upstream JSON body as soon as its byte limit is exceeded', async () => {
 		let cancelled = false;
@@ -262,8 +262,7 @@ describe('exact binding gateway', () => {
 		});
 		const response = await invokeGateway(
 			{
-				fetch: async () =>
-					new Response(body, { headers: { 'content-type': 'application/json' } })
+				fetch: async () => new Response(body, { headers: { 'content-type': 'application/json' } })
 			},
 			{ limits: { maxResponseBytes: 4 } }
 		);

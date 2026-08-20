@@ -289,7 +289,8 @@ function abortableImport(url: string, signal: AbortSignal): Promise<{ default: u
 }
 
 function waitForRemoteModule<T>(load: Promise<T>, signal: AbortSignal): Promise<T> {
-	if (signal.aborted) return Promise.reject(signal.reason ?? new Error('Remote module load aborted'));
+	if (signal.aborted)
+		return Promise.reject(signal.reason ?? new Error('Remote module load aborted'));
 	return new Promise<T>((resolve, reject) => {
 		const abort = () => reject(signal.reason ?? new Error('Remote module load aborted'));
 		signal.addEventListener('abort', abort, { once: true });

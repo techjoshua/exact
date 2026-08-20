@@ -143,7 +143,9 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 				if (pending) pending.resolve(line);
 				else if (!this.queuedLines.length) this.queuedLines.push(line);
 				else
-					this.interruptProcess(new Error('Native compiler returned an unsolicited response frame'));
+					this.interruptProcess(
+						new Error('Native compiler returned an unsolicited response frame')
+					);
 			},
 			onError: (error) => this.interruptProcess(error)
 		});
