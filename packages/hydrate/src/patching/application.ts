@@ -1,6 +1,6 @@
 import { attemptCleanup, type CleanupFailure } from '@exactjs/core';
 import { applyDomProp, disposeOwnedSubtree, type DomWorkBudget } from '@exactjs/dom';
-import type { ExactPatch } from '@exactjs/server';
+import type { ExactPatch } from '@exactjs/core/framework/operation-protocol';
 import { reindexList } from './indexing.js';
 import {
 	findClientBoundaryElement,

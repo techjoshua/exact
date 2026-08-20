@@ -2,7 +2,7 @@ import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult
-} from '@exactjs/server';
+} from '@exactjs/core/framework/operation-protocol';
 import { decodeBoundedReactiveProtocolValue } from '../protocol-decoding.js';
 import {
 	isExactStreamCompleteEvent,

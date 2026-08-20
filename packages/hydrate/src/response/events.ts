@@ -1,4 +1,4 @@
-import type { ExactStreamEvent } from '@exactjs/server';
+import type { ExactStreamEvent } from '@exactjs/core/framework/operation-protocol';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { isCollectionMutationLike, isPatchLike } from './result.js';
 

@@ -64,6 +64,10 @@
 			"types": "./dist/framework/error-view.d.ts",
 			"default": "./dist/framework/error-view.js"
 		},
+		"./framework/operation-protocol": {
+			"types": "./dist/framework/operation-protocol.d.ts",
+			"default": "./dist/framework/operation-protocol.js"
+		},
 		"./runtime/render": {
 			"types": "./dist/runtime/render.d.ts",
 			"default": "./dist/runtime/render.js"

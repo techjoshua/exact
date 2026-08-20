@@ -13,3 +13,8 @@ generated imports and maintained adapters use ownership-specific subpaths.
 
 Render-program construction, inspection, fallback, cache diagnostics, and contracts have completed
 that migration and are available only from `@exactjs/core/runtime/render`.
+
+The client/server operation wire types are framework-owned contracts under
+`@exactjs/core/framework/operation-protocol`. Hydration depends on that neutral contract rather
+than the server implementation package. `@exactjs/server` re-exports the same types for source
+compatibility, but new framework integrations should import the Core subpath directly.

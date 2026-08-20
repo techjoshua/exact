@@ -7,12 +7,7 @@
 		"lib": ["ES2022", "DOM"],
 		"types": ["node"]
 	},
-	"references": [
-		{ "path": "../instrumentation" },
-		{ "path": "../core" },
-		{ "path": "../dom" },
-		{ "path": "../server" }
-	],
+	"references": [{ "path": "../instrumentation" }, { "path": "../core" }, { "path": "../dom" }],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test-support"]
 }

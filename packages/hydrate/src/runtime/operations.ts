@@ -237,7 +237,8 @@ export async function invokeAndApply(
 	}
 	const patchOptions = { ...options, workBudget: work };
 	const applyResponse = (): void => {
-		let appliedPatches: readonly import('@exactjs/server').ExactPatch[] = responsePatches ?? [];
+		let appliedPatches: readonly import('@exactjs/core/framework/operation-protocol').ExactPatch[] =
+			responsePatches ?? [];
 		let patchesApplied = responsePatches
 			? applyPatches(container, responsePatches, patchOptions)
 			: true;
@@ -345,10 +346,10 @@ function componentIdentity(instance: ComponentInstance<any>): string {
 /** Returns the first patch outside every compiler-declared affected boundary. */
 function unauthorizedContinuationPatch(
 	container: Element,
-	patches: readonly import('@exactjs/server').ExactPatch[] | undefined,
+	patches: readonly import('@exactjs/core/framework/operation-protocol').ExactPatch[] | undefined,
 	boundaries: readonly string[],
 	work: DomWorkBudget
-): import('@exactjs/server').ExactPatch | undefined {
+): import('@exactjs/core/framework/operation-protocol').ExactPatch | undefined {
 	if (!patches?.length) return undefined;
 	if (!boundaries.length) return patches[0];
 	const boundaryForPatch = createPatchBoundaryResolver(container, boundaries, work);
