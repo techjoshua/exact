@@ -89,9 +89,7 @@ export class TestView<
 		return this.root.find(type);
 	}
 	/** Performs the components domain operation for this test view instance. */
-	components<C extends AnyComponentFunction>(
-		type: C
-	): TestComponent<StateOf<C>, PropsOf<C>>[] {
+	components<C extends AnyComponentFunction>(type: C): TestComponent<StateOf<C>, PropsOf<C>>[] {
 		return this.root.findAll(type);
 	}
 
@@ -224,9 +222,7 @@ export class TestComponent<
 		return parent && this.view.hasComponent(parent) ? this.view.componentFor(parent) : undefined;
 	}
 	/** Performs the children domain operation for this test component instance. */
-	children<C extends AnyComponentFunction>(
-		type?: C
-	): TestComponent<StateOf<C>, PropsOf<C>>[] {
+	children<C extends AnyComponentFunction>(type?: C): TestComponent<StateOf<C>, PropsOf<C>>[] {
 		const node = this.assertMounted();
 		const values = directComponentChildren(node).filter(
 			(child) => !type || child.instance?.type === type

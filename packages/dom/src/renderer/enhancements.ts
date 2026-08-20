@@ -1,7 +1,7 @@
 import {
+	type AnyComponentInstance,
 	isExactEnhancementPassThrough,
 	unwrap,
-	type ComponentInstance,
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
@@ -28,7 +28,7 @@ import {
 
 type MountOperation = (
 	vnode: VNode,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	parentNode: Node | undefined
 ) => Mounted;
@@ -48,7 +48,7 @@ export function installEnhancementReconciliation(root: Root, mount: MountOperati
 type PatchOperation = (
 	mounted: Mounted | undefined,
 	vnode: VNode,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined
 ) => Mounted;
 
@@ -56,7 +56,7 @@ type PatchOperation = (
 export function activateEnhancementSubtree(
 	root: Root,
 	mounted: Mounted,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	mount: MountOperation
 ): Mounted {
@@ -102,7 +102,7 @@ export function patchEnhancementBoundary(
 	mounted: Mounted,
 	next: VNode,
 	parent: Node,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	patch: PatchOperation
 ): Mounted {
@@ -150,7 +150,7 @@ export function patchEnhancementBoundary(
 export function reconcileEnhancementRoutes(
 	root: Root,
 	mounted: Mounted,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	mount: MountOperation
 ): Mounted {
@@ -223,7 +223,7 @@ function findEnhancementWrapperForTarget(mounted: Mounted, target: Mounted): Mou
 
 type MountedLocation = {
 	readonly owner?: Mounted;
-	readonly parentInstance?: ComponentInstance<any>;
+	readonly parentInstance?: AnyComponentInstance;
 	readonly parentScope?: EffectScope;
 };
 
@@ -231,7 +231,7 @@ function findMountedLocation(
 	mounted: Mounted,
 	target: Mounted,
 	owner: Mounted | undefined,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	parentNode: Node
 ): MountedLocation | undefined {
@@ -366,7 +366,7 @@ function deactivateEnhancementBoundary(
 	parent: Node,
 	mounted: Mounted,
 	next: VNode,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	patch: PatchOperation
 ): Mounted {

@@ -1,4 +1,4 @@
-import type { Child, ComponentInstance, VNode } from '@exactjs/core';
+import type { AnyComponentInstance, Child, VNode } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../types.js';
 
@@ -7,7 +7,7 @@ export type AdoptStructuralChildren = (
 	root: Root,
 	children: Child[],
 	nodes: readonly Node[],
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	start?: number,
 	end?: number
@@ -19,14 +19,14 @@ export type StructuralBoundaryCapability = Readonly<{
 		root: Root,
 		vnode: VNode,
 		scope: EffectScope,
-		parentInstance: ComponentInstance<any> | undefined,
+		parentInstance: AnyComponentInstance | undefined,
 		parentNode: Node | undefined
 	): Mounted;
 	mountSuspense(
 		root: Root,
 		vnode: VNode,
 		scope: EffectScope,
-		parentInstance: ComponentInstance<any> | undefined,
+		parentInstance: AnyComponentInstance | undefined,
 		parentNode: Node | undefined
 	): Mounted;
 	patchActivity(root: Root, parent: Node, mounted: Mounted, next: VNode): Mounted;
@@ -35,14 +35,14 @@ export type StructuralBoundaryCapability = Readonly<{
 		parent: Node,
 		mounted: Mounted,
 		next: VNode,
-		parentInstance: ComponentInstance<any> | undefined
+		parentInstance: AnyComponentInstance | undefined
 	): Mounted;
 	adoptActivity(
 		root: Root,
 		vnode: VNode,
 		nodes: readonly Node[],
 		cursor: number,
-		parentInstance: ComponentInstance<any>,
+		parentInstance: AnyComponentInstance,
 		parentScope: EffectScope,
 		end: number,
 		adoptChildren: AdoptStructuralChildren
@@ -52,7 +52,7 @@ export type StructuralBoundaryCapability = Readonly<{
 		vnode: VNode,
 		nodes: readonly Node[],
 		cursor: number,
-		parentInstance: ComponentInstance<any>,
+		parentInstance: AnyComponentInstance,
 		parentScope: EffectScope,
 		end: number,
 		adoptChildren: AdoptStructuralChildren

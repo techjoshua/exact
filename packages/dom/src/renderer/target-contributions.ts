@@ -1,9 +1,9 @@
 import {
+	type AnyComponentInstance,
 	Target,
 	TargetOverrides,
 	attachElementIdentity,
 	unwrap,
-	type ComponentInstance,
 	type RefBinding
 } from '@exactjs/core';
 import {
@@ -30,7 +30,7 @@ const scheduledBoundaries = new WeakSet<Mounted>();
 export function refreshTargetSubtree(
 	root: Root,
 	mounted: Mounted,
-	parentInstance: ComponentInstance<any> | undefined
+	parentInstance: AnyComponentInstance | undefined
 ): void {
 	const instance = mounted.instance ?? parentInstance;
 	for (const child of mounted.children) refreshTargetSubtree(root, child, instance);
@@ -59,7 +59,7 @@ export function refreshTargetDependents(root: Root, structuralOwner: Mounted): v
 export function refreshTargetBoundary(
 	root: Root,
 	boundary: Mounted,
-	parentInstance: ComponentInstance<any> | undefined
+	parentInstance: AnyComponentInstance | undefined
 ): void {
 	boundary.targetBoundary?.release?.();
 	const dependencies = new Set<Mounted>();
@@ -162,7 +162,7 @@ type TargetPropPlan = {
 	readonly events: ReadonlyArray<{
 		key: string;
 		source: unknown;
-		owner?: ComponentInstance<any>;
+		owner?: AnyComponentInstance;
 	}>;
 };
 
@@ -173,7 +173,7 @@ function composeTargetProps(
 				Mounted,
 				Readonly<{
 					props: Readonly<Record<string, unknown>>;
-					owner?: ComponentInstance<any>;
+					owner?: AnyComponentInstance;
 				}>
 		  >
 		| undefined

@@ -35,7 +35,7 @@ import {
 	enterSsrTreeDepth,
 	leaveSsrTreeDepth
 } from '../render/limits.js';
-import type { Child, ComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
+import type { AnyComponentInstance, Child, RenderToStringOptions, SsrContext } from '../types.js';
 import {
 	renderServerBoundaryAsync,
 	serverSlotOpening,
@@ -71,7 +71,7 @@ import { renderVNode } from './sync-tree.js';
 export async function renderChildrenAsync(
 	context: SsrContext,
 	children: readonly Child[],
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions
 ): Promise<string> {
 	const html: string[] = [];
@@ -91,7 +91,7 @@ export async function renderChildrenAsync(
 export async function renderChildAsync(
 	context: SsrContext,
 	child: Child,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions
 ): Promise<string> {
 	if (isVNode(child)) return renderVNodeAsync(context, child, parent, options);
@@ -105,7 +105,7 @@ export async function renderChildAsync(
 export async function renderVNodeAsync(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
 	if (canRenderSsrSubtreeSynchronously(context, vnode)) return renderVNode(context, vnode, parent);
@@ -124,7 +124,7 @@ export async function renderVNodeAsync(
 export async function renderVNodeAsyncInner(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
 	const enhanced = await activateSsrEnhancementsAsync(context, vnode, parent, options);
@@ -265,7 +265,7 @@ export async function renderVNodeAsyncInner(
 async function renderNativeSuspenseAsync(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): Promise<{ readonly html: string; readonly status: 'content' | 'fallback' }> {
 	const coordinator = createReadinessCoordinator(() => undefined, { commitSettled: true });

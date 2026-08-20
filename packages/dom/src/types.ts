@@ -1,9 +1,9 @@
 import type {
+	AnyComponentInstance,
 	EnhancementEntry,
 	Child,
 	ComponentContextValues,
 	ComponentFunction,
-	ComponentInstance,
 	ExactRuntimeInspectionOwner,
 	ActivityMode,
 	ErrorContextValue,
@@ -53,7 +53,7 @@ export type Mounted = {
 	afterPlacement?: () => void;
 	rendering?: boolean;
 	rerenderPending?: boolean;
-	instance?: ComponentInstance<any>;
+	instance?: AnyComponentInstance;
 	/** Cached component-root candidates published after this component's structure is complete. */
 	componentRootCache?: {
 		target?: Element;
@@ -64,7 +64,7 @@ export type Mounted = {
 	/** Semantic target exported by an ordinary `_target` boundary and its route dependencies. */
 	targetBoundary?: {
 		selected?: Mounted;
-		owner?: ComponentInstance<any>;
+		owner?: AnyComponentInstance;
 		dependencies?: Set<Mounted>;
 		release?: () => void;
 	};
@@ -73,7 +73,7 @@ export type Mounted = {
 	/** Independently owned `_target` property layers currently attached to this intrinsic. */
 	targetContributions?: Map<
 		Mounted,
-		Readonly<{ props: Readonly<Record<string, unknown>>; owner?: ComponentInstance<any> }>
+		Readonly<{ props: Readonly<Record<string, unknown>>; owner?: AnyComponentInstance }>
 	>;
 	/** Last effective intrinsic props after composing authored and `_target` layers. */
 	targetEffectiveProps?: Record<string, unknown>;
@@ -96,7 +96,7 @@ export type Mounted = {
 		readonly token: symbol;
 		readonly contentScope: EffectScope;
 		readonly readiness: ReadinessCoordinator;
-		readonly owner: ComponentInstance<any>;
+		readonly owner: AnyComponentInstance;
 		readonly parentReadiness?: ReadinessContextValue;
 		readinessRegistration?: ReadinessRegistration;
 		activationGeneration: number;
@@ -105,8 +105,8 @@ export type Mounted = {
 	/** Generation-owned candidate state for a native Suspense boundary. */
 	suspense?: {
 		readonly coordinator: ReadinessCoordinator;
-		readonly owner: ComponentInstance<any>;
-		readonly parentInstance?: ComponentInstance<any>;
+		readonly owner: AnyComponentInstance;
+		readonly parentInstance?: AnyComponentInstance;
 		revealed: boolean;
 		releaseTransition?: () => void;
 		candidate?: {
@@ -170,7 +170,7 @@ export type Root = {
 		readonly parent: Node;
 		readonly mounted: Mounted;
 		readonly execution: TaskFrameExecution<void>;
-		readonly generations: ReadonlyMap<ComponentInstance<any>, number>;
+		readonly generations: ReadonlyMap<AnyComponentInstance, number>;
 		readonly activityToken: symbol;
 		finalized: boolean;
 	}>;
@@ -197,7 +197,7 @@ export type RenderOptions = {
 	/** Internal shared budget used when hydration combines DOM scans and renderer work. */
 	workBudget?: DomWorkBudget;
 	/** Internal logical parent used by a late island mounted in a nested DOM root. */
-	logicalParent?: ComponentInstance<any>;
+	logicalParent?: AnyComponentInstance;
 	/** Explicit instrumented owner installed only when runtime inspection is built in. */
 	inspection?: ExactRuntimeInspectionOwner;
 };

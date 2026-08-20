@@ -4,7 +4,7 @@ import { createDisposableAbortSignal, isAbortSignal } from './signals.js';
 import { isPromiseLike } from '../component/async-value.js';
 
 import type {
-	ComponentInstance,
+	AnyComponentInstance,
 	TaskCleanup,
 	TaskIdleDeadline,
 	TaskIdleOptions,
@@ -18,10 +18,10 @@ import { resumeTaskFrame } from './frame-runtime.js';
 
 import { logFrameworkEvent } from '../component/log.js';
 
-const taskOwners = new WeakMap<AbortSignal, ComponentInstance<any>>();
+const taskOwners = new WeakMap<AbortSignal, AnyComponentInstance>();
 
 /** Associates a task generation signal with its component owner. */
-export function trackTaskOwner(signal: AbortSignal, owner: ComponentInstance<any>): void {
+export function trackTaskOwner(signal: AbortSignal, owner: AnyComponentInstance): void {
 	taskOwners.set(signal, owner);
 }
 const taskCleanupPromises = new WeakMap<AbortSignal, Set<Promise<void>>>();

@@ -1,4 +1,5 @@
 import {
+	type AnyComponentInstance,
 	ReadinessContext,
 	componentReadinessContext,
 	createReadinessCoordinator,
@@ -7,7 +8,6 @@ import {
 	watch,
 	type ActivityMode,
 	type Component,
-	type ComponentInstance,
 	type ReadinessContextValue
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
@@ -27,10 +27,10 @@ import { setMountedRootPresentation } from './component-roots.js';
 export function prepareActivity(
 	root: Root,
 	mounted: Mounted,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	contentScope: EffectScope,
 	mode: ActivityMode
-): ComponentInstance<any> {
+): AnyComponentInstance {
 	let queuedGeneration: number | undefined;
 	const readiness = createReadinessCoordinator(
 		(pending, generation) => {

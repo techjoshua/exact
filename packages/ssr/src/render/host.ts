@@ -2,14 +2,14 @@ import { isVNode, normalizeDocumentVNode, type VNode } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
 import { escapeAttr, escapeText, voidElements } from '../html.js';
 import { renderAttrs } from '../markup.js';
-import type { Child, ComponentInstance, SsrContext } from '../types.js';
+import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
 import { renderChildren } from './sync-tree.js';
 
 /** Transforms element into its required representation. */
 export function renderElement(
 	context: SsrContext,
 	vnode: VNode,
-	parent?: ComponentInstance<any>
+	parent?: AnyComponentInstance
 ): string {
 	const contributed = context.targetContributions.get(vnode);
 	if (contributed) vnode = { ...vnode, props: contributed };

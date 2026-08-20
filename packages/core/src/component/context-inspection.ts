@@ -1,9 +1,9 @@
-import type { ComponentInstance, ContextToken } from './contracts.js';
+import type { AnyComponentInstance, ContextToken } from './contracts.js';
 import { componentDomainInspection } from './domain.js';
 
 /** Publishes a value-free context access event when runtime inspection is attached. */
 export function publishContextAccess(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	token: ContextToken<unknown>,
 	operation: 'read' | 'write'
 ): void {

@@ -1,4 +1,4 @@
-import { decodeExactMarkerPart, type ComponentInstance, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, decodeExactMarkerPart, type VNode } from '@exactjs/core';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import type { EffectScope } from '@exactjs/reactive';
 
@@ -57,7 +57,7 @@ export function recoverMismatchedComponentRange(
 	nodes: readonly Node[],
 	cursor: number,
 	endIndex: number,
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	scope: EffectScope
 ): { mounted: Mounted; next: number } | undefined {

@@ -1,4 +1,4 @@
-import { isVNode, unwrap, type ComponentInstance, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, isVNode, unwrap, type VNode } from '@exactjs/core';
 import {
 	readRenderProgram,
 	readRenderProgramSlot,
@@ -22,7 +22,7 @@ export function mountRenderProgram(
 	root: Root,
 	vnode: VNode,
 	scope: EffectScope,
-	parentInstance?: ComponentInstance<any>
+	parentInstance?: AnyComponentInstance
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
@@ -55,7 +55,7 @@ export function adoptRenderProgram(
 	vnode: VNode,
 	dom: Node,
 	scope: EffectScope,
-	parentInstance: ComponentInstance<any>
+	parentInstance: AnyComponentInstance
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
@@ -111,7 +111,7 @@ export function adoptRenderProgramOrFallback(
 	vnode: VNode,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	scope: EffectScope,
 	end: number,
@@ -120,7 +120,7 @@ export function adoptRenderProgramOrFallback(
 		vnode: VNode,
 		nodes: readonly Node[],
 		cursor: number,
-		parentInstance: ComponentInstance<any>,
+		parentInstance: AnyComponentInstance,
 		parentScope: EffectScope,
 		end?: number
 	) => { mounted: Mounted; next: number } | undefined
@@ -148,7 +148,7 @@ function adoptMarkedRenderProgram(
 	cursor: number,
 	end: number,
 	scope: EffectScope,
-	parentInstance: ComponentInstance<any>
+	parentInstance: AnyComponentInstance
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
@@ -387,7 +387,7 @@ function samePath(left: readonly number[], right: readonly number[]): boolean {
 function ownProgramNodes(
 	program: ExactRenderProgram,
 	root: Node,
-	owner: ComponentInstance<any>
+	owner: AnyComponentInstance
 ): void {
 	for (const planned of program.nodes) {
 		const node = nodeAtPath(root, planned.path);

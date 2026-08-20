@@ -1,4 +1,4 @@
-import { Target, Text, type ComponentInstance, type RootIntroduction } from '@exactjs/core';
+import { type AnyComponentInstance, Target, Text, type RootIntroduction } from '@exactjs/core';
 import {
 	disposeComponentRoot,
 	publishComponentRoot,
@@ -9,7 +9,7 @@ import type { Mounted, Root } from '../types.js';
 
 /** Publishes the first intrinsic element in the component's current logical output. */
 export function refreshComponentRoot(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	presented = true,
 	introduction: RootIntroduction = 'update'
 ): void {
@@ -68,7 +68,7 @@ export function setMountedSubtreeActivity(
 }
 
 /** Releases the private lifecycle record after its owning component has unmounted. */
-export function disposeMountedComponentRoot(instance: ComponentInstance<any>): void {
+export function disposeMountedComponentRoot(instance: AnyComponentInstance): void {
 	disposeComponentRoot(instance);
 }
 

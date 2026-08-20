@@ -1,11 +1,11 @@
-import { unwrap, type ComponentInstance, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, unwrap, type VNode } from '@exactjs/core';
 import { elementOwners, roots } from './state.js';
 import type { Mounted } from './types.js';
 
 /** Defines the dom inspection node type contract. */
 export type DomInspectionNode = {
 	readonly vnode: Readonly<Pick<VNode, 'type' | 'key'>>;
-	readonly instance?: ComponentInstance<any>;
+	readonly instance?: AnyComponentInstance;
 	readonly parent?: DomInspectionNode;
 	readonly children: readonly DomInspectionNode[];
 	readonly activity?: Readonly<{
@@ -23,7 +23,7 @@ export type DomInspectionNode = {
 	readonly target?: Readonly<{
 		selected?: Element;
 		contributions: readonly Readonly<{
-			owner?: ComponentInstance<any>;
+			owner?: AnyComponentInstance;
 			props: Readonly<Record<string, unknown>>;
 		}>[];
 		effectiveProps?: Readonly<Record<string, unknown>>;
@@ -39,7 +39,7 @@ export function inspectDomRoot(container: Element): DomInspectionNode | undefine
 }
 
 /** Resolves an element owner. */
-export function findElementOwner(element: Element): ComponentInstance<any> | undefined {
+export function findElementOwner(element: Element): AnyComponentInstance | undefined {
 	return elementOwners.get(element);
 }
 

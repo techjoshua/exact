@@ -1,7 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createVNode, type Component, type ComponentInstance } from '@exactjs/core';
+import {
+	type AnyComponentInstance,
+	createContext,
+	createVNode,
+	type Component
+} from '@exactjs/core';
 import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@exactjs/dom';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { getHydrationRoot, type CoreHydrationRoot, type ExactClient } from '@exactjs/hydrate';
@@ -675,7 +680,7 @@ function namedInstanceRoot(node: DomInspectionNode | undefined, name: string): s
 function namedInstance(
 	node: DomInspectionNode | undefined,
 	name: string
-): ComponentInstance<any> | undefined {
+): AnyComponentInstance | undefined {
 	if (!node) return undefined;
 	if (node.instance?.type.name === name) return node.instance;
 	for (const child of node.children) {

@@ -1,11 +1,11 @@
-import type { ComponentInstance, VNode } from '@exactjs/core';
+import type { AnyComponentInstance, VNode } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../types.js';
 
 /** Mount operation supplied by the base renderer without importing enhancement implementation code. */
 export type EnhancementMountOperation = (
 	vnode: VNode,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	parentNode: Node | undefined
 ) => Mounted;
@@ -14,7 +14,7 @@ export type EnhancementMountOperation = (
 export type EnhancementPatchOperation = (
 	mounted: Mounted | undefined,
 	vnode: VNode,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined
 ) => Mounted;
 
@@ -26,14 +26,14 @@ export type DomEnhancementCapability = Readonly<{
 	mountDirect?(
 		root: Root,
 		vnode: VNode,
-		parentInstance: ComponentInstance<any> | undefined,
+		parentInstance: AnyComponentInstance | undefined,
 		parentScope: EffectScope | undefined,
 		mount: EnhancementMountOperation
 	): Mounted | undefined;
 	activate(
 		root: Root,
 		mounted: Mounted,
-		parentInstance: ComponentInstance<any> | undefined,
+		parentInstance: AnyComponentInstance | undefined,
 		parentScope: EffectScope | undefined,
 		mount: EnhancementMountOperation
 	): Mounted;
@@ -42,7 +42,7 @@ export type DomEnhancementCapability = Readonly<{
 		mounted: Mounted,
 		next: VNode,
 		parent: Node,
-		parentInstance: ComponentInstance<any> | undefined,
+		parentInstance: AnyComponentInstance | undefined,
 		parentScope: EffectScope | undefined,
 		patch: EnhancementPatchOperation
 	): Mounted;

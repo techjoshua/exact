@@ -1,5 +1,5 @@
 import { attachSuppressedCleanupFailure } from '../cleanup.js';
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 
 /**
  * Releases every lifecycle resource registered before component initialization failed.
@@ -8,7 +8,7 @@ import type { ComponentInstance } from './contracts.js';
  * suppressed diagnostics on that error.
  */
 export function cleanupFailedComponentConstruction(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	primary: unknown
 ): void {
 	try {

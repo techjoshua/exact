@@ -1,4 +1,5 @@
 import {
+	type AnyComponentInstance,
 	ReadinessContext,
 	SuspensionContext,
 	createReadinessCoordinator,
@@ -6,7 +7,6 @@ import {
 	unwrap,
 	type Child,
 	type Component,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
@@ -15,14 +15,14 @@ import type { SsrContext } from '../types.js';
 type RenderChildren = (
 	context: SsrContext,
 	children: readonly Child[],
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ) => string;
 
 /** Renders a native Suspense boundary synchronously and reports its presentation state. */
 export function renderNativeSuspenseSync(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	renderChildren: RenderChildren
 ): { readonly html: string; readonly status: 'content' | 'fallback' } {
 	const coordinator = createReadinessCoordinator(() => undefined);
@@ -56,7 +56,7 @@ function SsrReadinessOwner(
 	this.setContext(SuspensionContext, {
 		suspend: (settlement) =>
 			props.context.register({
-				owner: this as unknown as ComponentInstance<any>,
+				owner: this as unknown as AnyComponentInstance,
 				taskGeneration: 0,
 				settlement,
 				retry: true

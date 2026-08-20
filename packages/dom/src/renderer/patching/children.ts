@@ -1,4 +1,9 @@
-import { normalizeRenderResult, unwrap, type Child, type ComponentInstance } from '@exactjs/core';
+import {
+	type AnyComponentInstance,
+	normalizeRenderResult,
+	unwrap,
+	type Child
+} from '@exactjs/core';
 import { renderInstance, ServerSlot } from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { withEffectScope, type EffectScope } from '@exactjs/reactive';
@@ -28,7 +33,7 @@ export function patchChildren(
 	parent: Node,
 	oldChildren: Mounted[],
 	nextChildren: Child[],
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope,
 	before?: Node | null,
 	structuralOwner?: Mounted
@@ -73,7 +78,7 @@ export function patchChildrenInner(
 	parent: Node,
 	oldChildren: Mounted[],
 	nextChildren: Child[],
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope,
 	before?: Node | null,
 	structuralOwner?: Mounted
@@ -144,7 +149,7 @@ export function patchChildrenInner(
 /** Publishes the ownership-dependent work shared by general and scalar reconciliation. */
 function completeChildReconciliation(
 	root: Root,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	structuralOwner: Mounted | undefined
 ): void {
 	if (structuralOwner) refreshTargetDependents(root, structuralOwner);

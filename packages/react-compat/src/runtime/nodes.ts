@@ -1,4 +1,5 @@
 import {
+	type AnyComponentFunction,
 	Activity as ExactActivity,
 	Fragment as ExactFragment,
 	Suspense as ExactSuspense,
@@ -188,10 +189,10 @@ export function reactElementToVNode(element: ReactElement): VNode {
 /** Performs the exact component type domain operation. */
 export function exactComponentType(
 	type: unknown
-): { component: ComponentFunction<any, any>; refProp?: PropertyKey } | undefined {
+): { component: AnyComponentFunction; refProp?: PropertyKey } | undefined {
 	if ((typeof type !== 'function' && typeof type !== 'object') || type === null) return undefined;
 	if (typeof type === 'function' && isExactComponent(type))
-		return { component: type as ComponentFunction<any, any> };
+		return { component: type as AnyComponentFunction };
 	const candidate = type as {
 		$$typeof?: unknown;
 		exactComponent?: unknown;
@@ -200,7 +201,7 @@ export function exactComponentType(
 	return candidate.$$typeof === EXACT_COMPONENT_TYPE &&
 		typeof candidate.exactComponent === 'function'
 		? {
-				component: candidate.exactComponent as ComponentFunction<any, any>,
+				component: candidate.exactComponent as AnyComponentFunction,
 				...(typeof candidate.exactRefProp === 'string' || typeof candidate.exactRefProp === 'symbol'
 					? { refProp: candidate.exactRefProp }
 					: {})

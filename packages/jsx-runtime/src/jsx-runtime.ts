@@ -1,6 +1,8 @@
 import { createVNode, Fragment } from '@exactjs/core';
 import { createCellVNode } from '@exactjs/core/runtime/render';
 import type {
+	AnyAuthoredComponentFunction,
+	AnyComponentFunction,
 	Activity,
 	AuthoredComponentFunction,
 	Child,
@@ -23,7 +25,7 @@ type Props = Record<string, unknown> & {
 
 type JsxType =
 	| string
-	| AuthoredComponentFunction<any, any>
+	| AnyAuthoredComponentFunction
 	| typeof Activity
 	| typeof Fragment
 	| typeof Suspense;
@@ -85,7 +87,7 @@ function createJsxVNode(type: JsxType, props: Props | null, key?: string): VNode
 	const childList = Array.isArray(children) ? children : children === undefined ? [] : [children];
 	return createCellVNode(
 		createVNode(
-			type as ComponentFunction<any, any>,
+			type as AnyComponentFunction,
 			normalizedKey !== undefined ? { ...rest, key: normalizedKey } : rest,
 			...childList
 		)
@@ -99,7 +101,7 @@ export namespace JSX {
 		| typeof Activity
 		| typeof Fragment
 		| typeof Suspense
-		| AuthoredComponentFunction<any, any>
+		| AnyAuthoredComponentFunction
 		| InteropElementType;
 	export type TargetedEvent<
 		TCurrentTarget extends EventTarget,

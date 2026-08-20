@@ -1,8 +1,8 @@
-import type { ComponentFunction } from '../component/contracts.js';
+import type { AnyComponentFunction } from '../component/contracts.js';
 import type { ComponentRegistryEntryRuntime } from './contracts.js';
 import { invalidRegistryEntry } from './errors.js';
 
-const entryByFacade = new WeakMap<ComponentFunction<any, any>, ComponentRegistryEntryRuntime>();
+const entryByFacade = new WeakMap<AnyComponentFunction, ComponentRegistryEntryRuntime>();
 
 /** Associates a stable component facade with its private registry entry contract. */
 export function registerRegistryFacade(entry: ComponentRegistryEntryRuntime): void {
@@ -11,7 +11,7 @@ export function registerRegistryFacade(entry: ComponentRegistryEntryRuntime): vo
 
 /** Returns private registry entry metadata for a generated facade. */
 export function registryEntryFor(
-	component: ComponentFunction<any, any>
+	component: AnyComponentFunction
 ): ComponentRegistryEntryRuntime | undefined {
 	return entryByFacade.get(component);
 }
@@ -24,7 +24,7 @@ export function registryEntryFor(
  */
 export function loadRegistryEntry(
 	entry: ComponentRegistryEntryRuntime
-): Promise<ComponentFunction<any, any>> {
+): Promise<AnyComponentFunction> {
 	if (entry.resolved) return Promise.resolve(entry.resolved);
 	if (entry.eager) {
 		entry.resolved = entry.eager;

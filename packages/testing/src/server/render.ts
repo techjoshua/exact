@@ -96,21 +96,15 @@ export class ServerTestComponent<
 			) as ServerTestComponent<StateOf<C>, PropsOf<C>>[];
 	}
 	/** Returns the sole direct child of a type or throws when the match is not unique. */
-	child<C extends AnyComponentFunction>(
-		type: C
-	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
+	child<C extends AnyComponentFunction>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.children(type), `direct child ${type.name || 'anonymous'}`);
 	}
 	/** Returns the sole descendant of a type or throws when the match is not unique. */
-	find<C extends AnyComponentFunction>(
-		type: C
-	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
+	find<C extends AnyComponentFunction>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.findAll(type), `descendant ${type.name || 'anonymous'}`);
 	}
 	/** Returns every captured descendant whose component type matches the requested type. */
-	findAll<C extends AnyComponentFunction>(
-		type: C
-	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
+	findAll<C extends AnyComponentFunction>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
 		const output: ServerTestComponent<StateOf<C>, PropsOf<C>>[] = [];
 		const visit = (component: ServerTestComponent) => {
 			for (const child of component.children()) {
@@ -150,9 +144,7 @@ export class ServerTestView<
 	}
 
 	/** Returns the sole captured component of a type, including the root when it matches. */
-	component<C extends AnyComponentFunction>(
-		type: C
-	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
+	component<C extends AnyComponentFunction>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		if (this.root.type === type)
 			return this.root as unknown as ServerTestComponent<StateOf<C>, PropsOf<C>>;
 		return this.root.find(type);

@@ -1,7 +1,7 @@
 import {
+	type AnyComponentInstance,
 	attachSuppressedCleanupFailure,
 	type Child,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { ServerSlot } from '@exactjs/core/runtime/render';
@@ -18,7 +18,7 @@ import { mount } from './root.js';
 export function mountDetachedChildren(
 	root: Root,
 	children: Child[],
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope,
 	parentNode?: Node
 ): Mounted[] {
@@ -68,7 +68,7 @@ export function mountChildren(
 	root: Root,
 	parent: Node,
 	children: Child[],
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope
 ): Mounted[] {
 	assertUniqueChildKeys(children);

@@ -1,4 +1,5 @@
 import {
+	type AnyComponentInstance,
 	Activity,
 	createErrorReport,
 	Dynamic,
@@ -12,7 +13,6 @@ import {
 	UnsafeHtml,
 	watch,
 	type ComponentFunction,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import {
@@ -62,7 +62,7 @@ import {
 export function mount(
 	root: Root,
 	vnode: VNode,
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope,
 	parentNode?: Node,
 	countWork = true
@@ -127,7 +127,7 @@ export function mount(
 function takeParkedMount(
 	root: Root,
 	vnode: VNode,
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope
 ): Mounted | undefined {
 	const candidates = root.replacementParking?.mounts.get(vnode);
@@ -150,7 +150,7 @@ export function mountInner(
 	root: Root,
 	vnode: VNode,
 	scope: EffectScope,
-	parentInstance?: ComponentInstance<any>,
+	parentInstance?: AnyComponentInstance,
 	parentNode?: Node
 ): Mounted {
 	if (isCellVNode(vnode)) {

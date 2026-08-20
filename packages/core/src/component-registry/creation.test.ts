@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import type { Component, ComponentFunction } from '../component/contracts.js';
+import type { AnyComponentFunction, Component, ComponentFunction } from '../component/contracts.js';
 import { createComponentInstance } from '../component/runtime.js';
 import { renderInstance } from '../component/render.js';
 import { isVNode } from '../vnode.js';
@@ -85,7 +85,7 @@ describe('component registries', () => {
 		).toThrow('prototype-safe');
 		expect(() =>
 			createComponentRegistry(
-				() => ({ invalid: 1 }) as unknown as { invalid: ComponentFunction<any, any> }
+				() => ({ invalid: 1 }) as unknown as { invalid: AnyComponentFunction }
 			)
 		).toThrow('expected a component');
 	});

@@ -8,7 +8,7 @@ import {
 	type FetchLike,
 	type HydrateOptions
 } from '@exactjs/hydrate';
-import type { ComponentInstance } from '@exactjs/core';
+import type { AnyComponentInstance } from '@exactjs/core';
 import type { ExactRequestLike, ExactResponseLike } from '@exactjs/server';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 
@@ -152,23 +152,23 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		return this.container;
 	}
 	/** Locates the inspected DOM node currently owned by a component instance. */
-	nodeFor(instance: ComponentInstance<any>): DomInspectionNode | undefined {
+	nodeFor(instance: AnyComponentInstance): DomInspectionNode | undefined {
 		for (const root of this.clientRoots())
 			for (const node of componentNodes(root)) if (node.instance === instance) return node;
 		return undefined;
 	}
 	/** Wraps a mounted component instance with component-scoped test operations. */
-	componentFor(instance: ComponentInstance<any>): TestComponent<any, any> {
+	componentFor(instance: AnyComponentInstance): TestComponent<any, any> {
 		if (!this.nodeFor(instance))
 			throw new Error(`Component ${instance.type.name || instance.id} is not mounted in this view`);
 		return new TestComponent(this, instance);
 	}
 	/** Reports whether a component instance remains mounted in this hydrated view. */
-	hasComponent(instance: ComponentInstance<any>): boolean {
+	hasComponent(instance: AnyComponentInstance): boolean {
 		return !!this.nodeFor(instance);
 	}
 	/** Returns the sole mounted component of a type or throws when the match is ambiguous. */
-	component<C extends import('@exactjs/core').ComponentFunction<any, any>>(
+	component<C extends import('@exactjs/core').AnyComponentFunction>(
 		type: C
 	): TestComponent<StateOf<C>, PropsOf<C>> {
 		const components = this.components(type);
@@ -179,7 +179,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		return components[0]!;
 	}
 	/** Returns every mounted component whose runtime type matches the requested component. */
-	components<C extends import('@exactjs/core').ComponentFunction<any, any>>(
+	components<C extends import('@exactjs/core').AnyComponentFunction>(
 		type: C
 	): TestComponent<StateOf<C>, PropsOf<C>>[] {
 		return this.clientRoots()

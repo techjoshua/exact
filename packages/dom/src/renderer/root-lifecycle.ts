@@ -1,8 +1,8 @@
 import {
+	type AnyComponentInstance,
 	createVNode,
 	LoggerContext,
 	Text,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import {
@@ -35,7 +35,7 @@ import { disposeRetainedReleases } from './retained-release.js';
 import { publishExactProfile } from '@exactjs/instrumentation';
 
 /** Resolves a component dom node. */
-export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
+export function findComponentDomNode(instance: AnyComponentInstance): Node | null {
 	const mounted = componentMounts.get(instance);
 	return mounted ? firstHostNode(mounted) : null;
 }
@@ -57,7 +57,7 @@ export function firstHostNode(mounted: Mounted): Node | null {
 }
 
 /** Transfers a mounted component instance to the root so teardown releases it exactly once. */
-export function ownMountedInstance(mounted: Mounted, instance: ComponentInstance<any>): void {
+export function ownMountedInstance(mounted: Mounted, instance: AnyComponentInstance): void {
 	mounted.instance = instance;
 	componentMounts.set(instance, mounted);
 }

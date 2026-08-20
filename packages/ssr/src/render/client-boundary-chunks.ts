@@ -2,7 +2,7 @@ import { unwrap } from '@exactjs/reactive';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
 import { markerId } from '../markup.js';
-import type { Child, ComponentInstance, SsrContext } from '../types.js';
+import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
 import type { VNode } from '@exactjs/core';
 import {
 	clientBoundaryProps,
@@ -14,7 +14,7 @@ import {
 
 type ChunkRenderer = (
 	child: Child,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	depth: number
 ) => Generator<string>;
 type MarkerRenderer = (id: string, content: () => Generator<string>) => Generator<string>;
@@ -23,7 +23,7 @@ type MarkerRenderer = (id: string, content: () => Generator<string>) => Generato
 export function* renderClientBoundaryChunks(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	depth: number,
 	renderChild: ChunkRenderer,
 	marked: MarkerRenderer

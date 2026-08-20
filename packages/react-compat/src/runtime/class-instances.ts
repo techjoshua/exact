@@ -1,10 +1,10 @@
-import type { ComponentInstance } from '@exactjs/core';
+import type { AnyComponentInstance } from '@exactjs/core';
 
-const classInstanceOwners = new WeakMap<object, ComponentInstance<any>>();
+const classInstanceOwners = new WeakMap<object, AnyComponentInstance>();
 const unmountedClassInstances = new WeakSet<object>();
 
 /** Associates a mounted React class instance with its owning eXact component. */
-export function markReactClassInstanceMounted(value: object, owner: ComponentInstance<any>): void {
+export function markReactClassInstanceMounted(value: object, owner: AnyComponentInstance): void {
 	classInstanceOwners.set(value, owner);
 	unmountedClassInstances.delete(value);
 }
@@ -16,7 +16,7 @@ export function markReactClassInstanceUnmounted(value: object): void {
 }
 
 /** Resolves the eXact component that owns a React class instance. */
-export function exactComponentForReactInstance(value: unknown): ComponentInstance<any> | undefined {
+export function exactComponentForReactInstance(value: unknown): AnyComponentInstance | undefined {
 	return value !== null && (typeof value === 'object' || typeof value === 'function')
 		? classInstanceOwners.get(value as object)
 		: undefined;

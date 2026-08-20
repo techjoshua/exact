@@ -1,5 +1,5 @@
 import { peek, unwrap } from '@exactjs/reactive';
-import type { ComponentInstance, ErrorReport } from './contracts.js';
+import type { AnyComponentInstance, ErrorReport } from './contracts.js';
 
 import { LoggerContext } from './contexts.js';
 
@@ -54,7 +54,7 @@ export function createNoopComponentLog(): ComponentLog {
 }
 
 /** Creates a component log. */
-export function createComponentLog(instance: ComponentInstance<any>): ComponentLog {
+export function createComponentLog(instance: AnyComponentInstance): ComponentLog {
 	return new ComponentLogFacade(instance);
 }
 
@@ -78,7 +78,7 @@ export type ComponentLogMethod = (
  * logger contexts or enabled levels without rebuilding its artifact.
  */
 export function componentLogMethod(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	level: LogLevel
 ): ComponentLogMethod | undefined {
 	const log = instance.log;
@@ -88,7 +88,7 @@ export function componentLogMethod(
 class ComponentLogFacade implements ComponentLog {
 	private readonly scope: LogScope;
 
-	constructor(private readonly instance: ComponentInstance<any>) {
+	constructor(private readonly instance: AnyComponentInstance) {
 		this.scope = componentLogScope(instance);
 	}
 
@@ -203,8 +203,8 @@ function reportLoggerFailure(error: unknown): void {
 	}
 }
 
-function resolveLogger(instance: ComponentInstance<any>): Logger {
-	let cursor: ComponentInstance<any> | undefined = instance.parent;
+function resolveLogger(instance: AnyComponentInstance): Logger {
+	let cursor: AnyComponentInstance | undefined = instance.parent;
 	while (cursor) {
 		if (cursor.contexts.has(LoggerContext.id)) {
 			return unwrap(cursor.contexts.get(LoggerContext.id)) as Logger;
@@ -219,7 +219,7 @@ function resolveLogger(instance: ComponentInstance<any>): Logger {
 }
 
 /** Performs the component log scope domain operation. */
-export function componentLogScope(instance: ComponentInstance<any>): LogScope {
+export function componentLogScope(instance: AnyComponentInstance): LogScope {
 	return {
 		source: 'component',
 		component: {

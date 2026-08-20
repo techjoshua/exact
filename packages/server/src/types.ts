@@ -152,9 +152,7 @@ export type ExactRequestContextRegistrationSource =
 	| readonly AnyExactContextRegistration[]
 	| ((
 			context: ExactContextFactoryContext
-	  ) =>
-			| readonly AnyExactContextRegistration[]
-			| Promise<readonly AnyExactContextRegistration[]>);
+	  ) => readonly AnyExactContextRegistration[] | Promise<readonly AnyExactContextRegistration[]>);
 
 /** Defines the exact context overrides type contract. */
 export type ExactContextOverrides = {

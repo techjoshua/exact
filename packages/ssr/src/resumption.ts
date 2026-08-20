@@ -1,7 +1,7 @@
 import {
+	type AnyComponentInstance,
 	componentContinuationContextValues,
 	settledComponentContinuationIds,
-	type ComponentInstance,
 	type ComponentResumptionActivation
 } from '@exactjs/core';
 import {
@@ -23,7 +23,7 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 	records(): readonly ComponentResumptionActivation[];
 } {
 	const records: MutableResumption[] = [];
-	const recordsByInstance = new WeakMap<ComponentInstance<any>, MutableResumption>();
+	const recordsByInstance = new WeakMap<AnyComponentInstance, MutableResumption>();
 	return {
 		options: {
 			...options,

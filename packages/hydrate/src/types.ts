@@ -1,4 +1,5 @@
 import type {
+	AnyComponentFunction,
 	ComponentDomain,
 	ComponentResumptionActivation,
 	ExactRuntimeInspectionOwner,
@@ -243,7 +244,7 @@ export type ExactEndpointRoutes = {
 
 /** Defers loading one generated client-island implementation until activation. */
 export type ClientIslandLoader = Readonly<{
-	load(): Promise<ComponentFunction<any, any>>;
+	load(): Promise<AnyComponentFunction>;
 	activation?: ExactActivationDecision;
 }>;
 
@@ -275,7 +276,7 @@ export type ExactLazyEventPolicy = Readonly<{
 }>;
 
 /** One eager or compiler-generated lazy client-island implementation. */
-export type ClientIslandRegistryEntry = ComponentFunction<any, any> | ClientIslandLoader;
+export type ClientIslandRegistryEntry = AnyComponentFunction | ClientIslandLoader;
 
 /** Defines the client island registry type contract. */
 export type ClientIslandRegistry = Record<string, ClientIslandRegistryEntry>;

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@exactjs/dom/framework/enhancements';
-import { createVNode, type ComponentFunction } from '@exactjs/core';
+import { type AnyComponentFunction, createVNode } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import {
@@ -19,7 +19,7 @@ import { ThemeSpecimen } from './specimen.js';
 describe('independent theme component-library fixture', () => {
 	it('renders every semantic role and a derived accessible chart without fixture CSS', () => {
 		const entries = { action, field, selection, separator, status, surface, text };
-		const catalog = new Map<string, ComponentFunction<any, any>>(
+		const catalog = new Map<string, AnyComponentFunction>(
 			Object.entries(entries).map(([name, component]) => [
 				`@exactjs/theme/enhancements#${name}`,
 				component

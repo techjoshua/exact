@@ -1,4 +1,4 @@
-import type { ComponentInstance } from '@exactjs/core';
+import type { AnyComponentInstance } from '@exactjs/core';
 import { findElementOwner } from '@exactjs/dom/testing';
 
 import type { AccessibleName, ActionOptions, RoleQueryOptions } from '../contracts.js';
@@ -313,7 +313,7 @@ export type TestElementView = {
 	readonly container: Element;
 	snapshot(): unknown;
 	action(work: () => unknown, options?: ActionOptions): Promise<void>;
-	componentFor(instance: ComponentInstance<any>): TestComponent<any, any>;
+	componentFor(instance: AnyComponentInstance): TestComponent<any, any>;
 };
 
 /** Performs the all elements domain operation. */

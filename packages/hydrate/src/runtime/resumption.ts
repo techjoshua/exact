@@ -1,7 +1,7 @@
 import {
+	type AnyComponentFunction,
 	withComponentResumption,
 	type ComponentDomain,
-	type ComponentFunction,
 	type ComponentResumptionActivation
 } from '@exactjs/core';
 import {
@@ -12,7 +12,7 @@ import { componentDomainResumption } from '@exactjs/core/framework/component-dom
 
 /** Ordered resolver with checkpoints for fallible DOM adoption. */
 export type ComponentResumptionResolver = ((
-	type: ComponentFunction<any, any>
+	type: AnyComponentFunction
 ) => ComponentResumptionActivation | undefined) & {
 	checkpoint(): number;
 	rollback(checkpoint: number): void;
@@ -24,7 +24,7 @@ export function createComponentResumptionResolver(
 ): ComponentResumptionResolver {
 	const consumed = new Set<number>();
 	const history: number[] = [];
-	const resolve = ((type: ComponentFunction<any, any>) => {
+	const resolve = ((type: AnyComponentFunction) => {
 		const contract = readExactComponentContract(type);
 		if (!contract?.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);

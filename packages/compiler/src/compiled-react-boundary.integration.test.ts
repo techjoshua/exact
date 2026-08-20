@@ -48,7 +48,7 @@ describe('compiled direct React boundary', () => {
 	});
 });
 
-function compileMixedApp(target: 'client' | 'server'): exactCore.ComponentFunction<any, any> {
+function compileMixedApp(target: 'client' | 'server'): exactCore.AnyComponentFunction {
 	const source = `
 		import { Widget } from 'react-widget';
 		declare class Component<S> { state: S }
@@ -80,7 +80,7 @@ function compileMixedApp(target: 'client' | 'server'): exactCore.ComponentFuncti
 			target: ts.ScriptTarget.ES2022
 		}
 	}).outputText;
-	const module = { exports: {} as { App?: exactCore.ComponentFunction<any, any> } };
+	const module = { exports: {} as { App?: exactCore.AnyComponentFunction } };
 	const Widget = (props: { value: number; onIncrement(): void }) => {
 		const [local, setLocal] = reactRuntime.useState(0);
 		return reactRuntime.createElement(

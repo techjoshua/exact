@@ -1,4 +1,5 @@
 import {
+	type AnyComponentFunction,
 	ErrorContext,
 	createErrorContext,
 	createVNode,
@@ -63,10 +64,10 @@ export * from './shared.js';
 
 import { createOwnerFrame, enterReactOwnerScope, removeOwnerFrame } from '../internals.js';
 
-const adapterCache = new WeakMap<object, ComponentFunction<any, any>>();
+const adapterCache = new WeakMap<object, AnyComponentFunction>();
 let nextCompatibilityAdapterId = 0;
 
-function markCompatibilityAdapter<T extends ComponentFunction<any, any>>(adapter: T): T {
+function markCompatibilityAdapter<T extends AnyComponentFunction>(adapter: T): T {
 	return markExactComponent(
 		adapter,
 		`@exactjs/react-compat:adapter:${++nextCompatibilityAdapterId}`
