@@ -12,7 +12,7 @@ import type { ExactWebpackPluginOptions } from './plugin.js';
 export type ExactWebpackLanguageIntegration = Readonly<{
 	validation(): Promise<ExactLanguageValidationSession>;
 	packageEnhancements(): Promise<readonly ExactPackageEnhancementImport[]>;
-	dispose(): void;
+	dispose(): Promise<void>;
 }>;
 
 /** Loads package bindings once and lazily starts executable validation providers. */
@@ -41,7 +41,10 @@ export function createExactWebpackLanguageIntegration(
 				})
 			)),
 		packageEnhancements: async () => (await config()).packageEnhancements,
-		dispose: () => void validation?.then((session) => session.dispose())
+		dispose: async () => {
+			const session = await validation?.catch(() => undefined);
+			await session?.dispose();
+		}
 	});
 }
 

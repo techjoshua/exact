@@ -78,11 +78,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		configuration: options.internationalization || undefined,
 		target: options.target === 'server' ? 'server' : 'client'
 	});
-	const disposeBuildProcesses = (): void => {
+	const disposeBuildProcesses = async (): Promise<void> => {
 		componentAuthorization.dispose();
 		compiler.dispose();
 		intl.dispose();
-		void languageValidation?.dispose();
+		await languageValidation?.dispose();
 		languageValidation = undefined;
 	};
 	const microfrontends = createExactViteMicrofrontendIntegration(options);
@@ -147,8 +147,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		configureServer(server) {
-			server.httpServer?.once('close', disposeBuildProcesses);
-			server.watcher?.once('close', disposeBuildProcesses);
+			server.httpServer?.once('close', () => void disposeBuildProcesses());
+			server.watcher?.once('close', () => void disposeBuildProcesses());
 		},
 		async buildEnd(error) {
 			if (!error) intl.validateCatalogs();
