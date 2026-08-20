@@ -43,6 +43,7 @@ async function readBoundedRequestStream(
 		while (true) {
 			if (signal?.aborted) throw signal.reason ?? new DOMException('Request aborted', 'AbortError');
 			const next = await reader.read();
+			if (signal?.aborted) throw signal.reason ?? new DOMException('Request aborted', 'AbortError');
 			if (next.done) break;
 			bytes += next.value.byteLength;
 			if (bytes > maxBytes) throw new Error('request byte limit exceeded');
