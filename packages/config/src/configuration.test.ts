@@ -25,7 +25,8 @@ describe('@exactjs/config types', () => {
 
 		expect(Object.isFrozen(config)).toBe(true);
 		expect(Object.isFrozen(config.componentLibraries?.deny)).toBe(true);
-		expect(() => (config.debug!.catalog = true)).toThrow();
+		const runtimeMutableDebug = config.debug as { catalog: boolean | 'auto' };
+		expect(() => (runtimeMutableDebug.catalog = true)).toThrow();
 	});
 
 	it('rejects invalid built-in options before consumers can diverge', () => {
