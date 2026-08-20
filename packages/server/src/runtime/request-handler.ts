@@ -73,6 +73,7 @@ export {
 	exactServerDebugRuntime,
 	registerExactInspectionCatalog
 } from '../debug/runtime.js';
+import { publishExactProfile } from '@exactjs/instrumentation';
 export type * from '../types.js';
 export type * from '../payload-decoding.js';
 export type * from '../remote-build-contracts.js';
@@ -88,7 +89,8 @@ export async function handleExactRequest(
 		return await handleExactRequestOwned(request, context, context);
 	} finally {
 		if (profileStarted !== undefined) {
-			context.onProfile?.(
+			publishExactProfile(
+				context.onProfile,
 				Object.freeze({
 					subsystem: 'server',
 					phase: 'request',

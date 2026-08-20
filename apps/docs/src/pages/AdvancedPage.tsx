@@ -90,7 +90,8 @@ export function AdvancedPage(this: Component<{}>) {
 				<p>
 					Configure authorization, CSRF protection, CSP, request limits, deployment pinning,
 					observability, and request context before production deployment. Check the relevant guide
-					for current host and integration limits.
+					for current host and integration limits. Profiling callbacks are observational: eXact
+					contains their exceptions so they cannot change the application operation being measured.
 				</p>
 			</Callout>
 		</Article>
