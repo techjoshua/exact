@@ -371,7 +371,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				this.warn?.(message)
 			);
 		},
-		closeBundle: disposeBuildProcesses,
+		closeBundle: async () => disposeBuildProcesses(),
 		transform(code, id) {
 			const transformed = transformExactViteModule({
 				code,
