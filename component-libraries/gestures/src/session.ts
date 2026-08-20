@@ -1,4 +1,4 @@
-import { unwrap, type ComponentInstance } from '@exactjs/core';
+import { type AnyComponentInstance, unwrap } from '@exactjs/core';
 import type {
 	GestureCallback,
 	GestureSample,
@@ -34,7 +34,7 @@ export interface GestureClock {
 
 const browserClock: GestureClock = { now: () => performance.now() };
 let activeClock = browserClock;
-const sessionsByOwner = new WeakMap<ComponentInstance<any>, GestureSession>();
+const sessionsByOwner = new WeakMap<AnyComponentInstance, GestureSession>();
 const routedPointerDown = new WeakSet<Event>();
 
 /** Installs a gesture clock and returns a restoration function. */
@@ -63,9 +63,9 @@ export class GestureSession implements Disposable {
 	#startedAt = 0;
 	#delivery: GestureCallbackDelivery;
 	#binding?: GestureTargetBinding;
-	#owner?: ComponentInstance<any>;
+	#owner?: AnyComponentInstance;
 
-	constructor(report: (error: unknown) => void = () => undefined, owner?: ComponentInstance<any>) {
+	constructor(report: (error: unknown) => void = () => undefined, owner?: AnyComponentInstance) {
 		this.#delivery = new GestureCallbackDelivery(report);
 		this.#owner = owner;
 		if (owner) sessionsByOwner.set(owner, this);

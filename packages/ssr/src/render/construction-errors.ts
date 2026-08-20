@@ -1,7 +1,7 @@
 import {
+	type AnyComponentInstance,
 	createErrorReport,
 	handleComponentError,
-	type ComponentInstance,
 	type RenderFunction
 } from '@exactjs/core';
 
@@ -9,7 +9,7 @@ import {
  * Routes a failed child construction through its parent without treating the parent as the source.
  */
 export function handleSsrConstructionError(
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	error: unknown,
 	componentName: string
 ): RenderFunction | undefined {

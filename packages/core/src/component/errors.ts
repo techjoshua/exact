@@ -1,6 +1,6 @@
 import type {
+	AnyComponentInstance,
 	Child,
-	ComponentInstance,
 	ErrorContextValue,
 	ErrorReport,
 	ErrorReportOptions,
@@ -56,7 +56,7 @@ function createErrorContextWithLimit(
 export function createErrorReport(
 	error: unknown,
 	source: ErrorSource,
-	component?: ComponentInstance<any>,
+	component?: AnyComponentInstance,
 	phase?: string
 ): ErrorReport {
 	return {
@@ -83,9 +83,9 @@ function createErrorReportFromOptions(
 
 /** Routes a component error to the nearest error context or installs the default fallback view. */
 export function handleComponentError(
-	instance: ComponentInstance<any> | undefined,
+	instance: AnyComponentInstance | undefined,
 	event: ErrorReport,
-	errorOwner: ComponentInstance<any> | null | undefined = instance
+	errorOwner: AnyComponentInstance | null | undefined = instance
 ): RenderFunction | undefined {
 	let cursor = instance;
 	while (cursor) {
@@ -124,7 +124,7 @@ export function handleComponentError(
 
 /** Routes a thrown promise to the nearest async rendering boundary. */
 export function handleComponentSuspension(
-	instance: ComponentInstance<any> | undefined,
+	instance: AnyComponentInstance | undefined,
 	promise: PromiseLike<unknown>
 ): boolean {
 	let cursor = instance;

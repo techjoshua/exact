@@ -1,7 +1,12 @@
 import { withTaskObserver, normalizeRenderResult, type VNode } from '@exactjs/core';
 import { renderInstance } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
-import type { ComponentFunction, ComponentInstance, SsrContext, TaskObserver } from '../types.js';
+import type {
+	AnyComponentInstance,
+	ComponentFunction,
+	SsrContext,
+	TaskObserver
+} from '../types.js';
 import { isSsrRenderInterruption } from './limits.js';
 import { componentMarkerId, renderResumableComponentBoundary } from './boundaries.js';
 import { componentName, getComponentProps } from './component-vnode.js';
@@ -24,13 +29,13 @@ const retainSsrComponent = (): void => {};
 export async function renderComponentAsync(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
 	const componentId = componentMarkerId(context, vnode);
 	const enhancement = context.enhancementVNodes.has(vnode);
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
-	let instance: ComponentInstance<any> | undefined;
+	let instance: AnyComponentInstance | undefined;
 	let primary: unknown = noPrimaryFailure;
 	try {
 		try {
@@ -138,7 +143,7 @@ export async function renderComponentAsync(
 function componentHtml(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	componentId: string,
 	html: string,
 	props: Record<string, unknown>,

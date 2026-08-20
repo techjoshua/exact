@@ -198,7 +198,7 @@ function pathSpecifier(applicationRoot: string, configured: string): string {
 	if (!configured.startsWith('.')) return configured;
 	return path.resolve(applicationRoot, configured).replaceAll('\\', '/');
 }
-import type { ComponentFunction, ExactComponentAuthorizationIdentity } from '@exactjs/core';
+import type { AnyComponentFunction, ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactHydrationRegistration } from '@exactjs/hydrate';
 
 /** Public shape exported by every independently loadable eXact remote entry. */
@@ -206,7 +206,7 @@ export type ExactRemoteModule = {
 	buildKey: string;
 	componentAuthorization?: ExactComponentAuthorizationIdentity;
 	root: string;
-	component: ComponentFunction<any, any>;
+	component: AnyComponentFunction;
 	registration: ExactHydrationRegistration;
 };
 

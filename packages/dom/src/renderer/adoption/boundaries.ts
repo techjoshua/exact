@@ -1,4 +1,4 @@
-import { type Child, type ComponentInstance, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, type Child, type VNode } from '@exactjs/core';
 import { type EffectScope } from '@exactjs/reactive';
 import { childToVNode } from '../../children.js';
 import type { Mounted, Root } from '../../types.js';
@@ -79,7 +79,7 @@ export function adoptStaticChildren(
 	root: Root,
 	children: Child[],
 	nodes: readonly Node[],
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	start = 0,
 	end = nodes.length
@@ -101,7 +101,7 @@ export function adoptStaticChildrenRange(
 	root: Root,
 	children: Child[],
 	nodes: readonly Node[],
-	parentInstance: ComponentInstance<any>,
+	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
 	requireAll: boolean,
 	start = 0,

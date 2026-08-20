@@ -1,4 +1,4 @@
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 import { componentLogMethod } from './log.js';
 
 /** Scalar attributes retained by a component performance trace. */
@@ -28,7 +28,7 @@ export type ComponentTraceStarter = (
  * Disabled tracing performs no timestamp read and allocates no span or log arguments.
  */
 export function componentTraceStarter(
-	instance: ComponentInstance<any>
+	instance: AnyComponentInstance
 ): ComponentTraceStarter | undefined {
 	const trace = componentLogMethod(instance, 'trace');
 	if (!trace) return undefined;
@@ -50,7 +50,7 @@ export function componentTraceStarter(
 
 /** Emits one runtime-rechecked timing mark for an enabled component trace span. */
 export function markComponentTrace(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	span: ComponentTraceSpan | undefined,
 	phase: string,
 	attributes?: LazyComponentTraceAttributes

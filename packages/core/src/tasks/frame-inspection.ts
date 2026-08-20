@@ -3,7 +3,7 @@ import type {
 	ExactTaskRuntimeSnapshot,
 	ExactValuePreview
 } from '@exactjs/devtools-protocol';
-import type { ComponentInstance } from '../component/contracts.js';
+import type { AnyComponentInstance } from '../component/contracts.js';
 import { componentDomainInspection } from '../component/domain.js';
 import type { ExactRuntimeInspectionOwner } from '../component/inspection.js';
 import {
@@ -45,7 +45,7 @@ export function inspectTaskFramesForHost(host: object): readonly TaskFrameInspec
 
 /** Returns active task snapshots for a component under an attached inspection owner. */
 export function inspectTaskFrameSnapshotsForHost(
-	host: ComponentInstance<any>,
+	host: AnyComponentInstance,
 	inspection: ExactRuntimeInspectionOwner
 ): readonly ExactTaskRuntimeSnapshot[] {
 	return Object.freeze(
@@ -129,7 +129,7 @@ export function taskFrameInspectionAttached(frame: TaskFrameRecord): boolean {
 }
 
 type InspectedFrameTarget = Readonly<{
-	host: ComponentInstance<any>;
+	host: AnyComponentInstance;
 	inspection: ExactRuntimeInspectionOwner;
 }>;
 
@@ -141,7 +141,7 @@ type TaskSnapshotOutcome = Readonly<{
 
 function taskFrameSnapshot(
 	owner: ExactRuntimeInspectionOwner,
-	component: ComponentInstance<any>,
+	component: AnyComponentInstance,
 	frame: TaskFrameInspection,
 	status: ExactTaskRuntimeSnapshot['status'],
 	outcome: TaskSnapshotOutcome = {}
@@ -209,7 +209,7 @@ function inspectFrame(frame: TaskFrameRecord): TaskFrameInspection {
 }
 
 function inspectedFrameTarget(frame: TaskFrameRecord): InspectedFrameTarget | undefined {
-	const host = frame.owner.host as ComponentInstance<any> | undefined;
+	const host = frame.owner.host as AnyComponentInstance | undefined;
 	const inspection = host?.domain ? componentDomainInspection(host.domain) : undefined;
 	return host && inspection?.attached ? { host, inspection } : undefined;
 }

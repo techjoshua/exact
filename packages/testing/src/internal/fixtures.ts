@@ -1,4 +1,5 @@
 import {
+	type AnyAuthoredComponentFunction,
 	createVNode,
 	type Activity,
 	type AuthoredComponentFunction,
@@ -19,7 +20,7 @@ type TestJsxProps = Record<string, unknown> & {
 	key?: string;
 };
 
-type TestJsxType = VNodeType | AuthoredComponentFunction<any, any>;
+type TestJsxType = VNodeType | AnyAuthoredComponentFunction;
 
 /** Gives a raw renderer-test function the identity application components receive from the compiler. */
 function testType<T extends TestJsxType>(type: T): T {

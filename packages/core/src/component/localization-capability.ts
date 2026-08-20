@@ -1,9 +1,9 @@
 import type { IntlFacade } from '../localization/contracts.js';
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 
 /** Capability-local bridge installed only when component localization is reachable. */
 export type ComponentLocalizationCapability = Readonly<{
-	create(instance: ComponentInstance<any>): IntlFacade;
+	create(instance: AnyComponentInstance): IntlFacade;
 }>;
 
 let localizationCapability: ComponentLocalizationCapability | undefined;

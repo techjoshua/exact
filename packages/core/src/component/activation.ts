@@ -1,6 +1,6 @@
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
-import type { ComponentInstance } from './contracts.js';
+import type { AnyComponentInstance } from './contracts.js';
 import { componentDomainInspection } from './domain.js';
 import { createErrorReport, handleComponentError } from './errors.js';
 import { componentLifecycleHandlers } from './lifecycle-handlers.js';
@@ -14,7 +14,7 @@ export type ComponentActivation = Readonly<{
 
 /** Creates the Activity-aware activation state machine owned by a component instance. */
 export function createComponentActivation(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	isMounted: () => boolean,
 	isDisposed: () => boolean,
 	blockerCount: () => number

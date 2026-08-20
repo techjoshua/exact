@@ -1,4 +1,4 @@
-import type { ComponentInstance } from '../component/contracts.js';
+import type { AnyComponentInstance } from '../component/contracts.js';
 import { taskOwnerForHost } from './owner-hosts.js';
 
 const exactContinuationTask = Symbol.for('@exactjs/continuation-task');
@@ -42,9 +42,7 @@ export function inheritComponentContinuationIdentity(
 }
 
 /** Lists continuation generations that completed successfully on one component instance. */
-export function settledComponentContinuationIds(
-	instance: ComponentInstance<any>
-): readonly string[] {
+export function settledComponentContinuationIds(instance: AnyComponentInstance): readonly string[] {
 	const owner = taskOwnerForHost(instance);
 	if (!owner) return [];
 	const taskIds = [...owner.activationRegistrations]

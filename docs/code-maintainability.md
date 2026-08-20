@@ -57,8 +57,11 @@ signature. Include relevant details about:
 Prefer generics when a public adapter can preserve the source contract, and use `unknown` plus
 validation for data crossing a trust boundary. Explicit `any` remains legitimate for narrow
 existential component and compatibility internals where callers must accept every state or props
-shape. The repository ratchet prevents the production total from increasing; remove or lower its
-baseline as erasure is replaced, and do not hide new `any` behind casts or broad lint exclusions.
+shape. Represent heterogeneous component infrastructure with `AnyComponentFunction`,
+`AnyAuthoredComponentFunction`, and `AnyComponentInstance` so the necessary erasure is declared
+once instead of repeated throughout implementation signatures. The repository ratchet prevents
+the production total from increasing; remove or lower its baseline as erasure is replaced, and do
+not hide new `any` behind casts or broad lint exclusions.
 
 Use `@param`, `@returns`, `@throws`, `@example`, and `@deprecated` only when they
 add information beyond the signature.

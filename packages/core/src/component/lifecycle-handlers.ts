@@ -1,4 +1,4 @@
-import type { ComponentInstance, LifecycleHandler, RenderEventHandler } from './contracts.js';
+import type { AnyComponentInstance, LifecycleHandler, RenderEventHandler } from './contracts.js';
 
 type LifecycleRegistrations = {
 	mount?: LifecycleHandler[];
@@ -10,11 +10,11 @@ type LifecycleRegistrations = {
 
 type LifecyclePhase = Exclude<keyof LifecycleRegistrations, 'render'>;
 
-const registrations = new WeakMap<ComponentInstance<any>, LifecycleRegistrations>();
+const registrations = new WeakMap<AnyComponentInstance, LifecycleRegistrations>();
 const emptyLifecycleHandlers: readonly LifecycleHandler[] = Object.freeze([]);
 const emptyRenderHandlers: readonly RenderEventHandler[] = Object.freeze([]);
 
-function registration(instance: ComponentInstance<any>): LifecycleRegistrations {
+function registration(instance: AnyComponentInstance): LifecycleRegistrations {
 	let value = registrations.get(instance);
 	if (!value) {
 		value = {};
@@ -25,7 +25,7 @@ function registration(instance: ComponentInstance<any>): LifecycleRegistrations 
 
 /** Returns a mutable lifecycle phase list for internal compatibility and authored registration. */
 export function mutableComponentLifecycleHandlers(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	phase: LifecyclePhase
 ): LifecycleHandler[] {
 	const value = registration(instance);
@@ -34,7 +34,7 @@ export function mutableComponentLifecycleHandlers(
 
 /** Reads a lifecycle phase without allocating storage for components that do not use it. */
 export function componentLifecycleHandlers(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	phase: LifecyclePhase
 ): readonly LifecycleHandler[] {
 	return registrations.get(instance)?.[phase] ?? emptyLifecycleHandlers;
@@ -42,7 +42,7 @@ export function componentLifecycleHandlers(
 
 /** Returns a mutable render-listener list for internal compatibility and authored registration. */
 export function mutableComponentRenderHandlers(
-	instance: ComponentInstance<any>
+	instance: AnyComponentInstance
 ): RenderEventHandler[] {
 	const value = registration(instance);
 	return (value.render ??= []);
@@ -50,12 +50,12 @@ export function mutableComponentRenderHandlers(
 
 /** Reads render listeners without allocating storage for components that do not observe renders. */
 export function componentRenderHandlers(
-	instance: ComponentInstance<any>
+	instance: AnyComponentInstance
 ): readonly RenderEventHandler[] {
 	return registrations.get(instance)?.render ?? emptyRenderHandlers;
 }
 
 /** Releases handler arrays after component teardown, including when inspection retains the shell. */
-export function clearComponentLifecycleHandlers(instance: ComponentInstance<any>): void {
+export function clearComponentLifecycleHandlers(instance: AnyComponentInstance): void {
 	registrations.delete(instance);
 }

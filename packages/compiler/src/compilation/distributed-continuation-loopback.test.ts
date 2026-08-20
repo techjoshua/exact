@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component, type ComponentFunction } from '@exactjs/core';
+import { type AnyComponentFunction, createVNode, type Component } from '@exactjs/core';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate, type FetchLike } from '@exactjs/hydrate';
@@ -317,14 +317,11 @@ async function importArtifact(entry: string, output: string): Promise<Record<str
 }
 
 /** Reads one expected generated component export without coupling to its private descriptor. */
-function componentExport(
-	module: Record<string, unknown>,
-	name: string
-): ComponentFunction<any, any> {
+function componentExport(module: Record<string, unknown>, name: string): AnyComponentFunction {
 	const component = module[name];
 	if (typeof component !== 'function')
 		throw new Error(`Missing generated component export ${name}`);
-	return component as ComponentFunction<any, any>;
+	return component as AnyComponentFunction;
 }
 
 /** Adapts the browser transport directly to the runtime-neutral server request handler. */

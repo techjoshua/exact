@@ -1,4 +1,4 @@
-import type { ComponentInstance, ExactRuntimeInspectionOwner, StopHandle } from '@exactjs/core';
+import type { AnyComponentInstance, ExactRuntimeInspectionOwner, StopHandle } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import type { Mounted, Root } from './types.js';
 
@@ -12,13 +12,13 @@ export const directEventHandlers = new WeakMap<
 	Map<string, { type: string; listener: EventListener; capture: boolean }>
 >();
 /** Provides the canonical element owners value. */
-export const elementOwners = new WeakMap<Element, ComponentInstance<any>>();
+export const elementOwners = new WeakMap<Element, AnyComponentInstance>();
 /** Provides ownership for framework marker and text nodes. */
-export const nodeOwners = new WeakMap<Node, ComponentInstance<any>>();
+export const nodeOwners = new WeakMap<Node, AnyComponentInstance>();
 /** Provides the canonical prop bindings value. */
 export const propBindings = new WeakMap<Element, Map<string, StopHandle>>();
 /** Provides the canonical component mounts value. */
-export const componentMounts = new WeakMap<ComponentInstance<any>, Mounted>();
+export const componentMounts = new WeakMap<AnyComponentInstance, Mounted>();
 
 const inspectableRoots = new Set<WeakRef<Root>>();
 const rootInspectionReferences = new WeakMap<Root, WeakRef<Root>>();

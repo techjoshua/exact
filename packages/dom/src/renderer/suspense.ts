@@ -1,4 +1,5 @@
 import {
+	type AnyComponentInstance,
 	ReadinessContext,
 	SuspensionContext,
 	createReadinessCoordinator,
@@ -7,7 +8,6 @@ import {
 	unwrap,
 	type Child,
 	type Component,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
@@ -23,7 +23,7 @@ import { disposeMounted, unmountMany } from './teardown.js';
 export function initializeSuspense(
 	root: Root,
 	mounted: Mounted,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	parentNode: Node | undefined
 ): void {
 	prepareSuspense(root, mounted, parentInstance);
@@ -60,7 +60,7 @@ export function initializeSuspense(
 export function prepareSuspense(
 	root: Root,
 	mounted: Mounted,
-	parentInstance: ComponentInstance<any> | undefined
+	parentInstance: AnyComponentInstance | undefined
 ): void {
 	let queuedGeneration: number | undefined;
 	const coordinator = createReadinessCoordinator((pending, generation, retry) => {
@@ -127,7 +127,7 @@ export function updateSuspense(
 	parent: Node,
 	mounted: Mounted,
 	next: VNode,
-	parentInstance: ComponentInstance<any> | undefined
+	parentInstance: AnyComponentInstance | undefined
 ): void {
 	const suspense = mounted.suspense;
 	if (!suspense) throw new Error('Cannot update a Suspense boundary without readiness state');
@@ -209,7 +209,7 @@ function replacePresentedChildren(
 function mountFallback(
 	root: Root,
 	vnode: VNode,
-	parentInstance: ComponentInstance<any> | undefined,
+	parentInstance: AnyComponentInstance | undefined,
 	scope: EffectScope,
 	parentNode: Node | undefined
 ): Mounted[] {
@@ -246,9 +246,9 @@ function ReadinessOwner(
 	this.setContext(ReadinessContext, props.context);
 	this.setContext(SuspensionContext, {
 		suspend: (settlement) => {
-			trackComponentAsync(this as unknown as ComponentInstance<any>, settlement);
+			trackComponentAsync(this as unknown as AnyComponentInstance, settlement);
 			props.context.register({
-				owner: this as unknown as ComponentInstance<any>,
+				owner: this as unknown as AnyComponentInstance,
 				taskGeneration: 0,
 				settlement,
 				retry: true

@@ -1,15 +1,15 @@
-import { type ComponentFunction } from '@exactjs/core';
+import { type AnyComponentFunction } from '@exactjs/core';
 import {
 	exactComponentIdentity,
 	readExactComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ComponentExecutionSlice } from '@exactjs/core/framework/component-execution';
 
-const slices = new WeakMap<ComponentFunction<any, any>, ComponentExecutionSlice>();
+const slices = new WeakMap<AnyComponentFunction, ComponentExecutionSlice>();
 
 /** Prepares and caches the exact setup-transition slice for one loaded island artifact. */
 export function prepareClientIslandExecutionSlice(
-	component: ComponentFunction<any, any>
+	component: AnyComponentFunction
 ): ComponentExecutionSlice {
 	const cached = slices.get(component);
 	if (cached) return cached;

@@ -1,9 +1,9 @@
 import {
+	type AnyComponentFunction,
 	createVNode,
 	withComponentDomain,
 	type Child,
 	type ComponentDomain,
-	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
 import type { ExactClient } from '../types.js';
@@ -16,7 +16,7 @@ import { bindRequestClientDomain } from './client.js';
  */
 export function createExactRoot(
 	client: ExactClient,
-	component: ComponentFunction<any, any>,
+	component: AnyComponentFunction,
 	componentProps?: Record<string, unknown>,
 	children?: Child | Child[],
 	domain: ComponentDomain = client.domain

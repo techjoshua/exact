@@ -8,7 +8,7 @@ import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
 import { markerId, markerPair } from '../markup.js';
 import type {
-	ComponentInstance,
+	AnyComponentInstance,
 	RenderToDocumentStreamOptions,
 	RenderToStringOptions,
 	SsrContext
@@ -122,7 +122,7 @@ function snapshotResumptionValueWithPolicy(
 export async function renderServerBoundaryAsync(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions
 ): Promise<string> {
 	const id = String(unwrap(vnode.props.id) ?? '');
@@ -224,7 +224,7 @@ export function clientBoundaryGeneratedBucket(path: string): string | undefined 
 export function renderServerBoundaryChildren(
 	context: SsrContext,
 	vnode: VNode,
-	parent: ComponentInstance<any> | undefined
+	parent: AnyComponentInstance | undefined
 ): string {
 	if (!vnode.children.length) return '';
 	const slots = serverBoundarySlotReferences(vnode);
@@ -282,7 +282,7 @@ async function boundedServerRangeChildrenAsync(
 	context: SsrContext,
 	vnode: VNode,
 	slots: readonly ExactServerSlotReference[],
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions
 ): Promise<string> {
 	const ranges = await Promise.all(

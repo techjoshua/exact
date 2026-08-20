@@ -1,4 +1,5 @@
 import type {
+	AnyComponentFunction,
 	ComponentFunction,
 	CompiledEnhancementNode,
 	ContextToken,
@@ -92,7 +93,7 @@ export function omitKnownProps(
  * Native compilation emits the same token-identity contract from `setContext`, `getContext`, and
  * `hasContext` analysis. This helper exists for packages distributed as ordinary TypeScript output.
  */
-export function markExactEnhancementContexts<Component extends ComponentFunction<any, any>>(
+export function markExactEnhancementContexts<Component extends AnyComponentFunction>(
 	component: Component,
 	contract: Readonly<{
 		provides?: readonly ContextToken<unknown>[];
@@ -124,10 +125,10 @@ export function markExactEnhancementContexts<Component extends ComponentFunction
 
 /** Reads the pre-activation context effects carried by one component value. */
 export function readExactEnhancementContexts(
-	component: ComponentFunction<any, any>
+	component: AnyComponentFunction
 ): EnhancementContextContract | undefined {
 	return (
-		component as ComponentFunction<any, any> & {
+		component as AnyComponentFunction & {
 			readonly [exactEnhancementContexts]?: EnhancementContextContract;
 		}
 	)[exactEnhancementContexts];

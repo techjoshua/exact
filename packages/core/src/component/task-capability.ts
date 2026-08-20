@@ -1,6 +1,6 @@
 import type { ExactComponentContract } from '../component-contracts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
-import type { ComponentFunction, ComponentInstance } from './contracts.js';
+import type { AnyComponentFunction, AnyComponentInstance } from './contracts.js';
 
 /** Opaque task capability state retained only by components whose task runtime is reachable. */
 export type ComponentTaskCapabilityState = Readonly<{
@@ -11,8 +11,8 @@ export type ComponentTaskCapabilityState = Readonly<{
 /** Capability-local bridge installed by the task runtime without a reverse kernel import. */
 export type ComponentTaskCapability = Readonly<{
 	create(
-		instance: ComponentInstance<any>,
-		type: ComponentFunction<any, any>,
+		instance: AnyComponentInstance,
+		type: AnyComponentFunction,
 		contract: ExactComponentContract | undefined,
 		execution: PreparedComponentExecution | undefined,
 		props: Record<string, unknown>,
@@ -20,8 +20,8 @@ export type ComponentTaskCapability = Readonly<{
 	): ComponentTaskCapabilityState | undefined;
 	run<T>(state: ComponentTaskCapabilityState | undefined, operation: () => T): T;
 	resume(state: ComponentTaskCapabilityState | undefined, settled: ReadonlySet<string>): void;
-	retain(state: ComponentTaskCapabilityState | undefined, instance: ComponentInstance<any>): void;
-	release(state: ComponentTaskCapabilityState | undefined, instance: ComponentInstance<any>): void;
+	retain(state: ComponentTaskCapabilityState | undefined, instance: AnyComponentInstance): void;
+	release(state: ComponentTaskCapabilityState | undefined, instance: AnyComponentInstance): void;
 }>;
 
 let taskCapability: ComponentTaskCapability | undefined;

@@ -1,19 +1,19 @@
-import type { Child, ComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
+import type { AnyComponentInstance, Child, RenderToStringOptions, SsrContext } from '../types.js';
 import { boundedJoin, SsrTreeNodeError } from './limits.js';
 
 /** Renders one child inside a supplied isolated SSR frame. */
 export type IndependentChildRenderer = (
 	context: SsrContext,
 	child: Child,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions
 ) => Promise<string>;
 
 type IndependentSsrResult = {
 	readonly html: string;
 	readonly frame: SsrContext;
-	readonly created: readonly ComponentInstance<any>[];
-	readonly rendered: readonly ComponentInstance<any>[];
+	readonly created: readonly AnyComponentInstance[];
+	readonly rendered: readonly AnyComponentInstance[];
 };
 
 /** Returns whether request state permits the compiler-proven concurrent path. */
@@ -41,7 +41,7 @@ export function canRenderIndependentChildren(
 export async function renderIndependentChildren(
 	context: SsrContext,
 	children: readonly Child[],
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions,
 	renderChild: IndependentChildRenderer
 ): Promise<string> {
@@ -52,7 +52,7 @@ export async function renderIndependentChildren(
 async function renderIndependentGroup(
 	context: SsrContext,
 	children: readonly Child[],
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions,
 	renderChild: IndependentChildRenderer
 ): Promise<string> {
@@ -66,8 +66,8 @@ async function renderIndependentGroup(
 		const settled = await Promise.allSettled(
 			children.map((child, index) =>
 				context.asyncScheduler.run<IndependentSsrResult>(async () => {
-					const created: ComponentInstance<any>[] = [];
-					const rendered: ComponentInstance<any>[] = [];
+					const created: AnyComponentInstance[] = [];
+					const rendered: AnyComponentInstance[] = [];
 					const frame = isolatedSsrFrame(context, created, rendered);
 					try {
 						const html = await renderChild(frame, child, parent, {
@@ -98,8 +98,8 @@ async function renderIndependentGroup(
 
 function isolatedSsrFrame(
 	context: SsrContext,
-	created: ComponentInstance<any>[],
-	rendered: ComponentInstance<any>[]
+	created: AnyComponentInstance[],
+	rendered: AnyComponentInstance[]
 ): SsrContext {
 	return {
 		...context,

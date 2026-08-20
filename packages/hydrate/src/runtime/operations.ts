@@ -1,5 +1,5 @@
 import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom';
-import { stageTaskMutation, type ComponentInstance, type ContextToken } from '@exactjs/core';
+import { type AnyComponentInstance, stageTaskMutation, type ContextToken } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { enqueueExactOperation } from '../batching.js';
 import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
@@ -37,7 +37,7 @@ export async function invokeAndApply(
 	payload: unknown,
 	options: HydrateOptions,
 	component?: {
-		instance: ComponentInstance<any>;
+		instance: AnyComponentInstance;
 		dependencies: readonly unknown[];
 		contextWrites: readonly Readonly<{ name: string; token: ContextToken<any> }>[];
 		signal: AbortSignal;
@@ -330,11 +330,11 @@ function unauthorizedContinuationContexts(
 	return Object.keys(contexts).some((name) => !allowedNames.has(name) || !mappedNames.has(name));
 }
 
-const componentIds = new WeakMap<ComponentInstance<any>, number>();
+const componentIds = new WeakMap<AnyComponentInstance, number>();
 let nextComponentId = 1;
 
 /** Returns one request-generation namespace for a live component instance. */
-function componentIdentity(instance: ComponentInstance<any>): string {
+function componentIdentity(instance: AnyComponentInstance): string {
 	let id = componentIds.get(instance);
 	if (!id) {
 		id = nextComponentId++;

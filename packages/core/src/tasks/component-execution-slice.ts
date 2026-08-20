@@ -2,7 +2,7 @@ import type { TaskFunction } from './contracts.js';
 import type { TaskOwnerRecord } from './frame-contracts.js';
 import { componentContinuationTaskId } from './component-continuation.js';
 import { exactComponentIdentity } from '../component-contracts.js';
-import type { ComponentInstance } from '../component/contracts.js';
+import type { AnyComponentInstance } from '../component/contracts.js';
 
 /** Component-keyed transition allowlist active only while an island region is constructed. */
 export type ComponentExecutionSlice = ReadonlyMap<string, ReadonlySet<string>>;
@@ -26,7 +26,7 @@ export function componentExecutionSliceAllows(
 	task: TaskFunction<any, unknown>
 ): boolean {
 	if (!activeSlice) return true;
-	const host = owner.host as ComponentInstance<any> | undefined;
+	const host = owner.host as AnyComponentInstance | undefined;
 	if (!host) return true;
 	let componentId: string;
 	try {

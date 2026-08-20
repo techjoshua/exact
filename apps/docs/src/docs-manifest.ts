@@ -1,4 +1,4 @@
-import type { ComponentFunction } from '@exactjs/core';
+import type { AnyComponentFunction } from '@exactjs/core';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
 import { AccessibilityPage } from './pages/AccessibilityPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
@@ -44,7 +44,7 @@ export type DocPage = {
 	label: string;
 	summary: string;
 	keywords: string;
-	component: ComponentFunction<any, any>;
+	component: AnyComponentFunction;
 };
 
 /** Groups related documentation pages under one navigation heading. */

@@ -10,7 +10,12 @@ import {
 	prepareComponentExecution,
 	type PreparedComponentExecution
 } from '@exactjs/core/framework/component-execution';
-import type { ComponentFunction, ComponentInstance, SsrContext } from '../types.js';
+import type {
+	AnyComponentInstance,
+	ComponentFunction,
+	ComponentInstance,
+	SsrContext
+} from '../types.js';
 
 /** Validated component metadata cached beneath one SSR root component. */
 export type SsrComponentExecutionBlueprint = Readonly<{
@@ -48,7 +53,7 @@ export function createSsrComponentInstance<
 	context: SsrContext,
 	component: ComponentFunction<State, Props>,
 	props: Props,
-	parent: ComponentInstance<any> | undefined,
+	parent: AnyComponentInstance | undefined,
 	blueprint = resolveSsrComponentExecution(context, component)
 ): ComponentInstance<State> {
 	return createPreparedComponentInstance(

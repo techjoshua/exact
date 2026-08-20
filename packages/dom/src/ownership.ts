@@ -1,8 +1,8 @@
-import type { ComponentInstance } from '@exactjs/core';
+import type { AnyComponentInstance } from '@exactjs/core';
 import { elementOwners, nodeOwners } from './state.js';
 
 /** Associates a DOM element with the component instance that rendered it. */
-export function setElementOwner(element: Element, owner: ComponentInstance<any>): void {
+export function setElementOwner(element: Element, owner: AnyComponentInstance): void {
 	elementOwners.set(element, owner);
 }
 
@@ -12,7 +12,7 @@ export function clearElementOwner(element: Element): void {
 }
 
 /** Associates a framework marker or text node with its logical component owner. */
-export function setNodeOwner(node: Node, owner: ComponentInstance<any>): void {
+export function setNodeOwner(node: Node, owner: AnyComponentInstance): void {
 	nodeOwners.set(node, owner);
 }
 
@@ -22,7 +22,7 @@ export function clearNodeOwner(node: Node): void {
 }
 
 /** Finds the closest component instance that owns an element or one of its ancestors. */
-export function findOwnerInstance(element: Element): ComponentInstance<any> | undefined {
+export function findOwnerInstance(element: Element): AnyComponentInstance | undefined {
 	let cursor: Element | null = element;
 	while (cursor) {
 		const owner = elementOwners.get(cursor);
@@ -33,7 +33,7 @@ export function findOwnerInstance(element: Element): ComponentInstance<any> | un
 }
 
 /** Finds the closest logical component owner for any DOM node. */
-export function findNodeOwnerInstance(node: Node): ComponentInstance<any> | undefined {
+export function findNodeOwnerInstance(node: Node): AnyComponentInstance | undefined {
 	let cursor: Node | null = node;
 	while (cursor) {
 		const direct = nodeOwners.get(cursor);

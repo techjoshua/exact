@@ -1,11 +1,11 @@
 import type {
+	AnyComponentFunction,
+	AnyComponentInstance,
 	ComponentContinuationDispatch,
 	ComponentContinuationDispatcher,
 	ComponentDomain,
 	ComponentDomainIdentity,
-	ComponentInstance,
-	ComponentResumptionActivation,
-	ComponentFunction
+	ComponentResumptionActivation
 } from './contracts.js';
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
 
@@ -20,9 +20,7 @@ export type ComponentDomainOptions = ComponentDomainIdentity;
 /** Framework-owned capabilities attached without expanding the public domain shape. */
 export type ComponentDomainCapabilities = Readonly<{
 	dispatchContinuation?: ComponentContinuationDispatcher;
-	resumeComponent?: (
-		type: ComponentFunction<any, any>
-	) => ComponentResumptionActivation | undefined;
+	resumeComponent?: (type: AnyComponentFunction) => ComponentResumptionActivation | undefined;
 	inspection?: ExactRuntimeInspectionOwner;
 	inspectionActivation?: 'hydration';
 	/** Immutable wall-clock sample shared by one framework-owned render transaction. */
@@ -101,7 +99,7 @@ function constructComponentDomain(options: ComponentDomainOptions): ComponentDom
 
 /** Advances the server continuation registered for a compiled component task. */
 export function dispatchComponentContinuation<Result = void>(
-	instance: ComponentInstance<any>,
+	instance: AnyComponentInstance,
 	id: string,
 	dependencies: readonly unknown[],
 	signal: AbortSignal,
@@ -146,7 +144,7 @@ export function withComponentResumption<T>(domain: ComponentDomain, work: () => 
 /** Resolves SSR state only for construction explicitly authorized by an adoption boundary. */
 export function resolveComponentResumption(
 	domain: ComponentDomain,
-	type: ComponentFunction<any, any>
+	type: AnyComponentFunction
 ): ComponentResumptionActivation | undefined {
 	return resumingDomains.has(domain)
 		? domainCapabilities.get(domain)?.resumeComponent?.(type)

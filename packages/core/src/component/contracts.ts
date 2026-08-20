@@ -143,20 +143,14 @@ export type ComponentFunction<
 	State extends object = Record<string, unknown>,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Omitted props must accept every authored props shape; unknown would make the function contravariant and unusable.
 	Props = any
-> = (
-	this: Component<State>,
-	props: Props
-) => RenderFunction;
+> = (this: Component<State>, props: Props) => RenderFunction;
 
 /** Authored direct-view component or lexical micro-component shape normalized by the compiler. */
 export type DirectComponentFunction<
 	State extends object = Record<string, unknown>,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Omitted props must accept every authored props shape; unknown would make the function contravariant and unusable.
 	Props = any
-> = (
-	this: Component<State>,
-	props: Props
-) => RenderResult;
+> = (this: Component<State>, props: Props) => RenderResult;
 
 /**
  * Authored async component shape accepted by the eXact compiler.
@@ -168,10 +162,7 @@ export type AsyncComponentFunction<
 	State extends object = Record<string, unknown>,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Omitted props must accept every authored props shape; unknown would make the function contravariant and unusable.
 	Props = any
-> = (
-	this: Component<State>,
-	props: Props
-) => Promise<RenderFunction | RenderResult>;
+> = (this: Component<State>, props: Props) => Promise<RenderFunction | RenderResult>;
 
 /** Component source forms accepted by JSX and normalized before entering a renderer. */
 export type AuthoredComponentFunction<

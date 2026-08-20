@@ -1,4 +1,4 @@
-import { isVNode, type ComponentInstance } from '@exactjs/core';
+import { type AnyComponentInstance, isVNode } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import type { Child, SsrContext } from '../types.js';
@@ -10,7 +10,7 @@ import { renderVNode } from './sync-tree.js';
 export function renderChildren(
 	context: SsrContext,
 	children: readonly Child[],
-	parent?: ComponentInstance<any>
+	parent?: AnyComponentInstance
 ): string {
 	const html: string[] = [];
 	let previousWasText = false;

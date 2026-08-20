@@ -1,8 +1,8 @@
 import {
+	type AnyComponentInstance,
 	createErrorReport,
 	handleComponentError,
 	isTaskCancellation,
-	type ComponentInstance,
 	type StructuralReleaseReason,
 	type VNode
 } from '@exactjs/core';
@@ -43,7 +43,7 @@ export function releaseMountedRange(
 	if (!pending) pendingReleases.set(root, (pending = new Set()));
 	pending.add(mounted);
 	const parentFrame = captureTaskFrame();
-	const generations = new Map<ComponentInstance<any>, number>();
+	const generations = new Map<AnyComponentInstance, number>();
 	const activityToken = Symbol('structural-release');
 	let execution: TaskFrameExecution<void>;
 	try {
@@ -138,8 +138,8 @@ function finalizeRetainedRelease(root: Root, retained: RetainedRelease): void {
 }
 
 /** Finds observed component roots without allocating lifecycle state for unrelated components. */
-function observedRootInstances(mounted: Mounted): ComponentInstance<any>[] {
-	const result: ComponentInstance<any>[] = [];
+function observedRootInstances(mounted: Mounted): AnyComponentInstance[] {
+	const result: AnyComponentInstance[] = [];
 	const pending = [mounted];
 	while (pending.length) {
 		const current = pending.pop()!;
@@ -154,7 +154,7 @@ function observedRootInstances(mounted: Mounted): ComponentInstance<any>[] {
 /** Routes operational release failures through the existing component/root error contract. */
 function reportReleaseFailure(
 	root: Root,
-	owner: ComponentInstance<any> | undefined,
+	owner: AnyComponentInstance | undefined,
 	error: unknown
 ): void {
 	if (owner) {
