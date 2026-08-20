@@ -35,3 +35,7 @@ package.
 See [routing compatibility](../../docs/react-router-compatibility.md).
 The package publishes inert component build facts for the consuming server bundler's
 [component-library policy](../../docs/component-library-trust.md).
+
+Fetcher state is owned by the component using `useFetcher()`: unmounting cancels its active work
+and removes its snapshot. Framework-neutral integrations that call `router.fetch()` directly must
+call `router.releaseFetcher(key)` when that owner is disposed.
