@@ -49,6 +49,18 @@ test('shipping artifact generation builds the theme metadata it consumes', async
 	);
 });
 
+test('the Bun plugin builds its production microfrontend dependency from a clean checkout', async () => {
+	const config = JSON.parse(
+		await readFile(path.resolve('framework-adapters/bun-plugin/tsconfig.json'), 'utf8')
+	);
+	const references = new Set(config.references.map((reference) => reference.path));
+
+	assert.ok(
+		references.has('../../plugins/microfrontends'),
+		'missing Bun plugin TypeScript reference for @exactjs/microfrontends'
+	);
+});
+
 test('machine-specific native corpus timing remains an explicit local diagnostic', async () => {
 	const workflow = await readFile(
 		path.resolve('.github/workflows/native-compiler-packages.yml'),
