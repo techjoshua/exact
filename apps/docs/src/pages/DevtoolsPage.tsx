@@ -114,6 +114,10 @@ export function DevtoolsPage(this: Component<{}>) {
 					The browser merges them into the page timeline without creating a server-side remote
 					history.
 				</p>
+				<p>
+					The development default accepts only matching browser origins. Origin-less tooling must
+					configure an explicit <code>allowDebug</code> policy or authenticated session identity.
+				</p>
 			</section>
 			<section>
 				<h2>Humans and agents use the same protocol</h2>
