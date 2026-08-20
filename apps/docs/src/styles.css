@@ -679,7 +679,12 @@ h1 {
 
 .counter-demo {
 	position: relative;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 1rem;
+	align-items: end;
 	overflow: hidden;
+	padding: 1.25rem 1.5rem;
 }
 
 .counter-demo::before {
@@ -702,9 +707,15 @@ h1 {
 
 .counter-derived {
 	display: block;
-	margin: 0.2rem 0 1.4rem;
+	margin: 0.2rem 0 0;
 	color: var(--text-muted);
 	font-size: 0.85rem;
+}
+
+.counter-demo > button {
+	width: 3.25rem;
+	height: 3.25rem;
+	font-size: 1rem;
 }
 
 .button-row button,
