@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import type {
-	ExactLanguageAnalyzer,
-	ExactLanguageAnalyzerFactory,
-	ExactLanguageJsonValue
+import {
+	exactLanguageProtocolLimits,
+	type ExactLanguageAnalyzer,
+	type ExactLanguageAnalyzerFactory,
+	type ExactLanguageJsonValue
 } from '@exactjs/language-extension-api';
-import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 import type {
 	ExactLanguageRunnerCancel,
@@ -12,13 +12,21 @@ import type {
 	ExactLanguageRunnerRequest,
 	ExactLanguageRunnerResponse
 } from './runner-protocol.js';
+import { readBoundedLines } from './bounded-lines.js';
 
 let analyzer: ExactLanguageAnalyzer | undefined;
 const active = new Map<number, AbortController>();
-const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
-
-lines.on('line', (line) => void dispatch(line));
-lines.on('close', () => void analyzer?.dispose?.());
+const stopInput = readBoundedLines(
+	process.stdin,
+	exactLanguageProtocolLimits.responseBytes,
+	(line) => void dispatch(line),
+	(error) => {
+		process.stderr.write(`${error.message}\n`);
+		process.exitCode = 1;
+		stopInput();
+	}
+);
+process.stdin.once('end', () => void analyzer?.dispose?.());
 
 async function dispatch(line: string): Promise<void> {
 	let frame: ExactLanguageRunnerInitialize | ExactLanguageRunnerRequest | ExactLanguageRunnerCancel;
@@ -51,7 +59,7 @@ async function dispatch(line: string): Promise<void> {
 			await analyzer.dispose?.();
 			analyzer = undefined;
 			respond({ protocol: 1, id: frame.id, result: true });
-			lines.close();
+			stopInput();
 			return;
 		}
 		if (frame.method === 'invalidate') {
