@@ -32,6 +32,7 @@ import {
 	unmountMounted
 } from './teardown.js';
 import { disposeRetainedReleases } from './retained-release.js';
+import { publishExactProfile } from '@exactjs/instrumentation';
 
 /** Resolves a component dom node. */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
@@ -123,7 +124,8 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 		root.initialCommitComplete = true;
 	} finally {
 		if (profileStarted !== undefined) {
-			root.onProfile?.(
+			publishExactProfile(
+				root.onProfile,
 				Object.freeze({
 					subsystem: 'dom',
 					phase: 'render',

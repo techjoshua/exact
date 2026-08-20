@@ -1,4 +1,5 @@
 import { type Component, type ComponentInstance } from '@exactjs/core';
+import { publishExactProfile } from '@exactjs/instrumentation';
 import {
 	cloneHookSlot,
 	runEffectCleanup,
@@ -161,7 +162,8 @@ export class HookHost extends HookState {
 			this.working = undefined;
 			this.rendering = false;
 			if (profileStarted !== undefined) {
-				this.onProfile?.(
+				publishExactProfile(
+					this.onProfile,
 					Object.freeze({
 						subsystem: 'react-compat',
 						phase: 'render',
@@ -250,7 +252,8 @@ export class HookHost extends HookState {
 				this.schedulePassiveEffects();
 		} finally {
 			if (profileStarted !== undefined) {
-				this.onProfile?.(
+				publishExactProfile(
+					this.onProfile,
 					Object.freeze({
 						subsystem: 'react-compat',
 						phase: 'commit',

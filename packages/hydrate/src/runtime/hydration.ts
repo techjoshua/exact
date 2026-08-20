@@ -21,6 +21,7 @@ import type { CoreHydrationRoot, HydrateOptions, HydrateProfileEvent } from '../
 import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
 import { roots } from './state.js';
 import { assertCurrentDocumentContainer } from './current-document.js';
+import { publishExactProfile } from '@exactjs/instrumentation';
 
 /** Hydrates a server-rendered container and returns ownership of its client root. */
 export function hydrateWithClient<T extends CoreHydrationRoot>(
@@ -38,7 +39,8 @@ export function hydrateWithClient<T extends CoreHydrationRoot>(
 		return hydrateRootWithClient(vnode, container, options, createClient, resolveOptions);
 	} finally {
 		if (started !== undefined) {
-			options.onProfile?.(
+			publishExactProfile(
+				options.onProfile,
 				Object.freeze({
 					subsystem: 'hydrate',
 					phase: 'hydrate',
@@ -137,7 +139,8 @@ function reportHydrationPhase(
 	started: number | undefined
 ): void {
 	if (started === undefined) return;
-	options.onProfile?.(
+	publishExactProfile(
+		options.onProfile,
 		Object.freeze({ subsystem: 'hydrate', phase, elapsedMs: performance.now() - started })
 	);
 }

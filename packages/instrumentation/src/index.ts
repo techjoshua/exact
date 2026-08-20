@@ -20,6 +20,19 @@ export type ExactProfileSink<Event extends ExactProfileEvent = ExactProfileEvent
 	event: Event
 ) => void;
 
+/** Publishes an observation without allowing an instrumentation failure to affect framework work. */
+export function publishExactProfile<Event extends ExactProfileEvent>(
+	sink: ExactProfileSink<Event> | undefined,
+	event: Event
+): void {
+	if (!sink) return;
+	try {
+		sink(event);
+	} catch {
+		// Profiling is observational and cannot change the operation it measures.
+	}
+}
+
 /** In-memory profile collector intended for tests, benchmarks, and tooling. */
 export interface ExactProfileCollector<Event extends ExactProfileEvent = ExactProfileEvent> {
 	readonly sink: ExactProfileSink<Event>;

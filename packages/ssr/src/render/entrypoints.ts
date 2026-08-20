@@ -1,5 +1,6 @@
 import { logFrameworkEvent, withTaskObserver, type VNode } from '@exactjs/core';
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
+import { publishExactProfile } from '@exactjs/instrumentation';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
 import {
 	createExactBufferedResponse,
@@ -71,7 +72,8 @@ export function renderToString(
 	} finally {
 		disposePreservingPrimary(() => owner.dispose('ssr render complete'), primary);
 		if (profileStarted !== undefined) {
-			options.onProfile?.(
+			publishExactProfile(
+				options.onProfile,
 				Object.freeze({
 					subsystem: 'ssr',
 					phase: 'render-to-string',
@@ -179,7 +181,8 @@ export function renderToStream(
 		close: () => owner.dispose(options.signal?.reason ?? 'ssr stream complete')
 	});
 	if (profileStarted !== undefined) {
-		options.onProfile?.(
+		publishExactProfile(
+			options.onProfile,
 			Object.freeze({
 				subsystem: 'ssr',
 				phase: 'create-stream',
